@@ -27,6 +27,25 @@ done
 
 ## 解決済み一覧（時系列で新しいものが上）
 
+### 2026-05-17 再確認
+
+- [`list.say.md`](list.say.md)
+  — `Display::say` default method が list receiver で specialize されず、
+  generic `Display::say<'a>` が VM erase まで残っていた件。`[1, 2, 3].say` /
+  `["a", "b"].say` / `(each [1, 2, 3] + each [1, 2]).list.say` は VM で通り、
+  `say` の改行込み stdout も regression 化済み。
+- [`native_handler_self_rewrap_no_accumulate.yu`](native_handler_self_rewrap_no_accumulate.yu)
+  — self-recursive shallow handler の再帰 wrap が VM / native とも `("ab", 3)`。
+- [`native_undet_once_logic_simple.yu`](native_undet_once_logic_simple.yu)
+  — finite `each` の `.list` / `.once` / `.logic` が VM / native とも
+  `[1, 2, 3]` / `just 1` / `[1, 2, 3]`。
+- [`native_junction_all_short_circuit.yu`](native_junction_all_short_circuit.yu)
+  — `all [1, 2, 3] < 5` / `all [1, 2, 3] < 2` / `any [1, 2, 3] > 2` が
+  VM / native とも `"all small"` / `"some big"` / `"some big"`。
+- [`native_ref_list_mut_lost.yu`](native_ref_list_mut_lost.yu)
+  — mutable list ref の index update と `.push` が VM / native とも
+  `[1, 2, 3, 4]`。
+
 ### 2026-05-16 後半 (round-7 の即時解消分)
 
 - [`native_list_show_returns_close_bracket.yu`](native_list_show_returns_close_bracket.yu)
@@ -58,14 +77,6 @@ done
   `propagate_at_threshold = false` の scoped abort として caller chain を止める。
   自己再帰 shallow handler から返った値に `.show` を当てる例は VM / native
   とも `before show / 99 / after show` を出す。
-- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu) の
-  handler guard 部分
-  — 2026-05-16 に effect handler arm の guard を native CPS lowering で扱う
-  ようにした。同じ effect の arm を一つの handler entry 内で順に試し、
-  pattern / guard が失敗したら次 arm へ fall through する。`log::put n, k if
-  n > 0` の再現は native で `()`。
-  **追記 (2026-05-16 後半)**: compile は通るが値違いに変化した (VM `()` /
-  native `0`)。親 `index.md` の round-6 補足観察に記載。
 - [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
   — 2026-05-16 に native CPS の `perform_finish_escaped` 経路を修正した。
   already-escaped handler arm の結果を cross-eval 時にもう一度 `ScopeReturn` へ包むと、

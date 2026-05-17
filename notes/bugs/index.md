@@ -102,17 +102,14 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 
 ### CPS lowering 未対応 / 値違い
 
-- [`native_cps_lowering_unsupported.yu`](solved/native_cps_lowering_unsupported.yu)
-  — labelled `for` の bare effect operation
-  (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
-  `failed to compile native effects object` で止まる。VM では通る。handler arm
-  の `if` guard は 2026-05-16 に native CPS lowering へ追加済み。
-  `#loop_label` 側は bare effect operation を closure 化するだけでは足りない。
-  `for` callback 内の var handler 更新が native で潰れる問題は 2026-05-16 に
-  `runs_var_update_in_for_loop_through_cps_repr` で regression 化して一度解消済み。
-  ただし下の prompt-exit WIP では JIT 側だけ再発し、期待 `4` に対して `0` になる。
+- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
+  — handler arm guard の最小再現は 2026-05-17 時点で compile は通るが、
+  VM `()` / native `0` の値違い。以前の「CPS lowering 未対応 reject」から
+  unit lane が int に潰れる段階へ進んだため、未解決側へ戻した。
 
-- `std::undet` の native CPS 回帰は 2026-05-16 時点で二系統残っている。
+- `std::undet` の native CPS 回帰についての古い設計メモ。2026-05-17 時点で
+  finite `.once` / `.logic` は再現しないが、bare `branch().list` は下の
+  `native_undet_branch_list_returns_scalar.yu` として残っている。
   `(branch()).list` は native CPS eval まで進むが `[[1], [0]]` になり、value arm
   の扱いが list で一段多い。open range + `guard` の `.once` は
   `:just :just 3` になり、queued resumption 成功時に recursive `once` の value arm
@@ -176,36 +173,19 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 食い違いが出たものを 11 件記録した。round-6 の CPS lowering / undet 系より
 広い範囲をカバーしている (display, ref, loop, error wrap, junction, for+if 等)。
 
-**2026-05-16 後半の再確認結果**: 11 件中 5 件は今日の Codex セッション内で
-解消した (list.show / sub:-for return / loop with / for-if var / for-range
-console)。残り 6 件と、解消過程で表面が変わったものを下にまとめる。
+**2026-05-17 再確認結果**: 11 件中 9 件は再現しない。2026-05-16 後半の
+5 件 (list.show / sub:-for return / loop with / for-if var / for-range console) に加え、
+self-rewrap handler / finite undet once+logic / junction all / mutable list ref も
+VM と native で一致したため `solved/` へ移した。残りは bare `branch().list`
+の値破損と `error E:` + `wrap` の native stack overflow。
 
 ### 値違い / 値破損
 
-- [`native_handler_self_rewrap_no_accumulate.yu`](native_handler_self_rewrap_no_accumulate.yu)
-  — self-recursive shallow handler が 2 つ目以降の op に対して k resume
-  しても結果が積まれない。`log::put ("a", 1); log::put ("b", 2)` で
-  VM `("ab", 3)` / native `("a", 1)` (最初の put 分だけ)。
-- [`native_undet_once_logic_simple.yu`](native_undet_once_logic_simple.yu)
-  — 有限 list の `(each [1, 2, 3]).once` が native では `[1, 2, 3]` を返す
-  (期待 `just 1`)。`.logic` も `[1, 2, 3]` (期待 `[1, 2, 3]`、これは合致)
-  だが、`.once` の値が opt ではなく list で返るので、value arm の包み方が
-  単一値拾い側に寄らず `.list` と同じ list 構築側へ流れている疑い。
-  `.list` 単独は OK。複数 root を同じファイルに置くと、`.list; .once` で
-  native は両方 `[1, 2, 3]` になり、root 間の値漏れもまだある。
 - [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
   — `(branch()).list` が native では scalar `0`。`(if branch(): 1 else: 2).list`
-  は VM `[1, 2]` / native `[1, 0]` (`0` は false 由来? bool lane が int に
+  は VM `[1, 2]` / native `1` (true branch 由来? bool lane が int に
   漏れている)。`each` 経由 + `guard` 入りは通るので、bare `branch` 直呼び
   限定。round-6 メモの `[[1], [0]]` とは別の表面。
-- [`native_junction_all_short_circuit.yu`](native_junction_all_short_circuit.yu)
-  — **2026-05-16 後半に症状が変化**。以前は `all [1, 2, 3] < 2` が
-  native で真になる値違いだった。今は 3 root とも native が `1` を返す
-  (VM `"all small"` / `"some big"` / `"some big"`)。`if` の branch arm が
-  string lane に進まず int `1` (true 由来?) に潰れている。
-  junction の `all` / `any` lowering と `if` lane select の両方で値型が
-  bool に丸まっている疑い。round-6 の native_routed_junction 修正と同じ
-  area。
 
 ### compile-time reject / runtime crash
 
@@ -221,12 +201,6 @@ console)。残り 6 件と、解消過程で表面が変わったものを下に
     pointer 風の garbage 値 (`663089232`) を返す。
   - `wrap` 内で `[E]` を持つ helper 経由: native で stack overflow
     (`thread '<unknown>' has overflowed its stack`)。
-- [`native_ref_list_mut_lost.yu`](native_ref_list_mut_lost.yu)
-  — `std/list.md` Mutable list references 節の docs 通りの書き方が崩れる。
-  `&xs[i] = v` で読み戻し `$xs` が scalar `0` 化、`&xs.push v` で push が
-  反映されない (`$xs` は元の `[1, 2, 3]` のまま)。scalar `&x = ...` は OK。
-  `Index ref _ (list _)` impl と `.push` 経由の write back が native の
-  effect / cell lane に届いていない。
 
 ### 既存 round-6 への補足観察
 
@@ -235,7 +209,7 @@ console)。残り 6 件と、解消過程で表面が変わったものを下に
 - `Ord::lt` / `Eq::eq` が free variable として CPS lowering に届く経路は
   まだあり、native は `"a" < "b"` / `(1, 2) == (1, 2)` を含むファイルを
   そもそも compile できない。VM 側は runtime で blocked になるだけ。
-- [`native_cps_lowering_unsupported.yu`](solved/native_cps_lowering_unsupported.yu)
+- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
   の guard 最小再現は今日の build で **compile は通るが値違い**。
   VM `()` / native `0`。handler arm guard が native CPS lowering で組まれた
   あと、unit lane を int に潰している。同ファイル冒頭で記録した
