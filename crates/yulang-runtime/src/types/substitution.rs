@@ -2211,9 +2211,14 @@ fn project_closed_effect_row_substitutions(
         actual_tail.clone(),
     ));
 
-    for var in row_vars {
+    if let [var] = row_vars.as_slice() {
         if principal_plan_substitution_type_usable(&residual, true) {
-            insert_exact_projected_substitution(substitutions, conflicts, var, residual.clone());
+            insert_exact_projected_substitution(
+                substitutions,
+                conflicts,
+                var.clone(),
+                residual.clone(),
+            );
         }
     }
     project_closed_substitutions_from_type(
@@ -2883,11 +2888,11 @@ pub(super) fn infer_effect_row_substitutions(
         .collect::<Vec<_>>();
     let residual = effect_row_from_items_and_tail(residual_items, actual_tail.clone());
 
-    for var in row_vars {
+    if let [var] = row_vars.as_slice() {
         if !(options.skip_empty_effect_residual && effect_is_empty(&residual)) {
             insert_substitution(
                 substitutions,
-                var,
+                var.clone(),
                 residual.clone(),
                 options.prefer_non_never,
             );
@@ -3620,6 +3625,64 @@ mod tests {
         assert!(conflicts.is_empty(), "{conflicts:?}");
         assert_eq!(substitutions.get(&item), Some(&named("int")));
         assert_eq!(substitutions.get(&residual), Some(&named("junction")));
+    }
+
+    #[test]
+    fn closed_projection_does_not_split_residual_across_multiple_row_vars() {
+        let left = tv("left");
+        let right = tv("right");
+        let template = typed_ir::Type::Row {
+            items: vec![
+                typed_ir::Type::Var(left.clone()),
+                typed_ir::Type::Var(right.clone()),
+            ],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let actual = typed_ir::Type::Row {
+            items: vec![named("io"), named("state")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let params = BTreeSet::from([left.clone(), right.clone()]);
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+
+        project_closed_substitutions_from_type(
+            &template,
+            &actual,
+            &params,
+            &mut substitutions,
+            &mut conflicts,
+            true,
+            64,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert!(!substitutions.contains_key(&left));
+        assert!(!substitutions.contains_key(&right));
+    }
+
+    #[test]
+    fn inference_does_not_split_residual_across_multiple_row_vars() {
+        let left = tv("left");
+        let right = tv("right");
+        let template = typed_ir::Type::Row {
+            items: vec![
+                typed_ir::Type::Var(left.clone()),
+                typed_ir::Type::Var(right.clone()),
+            ],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let actual = typed_ir::Type::Row {
+            items: vec![named("io"), named("state")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let params = BTreeSet::from([left.clone(), right.clone()]);
+        let mut substitutions = BTreeMap::new();
+
+        infer_type_substitutions(&template, &actual, &params, &mut substitutions);
+
+        assert!(!substitutions.contains_key(&left));
+        assert!(!substitutions.contains_key(&right));
     }
 
     #[test]
