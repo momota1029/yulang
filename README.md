@@ -147,7 +147,7 @@ The old `yulang-ls` binary is a deprecated stub that delegates to
 
 ## Native Backend
 
-Native execution is a prototype with an explicit subset. The normal
+Native execution is an experimental backend with an explicit subset. The normal
 user-facing entrypoint is:
 
 ```bash
@@ -156,7 +156,7 @@ yulang run --native path/to/file.yu
 
 `yulang native` remains available for artifact generation and backend
 debugging. The interpreter is still the semantic reference; the native backend
-is catching up feature by feature. See
+is an opt-in execution path rather than a replacement. See
 [docs/native-backend.md](docs/native-backend.md) for the supported programs,
 CLI details, and known limits.
 The current native effects path covers string/list/bytes/path/range primitives via
@@ -173,7 +173,10 @@ tuples without leaking visible thunk handles. Scoped routed jumps only leave the
 current native activation when they need to restore an outer return-frame prefix,
 which keeps open-range `for`/`last` exits from continuing recursive folds while
 still allowing root value arms and nondeterministic list collection to run their
-local continuations.
+local continuations. Recursive tuple-returning handlers, block-tail loop
+control, and native root pretty-print for unit/bool values are covered by
+regressions, but the release gate still tracks open nondeterminism/junction
+blockers before native can be cut as an experimental release.
 
 ## Development
 

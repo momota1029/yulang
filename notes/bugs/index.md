@@ -90,13 +90,25 @@ use std::undet::*
 round-5 の非 native snippet は 2026-05-16 時点で全て再現しない。新しい
 非 native regression が出たらここへ戻す。
 
-## 現在の未解決（2026-05-15 round-6 / `yulang run --native` との差分）
+## 現在の未解決（2026-05-18 / native release gate blocker）
 
-2026-05-18 時点では、この section に残していた native CPS の値違いは
-再現していない。
+2026-05-18 の native release gate で、N11/N13 がまだ未通過だと分かった。
 
 - `std::undet` / `junction` 系の有限 `.list` / `.once` / `.logic` と
   `branch().list` は通常テストと `notes/bugs/solved/` の snippet で通る。
+- ただし open-range `.once` の guard 形は、VM / CPS eval / CPS repr eval が
+  `:just 3` に届く一方、CPS repr JIT が `1` を root 表示する。
+  ```bash
+  RUSTC_WRAPPER= cargo test -q -p yulang-compile runs_undet_once_open_range_guard_through_cps_repr
+  ```
+- `std::junction` + finite `each` + method call + `.once` の統合形は、CPS repr eval
+  で `CpsValueId(usize::MAX)` sentinel が root plain value として読まれる。
+  ```bash
+  RUSTC_WRAPPER= cargo test -q -p yulang-compile runs_junction_method_undet_once_through_cps_repr
+  ```
+- CLI smoke でも `examples/06_undet_once.yu` と `examples/showcase.yu` の該当 root は
+  VM と一致しない。release blocker として
+  `notes/design/native-remaining-failure-matrix.md` の N11/N13 に戻した。
 - recursive shallow handler + tuple return + block tail の系列は
   [`solved/native_recursive_tuple_handler_memory_unsafe.md`](solved/native_recursive_tuple_handler_memory_unsafe.md)
   に退避した。最終的には effectful `DirectCall` statement の後続 continuation を
