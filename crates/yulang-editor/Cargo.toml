@@ -1,6 +1,6 @@
 [package]
 name = "yulang-editor"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Editor support utilities for Yulang"
@@ -9,4 +9,4 @@ readme = "../../README.md"
 
 [dependencies]
 rowan = "0.15"
-yulang-parser = { version = "0.1.1", path = "../yulang-parser" }
+yulang-parser = { version = "0.1.2", path = "../yulang-parser" }

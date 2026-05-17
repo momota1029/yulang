@@ -1,6 +1,6 @@
 [package]
 name = "yulang-typed-ir"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Typed intermediate representation and principal-type evidence for Yulang"

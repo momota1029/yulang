@@ -12,4 +12,4 @@ name = "yulang-ls"
 path = "src/main.rs"
 
 [dependencies]
-yulang = { version = "0.1.0", path = "../yulang", default-features = false, features = ["server"] }
+yulang = { version = "0.1.1", path = "../yulang", default-features = false, features = ["server"] }

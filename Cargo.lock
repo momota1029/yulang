@@ -2410,7 +2410,7 @@ dependencies = [
 
 [[package]]
 name = "yulang"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chasa",
  "clap",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-editor"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "rowan",
  "yulang-parser",
@@ -2450,7 +2450,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-infer"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dashmap 6.1.0",
  "rowan",
@@ -2472,7 +2472,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-native"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cranelift-codegen",
  "cranelift-frontend",
@@ -2486,7 +2486,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-parser"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chasa",
  "either",
@@ -2500,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-runtime"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "yulang-infer",
  "yulang-typed-ir",
@@ -2508,7 +2508,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-sources"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "rowan",
  "serde",
@@ -2519,7 +2519,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-typed-ir"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",

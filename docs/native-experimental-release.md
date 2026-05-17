@@ -85,6 +85,34 @@ examples/10_effect_handler.yu -> (9, "3\n6\n")
 examples/showcase.yu          -> 7 / [2, 6, 4] / 5 / just 18
 ```
 
+## Crates.io Publish Order
+
+The current publish bump is based on comparing local package tarballs against
+the previously published crates.io tarballs. Publish in dependency order:
+
+```text
+yulang-parser   0.1.2
+yulang-typed-ir 0.1.2
+yulang-sources  0.1.3
+yulang-infer    0.1.3
+yulang-editor   0.1.2
+yulang-runtime  0.1.1
+yulang-native   0.1.1
+yulang          0.1.1
+yulang-ls       0.1.2
+```
+
+`yulang-compile` is not on crates.io yet; its local dependency requirements are
+updated for this set, but publishing it would be a first release rather than a
+version bump. `yulang-wasm` is not publish-ready as a crates.io package because
+its local workspace dependencies intentionally do not carry registry version
+requirements.
+
+Only `yulang-parser` and `yulang-typed-ir` can pass `cargo publish --dry-run`
+before anything is uploaded. Later crates depend on these new versions and need
+the earlier crates to exist in the crates.io index before their own dry-run can
+resolve registry dependencies.
+
 ## Suggested Release Note
 
 ```text
