@@ -26,15 +26,15 @@ source. The handler hygiene evidence used by the interpreter and native effect
 dispatch is summarized in
 [docs/hidden-effect-evidence.ja.md](hidden-effect-evidence.ja.md).
 
-As of 2026-05-18, `yulang run --native` is close to an experimental release for
-its documented subset, but the release gate is not clear yet. It is still
-opt-in and still reports unsupported native shapes instead of silently falling
-back to the interpreter. The passing gate covers recursive tuple-returning
+As of 2026-05-18, `yulang run --native` is ready to be treated as an
+experimental release candidate for its documented subset. It is still opt-in and
+still reports unsupported native shapes instead of silently falling back to the
+interpreter. The passing gate covers recursive tuple-returning
 handlers, block-tail loop control, finite/open-range `for` with local `last`,
 finite nondeterministic list collection, mutable-reference resumptions, and
-native pretty-printing of unit/bool/runtime-shaped roots. Open blockers remain
-around open-range nondeterministic `.once` and a combined
-`std::junction` + finite nondet + method-call root.
+native pretty-printing of unit/bool/runtime-shaped roots. It also covers
+open-range nondeterministic `.once` and a combined `std::junction` + finite
+nondet + method-call root on the CPS repr native path.
 
 ## Native Direction
 
@@ -205,14 +205,14 @@ checklist, see *Detailed progress* below.
 | Small source-defined algebraic effects              | effects               |   ✅   |
 | Multi-shot resumption (scalar)                      | effects               |   ✅   |
 | Non-scalar values returned through recursive handler / resumption chains | effects | ✅ |
-| `std::undet` `.once` over open-range guarded search | effects | △ |
+| `std::undet` `.once` over open-range guarded search | effects | ✅ |
 | `std::undet` `.once` / `.list` / `.logic` over finite-list choices | effects |   ✅   |
 | Mutable reference edit / update through effects     | effects               |   ✅   |
 | Indexed mutable reference update (`&xs[i] = value`) | effects               |   ✅   |
 | Effectful thunks across function boundaries         | effects (scalar)      |   △   |
 | Stored callback values selected from lists          | effects (prototype)   |   △   |
 | `std::junction` effectful boolean conditions        | effects               |   ✅   |
-| Combined `std::junction` + finite nondet + post-result method call | effects | △ |
+| Combined `std::junction` + finite nondet + post-result method call | effects | ✅ |
 | Finite-list `for` loops with `last` / `next` control | effects (scalar)      |   ✅   |
 | `sub` / `return` through finite-list and open-range `for`, including use of the returned value in later scalar expressions | effects (scalar) | ✅ |
 | Open-range `for` with local `last` result value      | effects               |   ✅   |
@@ -373,9 +373,9 @@ current backend boundaries visible, but detailed regression history lives in
       reference update, and finite-list `std::undet` `.once` / `.list` /
       `.logic` choices run through the effects executable path for covered
       observable roots.
-- [ ] Open-range `std::undet` `.once` and the combined `std::junction` +
-      finite `std::undet.each` + post-result record method-call root are still
-      release blockers on the native effects path.
+- [x] Open-range `std::undet` `.once` and the combined `std::junction` +
+      finite `std::undet.each` + post-result record method-call root match the
+      VM on the native effects path for the covered release-gate cases.
 - [x] `sub` / `return` can escape through finite-list and open-range `for`
       chains on the effects executable path for the covered return-shaped
       roots. Already-escaped handler arms also keep their result when the

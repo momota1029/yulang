@@ -174,9 +174,10 @@ current native activation when they need to restore an outer return-frame prefix
 which keeps open-range `for`/`last` exits from continuing recursive folds while
 still allowing root value arms and nondeterministic list collection to run their
 local continuations. Recursive tuple-returning handlers, block-tail loop
-control, and native root pretty-print for unit/bool values are covered by
-regressions, but the release gate still tracks open nondeterminism/junction
-blockers before native can be cut as an experimental release.
+control, native root pretty-print for unit/bool values, open-range nondet
+`.once`, and combined junction + finite nondet + method-call roots are covered
+by regressions. Native remains experimental and opt-in, but the current release
+gate for the documented effects subset is clear.
 
 ## Development
 

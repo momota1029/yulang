@@ -1845,7 +1845,7 @@ enum ScopeReturnActionRepr {
 fn handle_scope_return_repr(
     result: CpsReprRuntimeValue,
     active_handlers: &mut Vec<CpsReprHandlerFrame>,
-    return_frames: &[CpsReprReturnFrame],
+    _return_frames: &[CpsReprReturnFrame],
     current_function: &str,
     current_eval_id: CpsReprEvalId,
 ) -> ScopeReturnActionRepr {
@@ -1861,23 +1861,7 @@ fn handle_scope_return_repr(
                 let frame = &active_handlers[index];
                 let frame_owner_match = target == REPR_EXIT_RWH_TARGET
                     || frame.escape_owner_function == current_function;
-                let threshold = frame.return_frame_threshold;
-                // Phase 2.2: compute truncate point from the PromptExit
-                // marker on the return-frame stack. See
-                // notes/design/prompt-boundary-frame-model.md.
-                let truncate_at = return_frames
-                    .iter()
-                    .rposition(|f| {
-                        f.prompt_exit
-                            .as_ref()
-                            .is_some_and(|exit| exit.prompt == prompt)
-                    })
-                    .unwrap_or(0);
-                debug_assert_eq!(
-                    truncate_at, threshold,
-                    "prompt_exit marker disagrees with return_frame_threshold (repr): prompt={} marker={} threshold={}",
-                    prompt.0, truncate_at, threshold,
-                );
+                let truncate_at = frame.return_frame_threshold;
                 if !frame_owner_match {
                     return ScopeReturnActionRepr::Propagate(CpsReprRuntimeValue::ScopeReturn {
                         prompt,
@@ -3345,23 +3329,7 @@ fn try_route_scope_return_through_return_frames_repr(
         let mut post_handlers = frame.active_handlers.clone();
         post_handlers.truncate(handler_index);
         let mut rest_frames: Vec<CpsReprReturnFrame> = return_frames[..frame_index].to_vec();
-        let threshold = matched_handler.return_frame_threshold;
-        // Phase 2.2: compute truncate point from the PromptExit marker on
-        // the rest-frame slice rather than the matched handler's cached
-        // threshold. See notes/design/prompt-boundary-frame-model.md.
-        let truncate_at = rest_frames
-            .iter()
-            .rposition(|f| {
-                f.prompt_exit
-                    .as_ref()
-                    .is_some_and(|exit| exit.prompt == matched_handler.prompt)
-            })
-            .unwrap_or(0);
-        debug_assert_eq!(
-            truncate_at, threshold,
-            "prompt_exit marker disagrees with return_frame_threshold (repr frame walk): prompt={} marker={} threshold={}",
-            matched_handler.prompt.0, truncate_at, threshold,
-        );
+        let truncate_at = matched_handler.return_frame_threshold;
         if rest_frames.len() > truncate_at {
             rest_frames.truncate(truncate_at);
         }

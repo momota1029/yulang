@@ -93,12 +93,11 @@ release gate:
 2026-05-18 時点の gate 状態:
 
 - `yulang-native` と `yulang --test native_cli` は通る。
-- `runs_undet_once_open_range_guard_through_cps_repr` は JIT 表示が `[\"1\"]` になり、
-  `:just 3` に届かない。
-- `runs_junction_method_undet_once_through_cps_repr` は CPS repr eval で
-  `CpsValueId(usize::MAX)` sentinel が root plain value として読まれる。
-- CLI smoke でも `examples/06_undet_once.yu` / `examples/showcase.yu` の
-  nondet `.once` 系 root が VM と一致しない。よって native release はまだ切らない。
+- `runs_undet_once_open_range_guard_through_cps_repr` は `:just 3` に届く。
+- `runs_junction_method_undet_once_through_cps_repr` は `:just 18` に届く。
+- CLI smoke でも `examples/06_undet_once.yu` は `just (3, 4, 5)`、
+  `examples/showcase.yu` の final root は `just 18` で VM と一致する。
+- native release gate は、documented experimental subset について通過。
 
 release 後に残すもの:
 
@@ -121,9 +120,7 @@ runtime/core IR
 現在の距離感:
 
 - まだ Yulang 全体を実行する処理系ではない。
-- `yulang run --native` は experimental subset として外へ出せる距離にいるが、
-  open-range nondet `.once` と junction + finite nondet + method の native gate が
-  まだ未通過。
+- `yulang run --native` は experimental subset として外へ出せる距離にいる。
 - Go module/package よりの source identity として realm / band を採用する。
   realm は versioned distribution boundary、band は realm 内の import /
   namespace / build unit。band identity は resolved realm + band path で決まる。
@@ -133,7 +130,6 @@ runtime/core IR
 
 直近 TODO:
 
-- release gate の N11/N13 blocker を直す。
 - `docs/native-backend.md` / README / status docs を release stance に合わせる。
 - native に残す bug / scary note を `solved` / open に仕分ける。
 - release 後は、型 surface audit と monomorphize strictness を優先 track に戻す。
@@ -150,11 +146,10 @@ dynamic handler frame / guard stack / finite nondet など) は
 
 直近の順番:
 
-1. N11/N13 blocker を直し、release gate smoke を再実行する。
-2. native scary notes / bugs を open と solved に仕分ける。
-3. `docs/status.md` の native 列が `docs/native-backend.md` と食い違っていないか見る。
-4. tag / publish 手順が必要なら、native は `experimental` と明記して出す。
-5. その後、型 surface / monomorphize strictness の作業へ戻る。
+1. native scary notes / bugs を open と solved に仕分ける。
+2. `docs/status.md` の native 列が `docs/native-backend.md` と食い違っていないか見る。
+3. tag / publish 手順が必要なら、native は `experimental` と明記して出す。
+4. その後、型 surface / monomorphize strictness の作業へ戻る。
 
 ## 重要な制約
 

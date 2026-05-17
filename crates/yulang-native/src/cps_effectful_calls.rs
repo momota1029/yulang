@@ -86,7 +86,28 @@ fn find_effectful_direct_call(
     continuation
         .stmts
         .iter()
-        .position(|stmt| matches!(stmt, CpsStmt::DirectCall { target, .. } if effectful_functions.contains(target)))
+        .enumerate()
+        .position(|(index, stmt)| {
+            matches!(stmt, CpsStmt::DirectCall { target, .. } if effectful_functions.contains(target))
+                && !direct_call_result_is_already_forced_thunk(continuation, index)
+        })
+}
+
+fn direct_call_result_is_already_forced_thunk(
+    continuation: &CpsContinuation,
+    index: usize,
+) -> bool {
+    let Some(CpsStmt::DirectCall { dest, .. }) = continuation.stmts.get(index) else {
+        return false;
+    };
+    matches!(
+        continuation.stmts.get(index + 1),
+        Some(CpsStmt::ForceThunk { thunk, .. }) if thunk == dest
+    ) || index + 1 == continuation.stmts.len()
+        && matches!(
+            continuation.terminator,
+            CpsTerminator::EffectfulForce { thunk, .. } if thunk == *dest
+        )
 }
 
 fn effectful_function_names(module: &CpsModule) -> HashSet<String> {
@@ -252,6 +273,90 @@ mod tests {
         assert!(matches!(
             module.roots[0].continuations[0].terminator,
             CpsTerminator::EffectfulCall { ref target, .. } if target == "middle"
+        ));
+    }
+
+    #[test]
+    fn keeps_direct_call_when_result_is_already_effectfully_forced() {
+        let mut module = CpsModule {
+            functions: vec![effectful_function("effectful")],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                continuations: vec![CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::MultiShot,
+                    stmts: vec![CpsStmt::DirectCall {
+                        dest: CpsValueId(0),
+                        target: "effectful".to_string(),
+                        args: Vec::new(),
+                    }],
+                    terminator: CpsTerminator::EffectfulForce {
+                        thunk: CpsValueId(0),
+                        resume: CpsContinuationId(1),
+                    },
+                }],
+                handlers: Vec::new(),
+            }],
+        };
+
+        assert_eq!(reify_effectful_direct_calls(&mut module), 0);
+        assert!(matches!(
+            module.roots[0].continuations[0].stmts.as_slice(),
+            [CpsStmt::DirectCall { target, .. }] if target == "effectful"
+        ));
+        assert!(matches!(
+            module.roots[0].continuations[0].terminator,
+            CpsTerminator::EffectfulForce {
+                thunk: CpsValueId(0),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn keeps_direct_call_when_result_is_immediately_forced_by_statement() {
+        let mut module = CpsModule {
+            functions: vec![effectful_function("effectful")],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                continuations: vec![CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::MultiShot,
+                    stmts: vec![
+                        CpsStmt::DirectCall {
+                            dest: CpsValueId(0),
+                            target: "effectful".to_string(),
+                            args: Vec::new(),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(1)),
+                }],
+                handlers: Vec::new(),
+            }],
+        };
+
+        assert_eq!(reify_effectful_direct_calls(&mut module), 0);
+        assert!(matches!(
+            module.roots[0].continuations[0].stmts.as_slice(),
+            [
+                CpsStmt::DirectCall { target, .. },
+                CpsStmt::ForceThunk {
+                    thunk: CpsValueId(0),
+                    ..
+                }
+            ] if target == "effectful"
         ));
     }
 

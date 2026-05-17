@@ -3773,17 +3773,10 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
         let mut post_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
         post_handlers.truncate(handler_index);
         let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
-        // Phase 2.3: compute truncate point from the PromptExit marker on
-        // the return-frame stack. See
-        // notes/design/prompt-boundary-frame-model.md.
-        let truncate_at = post_frames
-            .iter()
-            .rposition(|f| {
-                f.prompt_exit
-                    .as_ref()
-                    .is_some_and(|exit| exit.prompt == frame.prompt)
-            })
-            .unwrap_or(0);
+        // Use the handler's install-time threshold. A prompt_exit marker can
+        // be outside the already-routed frame slice, while the threshold is
+        // the boundary captured with the handler frame itself.
+        let truncate_at = frame.return_frame_threshold;
         if post_frames.len() > truncate_at {
             post_frames.truncate(truncate_at);
         }
@@ -3859,17 +3852,10 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
         NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards.to_vec());
         let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
         post_frames.truncate(return_frame_index);
-        // Phase 2.3: compute truncate point from the PromptExit marker on
-        // the post-truncate frame slice. See
-        // notes/design/prompt-boundary-frame-model.md.
-        let truncate_at = post_frames
-            .iter()
-            .rposition(|f| {
-                f.prompt_exit
-                    .as_ref()
-                    .is_some_and(|exit| exit.prompt == handler.prompt)
-            })
-            .unwrap_or(0);
+        // Use the handler's install-time threshold. A prompt_exit marker can
+        // be outside the already-routed frame slice, while the threshold is
+        // the boundary captured with the handler frame itself.
+        let truncate_at = handler.return_frame_threshold;
         if post_frames.len() > truncate_at {
             post_frames.truncate(truncate_at);
         }
@@ -3911,9 +3897,6 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
                 .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
             return result;
         }
-        // A frame-walk match jumps across an older eval frame. The native
-        // call stack still needs a short-circuit signal until the next real
-        // handler boundary re-wraps the value.
         if current_initial > 0 {
             NATIVE_CPS_I64_ABORT.with(|slot| {
                 *slot.borrow_mut() = routed_jump_abort(

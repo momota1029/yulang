@@ -696,7 +696,7 @@ my fs = [f]
         assert_source_cps_repr_display_with_std(
             r#"(true or false, false or true)
 "#,
-            vec!["(1, 1)"],
+            vec!["(true, true)"],
         )
         .expect("CPS repr native display");
     }
@@ -707,7 +707,7 @@ my fs = [f]
             r#"my xs = [true or false, false or true]
 (std::list::index_raw xs) 1
 "#,
-            vec!["1"],
+            vec!["true"],
         )
         .expect("CPS repr native display");
     }
@@ -718,7 +718,7 @@ my fs = [f]
             r#"my r = {ok: true or false}
 r.ok
 "#,
-            vec!["1"],
+            vec!["true"],
         )
         .expect("CPS repr native display");
     }
@@ -730,7 +730,7 @@ r.ok
     just value -> value
     nil -> false
 "#,
-            vec!["1"],
+            vec!["true"],
         )
         .expect("CPS repr native display");
     }
@@ -870,7 +870,7 @@ x + rest.y
 
 (branch()).list
 "#,
-            vec!["[1, 0]"],
+            vec!["[true, false]"],
         )
         .expect("CPS repr native display");
     }
@@ -1396,8 +1396,8 @@ my safe_read(p: str): result str fs_err = fs_err::wrap:
 
     fn format_native_i64_value(value: &yulang_runtime::VmValue) -> String {
         match value {
-            yulang_runtime::VmValue::Bool(true) => "1".to_string(),
-            yulang_runtime::VmValue::Bool(false) => "0".to_string(),
+            yulang_runtime::VmValue::Bool(true) => "true".to_string(),
+            yulang_runtime::VmValue::Bool(false) => "false".to_string(),
             yulang_runtime::VmValue::String(value) => value.to_flat_string(),
             yulang_runtime::VmValue::Tuple(items) => format!(
                 "({})",
