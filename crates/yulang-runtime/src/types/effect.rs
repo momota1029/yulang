@@ -6,14 +6,7 @@ pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
 
 pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {
     match effect {
-        typed_ir::Type::Never => true,
-        typed_ir::Type::Named { path, args } => {
-            args.is_empty()
-                && matches!(
-                    path.segments.as_slice(),
-                    [typed_ir::Name(name)] if name == "never"
-                )
-        }
+        effect if core_type_is_never(effect) => true,
         typed_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),
         typed_ir::Type::Recursive { body, .. } => effect_is_empty(body),
         _ => false,

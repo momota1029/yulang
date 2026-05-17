@@ -13,13 +13,13 @@ pub(super) fn type_compatible_inner(
     actual: &typed_ir::Type,
     depth: usize,
 ) -> bool {
-    if expected == actual || is_never_type(expected) && is_never_type(actual) {
+    if expected == actual || core_type_is_never(expected) && core_type_is_never(actual) {
         return true;
     }
     if depth == 0 {
         return false;
     }
-    if is_never_type(actual) {
+    if core_type_is_never(actual) {
         return true;
     }
     match (expected, actual) {
@@ -242,14 +242,4 @@ pub(super) fn bounds_admits_type(
             .upper
             .as_deref()
             .is_none_or(|upper| type_compatible_inner(upper, ty, depth))
-}
-
-pub(super) fn is_never_type(ty: &typed_ir::Type) -> bool {
-    matches!(ty, typed_ir::Type::Never)
-        || matches!(
-            ty,
-            typed_ir::Type::Named { path, args }
-                if args.is_empty()
-                    && matches!(path.segments.as_slice(), [typed_ir::Name(name)] if name == "never")
-        )
 }

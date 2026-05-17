@@ -42,6 +42,16 @@ pub(crate) fn core_type_is_inference_var(ty: &typed_ir::Type) -> bool {
     matches!(core_type_meaning(ty), CoreTypeMeaning::InferenceVar)
 }
 
+pub(crate) fn core_type_is_never(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Never)
+        || matches!(
+            ty,
+            typed_ir::Type::Named { path, args }
+                if args.is_empty()
+                    && matches!(path.segments.as_slice(), [typed_ir::Name(name)] if name == "never")
+        )
+}
+
 pub(crate) fn runtime_type_is_inference_hole(ty: &RuntimeType) -> bool {
     matches!(
         ty,
@@ -259,5 +269,18 @@ mod tests {
         assert!(!core_type_is_top(&typed_ir::Type::Unknown));
         assert!(core_type_is_unknown(&typed_ir::Type::Unknown));
         assert!(!core_type_is_unknown(&typed_ir::Type::Any));
+    }
+
+    #[test]
+    fn never_detection_accepts_core_and_named_never() {
+        assert!(core_type_is_never(&typed_ir::Type::Never));
+        assert!(core_type_is_never(&typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("never".to_string())),
+            args: Vec::new(),
+        }));
+        assert!(!core_type_is_never(&typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("unit".to_string())),
+            args: Vec::new(),
+        }));
     }
 }

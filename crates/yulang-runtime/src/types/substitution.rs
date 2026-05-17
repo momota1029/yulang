@@ -1252,7 +1252,7 @@ fn principal_plan_bounds_slot_type(
 
 fn principal_plan_slot_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
     !core_type_is_inference_var(ty)
-        && (allow_never || !matches!(ty, typed_ir::Type::Never))
+        && (allow_never || !core_type_is_never(ty))
         && !type_has_vars(ty)
 }
 
@@ -1266,9 +1266,9 @@ fn insert_exact_projected_substitution(
         return;
     }
     if let Some(existing) = substitutions.get(&var) {
-        if existing == &typed_ir::Type::Never && ty != typed_ir::Type::Never {
+        if core_type_is_never(existing) && !core_type_is_never(&ty) {
             substitutions.insert(var, ty);
-        } else if ty == typed_ir::Type::Never {
+        } else if core_type_is_never(&ty) {
             // `Never` is the empty effect when it appears in effect positions.
             // Keep a more informative closed effect if one has already been
             // projected. Value positions do not insert `Never` here.
@@ -1647,14 +1647,13 @@ fn merge_projected_effect_rows(
     let (mut items, left_tail) = projected_effect_row_parts(left.clone());
     let (right_items, right_tail) = projected_effect_row_parts(right.clone());
     for item in right_items {
-        if !matches!(item, typed_ir::Type::Never) && !items.iter().any(|existing| existing == &item)
-        {
+        if !core_type_is_never(&item) && !items.iter().any(|existing| existing == &item) {
             items.push(item);
         }
     }
-    let tail = if matches!(left_tail, typed_ir::Type::Never) || left_tail == right_tail {
+    let tail = if core_type_is_never(&left_tail) || left_tail == right_tail {
         right_tail
-    } else if matches!(right_tail, typed_ir::Type::Never) {
+    } else if core_type_is_never(&right_tail) {
         left_tail
     } else {
         typed_ir::Type::Union(vec![left_tail, right_tail])
@@ -2332,8 +2331,8 @@ fn projection_choice_item_matches_actual(
     match (template, actual) {
         (template, _) if principal_substitution_type_is_open_default(template) => false,
         (_, actual) if core_type_is_unknown(actual) || core_type_is_top(actual) => false,
-        (_, typed_ir::Type::Never) => allow_never && matches!(template, typed_ir::Type::Never),
-        (typed_ir::Type::Never, _) => false,
+        (_, actual) if core_type_is_never(actual) => allow_never && core_type_is_never(template),
+        (template, _) if core_type_is_never(template) => false,
         (
             typed_ir::Type::Named { path, args },
             typed_ir::Type::Named {
@@ -2826,7 +2825,7 @@ fn principal_plan_substitution_type_usable(ty: &typed_ir::Type, allow_never: boo
         return true;
     }
     !principal_substitution_type_is_open_default(ty)
-        && (allow_never || !matches!(ty, typed_ir::Type::Never))
+        && (allow_never || !core_type_is_never(ty))
         && !type_has_vars(ty)
         && !core_type_contains_top(ty)
         && (allow_never || !core_type_contains_unknown(ty))
@@ -2861,7 +2860,7 @@ fn principal_plan_function_slot_usable(ty: &typed_ir::Type, allow_never: bool) -
     has_function_spine
         && !type_has_vars(current)
         && !core_type_contains_top(current)
-        && (allow_never || !matches!(current, typed_ir::Type::Never))
+        && (allow_never || !core_type_is_never(current))
 }
 
 pub(crate) fn substitute_join_evidence(
@@ -3099,7 +3098,8 @@ fn inference_choice_item_matches_actual(
     match (template, actual) {
         (template, _) if principal_substitution_type_is_open_default(template) => false,
         (_, actual) if core_type_is_unknown(actual) || core_type_is_top(actual) => false,
-        (_, typed_ir::Type::Never) | (typed_ir::Type::Never, _) => false,
+        (_, actual) if core_type_is_never(actual) => false,
+        (template, _) if core_type_is_never(template) => false,
         (
             typed_ir::Type::Named { path, args },
             typed_ir::Type::Named {
