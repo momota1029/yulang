@@ -8020,12 +8020,13 @@ fn capture_native_i64_return_frames_from_start(
     start: usize,
     handled_install_eval_id: u64,
 ) -> Box<[NativeCpsI64ReturnFrame]> {
-    frames[start..]
+    let mut captured = frames[start..]
         .iter()
         .cloned()
         .map(|frame| rebase_native_i64_captured_return_frame(frame, start, handled_install_eval_id))
-        .collect::<Vec<_>>()
-        .into_boxed_slice()
+        .collect::<Vec<_>>();
+    own_native_i64_captured_return_frames(&mut captured);
+    captured.into_boxed_slice()
 }
 
 fn native_i64_prompt_frame_start(
