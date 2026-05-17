@@ -377,6 +377,23 @@ println "hello"
     }
 
     #[test]
+    fn vm_host_specializes_display_say_for_list_receivers() {
+        let (results, stdout) = eval_source_with_std_host(
+            r#"use std::undet::*
+[1, 2, 3].say
+["a", "b"].say
+(each [1, 2, 3] + each [1, 2]).list.say
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Unit, TestValue::Unit, TestValue::Unit]
+        );
+        assert_eq!(stdout, "[1, 2, 3]\n[a, b]\n[2, 3, 3, 4, 4, 5]\n");
+    }
+
+    #[test]
     fn vm_host_handles_fs_text_requests() {
         let path = temp_test_path("yulang-fs-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());

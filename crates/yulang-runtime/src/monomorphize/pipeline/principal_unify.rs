@@ -282,10 +282,11 @@ impl PrincipalUnifier {
                 };
                 self.bump("principal-unify-rewrite-surviving-template-binding");
                 self.rewritten_template_bindings.insert(name);
+                let body_context = Self::binding_body_runtime_context(&module.bindings[index]);
                 let body = module.bindings[index].body.clone();
                 let body = refresh_local_expr_types(body);
                 self.push_rewrite_context("surviving-template");
-                let body = self.rewrite_expr(body, None);
+                let body = self.rewrite_expr(body, body_context);
                 self.pop_rewrite_context();
                 module.bindings[index].body = project_runtime_expr_types(body);
             }
@@ -1513,6 +1514,9 @@ impl PrincipalUnifier {
         if self.local_value_type(spine.target).is_some() || is_specialized_path(spine.target) {
             return None;
         }
+        if let Some(expr) = self.rewrite_role_method_from_receiver(expr, &spine, result_context) {
+            return Some(expr);
+        }
         if !self.generic_bindings.contains(spine.target) {
             if let Some(expr) =
                 self.rewrite_impl_method_call_from_args(expr, &spine, result_context)
@@ -1522,10 +1526,6 @@ impl PrincipalUnifier {
             if let Some(original) = self.bindings_by_path.get(spine.target).cloned()
                 && let Some(expr) =
                     self.rewrite_non_generic_effect_context_call(original, &spine, &expr.ty)
-            {
-                return Some(expr);
-            }
-            if let Some(expr) = self.rewrite_role_method_from_receiver(expr, &spine, result_context)
             {
                 return Some(expr);
             }
@@ -1631,13 +1631,14 @@ impl PrincipalUnifier {
                 .and_then(|bounds| closed_type_from_bounds(Some(bounds)))
                 .map(RuntimeType::core)
                 .unwrap_or_else(|| expr.ty.clone());
+            let binding_signature_vars = binding_signature_vars(&original);
             if let Some(completed) = self.complete_plan_from_runtime_effect_slots(
                 &plan,
                 &original,
                 &spine.args,
                 &spine.evidences,
                 &projection_result_ty,
-                &binding_required_vars,
+                &binding_signature_vars,
                 &original.scheme.requirements,
             ) {
                 self.bump("principal-unify-runtime-effect-completed-plan");
@@ -1735,10 +1736,17 @@ impl PrincipalUnifier {
         }
         let mut substitutions = plan_substitution_map(&plan);
         let binding_substitutions = complete_required_substitutions(&original, &substitutions)
+            .or_else(|| complete_binding_signature_substitutions(&original, &substitutions))
             .or_else(|| {
                 completed_with_internal_missing_substitutions
                     .then(|| complete_binding_type_param_substitutions(&original, &substitutions))
                     .flatten()
+            })
+            .or_else(|| {
+                (!missing_required_vars(&original, &substitutions).is_empty()
+                    && missing_binding_type_params(&original, &substitutions).is_empty())
+                .then(|| complete_binding_type_param_substitutions(&original, &substitutions))
+                .flatten()
             });
         let Some(mut binding_substitutions) = binding_substitutions else {
             self.bump_skip(spine.target, "incomplete-binding-substitution");
@@ -2758,6 +2766,13 @@ impl PrincipalUnifier {
             &required_vars,
             &mut substitutions,
         );
+        let runtime_arg_projected_vars = project_direct_runtime_arg_substitutions(
+            &original.scheme.body,
+            args,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
+        );
         let projection_substitutions = substitutions
             .iter()
             .filter(|(_, ty)| !matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any))
@@ -2950,6 +2965,7 @@ impl PrincipalUnifier {
                 64,
             );
         }
+        conflicts.retain(|var| !runtime_arg_projected_vars.contains(var));
         if !conflicts.is_empty() && conflicts.iter().all(|var| effect_only_vars.contains(var)) {
             self.bump("principal-unify-runtime-effect-effect-conflict-kept");
             debug_principal_unify_projection_outcome(
@@ -3088,11 +3104,16 @@ impl PrincipalUnifier {
             .collect();
         fill_plan_runtime_slots_from_principal(&mut plan, arg_count);
         fill_effectful_input_runtime_slot_from_result(&mut plan, arg_count);
-        let normalized = normalize_principal_elaboration_plan_with_role_impls(
+        let projected_substitutions = substitutions.clone();
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
             requirements,
             &self.role_associated_impls,
+        );
+        preserve_projected_substitutions_if_normalized_empty(
+            &mut normalized,
+            projected_substitutions,
         );
         normalized.complete.then_some(normalized)
     }
@@ -5240,6 +5261,15 @@ fn binding_required_vars(binding: &Binding) -> BTreeSet<typed_ir::TypeVar> {
     vars
 }
 
+fn binding_signature_vars(binding: &Binding) -> BTreeSet<typed_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_core_type_vars(&binding.scheme.body, &mut vars);
+    for requirement in &binding.scheme.requirements {
+        collect_role_requirement_vars(requirement, &mut vars);
+    }
+    vars
+}
+
 fn principal_unify_skip_reason_benign(reason: &str) -> bool {
     matches!(
         reason,
@@ -5336,6 +5366,25 @@ fn complete_binding_type_param_substitutions(
         .type_params
         .iter()
         .cloned()
+        .map(|var| {
+            let Some(ty) = substitutions.get(&var) else {
+                return effect_only_vars
+                    .contains(&var)
+                    .then_some((var, typed_ir::Type::Never));
+            };
+            substitution_is_complete_for_var(&var, ty, &effect_only_vars).then(|| (var, ty.clone()))
+        })
+        .collect()
+}
+
+fn complete_binding_signature_substitutions(
+    binding: &Binding,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Option<BTreeMap<typed_ir::TypeVar, typed_ir::Type>> {
+    let effect_only_vars = binding_effect_only_vars(binding);
+    let signature_vars = binding_signature_vars(binding);
+    signature_vars
+        .into_iter()
         .map(|var| {
             let Some(ty) = substitutions.get(&var) else {
                 return effect_only_vars
@@ -7857,6 +7906,76 @@ fn project_constructor_payload_type_vars(
         ),
         _ => {}
     }
+}
+
+fn project_direct_runtime_arg_substitutions(
+    principal: &typed_ir::Type,
+    args: &[&Expr],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) -> BTreeSet<typed_ir::TypeVar> {
+    let mut projected = BTreeSet::new();
+    let Some((params, _ret, _ret_effect)) = core_fun_spine_parts_exact(principal, args.len())
+    else {
+        return projected;
+    };
+    for (arg, (param, _param_effect)) in args.iter().zip(params) {
+        let (actual, _actual_effect) = runtime_value_and_effect(&arg.ty);
+        project_direct_runtime_arg_value_substitution(
+            &param,
+            &actual,
+            required_vars,
+            substitutions,
+            conflicts,
+            &mut projected,
+        );
+    }
+    projected
+}
+
+fn project_direct_runtime_arg_value_substitution(
+    param: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+    projected: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    let typed_ir::Type::Var(var) = param else {
+        return;
+    };
+    if !required_vars.contains(var) {
+        return;
+    }
+    let actual = normalize_projected_value_substitution_type(actual, substitutions);
+    if !closed_slot_type_usable(&actual, false) {
+        return;
+    }
+    projected.insert(var.clone());
+    insert_runtime_arg_value_substitution(substitutions, conflicts, var.clone(), actual);
+}
+
+fn insert_runtime_arg_value_substitution(
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+    var: typed_ir::TypeVar,
+    ty: typed_ir::Type,
+) {
+    let ty = normalize_projected_value_shape(ty);
+    let Some(existing) = substitutions.get(&var) else {
+        substitutions.insert(var.clone(), ty);
+        conflicts.remove(&var);
+        return;
+    };
+    let existing = normalize_projected_value_shape(existing.clone());
+    let merged = merge_projected_value_type_precision(&existing, &ty);
+    if let Some(merged) = merged {
+        substitutions.insert(var.clone(), merged);
+    } else {
+        substitutions.insert(var.clone(), ty);
+    }
+    conflicts.remove(&var);
 }
 
 fn unique_closed_callback_param_candidate(

@@ -300,10 +300,7 @@ fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
     {
         args.push(arg.as_ref());
         evidences_by_arg.push(evidence.as_ref());
-        current = callee;
-        while let ExprKind::BindHere { expr } = &current.kind {
-            current = expr;
-        }
+        current = peel_principal_callee_wrappers(callee);
     }
     let ExprKind::Var(target) = &current.kind else {
         return None;
@@ -317,6 +314,19 @@ fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
     })
 }
 
+fn peel_principal_callee_wrappers(expr: &Expr) -> &Expr {
+    let mut current = expr;
+    loop {
+        current = match &current.kind {
+            ExprKind::BindHere { expr }
+            | ExprKind::Coerce { expr, .. }
+            | ExprKind::Pack { expr, .. } => expr,
+            ExprKind::AddId { thunk, .. } => thunk,
+            _ => return current,
+        };
+    }
+}
+
 pub(super) fn principal_elaboration_plan_for_expr(
     expr: &Expr,
     binding: &Binding,
@@ -326,25 +336,28 @@ pub(super) fn principal_elaboration_plan_for_expr(
     if spine.target != &binding.name {
         return None;
     }
-    let spine_plan =
-        complete_principal_elaboration_plan_from_spine(&spine, binding, result_contextual);
-    if let Some(plan) = spine_plan.as_ref().filter(|plan| plan.complete) {
-        return Some(plan.clone());
-    }
-    if spine_plan.is_some() {
-        return spine_plan;
-    }
     if let Some(plan) = spine.evidences_by_arg.iter().find_map(|evidence| {
         let evidence = evidence.as_ref().copied()?;
         let plan = evidence.principal_elaboration.as_ref()?;
+        let plan = normalize_principal_elaboration_plan_with_requirements(
+            plan.clone(),
+            &evidence.substitution_candidates,
+            &binding.scheme.requirements,
+        );
         (plan.complete
+            && plan_completes_binding_substitution_vars(&plan, binding)
             && plan
                 .target
                 .as_ref()
                 .is_none_or(|plan_target| plan_target == &binding.name))
-        .then_some(plan.clone())
+        .then_some(plan)
     }) {
         return Some(plan);
+    }
+    let spine_plan =
+        complete_principal_elaboration_plan_from_spine(&spine, binding, result_contextual);
+    if let Some(plan) = spine_plan.as_ref().filter(|plan| plan.complete) {
+        return Some(plan.clone());
     }
     spine_plan.or_else(|| {
         spine.evidences_by_arg.iter().find_map(|evidence| {
@@ -357,6 +370,20 @@ pub(super) fn principal_elaboration_plan_for_expr(
             .then_some(plan.clone())
         })
     })
+}
+
+fn plan_completes_binding_substitution_vars(
+    plan: &typed_ir::PrincipalElaborationPlan,
+    binding: &Binding,
+) -> bool {
+    principal_binding_substitution_vars(binding)
+        .iter()
+        .all(|param| {
+            plan.substitutions
+                .iter()
+                .find(|substitution| &substitution.var == param)
+                .is_some_and(|substitution| principal_plan_type_is_precise(&substitution.ty))
+        })
 }
 
 fn complete_principal_elaboration_plan_from_spine(
@@ -507,14 +534,13 @@ fn debug_principal_elaborate_enabled() -> bool {
 
 fn exact_type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
     match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
-        (Some(lower), None) => Some(lower),
         (Some(lower), Some(upper)) if type_matches_exact_bounds(lower, upper) => Some(lower),
         _ => None,
     }
 }
 
 fn type_matches_exact_bounds(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {
-    if actual == expected || matches!(actual, typed_ir::Type::Any) {
+    if actual == expected && !matches!(actual, typed_ir::Type::Any) {
         return true;
     }
     match (actual, expected) {
