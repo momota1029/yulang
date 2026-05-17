@@ -299,6 +299,12 @@ mod tests {
     }
 
     #[test]
+    fn type_compatibility_depth_exhaustion_is_not_success() {
+        assert!(type_compatible_inner(&named("int"), &named("int"), 0));
+        assert!(!type_compatible_inner(&named("int"), &named("bool"), 0));
+    }
+
+    #[test]
     fn function_type_compatibility_checks_effect_slots() {
         let with_ret_effect = |effect| typed_ir::Type::Fun {
             param: Box::new(named("unit")),

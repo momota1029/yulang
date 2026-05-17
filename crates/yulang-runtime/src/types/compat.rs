@@ -13,11 +13,11 @@ pub(super) fn type_compatible_inner(
     actual: &typed_ir::Type,
     depth: usize,
 ) -> bool {
-    if depth == 0 {
-        return true;
-    }
     if expected == actual || is_never_type(expected) && is_never_type(actual) {
         return true;
+    }
+    if depth == 0 {
+        return false;
     }
     if is_never_type(actual) {
         return true;
