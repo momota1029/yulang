@@ -3331,36 +3331,39 @@ fn try_route_scope_return_through_return_frames_repr(
             rest_frames.truncate(threshold);
         }
         let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
-        if frame_index < initial_frame_count && post_handlers.is_empty() {
-            return Ok(Some(CpsReprRuntimeValue::RoutedJump(Box::new(
-                CpsReprRoutedJump {
-                    value: value.clone(),
-                    return_frame_threshold: threshold,
-                    owner_function: frame.owner_function.clone(),
-                    target: matched_handler.escape,
-                    values: frame.values.clone(),
-                    active_handlers: post_handlers,
-                    guard_stack: frame.guard_stack.clone(),
-                    return_frames: rest_frames,
-                    active_blocked: frame.active_blocked.clone(),
-                    initial_frame_count: owner_initial,
-                    eval_id: frame.owner_eval_id,
-                },
-            ))));
+        let routed_jump = CpsReprRoutedJump {
+            value: value.clone(),
+            return_frame_threshold: threshold,
+            owner_function: frame.owner_function.clone(),
+            target: matched_handler.escape,
+            values: frame.values.clone(),
+            active_handlers: post_handlers,
+            guard_stack: frame.guard_stack.clone(),
+            return_frames: rest_frames,
+            active_blocked: frame.active_blocked.clone(),
+            initial_frame_count: owner_initial,
+            eval_id: frame.owner_eval_id,
+        };
+        // The target lives in an inherited caller activation. Keep this as a
+        // jump command even when outer handlers remain; collapsing it to a
+        // plain value would feed the handler result into the skipped caller's
+        // normal post-call continuation.
+        if frame_index < initial_frame_count {
+            return Ok(Some(CpsReprRuntimeValue::RoutedJump(Box::new(routed_jump))));
         }
-        let owner = function_by_name_repr(module, &frame.owner_function)?;
+        let owner = function_by_name_repr(module, &routed_jump.owner_function)?;
         let result = resume_continuation(
             module,
             owner,
-            matched_handler.escape,
+            routed_jump.target,
             vec![*value.clone()],
-            frame.values.as_ref().clone(),
-            post_handlers,
-            frame.guard_stack.clone(),
-            rest_frames,
-            frame.active_blocked.clone(),
-            owner_initial,
-            frame.owner_eval_id,
+            routed_jump.values.as_ref().clone(),
+            routed_jump.active_handlers,
+            routed_jump.guard_stack,
+            routed_jump.return_frames,
+            routed_jump.active_blocked,
+            routed_jump.initial_frame_count,
+            routed_jump.eval_id,
         )?;
         return Ok(Some(result));
     }
