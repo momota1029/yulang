@@ -26,6 +26,49 @@ impl TypeSubstitutionInferOptions {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct Subst {
+    map: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+}
+
+impl Subst {
+    #[cfg(test)]
+    fn from_map(map: BTreeMap<typed_ir::TypeVar, typed_ir::Type>) -> Self {
+        Self { map }
+    }
+
+    fn apply(&self, ty: &typed_ir::Type) -> typed_ir::Type {
+        substitute_type(ty, &self.map)
+    }
+
+    fn insert_projected_exact(
+        &mut self,
+        conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+        var: typed_ir::TypeVar,
+        ty: typed_ir::Type,
+    ) {
+        insert_exact_projected_substitution(&mut self.map, conflicts, var, ty);
+    }
+
+    fn into_map(self) -> BTreeMap<typed_ir::TypeVar, typed_ir::Type> {
+        self.map
+    }
+}
+
+impl std::ops::Deref for Subst {
+    type Target = BTreeMap<typed_ir::TypeVar, typed_ir::Type>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.map
+    }
+}
+
+impl std::ops::DerefMut for Subst {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.map
+    }
+}
+
 pub(crate) fn infer_type_substitutions(
     template: &typed_ir::Type,
     actual: &typed_ir::Type,
@@ -701,7 +744,7 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
     }
 
     let never_usable_vars = principal_elaboration_never_usable_vars(&plan);
-    let mut substitutions = BTreeMap::new();
+    let mut substitutions = Subst::default();
     let mut conflicts = BTreeSet::new();
     for substitution in &plan.substitutions {
         let allow_never = never_usable_vars.contains(&substitution.var);
@@ -711,8 +754,7 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
         if !principal_plan_substitution_type_usable(&substitution.ty, allow_never) {
             continue;
         }
-        insert_exact_projected_substitution(
-            &mut substitutions,
+        substitutions.insert_projected_exact(
             &mut conflicts,
             substitution.var.clone(),
             substitution.ty.clone(),
@@ -738,14 +780,12 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
         },
     );
 
-    let substituted_principal = substitute_type(&plan.principal_callee, &substitutions);
+    let substituted_principal = substitutions.apply(&plan.principal_callee);
     for arg in &plan.args {
         let Some(template) = principal_fun_param_at(&substituted_principal, arg.index) else {
             continue;
         };
-        if let Some(actual) =
-            principal_plan_arg_type(arg).map(|ty| substitute_type(&ty, &substitutions))
-        {
+        if let Some(actual) = principal_plan_arg_type(arg).map(|ty| substitutions.apply(&ty)) {
             project_closed_substitutions_from_type(
                 template,
                 &actual,
@@ -760,7 +800,7 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
 
     if let Some(template) = principal_fun_result_after_args(&substituted_principal, plan.args.len())
         && let Some(actual) =
-            principal_plan_result_type(&plan.result).map(|ty| substitute_type(&ty, &substitutions))
+            principal_plan_result_type(&plan.result).map(|ty| substitutions.apply(&ty))
     {
         project_closed_substitutions_from_type(
             template,
@@ -779,12 +819,7 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
         && let Some(actual) =
             principal_plan_result_self_closed_type(&plan.result, var, &substitutions)
     {
-        insert_exact_projected_substitution(
-            &mut substitutions,
-            &mut conflicts,
-            var.clone(),
-            actual,
-        );
+        substitutions.insert_projected_exact(&mut conflicts, var.clone(), actual);
     }
     for var in &required_vars {
         if substitutions.contains_key(var) || conflicts.contains(var) {
@@ -793,29 +828,24 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
         if let Some(actual) =
             principal_plan_result_self_closed_type(&plan.result, var, &substitutions)
         {
-            insert_exact_projected_substitution(
-                &mut substitutions,
-                &mut conflicts,
-                var.clone(),
-                actual,
-            );
+            substitutions.insert_projected_exact(&mut conflicts, var.clone(), actual);
         }
     }
 
     rebuild_principal_elaboration_plan_status(
         plan,
-        substitutions,
+        substitutions.into_map(),
         conflicts,
         substitution_candidates,
     )
 }
 
 fn project_principal_substitutions_until_stable<F>(
-    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    substitutions: &mut Subst,
     conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     mut project: F,
 ) where
-    F: FnMut(&mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>, &mut BTreeSet<typed_ir::TypeVar>),
+    F: FnMut(&mut Subst, &mut BTreeSet<typed_ir::TypeVar>),
 {
     loop {
         let before_substitutions = substitutions.clone();
@@ -1908,7 +1938,7 @@ fn project_substitutions_from_role_requirements(
     requirements: &[typed_ir::RoleRequirement],
     role_impls: &[typed_ir::RoleImplGraphNode],
     params: &BTreeSet<typed_ir::TypeVar>,
-    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    substitutions: &mut Subst,
     conflicts: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     project_principal_substitutions_until_stable(
@@ -3788,7 +3818,7 @@ mod tests {
             });
         }
         let params = vars.iter().cloned().collect::<BTreeSet<_>>();
-        let mut substitutions = BTreeMap::from([(vars[0].clone(), named("t0"))]);
+        let mut substitutions = Subst::from_map(BTreeMap::from([(vars[0].clone(), named("t0"))]));
         let mut conflicts = BTreeSet::new();
 
         project_substitutions_from_role_requirements(
