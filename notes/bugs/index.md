@@ -152,7 +152,10 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   `runs_junction_condition_once_through_cps_repr` と
   `runs_junction_condition_without_once_through_cps_repr` は通過する。
   `runs_junction_method_undet_once_through_cps_repr` は CPS eval / repr eval までは
-  期待 `:just 18` を返すが、JIT が `:just 3` を返す状態で残っている。
+  期待 `:just 18` を返すが、JIT が pointer 風の生値を返す状態で残っている。
+  2026-05-17 の direct return hygiene 修正後、以前の `:just 3` から症状が
+  変わったため、routed jump の consume 後に junction / undet の handler value
+  arm 境界がまだ復元できていないと見る。
   `std::undet.once` の外側 handler へ戻る `ScopeReturn(prompt=1)` が
   JIT の routed-jump 後に install eval の frame を見つけられず、method 後続の
   continuation が飛ばされている可能性が高い。
