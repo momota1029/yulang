@@ -7039,7 +7039,8 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_many(
 extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) -> i64 {
     let is_resumption = NATIVE_CPS_I64_RESUMPTIONS.with(|s| s.borrow().contains(&value));
     if is_resumption {
-        return yulang_cps_resume_i64(value as *const NativeCpsI64Resumption, arg);
+        let result = yulang_cps_resume_i64(value as *const NativeCpsI64Resumption, arg);
+        return yulang_cps_force_thunk_i64(result as usize);
     }
     // write27-e: Layer 2 calls a closure with the **caller**'s active
     // handlers and guards (eval_continuations(..., active_handlers,
@@ -7076,7 +7077,15 @@ extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) -> i64 {
             format_return_frames(&frames),
         );
     }
-    result
+    // make_closure points closure.code at the entry continuation directly,
+    // bypassing the wrapper that would normally invoke
+    // force_function_result_if_thunk. Without this force the callee may
+    // hand back an unevaluated thunk (e.g. a handler-arm body that ended
+    // in scope_return) that the caller then treats as a heap value handle
+    // and dereferences as garbage. force_thunk is idempotent for
+    // non-thunk values, so callers that already returned a concrete value
+    // are unaffected.
+    yulang_cps_force_thunk_i64(result as usize)
 }
 
 #[unsafe(no_mangle)]

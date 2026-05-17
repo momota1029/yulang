@@ -1,0 +1,26 @@
+// bug (native): recursive handler arm that returns a tuple leaks pointer-shaped
+// garbage. Broader scope than
+// native_recursive_handler_for_last_tail_skips_value_arm.yu, which is the same
+// root cause specialized to `for` / `last`. See the companion .md for the
+// matrix of variants.
+//
+// Interpreter:
+//   yulang run --interpreter --print-roots notes/bugs/native_recursive_tuple_handler_memory_unsafe.yu
+//   => [0] ((), "x")
+//
+// Native on 2026-05-17:
+//   yulang run --native --print-roots notes/bugs/native_recursive_tuple_handler_memory_unsafe.yu
+//   => 474247824 (or 280001392, 234590864, ...; value changes between runs)
+//
+// Boundary: replacing the `(v, log)` return with `v` alone makes the bug
+// disappear, so the trigger is the tuple-shaped return, not the recursion or
+// the state passing.
+
+pub act out:
+    pub say: str -> ()
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o)
+    v -> (v, log)
+
+listen(out::say "x", "")
