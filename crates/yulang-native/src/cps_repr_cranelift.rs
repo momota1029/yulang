@@ -8050,9 +8050,12 @@ fn recalibrate_inherited_handler_thresholds(
             continue;
         }
         let prompt = handler.prompt;
-        let marker = slice
-            .iter()
-            .position(|frame| frame.prompt_exit.as_ref().is_some_and(|exit| exit.prompt == prompt));
+        let marker = slice.iter().position(|frame| {
+            frame
+                .prompt_exit
+                .as_ref()
+                .is_some_and(|exit| exit.prompt == prompt)
+        });
         handler.return_frame_threshold = marker.unwrap_or(0);
     }
 }

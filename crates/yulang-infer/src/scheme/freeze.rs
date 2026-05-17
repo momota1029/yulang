@@ -918,11 +918,7 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
                             lower_fun.ret_eff.clone(),
                             upper_fun.ret_eff.clone(),
                         ),
-                        merge_compact_types(
-                            true,
-                            lower_fun.ret.clone(),
-                            upper_fun.ret.clone(),
-                        ),
+                        merge_compact_types(true, lower_fun.ret.clone(), upper_fun.ret.clone()),
                     ),
                     None if scheme.cty.upper.funs.is_empty() => (
                         lower_fun.arg.clone(),
