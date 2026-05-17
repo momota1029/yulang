@@ -15,9 +15,9 @@ fn main() {
     let lowered = yulang_infer::lower_source_set(&source_set);
     let artifacts = yulang_infer::build_compiled_unit_artifacts(&source_set, &lowered.state);
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR should be set"));
-    let path = out_dir.join("std_compiled_unit_artifacts.json");
-    let json = serde_json::to_string(&artifacts).expect("serialize std compiled unit artifacts");
-    fs::write(path, json).expect("write std compiled unit artifacts");
+    let path = out_dir.join("std_compiled_unit_artifacts.bin");
+    let bytes = postcard::to_allocvec(&artifacts).expect("serialize std compiled unit artifacts");
+    fs::write(path, bytes).expect("write std compiled unit artifacts");
 }
 
 fn std_source_set() -> yulang_sources::SourceSet {

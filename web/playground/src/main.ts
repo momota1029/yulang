@@ -2,7 +2,12 @@ import init, {
     colorize,
     embedded_std_compiled_unit_artifact_status,
 } from "./wasm/yulang_wasm.js";
+import wasmUrl from "./wasm/yulang_wasm_bg.wasm?url";
 import "./style.css";
+
+const wasmModuleReady: Promise<WebAssembly.Module> = WebAssembly.compileStreaming(
+    fetch(wasmUrl),
+);
 
 type Diagnostic = {
     severity: "error";
@@ -501,12 +506,12 @@ let runWorker: Worker | undefined = createRunWorker();
 
 setupI18n();
 setupTheme();
-
-await init();
-logEmbeddedStdArtifacts();
-
 setupExampleButtons();
 loadExample(0);
+
+await init({ module_or_path: await wasmModuleReady });
+logEmbeddedStdArtifacts();
+
 renderColor();
 void runSource().finally(scheduleStdCacheWarmup);
 
@@ -909,6 +914,9 @@ function resetRunWorker(reason: unknown): void {
 function createRunWorker(): Worker {
     const worker = new Worker(new URL("./run-worker.ts", import.meta.url), {
         type: "module",
+    });
+    void wasmModuleReady.then((module) => {
+        worker.postMessage({ kind: "init-wasm", module });
     });
     worker.addEventListener(
         "message",

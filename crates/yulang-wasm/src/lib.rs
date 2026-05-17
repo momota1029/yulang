@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::cell::RefCell;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
@@ -104,36 +105,64 @@ fn embedded_std_compiled_unit_artifacts_inner() -> Vec<yulang_infer::CompiledUni
 }
 
 fn embedded_std_compiled_unit_artifact_status_inner() -> EmbeddedStdArtifactsOutput {
-    match load_embedded_std_compiled_unit_artifacts() {
+    with_embedded_std_compiled_unit_artifacts(|view| match view {
         Ok(artifacts) => EmbeddedStdArtifactsOutput {
             runtime_bindings: artifacts
                 .iter()
                 .map(|artifact| artifact.runtime.program.program.bindings.len())
                 .sum(),
             artifacts: artifacts.len(),
-            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_JSON.len(),
+            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES.len(),
             valid: true,
             fallback_reason: None,
         },
         Err(reason) => EmbeddedStdArtifactsOutput {
             artifacts: 0,
             runtime_bindings: 0,
-            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_JSON.len(),
+            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES.len(),
             valid: false,
-            fallback_reason: Some(reason),
+            fallback_reason: Some(reason.to_string()),
         },
-    }
+    })
 }
 
-const EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_JSON: &str = include_str!(concat!(
-    env!("OUT_DIR"),
-    "/std_compiled_unit_artifacts.json"
-));
+const EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/std_compiled_unit_artifacts.bin"));
+
+thread_local! {
+    static EMBEDDED_STD_ARTIFACTS_CACHE: RefCell<
+        Option<Result<Rc<Vec<yulang_infer::CompiledUnitArtifact>>, String>>,
+    > = const { RefCell::new(None) };
+}
+
+fn with_embedded_std_compiled_unit_artifacts<R>(
+    f: impl FnOnce(Result<&[yulang_infer::CompiledUnitArtifact], &str>) -> R,
+) -> R {
+    EMBEDDED_STD_ARTIFACTS_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.is_none() {
+            *cache = Some(parse_embedded_std_compiled_unit_artifacts().map(Rc::new));
+        }
+        let view: Result<&[_], &str> = match cache.as_ref().unwrap() {
+            Ok(rc) => Ok(rc.as_slice()),
+            Err(error) => Err(error.as_str()),
+        };
+        f(view)
+    })
+}
 
 fn load_embedded_std_compiled_unit_artifacts()
 -> Result<Vec<yulang_infer::CompiledUnitArtifact>, String> {
-    let artifacts = serde_json::from_str::<Vec<yulang_infer::CompiledUnitArtifact>>(
-        EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_JSON,
+    with_embedded_std_compiled_unit_artifacts(|view| match view {
+        Ok(slice) => Ok(slice.to_vec()),
+        Err(error) => Err(error.to_string()),
+    })
+}
+
+fn parse_embedded_std_compiled_unit_artifacts()
+-> Result<Vec<yulang_infer::CompiledUnitArtifact>, String> {
+    let artifacts = postcard::from_bytes::<Vec<yulang_infer::CompiledUnitArtifact>>(
+        EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES,
     )
     .map_err(|error| format!("deserialize embedded std artifacts: {error}"))?;
     validate_embedded_std_compiled_unit_artifacts(&artifacts)?;
@@ -468,21 +497,21 @@ struct EmbeddedStdLowering {
 fn lower_with_embedded_std_artifacts(
     source_set: &yulang_sources::SourceSet,
 ) -> Result<EmbeddedStdLowering, String> {
-    let artifacts = load_embedded_std_compiled_unit_artifacts()?;
-    let std_artifacts = artifacts
-        .into_iter()
-        .filter(artifact_has_std_module)
-        .collect::<Vec<_>>();
-    if std_artifacts.is_empty() {
-        return Err("embedded std artifacts contain no std units".to_string());
-    }
-    let runtime_bindings = std_artifacts
-        .iter()
-        .map(|artifact| artifact.runtime.program.program.bindings.len())
-        .sum();
-    let lowered =
-        lower_source_set_with_compiled_unit_artifacts_profiled(source_set, &std_artifacts)
-            .map_err(|error| format!("import embedded std artifacts: {error:?}"))?;
+    let (lowered, artifacts_count, runtime_bindings) =
+        with_embedded_std_compiled_unit_artifacts(|view| {
+            let artifacts = view.map_err(str::to_string)?;
+            if artifacts.is_empty() || !artifacts.iter().any(artifact_has_std_module) {
+                return Err("embedded std artifacts contain no std units".to_string());
+            }
+            let runtime_bindings = artifacts
+                .iter()
+                .map(|artifact| artifact.runtime.program.program.bindings.len())
+                .sum();
+            let lowered =
+                lower_source_set_with_compiled_unit_artifacts_profiled(source_set, artifacts)
+                    .map_err(|error| format!("import embedded std artifacts: {error:?}"))?;
+            Ok::<_, String>((lowered, artifacts.len(), runtime_bindings))
+        })?;
     let bundled_paths = lowered
         .runtime
         .surface
@@ -503,7 +532,7 @@ fn lower_with_embedded_std_artifacts(
     Ok(EmbeddedStdLowering {
         lowered: lowered.lowered,
         runtime,
-        artifacts: std_artifacts.len(),
+        artifacts: artifacts_count,
         runtime_bindings,
     })
 }

@@ -17,6 +17,11 @@ type RunWorkerRequest =
       kind: "warm-std-cache";
     };
 
+type WorkerControlMessage = {
+  kind: "init-wasm";
+  module: WebAssembly.Module;
+};
+
 type RunWorkerResponse =
   | {
       id: number;
@@ -47,7 +52,12 @@ let lastStarted: WorkerRequestTrace | undefined;
 let lastCompleted: WorkerRequestTrace | undefined;
 let lastRunUsedContinuations = false;
 let lastRunClearedCache = false;
-const wasmReady = init();
+let resolveWasmReady: (value: unknown) => void;
+let rejectWasmReady: (reason?: unknown) => void;
+const wasmReady = new Promise<unknown>((resolve, reject) => {
+  resolveWasmReady = resolve;
+  rejectWasmReady = reject;
+});
 
 type WorkerRequestTrace = {
   id: number;
@@ -69,9 +79,27 @@ type WorkerDebugContext = {
   last_run_cleared_cache: boolean;
 };
 
-workerSelf.addEventListener("message", (event: MessageEvent<RunWorkerRequest>) => {
-  void handleRequest(event.data);
-});
+workerSelf.addEventListener(
+  "message",
+  (event: MessageEvent<RunWorkerRequest | WorkerControlMessage>) => {
+    const data = event.data;
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "kind" in data &&
+      data.kind === "init-wasm"
+    ) {
+      try {
+        const ready = init({ module_or_path: data.module });
+        ready.then(resolveWasmReady, rejectWasmReady);
+      } catch (error) {
+        rejectWasmReady(error);
+      }
+      return;
+    }
+    void handleRequest(data as RunWorkerRequest);
+  },
+);
 
 async function handleRequest(request: RunWorkerRequest): Promise<void> {
   const trace: WorkerRequestTrace = {
