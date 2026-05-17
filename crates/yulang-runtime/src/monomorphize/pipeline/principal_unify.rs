@@ -3052,12 +3052,8 @@ impl PrincipalUnifier {
             .collect();
         fill_plan_runtime_slots_from_principal(&mut plan, args.len());
         fill_effectful_input_runtime_slot_from_result(&mut plan, args.len());
-        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
-            plan,
-            &[],
-            requirements,
-            &self.role_associated_impls,
-        );
+        let mut normalized =
+            self.normalize_runtime_slot_plan_with_role_impls(plan, args.len(), requirements);
         if normalized.complete && normalized.substitutions.is_empty() {
             normalized.substitutions = normalized_substitutions
                 .into_iter()
@@ -3131,8 +3127,34 @@ impl PrincipalUnifier {
         fill_plan_runtime_slots_from_principal(&mut plan, arg_count);
         fill_effectful_input_runtime_slot_from_result(&mut plan, arg_count);
         let projected_substitutions = substitutions.clone();
+        let mut normalized =
+            self.normalize_runtime_slot_plan_with_role_impls(plan, arg_count, requirements);
+        preserve_projected_substitutions_if_normalized_empty(
+            &mut normalized,
+            projected_substitutions,
+        );
+        normalized.complete.then_some(normalized)
+    }
+
+    fn normalize_runtime_slot_plan_with_role_impls(
+        &self,
+        mut plan: typed_ir::PrincipalElaborationPlan,
+        arg_count: usize,
+        requirements: &[typed_ir::RoleRequirement],
+    ) -> typed_ir::PrincipalElaborationPlan {
+        fill_plan_runtime_slots_from_principal(&mut plan, arg_count);
+        fill_effectful_input_runtime_slot_from_result(&mut plan, arg_count);
         let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
+            &[],
+            requirements,
+            &self.role_associated_impls,
+        );
+        let projected_substitutions = plan_substitution_map(&normalized);
+        fill_plan_runtime_slots_from_principal(&mut normalized, arg_count);
+        fill_effectful_input_runtime_slot_from_result(&mut normalized, arg_count);
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
+            normalized,
             &[],
             requirements,
             &self.role_associated_impls,
@@ -3141,7 +3163,7 @@ impl PrincipalUnifier {
             &mut normalized,
             projected_substitutions,
         );
-        normalized.complete.then_some(normalized)
+        normalized
     }
 
     fn active_handler_residual_effect(&self, info: &HandlerBindingInfo) -> Option<typed_ir::Type> {

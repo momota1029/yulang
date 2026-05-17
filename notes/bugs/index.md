@@ -83,15 +83,7 @@ use std::undet::*
 
 ## 現在の未解決（2026-05-17 / 非 native regression）
 
-- [`undet_range_nested_each_list_runtime_type.yu`](undet_range_nested_each_list_runtime_type.yu)
-  — `(each 1..2 + each 1..2).list.say` が runtime type inference で
-  `cannot infer all runtime types needed for std::flow::sub::sub` になる。
-  list 版 `(each [1, 2] + each [1, 2]).list.say` と単独 range
-  `(each (1..2)).list.say` は動くため、有限 range の nested `each` と
-  `Fold` callback / runtime type inference の合成バグとして追う。
-  期待値は `[2, 3, 3, 4]`。2026-05-17 に `ml_arg` parser bug は修正済み。
-  修正前は無括弧形が `each (1..2) + ((each 1)..2)` に崩れ、
-  `--print-roots` で `request std::fold::Fold::fold 1 blocked=None` が残っていた。
+現時点では空。新しい非 native regression が出たらここへ戻す。
 
 ## 現在の未解決（2026-05-15 round-5）
 

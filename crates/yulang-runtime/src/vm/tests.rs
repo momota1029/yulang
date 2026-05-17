@@ -2392,6 +2392,21 @@ run_into_strings: {
     }
 
     #[test]
+    fn vm_runs_std_undet_range_each_nested_sum_list() {
+        let results = eval_source_with_std("use std::undet::*\n(each 1..2 + each 1..2).list\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("4".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_std_undet_each_and_once_from_prelude() {
         let results = eval_source_with_std(
             r#"

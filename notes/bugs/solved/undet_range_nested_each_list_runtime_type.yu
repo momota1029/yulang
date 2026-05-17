@@ -1,15 +1,15 @@
--- bug (VM / non-native): nested `each` over finite ranges is rejected during
--- runtime type inference.
+-- solved (VM / non-native): nested `each` over finite ranges was rejected
+-- during runtime type inference.
 --
 -- Reproduce:
---   cargo run -q -p yulang -- run notes/bugs/undet_range_nested_each_list_runtime_type.yu
+--   cargo run -q -p yulang -- run notes/bugs/solved/undet_range_nested_each_list_runtime_type.yu
 --
--- Observed:
+-- Previous observed:
 --   error: cannot infer all runtime types needed for `std::flow::sub::sub`.
 --   Add a type annotation that fixes the remaining type variables: 'a, 'a, 'a.
 --   Source: binding type parameters.
 --
--- Expected:
+-- Expected / fixed:
 --   [2, 3, 3, 4]
 --
 -- Notes:
@@ -19,6 +19,10 @@
 --   infix expressions, so `each 1..2 + each 1..2` parses as
 --   `each (1..2) + each (1..2)`. Before that fix, this surface form silently
 --   ended with an unhandled `std::fold::Fold::fold 1` root request.
+-- - 2026-05-17 runtime fix: after role associated type projection closes
+--   `Fold<range>.item` to `int`, principal monomorphization refreshes the
+--   runtime result slot and preserves the projected substitutions for
+--   specialization.
 
 use std::undet::*
 

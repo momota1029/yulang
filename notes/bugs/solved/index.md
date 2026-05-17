@@ -27,6 +27,15 @@ done
 
 ## 解決済み一覧（時系列で新しいものが上）
 
+### 2026-05-17 追加修正
+
+- [`undet_range_nested_each_list_runtime_type.yu`](undet_range_nested_each_list_runtime_type.yu)
+  — `(each 1..2 + each 1..2).list.say` が parser 修正後も
+  `std::flow::sub::sub` の runtime type inference で落ちていた件。
+  `Fold<range>.item = int` の associated type 投影後に principal runtime slot
+  を再充填し、specialization 用 substitution も保持するようにして、
+  VM で `[2, 3, 3, 4]`。
+
 ### 2026-05-17 再確認
 
 - [`catch_value_arm_function_runtime_unbound.yu`](catch_value_arm_function_runtime_unbound.yu)
