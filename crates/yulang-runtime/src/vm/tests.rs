@@ -2145,6 +2145,20 @@ for _ in 0..<3:
     }
 
     #[test]
+    fn vm_runs_source_sub_return_from_range_loop_with_outer_param_guard() {
+        let results = eval_source_with_std(
+            r#"my first_over limit = sub:
+    for x in 0..: if x * x > limit: return x
+    0
+
+first_over 40
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_sub_return_multiline_expression() {
         let results = eval_source_with_std(
             r#"my f() = sub:

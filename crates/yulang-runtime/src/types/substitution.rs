@@ -661,7 +661,9 @@ fn rebuild_principal_elaboration_plan_status(
 
     plan.substitutions = substitutions
         .into_iter()
-        .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
+        .filter_map(|(var, ty)| {
+            (!conflicts.contains(&var)).then_some(typed_ir::TypeSubstitution { var, ty })
+        })
         .collect();
     plan.complete = incomplete_reasons.is_empty();
     plan.incomplete_reasons = incomplete_reasons;
@@ -3161,6 +3163,7 @@ mod tests {
         assert!(normalized.incomplete_reasons.contains(
             &typed_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(item)
         ));
+        assert!(normalized.substitutions.is_empty());
     }
 
     #[test]
