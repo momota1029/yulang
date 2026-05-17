@@ -9317,8 +9317,24 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         let mut post_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
         post_handlers.truncate(handler_index);
         let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
-        if post_frames.len() > frame.return_frame_threshold {
-            post_frames.truncate(frame.return_frame_threshold);
+        // Phase 2.3: compute truncate point from the PromptExit marker on
+        // the return-frame stack. See
+        // notes/design/prompt-boundary-frame-model.md.
+        let truncate_at = post_frames
+            .iter()
+            .rposition(|f| {
+                f.prompt_exit
+                    .as_ref()
+                    .is_some_and(|exit| exit.prompt == frame.prompt)
+            })
+            .unwrap_or(0);
+        debug_assert_eq!(
+            truncate_at, frame.return_frame_threshold,
+            "prompt_exit marker disagrees with return_frame_threshold (native current): prompt={} marker={} threshold={}",
+            frame.prompt, truncate_at, frame.return_frame_threshold,
+        );
+        if post_frames.len() > truncate_at {
+            post_frames.truncate(truncate_at);
         }
         NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = post_handlers.clone());
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = post_frames.clone());
@@ -9357,7 +9373,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
             NATIVE_CPS_I64_ABORT.with(|slot| {
                 *slot.borrow_mut() = routed_jump_abort(
                     value,
-                    frame.return_frame_threshold,
+                    truncate_at,
                     frame.escape_continuation,
                     escape_env,
                     post_handlers,
@@ -9365,7 +9381,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
                     post_frames,
                     NativeCpsI64EvalContext {
                         current_eval_id: frame.install_eval_id,
-                        initial_frame_count: frame.return_frame_threshold,
+                        initial_frame_count: truncate_at,
                     },
                 );
             });
@@ -9392,8 +9408,24 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards.to_vec());
         let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
         post_frames.truncate(return_frame_index);
-        if post_frames.len() > handler.return_frame_threshold {
-            post_frames.truncate(handler.return_frame_threshold);
+        // Phase 2.3: compute truncate point from the PromptExit marker on
+        // the post-truncate frame slice. See
+        // notes/design/prompt-boundary-frame-model.md.
+        let truncate_at = post_frames
+            .iter()
+            .rposition(|f| {
+                f.prompt_exit
+                    .as_ref()
+                    .is_some_and(|exit| exit.prompt == handler.prompt)
+            })
+            .unwrap_or(0);
+        debug_assert_eq!(
+            truncate_at, handler.return_frame_threshold,
+            "prompt_exit marker disagrees with return_frame_threshold (native frame walk): prompt={} marker={} threshold={}",
+            handler.prompt, truncate_at, handler.return_frame_threshold,
+        );
+        if post_frames.len() > truncate_at {
+            post_frames.truncate(truncate_at);
         }
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = post_frames.clone());
         // Set eval context to frame's owner (capped to current frames).
@@ -9440,7 +9472,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
             NATIVE_CPS_I64_ABORT.with(|slot| {
                 *slot.borrow_mut() = routed_jump_abort(
                     value,
-                    handler.return_frame_threshold,
+                    truncate_at,
                     handler.escape_continuation,
                     escape_env,
                     post_handlers,
