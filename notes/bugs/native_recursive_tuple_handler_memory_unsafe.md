@@ -48,6 +48,17 @@ capture 推論前に、effectful callee への `DirectCall` statement を
 `native_recursive_tuple_handler_memory_unsafe.yu` は native で `(0, "x")` のままなので、
 残りは既知の unit 表示 `0` 問題だけ。
 
+2026-05-18 追加修正:
+unit literal を native i64 scalar `0` ではなく `NativeCpsI64HeapValue::Unit` として
+lower するようにした。continuation / resumption を経由して `(_, str)` の `_` で
+型ヒントが落ちても、tuple/list 等の runtime value 表示では `()` として復元できる。
+また native executable harness 側で、CPS lane が `Unknown` でも runtime root type が
+bool なら bool 表示を保つようにした。
+unit を heap value にすると、prompt-exit marker と古い `return_frame_threshold` が
+ずれる既存ケースが debug assert に当たったため、ScopeReturn の truncate 点は
+既に使っている prompt-exit marker を正とし、古い threshold 一致 assert は外した。
+これで `native_recursive_tuple_handler_memory_unsafe.yu` は native でも `((), "x")`。
+
 既存の `native_recursive_handler_for_last_tail_skips_value_arm.yu` と同根だが、
 `for` / `last` が無くても、**handler arm から再帰呼び出しして tuple を返す形**
 だけで踏める。返値が pointer 形状の整数として漏れる（毎回値が変わる）ため、

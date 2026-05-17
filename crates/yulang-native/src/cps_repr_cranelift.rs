@@ -4621,7 +4621,7 @@ fn lower_literal<M: Module, L: CpsLiteralStore>(
             Ok(builder.ins().iconst(types::I64, value))
         }
         CpsLiteral::Bool(value) => Ok(builder.ins().iconst(types::I64, i64::from(*value))),
-        CpsLiteral::Unit => Ok(builder.ins().iconst(types::I64, 0)),
+        CpsLiteral::Unit => call_i64_helper(module_backend, builder, "yulang_cps_unit_i64", &[]),
         CpsLiteral::Float(value) => {
             let value =
                 value
@@ -5715,7 +5715,10 @@ fn cranelift_error(error: impl fmt::Display) -> CpsReprCraneliftError {
 
 #[cfg(test)]
 mod tests {
-    use crate::cps_ir::{CpsContinuation, CpsFunction, CpsModule, CpsShotKind};
+    use crate::cps_ir::{
+        CpsContinuation, CpsFunction, CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator,
+        CpsValueId,
+    };
     use crate::cps_repr::lower_cps_repr_module;
     use crate::cps_repr_abi::lower_cps_repr_abi_module;
 
@@ -5727,6 +5730,49 @@ mod tests {
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
 
         assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+    }
+
+    #[test]
+    fn jit_preserves_unit_literal_after_continuation_hop_in_runtime_tuple() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Unit,
+                        }],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(1),
+                            args: vec![CpsValueId(0)],
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Tuple {
+                            dest: CpsValueId(2),
+                            items: vec![CpsValueId(1)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(2)),
+                    },
+                ],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_display().expect("ran"), vec!["((),)"]);
     }
 
     #[test]

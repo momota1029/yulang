@@ -2183,6 +2183,9 @@ fn native_root_print_kind_from_cps_lane_and_runtime_type(
     if runtime_kind == NativeRootPrintKind::Unit {
         return NativeRootPrintKind::Unit;
     }
+    if runtime_kind == NativeRootPrintKind::Bool {
+        return NativeRootPrintKind::Bool;
+    }
     match lane {
         yulang_native::CpsReprAbiLane::NativeFloat => NativeRootPrintKind::Float,
         yulang_native::CpsReprAbiLane::ScalarI64 => match runtime_kind {
@@ -5937,6 +5940,17 @@ mod tests {
         assert!(harness.contains("let _ = yulang_cps_take_root_result_i64(root_1());"));
         assert!(harness.contains("println!(\"()\");"));
         assert!(harness.contains("println!(\"{}\", value != 0);"));
+    }
+
+    #[test]
+    fn native_effects_root_print_keeps_runtime_bool_hint_for_unknown_cps_lane() {
+        assert_eq!(
+            native_root_print_kind_from_cps_lane_and_runtime_type(
+                yulang_native::CpsReprAbiLane::Unknown,
+                NativeRootPrintKind::Bool,
+            ),
+            NativeRootPrintKind::Bool
+        );
     }
 
     #[test]

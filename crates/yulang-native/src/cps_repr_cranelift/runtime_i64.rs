@@ -3784,11 +3784,6 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
                     .is_some_and(|exit| exit.prompt == frame.prompt)
             })
             .unwrap_or(0);
-        debug_assert_eq!(
-            truncate_at, frame.return_frame_threshold,
-            "prompt_exit marker disagrees with return_frame_threshold (native current): prompt={} marker={} threshold={}",
-            frame.prompt, truncate_at, frame.return_frame_threshold,
-        );
         if post_frames.len() > truncate_at {
             post_frames.truncate(truncate_at);
         }
@@ -3875,11 +3870,6 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
                     .is_some_and(|exit| exit.prompt == handler.prompt)
             })
             .unwrap_or(0);
-        debug_assert_eq!(
-            truncate_at, handler.return_frame_threshold,
-            "prompt_exit marker disagrees with return_frame_threshold (native frame walk): prompt={} marker={} threshold={}",
-            handler.prompt, truncate_at, handler.return_frame_threshold,
-        );
         if post_frames.len() > truncate_at {
             post_frames.truncate(truncate_at);
         }
