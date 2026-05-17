@@ -1,0 +1,38 @@
+// bug (native): 最小再現. recursive shallow handler + block tail で
+// `(v, log)` tuple が作られず block tail が listen の戻り値を貫通する。
+//
+// `for + last` 系の superset である
+// `native_recursive_handler_for_last_tail_skips_value_arm.yu` から
+// 不要な要素を全部削った最小ケース。
+//
+// VM:
+//   yulang run --interpreter --print-roots <this file>
+//   => [0] (5, "0\n")
+//
+// Native on 2026-05-17:
+//   => 5
+//
+// 必要な要素:
+//   - 関数化された `our listen(x, log)`（引数 2 つ以上）
+//   - body が catch x で recursive な handler arm (`listen(k(), ...)`)
+//   - body 内の thunk が perform を 1 回起こす（`for x in [0]: out::say x.show` は
+//     最小例、`out::say "0"` 単独に置き換えても同様に再現する）
+//   - block tail に何かしらの値（`5` でも `"X"` でも tuple でない scalar）
+//
+// 不要な要素:
+//   - `for/last`（このファイルには `last` がない）
+//   - 複数要素の `for`（1 要素で十分）
+//   - 複数回の perform（1 回で十分）
+
+pub act out:
+    pub say: str -> ()
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen({
+    for x in [0]:
+        out::say x.show
+    5
+}, "")

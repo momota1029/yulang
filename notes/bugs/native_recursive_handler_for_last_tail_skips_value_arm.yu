@@ -1,19 +1,43 @@
-// bug (native): recursive shallow handler + for/last + tail skips value arm.
+// bug (native): recursive shallow handler + block tail value escapes to root.
+//
+// 2026-05-17 再整理: 元のタイトルは「for/last + tail skips value arm」だが、
+// `last` も `if` も本質ではない。**`for + 1要素 + 1 say + block tail` +
+// 関数化された recursive shallow handler** が最小成立条件。
 //
 // VM:
-//   yulang run --interpreter --print-roots notes/bugs/native_recursive_handler_for_last_tail_skips_value_arm.yu
+//   yulang run --interpreter --print-roots <this file>
 //   => [0] (5, "0\n1\n2\n3\n4\n")
 //
-// Native on 2026-05-17:
-//   yulang run --native --print-roots notes/bugs/native_recursive_handler_for_last_tail_skips_value_arm.yu
+// Native on 2026-05-17 (post Phase 2 routing unification + tuple memory-unsafety fix):
 //   => 5
 //
-// The `last` handler is found, but after the routed jump the recursive `listen`
-// value arm is not applied to the block tail `5`. Experiments that leave a
-// root-level routed jump as `Global` abort stop too early at `(0, "4\n")`, so
-// the missing piece is not just abort propagation: the ordinary continuation
-// after the `for` and the outer handler value arm need to be resumed in the
-// same order as CPS eval/repr.
+// 切り分けまとめ (2026-05-17):
+//   - inline catch（関数化なし）では起きない。`our listen` + 引数 2 つ以上が必要。
+//   - post-k が scalar (`my r = k(); r + 100`) なら OK。tuple (`(r, log + o)`) で NG。
+//   - block tail の値そのものが root に出る (`5 → 5`, `123 → 123`, `"X" → "X"`)。
+//     つまり handler arm の戻り値 `(v, log)` の tuple が一切作られず、block tail が
+//     listen 関数の戻り値を貫通している。
+//   - `last` を含むこのファイルは「`for + 1要素 + 1 say + 5`」だけでも再現する
+//     最小ケースの "superset"。
+//   - Phase 2 で routing を prompt_exit ベースに統一したが、debug_assert は
+//     一度も発火せず drift なし → routing は元々 coherent で、root cause は別。
+//   - ChatGPT 案の「`routed_jump_should_return` を全 RoutedJump で true」も
+//     試したが効かず（過去にも別 test を壊した経緯ありで revert）。
+//
+// 観察:
+//   - CPS IR (`YULANG_DUMP_CPS=1`) では handler arm は
+//     `MakeThunk(entry: 8) + DirectCall listen__mono1` の正しい shape。
+//   - Cranelift IR (`YULANG_DUMP_CRANELIFT_IR=1`) でも continuation 8 (k() の thunk) は
+//     resume helper を call して結果を return する正しい形。
+//   - trace では `apply_closure.out: closure=0x... result=(0, 0\n)` で recursive listen
+//     の戻り値らしき tuple が一度作られているが、最終的に root には `5` が出る。
+//     どの closure が `5` を return しているのかを特定するには、make_closure →
+//     apply_closure trace の間で closure pointer → 所有 function name の reverse
+//     mapping を追加する必要がある。
+//
+// 関連: notes/bugs/native_recursive_tuple_handler_memory_unsafe.{md,yu} の
+// memory-unsafety 系統は 2026-05-17 の commit 3bad594 で解消済み
+// (apply_closure 経由で force_thunk を call)。
 
 use std::flow::*
 
