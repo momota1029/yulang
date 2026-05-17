@@ -196,18 +196,265 @@ fn substitute_type_inner(
                 .collect(),
         ),
         typed_ir::Type::Recursive { var, body } => {
+            let (var, body) = if substitution_values_contain_free_var(substitutions, var) {
+                let fresh = fresh_recursive_binder_var(var, body, substitutions, active, bound);
+                (fresh.clone(), rename_bound_type_var(body, var, &fresh))
+            } else {
+                (var.clone(), body.as_ref().clone())
+            };
             let mut scoped_bound = bound.clone();
             scoped_bound.insert(var.clone());
             typed_ir::Type::Recursive {
-                var: var.clone(),
+                var,
                 body: Box::new(substitute_type_inner(
-                    body,
+                    &body,
                     substitutions,
                     active,
                     &scoped_bound,
                 )),
             }
         }
+    }
+}
+
+fn substitution_values_contain_free_var(
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    var: &typed_ir::TypeVar,
+) -> bool {
+    substitutions
+        .values()
+        .any(|ty| type_contains_free_var(ty, var))
+}
+
+fn type_contains_free_var(ty: &typed_ir::Type, var: &typed_ir::TypeVar) -> bool {
+    let mut vars = BTreeSet::new();
+    collect_type_vars(ty, &mut vars);
+    vars.contains(var)
+}
+
+fn fresh_recursive_binder_var(
+    var: &typed_ir::TypeVar,
+    body: &typed_ir::Type,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    active: &BTreeSet<typed_ir::TypeVar>,
+    bound: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::TypeVar {
+    let mut used = BTreeSet::new();
+    collect_all_type_vars(body, &mut used);
+    used.extend(substitutions.keys().cloned());
+    for ty in substitutions.values() {
+        collect_all_type_vars(ty, &mut used);
+    }
+    used.extend(active.iter().cloned());
+    used.extend(bound.iter().cloned());
+
+    let mut index = 0;
+    loop {
+        let candidate = typed_ir::TypeVar(format!("{}#subst{index}", var.0));
+        if !used.contains(&candidate) {
+            return candidate;
+        }
+        index += 1;
+    }
+}
+
+fn collect_all_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+        typed_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_all_type_arg_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_all_type_vars(param, vars);
+            collect_all_type_vars(param_effect, vars);
+            collect_all_type_vars(ret_effect, vars);
+            collect_all_type_vars(ret, vars);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_all_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_all_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_all_type_vars(ty, vars);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_all_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = variant.tail.as_deref() {
+                collect_all_type_vars(tail, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_all_type_vars(item, vars);
+            }
+            collect_all_type_vars(tail, vars);
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            vars.insert(var.clone());
+            collect_all_type_vars(body, vars);
+        }
+    }
+}
+
+fn collect_all_type_arg_vars(arg: &typed_ir::TypeArg, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_all_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = bounds.lower.as_deref() {
+                collect_all_type_vars(lower, vars);
+            }
+            if let Some(upper) = bounds.upper.as_deref() {
+                collect_all_type_vars(upper, vars);
+            }
+        }
+    }
+}
+
+fn rename_bound_type_var(
+    ty: &typed_ir::Type,
+    from: &typed_ir::TypeVar,
+    to: &typed_ir::TypeVar,
+) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Unknown => typed_ir::Type::Unknown,
+        typed_ir::Type::Never => typed_ir::Type::Never,
+        typed_ir::Type::Any => typed_ir::Type::Any,
+        typed_ir::Type::Var(var) if var == from => typed_ir::Type::Var(to.clone()),
+        typed_ir::Type::Var(var) => typed_ir::Type::Var(var.clone()),
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| rename_bound_type_arg_var(arg, from, to))
+                .collect(),
+        },
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(rename_bound_type_var(param, from, to)),
+            param_effect: Box::new(rename_bound_type_var(param_effect, from, to)),
+            ret_effect: Box::new(rename_bound_type_var(ret_effect, from, to)),
+            ret: Box::new(rename_bound_type_var(ret, from, to)),
+        },
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| rename_bound_type_var(item, from, to))
+                .collect(),
+        ),
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| typed_ir::RecordField {
+                    name: field.name.clone(),
+                    value: rename_bound_type_var(&field.value, from, to),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.as_ref().map(|spread| match spread {
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(rename_bound_type_var(ty, from, to)))
+                }
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(rename_bound_type_var(ty, from, to)))
+                }
+            }),
+        }),
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| typed_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case
+                        .payloads
+                        .iter()
+                        .map(|payload| rename_bound_type_var(payload, from, to))
+                        .collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .as_ref()
+                .map(|tail| Box::new(rename_bound_type_var(tail, from, to))),
+        }),
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
+            items: items
+                .iter()
+                .map(|item| rename_bound_type_var(item, from, to))
+                .collect(),
+            tail: Box::new(rename_bound_type_var(tail, from, to)),
+        },
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
+            items
+                .iter()
+                .map(|item| rename_bound_type_var(item, from, to))
+                .collect(),
+        ),
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
+            items
+                .iter()
+                .map(|item| rename_bound_type_var(item, from, to))
+                .collect(),
+        ),
+        typed_ir::Type::Recursive { var, body } if var == from => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: body.clone(),
+        },
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(rename_bound_type_var(body, from, to)),
+        },
+    }
+}
+
+fn rename_bound_type_arg_var(
+    arg: &typed_ir::TypeArg,
+    from: &typed_ir::TypeVar,
+    to: &typed_ir::TypeVar,
+) -> typed_ir::TypeArg {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(rename_bound_type_var(ty, from, to)),
+        typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+            lower: bounds
+                .lower
+                .as_ref()
+                .map(|ty| Box::new(rename_bound_type_var(ty, from, to))),
+            upper: bounds
+                .upper
+                .as_ref()
+                .map(|ty| Box::new(rename_bound_type_var(ty, from, to))),
+        }),
     }
 }
 
@@ -3220,6 +3467,26 @@ mod tests {
                 body: Box::new(typed_ir::Type::Var(a)),
             }
         );
+    }
+
+    #[test]
+    fn substitute_type_renames_recursive_binder_to_avoid_capture() {
+        let a = tv("a");
+        let x = tv("x");
+        let mut substitutions = BTreeMap::new();
+        substitutions.insert(a.clone(), typed_ir::Type::Var(x.clone()));
+        let ty = typed_ir::Type::Recursive {
+            var: x.clone(),
+            body: Box::new(typed_ir::Type::Var(a)),
+        };
+
+        let substituted = substitute_type(&ty, &substitutions);
+
+        let typed_ir::Type::Recursive { var, body } = substituted else {
+            panic!("expected recursive type");
+        };
+        assert_ne!(var, x);
+        assert_eq!(*body, typed_ir::Type::Var(x));
     }
 
     #[test]
