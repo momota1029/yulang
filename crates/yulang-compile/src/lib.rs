@@ -522,6 +522,31 @@ my run(a: [log] 'r): 'r = catch a:
     }
 
     #[test]
+    #[ignore = "JIT currently resumes later loop iterations after `last`; root-only tests are false positives"]
+    fn finite_for_loop_last_stops_side_effects_in_jit() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"use std::flow::*
+
+pub act out:
+    pub say: str -> ()
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen {
+    for x in [0, 1, 2, 3, 4, 5, 6, 7]:
+        if x == 5: last
+        else: out::say x.show
+    5
+} ""
+"#,
+            vec!["(5, 0\n1\n2\n3\n4\n)"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     #[ignore = "JIT does not actually break on `last`; loop runs to range exhaustion (also slow per-iter)"]
     fn runs_finite_range_for_loop_last_breaks_in_jit() {
         // If `last` truly breaks at x == 5, this finishes after a
