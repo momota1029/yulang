@@ -838,12 +838,17 @@ impl PrincipalUnifier {
                     evidence,
                 }
             }
-            ExprKind::Tuple(items) => ExprKind::Tuple(
-                items
-                    .into_iter()
-                    .map(|item| self.rewrite_expr(item, None))
-                    .collect(),
-            ),
+            ExprKind::Tuple(items) => {
+                let item_contexts =
+                    tuple_item_result_contexts(result_context.as_ref(), items.len());
+                ExprKind::Tuple(
+                    items
+                        .into_iter()
+                        .zip(item_contexts)
+                        .map(|(item, item_context)| self.rewrite_expr(item, item_context))
+                        .collect(),
+                )
+            }
             ExprKind::Record { fields, spread } => ExprKind::Record {
                 fields: fields
                     .into_iter()
@@ -939,8 +944,13 @@ impl PrincipalUnifier {
                         .into_iter()
                         .map(|arm| {
                             let payload = self.rewrite_pattern_defaults(arm.payload);
-                            let payload_context =
-                                handle_arm_payload_runtime_type(&handler, &arm.effect);
+                            let payload_context = handle_arm_payload_runtime_type(
+                                &handler,
+                                &arm.effect,
+                            )
+                            .or_else(|| {
+                                wildcard_payload_unit_context(&payload).map(RuntimeType::core)
+                            });
                             let payload = match &payload_context {
                                 Some(payload_context) => {
                                     refresh_pattern_value_local_types(payload, payload_context)
@@ -3292,6 +3302,7 @@ impl PrincipalUnifier {
         if let Some(plan) = handler_plan {
             let started = self.profile_timer();
             binding = apply_handler_adapter_plan_to_binding(binding, &plan);
+            binding.body = refresh_handle_payloads_from_handlers(binding.body);
             self.finish_profile_timer("intern-apply-handler-plan", started);
             self.record_target_phase_timing(&original_name, "intern-apply-handler-plan", started);
         }
@@ -4840,6 +4851,24 @@ fn rewrite_single_specialization_refs_expr_inner(
 fn pattern_value_context(pattern: &Pattern) -> Option<typed_ir::TypeBounds> {
     let ty = runtime_core_type(pattern_runtime_type(pattern));
     closed_slot_type_usable(&ty, false).then(|| typed_ir::TypeBounds::exact(ty))
+}
+
+fn tuple_item_result_contexts(
+    result_context: Option<&typed_ir::TypeBounds>,
+    len: usize,
+) -> Vec<Option<typed_ir::TypeBounds>> {
+    let Some(typed_ir::Type::Tuple(items)) = closed_type_from_bounds(result_context) else {
+        return vec![None; len];
+    };
+    if items.len() != len {
+        return vec![None; len];
+    }
+    items
+        .into_iter()
+        .map(|item| {
+            closed_slot_type_usable(&item, false).then(|| typed_ir::TypeBounds::exact(item))
+        })
+        .collect()
 }
 
 fn role_rewrite_candidate_params(
@@ -6776,6 +6805,193 @@ fn handle_arm_payload_runtime_type(
     effect_payload_type_for_operation(effect, operation).map(RuntimeType::core)
 }
 
+fn refresh_handle_payloads_from_handlers(expr: Expr) -> Expr {
+    let Expr { ty, kind } = expr;
+    let kind = match kind {
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body: Box::new(refresh_handle_payloads_from_handlers(*body)),
+        },
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+        } => ExprKind::Apply {
+            callee: Box::new(refresh_handle_payloads_from_handlers(*callee)),
+            arg: Box::new(refresh_handle_payloads_from_handlers(*arg)),
+            evidence,
+            instantiation,
+        },
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            evidence,
+        } => ExprKind::If {
+            cond: Box::new(refresh_handle_payloads_from_handlers(*cond)),
+            then_branch: Box::new(refresh_handle_payloads_from_handlers(*then_branch)),
+            else_branch: Box::new(refresh_handle_payloads_from_handlers(*else_branch)),
+            evidence,
+        },
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .into_iter()
+                .map(refresh_handle_payloads_from_handlers)
+                .collect(),
+        ),
+        ExprKind::Record { fields, spread } => ExprKind::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| RecordExprField {
+                    name: field.name,
+                    value: refresh_handle_payloads_from_handlers(field.value),
+                })
+                .collect(),
+            spread: spread.map(|spread| match spread {
+                RecordSpreadExpr::Head(expr) => {
+                    RecordSpreadExpr::Head(Box::new(refresh_handle_payloads_from_handlers(*expr)))
+                }
+                RecordSpreadExpr::Tail(expr) => {
+                    RecordSpreadExpr::Tail(Box::new(refresh_handle_payloads_from_handlers(*expr)))
+                }
+            }),
+        },
+        ExprKind::Variant { tag, value } => ExprKind::Variant {
+            tag,
+            value: value.map(|value| Box::new(refresh_handle_payloads_from_handlers(*value))),
+        },
+        ExprKind::Select { base, field } => ExprKind::Select {
+            base: Box::new(refresh_handle_payloads_from_handlers(*base)),
+            field,
+        },
+        ExprKind::Match {
+            scrutinee,
+            arms,
+            evidence,
+        } => ExprKind::Match {
+            scrutinee: Box::new(refresh_handle_payloads_from_handlers(*scrutinee)),
+            arms: arms
+                .into_iter()
+                .map(|arm| MatchArm {
+                    pattern: arm.pattern,
+                    guard: arm.guard.map(refresh_handle_payloads_from_handlers),
+                    body: refresh_handle_payloads_from_handlers(arm.body),
+                })
+                .collect(),
+            evidence,
+        },
+        ExprKind::Block { stmts, tail } => ExprKind::Block {
+            stmts: stmts
+                .into_iter()
+                .map(refresh_handle_payloads_from_handlers_stmt)
+                .collect(),
+            tail: tail.map(|tail| Box::new(refresh_handle_payloads_from_handlers(*tail))),
+        },
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => {
+            let arms = arms
+                .into_iter()
+                .map(|arm| {
+                    let payload = match handle_arm_payload_runtime_type(&handler, &arm.effect) {
+                        Some(payload_ty) => {
+                            refresh_pattern_value_local_types(arm.payload, &payload_ty)
+                        }
+                        None => match wildcard_payload_unit_context(&arm.payload) {
+                            Some(payload_ty) => refresh_pattern_value_local_types(
+                                arm.payload,
+                                &RuntimeType::core(payload_ty),
+                            ),
+                            None => arm.payload,
+                        },
+                    };
+                    HandleArm {
+                        effect: arm.effect,
+                        payload,
+                        resume: arm.resume,
+                        guard: arm.guard.map(refresh_handle_payloads_from_handlers),
+                        body: refresh_handle_payloads_from_handlers(arm.body),
+                    }
+                })
+                .collect();
+            ExprKind::Handle {
+                body: Box::new(refresh_handle_payloads_from_handlers(*body)),
+                arms,
+                evidence,
+                handler,
+            }
+        }
+        ExprKind::BindHere { expr } => ExprKind::BindHere {
+            expr: Box::new(refresh_handle_payloads_from_handlers(*expr)),
+        },
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => ExprKind::Thunk {
+            effect,
+            value,
+            expr: Box::new(refresh_handle_payloads_from_handlers(*expr)),
+        },
+        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
+            id,
+            body: Box::new(refresh_handle_payloads_from_handlers(*body)),
+        },
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk: Box::new(refresh_handle_payloads_from_handlers(*thunk)),
+        },
+        ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
+            from,
+            to,
+            expr: Box::new(refresh_handle_payloads_from_handlers(*expr)),
+        },
+        ExprKind::Pack { var, expr } => ExprKind::Pack {
+            var,
+            expr: Box::new(refresh_handle_payloads_from_handlers(*expr)),
+        },
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => kind,
+    };
+    Expr { ty, kind }
+}
+
+fn refresh_handle_payloads_from_handlers_stmt(stmt: Stmt) -> Stmt {
+    match stmt {
+        Stmt::Let { pattern, value } => Stmt::Let {
+            pattern,
+            value: refresh_handle_payloads_from_handlers(value),
+        },
+        Stmt::Expr(expr) => Stmt::Expr(refresh_handle_payloads_from_handlers(expr)),
+        Stmt::Module { def, body } => Stmt::Module {
+            def,
+            body: refresh_handle_payloads_from_handlers(body),
+        },
+    }
+}
+
 fn effect_payload_type_for_operation(
     effect: &typed_ir::Type,
     operation: &typed_ir::Path,
@@ -6800,12 +7016,31 @@ fn effect_payload_type_for_namespace(
         typed_ir::Type::Named { path, args } if path == namespace => {
             effect_payload_type_from_args(args)
         }
-        typed_ir::Type::Row { items, tail } => items
-            .iter()
-            .chain(std::iter::once(tail.as_ref()))
-            .find_map(|item| effect_payload_type_for_namespace(item, namespace)),
+        typed_ir::Type::Row { items, tail } => {
+            let payloads = items
+                .iter()
+                .chain(std::iter::once(tail.as_ref()))
+                .filter_map(|item| effect_payload_type_for_namespace(item, namespace))
+                .collect::<Vec<_>>();
+            choose_effect_payload_type(payloads)
+        }
         _ => None,
     }
+}
+
+fn choose_effect_payload_type(payloads: Vec<typed_ir::Type>) -> Option<typed_ir::Type> {
+    let mut non_unit = payloads
+        .iter()
+        .filter(|payload| !runtime_type_is_unit_core(payload));
+    match (non_unit.next(), non_unit.next()) {
+        (Some(payload), None) => Some(payload.clone()),
+        (Some(_), Some(_)) => None,
+        (None, _) => payloads.into_iter().next(),
+    }
+}
+
+fn runtime_type_is_unit_core(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Named { path, args } if args.is_empty() && path.segments.len() == 1 && path.segments[0].0 == "unit")
 }
 
 fn relative_operation_payload_type(
@@ -6852,6 +7087,17 @@ fn effect_payload_type_from_args(args: &[typed_ir::TypeArg]) -> Option<typed_ir:
             (!payloads.is_empty()).then_some(typed_ir::Type::Tuple(payloads))
         }
     }
+}
+
+fn runtime_unit_type() -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name("unit".to_string())),
+        args: Vec::new(),
+    }
+}
+
+fn wildcard_payload_unit_context(pattern: &Pattern) -> Option<typed_ir::Type> {
+    matches!(pattern, Pattern::Wildcard { .. }).then(runtime_unit_type)
 }
 
 fn effect_payload_arg_type(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {

@@ -1,5 +1,36 @@
 ## 進捗メモ（2026-05-17）
 
+**strict fallback 削減デバッグ（effect payload / tuple context）— PARTIAL**
+
+- handler adapter plan の consumed effect refinement で、signature 由来の
+  precise payload effect と call-site 由来の coarse / unknown 同一 path effect を
+  並べて残さないようにした。`out` と `out<str>` のような row では、同じ path の
+  precise item を優先する。
+- 空 arg の effect item を payload `unit` と決め打ちする変更は戻した。
+  coarse effect は「payload が unit」ではなく「payload 情報が無い」場合があるため、
+  unit は `Pattern::Wildcard` の補助 context にだけ使う。
+- handler adapter 適用後に、handler の `residual_before` から arm payload pattern を
+  再同期する pass を追加した。adapter が body rewrite より後で handler residual を
+  concrete 化する経路のための同期。
+- tuple expression の result context を item context に分解するようにした。
+  `(result, entries)` のような tail tuple で、外側 expected tuple から local-use context を
+  回収できるようにするため。
+- 試したが戻したもの:
+  - `rewrite_first_handle` を `Block` / `Thunk` へ深く降ろして
+    `plan.consumes` と一致する handler を探す変更。`vm_runs_source_handler_guard_falls_through_to_next_arm`
+    の normal test で residual polymorphic binding を作ったため、この turn では採用しない。
+- 確認:
+  - `RUSTC_WRAPPER= cargo test -q -p yulang-runtime` → **364 passed**
+  - `YULANG_STRICT_MONO_RUNTIME_TYPES=1 RUSTC_WRAPPER= cargo test -q -p yulang-runtime`
+    → **308 passed / 56 failed**
+- 残りの観測:
+  - `runtime_lowers_handler_wildcard_result_join_after_let_bind` は strict で
+    `handle.arm[0].payload: Core(Unknown)` まで進む。
+  - `run_into_strings` の handler plan 自体は `log<str>` を持つが、local ref handler
+    などが絡むと、生成済み log handle へ adapter を当てる順序がまだ足りない。
+    次は「handler adapter をどの生成段階の handle に適用するか」を、first-handle
+    探索ではなく handler boundary の所有情報として整理するのがよさそう。
+
 **strict fallback 削減デバッグ（contextual projection / handler payload）— PARTIAL**
 
 - strict bucket の単発個数ではなく、`YULANG_STRICT_MONO_RUNTIME_TYPES=1`

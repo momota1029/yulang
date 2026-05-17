@@ -302,7 +302,8 @@ pub(super) fn refine_handler_adapter_plan_from_signature(
         return plan;
     };
     plan.residual_before = Some(
-        merge_effects(Some(consumed), plan.residual_after.clone()).unwrap_or(typed_ir::Type::Never),
+        merge_effects(Some(consumed), plan.residual_before.clone())
+            .unwrap_or(typed_ir::Type::Never),
     );
     plan
 }
@@ -437,7 +438,63 @@ fn push_unique_effect_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type
     if effect_is_empty(&item) || items.iter().any(|existing| existing == &item) {
         return;
     }
+    for existing in items.iter_mut() {
+        let Some(ordering) = same_path_effect_item_precision_ordering(&item, existing) else {
+            continue;
+        };
+        match ordering {
+            std::cmp::Ordering::Greater => {
+                *existing = item;
+                return;
+            }
+            std::cmp::Ordering::Less => return,
+            std::cmp::Ordering::Equal if same_path_effect_item_is_precise(&item) => {}
+            std::cmp::Ordering::Equal => return,
+        }
+    }
     items.push(item);
+}
+
+fn same_path_effect_item_precision_ordering(
+    candidate: &typed_ir::Type,
+    existing: &typed_ir::Type,
+) -> Option<std::cmp::Ordering> {
+    let (candidate_path, candidate_args) = named_effect_item(candidate)?;
+    let (existing_path, existing_args) = named_effect_item(existing)?;
+    effect_paths_match(candidate_path, existing_path).then(|| {
+        effect_item_payload_precision(candidate_args)
+            .cmp(&effect_item_payload_precision(existing_args))
+    })
+}
+
+fn same_path_effect_item_is_precise(effect: &typed_ir::Type) -> bool {
+    named_effect_item(effect).is_some_and(|(_, args)| {
+        effect_item_payload_precision(args) == EffectPayloadPrecision::Precise
+    })
+}
+
+fn named_effect_item(effect: &typed_ir::Type) -> Option<(&typed_ir::Path, &[typed_ir::TypeArg])> {
+    match effect {
+        typed_ir::Type::Named { path, args } => Some((path, args)),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum EffectPayloadPrecision {
+    Unknown,
+    Empty,
+    Precise,
+}
+
+fn effect_item_payload_precision(args: &[typed_ir::TypeArg]) -> EffectPayloadPrecision {
+    if args.iter().any(type_arg_contains_unknown_or_var) {
+        EffectPayloadPrecision::Unknown
+    } else if args.is_empty() {
+        EffectPayloadPrecision::Empty
+    } else {
+        EffectPayloadPrecision::Precise
+    }
 }
 
 fn effect_row(items: Vec<typed_ir::Type>, tail: typed_ir::Type) -> typed_ir::Type {
@@ -1528,7 +1585,7 @@ mod tests {
 
         assert_eq!(
             plan.residual_before,
-            Some(effect_with_arg(consumes, named("int")))
+            Some(effect_row(vec![effect_with_arg(consumes, named("int"))]))
         );
         assert_eq!(plan.residual_after, Some(typed_ir::Type::Never));
         assert_eq!(plan.return_wrapper_effect, Some(effect(outer)));
