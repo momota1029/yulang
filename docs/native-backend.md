@@ -14,7 +14,9 @@ This page is split into two parts:
   layout without keeping every historical regression in this public document.
 
 For overall language status across all stages, see
-[docs/status.md](status.md). For deeper design notes see
+[docs/status.md](status.md). The current native experimental release handoff is
+recorded in [docs/native-experimental-release.md](native-experimental-release.md).
+For deeper design notes see
 `notes/design/native-backend-plan.md`,
 `notes/design/cps-effect-lowering-plan.md`, and
 `notes/design/native-cps-mainline-plan.md`. The direct-style / SSA island

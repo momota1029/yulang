@@ -9,6 +9,8 @@ It complements two other documents:
 
 - [docs/language/overview.md](language/overview.md) — what each feature does.
 - [docs/native-backend.md](native-backend.md) — detailed native backend status.
+- [docs/native-experimental-release.md](native-experimental-release.md) —
+  release-gate notes for the current opt-in native subset.
 
 ## Legend
 
@@ -28,8 +30,8 @@ The columns trace a value through the pipeline:
 - **Interpreter** — runs on the interpreter (the semantic oracle for everything
   else).
 - **Playground** — exercised through the WebAssembly playground.
-- **Native** — runs through the native backend (`yulang run --native`); see
-  [docs/native-backend.md](native-backend.md) for the detailed subset.
+- **Native** — runs through the opt-in native backend (`yulang run --native`);
+  see [docs/native-backend.md](native-backend.md) for the detailed subset.
 - **Docs** — covered by the user-facing language overview.
 
 ## Feature support matrix
@@ -102,10 +104,10 @@ The columns trace a value through the pipeline:
 
 ## Known limitations
 
-- The native backend is a prototype. It runs an explicit subset and uses the
-  interpreter as the semantic oracle. See
-  [docs/native-backend.md](native-backend.md) for the user-facing support
-  table and detailed progress.
+- The native backend is an opt-in experimental release candidate for the subset
+  documented in [docs/native-backend.md](native-backend.md). The interpreter
+  remains the semantic oracle, and unsupported native shapes report diagnostics
+  instead of silently falling back to the interpreter.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
   and lands across the pipeline. The `from`-based aggregation path and the

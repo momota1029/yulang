@@ -102,6 +102,8 @@ abstractions underneath.
   backend.
 - [docs/native-backend.md](docs/native-backend.md):
   native backend support, CLI notes, and current limits.
+- [docs/native-experimental-release.md](docs/native-experimental-release.md):
+  release-gate notes for the current opt-in native subset.
 - [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):
   public reference for effect rows, handler hygiene, and hidden handler
   evidence.
@@ -158,7 +160,9 @@ yulang run --native path/to/file.yu
 debugging. The interpreter is still the semantic reference; the native backend
 is an opt-in execution path rather than a replacement. See
 [docs/native-backend.md](docs/native-backend.md) for the supported programs,
-CLI details, and known limits.
+CLI details, and known limits. The current release-gate checklist and suggested
+release note live in
+[docs/native-experimental-release.md](docs/native-experimental-release.md).
 The current native effects path covers string/list/bytes/path/range primitives via
 runtime helper symbols. CPS repr native also preserves handler prompt exits across
 effectful call return frames, so `Display`/`Debug` list construction, `loop with`

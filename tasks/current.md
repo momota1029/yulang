@@ -130,8 +130,10 @@ runtime/core IR
 
 直近 TODO:
 
-- `docs/native-backend.md` / README / status docs を release stance に合わせる。
 - native に残す bug / scary note を `solved` / open に仕分ける。
+- native experimental release を切る直前に
+  `docs/native-experimental-release.md` の release gate を再実行する。
+- tag / publish 手順が必要なら、native は `experimental` と明記して出す。
 - release 後は、型 surface audit と monomorphize strictness を優先 track に戻す。
 
 これまでの主なマイルストーン (CPS lowering / CPS repr Cranelift JIT / value-lane Cranelift /
@@ -147,8 +149,8 @@ dynamic handler frame / guard stack / finite nondet など) は
 直近の順番:
 
 1. native scary notes / bugs を open と solved に仕分ける。
-2. `docs/status.md` の native 列が `docs/native-backend.md` と食い違っていないか見る。
-3. tag / publish 手順が必要なら、native は `experimental` と明記して出す。
+2. release 直前に `docs/native-experimental-release.md` の gate を再実行する。
+3. tag / publish 手順では、native は `experimental` と明記して出す。
 4. その後、型 surface / monomorphize strictness の作業へ戻る。
 
 ## 重要な制約
