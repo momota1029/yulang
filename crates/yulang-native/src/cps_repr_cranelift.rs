@@ -189,7 +189,7 @@ impl CpsReprJitModule {
             .map_err(cranelift_error)?;
         self.roots
             .iter()
-            .zip(self.root_display_hints.iter().copied())
+            .zip(self.root_display_hints.iter())
             .map(|(root, hint)| {
                 reset_native_i64_cps_state();
                 set_native_i64_root_function_ids(&self.root_function_ids);
@@ -219,10 +219,13 @@ impl CpsReprJitModule {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum CpsRootDisplayHint {
     Plain,
     Unit,
+    Bool,
+    Tuple(Vec<CpsRootDisplayHint>),
+    List(Box<CpsRootDisplayHint>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -479,19 +482,56 @@ fn runtime_root_display_hints(module: &runtime::Module) -> Vec<CpsRootDisplayHin
 
 fn root_display_hint_for_runtime_type(ty: &runtime::Type) -> CpsRootDisplayHint {
     match ty {
-        runtime::Type::Core(core) if core_type_is_unit(core) => CpsRootDisplayHint::Unit,
+        runtime::Type::Core(core) => root_display_hint_for_core_type(core),
+        runtime::Type::Thunk { value, .. } => root_display_hint_for_runtime_type(value),
         _ => CpsRootDisplayHint::Plain,
     }
 }
 
-fn core_type_is_unit(ty: &typed_ir::Type) -> bool {
-    matches!(
-        ty,
+fn root_display_hint_for_core_type(ty: &typed_ir::Type) -> CpsRootDisplayHint {
+    match ty {
         typed_ir::Type::Named { path, args }
-            if args.is_empty()
-                && path.segments.len() == 1
-                && path.segments[0].0 == "unit"
-    )
+            if args.is_empty() && core_type_path_is(path, "unit") =>
+        {
+            CpsRootDisplayHint::Unit
+        }
+        typed_ir::Type::Named { path, args }
+            if args.is_empty() && core_type_path_is(path, "bool") =>
+        {
+            CpsRootDisplayHint::Bool
+        }
+        typed_ir::Type::Named { path, args } if core_type_path_is(path, "list") => args
+            .iter()
+            .find_map(root_display_hint_for_type_arg)
+            .map(|item| CpsRootDisplayHint::List(Box::new(item)))
+            .unwrap_or(CpsRootDisplayHint::Plain),
+        typed_ir::Type::Tuple(items) => CpsRootDisplayHint::Tuple(
+            items
+                .iter()
+                .map(root_display_hint_for_core_type)
+                .collect(),
+        ),
+        _ => CpsRootDisplayHint::Plain,
+    }
+}
+
+fn root_display_hint_for_type_arg(arg: &typed_ir::TypeArg) -> Option<CpsRootDisplayHint> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => Some(root_display_hint_for_core_type(ty)),
+        typed_ir::TypeArg::Bounds(bounds) => bounds
+            .lower
+            .as_deref()
+            .or(bounds.upper.as_deref())
+            .map(root_display_hint_for_core_type),
+    }
+}
+
+fn core_type_path_is(path: &typed_ir::Path, name: &str) -> bool {
+    match path.segments.as_slice() {
+        [single] => single.0 == name,
+        [std, _, last] => std.0 == "std" && last.0 == name,
+        _ => false,
+    }
 }
 
 fn define_functions<M: Module, L: CpsLiteralStore>(
@@ -6700,11 +6740,69 @@ pub fn describe_cps_repr_i64_value(value: i64) -> String {
     describe_native_i64_value(value)
 }
 
-fn describe_cps_repr_i64_value_with_hint(value: i64, hint: CpsRootDisplayHint) -> String {
+fn describe_cps_repr_i64_value_with_hint(value: i64, hint: &CpsRootDisplayHint) -> String {
     match hint {
         CpsRootDisplayHint::Unit if value == 0 => "()".to_string(),
+        CpsRootDisplayHint::Bool => {
+            if value == 0 {
+                "false".to_string()
+            } else {
+                "true".to_string()
+            }
+        }
+        CpsRootDisplayHint::Tuple(item_hints) => describe_native_i64_tuple_with_hints(value, item_hints)
+            .unwrap_or_else(|| describe_cps_repr_i64_value(value)),
+        CpsRootDisplayHint::List(item_hint) => describe_native_i64_list_with_hint(value, item_hint)
+            .unwrap_or_else(|| describe_cps_repr_i64_value(value)),
         _ => describe_cps_repr_i64_value(value),
     }
+}
+
+fn describe_native_i64_tuple_with_hints(
+    value: i64,
+    item_hints: &[CpsRootDisplayHint],
+) -> Option<String> {
+    let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
+    if !is_heap {
+        return None;
+    }
+    let heap = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::Tuple(items) = heap else {
+        return None;
+    };
+    let rendered = items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| match item_hints.get(index) {
+            Some(hint) => describe_cps_repr_i64_value_with_hint(*item, hint),
+            None => describe_native_i64_value_with_depth(*item, 1),
+        })
+        .collect::<Vec<_>>();
+    Some(match rendered.as_slice() {
+        [] => "()".to_string(),
+        [single] => format!("({single},)"),
+        _ => format!("({})", rendered.join(", ")),
+    })
+}
+
+fn describe_native_i64_list_with_hint(value: i64, item_hint: &CpsRootDisplayHint) -> Option<String> {
+    let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
+    if !is_heap {
+        return None;
+    }
+    let heap = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::List(items) = heap else {
+        return None;
+    };
+    Some(format!(
+        "[{}]",
+        items
+            .to_vec()
+            .iter()
+            .map(|item| describe_cps_repr_i64_value_with_hint(*item, item_hint))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ))
 }
 
 fn describe_native_i64_value(value: i64) -> String {
@@ -9288,7 +9386,19 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         return fallback_value;
     }
     let prompt = sr.prompt;
-    let value = sr.value;
+    // The active slot stores the destination prompt/escape plus the value
+    // currently being propagated through the native stack. A caller can
+    // transform a ScopeReturn while unwinding (for example a handler value arm
+    // returning `(v, log)` after `k()` produced `v`). In that case the helper's
+    // argument is the fresh propagated value; using the older slot payload lets
+    // the inner block-tail escape past the value arm.
+    let value = fallback_value;
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.active && slot.prompt == prompt {
+            slot.value = value;
+        }
+    });
     let current_eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
     let current_initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
 
