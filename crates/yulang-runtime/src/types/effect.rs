@@ -1,7 +1,7 @@
 use super::*;
 
 pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
-    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown | typed_ir::Type::Any)
+    !effect_is_empty(effect) && !core_type_is_unknown(effect) && !core_type_is_top(effect)
 }
 
 pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {
@@ -113,7 +113,7 @@ fn effect_path_can_match_child_prefix(path: &typed_ir::Path) -> bool {
 
 fn effect_has_open_var(effect: &typed_ir::Type) -> bool {
     match effect {
-        typed_ir::Type::Any | typed_ir::Type::Var(_) => true,
+        effect if core_type_is_top(effect) || core_type_is_inference_var(effect) => true,
         typed_ir::Type::Row { items, tail } => {
             items.iter().any(effect_has_open_var) || effect_has_open_var(tail)
         }

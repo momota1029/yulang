@@ -840,10 +840,7 @@ fn projected_unit_substitution_is_only_open_default(
         .filter(|candidate| candidate.var == substitution.var)
     {
         has_candidate = true;
-        if !matches!(
-            candidate.ty,
-            typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
-        ) {
+        if !principal_substitution_type_is_open_default(&candidate.ty) {
             return false;
         }
     }
@@ -1254,7 +1251,7 @@ fn principal_plan_bounds_slot_type(
 }
 
 fn principal_plan_slot_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
-    !matches!(ty, typed_ir::Type::Var(_))
+    !core_type_is_inference_var(ty)
         && (allow_never || !matches!(ty, typed_ir::Type::Never))
         && !type_has_vars(ty)
 }
@@ -1265,7 +1262,7 @@ fn insert_exact_projected_substitution(
     var: typed_ir::TypeVar,
     ty: typed_ir::Type,
 ) {
-    if type_has_any(&ty) {
+    if core_type_contains_top(&ty) {
         return;
     }
     if let Some(existing) = substitutions.get(&var) {
@@ -1275,9 +1272,9 @@ fn insert_exact_projected_substitution(
             // `Never` is the empty effect when it appears in effect positions.
             // Keep a more informative closed effect if one has already been
             // projected. Value positions do not insert `Never` here.
-        } else if existing == &typed_ir::Type::Any && ty != typed_ir::Type::Any {
+        } else if core_type_is_top(existing) && !core_type_is_top(&ty) {
             substitutions.insert(var, ty);
-        } else if ty == typed_ir::Type::Any {
+        } else if core_type_is_top(&ty) {
             // `Any` is a real top type, but a concrete projection is more useful
             // for a specialization key when both are observed for the same slot.
         } else if let Some(merged) = merge_projected_type_precision(existing, &ty) {
@@ -1802,7 +1799,7 @@ fn effect_residual_candidate_from_upper_bounds(
         if !matches!(relation, typed_ir::PrincipalCandidateRelation::Upper) {
             continue;
         }
-        if matches!(upper, typed_ir::Type::Unknown | typed_ir::Type::Any) {
+        if core_type_is_unknown(upper) || core_type_is_top(upper) {
             continue;
         }
         saw_concrete_upper = true;
@@ -2333,9 +2330,8 @@ fn projection_choice_item_matches_actual(
     allow_never: bool,
 ) -> bool {
     match (template, actual) {
-        (typed_ir::Type::Var(_), _) => false,
-        (typed_ir::Type::Unknown | typed_ir::Type::Any, _) => false,
-        (_, typed_ir::Type::Unknown | typed_ir::Type::Any) => false,
+        (template, _) if principal_substitution_type_is_open_default(template) => false,
+        (_, actual) if core_type_is_unknown(actual) || core_type_is_top(actual) => false,
         (_, typed_ir::Type::Never) => allow_never && matches!(template, typed_ir::Type::Never),
         (typed_ir::Type::Never, _) => false,
         (
@@ -2829,13 +2825,15 @@ fn principal_plan_substitution_type_usable(ty: &typed_ir::Type, allow_never: boo
     if principal_plan_function_slot_usable(ty, allow_never) {
         return true;
     }
-    !matches!(
-        ty,
-        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
-    ) && (allow_never || !matches!(ty, typed_ir::Type::Never))
+    !principal_substitution_type_is_open_default(ty)
+        && (allow_never || !matches!(ty, typed_ir::Type::Never))
         && !type_has_vars(ty)
-        && !type_has_any(ty)
+        && !core_type_contains_top(ty)
         && (allow_never || !core_type_contains_unknown(ty))
+}
+
+fn principal_substitution_type_is_open_default(ty: &typed_ir::Type) -> bool {
+    core_type_is_unknown(ty) || core_type_is_top(ty) || core_type_is_inference_var(ty)
 }
 
 fn principal_plan_function_slot_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
@@ -2852,9 +2850,9 @@ fn principal_plan_function_slot_usable(ty: &typed_ir::Type, allow_never: bool) -
         if type_has_vars(param)
             || type_has_vars(param_effect)
             || type_has_vars(ret_effect)
-            || type_has_any(param)
-            || type_has_any(param_effect)
-            || type_has_any(ret_effect)
+            || core_type_contains_top(param)
+            || core_type_contains_top(param_effect)
+            || core_type_contains_top(ret_effect)
         {
             return false;
         }
@@ -2862,7 +2860,7 @@ fn principal_plan_function_slot_usable(ty: &typed_ir::Type, allow_never: bool) -
     }
     has_function_spine
         && !type_has_vars(current)
-        && !type_has_any(current)
+        && !core_type_contains_top(current)
         && (allow_never || !matches!(current, typed_ir::Type::Never))
 }
 
@@ -3099,9 +3097,8 @@ fn inference_choice_item_matches_actual(
     actual: &typed_ir::Type,
 ) -> bool {
     match (template, actual) {
-        (typed_ir::Type::Var(_), _) => false,
-        (typed_ir::Type::Unknown | typed_ir::Type::Any, _) => false,
-        (_, typed_ir::Type::Unknown | typed_ir::Type::Any) => false,
+        (template, _) if principal_substitution_type_is_open_default(template) => false,
+        (_, actual) if core_type_is_unknown(actual) || core_type_is_top(actual) => false,
         (_, typed_ir::Type::Never) | (typed_ir::Type::Never, _) => false,
         (
             typed_ir::Type::Named { path, args },
@@ -3301,7 +3298,7 @@ pub(super) fn insert_substitution(
     ty: typed_ir::Type,
     prefer_non_never: bool,
 ) {
-    if matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any) {
+    if core_type_is_unknown(&ty) || core_type_is_top(&ty) {
         return;
     }
     if matches!(&ty, typed_ir::Type::Var(actual) if actual == &var) || type_contains_var(&ty, &var)
@@ -3338,51 +3335,6 @@ pub(super) fn type_has_vars(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     !vars.is_empty()
-}
-
-fn type_has_any(ty: &typed_ir::Type) -> bool {
-    match ty {
-        typed_ir::Type::Any => true,
-        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Var(_) => false,
-        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_any),
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => {
-            type_has_any(param)
-                || type_has_any(param_effect)
-                || type_has_any(ret_effect)
-                || type_has_any(ret)
-        }
-        typed_ir::Type::Tuple(items)
-        | typed_ir::Type::Union(items)
-        | typed_ir::Type::Inter(items) => items.iter().any(type_has_any),
-        typed_ir::Type::Row { items, tail } => items.iter().any(type_has_any) || type_has_any(tail),
-        typed_ir::Type::Record(record) => {
-            record.fields.iter().any(|field| type_has_any(&field.value))
-        }
-        typed_ir::Type::Variant(variant) => {
-            variant
-                .cases
-                .iter()
-                .flat_map(|case| &case.payloads)
-                .any(type_has_any)
-                || variant.tail.as_deref().is_some_and(type_has_any)
-        }
-        typed_ir::Type::Recursive { body, .. } => type_has_any(body),
-    }
-}
-
-fn type_arg_has_any(arg: &typed_ir::TypeArg) -> bool {
-    match arg {
-        typed_ir::TypeArg::Type(ty) => type_has_any(ty),
-        typed_ir::TypeArg::Bounds(bounds) => {
-            bounds.lower.as_deref().is_some_and(type_has_any)
-                || bounds.upper.as_deref().is_some_and(type_has_any)
-        }
-    }
 }
 
 pub(super) fn type_contains_var(ty: &typed_ir::Type, var: &typed_ir::TypeVar) -> bool {

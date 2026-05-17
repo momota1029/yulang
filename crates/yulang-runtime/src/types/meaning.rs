@@ -30,6 +30,18 @@ pub(crate) fn core_type_is_inference_hole(ty: &typed_ir::Type) -> bool {
     )
 }
 
+pub(crate) fn core_type_is_unknown(ty: &typed_ir::Type) -> bool {
+    matches!(core_type_meaning(ty), CoreTypeMeaning::Unknown)
+}
+
+pub(crate) fn core_type_is_top(ty: &typed_ir::Type) -> bool {
+    matches!(core_type_meaning(ty), CoreTypeMeaning::Top)
+}
+
+pub(crate) fn core_type_is_inference_var(ty: &typed_ir::Type) -> bool {
+    matches!(core_type_meaning(ty), CoreTypeMeaning::InferenceVar)
+}
+
 pub(crate) fn runtime_type_is_inference_hole(ty: &RuntimeType) -> bool {
     matches!(
         ty,
@@ -126,6 +138,50 @@ pub(crate) fn core_type_contains_unknown(ty: &typed_ir::Type) -> bool {
     }
 }
 
+pub(crate) fn core_type_contains_top(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_top),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_contains_top(param)
+                || core_type_contains_top(param_effect)
+                || core_type_contains_top(ret_effect)
+                || core_type_contains_top(ret)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_type_contains_top),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_contains_top(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        core_type_contains_top(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_type_contains_top))
+                || variant.tail.as_deref().is_some_and(core_type_contains_top)
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_contains_top) || core_type_contains_top(tail)
+        }
+        typed_ir::Type::Recursive { body, .. } => core_type_contains_top(body),
+    }
+}
+
 fn type_arg_contains_unknown(arg: &typed_ir::TypeArg) -> bool {
     match arg {
         typed_ir::TypeArg::Type(ty) => core_type_contains_unknown(ty),
@@ -138,6 +194,16 @@ fn type_arg_contains_unknown(arg: &typed_ir::TypeArg) -> bool {
                     .upper
                     .as_deref()
                     .is_some_and(core_type_contains_unknown)
+        }
+    }
+}
+
+fn type_arg_contains_top(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => core_type_contains_top(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(core_type_contains_top)
+                || bounds.upper.as_deref().is_some_and(core_type_contains_top)
         }
     }
 }
@@ -181,5 +247,17 @@ mod tests {
     #[test]
     fn wildcard_effect_still_uses_any_representation() {
         assert_eq!(wildcard_effect_type(), typed_ir::Type::Any);
+    }
+
+    #[test]
+    fn top_detection_is_distinct_from_unknown_detection() {
+        let ty = typed_ir::Type::Tuple(vec![typed_ir::Type::Any, typed_ir::Type::Unknown]);
+
+        assert!(core_type_contains_top(&ty));
+        assert!(core_type_contains_unknown(&ty));
+        assert!(core_type_is_top(&typed_ir::Type::Any));
+        assert!(!core_type_is_top(&typed_ir::Type::Unknown));
+        assert!(core_type_is_unknown(&typed_ir::Type::Unknown));
+        assert!(!core_type_is_unknown(&typed_ir::Type::Any));
     }
 }
