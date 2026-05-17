@@ -5693,6 +5693,43 @@ impl NativeCpsI64Abort {
             NativeCpsI64Abort::RoutedJump { value, .. } => *value,
         }
     }
+
+    fn mode_at_frame_len(&self, frame_len: usize) -> i64 {
+        match self {
+            NativeCpsI64Abort::None => 0,
+            NativeCpsI64Abort::Global(_) => 1,
+            NativeCpsI64Abort::Scoped {
+                return_frame_threshold,
+                propagate_at_threshold,
+                ..
+            } => {
+                if frame_len > *return_frame_threshold
+                    || (*propagate_at_threshold && frame_len == *return_frame_threshold)
+                {
+                    1
+                } else {
+                    2
+                }
+            }
+            NativeCpsI64Abort::RoutedJump {
+                return_frame_threshold,
+                ..
+            } => {
+                if frame_len > *return_frame_threshold {
+                    1
+                } else {
+                    2
+                }
+            }
+        }
+    }
+
+    fn is_unguarded_routed_jump(&self) -> bool {
+        matches!(
+            self,
+            NativeCpsI64Abort::RoutedJump { guards, .. } if guards.is_empty()
+        )
+    }
 }
 
 /// write27-a/b: suspended caller continuation captured at
@@ -5986,6 +6023,10 @@ fn force_native_i64_root_result(value: i64) -> i64 {
 
 fn native_i64_abort_is_routed_jump() -> bool {
     NATIVE_CPS_I64_ABORT.with(|slot| matches!(*slot.borrow(), NativeCpsI64Abort::RoutedJump { .. }))
+}
+
+fn native_i64_abort_is_unguarded_routed_jump() -> bool {
+    NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_unguarded_routed_jump())
 }
 
 fn current_native_i64_guard_stack() -> Vec<i64> {
@@ -9526,33 +9567,7 @@ extern "C" fn yulang_cps_abort_mode_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
         let abort = slot.borrow().clone();
         let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
-        let mode = match abort {
-            NativeCpsI64Abort::None => 0,
-            NativeCpsI64Abort::Global(_) => 1,
-            NativeCpsI64Abort::Scoped {
-                return_frame_threshold,
-                propagate_at_threshold,
-                ..
-            } => {
-                if frame_len > return_frame_threshold
-                    || (propagate_at_threshold && frame_len == return_frame_threshold)
-                {
-                    1
-                } else {
-                    2
-                }
-            }
-            NativeCpsI64Abort::RoutedJump {
-                return_frame_threshold,
-                ..
-            } => {
-                if frame_len > return_frame_threshold {
-                    1
-                } else {
-                    2
-                }
-            }
-        };
+        let mode = abort.mode_at_frame_len(frame_len);
         if jit_trace_enabled() && mode != 0 {
             eprintln!(
                 "[JIT-CPS] abort_mode: mode={} frame_len={} value={}",
@@ -10485,6 +10500,9 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
         let result = with_native_i64_cps_state_and_active(handlers, guards, active_blocked, || {
             (thunk.code)(thunk.env.as_ptr())
         });
+        if native_i64_abort_is_unguarded_routed_jump() && yulang_cps_abort_mode_i64() == 2 {
+            return yulang_cps_consume_abort_i64();
+        }
         let routed_frames = NATIVE_CPS_I64_RETURN_FRAMES_ROUTED
             .with(|routed| std::mem::take(&mut *routed.borrow_mut()));
         let active_abort = NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().clone());
