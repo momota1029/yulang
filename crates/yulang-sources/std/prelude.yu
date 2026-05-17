@@ -68,12 +68,12 @@ pub role Len 'a:
 
 pub role Display 'a:
     our a.show: str
-    our a.say = std::out::out::write a.show
-    our a.note = std::out::err::write a.show
+    our a.say = std::out::out::write: a.show + "\n"
+    our a.note = std::out::err::write: a.show + "\n"
 
 pub role Debug 'a:
     our a.debug: str
-    our a.dd = std::out::err::write a.debug
+    our a.dd = std::out::err::write: a.debug + "\n"
 
 pub role Cast 'from:
     type to
