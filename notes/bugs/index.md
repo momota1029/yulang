@@ -158,7 +158,13 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   `.once` の value arm 境界は保たれる。
   `std::undet.once` の外側 handler へ戻る `ScopeReturn(prompt=1)` が
   JIT の routed-jump 後に install eval の frame を見つけられず、method 後続の
-  continuation が飛ばされている可能性が高い。
+  continuation が飛ばされている可能性が高い。2026-05-17 追加の trace では
+  prompt=1 は最終的に frame-walk で見つかるが、その時点で値がすでに
+  `:just 3` になっている。`return_i64` で guarded routed jump を consume する
+  実験は `runs_junction_condition_once_through_cps_repr` を `18` に壊したため却下。
+  次は outer `.once` の `k true` resumption が `sub::return 3` 以降の
+  ordinary continuation (`point { ... }.norm2`) を保持できているかを
+  [`native-scary/prompt-8.md`](native-scary/prompt-8.md) の続きで追う。
   追加相談は
   [`render-sink-semantic-type-leak/answer-2.md`](render-sink-semantic-type-leak/answer-2.md)
   /

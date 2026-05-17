@@ -5724,6 +5724,10 @@ impl NativeCpsI64Abort {
         }
     }
 
+    fn is_routed_jump(&self) -> bool {
+        matches!(self, NativeCpsI64Abort::RoutedJump { .. })
+    }
+
     fn is_unguarded_routed_jump(&self) -> bool {
         matches!(
             self,
@@ -6022,11 +6026,15 @@ fn force_native_i64_root_result(value: i64) -> i64 {
 }
 
 fn native_i64_abort_is_routed_jump() -> bool {
-    NATIVE_CPS_I64_ABORT.with(|slot| matches!(*slot.borrow(), NativeCpsI64Abort::RoutedJump { .. }))
+    NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_routed_jump())
 }
 
 fn native_i64_abort_is_unguarded_routed_jump() -> bool {
     NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_unguarded_routed_jump())
+}
+
+fn native_i64_abort_should_consume_after_thunk_force() -> bool {
+    native_i64_abort_is_unguarded_routed_jump() && yulang_cps_abort_mode_i64() == 2
 }
 
 fn current_native_i64_guard_stack() -> Vec<i64> {
@@ -10500,15 +10508,15 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
         let result = with_native_i64_cps_state_and_active(handlers, guards, active_blocked, || {
             (thunk.code)(thunk.env.as_ptr())
         });
-        if native_i64_abort_is_unguarded_routed_jump() && yulang_cps_abort_mode_i64() == 2 {
+        if native_i64_abort_should_consume_after_thunk_force() {
             return yulang_cps_consume_abort_i64();
         }
         let routed_frames = NATIVE_CPS_I64_RETURN_FRAMES_ROUTED
             .with(|routed| std::mem::take(&mut *routed.borrow_mut()));
         let active_abort = NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().clone());
-        let propagating_non_local = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active)
-            || active_abort.is_active();
-        if propagating_non_local && !routed_frames {
+        let active_scope_return = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
+        let propagating_non_local = active_scope_return || active_abort.is_active();
+        if propagating_non_local && (!routed_frames || active_scope_return) {
             let consumed_since = NATIVE_CPS_I64_CONSUMED_RETURN_FRAME_IDS.with(|ids| {
                 ids.borrow()
                     .iter()
@@ -10522,8 +10530,11 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
                     propagate_at_threshold: false,
                     ..
                 }
-            );
+            ) || active_scope_return;
             let restored = if restore_consumed {
+                // An unresolved ScopeReturn still belongs to the caller's
+                // boundary. Keep the full snapshot so resumption replay does
+                // not silently lose post-effect frames while the jump climbs.
                 saved_frames.clone()
             } else {
                 saved_frames
