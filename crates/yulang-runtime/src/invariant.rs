@@ -72,6 +72,19 @@ struct InvariantChecker {
 
 impl InvariantChecker {
     fn expr(&mut self, expr: &Expr, context: String) -> RuntimeResult<()> {
+        if self.strict_value_types
+            && matches!(
+                self.stage,
+                RuntimeStage::Monomorphized | RuntimeStage::BeforeVm
+            )
+            && !matches!(expr.kind, ExprKind::Thunk { .. })
+            && runtime_type_has_runtime_fallback_in_value_position(&expr.ty)
+        {
+            return self.fail(
+                format!("{context}: {:?}", expr.ty),
+                "runtime expression type must not contain unresolved runtime fallback",
+            );
+        }
         match &expr.kind {
             ExprKind::Lambda { body, .. } => self.expr(body, format!("{context}/lambda")),
             ExprKind::Apply { callee, arg, .. } => {
@@ -230,6 +243,18 @@ impl InvariantChecker {
     }
 
     fn pattern(&mut self, pattern: &Pattern, context: String) -> RuntimeResult<()> {
+        if self.strict_value_types
+            && matches!(
+                self.stage,
+                RuntimeStage::Monomorphized | RuntimeStage::BeforeVm
+            )
+            && runtime_type_has_runtime_fallback_in_value_position(pattern_ty(pattern))
+        {
+            return self.fail(
+                format!("{context}: {:?}", pattern_ty(pattern)),
+                "runtime pattern type must not contain unresolved runtime fallback",
+            );
+        }
         match pattern {
             Pattern::Tuple { items, .. } | Pattern::List { prefix: items, .. } => {
                 for (index, item) in items.iter().enumerate() {
@@ -317,6 +342,20 @@ fn path_name(path: &typed_ir::Path) -> String {
         .map(|segment| segment.0.as_str())
         .collect::<Vec<_>>()
         .join("::")
+}
+
+fn pattern_ty(pattern: &Pattern) -> &RuntimeType {
+    match pattern {
+        Pattern::Wildcard { ty }
+        | Pattern::Bind { ty, .. }
+        | Pattern::Lit { ty, .. }
+        | Pattern::Tuple { ty, .. }
+        | Pattern::List { ty, .. }
+        | Pattern::Record { ty, .. }
+        | Pattern::Variant { ty, .. }
+        | Pattern::Or { ty, .. }
+        | Pattern::As { ty, .. } => ty,
+    }
 }
 
 fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool {
@@ -521,6 +560,56 @@ mod tests {
             err,
             RuntimeError::InvariantViolation {
                 message: "VM coerce type must not contain runtime fallback Any",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_expression_type_after_monomorphize() {
+        let module = module_with_expr(Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Unit),
+            RuntimeType::Unknown,
+        ));
+
+        let err =
+            check_strict_runtime_value_types(&module, RuntimeStage::Monomorphized).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "runtime expression type must not contain unresolved runtime fallback",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_pattern_type_after_monomorphize() {
+        let module = module_with_expr(Expr::typed(
+            ExprKind::Block {
+                stmts: vec![Stmt::Let {
+                    pattern: Pattern::Bind {
+                        name: typed_ir::Name("x".to_string()),
+                        ty: RuntimeType::Unknown,
+                    },
+                    value: Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit()),
+                }],
+                tail: Some(Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    unit(),
+                ))),
+            },
+            RuntimeType::core(unit()),
+        ));
+
+        let err =
+            check_strict_runtime_value_types(&module, RuntimeStage::Monomorphized).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "runtime pattern type must not contain unresolved runtime fallback",
                 ..
             }
         ));

@@ -12,11 +12,11 @@ use std::time::Duration;
 use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::invariant::{RuntimeStage, check_runtime_invariants};
+use crate::invariant::{RuntimeStage, check_runtime_invariants, check_strict_runtime_value_types};
 use crate::ir::{
-    Binding, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern, RecordExprField,
-    RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
-    Type as RuntimeType, TypeInstantiation,
+    Binding, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, MatchArm, Module, Pattern,
+    RecordExprField, RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding,
+    Root, Stmt, Type as RuntimeType, TypeInstantiation,
 };
 use crate::monomorphize::{
     DemandEvidenceProfile, DemandQueueProfile, DemandSpecialization, demand_monomorphize_module,
@@ -31,31 +31,36 @@ use crate::types::{
 };
 use crate::validate::validate_module;
 
+mod audit;
 mod canonicalize;
 mod handler_boundary;
 mod local_refresh;
 mod locals;
+mod metadata;
 mod normalize;
 mod paths;
 mod principal_elaborate;
 mod principal_unify;
 mod reachability;
-mod refresh;
 mod shape;
 mod substitute;
+mod type_projection_metrics;
+mod type_surface;
 
+use audit::*;
 use canonicalize::*;
 use handler_boundary::*;
 use local_refresh::*;
 use locals::*;
+use metadata::*;
 use normalize::*;
 use paths::*;
 use principal_elaborate::*;
 use principal_unify::*;
 use reachability::*;
-use refresh::*;
 use shape::*;
 use substitute::*;
+use type_surface::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MonomorphizeMode {
@@ -88,12 +93,15 @@ impl Default for MonomorphizeMode {
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     crate::monomorphize::effect_hole_metrics::reset();
+    type_projection_metrics::reset();
     let lowered = run_mono_pipeline_unprofiled(module)?;
-    let lowered = refresh_monomorphic_evidence(lowered);
-    ensure_monomorphic_bindings(&lowered)?;
+    let lowered = normalize_monomorphized_metadata(lowered);
+    audit_monomorphized_module(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
+    check_strict_monomorphized_runtime_types_if_requested(&lowered)?;
     validate_module(&lowered)?;
     crate::monomorphize::effect_hole_metrics::report_if_requested("monomorphize_module");
+    type_projection_metrics::report_if_requested("monomorphize_module");
     Ok(lowered)
 }
 
@@ -101,12 +109,15 @@ pub fn monomorphize_module_profiled(
     module: Module,
 ) -> RuntimeResult<(Module, MonomorphizeProfile)> {
     crate::monomorphize::effect_hole_metrics::reset();
+    type_projection_metrics::reset();
     let (lowered, profile) = run_mono_pipeline(module)?;
-    let lowered = refresh_monomorphic_evidence(lowered);
-    ensure_monomorphic_bindings(&lowered)?;
+    let lowered = normalize_monomorphized_metadata(lowered);
+    audit_monomorphized_module(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
+    check_strict_monomorphized_runtime_types_if_requested(&lowered)?;
     validate_module(&lowered)?;
     crate::monomorphize::effect_hole_metrics::report_if_requested("monomorphize_module_profiled");
+    type_projection_metrics::report_if_requested("monomorphize_module_profiled");
     Ok((lowered, profile))
 }
 
@@ -368,6 +379,13 @@ fn run_principal_elaborate_pipeline(
         });
     }
     Ok((module, profile))
+}
+
+fn check_strict_monomorphized_runtime_types_if_requested(module: &Module) -> RuntimeResult<()> {
+    if std::env::var_os("YULANG_STRICT_MONO_RUNTIME_TYPES").is_some() {
+        check_strict_runtime_value_types(module, RuntimeStage::Monomorphized)?;
+    }
+    Ok(())
 }
 
 fn run_legacy_demand_fixpoint_pipeline(

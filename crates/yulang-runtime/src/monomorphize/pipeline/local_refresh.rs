@@ -1,3 +1,4 @@
+use super::type_projection_metrics::{self, TypeProjectionFallbackReason};
 use super::*;
 use crate::HandleEffect;
 use crate::types::{runtime_core_type, runtime_type_contains_unknown};
@@ -437,20 +438,40 @@ fn project_expr_runtime_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -
             else_branch,
             ..
         } if then_branch.ty == else_branch.ty => then_branch.ty.clone(),
-        ExprKind::Match { arms, .. } => arms
-            .first()
-            .map(|arm| arm.body.ty.clone())
-            .unwrap_or(fallback),
+        ExprKind::If { .. } => {
+            type_projection_metrics::record(TypeProjectionFallbackReason::IfBranchMismatch);
+            fallback
+        }
+        ExprKind::Match { arms, .. } => match arms.first() {
+            Some(arm) => arm.body.ty.clone(),
+            None => {
+                type_projection_metrics::record(TypeProjectionFallbackReason::MatchNoArms);
+                fallback
+            }
+        },
         ExprKind::Block {
             tail: Some(tail), ..
         } => tail.ty.clone(),
         ExprKind::Apply { callee, .. } => {
-            project_apply_runtime_type_from_callee(&callee.ty).unwrap_or(fallback)
+            match project_apply_runtime_type_from_callee(&callee.ty) {
+                Some(ty) => choose_projected_apply_result(fallback, ty),
+                None => {
+                    type_projection_metrics::record(
+                        TypeProjectionFallbackReason::ApplyCalleeNotFunction,
+                    );
+                    fallback
+                }
+            }
         }
         ExprKind::Lambda { body, .. } => update_lambda_return_type(fallback, &body.ty),
         ExprKind::BindHere { expr } => match &expr.ty {
-            RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
-            _ => fallback,
+            RuntimeType::Thunk { value, .. } => {
+                choose_projected_force_result(fallback, value.as_ref().clone())
+            }
+            _ => {
+                type_projection_metrics::record(TypeProjectionFallbackReason::BindHereNotThunk);
+                fallback
+            }
         },
         ExprKind::Thunk { effect, value, .. } => RuntimeType::thunk(effect.clone(), value.clone()),
         ExprKind::LocalPushId { body, .. } => body.ty.clone(),
@@ -474,6 +495,24 @@ fn project_apply_runtime_type_from_callee(callee: &RuntimeType) -> Option<Runtim
     }
 }
 
+fn choose_projected_apply_result(existing: RuntimeType, projected: RuntimeType) -> RuntimeType {
+    if runtime_type_contains_unknown(&projected) && !runtime_type_contains_unknown(&existing) {
+        type_projection_metrics::record(TypeProjectionFallbackReason::ApplyProjectedUnknown);
+        existing
+    } else {
+        projected
+    }
+}
+
+fn choose_projected_force_result(existing: RuntimeType, projected: RuntimeType) -> RuntimeType {
+    if runtime_type_contains_unknown(&projected) && !runtime_type_contains_unknown(&existing) {
+        type_projection_metrics::record(TypeProjectionFallbackReason::BindHereProjectedUnknown);
+        existing
+    } else {
+        projected
+    }
+}
+
 fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
     match ty {
         RuntimeType::Fun { param, ret } => RuntimeType::fun(
@@ -486,8 +525,10 @@ fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeT
 
 fn choose_projected_lambda_return(existing: RuntimeType, projected: RuntimeType) -> RuntimeType {
     if runtime_type_contains_unknown(&projected) && !runtime_type_contains_unknown(&existing) {
+        type_projection_metrics::record(TypeProjectionFallbackReason::LambdaProjectedUnknown);
         existing
     } else if runtime_type_is_unit_value(&projected) && !runtime_type_is_unit_value(&existing) {
+        type_projection_metrics::record(TypeProjectionFallbackReason::LambdaProjectedUnit);
         existing
     } else {
         projected
@@ -611,7 +652,10 @@ fn refresh_stmt_local_types(stmt: Stmt, locals: &mut HashMap<typed_ir::Path, Run
     }
 }
 
-fn refresh_pattern_value_local_types(pattern: Pattern, value_ty: &RuntimeType) -> Pattern {
+pub(super) fn refresh_pattern_value_local_types(
+    pattern: Pattern,
+    value_ty: &RuntimeType,
+) -> Pattern {
     if !runtime_type_local_binding_usable(value_ty) {
         return pattern;
     }
@@ -706,9 +750,8 @@ fn refresh_pattern_value_local_types(pattern: Pattern, value_ty: &RuntimeType) -
                         None => item,
                     })
                     .collect(),
-                spread: spread.map(|inner| {
-                    Box::new(refresh_pattern_value_local_types(*inner, value_ty))
-                }),
+                spread: spread
+                    .map(|inner| Box::new(refresh_pattern_value_local_types(*inner, value_ty))),
                 suffix: suffix
                     .into_iter()
                     .map(|item| match &item_ty {

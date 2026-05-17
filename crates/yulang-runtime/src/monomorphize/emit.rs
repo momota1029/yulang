@@ -973,11 +973,8 @@ impl<'a> BodyEmitter<'a> {
             curried_signatures(&arg_signatures, ret),
         );
         let signature = close_default_effect_holes(signature);
-        let signature = pass_through_associated_type_signature(
-            self.semantics,
-            &demand_target,
-            signature,
-        );
+        let signature =
+            pass_through_associated_type_signature(self.semantics, &demand_target, signature);
         let key = DemandKey::from_signature(demand_target.clone(), signature);
         let Some(specialization) = self
             .find_specialization(&key)
@@ -1149,8 +1146,7 @@ impl<'a> BodyEmitter<'a> {
             curried_signatures(&provisional_args, ret.clone()),
         );
         let closed = close_default_effect_holes(closed);
-        let closed =
-            pass_through_associated_type_signature(self.semantics, target, closed);
+        let closed = pass_through_associated_type_signature(self.semantics, target, closed);
         let (closed_args, closed_ret) = uncurried_emit_signatures(closed);
         if closed_args.len() == args.len() {
             return (closed_args.into_iter().map(Some).collect(), closed_ret);

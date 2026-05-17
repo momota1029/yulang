@@ -94,8 +94,7 @@ impl Demand {
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> Self {
-        let signature =
-            pass_through_associated_type_signature(semantics, &target, signature);
+        let signature = pass_through_associated_type_signature(semantics, &target, signature);
         let key = DemandKey::from_signature(target.clone(), signature);
         Self {
             target,

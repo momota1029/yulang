@@ -1,21 +1,17 @@
 use super::*;
 
-/// Walk every binding's body and replace the typed metadata on `Apply`,
-/// `If`, `Match`, and `Handle` nodes with values that mirror the
-/// surrounding `Expr.ty` slots. The monomorphize substitute pass only
-/// rewrites variables that appear in the binding scheme's quantified
-/// list, so inference vars that live solely inside the evidence
-/// `TypeBounds` (e.g. `Apply.evidence.callee` for an Apply whose Apply
-/// itself is monomorphic) survive untouched. Validate and the residual
-/// checker keep finding them.
+/// Normalize typed metadata after monomorphization so it obeys the same
+/// concrete runtime contract as the surrounding `Expr.ty` slots. The
+/// monomorphize substitute pass only rewrites variables that appear in
+/// the binding scheme's quantified list, so inference vars that live
+/// solely inside evidence `TypeBounds` can survive untouched.
 ///
-/// Refreshing the metadata after substitute removes those leaks
-/// without changing runtime semantics: the VM only consumes
-/// `Handle.evidence.result` (via `eval_handle`), and validate's
-/// `apply_evidence_result_matches` just checks that the result bounds
-/// agree with the surrounding `Expr.ty` — which holds trivially after
-/// this rewrite.
-pub(super) fn refresh_monomorphic_evidence(mut module: Module) -> Module {
+/// This pass is not a source-level type inference step. It lowers
+/// monomorphized metadata to the minimal concrete shape consumed by
+/// validate/runtime: Apply evidence mirrors callee/arg/result slots,
+/// join evidence mirrors the enclosing result, and principal inference
+/// traces that runtime never reads are dropped.
+pub(super) fn normalize_monomorphized_metadata(mut module: Module) -> Module {
     for binding in &mut module.bindings {
         refresh_expr(&mut binding.body);
     }

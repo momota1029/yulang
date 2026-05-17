@@ -81,17 +81,11 @@ impl<'a> DemandChecker<'a> {
             ),
             &consumed_effects,
         );
-        let solved = pass_through_associated_type_signature(
-            &self.semantics,
-            &demand.target,
-            solved,
-        );
+        let solved =
+            pass_through_associated_type_signature(&self.semantics, &demand.target, solved);
         let solved = close_default_effect_holes(solved);
-        let solved = pass_through_associated_type_signature(
-            &self.semantics,
-            &demand.target,
-            solved,
-        );
+        let solved =
+            pass_through_associated_type_signature(&self.semantics, &demand.target, solved);
         Ok(CheckedDemand {
             target: demand.target.clone(),
             expected,
@@ -1540,8 +1534,7 @@ impl<'a> ExprChecker<'a> {
             curried_signatures(&provisional_args, ret.clone()),
         );
         let closed = close_default_effect_holes(closed);
-        let closed =
-            pass_through_associated_type_signature(self.semantics, target, closed);
+        let closed = pass_through_associated_type_signature(self.semantics, target, closed);
         let (closed_args, closed_ret) = uncurried_checker_signatures(closed);
         debug_closed_call_param_hints(target, args.len(), &closed_args, &closed_ret);
         if closed_args.len() == args.len() {
@@ -2500,8 +2493,7 @@ fn normalize_check_demand_signature(
     target: &typed_ir::Path,
     signature: DemandSignature,
 ) -> DemandSignature {
-    let signature =
-        pass_through_associated_type_signature(semantics, target, signature);
+    let signature = pass_through_associated_type_signature(semantics, target, signature);
     let signature = close_default_effect_holes(signature);
     pass_through_associated_type_signature(semantics, target, signature)
 }

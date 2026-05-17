@@ -1,5 +1,125 @@
 ## 進捗メモ（2026-05-17）
 
+**strict fallback 削減デバッグ（contextual projection / handler payload）— PARTIAL**
+
+- strict bucket の単発個数ではなく、`YULANG_STRICT_MONO_RUNTIME_TYPES=1`
+  で通る VM test 数を指標にして小さく進めた。
+- 追加した一般規則:
+  - monomorphic binding rewrite に、閉じた binding scheme body を
+    result context として渡す。
+  - `BindHere` / `Handle` は、上位 result context があるとき
+    `Unknown` fallback を concrete value 型で埋めてから子を rewrite する。
+  - Apply / force projection は、callee / thunk value から再投影した型が
+    `Unknown` で、既存 `Expr.ty` が concrete なら既存型を温存する。
+  - contextual specialization key に output shape を含め、handler adapter
+    適用後の emitted binding scheme/body にも output shape を戻す。
+  - handler arm payload は `handler.residual_before` の consumed effect row から
+    operation payload 型を引ける場合、payload pattern にその expected 型を流す。
+- handler binding の input shape は body thunk の abort value（`Never`）に引っ張られると
+  effect payload 推定を壊すため、handler body context へは押し込まない。
+- 確認:
+  - `RUSTC_WRAPPER= cargo test -q -p yulang-runtime` → **364 passed**
+  - `YULANG_STRICT_MONO_RUNTIME_TYPES=1 RUSTC_WRAPPER= cargo test -q -p yulang-runtime`
+    → **298 passed / 66 failed**（baseline **289 passed / 70 failed** から 4 件改善）
+- 残りの代表 bucket:
+  - handler arm payload がまだ `Core(Unknown)` になる経路
+  - effectful helper / var ref helper の `apply.callee` parameter `Unknown`
+  - `undet::each` の thunk value `Unknown`
+  - list / opt / result helper の item payload `Unknown`
+- `vm_runs_source_sub_return_nullfix_unit` はまだ strict では落ちる。
+  現在の先頭 failure は `binding f/lambda/bind_here: Thunk { effect: Never, value: Unknown }`。
+  ここは source の `return` thunk が abort value `Never` を持つことと、
+  handler output / payload の concrete 化が途中で再び `Unknown` へ戻ることが絡んでいる。
+
+**TypeSurface collector の入口化（refactor #1）— DONE**
+
+- `monomorphize/pipeline/type_surface.rs` を追加し、binding の runtime 型付き surface
+  （binding scheme / requirements / `Expr.ty` / pattern / evidence / instantiation /
+  handler residual / resume / thunk / `AddId.allowed` / coerce）を一箇所で走査する
+  collector に切り出した。
+- `ensure_monomorphic_bindings` の residual type-var 検査を、この collector 経由に変更。
+  既存の意味論は変えず、今後 substitute / project / audit を同じ surface 定義へ寄せる
+  足場にする。
+- `TypeSurfaceResidual { site, vars }` を導入し、collector が site 付き residual を
+  返すようにした。通常の error は従来通り vars の union だけを使うが、
+  `YULANG_DEBUG_MONO_PIPELINE=1` では binding ごとの residual site を追える。
+- regression として、`AddId.allowed` と pattern の残留型変数が正しい
+  `TypeSurfaceSite` で報告されることを固定した。
+- 確認:
+  - `RUSTC_WRAPPER= cargo check -q -p yulang-runtime`
+  - `RUSTC_WRAPPER= cargo test -q -p yulang-runtime` → **361 passed**
+  - `YULANG_STRICT_MONO_RUNTIME_TYPES=1 RUSTC_WRAPPER= cargo test -q -p yulang-runtime`
+    → **289 passed / 70 failed**（baseline から変化なし）
+
+**monomorphized metadata 正規化 pass の命名整理（refactor #2）— DONE**
+
+- `refresh_monomorphic_evidence` を `normalize_monomorphized_metadata` に rename。
+  これは型推論ではなく、monomorphized IR の evidence / instantiation metadata を
+  validate/runtime が読む最小 concrete 形へ正規化する pass なので、役割名を合わせた。
+- pipeline 出口の呼び出し名も `ensure_monomorphic_bindings` から
+  `audit_monomorphized_module` に寄せた。現時点の実体は既存 residual type-var
+  検査だが、ここへ strict fallback / scheme-body agreement を足していく。
+- 既存挙動は維持。次に TypeSurface walker へ寄せる対象として、この pass の責務を
+  明文化した。
+
+**type projection fallback telemetry（refactor #3）— DONE**
+
+- `monomorphize/type_projection_metrics.rs` を追加し、runtime type projection が
+  rewritten children から型を導けず、既存 `Expr.ty` を温存した箇所を opt-in で
+  数えられるようにした。
+- `YULANG_REPORT_TYPE_PROJECTION_FALLBACKS=1` で `monomorphize_module` /
+  `monomorphize_module_profiled` ごとに以下の counter を出す：
+  - `if_branch_mismatch`
+  - `match_no_arms`
+  - `apply_callee_not_function`
+  - `bind_here_not_thunk`
+  - `lambda_projected_unknown`
+  - `lambda_projected_unit`
+- 通常実行では counter 自体を無効化するため、projection の hot path に
+  atomic increment を乗せない。挙動変更なしの観測口として使う。
+- 単発確認:
+  - `YULANG_REPORT_TYPE_PROJECTION_FALLBACKS=1 RUSTC_WRAPPER= cargo test -q -p yulang-runtime vm_runs_source_sub_return_nullfix_unit -- --nocapture`
+  - `monomorphize_module_profiled: total=2 ... lambda_projected_unknown=2`
+  - strict bucket の `binding f/lambda: Unknown` は、少なくとも
+    lambda return 型の fallback 温存経路に乗っている。
+
+**monomorphized audit の module 分離（refactor #4）— DONE**
+
+- `monomorphize/pipeline/audit.rs` を追加し、monomorphized IR の出口監査を
+  reachability/prune から分離した。
+- `audit_monomorphized_module` は現時点で以下を順に見る：
+  - binding の residual `type_params`
+  - TypeSurface collector 経由の residual runtime type vars
+- TypeSurface 側に `collect_module_binding_runtime_type_residuals` と
+  `BindingTypeSurfaceResidual` を追加し、module-level の入口でも binding owner を
+  保持するようにした。今後 audit / substitute / project を同じ surface 定義へ
+  寄せる足場。
+- regression:
+  - module-level residual が binding owner を保持すること
+  - audit が `TypeParams` と `RuntimeTypes` を別 source として返すこと
+
+**metadata 正規化 / projection telemetry の配置整理（refactor #5）— DONE**
+
+- `monomorphize/pipeline/refresh.rs` を `metadata.rs` に rename。
+  `normalize_monomorphized_metadata` の役割名と file 名を揃えた。
+- `type_projection_metrics` を `monomorphize/` 直下から `pipeline/` 配下へ移動。
+  projection fallback telemetry は pipeline 内部の観測口なので、外へ
+  `pub(crate)` module として出さない形にした。
+- どちらも挙動変更なし。metadata 正規化と fallback telemetry の責務境界だけを整理。
+
+**principal projection helper の分離（refactor #6）— DONE**
+
+- `principal_unify.rs` から `principal_rewrite_type_from_kind` 周辺を
+  `principal_unify/type_projection.rs` に切り出した。
+- 移した対象：
+  - expression kind から runtime type を再投影する helper
+  - apply callee から result 型を読む helper
+  - lambda body 型が弱いとき既存 return 型を温存する helper
+  - projection fallback telemetry の記録箇所
+- `principal_unify.rs` 側には呼び出しだけ残し、巨大ファイル内で
+  “rewrite orchestration” と “type projection fallback policy” が混ざる度合いを下げた。
+- 挙動変更なし。次に `local_refresh` 側の projection helper と共通化できるかを見る。
+
 **Detector 強化（#5 の一部）— DONE**
 
 - `collect_expr_type_vars` を以下のフィールドにも降ろした：
@@ -18,7 +138,7 @@
   ちゃんと書き換えているが、上流から渡される置換マップが空なら
   何も起きない。
 - 解決策：`monomorphize/pipeline/refresh.rs` を新設して
-  pipeline 出口に `refresh_monomorphic_evidence` を 1 pass 足した。
+  pipeline 出口に `normalize_monomorphized_metadata` を 1 pass 足した。
   全 binding body と root expr を回って、
   - `Apply.evidence.callee` / `.arg` / `.result` →
     `TypeBounds::exact(runtime_core_type(子 / 自身の .ty))`
@@ -86,10 +206,50 @@
 - 残作業：legacy 経路を畳むか、strict をデフォルト ON にするかの判断。
   どちらも測定上 production 影響なし。先送り可。
 
+**fallback-to-old-`expr.ty` の strict 検出（#8）— opt-in DONE / fix 保留**
+
+- `check_strict_runtime_value_types` を `RuntimeStage::Monomorphized` でも使えるように拡張し、
+  value position の `RuntimeType::Unknown` / `typed_ir::Type::Unknown` を
+  expr / pattern 境界で検出するようにした。
+- `monomorphize_module` / `monomorphize_module_profiled` の出口から
+  `YULANG_STRICT_MONO_RUNTIME_TYPES=1` のときだけ strict 検査を呼ぶ。
+  デフォルトでは既存挙動を保つ。
+- 観測：この strict 検査をデフォルト ON 相当にすると、`yulang-runtime`
+  の VM 系テストで多数落ちる。代表例は handler payload pattern、
+  `apply.callee`、ref helper の `bind_here/apply.callee`。つまり #8 は単発の
+  fallback ではなく、まだ複数の monomorphize 経路に `Unknown` が残る。
+- 追加観測：`YULANG_STRICT_MONO_RUNTIME_TYPES=1` で
+  `vm_runs_source_sub_return_nullfix_unit` を回すと
+  `binding f/lambda: Unknown` で落ちる。`my f() = sub: return` の
+  monomorphized IR では binding scheme は `unit -> unit` まで閉じているが、
+  lambda body 側の `bind_here (std::flow::sub::sub__mono0 ...)` が `?` のまま残る。
+  つまり scheme / outer lambda は閉じていても、内側 continuation の `Expr.ty`
+  へ expected result が伝わっていない。
+- 2026-05-17 baseline:
+  `YULANG_STRICT_MONO_RUNTIME_TYPES=1 RUSTC_WRAPPER= cargo test -q -p yulang-runtime`
+  は **289 passed / 70 failed**。以後はこの failed count を #8 の進捗指標にする。
+  単一テスト内の `Unknown` 個数は多すぎるので、まず「strict mode で通るテスト数」を見る。
+
+  | bucket | count | first context shape |
+  | --- | ---: | --- |
+  | handler arm payload pattern | 24 | `.../handle.arm[0].payload: Core(Unknown)` |
+  | var ref update helper | 13 | `var_ref__mono*/.../record.update_effect/.../apply.callee` |
+  | prefix `fail` apply callee | 6 | `std::prelude::#op:prefix:fail__mono*/lambda/apply.callee` |
+  | undet `each` callback | 5 | `std::undet::undet::each__mono0/.../bind_here/apply.arg` |
+  | sub / label sub return Unknown | 4 | `std::flow::sub::sub__mono*` / `binding f/lambda: Unknown` |
+  | loop / callback pattern | 3 | `for_in__mono*/.../stmt[0]/pattern` |
+  | handler wildcard tuple value | 2 | `Tuple([Unknown, list[str]])` under handler-local ref/log |
+  | list / fold option item | 4 | `std::list::uncons__mono*`, `Fold::contains`, `Fold::find` |
+  | variant / result / opt isolated | 5 | variant constructor, result helper, opt item tuple, typed handler annotation |
+  | other higher-order apply | 4 | nested callback `apply.callee` with `Core(Unknown)` parameter |
+- 追加した regression:
+  - `rejects_unknown_expression_type_after_monomorphize`
+  - `rejects_unknown_pattern_type_after_monomorphize`
+
 **未着手**
 
 - #11 `pass_through_associated_type_signature` の本実装
-- #8 fallback-to-old-`expr.ty` の失敗扱い化
+- #8 fallback-to-old-`expr.ty` の原因側修復と strict 検査のデフォルト ON 化
 
 ---
 

@@ -10,11 +10,13 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 mod local_context;
+mod type_projection;
 
 use local_context::{
     LocalUseContextScope, collect_block_local_use_contexts, insert_local_use_context,
     local_use_context_scope_into_contexts, merge_local_use_contexts,
 };
+use type_projection::{principal_rewrite_apply_type, principal_rewrite_type_from_kind};
 
 pub(super) fn principal_unify_module_profiled(
     module: Module,
@@ -70,6 +72,7 @@ struct PendingPrincipalSpecialization {
     substitutions: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     handler_plan: Option<HandlerAdapterPlan>,
     input_shapes: Option<Vec<typed_ir::Type>>,
+    output_shape: Option<typed_ir::Type>,
     path: typed_ir::Path,
 }
 
@@ -204,12 +207,13 @@ impl PrincipalUnifier {
                 bindings.push(binding);
                 continue;
             }
+            let body_context = Self::binding_body_runtime_context(&binding);
             let step = self.profile_timer();
             let body = refresh_local_expr_types(binding.body);
             self.finish_profile_timer("binding-refresh-before-rewrite", step);
             let step = self.profile_timer();
             self.push_rewrite_context("binding");
-            let body = self.rewrite_expr(body, None);
+            let body = self.rewrite_expr(body, body_context);
             self.pop_rewrite_context();
             self.finish_profile_timer("binding-rewrite", step);
             let step = self.profile_timer();
@@ -916,7 +920,16 @@ impl PrincipalUnifier {
                 evidence,
                 handler,
             } => {
-                let arm_context = Some(typed_ir::TypeBounds::exact(evidence.result.clone()));
+                if runtime_type_contains_unknown(&ty)
+                    && let Some(context) = closed_type_from_bounds(result_context.as_ref())
+                {
+                    ty = RuntimeType::core(context);
+                }
+                let arm_context = if core_type_contains_unknown(&evidence.result) {
+                    result_context.clone()
+                } else {
+                    Some(typed_ir::TypeBounds::exact(evidence.result.clone()))
+                };
                 let body = self.rewrite_expr(*body, None);
                 let body = unwrap_handler_body_bind_here(body, &handler);
                 let body = ensure_effectful_handler_body_thunk(body, &handler);
@@ -926,8 +939,23 @@ impl PrincipalUnifier {
                         .into_iter()
                         .map(|arm| {
                             let payload = self.rewrite_pattern_defaults(arm.payload);
+                            let payload_context =
+                                handle_arm_payload_runtime_type(&handler, &arm.effect);
+                            let payload = match &payload_context {
+                                Some(payload_context) => {
+                                    refresh_pattern_value_local_types(payload, payload_context)
+                                }
+                                None => payload,
+                            };
                             self.local_value_contexts.push(BTreeMap::new());
-                            self.record_local_value_type(&payload);
+                            if let Some(payload_context) = &payload_context {
+                                self.record_local_value_type_with_expected(
+                                    &payload,
+                                    payload_context,
+                                );
+                            } else {
+                                self.record_local_value_type(&payload);
+                            }
                             if let Some(resume) = &arm.resume {
                                 self.insert_local_value_type(
                                     resume.name.clone(),
@@ -951,7 +979,12 @@ impl PrincipalUnifier {
                 }
             }
             ExprKind::BindHere { expr } => {
-                let expr = self.rewrite_expr(*expr, None);
+                if runtime_type_contains_unknown(&ty)
+                    && let Some(context) = closed_type_from_bounds(result_context.as_ref())
+                {
+                    ty = RuntimeType::core(context);
+                }
+                let expr = self.rewrite_expr(*expr, result_context);
                 if !matches!(expr.ty, RuntimeType::Thunk { .. }) {
                     return expr;
                 }
@@ -1429,6 +1462,11 @@ impl PrincipalUnifier {
             })
     }
 
+    fn binding_body_runtime_context(binding: &Binding) -> Option<typed_ir::TypeBounds> {
+        (!core_type_has_vars(&binding.scheme.body))
+            .then(|| typed_ir::TypeBounds::exact(binding.scheme.body.clone()))
+    }
+
     fn rewrite_block_module_stmt_types(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
         stmts
             .into_iter()
@@ -1775,13 +1813,13 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "missing-handler-adapter-hole");
             return None;
         }
-        let final_context_ty = if is_handler_binding {
+        let result_context_ty = result_context
+            .and_then(|bounds| closed_type_from_bounds(Some(bounds)))
+            .map(RuntimeType::core);
+        let final_context_ty = if is_handler_binding && !runtime_type_contains_unknown(&expr.ty) {
             expr.ty.clone()
         } else {
-            result_context
-                .and_then(|bounds| closed_type_from_bounds(Some(bounds)))
-                .map(RuntimeType::core)
-                .unwrap_or_else(|| expr.ty.clone())
+            result_context_ty.unwrap_or_else(|| expr.ty.clone())
         };
         let handler_adapter_plan = handler_plan.as_ref().map(|(_, plan)| plan.clone());
         let call_callee_ty = handler_adapter_plan
@@ -1796,11 +1834,14 @@ impl PrincipalUnifier {
             })
             .unwrap_or_else(|| callee_ty.clone());
         let specialization_inputs = specialization_input_shapes(&rewritten_args);
+        let specialization_output =
+            result_context.and_then(|bounds| closed_type_from_bounds(Some(bounds)));
         let path = self.intern_specialization(
             original,
             binding_substitutions,
             handler_adapter_plan,
             Some(specialization_inputs),
+            specialization_output,
         )?;
         self.record_target_rewrite(spine.target);
         self.bump("principal-unify-rewrite");
@@ -2321,7 +2362,7 @@ impl PrincipalUnifier {
         let (path, impl_ty, final_ty) = if let Some(effect_context) = effect_context {
             effect_context
         } else {
-            let path = self.intern_specialization(original, substitutions, None, None)?;
+            let path = self.intern_specialization(original, substitutions, None, None, None)?;
             (path, impl_ty, role_result_ty)
         };
         self.bump("principal-unify-role-rewrite");
@@ -2371,8 +2412,13 @@ impl PrincipalUnifier {
         let (target, impl_ty) = if substitutions.is_empty() {
             (candidate.name.clone(), impl_ty)
         } else {
-            let path =
-                self.intern_specialization(candidate.clone(), substitutions.clone(), None, None)?;
+            let path = self.intern_specialization(
+                candidate.clone(),
+                substitutions.clone(),
+                None,
+                None,
+                None,
+            )?;
             let impl_ty = self
                 .binding_by_path_or_emitted(&path)
                 .map(|binding| binding.scheme.body.clone())
@@ -2520,7 +2566,7 @@ impl PrincipalUnifier {
         let path = if substitutions.is_empty() {
             candidate.name
         } else {
-            self.intern_specialization(candidate, substitutions, None, None)?
+            self.intern_specialization(candidate, substitutions, None, None, None)?
         };
         self.bump("principal-unify-impl-method-corrected");
         debug_principal_unify_rewrite(spine.target, &path);
@@ -3135,8 +3181,13 @@ impl PrincipalUnifier {
         substitutions: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
         handler_plan: Option<HandlerAdapterPlan>,
         input_shapes: Option<Vec<typed_ir::Type>>,
+        output_shape: Option<typed_ir::Type>,
     ) -> Option<typed_ir::Path> {
-        if substitutions.is_empty() && handler_plan.is_none() {
+        if substitutions.is_empty()
+            && handler_plan.is_none()
+            && input_shapes.is_none()
+            && output_shape.is_none()
+        {
             return Some(original.name);
         }
         let key = principal_unify_key(
@@ -3144,6 +3195,7 @@ impl PrincipalUnifier {
             &substitutions,
             handler_plan.as_ref(),
             input_shapes.as_deref(),
+            output_shape.as_ref(),
         );
         if let Some(path) = self.specializations.get(&key) {
             return Some(path.clone());
@@ -3162,6 +3214,7 @@ impl PrincipalUnifier {
                 substitutions,
                 handler_plan,
                 input_shapes,
+                output_shape,
                 path: path.clone(),
             });
         Some(path)
@@ -3182,6 +3235,7 @@ impl PrincipalUnifier {
             substitutions,
             handler_plan,
             input_shapes,
+            output_shape,
             path,
         } = request;
         let original_name = original.name.clone();
@@ -3207,10 +3261,24 @@ impl PrincipalUnifier {
                     .body
             })
             .unwrap_or_else(|| binding.scheme.body.clone());
-        let binding_body_context = input_shapes
-            .as_deref()
-            .and_then(|input_shapes| {
-                core_fun_spine_with_input_shapes(&binding_body_context, input_shapes)
+        let binding_body_context = if handler_plan.is_none() {
+            input_shapes
+                .as_deref()
+                .and_then(|input_shapes| {
+                    core_fun_spine_with_input_shapes(&binding_body_context, input_shapes)
+                })
+                .unwrap_or(binding_body_context)
+        } else {
+            binding_body_context
+        };
+        let binding_body_context = output_shape
+            .as_ref()
+            .and_then(|output_shape| {
+                core_fun_spine_with_output_shape(
+                    &binding_body_context,
+                    input_shapes.as_ref().map_or(0, Vec::len),
+                    output_shape,
+                )
             })
             .unwrap_or(binding_body_context);
         let binding_body_context = typed_ir::TypeBounds::exact(binding_body_context);
@@ -3226,6 +3294,16 @@ impl PrincipalUnifier {
             binding = apply_handler_adapter_plan_to_binding(binding, &plan);
             self.finish_profile_timer("intern-apply-handler-plan", started);
             self.record_target_phase_timing(&original_name, "intern-apply-handler-plan", started);
+        }
+        if let Some(output_shape) = &output_shape
+            && let Some(contextual_scheme) = core_fun_spine_with_output_shape(
+                &binding.scheme.body,
+                input_shapes.as_ref().map_or(0, Vec::len),
+                output_shape,
+            )
+        {
+            binding.scheme.body = contextual_scheme.clone();
+            binding.body.ty = normalize_hir_function_type(RuntimeType::core(contextual_scheme));
         }
         let started = self.profile_timer();
         binding.body = refresh_local_expr_types(binding.body);
@@ -3351,7 +3429,7 @@ impl PrincipalUnifier {
             .nullary_generic_substitutions_from_context(&original, result_context)
             .or_else(|| self.nullary_generic_substitutions_from_active_context(&original))?;
         let specialized_ty = substitute_type(&original.scheme.body, &substitutions);
-        let specialized = self.intern_specialization(original, substitutions, None, None)?;
+        let specialized = self.intern_specialization(original, substitutions, None, None, None)?;
         self.bump("principal-unify-nullary-context-rewrite");
         Some(Expr::typed(
             ExprKind::Var(specialized),
@@ -4957,80 +5035,6 @@ fn type_arg_core(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
     }
 }
 
-fn principal_rewrite_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
-    match kind {
-        ExprKind::Tuple(items) => RuntimeType::core(typed_ir::Type::Tuple(
-            items
-                .iter()
-                .map(|item| runtime_core_type(&item.ty))
-                .collect(),
-        )),
-        ExprKind::If {
-            then_branch,
-            else_branch,
-            ..
-        } if then_branch.ty == else_branch.ty => then_branch.ty.clone(),
-        ExprKind::Match { arms, .. } => arms
-            .first()
-            .map(|arm| arm.body.ty.clone())
-            .unwrap_or(fallback),
-        ExprKind::Block {
-            tail: Some(tail), ..
-        } => tail.ty.clone(),
-        ExprKind::Apply { callee, .. } => {
-            principal_rewrite_apply_type(&callee.ty).unwrap_or(fallback)
-        }
-        ExprKind::Lambda { body, .. } => update_lambda_return_type(fallback, &body.ty),
-        ExprKind::BindHere { expr } => match &expr.ty {
-            RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
-            _ => fallback,
-        },
-        ExprKind::Thunk { effect, value, .. } => RuntimeType::thunk(effect.clone(), value.clone()),
-        ExprKind::LocalPushId { body, .. } => body.ty.clone(),
-        ExprKind::AddId { thunk, .. } => thunk.ty.clone(),
-        ExprKind::Coerce { to, .. } => RuntimeType::core(to.clone()),
-        _ => fallback,
-    }
-}
-
-fn principal_rewrite_apply_type(callee: &RuntimeType) -> Option<RuntimeType> {
-    match callee {
-        RuntimeType::Fun { ret, .. } => Some(ret.as_ref().clone()),
-        RuntimeType::Core(typed_ir::Type::Fun {
-            ret_effect, ret, ..
-        }) => Some(runtime_type_from_core_value_and_effect(
-            ret.as_ref().clone(),
-            ret_effect.as_ref().clone(),
-        )),
-        RuntimeType::Thunk { value, .. } => principal_rewrite_apply_type(value),
-        RuntimeType::Unknown | RuntimeType::Core(_) => None,
-    }
-}
-
-fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
-    match ty {
-        RuntimeType::Fun { param, ret } => RuntimeType::fun(
-            *param,
-            choose_rewritten_lambda_return(*ret, body_ty.clone()),
-        ),
-        other => other,
-    }
-}
-
-fn choose_rewritten_lambda_return(existing: RuntimeType, rewritten: RuntimeType) -> RuntimeType {
-    if runtime_type_contains_unknown(&rewritten) && !runtime_type_contains_unknown(&existing) {
-        existing
-    } else if runtime_type_is_unit_value(&rewritten) && !runtime_type_is_unit_value(&existing) {
-        existing
-    } else {
-        rewritten
-    }
-}
-
-fn runtime_type_is_unit_value(ty: &RuntimeType) -> bool {
-    matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
-}
-
 fn refresh_apply_expr_type_from_callee(expr: Expr) -> Expr {
     let Expr { ty, kind } = expr;
     let ExprKind::Apply {
@@ -5768,6 +5772,37 @@ fn core_fun_spine_with_input_shapes(
     let param = input_shape_context_param(param, &input_shapes[0]);
     Some(typed_ir::Type::Fun {
         param: Box::new(param),
+        param_effect: param_effect.clone(),
+        ret_effect: ret_effect.clone(),
+        ret: Box::new(ret),
+    })
+}
+
+fn core_fun_spine_with_output_shape(
+    ty: &typed_ir::Type,
+    arity: usize,
+    output_shape: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    if arity == 0 {
+        return Some(output_shape.clone());
+    }
+    let typed_ir::Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+        ..
+    } = ty
+    else {
+        return None;
+    };
+    let ret = if arity == 1 {
+        output_shape.clone()
+    } else {
+        core_fun_spine_with_output_shape(ret, arity - 1, output_shape)?
+    };
+    Some(typed_ir::Type::Fun {
+        param: param.clone(),
         param_effect: param_effect.clone(),
         ret_effect: ret_effect.clone(),
         ret: Box::new(ret),
@@ -6728,6 +6763,104 @@ fn adapt_apply_result_from_evidence(
         },
         ty,
     )
+}
+
+fn handle_arm_payload_runtime_type(
+    handler: &crate::ir::HandleEffect,
+    operation: &typed_ir::Path,
+) -> Option<RuntimeType> {
+    if operation == &typed_ir::Path::default() {
+        return None;
+    }
+    let effect = handler.residual_before.as_ref()?;
+    effect_payload_type_for_operation(effect, operation).map(RuntimeType::core)
+}
+
+fn effect_payload_type_for_operation(
+    effect: &typed_ir::Type,
+    operation: &typed_ir::Path,
+) -> Option<typed_ir::Type> {
+    effect_operation_namespace(operation)
+        .and_then(|namespace| effect_payload_type_for_namespace(effect, &namespace))
+        .or_else(|| effect_payload_type_for_namespace(effect, operation))
+        .or_else(|| relative_operation_payload_type(effect, operation))
+}
+
+fn effect_operation_namespace(operation: &typed_ir::Path) -> Option<typed_ir::Path> {
+    (operation.segments.len() > 1).then(|| typed_ir::Path {
+        segments: operation.segments[..operation.segments.len() - 1].to_vec(),
+    })
+}
+
+fn effect_payload_type_for_namespace(
+    effect: &typed_ir::Type,
+    namespace: &typed_ir::Path,
+) -> Option<typed_ir::Type> {
+    match effect {
+        typed_ir::Type::Named { path, args } if path == namespace => {
+            effect_payload_type_from_args(args)
+        }
+        typed_ir::Type::Row { items, tail } => items
+            .iter()
+            .chain(std::iter::once(tail.as_ref()))
+            .find_map(|item| effect_payload_type_for_namespace(item, namespace)),
+        _ => None,
+    }
+}
+
+fn relative_operation_payload_type(
+    effect: &typed_ir::Type,
+    operation: &typed_ir::Path,
+) -> Option<typed_ir::Type> {
+    if operation.segments.len() != 1 {
+        return None;
+    }
+    let mut payloads = Vec::new();
+    collect_non_empty_effect_payload_types(effect, &mut payloads);
+    match payloads.as_slice() {
+        [payload] => Some(payload.clone()),
+        _ => None,
+    }
+}
+
+fn collect_non_empty_effect_payload_types(effect: &typed_ir::Type, out: &mut Vec<typed_ir::Type>) {
+    match effect {
+        typed_ir::Type::Named { args, .. } if !args.is_empty() => {
+            if let Some(payload) = effect_payload_type_from_args(args) {
+                out.push(payload);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_non_empty_effect_payload_types(item, out);
+            }
+            collect_non_empty_effect_payload_types(tail, out);
+        }
+        _ => {}
+    }
+}
+
+fn effect_payload_type_from_args(args: &[typed_ir::TypeArg]) -> Option<typed_ir::Type> {
+    match args {
+        [] => None,
+        [arg] => effect_payload_arg_type(arg),
+        _ => {
+            let payloads = args
+                .iter()
+                .filter_map(effect_payload_arg_type)
+                .collect::<Vec<_>>();
+            (!payloads.is_empty()).then_some(typed_ir::Type::Tuple(payloads))
+        }
+    }
+}
+
+fn effect_payload_arg_type(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => Some(ty.clone()),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().or(bounds.upper.as_deref()).cloned()
+        }
+    }
 }
 
 fn unwrap_handler_body_bind_here(body: Expr, handler: &crate::ir::HandleEffect) -> Expr {
@@ -9096,6 +9229,7 @@ fn principal_unify_key(
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     handler_plan: Option<&HandlerAdapterPlan>,
     input_shapes: Option<&[typed_ir::Type]>,
+    output_shape: Option<&typed_ir::Type>,
 ) -> String {
     let mut key = canonical_path(target);
     for (var, ty) in substitutions {
@@ -9109,6 +9243,10 @@ fn principal_unify_key(
             key.push_str("|input=");
             canonical_type(shape, &mut key);
         }
+    }
+    if let Some(output_shape) = output_shape {
+        key.push_str("|output=");
+        canonical_type(output_shape, &mut key);
     }
     if let Some(plan) = handler_plan {
         if let Some(effect) = &plan.residual_before {
