@@ -487,6 +487,24 @@ run: log::put 5
     }
 
     #[test]
+    fn runs_effect_handler_guard_block_tail_through_cps_repr() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"act log:
+    pub put: int -> ()
+
+my run(a: [log] 'r): 'r = catch a:
+    log::put n, k if n > 0 -> run (k ())
+    log::put _, k -> run (k ())
+    v -> v
+
+{ run: log::put 5; 7 }
+"#,
+            vec!["7"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_finite_for_loop_last_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::flow::*

@@ -1,0 +1,35 @@
+-- solved (native): handler arm guard の最小再現が compile 後に unit lane を
+-- int `0` として返していた。
+--
+-- 2026-05-17 修正。
+--
+-- 期待:
+--   log::put 5 は handler arm guard を通り、VM / native とも root は `()`。
+--
+-- 修正前:
+--   VM      `()`
+--   native  `0`
+--
+-- 修正後:
+--   VM      `()`
+--   native  `()`
+--
+-- 切り分け:
+--   以前は handler guard が native CPS lowering 未対応で reject されていた。
+--   その後 lowering 自体は通るようになったが、`BindHere` 文の後ろに
+--   block tail がある場合、immediate force される thunk-returning direct call を
+--   `EffectfulCall` として分割してしまい、tail continuation が落ちていた。
+--
+-- 確認:
+--   yulang run --interpreter --print-roots notes/bugs/solved/native_cps_lowering_unsupported.yu
+--   yulang run --native --print-roots notes/bugs/solved/native_cps_lowering_unsupported.yu
+
+act log:
+    pub put: int -> ()
+
+my run(a: [log] 'r): 'r = catch a:
+    log::put n, k if n > 0 -> run (k ())
+    log::put _, k -> run (k ())
+    v -> v
+
+run: log::put 5

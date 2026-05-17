@@ -102,11 +102,6 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 
 ### CPS lowering 未対応 / 値違い
 
-- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
-  — handler arm guard の最小再現は 2026-05-17 時点で compile は通るが、
-  VM `()` / native `0` の値違い。以前の「CPS lowering 未対応 reject」から
-  unit lane が int に潰れる段階へ進んだため、未解決側へ戻した。
-
 - `std::undet` の native CPS 回帰についての古い設計メモ。2026-05-17 時点で
   finite `.once` / `.logic` は再現しないが、bare `branch().list` は下の
   `native_undet_branch_list_returns_scalar.yu` として残っている。

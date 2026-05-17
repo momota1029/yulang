@@ -2312,7 +2312,9 @@ impl<'a> FunctionLowerer<'a> {
                 runtime::Stmt::Expr(expr) => {
                     if !stmts[index + 1..].is_empty() || tail.is_some() {
                         if let runtime::ExprKind::BindHere { expr: inner } = &expr.kind {
-                            let thunk = self.lower_expr(inner)?;
+                            let thunk = self.with_sync_apply_for_immediate_force_depth(|this| {
+                                this.lower_expr(inner)
+                            })?;
                             let post_cont = self.fresh_continuation();
                             let ignored = self.fresh_value();
                             self.terminate(CpsTerminator::EffectfulForce {
@@ -4092,7 +4094,9 @@ impl<'a> FunctionLowerer<'a> {
                 runtime::Stmt::Expr(expr) => {
                     if !stmts[index + 1..].is_empty() || tail.is_some() {
                         if let runtime::ExprKind::BindHere { expr: inner } = &expr.kind {
-                            let thunk = self.lower_expr(inner)?;
+                            let thunk = self.with_sync_apply_for_immediate_force_depth(|this| {
+                                this.lower_expr(inner)
+                            })?;
                             let post_cont = self.fresh_continuation();
                             let ignored = self.fresh_value();
                             self.terminate(CpsTerminator::EffectfulForce {
@@ -4898,7 +4902,11 @@ impl<'a> FunctionLowerer<'a> {
         let should_inline = (!matches!(expr.ty, runtime::Type::Thunk { .. })
             && args.iter().any(|arg| is_inline_argument(arg)))
             || (self.active_handler.is_some() && info_returns_thunk && target_may_perform);
-        let mode = if (self.higher_order_helper && info_returns_thunk) || target_may_perform {
+        let immediate_force =
+            self.sync_apply_for_immediate_force_depth.is_active() && info_returns_thunk;
+        let mode = if !immediate_force
+            && ((self.higher_order_helper && info_returns_thunk) || target_may_perform)
+        {
             DirectCallMode::EffectfulWithResume
         } else {
             DirectCallMode::SyncDirect

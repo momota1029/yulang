@@ -34,6 +34,11 @@ done
   generic `Display::say<'a>` が VM erase まで残っていた件。`[1, 2, 3].say` /
   `["a", "b"].say` / `(each [1, 2, 3] + each [1, 2]).list.say` は VM で通り、
   `say` の改行込み stdout も regression 化済み。
+- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
+  — handler arm guard の後続で `BindHere` 文の block tail が CPS repr native
+  で落ち、VM `()` / native `0` になっていた件。immediate force される
+  thunk-returning direct call を同期 lowering に保つようにして、VM / native とも
+  `()`。
 - [`native_handler_self_rewrap_no_accumulate.yu`](native_handler_self_rewrap_no_accumulate.yu)
   — self-recursive shallow handler の再帰 wrap が VM / native とも `("ab", 3)`。
 - [`native_undet_once_logic_simple.yu`](native_undet_once_logic_simple.yu)

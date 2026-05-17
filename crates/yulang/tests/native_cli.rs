@@ -39,6 +39,44 @@ sub:
     assert_eq!(String::from_utf8_lossy(&output.stdout), "0\n1\n2\n42\n");
 }
 
+#[test]
+fn native_effect_handler_guard_unit_root_prints_unit() {
+    let source = r#"
+act log:
+    pub put: int -> ()
+
+my run(a: [log] 'r): 'r = catch a:
+    log::put n, k if n > 0 -> run (k ())
+    log::put _, k -> run (k ())
+    v -> v
+
+run: log::put 5
+"#;
+    let path = std::env::temp_dir().join(format!(
+        "yulang-native-handler-guard-unit-{}-{}.yu",
+        std::process::id(),
+        unique_suffix()
+    ));
+    fs::write(&path, source).expect("write test source");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .arg("run")
+        .arg("--native")
+        .arg(&path)
+        .arg("--print-roots")
+        .output()
+        .expect("run yulang native CLI");
+    let _ = fs::remove_file(&path);
+
+    assert!(
+        output.status.success(),
+        "native CLI failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "()\n");
+}
+
 fn unique_suffix() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
