@@ -5984,6 +5984,10 @@ fn force_native_i64_root_result(value: i64) -> i64 {
     }
 }
 
+fn native_i64_abort_is_routed_jump() -> bool {
+    NATIVE_CPS_I64_ABORT.with(|slot| matches!(*slot.borrow(), NativeCpsI64Abort::RoutedJump { .. }))
+}
+
 fn current_native_i64_guard_stack() -> Vec<i64> {
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone())
 }
@@ -10249,6 +10253,9 @@ extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
             return yulang_cps_abort_value_i64();
         }
         2 => {
+            if native_i64_abort_is_routed_jump() {
+                return yulang_cps_abort_value_i64();
+            }
             return yulang_cps_consume_abort_i64();
         }
         _ => {}
@@ -10280,6 +10287,9 @@ extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
             return yulang_cps_abort_value_i64();
         }
         2 => {
+            if native_i64_abort_is_routed_jump() {
+                return yulang_cps_abort_value_i64();
+            }
             value = yulang_cps_consume_abort_i64();
         }
         _ => {}
