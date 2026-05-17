@@ -10,6 +10,8 @@ use cranelift_module::{DataDescription, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_runtime as runtime;
 use yulang_runtime::runtime::bytes_tree::BytesTree;
+use yulang_runtime::runtime::list_tree::{ListTree, ListView};
+use yulang_runtime::runtime::string_tree::StringTree;
 use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
@@ -5566,11 +5568,11 @@ enum NativeCpsI64HeapValue {
     Tuple(Box<[i64]>),
     Record(Vec<(Box<str>, i64)>),
     Variant { tag: i64, value: Option<i64> },
-    List(Vec<i64>),
+    List(ListTree<i64>),
     Bool(bool),
     Unit,
     Float(f64),
-    String(Box<str>),
+    String(StringTree<Box<str>>),
     Bytes(BytesTree),
     Path(std::path::PathBuf),
 }
@@ -6565,6 +6567,7 @@ fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
         NativeCpsI64HeapValue::List(items) => format!(
             "[{}]",
             items
+                .to_vec()
                 .iter()
                 .map(|item| describe_native_i64_value_with_depth(*item, depth + 1))
                 .collect::<Vec<_>>()
@@ -6573,7 +6576,7 @@ fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
         NativeCpsI64HeapValue::Bool(value) => value.to_string(),
         NativeCpsI64HeapValue::Unit => "()".to_string(),
         NativeCpsI64HeapValue::Float(value) => native_cps_format_float(*value),
-        NativeCpsI64HeapValue::String(text) => text.to_string(),
+        NativeCpsI64HeapValue::String(text) => text.to_flat_string(),
         NativeCpsI64HeapValue::Bytes(value) => format!("<bytes len={}>", value.len()),
         NativeCpsI64HeapValue::Path(value) => value.display().to_string(),
     }
@@ -6625,6 +6628,7 @@ fn describe_native_i64_debug_value_with_depth(value: i64, depth: usize) -> Strin
         NativeCpsI64HeapValue::List(items) => format!(
             "[{}]",
             items
+                .to_vec()
                 .iter()
                 .map(|item| describe_native_i64_debug_value_with_depth(*item, depth + 1))
                 .collect::<Vec<_>>()
@@ -6633,7 +6637,7 @@ fn describe_native_i64_debug_value_with_depth(value: i64, depth: usize) -> Strin
         NativeCpsI64HeapValue::Bool(value) => value.to_string(),
         NativeCpsI64HeapValue::Unit => "()".to_string(),
         NativeCpsI64HeapValue::Float(value) => native_cps_format_float(*value),
-        NativeCpsI64HeapValue::String(text) => format!("{text:?}"),
+        NativeCpsI64HeapValue::String(text) => format!("{:?}", text.to_flat_string()),
         NativeCpsI64HeapValue::Bytes(value) => format!("<bytes len={}>", value.len()),
         NativeCpsI64HeapValue::Path(value) => format!("{:?}", value.display().to_string()),
     }
@@ -7111,9 +7115,7 @@ extern "C" fn yulang_cps_print_debug_i64(value: i64) {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_debug_i64(value: i64) -> i64 {
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        describe_native_i64_debug_value(value).into_boxed_str(),
-    ))
+    native_cps_i64_string_heap(&describe_native_i64_debug_value(value))
 }
 
 #[unsafe(no_mangle)]
@@ -7146,7 +7148,7 @@ extern "C" fn yulang_cps_die_i64(value: i64) -> i64 {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_empty_i64() -> i64 {
-    let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(Vec::new()));
+    let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(ListTree::empty()));
     if jit_trace_enabled() {
         eprintln!(
             "[JIT-CPS] list_empty: result={}",
@@ -7158,7 +7160,7 @@ extern "C" fn yulang_cps_list_empty_i64() -> i64 {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_singleton_i64(value: i64) -> i64 {
-    let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(vec![value]));
+    let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(ListTree::singleton(value)));
     if jit_trace_enabled() {
         eprintln!(
             "[JIT-CPS] list_singleton: item={} result={}",
@@ -7177,8 +7179,7 @@ extern "C" fn yulang_cps_list_merge_i64(left: i64, right: i64) -> i64 {
     else {
         return yulang_cps_list_empty_i64();
     };
-    let mut merged = left.clone();
-    merged.extend(right.iter().copied());
+    let merged = ListTree::concat(left.clone(), right.clone());
     let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(merged));
     if jit_trace_enabled() {
         eprintln!(
@@ -7206,7 +7207,10 @@ extern "C" fn yulang_cps_list_index_i64(value: i64, index: i64) -> i64 {
     let NativeCpsI64HeapValue::List(items) = value else {
         return 0;
     };
-    items.get(index as usize).copied().unwrap_or(0)
+    let Ok(index) = usize::try_from(index) else {
+        return 0;
+    };
+    items.index(index).unwrap_or(0)
 }
 
 #[unsafe(no_mangle)]
@@ -7224,7 +7228,10 @@ extern "C" fn yulang_cps_list_index_range_raw_i64(value: i64, start: i64, end: i
     if start > end || end > items.len() {
         return yulang_cps_list_empty_i64();
     }
-    native_cps_i64_heap(NativeCpsI64HeapValue::List(items[start..end].to_vec()))
+    let Some(range) = items.index_range(start, end) else {
+        return yulang_cps_list_empty_i64();
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::List(range))
 }
 
 #[unsafe(no_mangle)]
@@ -7236,7 +7243,10 @@ extern "C" fn yulang_cps_list_index_range_i64(value: i64, range: i64) -> i64 {
     let Some((start, end)) = native_cps_i64_normalized_int_range(range, items.len()) else {
         return yulang_cps_list_empty_i64();
     };
-    native_cps_i64_heap(NativeCpsI64HeapValue::List(items[start..end].to_vec()))
+    let Some(range) = items.index_range(start, end) else {
+        return yulang_cps_list_empty_i64();
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::List(range))
 }
 
 #[unsafe(no_mangle)]
@@ -7256,10 +7266,9 @@ extern "C" fn yulang_cps_list_splice_raw_i64(value: i64, start: i64, end: i64, i
     if start > end || end > items.len() {
         return yulang_cps_list_empty_i64();
     }
-    let mut result = Vec::with_capacity(items.len() - (end - start) + insert.len());
-    result.extend_from_slice(&items[..start]);
-    result.extend(insert.iter().copied());
-    result.extend_from_slice(&items[end..]);
+    let Some(result) = items.splice(start, end, insert.clone()) else {
+        return yulang_cps_list_empty_i64();
+    };
     native_cps_i64_heap(NativeCpsI64HeapValue::List(result))
 }
 
@@ -7274,10 +7283,9 @@ extern "C" fn yulang_cps_list_splice_i64(value: i64, range: i64, insert: i64) ->
     let Some((start, end)) = native_cps_i64_normalized_int_range(range, items.len()) else {
         return yulang_cps_list_empty_i64();
     };
-    let mut result = Vec::with_capacity(items.len() - (end - start) + insert.len());
-    result.extend_from_slice(&items[..start]);
-    result.extend(insert.iter().copied());
-    result.extend_from_slice(&items[end..]);
+    let Some(result) = items.splice(start, end, insert.clone()) else {
+        return yulang_cps_list_empty_i64();
+    };
     native_cps_i64_heap(NativeCpsI64HeapValue::List(result))
 }
 
@@ -7287,8 +7295,8 @@ extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
     let NativeCpsI64HeapValue::List(items) = value else {
         return native_cps_i64_variant("empty", None);
     };
-    match items.len() {
-        0 => {
+    match items.view() {
+        ListView::Empty => {
             let result = native_cps_i64_variant("empty", None);
             if jit_trace_enabled() {
                 eprintln!(
@@ -7298,23 +7306,22 @@ extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
             }
             result
         }
-        1 => {
-            let head = items.first().copied();
-            let result = native_cps_i64_variant("leaf", head);
+        ListView::Leaf(head) => {
+            let result = native_cps_i64_variant("leaf", Some(head));
             if jit_trace_enabled() {
                 eprintln!(
                     "[JIT-CPS] list_view: len=1 head={} result={}",
-                    head.map(describe_native_i64_value)
-                        .unwrap_or_else(|| "none".to_string()),
+                    describe_native_i64_value(head),
                     describe_native_i64_value(result)
                 );
             }
             result
         }
-        len => {
-            let mid = len / 2;
-            let left = native_cps_i64_heap(NativeCpsI64HeapValue::List(items[..mid].to_vec()));
-            let right = native_cps_i64_heap(NativeCpsI64HeapValue::List(items[mid..].to_vec()));
+        ListView::Node {
+            len, left, right, ..
+        } => {
+            let left = native_cps_i64_heap(NativeCpsI64HeapValue::List(left));
+            let right = native_cps_i64_heap(NativeCpsI64HeapValue::List(right));
             let tuple = native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(
                 vec![left, right].into_boxed_slice(),
             ));
@@ -7335,29 +7342,23 @@ extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_int_to_string_i64(value: i64) -> i64 {
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        value.to_string().into_boxed_str(),
-    ))
+    native_cps_i64_string_heap(&value.to_string())
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_int_to_hex_i64(value: i64) -> i64 {
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        format!("{value:x}").into_boxed_str(),
-    ))
+    native_cps_i64_string_heap(&format!("{value:x}"))
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_int_to_upper_hex_i64(value: i64) -> i64 {
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        format!("{value:X}").into_boxed_str(),
-    ))
+    native_cps_i64_string_heap(&format!("{value:X}"))
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_bool_to_string_i64(value: i64) -> i64 {
     let text = if value == 0 { "false" } else { "true" };
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into()))
+    native_cps_i64_string_heap(text)
 }
 
 #[unsafe(no_mangle)]
@@ -7372,9 +7373,7 @@ extern "C" fn yulang_cps_unit_i64() -> i64 {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_float_to_string_f64(value: f64) -> i64 {
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        native_cps_format_float(value).into_boxed_str(),
-    ))
+    native_cps_i64_string_heap(&native_cps_format_float(value))
 }
 
 #[unsafe(no_mangle)]
@@ -7401,87 +7400,83 @@ fn native_cps_format_float(value: f64) -> String {
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_literal_i64(ptr: *const u8, len: i64) -> i64 {
     let Some(text) = native_cps_i64_string_from_bytes(ptr, len) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+        return native_cps_i64_string_empty();
     };
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into_boxed_str()))
+    native_cps_i64_string_heap(&text)
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_concat_i64(left: i64, right: i64) -> i64 {
-    let Some(left) = native_cps_i64_string_text(left) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(left) = native_cps_i64_string_value(left) else {
+        return native_cps_i64_string_empty();
     };
-    let Some(right) = native_cps_i64_string_text(right) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(right) = native_cps_i64_string_value(right) else {
+        return native_cps_i64_string_empty();
     };
-    let mut text = String::with_capacity(left.len() + right.len());
-    text.push_str(left);
-    text.push_str(right);
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into_boxed_str()))
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(StringTree::concat(
+        left.clone(),
+        right.clone(),
+    )))
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_eq_i64(left: i64, right: i64) -> i64 {
-    let Some(left) = native_cps_i64_string_text(left) else {
+    let Some(left) = native_cps_i64_string_value(left) else {
         return 0;
     };
-    let Some(right) = native_cps_i64_string_text(right) else {
+    let Some(right) = native_cps_i64_string_value(right) else {
         return 0;
     };
-    i64::from(left == right)
+    i64::from(left.to_flat_string() == right.to_flat_string())
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_len_i64(value: i64) -> i64 {
-    native_cps_i64_string_text(value)
-        .map(|text| text.chars().count() as i64)
+    native_cps_i64_string_value(value)
+        .map(|text| text.len() as i64)
         .unwrap_or(0)
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_index_i64(value: i64, index: i64) -> i64 {
-    let Some(text) = native_cps_i64_string_text(value) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(text) = native_cps_i64_string_value(value) else {
+        return native_cps_i64_string_empty();
     };
     let Ok(index) = usize::try_from(index) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+        return native_cps_i64_string_empty();
     };
-    let Some(ch) = text.chars().nth(index) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(ch) = text.index(index) else {
+        return native_cps_i64_string_empty();
     };
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        ch.to_string().into_boxed_str(),
-    ))
+    native_cps_i64_string_heap(&ch.to_string())
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_index_range_raw_i64(value: i64, start: i64, end: i64) -> i64 {
-    let Some(text) = native_cps_i64_string_text(value) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(text) = native_cps_i64_string_value(value) else {
+        return native_cps_i64_string_empty();
     };
-    let Some(slice) = native_cps_i64_string_slice(text, start, end) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some((start, end)) = native_cps_i64_string_index_range(text, start, end) else {
+        return native_cps_i64_string_empty();
     };
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        slice.to_string().into_boxed_str(),
-    ))
+    let Some(slice) = text.index_range(start, end) else {
+        return native_cps_i64_string_empty();
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(slice))
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_index_range_i64(value: i64, range: i64) -> i64 {
-    let Some(text) = native_cps_i64_string_text(value) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(text) = native_cps_i64_string_value(value) else {
+        return native_cps_i64_string_empty();
     };
-    let Some((start, end)) = native_cps_i64_normalized_int_range(range, text.chars().count())
-    else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, text.len()) else {
+        return native_cps_i64_string_empty();
     };
-    let Some(slice) = native_cps_i64_string_slice(text, start as i64, end as i64) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(slice) = text.index_range(start, end) else {
+        return native_cps_i64_string_empty();
     };
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(
-        slice.to_string().into_boxed_str(),
-    ))
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(slice))
 }
 
 #[unsafe(no_mangle)]
@@ -7491,52 +7486,45 @@ extern "C" fn yulang_cps_string_splice_raw_i64(
     end: i64,
     insert: i64,
 ) -> i64 {
-    let Some(text) = native_cps_i64_string_text(value) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(text) = native_cps_i64_string_value(value) else {
+        return native_cps_i64_string_empty();
     };
-    let Some(insert) = native_cps_i64_string_text(insert) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(insert) = native_cps_i64_string_value(insert) else {
+        return native_cps_i64_string_empty();
     };
-    let Some((start, end)) = native_cps_i64_string_byte_range(text, start, end) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some((start, end)) = native_cps_i64_string_index_range(text, start, end) else {
+        return native_cps_i64_string_empty();
     };
-    let mut result = String::with_capacity(text.len() - (end - start) + insert.len());
-    result.push_str(&text[..start]);
-    result.push_str(insert);
-    result.push_str(&text[end..]);
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(result.into_boxed_str()))
+    let Some(result) = text.splice(start, end, insert.clone()) else {
+        return native_cps_i64_string_empty();
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(result))
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_splice_i64(value: i64, range: i64, insert: i64) -> i64 {
-    let Some(text) = native_cps_i64_string_text(value) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(text) = native_cps_i64_string_value(value) else {
+        return native_cps_i64_string_empty();
     };
-    let Some(insert) = native_cps_i64_string_text(insert) else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(insert) = native_cps_i64_string_value(insert) else {
+        return native_cps_i64_string_empty();
     };
-    let Some((start, end)) = native_cps_i64_normalized_int_range(range, text.chars().count())
-    else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, text.len()) else {
+        return native_cps_i64_string_empty();
     };
-    let Some((start, end)) = native_cps_i64_string_byte_range(text, start as i64, end as i64)
-    else {
-        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    let Some(result) = text.splice(start, end, insert.clone()) else {
+        return native_cps_i64_string_empty();
     };
-    let mut result = String::with_capacity(text.len() - (end - start) + insert.len());
-    result.push_str(&text[..start]);
-    result.push_str(insert);
-    result.push_str(&text[end..]);
-    native_cps_i64_heap(NativeCpsI64HeapValue::String(result.into_boxed_str()))
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(result))
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_string_to_bytes_i64(value: i64) -> i64 {
-    let Some(text) = native_cps_i64_string_text(value) else {
+    let Some(text) = native_cps_i64_string_value(value) else {
         return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
     };
     native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::from_bytes(
-        text.as_bytes(),
+        text.to_flat_string().as_bytes(),
     )))
 }
 
@@ -7616,7 +7604,7 @@ extern "C" fn yulang_cps_bytes_to_utf8_raw_i64(value: i64) -> i64 {
 
 fn native_cps_i64_utf8_raw_result(text: &str, valid: usize) -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(Box::new([
-        native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into())),
+        native_cps_i64_string_heap(text),
         valid as i64,
     ])))
 }
@@ -7650,14 +7638,22 @@ fn native_cps_i64_string_from_bytes(ptr: *const u8, len: i64) -> Option<String> 
     std::str::from_utf8(bytes).ok().map(str::to_string)
 }
 
-fn native_cps_i64_string_text(value: i64) -> Option<&'static str> {
+fn native_cps_i64_string_heap(text: &str) -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(StringTree::from_str(text)))
+}
+
+fn native_cps_i64_string_empty() -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(StringTree::empty()))
+}
+
+fn native_cps_i64_string_value(value: i64) -> Option<&'static StringTree<Box<str>>> {
     let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
     if !is_heap {
         return None;
     }
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     match value {
-        NativeCpsI64HeapValue::String(text) => Some(text.as_ref()),
+        NativeCpsI64HeapValue::String(text) => Some(text),
         _ => None,
     }
 }
@@ -7711,27 +7707,17 @@ fn path_buf_bytes(path: &std::path::PathBuf) -> Vec<u8> {
     path.to_string_lossy().as_bytes().to_vec()
 }
 
-fn native_cps_i64_string_slice(text: &str, start: i64, end: i64) -> Option<&str> {
-    let (start, end) = native_cps_i64_string_byte_range(text, start, end)?;
-    Some(&text[start..end])
-}
-
-fn native_cps_i64_string_byte_range(text: &str, start: i64, end: i64) -> Option<(usize, usize)> {
+fn native_cps_i64_string_index_range(
+    text: &StringTree<Box<str>>,
+    start: i64,
+    end: i64,
+) -> Option<(usize, usize)> {
     let start = usize::try_from(start).ok()?;
     let end = usize::try_from(end).ok()?;
-    if start > end || end > text.chars().count() {
+    if start > end || end > text.len() {
         return None;
     }
-    let start = native_cps_i64_string_char_boundary(text, start)?;
-    let end = native_cps_i64_string_char_boundary(text, end)?;
     Some((start, end))
-}
-
-fn native_cps_i64_string_char_boundary(text: &str, index: usize) -> Option<usize> {
-    if index == text.chars().count() {
-        return Some(text.len());
-    }
-    text.char_indices().nth(index).map(|(byte, _)| byte)
 }
 
 fn native_cps_i64_normalized_int_range(value: i64, len: usize) -> Option<(usize, usize)> {

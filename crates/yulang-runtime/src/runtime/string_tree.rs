@@ -112,12 +112,15 @@ where
             (left, right) if left.black_height() == right.black_height() => {
                 Self::black_node(left, right)
             }
-            (left, right) => build_balanced({
-                let mut leaves = Vec::new();
-                left.push_leaves(&mut leaves);
-                right.push_leaves(&mut leaves);
-                compact_leaves(leaves)
-            }),
+            (left, right) => {
+                let left_height = left.black_height();
+                let right_height = right.black_height();
+                if left_height > right_height {
+                    Self::blacken(join_right(left, right, right_height))
+                } else {
+                    Self::blacken(join_left(left, right, left_height))
+                }
+            }
         }
     }
 
@@ -225,6 +228,15 @@ where
         Self::node(Color::Red, left, right)
     }
 
+    fn blacken(tree: Self) -> Self {
+        match tree {
+            Self::Node(node) if node.color == Color::Red => {
+                Self::black_node(node.left.clone(), node.right.clone())
+            }
+            tree => tree,
+        }
+    }
+
     fn node(color: Color, left: Self, right: Self) -> Self {
         Self::Node(Rc::new(StringNode {
             color,
@@ -242,17 +254,6 @@ where
             Self::Node(node) => {
                 node.left.push_str(out);
                 node.right.push_str(out);
-            }
-        }
-    }
-
-    fn push_leaves(&self, out: &mut Vec<String>) {
-        match self {
-            Self::Empty => {}
-            Self::Leaf(value) => out.push(value.as_str().to_string()),
-            Self::Node(node) => {
-                node.left.push_leaves(out);
-                node.right.push_leaves(out);
             }
         }
     }
@@ -283,6 +284,96 @@ where
             _ => None,
         }
     }
+}
+
+fn join_right<S>(left: StringTree<S>, right: StringTree<S>, right_height: usize) -> StringTree<S>
+where
+    S: StringLeaf,
+{
+    match left {
+        StringTree::Node(node) if node.right.black_height() > right_height => {
+            let joined = join_right(node.right.clone(), right, right_height);
+            balance(node.color, node.left.clone(), joined)
+        }
+        StringTree::Node(node) => {
+            let joined = StringTree::red_node(node.right.clone(), right);
+            balance(node.color, node.left.clone(), joined)
+        }
+        left => StringTree::red_node(left, right),
+    }
+}
+
+fn join_left<S>(left: StringTree<S>, right: StringTree<S>, left_height: usize) -> StringTree<S>
+where
+    S: StringLeaf,
+{
+    match right {
+        StringTree::Node(node) if node.left.black_height() > left_height => {
+            let joined = join_left(left, node.left.clone(), left_height);
+            balance(node.color, joined, node.right.clone())
+        }
+        StringTree::Node(node) => {
+            let joined = StringTree::red_node(left, node.left.clone());
+            balance(node.color, joined, node.right.clone())
+        }
+        right => StringTree::red_node(left, right),
+    }
+}
+
+fn balance<S>(color: Color, left: StringTree<S>, right: StringTree<S>) -> StringTree<S>
+where
+    S: StringLeaf,
+{
+    if color != Color::Black {
+        return StringTree::node(color, left, right);
+    }
+
+    if let StringTree::Node(left_node) = &left
+        && left_node.color == Color::Red
+    {
+        if let StringTree::Node(left_left_node) = &left_node.left
+            && left_left_node.color == Color::Red
+        {
+            return StringTree::red_node(
+                StringTree::black_node(left_left_node.left.clone(), left_left_node.right.clone()),
+                StringTree::black_node(left_node.right.clone(), right),
+            );
+        }
+        if let StringTree::Node(left_right_node) = &left_node.right
+            && left_right_node.color == Color::Red
+        {
+            return StringTree::red_node(
+                StringTree::black_node(left_node.left.clone(), left_right_node.left.clone()),
+                StringTree::black_node(left_right_node.right.clone(), right),
+            );
+        }
+    }
+
+    if let StringTree::Node(right_node) = &right
+        && right_node.color == Color::Red
+    {
+        if let StringTree::Node(right_left_node) = &right_node.left
+            && right_left_node.color == Color::Red
+        {
+            return StringTree::red_node(
+                StringTree::black_node(left, right_left_node.left.clone()),
+                StringTree::black_node(right_left_node.right.clone(), right_node.right.clone()),
+            );
+        }
+        if let StringTree::Node(right_right_node) = &right_node.right
+            && right_right_node.color == Color::Red
+        {
+            return StringTree::red_node(
+                StringTree::black_node(left, right_node.left.clone()),
+                StringTree::black_node(
+                    right_right_node.left.clone(),
+                    right_right_node.right.clone(),
+                ),
+            );
+        }
+    }
+
+    StringTree::black_node(left, right)
 }
 
 impl<S> From<&str> for StringTree<S>
@@ -353,29 +444,6 @@ fn chunk_str(value: &str) -> Vec<String> {
         chunks.push(current);
     }
     chunks
-}
-
-fn compact_leaves<S>(leaves: Vec<String>) -> Vec<StringTree<S>>
-where
-    S: StringLeaf,
-{
-    let mut compacted = Vec::new();
-    let mut current = String::new();
-    let mut current_chars = 0usize;
-    for leaf in leaves {
-        for ch in leaf.chars() {
-            if current_chars >= MAX_LEAF_CHARS {
-                compacted.push(StringTree::leaf(std::mem::take(&mut current)));
-                current_chars = 0;
-            }
-            current.push(ch);
-            current_chars += 1;
-        }
-    }
-    if !current.is_empty() {
-        compacted.push(StringTree::leaf(current));
-    }
-    compacted
 }
 
 fn build_balanced<S>(mut items: Vec<StringTree<S>>) -> StringTree<S>
@@ -499,5 +567,35 @@ mod tests {
         assert_eq!(color, Color::Black);
         assert_eq!(len_chars, MAX_LEAF_CHARS * 2);
         assert_eq!(len_bytes, MAX_LEAF_CHARS * 2);
+    }
+
+    #[test]
+    fn string_tree_repeated_singleton_concat_stays_balanced() {
+        let mut text = RuntimeStringTree::empty();
+        let mut expected = String::new();
+        for index in 0..4096 {
+            let ch = char::from(b'a' + (index % 26) as u8);
+            expected.push(ch);
+            text = RuntimeStringTree::concat(text, RuntimeStringTree::from_str(&ch.to_string()));
+        }
+
+        assert!(text.is_red_black_well_formed());
+        assert_eq!(text.len(), 4096);
+        assert_eq!(text.to_flat_string(), expected);
+    }
+
+    #[test]
+    fn string_tree_repeated_singleton_prepend_stays_balanced() {
+        let mut text = RuntimeStringTree::empty();
+        let mut expected = String::new();
+        for index in 0..4096 {
+            let ch = char::from(b'a' + (index % 26) as u8);
+            expected.insert(0, ch);
+            text = RuntimeStringTree::concat(RuntimeStringTree::from_str(&ch.to_string()), text);
+        }
+
+        assert!(text.is_red_black_well_formed());
+        assert_eq!(text.len(), 4096);
+        assert_eq!(text.to_flat_string(), expected);
     }
 }
