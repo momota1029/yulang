@@ -133,7 +133,10 @@ pub use mmtk_binding::{
     YulangMmtkVM,
 };
 pub use mmtk_cps_control::register_mmtk_cps_control_jit_symbols;
-pub use mmtk_runtime::{MmtkConfigError, MmtkRuntimeBoundary, MmtkRuntimeConfig, MmtkRuntimePlan};
+pub use mmtk_runtime::{
+    GcControlStateParts, GcControlThunkParts, MmtkAllocationKindProfile, MmtkAllocationProfile,
+    MmtkConfigError, MmtkRuntimeBoundary, MmtkRuntimeConfig, MmtkRuntimePlan,
+};
 pub use mmtk_runtime::{MmtkHeap, MmtkNativeRuntimeContext, register_mmtk_cps_jit_symbols};
 pub use native_runtime::{
     NativeRuntimeContext, bool_is_true as native_runtime_bool_is_true,

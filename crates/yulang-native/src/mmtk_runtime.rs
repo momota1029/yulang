@@ -5,7 +5,7 @@
 //! that heap once the VM binding and object model callbacks are implemented.
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
 use mmtk::plan::AllocationSemantics;
@@ -33,6 +33,13 @@ const COMPACT_CONTROL_BLOCK_TAG: u8 = 4;
 const COMPACT_TUPLE_TAG: u8 = 5;
 const COMPACT_VARIANT_TAG: u8 = 6;
 const COMPACT_RECORD_TAG: u8 = 7;
+const GC_CONTROL_STATE_TAG: u8 = 8;
+const GC_CONTROL_THUNK_TAG: u8 = 9;
+const GC_CONTROL_GUARD_STACK_TAG: u8 = 10;
+const GC_CONTROL_STATE_FIELD_COUNT: usize = 4;
+const GC_CONTROL_STATE_PAYLOAD_SIZE: usize = 8 + GC_CONTROL_STATE_FIELD_COUNT * 8;
+const GC_CONTROL_THUNK_HEADER_SIZE: usize = 32;
+const GC_CONTROL_GUARD_STACK_PAYLOAD_SIZE: usize = 24;
 const COMPACT_NODE_HEADER_SIZE: usize = 2;
 const COMPACT_CONTROL_HEADER_SIZE: usize = 16;
 const COMPACT_VARIANT_HEADER_SIZE: usize = 6;
@@ -167,6 +174,7 @@ pub struct MmtkHeap {
     _mmtk: &'static mmtk::MMTK<YulangMmtkVM>,
     mutator: Box<mmtk::Mutator<YulangMmtkVM>>,
     objects: FxHashMap<usize, MmtkPayloadStorage>,
+    allocation_profile: MmtkAllocationProfile,
     min_object_raw: usize,
     max_object_raw: usize,
 }
@@ -185,6 +193,7 @@ impl MmtkHeap {
             _mmtk: mmtk,
             mutator,
             objects: FxHashMap::default(),
+            allocation_profile: MmtkAllocationProfile::default(),
             min_object_raw: usize::MAX,
             max_object_raw: 0,
         })
@@ -198,6 +207,10 @@ impl MmtkHeap {
 
     pub fn object_count(&self) -> usize {
         self.objects.len()
+    }
+
+    pub fn allocation_profile(&self) -> &MmtkAllocationProfile {
+        &self.allocation_profile
     }
 
     pub fn allocate_raw_payload(
@@ -533,6 +546,142 @@ impl MmtkHeap {
             .is_some_and(|object| Self::object_header_from_ref(object).kind == expected_kind)
     }
 
+    pub fn allocate_gc_control_state(&mut self, parts: GcControlStateParts) -> YValue {
+        let fields = [
+            parts.handler_stack,
+            parts.guard_stack,
+            parts.return_frames,
+            parts.active_blocked,
+        ];
+        let mut raw_payload = Vec::with_capacity(GC_CONTROL_STATE_PAYLOAD_SIZE);
+        raw_payload.push(GC_CONTROL_STATE_TAG);
+        raw_payload.resize(8, 0);
+        for field in fields {
+            raw_payload.extend_from_slice(&(field.raw() as u64).to_ne_bytes());
+        }
+        let trace_slots = fields
+            .into_iter()
+            .filter(|value| {
+                value
+                    .heap_reference_raw()
+                    .is_some_and(|raw| self.objects.contains_key(&raw))
+            })
+            .collect::<Vec<_>>();
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::ControlState,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::GcControlState,
+        )
+    }
+
+    pub fn gc_control_state_parts(&self, value: YValue) -> Option<GcControlStateParts> {
+        let object = self.mmtk_object_reference(value)?;
+        let header = Self::object_header_from_ref(object);
+        if header.kind != YObjectKind::ControlState {
+            return None;
+        }
+        decode_gc_control_state_payload(self.raw_payload_bytes_from_ref(object))
+    }
+
+    pub fn allocate_gc_control_thunk_i64(
+        &mut self,
+        code: usize,
+        context: YValue,
+        env: &[i64],
+    ) -> YValue {
+        let mut raw_payload = Vec::with_capacity(GC_CONTROL_THUNK_HEADER_SIZE + env.len() * 8);
+        raw_payload.push(GC_CONTROL_THUNK_TAG);
+        raw_payload.resize(8, 0);
+        raw_payload.extend_from_slice(&(env.len() as u64).to_ne_bytes());
+        raw_payload.extend_from_slice(&(code as u64).to_ne_bytes());
+        raw_payload.extend_from_slice(&(context.raw() as u64).to_ne_bytes());
+        for slot in env {
+            raw_payload.extend_from_slice(&(*slot as u64).to_ne_bytes());
+        }
+        let mut trace_slots = Vec::with_capacity(env.len() + 1);
+        if context
+            .heap_reference_raw()
+            .is_some_and(|raw| self.objects.contains_key(&raw))
+        {
+            trace_slots.push(context);
+        }
+        trace_slots.extend(self.mmtk_trace_slots_from_raw_words(env));
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::Thunk,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::GcControlThunk { env_len: env.len() },
+        )
+    }
+
+    pub fn gc_control_thunk_parts_i64(&self, value: YValue) -> Option<GcControlThunkParts> {
+        let object = self.mmtk_object_reference(value)?;
+        let header = Self::object_header_from_ref(object);
+        if header.kind != YObjectKind::Thunk {
+            return None;
+        }
+        decode_gc_control_thunk_payload(self.raw_payload_bytes_from_ref(object))
+    }
+
+    pub fn allocate_gc_control_guard_stack_push(
+        &mut self,
+        parent: YValue,
+        guard_id: i64,
+    ) -> YValue {
+        let mut raw_payload = Vec::with_capacity(GC_CONTROL_GUARD_STACK_PAYLOAD_SIZE);
+        raw_payload.push(GC_CONTROL_GUARD_STACK_TAG);
+        raw_payload.resize(8, 0);
+        raw_payload.extend_from_slice(&(parent.raw() as u64).to_ne_bytes());
+        raw_payload.extend_from_slice(&(guard_id as u64).to_ne_bytes());
+        let trace_slots = if parent
+            .heap_reference_raw()
+            .is_some_and(|raw| self.objects.contains_key(&raw))
+        {
+            vec![parent]
+        } else {
+            Vec::new()
+        };
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::ControlStack,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::ControlStack {
+                item_count: 1,
+                raw_trace_word_count: 0,
+                has_parent: !parent.is_unit(),
+            },
+        )
+    }
+
+    pub fn gc_control_guard_stack_node(&self, value: YValue) -> Option<GcControlGuardStackNode> {
+        if value.is_unit() {
+            return None;
+        }
+        let object = self.mmtk_object_reference(value)?;
+        let header = Self::object_header_from_ref(object);
+        if header.kind != YObjectKind::ControlStack {
+            return None;
+        }
+        decode_gc_control_guard_stack_payload(self.raw_payload_bytes_from_ref(object))
+    }
+
+    pub fn gc_control_guard_stack_contains(&self, stack: YValue, guard_id: i64) -> bool {
+        let mut cursor = stack;
+        while let Some(node) = self.gc_control_guard_stack_node(cursor) {
+            if node.guard_id == guard_id {
+                return true;
+            }
+            cursor = node.parent;
+        }
+        false
+    }
+
+    pub fn gc_control_guard_stack_peek(&self, stack: YValue) -> Option<i64> {
+        self.gc_control_guard_stack_node(stack)
+            .map(|node| node.guard_id)
+    }
+
     fn allocate_raw_payload_with_storage(
         &mut self,
         kind: YObjectKind,
@@ -772,6 +921,8 @@ impl MmtkHeap {
         raw_payload_size: usize,
     ) -> ObjectReference {
         let bytes = YulangMmtkObjectHeader::total_size_for(trace_slots.len(), raw_payload_size);
+        self.allocation_profile
+            .record(kind, trace_slots.len(), raw_payload_size, bytes);
         let align = std::mem::align_of::<YulangMmtkObjectHeader>()
             .max(std::mem::align_of::<YObject>())
             .max(ObjectReference::ALIGNMENT);
@@ -820,11 +971,93 @@ impl MmtkHeap {
     fn remember_object(&mut self, raw: usize, storage: MmtkPayloadStorage) {
         self.min_object_raw = self.min_object_raw.min(raw);
         self.max_object_raw = self.max_object_raw.max(raw);
+        self.allocation_profile
+            .record_storage(storage.profile_label());
         self.objects.insert(raw, storage);
     }
 
     fn may_be_tracked_object_raw(&self, raw: usize) -> bool {
         !self.objects.is_empty() && (self.min_object_raw..=self.max_object_raw).contains(&raw)
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct MmtkAllocationProfile {
+    pub objects: usize,
+    pub trace_slots: usize,
+    pub raw_payload_bytes: usize,
+    pub total_object_bytes: usize,
+    pub max_trace_slots: usize,
+    pub max_raw_payload_bytes: usize,
+    pub by_kind: BTreeMap<YObjectKind, MmtkAllocationKindProfile>,
+    pub by_storage: BTreeMap<&'static str, usize>,
+}
+
+impl MmtkAllocationProfile {
+    fn record(
+        &mut self,
+        kind: YObjectKind,
+        trace_slots: usize,
+        raw_payload_bytes: usize,
+        total_object_bytes: usize,
+    ) {
+        self.objects += 1;
+        self.trace_slots += trace_slots;
+        self.raw_payload_bytes += raw_payload_bytes;
+        self.total_object_bytes += total_object_bytes;
+        self.max_trace_slots = self.max_trace_slots.max(trace_slots);
+        self.max_raw_payload_bytes = self.max_raw_payload_bytes.max(raw_payload_bytes);
+        self.by_kind.entry(kind).or_default().record(
+            trace_slots,
+            raw_payload_bytes,
+            total_object_bytes,
+        );
+    }
+
+    fn record_storage(&mut self, storage: &'static str) {
+        *self.by_storage.entry(storage).or_default() += 1;
+    }
+
+    fn kind_summary(&self) -> String {
+        self.by_kind
+            .iter()
+            .map(|(kind, profile)| {
+                format!(
+                    "{}:objects={},trace_slots={},raw_bytes={},total_bytes={}",
+                    kind,
+                    profile.objects,
+                    profile.trace_slots,
+                    profile.raw_payload_bytes,
+                    profile.total_object_bytes,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    fn storage_summary(&self) -> String {
+        self.by_storage
+            .iter()
+            .map(|(storage, count)| format!("{storage}={count}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct MmtkAllocationKindProfile {
+    pub objects: usize,
+    pub trace_slots: usize,
+    pub raw_payload_bytes: usize,
+    pub total_object_bytes: usize,
+}
+
+impl MmtkAllocationKindProfile {
+    fn record(&mut self, trace_slots: usize, raw_payload_bytes: usize, total_object_bytes: usize) {
+        self.objects += 1;
+        self.trace_slots += trace_slots;
+        self.raw_payload_bytes += raw_payload_bytes;
+        self.total_object_bytes += total_object_bytes;
     }
 }
 
@@ -860,6 +1093,50 @@ enum MmtkPayloadStorage {
         raw_trace_word_count: usize,
         has_parent: bool,
     },
+    GcControlState,
+    GcControlThunk {
+        env_len: usize,
+    },
+}
+
+impl MmtkPayloadStorage {
+    fn profile_label(&self) -> &'static str {
+        match self {
+            Self::SemanticObject => "semantic",
+            Self::RawBytes => "raw",
+            Self::NativeBlock { .. } => "native-block",
+            Self::StringLeaf { .. } => "string-leaf",
+            Self::StringNode { .. } => "string-node",
+            Self::ListLeaf { .. } => "list-leaf",
+            Self::ListNode { .. } => "list-node",
+            Self::ControlBlock { .. } => "control-block",
+            Self::ControlStack { .. } => "control-stack",
+            Self::GcControlState => "gc-control-state",
+            Self::GcControlThunk { .. } => "gc-control-thunk",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GcControlStateParts {
+    pub handler_stack: YValue,
+    pub guard_stack: YValue,
+    pub return_frames: YValue,
+    pub active_blocked: YValue,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GcControlThunkParts {
+    pub code: usize,
+    pub context: YValue,
+    pub env_ptr: *const i64,
+    pub env_len: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GcControlGuardStackNode {
+    pub parent: YValue,
+    pub guard_id: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -902,6 +1179,18 @@ enum CompactStringTreeStorage {
 enum CompactListTreeStorage {
     Leaf { len: usize },
     Node { color: TreeColor, len: usize },
+}
+
+impl CompactListTreeStorage {
+    fn len(self) -> usize {
+        match self {
+            Self::Leaf { len } | Self::Node { len, .. } => len,
+        }
+    }
+
+    fn is_leaf(self) -> bool {
+        matches!(self, Self::Leaf { .. })
+    }
 }
 
 fn raw_address(raw: usize) -> mmtk::util::Address {
@@ -1051,6 +1340,48 @@ fn decode_compact_control_payload_header(bytes: &[u8]) -> Option<(usize, bool, O
     Some((env_len, has_head, word))
 }
 
+fn decode_gc_control_state_payload(bytes: &[u8]) -> Option<GcControlStateParts> {
+    if bytes.first().copied()? != GC_CONTROL_STATE_TAG {
+        return None;
+    }
+    let fields = bytes.get(8..GC_CONTROL_STATE_PAYLOAD_SIZE)?;
+    let mut words = fields.chunks_exact(8).map(read_u64_from_prefix);
+    Some(GcControlStateParts {
+        handler_stack: YValue::from_raw(words.next()?? as usize),
+        guard_stack: YValue::from_raw(words.next()?? as usize),
+        return_frames: YValue::from_raw(words.next()?? as usize),
+        active_blocked: YValue::from_raw(words.next()?? as usize),
+    })
+}
+
+fn decode_gc_control_thunk_payload(bytes: &[u8]) -> Option<GcControlThunkParts> {
+    if bytes.first().copied()? != GC_CONTROL_THUNK_TAG {
+        return None;
+    }
+    let env_len = usize::try_from(read_u64_from_prefix(bytes.get(8..)?)?).ok()?;
+    let code = read_u64_from_prefix(bytes.get(16..)?)? as usize;
+    let context = YValue::from_raw(read_u64_from_prefix(bytes.get(24..)?)? as usize);
+    let env_start = GC_CONTROL_THUNK_HEADER_SIZE;
+    let _ = bytes.get(env_start..env_start + env_len * 8)?;
+    let env_ptr = unsafe { bytes.as_ptr().add(env_start).cast::<i64>() };
+    Some(GcControlThunkParts {
+        code,
+        context,
+        env_ptr,
+        env_len,
+    })
+}
+
+fn decode_gc_control_guard_stack_payload(bytes: &[u8]) -> Option<GcControlGuardStackNode> {
+    if bytes.first().copied()? != GC_CONTROL_GUARD_STACK_TAG {
+        return None;
+    }
+    Some(GcControlGuardStackNode {
+        parent: YValue::from_raw(read_u64_from_prefix(bytes.get(8..)?)? as usize),
+        guard_id: read_u64_from_prefix(bytes.get(16..)?)? as i64,
+    })
+}
+
 fn read_u64_from_prefix(bytes: &[u8]) -> Option<u64> {
     Some(u64::from_ne_bytes(bytes.get(..8)?.try_into().ok()?))
 }
@@ -1078,6 +1409,7 @@ pub fn register_mmtk_cps_jit_symbols(builder: &mut cranelift_jit::JITBuilder) {
 
     symbols!(
         yulang_mmtk_cps_reset_i64,
+        yulang_mmtk_cps_dump_heap_stats_i64,
         yulang_mmtk_cps_unit_i64,
         yulang_mmtk_cps_box_bool_i64,
         yulang_mmtk_cps_make_int_i64,
@@ -1150,6 +1482,10 @@ pub fn register_mmtk_cps_jit_symbols(builder: &mut cranelift_jit::JITBuilder) {
         yulang_mmtk_cps_int_le_i64,
         yulang_mmtk_cps_int_gt_i64,
         yulang_mmtk_cps_int_ge_i64,
+        yulang_mmtk_gc_control_empty_state_i64,
+        yulang_mmtk_gc_control_push_guard_i64,
+        yulang_mmtk_gc_control_find_guard_i64,
+        yulang_mmtk_gc_control_peek_guard_i64,
     );
     crate::mmtk_cps_control::register_mmtk_cps_control_jit_symbols(builder);
 }
@@ -1175,6 +1511,42 @@ impl MmtkNativeRuntimeContext {
 
     pub fn make_unit(&self) -> YValue {
         YValue::UNIT
+    }
+
+    pub fn gc_control_empty_state(&mut self) -> YValue {
+        self.context
+            .heap_mut()
+            .allocate_gc_control_state(GcControlStateParts {
+                handler_stack: YValue::UNIT,
+                guard_stack: YValue::UNIT,
+                return_frames: YValue::UNIT,
+                active_blocked: YValue::UNIT,
+            })
+    }
+
+    pub fn gc_control_push_guard(&mut self, state: YValue, guard_id: i64) -> Option<YValue> {
+        let mut parts = self.context.heap().gc_control_state_parts(state)?;
+        parts.guard_stack = self
+            .context
+            .heap_mut()
+            .allocate_gc_control_guard_stack_push(parts.guard_stack, guard_id);
+        Some(self.context.heap_mut().allocate_gc_control_state(parts))
+    }
+
+    pub fn gc_control_find_guard(&self, state: YValue, guard_id: i64) -> Option<bool> {
+        let parts = self.context.heap().gc_control_state_parts(state)?;
+        Some(
+            self.context
+                .heap()
+                .gc_control_guard_stack_contains(parts.guard_stack, guard_id),
+        )
+    }
+
+    pub fn gc_control_peek_guard(&self, state: YValue) -> Option<i64> {
+        let parts = self.context.heap().gc_control_state_parts(state)?;
+        self.context
+            .heap()
+            .gc_control_guard_stack_peek(parts.guard_stack)
     }
 
     pub fn make_bool(&self, value: bool) -> YValue {
@@ -1465,16 +1837,16 @@ impl MmtkNativeRuntimeContext {
     }
 
     pub fn list_len(&self, list: YValue) -> Option<usize> {
-        if self.compact_list_storage(list).is_some() {
-            return self.list_tree_len(list);
+        if let Some(storage) = self.compact_list_storage(list) {
+            return Some(storage.len());
         }
 
         Some(self.list_items(list)?.len())
     }
 
     pub fn list_get(&self, list: YValue, index: usize) -> Option<YValue> {
-        if self.compact_list_storage(list).is_some() {
-            return self.compact_list_get(list, index);
+        if let Some(storage) = self.compact_list_storage(list) {
+            return self.compact_list_get_with_storage(list, index, storage);
         }
 
         self.list_items(list)?.get(index).copied()
@@ -1998,15 +2370,19 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn list_concat_tree(&mut self, left: YValue, right: YValue) -> Option<YValue> {
-        if self.list_tree_len(left)? == 0 {
+        let left_storage = self.compact_list_storage(left)?;
+        let left_len = left_storage.len();
+        if left_len == 0 {
             return Some(right);
         }
-        if self.list_tree_len(right)? == 0 {
+        let right_storage = self.compact_list_storage(right)?;
+        let right_len = right_storage.len();
+        if right_len == 0 {
             return Some(left);
         }
-        if self.is_list_leaf(left)
-            && self.is_list_leaf(right)
-            && self.list_tree_len(left)? + self.list_tree_len(right)? <= MAX_LIST_LEAF_ITEMS
+        if left_storage.is_leaf()
+            && right_storage.is_leaf()
+            && left_len + right_len <= MAX_LIST_LEAF_ITEMS
         {
             let mut items = self.list_leaf_items(left)?;
             items.extend(self.list_leaf_items(right)?);
@@ -2178,15 +2554,21 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn list_tree_len(&self, value: YValue) -> Option<usize> {
-        match self.compact_list_storage(value)? {
-            CompactListTreeStorage::Leaf { len } | CompactListTreeStorage::Node { len, .. } => {
-                Some(len)
-            }
-        }
+        Some(self.compact_list_storage(value)?.len())
     }
 
     fn compact_list_get(&self, value: YValue, index: usize) -> Option<YValue> {
-        match self.compact_list_storage(value)? {
+        let storage = self.compact_list_storage(value)?;
+        self.compact_list_get_with_storage(value, index, storage)
+    }
+
+    fn compact_list_get_with_storage(
+        &self,
+        value: YValue,
+        index: usize,
+        storage: CompactListTreeStorage,
+    ) -> Option<YValue> {
+        match storage {
             CompactListTreeStorage::Leaf { len } => {
                 if index >= len {
                     return None;
@@ -2245,13 +2627,6 @@ impl MmtkNativeRuntimeContext {
             CompactListTreeStorage::Node { color, .. } => Some(color),
             _ => None,
         }
-    }
-
-    fn is_list_leaf(&self, value: YValue) -> bool {
-        matches!(
-            self.compact_list_storage(value),
-            Some(CompactListTreeStorage::Leaf { .. })
-        )
     }
 
     fn is_list_node(&self, value: YValue) -> bool {
@@ -2973,6 +3348,33 @@ pub extern "C" fn yulang_mmtk_cps_reset_i64() {
         .is_some_and(|value| value == "1");
     MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED
         .with(|enabled| *enabled.borrow_mut() = snapshots_enabled);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_dump_heap_stats_i64() {
+    if !std::env::var_os("YULANG_MMTK_CPS_HEAP_STATS").is_some_and(|value| value == "1") {
+        return;
+    }
+    with_mmtk_cps_context(|context| {
+        let profile = context.context().heap().allocation_profile();
+        eprintln!(
+            "[JIT-MMTK-STATS] heap objects={} trace_slots={} raw_payload_bytes={} total_object_bytes={} max_trace_slots={} max_raw_payload_bytes={}",
+            profile.objects,
+            profile.trace_slots,
+            profile.raw_payload_bytes,
+            profile.total_object_bytes,
+            profile.max_trace_slots,
+            profile.max_raw_payload_bytes,
+        );
+        let storage = profile.storage_summary();
+        if !storage.is_empty() {
+            eprintln!("[JIT-MMTK-STATS] storage {storage}");
+        }
+        let kinds = profile.kind_summary();
+        if !kinds.is_empty() {
+            eprintln!("[JIT-MMTK-STATS] kinds {kinds}");
+        }
+    });
 }
 
 #[unsafe(no_mangle)]
@@ -3756,6 +4158,37 @@ fn mmtk_cps_int_compare_pred(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_gc_control_empty_state_i64() -> i64 {
+    with_mmtk_cps_context(MmtkNativeRuntimeContext::gc_control_empty_state)
+        .map(encode_yvalue)
+        .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_gc_control_push_guard_i64(state: i64, guard_id: i64) -> i64 {
+    with_mmtk_cps_context(|context| context.gc_control_push_guard(decode_yvalue(state), guard_id))
+        .flatten()
+        .map(encode_yvalue)
+        .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_gc_control_find_guard_i64(state: i64, guard_id: i64) -> i64 {
+    with_mmtk_cps_context(|context| context.gc_control_find_guard(decode_yvalue(state), guard_id))
+        .flatten()
+        .map(encode_raw_bool)
+        .unwrap_or(YVALUE_FALSE_BITS)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_gc_control_peek_guard_i64(state: i64) -> i64 {
+    with_mmtk_cps_context(|context| context.gc_control_peek_guard(decode_yvalue(state)))
+        .flatten()
+        .and_then(context_int_from_i64)
+        .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_context_new() -> *mut MmtkNativeRuntimeContext {
     MmtkNativeRuntimeContext::new_no_gc()
         .map(Box::new)
@@ -4417,6 +4850,17 @@ mod tests {
         assert_eq!(stats.allocated_by_kind[&YObjectKind::String], 2);
         assert_eq!(stats.allocated_by_kind[&YObjectKind::Closure], 1);
         assert_eq!(stats.allocated_by_kind[&YObjectKind::Tuple], 1);
+        let profile = context.heap().allocation_profile();
+        assert_eq!(profile.objects, 4);
+        assert_eq!(profile.trace_slots, 3);
+        assert_eq!(
+            profile.by_kind[&YObjectKind::String].objects,
+            stats.allocated_by_kind[&YObjectKind::String]
+        );
+        assert_eq!(profile.by_kind[&YObjectKind::Tuple].trace_slots, 2);
+        assert_eq!(profile.by_storage.get("semantic"), Some(&profile.objects));
+        assert!(profile.raw_payload_bytes >= 4 * std::mem::size_of::<YObject>());
+        assert!(profile.total_object_bytes >= profile.raw_payload_bytes);
 
         let trace = context.trace_roots();
         assert_eq!(
@@ -4674,6 +5118,151 @@ mod tests {
             .expect("parent chunk should remain as the top GC root");
 
         assert_eq!(second, first);
+    }
+
+    #[test]
+    fn mmtk_heap_supports_gc_control_state_and_thunk_payloads() {
+        let _guard = mmtk_test_lock();
+        use crate::gc_runtime::{GcRuntimeContext, YObjectKind, YValue};
+
+        let heap = MmtkHeap::new_no_gc().expect("NoGC MMTk heap should initialize");
+        let mut context = GcRuntimeContext::with_heap(heap);
+        let captured = context.alloc_string("captured");
+        let guards = context
+            .heap_mut()
+            .allocate_compact_control_stack_snapshot(2, &[7, 11]);
+        let returns = context
+            .heap_mut()
+            .allocate_compact_control_stack_snapshot(1, &[captured.raw() as i64]);
+        let state = context
+            .heap_mut()
+            .allocate_gc_control_state(GcControlStateParts {
+                handler_stack: YValue::UNIT,
+                guard_stack: guards,
+                return_frames: returns,
+                active_blocked: YValue::UNIT,
+            });
+        let thunk = context.heap_mut().allocate_gc_control_thunk_i64(
+            0x1234,
+            state,
+            &[captured.raw() as i64, 99],
+        );
+        context.root_stack_mut().push(thunk);
+
+        let state_parts = context
+            .heap()
+            .gc_control_state_parts(state)
+            .expect("control state should decode");
+        assert_eq!(state_parts.guard_stack, guards);
+        assert_eq!(state_parts.return_frames, returns);
+
+        let thunk_parts = context
+            .heap()
+            .gc_control_thunk_parts_i64(thunk)
+            .expect("gc control thunk should decode");
+        assert_eq!(thunk_parts.code, 0x1234);
+        assert_eq!(thunk_parts.context, state);
+        assert_eq!(thunk_parts.env_len, 2);
+        let thunk_env = unsafe { std::slice::from_raw_parts(thunk_parts.env_ptr, 2) };
+        assert_eq!(thunk_env, &[captured.raw() as i64, 99]);
+
+        assert_eq!(
+            context.heap().trace_children(state),
+            Some(vec![guards, returns])
+        );
+        assert_eq!(
+            context.heap().trace_children(thunk),
+            Some(vec![state, captured])
+        );
+
+        let empty = context
+            .heap_mut()
+            .allocate_gc_control_state(GcControlStateParts {
+                handler_stack: YValue::UNIT,
+                guard_stack: YValue::UNIT,
+                return_frames: YValue::UNIT,
+                active_blocked: YValue::UNIT,
+            });
+        let empty_parts = context
+            .heap()
+            .gc_control_state_parts(empty)
+            .expect("empty control state should decode");
+        assert_eq!(
+            context
+                .heap()
+                .gc_control_guard_stack_peek(empty_parts.guard_stack),
+            None
+        );
+        assert!(
+            !context
+                .heap()
+                .gc_control_guard_stack_contains(empty_parts.guard_stack, 7)
+        );
+        let first_guard = context
+            .heap_mut()
+            .allocate_gc_control_guard_stack_push(empty_parts.guard_stack, 7);
+        let second_guard = context
+            .heap_mut()
+            .allocate_gc_control_guard_stack_push(first_guard, 11);
+        assert_eq!(
+            context.heap().gc_control_guard_stack_peek(second_guard),
+            Some(11)
+        );
+        assert!(
+            context
+                .heap()
+                .gc_control_guard_stack_contains(second_guard, 7)
+        );
+        assert!(
+            !context
+                .heap()
+                .gc_control_guard_stack_contains(second_guard, 13)
+        );
+
+        let trace = context.trace_roots();
+        assert_eq!(
+            trace
+                .iter()
+                .map(|edge| edge.object_kind)
+                .collect::<Vec<_>>(),
+            vec![
+                YObjectKind::Thunk,
+                YObjectKind::ControlState,
+                YObjectKind::ControlStack,
+                YObjectKind::ControlStack,
+                YObjectKind::String,
+            ]
+        );
+    }
+
+    #[test]
+    fn mmtk_gc_control_guard_helpers_use_explicit_state() {
+        let _guard = mmtk_test_lock();
+        yulang_mmtk_cps_reset_i64();
+
+        let empty = yulang_mmtk_gc_control_empty_state_i64();
+        assert_ne!(empty, 0);
+        assert_eq!(
+            yulang_mmtk_gc_control_find_guard_i64(empty, 7),
+            YVALUE_FALSE_BITS
+        );
+        assert_eq!(yulang_mmtk_gc_control_peek_guard_i64(empty), 0);
+
+        let guarded = yulang_mmtk_gc_control_push_guard_i64(empty, 7);
+        let guarded = yulang_mmtk_gc_control_push_guard_i64(guarded, 11);
+        assert_ne!(guarded, 0);
+        assert_eq!(
+            yulang_mmtk_gc_control_find_guard_i64(guarded, 7),
+            YVALUE_TRUE_BITS
+        );
+        assert_eq!(
+            yulang_mmtk_gc_control_find_guard_i64(guarded, 13),
+            YVALUE_FALSE_BITS
+        );
+        assert_eq!(
+            yulang_mmtk_gc_control_peek_guard_i64(guarded),
+            context_int_from_i64(11).expect("guard id should fit i63")
+        );
     }
 
     #[test]
@@ -5199,5 +5788,108 @@ mod tests {
         let run = unsafe { std::mem::transmute::<_, extern "C" fn() -> i64>(ptr) };
 
         assert_eq!(run(), encoded_i63(10));
+    }
+
+    #[test]
+    fn mmtk_gc_control_guard_helpers_can_be_called_from_jit() {
+        use cranelift_codegen::ir::{AbiParam, InstBuilder, condcodes, types};
+        use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext};
+        use cranelift_jit::{JITBuilder, JITModule};
+        use cranelift_module::{Linkage, Module};
+
+        let _guard = mmtk_test_lock();
+
+        let mut jit_builder =
+            JITBuilder::new(cranelift_module::default_libcall_names()).expect("JIT builder");
+        register_mmtk_cps_jit_symbols(&mut jit_builder);
+        let mut module = JITModule::new(jit_builder);
+
+        let mut sig = module.make_signature();
+        sig.returns.push(AbiParam::new(types::I64));
+        let root = module
+            .declare_function("mmtk_gc_control_guard_smoke", Linkage::Export, &sig)
+            .expect("declare guard smoke root");
+
+        let mut ctx = module.make_context();
+        ctx.func.signature = sig;
+
+        let mut builder_context = FunctionBuilderContext::new();
+        let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+        let entry = builder.create_block();
+        let found_block = builder.create_block();
+        let missing_block = builder.create_block();
+        builder.switch_to_block(entry);
+
+        let reset = declare_jit_import(
+            &mut module,
+            &mut builder,
+            "yulang_mmtk_cps_reset_i64",
+            &[],
+            &[],
+        );
+        let empty_state = declare_jit_import(
+            &mut module,
+            &mut builder,
+            "yulang_mmtk_gc_control_empty_state_i64",
+            &[],
+            &[types::I64],
+        );
+        let push_guard = declare_jit_import(
+            &mut module,
+            &mut builder,
+            "yulang_mmtk_gc_control_push_guard_i64",
+            &[types::I64, types::I64],
+            &[types::I64],
+        );
+        let find_guard = declare_jit_import(
+            &mut module,
+            &mut builder,
+            "yulang_mmtk_gc_control_find_guard_i64",
+            &[types::I64, types::I64],
+            &[types::I64],
+        );
+        let peek_guard = declare_jit_import(
+            &mut module,
+            &mut builder,
+            "yulang_mmtk_gc_control_peek_guard_i64",
+            &[types::I64],
+            &[types::I64],
+        );
+
+        builder.ins().call(reset, &[]);
+        let state = call_jit_i64(&mut builder, empty_state, &[]);
+        let guard_7 = builder.ins().iconst(types::I64, 7);
+        let state = call_jit_i64(&mut builder, push_guard, &[state, guard_7]);
+        let guard_11 = builder.ins().iconst(types::I64, 11);
+        let state = call_jit_i64(&mut builder, push_guard, &[state, guard_11]);
+        let found = call_jit_i64(&mut builder, find_guard, &[state, guard_7]);
+        let true_bits = builder.ins().iconst(types::I64, YVALUE_TRUE_BITS);
+        let is_found = builder
+            .ins()
+            .icmp(condcodes::IntCC::Equal, found, true_bits);
+        builder
+            .ins()
+            .brif(is_found, found_block, &[], missing_block, &[]);
+
+        builder.switch_to_block(found_block);
+        let top_guard = call_jit_i64(&mut builder, peek_guard, &[state]);
+        builder.ins().return_(&[top_guard]);
+
+        builder.switch_to_block(missing_block);
+        let missing = builder.ins().iconst(types::I64, 0);
+        builder.ins().return_(&[missing]);
+        builder.seal_all_blocks();
+        builder.finalize();
+
+        module
+            .define_function(root, &mut ctx)
+            .expect("define guard smoke root");
+        module.clear_context(&mut ctx);
+        module.finalize_definitions().expect("finalize JIT module");
+
+        let ptr = module.get_finalized_function(root);
+        let run = unsafe { std::mem::transmute::<_, extern "C" fn() -> i64>(ptr) };
+
+        assert_eq!(run(), encoded_i63(11));
     }
 }

@@ -86,7 +86,8 @@ partial-application closure calls back into direct calls, reify known
 partial-application closures passed through continuation
 parameters when their captures can be rebased to target parameters, rewrite
 known closure `EffectfulApply` terminators back into effectful direct calls or
-pure primitive resumes, remove unused continuation parameters and their
+pure primitive resumes, inline local direct-style closure applications so
+small closure bodies can avoid heap closure construction, remove unused continuation parameters and their
 matching continuation-call arguments, inline small pure direct callees
 including structural value helpers, inline small single-use one-shot
 continuations, rewrite effectful-call terminators to pure callees back into
@@ -175,6 +176,14 @@ continuation / statement counts, pass counters, direct-style island counts, and
 the observable output. The wall-clock timings include compile and link work; use
 them to spot large regressions, then add a narrower runtime benchmark if a case
 looks suspicious.
+
+Set `YULANG_CPS_I64_STATS=1` on a generated CPS executable to print runtime
+control counters after each root. The counters cover closure/thunk/resumption
+construction plus return-frame, handler-stack, and guard-stack
+push/pop/replace/snapshot activity, including site-by-site breakdowns for
+where snapshot and replace work originated. This is intended for diagnosing
+whether a benchmark is dominated by control capture/replay work rather than
+static analysis or link time.
 
 You can focus on one path or custom files:
 
@@ -347,23 +356,27 @@ current backend boundaries visible, but detailed regression history lives in
       objects and read code/env slots directly. The compact payload stores its
       own env length, and the helper context uses a raw thread-local context
       pointer instead of borrowing a `RefCell<Option<_>>` on every call. This is
-      tested at the helper boundary and can be opted into with
-      `YULANG_MMTK_CPS_CONTROL_OBJECTS=unsafe`, but Cranelift lowering does not
-      use it by default and `YULANG_MMTK_CPS_CONTROL_OBJECTS=1` intentionally
-      leaves the stable path in place. The compact control path does not yet
-      capture the native handler/guard snapshots carried by prototype closures
-      and thunks. The unsafe lowering now creates compact thunks only when the
-      native control capture context is empty, and effect-boundary conversion
-      rebuilds those thunks with an explicit empty prototype snapshot instead of
-      capturing the boundary-time context. Compact closures can still be
-      exercised there, but non-empty captured control snapshots still fall back
-      to the prototype helper path. A narrower helper-level experiment behind
+      tested at the helper boundary and is now used by `yulang run --mmtk` for
+      guarded compact closure/thunk control bodies.
+      `YULANG_MMTK_CPS_CONTROL_OBJECTS=0` opts back out to the prototype native
+      control helpers. Compact control code/env pointers are cached at
+      allocation time so hot force/apply calls do not repeatedly project the
+      MMTk object table and raw payload. The compact control path still does
+      not directly store non-empty native handler/guard snapshots, so compact
+      thunks are created only when the native control capture context is empty, and
+      effect-boundary conversion rebuilds those thunks with an explicit empty
+      prototype snapshot instead of capturing the boundary-time context.
+      Non-empty captured control snapshots still fall back to the prototype
+      helper path. A narrower helper-level experiment behind
       `YULANG_MMTK_CPS_CONTROL_THUNK_SIDECARS=unsafe` allocates compact thunks
       with a side-table native thunk snapshot captured at creation time; direct
       helper tests cover that bridge, and the native force helper delegates back
-      to MMTk force when a mixed native path receives a compact thunk. Full
-      lowering keeps the sidecar bridge disabled until compact apply/force
-      handles non-local flow end to end.
+      to MMTk force when a mixed native path receives a compact thunk. The
+      native CPS runtime exposes compact-control capture requirements as a
+      bitmask, and abort/scope-return state remains on the prototype thunk path
+      even when the sidecar experiment is enabled. Full lowering keeps the
+      sidecar bridge disabled until compact apply/force handles non-local flow
+      end to end.
       The remaining migration is to replace more transitional semantic payload
       users with these compact paths.
       The `YHeap` read API is already split into
@@ -410,16 +423,49 @@ current backend boundaries visible, but detailed regression history lives in
       `YValue` object model above, eventually backed by MMTk.
 - [ ] The MMTk lane is close to the default native effects lane on the current
       small nondeterminism list benchmarks, but it is not yet expected to win
-      broadly. Compact control objects still fall back when non-empty
-      handler/guard/blocked-effect snapshots must be captured, boundary thunks
-      cross back through a prototype thunk, the sidecar bridge is not yet safe
+      broadly. After the compact-control entry cache, generated-executable
+      `hyperfine` puts `list.len` at native 372.1ms vs MMTk guarded 370.9ms,
+      while `list.say` and `showcase` still favor native. Snapshot-aware
+      restore plus append-node snapshots and a `base snapshot + mutable tail`
+      guard stack eliminate measured guard snapshot clone work on `.list.say`
+      (410,671 cloned items before the stack work, zero after it). A direct
+      generated-executable comparison puts the current MMTk `list.say` binary
+      at 677.9ms vs the older guarded binary at 758.9ms. Native still leads at
+      roughly 641.1ms on the same benchmark, so this is a real hot-path win
+      but not a finished Python/JS-class target. Follow-up GC-side probes kept
+      compact-list metadata reread removal and cached thunk-sidecar env flag
+      lookup. An unsafe thunk-context experiment keeps the compact thunk body
+      and stores the captured native handler/guard context in a small opaque
+      side table; it removes native thunk allocation counters but still loses
+      wall-clock time on the 20x20 benches. The stable lane therefore does not
+      adopt a direct-mapped compact-control entry cache, unsafe thunk sidecars,
+      thunk-context side tables, or compact closures carrying pending handler
+      envs. Those paths either lose wall-clock time or still hit the known
+      full-lowering non-local-flow hole. Compact control objects still fall
+      back when a non-empty native capture context must be preserved, boundary
+      thunks cross back through a prototype thunk, the sidecar bridge is not yet safe
       for full lowering, some runtime values still cross helper/prototype
       boundaries, and capture still clones the stack snapshot after mutation.
+      `YULANG_MMTK_CPS_HEAP_STATS=1` enables generated-executable allocation
+      profile lines for the MMTk lane, grouped by object kind and compact
+      storage shape, so functional-language GC tuning can start from real
+      closure/thunk/list/string allocation pressure rather than plan guesses.
       The next real speedup should finish non-local-flow aware,
       snapshot-carrying compact control objects, move remaining hot metadata
       into object headers/raw payloads, remove prototype fallback from hot
       values, and give CPS capture a stack representation with cheap push/pop
       plus shared snapshots.
+- [ ] A separate GC-first control runtime nucleus now exists beside the stable
+      CPS runtime. `ControlState` is a distinct GC object kind, and the new
+      GC-control thunk payload stores `{ code, context, env }` under a separate
+      raw-payload tag, tracing both the captured control state and heap values
+      in the environment. This is intentionally not parsed by the legacy
+      compact-control helper path yet; the next step is a ctx-passing CPS ABI
+      that can execute these objects without TLS stack restore or side tables.
+      The first helper surface for that ABI exists for guard state:
+      `gc_control_empty_state`, `gc_control_push_guard`,
+      `gc_control_find_guard`, and `gc_control_peek_guard` take an explicit
+      control-state word and do not read the native TLS guard stack.
 
 ### Effects Backend Status
 
@@ -435,7 +481,8 @@ current backend boundaries visible, but detailed regression history lives in
       partial-application closures passed through continuation parameters when
       their captures can be rebased to target parameters, rewrites known
       closure `EffectfulApply` terminators back into effectful direct calls or
-      pure primitive resumes, removes unused continuation parameters and their
+      pure primitive resumes, inlines local direct-style closure applications,
+      removes unused continuation parameters and their
       matching continuation-call arguments, inlines small pure direct callees including
       structural value helpers, inlines
       small single-use one-shot continuations, rewrites effectful calls to pure

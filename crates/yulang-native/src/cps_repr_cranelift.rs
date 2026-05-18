@@ -5156,8 +5156,12 @@ fn mmtk_yvalue_primitive_lane_enabled(options: CpsReprCraneliftOptions) -> bool 
 
 fn mmtk_cps_control_objects_enabled(options: CpsReprCraneliftOptions) -> bool {
     options.mmtk_yvalue_primitives
-        && std::env::var_os("YULANG_MMTK_CPS_CONTROL_OBJECTS")
-            .is_some_and(|value| value == "unsafe")
+        && !std::env::var_os("YULANG_MMTK_CPS_CONTROL_OBJECTS").is_some_and(|value| {
+            matches!(
+                value.to_string_lossy().as_ref(),
+                "0" | "false" | "off" | "disabled"
+            )
+        })
 }
 
 fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {

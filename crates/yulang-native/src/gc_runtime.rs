@@ -1518,6 +1518,7 @@ pub enum YObjectKind {
     HandlerFrame,
     ReturnFrame,
     ControlStack,
+    ControlState,
 }
 
 impl fmt::Display for YObjectKind {
@@ -1538,6 +1539,7 @@ impl fmt::Display for YObjectKind {
             Self::HandlerFrame => "handler-frame",
             Self::ReturnFrame => "return-frame",
             Self::ControlStack => "control-stack",
+            Self::ControlState => "control-state",
         };
         f.write_str(name)
     }

@@ -2072,11 +2072,13 @@ fn native_cps_repr_executable_harness(
 ) -> String {
     let mut source = String::from("unsafe extern \"C\" {\n");
     source.push_str("    fn yulang_cps_reset_i64();\n");
+    source.push_str("    fn yulang_cps_dump_stats_i64();\n");
     source.push_str("    fn yulang_cps_set_root_function_ids_i64(ids: *const u64, len: usize);\n");
     source.push_str("    fn yulang_cps_take_root_result_i64(value: i64) -> i64;\n");
     let uses_mmtk_yvalue_lane = options.mmtk_yvalue_primitives;
     if uses_mmtk_yvalue_lane {
         source.push_str("    fn yulang_mmtk_cps_reset_i64();\n");
+        source.push_str("    fn yulang_mmtk_cps_dump_heap_stats_i64();\n");
     }
     if print_roots {
         source.push_str("    fn yulang_cps_print_i64(value: i64);\n");
@@ -2128,6 +2130,10 @@ fn native_cps_repr_executable_harness(
             root.print.push_rust_print_call(&mut source, name);
         } else {
             root.print.push_rust_discard_call(&mut source, name);
+        }
+        source.push_str("        yulang_cps_dump_stats_i64();\n");
+        if uses_mmtk_yvalue_lane {
+            source.push_str("        yulang_mmtk_cps_dump_heap_stats_i64();\n");
         }
         source.push_str("    }\n");
     }

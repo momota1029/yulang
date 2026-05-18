@@ -190,8 +190,15 @@ struct point { x: int, y: int } with:
     ));
     fs::write(&path, source).expect("write test source");
 
-    let stable_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
-        .env("YULANG_MMTK_CPS_CONTROL_OBJECTS", "1")
+    let default_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .arg("run")
+        .arg("--mmtk")
+        .arg(&path)
+        .arg("--print-roots")
+        .output()
+        .expect("run yulang MMTk CLI");
+    let opt_out_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .env("YULANG_MMTK_CPS_CONTROL_OBJECTS", "0")
         .arg("run")
         .arg("--mmtk")
         .arg(&path)
@@ -209,12 +216,19 @@ struct point { x: int, y: int } with:
     let _ = fs::remove_file(&path);
 
     assert!(
-        stable_output.status.success(),
+        default_output.status.success(),
         "MMTk CLI failed\nstdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&stable_output.stdout),
-        String::from_utf8_lossy(&stable_output.stderr)
+        String::from_utf8_lossy(&default_output.stdout),
+        String::from_utf8_lossy(&default_output.stderr)
     );
-    assert_eq!(String::from_utf8_lossy(&stable_output.stdout), "just 18\n");
+    assert_eq!(String::from_utf8_lossy(&default_output.stdout), "just 18\n");
+    assert!(
+        opt_out_output.status.success(),
+        "MMTk control opt-out CLI failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&opt_out_output.stdout),
+        String::from_utf8_lossy(&opt_out_output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&opt_out_output.stdout), "just 18\n");
     assert!(
         unsafe_output.status.success(),
         "MMTk unsafe control CLI failed\nstdout:\n{}\nstderr:\n{}",
