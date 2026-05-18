@@ -1166,13 +1166,28 @@ pub(super) extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
 
 fn make_native_i64_thunk(code: usize, env: Vec<i64>) -> usize {
     let code = unsafe { std::mem::transmute::<usize, NativeCpsI64ThunkEntry>(code) };
-    let handlers = current_native_i64_handler_snapshot_with_pending();
+    make_native_i64_thunk_from_parts(
+        code,
+        env,
+        current_native_i64_handler_snapshot_with_pending(),
+        current_native_i64_guard_snapshot(),
+        Vec::new(),
+    )
+}
+
+fn make_native_i64_thunk_from_parts(
+    code: NativeCpsI64ThunkEntry,
+    env: Vec<i64>,
+    handlers: NativeCpsI64HandlerSnapshot,
+    guard_stack: NativeCpsI64I64Snapshot,
+    active_blocked: Vec<NativeCpsI64BlockedEffect>,
+) -> usize {
     let ptr = Box::into_raw(Box::new(NativeCpsI64Thunk {
         code,
         env: env.into_boxed_slice(),
         handlers,
-        guard_stack: current_native_i64_guard_snapshot(),
-        active_blocked: Box::new([]),
+        guard_stack,
+        active_blocked: active_blocked.into_boxed_slice(),
     })) as usize;
     NATIVE_CPS_I64_THUNKS.with(|thunks| {
         thunks.borrow_mut().insert(ptr);
@@ -1219,6 +1234,26 @@ pub(super) extern "C" fn yulang_cps_add_thunk_boundary_i64(
         thunks.borrow_mut().insert(ptr);
     });
     ptr
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_add_empty_context_thunk_boundary_i64(
+    code: usize,
+    env_ptr: *const i64,
+    env_len: i64,
+    guard_id: i64,
+    allowed_mask: i64,
+    active: i64,
+) -> usize {
+    let code = unsafe { std::mem::transmute::<usize, NativeCpsI64ThunkEntry>(code) };
+    let value = make_native_i64_thunk_from_parts(
+        code,
+        unsafe { native_i64_slice(env_ptr, env_len) },
+        native_cps_i64_empty_snapshot(),
+        native_cps_i64_empty_snapshot(),
+        Vec::new(),
+    );
+    yulang_cps_add_thunk_boundary_i64(value, guard_id, allowed_mask, active)
 }
 
 fn make_native_i64_closure(code: usize, env: Vec<i64>) -> usize {
@@ -1796,6 +1831,39 @@ pub(super) extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) ->
     // non-thunk values, so callers that already returned a concrete value
     // are unaffected.
     yulang_cps_force_thunk_i64(result as usize)
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_is_applicable_i64(value: usize) -> i64 {
+    let is_resumption = NATIVE_CPS_I64_RESUMPTIONS.with(|s| s.borrow().contains(&value));
+    if is_resumption {
+        return 1;
+    }
+    NATIVE_CPS_I64_CLOSURES
+        .with(|closures| closures.borrow().contains(&value))
+        .into()
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_control_capture_context_is_empty_i64() -> i64 {
+    let handlers_empty = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().is_empty());
+    let guards_empty = NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().is_empty());
+    let active_blocked_empty =
+        NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| stack.borrow().is_empty());
+    let pending_handler_envs_empty =
+        NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| envs.borrow().is_empty());
+    let pending_escape_targets_empty =
+        NATIVE_CPS_I64_PENDING_ESCAPE_ENV_TARGETS.with(|targets| targets.borrow().is_empty());
+    let rwh_siblings_empty =
+        NATIVE_CPS_I64_RESUME_WITH_HANDLER_SIBLINGS.with(|siblings| siblings.borrow().is_empty());
+    i64::from(
+        handlers_empty
+            && guards_empty
+            && active_blocked_empty
+            && pending_handler_envs_empty
+            && pending_escape_targets_empty
+            && rwh_siblings_empty,
+    )
 }
 
 #[unsafe(no_mangle)]
@@ -5570,6 +5638,9 @@ pub(super) extern "C" fn yulang_cps_make_thunk_i64_many(
 
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_is_thunk_i64(value: i64) -> i64 {
+    if crate::mmtk_cps_control::is_mmtk_cps_control_thunk_value(value) {
+        return 1;
+    }
     usize::try_from(value)
         .ok()
         .is_some_and(|value| NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value)))
@@ -5582,6 +5653,12 @@ pub(super) extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
     loop {
         let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value));
         if !is_thunk {
+            if crate::mmtk_cps_control::is_mmtk_cps_control_thunk_value(value as i64) {
+                value =
+                    crate::mmtk_cps_control::yulang_mmtk_cps_control_force_thunk_i64(value as i64)
+                        as usize;
+                continue;
+            }
             if jit_trace_enabled() {
                 eprintln!(
                     "[JIT-CPS] force_thunk.out: value={}",

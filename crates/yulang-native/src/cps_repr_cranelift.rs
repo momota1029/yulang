@@ -638,6 +638,7 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
                 &mut ctx,
                 function,
                 functions,
+                &handlers,
                 literals,
                 options,
             )?;
@@ -1135,6 +1136,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
             function,
             continuation,
             functions,
+            handlers,
             literals,
             options,
             &direct_island,
@@ -1210,6 +1212,7 @@ fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
     function: &CpsReprAbiFunction,
     entry_continuation: &CpsReprAbiContinuation,
     functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
     literals: &mut L,
     options: CpsReprCraneliftOptions,
     island: &HashSet<CpsContinuationId>,
@@ -1252,6 +1255,7 @@ fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
                 function,
                 stmt,
                 functions,
+                handlers,
                 literals,
                 &mut values,
                 options,
@@ -1960,7 +1964,11 @@ fn lower_runtime_value_stmt_parts<M: Module>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_add_thunk_boundary_i64",
+                cps_control_helper(
+                    options,
+                    "yulang_cps_add_thunk_boundary_i64",
+                    "yulang_mmtk_cps_control_add_thunk_boundary_i64",
+                ),
                 &[value, guard, allowed_mask, active],
             )?;
             builder.def_var(variable(*dest), value);
@@ -4246,6 +4254,7 @@ fn lower_function<M: Module, L: CpsLiteralStore>(
     ctx: &mut cranelift_codegen::Context,
     function: &CpsReprAbiFunction,
     functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
     literals: &mut L,
     options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
@@ -4267,6 +4276,7 @@ fn lower_function<M: Module, L: CpsLiteralStore>(
                 function,
                 stmt,
                 functions,
+                handlers,
                 literals,
                 &mut values,
                 options,
@@ -4388,6 +4398,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
     function: &CpsReprAbiFunction,
     stmt: &CpsStmt,
     functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
     literals: &mut L,
     values: &mut LocalValueCache,
     options: CpsReprCraneliftOptions,
@@ -4447,8 +4458,28 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             )?;
             builder.def_var(variable(*dest), value);
         }
-        CpsStmt::AddThunkBoundary { dest, thunk, .. } => {
+        CpsStmt::AddThunkBoundary {
+            dest,
+            thunk,
+            guard,
+            allowed,
+            active,
+        } => {
             let value = read_value(builder, function, *thunk)?;
+            let guard = read_value(builder, function, *guard)?;
+            let allowed_mask = handlers.allowed_mask(function, allowed)?;
+            let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
+            let active = builder.ins().iconst(types::I64, i64::from(*active));
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                cps_control_helper(
+                    options,
+                    "yulang_cps_add_thunk_boundary_i64",
+                    "yulang_mmtk_cps_control_add_thunk_boundary_i64",
+                ),
+                &[value, guard, allowed_mask, active],
+            )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeClosure { dest, entry } => {
@@ -5125,7 +5156,8 @@ fn mmtk_yvalue_primitive_lane_enabled(options: CpsReprCraneliftOptions) -> bool 
 
 fn mmtk_cps_control_objects_enabled(options: CpsReprCraneliftOptions) -> bool {
     options.mmtk_yvalue_primitives
-        && std::env::var_os("YULANG_MMTK_CPS_CONTROL_OBJECTS").is_some_and(|value| value == "1")
+        && std::env::var_os("YULANG_MMTK_CPS_CONTROL_OBJECTS")
+            .is_some_and(|value| value == "unsafe")
 }
 
 fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {
@@ -5234,11 +5266,13 @@ fn lower_primitive<M: Module>(
         }
         typed_ir::PrimitiveOp::IntAdd => {
             if mmtk_yvalue_primitive_lane_enabled(options) {
-                call_i64_helper(
+                mmtk_i63_add_sub_or_helper(
                     module_backend,
                     builder,
                     "yulang_mmtk_cps_int_add_i64",
-                    &[args[0], args[1]],
+                    args[0],
+                    args[1],
+                    MmtkI63AddSubOp::Add,
                 )?
             } else {
                 builder.ins().iadd(args[0], args[1])
@@ -5246,11 +5280,13 @@ fn lower_primitive<M: Module>(
         }
         typed_ir::PrimitiveOp::IntSub => {
             if mmtk_yvalue_primitive_lane_enabled(options) {
-                call_i64_helper(
+                mmtk_i63_add_sub_or_helper(
                     module_backend,
                     builder,
                     "yulang_mmtk_cps_int_sub_i64",
-                    &[args[0], args[1]],
+                    args[0],
+                    args[1],
+                    MmtkI63AddSubOp::Sub,
                 )?
             } else {
                 builder.ins().isub(args[0], args[1])
@@ -5694,6 +5730,88 @@ fn int_cmp(
     builder.ins().uextend(types::I64, cmp)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MmtkI63AddSubOp {
+    Add,
+    Sub,
+}
+
+fn mmtk_i63_add_sub_or_helper<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    helper_name: &'static str,
+    left: ir::Value,
+    right: ir::Value,
+    op: MmtkI63AddSubOp,
+) -> CpsReprCraneliftResult<ir::Value> {
+    const YVALUE_I63_TAG: i64 = 1;
+    const YVALUE_I63_MIN: i64 = -(1_i64 << 62);
+    const YVALUE_I63_MAX: i64 = (1_i64 << 62) - 1;
+
+    let fast_block = builder.create_block();
+    let upper_bound_block = builder.create_block();
+    let encode_block = builder.create_block();
+    let fallback_block = builder.create_block();
+    let done_block = builder.create_block();
+    builder.append_block_param(done_block, types::I64);
+
+    let both_tags = builder.ins().band(left, right);
+    let both_tags = builder.ins().band_imm(both_tags, YVALUE_I63_TAG);
+    let both_i63 = builder
+        .ins()
+        .icmp_imm(ir::condcodes::IntCC::Equal, both_tags, YVALUE_I63_TAG);
+    builder
+        .ins()
+        .brif(both_i63, fast_block, &[], fallback_block, &[]);
+
+    builder.switch_to_block(fast_block);
+    builder.seal_block(fast_block);
+    let left_raw = builder.ins().sshr_imm(left, 1);
+    let right_raw = builder.ins().sshr_imm(right, 1);
+    let raw = match op {
+        MmtkI63AddSubOp::Add => builder.ins().iadd(left_raw, right_raw),
+        MmtkI63AddSubOp::Sub => builder.ins().isub(left_raw, right_raw),
+    };
+    let above_min = builder.ins().icmp_imm(
+        ir::condcodes::IntCC::SignedGreaterThanOrEqual,
+        raw,
+        YVALUE_I63_MIN,
+    );
+    builder
+        .ins()
+        .brif(above_min, upper_bound_block, &[], fallback_block, &[]);
+
+    builder.switch_to_block(upper_bound_block);
+    builder.seal_block(upper_bound_block);
+    let below_max = builder.ins().icmp_imm(
+        ir::condcodes::IntCC::SignedLessThanOrEqual,
+        raw,
+        YVALUE_I63_MAX,
+    );
+    builder
+        .ins()
+        .brif(below_max, encode_block, &[], fallback_block, &[]);
+
+    builder.switch_to_block(encode_block);
+    builder.seal_block(encode_block);
+    let encoded = builder.ins().ishl_imm(raw, 1);
+    let encoded = builder.ins().bor_imm(encoded, YVALUE_I63_TAG);
+    builder
+        .ins()
+        .jump(done_block, &[ir::BlockArg::Value(encoded)]);
+
+    builder.switch_to_block(fallback_block);
+    builder.seal_block(fallback_block);
+    let fallback = call_i64_helper(module_backend, builder, helper_name, &[left, right])?;
+    builder
+        .ins()
+        .jump(done_block, &[ir::BlockArg::Value(fallback)]);
+
+    builder.switch_to_block(done_block);
+    builder.seal_block(done_block);
+    Ok(builder.block_params(done_block)[0])
+}
+
 fn mmtk_int_pred_or_scalar_cmp<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
@@ -5703,9 +5821,66 @@ fn mmtk_int_pred_or_scalar_cmp<M: Module>(
     args: &[ir::Value],
 ) -> CpsReprCraneliftResult<ir::Value> {
     if mmtk_yvalue_primitive_lane_enabled(options) {
-        return call_i64_helper(module_backend, builder, mmtk_helper, &[args[0], args[1]]);
+        return mmtk_i63_compare_or_helper(
+            module_backend,
+            builder,
+            mmtk_helper,
+            scalar_code,
+            args[0],
+            args[1],
+        );
     }
     Ok(int_cmp(builder, scalar_code, args))
+}
+
+fn mmtk_i63_compare_or_helper<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    helper_name: &'static str,
+    code: ir::condcodes::IntCC,
+    left: ir::Value,
+    right: ir::Value,
+) -> CpsReprCraneliftResult<ir::Value> {
+    const YVALUE_I63_TAG: i64 = 1;
+    const YVALUE_FALSE_BITS: i64 = 0b010;
+    const YVALUE_TRUE_BITS: i64 = 0b110;
+
+    let fast_block = builder.create_block();
+    let fallback_block = builder.create_block();
+    let done_block = builder.create_block();
+    builder.append_block_param(done_block, types::I64);
+
+    let both_tags = builder.ins().band(left, right);
+    let both_tags = builder.ins().band_imm(both_tags, YVALUE_I63_TAG);
+    let both_i63 = builder
+        .ins()
+        .icmp_imm(ir::condcodes::IntCC::Equal, both_tags, YVALUE_I63_TAG);
+    builder
+        .ins()
+        .brif(both_i63, fast_block, &[], fallback_block, &[]);
+
+    builder.switch_to_block(fast_block);
+    builder.seal_block(fast_block);
+    let left_raw = builder.ins().sshr_imm(left, 1);
+    let right_raw = builder.ins().sshr_imm(right, 1);
+    let cmp = builder.ins().icmp(code, left_raw, right_raw);
+    let true_value = builder.ins().iconst(types::I64, YVALUE_TRUE_BITS);
+    let false_value = builder.ins().iconst(types::I64, YVALUE_FALSE_BITS);
+    let value = builder.ins().select(cmp, true_value, false_value);
+    builder
+        .ins()
+        .jump(done_block, &[ir::BlockArg::Value(value)]);
+
+    builder.switch_to_block(fallback_block);
+    builder.seal_block(fallback_block);
+    let fallback = call_i64_helper(module_backend, builder, helper_name, &[left, right])?;
+    builder
+        .ins()
+        .jump(done_block, &[ir::BlockArg::Value(fallback)]);
+
+    builder.switch_to_block(done_block);
+    builder.seal_block(done_block);
+    Ok(builder.block_params(done_block)[0])
 }
 
 fn float_cmp(

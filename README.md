@@ -204,24 +204,47 @@ object header and `YValue` slot scanner. The first
 `YObject` payload through MMTk. It can also allocate compact raw-payload
 objects, compact structural `NativeHeapBlock` payloads, and compact
 closure/thunk/resumption/env/frame payloads that keep tracing/stats on the MMTk
-header/slot path while field reads use native layout offsets. Compact
-string/list rope node metadata is also encoded in raw payloads and read through
-the header/payload path, so hot rope operations no longer need semantic object
-projection. The MMTk lane also materializes captured native CPS control-stack
+header/slot path while field reads use native layout offsets. Compact tuple and
+variant values now use fixed raw-payload metadata plus trace slots instead of
+the native-layout projection, avoiding layout interning on hot `list.view_raw`
+node construction. Compact record values now store field-name metadata in raw
+payload bytes and field values in trace slots. Compact string/list rope node
+metadata is also encoded in raw payloads and read through the header/payload
+path, so hot rope operations no longer need semantic object projection. Compact
+list `len`/index/view/debug paths now read metadata and trace slots directly
+instead of flattening or rebuilding trees on the hot path.
+The MMTk lane can materialize captured native CPS control-stack
 snapshots as compact `ControlStack` heap objects with trace slots for reachable
 MMTk `YValue` children; pointer-shaped prototype values are filtered before
-object-table lookup when they are outside the tracked MMTk heap range. The
+object-table lookup when they are outside the tracked MMTk heap range. That
+mirror is opt-in with `YULANG_MMTK_CPS_CONTROL_STACK_SNAPSHOTS=1`, because the
+default `NoGC` benchmark lane should not pay for a GC root mirror while
+collection is still unwired. The
 MMTk runtime also has a dedicated compact CPS control helper module that can
 allocate closure/thunk/resumption bodies as fixed raw-payload MMTk objects and
 read code/env slots without native-layout projection. The helper payload now
 stores its own env length and the helper context uses a raw thread-local context
 pointer instead of a `RefCell<Option<_>>` borrow on every call. That path is
 covered by direct helper tests and can be enabled for CPS lowering with
-`YULANG_MMTK_CPS_CONTROL_OBJECTS=1`, but default `--mmtk` still keeps
-closure/thunk apply on the existing native control helpers because routing the
-current nondeterminism benchmark through MMTk control objects remains much
-slower.
-remaining migration is to replace more transitional
+`YULANG_MMTK_CPS_CONTROL_OBJECTS=unsafe`, but the stable `--mmtk` lane keeps
+closure/thunk apply on the existing native control helpers. The compact control
+object path is not semantically complete yet because it does not capture the
+native handler/guard snapshots carried by prototype closures and thunks.
+`YULANG_MMTK_CPS_CONTROL_OBJECTS=1` therefore does not enable that lane. The
+unsafe control path now creates compact thunks only when the native control
+capture context is empty; when a compact thunk later receives an effect boundary,
+the boundary helper builds the prototype thunk with an explicit empty snapshot
+instead of accidentally capturing the boundary-time handler/guard context.
+Compact closures can still be exercised there, but control objects with
+non-empty captured snapshots still fall back to the prototype helper path.
+There is a narrower helper-level experiment behind
+`YULANG_MMTK_CPS_CONTROL_THUNK_SIDECARS=unsafe` that allocates a compact thunk
+surface while storing its creation-time native thunk snapshot in a side table;
+direct helper tests cover that bridge, and the native force helper now delegates
+back to MMTk force when a mixed native path receives a compact thunk. Full
+lowering keeps the sidecar bridge disabled until non-local flow through compact
+apply/force is completed.
+The remaining migration is to replace more transitional
 semantic payload users with these compact paths; the heap read API is already
 split into header and trace-child projection so tracing no longer depends on
 reading the full semantic payload. A
@@ -250,7 +273,22 @@ cached snapshots. The first snapshot after mutation still clones the active
 stack; attempts to replace that with `Rc<Vec>` copy-on-write or `im::Vector`
 made the nondeterminism benchmark slower, so a real capture optimization still
 needs a dedicated stack representation. Under the MMTk lane those snapshots
-also receive compact GC heap mirrors for root tracking.
+can receive compact GC heap mirrors for root tracking when the snapshot mirror
+env flag is enabled.
+
+The current MMTk benchmark lane has been brought back into the default native
+effects lane's band for the small nondeterminism list benchmarks, but it is not
+yet a general win. The partial integration boundary is still visible: compact
+control objects still fall back to the prototype helper path whenever a
+non-empty native handler/guard/blocked-effect snapshot must be captured, boundary
+thunks cross back through a prototype thunk, the sidecar bridge is not yet safe
+for full lowering, some runtime values still cross helper/prototype boundaries,
+and captured control snapshots still clone on first snapshot after mutation.
+Beating the default native path consistently requires finishing non-local-flow
+aware, snapshot-carrying compact control objects, moving remaining hot metadata
+into object headers or raw payloads, removing prototype fallback from hot runtime
+values, and replacing clone-on-capture control snapshots with a dedicated
+snapshot-sharing stack.
 
 ## Development
 

@@ -166,6 +166,64 @@ fn mmtk_run_host_console_decodes_yvalue_payload() {
     assert_eq!(String::from_utf8_lossy(&output.stdout), "2\n");
 }
 
+#[test]
+fn mmtk_control_object_flags_keep_showcase_semantics() {
+    let source = r#"
+use std::undet::*
+
+struct point { x: int, y: int } with:
+    our p.norm2: int = p.x * p.x + p.y * p.y
+
+({
+    my y = if all [1, 2, 3] < any [2, 3, 4]:
+        each [3, 4, 5]
+    else:
+        2
+
+    point { x: 3, y: y } .norm2
+}).once
+"#;
+    let path = std::env::temp_dir().join(format!(
+        "yulang-mmtk-control-stable-{}-{}.yu",
+        std::process::id(),
+        unique_suffix()
+    ));
+    fs::write(&path, source).expect("write test source");
+
+    let stable_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .env("YULANG_MMTK_CPS_CONTROL_OBJECTS", "1")
+        .arg("run")
+        .arg("--mmtk")
+        .arg(&path)
+        .arg("--print-roots")
+        .output()
+        .expect("run yulang MMTk CLI");
+    let unsafe_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .env("YULANG_MMTK_CPS_CONTROL_OBJECTS", "unsafe")
+        .arg("run")
+        .arg("--mmtk")
+        .arg(&path)
+        .arg("--print-roots")
+        .output()
+        .expect("run yulang MMTk CLI");
+    let _ = fs::remove_file(&path);
+
+    assert!(
+        stable_output.status.success(),
+        "MMTk CLI failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&stable_output.stdout),
+        String::from_utf8_lossy(&stable_output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&stable_output.stdout), "just 18\n");
+    assert!(
+        unsafe_output.status.success(),
+        "MMTk unsafe control CLI failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&unsafe_output.stdout),
+        String::from_utf8_lossy(&unsafe_output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&unsafe_output.stdout), "just 18\n");
+}
+
 fn unique_suffix() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

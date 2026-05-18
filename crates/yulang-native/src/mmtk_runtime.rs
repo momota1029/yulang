@@ -6,6 +6,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 use mmtk::plan::AllocationSemantics;
 use mmtk::util::ObjectReference;
@@ -13,11 +14,14 @@ use mmtk::util::opaque_pointer::{VMMutatorThread, VMThread};
 use rustc_hash::FxHashMap;
 
 use crate::gc_runtime::{
-    GcRuntimeContext, NativeFieldLane, NativeFieldLayout, NativeFieldValue, NativeHeapBlock,
-    NativeLayout, NativeLayoutHandle, NativePayloadBuffer, YHeap, YHeapStats, YList, YObject,
-    YObjectKind, YObjectPayload, YString, YValue,
+    GcRuntimeContext, NativeFieldValue, NativeHeapBlock, NativeLayoutHandle, NativePayloadBuffer,
+    YHeap, YHeapStats, YList, YObject, YObjectKind, YObjectPayload, YString, YSymbolId, YValue,
 };
 use crate::mmtk_binding::{YulangMmtkObjectHeader, YulangMmtkVM, initialize_yulang_mmtk_object};
+
+unsafe extern "C" {
+    fn yulang_cps_print_debug_i64(value: i64);
+}
 
 const MAX_STRING_LEAF_CHARS: usize = yulang_runtime::runtime::string_tree::MAX_LEAF_CHARS;
 
@@ -26,8 +30,13 @@ const COMPACT_STRING_NODE_TAG: u8 = 1;
 const COMPACT_LIST_NODE_TAG: u8 = 2;
 const COMPACT_CONTROL_STACK_TAG: u8 = 3;
 const COMPACT_CONTROL_BLOCK_TAG: u8 = 4;
+const COMPACT_TUPLE_TAG: u8 = 5;
+const COMPACT_VARIANT_TAG: u8 = 6;
+const COMPACT_RECORD_TAG: u8 = 7;
 const COMPACT_NODE_HEADER_SIZE: usize = 2;
 const COMPACT_CONTROL_HEADER_SIZE: usize = 16;
+const COMPACT_VARIANT_HEADER_SIZE: usize = 6;
+const COMPACT_RECORD_HEADER_SIZE: usize = 5;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MmtkRuntimeConfig {
@@ -264,6 +273,37 @@ impl MmtkHeap {
         )
     }
 
+    fn allocate_compact_tuple(&mut self, items: &[YValue]) -> YValue {
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::Tuple,
+            items,
+            &[COMPACT_TUPLE_TAG],
+            MmtkPayloadStorage::RawBytes,
+        )
+    }
+
+    fn allocate_compact_variant(&mut self, tag: YSymbolId, value: Option<YValue>) -> YValue {
+        let raw_payload = encode_compact_variant_payload(tag, value.is_some());
+        let trace_slots = value.into_iter().collect::<Vec<_>>();
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::Variant,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::RawBytes,
+        )
+    }
+
+    fn allocate_compact_record(&mut self, fields: &[(Box<str>, YValue)]) -> YValue {
+        let raw_payload = encode_compact_record_payload(fields);
+        let trace_slots = fields.iter().map(|(_, value)| *value).collect::<Vec<_>>();
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::Record,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::RawBytes,
+        )
+    }
+
     pub fn allocate_native_heap_block(&mut self, block: &NativeHeapBlock) -> YValue {
         self.allocate_raw_payload_with_storage(
             block.object_kind(),
@@ -481,6 +521,13 @@ impl MmtkHeap {
         Some((code, env_ptr))
     }
 
+    pub(crate) fn compact_control_env_len(&self, value: YValue) -> Option<usize> {
+        let object = self.mmtk_object_reference(value)?;
+        let bytes = self.raw_payload_bytes_from_ref(object);
+        let (env_len, _, _) = decode_compact_control_payload_header(bytes)?;
+        Some(env_len)
+    }
+
     pub(crate) fn is_tracked_object_kind(&self, value: YValue, expected_kind: YObjectKind) -> bool {
         self.mmtk_object_reference(value)
             .is_some_and(|object| Self::object_header_from_ref(object).kind == expected_kind)
@@ -617,8 +664,23 @@ impl MmtkHeap {
         }
     }
 
+    fn trace_child(&self, value: YValue, index: usize) -> Option<YValue> {
+        let raw = value.heap_reference_raw()?;
+        let object = Self::object_reference_from_raw(raw);
+        let header = Self::mmtk_header(object);
+        if index >= header.trace_slot_count() {
+            return None;
+        }
+        let raw =
+            unsafe { YulangMmtkObjectHeader::trace_slot_address(object, index).load::<usize>() };
+        Some(YValue::from_raw(raw))
+    }
+
     fn mmtk_object_reference(&self, value: YValue) -> Option<ObjectReference> {
         let raw = value.heap_reference_raw()?;
+        if !self.may_be_tracked_object_raw(raw) {
+            return None;
+        }
         self.objects.contains_key(&raw).then(|| {
             ObjectReference::from_raw_address(raw_address(raw))
                 .expect("tracked MMTk object reference should remain valid")
@@ -893,6 +955,69 @@ fn decode_compact_list_node_payload(bytes: &[u8]) -> Option<(TreeColor, usize)> 
     let color = TreeColor::decode(bytes[1])?;
     let len = usize::from_ne_bytes(bytes[2..2 + word].try_into().ok()?);
     Some((color, len))
+}
+
+fn encode_compact_variant_payload(
+    tag: YSymbolId,
+    has_payload: bool,
+) -> [u8; COMPACT_VARIANT_HEADER_SIZE] {
+    let mut payload = [0; COMPACT_VARIANT_HEADER_SIZE];
+    payload[0] = COMPACT_VARIANT_TAG;
+    payload[1] = u8::from(has_payload);
+    payload[2..6].copy_from_slice(&tag.0.to_ne_bytes());
+    payload
+}
+
+fn decode_compact_variant_payload(bytes: &[u8]) -> Option<(YSymbolId, bool)> {
+    if bytes.len() != COMPACT_VARIANT_HEADER_SIZE {
+        return None;
+    }
+    if bytes[0] != COMPACT_VARIANT_TAG {
+        return None;
+    }
+    let has_payload = match bytes[1] {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
+    let tag = YSymbolId(u32::from_ne_bytes(bytes[2..6].try_into().ok()?));
+    Some((tag, has_payload))
+}
+
+fn encode_compact_record_payload(fields: &[(Box<str>, YValue)]) -> Vec<u8> {
+    let names_len = fields.iter().map(|(name, _)| name.len()).sum::<usize>();
+    let mut payload = Vec::with_capacity(
+        COMPACT_RECORD_HEADER_SIZE + fields.len() * std::mem::size_of::<u32>() + names_len,
+    );
+    payload.push(COMPACT_RECORD_TAG);
+    payload.extend_from_slice(&(fields.len() as u32).to_ne_bytes());
+    for (name, _) in fields {
+        let bytes = name.as_bytes();
+        payload.extend_from_slice(&(bytes.len() as u32).to_ne_bytes());
+        payload.extend_from_slice(bytes);
+    }
+    payload
+}
+
+fn decode_compact_record_payload(bytes: &[u8]) -> Option<Vec<Box<str>>> {
+    let header = bytes.get(..COMPACT_RECORD_HEADER_SIZE)?;
+    if header.first().copied()? != COMPACT_RECORD_TAG {
+        return None;
+    }
+    let count = usize::try_from(u32::from_ne_bytes(header.get(1..5)?.try_into().ok()?)).ok()?;
+    let mut names = Vec::with_capacity(count);
+    let mut cursor = COMPACT_RECORD_HEADER_SIZE;
+    for _ in 0..count {
+        let len = usize::try_from(u32::from_ne_bytes(
+            bytes.get(cursor..cursor + 4)?.try_into().ok()?,
+        ))
+        .ok()?;
+        cursor += 4;
+        let name = std::str::from_utf8(bytes.get(cursor..cursor + len)?).ok()?;
+        names.push(Box::<str>::from(name));
+        cursor += len;
+    }
+    (cursor == bytes.len()).then_some(names)
 }
 
 fn compact_control_kind_has_head(kind: YObjectKind) -> bool {
@@ -1207,6 +1332,9 @@ impl MmtkNativeRuntimeContext {
     }
 
     pub fn tuple_get(&self, tuple: YValue, index: usize) -> Option<YValue> {
+        if self.compact_tuple_len(tuple).is_some() {
+            return self.context.heap().trace_child(tuple, index);
+        }
         self.tuple_items(tuple)?.get(index).copied()
     }
 
@@ -1272,22 +1400,18 @@ impl MmtkNativeRuntimeContext {
     pub fn variant(&mut self, tag: &[u8], value: Option<YValue>) -> Option<YValue> {
         let tag = std::str::from_utf8(tag).ok()?;
         let tag = self.context.intern_symbol_path(tag);
-        let payload_layout = value
-            .iter()
-            .map(|_| NativeFieldLayout::named("value", NativeFieldLane::YValue))
-            .collect::<Vec<_>>();
-        let layout = self
-            .context
-            .intern_native_layout(NativeLayout::variant(payload_layout));
-        let mut fields = vec![NativeFieldValue::Symbol(tag)];
-        fields.extend(value.into_iter().map(NativeFieldValue::YValue));
-        let block = NativeHeapBlock::new(layout, fields)
-            .expect("compact variant layout should match fields");
-        Some(self.context.heap_mut().allocate_native_heap_block(&block))
+        Some(self.context.heap_mut().allocate_compact_variant(tag, value))
     }
 
     pub fn variant_tag_eq(&self, variant: YValue, tag: &[u8]) -> Option<bool> {
         let expected = std::str::from_utf8(tag).ok()?;
+        if let Some((tag, _)) = self.compact_variant_metadata(variant) {
+            return Some(
+                self.context
+                    .symbol(tag)
+                    .is_some_and(|symbol| symbol.path.display_name() == expected),
+            );
+        }
         if self.is_compact_kind(variant, YObjectKind::Variant) {
             let NativeFieldValue::Symbol(tag) =
                 self.context.heap().native_field_value(variant, 0)?
@@ -1309,6 +1433,9 @@ impl MmtkNativeRuntimeContext {
     }
 
     pub fn variant_payload(&self, variant: YValue) -> Option<YValue> {
+        if let Some((_, has_payload)) = self.compact_variant_metadata(variant) {
+            return has_payload.then(|| self.context.heap().trace_child(variant, 0))?;
+        }
         if self.is_compact_kind(variant, YObjectKind::Variant) {
             let NativeFieldValue::YValue(value) =
                 self.context.heap().native_field_value(variant, 1)?
@@ -1338,10 +1465,18 @@ impl MmtkNativeRuntimeContext {
     }
 
     pub fn list_len(&self, list: YValue) -> Option<usize> {
+        if self.compact_list_storage(list).is_some() {
+            return self.list_tree_len(list);
+        }
+
         Some(self.list_items(list)?.len())
     }
 
     pub fn list_get(&self, list: YValue, index: usize) -> Option<YValue> {
+        if self.compact_list_storage(list).is_some() {
+            return self.compact_list_get(list, index);
+        }
+
         self.list_items(list)?.get(index).copied()
     }
 
@@ -1388,6 +1523,10 @@ impl MmtkNativeRuntimeContext {
     }
 
     pub fn list_view_raw(&mut self, list: YValue) -> Option<YValue> {
+        if let Some(storage) = self.compact_list_storage(list) {
+            return self.compact_list_view_raw(list, storage);
+        }
+
         let len = self.list_len(list)?;
         match len {
             0 => self.variant(b"empty", None),
@@ -1483,6 +1622,12 @@ impl MmtkNativeRuntimeContext {
         if self.is_compact_tuple(value) {
             return self.debug_tuple(value);
         }
+        if self.is_compact_kind(value, YObjectKind::Record) {
+            return self.debug_record(value);
+        }
+        if self.is_compact_kind(value, YObjectKind::Variant) {
+            return self.debug_variant(value);
+        }
         if self.is_compact_list_tree(value) {
             return self.debug_list(value);
         }
@@ -1490,24 +1635,18 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn alloc_compact_tuple(&mut self, items: &[YValue]) -> YValue {
-        let layout = NativeLayout::tuple(
-            items
-                .iter()
-                .map(|_| NativeFieldLayout::unnamed(NativeFieldLane::YValue))
-                .collect::<Vec<_>>(),
-        );
-        let layout = self.context.intern_native_layout(layout);
-        let fields = items
-            .iter()
-            .copied()
-            .map(NativeFieldValue::YValue)
-            .collect::<Vec<_>>();
-        let block =
-            NativeHeapBlock::new(layout, fields).expect("compact tuple layout should match fields");
-        self.context.heap_mut().allocate_native_heap_block(&block)
+        self.context.heap_mut().allocate_compact_tuple(items)
     }
 
     fn tuple_items(&self, value: YValue) -> Option<Vec<YValue>> {
+        if let Some(len) = self.compact_tuple_len(value) {
+            let mut items = Vec::with_capacity(len);
+            for index in 0..len {
+                items.push(self.context.heap().trace_child(value, index)?);
+            }
+            return Some(items);
+        }
+
         if self.is_compact_tuple(value) {
             let field_count = self.context.heap().native_field_count(value)?;
             let mut items = Vec::with_capacity(field_count);
@@ -1530,21 +1669,7 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn alloc_compact_record(&mut self, fields: &[(Box<str>, YValue)]) -> YValue {
-        let layout = NativeLayout::new(
-            crate::gc_runtime::NativeLayoutKind::Object(YObjectKind::Record),
-            fields
-                .iter()
-                .map(|(name, _)| NativeFieldLayout::named(name.clone(), NativeFieldLane::YValue))
-                .collect::<Vec<_>>(),
-        );
-        let layout = self.context.intern_native_layout(layout);
-        let values = fields
-            .iter()
-            .map(|(_, value)| NativeFieldValue::YValue(*value))
-            .collect::<Vec<_>>();
-        let block = NativeHeapBlock::new(layout, values)
-            .expect("compact record layout should match fields");
-        self.context.heap_mut().allocate_native_heap_block(&block)
+        self.context.heap_mut().allocate_compact_record(fields)
     }
 
     fn build_balanced_string(&mut self, mut items: Vec<YValue>) -> Option<YValue> {
@@ -1927,6 +2052,29 @@ impl MmtkNativeRuntimeContext {
         }
     }
 
+    fn compact_list_view_raw(
+        &mut self,
+        list: YValue,
+        storage: CompactListTreeStorage,
+    ) -> Option<YValue> {
+        match storage {
+            CompactListTreeStorage::Leaf { len: 0 } => self.variant(b"empty", None),
+            CompactListTreeStorage::Leaf { len: 1 } => {
+                self.variant(b"leaf", self.list_get(list, 0))
+            }
+            CompactListTreeStorage::Leaf { len } => {
+                let (left, right) = self.list_split_at_unchecked(list, len / 2)?;
+                let payload = self.alloc_compact_tuple(&[left, right]);
+                self.variant(b"node", Some(payload))
+            }
+            CompactListTreeStorage::Node { .. } => {
+                let [left, right] = self.tree_binary_children(list)?;
+                let payload = self.alloc_compact_tuple(&[left, right]);
+                self.variant(b"node", Some(payload))
+            }
+        }
+    }
+
     fn list_black_node(&mut self, left: YValue, right: YValue) -> Option<YValue> {
         self.list_node(TreeColor::Black, left, right)
     }
@@ -2037,6 +2185,29 @@ impl MmtkNativeRuntimeContext {
         }
     }
 
+    fn compact_list_get(&self, value: YValue, index: usize) -> Option<YValue> {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { len } => {
+                if index >= len {
+                    return None;
+                }
+                self.context.heap().trace_child(value, index)
+            }
+            CompactListTreeStorage::Node { len, .. } => {
+                if index >= len {
+                    return None;
+                }
+                let [left, right] = self.tree_binary_children(value)?;
+                let left_len = self.list_tree_len(left)?;
+                if index < left_len {
+                    self.compact_list_get(left, index)
+                } else {
+                    self.compact_list_get(right, index - left_len)
+                }
+            }
+        }
+    }
+
     fn list_black_height(&self, value: YValue) -> Option<usize> {
         match self.compact_list_storage(value)? {
             CompactListTreeStorage::Leaf { .. } => Some(0),
@@ -2091,6 +2262,14 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn record_fields(&self, value: YValue) -> Option<Vec<(Box<str>, YValue)>> {
+        if let Some(names) = self.compact_record_field_names(value) {
+            let mut fields = Vec::with_capacity(names.len());
+            for (index, name) in names.into_iter().enumerate() {
+                fields.push((name, self.context.heap().trace_child(value, index)?));
+            }
+            return Some(fields);
+        }
+
         if self.is_compact_kind(value, YObjectKind::Record) {
             let field_count = self.context.heap().native_field_count(value)?;
             let mut fields = Vec::with_capacity(field_count);
@@ -2118,6 +2297,16 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn is_compact_kind(&self, value: YValue, kind: YObjectKind) -> bool {
+        match kind {
+            YObjectKind::Tuple if self.compact_tuple_len(value).is_some() => return true,
+            YObjectKind::Variant if self.compact_variant_metadata(value).is_some() => return true,
+            YObjectKind::Record if self.compact_record_field_names(value).is_some() => return true,
+            _ => {}
+        }
+        self.is_compact_native_block_kind(value, kind)
+    }
+
+    fn is_compact_native_block_kind(&self, value: YValue, kind: YObjectKind) -> bool {
         self.context.object(value).is_none()
             && self
                 .context
@@ -2125,6 +2314,24 @@ impl MmtkNativeRuntimeContext {
                 .object_header(value)
                 .is_some_and(|header| header.kind == kind)
             && self.context.heap().native_field_count(value).is_some()
+    }
+
+    fn compact_tuple_len(&self, value: YValue) -> Option<usize> {
+        let header = self.context.heap().object_header(value)?;
+        if header.kind != YObjectKind::Tuple {
+            return None;
+        }
+        (self.context.heap().raw_payload_bytes(value)? == [COMPACT_TUPLE_TAG])
+            .then_some(header.trace_slots)
+    }
+
+    fn compact_record_field_names(&self, value: YValue) -> Option<Vec<Box<str>>> {
+        let header = self.context.heap().object_header(value)?;
+        if header.kind != YObjectKind::Record {
+            return None;
+        }
+        let names = decode_compact_record_payload(self.context.heap().raw_payload_bytes(value)?)?;
+        (header.trace_slots == names.len()).then_some(names)
     }
 
     fn is_compact_string_tree(&self, value: YValue) -> bool {
@@ -2182,8 +2389,8 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn tree_binary_children(&self, value: YValue) -> Option<[YValue; 2]> {
-        let children = self.context.heap().trace_children(value)?;
-        Some([*children.first()?, *children.get(1)?])
+        let heap = self.context.heap();
+        Some([heap.trace_child(value, 0)?, heap.trace_child(value, 1)?])
     }
 
     fn debug_tuple(&self, value: YValue) -> String {
@@ -2202,6 +2409,10 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn debug_list(&self, value: YValue) -> String {
+        if let Some(storage) = self.compact_list_storage(value) {
+            return self.debug_compact_list(value, storage);
+        }
+
         let Some(items) = self.list_items(value) else {
             return "<invalid compact list>".to_string();
         };
@@ -2210,6 +2421,86 @@ impl MmtkNativeRuntimeContext {
             .map(|item| self.debug_value(item))
             .collect::<Vec<_>>();
         format!("[{}]", rendered.join(", "))
+    }
+
+    fn debug_compact_list(&self, value: YValue, storage: CompactListTreeStorage) -> String {
+        let len = match storage {
+            CompactListTreeStorage::Leaf { len } | CompactListTreeStorage::Node { len, .. } => len,
+        };
+        let mut out = String::with_capacity(len.saturating_mul(4).saturating_add(2));
+        out.push('[');
+        let mut first = true;
+        if self
+            .push_compact_list_debug_items(value, &mut out, &mut first)
+            .is_none()
+        {
+            return "<invalid compact list>".to_string();
+        }
+        out.push(']');
+        out
+    }
+
+    fn push_compact_list_debug_items(
+        &self,
+        value: YValue,
+        out: &mut String,
+        first: &mut bool,
+    ) -> Option<()> {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { len } => {
+                for index in 0..len {
+                    if !*first {
+                        out.push_str(", ");
+                    }
+                    *first = false;
+                    self.push_debug_value(out, self.context.heap().trace_child(value, index)?)?;
+                }
+            }
+            CompactListTreeStorage::Node { .. } => {
+                let [left, right] = self.tree_binary_children(value)?;
+                self.push_compact_list_debug_items(left, out, first)?;
+                self.push_compact_list_debug_items(right, out, first)?;
+            }
+        }
+        Some(())
+    }
+
+    fn push_debug_value(&self, out: &mut String, value: YValue) -> Option<()> {
+        if let Some(value) = value.as_i63() {
+            write!(out, "{value}").ok()?;
+            return Some(());
+        }
+        if let Some(value) = value.as_bool() {
+            out.push_str(if value { "true" } else { "false" });
+            return Some(());
+        }
+        if value.is_unit() {
+            out.push_str("()");
+            return Some(());
+        }
+        out.push_str(&self.debug_value(value));
+        Some(())
+    }
+
+    fn debug_record(&self, value: YValue) -> String {
+        let Some(fields) = self.record_fields(value) else {
+            return "<invalid compact record>".to_string();
+        };
+        let rendered = fields
+            .into_iter()
+            .map(|(name, value)| format!("{name}: {}", self.debug_value(value)))
+            .collect::<Vec<_>>();
+        format!("{{{}}}", rendered.join(", "))
+    }
+
+    fn debug_variant(&self, value: YValue) -> String {
+        let Some(tag) = self.variant_tag_name(value) else {
+            return "<invalid compact variant>".to_string();
+        };
+        match self.variant_payload(value) {
+            Some(payload) => format!("{tag} {}", self.debug_value(payload)),
+            None => tag.to_string(),
+        }
     }
 
     fn render_string(&self, value: YValue) -> Option<String> {
@@ -2285,15 +2576,7 @@ impl MmtkNativeRuntimeContext {
 
     fn list_items(&self, value: YValue) -> Option<Vec<YValue>> {
         if let Some(storage) = self.compact_list_storage(value) {
-            match storage {
-                CompactListTreeStorage::Leaf { .. } => return self.list_leaf_items(value),
-                CompactListTreeStorage::Node { .. } => {
-                    let [left, right] = self.tree_binary_children(value)?;
-                    let mut out = self.list_items(left)?;
-                    out.extend(self.list_items(right)?);
-                    return Some(out);
-                }
-            }
+            return self.compact_list_items(value, storage);
         }
 
         let object = self.context.object(value)?;
@@ -2318,11 +2601,43 @@ impl MmtkNativeRuntimeContext {
         }
     }
 
+    fn compact_list_items(
+        &self,
+        value: YValue,
+        storage: CompactListTreeStorage,
+    ) -> Option<Vec<YValue>> {
+        let len = match storage {
+            CompactListTreeStorage::Leaf { len } | CompactListTreeStorage::Node { len, .. } => len,
+        };
+        let mut out = Vec::with_capacity(len);
+        self.push_compact_list_items(value, &mut out)?;
+        (out.len() == len).then_some(out)
+    }
+
+    fn push_compact_list_items(&self, value: YValue, out: &mut Vec<YValue>) -> Option<()> {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { len } => {
+                for index in 0..len {
+                    out.push(self.context.heap().trace_child(value, index)?);
+                }
+            }
+            CompactListTreeStorage::Node { .. } => {
+                let [left, right] = self.tree_binary_children(value)?;
+                self.push_compact_list_items(left, out)?;
+                self.push_compact_list_items(right, out)?;
+            }
+        }
+        Some(())
+    }
+
     fn list_leaf_items(&self, value: YValue) -> Option<Vec<YValue>> {
         match self.compact_list_storage(value)? {
             CompactListTreeStorage::Leaf { len } => {
-                let children = self.context.heap().trace_children(value)?;
-                (children.len() == len).then_some(children)
+                let mut items = Vec::with_capacity(len);
+                for index in 0..len {
+                    items.push(self.context.heap().trace_child(value, index)?);
+                }
+                Some(items)
             }
             _ => None,
         }
@@ -2397,6 +2712,13 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn variant_tag_name(&self, value: YValue) -> Option<Box<str>> {
+        if let Some((tag, _)) = self.compact_variant_metadata(value) {
+            return self
+                .context
+                .symbol(tag)
+                .map(|symbol| Box::<str>::from(symbol.path.display_name()));
+        }
+
         if self.is_compact_kind(value, YObjectKind::Variant) {
             let NativeFieldValue::Symbol(tag) = self.context.heap().native_field_value(value, 0)?
             else {
@@ -2413,6 +2735,19 @@ impl MmtkNativeRuntimeContext {
             return None;
         };
         Some(Box::from(tag.as_ref()))
+    }
+
+    fn compact_variant_metadata(&self, value: YValue) -> Option<(YSymbolId, bool)> {
+        let header = self.context.heap().object_header(value)?;
+        if header.kind != YObjectKind::Variant {
+            return None;
+        }
+        let (tag, has_payload) =
+            decode_compact_variant_payload(self.context.heap().raw_payload_bytes(value)?)?;
+        if header.trace_slots != usize::from(has_payload) {
+            return None;
+        }
+        Some((tag, has_payload))
     }
 }
 
@@ -2531,13 +2866,18 @@ thread_local! {
 pub(crate) fn with_mmtk_cps_context<R>(
     f: impl FnOnce(&mut MmtkNativeRuntimeContext) -> R,
 ) -> Option<R> {
+    let ptr = mmtk_cps_context_ptr()?;
+    Some(f(unsafe { &mut *ptr }))
+}
+
+pub(crate) fn mmtk_cps_context_ptr() -> Option<*mut MmtkNativeRuntimeContext> {
     MMTK_CPS_CONTEXT.with(|slot| {
         let mut ptr = slot.get();
         if ptr.is_null() {
             ptr = Box::into_raw(Box::new(MmtkNativeRuntimeContext::new_no_gc().ok()?));
             slot.set(ptr);
         }
-        Some(f(unsafe { &mut *ptr }))
+        Some(ptr)
     })
 }
 
@@ -2619,6 +2959,7 @@ pub(crate) fn allocate_mmtk_cps_control_stack_chunk_i64(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_reset_i64() {
+    crate::mmtk_cps_control::reset_mmtk_cps_control_state();
     MMTK_CPS_CONTEXT.with(|slot| {
         let ptr = slot.replace(std::ptr::null_mut());
         if !ptr.is_null() {
@@ -2628,7 +2969,10 @@ pub extern "C" fn yulang_mmtk_cps_reset_i64() {
         }
     });
     MMTK_CPS_TAG_NAMES.with(|names| names.borrow_mut().clear());
-    MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED.with(|enabled| *enabled.borrow_mut() = true);
+    let snapshots_enabled = std::env::var_os("YULANG_MMTK_CPS_CONTROL_STACK_SNAPSHOTS")
+        .is_some_and(|value| value == "1");
+    MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED
+        .with(|enabled| *enabled.borrow_mut() = snapshots_enabled);
 }
 
 #[unsafe(no_mangle)]
@@ -3221,9 +3565,27 @@ pub extern "C" fn yulang_mmtk_cps_debug_i64(value: i64) -> i64 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_print_debug_i64(value: i64) {
+    if mmtk_cps_value_needs_prototype_debug(value) {
+        unsafe {
+            yulang_cps_print_debug_i64(value);
+        }
+        return;
+    }
     let text = with_mmtk_cps_context(|context| context.debug_value(decode_yvalue(value)))
         .unwrap_or_else(|| "<invalid mmtk value>".to_string());
     print!("{text}");
+}
+
+fn mmtk_cps_value_needs_prototype_debug(value: i64) -> bool {
+    with_mmtk_cps_context(|context| {
+        let value = decode_yvalue(value);
+        let Some(raw) = value.heap_reference_raw() else {
+            return false;
+        };
+        let heap = context.context().heap();
+        !heap.may_be_tracked_object_raw(raw) || !heap.objects.contains_key(&raw)
+    })
+    .unwrap_or(false)
 }
 
 #[unsafe(no_mangle)]
@@ -4296,6 +4658,7 @@ mod tests {
         let _guard = mmtk_test_lock();
 
         yulang_mmtk_cps_reset_i64();
+        yulang_mmtk_cps_enable_control_stack_i64();
         assert_eq!(allocate_mmtk_cps_control_stack_chunk_i64(1, 0, &[7]), None);
 
         let captured = with_mmtk_cps_context(|context| {
@@ -4396,7 +4759,18 @@ mod tests {
             Some(&b"hello"[..])
         );
         assert!(runtime.context().object(tuple).is_none());
-        assert_eq!(runtime.context().heap().native_field_count(tuple), Some(2));
+        assert_eq!(
+            runtime
+                .context()
+                .heap()
+                .raw_payload_bytes(tuple)
+                .and_then(|bytes| bytes.first().copied()),
+            Some(COMPACT_TUPLE_TAG)
+        );
+        assert_eq!(
+            runtime.context().heap().trace_children(tuple),
+            Some(vec![hello, forty_two])
+        );
         assert_eq!(runtime.tuple_get(tuple, 0), Some(hello));
         assert_eq!(runtime.tuple_get(tuple, 1), Some(forty_two));
         assert_eq!(runtime.string_byte_len(greeting), Some(12));
@@ -4429,7 +4803,18 @@ mod tests {
         );
         assert!(runtime.list_red_black_status(list_spliced).is_some());
         assert!(runtime.context().object(record).is_none());
-        assert_eq!(runtime.context().heap().native_field_count(record), Some(2));
+        assert_eq!(
+            runtime
+                .context()
+                .heap()
+                .raw_payload_bytes(record)
+                .and_then(|bytes| bytes.first().copied()),
+            Some(COMPACT_RECORD_TAG)
+        );
+        assert_eq!(
+            runtime.context().heap().trace_children(record),
+            Some(vec![greeting, forty_two])
+        );
         assert_eq!(runtime.record_has_field(record, b"name"), Some(true));
         assert_eq!(runtime.record_has_field(record, b"missing"), Some(false));
         assert_eq!(runtime.record_get(record, b"name"), Some(greeting));
@@ -4441,8 +4826,16 @@ mod tests {
         assert_eq!(runtime.record_get(record_without_answer, b"answer"), None);
         assert!(runtime.context().object(variant).is_none());
         assert_eq!(
-            runtime.context().heap().native_field_count(variant),
-            Some(2)
+            runtime
+                .context()
+                .heap()
+                .raw_payload_bytes(variant)
+                .and_then(|bytes| bytes.first().copied()),
+            Some(COMPACT_VARIANT_TAG)
+        );
+        assert_eq!(
+            runtime.context().heap().trace_children(variant),
+            Some(vec![record])
         );
         assert_eq!(runtime.variant_tag_eq(variant, b"some"), Some(true));
         assert_eq!(runtime.variant_payload(variant), Some(record));

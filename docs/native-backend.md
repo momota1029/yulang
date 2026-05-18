@@ -327,21 +327,46 @@ current backend boundaries visible, but detailed regression history lives in
       `NativeHeapBlock` payloads whose field reads use native layout offsets,
       including closure/thunk/resumption/env/frame payloads. Compact string/list
       rope nodes also store their metadata in raw payload bytes and are decoded
-      from object header/payload data on the hot path. Captured native CPS
-      control-stack snapshots are materialized as compact `ControlStack` MMTk
+      from object header/payload data on the hot path. Compact tuple and
+      variant values now store fixed raw-payload metadata and use trace slots
+      for payloads, so hot `list.view_raw` node construction avoids
+      native-layout interning/projection. Compact record values store
+      field-name metadata in raw payload bytes and field values in trace slots.
+      Compact list
+      `len`/index/view/debug operations avoid whole-tree flattening and reuse
+      stored tree children where the prototype `ListTree::view` would do the
+      same. Captured native CPS
+      control-stack snapshots can be materialized as compact `ControlStack` MMTk
       objects with trace slots for reachable MMTk `YValue` children; prototype
       pointer-shaped values are filtered by the tracked MMTk heap address range
-      before object-table lookup. A dedicated MMTk CPS control helper module
+      before object-table lookup. This mirror is enabled with
+      `YULANG_MMTK_CPS_CONTROL_STACK_SNAPSHOTS=1`; default `--mmtk` leaves it
+      off while the benchmark lane uses `NoGC` and collection is not wired. A
+      dedicated MMTk CPS control helper module
       can allocate closure/thunk/resumption bodies as compact fixed raw-payload
       objects and read code/env slots directly. The compact payload stores its
       own env length, and the helper context uses a raw thread-local context
       pointer instead of borrowing a `RefCell<Option<_>>` on every call. This is
       tested at the helper boundary and can be opted into with
-      `YULANG_MMTK_CPS_CONTROL_OBJECTS=1`, but Cranelift lowering does not use
-      it by default because the current nondeterminism benchmark still regresses
-      when it replaces the native control helpers. The
-      remaining migration is to replace more transitional semantic payload users with
-      these compact paths. The `YHeap` read API is already split into
+      `YULANG_MMTK_CPS_CONTROL_OBJECTS=unsafe`, but Cranelift lowering does not
+      use it by default and `YULANG_MMTK_CPS_CONTROL_OBJECTS=1` intentionally
+      leaves the stable path in place. The compact control path does not yet
+      capture the native handler/guard snapshots carried by prototype closures
+      and thunks. The unsafe lowering now creates compact thunks only when the
+      native control capture context is empty, and effect-boundary conversion
+      rebuilds those thunks with an explicit empty prototype snapshot instead of
+      capturing the boundary-time context. Compact closures can still be
+      exercised there, but non-empty captured control snapshots still fall back
+      to the prototype helper path. A narrower helper-level experiment behind
+      `YULANG_MMTK_CPS_CONTROL_THUNK_SIDECARS=unsafe` allocates compact thunks
+      with a side-table native thunk snapshot captured at creation time; direct
+      helper tests cover that bridge, and the native force helper delegates back
+      to MMTk force when a mixed native path receives a compact thunk. Full
+      lowering keeps the sidecar bridge disabled until compact apply/force
+      handles non-local flow end to end.
+      The remaining migration is to replace more transitional semantic payload
+      users with these compact paths.
+      The `YHeap` read API is already split into
       object-header and trace-child projection, so tracing and stats do not need
       full semantic payload access.
       MMTk heap smoke coverage now exercises debug rendering, allocation stats,
@@ -358,7 +383,8 @@ current backend boundaries visible, but detailed regression history lives in
       CPS lane; it
       intentionally does not replace the existing `yulang_cps_*` scalar/handle
       ABI. The helper context now creates strings, bytes, and paths as compact
-      raw/tree payloads, tuple/record/variant values as compact native blocks,
+      raw/tree payloads, tuple/record/variant values as fixed compact raw
+      payloads,
       and list values as chunked red-black trees. A minimal JIT smoke calls the MMTk CPS helper symbols directly
       and passes `YValue` strings, bytes, and tuples through Cranelift; full
       CPS lowering is still on the existing helper lane by default.
@@ -376,12 +402,24 @@ current backend boundaries visible, but detailed regression history lives in
       mutation still clones the active stack. `Rc<Vec>` copy-on-write and
       `im::Vector` replacement attempts were slower on the nondeterminism
       benchmark, so eliminating capture clones needs a dedicated stack
-      representation rather than a general persistent vector. The MMTk lane
-      enables a heap-backed mirror for those snapshots so the captured control
-      state is visible to the GC object graph.
+      representation rather than a general persistent vector. The MMTk lane can
+      enable a heap-backed mirror for those snapshots so the captured control
+      state is visible to the GC object graph when root scanning work resumes.
 - [ ] Generic runtime value layout in the default native path is still backed
       by prototype `VmValue` helpers. The adopted next layout is the isolated
       `YValue` object model above, eventually backed by MMTk.
+- [ ] The MMTk lane is close to the default native effects lane on the current
+      small nondeterminism list benchmarks, but it is not yet expected to win
+      broadly. Compact control objects still fall back when non-empty
+      handler/guard/blocked-effect snapshots must be captured, boundary thunks
+      cross back through a prototype thunk, the sidecar bridge is not yet safe
+      for full lowering, some runtime values still cross helper/prototype
+      boundaries, and capture still clones the stack snapshot after mutation.
+      The next real speedup should finish non-local-flow aware,
+      snapshot-carrying compact control objects, move remaining hot metadata
+      into object headers/raw payloads, remove prototype fallback from hot
+      values, and give CPS capture a stack representation with cheap push/pop
+      plus shared snapshots.
 
 ### Effects Backend Status
 

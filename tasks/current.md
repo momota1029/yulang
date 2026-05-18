@@ -143,10 +143,20 @@ release 後に残すもの:
   continuation env / handler frame / return frame も compact native-block payload で
   header / trace slot / env slot を読める。string/list rope node metadata も raw
   payload に畳み、hot path は object table ではなく header/payload 直読みにした。
+  tuple/variant は fixed raw-payload metadata + trace slot layout に移し、
+  `list.view_raw` の node tuple/variant construction が native layout intern /
+  native-block projection を通らないようにした。
+  record も field-name metadata を raw payload、field values を trace slot に置く
+  fixed compact layout に移した。
+  compact list は `len`/index/view/debug で tree 全体を flatten せず、node view は
+  既存 child をそのまま返し、trace slot も一時 `Vec` なしで読む。
   captured native CPS control-stack snapshot は MMTk lane で compact `ControlStack`
-  heap object として materialize し、reachable な MMTk `YValue` children を trace slot
+  heap object として materialize でき、reachable な MMTk `YValue` children を trace slot
   として持つ。MMTk heap の tracked address range で prototype pointer-shaped word を
   object-table lookup 前に落とし、MMTk child が増えない snapshot allocation は省く。
+  この mirror は `YULANG_MMTK_CPS_CONTROL_STACK_SNAPSHOTS=1` の opt-in にした。
+  現在の default `--mmtk` は NoGC benchmark lane なので、collection 未接続の間は
+  control-stack の GC mirror cost を hot path に乗せない。
   `YHeap` の read surface は object header / trace children / full object projection
   に分けたので、tracing と stats は full semantic payload に依存しない。
   `MmtkNativeRuntimeContext`
@@ -175,15 +185,44 @@ release 後に残すもの:
   `(each 1..20 + each 1..20).list.say` を遅くしたため採用しない。capture clone を
   消すには、hot push/pop は Vec 相当に保ち、snapshot だけ構造共有する専用 stack が
   必要。
-  MMTk lane では同じ snapshot を GC heap 上の `ControlStack` mirror にも載せる。
+  MMTk lane では env opt-in 時に同じ snapshot を GC heap 上の `ControlStack`
+  mirror にも載せる。
   `mmtk_cps_control.rs` で closure/thunk/resumption body を compact fixed
   raw-payload MMTk object として作り、code/env を native layout projection なしで
   読む専用 helper も追加した。control payload は env length を自前で持ち、
   helper context は per-call の `RefCell<Option<_>>` borrow ではなく raw thread-local
-  context pointer にした。`YULANG_MMTK_CPS_CONTROL_OBJECTS=1` で `--mmtk` lowering
-  から opt-in できる。ただし `(each 1..20 + each 1..20).list.say` では default
-  MMTk が約 1.8-1.9s、control object opt-in が約 10-12s で、まだ native control
-  helper を置き換えられる段階ではない。
+  context pointer にした。`YULANG_MMTK_CPS_CONTROL_OBJECTS=unsafe` で `--mmtk`
+  lowering から未安定の実験として opt-in できる。`YULANG_MMTK_CPS_CONTROL_OBJECTS=1`
+  は stable path のままにした。compact control object はまだ native closure/thunk が
+  持つ handler/guard snapshot を捕まえないため、compact thunk 作成は native control
+  capture context が空のときだけに絞った。compact thunk に effect boundary を足す
+  ときは、boundary 時点の context を誤って捕まえず、明示的な empty snapshot から
+  prototype thunk を作って boundary を足す。これで unsafe experiment の isolated
+  `.once` tail と `showcase` は正しい出力を維持しつつ、thunk 作成を compact path へ
+  戻せた。non-empty snapshot を持つ control object はまだ prototype helper path へ
+  fallback する。さらに狭い helper-level 実験として
+  `YULANG_MMTK_CPS_CONTROL_THUNK_SIDECARS=unsafe` を追加し、compact thunk surface と
+  作成時 native thunk snapshot sidecar を結びつける入口を作った。direct helper test
+  では force でき、mixed native path が compact thunk を受け取った場合は native
+  force helper から MMTk force へ戻す橋も追加した。full lowering では non-local flow が `compact apply/force` を
+  またいだときに `0` payload を ordinary apply と誤認する形がまだ残るため、通常の
+  unsafe control lane では無効のままにした。
+  default MMTk は compact list metadata read、view/debug の再構築削減、
+  tuple/variant raw-payload 化、control-stack mirror opt-in 化後、release executable
+  で default native と同じ帯まで戻した。2026-05-18 の手元測定では
+  `(each 1..20 + each 1..20).list.len` が outlier を除いて native/MMTk とも
+  0.40-0.43s、`.list.say` は native 0.62-0.68s / default MMTk 0.65-0.71s /
+  thunk-native unsafe control experiment 0.70s 前後。thunk 作成を compact path へ
+  戻したあとの `examples/showcase.yu` は手元の release sequential 3 runs で
+  native 1.63-1.71s / default MMTk 1.59-1.91s / unsafe compact-control 1.55-1.69s。
+  残りは list primitive 単体ではなく、control lane が handler/guard snapshot を
+  compact object に持てていないため non-empty capture や boundary thunk が prototype
+  helper path へ戻ること、sidecar bridge が full lowering ではまだ non-local flow safe
+  でないこと、prototype interop/fallback を hot value が背負うこと、control capture
+  が専用 snapshot-sharing stack ではないことが主因。通常 native を安定して
+  越えるには、all-`YValue` control lane を完了し、残り metadata を header/raw payload
+  に寄せ、hot runtime value を全て compact `YValue` layout に統一し、capture clone を
+  専用 stack で消す必要がある。
   default native path はまだ prototype helper のまま。
 - unsupported native root を VM へ戻す fallback policy。
 - package/cache/build workflow と native artifact lifecycle。
