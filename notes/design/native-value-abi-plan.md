@@ -1,7 +1,9 @@
 # Native Value ABI Plan
 
-This note fixes the next boundary after the current `i64` Cranelift scalar
-prototype.
+This note fixed the next boundary after the old `i64` Cranelift scalar
+prototype. It remains useful as the history of the opaque runtime value pointer
+step. The adopted post-prototype runtime layout is now
+`notes/design/native-gc-runtime-plan.md`.
 
 The current prototype can compare:
 
@@ -60,7 +62,7 @@ The first implementation should be hosted by Rust helpers:
 This is intentionally not the final high-performance representation. It keeps
 Cranelift lowering simple while preserving language behavior.
 
-## Why Not Tag Everything Immediately
+## Why The Prototype Did Not Tag Everything Immediately
 
 A fully tagged value ABI would be closer to a production VM/JIT, but it forces
 these decisions at once:
@@ -72,8 +74,12 @@ these decisions at once:
 - closure layout;
 - cross-boundary panic/error behavior.
 
-That is too much for the next step. The opaque pointer lane lets us prove the
-lowering path and call boundaries first.
+That was too much for the next step at the time. The opaque pointer lane let us
+prove the lowering path and call boundaries first.
+
+The next runtime layout step intentionally does tag values. It uses a `YValue`
+word with `i63` immediates, heap object references, and small immediates such as
+bool/unit, backed by a traceable native heap instead of `VmValue` boxes.
 
 ## Ownership
 
@@ -87,7 +93,9 @@ For the prototype:
 - do not expose those pointers outside the compare harness except by converting
   them back to `runtime::VmValue`.
 
-This avoids committing to GC before the control path is useful.
+This avoided committing to GC before the control path was useful. The CPS repr
+effects path is now useful enough that the next stable runtime layout should be
+GC-backed rather than extending the prototype arena indefinitely.
 
 ## Function Signatures
 

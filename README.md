@@ -182,6 +182,10 @@ control, native root pretty-print for unit/bool values, open-range nondet
 `.once`, and combined junction + finite nondet + method-call roots are covered
 by regressions. Native remains experimental and opt-in, but the current release
 gate for the documented effects subset is clear.
+The next runtime-layout plan is to replace prototype heap handles with a
+native `YValue` word and MMTk-backed heap, using `i63` immediates for small
+integers and heap `BigInt` objects on overflow. This is a post-prototype plan,
+not part of the current supported native subset.
 
 ## Development
 

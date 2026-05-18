@@ -19,8 +19,9 @@ recorded in [docs/native-experimental-release.md](native-experimental-release.md
 For deeper design notes see
 `notes/design/native-backend-plan.md`,
 `notes/design/cps-effect-lowering-plan.md`, and
-`notes/design/native-cps-mainline-plan.md`. The direct-style / SSA island
-optimization direction is recorded in
+`notes/design/native-cps-mainline-plan.md`. The post-prototype native heap and
+value-word plan is recorded in `notes/design/native-gc-runtime-plan.md`. The
+direct-style / SSA island optimization direction is recorded in
 `notes/design/native-direct-style-islands.md`. The current implementation
 direction is to make the effects backend the native mainline while keeping the
 pure-subset backend as an effect-free speed-checking path and boxed value helper
@@ -295,7 +296,9 @@ current backend boundaries visible, but detailed regression history lives in
       printable closure roots and closures embedded as ordinary structural
       runtime values still route to the effects backend.
 - [ ] Generic runtime value layout is still backed by `VmValue`; compact native
-      representations are not finalized.
+      representations are not finalized. The adopted next layout is a native
+      `YValue` word with `i63` immediates, heap object references, heap
+      `BigInt` on overflow, precise roots, and an MMTk-backed heap.
 
 ### Effects Backend Status
 
@@ -403,7 +406,9 @@ current backend boundaries visible, but detailed regression history lives in
       shape as unsupported instead of generating a crashing executable; the
       default native CLI routes it to effects.
 - [ ] General closures and heap value lanes are still prototype
-      representations, not finalized native runtime layout.
+      representations, not finalized native runtime layout. The next runtime
+      layout work treats this as a native object model migration, not as
+      `VmValue` GC ownership work.
 - [ ] The effects backend is the effectful native mainline, but it is not yet a
       complete replacement for the interpreter.
 
