@@ -31,7 +31,11 @@ pub mod cps_repr_cranelift;
 pub mod cps_validate;
 pub mod cranelift;
 pub mod eval;
+pub mod gc_runtime;
 pub mod lower;
+#[cfg(feature = "mmtk-runtime")]
+pub mod mmtk_binding;
+pub mod mmtk_runtime;
 pub mod native_runtime;
 pub mod value_cranelift;
 
@@ -100,9 +104,10 @@ pub use cps_repr_abi::{
     CpsReprAbiHandlerArm, CpsReprAbiModule, CpsReprAbiValue, lower_cps_repr_abi_module,
 };
 pub use cps_repr_cranelift::{
-    CpsReprCraneliftError, CpsReprJitModule, CpsReprObjectModule, compile_cps_repr_abi_module,
-    compile_cps_repr_abi_module_to_object, compile_runtime_module_to_cps_repr_jit,
-    compile_runtime_module_to_cps_repr_object,
+    CpsReprCraneliftError, CpsReprCraneliftOptions, CpsReprJitModule, CpsReprObjectModule,
+    compile_cps_repr_abi_module, compile_cps_repr_abi_module_to_object,
+    compile_cps_repr_abi_module_with_options, compile_runtime_module_to_cps_repr_jit,
+    compile_runtime_module_to_cps_repr_jit_with_options, compile_runtime_module_to_cps_repr_object,
 };
 pub use cps_validate::{CpsValidateError, validate_cps_module};
 pub use cranelift::{
@@ -110,7 +115,25 @@ pub use cranelift::{
     compile_abi_module_to_object,
 };
 pub use eval::{NativeEvalError, eval_module};
+pub use gc_runtime::{
+    GcRuntimeContext, NativeFieldLane, NativeFieldLayout, NativeFieldOffset, NativeFieldSizeAlign,
+    NativeFieldValue, NativeHeapBlock, NativeLayout, NativeLayoutError, NativeLayoutFootprint,
+    NativeLayoutHandle, NativeLayoutId, NativeLayoutKind, NativeLayoutRegistry,
+    NativePayloadBuffer, SpikeHeap, YHeap, YHeapStats, YList, YObject, YObjectHeader, YObjectKind,
+    YObjectPayload, YPerfectSymbolHash, YRoot, YRootFrame, YRootStack, YString, YSymbol,
+    YSymbolHashCollision, YSymbolId, YSymbolPath, YSymbolTable, YTraceBitmap, YTraceEdge,
+    YTraceOrigin, YTraceReport, YValue, YValueKind,
+};
 pub use lower::{NativeLowerError, NativeLowerResult, lower_module};
+#[cfg(feature = "mmtk-runtime")]
+pub use mmtk_binding::{
+    YulangMmtkActivePlan, YulangMmtkCollection, YulangMmtkMemorySlice, YulangMmtkObjectHeader,
+    YulangMmtkObjectModel, YulangMmtkReferenceGlue, YulangMmtkScanning, YulangMmtkSlot,
+    YulangMmtkVM,
+};
+pub use mmtk_runtime::{MmtkConfigError, MmtkRuntimeBoundary, MmtkRuntimeConfig, MmtkRuntimePlan};
+#[cfg(feature = "mmtk-runtime")]
+pub use mmtk_runtime::{MmtkHeap, MmtkNativeRuntimeContext, register_mmtk_cps_jit_symbols};
 pub use native_runtime::{
     NativeRuntimeContext, bool_is_true as native_runtime_bool_is_true,
     concat_string as native_runtime_concat_string, list_empty as native_runtime_list_empty,

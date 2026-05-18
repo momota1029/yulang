@@ -169,4 +169,7 @@ pub(super) fn register_cps_runtime_symbols(builder: &mut JITBuilder) {
         yulang_cps_peek_guard_i64,
         yulang_cps_find_guard_i64,
     );
+
+    #[cfg(feature = "mmtk-runtime")]
+    crate::mmtk_runtime::register_mmtk_cps_jit_symbols(builder);
 }

@@ -37,6 +37,20 @@ use runtime_i64::{
 
 pub type CpsReprCraneliftResult<T> = Result<T, CpsReprCraneliftError>;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CpsReprCraneliftOptions {
+    pub mmtk_yvalue_primitives: bool,
+}
+
+impl CpsReprCraneliftOptions {
+    #[cfg(feature = "mmtk-runtime")]
+    pub fn mmtk_yvalue_primitives() -> Self {
+        Self {
+            mmtk_yvalue_primitives: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum CpsReprCraneliftError {
     Lower(CpsLowerError),
@@ -269,12 +283,24 @@ impl CpsReprObjectModule {
 pub fn compile_cps_repr_abi_module(
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
-    compile_cps_repr_abi_module_with_root_hints(module, Vec::new())
+    compile_cps_repr_abi_module_with_root_hints_and_options(
+        module,
+        Vec::new(),
+        CpsReprCraneliftOptions::default(),
+    )
 }
 
-fn compile_cps_repr_abi_module_with_root_hints(
+pub fn compile_cps_repr_abi_module_with_options(
+    module: &CpsReprAbiModule,
+    options: CpsReprCraneliftOptions,
+) -> CpsReprCraneliftResult<CpsReprJitModule> {
+    compile_cps_repr_abi_module_with_root_hints_and_options(module, Vec::new(), options)
+}
+
+fn compile_cps_repr_abi_module_with_root_hints_and_options(
     module: &CpsReprAbiModule,
     root_display_hints: Vec<CpsRootDisplayHint>,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
     let optimized = if std::env::var_os("YULANG_CPS_JIT_DISABLE_OPT").is_some() {
         CpsOptimizationOutput {
@@ -296,7 +322,7 @@ fn compile_cps_repr_abi_module_with_root_hints(
     let mut literals = HostLiteralStore {
         strings: &mut strings,
     };
-    let cranelift_ir = define_functions(&mut jit, module, &functions, &mut literals)?;
+    let cranelift_ir = define_functions(&mut jit, module, &functions, &mut literals, options)?;
     let roots = module
         .roots
         .iter()
@@ -351,7 +377,13 @@ pub fn compile_cps_repr_abi_module_to_object(
     let mut object = ObjectModule::new(builder);
     let functions = declare_functions(&mut object, module)?;
     let mut literals = ObjectLiteralStore::default();
-    let _ = define_functions(&mut object, module, &functions, &mut literals)?;
+    let _ = define_functions(
+        &mut object,
+        module,
+        &functions,
+        &mut literals,
+        CpsReprCraneliftOptions::default(),
+    )?;
     let roots = module
         .roots
         .iter()
@@ -387,12 +419,19 @@ pub fn compile_cps_repr_abi_module_to_object(
 pub fn compile_runtime_module_to_cps_repr_jit(
     module: &runtime::Module,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
+    compile_runtime_module_to_cps_repr_jit_with_options(module, CpsReprCraneliftOptions::default())
+}
+
+pub fn compile_runtime_module_to_cps_repr_jit_with_options(
+    module: &runtime::Module,
+    options: CpsReprCraneliftOptions,
+) -> CpsReprCraneliftResult<CpsReprJitModule> {
     let root_display_hints = runtime_root_display_hints(module);
     let cps = lower_cps_module(module)?;
     validate_cps_module(&cps)?;
     let repr = crate::cps_repr::lower_cps_repr_module(&cps);
     let abi = lower_cps_repr_abi_module(&repr);
-    compile_cps_repr_abi_module_with_root_hints(&abi, root_display_hints)
+    compile_cps_repr_abi_module_with_root_hints_and_options(&abi, root_display_hints, options)
 }
 
 pub fn compile_runtime_module_to_cps_repr_object(
@@ -539,6 +578,7 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
     module: &CpsReprAbiModule,
     functions: &DeclaredFunctions,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<Vec<String>> {
     let mut cranelift_ir = Vec::new();
     let handlers = HandlerRegistry::new(module);
@@ -557,6 +597,7 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
                 functions,
                 &handlers,
                 literals,
+                options,
             )?);
         }
         let mut ctx = module_backend.make_context();
@@ -564,7 +605,14 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
         if function_has_effect_flow(function) {
             lower_effectful_function_wrapper(module_backend, &mut ctx, function, functions)?;
         } else {
-            lower_function(module_backend, &mut ctx, function, functions, literals)?;
+            lower_function(
+                module_backend,
+                &mut ctx,
+                function,
+                functions,
+                literals,
+                options,
+            )?;
         }
         let ir_dump = format!(
             ";; cps-repr function {}\n{}",
@@ -626,6 +674,7 @@ struct CpsCraneliftLowerCx<'a, 'builder, M: Module, L: CpsLiteralStore> {
     handlers: &'a HandlerRegistry,
     literals: &'a mut L,
     values: &'a mut LocalValueCache,
+    options: CpsReprCraneliftOptions,
 }
 
 struct PerformTerminatorCase<'a> {
@@ -826,6 +875,7 @@ fn define_effectful_function<M: Module, L: CpsLiteralStore>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<Vec<String>> {
     let mut cranelift_ir = Vec::new();
     for continuation in &function.continuations {
@@ -847,6 +897,7 @@ fn define_effectful_function<M: Module, L: CpsLiteralStore>(
             functions,
             handlers,
             literals,
+            options,
         )?;
         let ir_dump = format!(
             ";; cps-repr continuation {}::{:?}\n{}",
@@ -1039,6 +1090,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let direct_island = direct_style_island_from(function, continuation.id);
     if direct_island.len() > 1 {
@@ -1049,6 +1101,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
             continuation,
             functions,
             literals,
+            options,
             &direct_island,
         );
     }
@@ -1094,6 +1147,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
             handlers,
             literals,
             values: &mut values,
+            options,
         };
         for stmt in &continuation.stmts {
             capture_handler_envs_for_stmt(
@@ -1122,6 +1176,7 @@ fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
     entry_continuation: &CpsReprAbiContinuation,
     functions: &DeclaredFunctions,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
     island: &HashSet<CpsContinuationId>,
 ) -> CpsReprCraneliftResult<()> {
     let mut builder_context = FunctionBuilderContext::new();
@@ -1164,6 +1219,7 @@ fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
                 functions,
                 literals,
                 &mut values,
+                options,
             )?;
         }
         lower_direct_style_island_terminator(
@@ -1176,6 +1232,7 @@ fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
             functions,
             literals,
             &mut values,
+            options,
             island,
         )?;
     }
@@ -1220,6 +1277,7 @@ fn lower_direct_style_island_terminator<M: Module, L: CpsLiteralStore>(
     functions: &DeclaredFunctions,
     literals: &mut L,
     values: &mut LocalValueCache,
+    options: CpsReprCraneliftOptions,
     island: &HashSet<CpsContinuationId>,
 ) -> CpsReprCraneliftResult<()> {
     match terminator {
@@ -1236,9 +1294,7 @@ fn lower_direct_style_island_terminator<M: Module, L: CpsLiteralStore>(
             else_cont,
         } if island.contains(then_cont) && island.contains(else_cont) => {
             let cond = read_value(builder, function, *cond)?;
-            let cond = builder
-                .ins()
-                .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0);
+            let cond = branch_condition(module_backend, builder, options, cond)?;
             let then_cont = continuation_block(function, blocks, *then_cont)?;
             let else_cont = continuation_block(function, blocks, *else_cont)?;
             builder.ins().brif(cond, then_cont, &[], else_cont, &[]);
@@ -1254,6 +1310,7 @@ fn lower_direct_style_island_terminator<M: Module, L: CpsLiteralStore>(
                 handlers: &handlers,
                 literals,
                 values,
+                options,
             };
             lower_effect_terminator(&mut cx, continuation)
         }
@@ -1555,6 +1612,7 @@ fn lower_value_stmt<M: Module, L: CpsLiteralStore>(
         stmt,
         cx.literals,
         cx.values,
+        cx.options,
     )
 }
 
@@ -1565,10 +1623,18 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
     stmt: &CpsStmt,
     literals: &mut L,
     values: &mut LocalValueCache,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
         CpsStmt::Literal { dest, literal } => {
-            let value = lower_literal(module_backend, builder, function, literal, literals)?;
+            let value = lower_literal(
+                module_backend,
+                builder,
+                function,
+                literal,
+                literals,
+                options,
+            )?;
             if matches!(literal, CpsLiteral::Float(_)) {
                 define_value_as_lane(builder, values, *dest, CpsReprAbiLane::NativeFloat, value);
                 let boxed = call_helper(
@@ -1585,8 +1651,16 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
             define_value_as_lane(builder, values, *dest, literal_lane(literal), value);
         }
         CpsStmt::Tuple { dest, items } => {
-            let items = read_runtime_values_i64(module_backend, builder, function, values, items)?;
-            let value = make_tuple_value(module_backend, builder, &items)?;
+            let items = read_runtime_values_i64(
+                module_backend,
+                builder,
+                function,
+                literals,
+                values,
+                items,
+                options,
+            )?;
+            let value = make_tuple_value(module_backend, builder, &items, options)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::Record { dest, base, fields } => {
@@ -1598,6 +1672,7 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
                 fields,
                 literals,
                 values,
+                options,
             )?;
             builder.def_var(variable(*dest), value);
         }
@@ -1609,6 +1684,7 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
                 *base,
                 fields,
                 literals,
+                options,
             )?;
             builder.def_var(variable(*dest), value);
         }
@@ -1619,7 +1695,11 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_record_select_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_record_select_i64",
+                    "yulang_mmtk_cps_record_select_i64",
+                ),
                 &[base, field_ptr, field_len],
             )?;
             builder.def_var(variable(*dest), value);
@@ -1631,13 +1711,25 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
             default,
         } => {
             let base = read_value(builder, function, *base)?;
-            let default = read_value(builder, function, *default)?;
+            let default = read_runtime_value_i64(
+                module_backend,
+                builder,
+                function,
+                literals,
+                values,
+                *default,
+                options,
+            )?;
             let (field_ptr, field_len) =
                 literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_record_select_or_default_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_record_select_or_default_i64",
+                    "yulang_mmtk_cps_record_select_or_default_i64",
+                ),
                 &[base, field_ptr, field_len, default],
             )?;
             builder.def_var(variable(*dest), value);
@@ -1649,7 +1741,11 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_record_has_field_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_record_has_field_i64",
+                    "yulang_mmtk_cps_record_has_field_i64",
+                ),
                 &[base, field_ptr, field_len],
             )?;
             builder.def_var(variable(*dest), value);
@@ -1657,19 +1753,40 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
         CpsStmt::Variant { dest, tag, value } => {
             let value = value
                 .map(|value| {
-                    read_runtime_value_i64(module_backend, builder, function, values, value)
+                    read_runtime_value_i64(
+                        module_backend,
+                        builder,
+                        function,
+                        literals,
+                        values,
+                        value,
+                        options,
+                    )
                 })
                 .transpose()?;
-            let tag = register_variant_tag(module_backend, builder, tag, literals)?;
+            let tag = register_variant_tag(module_backend, builder, tag, literals, options)?;
             let result = if let Some(value) = value {
                 call_i64_helper(
                     module_backend,
                     builder,
-                    "yulang_cps_variant_i64_1",
+                    yvalue_primitive_helper(
+                        options,
+                        "yulang_cps_variant_i64_1",
+                        "yulang_mmtk_cps_variant_i64_1",
+                    ),
                     &[tag, value],
                 )?
             } else {
-                call_i64_helper(module_backend, builder, "yulang_cps_variant_i64_0", &[tag])?
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    yvalue_primitive_helper(
+                        options,
+                        "yulang_cps_variant_i64_0",
+                        "yulang_mmtk_cps_variant_i64_0",
+                    ),
+                    &[tag],
+                )?
             };
             builder.def_var(variable(*dest), result);
         }
@@ -1679,18 +1796,26 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_tuple_get_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_tuple_get_i64",
+                    "yulang_mmtk_cps_tuple_get_i64",
+                ),
                 &[tuple, index],
             )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::VariantTagEq { dest, variant, tag } => {
             let variant = read_value(builder, function, *variant)?;
-            let tag = builder.ins().iconst(types::I64, tag_hash(tag));
+            let tag = register_variant_tag(module_backend, builder, tag, literals, options)?;
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_variant_tag_eq_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_variant_tag_eq_i64",
+                    "yulang_mmtk_cps_variant_tag_eq_i64",
+                ),
                 &[variant, tag],
             )?;
             builder.def_var(variable(*dest), value);
@@ -1700,14 +1825,27 @@ fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_variant_payload_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_variant_payload_i64",
+                    "yulang_mmtk_cps_variant_payload_i64",
+                ),
                 &[variant],
             )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::Primitive { dest, op, args } => {
-            let args = read_primitive_args(module_backend, builder, function, values, *op, args)?;
-            let value = lower_primitive(module_backend, builder, function, *op, &args)?;
+            let args = read_primitive_args(
+                module_backend,
+                builder,
+                function,
+                literals,
+                values,
+                *op,
+                args,
+                options,
+            )?;
+            let value = lower_primitive(module_backend, builder, function, *op, &args, options)?;
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
         _ => unreachable!("lower_value_stmt called with non-value statement"),
@@ -2311,6 +2449,7 @@ fn lower_branch_terminator<M: Module, L: CpsLiteralStore>(
         then_cont,
         else_cont,
         cx.functions,
+        cx.options,
     )
 }
 
@@ -2967,6 +3106,7 @@ fn lower_effect_branch<M: Module>(
     then_cont: CpsContinuationId,
     else_cont: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let then_block = builder.create_block();
     let else_block = builder.create_block();
@@ -2976,9 +3116,7 @@ fn lower_effect_branch<M: Module>(
     let cond_id = cond;
     let cond = read_value(builder, function, cond_id)?;
     let cond = force_branch_condition_if_thunk(module_backend, builder, function, cond_id, cond)?;
-    let cond = builder
-        .ins()
-        .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0);
+    let cond = branch_condition(module_backend, builder, options, cond)?;
     builder.ins().brif(cond, then_block, &[], else_block, &[]);
 
     builder.switch_to_block(then_block);
@@ -3219,6 +3357,27 @@ fn force_branch_condition_if_thunk<M: Module>(
     )?;
     let call = builder.ins().call(helper, &[cond]);
     Ok(builder.inst_results(call)[0])
+}
+
+fn branch_condition<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    options: CpsReprCraneliftOptions,
+    cond: ir::Value,
+) -> CpsReprCraneliftResult<ir::Value> {
+    let cond = if mmtk_yvalue_primitive_lane_enabled(options) {
+        call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_mmtk_cps_bool_truthy_i64",
+            &[cond],
+        )?
+    } else {
+        cond
+    };
+    Ok(builder
+        .ins()
+        .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0))
 }
 
 fn call_continuation<M: Module>(
@@ -3723,14 +3882,26 @@ fn make_tuple_value<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     args: &[ir::Value],
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
-    let helper_name = TUPLE_HELPERS.select(args.len());
     if args.len() > 4 {
         return Err(CpsReprCraneliftError::UnsupportedStmt {
             function: "<tuple>".to_string(),
             kind: "tuple larger than four slots",
         });
     }
+    let helper_name = if mmtk_yvalue_primitive_lane_enabled(options) {
+        match args.len() {
+            0 => "yulang_mmtk_cps_tuple_i64_0",
+            1 => "yulang_mmtk_cps_tuple_i64_1",
+            2 => "yulang_mmtk_cps_tuple_i64_2",
+            3 => "yulang_mmtk_cps_tuple_i64_3",
+            4 => "yulang_mmtk_cps_tuple_i64_4",
+            _ => unreachable!("tuple arity checked above"),
+        }
+    } else {
+        TUPLE_HELPERS.select(args.len())
+    };
     call_i64_helper(module_backend, builder, helper_name, args)
 }
 
@@ -3742,19 +3913,41 @@ fn make_record_value<M: Module, L: CpsLiteralStore>(
     fields: &[CpsRecordField],
     literals: &mut L,
     values: &LocalValueCache,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let mut record = match base {
         Some(base) => read_value(builder, function, base)?,
-        None => call_i64_helper(module_backend, builder, "yulang_cps_record_empty_i64", &[])?,
+        None => call_i64_helper(
+            module_backend,
+            builder,
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_record_empty_i64",
+                "yulang_mmtk_cps_record_empty_i64",
+            ),
+            &[],
+        )?,
     };
     for field in fields {
-        let value = read_runtime_value_i64(module_backend, builder, function, values, field.value)?;
+        let value = read_runtime_value_i64(
+            module_backend,
+            builder,
+            function,
+            literals,
+            values,
+            field.value,
+            options,
+        )?;
         let (field_ptr, field_len) =
             literals.literal_bytes(module_backend, builder, field.name.0.as_bytes())?;
         record = call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_record_insert_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_record_insert_i64",
+                "yulang_mmtk_cps_record_insert_i64",
+            ),
             &[record, field_ptr, field_len, value],
         )?;
     }
@@ -3768,6 +3961,7 @@ fn make_record_without_fields_value<M: Module, L: CpsLiteralStore>(
     base: CpsValueId,
     fields: &[typed_ir::Name],
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let mut record = read_value(builder, function, base)?;
     for field in fields {
@@ -3776,7 +3970,11 @@ fn make_record_without_fields_value<M: Module, L: CpsLiteralStore>(
         record = call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_record_without_field_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_record_without_field_i64",
+                "yulang_mmtk_cps_record_without_field_i64",
+            ),
             &[record, field_ptr, field_len],
         )?;
     }
@@ -3797,13 +3995,18 @@ fn register_variant_tag<M: Module, L: CpsLiteralStore>(
     builder: &mut FunctionBuilder<'_>,
     tag: &typed_ir::Name,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let tag_hash = builder.ins().iconst(types::I64, tag_hash(tag));
     let (name_ptr, name_len) = literals.literal_bytes(module_backend, builder, tag.0.as_bytes())?;
     let _ = call_i64_helper(
         module_backend,
         builder,
-        "yulang_cps_register_tag_i64",
+        yvalue_primitive_helper(
+            options,
+            "yulang_cps_register_tag_i64",
+            "yulang_mmtk_cps_register_tag_i64",
+        ),
         &[tag_hash, name_ptr, name_len],
     )?;
     Ok(tag_hash)
@@ -3934,6 +4137,7 @@ fn lower_function<M: Module, L: CpsLiteralStore>(
     function: &CpsReprAbiFunction,
     functions: &DeclaredFunctions,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let mut builder_context = FunctionBuilderContext::new();
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
@@ -3955,15 +4159,18 @@ fn lower_function<M: Module, L: CpsLiteralStore>(
                 functions,
                 literals,
                 &mut values,
+                options,
             )?;
         }
         lower_terminator(
+            module_backend,
             &mut builder,
             function,
             &blocks,
             continuation,
             &continuation.terminator,
             &mut values,
+            options,
         )?;
     }
     builder.seal_all_blocks();
@@ -4073,10 +4280,18 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
     functions: &DeclaredFunctions,
     literals: &mut L,
     values: &mut LocalValueCache,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
         CpsStmt::Literal { dest, literal } => {
-            let value = lower_literal(module_backend, builder, function, literal, literals)?;
+            let value = lower_literal(
+                module_backend,
+                builder,
+                function,
+                literal,
+                literals,
+                options,
+            )?;
             if matches!(literal, CpsLiteral::Float(_)) {
                 define_value_as_lane(builder, values, *dest, CpsReprAbiLane::NativeFloat, value);
                 let boxed = call_helper(
@@ -4166,8 +4381,16 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
-            let items = read_runtime_values_i64(module_backend, builder, function, values, items)?;
-            let value = make_tuple_value(module_backend, builder, &items)?;
+            let items = read_runtime_values_i64(
+                module_backend,
+                builder,
+                function,
+                literals,
+                values,
+                items,
+                options,
+            )?;
+            let value = make_tuple_value(module_backend, builder, &items, options)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::Record { dest, base, fields } => {
@@ -4179,6 +4402,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 fields,
                 literals,
                 values,
+                options,
             )?;
             builder.def_var(variable(*dest), value);
         }
@@ -4190,6 +4414,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 *base,
                 fields,
                 literals,
+                options,
             )?;
             builder.def_var(variable(*dest), value);
         }
@@ -4200,7 +4425,11 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_record_select_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_record_select_i64",
+                    "yulang_mmtk_cps_record_select_i64",
+                ),
                 &[base, field_ptr, field_len],
             )?;
             builder.def_var(variable(*dest), value);
@@ -4212,13 +4441,25 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             default,
         } => {
             let base = read_value(builder, function, *base)?;
-            let default = read_value(builder, function, *default)?;
+            let default = read_runtime_value_i64(
+                module_backend,
+                builder,
+                function,
+                literals,
+                values,
+                *default,
+                options,
+            )?;
             let (field_ptr, field_len) =
                 literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_record_select_or_default_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_record_select_or_default_i64",
+                    "yulang_mmtk_cps_record_select_or_default_i64",
+                ),
                 &[base, field_ptr, field_len, default],
             )?;
             builder.def_var(variable(*dest), value);
@@ -4230,7 +4471,11 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_record_has_field_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_record_has_field_i64",
+                    "yulang_mmtk_cps_record_has_field_i64",
+                ),
                 &[base, field_ptr, field_len],
             )?;
             builder.def_var(variable(*dest), value);
@@ -4238,19 +4483,40 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
         CpsStmt::Variant { dest, tag, value } => {
             let value = value
                 .map(|value| {
-                    read_runtime_value_i64(module_backend, builder, function, values, value)
+                    read_runtime_value_i64(
+                        module_backend,
+                        builder,
+                        function,
+                        literals,
+                        values,
+                        value,
+                        options,
+                    )
                 })
                 .transpose()?;
-            let tag = register_variant_tag(module_backend, builder, tag, literals)?;
+            let tag = register_variant_tag(module_backend, builder, tag, literals, options)?;
             let result = if let Some(value) = value {
                 call_i64_helper(
                     module_backend,
                     builder,
-                    "yulang_cps_variant_i64_1",
+                    yvalue_primitive_helper(
+                        options,
+                        "yulang_cps_variant_i64_1",
+                        "yulang_mmtk_cps_variant_i64_1",
+                    ),
                     &[tag, value],
                 )?
             } else {
-                call_i64_helper(module_backend, builder, "yulang_cps_variant_i64_0", &[tag])?
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    yvalue_primitive_helper(
+                        options,
+                        "yulang_cps_variant_i64_0",
+                        "yulang_mmtk_cps_variant_i64_0",
+                    ),
+                    &[tag],
+                )?
             };
             builder.def_var(variable(*dest), result);
         }
@@ -4260,18 +4526,26 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_tuple_get_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_tuple_get_i64",
+                    "yulang_mmtk_cps_tuple_get_i64",
+                ),
                 &[tuple, index],
             )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::VariantTagEq { dest, variant, tag } => {
             let variant = read_value(builder, function, *variant)?;
-            let tag = builder.ins().iconst(types::I64, tag_hash(tag));
+            let tag = register_variant_tag(module_backend, builder, tag, literals, options)?;
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_variant_tag_eq_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_variant_tag_eq_i64",
+                    "yulang_mmtk_cps_variant_tag_eq_i64",
+                ),
                 &[variant, tag],
             )?;
             builder.def_var(variable(*dest), value);
@@ -4281,14 +4555,27 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_variant_payload_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_variant_payload_i64",
+                    "yulang_mmtk_cps_variant_payload_i64",
+                ),
                 &[variant],
             )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::Primitive { dest, op, args } => {
-            let args = read_primitive_args(module_backend, builder, function, values, *op, args)?;
-            let value = lower_primitive(module_backend, builder, function, *op, &args)?;
+            let args = read_primitive_args(
+                module_backend,
+                builder,
+                function,
+                literals,
+                values,
+                *op,
+                args,
+                options,
+            )?;
+            let value = lower_primitive(module_backend, builder, function, *op, &args, options)?;
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
         CpsStmt::DirectCall { dest, target, args } => {
@@ -4353,13 +4640,15 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
     Ok(())
 }
 
-fn lower_terminator(
+fn lower_terminator<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     blocks: &HashMap<CpsContinuationId, ir::Block>,
     continuation: &CpsReprAbiContinuation,
     terminator: &CpsTerminator,
     values: &LocalValueCache,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     match terminator {
         CpsTerminator::Return(value) => {
@@ -4384,9 +4673,7 @@ fn lower_terminator(
             else_cont,
         } => {
             let cond = read_value(builder, function, *cond)?;
-            let cond = builder
-                .ins()
-                .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0);
+            let cond = branch_condition(module_backend, builder, options, cond)?;
             let then_cont = continuation_block(function, blocks, *then_cont)?;
             let else_cont = continuation_block(function, blocks, *else_cont)?;
             builder.ins().brif(cond, then_cont, &[], else_cont, &[]);
@@ -4608,9 +4895,20 @@ fn lower_literal<M: Module, L: CpsLiteralStore>(
     function: &CpsReprAbiFunction,
     literal: &CpsLiteral,
     literals: &mut L,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     match literal {
         CpsLiteral::Int(value) => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                let (ptr, len) =
+                    literals.literal_bytes(module_backend, builder, value.as_bytes())?;
+                return call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_make_int_i64",
+                    &[ptr, len],
+                );
+            }
             let value =
                 value
                     .parse::<i64>()
@@ -4620,8 +4918,24 @@ fn lower_literal<M: Module, L: CpsLiteralStore>(
                     })?;
             Ok(builder.ins().iconst(types::I64, value))
         }
-        CpsLiteral::Bool(value) => Ok(builder.ins().iconst(types::I64, i64::from(*value))),
-        CpsLiteral::Unit => call_i64_helper(module_backend, builder, "yulang_cps_unit_i64", &[]),
+        CpsLiteral::Bool(value) => {
+            let value = builder.ins().iconst(types::I64, i64::from(*value));
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                return call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_box_bool_i64",
+                    &[value],
+                );
+            }
+            Ok(value)
+        }
+        CpsLiteral::Unit => call_i64_helper(
+            module_backend,
+            builder,
+            yvalue_primitive_helper(options, "yulang_cps_unit_i64", "yulang_mmtk_cps_unit_i64"),
+            &[],
+        ),
         CpsLiteral::Float(value) => {
             let value =
                 value
@@ -4637,154 +4951,412 @@ fn lower_literal<M: Module, L: CpsLiteralStore>(
             call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_string_literal_i64",
+                yvalue_primitive_helper(
+                    options,
+                    "yulang_cps_string_literal_i64",
+                    "yulang_mmtk_cps_string_literal_i64",
+                ),
                 &[ptr, len],
             )
         }
     }
 }
 
+fn yvalue_primitive_helper(
+    options: CpsReprCraneliftOptions,
+    prototype: &'static str,
+    mmtk: &'static str,
+) -> &'static str {
+    if mmtk_yvalue_primitive_lane_enabled(options) {
+        mmtk
+    } else {
+        prototype
+    }
+}
+
+fn mmtk_yvalue_primitive_lane_enabled(options: CpsReprCraneliftOptions) -> bool {
+    cfg!(feature = "mmtk-runtime") && options.mmtk_yvalue_primitives
+}
+
+fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {
+    match op {
+        typed_ir::PrimitiveOp::BoolNot
+        | typed_ir::PrimitiveOp::BoolEq
+        | typed_ir::PrimitiveOp::IntAdd
+        | typed_ir::PrimitiveOp::IntSub
+        | typed_ir::PrimitiveOp::IntMul
+        | typed_ir::PrimitiveOp::IntDiv
+        | typed_ir::PrimitiveOp::IntEq
+        | typed_ir::PrimitiveOp::IntLt
+        | typed_ir::PrimitiveOp::IntLe
+        | typed_ir::PrimitiveOp::IntGt
+        | typed_ir::PrimitiveOp::IntGe
+        | typed_ir::PrimitiveOp::FloatAdd
+        | typed_ir::PrimitiveOp::FloatSub
+        | typed_ir::PrimitiveOp::FloatMul
+        | typed_ir::PrimitiveOp::FloatDiv
+        | typed_ir::PrimitiveOp::FloatEq
+        | typed_ir::PrimitiveOp::FloatLt
+        | typed_ir::PrimitiveOp::FloatLe
+        | typed_ir::PrimitiveOp::FloatGt
+        | typed_ir::PrimitiveOp::FloatGe
+        | typed_ir::PrimitiveOp::StringConcat
+        | typed_ir::PrimitiveOp::StringEq
+        | typed_ir::PrimitiveOp::StringLen
+        | typed_ir::PrimitiveOp::StringToBytes
+        | typed_ir::PrimitiveOp::BytesLen
+        | typed_ir::PrimitiveOp::BytesEq
+        | typed_ir::PrimitiveOp::BytesConcat
+        | typed_ir::PrimitiveOp::BytesIndex
+        | typed_ir::PrimitiveOp::BytesToPath
+        | typed_ir::PrimitiveOp::PathToBytes
+        | typed_ir::PrimitiveOp::ListEmpty
+        | typed_ir::PrimitiveOp::ListSingleton
+        | typed_ir::PrimitiveOp::ListMerge
+        | typed_ir::PrimitiveOp::ListLen
+        | typed_ir::PrimitiveOp::ListIndex
+        | typed_ir::PrimitiveOp::ListIndexRangeRaw
+        | typed_ir::PrimitiveOp::ListIndexRange
+        | typed_ir::PrimitiveOp::ListSpliceRaw
+        | typed_ir::PrimitiveOp::ListSplice
+        | typed_ir::PrimitiveOp::StringIndex
+        | typed_ir::PrimitiveOp::StringIndexRangeRaw
+        | typed_ir::PrimitiveOp::StringIndexRange
+        | typed_ir::PrimitiveOp::StringSpliceRaw
+        | typed_ir::PrimitiveOp::StringSplice
+        | typed_ir::PrimitiveOp::BytesIndexRange
+        | typed_ir::PrimitiveOp::BytesToUtf8Raw
+        | typed_ir::PrimitiveOp::ListViewRaw
+        | typed_ir::PrimitiveOp::IntToString
+        | typed_ir::PrimitiveOp::IntToHex
+        | typed_ir::PrimitiveOp::IntToUpperHex
+        | typed_ir::PrimitiveOp::BoolToString
+        | typed_ir::PrimitiveOp::FloatToString => true,
+    }
+}
+
 fn lower_primitive<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
-    _function: &CpsReprAbiFunction,
+    function: &CpsReprAbiFunction,
     op: typed_ir::PrimitiveOp,
     args: &[ir::Value],
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
+    if mmtk_yvalue_primitive_lane_enabled(options) && !mmtk_yvalue_primitive_supported(op) {
+        return Err(CpsReprCraneliftError::UnsupportedPrimitive {
+            function: function.name.clone(),
+            op,
+        });
+    }
+
     let value = match op {
         typed_ir::PrimitiveOp::BoolNot => {
-            let zero = builder.ins().iconst(types::I64, 0);
-            let is_zero = builder
-                .ins()
-                .icmp(ir::condcodes::IntCC::Equal, args[0], zero);
-            builder.ins().uextend(types::I64, is_zero)
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_bool_not_i64",
+                    &[args[0]],
+                )?
+            } else {
+                let zero = builder.ins().iconst(types::I64, 0);
+                let is_zero = builder
+                    .ins()
+                    .icmp(ir::condcodes::IntCC::Equal, args[0], zero);
+                builder.ins().uextend(types::I64, is_zero)
+            }
         }
-        typed_ir::PrimitiveOp::BoolEq | typed_ir::PrimitiveOp::IntEq => {
-            let eq = builder
-                .ins()
-                .icmp(ir::condcodes::IntCC::Equal, args[0], args[1]);
-            builder.ins().uextend(types::I64, eq)
+        typed_ir::PrimitiveOp::BoolEq => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_bool_eq_i64",
+                    &[args[0], args[1]],
+                )?
+            } else {
+                let eq = builder
+                    .ins()
+                    .icmp(ir::condcodes::IntCC::Equal, args[0], args[1]);
+                builder.ins().uextend(types::I64, eq)
+            }
         }
-        typed_ir::PrimitiveOp::IntAdd => builder.ins().iadd(args[0], args[1]),
-        typed_ir::PrimitiveOp::IntSub => builder.ins().isub(args[0], args[1]),
-        typed_ir::PrimitiveOp::IntMul => builder.ins().imul(args[0], args[1]),
-        typed_ir::PrimitiveOp::IntDiv => builder.ins().sdiv(args[0], args[1]),
-        typed_ir::PrimitiveOp::IntLt => {
-            int_cmp(builder, ir::condcodes::IntCC::SignedLessThan, args)
+        typed_ir::PrimitiveOp::IntAdd => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_int_add_i64",
+                    &[args[0], args[1]],
+                )?
+            } else {
+                builder.ins().iadd(args[0], args[1])
+            }
         }
-        typed_ir::PrimitiveOp::IntLe => {
-            int_cmp(builder, ir::condcodes::IntCC::SignedLessThanOrEqual, args)
+        typed_ir::PrimitiveOp::IntSub => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_int_sub_i64",
+                    &[args[0], args[1]],
+                )?
+            } else {
+                builder.ins().isub(args[0], args[1])
+            }
         }
-        typed_ir::PrimitiveOp::IntGt => {
-            int_cmp(builder, ir::condcodes::IntCC::SignedGreaterThan, args)
+        typed_ir::PrimitiveOp::IntMul => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_int_mul_i64",
+                    &[args[0], args[1]],
+                )?
+            } else {
+                builder.ins().imul(args[0], args[1])
+            }
         }
-        typed_ir::PrimitiveOp::IntGe => int_cmp(
+        typed_ir::PrimitiveOp::IntDiv => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_mmtk_cps_int_div_i64",
+                    &[args[0], args[1]],
+                )?
+            } else {
+                builder.ins().sdiv(args[0], args[1])
+            }
+        }
+        typed_ir::PrimitiveOp::IntEq => mmtk_int_pred_or_scalar_cmp(
+            module_backend,
             builder,
+            options,
+            "yulang_mmtk_cps_int_eq_i64",
+            ir::condcodes::IntCC::Equal,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::IntLt => mmtk_int_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            "yulang_mmtk_cps_int_lt_i64",
+            ir::condcodes::IntCC::SignedLessThan,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::IntLe => mmtk_int_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            "yulang_mmtk_cps_int_le_i64",
+            ir::condcodes::IntCC::SignedLessThanOrEqual,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::IntGt => mmtk_int_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            "yulang_mmtk_cps_int_gt_i64",
+            ir::condcodes::IntCC::SignedGreaterThan,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::IntGe => mmtk_int_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            "yulang_mmtk_cps_int_ge_i64",
             ir::condcodes::IntCC::SignedGreaterThanOrEqual,
             args,
-        ),
+        )?,
         typed_ir::PrimitiveOp::FloatAdd => builder.ins().fadd(args[0], args[1]),
         typed_ir::PrimitiveOp::FloatSub => builder.ins().fsub(args[0], args[1]),
         typed_ir::PrimitiveOp::FloatMul => builder.ins().fmul(args[0], args[1]),
         typed_ir::PrimitiveOp::FloatDiv => builder.ins().fdiv(args[0], args[1]),
-        typed_ir::PrimitiveOp::FloatEq => float_cmp(builder, ir::condcodes::FloatCC::Equal, args),
-        typed_ir::PrimitiveOp::FloatLt => {
-            float_cmp(builder, ir::condcodes::FloatCC::LessThan, args)
-        }
-        typed_ir::PrimitiveOp::FloatLe => {
-            float_cmp(builder, ir::condcodes::FloatCC::LessThanOrEqual, args)
-        }
-        typed_ir::PrimitiveOp::FloatGt => {
-            float_cmp(builder, ir::condcodes::FloatCC::GreaterThan, args)
-        }
-        typed_ir::PrimitiveOp::FloatGe => {
-            float_cmp(builder, ir::condcodes::FloatCC::GreaterThanOrEqual, args)
-        }
-        typed_ir::PrimitiveOp::ListEmpty => {
-            call_i64_helper(module_backend, builder, "yulang_cps_list_empty_i64", &[])?
-        }
+        typed_ir::PrimitiveOp::FloatEq => mmtk_float_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            ir::condcodes::FloatCC::Equal,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::FloatLt => mmtk_float_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            ir::condcodes::FloatCC::LessThan,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::FloatLe => mmtk_float_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            ir::condcodes::FloatCC::LessThanOrEqual,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::FloatGt => mmtk_float_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            ir::condcodes::FloatCC::GreaterThan,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::FloatGe => mmtk_float_pred_or_scalar_cmp(
+            module_backend,
+            builder,
+            options,
+            ir::condcodes::FloatCC::GreaterThanOrEqual,
+            args,
+        )?,
+        typed_ir::PrimitiveOp::ListEmpty => call_i64_helper(
+            module_backend,
+            builder,
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_empty_i64",
+                "yulang_mmtk_cps_list_empty_i64",
+            ),
+            &[],
+        )?,
         typed_ir::PrimitiveOp::ListSingleton => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_singleton_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_singleton_i64",
+                "yulang_mmtk_cps_list_singleton_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::ListMerge => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_merge_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_merge_i64",
+                "yulang_mmtk_cps_list_merge_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::ListLen => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_len_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_len_i64",
+                "yulang_mmtk_cps_list_len_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::ListIndex => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_index_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_index_i64",
+                "yulang_mmtk_cps_list_index_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::ListIndexRangeRaw => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_index_range_raw_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_index_range_raw_i64",
+                "yulang_mmtk_cps_list_slice_i64",
+            ),
             &[args[0], args[1], args[2]],
         )?,
         typed_ir::PrimitiveOp::ListIndexRange => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_index_range_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_index_range_i64",
+                "yulang_mmtk_cps_list_slice_range_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::ListSpliceRaw => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_splice_raw_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_splice_raw_i64",
+                "yulang_mmtk_cps_list_splice_i64",
+            ),
             &[args[0], args[1], args[2], args[3]],
         )?,
         typed_ir::PrimitiveOp::ListSplice => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_splice_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_splice_i64",
+                "yulang_mmtk_cps_list_splice_range_i64",
+            ),
             &[args[0], args[1], args[2]],
         )?,
         typed_ir::PrimitiveOp::ListViewRaw => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_list_view_raw_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_list_view_raw_i64",
+                "yulang_mmtk_cps_list_view_raw_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::IntToString => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_int_to_string_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_int_to_string_i64",
+                "yulang_mmtk_cps_int_to_string_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::IntToHex => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_int_to_hex_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_int_to_hex_i64",
+                "yulang_mmtk_cps_int_to_hex_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::IntToUpperHex => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_int_to_upper_hex_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_int_to_upper_hex_i64",
+                "yulang_mmtk_cps_int_to_upper_hex_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::BoolToString => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bool_to_string_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bool_to_string_i64",
+                "yulang_mmtk_cps_bool_to_string_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::FloatToString => call_helper(
             module_backend,
             builder,
-            "yulang_cps_float_to_string_f64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_float_to_string_f64",
+                "yulang_mmtk_cps_float_to_string_f64",
+            ),
             &[types::F64],
             types::I64,
             &[args[0]],
@@ -4792,103 +5364,171 @@ fn lower_primitive<M: Module>(
         typed_ir::PrimitiveOp::StringConcat => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_concat_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_concat_i64",
+                "yulang_mmtk_cps_string_concat_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::StringEq => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_eq_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_eq_i64",
+                "yulang_mmtk_cps_string_eq_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::StringLen => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_len_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_len_i64",
+                "yulang_mmtk_cps_string_len_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::StringIndex => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_index_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_index_i64",
+                "yulang_mmtk_cps_string_index_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::StringIndexRangeRaw => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_index_range_raw_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_index_range_raw_i64",
+                "yulang_mmtk_cps_string_slice_i64",
+            ),
             &[args[0], args[1], args[2]],
         )?,
         typed_ir::PrimitiveOp::StringIndexRange => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_index_range_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_index_range_i64",
+                "yulang_mmtk_cps_string_slice_range_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::StringSpliceRaw => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_splice_raw_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_splice_raw_i64",
+                "yulang_mmtk_cps_string_splice_i64",
+            ),
             &[args[0], args[1], args[2], args[3]],
         )?,
         typed_ir::PrimitiveOp::StringSplice => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_splice_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_splice_i64",
+                "yulang_mmtk_cps_string_splice_range_i64",
+            ),
             &[args[0], args[1], args[2]],
         )?,
         typed_ir::PrimitiveOp::StringToBytes => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_string_to_bytes_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_string_to_bytes_i64",
+                "yulang_mmtk_cps_string_to_bytes_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::BytesLen => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_len_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_len_i64",
+                "yulang_mmtk_cps_bytes_len_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::BytesEq => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_eq_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_eq_i64",
+                "yulang_mmtk_cps_bytes_eq_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::BytesConcat => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_concat_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_concat_i64",
+                "yulang_mmtk_cps_bytes_concat_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::BytesIndex => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_index_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_index_i64",
+                "yulang_mmtk_cps_bytes_index_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::BytesIndexRange => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_index_range_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_index_range_i64",
+                "yulang_mmtk_cps_bytes_slice_range_i64",
+            ),
             &[args[0], args[1]],
         )?,
         typed_ir::PrimitiveOp::BytesToUtf8Raw => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_to_utf8_raw_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_to_utf8_raw_i64",
+                "yulang_mmtk_cps_bytes_to_utf8_raw_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::BytesToPath => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_bytes_to_path_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_bytes_to_path_i64",
+                "yulang_mmtk_cps_bytes_to_path_i64",
+            ),
             &[args[0]],
         )?,
         typed_ir::PrimitiveOp::PathToBytes => call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_path_to_bytes_i64",
+            yvalue_primitive_helper(
+                options,
+                "yulang_cps_path_to_bytes_i64",
+                "yulang_mmtk_cps_path_to_bytes_i64",
+            ),
             &[args[0]],
         )?,
     };
@@ -4904,6 +5544,20 @@ fn int_cmp(
     builder.ins().uextend(types::I64, cmp)
 }
 
+fn mmtk_int_pred_or_scalar_cmp<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    options: CpsReprCraneliftOptions,
+    mmtk_helper: &'static str,
+    scalar_code: ir::condcodes::IntCC,
+    args: &[ir::Value],
+) -> CpsReprCraneliftResult<ir::Value> {
+    if mmtk_yvalue_primitive_lane_enabled(options) {
+        return call_i64_helper(module_backend, builder, mmtk_helper, &[args[0], args[1]]);
+    }
+    Ok(int_cmp(builder, scalar_code, args))
+}
+
 fn float_cmp(
     builder: &mut FunctionBuilder<'_>,
     code: ir::condcodes::FloatCC,
@@ -4911,6 +5565,25 @@ fn float_cmp(
 ) -> ir::Value {
     let cmp = builder.ins().fcmp(code, args[0], args[1]);
     builder.ins().uextend(types::I64, cmp)
+}
+
+fn mmtk_float_pred_or_scalar_cmp<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    options: CpsReprCraneliftOptions,
+    code: ir::condcodes::FloatCC,
+    args: &[ir::Value],
+) -> CpsReprCraneliftResult<ir::Value> {
+    let value = float_cmp(builder, code, args);
+    if mmtk_yvalue_primitive_lane_enabled(options) {
+        return call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_mmtk_cps_box_bool_i64",
+            &[value],
+        );
+    }
+    Ok(value)
 }
 
 fn validate_scalar_subset(module: &CpsReprAbiModule) -> CpsReprCraneliftResult<()> {
@@ -5171,16 +5844,56 @@ fn read_values_as_lanes(
         .collect()
 }
 
-fn read_primitive_args<M: Module>(
+fn read_primitive_args<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
+    literals: &mut L,
     local_values: &LocalValueCache,
     op: typed_ir::PrimitiveOp,
     values: &[CpsValueId],
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<Vec<ir::Value>> {
+    if mmtk_yvalue_primitive_lane_enabled(options) {
+        return values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let lane = primitive_arg_lanes(op)
+                    .and_then(|lanes| lanes.get(index).copied())
+                    .unwrap_or(CpsReprAbiLane::RuntimeValuePtr);
+                if lane == CpsReprAbiLane::NativeFloat {
+                    return read_native_float_value(
+                        module_backend,
+                        builder,
+                        function,
+                        local_values,
+                        *value,
+                    );
+                }
+                read_runtime_value_i64(
+                    module_backend,
+                    builder,
+                    function,
+                    literals,
+                    local_values,
+                    *value,
+                    options,
+                )
+            })
+            .collect();
+    }
+
     if op == typed_ir::PrimitiveOp::ListSingleton {
-        return read_runtime_values_i64(module_backend, builder, function, local_values, values);
+        return read_runtime_values_i64(
+            module_backend,
+            builder,
+            function,
+            literals,
+            local_values,
+            values,
+            options,
+        );
     }
 
     let lanes = primitive_arg_lanes(op);
@@ -5260,28 +5973,74 @@ fn read_value_as_lane(
     Ok(builder.use_var(variable_for_lane(value, lane)))
 }
 
-fn read_runtime_values_i64<M: Module>(
+fn read_runtime_values_i64<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
+    literals: &mut L,
     local_values: &LocalValueCache,
     values: &[CpsValueId],
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<Vec<ir::Value>> {
     values
         .iter()
         .map(|value| {
-            read_runtime_value_i64(module_backend, builder, function, local_values, *value)
+            read_runtime_value_i64(
+                module_backend,
+                builder,
+                function,
+                literals,
+                local_values,
+                *value,
+                options,
+            )
         })
         .collect()
 }
 
-fn read_runtime_value_i64<M: Module>(
+fn read_runtime_value_i64<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
+    _literals: &mut L,
     local_values: &LocalValueCache,
     value: CpsValueId,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
+    if mmtk_yvalue_primitive_lane_enabled(options) {
+        if let Some(literal) = value_literal(function, value) {
+            match literal {
+                CpsLiteral::Int(_)
+                | CpsLiteral::Bool(_)
+                | CpsLiteral::Unit
+                | CpsLiteral::String(_) => return read_value(builder, function, value),
+                CpsLiteral::Float(_) => {
+                    return Err(CpsReprCraneliftError::UnsupportedLane {
+                        function: function.name.clone(),
+                        value,
+                        lane: CpsReprAbiLane::NativeFloat,
+                    });
+                }
+            }
+        }
+
+        let lane = effective_value_lane(function, value);
+        return match lane {
+            CpsReprAbiLane::ScalarI64
+            | CpsReprAbiLane::RuntimeValuePtr
+            | CpsReprAbiLane::ClosurePtr
+            | CpsReprAbiLane::ThunkPtr
+            | CpsReprAbiLane::ResumptionPtr
+            | CpsReprAbiLane::OpaqueI64
+            | CpsReprAbiLane::Unknown => read_value(builder, function, value),
+            lane => Err(CpsReprCraneliftError::UnsupportedLane {
+                function: function.name.clone(),
+                value,
+                lane,
+            }),
+        };
+    }
+
     if let Some(literal) = value_literal(function, value) {
         match literal {
             CpsLiteral::Bool(_) => {
@@ -6819,6 +7578,393 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "mmtk-runtime")]
+    #[test]
+    fn jit_can_opt_into_mmtk_yvalue_string_bytes_primitives() {
+        let _guard = crate::mmtk_runtime::mmtk_test_lock();
+        let options = CpsReprCraneliftOptions::mmtk_yvalue_primitives();
+        let cases = vec![
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![unknown_lit(typed_ir::Lit::String("aあ🙂".to_string()))],
+                ),
+                mmtk_i63(3),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringConcat,
+                        vec![
+                            unknown_lit(typed_ir::Lit::String("yu".to_string())),
+                            unknown_lit(typed_ir::Lit::String("lang".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(6),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::BytesConcat,
+                        vec![
+                            primitive_call(
+                                typed_ir::PrimitiveOp::StringToBytes,
+                                vec![unknown_lit(typed_ir::Lit::String("ab".to_string()))],
+                            ),
+                            primitive_call(
+                                typed_ir::PrimitiveOp::StringToBytes,
+                                vec![unknown_lit(typed_ir::Lit::String("cd".to_string()))],
+                            ),
+                        ],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesEq,
+                    vec![
+                        primitive_call(
+                            typed_ir::PrimitiveOp::StringToBytes,
+                            vec![unknown_lit(typed_ir::Lit::String("ok".to_string()))],
+                        ),
+                        primitive_call(
+                            typed_ir::PrimitiveOp::StringToBytes,
+                            vec![unknown_lit(typed_ir::Lit::String("ok".to_string()))],
+                        ),
+                    ],
+                ),
+                mmtk_bool(true),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesIndex,
+                    vec![
+                        primitive_call(
+                            typed_ir::PrimitiveOp::StringToBytes,
+                            vec![unknown_lit(typed_ir::Lit::String("abc".to_string()))],
+                        ),
+                        unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                    ],
+                ),
+                mmtk_i63(i64::from(b'b')),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::PathToBytes,
+                        vec![primitive_call(
+                            typed_ir::PrimitiveOp::BytesToPath,
+                            vec![primitive_call(
+                                typed_ir::PrimitiveOp::StringToBytes,
+                                vec![unknown_lit(typed_ir::Lit::String("/tmp".to_string()))],
+                            )],
+                        )],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringIndexRangeRaw,
+                        vec![
+                            unknown_lit(typed_ir::Lit::String("aあ🙂z".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("3".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringIndex,
+                        vec![
+                            unknown_lit(typed_ir::Lit::String("aあ🙂z".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("2".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(1),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringIndexRange,
+                        vec![
+                            unknown_lit(typed_ir::Lit::String("aあ🙂z".to_string())),
+                            range_expr(1, 3),
+                        ],
+                    )],
+                ),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringSpliceRaw,
+                        vec![
+                            unknown_lit(typed_ir::Lit::String("abcz".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("3".to_string())),
+                            unknown_lit(typed_ir::Lit::String("XY".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringSplice,
+                        vec![
+                            unknown_lit(typed_ir::Lit::String("abcz".to_string())),
+                            range_expr(1, 3),
+                            unknown_lit(typed_ir::Lit::String("XY".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(typed_ir::PrimitiveOp::ListLen, vec![list_expr(vec![1, 2])]),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::ListIndex,
+                        vec![
+                            primitive_call(
+                                typed_ir::PrimitiveOp::ListMerge,
+                                vec![
+                                    primitive_call(
+                                        typed_ir::PrimitiveOp::ListSingleton,
+                                        vec![unknown_lit(typed_ir::Lit::String("a".to_string()))],
+                                    ),
+                                    primitive_call(
+                                        typed_ir::PrimitiveOp::ListSingleton,
+                                        vec![unknown_lit(typed_ir::Lit::String(
+                                            "abcd".to_string(),
+                                        ))],
+                                    ),
+                                ],
+                            ),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                        vec![
+                            list_expr(vec![1, 2, 3, 4]),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("3".to_string())),
+                        ],
+                    )],
+                ),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::ListIndexRange,
+                        vec![list_expr(vec![1, 2, 3, 4]), range_expr(1, 3)],
+                    )],
+                ),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::ListSpliceRaw,
+                        vec![
+                            list_expr(vec![1, 2, 3]),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("2".to_string())),
+                            list_expr(vec![8, 9]),
+                        ],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::ListSplice,
+                        vec![
+                            list_expr(vec![1, 2, 3]),
+                            range_expr(1, 2),
+                            list_expr(vec![8, 9]),
+                        ],
+                    )],
+                ),
+                mmtk_i63(4),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::BytesIndexRange,
+                        vec![
+                            primitive_call(
+                                typed_ir::PrimitiveOp::StringToBytes,
+                                vec![unknown_lit(typed_ir::Lit::String("abcde".to_string()))],
+                            ),
+                            range_expr(1, 4),
+                        ],
+                    )],
+                ),
+                mmtk_i63(3),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::IntToString,
+                        vec![unknown_lit(typed_ir::Lit::Int("-42".to_string()))],
+                    )],
+                ),
+                mmtk_i63(3),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::IntToString,
+                        vec![primitive_call(
+                            typed_ir::PrimitiveOp::IntAdd,
+                            vec![
+                                unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                                unknown_lit(typed_ir::Lit::Int("2".to_string())),
+                            ],
+                        )],
+                    )],
+                ),
+                mmtk_i63(1),
+            ),
+            (
+                if_expr(
+                    primitive_call(
+                        typed_ir::PrimitiveOp::IntLt,
+                        vec![
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                            unknown_lit(typed_ir::Lit::Int("2".to_string())),
+                        ],
+                    ),
+                    unknown_lit(typed_ir::Lit::Int("7".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("9".to_string())),
+                ),
+                mmtk_i63(7),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::IntToHex,
+                        vec![unknown_lit(typed_ir::Lit::Int("255".to_string()))],
+                    )],
+                ),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::IntToUpperHex,
+                        vec![unknown_lit(typed_ir::Lit::Int("255".to_string()))],
+                    )],
+                ),
+                mmtk_i63(2),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::BoolToString,
+                        vec![unknown_lit(typed_ir::Lit::Bool(false))],
+                    )],
+                ),
+                mmtk_i63(5),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::FloatToString,
+                        vec![unknown_lit(typed_ir::Lit::Float("1.0".to_string()))],
+                    )],
+                ),
+                mmtk_i63(3),
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::StringLen,
+                    vec![select(
+                        record(vec![(
+                            "name",
+                            unknown_lit(typed_ir::Lit::String("yulang".to_string())),
+                        )]),
+                        "name",
+                    )],
+                ),
+                mmtk_i63(6),
+            ),
+        ];
+
+        for (expr, expected) in cases {
+            crate::mmtk_runtime::yulang_mmtk_cps_reset_i64();
+            let mut jit = compile_runtime_module_to_cps_repr_jit_with_options(
+                &module_with_root(expr),
+                options,
+            )
+            .expect("compiled runtime module with MMTk YValue primitives");
+
+            assert_eq!(jit.run_roots_i64().expect("ran"), vec![expected]);
+        }
+    }
+
+    #[cfg(feature = "mmtk-runtime")]
+    #[test]
+    fn mmtk_yvalue_primitive_lane_runs_list_view_raw() {
+        let _guard = crate::mmtk_runtime::mmtk_test_lock();
+        let expr = primitive_call(
+            typed_ir::PrimitiveOp::ListViewRaw,
+            vec![list_expr(vec![1, 2])],
+        );
+
+        crate::mmtk_runtime::yulang_mmtk_cps_reset_i64();
+        let mut jit = compile_runtime_module_to_cps_repr_jit_with_options(
+            &module_with_root(expr),
+            CpsReprCraneliftOptions::mmtk_yvalue_primitives(),
+        )
+        .expect("compiled list view with MMTk YValue primitives");
+
+        let roots = jit.run_roots_i64().expect("ran");
+        assert_eq!(roots.len(), 1);
+        assert_ne!(roots[0], 0);
+    }
+
     #[test]
     fn jit_runs_list_range_primitives_runtime_value_roots() {
         let sliced = apply(
@@ -7763,6 +8909,18 @@ mod tests {
         runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
     }
 
+    #[cfg(feature = "mmtk-runtime")]
+    fn mmtk_i63(value: i64) -> i64 {
+        crate::gc_runtime::YValue::from_i63(value)
+            .expect("test integer should fit i63")
+            .raw() as i64
+    }
+
+    #[cfg(feature = "mmtk-runtime")]
+    fn mmtk_bool(value: bool) -> i64 {
+        crate::gc_runtime::YValue::from_bool(value).raw() as i64
+    }
+
     fn primitive(op: typed_ir::PrimitiveOp) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
     }
@@ -7853,6 +9011,34 @@ mod tests {
                     })
                     .collect(),
                 spread: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    #[cfg(feature = "mmtk-runtime")]
+    fn select(base: runtime::Expr, field: &str) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Select {
+                base: Box::new(base),
+                field: typed_ir::Name(field.to_string()),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    #[cfg(feature = "mmtk-runtime")]
+    fn if_expr(
+        cond: runtime::Expr,
+        then_branch: runtime::Expr,
+        else_branch: runtime::Expr,
+    ) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::If {
+                cond: Box::new(cond),
+                then_branch: Box::new(then_branch),
+                else_branch: Box::new(else_branch),
+                evidence: None,
             },
             runtime::Type::unknown(),
         )

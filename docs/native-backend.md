@@ -295,10 +295,66 @@ current backend boundaries visible, but detailed regression history lives in
 - [ ] Closure values can be called after flowing through the pure-subset backend, but
       printable closure roots and closures embedded as ordinary structural
       runtime values still route to the effects backend.
-- [ ] Generic runtime value layout is still backed by `VmValue`; compact native
-      representations are not finalized. The adopted next layout is a native
-      `YValue` word with `i63` immediates, heap object references, heap
-      `BigInt` on overflow, precise roots, and an MMTk-backed heap.
+- [x] The first isolated native GC runtime spike pins down a `YValue` word with
+      `i63` immediates, non-aliasing bool/unit immediates, heap references,
+      native object headers, traceable object payloads, an explicit root stack,
+      root frames and temporary-root helper scopes for helper-call temporaries,
+      a `YHeap` allocator boundary, allocation helpers for the first heap
+      object set, red-black-tree string/list rope nodes,
+      forced-allocation stress tracing, allocated-heap stats, live root-trace
+      reports, and add/sub/mul/compare helper smoke coverage for `i63` values
+      promoted to heap `BigInt`. The spike also has monomorphic native layout
+      descriptors, interned layout handles, typed heap blocks backed by raw
+      payload buffers, field offsets, and trace bitmaps for typed fields, so
+      `i64`/`u64` closure, continuation, and tuple fields can remain unboxed
+      after monomorphization. It also interns static paths and atom-style
+      symbol strings into compact native symbols for ADT tags and symbol
+      payload lanes, then freezes the closed symbol set into a collision-checked
+      hash lookup. Native variant layouts store the tag as a `Symbol` field in
+      the raw payload and trace only typed payload fields that are `YValue`.
+      The `mmtk-runtime` feature wires in the MMTk crate behind a thin config
+      boundary, currently defaulting to a single-threaded `NoGC` spike plan.
+      A feature-gated Yulang MMTk VM binding skeleton compiles against MMTk,
+      including the initial object header, `YValue` slot representation, memory
+      slice, object-size callback, and trace-slot scanner. The first
+      `MmtkHeap` prototype implements the `YHeap` boundary and allocates object
+      headers, trace slots, and the current semantic `YObject` payload through
+      MMTk. It also supports compact raw-payload objects and compact
+      `NativeHeapBlock` payloads whose field reads use native layout offsets,
+      including closure/thunk/resumption/env/frame payloads. The remaining
+      migration is to replace more transitional semantic payload users with
+      these compact paths. The `YHeap` read API is already split into
+      object-header and trace-child projection, so tracing and stats do not need
+      full semantic payload access.
+      MMTk heap smoke coverage now exercises debug rendering, allocation stats,
+      root trace reports, closure/tuple/string reachability, rope nodes,
+      temporary helper roots, compact raw/native-block payloads, and MMTk
+      trace-slot scanning, including compact control payloads.
+      `MmtkNativeRuntimeContext` exposes the first raw `YValue` word helper
+      boundary for unit, bool, int arithmetic/compare, scalar string
+      conversions, string construction/concat/index/range/splice/length/equality,
+      compact bytes/path conversion helpers, and compact
+      tuple/record/variant/list construction/access/view, with record
+      default/has/without and list range/splice C ABI smoke paths. A parallel
+      `yulang_mmtk_cps_*` symbol set is registered
+      behind `mmtk-runtime` for a future all-`YValue` CPS lane; it
+      intentionally does not replace the existing `yulang_cps_*` scalar/handle
+      ABI. The helper context now creates strings, bytes, and paths as compact
+      raw/tree payloads, tuple/record/variant values as compact native blocks,
+      and list values as chunked red-black trees. A minimal JIT smoke calls the MMTk CPS helper symbols directly
+      and passes `YValue` strings, bytes, and tuples through Cranelift; full
+      CPS lowering is still on the existing helper lane by default.
+      `CpsReprCraneliftOptions::mmtk_yvalue_primitives()` can opt the CPS repr
+      Cranelift path into the current runtime primitive family and
+      tuple/record/variant structural statements on the MMTk helper lane. In
+      that opt-in lane, Yulang `int`, bool, and unit values are tagged
+      `YValue` words; float operations still use unboxed `f64` inputs and box
+      boolean results back into `YValue`. Fixed-width `i64`/`u64` layout lanes
+      exist in the native layout spike, but they are not source-level Yulang
+      types yet. The default CPS path remains on the prototype helper boundary.
+- [ ] Generic runtime value layout in the default native path is still backed
+      by prototype `VmValue` helpers. The adopted next layout is the isolated
+      `YValue` object model above, eventually backed by MMTk.
 
 ### Effects Backend Status
 
@@ -405,10 +461,11 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Forced pure-subset execution rejects the top-level destructuring
       shape as unsupported instead of generating a crashing executable; the
       default native CLI routes it to effects.
-- [ ] General closures and heap value lanes are still prototype
-      representations, not finalized native runtime layout. The next runtime
-      layout work treats this as a native object model migration, not as
-      `VmValue` GC ownership work.
+- [ ] General closures and heap value lanes in the default effects backend are
+      still prototype representations, not finalized native runtime layout.
+      The isolated `gc_runtime` module covers closure/thunk/resumption/env
+      object allocation, headers, and tracing, but codegen has not been ported
+      to it yet.
 - [ ] The effects backend is the effectful native mainline, but it is not yet a
       complete replacement for the interpreter.
 

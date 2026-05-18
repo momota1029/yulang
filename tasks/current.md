@@ -105,7 +105,66 @@ release 後に残すもの:
 - 一般的な returned/stored effectful thunk coverage。
 - prototype heap handle から MMTk-backed な安定 native runtime layout への移行。
   `VmValue` GC 化ではなく、`YValue` word、native object header、precise root
-  discipline、`i63` immediate + heap `BigInt` を中心にする。
+  discipline、`i63` immediate + heap `BigInt` を中心にする。最初の isolated
+  spike として `crates/yulang-native/src/gc_runtime.rs` に `YValue` tagging、
+  heap object header、traceable payload、first-milestone object allocator、
+  explicit root stack、allocation stress tracing、i63 overflow -> heap `BigInt`
+  promotion を入れた。`YHeap` allocator boundary と root frame も入り、MMTk heap
+  と JIT helper temporary roots の接続点が見える形になった。temporary-root helper
+  scope も足して、helper が allocation を挟むときの root discipline をテストで固定
+  した。allocated-heap stats と live root-trace report も入り、future MMTk heap と
+  spike heap の比較面ができた。integer helper smoke は add/sub/mul/compare まで広げ、
+  i63 overflow/underflow から heap `BigInt` へ promotion する境界を押さえた。
+  monomorphic native layout descriptor、typed `NativeHeapBlock` storage、
+  layout registry / shared handle、layout footprint / field offset、trace bitmap も
+  追加し、type monomorphization 後の tuple / closure env / continuation env /
+  stack frame では `i64`/`u64`/`f64`/bool field を unboxed のまま置き、`YValue`
+  field だけ trace する方針を固定した。stack-frame layout は heap allocation から
+  弾き、同一 monomorphic layout は object ごとに複製せず registry 経由で共有する。
+  `NativeHeapBlock` の保存形式は `NativeFieldValue` 配列から raw payload buffer へ
+  寄せ、field offset 経由で read/write する形にした。
+  static path / atom identity 用に `YSymbolTable` / `YSymbolId` / stable fingerprint /
+  symbolic variant / `Symbol` field lane も入れた。ADT tag や path-like payload は
+  full path object を持ち回らず compact symbol id で扱う方向。Ruby-style なただの
+  symbol 文字列も path symbol とは別 key として intern できる。closed symbol set は
+  `YPerfectSymbolHash` へ freeze でき、hash collision は runtime dispatch 前に明示的に
+  reject する。native variant layout は raw payload の先頭に `Symbol` tag field を置き、
+  後続 payload field は monomorphic layout の lane に従って保存・trace する。
+  `mmtk-runtime` feature と `mmtk_runtime.rs` を追加し、MMTk crate への opt-in
+  config boundary を置いた。最初の接続 plan は single-threaded `NoGC` spike。
+  `mmtk_binding.rs` で feature-gated な Yulang VM binding skeleton も入り、
+  native object header / `YValue` slot / memory slice / object-size callback /
+  trace-slot scanner は MMTk trait に接続済み。`MmtkHeap` prototype で `YHeap`
+  boundary から MMTk allocation へ入り、object header と trace slots は MMTk heap
+  に置く。現時点の semantic `YObject` payload も MMTk raw payload area に置き、
+  `MmtkHeap::object` は object reference から payload を投影する。compact raw payload
+  object と compact `NativeHeapBlock` payload も MMTk heap 上に置けるようにし、
+  native layout offset 経由で field を読める入口を作った。closure/thunk/resumption/
+  continuation env / handler frame / return frame も compact native-block payload で
+  header / trace slot / env slot を読める。`YHeap` の read surface は object header /
+  trace children / full object projection に分けたので、tracing と stats は full
+  semantic payload に依存しない。`MmtkNativeRuntimeContext`
+  で raw `YValue` word helper boundary も作り、unit/bool/int arithmetic/compare/
+  scalar string conversion、赤黒木 string index/range/slice/splice/concat/length/equality
+  と compact bytes/path conversion helper、tuple/record/variant/list の小さい C ABI
+  smoke まで通した。record default/has/without と list view/range/splice も MMTk
+  helper surface に乗った。
+  `mmtk-runtime` feature では別名の `yulang_mmtk_cps_*` helper symbols も登録した。
+  これは future all-`YValue` CPS lane 用で、現行 `yulang_cps_*` の plain scalar
+  i64 / prototype handle ABI はまだ置き換えていない。最小 JIT smoke では
+  Cranelift から `yulang_mmtk_cps_*` を直接呼び、MMTk `YValue` の
+  string/bytes/tuple を JIT call 越しに渡せるところまで確認した。
+  `CpsReprCraneliftOptions::mmtk_yvalue_primitives()` も追加し、通常 CPS repr
+  lowering のうち string literal、current runtime primitive family、
+  tuple/record/variant structural stmt を `yulang_mmtk_cps_*` へ opt-in で
+  流せるようにした。この opt-in lane では Yulang の `int` / bool / unit は
+  tagged `YValue` word として primitive call と branch condition を通る。float は
+  unboxed `f64` input のまま扱い、比較結果だけ `YValue` bool へ戻す。固定幅
+  `i64`/`u64` lane は native layout spike 側の機能で、まだ source-level Yulang
+  type ではない。
+  string/list payload は runtime の `StringTree` / `ListTree` と同根の
+  赤黒木 rope shape にしており、
+  default native path はまだ prototype helper のまま。
 - unsupported native root を VM へ戻す fallback policy。
 - package/cache/build workflow と native artifact lifecycle。
 - 型 surface / monomorphize strictness。これは native release blocker ではなく、
@@ -166,6 +225,12 @@ dynamic handler frame / guard stack / finite nondet など) は
   model への移行として扱う。小さい continuation / env / thunk / handler frame を
   near bump-allocation cost で作り、普通の runtime payload は `i63` immediate +
   heap object reference の `YValue` word に寄せる。
+- `gc_runtime` spike は MMTk 接続前の object model / root discipline 固定用。
+  MMTk feature/config boundary、VM binding skeleton、`MmtkHeap` prototype、
+  `MmtkNativeRuntimeContext` は入ったので、次は JIT へ急がず helper context を
+  smoke harness として使い、残る semantic payload 依存と CPS helper symbol 面を
+  compact raw/native-block + all-`YValue` lane へ寄せる。root stack scanning は
+  その後 MMTk roots work factory に接続する。
 
 ## Track 2: Parser Combinators
 

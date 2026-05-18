@@ -10,6 +10,10 @@ readme = "../../README.md"
 [lib]
 crate-type = ["rlib", "staticlib"]
 
+[features]
+default = []
+mmtk-runtime = ["dep:mmtk"]
+
 [dependencies]
 cranelift-codegen = "0.121"
 cranelift-frontend = "0.121"
@@ -17,5 +21,6 @@ cranelift-jit = "0.121"
 cranelift-module = "0.121"
 cranelift-native = "0.121"
 cranelift-object = "0.121"
+mmtk = { version = "0.32", optional = true, default-features = false }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
 yulang-runtime = { version = "0.1.1", path = "../yulang-runtime" }
