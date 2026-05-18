@@ -55,6 +55,7 @@ Try the native backend:
 
 ```bash
 yulang run --native examples/06_undet_once.yu
+yulang run --mmtk examples/01_hello.yu
 ```
 
 The standard library is normally installed to
@@ -195,27 +196,44 @@ monomorphization. Static paths and atom-style symbol strings can be interned
 into compact native symbols for ADT tags and symbol payload lanes, then frozen
 into a collision-checked hash lookup. Native variant layouts store the tag as a
 symbol field in the raw payload; the default native path still uses the
-prototype helpers. The crate now has an opt-in `mmtk-runtime` feature and a
-thin MMTk configuration boundary; the first configured spike uses a
-single-threaded `NoGC` plan. A feature-gated Yulang MMTk VM binding skeleton now
-compiles, with a native object header and `YValue` slot scanner. The first
+prototype helpers. The crate now depends on MMTk directly and has a thin MMTk
+configuration boundary; the first configured spike uses a single-threaded
+`NoGC` plan. A Yulang MMTk VM binding skeleton now compiles, with a native
+object header and `YValue` slot scanner. The first
 `MmtkHeap` prototype allocates the header, trace slots, and current semantic
 `YObject` payload through MMTk. It can also allocate compact raw-payload
 objects, compact structural `NativeHeapBlock` payloads, and compact
 closure/thunk/resumption/env/frame payloads that keep tracing/stats on the MMTk
-header/slot path while field reads use native layout offsets. The remaining
-migration is to replace more transitional semantic payload users with these
-compact paths; the heap read API is already split into header and trace-child
-projection so tracing no longer depends on reading the full semantic payload. A
+header/slot path while field reads use native layout offsets. Compact
+string/list rope node metadata is also encoded in raw payloads and read through
+the header/payload path, so hot rope operations no longer need semantic object
+projection. The MMTk lane also materializes captured native CPS control-stack
+snapshots as compact `ControlStack` heap objects with trace slots for reachable
+MMTk `YValue` children; pointer-shaped prototype values are filtered before
+object-table lookup when they are outside the tracked MMTk heap range. The
+MMTk runtime also has a dedicated compact CPS control helper module that can
+allocate closure/thunk/resumption bodies as fixed raw-payload MMTk objects and
+read code/env slots without native-layout projection. The helper payload now
+stores its own env length and the helper context uses a raw thread-local context
+pointer instead of a `RefCell<Option<_>>` borrow on every call. That path is
+covered by direct helper tests and can be enabled for CPS lowering with
+`YULANG_MMTK_CPS_CONTROL_OBJECTS=1`, but default `--mmtk` still keeps
+closure/thunk apply on the existing native control helpers because routing the
+current nondeterminism benchmark through MMTk control objects remains much
+slower.
+remaining migration is to replace more transitional
+semantic payload users with these compact paths; the heap read API is already
+split into header and trace-child projection so tracing no longer depends on
+reading the full semantic payload. A
 small MMTk-backed native context now exposes raw `YValue` word helpers for unit,
 bool, int arithmetic/compare, int/bool/float string conversion, red-black-tree
 string construction/concat/index/range/splice/length/equality, compact
 bytes/path conversion helpers, and compact tuple/record/variant plus chunked
 red-black list construction/access/view,
-including record default/has/without and list range/splice. The feature-gated runtime
-also registers a parallel `yulang_mmtk_cps_*` helper symbol set for a future
+including record default/has/without and list range/splice. The runtime also
+registers a parallel `yulang_mmtk_cps_*` helper symbol set for a future
 all-`YValue` CPS lane; the current `yulang_cps_*` symbols still use the
-prototype scalar/handle ABI. A minimal feature-gated JIT smoke now calls the
+prototype scalar/handle ABI. A minimal JIT smoke now calls the
 MMTk CPS helper symbols directly and passes `YValue` strings, bytes, and tuples
 through Cranelift. The CPS repr Cranelift path also has an opt-in
 `CpsReprCraneliftOptions::mmtk_yvalue_primitives()` mode that routes the current
@@ -225,7 +243,14 @@ opt-in lane, Yulang `int`, bool, and unit values are carried as tagged
 `YValue` words, while float operations still use unboxed `f64` inputs and box
 their boolean results back into `YValue`. Fixed-width `i64`/`u64` lanes are
 available in the native layout spike, but they are not source-level Yulang
-types yet. The default CPS path remains on the prototype scalar/handle ABI.
+types yet. `yulang run --mmtk` exposes this lane for benchmark work; the
+default CPS path remains on the prototype scalar/handle ABI. The native CPS
+runtime keeps handler, guard, and return-frame stacks as mutable vectors with
+cached snapshots. The first snapshot after mutation still clones the active
+stack; attempts to replace that with `Rc<Vec>` copy-on-write or `im::Vector`
+made the nondeterminism benchmark slower, so a real capture optimization still
+needs a dedicated stack representation. Under the MMTk lane those snapshots
+also receive compact GC heap mirrors for root tracking.
 
 ## Development
 

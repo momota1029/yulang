@@ -12,12 +12,239 @@ use super::{CpsRootDisplayHint, tag_hash};
 type NativeCpsI64Continuation = extern "C" fn(*const i64, i64) -> i64;
 type NativeCpsI64ThunkEntry = extern "C" fn(*const i64) -> i64;
 type NativeCpsI64ClosureEntry = extern "C" fn(*const i64, i64) -> i64;
-type NativeCpsI64HandlerSnapshot = Rc<[NativeCpsI64HandlerFrame]>;
-type NativeCpsI64ReturnFrameSnapshot = Rc<[NativeCpsI64ReturnFrame]>;
-type NativeCpsI64I64Snapshot = Rc<[i64]>;
+type NativeCpsI64HandlerSnapshot = NativeCpsI64Snapshot<NativeCpsI64HandlerFrame>;
+type NativeCpsI64ReturnFrameSnapshot = NativeCpsI64Snapshot<NativeCpsI64ReturnFrame>;
+type NativeCpsI64I64Snapshot = NativeCpsI64Snapshot<i64>;
+type NativeCpsI64HandlerEnvSnapshot = NativeCpsI64Snapshot<NativeCpsI64HandlerEnv>;
 
-fn native_cps_i64_snapshot<T>(items: Vec<T>) -> Rc<[T]> {
-    Rc::from(items.into_boxed_slice())
+fn native_cps_i64_snapshot<T: NativeCpsI64SnapshotItem>(items: Vec<T>) -> NativeCpsI64Snapshot<T> {
+    NativeCpsI64Snapshot::new(items)
+}
+
+fn native_cps_i64_empty_snapshot<T: NativeCpsI64SnapshotItem>() -> NativeCpsI64Snapshot<T> {
+    NativeCpsI64Snapshot::new(Vec::new())
+}
+
+#[derive(Clone)]
+struct NativeCpsI64Snapshot<T> {
+    items: Rc<[T]>,
+    mmtk_control_stack: Option<i64>,
+}
+
+impl<T: NativeCpsI64SnapshotItem> NativeCpsI64Snapshot<T> {
+    fn new(items: Vec<T>) -> Self {
+        let items = Rc::from(items.into_boxed_slice());
+        let mmtk_control_stack = native_cps_i64_mmtk_control_stack_from_items(&items);
+        Self {
+            items,
+            mmtk_control_stack: mmtk_control_stack.as_ref().map(|top| top.object),
+        }
+    }
+
+    fn from_items_and_mmtk_top(items: Vec<T>, mmtk_control_stack: Option<i64>) -> Self {
+        Self {
+            items: Rc::from(items.into_boxed_slice()),
+            mmtk_control_stack,
+        }
+    }
+
+    fn to_vec(&self) -> Vec<T> {
+        self.items.to_vec()
+    }
+
+    fn make_mut(&mut self) -> &mut [T] {
+        self.mmtk_control_stack = None;
+        Rc::make_mut(&mut self.items)
+    }
+
+    fn collect_mmtk_trace_words(&self, out: &mut Vec<i64>) {
+        if let Some(control_stack) = self.mmtk_control_stack {
+            out.push(control_stack);
+        } else {
+            for item in self.items.iter() {
+                item.collect_mmtk_trace_words(out);
+            }
+        }
+    }
+}
+
+impl<T: NativeCpsI64SnapshotItem> Default for NativeCpsI64Snapshot<T> {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for NativeCpsI64Snapshot<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.items.fmt(f)
+    }
+}
+
+impl<T> std::ops::Deref for NativeCpsI64Snapshot<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.items
+    }
+}
+
+trait NativeCpsI64SnapshotItem: Clone {
+    fn collect_mmtk_trace_words(&self, out: &mut Vec<i64>);
+}
+
+#[derive(Clone)]
+struct NativeCpsI64MmtkStackTop {
+    object: i64,
+    len: usize,
+}
+
+fn native_cps_i64_mmtk_control_stack_from_items<T: NativeCpsI64SnapshotItem>(
+    items: &[T],
+) -> Option<Rc<NativeCpsI64MmtkStackTop>> {
+    if !crate::mmtk_runtime::mmtk_cps_control_stack_snapshots_enabled() {
+        return None;
+    }
+    let mut trace_words = Vec::new();
+    for item in items {
+        item.collect_mmtk_trace_words(&mut trace_words);
+    }
+    let object = crate::mmtk_runtime::allocate_mmtk_cps_control_stack_snapshot_i64(
+        items.len(),
+        &trace_words,
+    )?;
+    Some(Rc::new(NativeCpsI64MmtkStackTop {
+        object,
+        len: items.len(),
+    }))
+}
+
+fn native_cps_i64_mmtk_control_stack_snapshot<T: NativeCpsI64SnapshotItem>(
+    items: &[T],
+) -> Option<Rc<NativeCpsI64MmtkStackTop>> {
+    if items.is_empty() {
+        return None;
+    }
+    native_cps_i64_mmtk_control_stack_from_items(items)
+}
+
+#[derive(Clone)]
+struct NativeCpsI64PersistentStack<T: NativeCpsI64SnapshotItem> {
+    items: Vec<T>,
+    snapshot: Option<NativeCpsI64Snapshot<T>>,
+    mmtk_top: Option<Rc<NativeCpsI64MmtkStackTop>>,
+}
+
+impl<T: NativeCpsI64SnapshotItem> Default for NativeCpsI64PersistentStack<T> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            snapshot: None,
+            mmtk_top: None,
+        }
+    }
+}
+
+impl<T: NativeCpsI64SnapshotItem> std::ops::Deref for NativeCpsI64PersistentStack<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.items
+    }
+}
+
+impl<T: NativeCpsI64SnapshotItem> NativeCpsI64PersistentStack<T> {
+    fn snapshot(&mut self) -> NativeCpsI64Snapshot<T> {
+        if self.snapshot.is_none() {
+            self.ensure_mmtk_top();
+            let top = self.mmtk_top.as_ref().map(|top| top.object);
+            self.snapshot = Some(NativeCpsI64Snapshot::from_items_and_mmtk_top(
+                self.items.clone(),
+                top,
+            ));
+        }
+        self.snapshot
+            .as_ref()
+            .expect("snapshot should be initialized")
+            .clone()
+    }
+
+    fn to_vec(&self) -> Vec<T> {
+        self.items.clone()
+    }
+
+    fn replace(&mut self, items: Vec<T>) -> Vec<T> {
+        self.snapshot = None;
+        self.mmtk_top = None;
+        std::mem::replace(&mut self.items, items)
+    }
+
+    fn take(&mut self) -> Vec<T> {
+        self.snapshot = None;
+        self.mmtk_top = None;
+        std::mem::take(&mut self.items)
+    }
+
+    fn clear(&mut self) {
+        self.snapshot = None;
+        self.mmtk_top = None;
+        self.items.clear();
+    }
+
+    fn push(&mut self, value: T) {
+        self.snapshot = None;
+        self.mmtk_top = None;
+        self.items.push(value);
+    }
+
+    fn pop(&mut self) -> Option<T> {
+        let popped = self.items.pop();
+        if popped.is_some() {
+            self.snapshot = None;
+            self.mmtk_top = None;
+        }
+        popped
+    }
+
+    fn remove(&mut self, index: usize) -> T {
+        self.snapshot = None;
+        self.mmtk_top = None;
+        self.items.remove(index)
+    }
+
+    fn truncate(&mut self, len: usize) {
+        if len < self.items.len() {
+            self.snapshot = None;
+            self.items.truncate(len);
+            self.mmtk_top = None;
+        }
+    }
+
+    fn ensure_mmtk_top(&mut self) {
+        let current_len = self.mmtk_top.as_ref().map(|top| top.len).unwrap_or(0);
+        if current_len == self.items.len() {
+            return;
+        }
+        self.mmtk_top = native_cps_i64_mmtk_control_stack_snapshot(&self.items);
+    }
+}
+
+impl<T: NativeCpsI64SnapshotItem> FromIterator<T> for NativeCpsI64PersistentStack<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self {
+            items: iter.into_iter().collect(),
+            snapshot: None,
+            mmtk_top: None,
+        }
+    }
+}
+
+impl<T: NativeCpsI64SnapshotItem> IntoIterator for NativeCpsI64PersistentStack<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
 }
 
 fn call_native_i64_continuation(continuation: usize, env: &[i64], value: i64) -> i64 {
@@ -121,7 +348,7 @@ struct NativeCpsI64HandlerFrame {
     handler: i64,
     consumes_mask: i64,
     guard_stack: NativeCpsI64I64Snapshot,
-    envs: Vec<NativeCpsI64HandlerEnv>,
+    envs: NativeCpsI64HandlerEnvSnapshot,
     /// write27-c c2: dynamic prompt identity. Distinguishes frame
     /// instances installed under the same `CpsHandlerId` so that
     /// `ScopeReturn` targets a specific scope.
@@ -150,8 +377,8 @@ struct NativeCpsI64HandlerFrame {
     escape_continuation: usize,
     /// write27-c c2: env slots for the escape continuation. Stored as
     /// `Box<[i64]>` so the pointer stays stable while the frame lives.
-    escape_env: Box<[i64]>,
-    escape_env_targets: Box<[i64]>,
+    escape_env: NativeCpsI64I64Snapshot,
+    escape_env_targets: NativeCpsI64I64Snapshot,
     /// write27-c c2: `return_frame_len` observed at install time. When
     /// a `ScopeReturn` resolves to this frame, the return-frame stack
     /// is truncated back to this length.
@@ -201,7 +428,7 @@ enum NativeCpsI64Abort {
         value: i64,
         return_frame_threshold: usize,
         continuation: usize,
-        env: Box<[i64]>,
+        env: NativeCpsI64I64Snapshot,
         handlers: Vec<NativeCpsI64HandlerFrame>,
         guards: Vec<i64>,
         return_frames: NativeCpsI64ReturnFrameSnapshot,
@@ -320,6 +547,42 @@ struct NativeCpsI64PromptExitFrame {
     prompt: u64,
 }
 
+impl NativeCpsI64SnapshotItem for i64 {
+    fn collect_mmtk_trace_words(&self, out: &mut Vec<i64>) {
+        out.push(*self);
+    }
+}
+
+impl NativeCpsI64SnapshotItem for NativeCpsI64HandlerEnv {
+    fn collect_mmtk_trace_words(&self, out: &mut Vec<i64>) {
+        out.push(self.entry);
+        out.push(self.env);
+        for (target, value) in &self.slots {
+            out.push(*target);
+            out.push(*value);
+        }
+    }
+}
+
+impl NativeCpsI64SnapshotItem for NativeCpsI64HandlerFrame {
+    fn collect_mmtk_trace_words(&self, out: &mut Vec<i64>) {
+        out.push(self.handler);
+        self.guard_stack.collect_mmtk_trace_words(out);
+        self.envs.collect_mmtk_trace_words(out);
+        self.escape_env.collect_mmtk_trace_words(out);
+        self.escape_env_targets.collect_mmtk_trace_words(out);
+        self.return_frame_prefix.collect_mmtk_trace_words(out);
+    }
+}
+
+impl NativeCpsI64SnapshotItem for NativeCpsI64ReturnFrame {
+    fn collect_mmtk_trace_words(&self, out: &mut Vec<i64>) {
+        self.env.collect_mmtk_trace_words(out);
+        self.handlers.collect_mmtk_trace_words(out);
+        self.guards.collect_mmtk_trace_words(out);
+    }
+}
+
 #[derive(Default)]
 struct NativeCpsI64HandlerArmReturnFrameSnapshot {
     frames: Vec<NativeCpsI64ReturnFrame>,
@@ -414,8 +677,10 @@ thread_local! {
     /// closure path and the anchor-merging resumption path.
     static NATIVE_CPS_I64_RESUMPTIONS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
     static NATIVE_CPS_I64_ROOT_FUNCTION_IDS: RefCell<Vec<u64>> = const { RefCell::new(Vec::new()) };
-    static NATIVE_CPS_I64_HANDLER_STACK: RefCell<Vec<NativeCpsI64HandlerFrame>> = const { RefCell::new(Vec::new()) };
-    static NATIVE_CPS_I64_GUARD_STACK: RefCell<Vec<i64>> = const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_HANDLER_STACK: RefCell<NativeCpsI64PersistentStack<NativeCpsI64HandlerFrame>> =
+        RefCell::new(NativeCpsI64PersistentStack::default());
+    static NATIVE_CPS_I64_GUARD_STACK: RefCell<NativeCpsI64PersistentStack<i64>> =
+        RefCell::new(NativeCpsI64PersistentStack::default());
     static NATIVE_CPS_I64_ACTIVE_BLOCKED: RefCell<Vec<NativeCpsI64BlockedEffect>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_NEXT_GUARD: RefCell<i64> = const { RefCell::new(0) };
     static NATIVE_CPS_I64_NEXT_RESUMPTION_DEBUG_ID: RefCell<u64> = const { RefCell::new(1) };
@@ -449,8 +714,8 @@ thread_local! {
     // write27-a: return-frame stack. Each EffectfulCall/Force/Apply
     // pushes a frame here; Return consumes them via the
     // continue_return_frames helper.
-    static NATIVE_CPS_I64_RETURN_FRAMES: RefCell<Vec<NativeCpsI64ReturnFrame>> =
-        const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_RETURN_FRAMES: RefCell<NativeCpsI64PersistentStack<NativeCpsI64ReturnFrame>> =
+        RefCell::new(NativeCpsI64PersistentStack::default());
     static NATIVE_CPS_I64_PENDING_ROUTED_RETURN_FRAMES: RefCell<Option<NativeCpsI64PendingRoutedReturnFrames>> =
         const { RefCell::new(None) };
     static NATIVE_CPS_I64_RETURN_FRAMES_ROUTED: RefCell<bool> = const { RefCell::new(false) };
@@ -500,7 +765,7 @@ thread_local! {
 struct NativeCpsI64SelectedHandlerMeta {
     prompt: u64,
     escape_continuation: usize,
-    escape_env: Box<[i64]>,
+    escape_env: NativeCpsI64I64Snapshot,
     return_frame_threshold: usize,
     install_eval_id: u64,
     synthetic: bool,
@@ -629,8 +894,22 @@ fn native_i64_abort_should_consume_after_thunk_force() -> bool {
     native_i64_abort_is_unguarded_routed_jump() && yulang_cps_abort_mode_i64() == 2
 }
 
-fn current_native_i64_guard_stack() -> Vec<i64> {
-    NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone())
+fn current_native_i64_guard_snapshot() -> NativeCpsI64I64Snapshot {
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow_mut().snapshot())
+}
+
+fn current_native_i64_handler_snapshot_with_pending() -> NativeCpsI64HandlerSnapshot {
+    let pending = take_pending_native_i64_handler_frames();
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        if pending.is_empty() {
+            stack.snapshot()
+        } else {
+            let mut handlers = stack.to_vec();
+            handlers.extend(pending);
+            native_cps_i64_snapshot(handlers)
+        }
+    })
 }
 
 fn current_native_i64_handler_stack_with_fallback(
@@ -643,22 +922,22 @@ fn current_native_i64_handler_stack_with_fallback(
             vec![NativeCpsI64HandlerFrame {
                 handler: fallback,
                 consumes_mask: effect_mask,
-                guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
-                envs: Vec::new(),
+                guard_stack: current_native_i64_guard_snapshot(),
+                envs: native_cps_i64_empty_snapshot(),
                 prompt: 0,
                 install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
                 escape_owner_function_id: 0,
                 threshold_owner_function_id: 0,
                 inherited: false,
                 escape_continuation: 0,
-                escape_env: Box::new([]),
-                escape_env_targets: Box::new([]),
+                escape_env: native_cps_i64_empty_snapshot(),
+                escape_env_targets: native_cps_i64_empty_snapshot(),
                 return_frame_threshold: 0,
                 return_frame_prefix: native_cps_i64_snapshot(Vec::new()),
                 origin: NativeCpsI64HandlerFrameOrigin::StaticFallback,
             }]
         } else {
-            stack.clone()
+            stack.to_vec()
         }
     })
 }
@@ -669,21 +948,23 @@ fn take_pending_native_i64_handler_frames() -> Vec<NativeCpsI64HandlerFrame> {
     let mut frames: Vec<NativeCpsI64HandlerFrame> = Vec::new();
     for (handler, env) in pending {
         if let Some(frame) = frames.iter_mut().find(|frame| frame.handler == handler) {
-            frame.envs.push(env);
+            let mut envs = frame.envs.to_vec();
+            envs.push(env);
+            frame.envs = native_cps_i64_snapshot(envs);
         } else {
             frames.push(NativeCpsI64HandlerFrame {
                 handler,
                 consumes_mask: -1,
-                guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
-                envs: vec![env],
+                guard_stack: current_native_i64_guard_snapshot(),
+                envs: native_cps_i64_snapshot(vec![env]),
                 prompt: 0,
                 install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
                 escape_owner_function_id: 0,
                 threshold_owner_function_id: 0,
                 inherited: false,
                 escape_continuation: 0,
-                escape_env: Box::new([]),
-                escape_env_targets: Box::new([]),
+                escape_env: native_cps_i64_empty_snapshot(),
+                escape_env_targets: native_cps_i64_empty_snapshot(),
                 return_frame_threshold: 0,
                 return_frame_prefix: native_cps_i64_snapshot(Vec::new()),
                 origin: NativeCpsI64HandlerFrameOrigin::PendingEnv,
@@ -729,15 +1010,19 @@ fn with_native_i64_cps_state_and_active<T>(
     active_blocked: Vec<NativeCpsI64BlockedEffect>,
     run: impl FnOnce() -> T,
 ) -> T {
-    let previous_handlers = NATIVE_CPS_I64_HANDLER_STACK
-        .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), handlers));
-    let previous_guards = NATIVE_CPS_I64_GUARD_STACK
-        .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), guard_stack));
+    let previous_handlers =
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().replace(handlers));
+    let previous_guards =
+        NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow_mut().replace(guard_stack));
     let previous_active = NATIVE_CPS_I64_ACTIVE_BLOCKED
         .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), active_blocked));
     let result = run();
-    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = previous_handlers);
-    NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = previous_guards);
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        stack.borrow_mut().replace(previous_handlers);
+    });
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+        stack.borrow_mut().replace(previous_guards);
+    });
     NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| *stack.borrow_mut() = previous_active);
     result
 }
@@ -746,7 +1031,7 @@ fn with_native_i64_cps_state_and_active<T>(
 fn native_i64_handler_stack_with_captured(
     captured: &[NativeCpsI64HandlerFrame],
 ) -> Vec<NativeCpsI64HandlerFrame> {
-    let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
+    let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().to_vec());
     handlers.extend(captured.iter().cloned());
     handlers
 }
@@ -786,15 +1071,16 @@ fn make_native_i64_resumption(
     // `handled_anchor` is filled in later by
     // `yulang_cps_set_resumption_anchor_from_selected_i64` once
     // `select_handler` has decided which real handler was matched.
-    let return_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+    let return_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().snapshot());
     let handlers = current_native_i64_handler_stack_with_fallback(fallback_handler, -1);
     let debug_id = next_native_i64_resumption_debug_id();
+    let trace_handlers = jit_trace_enabled().then(|| handlers.clone());
     let ptr = Box::into_raw(Box::new(NativeCpsI64Resumption {
         code,
         env: env.into_boxed_slice(),
-        handlers: native_cps_i64_snapshot(handlers.clone()),
-        guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
-        return_frames: native_cps_i64_snapshot(return_frames),
+        handlers: native_cps_i64_snapshot(handlers),
+        guard_stack: current_native_i64_guard_snapshot(),
+        return_frames,
         handled_anchor: None,
         debug_id,
     }));
@@ -806,7 +1092,7 @@ fn make_native_i64_resumption(
             "[JIT-CPS] make_resumption: id={} ptr={:#x} handlers={} frames={}",
             debug_id,
             ptr as usize,
-            format_handler_stack(&handlers),
+            format_handler_stack(trace_handlers.as_deref().unwrap_or(&[])),
             format_return_frames(unsafe { &(*ptr).return_frames }),
         );
     }
@@ -840,7 +1126,7 @@ pub(super) extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
                     meta.install_eval_id,
                 );
                 rebase_native_i64_captured_handlers(
-                    Rc::make_mut(&mut (*resumption).handlers),
+                    (*resumption).handlers.make_mut(),
                     start,
                     meta.install_eval_id,
                 );
@@ -852,14 +1138,14 @@ pub(super) extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
                 // marker actually present in the slice. Apply the same fix to
                 // each frame's handler snapshot.
                 recalibrate_inherited_handler_thresholds(
-                    Rc::make_mut(&mut (*resumption).handlers),
+                    (*resumption).handlers.make_mut(),
                     &(*resumption).return_frames,
                     meta.install_eval_id,
                 );
                 let slice_snapshot = (*resumption).return_frames.clone();
-                for frame in Rc::make_mut(&mut (*resumption).return_frames) {
+                for frame in (*resumption).return_frames.make_mut() {
                     recalibrate_inherited_handler_thresholds(
-                        Rc::make_mut(&mut frame.handlers),
+                        frame.handlers.make_mut(),
                         &slice_snapshot,
                         meta.install_eval_id,
                     );
@@ -880,13 +1166,12 @@ pub(super) extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
 
 fn make_native_i64_thunk(code: usize, env: Vec<i64>) -> usize {
     let code = unsafe { std::mem::transmute::<usize, NativeCpsI64ThunkEntry>(code) };
-    let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
-    handlers.extend(take_pending_native_i64_handler_frames());
+    let handlers = current_native_i64_handler_snapshot_with_pending();
     let ptr = Box::into_raw(Box::new(NativeCpsI64Thunk {
         code,
         env: env.into_boxed_slice(),
-        handlers: native_cps_i64_snapshot(handlers),
-        guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
+        handlers,
+        guard_stack: current_native_i64_guard_snapshot(),
         active_blocked: Box::new([]),
     })) as usize;
     NATIVE_CPS_I64_THUNKS.with(|thunks| {
@@ -938,13 +1223,12 @@ pub(super) extern "C" fn yulang_cps_add_thunk_boundary_i64(
 
 fn make_native_i64_closure(code: usize, env: Vec<i64>) -> usize {
     let code = unsafe { std::mem::transmute::<usize, NativeCpsI64ClosureEntry>(code) };
-    let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
-    handlers.extend(take_pending_native_i64_handler_frames());
+    let handlers = current_native_i64_handler_snapshot_with_pending();
     let ptr = Box::into_raw(Box::new(NativeCpsI64Closure {
         code,
         env: env.into_boxed_slice(),
-        handlers: native_cps_i64_snapshot(handlers),
-        guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
+        handlers,
+        guard_stack: current_native_i64_guard_snapshot(),
     })) as usize;
     NATIVE_CPS_I64_CLOSURES.with(|closures| {
         closures.borrow_mut().insert(ptr);
@@ -966,10 +1250,8 @@ fn make_native_i64_recursive_closure(code: usize, self_slot: usize, mut env: Vec
     }
     unsafe {
         (*closure).env = env.into_boxed_slice();
-        let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
-        handlers.extend(take_pending_native_i64_handler_frames());
-        (*closure).handlers = native_cps_i64_snapshot(handlers);
-        (*closure).guard_stack = native_cps_i64_snapshot(current_native_i64_guard_stack());
+        (*closure).handlers = current_native_i64_handler_snapshot_with_pending();
+        (*closure).guard_stack = current_native_i64_guard_snapshot();
     }
     NATIVE_CPS_I64_CLOSURES.with(|closures| {
         closures.borrow_mut().insert(ptr);
@@ -1481,7 +1763,7 @@ pub(super) extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) ->
     // / `closure.guard_stack` at call time.
     let closure = unsafe { &*(value as *const NativeCpsI64Closure) };
     if jit_trace_enabled() {
-        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().to_vec());
         let eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
         eprintln!(
             "[JIT-CPS] apply_closure: closure={:#x} arg={} eval={} initial={} frames={}",
@@ -1494,7 +1776,7 @@ pub(super) extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) ->
     }
     let result = (closure.code)(closure.env.as_ptr(), arg);
     if jit_trace_enabled() {
-        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().to_vec());
         let eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
         eprintln!(
             "[JIT-CPS] apply_closure.out: closure={:#x} result={} eval={} initial={} frames={}",
@@ -2451,7 +2733,7 @@ pub(super) extern "C" fn yulang_cps_resume_i64(
     // context around the call so the caller's outer frames stay
     // hidden during the resumed eval (matches Layer 2 where eval_continuations
     // gets its own local state).
-    let current_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
+    let current_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().to_vec());
     let anchor = resumption.handled_anchor;
     let resumed_handlers =
         merge_resumption_handlers_native(&resumption.handlers, &current_handlers, anchor);
@@ -2468,8 +2750,8 @@ pub(super) extern "C" fn yulang_cps_resume_i64(
         );
     }
     // Swap state.
-    let saved_frames = NATIVE_CPS_I64_RETURN_FRAMES
-        .with(|f| std::mem::replace(&mut *f.borrow_mut(), adjusted_frames));
+    let saved_frames =
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow_mut().replace(adjusted_frames));
     let fresh_eval = NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
         let id = *next.borrow();
         *next.borrow_mut() = id + 1;
@@ -2522,21 +2804,21 @@ pub(super) extern "C" fn yulang_cps_resume_with_handler_i64(
     let guard_stack = if updates_existing_handler_env || rebases_existing_handler {
         native_cps_i64_snapshot(Vec::new())
     } else {
-        native_cps_i64_snapshot(current_native_i64_guard_stack())
+        current_native_i64_guard_snapshot()
     };
     let outer_handler = NativeCpsI64HandlerFrame {
         handler,
         consumes_mask,
         guard_stack,
-        envs: take_pending_native_i64_handler_envs(handler),
+        envs: native_cps_i64_snapshot(take_pending_native_i64_handler_envs(handler)),
         prompt,
         install_eval_id,
         escape_owner_function_id: owner_function.max(0) as u64,
         threshold_owner_function_id: owner_function.max(0) as u64,
         inherited: false,
         escape_continuation: 0,
-        escape_env: Box::new([]),
-        escape_env_targets: Box::new([]),
+        escape_env: native_cps_i64_empty_snapshot(),
+        escape_env_targets: native_cps_i64_empty_snapshot(),
         return_frame_threshold,
         return_frame_prefix: native_cps_i64_snapshot(Vec::new()),
         origin: NativeCpsI64HandlerFrameOrigin::ResumeWithHandler,
@@ -2575,15 +2857,15 @@ pub(super) extern "C" fn yulang_cps_resume_with_handler_i64(
             }
         }
     }
-    let mut saved_frames = NATIVE_CPS_I64_RETURN_FRAMES
-        .with(|frames| std::mem::replace(&mut *frames.borrow_mut(), resumed_frames));
+    let mut saved_frames =
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().replace(resumed_frames));
     let mut previous_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
-        let previous = stack.borrow().clone();
-        *stack.borrow_mut() = handlers;
+        let previous = stack.borrow().to_vec();
+        stack.borrow_mut().replace(handlers);
         previous
     });
     let previous_guards = NATIVE_CPS_I64_GUARD_STACK
-        .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), resumption.guard_stack.to_vec()));
+        .with(|stack| stack.borrow_mut().replace(resumption.guard_stack.to_vec()));
     let fresh_eval = NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
         let id = *next.borrow();
         *next.borrow_mut() = id + 1;
@@ -2610,13 +2892,17 @@ pub(super) extern "C" fn yulang_cps_resume_with_handler_i64(
         if !rebases_existing_handler {
             outer.push(outer_handler);
         }
-        *stack.borrow_mut() = outer;
+        stack.borrow_mut().replace(outer);
     });
-    NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = previous_guards);
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+        stack.borrow_mut().replace(previous_guards);
+    });
     if abort_active && !scope_return_active {
         restore_native_i64_return_frames_after_resume(saved_frames, &resumption.return_frames);
     } else {
-        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = saved_frames);
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            frames.borrow_mut().replace(saved_frames);
+        });
     }
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = saved_eval_ctx);
     result
@@ -2753,7 +3039,7 @@ fn rebase_native_i64_captured_return_frame(
     frame.owner_initial_frame_count = frame
         .owner_initial_frame_count
         .saturating_sub(dropped_frames);
-    for handler in Rc::make_mut(&mut frame.handlers) {
+    for handler in frame.handlers.make_mut() {
         if handler.install_eval_id >= handled_install_eval_id {
             handler.return_frame_threshold = handler
                 .return_frame_threshold
@@ -2878,9 +3164,10 @@ fn restore_native_i64_return_frames_after_resume(
     _resumed_frames: &[NativeCpsI64ReturnFrame],
 ) {
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
-        let current = frames.borrow().clone();
+        let mut slot = frames.borrow_mut();
+        let current = slot.take();
         let mut restored = Vec::new();
-        let mut used_current = HashSet::new();
+        let mut used_current = vec![false; current.len()];
         for saved in saved_frames {
             if let Some((index, current_frame)) = current
                 .iter()
@@ -2888,17 +3175,17 @@ fn restore_native_i64_return_frames_after_resume(
                 .find(|(_, frame)| frame.debug_id == saved.debug_id)
             {
                 restored.push(current_frame.clone());
-                used_current.insert(index);
+                used_current[index] = true;
             } else {
                 restored.push(saved);
             }
         }
         for (index, current_frame) in current.into_iter().enumerate() {
-            if !used_current.contains(&index) {
+            if !used_current[index] {
                 restored.push(current_frame);
             }
         }
-        *frames.borrow_mut() = restored;
+        slot.replace(restored);
     });
 }
 
@@ -3012,7 +3299,7 @@ fn format_handler_envs(envs: &[NativeCpsI64HandlerEnv]) -> String {
     format!("[{}]", parts.join(", "))
 }
 
-fn refreshed_escape_env(frame: &NativeCpsI64HandlerFrame) -> Box<[i64]> {
+fn refreshed_escape_env(frame: &NativeCpsI64HandlerFrame) -> NativeCpsI64I64Snapshot {
     if frame.escape_env_targets.is_empty() {
         return frame.escape_env.clone();
     }
@@ -3025,7 +3312,7 @@ fn refreshed_escape_env(frame: &NativeCpsI64HandlerFrame) -> Box<[i64]> {
             *slot = value;
         }
     }
-    env.into_boxed_slice()
+    native_cps_i64_snapshot(env)
 }
 
 fn latest_handler_slot_value(handler: i64, target: i64) -> Option<i64> {
@@ -3093,13 +3380,29 @@ fn rebase_captured_handler_thresholds(
     combined_prefix: &[NativeCpsI64ReturnFrame],
 ) {
     for frame in frames {
-        for handler in Rc::make_mut(&mut frame.handlers) {
-            if is_captured_handler_key(handler, captured_handlers) {
-                handler.return_frame_threshold = rebase_captured_return_frame_threshold(
+        let updates = frame
+            .handlers
+            .iter()
+            .enumerate()
+            .filter_map(|(index, handler)| {
+                if !is_captured_handler_key(handler, captured_handlers) {
+                    return None;
+                }
+                let threshold = rebase_captured_return_frame_threshold(
                     handler.return_frame_threshold,
                     captured_frames,
                     combined_prefix,
                 );
+                (threshold != handler.return_frame_threshold).then_some((index, threshold))
+            })
+            .collect::<Vec<_>>();
+        if updates.is_empty() {
+            continue;
+        }
+        let handlers = frame.handlers.make_mut();
+        for (index, threshold) in updates {
+            if let Some(handler) = handlers.get_mut(index) {
+                handler.return_frame_threshold = threshold;
             }
         }
     }
@@ -3116,8 +3419,8 @@ fn effectful_apply_resumption_native(
     env: Vec<i64>,
 ) -> i64 {
     let resumption = unsafe { &*resumption };
-    let current_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
-    let current_guards = NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().clone());
+    let current_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().to_vec());
+    let current_guards = NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().to_vec());
     if jit_trace_enabled() {
         eprintln!(
             "[JIT-CPS] effectful_apply_resumption.in: rid={} anchor={:?} captured={} captured_frames={} current={}",
@@ -3136,13 +3439,13 @@ fn effectful_apply_resumption_native(
         continuation_id: 0,
         env: native_cps_i64_snapshot(env),
         handlers: native_cps_i64_snapshot(current_handlers.clone()),
-        guards: native_cps_i64_snapshot(current_guards.clone()),
+        guards: native_cps_i64_snapshot(current_guards),
         owner_initial_frame_count: owner_initial.max(0) as usize,
         owner_eval_id: owner_eval as u64,
         owner_function_id: owner_function.max(0) as u64,
         immediately_forces_param: immediately_forces,
     };
-    let mut new_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+    let mut new_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().to_vec());
     new_frames.push(f_post);
     // 2 + 3. Anchor merges.
     let anchor = resumption.handled_anchor;
@@ -3165,9 +3468,16 @@ fn effectful_apply_resumption_native(
     let combined_len = new_frames.len();
     let resumed_len = resumed_handlers.len();
     // 5. swap state + call.
-    NATIVE_CPS_I64_RETURN_FRAMES.with(|f| *f.borrow_mut() = new_frames.clone());
-    NATIVE_CPS_I64_HANDLER_STACK.with(|s| *s.borrow_mut() = resumed_handlers.clone());
-    NATIVE_CPS_I64_GUARD_STACK.with(|s| *s.borrow_mut() = resumption.guard_stack.to_vec());
+    let trace_state = jit_trace_enabled().then(|| (resumed_handlers.clone(), new_frames.clone()));
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|f| {
+        f.borrow_mut().replace(new_frames);
+    });
+    NATIVE_CPS_I64_HANDLER_STACK.with(|s| {
+        s.borrow_mut().replace(resumed_handlers);
+    });
+    NATIVE_CPS_I64_GUARD_STACK.with(|s| {
+        s.borrow_mut().replace(resumption.guard_stack.to_vec());
+    });
     let fresh_eval = NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
         let id = *next.borrow();
         *next.borrow_mut() = id + 1;
@@ -3179,7 +3489,7 @@ fn effectful_apply_resumption_native(
             initial_frame_count: 0,
         };
     });
-    if jit_trace_enabled() {
+    if let Some((resumed_handlers, new_frames)) = trace_state {
         eprintln!(
             "[JIT-CPS] effectful_apply_resumption.out: rid={} anchor={:?} fresh_eval={} combined_len={} resumed={} resumed_handlers={} new_frames={}",
             resumption.debug_id,
@@ -3412,7 +3722,7 @@ pub(super) extern "C" fn yulang_cps_select_handler_i64(
             });
         });
         NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
-            *active.borrow_mut() = stack[..index].to_vec();
+            active.borrow_mut().replace(stack[..index].to_vec());
         });
         NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
             *envs.borrow_mut() = frame.envs.to_vec();
@@ -3492,7 +3802,9 @@ pub(super) extern "C" fn yulang_cps_active_blocked_guard_i64(effect_mask: i64) -
 pub(super) extern "C" fn yulang_cps_restore_outer_handler_stack_i64() -> i64 {
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
         if let Some(snap) = snaps.borrow_mut().pop() {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+                stack.borrow_mut().replace(snap);
+            });
         }
     });
     0
@@ -3517,7 +3829,9 @@ pub(super) extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
     // 1. restore outer.
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
         if let Some(snap) = snaps.borrow_mut().pop() {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+                stack.borrow_mut().replace(snap);
+            });
         }
     });
     // 2. wrap as ScopeReturn if applicable.
@@ -3542,8 +3856,8 @@ pub(super) extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
             let current_eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
             let current_initial =
                 NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
-            let stack = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
-            let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+            let stack = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().to_vec());
+            let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().to_vec());
             eprintln!(
                 "[JIT-CPS] scope_return_set (perform_finish): prompt={} target={:#x} value={} current_eval={} initial={} stack={} frames={}",
                 meta.prompt,
@@ -3573,7 +3887,9 @@ pub(super) extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
 pub(super) extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
         if let Some(snap) = snaps.borrow_mut().pop() {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+                stack.borrow_mut().replace(snap);
+            });
         }
     });
     let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| meta.borrow_mut().pop());
@@ -3745,8 +4061,8 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
     let current_initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
 
     if jit_trace_enabled() {
-        let stack = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
-        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+        let stack = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().to_vec());
+        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().to_vec());
         eprintln!(
             "[JIT-CPS] route_scope_return.scan: prompt={} value={} current_eval={} initial={} force_frame_walk={} stack={} frames={}",
             prompt,
@@ -3770,9 +4086,9 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
     {
         let handler_index = scope_match.handler_index;
         let frame = scope_match.handler;
-        let mut post_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
+        let mut post_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().to_vec());
         post_handlers.truncate(handler_index);
-        let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+        let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().to_vec());
         // Use the handler's install-time threshold. A prompt_exit marker can
         // be outside the already-routed frame slice, while the threshold is
         // the boundary captured with the handler frame itself.
@@ -3780,8 +4096,12 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
         if post_frames.len() > truncate_at {
             post_frames.truncate(truncate_at);
         }
-        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = post_handlers.clone());
-        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = post_frames.clone());
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+            stack.borrow_mut().replace(post_handlers.clone());
+        });
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            frames.borrow_mut().replace(post_frames.clone());
+        });
         NATIVE_CPS_I64_SCOPE_RETURN
             .with(|slot| *slot.borrow_mut() = NativeCpsI64ScopeReturn::default());
         NATIVE_CPS_I64_RETURN_FRAMES_ROUTED.with(|routed| *routed.borrow_mut() = true);
@@ -3848,9 +4168,13 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
         // Restore handler stack to frame.handlers[..hi].
         let mut post_handlers = frame.handlers.to_vec();
         post_handlers.truncate(handler_index);
-        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = post_handlers.clone());
-        NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards.to_vec());
-        let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+            stack.borrow_mut().replace(post_handlers.clone());
+        });
+        NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+            stack.borrow_mut().replace(frame.guards.to_vec());
+        });
+        let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().to_vec());
         post_frames.truncate(return_frame_index);
         // Use the handler's install-time threshold. A prompt_exit marker can
         // be outside the already-routed frame slice, while the threshold is
@@ -3859,7 +4183,9 @@ pub(super) extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) 
         if post_frames.len() > truncate_at {
             post_frames.truncate(truncate_at);
         }
-        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = post_frames.clone());
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            frames.borrow_mut().replace(post_frames.clone());
+        });
         // Set eval context to frame's owner (capped to current frames).
         let rest_len = post_frames.len();
         let owner_initial = frame.owner_initial_frame_count.min(rest_len);
@@ -3946,7 +4272,7 @@ fn routed_jump_abort(
     value: i64,
     return_frame_threshold: usize,
     continuation: usize,
-    env: Box<[i64]>,
+    env: NativeCpsI64I64Snapshot,
     handlers: Vec<NativeCpsI64HandlerFrame>,
     guards: Vec<i64>,
     return_frames: Vec<NativeCpsI64ReturnFrame>,
@@ -4026,16 +4352,16 @@ pub(super) extern "C" fn yulang_cps_install_handler_i64(handler: i64, consumes_m
     let frame = NativeCpsI64HandlerFrame {
         handler,
         consumes_mask,
-        guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
-        envs,
+        guard_stack: current_native_i64_guard_snapshot(),
+        envs: native_cps_i64_snapshot(envs),
         prompt: 0,
         install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
         escape_owner_function_id: 0,
         threshold_owner_function_id: 0,
         inherited: false,
         escape_continuation: 0,
-        escape_env: Box::new([]),
-        escape_env_targets: Box::new([]),
+        escape_env: native_cps_i64_empty_snapshot(),
+        escape_env_targets: native_cps_i64_empty_snapshot(),
         return_frame_threshold: 0,
         return_frame_prefix: native_cps_i64_snapshot(Vec::new()),
         origin: NativeCpsI64HandlerFrameOrigin::LegacyInstall,
@@ -4116,16 +4442,16 @@ fn install_native_i64_handler_full(
     let frame = NativeCpsI64HandlerFrame {
         handler,
         consumes_mask,
-        guard_stack: native_cps_i64_snapshot(current_native_i64_guard_stack()),
-        envs,
+        guard_stack: current_native_i64_guard_snapshot(),
+        envs: native_cps_i64_snapshot(envs),
         prompt: prompt as u64,
         install_eval_id: install_eval_id as u64,
         escape_owner_function_id: escape_owner,
         threshold_owner_function_id,
         inherited: inherited != 0,
         escape_continuation: escape_continuation as usize,
-        escape_env: escape_env.into_boxed_slice(),
-        escape_env_targets: take_pending_native_i64_escape_env_targets().into_boxed_slice(),
+        escape_env: native_cps_i64_snapshot(escape_env),
+        escape_env_targets: native_cps_i64_snapshot(take_pending_native_i64_escape_env_targets()),
         return_frame_threshold: threshold,
         return_frame_prefix: native_cps_i64_snapshot(return_frame_prefix),
         origin: NativeCpsI64HandlerFrameOrigin::RealInstall,
@@ -4397,14 +4723,18 @@ fn consume_native_i64_abort() -> i64 {
 fn resume_native_i64_routed_jump(
     value: i64,
     continuation: usize,
-    env: Box<[i64]>,
+    env: NativeCpsI64I64Snapshot,
     handlers: Vec<NativeCpsI64HandlerFrame>,
     guards: Vec<i64>,
     return_frames: NativeCpsI64ReturnFrameSnapshot,
     eval_context: NativeCpsI64EvalContext,
 ) -> i64 {
-    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = handlers);
-    NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = guards);
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        stack.borrow_mut().replace(handlers);
+    });
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+        stack.borrow_mut().replace(guards);
+    });
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().clear());
     park_native_i64_routed_return_frames(eval_context, return_frames);
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = eval_context);
@@ -4445,7 +4775,7 @@ fn restore_pending_routed_return_frames_for_normal_return(initial: usize) {
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
             let mut frames = frames.borrow_mut();
             if frames.is_empty() {
-                *frames = pending.frames.to_vec();
+                frames.replace(pending.frames.to_vec());
             }
         });
     }
@@ -4637,8 +4967,7 @@ pub(super) extern "C" fn yulang_cps_handler_return_frame_threshold_i64() -> i64 
 
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_enter_handler_arm_i64() -> i64 {
-    let saved =
-        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| std::mem::take(&mut *frames.borrow_mut()));
+    let saved = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().take());
     let consumed_start = NATIVE_CPS_I64_CONSUMED_RETURN_FRAME_IDS.with(|ids| ids.borrow().len());
     if jit_trace_enabled() {
         eprintln!(
@@ -4679,7 +5008,9 @@ pub(super) extern "C" fn yulang_cps_exit_handler_arm_i64() -> i64 {
             format_return_frames(&restored)
         );
     }
-    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = restored);
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+        frames.borrow_mut().replace(restored);
+    });
     0
 }
 
@@ -4693,8 +5024,8 @@ fn push_native_i64_return_frame_with_env(
     owner_function_id: i64,
     immediately_forces_param: i64,
 ) {
-    let handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
-    let guards = NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone());
+    let handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().snapshot());
+    let guards = NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow_mut().snapshot());
     let env_len = env.len();
     let len_before = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     let debug_id = next_native_i64_return_frame_debug_id();
@@ -4705,8 +5036,8 @@ fn push_native_i64_return_frame_with_env(
             continuation: continuation as usize,
             continuation_id: continuation_id.max(0) as u32,
             env: native_cps_i64_snapshot(env),
-            handlers: native_cps_i64_snapshot(handlers),
-            guards: native_cps_i64_snapshot(guards),
+            handlers,
+            guards,
             owner_initial_frame_count: owner_initial_frame_count.max(0) as usize,
             owner_eval_id: owner_eval_id as u64,
             owner_function_id: owner_function_id.max(0) as u64,
@@ -4984,8 +5315,12 @@ pub(super) extern "C" fn yulang_cps_continue_return_frame_i64(value: i64) -> i64
             describe_native_i64_value(value),
         );
     }
-    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = restored_handlers);
-    NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards.to_vec());
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        stack.borrow_mut().replace(restored_handlers);
+    });
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+        stack.borrow_mut().replace(frame.guards.to_vec());
+    });
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
         *ctx.borrow_mut() = NativeCpsI64EvalContext {
             current_eval_id: frame.owner_eval_id,
@@ -5029,8 +5364,12 @@ pub(super) extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
         let top = frames.last().expect("pre-force called with no frame");
         // Restore the top frame's owner context. The frame is RETAINED
         // (we don't pop it) so the body's effects can capture it.
-        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = top.handlers.to_vec());
-        NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = top.guards.to_vec());
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+            stack.borrow_mut().replace(top.handlers.to_vec());
+        });
+        NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+            stack.borrow_mut().replace(top.guards.to_vec());
+        });
         NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
             *ctx.borrow_mut() = NativeCpsI64EvalContext {
                 current_eval_id: top.owner_eval_id,
@@ -5253,7 +5592,7 @@ pub(super) extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
         }
         let thunk = unsafe { &*(value as *const NativeCpsI64Thunk) };
         if jit_trace_enabled() {
-            let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+            let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().to_vec());
             let eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
             eprintln!(
                 "[JIT-CPS] force_thunk: thunk={:#x} eval={} initial={} frames={}",
@@ -5279,16 +5618,16 @@ pub(super) extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
         let handlers = if current_handlers_empty {
             thunk.handlers.to_vec()
         } else {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone())
+            NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().to_vec())
         };
         let guards = if current_guards_empty {
             thunk.guard_stack.to_vec()
         } else {
-            NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().clone())
+            NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().to_vec())
         };
         let mut active_blocked = NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| stack.borrow().clone());
         active_blocked.extend(thunk.active_blocked.iter().copied());
-        let saved_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+        let saved_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().to_vec());
         let consumed_start =
             NATIVE_CPS_I64_CONSUMED_RETURN_FRAME_IDS.with(|ids| ids.borrow().len());
         let saved_eval_ctx = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
@@ -5331,7 +5670,7 @@ pub(super) extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
                     .collect()
             };
             NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
-                *frames.borrow_mut() = restored;
+                frames.borrow_mut().replace(restored);
             });
         } else if !routed_frames {
             NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {

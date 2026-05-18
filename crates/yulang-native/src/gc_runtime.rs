@@ -829,14 +829,6 @@ pub struct NativeLayoutHandle {
 }
 
 impl NativeLayoutHandle {
-    #[cfg(feature = "mmtk-runtime")]
-    pub(crate) fn ephemeral(id: NativeLayoutId, layout: NativeLayout) -> Self {
-        Self {
-            id,
-            layout: Arc::new(layout),
-        }
-    }
-
     pub fn id(&self) -> NativeLayoutId {
         self.id
     }
@@ -1079,23 +1071,29 @@ impl NativePayloadBuffer {
     }
 
     pub fn read_field(&self, layout: &NativeLayout, index: usize) -> Option<NativeFieldValue> {
+        Self::read_field_from_bytes(layout, index, &self.bytes)
+    }
+
+    pub fn read_field_from_bytes(
+        layout: &NativeLayout,
+        index: usize,
+        bytes: &[u8],
+    ) -> Option<NativeFieldValue> {
         let field_layout = layout.fields.get(index)?;
         let field_offset = layout.footprint.field_offsets.get(index)?;
         let start = field_offset.offset;
         match field_layout.lane {
             NativeFieldLane::YValue => Some(NativeFieldValue::YValue(YValue(read_u64(
-                &self.bytes[start..],
+                &bytes[start..],
             )
                 as usize))),
             NativeFieldLane::Symbol => Some(NativeFieldValue::Symbol(YSymbolId(read_u32(
-                &self.bytes[start..],
+                &bytes[start..],
             )))),
-            NativeFieldLane::I64 => {
-                Some(NativeFieldValue::I64(read_u64(&self.bytes[start..]) as i64))
-            }
-            NativeFieldLane::U64 => Some(NativeFieldValue::U64(read_u64(&self.bytes[start..]))),
-            NativeFieldLane::F64 => Some(NativeFieldValue::F64Bits(read_u64(&self.bytes[start..]))),
-            NativeFieldLane::Bool => Some(NativeFieldValue::Bool(self.bytes[start] != 0)),
+            NativeFieldLane::I64 => Some(NativeFieldValue::I64(read_u64(&bytes[start..]) as i64)),
+            NativeFieldLane::U64 => Some(NativeFieldValue::U64(read_u64(&bytes[start..]))),
+            NativeFieldLane::F64 => Some(NativeFieldValue::F64Bits(read_u64(&bytes[start..]))),
+            NativeFieldLane::Bool => Some(NativeFieldValue::Bool(bytes[start] != 0)),
         }
     }
 
@@ -1272,8 +1270,6 @@ impl YValue {
     pub fn raw(self) -> usize {
         self.0
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     pub(crate) fn from_raw(raw: usize) -> Self {
         Self(raw)
     }
@@ -1392,6 +1388,10 @@ impl YRootStack {
 
     pub fn values(&self) -> &[YValue] {
         &self.values
+    }
+
+    pub fn clear(&mut self) {
+        self.values.clear();
     }
 }
 
@@ -1517,6 +1517,7 @@ pub enum YObjectKind {
     ContinuationEnv,
     HandlerFrame,
     ReturnFrame,
+    ControlStack,
 }
 
 impl fmt::Display for YObjectKind {
@@ -1536,6 +1537,7 @@ impl fmt::Display for YObjectKind {
             Self::ContinuationEnv => "continuation-env",
             Self::HandlerFrame => "handler-frame",
             Self::ReturnFrame => "return-frame",
+            Self::ControlStack => "control-stack",
         };
         f.write_str(name)
     }

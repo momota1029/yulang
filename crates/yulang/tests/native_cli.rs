@@ -109,6 +109,63 @@ use std::undet::*
     assert_eq!(String::from_utf8_lossy(&output.stdout), "[1, 0]\n");
 }
 
+#[test]
+fn mmtk_run_prints_yvalue_roots() {
+    let source = r#"
+"a" + "b"
+"#;
+    let path = std::env::temp_dir().join(format!(
+        "yulang-mmtk-string-root-{}-{}.yu",
+        std::process::id(),
+        unique_suffix()
+    ));
+    fs::write(&path, source).expect("write test source");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .arg("run")
+        .arg("--mmtk")
+        .arg(&path)
+        .arg("--print-roots")
+        .output()
+        .expect("run yulang MMTk CLI");
+    let _ = fs::remove_file(&path);
+
+    assert!(
+        output.status.success(),
+        "MMTk CLI failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "\"ab\"\n");
+}
+
+#[test]
+fn mmtk_run_host_console_decodes_yvalue_payload() {
+    let source = "2.say\n";
+    let path = std::env::temp_dir().join(format!(
+        "yulang-mmtk-say-{}-{}.yu",
+        std::process::id(),
+        unique_suffix()
+    ));
+    fs::write(&path, source).expect("write test source");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .arg("run")
+        .arg("--mmtk")
+        .arg(&path)
+        .output()
+        .expect("run yulang MMTk CLI");
+    let _ = fs::remove_file(&path);
+
+    assert!(
+        output.status.success(),
+        "MMTk CLI failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "2\n");
+}
+
 fn unique_suffix() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

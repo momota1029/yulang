@@ -228,12 +228,12 @@ object model spike:
   field 0 in the raw payload, followed by monomorphic typed payload fields. The
   symbol tag is not traced; payload tracing follows the same field-lane bitmap
   as tuple and environment blocks.
-- opt-in MMTk configuration boundary. `crates/yulang-native/src/mmtk_runtime.rs`
-  defines the first feature-gated MMTk surface (`mmtk-runtime`), using a
-  single-threaded `NoGC` plan as the initial integration target while the
-  Yulang VM binding callbacks are still being built.
-- feature-gated MMTk VM binding skeleton. `crates/yulang-native/src/mmtk_binding.rs`
-  now defines the Yulang binding marker, native object header, `YValue` slot
+- MMTk configuration boundary. `crates/yulang-native/src/mmtk_runtime.rs`
+  defines the first always-built MMTk surface, using a single-threaded `NoGC`
+  plan as the initial integration target while the Yulang VM binding callbacks
+  are still being built.
+- MMTk VM binding skeleton. `crates/yulang-native/src/mmtk_binding.rs`
+  defines the Yulang binding marker, native object header, `YValue` slot
   representation, memory slice, object-size callback, trace-slot scanner, and
   the required collection/reference/active-plan callback surface for the
   initial `NoGC` spike.
@@ -256,14 +256,14 @@ object model spike:
   conversion helpers, compact tuple/record/variant construction/access, and
   chunked red-black list construction/access/view/range/splice, including
   record default/has/without.
-  The feature-gated C ABI smoke path gives later helper-symbol wiring a
-  concrete target without forcing the JIT boundary to be chosen yet.
+  The C ABI smoke path gives later helper-symbol wiring a concrete target
+  without forcing the JIT boundary to be chosen yet.
 - parallel MMTk CPS helper symbols. `runtime_symbols.rs` registers
-  `yulang_mmtk_cps_*` names behind `mmtk-runtime` for a future all-`YValue` CPS
-  lane. This is intentionally separate from the existing `yulang_cps_*`
-  helper ABI, because the current CPS i64 path still passes plain scalar i64
-  values and prototype heap handles.
-- minimal JIT smoke for the future lane. A feature-gated Cranelift test builds
+  `yulang_mmtk_cps_*` names for a future all-`YValue` CPS lane. This is
+  intentionally separate from the existing `yulang_cps_*` helper ABI, because
+  the current CPS i64 path still passes plain scalar i64 values and prototype
+  heap handles.
+- minimal JIT smoke for the future lane. A Cranelift test builds
   one hand-written function that calls `yulang_mmtk_cps_*` helpers through the
   JIT symbol table and round-trips `YValue` string/bytes/tuple values. This
   fixes the helper-symbol boundary without switching normal CPS lowering yet.
@@ -276,6 +276,9 @@ object model spike:
   Float operations still use unboxed `f64` inputs and box boolean comparison
   results back into `YValue`. Fixed-width `i64`/`u64` lanes are native layout
   support only until Yulang grows explicit source-level types for them.
+- benchmark CLI entrypoint. `yulang run --mmtk` routes source execution through
+  this MMTk `YValue` primitive lane and fails on unsupported shapes instead of
+  falling back to the prototype native runtime.
 
 This is only partially MMTk-backed. The next implementation step is to replace
 remaining transitional semantic payload users with compact raw/native-block

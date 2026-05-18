@@ -103,6 +103,7 @@ struct CliOptions {
     native_run_exe: Option<NativeOutput>,
     native_run_value_exe: Option<NativeOutput>,
     native_run_cps_repr_exe: Option<NativeOutput>,
+    native_run_mmtk_cps_repr_exe: Option<NativeOutput>,
     print_roots: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
@@ -204,6 +205,9 @@ struct RunArgs {
     /// Execute through the native effects backend
     #[arg(long)]
     native: bool,
+    /// Execute through the experimental MMTk-backed native lane
+    #[arg(long)]
+    mmtk: bool,
     /// Execute through the reference interpreter
     #[arg(long)]
     interpreter: bool,
@@ -219,6 +223,7 @@ struct RunArgs {
 enum RunNativeBackend {
     Effects,
     Pure,
+    Mmtk,
 }
 
 #[derive(clap::Subcommand)]
@@ -305,6 +310,7 @@ fn parse_args() -> CliOptions {
         native_run_exe: None,
         native_run_value_exe: None,
         native_run_cps_repr_exe: None,
+        native_run_mmtk_cps_repr_exe: None,
         print_roots: false,
         verbose_ir: cli.verbose_ir,
         infer_phase_timings: cli.infer_phase_timings,
@@ -328,20 +334,32 @@ fn parse_args() -> CliOptions {
             opts.path = path;
         }
         Cmd::Run(args) => {
-            if args.native && args.interpreter {
-                eprintln!("yulang run: --native and --interpreter cannot be used together");
+            if (args.native || args.mmtk) && args.interpreter {
+                eprintln!("yulang run: --native/--mmtk and --interpreter cannot be used together");
+                process::exit(2);
+            }
+            if args.mmtk && args.native_backend.is_some() {
+                eprintln!("yulang run: --mmtk and --native-backend cannot be used together");
                 process::exit(2);
             }
             opts.path = args.path;
             opts.print_roots = args.print_roots;
-            let native_requested = args.native || args.native_backend.is_some();
+            let native_requested = args.native || args.mmtk || args.native_backend.is_some();
             if native_requested {
-                match args.native_backend.unwrap_or(RunNativeBackend::Effects) {
+                let backend = if args.mmtk {
+                    RunNativeBackend::Mmtk
+                } else {
+                    args.native_backend.unwrap_or(RunNativeBackend::Effects)
+                };
+                match backend {
                     RunNativeBackend::Effects => {
                         opts.native_run_cps_repr_exe = Some(NativeOutput::Default);
                     }
                     RunNativeBackend::Pure => {
                         opts.native_run_value_exe = Some(NativeOutput::Default);
+                    }
+                    RunNativeBackend::Mmtk => {
+                        opts.native_run_mmtk_cps_repr_exe = Some(NativeOutput::Default);
                     }
                 }
             } else {
@@ -595,6 +613,7 @@ impl CliOptions {
             || self.native_run_exe.is_some()
             || self.native_run_value_exe.is_some()
             || self.native_run_cps_repr_exe.is_some()
+            || self.native_run_mmtk_cps_repr_exe.is_some()
     }
 }
 
@@ -1158,6 +1177,37 @@ fn run_infer_views(
             write_native_cps_repr_executable_or_exit(&lowered.module, &path, options.print_roots);
             run_native_executable_or_exit(&path, "native-run");
         }
+        if let Some(path) = &options.native_run_mmtk_cps_repr_exe {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_interpreter
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+                || options.native_run_cps_repr_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_mmtk_cps_repr_executable_output_path(path, options.path.as_deref());
+            write_native_mmtk_cps_repr_executable_or_exit(
+                &lowered.module,
+                &path,
+                options.print_roots,
+            );
+            run_native_executable_or_exit(&path, "native-run-mmtk");
+        }
         if options.infer_phase_timings && options.infer {
             print_infer_phase_timings(
                 &lower_profile,
@@ -1430,7 +1480,30 @@ fn write_native_cps_repr_executable_or_exit(
     path: &Path,
     print_roots: bool,
 ) {
-    if let Err(err) = write_native_cps_repr_executable(module, path, "native-run", print_roots) {
+    if let Err(err) = write_native_cps_repr_executable_with_options(
+        module,
+        path,
+        "native-run",
+        print_roots,
+        yulang_native::CpsReprCraneliftOptions::default(),
+    ) {
+        eprintln!("{err}");
+        process::exit(1);
+    }
+}
+
+fn write_native_mmtk_cps_repr_executable_or_exit(
+    module: &runtime::Module,
+    path: &Path,
+    print_roots: bool,
+) {
+    if let Err(err) = write_native_cps_repr_executable_with_options(
+        module,
+        path,
+        "native-run-mmtk",
+        print_roots,
+        yulang_native::CpsReprCraneliftOptions::mmtk_yvalue_primitives(),
+    ) {
         eprintln!("{err}");
         process::exit(1);
     }
@@ -1442,8 +1515,24 @@ fn write_native_cps_repr_executable(
     label: &str,
     print_roots: bool,
 ) -> Result<(), String> {
+    write_native_cps_repr_executable_with_options(
+        module,
+        path,
+        label,
+        print_roots,
+        yulang_native::CpsReprCraneliftOptions::default(),
+    )
+}
+
+fn write_native_cps_repr_executable_with_options(
+    module: &runtime::Module,
+    path: &Path,
+    label: &str,
+    print_roots: bool,
+    options: yulang_native::CpsReprCraneliftOptions,
+) -> Result<(), String> {
     let compile_module = module;
-    let object = compile_native_cps_repr_object(compile_module)?;
+    let object = compile_native_cps_repr_object_with_options(compile_module, options)?;
     let support_library = build_native_runtime_staticlib_or_exit();
     ensure_parent_dir_or_exit(path, "native effects executable");
     let temp_dir = native_link_temp_dir();
@@ -1466,28 +1555,8 @@ fn write_native_cps_repr_executable(
         cleanup();
         return Err(message);
     }
-    let root_prints = native_root_print_entries_from_runtime(compile_module);
-    let roots = object
-        .roots()
-        .iter()
-        .enumerate()
-        .map(|(index, name)| NativeRootHarnessEntry {
-            name: name.clone(),
-            function_id: object.root_function_ids().get(index).copied(),
-            print: native_root_print_kind_from_cps_lane_and_runtime_type(
-                object
-                    .root_lanes()
-                    .get(index)
-                    .copied()
-                    .unwrap_or(yulang_native::CpsReprAbiLane::Unknown),
-                root_prints
-                    .get(index)
-                    .map(|root| root.print)
-                    .unwrap_or(NativeRootPrintKind::RuntimeValueI64),
-            ),
-        })
-        .collect::<Vec<_>>();
-    let harness = native_cps_repr_executable_harness(&roots, print_roots);
+    let roots = native_cps_root_harness_entries(compile_module, &object, options);
+    let harness = native_cps_repr_executable_harness(&roots, print_roots, options);
     if let Err(err) = fs::write(&harness_path, harness) {
         let message = format!(
             "failed to write native effects executable harness {}: {err}",
@@ -1530,6 +1599,40 @@ fn write_native_cps_repr_executable(
     cleanup();
     eprintln!("{label}: wrote {}", path.display());
     Ok(())
+}
+
+fn native_cps_root_harness_entries(
+    module: &runtime::Module,
+    object: &yulang_native::CpsReprObjectModule,
+    options: yulang_native::CpsReprCraneliftOptions,
+) -> Vec<NativeRootHarnessEntry> {
+    let root_prints = native_root_print_entries_from_runtime(module);
+    object
+        .roots()
+        .iter()
+        .enumerate()
+        .map(|(index, name)| {
+            let lane = object
+                .root_lanes()
+                .get(index)
+                .copied()
+                .unwrap_or(yulang_native::CpsReprAbiLane::Unknown);
+            let runtime_kind = root_prints
+                .get(index)
+                .map(|root| root.print)
+                .unwrap_or(NativeRootPrintKind::RuntimeValueI64);
+            let print = if options.mmtk_yvalue_primitives {
+                native_root_print_kind_from_mmtk_cps_lane(lane)
+            } else {
+                native_root_print_kind_from_cps_lane_and_runtime_type(lane, runtime_kind)
+            };
+            NativeRootHarnessEntry {
+                name: name.clone(),
+                function_id: object.root_function_ids().get(index).copied(),
+                print,
+            }
+        })
+        .collect()
 }
 
 fn command_failure_message(message: &str, output: &std::process::Output) -> String {
@@ -1625,6 +1728,18 @@ fn native_cps_repr_executable_output_path(
         NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
             .project_bin
             .join(format!("{}-effects", native_output_stem(input_path))),
+    }
+}
+
+fn native_mmtk_cps_repr_executable_output_path(
+    output: &NativeOutput,
+    input_path: Option<&str>,
+) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
+            .project_bin
+            .join(format!("{}-mmtk", native_output_stem(input_path))),
     }
 }
 
@@ -1800,10 +1915,11 @@ fn compile_native_value_object(
         .map_err(classify_native_value_cranelift_error)
 }
 
-fn compile_native_cps_repr_object(
+fn compile_native_cps_repr_object_with_options(
     module: &runtime::Module,
+    options: yulang_native::CpsReprCraneliftOptions,
 ) -> Result<yulang_native::CpsReprObjectModule, String> {
-    yulang_native::compile_runtime_module_to_cps_repr_object(module)
+    yulang_native::compile_runtime_module_to_cps_repr_object_with_options(module, options)
         .map_err(|err| format!("failed to compile native effects object: {err}"))
 }
 
@@ -1952,14 +2068,22 @@ void yulang_native_print_value(void *value);
 fn native_cps_repr_executable_harness(
     roots: &[NativeRootHarnessEntry],
     print_roots: bool,
+    options: yulang_native::CpsReprCraneliftOptions,
 ) -> String {
     let mut source = String::from("unsafe extern \"C\" {\n");
     source.push_str("    fn yulang_cps_reset_i64();\n");
     source.push_str("    fn yulang_cps_set_root_function_ids_i64(ids: *const u64, len: usize);\n");
     source.push_str("    fn yulang_cps_take_root_result_i64(value: i64) -> i64;\n");
+    let uses_mmtk_yvalue_lane = options.mmtk_yvalue_primitives;
+    if uses_mmtk_yvalue_lane {
+        source.push_str("    fn yulang_mmtk_cps_reset_i64();\n");
+    }
     if print_roots {
         source.push_str("    fn yulang_cps_print_i64(value: i64);\n");
         source.push_str("    fn yulang_cps_print_debug_i64(value: i64);\n");
+        if uses_mmtk_yvalue_lane {
+            source.push_str("    fn yulang_mmtk_cps_print_debug_i64(value: i64);\n");
+        }
         if roots
             .iter()
             .any(|root| root.print == NativeRootPrintKind::Float)
@@ -1994,6 +2118,9 @@ fn native_cps_repr_executable_harness(
         let name = &root.name;
         source.push_str("    unsafe {\n");
         source.push_str("        yulang_cps_reset_i64();\n");
+        if uses_mmtk_yvalue_lane {
+            source.push_str("        yulang_mmtk_cps_reset_i64();\n");
+        }
         source.push_str(
             "        yulang_cps_set_root_function_ids_i64(YULANG_CPS_ROOT_FUNCTION_IDS.as_ptr(), YULANG_CPS_ROOT_FUNCTION_IDS.len());\n",
         );
@@ -2022,6 +2149,7 @@ enum NativeRootPrintKind {
     Unit,
     Float,
     RuntimeValueI64,
+    MmtkYValueI64,
 }
 
 impl NativeRootPrintKind {
@@ -2031,7 +2159,8 @@ impl NativeRootPrintKind {
             NativeRootPrintKind::I64
             | NativeRootPrintKind::Bool
             | NativeRootPrintKind::Unit
-            | NativeRootPrintKind::RuntimeValueI64 => "int64_t",
+            | NativeRootPrintKind::RuntimeValueI64
+            | NativeRootPrintKind::MmtkYValueI64 => "int64_t",
         }
     }
 
@@ -2041,13 +2170,19 @@ impl NativeRootPrintKind {
             NativeRootPrintKind::I64
             | NativeRootPrintKind::Bool
             | NativeRootPrintKind::Unit
-            | NativeRootPrintKind::RuntimeValueI64 => "i64",
+            | NativeRootPrintKind::RuntimeValueI64
+            | NativeRootPrintKind::MmtkYValueI64 => "i64",
         }
     }
 
     fn push_c_print_call(self, source: &mut String, name: &str) {
         match self {
             NativeRootPrintKind::I64 | NativeRootPrintKind::RuntimeValueI64 => {
+                source.push_str("    printf(\"%lld\\n\", (long long)");
+                source.push_str(name);
+                source.push_str("());\n");
+            }
+            NativeRootPrintKind::MmtkYValueI64 => {
                 source.push_str("    printf(\"%lld\\n\", (long long)");
                 source.push_str(name);
                 source.push_str("());\n");
@@ -2099,6 +2234,13 @@ impl NativeRootPrintKind {
                     "());\n        yulang_cps_print_debug_i64(value);\n        println!();\n",
                 );
             }
+            NativeRootPrintKind::MmtkYValueI64 => {
+                source.push_str("        let value = yulang_cps_take_root_result_i64(");
+                source.push_str(name);
+                source.push_str(
+                    "());\n        yulang_mmtk_cps_print_debug_i64(value);\n        println!();\n",
+                );
+            }
         }
     }
 
@@ -2112,7 +2254,8 @@ impl NativeRootPrintKind {
             NativeRootPrintKind::I64
             | NativeRootPrintKind::Bool
             | NativeRootPrintKind::Unit
-            | NativeRootPrintKind::RuntimeValueI64 => {
+            | NativeRootPrintKind::RuntimeValueI64
+            | NativeRootPrintKind::MmtkYValueI64 => {
                 source.push_str("        let _ = yulang_cps_take_root_result_i64(");
                 source.push_str(name);
                 source.push_str("());\n");
@@ -2192,9 +2335,9 @@ fn native_root_print_kind_from_cps_lane_and_runtime_type(
             NativeRootPrintKind::Bool => NativeRootPrintKind::Bool,
             NativeRootPrintKind::Unit => NativeRootPrintKind::Unit,
             NativeRootPrintKind::I64 => NativeRootPrintKind::I64,
-            NativeRootPrintKind::Float | NativeRootPrintKind::RuntimeValueI64 => {
-                NativeRootPrintKind::RuntimeValueI64
-            }
+            NativeRootPrintKind::Float
+            | NativeRootPrintKind::RuntimeValueI64
+            | NativeRootPrintKind::MmtkYValueI64 => NativeRootPrintKind::RuntimeValueI64,
         },
         yulang_native::CpsReprAbiLane::RuntimeValuePtr
         | yulang_native::CpsReprAbiLane::ClosurePtr
@@ -2203,6 +2346,15 @@ fn native_root_print_kind_from_cps_lane_and_runtime_type(
         | yulang_native::CpsReprAbiLane::OpaqueI64
         | yulang_native::CpsReprAbiLane::Conflict
         | yulang_native::CpsReprAbiLane::Unknown => NativeRootPrintKind::RuntimeValueI64,
+    }
+}
+
+fn native_root_print_kind_from_mmtk_cps_lane(
+    lane: yulang_native::CpsReprAbiLane,
+) -> NativeRootPrintKind {
+    match lane {
+        yulang_native::CpsReprAbiLane::NativeFloat => NativeRootPrintKind::Float,
+        _ => NativeRootPrintKind::MmtkYValueI64,
     }
 }
 
@@ -5819,6 +5971,7 @@ mod tests {
             native_run_exe: None,
             native_run_value_exe: None,
             native_run_cps_repr_exe: None,
+            native_run_mmtk_cps_repr_exe: None,
             print_roots: false,
             verbose_ir: false,
             infer_phase_timings: false,
@@ -5887,7 +6040,11 @@ mod tests {
         assert!(value_harness.contains("(void)root_0(context);"));
         assert!(!value_harness.contains("yulang_native_print_value(root_0(context));"));
 
-        let cps_harness = native_cps_repr_executable_harness(&roots, false);
+        let cps_harness = native_cps_repr_executable_harness(
+            &roots,
+            false,
+            yulang_native::CpsReprCraneliftOptions::default(),
+        );
         assert!(cps_harness.contains("yulang_cps_reset_i64();"));
         assert!(cps_harness.contains("YULANG_CPS_ROOT_FUNCTION_IDS: [u64; 1] = [7];"));
         assert!(cps_harness.contains("let _ = yulang_cps_take_root_result_i64(root_0());"));
@@ -5909,7 +6066,11 @@ mod tests {
         let value_harness = native_value_executable_harness(&root_names, true);
         assert!(value_harness.contains("yulang_native_print_value(root_0(context));"));
 
-        let cps_harness = native_cps_repr_executable_harness(&roots, true);
+        let cps_harness = native_cps_repr_executable_harness(
+            &roots,
+            true,
+            yulang_native::CpsReprCraneliftOptions::default(),
+        );
         assert!(cps_harness.contains("let value = yulang_cps_take_root_result_i64(root_0());"));
         assert!(cps_harness.contains("println!(\"{}\", value);"));
     }
@@ -5934,7 +6095,11 @@ mod tests {
             },
         ];
 
-        let harness = native_cps_repr_executable_harness(&roots, true);
+        let harness = native_cps_repr_executable_harness(
+            &roots,
+            true,
+            yulang_native::CpsReprCraneliftOptions::default(),
+        );
         assert!(harness.contains("fn root_0() -> f64;"));
         assert!(harness.contains("yulang_cps_float_to_string_f64(root_0())"));
         assert!(harness.contains("let _ = yulang_cps_take_root_result_i64(root_1());"));

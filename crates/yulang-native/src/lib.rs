@@ -33,8 +33,8 @@ pub mod cranelift;
 pub mod eval;
 pub mod gc_runtime;
 pub mod lower;
-#[cfg(feature = "mmtk-runtime")]
 pub mod mmtk_binding;
+pub mod mmtk_cps_control;
 pub mod mmtk_runtime;
 pub mod native_runtime;
 pub mod value_cranelift;
@@ -106,8 +106,10 @@ pub use cps_repr_abi::{
 pub use cps_repr_cranelift::{
     CpsReprCraneliftError, CpsReprCraneliftOptions, CpsReprJitModule, CpsReprObjectModule,
     compile_cps_repr_abi_module, compile_cps_repr_abi_module_to_object,
-    compile_cps_repr_abi_module_with_options, compile_runtime_module_to_cps_repr_jit,
-    compile_runtime_module_to_cps_repr_jit_with_options, compile_runtime_module_to_cps_repr_object,
+    compile_cps_repr_abi_module_to_object_with_options, compile_cps_repr_abi_module_with_options,
+    compile_runtime_module_to_cps_repr_jit, compile_runtime_module_to_cps_repr_jit_with_options,
+    compile_runtime_module_to_cps_repr_object,
+    compile_runtime_module_to_cps_repr_object_with_options,
 };
 pub use cps_validate::{CpsValidateError, validate_cps_module};
 pub use cranelift::{
@@ -125,14 +127,13 @@ pub use gc_runtime::{
     YTraceOrigin, YTraceReport, YValue, YValueKind,
 };
 pub use lower::{NativeLowerError, NativeLowerResult, lower_module};
-#[cfg(feature = "mmtk-runtime")]
 pub use mmtk_binding::{
     YulangMmtkActivePlan, YulangMmtkCollection, YulangMmtkMemorySlice, YulangMmtkObjectHeader,
     YulangMmtkObjectModel, YulangMmtkReferenceGlue, YulangMmtkScanning, YulangMmtkSlot,
     YulangMmtkVM,
 };
+pub use mmtk_cps_control::register_mmtk_cps_control_jit_symbols;
 pub use mmtk_runtime::{MmtkConfigError, MmtkRuntimeBoundary, MmtkRuntimeConfig, MmtkRuntimePlan};
-#[cfg(feature = "mmtk-runtime")]
 pub use mmtk_runtime::{MmtkHeap, MmtkNativeRuntimeContext, register_mmtk_cps_jit_symbols};
 pub use native_runtime::{
     NativeRuntimeContext, bool_is_true as native_runtime_bool_is_true,

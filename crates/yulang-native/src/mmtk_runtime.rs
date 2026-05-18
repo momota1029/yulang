@@ -4,32 +4,30 @@
 //! `gc_runtime`; this file records the MMTk plan/options surface that will back
 //! that heap once the VM binding and object model callbacks are implemented.
 
-#[cfg(feature = "mmtk-runtime")]
-use std::cell::RefCell;
-#[cfg(feature = "mmtk-runtime")]
-use std::collections::{BTreeMap, HashMap};
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 
-#[cfg(feature = "mmtk-runtime")]
 use mmtk::plan::AllocationSemantics;
-#[cfg(feature = "mmtk-runtime")]
 use mmtk::util::ObjectReference;
-#[cfg(feature = "mmtk-runtime")]
 use mmtk::util::opaque_pointer::{VMMutatorThread, VMThread};
+use rustc_hash::FxHashMap;
 
-#[cfg(feature = "mmtk-runtime")]
 use crate::gc_runtime::{
     GcRuntimeContext, NativeFieldLane, NativeFieldLayout, NativeFieldValue, NativeHeapBlock,
-    NativeLayout, NativeLayoutHandle, NativeLayoutKind, NativePayloadBuffer, YHeap, YHeapStats,
-    YList, YObject, YObjectKind, YObjectPayload, YString, YValue,
+    NativeLayout, NativeLayoutHandle, NativePayloadBuffer, YHeap, YHeapStats, YList, YObject,
+    YObjectKind, YObjectPayload, YString, YValue,
 };
-#[cfg(feature = "mmtk-runtime")]
 use crate::mmtk_binding::{YulangMmtkObjectHeader, YulangMmtkVM, initialize_yulang_mmtk_object};
 
-#[cfg(feature = "mmtk-runtime")]
 const MAX_STRING_LEAF_CHARS: usize = yulang_runtime::runtime::string_tree::MAX_LEAF_CHARS;
 
-#[cfg(feature = "mmtk-runtime")]
 const MAX_LIST_LEAF_ITEMS: usize = 64;
+const COMPACT_STRING_NODE_TAG: u8 = 1;
+const COMPACT_LIST_NODE_TAG: u8 = 2;
+const COMPACT_CONTROL_STACK_TAG: u8 = 3;
+const COMPACT_CONTROL_BLOCK_TAG: u8 = 4;
+const COMPACT_NODE_HEADER_SIZE: usize = 2;
+const COMPACT_CONTROL_HEADER_SIZE: usize = 16;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MmtkRuntimeConfig {
@@ -76,8 +74,6 @@ impl MmtkRuntimeConfig {
             .collect::<Vec<_>>()
             .join(" ")
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     pub fn configure_builder(
         &self,
         builder: &mut mmtk::MMTKBuilder,
@@ -113,8 +109,6 @@ impl MmtkRuntimePlan {
             Self::GenImmix => "GenImmix",
         }
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     pub fn selector(self) -> mmtk::util::options::PlanSelector {
         match self {
             Self::NoGc => mmtk::util::options::PlanSelector::NoGC,
@@ -148,15 +142,11 @@ impl MmtkRuntimeBoundary {
     pub fn options_string(&self) -> String {
         self.config.options_string()
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     pub fn builder(&self) -> Result<mmtk::MMTKBuilder, MmtkConfigError> {
         let mut builder = mmtk::MMTKBuilder::new_no_env_vars();
         self.config.configure_builder(&mut builder)?;
         Ok(builder)
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     pub fn build_yulang_mmtk(
         &self,
     ) -> Result<mmtk::MMTK<crate::mmtk_binding::YulangMmtkVM>, MmtkConfigError> {
@@ -164,14 +154,14 @@ impl MmtkRuntimeBoundary {
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 pub struct MmtkHeap {
     _mmtk: &'static mmtk::MMTK<YulangMmtkVM>,
     mutator: Box<mmtk::Mutator<YulangMmtkVM>>,
-    objects: BTreeMap<usize, MmtkPayloadStorage>,
+    objects: FxHashMap<usize, MmtkPayloadStorage>,
+    min_object_raw: usize,
+    max_object_raw: usize,
 }
 
-#[cfg(feature = "mmtk-runtime")]
 impl MmtkHeap {
     pub fn new_no_gc() -> Result<Self, MmtkConfigError> {
         Self::new(MmtkRuntimeConfig::prototype_no_gc())
@@ -185,17 +175,16 @@ impl MmtkHeap {
         Ok(Self {
             _mmtk: mmtk,
             mutator,
-            objects: BTreeMap::new(),
+            objects: FxHashMap::default(),
+            min_object_raw: usize::MAX,
+            max_object_raw: 0,
         })
     }
 
     pub fn object_reference(&self, value: YValue) -> Option<ObjectReference> {
-        value.heap_reference_raw().and_then(|raw| {
-            self.objects
-                .contains_key(&raw)
-                .then(|| ObjectReference::from_raw_address(raw_address(raw)))
-                .flatten()
-        })
+        value
+            .heap_reference_raw()
+            .and_then(|raw| ObjectReference::from_raw_address(raw_address(raw)))
     }
 
     pub fn object_count(&self) -> usize {
@@ -237,10 +226,11 @@ impl MmtkHeap {
         len_chars: usize,
         len_bytes: usize,
     ) -> YValue {
+        let raw_payload = encode_compact_string_node_payload(color, len_chars, len_bytes);
         self.allocate_raw_payload_with_storage(
             YObjectKind::String,
             &[left, right],
-            &[],
+            &raw_payload,
             MmtkPayloadStorage::StringNode {
                 color,
                 len_chars,
@@ -265,10 +255,11 @@ impl MmtkHeap {
         right: YValue,
         len: usize,
     ) -> YValue {
+        let raw_payload = encode_compact_list_node_payload(color, len);
         self.allocate_raw_payload_with_storage(
             YObjectKind::List,
             &[left, right],
-            &[],
+            &raw_payload,
             MmtkPayloadStorage::ListNode { color, len },
         )
     }
@@ -290,8 +281,11 @@ impl MmtkHeap {
             MmtkPayloadStorage::NativeBlock { layout } => layout.clone(),
             _ => return None,
         };
-        let payload = NativePayloadBuffer::from_bytes(self.raw_payload_bytes(value)?.to_vec());
-        payload.read_field(layout.layout(), index)
+        NativePayloadBuffer::read_field_from_bytes(
+            layout.layout(),
+            index,
+            self.raw_payload_bytes(value)?,
+        )
     }
 
     pub fn native_field_count(&self, value: YValue) -> Option<usize> {
@@ -304,17 +298,30 @@ impl MmtkHeap {
 
     pub fn native_field_name(&self, value: YValue, index: usize) -> Option<&str> {
         let raw = value.heap_reference_raw()?;
-        let layout = match self.objects.get(&raw)? {
-            MmtkPayloadStorage::NativeBlock { layout } => layout,
-            _ => return None,
-        };
-        layout.layout().fields.get(index)?.name.as_deref()
+        match self.objects.get(&raw)? {
+            MmtkPayloadStorage::NativeBlock { layout } => {
+                layout.layout().fields.get(index)?.name.as_deref()
+            }
+            MmtkPayloadStorage::ControlBlock {
+                head_name: Some(name),
+                ..
+            } if index == 0 => Some(name),
+            _ => None,
+        }
     }
 
     pub fn allocate_compact_closure(&mut self, code: usize, env: &[YValue]) -> YValue {
         self.allocate_compact_control_block(
             YObjectKind::Closure,
             Some(("code", NativeFieldValue::U64(code as u64))),
+            env,
+        )
+    }
+
+    pub(crate) fn allocate_compact_closure_i64(&mut self, code: usize, env: &[i64]) -> YValue {
+        self.allocate_compact_control_block_i64(
+            YObjectKind::Closure,
+            Some(("code", code as u64)),
             env,
         )
     }
@@ -327,10 +334,26 @@ impl MmtkHeap {
         )
     }
 
+    pub(crate) fn allocate_compact_thunk_i64(&mut self, code: usize, env: &[i64]) -> YValue {
+        self.allocate_compact_control_block_i64(
+            YObjectKind::Thunk,
+            Some(("code", code as u64)),
+            env,
+        )
+    }
+
     pub fn allocate_compact_resumption(&mut self, code: usize, env: &[YValue]) -> YValue {
         self.allocate_compact_control_block(
             YObjectKind::Resumption,
             Some(("code", NativeFieldValue::U64(code as u64))),
+            env,
+        )
+    }
+
+    pub(crate) fn allocate_compact_resumption_i64(&mut self, code: usize, env: &[i64]) -> YValue {
+        self.allocate_compact_control_block_i64(
+            YObjectKind::Resumption,
+            Some(("code", code as u64)),
             env,
         )
     }
@@ -355,27 +378,112 @@ impl MmtkHeap {
         )
     }
 
-    pub fn compact_control_word(&self, value: YValue) -> Option<u64> {
-        if self.compact_env_start(value)? == 0 {
-            return None;
+    pub fn allocate_compact_control_stack_snapshot(
+        &mut self,
+        item_count: usize,
+        raw_trace_words: &[i64],
+    ) -> YValue {
+        self.allocate_compact_control_stack_chunk(item_count, None, raw_trace_words)
+    }
+
+    pub fn allocate_compact_control_stack_chunk(
+        &mut self,
+        item_count: usize,
+        parent: Option<YValue>,
+        raw_trace_words: &[i64],
+    ) -> YValue {
+        let trace_slots = self.control_stack_trace_slots(parent, raw_trace_words);
+        self.allocate_compact_control_stack_chunk_with_trace_slots(
+            item_count,
+            parent.is_some(),
+            raw_trace_words,
+            &trace_slots,
+        )
+    }
+
+    fn control_stack_trace_slots(
+        &self,
+        parent: Option<YValue>,
+        raw_trace_words: &[i64],
+    ) -> Vec<YValue> {
+        let mut trace_slots =
+            Vec::with_capacity(raw_trace_words.len() + usize::from(parent.is_some()));
+        if let Some(parent) = parent {
+            trace_slots.push(parent);
         }
-        let NativeFieldValue::U64(word) = self.native_field_value(value, 0)? else {
+        trace_slots.extend(self.mmtk_trace_slots_from_raw_words(raw_trace_words));
+        trace_slots
+    }
+
+    fn allocate_compact_control_stack_chunk_with_trace_slots(
+        &mut self,
+        item_count: usize,
+        has_parent: bool,
+        raw_trace_words: &[i64],
+        trace_slots: &[YValue],
+    ) -> YValue {
+        let raw_payload =
+            encode_compact_control_stack_payload(item_count, raw_trace_words.len(), has_parent);
+        self.allocate_raw_payload_with_storage(
+            YObjectKind::ControlStack,
+            trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::ControlStack {
+                item_count,
+                raw_trace_word_count: raw_trace_words.len(),
+                has_parent,
+            },
+        )
+    }
+
+    pub fn compact_control_word(&self, value: YValue) -> Option<u64> {
+        let object = self.mmtk_object_reference(value)?;
+        if !compact_control_kind_has_head(Self::object_header_from_ref(object).kind) {
             return None;
         };
-        Some(word)
+        let bytes = self.raw_payload_bytes_from_ref(object);
+        let (_, _, word) = decode_compact_control_payload_header(bytes)?;
+        Some(word?)
     }
 
     pub fn compact_env_slots(&self, value: YValue) -> Option<Vec<YValue>> {
-        let start = self.compact_env_start(value)?;
-        let field_count = self.native_field_count(value)?;
-        let mut slots = Vec::with_capacity(field_count.saturating_sub(start));
-        for index in start..field_count {
-            let NativeFieldValue::YValue(slot) = self.native_field_value(value, index)? else {
-                return None;
-            };
-            slots.push(slot);
+        let object = self.mmtk_object_reference(value)?;
+        let bytes = self.raw_payload_bytes_from_ref(object);
+        let (env_len, has_head, _) = decode_compact_control_payload_header(bytes)?;
+        let start = COMPACT_CONTROL_HEADER_SIZE + usize::from(has_head) * 8;
+        let words = bytes.get(start..start + env_len * 8)?;
+        let mut slots = Vec::with_capacity(env_len);
+        for chunk in words.chunks_exact(8) {
+            slots.push(YValue::from_raw(
+                u64::from_ne_bytes(chunk.try_into().ok()?) as usize
+            ));
         }
         Some(slots)
+    }
+
+    pub(crate) fn compact_control_entry_parts(
+        &self,
+        value: YValue,
+        expected_kind: YObjectKind,
+    ) -> Option<(u64, *const i64)> {
+        let object = self.mmtk_object_reference(value)?;
+        let header = Self::object_header_from_ref(object);
+        if header.kind != expected_kind || !compact_control_kind_has_head(header.kind) {
+            return None;
+        }
+        let bytes = self.raw_payload_bytes_from_ref(object);
+        let (env_len, has_head, code) = decode_compact_control_payload_header(bytes)?;
+        debug_assert!(has_head);
+        let code = code?;
+        let start = COMPACT_CONTROL_HEADER_SIZE + 8;
+        let _ = bytes.get(start..start + env_len * 8)?;
+        let env_ptr = unsafe { bytes.as_ptr().add(start).cast::<i64>() };
+        Some((code, env_ptr))
+    }
+
+    pub(crate) fn is_tracked_object_kind(&self, value: YValue, expected_kind: YObjectKind) -> bool {
+        self.mmtk_object_reference(value)
+            .is_some_and(|object| Self::object_header_from_ref(object).kind == expected_kind)
     }
 
     fn allocate_raw_payload_with_storage(
@@ -394,7 +502,7 @@ impl MmtkHeap {
             );
         }
         let raw = object_ref.to_raw_address().as_usize();
-        self.objects.insert(raw, storage);
+        self.remember_object(raw, storage);
         YValue::from_heap_reference_raw(raw).expect("MMTk object reference must fit YValue")
     }
 
@@ -404,59 +512,120 @@ impl MmtkHeap {
         head: Option<(&'static str, NativeFieldValue)>,
         env: &[YValue],
     ) -> YValue {
-        let mut layouts = Vec::with_capacity(env.len() + usize::from(head.is_some()));
-        let mut fields = Vec::with_capacity(env.len() + usize::from(head.is_some()));
-        if let Some((name, value)) = head {
-            layouts.push(NativeFieldLayout::named(name, value.lane()));
-            fields.push(value);
+        let head_name = head.as_ref().map(|(name, _)| *name);
+        let mut raw_payload = Vec::with_capacity(
+            COMPACT_CONTROL_HEADER_SIZE + (usize::from(head_name.is_some()) + env.len()) * 8,
+        );
+        raw_payload.push(COMPACT_CONTROL_BLOCK_TAG);
+        raw_payload.push(u8::from(head_name.is_some()));
+        raw_payload.extend_from_slice(&(env.len() as u64).to_ne_bytes());
+        raw_payload.resize(COMPACT_CONTROL_HEADER_SIZE, 0);
+        if let Some((_, NativeFieldValue::U64(word))) = head {
+            raw_payload.extend_from_slice(&word.to_ne_bytes());
+        } else if head.is_some() {
+            panic!("compact control head must be a u64 word");
         }
-        layouts.extend(env.iter().enumerate().map(|(index, _)| {
-            NativeFieldLayout::named(format!("env{index}"), NativeFieldLane::YValue)
-        }));
-        fields.extend(env.iter().copied().map(NativeFieldValue::YValue));
-        let layout = NativeLayout::new(NativeLayoutKind::Object(kind), layouts);
-        let layout = NativeLayoutHandle::ephemeral(self.next_ephemeral_layout_id(), layout);
-        let block = NativeHeapBlock::new(layout, fields)
-            .expect("compact control layout should match fields");
-        self.allocate_native_heap_block(&block)
+        for slot in env {
+            raw_payload.extend_from_slice(&(slot.raw() as u64).to_ne_bytes());
+        }
+        let trace_slots = env
+            .iter()
+            .copied()
+            .filter(|value| {
+                value
+                    .heap_reference_raw()
+                    .is_some_and(|raw| self.objects.contains_key(&raw))
+            })
+            .collect::<Vec<_>>();
+        self.allocate_raw_payload_with_storage(
+            kind,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::ControlBlock {
+                env_len: env.len(),
+                head_name,
+            },
+        )
     }
 
-    fn compact_env_start(&self, value: YValue) -> Option<usize> {
-        let kind = self.object_header(value)?.kind;
-        match kind {
-            YObjectKind::Closure
-            | YObjectKind::Thunk
-            | YObjectKind::Resumption
-            | YObjectKind::HandlerFrame
-            | YObjectKind::ReturnFrame => Some(1),
-            YObjectKind::ContinuationEnv => Some(0),
-            _ => None,
+    fn allocate_compact_control_block_i64(
+        &mut self,
+        kind: YObjectKind,
+        head: Option<(&'static str, u64)>,
+        env: &[i64],
+    ) -> YValue {
+        let head_name = head.as_ref().map(|(name, _)| *name);
+        let mut raw_payload = Vec::with_capacity(
+            COMPACT_CONTROL_HEADER_SIZE + (usize::from(head_name.is_some()) + env.len()) * 8,
+        );
+        raw_payload.push(COMPACT_CONTROL_BLOCK_TAG);
+        raw_payload.push(u8::from(head_name.is_some()));
+        raw_payload.extend_from_slice(&(env.len() as u64).to_ne_bytes());
+        raw_payload.resize(COMPACT_CONTROL_HEADER_SIZE, 0);
+        if let Some((_, word)) = head {
+            raw_payload.extend_from_slice(&word.to_ne_bytes());
         }
+        for slot in env {
+            raw_payload.extend_from_slice(&(*slot as u64).to_ne_bytes());
+        }
+        let trace_slots = self.mmtk_trace_slots_from_raw_words(env);
+        self.allocate_raw_payload_with_storage(
+            kind,
+            &trace_slots,
+            &raw_payload,
+            MmtkPayloadStorage::ControlBlock {
+                env_len: env.len(),
+                head_name,
+            },
+        )
     }
 
-    fn next_ephemeral_layout_id(&self) -> crate::gc_runtime::NativeLayoutId {
-        crate::gc_runtime::NativeLayoutId(usize::MAX - self.objects.len())
+    fn mmtk_trace_slots_from_raw_words(&self, raw_words: &[i64]) -> Vec<YValue> {
+        raw_words
+            .iter()
+            .filter_map(|word| {
+                let value = YValue::from_raw(*word as usize);
+                let raw = value.heap_reference_raw()?;
+                if !self.may_be_tracked_object_raw(raw) {
+                    return None;
+                }
+                self.objects.contains_key(&raw).then_some(value)
+            })
+            .collect()
     }
 
     pub fn raw_payload_bytes(&self, value: YValue) -> Option<&[u8]> {
         let object = self.object_reference(value)?;
+        Some(self.raw_payload_bytes_from_ref(object))
+    }
+
+    fn raw_payload_bytes_from_ref(&self, object: ObjectReference) -> &[u8] {
         let header = Self::mmtk_header(object);
         let raw_size = header
             .total_size()
-            .checked_sub(YulangMmtkObjectHeader::header_size())?
+            .checked_sub(YulangMmtkObjectHeader::header_size())
+            .expect("MMTk object total size should include the header")
             .checked_sub(YulangMmtkObjectHeader::trace_slots_byte_size(
                 header.trace_slot_count(),
-            ))?;
-        Some(unsafe {
+            ))
+            .expect("MMTk object total size should include trace slots");
+        unsafe {
             std::slice::from_raw_parts(
                 YulangMmtkObjectHeader::raw_payload_address(object).to_ptr(),
                 raw_size,
             )
+        }
+    }
+
+    fn mmtk_object_reference(&self, value: YValue) -> Option<ObjectReference> {
+        let raw = value.heap_reference_raw()?;
+        self.objects.contains_key(&raw).then(|| {
+            ObjectReference::from_raw_address(raw_address(raw))
+                .expect("tracked MMTk object reference should remain valid")
         })
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 impl std::fmt::Debug for MmtkHeap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MmtkHeap")
@@ -465,7 +634,6 @@ impl std::fmt::Debug for MmtkHeap {
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 impl Drop for MmtkHeap {
     fn drop(&mut self) {
         for (raw, storage) in &self.objects {
@@ -482,7 +650,6 @@ impl Drop for MmtkHeap {
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 impl YHeap for MmtkHeap {
     fn allocate_boxed(&mut self, object: Box<YObject>) -> YValue {
         let header = object.header();
@@ -494,15 +661,14 @@ impl YHeap for MmtkHeap {
         }
 
         let raw = object_ref.to_raw_address().as_usize();
-        self.objects.insert(raw, MmtkPayloadStorage::SemanticObject);
+        self.remember_object(raw, MmtkPayloadStorage::SemanticObject);
         YValue::from_heap_reference_raw(raw).expect("MMTk object reference must fit YValue")
     }
 
     fn object(&self, value: YValue) -> Option<&YObject> {
         let raw = value.heap_reference_raw()?;
         (self.objects.get(&raw) == Some(&MmtkPayloadStorage::SemanticObject)).then(|| {
-            let object = ObjectReference::from_raw_address(raw_address(raw))
-                .expect("tracked MMTk object reference should remain valid");
+            let object = Self::object_reference_from_raw(raw);
             unsafe { &*Self::payload_ptr(object) }
         })
     }
@@ -516,12 +682,14 @@ impl YHeap for MmtkHeap {
     }
 
     fn object_header(&self, value: YValue) -> Option<crate::gc_runtime::YObjectHeader> {
-        let object = self.object_reference(value)?;
+        let raw = value.heap_reference_raw()?;
+        let object = Self::object_reference_from_raw(raw);
         Some(Self::object_header_from_ref(object))
     }
 
     fn trace_children(&self, value: YValue) -> Option<Vec<YValue>> {
-        let object = self.object_reference(value)?;
+        let raw = value.heap_reference_raw()?;
+        let object = Self::object_reference_from_raw(raw);
         let header = Self::mmtk_header(object);
         let mut children = Vec::with_capacity(header.trace_slot_count());
         for index in 0..header.trace_slot_count() {
@@ -534,7 +702,6 @@ impl YHeap for MmtkHeap {
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 impl MmtkHeap {
     fn allocate_mmtk_object(
         &mut self,
@@ -582,15 +749,33 @@ impl MmtkHeap {
             trace_slots: header.trace_slot_count(),
         }
     }
+
+    fn object_reference_from_raw(raw: usize) -> ObjectReference {
+        ObjectReference::from_raw_address(raw_address(raw))
+            .expect("YValue heap reference should be a valid MMTk object reference")
+    }
+
+    fn remember_object(&mut self, raw: usize, storage: MmtkPayloadStorage) {
+        self.min_object_raw = self.min_object_raw.min(raw);
+        self.max_object_raw = self.max_object_raw.max(raw);
+        self.objects.insert(raw, storage);
+    }
+
+    fn may_be_tracked_object_raw(&self, raw: usize) -> bool {
+        !self.objects.is_empty() && (self.min_object_raw..=self.max_object_raw).contains(&raw)
+    }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MmtkPayloadStorage {
     SemanticObject,
     RawBytes,
     NativeBlock {
         layout: NativeLayoutHandle,
+    },
+    ControlBlock {
+        env_len: usize,
+        head_name: Option<&'static str>,
     },
     StringLeaf {
         len_chars: usize,
@@ -608,21 +793,157 @@ enum MmtkPayloadStorage {
         color: TreeColor,
         len: usize,
     },
+    ControlStack {
+        item_count: usize,
+        raw_trace_word_count: usize,
+        has_parent: bool,
+    },
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TreeColor {
     Red,
     Black,
 }
 
-#[cfg(feature = "mmtk-runtime")]
+impl TreeColor {
+    fn encode(self) -> u8 {
+        match self {
+            Self::Red => 0,
+            Self::Black => 1,
+        }
+    }
+
+    fn decode(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::Red),
+            1 => Some(Self::Black),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompactStringTreeStorage {
+    Leaf {
+        len_chars: usize,
+        len_bytes: usize,
+    },
+    Node {
+        color: TreeColor,
+        len_chars: usize,
+        len_bytes: usize,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompactListTreeStorage {
+    Leaf { len: usize },
+    Node { color: TreeColor, len: usize },
+}
+
 fn raw_address(raw: usize) -> mmtk::util::Address {
     unsafe { mmtk::util::Address::from_usize(raw) }
 }
 
-#[cfg(feature = "mmtk-runtime")]
+fn encode_compact_string_node_payload(
+    color: TreeColor,
+    len_chars: usize,
+    len_bytes: usize,
+) -> Vec<u8> {
+    let mut payload =
+        Vec::with_capacity(COMPACT_NODE_HEADER_SIZE + 2 * std::mem::size_of::<usize>());
+    payload.push(COMPACT_STRING_NODE_TAG);
+    payload.push(color.encode());
+    payload.extend_from_slice(&len_chars.to_ne_bytes());
+    payload.extend_from_slice(&len_bytes.to_ne_bytes());
+    payload
+}
+
+fn decode_compact_string_node_payload(bytes: &[u8]) -> Option<(TreeColor, usize, usize)> {
+    let word = std::mem::size_of::<usize>();
+    if bytes.len() != COMPACT_NODE_HEADER_SIZE + 2 * word {
+        return None;
+    }
+    if bytes[0] != COMPACT_STRING_NODE_TAG {
+        return None;
+    }
+    let color = TreeColor::decode(bytes[1])?;
+    let len_chars = usize::from_ne_bytes(bytes[2..2 + word].try_into().ok()?);
+    let len_bytes = usize::from_ne_bytes(bytes[2 + word..2 + 2 * word].try_into().ok()?);
+    Some((color, len_chars, len_bytes))
+}
+
+fn encode_compact_list_node_payload(color: TreeColor, len: usize) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(COMPACT_NODE_HEADER_SIZE + std::mem::size_of::<usize>());
+    payload.push(COMPACT_LIST_NODE_TAG);
+    payload.push(color.encode());
+    payload.extend_from_slice(&len.to_ne_bytes());
+    payload
+}
+
+fn decode_compact_list_node_payload(bytes: &[u8]) -> Option<(TreeColor, usize)> {
+    let word = std::mem::size_of::<usize>();
+    if bytes.len() != COMPACT_NODE_HEADER_SIZE + word {
+        return None;
+    }
+    if bytes[0] != COMPACT_LIST_NODE_TAG {
+        return None;
+    }
+    let color = TreeColor::decode(bytes[1])?;
+    let len = usize::from_ne_bytes(bytes[2..2 + word].try_into().ok()?);
+    Some((color, len))
+}
+
+fn compact_control_kind_has_head(kind: YObjectKind) -> bool {
+    matches!(
+        kind,
+        YObjectKind::Closure
+            | YObjectKind::Thunk
+            | YObjectKind::Resumption
+            | YObjectKind::HandlerFrame
+            | YObjectKind::ReturnFrame
+    )
+}
+
+fn decode_compact_control_payload_header(bytes: &[u8]) -> Option<(usize, bool, Option<u64>)> {
+    let header = bytes.get(..COMPACT_CONTROL_HEADER_SIZE)?;
+    if header.first().copied()? != COMPACT_CONTROL_BLOCK_TAG {
+        return None;
+    }
+    let has_head = match header.get(1).copied()? {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
+    let env_len = usize::try_from(u64::from_ne_bytes(header.get(2..10)?.try_into().ok()?)).ok()?;
+    let word = has_head
+        .then(|| read_u64_from_prefix(bytes.get(COMPACT_CONTROL_HEADER_SIZE..)?))
+        .flatten();
+    if has_head && word.is_none() {
+        return None;
+    }
+    Some((env_len, has_head, word))
+}
+
+fn read_u64_from_prefix(bytes: &[u8]) -> Option<u64> {
+    Some(u64::from_ne_bytes(bytes.get(..8)?.try_into().ok()?))
+}
+
+fn encode_compact_control_stack_payload(
+    item_count: usize,
+    raw_trace_word_count: usize,
+    has_parent: bool,
+) -> Vec<u8> {
+    let mut payload =
+        Vec::with_capacity(COMPACT_NODE_HEADER_SIZE + 2 * std::mem::size_of::<usize>());
+    payload.push(COMPACT_CONTROL_STACK_TAG);
+    payload.push(u8::from(has_parent));
+    payload.extend_from_slice(&item_count.to_ne_bytes());
+    payload.extend_from_slice(&raw_trace_word_count.to_ne_bytes());
+    payload
+}
+
 pub fn register_mmtk_cps_jit_symbols(builder: &mut cranelift_jit::JITBuilder) {
     macro_rules! symbols {
         ($($symbol:ident),+ $(,)?) => {
@@ -687,6 +1008,11 @@ pub fn register_mmtk_cps_jit_symbols(builder: &mut cranelift_jit::JITBuilder) {
         yulang_mmtk_cps_int_to_upper_hex_i64,
         yulang_mmtk_cps_bool_to_string_i64,
         yulang_mmtk_cps_float_to_string_f64,
+        yulang_mmtk_cps_debug_i64,
+        yulang_mmtk_cps_out_write_i64,
+        yulang_mmtk_cps_err_write_i64,
+        yulang_mmtk_cps_warn_write_i64,
+        yulang_mmtk_cps_die_i64,
         yulang_mmtk_cps_bool_not_i64,
         yulang_mmtk_cps_bool_eq_i64,
         yulang_mmtk_cps_bool_truthy_i64,
@@ -700,14 +1026,13 @@ pub fn register_mmtk_cps_jit_symbols(builder: &mut cranelift_jit::JITBuilder) {
         yulang_mmtk_cps_int_gt_i64,
         yulang_mmtk_cps_int_ge_i64,
     );
+    crate::mmtk_cps_control::register_mmtk_cps_control_jit_symbols(builder);
 }
 
-#[cfg(feature = "mmtk-runtime")]
 pub struct MmtkNativeRuntimeContext {
     context: GcRuntimeContext<MmtkHeap>,
 }
 
-#[cfg(feature = "mmtk-runtime")]
 impl MmtkNativeRuntimeContext {
     pub fn new_no_gc() -> Result<Self, MmtkConfigError> {
         Ok(Self {
@@ -1127,6 +1452,15 @@ impl MmtkNativeRuntimeContext {
         self.context.compare_int(left, right)
     }
 
+    pub fn display_value(&self, value: YValue) -> String {
+        if self.is_compact_string_tree(value) {
+            return self
+                .render_string(value)
+                .unwrap_or_else(|| "<invalid compact string>".to_string());
+        }
+        self.debug_value(value)
+    }
+
     pub fn debug_value(&self, value: YValue) -> String {
         if self.is_compact_string_tree(value) {
             return self
@@ -1293,15 +1627,15 @@ impl MmtkNativeRuntimeContext {
         if start == 0 && end == len {
             return Some(value);
         }
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::StringLeaf { .. } => {
+        match self.compact_string_storage(value)? {
+            CompactStringTreeStorage::Leaf { .. } => {
                 let text = self.render_string(value)?;
                 let (start, end) = char_range_to_byte_range(&text, start, end)?;
                 self.context
                     .heap_mut()
                     .allocate_string_leaf(text.get(start..end)?.as_bytes())
             }
-            MmtkPayloadStorage::StringNode { .. } => {
+            CompactStringTreeStorage::Node { .. } => {
                 let [left, right] = self.tree_binary_children(value)?;
                 let left_len = self.string_tree_len_chars(left)?;
                 if end <= left_len {
@@ -1314,7 +1648,6 @@ impl MmtkNativeRuntimeContext {
                     self.string_concat_tree(left_part, right_part)
                 }
             }
-            _ => None,
         }
     }
 
@@ -1422,10 +1755,10 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn string_tree_len_chars(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value) {
-            Some(MmtkPayloadStorage::StringLeaf { len_chars, .. })
-            | Some(MmtkPayloadStorage::StringNode { len_chars, .. }) => Some(*len_chars),
-            _ => {
+        match self.compact_string_storage(value) {
+            Some(CompactStringTreeStorage::Leaf { len_chars, .. })
+            | Some(CompactStringTreeStorage::Node { len_chars, .. }) => Some(len_chars),
+            None => {
                 let object = self.context.object(value)?;
                 let YObjectPayload::String(value) = object.payload() else {
                     return None;
@@ -1436,65 +1769,63 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn string_tree_len_bytes(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value) {
-            Some(MmtkPayloadStorage::StringLeaf { len_bytes, .. })
-            | Some(MmtkPayloadStorage::StringNode { len_bytes, .. }) => Some(*len_bytes),
-            _ => Some(self.render_string(value)?.len()),
+        match self.compact_string_storage(value) {
+            Some(CompactStringTreeStorage::Leaf { len_bytes, .. })
+            | Some(CompactStringTreeStorage::Node { len_bytes, .. }) => Some(len_bytes),
+            None => Some(self.render_string(value)?.len()),
         }
     }
 
     fn string_black_height(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::StringLeaf { .. } => Some(0),
-            MmtkPayloadStorage::StringNode { color, .. } => {
+        match self.compact_string_storage(value)? {
+            CompactStringTreeStorage::Leaf { .. } => Some(0),
+            CompactStringTreeStorage::Node { color, .. } => {
                 let [left, _] = self.tree_binary_children(value)?;
-                Some(self.string_black_height(left)? + usize::from(*color == TreeColor::Black))
+                Some(self.string_black_height(left)? + usize::from(color == TreeColor::Black))
             }
-            _ => None,
         }
     }
 
     #[cfg(test)]
     fn string_red_black_status(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::StringLeaf { .. } => Some(0),
-            MmtkPayloadStorage::StringNode { color, .. } => {
+        match self.compact_string_storage(value)? {
+            CompactStringTreeStorage::Leaf { .. } => Some(0),
+            CompactStringTreeStorage::Node { color, .. } => {
                 let [left, right] = self.tree_binary_children(value)?;
                 let left_height = self.string_red_black_status(left)?;
                 let right_height = self.string_red_black_status(right)?;
                 if left_height != right_height {
                     return None;
                 }
-                if *color == TreeColor::Red
+                if color == TreeColor::Red
                     && (self.string_node_color(left) == Some(TreeColor::Red)
                         || self.string_node_color(right) == Some(TreeColor::Red))
                 {
                     return None;
                 }
-                Some(left_height + usize::from(*color == TreeColor::Black))
+                Some(left_height + usize::from(color == TreeColor::Black))
             }
-            _ => None,
         }
     }
 
     fn string_node_color(&self, value: YValue) -> Option<TreeColor> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::StringNode { color, .. } => Some(*color),
+        match self.compact_string_storage(value)? {
+            CompactStringTreeStorage::Node { color, .. } => Some(color),
             _ => None,
         }
     }
 
     fn is_string_leaf(&self, value: YValue) -> bool {
         matches!(
-            self.mmtk_storage(value),
-            Some(MmtkPayloadStorage::StringLeaf { .. })
+            self.compact_string_storage(value),
+            Some(CompactStringTreeStorage::Leaf { .. })
         )
     }
 
     fn is_string_node(&self, value: YValue) -> bool {
         matches!(
-            self.mmtk_storage(value),
-            Some(MmtkPayloadStorage::StringNode { .. })
+            self.compact_string_storage(value),
+            Some(CompactStringTreeStorage::Node { .. })
         )
     }
 
@@ -1570,14 +1901,14 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn list_split_at_unchecked(&mut self, value: YValue, index: usize) -> Option<(YValue, YValue)> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::ListLeaf { .. } => {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { .. } => {
                 let items = self.list_leaf_items(value)?;
                 let prefix = self.list_from_items(items.get(..index)?)?;
                 let suffix = self.list_from_items(items.get(index..)?)?;
                 Some((prefix, suffix))
             }
-            MmtkPayloadStorage::ListNode { .. } => {
+            CompactListTreeStorage::Node { .. } => {
                 let [left, right] = self.tree_binary_children(value)?;
                 let left_len = self.list_tree_len(left)?;
                 if index < left_len {
@@ -1593,7 +1924,6 @@ impl MmtkNativeRuntimeContext {
                     Some((left, right))
                 }
             }
-            _ => None,
         }
     }
 
@@ -1700,66 +2030,63 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn list_tree_len(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::ListLeaf { len } | MmtkPayloadStorage::ListNode { len, .. } => {
-                Some(*len)
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { len } | CompactListTreeStorage::Node { len, .. } => {
+                Some(len)
             }
-            _ => None,
         }
     }
 
     fn list_black_height(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::ListLeaf { .. } => Some(0),
-            MmtkPayloadStorage::ListNode { color, .. } => {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { .. } => Some(0),
+            CompactListTreeStorage::Node { color, .. } => {
                 let [left, _] = self.tree_binary_children(value)?;
-                Some(self.list_black_height(left)? + usize::from(*color == TreeColor::Black))
+                Some(self.list_black_height(left)? + usize::from(color == TreeColor::Black))
             }
-            _ => None,
         }
     }
 
     #[cfg(test)]
     fn list_red_black_status(&self, value: YValue) -> Option<usize> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::ListLeaf { .. } => Some(0),
-            MmtkPayloadStorage::ListNode { color, .. } => {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { .. } => Some(0),
+            CompactListTreeStorage::Node { color, .. } => {
                 let [left, right] = self.tree_binary_children(value)?;
                 let left_height = self.list_red_black_status(left)?;
                 let right_height = self.list_red_black_status(right)?;
                 if left_height != right_height {
                     return None;
                 }
-                if *color == TreeColor::Red
+                if color == TreeColor::Red
                     && (self.list_node_color(left) == Some(TreeColor::Red)
                         || self.list_node_color(right) == Some(TreeColor::Red))
                 {
                     return None;
                 }
-                Some(left_height + usize::from(*color == TreeColor::Black))
+                Some(left_height + usize::from(color == TreeColor::Black))
             }
-            _ => None,
         }
     }
 
     fn list_node_color(&self, value: YValue) -> Option<TreeColor> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::ListNode { color, .. } => Some(*color),
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Node { color, .. } => Some(color),
             _ => None,
         }
     }
 
     fn is_list_leaf(&self, value: YValue) -> bool {
         matches!(
-            self.mmtk_storage(value),
-            Some(MmtkPayloadStorage::ListLeaf { .. })
+            self.compact_list_storage(value),
+            Some(CompactListTreeStorage::Leaf { .. })
         )
     }
 
     fn is_list_node(&self, value: YValue) -> bool {
         matches!(
-            self.mmtk_storage(value),
-            Some(MmtkPayloadStorage::ListNode { .. })
+            self.compact_list_storage(value),
+            Some(CompactListTreeStorage::Node { .. })
         )
     }
 
@@ -1801,23 +2128,57 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn is_compact_string_tree(&self, value: YValue) -> bool {
-        matches!(
-            self.mmtk_storage(value),
-            Some(MmtkPayloadStorage::StringLeaf { .. })
-                | Some(MmtkPayloadStorage::StringNode { .. })
-        )
+        self.compact_string_storage(value).is_some()
     }
 
     fn is_compact_list_tree(&self, value: YValue) -> bool {
-        matches!(
-            self.mmtk_storage(value),
-            Some(MmtkPayloadStorage::ListLeaf { .. }) | Some(MmtkPayloadStorage::ListNode { .. })
-        )
+        self.compact_list_storage(value).is_some()
     }
 
     fn mmtk_storage(&self, value: YValue) -> Option<&MmtkPayloadStorage> {
         let raw = value.heap_reference_raw()?;
         self.context.heap().objects.get(&raw)
+    }
+
+    fn compact_string_storage(&self, value: YValue) -> Option<CompactStringTreeStorage> {
+        let header = self.context.heap().object_header(value)?;
+        if header.kind != YObjectKind::String {
+            return None;
+        }
+        let raw = self.context.heap().raw_payload_bytes(value)?;
+        match header.trace_slots {
+            0 => {
+                let text = std::str::from_utf8(raw).ok()?;
+                Some(CompactStringTreeStorage::Leaf {
+                    len_chars: text.chars().count(),
+                    len_bytes: raw.len(),
+                })
+            }
+            2 => {
+                let (color, len_chars, len_bytes) = decode_compact_string_node_payload(raw)?;
+                Some(CompactStringTreeStorage::Node {
+                    color,
+                    len_chars,
+                    len_bytes,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn compact_list_storage(&self, value: YValue) -> Option<CompactListTreeStorage> {
+        let header = self.context.heap().object_header(value)?;
+        if header.kind != YObjectKind::List {
+            return None;
+        }
+        let raw = self.context.heap().raw_payload_bytes(value)?;
+        if raw.is_empty() {
+            return Some(CompactListTreeStorage::Leaf {
+                len: header.trace_slots,
+            });
+        }
+        let (color, len) = decode_compact_list_node_payload(raw)?;
+        Some(CompactListTreeStorage::Node { color, len })
     }
 
     fn tree_binary_children(&self, value: YValue) -> Option<[YValue; 2]> {
@@ -1852,19 +2213,18 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn render_string(&self, value: YValue) -> Option<String> {
-        if self.is_compact_string_tree(value) {
+        if let Some(storage) = self.compact_string_storage(value) {
             let bytes = self.context.heap().raw_payload_bytes(value)?;
-            return match self.mmtk_storage(value)? {
-                MmtkPayloadStorage::StringLeaf { .. } => {
+            return match storage {
+                CompactStringTreeStorage::Leaf { .. } => {
                     std::str::from_utf8(bytes).map(str::to_string).ok()
                 }
-                MmtkPayloadStorage::StringNode { .. } => {
+                CompactStringTreeStorage::Node { .. } => {
                     let [left, right] = self.tree_binary_children(value)?;
                     let mut out = self.render_string(left)?;
                     out.push_str(&self.render_string(right)?);
                     Some(out)
                 }
-                _ => None,
             };
         }
 
@@ -1924,16 +2284,15 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn list_items(&self, value: YValue) -> Option<Vec<YValue>> {
-        if self.is_compact_list_tree(value) {
-            match self.mmtk_storage(value)? {
-                MmtkPayloadStorage::ListLeaf { .. } => return self.list_leaf_items(value),
-                MmtkPayloadStorage::ListNode { .. } => {
+        if let Some(storage) = self.compact_list_storage(value) {
+            match storage {
+                CompactListTreeStorage::Leaf { .. } => return self.list_leaf_items(value),
+                CompactListTreeStorage::Node { .. } => {
                     let [left, right] = self.tree_binary_children(value)?;
                     let mut out = self.list_items(left)?;
                     out.extend(self.list_items(right)?);
                     return Some(out);
                 }
-                _ => {}
             }
         }
 
@@ -1960,10 +2319,10 @@ impl MmtkNativeRuntimeContext {
     }
 
     fn list_leaf_items(&self, value: YValue) -> Option<Vec<YValue>> {
-        match self.mmtk_storage(value)? {
-            MmtkPayloadStorage::ListLeaf { len } => {
+        match self.compact_list_storage(value)? {
+            CompactListTreeStorage::Leaf { len } => {
                 let children = self.context.heap().trace_children(value)?;
-                (children.len() == *len).then_some(children)
+                (children.len() == len).then_some(children)
             }
             _ => None,
         }
@@ -2057,27 +2416,46 @@ impl MmtkNativeRuntimeContext {
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn encode_yvalue(value: YValue) -> i64 {
     value.raw() as i64
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn decode_yvalue(value: i64) -> YValue {
     YValue::from_raw(value as usize)
 }
 
-#[cfg(feature = "mmtk-runtime")]
+const YVALUE_I63_TAG: i64 = 0b001;
+const YVALUE_FALSE_BITS: i64 = 0b010;
+const YVALUE_TRUE_BITS: i64 = 0b110;
+const YVALUE_I63_MIN: i64 = -(1_i64 << 62);
+const YVALUE_I63_MAX: i64 = (1_i64 << 62) - 1;
+
+fn raw_i63(value: i64) -> Option<i64> {
+    (value & YVALUE_I63_TAG == YVALUE_I63_TAG).then_some(value >> 1)
+}
+
+fn encode_raw_i63(value: i64) -> Option<i64> {
+    (YVALUE_I63_MIN..=YVALUE_I63_MAX)
+        .contains(&value)
+        .then_some((value << 1) | YVALUE_I63_TAG)
+}
+
+fn encode_raw_bool(value: bool) -> i64 {
+    if value {
+        YVALUE_TRUE_BITS
+    } else {
+        YVALUE_FALSE_BITS
+    }
+}
+
 fn context_int_from_i64(value: i64) -> Option<i64> {
     YValue::from_i63(value).map(encode_yvalue)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn context_int_from_usize(value: usize) -> Option<i64> {
     i64::try_from(value).ok().and_then(context_int_from_i64)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn bytes_from_raw<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     if ptr.is_null() && len != 0 {
         return None;
@@ -2085,7 +2463,6 @@ fn bytes_from_raw<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     Some(unsafe { std::slice::from_raw_parts(ptr, len) })
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn mmtk_format_float(value: f64) -> String {
     let mut rendered = value.to_string();
     if !rendered.contains('.') && !rendered.contains('e') && !rendered.contains('E') {
@@ -2094,19 +2471,18 @@ fn mmtk_format_float(value: f64) -> String {
     rendered
 }
 
-#[cfg(all(feature = "mmtk-runtime", unix))]
+#[cfg(unix)]
 fn path_buf_bytes(path: &std::path::PathBuf) -> Vec<u8> {
     use std::os::unix::ffi::OsStrExt;
 
     path.as_os_str().as_bytes().to_vec()
 }
 
-#[cfg(all(feature = "mmtk-runtime", not(unix)))]
+#[cfg(not(unix))]
 fn path_buf_bytes(path: &std::path::PathBuf) -> Vec<u8> {
     path.to_string_lossy().as_bytes().to_vec()
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn char_range_to_byte_range(text: &str, start: usize, end: usize) -> Option<(usize, usize)> {
     if start > end {
         return None;
@@ -2120,7 +2496,6 @@ fn char_range_to_byte_range(text: &str, start: usize, end: usize) -> Option<(usi
     Some((start_byte, end_byte))
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn char_index_to_byte_index(text: &str, index: usize) -> Option<usize> {
     if index == text.chars().count() {
         return Some(text.len());
@@ -2128,7 +2503,6 @@ fn char_index_to_byte_index(text: &str, index: usize) -> Option<usize> {
     text.char_indices().nth(index).map(|(byte, _)| byte)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn chunk_str_bytes(value: &str) -> Vec<&[u8]> {
     if value.is_empty() {
         return Vec::new();
@@ -2148,26 +2522,25 @@ fn chunk_str_bytes(value: &str) -> Vec<&[u8]> {
     chunks
 }
 
-#[cfg(feature = "mmtk-runtime")]
 thread_local! {
-    static MMTK_CPS_CONTEXT: RefCell<Option<MmtkNativeRuntimeContext>> = const { RefCell::new(None) };
+    static MMTK_CPS_CONTEXT: Cell<*mut MmtkNativeRuntimeContext> = const { Cell::new(std::ptr::null_mut()) };
     static MMTK_CPS_TAG_NAMES: RefCell<HashMap<i64, Box<str>>> = RefCell::new(HashMap::new());
+    static MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED: RefCell<bool> = const { RefCell::new(false) };
 }
 
-#[cfg(feature = "mmtk-runtime")]
-fn with_mmtk_cps_context<R>(f: impl FnOnce(&mut MmtkNativeRuntimeContext) -> R) -> Option<R> {
+pub(crate) fn with_mmtk_cps_context<R>(
+    f: impl FnOnce(&mut MmtkNativeRuntimeContext) -> R,
+) -> Option<R> {
     MMTK_CPS_CONTEXT.with(|slot| {
-        let mut slot = slot.borrow_mut();
-        if slot.is_none() {
-            *slot = Some(MmtkNativeRuntimeContext::new_no_gc().ok()?);
+        let mut ptr = slot.get();
+        if ptr.is_null() {
+            ptr = Box::into_raw(Box::new(MmtkNativeRuntimeContext::new_no_gc().ok()?));
+            slot.set(ptr);
         }
-        Some(f(slot
-            .as_mut()
-            .expect("MMTk CPS context should be initialized")))
+        Some(f(unsafe { &mut *ptr }))
     })
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn mmtk_cps_tag_name(tag: i64) -> String {
     MMTK_CPS_TAG_NAMES.with(|names| {
         names
@@ -2178,7 +2551,6 @@ fn mmtk_cps_tag_name(tag: i64) -> String {
     })
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn mmtk_cps_register_tag_name(tag: i64, name: &str) {
     MMTK_CPS_TAG_NAMES.with(|names| {
         names
@@ -2188,28 +2560,97 @@ fn mmtk_cps_register_tag_name(tag: i64, name: &str) {
     });
 }
 
-#[cfg(feature = "mmtk-runtime")]
+pub(crate) fn mmtk_cps_control_stack_snapshots_enabled() -> bool {
+    MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED.with(|enabled| *enabled.borrow())
+}
+
+pub(crate) fn allocate_mmtk_cps_control_stack_snapshot_i64(
+    item_count: usize,
+    raw_trace_words: &[i64],
+) -> Option<i64> {
+    allocate_mmtk_cps_control_stack_chunk_i64(item_count, 0, raw_trace_words)
+}
+
+pub(crate) fn allocate_mmtk_cps_control_stack_chunk_i64(
+    item_count: usize,
+    parent: i64,
+    raw_trace_words: &[i64],
+) -> Option<i64> {
+    if !mmtk_cps_control_stack_snapshots_enabled() {
+        return None;
+    }
+    with_mmtk_cps_context(|context| {
+        let parent = if parent == 0 {
+            None
+        } else {
+            let value = YValue::from_raw(parent as usize);
+            let raw = value.heap_reference_raw()?;
+            let heap = context.context().heap();
+            if !heap.may_be_tracked_object_raw(raw) || !heap.objects.contains_key(&raw) {
+                return None;
+            }
+            Some(value)
+        };
+        let trace_slots = context
+            .context()
+            .heap()
+            .control_stack_trace_slots(parent, raw_trace_words);
+        if trace_slots.is_empty() {
+            return None;
+        }
+        if trace_slots.len() == usize::from(parent.is_some()) {
+            return parent.map(|value| value.raw() as i64);
+        }
+        Some(
+            context
+                .context_mut()
+                .heap_mut()
+                .allocate_compact_control_stack_chunk_with_trace_slots(
+                    item_count,
+                    parent.is_some(),
+                    raw_trace_words,
+                    &trace_slots,
+                )
+                .raw() as i64,
+        )
+    })
+    .flatten()
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_reset_i64() {
     MMTK_CPS_CONTEXT.with(|slot| {
-        *slot.borrow_mut() = None;
+        let ptr = slot.replace(std::ptr::null_mut());
+        if !ptr.is_null() {
+            unsafe {
+                drop(Box::from_raw(ptr));
+            }
+        }
     });
     MMTK_CPS_TAG_NAMES.with(|names| names.borrow_mut().clear());
+    MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED.with(|enabled| *enabled.borrow_mut() = true);
 }
 
-#[cfg(feature = "mmtk-runtime")]
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_enable_control_stack_i64() {
+    MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED.with(|enabled| *enabled.borrow_mut() = true);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_disable_control_stack_i64() {
+    MMTK_CPS_CONTROL_STACK_SNAPSHOTS_ENABLED.with(|enabled| *enabled.borrow_mut() = false);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_unit_i64() -> i64 {
     encode_yvalue(YValue::UNIT)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_box_bool_i64(value: i64) -> i64 {
     encode_yvalue(YValue::from_bool(value != 0))
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_make_int_i64(ptr: *const u8, len: i64) -> i64 {
     let Ok(len) = usize::try_from(len) else {
@@ -2224,7 +2665,6 @@ pub extern "C" fn yulang_mmtk_cps_make_int_i64(ptr: *const u8, len: i64) -> i64 
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_literal_i64(ptr: *const u8, len: i64) -> i64 {
     let Ok(len) = usize::try_from(len) else {
@@ -2239,7 +2679,6 @@ pub extern "C" fn yulang_mmtk_cps_string_literal_i64(ptr: *const u8, len: i64) -
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_concat_i64(left: i64, right: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2250,7 +2689,6 @@ pub extern "C" fn yulang_mmtk_cps_string_concat_i64(left: i64, right: i64) -> i6
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_eq_i64(left: i64, right: i64) -> i64 {
     with_mmtk_cps_context(|context| context.string_eq(decode_yvalue(left), decode_yvalue(right)))
@@ -2260,7 +2698,6 @@ pub extern "C" fn yulang_mmtk_cps_string_eq_i64(left: i64, right: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_len_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.string_len(decode_yvalue(value)))
@@ -2269,7 +2706,6 @@ pub extern "C" fn yulang_mmtk_cps_string_len_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_index_i64(value: i64, index: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2281,7 +2717,6 @@ pub extern "C" fn yulang_mmtk_cps_string_index_i64(value: i64, index: i64) -> i6
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_slice_i64(value: i64, start: i64, end: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2294,7 +2729,6 @@ pub extern "C" fn yulang_mmtk_cps_string_slice_i64(value: i64, start: i64, end: 
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_slice_range_i64(value: i64, range: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2305,7 +2739,6 @@ pub extern "C" fn yulang_mmtk_cps_string_slice_range_i64(value: i64, range: i64)
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_splice_i64(
     value: i64,
@@ -2323,7 +2756,6 @@ pub extern "C" fn yulang_mmtk_cps_string_splice_i64(
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_splice_range_i64(
     value: i64,
@@ -2342,7 +2774,6 @@ pub extern "C" fn yulang_mmtk_cps_string_splice_range_i64(
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_string_to_bytes_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.string_to_bytes(decode_yvalue(value)))
@@ -2351,7 +2782,6 @@ pub extern "C" fn yulang_mmtk_cps_string_to_bytes_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_len_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.bytes_len(decode_yvalue(value)))
@@ -2360,7 +2790,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_len_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_eq_i64(left: i64, right: i64) -> i64 {
     with_mmtk_cps_context(|context| context.bytes_eq(decode_yvalue(left), decode_yvalue(right)))
@@ -2370,7 +2799,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_eq_i64(left: i64, right: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_concat_i64(left: i64, right: i64) -> i64 {
     with_mmtk_cps_context(|context| context.bytes_concat(decode_yvalue(left), decode_yvalue(right)))
@@ -2379,7 +2807,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_concat_i64(left: i64, right: i64) -> i64
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_index_i64(value: i64, index: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2392,7 +2819,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_index_i64(value: i64, index: i64) -> i64
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_slice_i64(value: i64, start: i64, end: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2405,7 +2831,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_slice_i64(value: i64, start: i64, end: i
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_slice_range_i64(value: i64, range: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2416,7 +2841,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_slice_range_i64(value: i64, range: i64) 
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_to_utf8_raw_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.bytes_to_utf8_raw(decode_yvalue(value)))
@@ -2425,7 +2849,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_to_utf8_raw_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bytes_to_path_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.bytes_to_path(decode_yvalue(value)))
@@ -2434,7 +2857,6 @@ pub extern "C" fn yulang_mmtk_cps_bytes_to_path_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_path_to_bytes_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.path_to_bytes(decode_yvalue(value)))
@@ -2443,7 +2865,6 @@ pub extern "C" fn yulang_mmtk_cps_path_to_bytes_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_i64_0() -> i64 {
     with_mmtk_cps_context(MmtkNativeRuntimeContext::tuple_empty)
@@ -2451,35 +2872,30 @@ pub extern "C" fn yulang_mmtk_cps_tuple_i64_0() -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_i64_1(a: i64) -> i64 {
     let tuple = yulang_mmtk_cps_tuple_i64_0();
     yulang_mmtk_cps_tuple_push_i64(tuple, a)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_i64_2(a: i64, b: i64) -> i64 {
     let tuple = yulang_mmtk_cps_tuple_i64_1(a);
     yulang_mmtk_cps_tuple_push_i64(tuple, b)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_i64_3(a: i64, b: i64, c: i64) -> i64 {
     let tuple = yulang_mmtk_cps_tuple_i64_2(a, b);
     yulang_mmtk_cps_tuple_push_i64(tuple, c)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_i64_4(a: i64, b: i64, c: i64, d: i64) -> i64 {
     let tuple = yulang_mmtk_cps_tuple_i64_3(a, b, c);
     yulang_mmtk_cps_tuple_push_i64(tuple, d)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_push_i64(tuple: i64, value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.tuple_push(decode_yvalue(tuple), decode_yvalue(value)))
@@ -2488,7 +2904,6 @@ pub extern "C" fn yulang_mmtk_cps_tuple_push_i64(tuple: i64, value: i64) -> i64 
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_tuple_get_i64(tuple: i64, index: i64) -> i64 {
     let Ok(index) = usize::try_from(index) else {
@@ -2500,7 +2915,6 @@ pub extern "C" fn yulang_mmtk_cps_tuple_get_i64(tuple: i64, index: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_record_empty_i64() -> i64 {
     with_mmtk_cps_context(MmtkNativeRuntimeContext::record_empty)
@@ -2508,7 +2922,6 @@ pub extern "C" fn yulang_mmtk_cps_record_empty_i64() -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_record_insert_i64(
     record: i64,
@@ -2530,7 +2943,6 @@ pub extern "C" fn yulang_mmtk_cps_record_insert_i64(
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_record_select_i64(
     record: i64,
@@ -2549,7 +2961,6 @@ pub extern "C" fn yulang_mmtk_cps_record_select_i64(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_record_select_or_default_i64(
     record: i64,
@@ -2571,7 +2982,6 @@ pub extern "C" fn yulang_mmtk_cps_record_select_or_default_i64(
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_record_has_field_i64(
     record: i64,
@@ -2591,7 +3001,6 @@ pub extern "C" fn yulang_mmtk_cps_record_has_field_i64(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_record_without_field_i64(
     record: i64,
@@ -2610,7 +3019,6 @@ pub extern "C" fn yulang_mmtk_cps_record_without_field_i64(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_register_tag_i64(tag: i64, ptr: *const u8, len: i64) -> i64 {
     let Ok(len) = usize::try_from(len) else {
@@ -2626,7 +3034,6 @@ pub extern "C" fn yulang_mmtk_cps_register_tag_i64(tag: i64, ptr: *const u8, len
     0
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_variant_i64_0(tag: i64) -> i64 {
     let tag = mmtk_cps_tag_name(tag);
@@ -2636,7 +3043,6 @@ pub extern "C" fn yulang_mmtk_cps_variant_i64_0(tag: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_variant_i64_1(tag: i64, value: i64) -> i64 {
     let tag = mmtk_cps_tag_name(tag);
@@ -2646,7 +3052,6 @@ pub extern "C" fn yulang_mmtk_cps_variant_i64_1(tag: i64, value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_variant_tag_eq_i64(value: i64, tag: i64) -> i64 {
     let tag = mmtk_cps_tag_name(tag);
@@ -2657,7 +3062,6 @@ pub extern "C" fn yulang_mmtk_cps_variant_tag_eq_i64(value: i64, tag: i64) -> i6
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_variant_payload_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.variant_payload(decode_yvalue(value)))
@@ -2666,7 +3070,6 @@ pub extern "C" fn yulang_mmtk_cps_variant_payload_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_empty_i64() -> i64 {
     with_mmtk_cps_context(MmtkNativeRuntimeContext::list_empty)
@@ -2674,7 +3077,6 @@ pub extern "C" fn yulang_mmtk_cps_list_empty_i64() -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_singleton_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.list_singleton(decode_yvalue(value)))
@@ -2682,7 +3084,6 @@ pub extern "C" fn yulang_mmtk_cps_list_singleton_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_merge_i64(left: i64, right: i64) -> i64 {
     with_mmtk_cps_context(|context| context.list_merge(decode_yvalue(left), decode_yvalue(right)))
@@ -2691,7 +3092,6 @@ pub extern "C" fn yulang_mmtk_cps_list_merge_i64(left: i64, right: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_len_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.list_len(decode_yvalue(value)))
@@ -2700,7 +3100,6 @@ pub extern "C" fn yulang_mmtk_cps_list_len_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_index_i64(value: i64, index: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2712,7 +3111,6 @@ pub extern "C" fn yulang_mmtk_cps_list_index_i64(value: i64, index: i64) -> i64 
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_slice_i64(value: i64, start: i64, end: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2725,7 +3123,6 @@ pub extern "C" fn yulang_mmtk_cps_list_slice_i64(value: i64, start: i64, end: i6
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_slice_range_i64(value: i64, range: i64) -> i64 {
     with_mmtk_cps_context(|context| {
@@ -2736,7 +3133,6 @@ pub extern "C" fn yulang_mmtk_cps_list_slice_range_i64(value: i64, range: i64) -
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_splice_i64(
     value: i64,
@@ -2754,7 +3150,6 @@ pub extern "C" fn yulang_mmtk_cps_list_splice_i64(
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_splice_range_i64(
     value: i64,
@@ -2773,7 +3168,6 @@ pub extern "C" fn yulang_mmtk_cps_list_splice_range_i64(
     .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_list_view_raw_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.list_view_raw(decode_yvalue(value)))
@@ -2782,7 +3176,6 @@ pub extern "C" fn yulang_mmtk_cps_list_view_raw_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_to_string_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.int_to_string(decode_yvalue(value)))
@@ -2791,7 +3184,6 @@ pub extern "C" fn yulang_mmtk_cps_int_to_string_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_to_hex_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.int_to_hex(decode_yvalue(value), false))
@@ -2800,7 +3192,6 @@ pub extern "C" fn yulang_mmtk_cps_int_to_hex_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_to_upper_hex_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.int_to_hex(decode_yvalue(value), true))
@@ -2809,7 +3200,6 @@ pub extern "C" fn yulang_mmtk_cps_int_to_upper_hex_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bool_to_string_i64(value: i64) -> i64 {
     with_mmtk_cps_context(|context| context.bool_to_string(decode_yvalue(value)))
@@ -2818,7 +3208,60 @@ pub extern "C" fn yulang_mmtk_cps_bool_to_string_i64(value: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_debug_i64(value: i64) -> i64 {
+    with_mmtk_cps_context(|context| {
+        let text = context.debug_value(decode_yvalue(value));
+        context.make_string(text.as_bytes())
+    })
+    .flatten()
+    .map(encode_yvalue)
+    .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_print_debug_i64(value: i64) {
+    let text = with_mmtk_cps_context(|context| context.debug_value(decode_yvalue(value)))
+        .unwrap_or_else(|| "<invalid mmtk value>".to_string());
+    print!("{text}");
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_out_write_i64(value: i64) -> i64 {
+    let text = with_mmtk_cps_context(|context| context.display_value(decode_yvalue(value)))
+        .unwrap_or_else(|| "<invalid mmtk value>".to_string());
+    print!("{text}");
+    let mut stdout = std::io::stdout();
+    let _ = std::io::Write::flush(&mut stdout);
+    encode_yvalue(YValue::UNIT)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_err_write_i64(value: i64) -> i64 {
+    let text = with_mmtk_cps_context(|context| context.display_value(decode_yvalue(value)))
+        .unwrap_or_else(|| "<invalid mmtk value>".to_string());
+    eprint!("{text}");
+    let mut stderr = std::io::stderr();
+    let _ = std::io::Write::flush(&mut stderr);
+    encode_yvalue(YValue::UNIT)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_warn_write_i64(value: i64) -> i64 {
+    let text = with_mmtk_cps_context(|context| context.display_value(decode_yvalue(value)))
+        .unwrap_or_else(|| "<invalid mmtk value>".to_string());
+    eprintln!("warning: {text}");
+    encode_yvalue(YValue::UNIT)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_mmtk_cps_die_i64(value: i64) -> i64 {
+    let text = with_mmtk_cps_context(|context| context.display_value(decode_yvalue(value)))
+        .unwrap_or_else(|| "<invalid mmtk value>".to_string());
+    eprintln!("die: {text}");
+    std::process::exit(1);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_float_to_string_f64(value: f64) -> i64 {
     with_mmtk_cps_context(|context| context.float_to_string(value))
@@ -2827,14 +3270,12 @@ pub extern "C" fn yulang_mmtk_cps_float_to_string_f64(value: f64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bool_not_i64(value: i64) -> i64 {
     let value = decode_yvalue(value).as_bool().map(|value| !value);
     value.map(YValue::from_bool).map(encode_yvalue).unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bool_eq_i64(left: i64, right: i64) -> i64 {
     let value = decode_yvalue(left)
@@ -2844,40 +3285,59 @@ pub extern "C" fn yulang_mmtk_cps_bool_eq_i64(left: i64, right: i64) -> i64 {
     value.map(YValue::from_bool).map(encode_yvalue).unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_bool_truthy_i64(value: i64) -> i64 {
     decode_yvalue(value).as_bool().map(i64::from).unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_add_i64(left: i64, right: i64) -> i64 {
+    if let Some(value) = raw_i63(left)
+        .zip(raw_i63(right))
+        .and_then(|(left, right)| left.checked_add(right))
+        .and_then(encode_raw_i63)
+    {
+        return value;
+    }
     with_mmtk_cps_context(|context| context.int_add(decode_yvalue(left), decode_yvalue(right)))
         .flatten()
         .map(encode_yvalue)
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_sub_i64(left: i64, right: i64) -> i64 {
+    if let Some(value) = raw_i63(left)
+        .zip(raw_i63(right))
+        .and_then(|(left, right)| left.checked_sub(right))
+        .and_then(encode_raw_i63)
+    {
+        return value;
+    }
     with_mmtk_cps_context(|context| context.int_sub(decode_yvalue(left), decode_yvalue(right)))
         .flatten()
         .map(encode_yvalue)
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_mul_i64(left: i64, right: i64) -> i64 {
+    if let Some(value) = raw_i63(left)
+        .zip(raw_i63(right))
+        .and_then(|(left, right)| {
+            let value = i128::from(left) * i128::from(right);
+            i64::try_from(value).ok()
+        })
+        .and_then(encode_raw_i63)
+    {
+        return value;
+    }
     with_mmtk_cps_context(|context| context.int_mul(decode_yvalue(left), decode_yvalue(right)))
         .flatten()
         .map(encode_yvalue)
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_div_i64(left: i64, right: i64) -> i64 {
     with_mmtk_cps_context(|context| context.int_div(decode_yvalue(left), decode_yvalue(right)))
@@ -2886,7 +3346,6 @@ pub extern "C" fn yulang_mmtk_cps_int_div_i64(left: i64, right: i64) -> i64 {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_eq_i64(left: i64, right: i64) -> i64 {
     mmtk_cps_int_compare_pred(left, right, |ordering| {
@@ -2894,13 +3353,11 @@ pub extern "C" fn yulang_mmtk_cps_int_eq_i64(left: i64, right: i64) -> i64 {
     })
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_lt_i64(left: i64, right: i64) -> i64 {
     mmtk_cps_int_compare_pred(left, right, |ordering| ordering == std::cmp::Ordering::Less)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_le_i64(left: i64, right: i64) -> i64 {
     mmtk_cps_int_compare_pred(left, right, |ordering| {
@@ -2908,7 +3365,6 @@ pub extern "C" fn yulang_mmtk_cps_int_le_i64(left: i64, right: i64) -> i64 {
     })
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_gt_i64(left: i64, right: i64) -> i64 {
     mmtk_cps_int_compare_pred(left, right, |ordering| {
@@ -2916,18 +3372,19 @@ pub extern "C" fn yulang_mmtk_cps_int_gt_i64(left: i64, right: i64) -> i64 {
     })
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_cps_int_ge_i64(left: i64, right: i64) -> i64 {
     mmtk_cps_int_compare_pred(left, right, |ordering| ordering != std::cmp::Ordering::Less)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 fn mmtk_cps_int_compare_pred(
     left: i64,
     right: i64,
     pred: impl FnOnce(std::cmp::Ordering) -> bool,
 ) -> i64 {
+    if let Some((left, right)) = raw_i63(left).zip(raw_i63(right)) {
+        return encode_raw_bool(pred(left.cmp(&right)));
+    }
     with_mmtk_cps_context(|context| context.int_compare(decode_yvalue(left), decode_yvalue(right)))
         .flatten()
         .map(pred)
@@ -2936,7 +3393,6 @@ fn mmtk_cps_int_compare_pred(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_context_new() -> *mut MmtkNativeRuntimeContext {
     MmtkNativeRuntimeContext::new_no_gc()
@@ -2945,7 +3401,6 @@ pub extern "C" fn yulang_mmtk_native_context_new() -> *mut MmtkNativeRuntimeCont
         .unwrap_or(std::ptr::null_mut())
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_context_free(context: *mut MmtkNativeRuntimeContext) {
     if !context.is_null() {
@@ -2955,7 +3410,6 @@ pub extern "C" fn yulang_mmtk_native_context_free(context: *mut MmtkNativeRuntim
     }
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_make_unit(context: *mut MmtkNativeRuntimeContext) -> i64 {
     let Some(context) = (unsafe { context.as_ref() }) else {
@@ -2964,7 +3418,6 @@ pub extern "C" fn yulang_mmtk_native_make_unit(context: *mut MmtkNativeRuntimeCo
     encode_yvalue(context.make_unit())
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_make_bool(
     context: *mut MmtkNativeRuntimeContext,
@@ -2976,7 +3429,6 @@ pub extern "C" fn yulang_mmtk_native_make_bool(
     encode_yvalue(context.make_bool(value != 0))
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_make_int(
     context: *mut MmtkNativeRuntimeContext,
@@ -2992,7 +3444,6 @@ pub extern "C" fn yulang_mmtk_native_make_int(
     context.make_int_text(bytes).map(encode_yvalue).unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_make_string(
     context: *mut MmtkNativeRuntimeContext,
@@ -3008,7 +3459,6 @@ pub extern "C" fn yulang_mmtk_native_make_string(
     context.make_string(bytes).map(encode_yvalue).unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_string_concat(
     context: *mut MmtkNativeRuntimeContext,
@@ -3024,7 +3474,6 @@ pub extern "C" fn yulang_mmtk_native_string_concat(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_string_byte_len(
     context: *mut MmtkNativeRuntimeContext,
@@ -3039,7 +3488,6 @@ pub extern "C" fn yulang_mmtk_native_string_byte_len(
         .unwrap_or(-1)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_string_eq(
     context: *mut MmtkNativeRuntimeContext,
@@ -3055,7 +3503,6 @@ pub extern "C" fn yulang_mmtk_native_string_eq(
         .unwrap_or(-1)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_string_slice(
     context: *mut MmtkNativeRuntimeContext,
@@ -3072,7 +3519,6 @@ pub extern "C" fn yulang_mmtk_native_string_slice(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_string_splice(
     context: *mut MmtkNativeRuntimeContext,
@@ -3090,7 +3536,6 @@ pub extern "C" fn yulang_mmtk_native_string_splice(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_tuple_empty(context: *mut MmtkNativeRuntimeContext) -> i64 {
     let Some(context) = (unsafe { context.as_mut() }) else {
@@ -3099,7 +3544,6 @@ pub extern "C" fn yulang_mmtk_native_tuple_empty(context: *mut MmtkNativeRuntime
     encode_yvalue(context.tuple_empty())
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_tuple_push(
     context: *mut MmtkNativeRuntimeContext,
@@ -3115,7 +3559,6 @@ pub extern "C" fn yulang_mmtk_native_tuple_push(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_tuple_get(
     context: *mut MmtkNativeRuntimeContext,
@@ -3131,7 +3574,6 @@ pub extern "C" fn yulang_mmtk_native_tuple_get(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_record_empty(context: *mut MmtkNativeRuntimeContext) -> i64 {
     let Some(context) = (unsafe { context.as_mut() }) else {
@@ -3140,7 +3582,6 @@ pub extern "C" fn yulang_mmtk_native_record_empty(context: *mut MmtkNativeRuntim
     encode_yvalue(context.record_empty())
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_record_insert(
     context: *mut MmtkNativeRuntimeContext,
@@ -3161,7 +3602,6 @@ pub extern "C" fn yulang_mmtk_native_record_insert(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_record_get(
     context: *mut MmtkNativeRuntimeContext,
@@ -3181,7 +3621,6 @@ pub extern "C" fn yulang_mmtk_native_record_get(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_record_get_or_default(
     context: *mut MmtkNativeRuntimeContext,
@@ -3202,7 +3641,6 @@ pub extern "C" fn yulang_mmtk_native_record_get_or_default(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_record_has_field(
     context: *mut MmtkNativeRuntimeContext,
@@ -3222,7 +3660,6 @@ pub extern "C" fn yulang_mmtk_native_record_has_field(
         .unwrap_or(-1)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_record_without_field(
     context: *mut MmtkNativeRuntimeContext,
@@ -3242,7 +3679,6 @@ pub extern "C" fn yulang_mmtk_native_record_without_field(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_variant(
     context: *mut MmtkNativeRuntimeContext,
@@ -3264,7 +3700,6 @@ pub extern "C" fn yulang_mmtk_native_variant(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_variant_tag_eq(
     context: *mut MmtkNativeRuntimeContext,
@@ -3284,7 +3719,6 @@ pub extern "C" fn yulang_mmtk_native_variant_tag_eq(
         .unwrap_or(-1)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_variant_payload(
     context: *mut MmtkNativeRuntimeContext,
@@ -3299,7 +3733,6 @@ pub extern "C" fn yulang_mmtk_native_variant_payload(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_empty(context: *mut MmtkNativeRuntimeContext) -> i64 {
     let Some(context) = (unsafe { context.as_mut() }) else {
@@ -3308,7 +3741,6 @@ pub extern "C" fn yulang_mmtk_native_list_empty(context: *mut MmtkNativeRuntimeC
     encode_yvalue(context.list_empty())
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_singleton(
     context: *mut MmtkNativeRuntimeContext,
@@ -3320,7 +3752,6 @@ pub extern "C" fn yulang_mmtk_native_list_singleton(
     encode_yvalue(context.list_singleton(decode_yvalue(value)))
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_merge(
     context: *mut MmtkNativeRuntimeContext,
@@ -3336,7 +3767,6 @@ pub extern "C" fn yulang_mmtk_native_list_merge(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_len(
     context: *mut MmtkNativeRuntimeContext,
@@ -3351,7 +3781,6 @@ pub extern "C" fn yulang_mmtk_native_list_len(
         .unwrap_or(-1)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_get(
     context: *mut MmtkNativeRuntimeContext,
@@ -3367,7 +3796,6 @@ pub extern "C" fn yulang_mmtk_native_list_get(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_slice(
     context: *mut MmtkNativeRuntimeContext,
@@ -3384,7 +3812,6 @@ pub extern "C" fn yulang_mmtk_native_list_slice(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_list_splice(
     context: *mut MmtkNativeRuntimeContext,
@@ -3402,7 +3829,6 @@ pub extern "C" fn yulang_mmtk_native_list_splice(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_int_add(
     context: *mut MmtkNativeRuntimeContext,
@@ -3418,7 +3844,6 @@ pub extern "C" fn yulang_mmtk_native_int_add(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_int_sub(
     context: *mut MmtkNativeRuntimeContext,
@@ -3434,7 +3859,6 @@ pub extern "C" fn yulang_mmtk_native_int_sub(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_int_mul(
     context: *mut MmtkNativeRuntimeContext,
@@ -3450,7 +3874,6 @@ pub extern "C" fn yulang_mmtk_native_int_mul(
         .unwrap_or(0)
 }
 
-#[cfg(feature = "mmtk-runtime")]
 #[unsafe(no_mangle)]
 pub extern "C" fn yulang_mmtk_native_int_compare(
     context: *mut MmtkNativeRuntimeContext,
@@ -3468,7 +3891,7 @@ pub extern "C" fn yulang_mmtk_native_int_compare(
     }
 }
 
-#[cfg(all(test, feature = "mmtk-runtime"))]
+#[cfg(test)]
 pub(crate) fn mmtk_test_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     LOCK.lock().unwrap_or_else(|poison| poison.into_inner())
@@ -3477,18 +3900,12 @@ pub(crate) fn mmtk_test_lock() -> std::sync::MutexGuard<'static, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[cfg(feature = "mmtk-runtime")]
     fn encoded_i63(value: i64) -> i64 {
         encode_yvalue(YValue::from_i63(value).expect("test integer should fit i63"))
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn encoded_bool(value: bool) -> i64 {
         encode_yvalue(YValue::from_bool(value))
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn declare_jit_import(
         module: &mut cranelift_jit::JITModule,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
@@ -3508,8 +3925,6 @@ mod tests {
             .unwrap_or_else(|error| panic!("declare import {name}: {error}"));
         module.declare_func_in_func(id, builder.func)
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn call_jit_i64(
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
         callee: cranelift_codegen::ir::FuncRef,
@@ -3563,8 +3978,6 @@ mod tests {
         assert_eq!(boundary.config().plan, MmtkRuntimePlan::MarkSweep);
         assert_eq!(boundary.options_string(), "plan=MarkSweep max_heap=64M");
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_runtime_boundary_builds_yulang_nogc_binding() {
         let _guard = mmtk_test_lock();
@@ -3574,8 +3987,6 @@ mod tests {
             .build_yulang_mmtk()
             .expect("NoGC prototype config should build a Yulang MMTk binding");
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_heap_allocates_yheap_objects_and_records_trace_slots() {
         let _guard = mmtk_test_lock();
@@ -3621,8 +4032,6 @@ mod tests {
         assert_eq!(trace[0].value, tuple);
         assert_eq!(trace[1].value, child);
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_heap_supports_gc_runtime_surface_smoke() {
         let _guard = mmtk_test_lock();
@@ -3670,8 +4079,6 @@ mod tests {
         assert_eq!(report.live_by_kind[&YObjectKind::Closure], 1);
         assert_eq!(report.live_by_kind[&YObjectKind::Tuple], 1);
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_heap_supports_compact_raw_payload_objects() {
         let _guard = mmtk_test_lock();
@@ -3712,8 +4119,6 @@ mod tests {
             vec![YObjectKind::Tuple, YObjectKind::String]
         );
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_heap_supports_compact_native_heap_blocks() {
         let _guard = mmtk_test_lock();
@@ -3756,8 +4161,6 @@ mod tests {
         assert_eq!(stats.allocated_trace_slots, 1);
         assert_eq!(stats.allocated_by_kind[&YObjectKind::Tuple], 1);
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_heap_supports_compact_control_payloads() {
         let _guard = mmtk_test_lock();
@@ -3834,7 +4237,82 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "mmtk-runtime")]
+    #[test]
+    fn mmtk_heap_supports_control_stack_snapshots() {
+        let _guard = mmtk_test_lock();
+        use crate::gc_runtime::{GcRuntimeContext, YObjectKind};
+
+        let heap = MmtkHeap::new_no_gc().expect("NoGC MMTk heap should initialize");
+        let mut context = GcRuntimeContext::with_heap(heap);
+        let captured = context.alloc_string("captured");
+        let non_mmtk_pointer_shaped_word = 0x1000_i64;
+        let stack = context.heap_mut().allocate_compact_control_stack_snapshot(
+            3,
+            &[captured.raw() as i64, 7, non_mmtk_pointer_shaped_word],
+        );
+        context.root_stack_mut().push(stack);
+
+        assert!(context.object(stack).is_none());
+        assert_eq!(
+            context.heap().object_header(stack).map(|h| h.kind),
+            Some(YObjectKind::ControlStack)
+        );
+        assert_eq!(context.heap().trace_children(stack), Some(vec![captured]));
+        assert_eq!(
+            context
+                .heap()
+                .raw_payload_bytes(stack)
+                .and_then(|bytes| bytes.first().copied()),
+            Some(COMPACT_CONTROL_STACK_TAG)
+        );
+
+        let next = context.heap_mut().allocate_compact_control_stack_chunk(
+            4,
+            Some(stack),
+            &[captured.raw() as i64],
+        );
+        assert_eq!(
+            context.heap().trace_children(next),
+            Some(vec![stack, captured])
+        );
+
+        let stats = context.heap_stats();
+        assert_eq!(stats.allocated_objects, 3);
+        assert_eq!(stats.allocated_trace_slots, 3);
+        assert_eq!(stats.allocated_by_kind[&YObjectKind::ControlStack], 2);
+
+        let trace = context.trace_roots();
+        assert_eq!(
+            trace
+                .iter()
+                .map(|edge| edge.object_kind)
+                .collect::<Vec<_>>(),
+            vec![YObjectKind::ControlStack, YObjectKind::String]
+        );
+    }
+
+    #[test]
+    fn mmtk_cps_control_stack_skips_chunks_without_new_heap_children() {
+        let _guard = mmtk_test_lock();
+
+        yulang_mmtk_cps_reset_i64();
+        assert_eq!(allocate_mmtk_cps_control_stack_chunk_i64(1, 0, &[7]), None);
+
+        let captured = with_mmtk_cps_context(|context| {
+            context
+                .make_string(b"captured")
+                .expect("string should allocate")
+                .raw() as i64
+        })
+        .expect("MMTk context should initialize");
+        let first = allocate_mmtk_cps_control_stack_chunk_i64(1, 0, &[captured])
+            .expect("heap child should allocate a control stack chunk");
+        let second = allocate_mmtk_cps_control_stack_chunk_i64(2, first, &[11])
+            .expect("parent chunk should remain as the top GC root");
+
+        assert_eq!(second, first);
+    }
+
     #[test]
     fn mmtk_heap_supports_rope_nodes_and_temporary_roots() {
         let _guard = mmtk_test_lock();
@@ -3876,8 +4354,6 @@ mod tests {
         assert_eq!(context.root_stack().values(), &[slice]);
         assert_eq!(context.stress_collection_count(), 5);
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_native_runtime_context_builds_small_language_values() {
         let _guard = mmtk_test_lock();
@@ -3975,8 +4451,6 @@ mod tests {
         assert_eq!(runtime.debug_value(list), "[\"hello\", 42]");
         assert_eq!(runtime.context().heap_stats().allocated_objects, 38);
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_native_runtime_context_keeps_string_and_list_trees_balanced() {
         let _guard = mmtk_test_lock();
@@ -4015,8 +4489,6 @@ mod tests {
             )
         );
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_native_runtime_c_abi_roundtrips_yvalue_words() {
         let _guard = mmtk_test_lock();
@@ -4104,8 +4576,6 @@ mod tests {
 
         yulang_mmtk_native_context_free(runtime);
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_cps_yvalue_lane_helpers_are_contextless_symbols() {
         let _guard = mmtk_test_lock();
@@ -4223,8 +4693,6 @@ mod tests {
         assert_eq!(rendered.4, "hello");
         assert_eq!(rendered.5, Some(true));
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_cps_yvalue_lane_symbols_can_be_called_from_jit() {
         use cranelift_codegen::ir::{AbiParam, InstBuilder, types};

@@ -43,7 +43,6 @@ pub struct CpsReprCraneliftOptions {
 }
 
 impl CpsReprCraneliftOptions {
-    #[cfg(feature = "mmtk-runtime")]
     pub fn mmtk_yvalue_primitives() -> Self {
         Self {
             mmtk_yvalue_primitives: true,
@@ -188,6 +187,7 @@ pub struct CpsReprJitModule {
     root_function_ids: Vec<u64>,
     cranelift_ir: Vec<String>,
     optimization_profile: CpsOptimizationProfile,
+    options: CpsReprCraneliftOptions,
     _strings: Vec<Box<str>>,
 }
 
@@ -209,6 +209,7 @@ impl CpsReprJitModule {
             .zip(self.root_display_hints.iter())
             .map(|(root, hint)| {
                 reset_native_i64_cps_state();
+                reset_mmtk_cps_state_for_options(self.options);
                 set_native_i64_root_function_ids(&self.root_function_ids);
                 let ptr = self.module.get_finalized_function(*root);
                 let call = unsafe { std::mem::transmute::<_, extern "C" fn() -> i64>(ptr) };
@@ -226,6 +227,7 @@ impl CpsReprJitModule {
             .iter()
             .map(|root| {
                 reset_native_i64_cps_state();
+                reset_mmtk_cps_state_for_options(self.options);
                 set_native_i64_root_function_ids(&self.root_function_ids);
                 let ptr = self.module.get_finalized_function(*root);
                 let call = unsafe { std::mem::transmute::<_, extern "C" fn() -> i64>(ptr) };
@@ -347,12 +349,28 @@ fn compile_cps_repr_abi_module_with_root_hints_and_options(
         root_function_ids,
         cranelift_ir,
         optimization_profile: optimized.profile,
+        options,
         _strings: strings,
     })
 }
 
+fn reset_mmtk_cps_state_for_options(options: CpsReprCraneliftOptions) {
+    if options.mmtk_yvalue_primitives {
+        crate::mmtk_runtime::yulang_mmtk_cps_reset_i64();
+    } else {
+        crate::mmtk_runtime::yulang_mmtk_cps_disable_control_stack_i64();
+    }
+}
+
 pub fn compile_cps_repr_abi_module_to_object(
     module: &CpsReprAbiModule,
+) -> CpsReprCraneliftResult<CpsReprObjectModule> {
+    compile_cps_repr_abi_module_to_object_with_options(module, CpsReprCraneliftOptions::default())
+}
+
+pub fn compile_cps_repr_abi_module_to_object_with_options(
+    module: &CpsReprAbiModule,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<CpsReprObjectModule> {
     let optimized = if std::env::var_os("YULANG_CPS_JIT_DISABLE_OPT").is_some() {
         CpsOptimizationOutput {
@@ -377,13 +395,7 @@ pub fn compile_cps_repr_abi_module_to_object(
     let mut object = ObjectModule::new(builder);
     let functions = declare_functions(&mut object, module)?;
     let mut literals = ObjectLiteralStore::default();
-    let _ = define_functions(
-        &mut object,
-        module,
-        &functions,
-        &mut literals,
-        CpsReprCraneliftOptions::default(),
-    )?;
+    let _ = define_functions(&mut object, module, &functions, &mut literals, options)?;
     let roots = module
         .roots
         .iter()
@@ -437,11 +449,21 @@ pub fn compile_runtime_module_to_cps_repr_jit_with_options(
 pub fn compile_runtime_module_to_cps_repr_object(
     module: &runtime::Module,
 ) -> CpsReprCraneliftResult<CpsReprObjectModule> {
+    compile_runtime_module_to_cps_repr_object_with_options(
+        module,
+        CpsReprCraneliftOptions::default(),
+    )
+}
+
+pub fn compile_runtime_module_to_cps_repr_object_with_options(
+    module: &runtime::Module,
+    options: CpsReprCraneliftOptions,
+) -> CpsReprCraneliftResult<CpsReprObjectModule> {
     let cps = lower_cps_module(module)?;
     validate_cps_module(&cps)?;
     let repr = crate::cps_repr::lower_cps_repr_module(&cps);
     let abi = lower_cps_repr_abi_module(&repr);
-    compile_cps_repr_abi_module_to_object(&abi)
+    compile_cps_repr_abi_module_to_object_with_options(&abi, options)
 }
 
 fn declare_functions<M: Module>(
@@ -603,7 +625,13 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
         let mut ctx = module_backend.make_context();
         ctx.func.signature = function_signature(module_backend, function);
         if function_has_effect_flow(function) {
-            lower_effectful_function_wrapper(module_backend, &mut ctx, function, functions)?;
+            lower_effectful_function_wrapper(
+                module_backend,
+                &mut ctx,
+                function,
+                functions,
+                options,
+            )?;
         } else {
             lower_function(
                 module_backend,
@@ -663,7 +691,7 @@ struct LocalValueCache {
 use self::helper_arity::{
     EFFECTFUL_APPLY_RESUMPTION_HELPERS, INSTALL_HANDLER_FULL_HELPERS, MAKE_CLOSURE_HELPERS,
     MAKE_ENV_HELPERS, MAKE_RECURSIVE_CLOSURE_HELPERS, MAKE_RESUMPTION_HELPERS, MAKE_THUNK_HELPERS,
-    PUSH_RETURN_FRAME_HELPERS, TUPLE_HELPERS,
+    MMTK_MAKE_CLOSURE_HELPERS, MMTK_MAKE_THUNK_HELPERS, PUSH_RETURN_FRAME_HELPERS, TUPLE_HELPERS,
 };
 
 struct CpsCraneliftLowerCx<'a, 'builder, M: Module, L: CpsLiteralStore> {
@@ -922,6 +950,7 @@ fn lower_effectful_function_wrapper<M: Module>(
     ctx: &mut cranelift_codegen::Context,
     function: &CpsReprAbiFunction,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let mut builder_context = FunctionBuilderContext::new();
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
@@ -949,7 +978,8 @@ fn lower_effectful_function_wrapper<M: Module>(
             });
         }
     };
-    let result = force_function_result_if_thunk(module_backend, &mut builder, function, result)?;
+    let result =
+        force_function_result_if_thunk(module_backend, &mut builder, function, result, options)?;
     builder.ins().return_(&[result]);
     builder.seal_all_blocks();
     builder.finalize();
@@ -961,6 +991,7 @@ fn force_function_result_if_thunk<M: Module>(
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     result: ir::Value,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let entry = continuation(function, function.entry)?;
     if entry.return_lane != CpsReprAbiLane::ThunkPtr {
@@ -969,7 +1000,11 @@ fn force_function_result_if_thunk<M: Module>(
     let helper = declare_import(
         module_backend,
         builder,
-        "yulang_cps_force_thunk_i64",
+        cps_control_helper(
+            options,
+            "yulang_cps_force_thunk_i64",
+            "yulang_mmtk_cps_control_force_thunk_i64",
+        ),
         &[types::I64],
         types::I64,
     )?;
@@ -1865,6 +1900,7 @@ fn lower_runtime_value_stmt<M: Module, L: CpsLiteralStore>(
         cx.functions,
         cx.handlers,
         cx.values,
+        cx.options,
     )
 }
 
@@ -1876,6 +1912,7 @@ fn lower_runtime_value_stmt_parts<M: Module>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     values: &mut LocalValueCache,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
         CpsStmt::FreshGuard { dest, .. } => {
@@ -1898,7 +1935,14 @@ fn lower_runtime_value_stmt_parts<M: Module>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeThunk { dest, entry } => {
-            let value = make_thunk(module_backend, builder, function, *entry, functions)?;
+            let value = make_thunk(
+                module_backend,
+                builder,
+                function,
+                *entry,
+                functions,
+                options,
+            )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::AddThunkBoundary {
@@ -1922,7 +1966,14 @@ fn lower_runtime_value_stmt_parts<M: Module>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeClosure { dest, entry } => {
-            let value = make_closure(module_backend, builder, function, *entry, functions)?;
+            let value = make_closure(
+                module_backend,
+                builder,
+                function,
+                *entry,
+                functions,
+                options,
+            )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeRecursiveClosure { dest, entry } => {
@@ -1933,6 +1984,7 @@ fn lower_runtime_value_stmt_parts<M: Module>(
                 *dest,
                 *entry,
                 functions,
+                options,
             )?;
             builder.def_var(variable(*dest), value);
         }
@@ -1951,7 +2003,11 @@ fn lower_runtime_value_stmt_parts<M: Module>(
             let helper = declare_import(
                 module_backend,
                 builder,
-                "yulang_cps_force_thunk_i64",
+                cps_control_helper(
+                    options,
+                    "yulang_cps_force_thunk_i64",
+                    "yulang_mmtk_cps_control_force_thunk_i64",
+                ),
                 &[types::I64],
                 types::I64,
             )?;
@@ -1984,6 +2040,7 @@ fn lower_call_stmt_case<M: Module, L: CpsLiteralStore>(
         cx.functions,
         cx.handlers,
         cx.values,
+        cx.options,
     )
 }
 
@@ -2010,6 +2067,7 @@ fn lower_call_stmt<M: Module>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     values: &mut LocalValueCache,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
         CpsStmt::DirectCall { dest, target, args } => {
@@ -2032,7 +2090,11 @@ fn lower_call_stmt<M: Module>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_apply_closure_i64",
+                cps_control_helper(
+                    options,
+                    "yulang_cps_apply_closure_i64",
+                    "yulang_mmtk_cps_control_apply_closure_i64",
+                ),
                 &[closure, arg],
             )?;
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
@@ -2468,6 +2530,7 @@ fn lower_perform_terminator_case<M: Module, L: CpsLiteralStore>(
         cx.functions,
         cx.handlers,
         case.blocked,
+        cx.options,
     )
 }
 
@@ -2497,6 +2560,7 @@ fn lower_effectful_force_terminator<M: Module, L: CpsLiteralStore>(
         case.thunk,
         case.resume,
         cx.functions,
+        cx.options,
     )
 }
 
@@ -2512,6 +2576,7 @@ fn lower_effectful_apply_terminator<M: Module, L: CpsLiteralStore>(
         case.arg,
         case.resume,
         cx.functions,
+        cx.options,
     )
 }
 
@@ -2526,6 +2591,7 @@ fn lower_perform_terminator<M: Module>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     blocked: Option<CpsValueId>,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let host_fallback = host_console_effect_kind(effect);
     let candidates = handlers.candidates_for_effect(effect);
@@ -2545,6 +2611,7 @@ fn lower_perform_terminator<M: Module>(
             payload,
             resume,
             functions,
+            options,
         )?;
         return Ok(());
     }
@@ -2608,6 +2675,7 @@ fn lower_perform_terminator<M: Module>(
         resumption,
         host_fallback.map(|kind| (kind, resume)),
         functions,
+        options,
     )
 }
 
@@ -2678,6 +2746,7 @@ fn lower_effectful_apply_tail<M: Module>(
     arg: CpsValueId,
     resume: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     // write27-d d4: EffectfulApply dispatches at runtime between Closure
     // and Resumption based on `yulang_cps_is_resumption_i64`. The Closure
@@ -2742,7 +2811,11 @@ fn lower_effectful_apply_tail<M: Module>(
     let closure_result = call_i64_helper(
         module_backend,
         builder,
-        "yulang_cps_apply_closure_i64",
+        cps_control_helper(
+            options,
+            "yulang_cps_apply_closure_i64",
+            "yulang_mmtk_cps_control_apply_closure_i64",
+        ),
         &[closure_value, arg_value],
     )?;
     builder.ins().return_(&[closure_result]);
@@ -2780,6 +2853,7 @@ fn lower_effectful_force_tail<M: Module>(
     thunk: CpsValueId,
     resume: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let resume_cont = lookup_continuation(function, resume)?;
     check_resume_continuation_shape(function, resume_cont)?;
@@ -2787,7 +2861,11 @@ fn lower_effectful_force_tail<M: Module>(
     let is_thunk = call_i64_helper(
         module_backend,
         builder,
-        "yulang_cps_is_thunk_i64",
+        cps_control_helper(
+            options,
+            "yulang_cps_is_thunk_i64",
+            "yulang_mmtk_cps_control_is_thunk_i64",
+        ),
         &[thunk_value],
     )?;
     let is_thunk = builder
@@ -2847,7 +2925,11 @@ fn lower_effectful_force_tail<M: Module>(
     let result = call_i64_helper(
         module_backend,
         builder,
-        "yulang_cps_force_thunk_i64",
+        cps_control_helper(
+            options,
+            "yulang_cps_force_thunk_i64",
+            "yulang_mmtk_cps_control_force_thunk_i64",
+        ),
         &[thunk_value],
     )?;
     switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
@@ -3115,7 +3197,8 @@ fn lower_effect_branch<M: Module>(
 
     let cond_id = cond;
     let cond = read_value(builder, function, cond_id)?;
-    let cond = force_branch_condition_if_thunk(module_backend, builder, function, cond_id, cond)?;
+    let cond =
+        force_branch_condition_if_thunk(module_backend, builder, function, cond_id, cond, options)?;
     let cond = branch_condition(module_backend, builder, options, cond)?;
     builder.ins().brif(cond, then_block, &[], else_block, &[]);
 
@@ -3149,6 +3232,7 @@ fn lower_selected_handler_return<M: Module>(
     resumption: ir::Value,
     host_fallback: Option<(HostConsoleEffect, CpsContinuationId)>,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let missing_block = builder.create_block();
     let selected_owner = call_i64_helper(
@@ -3291,6 +3375,7 @@ fn lower_selected_handler_return<M: Module>(
             payload,
             resume,
             functions,
+            options,
         )?;
     } else {
         let value = builder.ins().iconst(types::I64, 0);
@@ -3308,28 +3393,27 @@ fn lower_host_console_perform<M: Module>(
     payload: ir::Value,
     resume: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
-    let helper = match kind {
-        HostConsoleEffect::Debug => "yulang_cps_debug_i64",
-        HostConsoleEffect::OutWrite => "yulang_cps_out_write_i64",
-        HostConsoleEffect::ErrWrite => "yulang_cps_err_write_i64",
-        HostConsoleEffect::WarnWrite => "yulang_cps_warn_write_i64",
-        HostConsoleEffect::DieDie => "yulang_cps_die_i64",
+    let helper = match (mmtk_yvalue_primitive_lane_enabled(options), kind) {
+        (true, HostConsoleEffect::Debug) => "yulang_mmtk_cps_debug_i64",
+        (true, HostConsoleEffect::OutWrite) => "yulang_mmtk_cps_out_write_i64",
+        (true, HostConsoleEffect::ErrWrite) => "yulang_mmtk_cps_err_write_i64",
+        (true, HostConsoleEffect::WarnWrite) => "yulang_mmtk_cps_warn_write_i64",
+        (true, HostConsoleEffect::DieDie) => "yulang_mmtk_cps_die_i64",
+        (false, HostConsoleEffect::Debug) => "yulang_cps_debug_i64",
+        (false, HostConsoleEffect::OutWrite) => "yulang_cps_out_write_i64",
+        (false, HostConsoleEffect::ErrWrite) => "yulang_cps_err_write_i64",
+        (false, HostConsoleEffect::WarnWrite) => "yulang_cps_warn_write_i64",
+        (false, HostConsoleEffect::DieDie) => "yulang_cps_die_i64",
     };
     let result = call_i64_helper(module_backend, builder, helper, &[payload])?;
-    let resume_value = match kind {
-        HostConsoleEffect::OutWrite
-        | HostConsoleEffect::ErrWrite
-        | HostConsoleEffect::WarnWrite
-        | HostConsoleEffect::DieDie => builder.ins().iconst(types::I64, 0),
-        HostConsoleEffect::Debug => result,
-    };
     let value = call_continuation_with_values(
         module_backend,
         builder,
         function,
         resume,
-        &[resume_value],
+        &[result],
         functions,
     )?;
     builder.ins().return_(&[value]);
@@ -3342,6 +3426,7 @@ fn force_branch_condition_if_thunk<M: Module>(
     function: &CpsReprAbiFunction,
     cond_id: CpsValueId,
     cond: ir::Value,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     if value_lane(function, cond_id) != Some(CpsReprAbiLane::ThunkPtr)
         && !value_is_make_thunk(function, cond_id)
@@ -3351,7 +3436,11 @@ fn force_branch_condition_if_thunk<M: Module>(
     let helper = declare_import(
         module_backend,
         builder,
-        "yulang_cps_force_thunk_i64",
+        cps_control_helper(
+            options,
+            "yulang_cps_force_thunk_i64",
+            "yulang_mmtk_cps_control_force_thunk_i64",
+        ),
         &[types::I64],
         types::I64,
     )?;
@@ -3484,6 +3573,7 @@ fn make_thunk<M: Module>(
     function: &CpsReprAbiFunction,
     entry: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let thunk_continuation = continuation(function, entry)?;
     if !thunk_continuation.params.is_empty() {
@@ -3502,14 +3592,23 @@ fn make_thunk<M: Module>(
     }
     if thunk_continuation.environment.len() > 4 {
         let (env_ptr, env_len) = stack_i64_slice(builder, &args[1..])?;
+        let helpers = if mmtk_cps_control_objects_enabled(options) {
+            &MMTK_MAKE_THUNK_HELPERS
+        } else {
+            &MAKE_THUNK_HELPERS
+        };
         return call_i64_helper(
             module_backend,
             builder,
-            MAKE_THUNK_HELPERS.many,
+            helpers.many,
             &[code, env_ptr, env_len],
         );
     }
-    let helper_name = MAKE_THUNK_HELPERS.fixed(thunk_continuation.environment.len());
+    let helper_name = if mmtk_cps_control_objects_enabled(options) {
+        MMTK_MAKE_THUNK_HELPERS.fixed(thunk_continuation.environment.len())
+    } else {
+        MAKE_THUNK_HELPERS.fixed(thunk_continuation.environment.len())
+    };
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -3523,6 +3622,7 @@ fn make_closure<M: Module>(
     function: &CpsReprAbiFunction,
     entry: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let closure_continuation = continuation(function, entry)?;
     if closure_continuation.params.len() != 1 {
@@ -3540,14 +3640,23 @@ fn make_closure<M: Module>(
     }
     if closure_continuation.environment.len() > 4 {
         let (env_ptr, env_len) = stack_i64_slice(builder, &args[1..])?;
+        let helpers = if mmtk_cps_control_objects_enabled(options) {
+            &MMTK_MAKE_CLOSURE_HELPERS
+        } else {
+            &MAKE_CLOSURE_HELPERS
+        };
         return call_i64_helper(
             module_backend,
             builder,
-            MAKE_CLOSURE_HELPERS.many,
+            helpers.many,
             &[code, env_ptr, env_len],
         );
     }
-    let helper_name = MAKE_CLOSURE_HELPERS.fixed(closure_continuation.environment.len());
+    let helper_name = if mmtk_cps_control_objects_enabled(options) {
+        MMTK_MAKE_CLOSURE_HELPERS.fixed(closure_continuation.environment.len())
+    } else {
+        MAKE_CLOSURE_HELPERS.fixed(closure_continuation.environment.len())
+    };
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -3562,6 +3671,7 @@ fn make_recursive_closure<M: Module>(
     dest: CpsValueId,
     entry: CpsContinuationId,
     functions: &DeclaredFunctions,
+    options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let closure_continuation = continuation(function, entry)?;
     if closure_continuation.params.len() != 1 {
@@ -3584,7 +3694,7 @@ fn make_recursive_closure<M: Module>(
         }
     }
     let Some(self_slot) = self_slot else {
-        return make_closure(module_backend, builder, function, entry, functions);
+        return make_closure(module_backend, builder, function, entry, functions, options);
     };
     if closure_continuation.environment.len() > 4 {
         let self_slot_value = builder.ins().iconst(types::I64, self_slot as i64);
@@ -4327,7 +4437,14 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeThunk { dest, entry } => {
-            let value = make_thunk(module_backend, builder, function, *entry, functions)?;
+            let value = make_thunk(
+                module_backend,
+                builder,
+                function,
+                *entry,
+                functions,
+                options,
+            )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::AddThunkBoundary { dest, thunk, .. } => {
@@ -4335,7 +4452,14 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeClosure { dest, entry } => {
-            let value = make_closure(module_backend, builder, function, *entry, functions)?;
+            let value = make_closure(
+                module_backend,
+                builder,
+                function,
+                *entry,
+                functions,
+                options,
+            )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeRecursiveClosure { dest, entry } => {
@@ -4346,6 +4470,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 *dest,
                 *entry,
                 functions,
+                options,
             )?;
             builder.def_var(variable(*dest), value);
         }
@@ -4364,7 +4489,11 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let helper = declare_import(
                 module_backend,
                 builder,
-                "yulang_cps_force_thunk_i64",
+                cps_control_helper(
+                    options,
+                    "yulang_cps_force_thunk_i64",
+                    "yulang_mmtk_cps_control_force_thunk_i64",
+                ),
                 &[types::I64],
                 types::I64,
             )?;
@@ -4598,7 +4727,11 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = call_i64_helper(
                 module_backend,
                 builder,
-                "yulang_cps_apply_closure_i64",
+                cps_control_helper(
+                    options,
+                    "yulang_cps_apply_closure_i64",
+                    "yulang_mmtk_cps_control_apply_closure_i64",
+                ),
                 &[closure, arg],
             )?;
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
@@ -4974,8 +5107,25 @@ fn yvalue_primitive_helper(
     }
 }
 
+fn cps_control_helper(
+    options: CpsReprCraneliftOptions,
+    prototype: &'static str,
+    mmtk: &'static str,
+) -> &'static str {
+    if mmtk_cps_control_objects_enabled(options) {
+        mmtk
+    } else {
+        prototype
+    }
+}
+
 fn mmtk_yvalue_primitive_lane_enabled(options: CpsReprCraneliftOptions) -> bool {
-    cfg!(feature = "mmtk-runtime") && options.mmtk_yvalue_primitives
+    options.mmtk_yvalue_primitives
+}
+
+fn mmtk_cps_control_objects_enabled(options: CpsReprCraneliftOptions) -> bool {
+    options.mmtk_yvalue_primitives
+        && std::env::var_os("YULANG_MMTK_CPS_CONTROL_OBJECTS").is_some_and(|value| value == "1")
 }
 
 fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {
@@ -7577,8 +7727,6 @@ mod tests {
             assert_eq!(describe_native_i64_value(roots[0]), expected);
         }
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn jit_can_opt_into_mmtk_yvalue_string_bytes_primitives() {
         let _guard = crate::mmtk_runtime::mmtk_test_lock();
@@ -7943,8 +8091,6 @@ mod tests {
             assert_eq!(jit.run_roots_i64().expect("ran"), vec![expected]);
         }
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     #[test]
     fn mmtk_yvalue_primitive_lane_runs_list_view_raw() {
         let _guard = crate::mmtk_runtime::mmtk_test_lock();
@@ -8908,15 +9054,11 @@ mod tests {
     fn unknown_lit(lit: typed_ir::Lit) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn mmtk_i63(value: i64) -> i64 {
         crate::gc_runtime::YValue::from_i63(value)
             .expect("test integer should fit i63")
             .raw() as i64
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn mmtk_bool(value: bool) -> i64 {
         crate::gc_runtime::YValue::from_bool(value).raw() as i64
     }
@@ -9015,8 +9157,6 @@ mod tests {
             runtime::Type::unknown(),
         )
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn select(base: runtime::Expr, field: &str) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Select {
@@ -9026,8 +9166,6 @@ mod tests {
             runtime::Type::unknown(),
         )
     }
-
-    #[cfg(feature = "mmtk-runtime")]
     fn if_expr(
         cond: runtime::Expr,
         then_branch: runtime::Expr,

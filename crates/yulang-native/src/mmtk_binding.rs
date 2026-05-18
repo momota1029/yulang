@@ -1,8 +1,8 @@
 //! MMTk VM binding for the native GC runtime prototype.
 //!
-//! This module is compiled only with the `mmtk-runtime` feature.  It gives
-//! MMTk a concrete VM binding surface before the runtime switches allocation
-//! over to MMTk.  The first supported shape is a contiguous object:
+//! This module gives MMTk a concrete VM binding surface before the runtime
+//! switches allocation over to MMTk. The first supported shape is a contiguous
+//! object:
 //!
 //! ```text
 //! YulangMmtkObjectHeader

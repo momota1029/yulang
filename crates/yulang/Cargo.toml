@@ -16,7 +16,7 @@ yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
 yulang-runtime = { version = "0.1.1", path = "../yulang-runtime" }
 yulang-parser = { version = "0.1.2", path = "../yulang-parser" }
 yulang-infer = { version = "0.1.3", path = "../yulang-infer" }
-yulang-native = { version = "0.1.1", path = "../yulang-native", default-features = false }
+yulang-native = { version = "0.1.1", path = "../yulang-native" }
 yulang-sources = { version = "0.1.3", path = "../yulang-sources" }
 yulang-editor = { version = "0.1.2", path = "../yulang-editor", optional = true }
 chasa = "0.5.0"

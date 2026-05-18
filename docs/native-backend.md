@@ -121,11 +121,14 @@ default today, but native execution is available from the same command:
 yulang run program.yu
 yulang run --native program.yu
 yulang run --native --native-backend pure program.yu
+yulang run --mmtk program.yu
 ```
 
 `yulang run --native` uses the effects backend because it is the native path
 intended to grow toward full Yulang coverage. `--native-backend pure` forces the
-pure-subset backend for speed checks and backend debugging.
+pure-subset backend for speed checks and backend debugging. `yulang run --mmtk`
+uses the experimental MMTk `YValue` primitive lane and is intended for runtime
+layout benchmarks; unsupported shapes fail instead of falling back.
 
 `run` executes every root expression but does not print root values by default.
 Only program output such as `print` / `println` goes to stdout. Add
@@ -140,6 +143,7 @@ produce/run; output paths can be set with `--out`.
 | `yulang run <path>`                                  | Run the file on the reference interpreter.                              |
 | `yulang run --native <path>`                         | Compile and run the file through the native effects backend.            |
 | `yulang run --native --native-backend pure <path>`   | Compile and run through the pure-subset backend for speed checks.       |
+| `yulang run --mmtk <path>`                           | Compile and run through the experimental MMTk `YValue` primitive lane.  |
 | `yulang run --print-roots <path>`                    | Execute the program and print root expression values for inspection.    |
 | `yulang native <path>` (or `--kind run`)             | Compile and run the file through the native effects backend.            |
 | `yulang native --kind run-pure-exe <path>`          | Force the pure-subset backend; useful when comparing the effect-free speed-checking path. |
@@ -312,17 +316,31 @@ current backend boundaries visible, but detailed regression history lives in
       payload lanes, then freezes the closed symbol set into a collision-checked
       hash lookup. Native variant layouts store the tag as a `Symbol` field in
       the raw payload and trace only typed payload fields that are `YValue`.
-      The `mmtk-runtime` feature wires in the MMTk crate behind a thin config
+      The native crate now wires in MMTk directly behind a thin config
       boundary, currently defaulting to a single-threaded `NoGC` spike plan.
-      A feature-gated Yulang MMTk VM binding skeleton compiles against MMTk,
+      A Yulang MMTk VM binding skeleton compiles against MMTk,
       including the initial object header, `YValue` slot representation, memory
       slice, object-size callback, and trace-slot scanner. The first
       `MmtkHeap` prototype implements the `YHeap` boundary and allocates object
       headers, trace slots, and the current semantic `YObject` payload through
       MMTk. It also supports compact raw-payload objects and compact
       `NativeHeapBlock` payloads whose field reads use native layout offsets,
-      including closure/thunk/resumption/env/frame payloads. The remaining
-      migration is to replace more transitional semantic payload users with
+      including closure/thunk/resumption/env/frame payloads. Compact string/list
+      rope nodes also store their metadata in raw payload bytes and are decoded
+      from object header/payload data on the hot path. Captured native CPS
+      control-stack snapshots are materialized as compact `ControlStack` MMTk
+      objects with trace slots for reachable MMTk `YValue` children; prototype
+      pointer-shaped values are filtered by the tracked MMTk heap address range
+      before object-table lookup. A dedicated MMTk CPS control helper module
+      can allocate closure/thunk/resumption bodies as compact fixed raw-payload
+      objects and read code/env slots directly. The compact payload stores its
+      own env length, and the helper context uses a raw thread-local context
+      pointer instead of borrowing a `RefCell<Option<_>>` on every call. This is
+      tested at the helper boundary and can be opted into with
+      `YULANG_MMTK_CPS_CONTROL_OBJECTS=1`, but Cranelift lowering does not use
+      it by default because the current nondeterminism benchmark still regresses
+      when it replaces the native control helpers. The
+      remaining migration is to replace more transitional semantic payload users with
       these compact paths. The `YHeap` read API is already split into
       object-header and trace-child projection, so tracing and stats do not need
       full semantic payload access.
@@ -336,8 +354,8 @@ current backend boundaries visible, but detailed regression history lives in
       compact bytes/path conversion helpers, and compact
       tuple/record/variant/list construction/access/view, with record
       default/has/without and list range/splice C ABI smoke paths. A parallel
-      `yulang_mmtk_cps_*` symbol set is registered
-      behind `mmtk-runtime` for a future all-`YValue` CPS lane; it
+      `yulang_mmtk_cps_*` symbol set is registered for a future all-`YValue`
+      CPS lane; it
       intentionally does not replace the existing `yulang_cps_*` scalar/handle
       ABI. The helper context now creates strings, bytes, and paths as compact
       raw/tree payloads, tuple/record/variant values as compact native blocks,
@@ -351,7 +369,16 @@ current backend boundaries visible, but detailed regression history lives in
       `YValue` words; float operations still use unboxed `f64` inputs and box
       boolean results back into `YValue`. Fixed-width `i64`/`u64` layout lanes
       exist in the native layout spike, but they are not source-level Yulang
-      types yet. The default CPS path remains on the prototype helper boundary.
+      types yet. `yulang run --mmtk` exposes this lane for benchmark work. The
+      default CPS path remains on the prototype helper boundary. Handler, guard,
+      and return-frame control stacks are still mutable-vector stacks with
+      cached snapshots in the native CPS runtime. The first snapshot after a
+      mutation still clones the active stack. `Rc<Vec>` copy-on-write and
+      `im::Vector` replacement attempts were slower on the nondeterminism
+      benchmark, so eliminating capture clones needs a dedicated stack
+      representation rather than a general persistent vector. The MMTk lane
+      enables a heap-backed mirror for those snapshots so the captured control
+      state is visible to the GC object graph.
 - [ ] Generic runtime value layout in the default native path is still backed
       by prototype `VmValue` helpers. The adopted next layout is the isolated
       `YValue` object model above, eventually backed by MMTk.

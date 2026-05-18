@@ -3014,6 +3014,7 @@ dependencies = [
  "cranelift-native",
  "cranelift-object",
  "mmtk",
+ "rustc-hash 2.1.2",
  "yulang-runtime",
  "yulang-typed-ir",
 ]

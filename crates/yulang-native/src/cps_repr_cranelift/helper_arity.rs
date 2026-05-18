@@ -42,6 +42,17 @@ pub(super) const MAKE_THUNK_HELPERS: FixedManyHelpers = FixedManyHelpers {
     many: "yulang_cps_make_thunk_i64_many",
 };
 
+pub(super) const MMTK_MAKE_THUNK_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_mmtk_cps_control_make_thunk_i64_0",
+        "yulang_mmtk_cps_control_make_thunk_i64_1",
+        "yulang_mmtk_cps_control_make_thunk_i64_2",
+        "yulang_mmtk_cps_control_make_thunk_i64_3",
+        "yulang_mmtk_cps_control_make_thunk_i64_4",
+    ],
+    many: "yulang_mmtk_cps_control_make_thunk_i64_many",
+};
+
 pub(super) const MAKE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
     fixed: [
         "yulang_cps_make_closure_i64_0",
@@ -51,6 +62,17 @@ pub(super) const MAKE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
         "yulang_cps_make_closure_i64_4",
     ],
     many: "yulang_cps_make_closure_i64_many",
+};
+
+pub(super) const MMTK_MAKE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_mmtk_cps_control_make_closure_i64_0",
+        "yulang_mmtk_cps_control_make_closure_i64_1",
+        "yulang_mmtk_cps_control_make_closure_i64_2",
+        "yulang_mmtk_cps_control_make_closure_i64_3",
+        "yulang_mmtk_cps_control_make_closure_i64_4",
+    ],
+    many: "yulang_mmtk_cps_control_make_closure_i64_many",
 };
 
 pub(super) const MAKE_RECURSIVE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {

@@ -130,9 +130,9 @@ release 後に残すもの:
   `YPerfectSymbolHash` へ freeze でき、hash collision は runtime dispatch 前に明示的に
   reject する。native variant layout は raw payload の先頭に `Symbol` tag field を置き、
   後続 payload field は monomorphic layout の lane に従って保存・trace する。
-  `mmtk-runtime` feature と `mmtk_runtime.rs` を追加し、MMTk crate への opt-in
-  config boundary を置いた。最初の接続 plan は single-threaded `NoGC` spike。
-  `mmtk_binding.rs` で feature-gated な Yulang VM binding skeleton も入り、
+  `mmtk_runtime.rs` を追加し、MMTk crate を native crate の通常依存にした。
+  最初の接続 plan は single-threaded `NoGC` spike。
+  `mmtk_binding.rs` で Yulang VM binding skeleton も入り、
   native object header / `YValue` slot / memory slice / object-size callback /
   trace-slot scanner は MMTk trait に接続済み。`MmtkHeap` prototype で `YHeap`
   boundary から MMTk allocation へ入り、object header と trace slots は MMTk heap
@@ -141,15 +141,21 @@ release 後に残すもの:
   object と compact `NativeHeapBlock` payload も MMTk heap 上に置けるようにし、
   native layout offset 経由で field を読める入口を作った。closure/thunk/resumption/
   continuation env / handler frame / return frame も compact native-block payload で
-  header / trace slot / env slot を読める。`YHeap` の read surface は object header /
-  trace children / full object projection に分けたので、tracing と stats は full
-  semantic payload に依存しない。`MmtkNativeRuntimeContext`
+  header / trace slot / env slot を読める。string/list rope node metadata も raw
+  payload に畳み、hot path は object table ではなく header/payload 直読みにした。
+  captured native CPS control-stack snapshot は MMTk lane で compact `ControlStack`
+  heap object として materialize し、reachable な MMTk `YValue` children を trace slot
+  として持つ。MMTk heap の tracked address range で prototype pointer-shaped word を
+  object-table lookup 前に落とし、MMTk child が増えない snapshot allocation は省く。
+  `YHeap` の read surface は object header / trace children / full object projection
+  に分けたので、tracing と stats は full semantic payload に依存しない。
+  `MmtkNativeRuntimeContext`
   で raw `YValue` word helper boundary も作り、unit/bool/int arithmetic/compare/
   scalar string conversion、赤黒木 string index/range/slice/splice/concat/length/equality
   と compact bytes/path conversion helper、tuple/record/variant/list の小さい C ABI
   smoke まで通した。record default/has/without と list view/range/splice も MMTk
   helper surface に乗った。
-  `mmtk-runtime` feature では別名の `yulang_mmtk_cps_*` helper symbols も登録した。
+  別名の `yulang_mmtk_cps_*` helper symbols も登録した。
   これは future all-`YValue` CPS lane 用で、現行 `yulang_cps_*` の plain scalar
   i64 / prototype handle ABI はまだ置き換えていない。最小 JIT smoke では
   Cranelift から `yulang_mmtk_cps_*` を直接呼び、MMTk `YValue` の
@@ -161,9 +167,23 @@ release 後に残すもの:
   tagged `YValue` word として primitive call と branch condition を通る。float は
   unboxed `f64` input のまま扱い、比較結果だけ `YValue` bool へ戻す。固定幅
   `i64`/`u64` lane は native layout spike 側の機能で、まだ source-level Yulang
-  type ではない。
+  type ではない。`yulang run --mmtk` はこの lane を benchmark 用に走らせる入口。
   string/list payload は runtime の `StringTree` / `ListTree` と同根の
-  赤黒木 rope shape にしており、
+  赤黒木 rope shape にしている。native CPS runtime の handler / guard /
+  return-frame stack はまだ mutable Vec + cached snapshot で、mutation 後の最初の
+  snapshot は active stack を clone する。`Rc<Vec>` COW と `im::Vector` 置換は
+  `(each 1..20 + each 1..20).list.say` を遅くしたため採用しない。capture clone を
+  消すには、hot push/pop は Vec 相当に保ち、snapshot だけ構造共有する専用 stack が
+  必要。
+  MMTk lane では同じ snapshot を GC heap 上の `ControlStack` mirror にも載せる。
+  `mmtk_cps_control.rs` で closure/thunk/resumption body を compact fixed
+  raw-payload MMTk object として作り、code/env を native layout projection なしで
+  読む専用 helper も追加した。control payload は env length を自前で持ち、
+  helper context は per-call の `RefCell<Option<_>>` borrow ではなく raw thread-local
+  context pointer にした。`YULANG_MMTK_CPS_CONTROL_OBJECTS=1` で `--mmtk` lowering
+  から opt-in できる。ただし `(each 1..20 + each 1..20).list.say` では default
+  MMTk が約 1.8-1.9s、control object opt-in が約 10-12s で、まだ native control
+  helper を置き換えられる段階ではない。
   default native path はまだ prototype helper のまま。
 - unsupported native root を VM へ戻す fallback policy。
 - package/cache/build workflow と native artifact lifecycle。
