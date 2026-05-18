@@ -12,6 +12,19 @@ use super::*;
 /// join evidence mirrors the enclosing result, and principal inference
 /// traces that runtime never reads are dropped.
 pub(super) fn normalize_monomorphized_metadata(mut module: Module) -> Module {
+    let binding_types = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.body.ty.clone()))
+        .collect::<HashMap<_, _>>();
+    for binding in &mut module.bindings {
+        refresh_global_var_types(&mut binding.body, &binding_types, &mut BTreeSet::new());
+        binding.body = project_runtime_expr_types(take_expr(&mut binding.body));
+    }
+    for root in &mut module.root_exprs {
+        refresh_global_var_types(root, &binding_types, &mut BTreeSet::new());
+        *root = project_runtime_expr_types(take_expr(root));
+    }
     for binding in &mut module.bindings {
         refresh_expr(&mut binding.body);
     }
@@ -19,6 +32,199 @@ pub(super) fn normalize_monomorphized_metadata(mut module: Module) -> Module {
         refresh_expr(root);
     }
     module
+}
+
+fn take_expr(expr: &mut Expr) -> Expr {
+    std::mem::replace(
+        expr,
+        Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown),
+    )
+}
+
+fn refresh_global_var_types(
+    expr: &mut Expr,
+    binding_types: &HashMap<typed_ir::Path, RuntimeType>,
+    shadowed: &mut BTreeSet<typed_ir::Name>,
+) {
+    match &mut expr.kind {
+        ExprKind::Var(path) => {
+            if !path_is_shadowed(path, shadowed)
+                && let Some(ty) = binding_types.get(path)
+            {
+                expr.ty = ty.clone();
+            }
+        }
+        ExprKind::Lambda { param, body, .. } => {
+            let inserted = shadowed.insert(param.clone());
+            refresh_global_var_types(body, binding_types, shadowed);
+            if inserted {
+                shadowed.remove(param);
+            }
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            refresh_global_var_types(callee, binding_types, shadowed);
+            refresh_global_var_types(arg, binding_types, shadowed);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            refresh_global_var_types(cond, binding_types, shadowed);
+            refresh_global_var_types(then_branch, binding_types, shadowed);
+            refresh_global_var_types(else_branch, binding_types, shadowed);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                refresh_global_var_types(item, binding_types, shadowed);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                refresh_global_var_types(&mut field.value, binding_types, shadowed);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        refresh_global_var_types(expr, binding_types, shadowed);
+                    }
+                }
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                refresh_global_var_types(value, binding_types, shadowed);
+            }
+        }
+        ExprKind::Select { base, .. } => refresh_global_var_types(base, binding_types, shadowed),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            refresh_global_var_types(scrutinee, binding_types, shadowed);
+            for arm in arms {
+                let saved = shadowed.clone();
+                collect_pattern_bind_names(&arm.pattern, shadowed);
+                if let Some(guard) = &mut arm.guard {
+                    refresh_global_var_types(guard, binding_types, shadowed);
+                }
+                refresh_global_var_types(&mut arm.body, binding_types, shadowed);
+                *shadowed = saved;
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            let saved = shadowed.clone();
+            for stmt in stmts {
+                match stmt {
+                    Stmt::Let { pattern, value } => {
+                        refresh_global_var_types(value, binding_types, shadowed);
+                        collect_pattern_bind_names(pattern, shadowed);
+                    }
+                    Stmt::Expr(expr) => refresh_global_var_types(expr, binding_types, shadowed),
+                    Stmt::Module { def, body } => {
+                        refresh_global_var_types(body, binding_types, shadowed);
+                        if let [name] = def.segments.as_slice() {
+                            shadowed.insert(name.clone());
+                        }
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                refresh_global_var_types(tail, binding_types, shadowed);
+            }
+            *shadowed = saved;
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            refresh_global_var_types(body, binding_types, shadowed);
+            for arm in arms {
+                let saved = shadowed.clone();
+                collect_pattern_bind_names(&arm.payload, shadowed);
+                if let Some(resume) = &arm.resume {
+                    shadowed.insert(resume.name.clone());
+                }
+                if let Some(guard) = &mut arm.guard {
+                    refresh_global_var_types(guard, binding_types, shadowed);
+                }
+                refresh_global_var_types(&mut arm.body, binding_types, shadowed);
+                *shadowed = saved;
+            }
+        }
+        ExprKind::BindHere { expr }
+        | ExprKind::Thunk { expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => refresh_global_var_types(expr, binding_types, shadowed),
+        ExprKind::LocalPushId { body, .. } => {
+            refresh_global_var_types(body, binding_types, shadowed)
+        }
+        ExprKind::AddId { thunk, .. } => refresh_global_var_types(thunk, binding_types, shadowed),
+        ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+}
+
+fn collect_pattern_bind_names(pattern: &Pattern, names: &mut BTreeSet<typed_ir::Name>) {
+    match pattern {
+        Pattern::Bind { name, .. } => {
+            names.insert(name.clone());
+        }
+        Pattern::As { pattern, name, .. } => {
+            collect_pattern_bind_names(pattern, names);
+            names.insert(name.clone());
+        }
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_bind_names(item, names);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_bind_names(item, names);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_bind_names(spread, names);
+            }
+            for item in suffix {
+                collect_pattern_bind_names(item, names);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                collect_pattern_bind_names(&field.pattern, names);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_bind_names(pattern, names);
+                    }
+                }
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_bind_names(value, names);
+            }
+        }
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_bind_names(left, names);
+            collect_pattern_bind_names(right, names);
+        }
+        Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
+    }
+}
+
+fn path_is_shadowed(path: &typed_ir::Path, shadowed: &BTreeSet<typed_ir::Name>) -> bool {
+    path.segments
+        .as_slice()
+        .first()
+        .is_some_and(|name| path.segments.len() == 1 && shadowed.contains(name))
 }
 
 fn refresh_expr(expr: &mut Expr) {

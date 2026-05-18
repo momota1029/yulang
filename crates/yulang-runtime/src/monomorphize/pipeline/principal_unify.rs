@@ -2991,6 +2991,12 @@ impl PrincipalUnifier {
                 64,
             );
         }
+        fill_effectful_erased_arg_never_substitutions(
+            &original.scheme.body,
+            args,
+            &required_vars,
+            &mut substitutions,
+        );
         conflicts.retain(|var| !runtime_arg_projected_vars.contains(var));
         if !conflicts.is_empty() && conflicts.iter().all(|var| effect_only_vars.contains(var)) {
             self.bump("principal-unify-runtime-effect-effect-conflict-kept");
@@ -4023,9 +4029,6 @@ fn rewrite_single_specialization_refs(
             if handler_originals.contains(original) {
                 return None;
             }
-            if original.segments.len() != 1 {
-                return None;
-            }
             let [specialized] = specializations.as_slice() else {
                 return None;
             };
@@ -4072,9 +4075,7 @@ fn remove_specialized_generic_originals(
     root_specializations: &HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
 ) {
     module.bindings.retain(|binding| {
-        binding.type_params.is_empty()
-            || binding.name.segments.len() != 1
-            || !root_specializations.contains_key(&binding.name)
+        binding.type_params.is_empty() || !root_specializations.contains_key(&binding.name)
     });
     close_specialized_nested_effect_only_originals(module, root_specializations);
 }
@@ -8183,6 +8184,32 @@ fn remove_effectful_erased_arg_value_substitutions(
         let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
         if effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect) {
             substitutions.remove(&var);
+        }
+    }
+}
+
+fn fill_effectful_erased_arg_never_substitutions(
+    principal: &typed_ir::Type,
+    args: &[&Expr],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    let Some((params, _ret, _ret_effect)) = core_fun_spine_parts_exact(principal, args.len())
+    else {
+        return;
+    };
+    for (arg, (param, _param_effect)) in args.iter().zip(params) {
+        let typed_ir::Type::Var(var) = param else {
+            continue;
+        };
+        if !required_vars.contains(&var) || substitutions.contains_key(&var) {
+            continue;
+        }
+        let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
+        if matches!(actual, typed_ir::Type::Never)
+            && effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect)
+        {
+            substitutions.insert(var, typed_ir::Type::Never);
         }
     }
 }
