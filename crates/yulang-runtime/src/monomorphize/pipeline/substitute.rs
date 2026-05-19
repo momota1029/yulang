@@ -127,7 +127,7 @@ pub(super) fn substitute_expr(
                 })
                 .collect(),
             evidence: substitute_join_evidence(evidence, substitutions),
-            handler,
+            handler: substitute_handle_effect(handler, substitutions),
         },
         ExprKind::BindHere { expr } => ExprKind::BindHere {
             expr: Box::new(substitute_expr(*expr, substitutions)),
@@ -172,6 +172,21 @@ pub(super) fn substitute_expr(
         }
     };
     Expr { ty, kind }
+}
+
+fn substitute_handle_effect(
+    handler: HandleEffect,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> HandleEffect {
+    HandleEffect {
+        consumes: handler.consumes,
+        residual_before: handler
+            .residual_before
+            .map(|effect| project_runtime_effect(&substitute_type(&effect, substitutions))),
+        residual_after: handler
+            .residual_after
+            .map(|effect| project_runtime_effect(&substitute_type(&effect, substitutions))),
+    }
 }
 
 pub(super) fn substitute_stmt(

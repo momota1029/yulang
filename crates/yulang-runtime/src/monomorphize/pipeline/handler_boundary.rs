@@ -235,16 +235,19 @@ pub(super) fn handler_adapter_plan(
             .as_ref()
             .filter(|effect| !effect_is_empty(effect))
     {
-        residual_before = Some(
+        let before = residual_before.clone().unwrap_or_else(|| {
             boundary
                 .input_effect
-                .as_ref()
-                .map(|effect| select_consumed_effects(effect, &info.consumes))
-                .filter(|effect| !effect_is_empty(effect))
-                .unwrap_or_else(|| effect_row_from_paths(info.consumes.clone())),
+                .clone()
+                .unwrap_or_else(|| effect_row_from_paths(info.consumes.clone()))
+        });
+        let after = remove_consumed_effects(&before, &info.consumes);
+        residual_before = Some(before);
+        residual_after = Some(after.clone());
+        return_wrapper_effect = Some(
+            merge_effects(Some(output_effect.clone()), Some(after))
+                .unwrap_or_else(|| output_effect.clone()),
         );
-        residual_after = Some(typed_ir::Type::Never);
-        return_wrapper_effect = Some(output_effect.clone());
     }
     HandlerAdapterPlan {
         consumes: info.consumes.clone(),
@@ -685,13 +688,15 @@ fn apply_handler_adapter_plan_to_expr(
             param_function_allowed_effects,
             body,
         } => {
+            let body_had_handler_boundary = expr_contains_handle_before_lambda(&body);
             let body = if matches!(body.kind, ExprKind::Lambda { .. }) {
                 apply_handler_adapter_plan_to_expr(*body, plan, next_effect_id)
             } else {
                 let body = rewrite_first_handle(*body, plan);
                 wrap_first_handler_returns(body, plan, next_effect_id)
             };
-            let body_is_handler_boundary = expr_contains_handle_before_lambda(&body);
+            let body_is_handler_boundary =
+                body_had_handler_boundary || expr_contains_handle_before_lambda(&body);
             let ty = update_lambda_runtime_type(ty, &body.ty, body_is_handler_boundary, plan);
             Expr::typed(
                 ExprKind::Lambda {
@@ -863,6 +868,51 @@ fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
             },
             ty,
         ),
+        ExprKind::Block { stmts, tail } => {
+            if !plan_rewrites_body_wrappers(plan) {
+                return Expr::typed(ExprKind::Block { stmts, tail }, ty);
+            }
+            let stmts = stmts
+                .into_iter()
+                .map(|stmt| rewrite_first_handle_in_stmt(stmt, plan))
+                .collect::<Vec<_>>();
+            let tail = tail.map(|tail| Box::new(rewrite_first_handle(*tail, plan)));
+            let ty = tail.as_ref().map(|tail| tail.ty.clone()).unwrap_or(ty);
+            Expr::typed(ExprKind::Block { stmts, tail }, ty)
+        }
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => {
+            if !plan_rewrites_body_wrappers(plan) {
+                return Expr::typed(
+                    ExprKind::Thunk {
+                        effect,
+                        value,
+                        expr,
+                    },
+                    ty,
+                );
+            }
+            let expr = rewrite_first_handle(*expr, plan);
+            let effect = plan
+                .residual_after
+                .clone()
+                .unwrap_or_else(|| remove_consumed_effects(&effect, &plan.consumes));
+            if effect_is_empty(&effect) {
+                return expr;
+            }
+            let value = expr.ty.clone();
+            Expr::typed(
+                ExprKind::Thunk {
+                    effect: effect.clone(),
+                    value: value.clone(),
+                    expr: Box::new(expr),
+                },
+                RuntimeType::thunk(effect, value),
+            )
+        }
         ExprKind::LocalPushId { id, body } => Expr::typed(
             ExprKind::LocalPushId {
                 id,
@@ -885,6 +935,26 @@ fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
             ty,
         ),
         other => Expr::typed(other, ty),
+    }
+}
+
+fn plan_rewrites_body_wrappers(plan: &HandlerAdapterPlan) -> bool {
+    plan.return_wrapper_effect.is_none()
+        && plan.residual_after.as_ref().is_some_and(effect_is_empty)
+        && plan.return_value.is_some()
+}
+
+fn rewrite_first_handle_in_stmt(stmt: Stmt, plan: &HandlerAdapterPlan) -> Stmt {
+    match stmt {
+        Stmt::Let { pattern, value } => Stmt::Let {
+            pattern,
+            value: rewrite_first_handle(value, plan),
+        },
+        Stmt::Expr(value) => Stmt::Expr(rewrite_first_handle(value, plan)),
+        Stmt::Module { def, body } => Stmt::Module {
+            def,
+            body: rewrite_first_handle(body, plan),
+        },
     }
 }
 
@@ -1639,10 +1709,19 @@ mod tests {
 
         assert_eq!(
             plan.residual_before,
-            Some(effect_row(vec![effect_with_arg(consumes, named("int"))]))
+            Some(effect_row(vec![
+                effect_with_arg(consumes, named("int")),
+                effect(outer.clone())
+            ]))
         );
-        assert_eq!(plan.residual_after, Some(typed_ir::Type::Never));
-        assert_eq!(plan.return_wrapper_effect, Some(effect(outer)));
+        assert_eq!(
+            plan.residual_after,
+            Some(effect_row(vec![effect(outer.clone())]))
+        );
+        assert_eq!(
+            plan.return_wrapper_effect,
+            Some(effect_row(vec![effect(outer)]))
+        );
         assert_eq!(plan.return_value, Some(named("int")));
     }
 

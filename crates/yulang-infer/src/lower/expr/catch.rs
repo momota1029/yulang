@@ -95,6 +95,8 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         let mut saw_value_arm = false;
         let mut handled_ops = Vec::new();
         let mut handled_pos_ops = Vec::new();
+        let mut handled_effect_paths = Vec::new();
+        let mut active_arms = Vec::new();
         let mut effect_arg_substs: HashMap<
             Path,
             HashMap<crate::ids::TypeVar, crate::ids::TypeVar>,
@@ -102,6 +104,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         for arm in &mut arms {
             match &mut arm.kind {
                 CatchArmKind::Value(pat, body) => {
+                    active_arms.push(true);
                     saw_value_arm = true;
                     let original_body = body.clone();
                     let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
@@ -135,6 +138,11 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     let effect_path = op_def
                         .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
                         .unwrap_or_else(|| effect_scope_path(op_path));
+                    let arm_is_active = handler_captures_effect_path(state, &comp, &effect_path);
+                    active_arms.push(arm_is_active);
+                    if !arm_is_active {
+                        continue;
+                    }
                     let op_use = op_def.and_then(|def| {
                         instantiate_effect_op_use(state, def, &effect_path, &mut effect_arg_substs)
                     });
@@ -157,6 +165,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     let handled_op = Neg::Atom(handled_atom.clone());
                     handled_ops.push(handled_op.clone());
                     handled_pos_ops.push(Pos::Atom(handled_atom));
+                    handled_effect_paths.push(effect_path.clone());
 
                     let resume_tv = state.fresh_tv();
                     let op_call_eff = state.fresh_tv();
@@ -235,8 +244,15 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 }
             }
         }
+        arms = arms
+            .into_iter()
+            .zip(active_arms)
+            .filter_map(|(arm, active)| active.then_some(arm))
+            .collect();
 
-        if !saw_value_arm {
+        if !saw_value_arm
+            && !comp_is_direct_handled_effect_call(state, &comp, &handled_effect_paths)
+        {
             state.infer.constrain(Pos::Var(comp.tv), Neg::Var(tv));
             state.infer.constrain(Pos::Var(tv), Neg::Var(comp.tv));
         }
@@ -328,6 +344,38 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
     result
 }
 
+fn handler_captures_effect_path(state: &LowerState, comp: &TypedExpr, effect_path: &Path) -> bool {
+    match handler_body_boundary_keep(state, comp).unwrap_or(ShiftKeep::Surface) {
+        ShiftKeep::None | ShiftKeep::CallBoundary => false,
+        ShiftKeep::Surface => true,
+        ShiftKeep::Set(paths) => paths.iter().any(|path| path == effect_path),
+    }
+}
+
+fn comp_is_direct_handled_effect_call(
+    state: &LowerState,
+    comp: &TypedExpr,
+    handled_effect_paths: &[Path],
+) -> bool {
+    let Some(effect_path) = direct_effect_call_path(state, comp) else {
+        return false;
+    };
+    handled_effect_paths
+        .iter()
+        .any(|handled| handled == &effect_path)
+}
+
+fn direct_effect_call_path(state: &LowerState, expr: &TypedExpr) -> Option<Path> {
+    match &expr.kind {
+        ExprKind::App { callee, .. } => direct_effect_call_path(state, callee),
+        ExprKind::Coerce { expr, .. }
+        | ExprKind::BindHere(expr)
+        | ExprKind::PackForall(_, expr) => direct_effect_call_path(state, expr),
+        ExprKind::Var(def) => state.effect_op_effect_paths.get(def).cloned(),
+        _ => None,
+    }
+}
+
 struct VisibleHandlerOps {
     pos: Vec<Pos>,
     neg: Vec<Neg>,
@@ -372,10 +420,10 @@ fn record_handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) {
 }
 
 fn handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) -> Option<ShiftKeep> {
-    let def = match &comp.kind {
-        ExprKind::Var(def) => *def,
+    let (def, direct_var) = match &comp.kind {
+        ExprKind::Var(def) => (*def, true),
         ExprKind::App { callee, .. } => match &callee.kind {
-            ExprKind::Var(def) => *def,
+            ExprKind::Var(def) => (*def, false),
             _ => return None,
         },
         _ => return None,
@@ -384,7 +432,11 @@ fn handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) -> Option<Sh
         return None;
     }
     if state.is_unannotated_current_lambda_param(def) {
-        return Some(ShiftKeep::None);
+        return Some(if direct_var {
+            ShiftKeep::Surface
+        } else {
+            ShiftKeep::None
+        });
     }
     let allowed = state.lambda_param_function_allowed_effects.get(&def)?;
     Some(match allowed {

@@ -152,6 +152,11 @@ impl Lowerer<'_> {
                         return Ok(protected);
                     }
                 }
+                if let Some(stored) = local_ty.as_ref()
+                    && should_refine_local_from_argument_expected(stored, &expr.ty, expected_source)
+                {
+                    locals.insert(path, expr.ty.clone());
+                }
                 Ok(expr)
             }
             typed_ir::Expr::PrimitiveOp(op) => {
@@ -2362,9 +2367,10 @@ impl Lowerer<'_> {
             .filter(|ty| !matches!(ty, typed_ir::Type::Never));
         let concrete_evidence_ty = evidence_ty
             .clone()
-            .filter(|ty| !core_type_is_imprecise_runtime_slot(ty));
+            .filter(|ty| !core_type_is_imprecise_runtime_slot(ty))
+            .filter(|ty| !contains_non_runtime_type(ty));
         let fallback_evidence_ty = evidence_ty.map(|ty| {
-            if core_type_is_imprecise_runtime_slot(&ty) {
+            if core_type_is_imprecise_runtime_slot(&ty) || contains_non_runtime_type(&ty) {
                 typed_ir::Type::Unknown
             } else {
                 ty
@@ -2871,6 +2877,17 @@ fn widened_apply_arg_evidence_accepts_actual(
 
 fn runtime_type_can_be_pushed_as_lowering_expected(ty: &RuntimeType) -> bool {
     !runtime_type_contains_value_choice(ty)
+}
+
+fn should_refine_local_from_argument_expected(
+    stored: &RuntimeType,
+    candidate: &RuntimeType,
+    source: TypeSource,
+) -> bool {
+    matches!(source, TypeSource::ApplyArgumentSourceEdge)
+        && runtime_type_is_imprecise_runtime_slot(stored)
+        && expected_arg_evidence_runtime_usable(candidate)
+        && (hir_type_compatible(candidate, stored) || hir_type_compatible(stored, candidate))
 }
 
 fn runtime_type_contains_value_choice(ty: &RuntimeType) -> bool {

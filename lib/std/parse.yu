@@ -22,7 +22,7 @@ my act pick:
     our branch: () -> bool
     our reject: std::parse::parse_error -> never
     our cut: () -> ()
-    our loop(x: [pick] 'a, queue): std::result::result 'a std::parse::parse_error = catch x:
+    our loop(x: [pick] 'a, queue: list (bool -> [pick] 'a)): std::result::result 'a std::parse::parse_error = catch x:
         branch(), k -> loop(k true, std::list::cons(k, queue))
         reject parse_err, _ -> case std::list::uncons queue:
             opt::nil -> result::err parse_err
@@ -58,14 +58,12 @@ pub run_with_pos(input: str, parser: () -> [parse] 'a): std::result::result ('a,
             (value, pos)
 
 pub run(input: str, parser: () -> [parse] 'a): std::result::result 'a std::parse::parse_error =
-    case run_with_pos input (\() ->
-        my value = parser()
-        my pos = parse::position()
-        if pos == input.len:
-            value
-        else:
-            parse::fail (parse_error::expected ("<eof>", pos))):
-        result::ok (value, _) -> result::ok value
+    case run_with_pos input parser:
+        result::ok (value, pos) ->
+            if pos == input.len:
+                result::ok value
+            else:
+                result::err (parse_error::expected ("<eof>", pos))
         result::err parse_err -> result::err parse_err
 
 pub run_full(input: str, parser: () -> [parse] 'a): std::result::result 'a std::parse::parse_error =

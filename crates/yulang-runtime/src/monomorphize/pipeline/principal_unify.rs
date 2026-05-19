@@ -41,6 +41,7 @@ struct PrincipalUnifier {
     role_method_rewrites: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
     emitted: Vec<Binding>,
     emitted_by_path: HashMap<typed_ir::Path, Binding>,
+    handler_specialization_paths: HashSet<typed_ir::Path>,
     pending_specializations: VecDeque<PendingPrincipalSpecialization>,
     active_specializations: Vec<ActivePrincipalSpecialization>,
     local_use_contexts: Vec<LocalUseContextScope>,
@@ -153,6 +154,7 @@ impl PrincipalUnifier {
             role_method_rewrites: HashMap::new(),
             emitted: Vec::new(),
             emitted_by_path: HashMap::new(),
+            handler_specialization_paths: HashSet::new(),
             pending_specializations: VecDeque::new(),
             active_specializations: Vec::new(),
             local_use_contexts: Vec::new(),
@@ -200,7 +202,7 @@ impl PrincipalUnifier {
         module.root_exprs = root_exprs;
         self.finish_profile_timer("rewrite-root-exprs", started);
         let started = self.profile_timer();
-        self.process_pending_specializations();
+        self.settle_pending_specializations();
         self.finish_profile_timer("process-root-specialization-requests", started);
         let started = self.profile_timer();
         let mut bindings = Vec::with_capacity(module.bindings.len());
@@ -226,7 +228,7 @@ impl PrincipalUnifier {
         module.bindings = bindings;
         self.finish_profile_timer("rewrite-bindings", started);
         let started = self.profile_timer();
-        self.process_pending_specializations();
+        self.settle_pending_specializations();
         self.finish_profile_timer("process-binding-specialization-requests", started);
         let started = self.profile_timer();
         self.flush_emitted_specializations(&mut module);
@@ -235,7 +237,7 @@ impl PrincipalUnifier {
         self.rewrite_surviving_template_bindings(&mut module);
         self.finish_profile_timer("rewrite-surviving-template-bindings", started);
         let started = self.profile_timer();
-        self.process_pending_specializations();
+        self.settle_pending_specializations();
         self.flush_emitted_specializations(&mut module);
         self.finish_profile_timer("flush-final-specialization-refs", started);
         let profile = self.finish_profile();
@@ -1845,7 +1847,6 @@ impl PrincipalUnifier {
         } else {
             result_context_ty.unwrap_or_else(|| expr.ty.clone())
         };
-        let handler_adapter_plan = handler_plan.as_ref().map(|(_, plan)| plan.clone());
         let specialization_inputs = specialization_input_shapes(&rewritten_args, &params);
         let mut specialization_output =
             result_context.and_then(|bounds| closed_type_from_bounds(Some(bounds)));
@@ -1856,6 +1857,15 @@ impl PrincipalUnifier {
             Some(&specialization_inputs),
             specialization_output.as_ref(),
         )?;
+        specialization_output = prefer_constructed_union_specialization_output(
+            &original.scheme.body,
+            rewritten_args.len(),
+            &specialization_substitutions,
+            specialization_output,
+        );
+        let handler_adapter_plan = handler_plan
+            .as_ref()
+            .map(|(_, plan)| substitute_handler_adapter_plan(plan, &specialization_substitutions));
         let call_callee_ty = handler_adapter_plan
             .as_ref()
             .map(|plan| {
@@ -1868,9 +1878,17 @@ impl PrincipalUnifier {
             .unwrap_or_else(|| {
                 substitute_type(&original.scheme.body, &specialization_substitutions)
             });
+        let contextual_input_shapes = if handler_adapter_plan
+            .as_ref()
+            .is_some_and(|plan| plan.return_wrapper_effect.is_some())
+        {
+            None
+        } else {
+            Some(specialization_inputs.as_slice())
+        };
         let call_callee_ty = contextual_specialization_scheme(
             &call_callee_ty,
-            Some(&specialization_inputs),
+            contextual_input_shapes,
             specialization_output.as_ref(),
         )
         .unwrap_or(call_callee_ty);
@@ -1880,6 +1898,11 @@ impl PrincipalUnifier {
             rewritten_args.len(),
             is_handler_binding,
         );
+        let final_arg_effect = handler_adapter_plan
+            .as_ref()
+            .and_then(|plan| plan.residual_before.as_ref())
+            .filter(|effect| !effect_is_empty(effect))
+            .cloned();
         let path = self.intern_specialization(
             original,
             specialization_substitutions,
@@ -1890,16 +1913,12 @@ impl PrincipalUnifier {
         self.record_target_rewrite(spine.target);
         self.bump("principal-unify-rewrite");
         debug_principal_unify_rewrite(spine.target, &path);
-        let final_arg_effect = handler_plan
-            .as_ref()
-            .and_then(|(_, plan)| plan.residual_before.as_ref())
-            .filter(|effect| !effect_is_empty(effect));
         Some(rebuild_apply_call_owned_with_final_arg_effect(
             path,
             call_callee_ty,
             rewritten_args,
             &final_context_ty,
-            final_arg_effect,
+            final_arg_effect.as_ref(),
         )?)
     }
 
@@ -2937,7 +2956,58 @@ impl PrincipalUnifier {
                 );
             }
         }
+        let handler_payload_projected_vars = handler_binding_info(original)
+            .and_then(|info| {
+                let boundary = handler_call_boundary(&info, args, result_ty);
+                boundary
+                    .input_effect
+                    .as_ref()
+                    .map(|input_effect| (info, input_effect.clone()))
+            })
+            .map(|(info, input_effect)| {
+                project_handler_consumed_payload_substitutions(
+                    &params,
+                    &input_effect,
+                    &info.consumes,
+                    &required_vars,
+                    &mut substitutions,
+                    &mut conflicts,
+                )
+            })
+            .unwrap_or_default();
         let (actual_ret, actual_ret_effect) = runtime_value_and_effect(result_ty);
+        let active_handler_residual_effect = handler_binding_info(original)
+            .and_then(|info| self.active_handler_residual_effect(&info));
+        let projected_ret_effect = active_handler_residual_effect
+            .clone()
+            .map(|residual| merge_effects(actual_ret_effect.clone(), residual))
+            .unwrap_or_else(|| actual_ret_effect.clone());
+        if let Some(info) = handler_binding_info(original) {
+            project_handler_payload_result_container_items(
+                &ret,
+                &actual_ret_effect,
+                &info.consumes,
+                &required_vars,
+                &mut substitutions,
+                &mut conflicts,
+            );
+        }
+        if let Some(payload) = single_precise_effect_payload_type(&actual_ret_effect) {
+            project_payload_result_container_items(
+                &ret,
+                &payload,
+                &required_vars,
+                &mut substitutions,
+                &mut conflicts,
+            );
+        }
+        project_result_constructor_payload_substitutions(
+            &plan.result,
+            &actual_ret,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
+        );
         project_principal_result_slot_substitutions(
             &ret,
             &plan.result,
@@ -2964,7 +3034,7 @@ impl PrincipalUnifier {
             &ret,
             &actual_ret,
             &ret_effect,
-            &actual_ret_effect,
+            &projected_ret_effect,
         );
         project_slot_lower_template_against_closed_actual(
             &ret,
@@ -2986,7 +3056,7 @@ impl PrincipalUnifier {
         );
         project_closed_substitutions_from_type(
             &ret_effect,
-            &actual_ret_effect,
+            &projected_ret_effect,
             &required_vars,
             &mut substitutions,
             &mut conflicts,
@@ -3000,8 +3070,7 @@ impl PrincipalUnifier {
             &mut conflicts,
         );
         if ret_effect_has_unfilled_required_var(&ret_effect, &required_vars, &substitutions)
-            && let Some(info) = handler_binding_info(original)
-            && let Some(active_residual_effect) = self.active_handler_residual_effect(&info)
+            && let Some(active_residual_effect) = active_handler_residual_effect
         {
             debug_principal_unify_runtime_projection(
                 "active-handler-residual",
@@ -3040,7 +3109,10 @@ impl PrincipalUnifier {
             &required_vars,
             &mut substitutions,
         );
-        conflicts.retain(|var| !runtime_arg_projected_vars.contains(var));
+        conflicts.retain(|var| {
+            !runtime_arg_projected_vars.contains(var)
+                && !handler_payload_projected_vars.contains(var)
+        });
         if !conflicts.is_empty() && conflicts.iter().all(|var| effect_only_vars.contains(var)) {
             self.bump("principal-unify-runtime-effect-effect-conflict-kept");
             debug_principal_unify_projection_outcome(
@@ -3440,6 +3512,41 @@ impl PrincipalUnifier {
         }
     }
 
+    fn settle_pending_specializations(&mut self) {
+        loop {
+            self.process_pending_specializations();
+            self.rewrite_emitted_specialization_bodies();
+            if self.pending_specializations.is_empty() {
+                return;
+            }
+        }
+    }
+
+    fn rewrite_emitted_specialization_bodies(&mut self) {
+        let emitted = std::mem::take(&mut self.emitted);
+        let mut rewritten = Vec::with_capacity(emitted.len());
+        for mut binding in emitted {
+            if !self.handler_specialization_paths.contains(&binding.name) {
+                rewritten.push(binding);
+                continue;
+            }
+            let original_ty = binding.body.ty.clone();
+            let original_scheme = binding.scheme.body.clone();
+            let body_context = Self::binding_body_runtime_context(&binding);
+            let body = refresh_local_expr_types(binding.body);
+            self.push_rewrite_context("emitted-specialization");
+            let body = self.rewrite_expr(body, body_context);
+            self.pop_rewrite_context();
+            binding.body =
+                retag_runtime_expr_spine_type(project_runtime_expr_types(body), original_ty);
+            binding.scheme.body = original_scheme;
+            self.emitted_by_path
+                .insert(binding.name.clone(), binding.clone());
+            rewritten.push(binding);
+        }
+        self.emitted = rewritten;
+    }
+
     fn emit_pending_specialization(&mut self, request: PendingPrincipalSpecialization) {
         if self.emitted_by_path.contains_key(&request.path) {
             return;
@@ -3447,7 +3554,7 @@ impl PrincipalUnifier {
         let PendingPrincipalSpecialization {
             original,
             substitutions,
-            handler_plan,
+            mut handler_plan,
             input_shapes,
             output_shape,
             path,
@@ -3500,9 +3607,13 @@ impl PrincipalUnifier {
         self.pop_rewrite_context();
         self.finish_profile_timer("intern-rewrite-body", started);
         self.record_target_phase_timing(&original_name, "intern-rewrite-body", started);
+        if handler_plan.is_none() {
+            handler_plan = rewritten_binding_handler_adapter_plan(&binding);
+        }
         self.active_specializations.pop();
         if let Some(plan) = handler_plan {
             let started = self.profile_timer();
+            self.handler_specialization_paths.insert(path.clone());
             binding = apply_handler_adapter_plan_to_binding(binding, &plan);
             binding.body = refresh_handle_payloads_from_handlers(binding.body);
             self.finish_profile_timer("intern-apply-handler-plan", started);
@@ -3563,7 +3674,7 @@ impl PrincipalUnifier {
         binding.type_params.clear();
         self.active_specializations
             .push(ActivePrincipalSpecialization {
-                target: original_name,
+                target: original_name.clone(),
                 substitutions: substitutions.clone(),
                 path: path.clone(),
                 handler_plan: None,
@@ -3576,7 +3687,17 @@ impl PrincipalUnifier {
         binding.body = self.rewrite_expr(binding.body, Some(binding_body_context));
         self.pop_rewrite_context();
         self.finish_profile_timer("effect-context-rewrite-body", started);
+        let handler_plan = rewritten_binding_handler_adapter_plan(&binding)
+            .filter(|plan| effect_contains_any(effect, &plan.consumes));
         self.active_specializations.pop();
+        if let Some(plan) = handler_plan {
+            let started = self.profile_timer();
+            self.handler_specialization_paths.insert(path.clone());
+            binding = apply_handler_adapter_plan_to_binding(binding, &plan);
+            binding.body = force_outer_handler_lambda_param(binding.body, &plan);
+            binding.body = refresh_handle_payloads_from_handlers(binding.body);
+            self.finish_profile_timer("effect-context-apply-handler-plan", started);
+        }
         let started = self.profile_timer();
         binding.body = refresh_local_expr_types(binding.body);
         binding.body = project_runtime_expr_types(binding.body);
@@ -6097,6 +6218,47 @@ fn contextual_specialization_scheme(
         .or_else(|| input_shapes.map(|_| with_inputs))
 }
 
+fn prefer_constructed_union_specialization_output(
+    scheme: &typed_ir::Type,
+    arity: usize,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    output: Option<typed_ir::Type>,
+) -> Option<typed_ir::Type> {
+    let expected = output.as_ref()?;
+    let substituted = substitute_type(scheme, substitutions);
+    let (_params, ret, _ret_effect) = core_fun_spine_parts_exact(&substituted, arity)?;
+    let typed_ir::Type::Union(items) = ret else {
+        return output;
+    };
+    items
+        .iter()
+        .find_map(|item| constructed_union_item_for_payload(item, expected))
+        .or(output)
+}
+
+fn constructed_union_item_for_payload(
+    item: &typed_ir::Type,
+    expected: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    let typed_ir::Type::Named { args, .. } = item else {
+        return None;
+    };
+    let has_expected_payload = args.iter().any(|arg| match arg {
+        typed_ir::TypeArg::Type(ty) => {
+            ty == expected || type_compatible(ty, expected) || type_compatible(expected, ty)
+        }
+        typed_ir::TypeArg::Bounds(bounds) => bounds
+            .lower
+            .iter()
+            .chain(bounds.upper.iter())
+            .map(|ty| ty.as_ref())
+            .any(|ty| {
+                ty == expected || type_compatible(ty, expected) || type_compatible(expected, ty)
+            }),
+    });
+    has_expected_payload.then(|| item.clone())
+}
+
 fn contextual_output_shape_matches(ret: &typed_ir::Type, output_shape: &typed_ir::Type) -> bool {
     ret == output_shape || type_compatible(output_shape, ret) || type_compatible(ret, output_shape)
 }
@@ -6294,6 +6456,90 @@ fn contextual_final_call_type(
     } else {
         closed_rebuilt_apply_type(&existing, &specialized)
     }
+}
+
+fn rewritten_binding_handler_adapter_plan(binding: &Binding) -> Option<HandlerAdapterPlan> {
+    let info = handler_binding_info(binding)?;
+    if info.consumes.is_empty() {
+        return None;
+    }
+    let arity = core_fun_arity(&binding.scheme.body);
+    let (params, ret, _ret_effect) = core_fun_spine_parts_exact(&binding.scheme.body, arity)?;
+    let input_effect = info
+        .principal_input_effect
+        .as_ref()
+        .filter(|effect| effect_contains_any(effect, &info.consumes))
+        .cloned()
+        .or_else(|| {
+            info.principal_output_effect
+                .as_ref()
+                .filter(|effect| effect_contains_any(effect, &info.consumes))
+                .cloned()
+        });
+    let consumes_input_effect = input_effect
+        .as_ref()
+        .is_some_and(|effect| effect_contains_any(effect, &info.consumes));
+    if !consumes_input_effect {
+        return None;
+    }
+    let boundary = HandlerCallBoundary {
+        consumes: info.consumes.clone(),
+        input_effect,
+        output_effect: None,
+        consumes_input_effect,
+        preserves_output_effect: false,
+        pure: info.pure,
+    };
+    let plan = handler_adapter_plan(&info, &boundary);
+    let plan = refine_handler_adapter_plan_from_signature(plan, &params, &ret, &info.consumes);
+    handler_plan_is_supported(&boundary, &plan).then_some(plan)
+}
+
+fn force_outer_handler_lambda_param(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
+    let Some(effect) = plan
+        .residual_before
+        .clone()
+        .filter(|effect| !effect_is_empty(effect))
+    else {
+        return expr;
+    };
+    let Expr {
+        ty: RuntimeType::Fun {
+            param: current_param,
+            ret,
+        },
+        kind:
+            ExprKind::Lambda {
+                param,
+                param_effect_annotation,
+                param_function_allowed_effects,
+                body,
+            },
+    } = expr
+    else {
+        return expr;
+    };
+    let param_ty = match *current_param {
+        RuntimeType::Thunk { value, .. } => RuntimeType::thunk(effect, *value),
+        other => RuntimeType::thunk(effect, other),
+    };
+    Expr::typed(
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        },
+        RuntimeType::fun(param_ty, *ret),
+    )
+}
+
+fn effect_contains_any(effect: &typed_ir::Type, targets: &[typed_ir::Path]) -> bool {
+    effect_paths(effect).iter().any(|path| {
+        targets
+            .iter()
+            .any(|target| effect_paths_match(path, target))
+    })
 }
 
 fn runtime_call_result_types_compatible(left: &RuntimeType, right: &RuntimeType) -> bool {
@@ -7524,6 +7770,14 @@ fn effect_payload_type_for_namespace(
 }
 
 fn choose_effect_payload_type(payloads: Vec<typed_ir::Type>) -> Option<typed_ir::Type> {
+    let mut precise_non_unit = payloads.iter().filter(|payload| {
+        !runtime_type_is_unit_core(payload) && !core_type_is_imprecise_runtime_slot(payload)
+    });
+    match (precise_non_unit.next(), precise_non_unit.next()) {
+        (Some(payload), None) => return Some(payload.clone()),
+        (Some(_), Some(_)) => return None,
+        (None, _) => {}
+    }
     let mut non_unit = payloads
         .iter()
         .filter(|payload| !runtime_type_is_unit_core(payload));
@@ -7531,6 +7785,151 @@ fn choose_effect_payload_type(payloads: Vec<typed_ir::Type>) -> Option<typed_ir:
         (Some(payload), None) => Some(payload.clone()),
         (Some(_), Some(_)) => None,
         (None, _) => payloads.into_iter().next(),
+    }
+}
+
+fn project_handler_consumed_payload_substitutions(
+    params: &[(typed_ir::Type, typed_ir::Type)],
+    input_effect: &typed_ir::Type,
+    consumes: &[typed_ir::Path],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) -> BTreeSet<typed_ir::TypeVar> {
+    let mut projected = BTreeSet::new();
+    for consumed in consumes {
+        let Some(actual_payload) = effect_payload_type_for_operation(input_effect, consumed)
+            .filter(|payload| !core_type_is_imprecise_runtime_slot(payload))
+        else {
+            continue;
+        };
+        for (_param, param_effect) in params {
+            project_consumed_payload_from_effect(
+                param_effect,
+                consumed,
+                &actual_payload,
+                required_vars,
+                substitutions,
+                conflicts,
+                &mut projected,
+            );
+        }
+    }
+    projected
+}
+
+fn project_consumed_payload_from_effect(
+    effect: &typed_ir::Type,
+    consumed: &typed_ir::Path,
+    actual_payload: &typed_ir::Type,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+    projected: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match effect {
+        typed_ir::Type::Named { path, args } if effect_paths_match(path, consumed) => {
+            let Some(template_payload) = effect_payload_type_from_args(args) else {
+                return;
+            };
+            let mut payload_vars = BTreeSet::new();
+            collect_core_type_vars(&template_payload, &mut payload_vars);
+            project_closed_substitutions_from_type(
+                &template_payload,
+                actual_payload,
+                required_vars,
+                substitutions,
+                conflicts,
+                false,
+                32,
+            );
+            projected.extend(
+                payload_vars
+                    .into_iter()
+                    .filter(|var| required_vars.contains(var)),
+            );
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                project_consumed_payload_from_effect(
+                    item,
+                    consumed,
+                    actual_payload,
+                    required_vars,
+                    substitutions,
+                    conflicts,
+                    projected,
+                );
+            }
+            project_consumed_payload_from_effect(
+                tail,
+                consumed,
+                actual_payload,
+                required_vars,
+                substitutions,
+                conflicts,
+                projected,
+            );
+        }
+        _ => {}
+    }
+}
+
+fn project_handler_payload_result_container_items(
+    ret: &typed_ir::Type,
+    effect: &typed_ir::Type,
+    consumes: &[typed_ir::Path],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    for consumed in consumes {
+        let Some(payload) = effect_payload_type_for_operation(effect, consumed)
+            .filter(|payload| !core_type_is_imprecise_runtime_slot(payload))
+        else {
+            continue;
+        };
+        project_payload_result_container_items(
+            ret,
+            &payload,
+            required_vars,
+            substitutions,
+            conflicts,
+        );
+    }
+}
+
+fn project_payload_result_container_items(
+    ty: &typed_ir::Type,
+    payload: &typed_ir::Type,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match ty {
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                project_constructor_payload_arg_vars(
+                    arg,
+                    payload,
+                    required_vars,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            for item in items {
+                project_payload_result_container_items(
+                    item,
+                    payload,
+                    required_vars,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        _ => {}
     }
 }
 
@@ -7568,6 +7967,19 @@ fn collect_non_empty_effect_payload_types(effect: &typed_ir::Type, out: &mut Vec
         }
         _ => {}
     }
+}
+
+fn single_precise_effect_payload_type(effect: &typed_ir::Type) -> Option<typed_ir::Type> {
+    let mut payloads = Vec::new();
+    collect_non_empty_effect_payload_types(effect, &mut payloads);
+    let payloads = payloads
+        .into_iter()
+        .filter(|payload| !core_type_is_imprecise_runtime_slot(payload))
+        .collect::<Vec<_>>();
+    let [payload] = payloads.as_slice() else {
+        return None;
+    };
+    Some(payload.clone())
 }
 
 fn effect_payload_type_from_args(args: &[typed_ir::TypeArg]) -> Option<typed_ir::Type> {
@@ -8001,6 +8413,13 @@ fn project_result_constructor_payload_substitutions(
         .map(|bounds| substitute_bounds(bounds.clone(), substitutions))
         .and_then(|bounds| exact_type_from_bounds_allow_unknown(&bounds))
     else {
+        project_union_constructor_payload_vars(
+            &intrinsic,
+            payload,
+            required_vars,
+            substitutions,
+            conflicts,
+        );
         return;
     };
     project_constructor_payload_substitutions(
@@ -8011,6 +8430,59 @@ fn project_result_constructor_payload_substitutions(
         substitutions,
         conflicts,
     );
+    project_union_constructor_payload_vars(
+        &contextual,
+        payload,
+        required_vars,
+        substitutions,
+        conflicts,
+    );
+}
+
+fn project_union_constructor_payload_vars(
+    contextual: &typed_ir::Type,
+    payload: &typed_ir::Type,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    let typed_ir::Type::Union(items) = contextual else {
+        return;
+    };
+    let mut constructed = None::<typed_ir::Type>;
+    for item in items {
+        let typed_ir::Type::Named { args, .. } = item else {
+            continue;
+        };
+        for arg in args {
+            project_constructor_payload_arg_vars(
+                arg,
+                payload,
+                required_vars,
+                substitutions,
+                conflicts,
+            );
+        }
+        let substituted = substitute_type(item, substitutions);
+        if constructed_union_item_for_payload(&substituted, payload).is_some() {
+            constructed = Some(substituted);
+        }
+    }
+    let Some(constructed) = constructed else {
+        return;
+    };
+    for item in items {
+        if let typed_ir::Type::Var(var) = item
+            && required_vars.contains(var)
+        {
+            insert_projected_value_substitution(
+                substitutions,
+                conflicts,
+                var.clone(),
+                constructed.clone(),
+            );
+        }
+    }
 }
 
 fn exact_type_from_bounds_allow_unknown(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
@@ -9977,6 +10449,9 @@ pub(super) fn merge_projected_value_type_precision(
                     incoming_tail,
                 )?),
             })
+        }
+        (typed_ir::Type::Row { .. }, typed_ir::Type::Row { .. }) => {
+            Some(merge_effects(existing.clone(), incoming.clone()))
         }
         (
             typed_ir::Type::Fun {
