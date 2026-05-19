@@ -150,13 +150,17 @@ fn alias_same_owner_ref_expr(state: &mut LowerState, def: crate::ids::DefId) -> 
     })
 }
 
-pub(super) fn resolve_operator_expr(
+pub(super) fn resolve_operator_expr_with_span(
     state: &mut LowerState,
     name: Name,
     fixity: OperatorFixity,
+    span: Option<rowan::TextRange>,
 ) -> TypedExpr {
-    if let Some(expr) = try_resolve_operator_expr(state, &name, fixity) {
-        return expr;
+    if let Some(def) = state.ctx.resolve_operator_value(&name, fixity) {
+        if let Some(span) = span {
+            state.record_value_use_span(span, def);
+        }
+        return resolve_bound_def_expr(state, def);
     }
 
     let path = Path {
@@ -180,28 +184,6 @@ pub(super) fn resolve_operator_expr(
         eff,
         kind: ExprKind::Ref(ref_id),
     }
-}
-
-pub(crate) fn try_resolve_operator_expr(
-    state: &mut LowerState,
-    name: &Name,
-    fixity: OperatorFixity,
-) -> Option<TypedExpr> {
-    state
-        .ctx
-        .resolve_operator_value(name, fixity)
-        .map(|def| resolve_bound_def_expr(state, def))
-}
-
-pub(crate) fn try_resolve_local_operator_expr(
-    state: &mut LowerState,
-    name: &Name,
-    fixity: OperatorFixity,
-) -> Option<TypedExpr> {
-    state
-        .ctx
-        .resolve_local_operator_value(name, fixity)
-        .map(|def| resolve_bound_def_expr(state, def))
 }
 
 pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::DefId) -> TypedExpr {

@@ -3656,6 +3656,48 @@ fn scoped_formatter_shortens_std_list_paths_in_prelude_scope() {
 }
 
 #[test]
+fn operator_use_spans_record_resolved_def_for_hover() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source = "my add_ints(x: int, y: int) = x + y\n";
+        let lowered = lower_virtual_source_with_options(
+            source,
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        let plus_offset = source.find('+').expect("source should contain +");
+        let plus_byte = u32::try_from(plus_offset).unwrap();
+        let plus_range =
+            rowan::TextRange::new(plus_byte.into(), (plus_byte + 1).into());
+
+        let span_hit = lowered
+            .state
+            .value_use_spans
+            .iter()
+            .find(|(span, _)| span.start() <= plus_range.start() && plus_range.end() <= span.end())
+            .expect("hover on + should find a value_use_span");
+
+        let (_, def) = span_hit;
+        let name = lowered
+            .state
+            .def_name(*def)
+            .expect("operator def should have a name");
+        assert_eq!(name.0, "+", "+ should resolve to the infix operator def");
+        assert!(
+            lowered.state.compact_scheme_of(*def).is_some(),
+            "operator def should have a compact scheme available for hover",
+        );
+    });
+}
+
+#[test]
 fn lowers_case_over_nominal_list_view_with_apply_in_body() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

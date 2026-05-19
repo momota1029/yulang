@@ -11,9 +11,8 @@ use crate::symbols::{Name, OperatorFixity, Path};
 
 use super::{
     apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_poly_variant_expr,
-    lower_var_read_expr, lower_yada_yada_expr, make_app_with_cause, resolve_operator_expr,
-    resolve_path_expr, resolve_path_expr_at, try_resolve_local_operator_expr,
-    try_resolve_operator_expr, unit_expr,
+    lower_var_read_expr, lower_yada_yada_expr, make_app_with_cause, resolve_path_expr,
+    resolve_path_expr_at, unit_expr,
 };
 
 // ── chain lowering ────────────────────────────────────────────────────────────
@@ -215,18 +214,37 @@ fn resolve_nullfix_operator_expr(
     if let Some(def) = state.ctx.resolve_bound_value(&name)
         && !state.ctx.is_operator_def(def)
     {
+        state.record_value_use_span(span, def);
         return crate::lower::expr::resolve_bound_def_expr(state, def);
     }
-    if let Some(expr) = try_resolve_local_operator_expr(state, &name, OperatorFixity::Nullfix) {
-        return expr;
+    if let Some(def) = state
+        .ctx
+        .resolve_local_operator_value(&name, OperatorFixity::Nullfix)
+    {
+        state.record_value_use_span(span, def);
+        return crate::lower::expr::resolve_bound_def_expr(state, def);
     }
-    if let Some(prefix) = try_resolve_local_operator_expr(state, &name, OperatorFixity::Prefix) {
+    if let Some(def) = state
+        .ctx
+        .resolve_local_operator_value(&name, OperatorFixity::Prefix)
+    {
+        state.record_value_use_span(span, def);
+        let prefix = crate::lower::expr::resolve_bound_def_expr(state, def);
         return apply_prefix_operator_to_unit(state, prefix, span);
     }
-    if let Some(expr) = try_resolve_operator_expr(state, &name, OperatorFixity::Nullfix) {
-        return expr;
+    if let Some(def) = state
+        .ctx
+        .resolve_operator_value(&name, OperatorFixity::Nullfix)
+    {
+        state.record_value_use_span(span, def);
+        return crate::lower::expr::resolve_bound_def_expr(state, def);
     }
-    resolve_operator_expr(state, name, OperatorFixity::Nullfix)
+    crate::lower::expr::resolve_operator_expr_with_span(
+        state,
+        name,
+        OperatorFixity::Nullfix,
+        Some(span),
+    )
 }
 
 fn apply_prefix_operator_to_unit(
