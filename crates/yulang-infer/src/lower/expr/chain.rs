@@ -11,7 +11,7 @@ use crate::symbols::{Name, OperatorFixity, Path};
 
 use super::{
     apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_poly_variant_expr,
-    lower_var_read_expr, lower_yada_yada_expr, make_app_with_cause, resolve_path_expr,
+    lower_var_read_expr_with_span, lower_yada_yada_expr, make_app_with_cause, resolve_path_expr,
     resolve_path_expr_at, unit_expr,
 };
 
@@ -68,7 +68,11 @@ fn lower_expr_chain_prefix_with_pipe_arg(
         let mut head_expr: Option<TypedExpr> = None;
         match &head {
             Token(t) if t.kind() == SyntaxKind::SigilIdent && t.text().starts_with('$') => {
-                head_expr = Some(lower_var_read_expr(state, t.text()));
+                head_expr = Some(lower_var_read_expr_with_span(
+                    state,
+                    t.text(),
+                    Some(t.text_range()),
+                ));
             }
             Token(t) if matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) => {
                 path_segs.push(Name(t.text().to_string()));

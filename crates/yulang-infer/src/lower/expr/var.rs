@@ -8,24 +8,34 @@ use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
 use crate::types::{Neg, Pos};
 
-pub(super) fn lower_var_read_expr(state: &mut LowerState, sigil: &str) -> TypedExpr {
+pub(in crate::lower) fn lower_var_read_expr_with_span(
+    state: &mut LowerState,
+    sigil: &str,
+    span: Option<rowan::TextRange>,
+) -> TypedExpr {
     let Some(raw) = sigil.strip_prefix('$') else {
         return unit_expr(state);
     };
     let reference_name = Name(format!("&{raw}"));
     if let Some(act_name) = state.ctx.resolve_var_ref_alias(&reference_name) {
+        if let Some(span) = span {
+            if let Some(def) = state.ctx.resolve_value(&reference_name) {
+                state.record_value_use_span(span, def);
+            }
+        }
         let get = resolve_path_expr(state, vec![act_name, Name("get".to_string())]);
         let unit = unit_expr(state);
         return make_app(state, get, unit);
     }
-    if let Some(get) = state
-        .ctx
-        .resolve_value(&reference_name)
-        .and_then(|def| state.var_ref_acts.get(&def).cloned())
-        .map(|act_name| resolve_path_expr(state, vec![act_name, Name("get".to_string())]))
-    {
-        let unit = unit_expr(state);
-        return make_app(state, get, unit);
+    if let Some(def) = state.ctx.resolve_value(&reference_name) {
+        if let Some(span) = span {
+            state.record_value_use_span(span, def);
+        }
+        if let Some(act_name) = state.var_ref_acts.get(&def).cloned() {
+            let get = resolve_path_expr(state, vec![act_name, Name("get".to_string())]);
+            let unit = unit_expr(state);
+            return make_app(state, get, unit);
+        }
     }
     lower_ref_get_read(state, reference_name)
 }

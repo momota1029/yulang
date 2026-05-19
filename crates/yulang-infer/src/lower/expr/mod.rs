@@ -71,7 +71,8 @@ use record::lower_record_literal;
 use rule::{lower_rule_expr, lower_rule_lit};
 use suffix::{apply_suffix, apply_synthetic_field_selection, lower_poly_variant_expr};
 use tuple::lower_tuple_expr;
-use var::{lower_var_assignment, lower_var_read_expr};
+use var::lower_var_assignment;
+pub(in crate::lower) use var::lower_var_read_expr_with_span;
 
 // ── エントリポイント ──────────────────────────────────────────────────────────
 

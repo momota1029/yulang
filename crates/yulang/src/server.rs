@@ -1636,6 +1636,32 @@ mod tests {
     }
 
     #[test]
+    fn rename_var_renames_sigil_read_sites() {
+        // `my $x = 1\n$x + 1\n` — renaming $x's binding should produce edits
+        // at both the declaration site and the $x read site.
+        let source = "{ my $x = 1\n  $x + 1\n}\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let cursor = position_of(source, "$x").expect("position of first $x");
+        let edit = rename_for_source(
+            uri.clone(),
+            source,
+            None,
+            std_source_options(),
+            cursor,
+            "y",
+        )
+        .expect("rename of var $x should succeed");
+
+        let changes = edit.changes.expect("workspace edit should have changes");
+        let edits = changes.get(&uri).expect("entry edits");
+        let new_texts: Vec<&str> = edits.iter().map(|e| e.new_text.as_str()).collect();
+        assert!(
+            new_texts.iter().any(|t| *t == "$y"),
+            "$x read site should be replaced with $y, got: {new_texts:?}",
+        );
+    }
+
+    #[test]
     fn rename_refuses_invalid_identifier() {
         let source = "my foo = 1\n";
         let uri = Url::parse("file:///tmp/test.yu").unwrap();
