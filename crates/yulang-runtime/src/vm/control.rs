@@ -154,7 +154,7 @@ struct ControlModule {
     #[serde(skip, default)]
     symbol_by_path: HashMap<typed_ir::Path, ControlSymbolId>,
     #[serde(skip, default)]
-    binding_by_symbol: HashMap<ControlSymbolId, usize>,
+    binding_by_symbol: Vec<Option<usize>>,
     root_exprs: Vec<ExprId>,
 }
 
@@ -167,12 +167,8 @@ impl ControlModule {
             .enumerate()
             .map(|(index, path)| (path, ControlSymbolId(index)))
             .collect();
-        self.binding_by_symbol = self
-            .bindings
-            .iter()
-            .enumerate()
-            .map(|(index, binding)| (binding.name, index))
-            .collect();
+        self.binding_by_symbol =
+            control_binding_index_by_symbol(&self.bindings, self.symbols.len());
     }
 
     fn symbol_path(&self, symbol: ControlSymbolId) -> &typed_ir::Path {
@@ -218,6 +214,17 @@ impl ControlModule {
             .copied()
             .expect("compiled control symbol")
     }
+}
+
+fn control_binding_index_by_symbol(
+    bindings: &[ControlBinding],
+    symbol_count: usize,
+) -> Vec<Option<usize>> {
+    let mut index_by_symbol = vec![None; symbol_count];
+    for (index, binding) in bindings.iter().enumerate() {
+        index_by_symbol[binding.name.0] = Some(index);
+    }
+    index_by_symbol
 }
 
 #[derive(Serialize, Deserialize)]
@@ -382,11 +389,7 @@ impl ControlCompiler {
                 body: compiler.expr(binding.body),
             })
             .collect::<Vec<_>>();
-        let binding_by_symbol = bindings
-            .iter()
-            .enumerate()
-            .map(|(index, binding)| (binding.name, index))
-            .collect();
+        let binding_by_symbol = control_binding_index_by_symbol(&bindings, compiler.symbols.len());
         let root_exprs = module
             .root_exprs
             .into_iter()
@@ -788,7 +791,7 @@ impl ControlCompiler {
 
 #[derive(Clone)]
 enum ControlValue {
-    Int(String),
+    Int(ControlInt),
     Float(String),
     String(StringTree),
     Bytes(BytesTree),
@@ -808,6 +811,48 @@ enum ControlValue {
     Closure(Rc<ControlClosure>),
     Thunk(Rc<ControlThunk>),
     EffectId(u64),
+}
+
+#[derive(Clone)]
+enum ControlInt {
+    Small(i64),
+    Text(String),
+}
+
+impl ControlInt {
+    fn from_text(value: String) -> Self {
+        value.parse().map(Self::Small).unwrap_or(Self::Text(value))
+    }
+
+    fn to_vm_string(&self) -> String {
+        match self {
+            Self::Small(value) => value.to_string(),
+            Self::Text(value) => value.clone(),
+        }
+    }
+
+    fn to_float_string(&self) -> String {
+        match self {
+            Self::Small(value) => format!("{value}.0"),
+            Self::Text(value) if value.contains('.') => value.clone(),
+            Self::Text(value) => format!("{value}.0"),
+        }
+    }
+
+    fn as_i64(&self) -> Result<i64, VmError> {
+        match self {
+            Self::Small(value) => Ok(*value),
+            Self::Text(value) => value
+                .parse()
+                .map_err(|_| VmError::ExpectedInt(VmValue::Int(value.clone()))),
+        }
+    }
+}
+
+impl PartialEq for ControlInt {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_vm_string() == other.to_vm_string()
+    }
 }
 
 #[derive(Clone)]
@@ -1207,7 +1252,12 @@ impl<'m> ControlInterpreter<'m> {
         if let Some(value) = env.get(path) {
             return Ok(ControlResult::Value(value.clone()));
         }
-        if let Some(index) = self.module.binding_by_symbol.get(&path).copied() {
+        if let Some(index) = self
+            .module
+            .binding_by_symbol
+            .get(path.0)
+            .and_then(|index| *index)
+        {
             return self.eval_expr(self.module.bindings[index].body, &ControlEnv::new());
         }
         let path_ref = self.module.symbol_path(path);
@@ -1440,19 +1490,19 @@ impl<'m> ControlInterpreter<'m> {
         primitive: Rc<ControlPrimitive>,
         arg: ControlValue,
     ) -> Result<ControlResult, VmError> {
-        let mut args = primitive.args.clone();
-        args.push(arg);
-        if args.len() < primitive_arity(primitive.op) {
+        let mut primitive = match Rc::try_unwrap(primitive) {
+            Ok(primitive) => primitive,
+            Err(primitive) => (*primitive).clone(),
+        };
+        primitive.args.push(arg);
+        if primitive.args.len() < primitive_arity(primitive.op) {
             return Ok(ControlResult::Value(ControlValue::PrimitiveOp(Rc::new(
-                ControlPrimitive {
-                    op: primitive.op,
-                    args,
-                },
+                primitive,
             ))));
         }
         Ok(ControlResult::Value(control_apply_primitive(
             primitive.op,
-            &args,
+            &primitive.args,
         )?))
     }
 
@@ -2375,7 +2425,7 @@ fn control_wrap_value(value: ControlValue, result_wraps_thunk: bool) -> ControlV
 
 fn control_value_from_lit(lit: &typed_ir::Lit) -> ControlValue {
     match lit {
-        typed_ir::Lit::Int(value) => ControlValue::Int(value.clone()),
+        typed_ir::Lit::Int(value) => ControlValue::Int(ControlInt::from_text(value.clone())),
         typed_ir::Lit::Float(value) => ControlValue::Float(value.clone()),
         typed_ir::Lit::String(value) => ControlValue::String(StringTree::from_str(value)),
         typed_ir::Lit::Bool(value) => ControlValue::Bool(*value),
@@ -2387,11 +2437,7 @@ fn control_cast_value(value: ControlValue, expected: &typed_ir::Type) -> Control
     if is_float_type(expected)
         && let ControlValue::Int(value) = value
     {
-        return ControlValue::Float(if value.contains('.') {
-            value
-        } else {
-            format!("{value}.0")
-        });
+        return ControlValue::Float(value.to_float_string());
     }
     value
 }
@@ -2406,18 +2452,18 @@ fn control_apply_primitive(
         typed_ir::PrimitiveOp::BoolEq => Ok(ControlValue::Bool(
             control_bool_value(&args[0])? == control_bool_value(&args[1])?,
         )),
-        typed_ir::PrimitiveOp::IntAdd => Ok(ControlValue::Int(
-            (control_int_value(&args[0])? + control_int_value(&args[1])?).to_string(),
-        )),
-        typed_ir::PrimitiveOp::IntSub => Ok(ControlValue::Int(
-            (control_int_value(&args[0])? - control_int_value(&args[1])?).to_string(),
-        )),
-        typed_ir::PrimitiveOp::IntMul => Ok(ControlValue::Int(
-            (control_int_value(&args[0])? * control_int_value(&args[1])?).to_string(),
-        )),
-        typed_ir::PrimitiveOp::IntDiv => Ok(ControlValue::Int(
-            (control_int_value(&args[0])? / control_int_value(&args[1])?).to_string(),
-        )),
+        typed_ir::PrimitiveOp::IntAdd => Ok(ControlValue::Int(ControlInt::Small(
+            control_int_value(&args[0])? + control_int_value(&args[1])?,
+        ))),
+        typed_ir::PrimitiveOp::IntSub => Ok(ControlValue::Int(ControlInt::Small(
+            control_int_value(&args[0])? - control_int_value(&args[1])?,
+        ))),
+        typed_ir::PrimitiveOp::IntMul => Ok(ControlValue::Int(ControlInt::Small(
+            control_int_value(&args[0])? * control_int_value(&args[1])?,
+        ))),
+        typed_ir::PrimitiveOp::IntDiv => Ok(ControlValue::Int(ControlInt::Small(
+            control_int_value(&args[0])? / control_int_value(&args[1])?,
+        ))),
         typed_ir::PrimitiveOp::IntEq => Ok(ControlValue::Bool(
             control_int_value(&args[0])? == control_int_value(&args[1])?,
         )),
@@ -2437,9 +2483,9 @@ fn control_apply_primitive(
         typed_ir::PrimitiveOp::ListSingleton => Ok(ControlValue::List(ListTree::singleton(
             Rc::new(args[0].clone()),
         ))),
-        typed_ir::PrimitiveOp::ListLen => Ok(ControlValue::Int(
-            control_list_value(&args[0])?.len().to_string(),
-        )),
+        typed_ir::PrimitiveOp::ListLen => Ok(ControlValue::Int(ControlInt::Small(
+            control_list_value(&args[0])?.len() as i64,
+        ))),
         typed_ir::PrimitiveOp::ListMerge => {
             let left = control_list_value(&args[0])?;
             let right = control_list_value(&args[1])?;
@@ -2486,9 +2532,7 @@ fn control_apply_primitive(
 
 fn control_int_value(value: &ControlValue) -> Result<i64, VmError> {
     match value {
-        ControlValue::Int(value) => value
-            .parse()
-            .map_err(|_| VmError::ExpectedInt(VmValue::Int(value.clone()))),
+        ControlValue::Int(value) => value.as_i64(),
         other => Err(VmError::ExpectedInt(export_value_lossy(other, None))),
     }
 }
@@ -2509,7 +2553,7 @@ fn control_list_value(value: &ControlValue) -> Result<&ListTree<Rc<ControlValue>
 
 fn export_value(value: &ControlValue, module: Option<&ControlModule>) -> Result<VmValue, VmError> {
     Ok(match value {
-        ControlValue::Int(value) => VmValue::Int(value.clone()),
+        ControlValue::Int(value) => VmValue::Int(value.to_vm_string()),
         ControlValue::Float(value) => VmValue::Float(value.clone()),
         ControlValue::String(value) => VmValue::String(value.clone()),
         ControlValue::Bytes(value) => VmValue::Bytes(value.clone()),
@@ -2568,7 +2612,7 @@ fn export_value_lossy(value: &ControlValue, module: Option<&ControlModule>) -> V
 
 fn import_value(value: &VmValue) -> Result<ControlValue, VmError> {
     Ok(match value {
-        VmValue::Int(value) => ControlValue::Int(value.clone()),
+        VmValue::Int(value) => ControlValue::Int(ControlInt::from_text(value.clone())),
         VmValue::Float(value) => ControlValue::Float(value.clone()),
         VmValue::String(value) => ControlValue::String(value.clone()),
         VmValue::Bytes(value) => ControlValue::Bytes(value.clone()),
