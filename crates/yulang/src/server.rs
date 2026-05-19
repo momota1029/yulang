@@ -453,7 +453,14 @@ fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
 fn is_hover_name_token(token: &SyntaxToken) -> bool {
     matches!(
         token.kind(),
-        SyntaxKind::Ident | SyntaxKind::SigilIdent | SyntaxKind::OpName | SyntaxKind::DotField
+        SyntaxKind::Ident
+            | SyntaxKind::SigilIdent
+            | SyntaxKind::OpName
+            | SyntaxKind::DotField
+            | SyntaxKind::Infix
+            | SyntaxKind::Prefix
+            | SyntaxKind::Suffix
+            | SyntaxKind::Nullfix
     )
 }
 
