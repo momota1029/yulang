@@ -36,6 +36,15 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 - source-to-artifact は現時点で `885.8 ms ± 23.2 ms`。ただし control VM compile
   は v4 でも `473.553us` 程度で、playground 向けのボトルネックは artifact encode ではなく
   parse / infer / lower / monomorphize と std/prelude cache 側。
+- CLI の source lowering path には std compiled-unit artifact cache が入った。
+  clean cache miss は従来どおり std を lower して artifact を書き、hit は cached
+  std syntax / namespace / typed / runtime surfaces を import する。`(each 1..20 + each 1..20).list`
+  の release `control-vm-emit` では miss が `lower=523.273ms`
+  (`infer_lower=471.947ms`, `std lower_roots=467.173ms`)、hit が
+  `lower=26.094ms` (`parse=0ns`, `infer_lower=0ns`, `std_cache: hits=1`)。
+  hit 側は runtime dependency bundle がまだ太く、`runtime_lower=125.796ms` /
+  `monomorphize=87.254ms` なので、次に compile-time を詰めるなら cached std
+  dependency pruning が候補。
 
 完了履歴:
 

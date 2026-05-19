@@ -21,21 +21,22 @@ use reborrow_generic::Reborrow as _;
 use rowan::SyntaxNode;
 use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
+    CompiledRuntimeBundle, CompiledUnitArtifact, CompiledUnitArtifactCache,
     ExpectedEdge as InferExpectedEdge, ExpectedEdgeKind as InferExpectedEdgeKind,
     ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
     LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
-    SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
+    ProfiledLoweredSources as InferProfiledLoweredSources,
+    SourceLowerProfile as InferSourceLowerProfile, SourceOptions, SourceSet,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
-    TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
+    TypeErrorKind as InferTypeErrorKind, build_compiled_unit_artifacts,
+    collect_compact_results as collect_infer_compact_results,
     collect_derived_expected_edge_evidence as collect_infer_derived_expected_edge_evidence,
     collect_expected_adapter_edge_evidence as collect_infer_expected_adapter_edge_evidence,
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
-    lower_entry_with_options as lower_infer_entry_with_options,
-    lower_entry_with_options_profiled as lower_infer_entry_with_options_profiled,
-    lower_virtual_source_with_options as lower_infer_virtual_source_with_options,
-    lower_virtual_source_with_options_profiled as lower_infer_virtual_source_with_options_profiled,
+    lower_source_set, lower_source_set_profiled,
+    lower_source_set_with_compiled_unit_artifacts_profiled,
     with_profile_enabled as with_infer_profile_enabled,
 };
 use yulang_parser::context::{Env, State};
@@ -51,7 +52,9 @@ use yulang_parser::stmt::parse_statement;
 use yulang_parser::typ::parse::parse_type;
 use yulang_runtime as runtime;
 use yulang_sources::{
-    default_versioned_std_root, install_embedded_std, resolve_or_install_std_root,
+    SourceCompilationUnitOrigin, collect_source_files_with_options,
+    collect_virtual_source_files_with_options, default_versioned_std_root, install_embedded_std,
+    resolve_or_install_std_root,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -857,8 +860,12 @@ fn run_infer_views(
     options: &CliOptions,
     emit_output: bool,
 ) {
-    let (mut state, diagnostic_source, lower_profile) =
-        lower_infer_sources(path, root, source, options);
+    let InferLowerOutput {
+        mut state,
+        diagnostic_source,
+        lower_profile,
+        runtime_dependencies,
+    } = lower_infer_sources(path, root, source, options);
 
     let finalized = with_infer_profile_enabled(options.infer_phase_timings, || {
         state.finalize_compact_results_profiled()
@@ -870,10 +877,16 @@ fn run_infer_views(
     let error_duration = error_start.elapsed();
     let requests_runtime_pipeline = options.requests_runtime_pipeline();
 
-    let (rendered, render_duration, binding_names, quantified_counts) = if options.infer {
+    let (rendered, render_duration) = if options.infer {
         let render_start = Instant::now();
         let rendered = collect_infer_compact_results(&state);
         let render_duration = render_start.elapsed();
+        (Some(rendered), render_duration)
+    } else {
+        (None, Duration::ZERO)
+    };
+
+    let (binding_names, quantified_counts) = if options.infer || options.infer_phase_timings {
         let binding_names = state
             .ctx
             .collect_binding_paths()
@@ -887,19 +900,18 @@ fn run_infer_views(
             .iter()
             .map(|(k, v)| (*k, v.quantified.len()))
             .collect::<HashMap<_, _>>();
-        (
-            Some(rendered),
-            render_duration,
-            Some(binding_names),
-            Some(quantified_counts),
-        )
+        (Some(binding_names), Some(quantified_counts))
     } else {
-        (None, Duration::ZERO, None, None)
+        (None, None)
     };
 
     let infer_program =
         if errors.is_empty() && surface_diagnostics.is_empty() && requests_runtime_pipeline {
-            Some(export_core_program(&mut state))
+            let program = export_core_program(&mut state);
+            Some(merge_runtime_dependencies_or_exit(
+                program,
+                runtime_dependencies.as_ref(),
+            ))
         } else {
             None
         };
@@ -1123,6 +1135,17 @@ fn run_infer_views(
                 }
                 if options.runtime_phase_timings {
                     print_runtime_phase_timings(&lowered.profile, Some(compile_duration), None);
+                }
+                if options.infer_phase_timings {
+                    print_infer_phase_timings(
+                        &lower_profile,
+                        error_duration,
+                        &finalized.profile,
+                        render_duration,
+                        finalized.finalized_defs.len(),
+                        binding_names.as_ref().expect("binding names"),
+                        quantified_counts.as_ref().expect("quantified counts"),
+                    );
                 }
                 if !options.print_roots {
                     println!("control-vm-emit: {}", path.display());
@@ -1393,7 +1416,7 @@ fn run_infer_views(
             );
             run_native_executable_or_exit(&path, "native-run-mmtk");
         }
-        if options.infer_phase_timings && options.infer {
+        if options.infer_phase_timings {
             print_infer_phase_timings(
                 &lower_profile,
                 error_duration,
@@ -3545,78 +3568,153 @@ fn format_duration(duration: Duration) -> String {
     format!("{:.3}s", duration.as_secs_f64())
 }
 
+struct InferLowerOutput {
+    state: InferLowerState,
+    diagnostic_source: String,
+    lower_profile: InferSourceLowerProfile,
+    runtime_dependencies: Option<CompiledRuntimeBundle>,
+}
+
 fn lower_infer_sources(
     path: Option<&str>,
     _root: &SyntaxNode<YulangLanguage>,
     source: &str,
     options: &CliOptions,
-) -> (InferLowerState, String, InferSourceLowerProfile) {
-    let Some(path) = path else {
-        let (lowered, profile) = if options.infer_phase_timings {
-            match lower_infer_virtual_source_with_options_profiled(
+) -> InferLowerOutput {
+    let collect_start = Instant::now();
+    let source_set = match path {
+        Some(path) => {
+            collect_source_files_with_options(path, source_options(options, path_base_dir(path)))
+        }
+        None => {
+            let base_dir = env::current_dir().ok();
+            collect_virtual_source_files_with_options(
                 source,
-                env::current_dir().ok(),
-                source_options(options, env::current_dir().ok().as_deref()),
-            ) {
-                Ok(lowered) => (lowered.lowered, lowered.profile),
-                Err(err) => {
-                    eprintln!("{err}");
-                    process::exit(1);
-                }
-            }
-        } else {
-            match lower_infer_virtual_source_with_options(
-                source,
-                env::current_dir().ok(),
-                source_options(options, env::current_dir().ok().as_deref()),
-            ) {
-                Ok(lowered) => (lowered, InferSourceLowerProfile::default()),
-                Err(err) => {
-                    eprintln!("{err}");
-                    process::exit(1);
-                }
-            }
-        };
-        return (
-            lowered.state,
-            if lowered.diagnostic_source.is_empty() {
-                source.to_string()
-            } else {
-                lowered.diagnostic_source
-            },
-            profile,
-        );
+                base_dir.clone(),
+                source_options(options, base_dir.as_deref()),
+            )
+        }
     };
+    let source_set = match source_set {
+        Ok(source_set) => source_set,
+        Err(err) => {
+            eprintln!("{err}");
+            process::exit(1);
+        }
+    };
+    let collect = collect_start.elapsed();
+    lower_infer_source_set_with_cache(&source_set, source, collect, options)
+}
 
-    let (lowered, profile) = if options.infer_phase_timings {
-        match lower_infer_entry_with_options_profiled(
-            path,
-            source_options(options, path_base_dir(path)),
-        ) {
-            Ok(lowered) => (lowered.lowered, lowered.profile),
+fn lower_infer_source_set_with_cache(
+    source_set: &SourceSet,
+    fallback_diagnostic_source: &str,
+    collect: Duration,
+    options: &CliOptions,
+) -> InferLowerOutput {
+    let cache = CompiledUnitArtifactCache::from_paths(
+        &yulang_sources::YulangCachePaths::for_project(workspace_root()),
+    );
+    if let Some(artifacts) = read_cached_std_unit_artifacts(source_set, &cache) {
+        match lower_source_set_with_compiled_unit_artifacts_profiled(source_set, &artifacts) {
+            Ok(lowered) => {
+                let mut profile = lowered.lowered.profile;
+                profile.collect = collect;
+                return infer_lower_output(
+                    lowered.lowered.lowered,
+                    fallback_diagnostic_source,
+                    profile,
+                    Some(lowered.runtime),
+                );
+            }
             Err(err) => {
-                eprintln!("{err}");
-                process::exit(1);
+                if env::var_os("YULANG_DEBUG_STD_ARTIFACT_CACHE").is_some() {
+                    eprintln!("std artifact cache import failed: {err:?}");
+                }
             }
         }
+    }
+
+    let mut lowered = if options.infer_phase_timings {
+        lower_source_set_profiled(source_set)
     } else {
-        match lower_infer_entry_with_options(path, source_options(options, path_base_dir(path))) {
-            Ok(lowered) => (lowered, InferSourceLowerProfile::default()),
-            Err(err) => {
-                eprintln!("{err}");
-                process::exit(1);
-            }
+        InferProfiledLoweredSources {
+            lowered: lower_source_set(source_set),
+            profile: InferSourceLowerProfile::default(),
         }
     };
-    (
-        lowered.state,
-        if lowered.diagnostic_source.is_empty() {
-            source.to_string()
+    lowered.profile.collect = collect;
+    lowered.lowered.state.finalize_compact_results_profiled();
+    write_std_unit_artifacts(source_set, &lowered.lowered.state, &cache);
+    let profile = lowered.profile;
+    infer_lower_output(lowered.lowered, fallback_diagnostic_source, profile, None)
+}
+
+fn infer_lower_output(
+    lowered: yulang_infer::LoweredSources,
+    fallback_diagnostic_source: &str,
+    lower_profile: InferSourceLowerProfile,
+    runtime_dependencies: Option<CompiledRuntimeBundle>,
+) -> InferLowerOutput {
+    InferLowerOutput {
+        state: lowered.state,
+        diagnostic_source: if lowered.diagnostic_source.is_empty() {
+            fallback_diagnostic_source.to_string()
         } else {
             lowered.diagnostic_source
         },
-        profile,
-    )
+        lower_profile,
+        runtime_dependencies,
+    }
+}
+
+fn read_cached_std_unit_artifacts(
+    source_set: &SourceSet,
+    cache: &CompiledUnitArtifactCache,
+) -> Option<Vec<CompiledUnitArtifact>> {
+    let manifests = source_set
+        .compiled_unit_syntax_artifacts()
+        .into_iter()
+        .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+        .map(|artifact| artifact.manifest)
+        .collect::<Vec<_>>();
+    if manifests.is_empty() {
+        return None;
+    }
+
+    let mut artifacts = Vec::with_capacity(manifests.len());
+    for manifest in manifests {
+        artifacts.push(cache.read_for_manifest(&manifest).ok()?);
+    }
+    Some(artifacts)
+}
+
+fn write_std_unit_artifacts(
+    source_set: &SourceSet,
+    state: &InferLowerState,
+    cache: &CompiledUnitArtifactCache,
+) {
+    for artifact in build_compiled_unit_artifacts(source_set, state) {
+        if artifact.manifest.origin == SourceCompilationUnitOrigin::Std {
+            let _ = cache.write(&artifact);
+        }
+    }
+}
+
+fn merge_runtime_dependencies_or_exit(
+    program: typed_ir::CoreProgram,
+    dependencies: Option<&CompiledRuntimeBundle>,
+) -> typed_ir::CoreProgram {
+    let Some(dependencies) = dependencies else {
+        return program;
+    };
+    match dependencies.merge_with_user_program(program) {
+        Ok(program) => program,
+        Err(err) => {
+            eprintln!("failed to merge cached runtime dependencies: {err:?}");
+            process::exit(1);
+        }
+    }
 }
 
 fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, source: &str) {

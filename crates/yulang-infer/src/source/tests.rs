@@ -2174,6 +2174,64 @@ fn compiled_unit_import_restores_syntax_and_typed_refs() {
 }
 
 #[test]
+fn compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source_set = collect_virtual_source_files_with_options(
+            "(each 1..3 + each 1..3).list\n",
+            Some(repo_root.clone()),
+            yulang_sources::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results_profiled();
+        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+        let runtime = CompiledRuntimeBundle::from_surfaces(
+            artifacts
+                .iter()
+                .filter(|artifact| {
+                    artifact.manifest.origin == yulang_sources::SourceCompilationUnitOrigin::Std
+                })
+                .map(|artifact| &artifact.runtime),
+        )
+        .expect("std runtime surfaces should merge without duplicate unit bindings");
+        let binding_paths = runtime
+            .surface
+            .program
+            .program
+            .bindings
+            .iter()
+            .map(|binding| {
+                binding
+                    .name
+                    .segments
+                    .iter()
+                    .map(|segment| segment.0.as_str())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            binding_paths
+                .iter()
+                .any(|path| path.as_slice() == ["std", "int", "add"])
+        );
+        assert_eq!(
+            binding_paths
+                .iter()
+                .filter(|path| path.as_slice() == ["std", "list", "empty"])
+                .count(),
+            1
+        );
+    });
+}
+
+#[test]
 fn compiled_runtime_bundle_merges_surfaces_and_remaps_evidence_ids() {
     let left = runtime_surface_with_coerce_binding("left", 0);
     let right = runtime_surface_with_coerce_binding("right", 0);

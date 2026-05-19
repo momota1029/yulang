@@ -10,8 +10,8 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
 use yulang_sources::{
-    CompiledSyntaxSurface, CompiledUnitManifest, SourceFile, SourceLoadError, SourceOptions,
-    SourceOrigin, SourceSet, collect_source_files_with_options,
+    CompiledSyntaxSurface, CompiledUnitManifest, SourceCompilationUnitOrigin, SourceFile,
+    SourceLoadError, SourceOptions, SourceOrigin, SourceSet, collect_source_files_with_options,
     collect_virtual_source_files_with_options,
 };
 
@@ -2396,6 +2396,25 @@ fn build_compiled_runtime_surfaces(
     typed_artifacts: &[CompiledUnitTypedArtifact],
 ) -> Vec<CompiledRuntimeSurface> {
     let value_paths = state.ctx.collect_all_binding_paths();
+    let unit_runtime_binding_paths = typed_artifacts
+        .iter()
+        .flat_map(|artifact| {
+            let unit_paths = artifact
+                .namespace
+                .modules
+                .iter()
+                .map(|module| module.path.clone())
+                .collect::<Vec<_>>();
+            compiled_runtime_binding_paths_for_modules(&value_paths, &unit_paths)
+                .into_iter()
+                .map(|(path, _)| snapshot_path_segments(&path))
+        })
+        .collect::<HashSet<_>>();
+    let primitive_unit_index = typed_artifacts
+        .iter()
+        .find(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+        .or_else(|| typed_artifacts.first())
+        .map(|artifact| artifact.manifest.unit_index);
 
     typed_artifacts
         .iter()
@@ -2406,18 +2425,78 @@ fn build_compiled_runtime_surfaces(
                 .iter()
                 .map(|module| module.path.clone())
                 .collect::<Vec<_>>();
-            let binding_paths =
+            let mut binding_paths =
                 compiled_runtime_binding_paths_for_modules(&value_paths, &unit_paths);
+            let extra_runtime_paths = if Some(artifact.manifest.unit_index) == primitive_unit_index
+            {
+                extend_primitive_runtime_binding_paths(
+                    state,
+                    &value_paths,
+                    &unit_runtime_binding_paths,
+                    &mut binding_paths,
+                )
+            } else {
+                Vec::new()
+            };
             let mut export_state = state.clone();
             let mut program =
                 crate::export_core_program_for_binding_paths(&mut export_state, &binding_paths);
             let aliases = compiled_runtime_binding_aliases(state, &binding_paths);
             add_core_program_binding_aliases(&mut program, &aliases);
-            prune_core_program_to_modules(&mut program, &unit_paths);
+            prune_core_program_to_modules_and_paths(
+                &mut program,
+                &unit_paths,
+                &extra_runtime_paths,
+            );
             clear_core_program_roots(&mut program);
             CompiledRuntimeSurface { program }
         })
         .collect()
+}
+
+fn extend_primitive_runtime_binding_paths(
+    state: &LowerState,
+    value_paths: &[(Path, crate::ids::DefId)],
+    unit_runtime_binding_paths: &HashSet<Vec<String>>,
+    binding_paths: &mut Vec<(Path, crate::ids::DefId)>,
+) -> Vec<typed_ir::Path> {
+    let mut seen_paths = binding_paths
+        .iter()
+        .map(|(path, _)| snapshot_path_segments(path))
+        .collect::<HashSet<_>>();
+    let mut extra = Vec::new();
+    for (path, def) in value_paths {
+        let path_segments = snapshot_path_segments(path);
+        if seen_paths.contains(&path_segments)
+            || unit_runtime_binding_paths.contains(&path_segments)
+            || !def_has_primitive_body(state, *def)
+        {
+            continue;
+        }
+        extra.push(core_path_from_symbol_path(path));
+        binding_paths.push((path.clone(), *def));
+        seen_paths.insert(path_segments);
+    }
+    for (def, path) in crate::export::paths::collect_canonical_binding_paths(state) {
+        let path_segments = snapshot_path_segments(&path);
+        if seen_paths.contains(&path_segments)
+            || unit_runtime_binding_paths.contains(&path_segments)
+            || !def_has_primitive_body(state, def)
+        {
+            continue;
+        }
+        extra.push(core_path_from_symbol_path(&path));
+        binding_paths.push((path, def));
+        seen_paths.insert(path_segments);
+    }
+    extra
+}
+
+fn def_has_primitive_body(state: &LowerState, def: crate::ids::DefId) -> bool {
+    let Some(body) = state.principal_bodies.get(&def) else {
+        return false;
+    };
+    matches!(body.kind, crate::ast::expr::ExprKind::PrimitiveOp(_))
 }
 
 fn compiled_runtime_binding_aliases(
@@ -2534,24 +2613,33 @@ fn add_core_program_binding_aliases(
     }
 }
 
-fn prune_core_program_to_modules(program: &mut CoreProgram, module_paths: &[Vec<String>]) {
-    program
-        .program
-        .bindings
-        .retain(|binding| core_path_belongs_to_modules(&binding.name, module_paths));
-    program
-        .graph
-        .bindings
-        .retain(|node| core_path_belongs_to_modules(&node.binding, module_paths));
-    program
-        .graph
-        .runtime_symbols
-        .retain(|symbol| core_path_belongs_to_modules(&symbol.path, module_paths));
-    program.graph.role_impls.retain(|node| {
-        node.members
-            .iter()
-            .any(|member| core_path_belongs_to_modules(&member.value, module_paths))
+fn prune_core_program_to_modules_and_paths(
+    program: &mut CoreProgram,
+    module_paths: &[Vec<String>],
+    extra_paths: &[typed_ir::Path],
+) {
+    program.program.bindings.retain(|binding| {
+        core_path_belongs_to_modules_or_paths(&binding.name, module_paths, extra_paths)
     });
+    program.graph.bindings.retain(|node| {
+        core_path_belongs_to_modules_or_paths(&node.binding, module_paths, extra_paths)
+    });
+    program.graph.runtime_symbols.retain(|symbol| {
+        core_path_belongs_to_modules_or_paths(&symbol.path, module_paths, extra_paths)
+    });
+    program.graph.role_impls.retain(|node| {
+        node.members.iter().any(|member| {
+            core_path_belongs_to_modules_or_paths(&member.value, module_paths, extra_paths)
+        })
+    });
+}
+
+fn core_path_belongs_to_modules_or_paths(
+    path: &typed_ir::Path,
+    modules: &[Vec<String>],
+    extra_paths: &[typed_ir::Path],
+) -> bool {
+    extra_paths.iter().any(|extra| extra == path) || core_path_belongs_to_modules(path, modules)
 }
 
 fn core_path_belongs_to_modules(path: &typed_ir::Path, modules: &[Vec<String>]) -> bool {
