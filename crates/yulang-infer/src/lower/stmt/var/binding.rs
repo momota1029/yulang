@@ -48,6 +48,15 @@ pub(crate) fn lower_var_binding_suffix(
         } else {
             register_var_ref_alias(state, &item.binding, &item.act.name);
         }
+        // var binding の `#x` (init) と `&x` (reference) が両方束縛されたら、
+        // LSP rename が「同じ変数」として扱えるよう両方向の DefId 対応を保存する。
+        if let (Some(init_def), Some(ref_def)) = (
+            state.ctx.resolve_value(&item.binding.init),
+            state.ctx.resolve_value(&item.binding.reference),
+        ) {
+            state.var_init_to_ref.insert(init_def, ref_def);
+            state.var_ref_to_init.insert(ref_def, init_def);
+        }
     }
 
     let mut body = state.without_top_level_expr_owners(|state| {

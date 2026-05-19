@@ -924,7 +924,22 @@ fn rename_for_source(
         return None;
     }
 
-    let def_span = lowered.state.def_spans.get(&def).copied()?;
+    // var binding は `#x` (init) と `&x` (reference) で別 DefId を持つので、
+    // 両方向の DefId 対応を辿って、rename のターゲットを 1 つのグループに統合する。
+    let canonical_def = lowered
+        .state
+        .var_ref_to_init
+        .get(&def)
+        .copied()
+        .unwrap_or(def);
+    let mut rename_group: Vec<DefId> = vec![canonical_def];
+    if let Some(ref_def) = lowered.state.var_init_to_ref.get(&canonical_def).copied() {
+        if ref_def != canonical_def {
+            rename_group.push(ref_def);
+        }
+    }
+
+    let def_span = lowered.state.def_spans.get(&canonical_def).copied()?;
     if !is_user_writable_file(&lowered.state, def_span.file) {
         return None;
     }
@@ -932,7 +947,7 @@ fn rename_for_source(
     let mut spans: Vec<FileSpan> = Vec::new();
     spans.push(def_span);
     for (span, candidate) in &lowered.state.value_use_spans {
-        if *candidate == def && is_user_writable_file(&lowered.state, span.file) {
+        if rename_group.contains(candidate) && is_user_writable_file(&lowered.state, span.file) {
             spans.push(*span);
         }
     }
@@ -940,8 +955,7 @@ fn rename_for_source(
     spans.dedup();
 
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-    let mut file_sources: HashMap<yulang_infer::FileId, (Url, String, Vec<usize>)> =
-        HashMap::new();
+    let mut file_sources: HashMap<yulang_infer::FileId, (Url, String, Vec<usize>)> = HashMap::new();
     let entry_file_id = lowered.state.entry_file_id();
 
     for span in spans {
@@ -964,7 +978,10 @@ fn rename_for_source(
         let span_text = source.get(start_byte..end_byte).unwrap_or_default();
         let new_text = rename_new_text_for_span(span_text, new_name);
         let range = byte_range_to_lsp(&line_starts_cached, span.range);
-        changes.entry(uri).or_default().push(TextEdit { range, new_text });
+        changes
+            .entry(uri)
+            .or_default()
+            .push(TextEdit { range, new_text });
     }
 
     if changes.is_empty() {
@@ -1636,10 +1653,11 @@ mod tests {
     }
 
     #[test]
-    fn rename_var_renames_sigil_read_sites() {
-        // `my $x = 1\n$x + 1\n` — renaming $x's binding should produce edits
-        // at both the declaration site and the $x read site.
-        let source = "{ my $x = 1\n  $x + 1\n}\n";
+    fn rename_var_renames_read_and_write_sites_together() {
+        // Indent-block form matches lib examples and triggers var ref binding
+        // (writes_reference detection requires the `&x = ...` site to share
+        // the suffix-items list with the declaration).
+        let source = "my assign_var =\n  my ($x) = 1\n  &x = 2\n  $x\n";
         let uri = Url::parse("file:///tmp/test.yu").unwrap();
         let cursor = position_of(source, "$x").expect("position of first $x");
         let edit = rename_for_source(
@@ -1655,9 +1673,34 @@ mod tests {
         let changes = edit.changes.expect("workspace edit should have changes");
         let edits = changes.get(&uri).expect("entry edits");
         let new_texts: Vec<&str> = edits.iter().map(|e| e.new_text.as_str()).collect();
+        let dollar_count = new_texts.iter().filter(|t| **t == "$y").count();
+        let amp_count = new_texts.iter().filter(|t| **t == "&y").count();
         assert!(
-            new_texts.iter().any(|t| *t == "$y"),
-            "$x read site should be replaced with $y, got: {new_texts:?}",
+            dollar_count >= 2,
+            "both declaration and read should produce $y, got: {new_texts:?}",
+        );
+        assert!(
+            amp_count >= 1,
+            "&x write site should produce &y, got: {new_texts:?}",
+        );
+    }
+
+    #[test]
+    fn rename_var_renames_sigil_read_sites() {
+        // `my $x = 1\n$x + 1\n` — renaming $x's binding should produce edits
+        // at both the declaration site and the $x read site.
+        let source = "{ my $x = 1\n  $x + 1\n}\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let cursor = position_of(source, "$x").expect("position of first $x");
+        let edit = rename_for_source(uri.clone(), source, None, std_source_options(), cursor, "y")
+            .expect("rename of var $x should succeed");
+
+        let changes = edit.changes.expect("workspace edit should have changes");
+        let edits = changes.get(&uri).expect("entry edits");
+        let new_texts: Vec<&str> = edits.iter().map(|e| e.new_text.as_str()).collect();
+        assert!(
+            new_texts.iter().filter(|t| **t == "$y").count() >= 2,
+            "both the declaration $x and the read $x should be renamed to $y, got: {new_texts:?}",
         );
     }
 

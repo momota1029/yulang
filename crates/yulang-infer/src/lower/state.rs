@@ -116,6 +116,10 @@ pub struct LowerState {
     pub def_eff_tvs: HashMap<DefId, TypeVar>,
     /// `$x` 用の local ref DefId → 対応する synthetic act 名。
     pub var_ref_acts: HashMap<DefId, crate::symbols::Name>,
+    /// var binding における `#x` (init) ↔ `&x` (reference) の DefId 対応。
+    /// LSP 側でリネーム時に両方の使用箇所を一緒に拾うために使う。
+    pub var_init_to_ref: HashMap<DefId, DefId>,
+    pub var_ref_to_init: HashMap<DefId, DefId>,
     /// 現在 lowering 中の束縛 owner。
     pub current_owner: Option<DefId>,
     /// effect path ごとの act type 引数個数。
@@ -218,6 +222,8 @@ impl LowerState {
             type_var_scopes: Vec::new(),
             def_eff_tvs: HashMap::new(),
             var_ref_acts: HashMap::new(),
+            var_init_to_ref: HashMap::new(),
+            var_ref_to_init: HashMap::new(),
             current_owner: None,
             effect_arities: HashMap::new(),
             effect_args: HashMap::new(),
