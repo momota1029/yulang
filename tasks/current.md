@@ -669,3 +669,8 @@ Yulang code から小さい regression test を書ける形を作る。
   direct edges and ordinary `EffectfulCall` do not preserve. The next real
   20x20 step is to represent that force-frame evidence explicitly before
   removing dynamic handler lookup.
+- A follow-up known-thunk-call IR sketch showed that carrying only the
+  force-frame push and active-blocked context is still not enough. The
+  reusable primitive has to include the whole native force step:
+  handler/guard override, return-frame save/restore, eval-context restore,
+  nested-thunk stepping, and abort/scope-return handling.

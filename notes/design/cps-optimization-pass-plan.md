@@ -93,6 +93,13 @@ than copied paper text.
   explicit IR evidence before transforming the 20x20 effectful thunk body.
   A normal direct edge or ordinary effectful call is not enough for resumptions
   that cross the force boundary.
+- The force-frame evidence must be the full force protocol, not just the
+  active-blocked boundary list. A known-thunk call experiment that pushed the
+  post-force frame and extended active-blocked still failed because
+  `force_native_i64_thunk_step` also owns handler/guard snapshot override,
+  saved return-frame restoration, eval-context restoration, nested force
+  stepping, and abort/scope-return interaction. The reusable primitive should
+  expose that whole protocol before handler defunctionalization consumes it.
 - Extend environment trimming to handler env payloads once handler-env target
   rebasing is explicit.
 - Extend known thunk force recognition beyond pure value bodies once the IR
