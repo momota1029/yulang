@@ -503,6 +503,71 @@ impl LowerCtx {
         out
     }
 
+    /// `module` から見たときの単純名の operator 候補を返す（fixity 指定）。
+    pub fn resolve_operator_value_candidates_via_snapshot(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        fixity: OperatorFixity,
+    ) -> Vec<DefId> {
+        let key = (name.clone(), fixity);
+        let mut out = Vec::new();
+        let mut current = Some(module);
+        while let Some(mid) = current {
+            if let Some(&def) = self.modules.node(mid).operator_values.get(&key) {
+                if is_accessible_from(
+                    module,
+                    mid,
+                    self.modules.operator_visibility(mid, name, fixity),
+                ) {
+                    push_unique(&mut out, def);
+                }
+            }
+            current = self.modules.node(mid).parent;
+        }
+        for mid in self.use_search_for_module(module) {
+            if let Some(&def) = self.modules.node(mid).operator_values.get(&key) {
+                if is_accessible_from(
+                    module,
+                    mid,
+                    self.modules.operator_visibility(mid, name, fixity),
+                ) {
+                    push_unique(&mut out, def);
+                }
+            }
+        }
+        out
+    }
+
+    /// `module` から見たときに修飾パスを operator として解決する（fixity 指定）。
+    pub fn resolve_path_operator_value_candidates_via_snapshot(
+        &self,
+        module: ModuleId,
+        path: &Path,
+        fixity: OperatorFixity,
+    ) -> Vec<DefId> {
+        let Some((last, module_segs)) = path.segments.split_last() else {
+            return Vec::new();
+        };
+        if module_segs.is_empty() {
+            return self.resolve_operator_value_candidates_via_snapshot(module, last, fixity);
+        }
+        let key = (last.clone(), fixity);
+        let mut out = Vec::new();
+        for mid in self.resolve_module_path_segments_candidates_from(module, module_segs) {
+            if let Some(&def) = self.modules.node(mid).operator_values.get(&key) {
+                if is_accessible_from(
+                    module,
+                    mid,
+                    self.modules.operator_visibility(mid, last, fixity),
+                ) {
+                    push_unique(&mut out, def);
+                }
+            }
+        }
+        out
+    }
+
     pub fn current_use_paths(&self) -> Vec<Path> {
         self.use_paths.clone()
     }

@@ -3674,8 +3674,7 @@ fn operator_use_spans_record_resolved_def_for_hover() {
 
         let plus_offset = source.find('+').expect("source should contain +");
         let plus_byte = u32::try_from(plus_offset).unwrap();
-        let plus_range =
-            rowan::TextRange::new(plus_byte.into(), (plus_byte + 1).into());
+        let plus_range = rowan::TextRange::new(plus_byte.into(), (plus_byte + 1).into());
 
         let span_hit = lowered
             .state

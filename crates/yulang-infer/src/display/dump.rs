@@ -116,12 +116,17 @@ fn shortest_unique_value_label(
         return path_string(full_path);
     }
     let module = ctx.current_module;
+    let fixity = ctx.operator_fixity(def);
     let total = full_path.segments.len();
     for k in 1..total {
         let suffix = Path {
             segments: full_path.segments[total - k..].to_vec(),
         };
-        let candidates = ctx.resolve_path_value_candidates_via_snapshot(module, &suffix);
+        let candidates = if let Some(fixity) = fixity {
+            ctx.resolve_path_operator_value_candidates_via_snapshot(module, &suffix, fixity)
+        } else {
+            ctx.resolve_path_value_candidates_via_snapshot(module, &suffix)
+        };
         if candidates.as_slice() == [def] {
             return path_string(&suffix);
         }
