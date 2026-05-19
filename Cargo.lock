@@ -2960,6 +2960,7 @@ dependencies = [
  "rowan",
  "tokio",
  "tower-lsp",
+ "unicode-ident",
  "yulang-editor",
  "yulang-infer",
  "yulang-native",

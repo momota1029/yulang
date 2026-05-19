@@ -534,12 +534,7 @@ fn resolve_hover_target_selection_tvs(
     let entry = state.entry_file_id()?;
     state.selection_spans.iter().rev().find_map(|span| {
         (span.span.file == entry && span_contains_range(span.span.range, target.syntax_range))
-            .then_some((
-                span.recv_tv,
-                span.recv_eff,
-                span.result_tv,
-                span.result_eff,
-            ))
+            .then_some((span.recv_tv, span.recv_eff, span.result_tv, span.result_eff))
     })
 }
 
@@ -921,8 +916,7 @@ fn rename_for_source(
         return None;
     }
     let target = hover_target_at(entry_source, position)?;
-    let mut lowered =
-        lower_virtual_source_with_options(entry_source, base_dir, options).ok()?;
+    let mut lowered = lower_virtual_source_with_options(entry_source, base_dir, options).ok()?;
     let def = resolve_target_def_id(&mut lowered.state, &target)?;
 
     // operator は v1 では rename しない（fixity 区分が表示用ラベルから外れているため）。
@@ -946,35 +940,31 @@ fn rename_for_source(
     spans.dedup();
 
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-    let mut file_sources: HashMap<yulang_infer::FileId, (Url, Vec<usize>)> = HashMap::new();
+    let mut file_sources: HashMap<yulang_infer::FileId, (Url, String, Vec<usize>)> =
+        HashMap::new();
     let entry_file_id = lowered.state.entry_file_id();
 
     for span in spans {
-        let (uri, line_starts_cached) = match file_sources.get(&span.file) {
-            Some(cached) => cached.clone(),
-            None => {
-                let (uri, source) = if Some(span.file) == entry_file_id {
-                    (entry_uri.clone(), entry_source.to_string())
-                } else {
-                    let info = lowered.state.file_info(span.file)?;
-                    let uri = Url::from_file_path(&info.path).ok()?;
-                    let source = std::fs::read_to_string(&info.path).ok()?;
-                    (uri, source)
-                };
-                let line_starts_owned = line_starts(&source);
-                let entry = (uri, line_starts_owned);
-                file_sources.insert(span.file, entry.clone());
-                entry
-            }
-        };
+        if !file_sources.contains_key(&span.file) {
+            let (uri, source) = if Some(span.file) == entry_file_id {
+                (entry_uri.clone(), entry_source.to_string())
+            } else {
+                let info = lowered.state.file_info(span.file)?;
+                let uri = Url::from_file_path(&info.path).ok()?;
+                let source = std::fs::read_to_string(&info.path).ok()?;
+                (uri, source)
+            };
+            let line_starts_owned = line_starts(&source);
+            file_sources.insert(span.file, (uri, source, line_starts_owned));
+        }
+        let (uri, source, line_starts_cached) =
+            file_sources.get(&span.file).expect("cached above").clone();
+        let start_byte = usize::from(span.range.start());
+        let end_byte = usize::from(span.range.end());
+        let span_text = source.get(start_byte..end_byte).unwrap_or_default();
+        let new_text = rename_new_text_for_span(span_text, new_name);
         let range = byte_range_to_lsp(&line_starts_cached, span.range);
-        changes
-            .entry(uri)
-            .or_default()
-            .push(TextEdit {
-                range,
-                new_text: new_name.to_string(),
-            });
+        changes.entry(uri).or_default().push(TextEdit { range, new_text });
     }
 
     if changes.is_empty() {
@@ -995,15 +985,49 @@ fn is_user_writable_file(state: &LowerState, file: yulang_infer::FileId) -> bool
         .unwrap_or(false)
 }
 
+/// Yulang のスキャナと同じ規則で識別子として受理できるかを判定する。
+/// Unicode XID をベースにし、末尾の `?` / `!` を 1 つだけ許容する。
 fn is_valid_rename_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
+    let mut chars = name.chars().peekable();
     let Some(first) = chars.next() else {
         return false;
     };
-    if !(first.is_ascii_alphabetic() || first == '_') {
+    if !(unicode_ident::is_xid_start(first) || first == '_') {
         return false;
     }
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+    let mut saw_terminator = false;
+    while let Some(ch) = chars.next() {
+        if saw_terminator {
+            return false;
+        }
+        if unicode_ident::is_xid_continue(ch) {
+            continue;
+        }
+        if (ch == '?' || ch == '!') && chars.peek().is_none() {
+            saw_terminator = true;
+            continue;
+        }
+        return false;
+    }
+    true
+}
+
+/// rename 時、span の元テキストに sigil が付いていればそれを保ったまま、
+/// 識別子部分だけを置換する new_text を返す。sigil なしなら `name` をそのまま返す。
+fn rename_new_text_for_span(span_text: &str, name: &str) -> String {
+    if let Some(prefix_char) = span_text.chars().next() {
+        if matches!(prefix_char, '$' | '&') {
+            // 末尾に `?` / `!` がついていれば保つ（識別子のシンタクス末尾は変えない）。
+            let trailing = span_text
+                .chars()
+                .next_back()
+                .filter(|c| matches!(c, '?' | '!'))
+                .map(|c| c.to_string())
+                .unwrap_or_default();
+            return format!("{prefix_char}{name}{trailing}");
+        }
+    }
+    name.to_string()
 }
 
 fn resolve_target_def_id(state: &mut LowerState, target: &HoverTarget) -> Option<DefId> {
@@ -1482,7 +1506,14 @@ impl LanguageServer for Backend {
         let options = self.source_options(base_dir.as_deref());
         let uri_for_task = uri.clone();
         let workspace_edit = tokio::task::spawn_blocking(move || {
-            rename_for_source(uri_for_task, &source, base_dir, options, position, &new_name)
+            rename_for_source(
+                uri_for_task,
+                &source,
+                base_dir,
+                options,
+                position,
+                &new_name,
+            )
         })
         .await
         .unwrap_or_default();
@@ -1560,6 +1591,48 @@ mod tests {
         assert!(ranges.contains(&(0, 3)), "def site: {ranges:?}");
         assert!(ranges.contains(&(1, 9)), "first use: {ranges:?}");
         assert!(ranges.contains(&(1, 15)), "second use: {ranges:?}");
+    }
+
+    #[test]
+    fn rename_accepts_unicode_identifier() {
+        let source = "my foo = 1\nmy bar = foo + foo\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let edit = rename_for_source(
+            uri.clone(),
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 0,
+                character: 3,
+            },
+            "値",
+        )
+        .expect("unicode identifier should be accepted");
+        let changes = edit.changes.expect("workspace edit should have changes");
+        let edits = changes.get(&uri).expect("entry edits");
+        assert!(edits.iter().all(|e| e.new_text == "値"));
+    }
+
+    #[test]
+    fn rename_accepts_identifier_with_question_mark_suffix() {
+        // Yulang identifiers can end with `?` / `!`.
+        assert!(is_valid_rename_identifier("ready?"));
+        assert!(is_valid_rename_identifier("crash!"));
+        assert!(!is_valid_rename_identifier("a?b"));
+        assert!(!is_valid_rename_identifier("a??"));
+    }
+
+    #[test]
+    fn rename_new_text_preserves_sigil_prefix() {
+        assert_eq!(rename_new_text_for_span("$foo", "bar"), "$bar");
+        assert_eq!(rename_new_text_for_span("&foo", "bar"), "&bar");
+        assert_eq!(rename_new_text_for_span("$foo?", "bar"), "$bar?");
+        assert_eq!(rename_new_text_for_span("foo", "bar"), "bar");
     }
 
     #[test]
