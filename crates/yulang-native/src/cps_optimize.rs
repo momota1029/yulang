@@ -418,6 +418,11 @@ fn inline_ready_finite_thunk_calls(output: &mut CpsOptimizationOutput) {
             post_call_force_chain_len: plan.post_call_force_chain_len,
             class: plan.seed_class,
             finite_effects: plan.finite_effects,
+            finite_callee_boundaries: plan.finite_callee_boundaries,
+            finite_arm_entries: plan.finite_arm_entries,
+            finite_performs: plan.finite_performs,
+            finite_resumes: plan.finite_resumes,
+            finite_resume_actions: plan.finite_resume_actions,
             no_resume_effects: plan.no_resume_effects,
             blocked_effects: plan.blocked_effects,
         })

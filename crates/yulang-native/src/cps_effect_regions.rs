@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::cps_ir::{
-    CpsContinuationId, CpsHandlerId, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
+    CpsContinuationId, CpsHandlerId, CpsLiteral, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
 };
 use crate::cps_repr::CpsReprAbiLane;
 use crate::cps_repr_abi::{CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule};
@@ -85,6 +85,7 @@ pub struct EffectResumeAction {
     pub result: CpsValueId,
     pub resumption: CpsValueId,
     pub arg: CpsValueId,
+    pub arg_literal: Option<CpsLiteral>,
     pub local_thunk_entry: Option<CpsContinuationId>,
 }
 
@@ -125,6 +126,9 @@ pub struct DynamicEffectThunkArgumentPlan {
     pub callee: String,
     pub callee_boundary: CpsContinuationId,
     pub callee_force_param_index: usize,
+    pub arm_entry: CpsContinuationId,
+    pub perform: CpsContinuationId,
+    pub resume: CpsContinuationId,
     pub thunk: CpsValueId,
     pub thunk_entry: CpsContinuationId,
     pub post_call_force_chain_len: usize,
@@ -152,6 +156,11 @@ pub struct DynamicEffectThunkSpecializationSeed {
     pub post_call_force_chain_len: usize,
     pub class: DynamicEffectThunkSpecializationClass,
     pub finite_effects: Vec<typed_ir::Path>,
+    pub finite_callee_boundaries: Vec<CpsContinuationId>,
+    pub finite_arm_entries: Vec<CpsContinuationId>,
+    pub finite_performs: Vec<CpsContinuationId>,
+    pub finite_resumes: Vec<CpsContinuationId>,
+    pub finite_resume_actions: Vec<EffectResumeAction>,
     pub no_resume_effects: Vec<typed_ir::Path>,
     pub blocked_effects: Vec<typed_ir::Path>,
 }
@@ -184,6 +193,11 @@ pub struct DynamicEffectThunkRewritePlan {
     pub strategy: DynamicEffectThunkRewriteStrategy,
     pub body_clone_blockers: Vec<DynamicEffectThunkBodyCloneBlocker>,
     pub finite_effects: Vec<typed_ir::Path>,
+    pub finite_callee_boundaries: Vec<CpsContinuationId>,
+    pub finite_arm_entries: Vec<CpsContinuationId>,
+    pub finite_performs: Vec<CpsContinuationId>,
+    pub finite_resumes: Vec<CpsContinuationId>,
+    pub finite_resume_actions: Vec<EffectResumeAction>,
     pub no_resume_effects: Vec<typed_ir::Path>,
     pub blocked_effects: Vec<typed_ir::Path>,
 }
@@ -481,6 +495,9 @@ pub fn analyze_dynamic_effect_thunk_argument_plans(
                         callee: target.clone(),
                         callee_boundary: region_plan.boundary,
                         callee_force_param_index: force_param_index,
+                        arm_entry: region_plan.arm_entry,
+                        perform: region_plan.perform,
+                        resume: region_plan.resume,
                         thunk,
                         thunk_entry,
                         post_call_force_chain_len: immediate_force_chain_len(
@@ -516,10 +533,20 @@ pub fn analyze_dynamic_effect_thunk_specialization_seeds(
         .into_iter()
         .map(|(key, plans)| {
             let mut finite_effects = Vec::new();
+            let mut finite_callee_boundaries = Vec::new();
+            let mut finite_arm_entries = Vec::new();
+            let mut finite_performs = Vec::new();
+            let mut finite_resumes = Vec::new();
+            let mut finite_resume_actions = Vec::new();
             let mut no_resume_effects = Vec::new();
             let mut blocked_effects = Vec::new();
             for plan in plans {
                 if plan.region_class == DynamicEffectRegionPlanClass::FiniteResumeSchedule {
+                    finite_callee_boundaries.push(plan.callee_boundary);
+                    finite_arm_entries.push(plan.arm_entry);
+                    finite_performs.push(plan.perform);
+                    finite_resumes.push(plan.resume);
+                    finite_resume_actions.extend(plan.resume_actions);
                     finite_effects.push(plan.effect);
                 } else if plan.region_class == DynamicEffectRegionPlanClass::Opaque
                     && plan.resume_actions.is_empty()
@@ -546,6 +573,11 @@ pub fn analyze_dynamic_effect_thunk_specialization_seeds(
                 post_call_force_chain_len: key.post_call_force_chain_len,
                 class,
                 finite_effects,
+                finite_callee_boundaries,
+                finite_arm_entries,
+                finite_performs,
+                finite_resumes,
+                finite_resume_actions,
                 no_resume_effects,
                 blocked_effects,
             }
@@ -588,6 +620,11 @@ pub fn analyze_dynamic_effect_thunk_rewrite_plans(
                 strategy,
                 body_clone_blockers,
                 finite_effects: seed.finite_effects,
+                finite_callee_boundaries: seed.finite_callee_boundaries,
+                finite_arm_entries: seed.finite_arm_entries,
+                finite_performs: seed.finite_performs,
+                finite_resumes: seed.finite_resumes,
+                finite_resume_actions: seed.finite_resume_actions,
                 no_resume_effects: seed.no_resume_effects,
                 blocked_effects: seed.blocked_effects,
             }
@@ -691,13 +728,14 @@ pub fn maybe_trace_dynamic_effect_region_plans(plans: &[DynamicEffectRegionPlan]
         );
         for action in &plan.resume_actions {
             eprintln!(
-                "[CPS-DYNAMIC-EFFECT-PLAN-ACTION] continuation={:?} stmt_index={} kind={:?} result={:?} resumption={:?} arg={:?} local_thunk={:?}",
+                "[CPS-DYNAMIC-EFFECT-PLAN-ACTION] continuation={:?} stmt_index={} kind={:?} result={:?} resumption={:?} arg={:?} arg_literal={:?} local_thunk={:?}",
                 action.continuation,
                 action.stmt_index,
                 action.kind,
                 action.result,
                 action.resumption,
                 action.arg,
+                action.arg_literal,
                 action.local_thunk_entry,
             );
         }
@@ -735,7 +773,7 @@ pub fn maybe_trace_dynamic_effect_thunk_specialization_seeds(
     }
     for seed in seeds {
         eprintln!(
-            "[CPS-DYNAMIC-EFFECT-THUNK-SEED] caller={} call={:?} stmt_index={} callee={} thunk={:?} thunk_entry={:?} post_call_force_chain={} class={:?} finite_effects={} no_resume_effects={} blocked_effects={}",
+            "[CPS-DYNAMIC-EFFECT-THUNK-SEED] caller={} call={:?} stmt_index={} callee={} thunk={:?} thunk_entry={:?} post_call_force_chain={} class={:?} finite_effects={} finite_boundaries={} finite_arms={} finite_performs={} finite_resumes={} finite_actions={} finite_action_literals={} no_resume_effects={} blocked_effects={}",
             seed.caller,
             seed.call_continuation,
             seed.call_stmt_index,
@@ -745,6 +783,12 @@ pub fn maybe_trace_dynamic_effect_thunk_specialization_seeds(
             seed.post_call_force_chain_len,
             seed.class,
             format_paths(&seed.finite_effects),
+            format_continuation_ids(&seed.finite_callee_boundaries),
+            format_continuation_ids(&seed.finite_arm_entries),
+            format_continuation_ids(&seed.finite_performs),
+            format_continuation_ids(&seed.finite_resumes),
+            seed.finite_resume_actions.len(),
+            format_action_literals(&seed.finite_resume_actions),
             format_paths(&seed.no_resume_effects),
             format_paths(&seed.blocked_effects),
         );
@@ -757,7 +801,7 @@ pub fn maybe_trace_dynamic_effect_thunk_rewrite_plans(plans: &[DynamicEffectThun
     }
     for plan in plans {
         eprintln!(
-            "[CPS-DYNAMIC-EFFECT-THUNK-REWRITE] caller={} call={:?} stmt_index={} callee={} thunk={:?} thunk_entry={:?} post_call_force_chain={} seed_class={:?} strategy={:?} body_clone_blockers={} finite_effects={} no_resume_effects={} blocked_effects={}",
+            "[CPS-DYNAMIC-EFFECT-THUNK-REWRITE] caller={} call={:?} stmt_index={} callee={} thunk={:?} thunk_entry={:?} post_call_force_chain={} seed_class={:?} strategy={:?} body_clone_blockers={} finite_effects={} finite_boundaries={} finite_arms={} finite_performs={} finite_resumes={} finite_actions={} finite_action_literals={} no_resume_effects={} blocked_effects={}",
             plan.caller,
             plan.call_continuation,
             plan.call_stmt_index,
@@ -769,6 +813,12 @@ pub fn maybe_trace_dynamic_effect_thunk_rewrite_plans(plans: &[DynamicEffectThun
             plan.strategy,
             format_body_clone_blockers(&plan.body_clone_blockers),
             format_paths(&plan.finite_effects),
+            format_continuation_ids(&plan.finite_callee_boundaries),
+            format_continuation_ids(&plan.finite_arm_entries),
+            format_continuation_ids(&plan.finite_performs),
+            format_continuation_ids(&plan.finite_resumes),
+            plan.finite_resume_actions.len(),
+            format_action_literals(&plan.finite_resume_actions),
             format_paths(&plan.no_resume_effects),
             format_paths(&plan.blocked_effects),
         );
@@ -1033,8 +1083,12 @@ fn summarize_arm_region(
             .iter()
             .filter(|slot| slot.lane == CpsReprAbiLane::ResumptionPtr)
             .count();
+        let mut literals = HashMap::<CpsValueId, CpsLiteral>::new();
         for (stmt_index, stmt) in continuation.stmts.iter().enumerate() {
             match stmt {
+                CpsStmt::Literal { dest, literal } => {
+                    literals.insert(*dest, literal.clone());
+                }
                 CpsStmt::Resume {
                     dest,
                     resumption,
@@ -1048,6 +1102,7 @@ fn summarize_arm_region(
                         result: *dest,
                         resumption: *resumption,
                         arg: *arg,
+                        arg_literal: literals.get(arg).cloned(),
                         local_thunk_entry,
                     });
                 }
@@ -1065,6 +1120,7 @@ fn summarize_arm_region(
                         result: *dest,
                         resumption: *resumption,
                         arg: *arg,
+                        arg_literal: literals.get(arg).cloned(),
                         local_thunk_entry,
                     });
                 }
@@ -1311,6 +1367,24 @@ fn format_path(path: &typed_ir::Path) -> String {
 
 fn format_paths(paths: &[typed_ir::Path]) -> String {
     paths.iter().map(format_path).collect::<Vec<_>>().join(",")
+}
+
+fn format_action_literals(actions: &[EffectResumeAction]) -> String {
+    actions
+        .iter()
+        .map(|action| match &action.arg_literal {
+            Some(literal) => format!("{literal:?}"),
+            None => "unknown".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn format_continuation_ids(ids: &[CpsContinuationId]) -> String {
+    ids.iter()
+        .map(|id| id.0.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn effect_matches(allowed: &typed_ir::Path, effect: &typed_ir::Path) -> bool {
@@ -1566,6 +1640,36 @@ mod tests {
     }
 
     #[test]
+    fn records_resume_action_literal_arguments() {
+        let effect = path("op");
+        let function = function_with_arm_stmts(
+            effect.clone(),
+            vec![
+                CpsStmt::Literal {
+                    dest: CpsValueId(4),
+                    literal: CpsLiteral::Bool(true),
+                },
+                CpsStmt::Resume {
+                    dest: CpsValueId(10),
+                    resumption: CpsValueId(2),
+                    arg: CpsValueId(4),
+                },
+            ],
+            CpsTerminator::Return(CpsValueId(10)),
+        );
+
+        let continuations = continuation_table(&function);
+        let lanes = value_lanes(&function);
+        let summary = summarize_arm_region(CpsContinuationId(2), &continuations, &lanes)
+            .expect("arm summary");
+
+        assert_eq!(
+            summary.resume_actions[0].arg_literal,
+            Some(CpsLiteral::Bool(true))
+        );
+    }
+
+    #[test]
     fn links_direct_call_thunk_argument_to_dynamic_region_plan() {
         let module = CpsReprAbiModule {
             functions: vec![
@@ -1583,7 +1687,11 @@ mod tests {
         assert_eq!(plans.len(), 1);
         assert_eq!(plans[0].caller, "root");
         assert_eq!(plans[0].callee, "collector");
+        assert_eq!(plans[0].callee_boundary, CpsContinuationId(0));
         assert_eq!(plans[0].callee_force_param_index, 0);
+        assert_eq!(plans[0].arm_entry, CpsContinuationId(2));
+        assert_eq!(plans[0].perform, CpsContinuationId(0));
+        assert_eq!(plans[0].resume, CpsContinuationId(1));
         assert_eq!(plans[0].thunk, CpsValueId(40));
         assert_eq!(plans[0].thunk_entry, CpsContinuationId(1));
         assert_eq!(plans[0].post_call_force_chain_len, 2);
@@ -1614,6 +1722,14 @@ mod tests {
             DynamicEffectThunkSpecializationClass::ReadyFinite
         );
         assert_eq!(seeds[0].finite_effects, vec![path("op")]);
+        assert_eq!(
+            seeds[0].finite_callee_boundaries,
+            vec![CpsContinuationId(0)]
+        );
+        assert_eq!(seeds[0].finite_arm_entries, vec![CpsContinuationId(2)]);
+        assert_eq!(seeds[0].finite_performs, vec![CpsContinuationId(0)]);
+        assert_eq!(seeds[0].finite_resumes, vec![CpsContinuationId(1)]);
+        assert_eq!(seeds[0].finite_resume_actions.len(), 2);
         assert_eq!(seeds[0].post_call_force_chain_len, 2);
         assert!(seeds[0].blocked_effects.is_empty());
     }
@@ -1638,6 +1754,14 @@ mod tests {
             plans[0].strategy,
             DynamicEffectThunkRewriteStrategy::DefunctionalizeFiniteHandler
         );
+        assert_eq!(
+            plans[0].finite_callee_boundaries,
+            vec![CpsContinuationId(0)]
+        );
+        assert_eq!(plans[0].finite_arm_entries, vec![CpsContinuationId(2)]);
+        assert_eq!(plans[0].finite_performs, vec![CpsContinuationId(0)]);
+        assert_eq!(plans[0].finite_resumes, vec![CpsContinuationId(1)]);
+        assert_eq!(plans[0].finite_resume_actions.len(), 2);
         assert_eq!(
             plans[0].body_clone_blockers,
             vec![

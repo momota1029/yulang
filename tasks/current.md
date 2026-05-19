@@ -657,5 +657,8 @@ Yulang code から小さい regression test を書ける形を作る。
   function/thunk boundaries, but module-level dynamic candidates now expose two
   links from `list__mono3` to dynamic `branch` / `reject` performs. The
   `branch` candidate is `FiniteMultiResume` through two local resume thunks.
-  The next analysis work is to turn this candidate into a rewriteable
-  handler/thunk/callee region, rather than special-casing the operation name.
+  Ready finite thunk rewrite plans now also carry the concrete callee boundary,
+  handler arm, dynamic `Perform`, resume continuation, and local resume
+  argument literal schedule. The next implementation work is to consume those
+  coordinates in a real handler/thunk/callee rewrite, rather than special-casing
+  the operation name.

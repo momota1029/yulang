@@ -65,14 +65,22 @@ than copied paper text.
   seeds as `DefunctionalizeFiniteHandler`, `CalleeBodyClone`, or `Blocked`, and
   record ordinary body-clone blockers such as recursive callees, post-call
   force chains, callee handlers, and effectful boundaries.
+- Finite dynamic effect thunk rewrite plans now carry the concrete handler
+  rewrite coordinates: callee effect boundary, handler arm entry, dynamic
+  `Perform`, resume continuation, and literal resume arguments when they are
+  locally materialized in the arm. This is still read-only evidence; it makes
+  the next destructive pass target a specific handler schedule instead of a
+  std path or operation-name special case.
 
 ## Next Candidates
 
 - Consume `ReadyFinite` dynamic effect thunk specialization seeds in a real
-  rewrite/codegen path. Controlled inlining/contification must bring handler
-  installs, forced thunk bodies, dynamic `Perform` sites, and handler arm
-  resumptions into one rewriteable region before generic handler lookup can be
-  removed.
+  rewrite/codegen path. The first destructive slice should consume the
+  recorded finite schedule coordinates and replace the dynamic handler lookup
+  path for a finite arm with explicit control edges. Controlled
+  inlining/contification still has to preserve handler installs, forced thunk
+  bodies, dynamic `Perform` sites, and handler arm resumptions as one
+  rewriteable region before generic handler lookup can be removed.
 - Extend environment trimming to handler env payloads once handler-env target
   rebasing is explicit.
 - Extend known thunk force recognition beyond pure value bodies once the IR
