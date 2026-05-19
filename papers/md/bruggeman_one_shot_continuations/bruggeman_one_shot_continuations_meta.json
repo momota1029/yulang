@@ -1,0 +1,783 @@
+{
+  "table_of_contents": [
+    {
+      "title": "Representing (lontrol in the Presence of\nOne-Shot Continuations*",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          188.30078125,
+          37.74853515625
+        ],
+        [
+          433.69921875,
+          37.74853515625
+        ],
+        [
+          433.69921875,
+          70.38189697265625
+        ],
+        [
+          188.30078125,
+          70.38189697265625
+        ]
+      ]
+    },
+    {
+      "title": "Abstract",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          60.4384765625,
+          193.8017578125
+        ],
+        [
+          101.1357421875,
+          193.8017578125
+        ],
+        [
+          101.1357421875,
+          203.21966552734375
+        ],
+        [
+          60.4384765625,
+          203.21966552734375
+        ]
+      ]
+    },
+    {
+      "title": "1 Introduction",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          62.564453125,
+          317.16552734375
+        ],
+        [
+          135.455078125,
+          317.16552734375
+        ],
+        [
+          135.455078125,
+          327.0550537109375
+        ],
+        [
+          62.564453125,
+          327.0550537109375
+        ]
+      ]
+    },
+    {
+      "title": "2 One-shot continuations",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          322.2373046875,
+          323.0029296875
+        ],
+        [
+          445.5439453125,
+          323.0029296875
+        ],
+        [
+          445.5439453125,
+          333.5350646972656
+        ],
+        [
+          322.2373046875,
+          333.5350646972656
+        ]
+      ]
+    },
+    {
+      "title": "3 Implementation",
+      "heading_level": null,
+      "page_id": 1,
+      "polygon": [
+        [
+          58.4462890625,
+          307.05517578125
+        ],
+        [
+          147.6220703125,
+          307.05517578125
+        ],
+        [
+          147.6220703125,
+          317.2198486328125
+        ],
+        [
+          58.4462890625,
+          317.2198486328125
+        ]
+      ]
+    },
+    {
+      "title": "3.1 Segmented stack model",
+      "heading_level": null,
+      "page_id": 1,
+      "polygon": [
+        [
+          59.048828125,
+          382.94775390625
+        ],
+        [
+          191.607421875,
+          382.94775390625
+        ],
+        [
+          191.607421875,
+          392.4150390625
+        ],
+        [
+          59.048828125,
+          392.4150390625
+        ]
+      ]
+    },
+    {
+      "title": "3.2 Continuation operations",
+      "heading_level": null,
+      "page_id": 1,
+      "polygon": [
+        [
+          322.05712890625,
+          375.20361328125
+        ],
+        [
+          458.83349609375,
+          375.20361328125
+        ],
+        [
+          458.83349609375,
+          384.17205810546875
+        ],
+        [
+          322.05712890625,
+          384.17205810546875
+        ]
+      ]
+    },
+    {
+      "title": "Before capture",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          123.6996336996337,
+          36.3515625
+        ],
+        [
+          204.66666666666666,
+          36.3515625
+        ],
+        [
+          204.66666666666666,
+          47.25
+        ],
+        [
+          123.6996336996337,
+          47.25
+        ]
+      ]
+    },
+    {
+      "title": "After capture using call/cc",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          339.6787109375,
+          36.3515625
+        ],
+        [
+          482.8034188034188,
+          36.3515625
+        ],
+        [
+          482.8034188034188,
+          47.25
+        ],
+        [
+          339.6787109375,
+          47.25
+        ]
+      ]
+    },
+    {
+      "title": "After capture using call/1cc",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          235.9462890625,
+          294.29296875
+        ],
+        [
+          383.84371184371184,
+          294.29296875
+        ],
+        [
+          383.84371184371184,
+          305.89453125
+        ],
+        [
+          235.9462890625,
+          305.89453125
+        ]
+      ]
+    },
+    {
+      "title": "3.3 Promotion",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          322.36874236874235,
+          639.24609375
+        ],
+        [
+          397.33821733821736,
+          639.24609375
+        ],
+        [
+          397.33821733821736,
+          648.75
+        ],
+        [
+          322.36874236874235,
+          648.75
+        ]
+      ]
+    },
+    {
+      "title": "Invoking multi-shot continuations",
+      "heading_level": null,
+      "page_id": 4,
+      "polygon": [
+        [
+          196.7109375,
+          41.43115234375
+        ],
+        [
+          378.3828125,
+          41.43115234375
+        ],
+        [
+          378.3828125,
+          54.38226318359375
+        ],
+        [
+          196.7109375,
+          54.38226318359375
+        ]
+      ]
+    },
+    {
+      "title": "3.4 Stack segment fragmentation",
+      "heading_level": null,
+      "page_id": 4,
+      "polygon": [
+        [
+          51.734375,
+          667.93212890625
+        ],
+        [
+          209.34375,
+          667.93212890625
+        ],
+        [
+          209.34375,
+          678.5976104736328
+        ],
+        [
+          51.734375,
+          678.5976104736328
+        ]
+      ]
+    },
+    {
+      "title": "4 Performance",
+      "heading_level": null,
+      "page_id": 4,
+      "polygon": [
+        [
+          313.71484375,
+          596.68603515625
+        ],
+        [
+          388.91015625,
+          596.68603515625
+        ],
+        [
+          388.91015625,
+          607.1311187744141
+        ],
+        [
+          313.71484375,
+          607.1311187744141
+        ]
+      ]
+    },
+    {
+      "title": "Invoking one-shot continuations",
+      "heading_level": null,
+      "page_id": 5,
+      "polygon": [
+        [
+          198.75,
+          46.97021484375
+        ],
+        [
+          377.25,
+          46.97021484375
+        ],
+        [
+          377.25,
+          58.61572265625
+        ],
+        [
+          198.75,
+          58.61572265625
+        ]
+      ]
+    },
+    {
+      "title": "After reinstatement\nBefore reinstatement\ncurrent\ncontinuation\n- discarded stack segment\nN<sub>1</sub>\nN1\nN<sub>1</sub>\nfp\ncurrent\nshot one-shot\ncontinuation\ncontinuation\none-shot\ncontinuation\ntop\nframe\ntop\nN3\nframe\nN3\nRA\nN2\nfp \u220c\nN3\nN3\nN2\nN2",
+      "heading_level": null,
+      "page_id": 5,
+      "polygon": [
+        [
+          76.04296875,
+          81.5185546875
+        ],
+        [
+          546.78515625,
+          81.5185546875
+        ],
+        [
+          546.78515625,
+          374.9853515625
+        ],
+        [
+          76.04296875,
+          374.9853515625
+        ]
+      ]
+    },
+    {
+      "title": "5 Conclusions",
+      "heading_level": null,
+      "page_id": 5,
+      "polygon": [
+        [
+          324.9931640625,
+          488.25
+        ],
+        [
+          396.0,
+          488.25
+        ],
+        [
+          396.0,
+          498.03955078125
+        ],
+        [
+          324.9931640625,
+          498.03955078125
+        ]
+      ]
+    },
+    {
+      "title": "References",
+      "heading_level": null,
+      "page_id": 7,
+      "polygon": [
+        [
+          60.8603515625,
+          620.68359375
+        ],
+        [
+          110.6279296875,
+          620.68359375
+        ],
+        [
+          110.6279296875,
+          629.6686401367188
+        ],
+        [
+          60.8603515625,
+          629.6686401367188
+        ]
+      ]
+    }
+  ],
+  "page_stats": [
+    {
+      "page_id": 0,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1625
+        ],
+        [
+          "Line",
+          104
+        ],
+        [
+          "Text",
+          16
+        ],
+        [
+          "SectionHeader",
+          4
+        ],
+        [
+          "Footnote",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 1,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          2282
+        ],
+        [
+          "Line",
+          126
+        ],
+        [
+          "Text",
+          13
+        ],
+        [
+          "SectionHeader",
+          3
+        ],
+        [
+          "Footnote",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 2,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1474
+        ],
+        [
+          "Line",
+          93
+        ],
+        [
+          "Text",
+          8
+        ],
+        [
+          "Figure",
+          1
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 3,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          101
+        ],
+        [
+          "Span",
+          22
+        ],
+        [
+          "SectionHeader",
+          4
+        ],
+        [
+          "Text",
+          4
+        ],
+        [
+          "Figure",
+          2
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 4,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1108
+        ],
+        [
+          "Line",
+          73
+        ],
+        [
+          "Text",
+          7
+        ],
+        [
+          "SectionHeader",
+          3
+        ],
+        [
+          "Figure",
+          1
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 5,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          88
+        ],
+        [
+          "Span",
+          55
+        ],
+        [
+          "Text",
+          6
+        ],
+        [
+          "SectionHeader",
+          3
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 6,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          69
+        ],
+        [
+          "Span",
+          2
+        ],
+        [
+          "Figure",
+          1
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 7,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1747
+        ],
+        [
+          "Line",
+          117
+        ],
+        [
+          "ListItem",
+          17
+        ],
+        [
+          "Text",
+          4
+        ],
+        [
+          "SectionHeader",
+          1
+        ],
+        [
+          "PageFooter",
+          1
+        ],
+        [
+          "ListGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 8,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          217
+        ],
+        [
+          "Line",
+          18
+        ],
+        [
+          "ListItem",
+          5
+        ],
+        [
+          "PageFooter",
+          1
+        ],
+        [
+          "ListGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    }
+  ],
+  "debug_data_path": "debug_data/bruggeman_one_shot_continuations"
+}
