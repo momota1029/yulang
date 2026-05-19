@@ -90,7 +90,7 @@ where
         .expect("join large-stack yulang thread")
 }
 
-const CONTROL_VM_SOURCE_CACHE_VERSION: u32 = 1;
+const YUIR_SOURCE_CACHE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CliOptions {
@@ -532,7 +532,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
     let module = match runtime::ControlVmModule::read_artifact_file(Path::new(path)) {
         Ok(module) => module,
         Err(err) => {
-            eprintln!("failed to read control VM artifact {path}: {err}");
+            eprintln!("failed to read YUIR artifact {path}: {err}");
             process::exit(1);
         }
     };
@@ -548,7 +548,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
                 results.push(result);
             }
             Err(err) => {
-                eprintln!("failed to evaluate control VM artifact {path}: {err}");
+                eprintln!("failed to evaluate YUIR artifact {path}: {err}");
                 process::exit(1);
             }
         }
@@ -557,10 +557,10 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
 
     if options.runtime_phase_timings {
         eprintln!("runtime phase timings:");
-        eprintln!("    control_vm_load: {}", format_duration(load_duration));
+        eprintln!("    yuir_load: {}", format_duration(load_duration));
         eprintln!("    vm_eval: {}", format_duration(eval_duration));
         eprintln!(
-            "    control_vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+            "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
             profile.eval_expr_calls,
             profile.max_eval_depth,
             profile.continuation_steps,
@@ -572,7 +572,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
     } else {
-        println!("control-vm-load: ok");
+        println!("run: ok");
     }
 }
 
@@ -591,7 +591,7 @@ fn run_cached_control_vm_module_or_exit(
         if options.runtime_phase_timings {
             eprintln!("runtime phase timings:");
             eprintln!(
-                "    control_vm_source_cache_load: {}",
+                "    yuir_source_cache_load: {}",
                 format_duration(load_duration)
             );
         }
@@ -621,12 +621,12 @@ fn run_cached_control_vm_module_or_exit(
     if options.runtime_phase_timings {
         eprintln!("runtime phase timings:");
         eprintln!(
-            "    control_vm_source_cache_load: {}",
+            "    yuir_source_cache_load: {}",
             format_duration(load_duration)
         );
         eprintln!("    vm_eval: {}", format_duration(eval_duration));
         eprintln!(
-            "    control_vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+            "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
             profile.eval_expr_calls,
             profile.max_eval_depth,
             profile.continuation_steps,
@@ -638,7 +638,7 @@ fn run_cached_control_vm_module_or_exit(
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
     } else {
-        println!("control-vm: ok");
+        println!("run: ok");
     }
 }
 
@@ -958,8 +958,8 @@ fn run_infer_views(
 ) {
     let (source_set, collect_duration) = collect_infer_source_set_or_exit(path, source, options);
     if emit_output
-        && can_use_control_vm_source_cache(options)
-        && let Some((module, load_duration)) = read_control_vm_source_cache(&source_set)
+        && can_use_yuir_source_cache(options)
+        && let Some((module, load_duration)) = read_yuir_source_cache(&source_set)
     {
         run_cached_control_vm_module_or_exit(module, load_duration, options);
         return;
@@ -1234,8 +1234,8 @@ fn run_infer_views(
                 }
             };
             let compile_duration = compile_start.elapsed();
-            if can_write_control_vm_source_cache(options) {
-                write_control_vm_source_cache(&source_set, &module);
+            if can_write_yuir_source_cache(options) {
+                write_yuir_source_cache(&source_set, &module);
             }
             if let Some(path) = &options.control_vm_emit {
                 let path = yuir_artifact_output_path(path, options.path.as_deref());
@@ -1286,7 +1286,7 @@ fn run_infer_views(
                     Some(eval_duration),
                 );
                 eprintln!(
-                    "    control_vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+                    "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
                     profile.eval_expr_calls,
                     profile.max_eval_depth,
                     profile.continuation_steps,
@@ -1298,7 +1298,7 @@ fn run_infer_views(
                     println!("[{index}] {}", format_runtime_vm_result(result));
                 }
             } else {
-                println!("control-vm: ok");
+                println!("run: ok");
             }
         }
         if options.native_abi_lanes {
@@ -3791,7 +3791,7 @@ fn lower_infer_source_set_with_cache(
     infer_lower_output(lowered.lowered, fallback_diagnostic_source, profile, None)
 }
 
-fn can_use_control_vm_source_cache(options: &CliOptions) -> bool {
+fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
     options.control_vm
         && !options.infer
         && !options.infer_phase_timings
@@ -3811,21 +3811,19 @@ fn can_use_control_vm_source_cache(options: &CliOptions) -> bool {
         && options.native_run_mmtk_cps_repr_exe.is_none()
 }
 
-fn can_write_control_vm_source_cache(options: &CliOptions) -> bool {
-    can_use_control_vm_source_cache(options)
+fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
+    can_use_yuir_source_cache(options)
 }
 
-fn read_control_vm_source_cache(
-    source_set: &SourceSet,
-) -> Option<(runtime::ControlVmModule, Duration)> {
-    let path = control_vm_source_cache_path(source_set);
+fn read_yuir_source_cache(source_set: &SourceSet) -> Option<(runtime::ControlVmModule, Duration)> {
+    let path = yuir_source_cache_path(source_set);
     let load_start = Instant::now();
     let module = runtime::ControlVmModule::read_artifact_file(&path).ok()?;
     Some((module, load_start.elapsed()))
 }
 
-fn write_control_vm_source_cache(source_set: &SourceSet, module: &runtime::ControlVmModule) {
-    let path = control_vm_source_cache_path(source_set);
+fn write_yuir_source_cache(source_set: &SourceSet, module: &runtime::ControlVmModule) {
+    let path = yuir_source_cache_path(source_set);
     if let Some(parent) = path.parent() {
         if fs::create_dir_all(parent).is_err() {
             return;
@@ -3834,22 +3832,22 @@ fn write_control_vm_source_cache(source_set: &SourceSet, module: &runtime::Contr
     let _ = module.write_artifact_file(&path);
 }
 
-fn control_vm_source_cache_path(source_set: &SourceSet) -> PathBuf {
+fn yuir_source_cache_path(source_set: &SourceSet) -> PathBuf {
     let paths = yulang_sources::YulangCachePaths::for_project(workspace_root());
     paths
         .user_cache_root
-        .join("control-vm-source")
-        .join(format!("v{CONTROL_VM_SOURCE_CACHE_VERSION}"))
+        .join("yuir-source")
+        .join(format!("v{YUIR_SOURCE_CACHE_VERSION}"))
         .join(format!(
-            "cv{}-{:016x}.ycvm",
+            "yuir{}-{:016x}.yuir",
             runtime::CONTROL_VM_ARTIFACT_VERSION,
-            control_vm_source_cache_key(source_set)
+            yuir_source_cache_key(source_set)
         ))
 }
 
-fn control_vm_source_cache_key(source_set: &SourceSet) -> u64 {
+fn yuir_source_cache_key(source_set: &SourceSet) -> u64 {
     let mut hasher = DefaultHasher::new();
-    CONTROL_VM_SOURCE_CACHE_VERSION.hash(&mut hasher);
+    YUIR_SOURCE_CACHE_VERSION.hash(&mut hasher);
     runtime::CONTROL_VM_ARTIFACT_VERSION.hash(&mut hasher);
     for artifact in source_set.compiled_unit_syntax_artifacts() {
         hash_compiled_unit_manifest(&artifact.manifest, &mut hasher);
