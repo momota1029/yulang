@@ -19,20 +19,22 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 - `control-vm-emit/load` は binary artifact を扱う。形式は magic
   `YLCVMIR\0` + little-endian u32 version + postcard payload。JSON helper は
   runtime crate に debug support として残るが、CLI の標準測定経路ではない。
-- compact expression shape、symbol table、slot env により artifact version は `3`。全
+- compact expression shape、symbol table、slot env、hot payload side tables により artifact version は `4`。全
   `ControlExpr` から full runtime `Type` を落とし、lambda/apply/handler に必要な
   thunk-delay / thunk-wrap の bool shape だけを持つ。さらに binding / var /
   effect op / handler arm / env / request の execution-side path は
   `ControlSymbolId` になった。`ControlEnv` は `HashMap` ではなく dense slot
-  `Vec<Option<ControlValue>>`。full type は `AddId.allowed`、`Coerce.to`、pattern
-  metadata のような実行に必要な場所にだけ残す。
+  `Vec<Option<ControlValue>>`。literals / names / types / expr lists / match arms /
+  handle arms / blocks / records は side table 化し、`ControlExprKind` は `Copy`
+  payload だけを持つ。full type は `AddId.allowed`、`Coerce.to`、pattern metadata
+  のような実行に必要な場所にだけ残す。
 - `(each 1..20 + each 1..20).list` の control VM binary artifact は 2.2K。release
-  hyperfine で `control-vm-load` は `22.2 ms ± 0.5 ms`、既存 generated effects
-  executable は `376.0 ms ± 6.2 ms`。この差は「インタプリタ言語が一般に速い」
+  hyperfine で `control-vm-load` は `17.2 ms ± 0.4 ms`、既存 generated effects
+  executable は `374.8 ms ± 6.9 ms`。この差は「インタプリタ言語が一般に速い」
   ではなく、現在の native effects backend の CPS helper protocol / control
   snapshot 表現がこの abstract control-heavy benchmark で重い、という証拠として扱う。
 - source-to-artifact は現時点で `885.8 ms ± 23.2 ms`。ただし control VM compile
-  は `318.252us` 程度で、playground 向けのボトルネックは artifact encode ではなく
+  は v4 でも `473.553us` 程度で、playground 向けのボトルネックは artifact encode ではなく
   parse / infer / lower / monomorphize と std/prelude cache 側。
 
 完了履歴:
@@ -713,3 +715,11 @@ Yulang code から小さい regression test を書ける形を作る。
   that avoiding repeated runtime `Expr` cloning in closures/thunks/frames is a
   real interpreter-side win before doing a dedicated bytecode or native
   lowering.
+- Current v4 control VM artifact has compact side tables for hot payloads and
+  continuation frames store table ids plus program counters instead of cloned
+  remaining vectors. On `/tmp/yulang_20x20_list_flat_v4.ycvm`, release
+  hyperfine measured `control-vm-load` at `17.2 ms ± 0.4 ms` versus the
+  generated effects executable at `374.8 ms ± 6.9 ms`, or `21.74 ± 0.60` times
+  faster for this benchmark. The runtime profile remains
+  `eval_expr_calls=41063`, `continuation_steps=12683`,
+  `max_continuation_frames=73`.

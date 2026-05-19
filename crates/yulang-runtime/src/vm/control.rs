@@ -5,7 +5,7 @@ use std::io;
 use std::path::Path;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-const CONTROL_VM_ARTIFACT_VERSION: u32 = 3;
+const CONTROL_VM_ARTIFACT_VERSION: u32 = 4;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,6 +13,30 @@ struct ExprId(usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct ControlSymbolId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlNameId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlLitId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlTypeId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlExprListId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlMatchArmsId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlHandleArmsId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlBlockId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlRecordId(usize);
 
 #[derive(Serialize, Deserialize)]
 pub struct ControlVmModule {
@@ -117,6 +141,14 @@ pub fn compile_control_vm_module(module: Module) -> Result<ControlVmModule, VmEr
 #[derive(Serialize, Deserialize)]
 struct ControlModule {
     symbols: Vec<typed_ir::Path>,
+    names: Vec<typed_ir::Name>,
+    lits: Vec<typed_ir::Lit>,
+    types: Vec<typed_ir::Type>,
+    expr_lists: Vec<Vec<ExprId>>,
+    match_arms: Vec<Vec<ControlMatchArm>>,
+    handle_arms: Vec<Vec<ControlHandleArm>>,
+    blocks: Vec<ControlBlock>,
+    records: Vec<ControlRecord>,
     exprs: Vec<ControlExpr>,
     bindings: Vec<ControlBinding>,
     #[serde(skip, default)]
@@ -147,6 +179,38 @@ impl ControlModule {
         &self.symbols[symbol.0]
     }
 
+    fn name(&self, name: ControlNameId) -> &typed_ir::Name {
+        &self.names[name.0]
+    }
+
+    fn lit(&self, lit: ControlLitId) -> &typed_ir::Lit {
+        &self.lits[lit.0]
+    }
+
+    fn ty(&self, ty: ControlTypeId) -> &typed_ir::Type {
+        &self.types[ty.0]
+    }
+
+    fn expr_list(&self, id: ControlExprListId) -> &[ExprId] {
+        &self.expr_lists[id.0]
+    }
+
+    fn match_arms(&self, id: ControlMatchArmsId) -> &[ControlMatchArm] {
+        &self.match_arms[id.0]
+    }
+
+    fn handle_arms(&self, id: ControlHandleArmsId) -> &[ControlHandleArm] {
+        &self.handle_arms[id.0]
+    }
+
+    fn block(&self, id: ControlBlockId) -> &ControlBlock {
+        &self.blocks[id.0]
+    }
+
+    fn record(&self, id: ControlRecordId) -> &ControlRecord {
+        &self.records[id.0]
+    }
+
     fn symbol_for_name(&self, name: &typed_ir::Name) -> ControlSymbolId {
         let path = typed_ir::Path::from_name(name.clone());
         self.symbol_by_path
@@ -167,12 +231,12 @@ struct ControlExpr {
     kind: ControlExprKind,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 enum ControlExprKind {
     Var(ControlSymbolId),
     EffectOp(ControlSymbolId),
     PrimitiveOp(typed_ir::PrimitiveOp),
-    Lit(typed_ir::Lit),
+    Lit(ControlLitId),
     Lambda {
         param: ControlSymbolId,
         param_forces_thunk_arg: bool,
@@ -189,30 +253,23 @@ enum ControlExprKind {
         then_branch: ExprId,
         else_branch: ExprId,
     },
-    Tuple(Vec<ExprId>),
+    Tuple(ControlExprListId),
     Variant {
-        tag: typed_ir::Name,
+        tag: ControlNameId,
         value: Option<ExprId>,
     },
     Match {
         scrutinee: ExprId,
-        arms: Vec<ControlMatchArm>,
+        arms: ControlMatchArmsId,
     },
-    Block {
-        stmts: Vec<ControlStmt>,
-        tail: Option<ExprId>,
-    },
+    Block(ControlBlockId),
     Handle {
         body: ExprId,
-        arms: Vec<ControlHandleArm>,
+        arms: ControlHandleArmsId,
         result_wraps_thunk: bool,
     },
-    BindHere {
-        expr: ExprId,
-    },
-    Thunk {
-        expr: ExprId,
-    },
+    BindHere(ExprId),
+    Thunk(ExprId),
     LocalPushId {
         id: EffectIdVar,
         body: ExprId,
@@ -223,25 +280,26 @@ enum ControlExprKind {
     },
     AddId {
         id: EffectIdRef,
-        allowed: typed_ir::Type,
+        allowed: ControlTypeId,
         active: bool,
         thunk: ExprId,
     },
     Coerce {
-        to: typed_ir::Type,
+        to: ControlTypeId,
         expr: ExprId,
     },
-    Pack {
-        expr: ExprId,
-    },
+    Pack(ExprId),
     Select {
         base: ExprId,
-        field: typed_ir::Name,
+        field: ControlNameId,
     },
-    Record {
-        fields: Vec<ControlRecordField>,
-        spread: Option<ControlRecordSpread>,
-    },
+    Record(ControlRecordId),
+}
+
+#[derive(Serialize, Deserialize)]
+struct ControlRecord {
+    fields: Vec<ControlRecordField>,
+    spread: Option<ControlRecordSpread>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -279,9 +337,24 @@ enum ControlStmt {
     Module { def: ControlSymbolId, body: ExprId },
 }
 
+#[derive(Serialize, Deserialize)]
+struct ControlBlock {
+    stmts: Vec<ControlStmt>,
+    tail: Option<ExprId>,
+}
+
 struct ControlCompiler {
     symbols: Vec<typed_ir::Path>,
     symbol_by_path: HashMap<typed_ir::Path, ControlSymbolId>,
+    names: Vec<typed_ir::Name>,
+    name_by_name: HashMap<typed_ir::Name, ControlNameId>,
+    lits: Vec<typed_ir::Lit>,
+    types: Vec<typed_ir::Type>,
+    expr_lists: Vec<Vec<ExprId>>,
+    match_arms: Vec<Vec<ControlMatchArm>>,
+    handle_arms: Vec<Vec<ControlHandleArm>>,
+    blocks: Vec<ControlBlock>,
+    records: Vec<ControlRecord>,
     exprs: Vec<ControlExpr>,
 }
 
@@ -290,6 +363,15 @@ impl ControlCompiler {
         let mut compiler = Self {
             symbols: Vec::new(),
             symbol_by_path: HashMap::new(),
+            names: Vec::new(),
+            name_by_name: HashMap::new(),
+            lits: Vec::new(),
+            types: Vec::new(),
+            expr_lists: Vec::new(),
+            match_arms: Vec::new(),
+            handle_arms: Vec::new(),
+            blocks: Vec::new(),
+            records: Vec::new(),
             exprs: Vec::new(),
         };
         let bindings = module
@@ -312,6 +394,14 @@ impl ControlCompiler {
             .collect();
         ControlModule {
             symbols: compiler.symbols,
+            names: compiler.names,
+            lits: compiler.lits,
+            types: compiler.types,
+            expr_lists: compiler.expr_lists,
+            match_arms: compiler.match_arms,
+            handle_arms: compiler.handle_arms,
+            blocks: compiler.blocks,
+            records: compiler.records,
             exprs: compiler.exprs,
             bindings,
             symbol_by_path: compiler.symbol_by_path,
@@ -332,6 +422,58 @@ impl ControlCompiler {
 
     fn intern_name_path(&mut self, name: &typed_ir::Name) -> ControlSymbolId {
         self.intern_path(typed_ir::Path::from_name(name.clone()))
+    }
+
+    fn intern_name(&mut self, name: typed_ir::Name) -> ControlNameId {
+        if let Some(id) = self.name_by_name.get(&name).copied() {
+            return id;
+        }
+        let id = ControlNameId(self.names.len());
+        self.names.push(name.clone());
+        self.name_by_name.insert(name, id);
+        id
+    }
+
+    fn push_lit(&mut self, lit: typed_ir::Lit) -> ControlLitId {
+        let id = ControlLitId(self.lits.len());
+        self.lits.push(lit);
+        id
+    }
+
+    fn push_type(&mut self, ty: typed_ir::Type) -> ControlTypeId {
+        let id = ControlTypeId(self.types.len());
+        self.types.push(ty);
+        id
+    }
+
+    fn push_expr_list(&mut self, exprs: Vec<ExprId>) -> ControlExprListId {
+        let id = ControlExprListId(self.expr_lists.len());
+        self.expr_lists.push(exprs);
+        id
+    }
+
+    fn push_match_arms(&mut self, arms: Vec<ControlMatchArm>) -> ControlMatchArmsId {
+        let id = ControlMatchArmsId(self.match_arms.len());
+        self.match_arms.push(arms);
+        id
+    }
+
+    fn push_handle_arms(&mut self, arms: Vec<ControlHandleArm>) -> ControlHandleArmsId {
+        let id = ControlHandleArmsId(self.handle_arms.len());
+        self.handle_arms.push(arms);
+        id
+    }
+
+    fn push_block(&mut self, block: ControlBlock) -> ControlBlockId {
+        let id = ControlBlockId(self.blocks.len());
+        self.blocks.push(block);
+        id
+    }
+
+    fn push_record(&mut self, record: ControlRecord) -> ControlRecordId {
+        let id = ControlRecordId(self.records.len());
+        self.records.push(record);
+        id
     }
 
     fn register_pattern_bindings(&mut self, pattern: &Pattern) {
@@ -489,7 +631,7 @@ impl ControlCompiler {
             ExprKind::Var(path) => ControlExprKind::Var(self.intern_path(path)),
             ExprKind::EffectOp(path) => ControlExprKind::EffectOp(self.intern_path(path)),
             ExprKind::PrimitiveOp(op) => ControlExprKind::PrimitiveOp(op),
-            ExprKind::Lit(lit) => ControlExprKind::Lit(lit),
+            ExprKind::Lit(lit) => ControlExprKind::Lit(self.push_lit(lit)),
             ExprKind::Lambda { param, body, .. } => {
                 let (param_forces_thunk_arg, result_wraps_thunk) =
                     control_lambda_shape(&ty, &body.ty);
@@ -520,17 +662,18 @@ impl ControlCompiler {
                 else_branch: self.expr(*else_branch),
             },
             ExprKind::Tuple(items) => {
-                ControlExprKind::Tuple(items.into_iter().map(|item| self.expr(item)).collect())
+                let items = items.into_iter().map(|item| self.expr(item)).collect();
+                ControlExprKind::Tuple(self.push_expr_list(items))
             }
             ExprKind::Variant { tag, value } => ControlExprKind::Variant {
-                tag,
+                tag: self.intern_name(tag),
                 value: value.map(|value| self.expr(*value)),
             },
             ExprKind::Match {
                 scrutinee, arms, ..
-            } => ControlExprKind::Match {
-                scrutinee: self.expr(*scrutinee),
-                arms: arms
+            } => {
+                let scrutinee = self.expr(*scrutinee);
+                let arms = arms
                     .into_iter()
                     .map(|arm| ControlMatchArm {
                         pattern: {
@@ -540,20 +683,25 @@ impl ControlCompiler {
                         guard: arm.guard.map(|guard| self.expr(guard)),
                         body: self.expr(arm.body),
                     })
-                    .collect(),
-            },
-            ExprKind::Block { stmts, tail } => ControlExprKind::Block {
-                stmts: stmts.into_iter().map(|stmt| self.stmt(stmt)).collect(),
-                tail: tail.map(|tail| self.expr(*tail)),
-            },
+                    .collect();
+                ControlExprKind::Match {
+                    scrutinee,
+                    arms: self.push_match_arms(arms),
+                }
+            }
+            ExprKind::Block { stmts, tail } => {
+                let stmts = stmts.into_iter().map(|stmt| self.stmt(stmt)).collect();
+                let tail = tail.map(|tail| self.expr(*tail));
+                ControlExprKind::Block(self.push_block(ControlBlock { stmts, tail }))
+            }
             ExprKind::Handle {
                 body,
                 arms,
                 evidence,
                 ..
-            } => ControlExprKind::Handle {
-                body: self.expr(*body),
-                arms: arms
+            } => {
+                let body = self.expr(*body);
+                let arms = arms
                     .into_iter()
                     .map(|arm| ControlHandleArm {
                         effect: self.intern_path(arm.effect),
@@ -565,15 +713,15 @@ impl ControlCompiler {
                         guard: arm.guard.map(|guard| self.expr(guard)),
                         body: self.expr(arm.body),
                     })
-                    .collect(),
-                result_wraps_thunk: type_wraps_thunk(&Type::core(evidence.result)),
-            },
-            ExprKind::BindHere { expr } => ControlExprKind::BindHere {
-                expr: self.expr(*expr),
-            },
-            ExprKind::Thunk { expr, .. } => ControlExprKind::Thunk {
-                expr: self.expr(*expr),
-            },
+                    .collect();
+                ControlExprKind::Handle {
+                    body,
+                    arms: self.push_handle_arms(arms),
+                    result_wraps_thunk: type_wraps_thunk(&Type::core(evidence.result)),
+                }
+            }
+            ExprKind::BindHere { expr } => ControlExprKind::BindHere(self.expr(*expr)),
+            ExprKind::Thunk { expr, .. } => ControlExprKind::Thunk(self.expr(*expr)),
             ExprKind::LocalPushId { id, body } => ControlExprKind::LocalPushId {
                 id,
                 body: self.expr(*body),
@@ -587,34 +735,33 @@ impl ControlCompiler {
                 thunk,
             } => ControlExprKind::AddId {
                 id,
-                allowed,
+                allowed: self.push_type(allowed),
                 active,
                 thunk: self.expr(*thunk),
             },
             ExprKind::Coerce { to, expr, .. } => ControlExprKind::Coerce {
-                to,
+                to: self.push_type(to),
                 expr: self.expr(*expr),
             },
-            ExprKind::Pack { expr, .. } => ControlExprKind::Pack {
-                expr: self.expr(*expr),
-            },
+            ExprKind::Pack { expr, .. } => ControlExprKind::Pack(self.expr(*expr)),
             ExprKind::Select { base, field } => ControlExprKind::Select {
                 base: self.expr(*base),
-                field,
+                field: self.intern_name(field),
             },
-            ExprKind::Record { fields, spread } => ControlExprKind::Record {
-                fields: fields
+            ExprKind::Record { fields, spread } => {
+                let fields = fields
                     .into_iter()
                     .map(|field| ControlRecordField {
                         name: field.name,
                         value: self.expr(field.value),
                     })
-                    .collect(),
-                spread: spread.map(|spread| match spread {
+                    .collect();
+                let spread = spread.map(|spread| match spread {
                     RecordSpreadExpr::Head(expr) => ControlRecordSpread::Head(self.expr(*expr)),
                     RecordSpreadExpr::Tail(expr) => ControlRecordSpread::Tail(self.expr(*expr)),
-                }),
-            },
+                });
+                ControlExprKind::Record(self.push_record(ControlRecord { fields, spread }))
+            }
         };
         let id = ExprId(self.exprs.len());
         self.exprs.push(ControlExpr { kind });
@@ -740,30 +887,30 @@ enum ControlFrame {
     },
     Tuple {
         done: Vec<ControlValue>,
-        remaining: Vec<ExprId>,
+        items: ControlExprListId,
+        next_index: usize,
         env: ControlEnv,
     },
     Select {
         field: typed_ir::Name,
     },
     Match {
-        arms: Vec<ControlMatchArm>,
+        arms: ControlMatchArmsId,
         env: ControlEnv,
     },
     BlockLet {
-        pattern: Pattern,
-        remaining: Vec<ControlStmt>,
-        tail: Option<ExprId>,
+        block: ControlBlockId,
+        stmt_index: usize,
         env: ControlEnv,
     },
     BlockExpr {
-        remaining: Vec<ControlStmt>,
-        tail: Option<ExprId>,
+        block: ControlBlockId,
+        next_index: usize,
         env: ControlEnv,
     },
     Handle {
         id: u64,
-        arms: Vec<ControlHandleArm>,
+        arms: ControlHandleArmsId,
         env: ControlEnv,
         guard_stack: GuardStack,
         result_wraps_thunk: bool,
@@ -773,7 +920,8 @@ enum ControlFrame {
         request: ControlRequest,
         outer: ControlContinuation,
         handler_guard_stack: GuardStack,
-        arms: Vec<ControlHandleArm>,
+        arms: ControlHandleArmsId,
+        next_arm_index: usize,
         env: ControlEnv,
         arm_env: ControlEnv,
         body: ExprId,
@@ -884,7 +1032,7 @@ impl<'m> ControlInterpreter<'m> {
         expr: ExprId,
         env: &ControlEnv,
     ) -> Result<ControlResult, VmError> {
-        let kind = self.expr(expr).kind.clone();
+        let kind = self.expr(expr).kind;
         match kind {
             ControlExprKind::Var(path) => self.eval_var(path, env),
             ControlExprKind::EffectOp(path) => {
@@ -897,7 +1045,9 @@ impl<'m> ControlInterpreter<'m> {
                     args: Vec::new(),
                 })),
             )),
-            ControlExprKind::Lit(lit) => Ok(ControlResult::Value(control_value_from_lit(&lit))),
+            ControlExprKind::Lit(lit) => Ok(ControlResult::Value(control_value_from_lit(
+                self.module.lit(lit),
+            ))),
             ControlExprKind::Lambda {
                 param,
                 param_forces_thunk_arg,
@@ -939,10 +1089,10 @@ impl<'m> ControlInterpreter<'m> {
                 let result = self.eval_expr(cond, env)?;
                 self.continue_if_result(result, then_branch, else_branch, env)
             }
-            ControlExprKind::Tuple(items) => self.eval_tuple(Vec::new(), items, env.clone()),
+            ControlExprKind::Tuple(items) => self.eval_tuple(Vec::new(), items, 0, env.clone()),
             ControlExprKind::Variant { tag, value } => {
                 Ok(ControlResult::Value(ControlValue::Variant {
-                    tag,
+                    tag: self.module.name(tag).clone(),
                     value: value
                         .map(|value| self.eval_value(value, env))
                         .transpose()?
@@ -950,7 +1100,7 @@ impl<'m> ControlInterpreter<'m> {
                 }))
             }
             ControlExprKind::Match { scrutinee, arms } => match self.eval_expr(scrutinee, env)? {
-                ControlResult::Value(value) => self.eval_match(value, &arms, env),
+                ControlResult::Value(value) => self.eval_match(value, arms, env),
                 ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
                     request,
                     ControlFrame::Match {
@@ -959,27 +1109,27 @@ impl<'m> ControlInterpreter<'m> {
                     },
                 ))),
             },
-            ControlExprKind::Block { stmts, tail } => self.eval_block(stmts, tail, env.clone()),
+            ControlExprKind::Block(block) => self.eval_block(block, 0, env.clone()),
             ControlExprKind::Handle {
                 body,
                 arms,
                 result_wraps_thunk,
-            } => self.eval_handle(body, &arms, result_wraps_thunk, env),
-            ControlExprKind::BindHere { expr } => match self.eval_expr(expr, env)? {
+            } => self.eval_handle(body, arms, result_wraps_thunk, env),
+            ControlExprKind::BindHere(expr) => match self.eval_expr(expr, env)? {
                 ControlResult::Value(value) => self.bind_here(value),
                 ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
                     request,
                     ControlFrame::BindHere,
                 ))),
             },
-            ControlExprKind::Thunk { expr } => Ok(ControlResult::Value(ControlValue::Thunk(
-                Rc::new(ControlThunk {
+            ControlExprKind::Thunk(expr) => Ok(ControlResult::Value(ControlValue::Thunk(Rc::new(
+                ControlThunk {
                     body: ControlThunkBody::Expr(expr),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
                     blocked: Vec::new(),
-                }),
-            ))),
+                },
+            )))),
             ControlExprKind::LocalPushId { id, body } => {
                 let guard_id = self.fresh_guard_id();
                 let parent = self.guard_stack.clone();
@@ -1018,29 +1168,34 @@ impl<'m> ControlInterpreter<'m> {
                 let mut thunk = (*thunk).clone();
                 thunk.blocked.push(BlockedEffect {
                     guard_id: id,
-                    allowed,
+                    allowed: self.module.ty(allowed).clone(),
                     active,
                 });
                 Ok(ControlResult::Value(ControlValue::Thunk(Rc::new(thunk))))
             }
             ControlExprKind::Coerce { to, expr } => match self.eval_expr(expr, env)? {
-                ControlResult::Value(value) => {
-                    Ok(ControlResult::Value(control_cast_value(value, &to)))
-                }
+                ControlResult::Value(value) => Ok(ControlResult::Value(control_cast_value(
+                    value,
+                    self.module.ty(to),
+                ))),
                 ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
                     request,
-                    ControlFrame::Coerce { to },
+                    ControlFrame::Coerce {
+                        to: self.module.ty(to).clone(),
+                    },
                 ))),
             },
-            ControlExprKind::Pack { expr } => self.eval_expr(expr, env),
+            ControlExprKind::Pack(expr) => self.eval_expr(expr, env),
             ControlExprKind::Select { base, field } => match self.eval_expr(base, env)? {
-                ControlResult::Value(value) => self.select_field(value, &field),
+                ControlResult::Value(value) => self.select_field(value, self.module.name(field)),
                 ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
                     request,
-                    ControlFrame::Select { field },
+                    ControlFrame::Select {
+                        field: self.module.name(field).clone(),
+                    },
                 ))),
             },
-            ControlExprKind::Record { fields, spread } => self.eval_record(&fields, &spread, env),
+            ControlExprKind::Record(record) => self.eval_record(record, env),
         }
     }
 
@@ -1304,20 +1459,22 @@ impl<'m> ControlInterpreter<'m> {
     fn eval_tuple(
         &mut self,
         mut done: Vec<ControlValue>,
-        mut remaining: Vec<ExprId>,
+        items: ControlExprListId,
+        mut next_index: usize,
         env: ControlEnv,
     ) -> Result<ControlResult, VmError> {
-        remaining.reverse();
-        while let Some(next) = remaining.pop() {
+        let exprs = self.module.expr_list(items);
+        while let Some(&next) = exprs.get(next_index) {
+            next_index += 1;
             match self.eval_expr(next, &env)? {
                 ControlResult::Value(value) => done.push(value),
                 ControlResult::Request(request) => {
-                    remaining.reverse();
                     return Ok(ControlResult::Request(push_frame(
                         request,
                         ControlFrame::Tuple {
                             done,
-                            remaining,
+                            items,
+                            next_index,
                             env,
                         },
                     )));
@@ -1329,12 +1486,12 @@ impl<'m> ControlInterpreter<'m> {
 
     fn eval_record(
         &mut self,
-        fields: &[ControlRecordField],
-        spread: &Option<ControlRecordSpread>,
+        record: ControlRecordId,
         env: &ControlEnv,
     ) -> Result<ControlResult, VmError> {
+        let record = self.module.record(record);
         let mut values = BTreeMap::new();
-        if let Some(spread) = spread {
+        if let Some(spread) = &record.spread {
             let spread_expr = match spread {
                 ControlRecordSpread::Head(expr) | ControlRecordSpread::Tail(expr) => *expr,
             };
@@ -1343,7 +1500,7 @@ impl<'m> ControlInterpreter<'m> {
             };
             values.extend(base);
         }
-        for field in fields {
+        for field in &record.fields {
             values.insert(field.name.clone(), self.eval_value(field.value, env)?);
         }
         Ok(ControlResult::Value(ControlValue::Record(values)))
@@ -1370,7 +1527,7 @@ impl<'m> ControlInterpreter<'m> {
     fn eval_match(
         &mut self,
         value: ControlValue,
-        arms: &[ControlMatchArm],
+        arms: ControlMatchArmsId,
         env: &ControlEnv,
     ) -> Result<ControlResult, VmError> {
         let value = match value {
@@ -1380,7 +1537,7 @@ impl<'m> ControlInterpreter<'m> {
                     return Ok(ControlResult::Request(push_frame(
                         request,
                         ControlFrame::Match {
-                            arms: arms.to_vec(),
+                            arms,
                             env: env.clone(),
                         },
                     )));
@@ -1388,7 +1545,7 @@ impl<'m> ControlInterpreter<'m> {
             },
             value => value,
         };
-        for arm in arms {
+        for arm in self.module.match_arms(arms) {
             let mut arm_env = env.clone();
             if self
                 .bind_pattern(&arm.pattern, value.clone(), &mut arm_env)
@@ -1415,14 +1572,14 @@ impl<'m> ControlInterpreter<'m> {
 
     fn eval_block(
         &mut self,
-        mut stmts: Vec<ControlStmt>,
-        tail: Option<ExprId>,
+        block: ControlBlockId,
+        mut stmt_index: usize,
         mut env: ControlEnv,
     ) -> Result<ControlResult, VmError> {
-        stmts.reverse();
-        while let Some(stmt) = stmts.pop() {
+        let block_ref = self.module.block(block);
+        while let Some(stmt) = block_ref.stmts.get(stmt_index) {
             match stmt {
-                ControlStmt::Let { pattern, value } => match self.eval_expr(value, &env)? {
+                ControlStmt::Let { pattern, value } => match self.eval_expr(*value, &env)? {
                     ControlResult::Value(ControlValue::Thunk(thunk)) => {
                         match self.bind_here(ControlValue::Thunk(thunk))? {
                             ControlResult::Value(mut value) => {
@@ -1430,13 +1587,11 @@ impl<'m> ControlInterpreter<'m> {
                                 self.bind_pattern(&pattern, value, &mut env)?;
                             }
                             ControlResult::Request(request) => {
-                                stmts.reverse();
                                 return Ok(ControlResult::Request(push_frame(
                                     request,
                                     ControlFrame::BlockLet {
-                                        pattern,
-                                        remaining: stmts,
-                                        tail,
+                                        block,
+                                        stmt_index,
                                         env,
                                     },
                                 )));
@@ -1448,29 +1603,26 @@ impl<'m> ControlInterpreter<'m> {
                         self.bind_pattern(&pattern, value, &mut env)?;
                     }
                     ControlResult::Request(request) => {
-                        stmts.reverse();
                         return Ok(ControlResult::Request(push_frame(
                             request,
                             ControlFrame::BlockLet {
-                                pattern,
-                                remaining: stmts,
-                                tail,
+                                block,
+                                stmt_index,
                                 env,
                             },
                         )));
                     }
                 },
-                ControlStmt::Expr(expr) => match self.eval_expr(expr, &env)? {
+                ControlStmt::Expr(expr) => match self.eval_expr(*expr, &env)? {
                     ControlResult::Value(ControlValue::Thunk(thunk)) => {
                         match self.bind_here(ControlValue::Thunk(thunk))? {
                             ControlResult::Value(_) => {}
                             ControlResult::Request(request) => {
-                                stmts.reverse();
                                 return Ok(ControlResult::Request(push_frame(
                                     request,
                                     ControlFrame::BlockExpr {
-                                        remaining: stmts,
-                                        tail,
+                                        block,
+                                        next_index: stmt_index + 1,
                                         env,
                                     },
                                 )));
@@ -1479,24 +1631,24 @@ impl<'m> ControlInterpreter<'m> {
                     }
                     ControlResult::Value(_) => {}
                     ControlResult::Request(request) => {
-                        stmts.reverse();
                         return Ok(ControlResult::Request(push_frame(
                             request,
                             ControlFrame::BlockExpr {
-                                remaining: stmts,
-                                tail,
+                                block,
+                                next_index: stmt_index + 1,
                                 env,
                             },
                         )));
                     }
                 },
                 ControlStmt::Module { def, body } => {
-                    let value = self.eval_value(body, &env)?;
-                    env.insert(def, value);
+                    let value = self.eval_value(*body, &env)?;
+                    env.insert(*def, value);
                 }
             }
+            stmt_index += 1;
         }
-        match tail {
+        match block_ref.tail {
             Some(tail) => self.eval_expr(tail, &env),
             None => Ok(ControlResult::Value(ControlValue::Unit)),
         }
@@ -1505,7 +1657,7 @@ impl<'m> ControlInterpreter<'m> {
     fn eval_handle(
         &mut self,
         body: ExprId,
-        arms: &[ControlHandleArm],
+        arms: ControlHandleArmsId,
         result_wraps_thunk: bool,
         env: &ControlEnv,
     ) -> Result<ControlResult, VmError> {
@@ -1524,7 +1676,7 @@ impl<'m> ControlInterpreter<'m> {
                     request,
                     ControlFrame::Handle {
                         id,
-                        arms: arms.to_vec(),
+                        arms,
                         env: env.clone(),
                         guard_stack: handler_guard_stack,
                         result_wraps_thunk,
@@ -1538,11 +1690,13 @@ impl<'m> ControlInterpreter<'m> {
     fn handle_value(
         &mut self,
         value: ControlValue,
-        arms: &[ControlHandleArm],
+        arms: ControlHandleArmsId,
         env: &ControlEnv,
         result_wraps_thunk: bool,
     ) -> Result<ControlResult, VmError> {
-        for arm in arms
+        for arm in self
+            .module
+            .handle_arms(arms)
             .iter()
             .filter(|arm| self.module.symbol_path(arm.effect).segments.is_empty())
         {
@@ -1563,7 +1717,8 @@ impl<'m> ControlInterpreter<'m> {
         &mut self,
         request: ControlRequest,
         id: u64,
-        arms: &[ControlHandleArm],
+        arms: ControlHandleArmsId,
+        start_arm_index: usize,
         env: &ControlEnv,
         handler_guard_stack: &GuardStack,
         result_wraps_thunk: bool,
@@ -1574,14 +1729,16 @@ impl<'m> ControlInterpreter<'m> {
         {
             return Ok(ControlResult::Request(request));
         }
-        let Some((arm_index, arm)) = arms
+        let arms_slice = self.module.handle_arms(arms);
+        let Some((arm_index, arm)) = arms_slice
             .iter()
             .enumerate()
+            .skip(start_arm_index)
             .find(|(_, arm)| arm.effect == request.effect)
         else {
             return Ok(ControlResult::Request(request));
         };
-        let remaining_arms = arms[arm_index + 1..].to_vec();
+        let next_arm_index = arm_index + 1;
         let outer = outside_handle(request.continuation.clone(), id);
         let mut arm_env = env.clone();
         self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
@@ -1600,7 +1757,8 @@ impl<'m> ControlInterpreter<'m> {
                     request,
                     outer,
                     id,
-                    remaining_arms,
+                    arms,
+                    next_arm_index,
                     env.clone(),
                     handler_guard_stack.clone(),
                     arm_env,
@@ -1614,7 +1772,8 @@ impl<'m> ControlInterpreter<'m> {
                         request,
                         outer,
                         handler_guard_stack: handler_guard_stack.clone(),
-                        arms: remaining_arms,
+                        arms,
+                        next_arm_index,
                         env: env.clone(),
                         arm_env,
                         body: arm.body,
@@ -1634,7 +1793,8 @@ impl<'m> ControlInterpreter<'m> {
         request: ControlRequest,
         outer: ControlContinuation,
         id: u64,
-        arms: Vec<ControlHandleArm>,
+        arms: ControlHandleArmsId,
+        next_arm_index: usize,
         env: ControlEnv,
         handler_guard_stack: GuardStack,
         arm_env: ControlEnv,
@@ -1649,7 +1809,8 @@ impl<'m> ControlInterpreter<'m> {
             ControlValue::Bool(false) => self.handle_request(
                 request,
                 id,
-                &arms,
+                arms,
+                next_arm_index,
                 &env,
                 &handler_guard_stack,
                 result_wraps_thunk,
@@ -1720,28 +1881,32 @@ impl<'m> ControlInterpreter<'m> {
             },
             ControlFrame::Tuple {
                 mut done,
-                remaining,
+                items,
+                next_index,
                 env,
             } => {
                 done.push(value);
-                self.eval_tuple(done, remaining, env)
+                self.eval_tuple(done, items, next_index, env)
             }
             ControlFrame::Select { field } => self.select_field(value, &field),
-            ControlFrame::Match { arms, env } => self.eval_match(value, &arms, &env),
+            ControlFrame::Match { arms, env } => self.eval_match(value, arms, &env),
             ControlFrame::BlockLet {
-                pattern,
-                remaining,
-                tail,
+                block,
+                stmt_index,
                 mut env,
             } => {
+                let ControlStmt::Let { pattern, .. } = &self.module.block(block).stmts[stmt_index]
+                else {
+                    return Err(VmError::PatternMismatch);
+                };
                 self.bind_pattern(&pattern, value, &mut env)?;
-                self.eval_block(remaining, tail, env)
+                self.eval_block(block, stmt_index + 1, env)
             }
             ControlFrame::BlockExpr {
-                remaining,
-                tail,
+                block,
+                next_index,
                 env,
-            } => self.eval_block(remaining, tail, env),
+            } => self.eval_block(block, next_index, env),
             ControlFrame::Handle {
                 id,
                 arms,
@@ -1762,7 +1927,7 @@ impl<'m> ControlInterpreter<'m> {
                 }
                 value => {
                     continuation.guard_stack = guard_stack;
-                    self.handle_value(value, &arms, &env, result_wraps_thunk)
+                    self.handle_value(value, arms, &env, result_wraps_thunk)
                 }
             },
             ControlFrame::HandleGuard {
@@ -1771,6 +1936,7 @@ impl<'m> ControlInterpreter<'m> {
                 outer,
                 handler_guard_stack,
                 arms,
+                next_arm_index,
                 env,
                 arm_env,
                 body,
@@ -1781,6 +1947,7 @@ impl<'m> ControlInterpreter<'m> {
                 outer,
                 id,
                 arms,
+                next_arm_index,
                 env,
                 handler_guard_stack,
                 arm_env,
@@ -1895,7 +2062,7 @@ impl<'m> ControlInterpreter<'m> {
         else {
             unreachable!();
         };
-        match self.handle_request(request, id, &arms, &env, &guard_stack, result_wraps_thunk)? {
+        match self.handle_request(request, id, arms, 0, &env, &guard_stack, result_wraps_thunk)? {
             ControlResult::Request(request) => self.propagate_request_before(request, index),
             value => Ok(value),
         }
