@@ -94,6 +94,9 @@ struct CliOptions {
     runtime_ir: bool,
     hygiene_ir: bool,
     run_interpreter: bool,
+    control_vm: bool,
+    control_vm_emit: Option<String>,
+    control_vm_load: Option<String>,
     native_compare_i64: bool,
     native_abi_lanes: bool,
     native_object: Option<NativeOutput>,
@@ -288,6 +291,27 @@ enum DebugOp {
     CompareI64 { path: Option<String> },
     /// Print native ABI value representation classification
     AbiLanes { path: Option<String> },
+    /// Execute through the experimental arena-backed control VM
+    #[command(hide = true)]
+    ControlVm {
+        path: Option<String>,
+        #[arg(long)]
+        print_roots: bool,
+    },
+    /// Emit experimental arena-backed control VM artifact
+    #[command(hide = true)]
+    ControlVmEmit {
+        path: Option<String>,
+        #[arg(long, value_name = "PATH")]
+        out: String,
+    },
+    /// Load and execute experimental arena-backed control VM artifact
+    #[command(hide = true)]
+    ControlVmLoad {
+        path: String,
+        #[arg(long)]
+        print_roots: bool,
+    },
 }
 
 fn parse_args() -> CliOptions {
@@ -301,6 +325,9 @@ fn parse_args() -> CliOptions {
         runtime_ir: false,
         hygiene_ir: false,
         run_interpreter: false,
+        control_vm: false,
+        control_vm_emit: None,
+        control_vm_load: None,
         native_compare_i64: false,
         native_abi_lanes: false,
         native_object: None,
@@ -424,6 +451,21 @@ fn parse_args() -> CliOptions {
                 opts.native_abi_lanes = true;
                 opts.path = path;
             }
+            DebugOp::ControlVm { path, print_roots } => {
+                opts.control_vm = true;
+                opts.path = path;
+                opts.print_roots = print_roots;
+            }
+            DebugOp::ControlVmEmit { path, out } => {
+                opts.control_vm = true;
+                opts.control_vm_emit = Some(out);
+                opts.path = path;
+            }
+            DebugOp::ControlVmLoad { path, print_roots } => {
+                opts.control_vm = true;
+                opts.control_vm_load = Some(path);
+                opts.print_roots = print_roots;
+            }
         },
         Cmd::Server => {
             opts.server = true;
@@ -452,6 +494,55 @@ fn read_source(path: Option<&str>) -> String {
     }
 }
 
+fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
+    let load_start = Instant::now();
+    let module = match runtime::ControlVmModule::read_artifact_file(Path::new(path)) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("failed to read control VM artifact {path}: {err}");
+            process::exit(1);
+        }
+    };
+    let load_duration = load_start.elapsed();
+
+    let eval_start = Instant::now();
+    let mut results = Vec::new();
+    let mut profile = runtime::VmProfile::default();
+    for index in 0..module.root_count() {
+        match module.eval_root_expr_profiled(index) {
+            Ok((result, item_profile)) => {
+                profile.merge(item_profile);
+                results.push(result);
+            }
+            Err(err) => {
+                eprintln!("failed to evaluate control VM artifact {path}: {err}");
+                process::exit(1);
+            }
+        }
+    }
+    let eval_duration = eval_start.elapsed();
+
+    if options.runtime_phase_timings {
+        eprintln!("runtime phase timings:");
+        eprintln!("    control_vm_load: {}", format_duration(load_duration));
+        eprintln!("    vm_eval: {}", format_duration(eval_duration));
+        eprintln!(
+            "    control_vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+            profile.eval_expr_calls,
+            profile.max_eval_depth,
+            profile.continuation_steps,
+            profile.max_continuation_frames
+        );
+    }
+    if options.print_roots {
+        for (index, result) in results.iter().enumerate() {
+            println!("[{index}] {}", format_runtime_vm_result(result));
+        }
+    } else {
+        println!("control-vm-load: ok");
+    }
+}
+
 fn run(options: &CliOptions) {
     if options.install_std {
         let root = default_versioned_std_root();
@@ -476,6 +567,11 @@ fn run(options: &CliOptions) {
             );
             process::exit(2);
         }
+    }
+
+    if let Some(path) = &options.control_vm_load {
+        run_control_vm_load_or_exit(path, options);
+        return;
     }
 
     for iteration in 0..options.profile_repeat {
@@ -604,6 +700,8 @@ impl CliOptions {
             || self.runtime_ir
             || self.hygiene_ir
             || self.run_interpreter
+            || self.control_vm
+            || self.control_vm_load.is_some()
             || self.native_compare_i64
             || self.native_abi_lanes
             || self.native_object.is_some()
@@ -953,6 +1051,7 @@ fn run_infer_views(
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
+                || options.control_vm
                 || options.native_abi_lanes
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
@@ -983,12 +1082,98 @@ fn run_infer_views(
             }
             println!("native-compare-i64: ok");
         }
+        if options.control_vm {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_interpreter
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let compile_start = Instant::now();
+            let module = match runtime::compile_control_vm_module(lowered.module) {
+                Ok(module) => module,
+                Err(err) => {
+                    eprintln!("failed to compile control VM: {err}");
+                    process::exit(1);
+                }
+            };
+            let compile_duration = compile_start.elapsed();
+            if let Some(path) = &options.control_vm_emit {
+                let path = Path::new(path);
+                ensure_parent_dir_or_exit(path, "control VM artifact");
+                if let Err(err) = module.write_artifact_file(path) {
+                    eprintln!(
+                        "failed to write control VM artifact {}: {err}",
+                        path.display()
+                    );
+                    process::exit(1);
+                }
+                if options.runtime_phase_timings {
+                    print_runtime_phase_timings(&lowered.profile, Some(compile_duration), None);
+                }
+                if !options.print_roots {
+                    println!("control-vm-emit: {}", path.display());
+                }
+                return;
+            }
+            let eval_start = Instant::now();
+            let mut results = Vec::new();
+            let mut profile = runtime::VmProfile::default();
+            for index in 0..module.root_count() {
+                match module.eval_root_expr_profiled(index) {
+                    Ok((result, item_profile)) => {
+                        profile.merge(item_profile);
+                        results.push(result);
+                    }
+                    Err(err) => {
+                        eprintln!("failed to evaluate control VM: {err}");
+                        process::exit(1);
+                    }
+                }
+            }
+            let eval_duration = eval_start.elapsed();
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(
+                    &lowered.profile,
+                    Some(compile_duration),
+                    Some(eval_duration),
+                );
+                eprintln!(
+                    "    control_vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+                    profile.eval_expr_calls,
+                    profile.max_eval_depth,
+                    profile.continuation_steps,
+                    profile.max_continuation_frames
+                );
+            }
+            if options.print_roots {
+                for (index, result) in results.iter().enumerate() {
+                    println!("[{index}] {}", format_runtime_vm_result(result));
+                }
+            } else {
+                println!("control-vm: ok");
+            }
+        }
         if options.native_abi_lanes {
             if options.infer
                 || options.core_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
+                || options.control_vm
                 || options.native_compare_i64
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
@@ -5974,6 +6159,9 @@ mod tests {
             runtime_ir: false,
             hygiene_ir: false,
             run_interpreter: false,
+            control_vm: false,
+            control_vm_emit: None,
+            control_vm_load: None,
             native_compare_i64: false,
             native_abi_lanes: false,
             native_object: None,

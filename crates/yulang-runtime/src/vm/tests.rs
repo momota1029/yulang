@@ -2961,6 +2961,39 @@ run_into_strings: {
     }
 
     #[test]
+    fn control_vm_runs_std_undet_range_each_nested_sum_list() {
+        let results =
+            eval_control_source_with_std("use std::undet::*\n(each 1..2 + each 1..2).list\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("4".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn control_vm_artifact_roundtrips_std_undet_range_each_nested_sum_list() {
+        let results = eval_control_source_artifact_with_std(
+            "use std::undet::*\n(each 1..2 + each 1..2).list\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("4".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_std_undet_each_and_once_from_prelude() {
         let results = eval_source_with_std(
             r#"
@@ -3411,6 +3444,37 @@ run_into_strings: {
         let module = runtime_module_with_std_inner(src);
         let module = compile_vm_module(module).expect("compiled runtime VM module");
         test_values(module.eval_roots().expect("vm results"))
+    }
+
+    fn eval_control_source_with_std(src: &str) -> Vec<TestValue> {
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let module = runtime_module_with_std_inner(&src);
+            let module = compile_control_vm_module(module).expect("compiled control VM module");
+            let results = (0..module.root_count())
+                .map(|index| module.eval_root_expr(index))
+                .collect::<Result<Vec<_>, _>>()
+                .expect("control VM results");
+            test_values(results)
+        })
+    }
+
+    fn eval_control_source_artifact_with_std(src: &str) -> Vec<TestValue> {
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let module = runtime_module_with_std_inner(&src);
+            let module = compile_control_vm_module(module).expect("compiled control VM module");
+            let bytes = module
+                .to_artifact_bytes()
+                .expect("serialized control VM artifact");
+            let module = ControlVmModule::from_artifact_bytes(&bytes)
+                .expect("deserialized control VM artifact");
+            let results = (0..module.root_count())
+                .map(|index| module.eval_root_expr(index))
+                .collect::<Result<Vec<_>, _>>()
+                .expect("control VM artifact results");
+            test_values(results)
+        })
     }
 
     fn runtime_module_with_std(src: &str) -> Module {

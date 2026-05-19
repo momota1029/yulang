@@ -119,6 +119,7 @@ impl fmt::Display for VmError {
 impl std::error::Error for VmError {}
 
 mod continuation;
+mod control;
 mod erase;
 mod guard;
 mod interpreter;
@@ -133,6 +134,8 @@ use model::*;
 pub use model::{VmContinuation, VmPrimitive, VmProfile, VmRequest, VmResult, VmValue};
 use primitive::*;
 use value::*;
+
+pub use control::{ControlVmModule, compile_control_vm_module};
 
 #[cfg(test)]
 mod tests;

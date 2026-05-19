@@ -3045,6 +3045,9 @@ dependencies = [
 name = "yulang-runtime"
 version = "0.1.1"
 dependencies = [
+ "postcard",
+ "serde",
+ "serde_json",
  "unicode-segmentation",
  "yulang-infer",
  "yulang-typed-ir",

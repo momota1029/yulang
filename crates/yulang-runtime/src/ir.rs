@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use yulang_typed_ir as typed_ir;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Module {
     pub path: typed_ir::Path,
     pub bindings: Vec<Binding>,
@@ -9,7 +10,7 @@ pub struct Module {
     pub role_impls: Vec<typed_ir::RoleImplGraphNode>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Binding {
     pub name: typed_ir::Path,
     pub type_params: Vec<typed_ir::TypeVar>,
@@ -17,7 +18,7 @@ pub struct Binding {
     pub body: Expr,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Expr {
     pub ty: Type,
     pub kind: ExprKind,
@@ -263,7 +264,7 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
     cloned
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unknown,
     Core(typed_ir::Type),
@@ -362,16 +363,16 @@ impl From<typed_ir::Type> for Type {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct EffectIdVar(pub usize);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum EffectIdRef {
     Var(EffectIdVar),
     Peek,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExprKind {
     Var(typed_ir::Path),
     EffectOp(typed_ir::Path),
@@ -456,31 +457,31 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JoinEvidence {
     pub result: typed_ir::Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeInstantiation {
     pub target: typed_ir::Path,
     pub args: Vec<TypeSubstitution>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeSubstitution {
     pub var: typed_ir::TypeVar,
     pub ty: typed_ir::Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stmt {
     Let { pattern: Pattern, value: Expr },
     Expr(Expr),
     Module { def: typed_ir::Path, body: Expr },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Pattern {
     Wildcard {
         ty: Type,
@@ -525,39 +526,39 @@ pub enum Pattern {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordExprField {
     pub name: typed_ir::Name,
     pub value: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordSpreadExpr {
     Head(Box<Expr>),
     Tail(Box<Expr>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordPatternField {
     pub name: typed_ir::Name,
     pub pattern: Pattern,
     pub default: Option<Expr>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordSpreadPattern {
     Head(Box<Pattern>),
     Tail(Box<Pattern>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HandleArm {
     pub effect: typed_ir::Path,
     pub payload: Pattern,
@@ -566,20 +567,20 @@ pub struct HandleArm {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResumeBinding {
     pub name: typed_ir::Name,
     pub ty: Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HandleEffect {
     pub consumes: Vec<typed_ir::Path>,
     pub residual_before: Option<typed_ir::Type>,
     pub residual_after: Option<typed_ir::Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Root {
     Binding(typed_ir::Path),
     Expr(usize),

@@ -46,4 +46,7 @@ pub use monomorphize::{
 };
 pub use refine::refine_module_types;
 pub use validate::validate_module;
-pub use vm::{VmError, VmModule, VmRequest, VmResult, VmValue, compile_vm_module};
+pub use vm::{
+    ControlVmModule, VmError, VmModule, VmProfile, VmRequest, VmResult, VmValue,
+    compile_control_vm_module, compile_vm_module,
+};

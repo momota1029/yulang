@@ -9,6 +9,32 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 
 - `notes/todo/index.md`
 
+直近の実験:
+
+- experimental control VM は hidden debug path として
+  `yulang debug control-vm`, `control-vm-emit`, `control-vm-load` を持つ。
+  これは runtime IR を arena-backed control IR に変換し、closures / thunks /
+  resumptions / continuation frames が full `Expr` clone ではなく `ExprId + env`
+  を持つ実験系。user-facing run mode ではない。
+- `control-vm-emit/load` は binary artifact を扱う。形式は magic
+  `YLCVMIR\0` + little-endian u32 version + postcard payload。JSON helper は
+  runtime crate に debug support として残るが、CLI の標準測定経路ではない。
+- compact expression shape、symbol table、slot env により artifact version は `3`。全
+  `ControlExpr` から full runtime `Type` を落とし、lambda/apply/handler に必要な
+  thunk-delay / thunk-wrap の bool shape だけを持つ。さらに binding / var /
+  effect op / handler arm / env / request の execution-side path は
+  `ControlSymbolId` になった。`ControlEnv` は `HashMap` ではなく dense slot
+  `Vec<Option<ControlValue>>`。full type は `AddId.allowed`、`Coerce.to`、pattern
+  metadata のような実行に必要な場所にだけ残す。
+- `(each 1..20 + each 1..20).list` の control VM binary artifact は 2.2K。release
+  hyperfine で `control-vm-load` は `22.2 ms ± 0.5 ms`、既存 generated effects
+  executable は `376.0 ms ± 6.2 ms`。この差は「インタプリタ言語が一般に速い」
+  ではなく、現在の native effects backend の CPS helper protocol / control
+  snapshot 表現がこの abstract control-heavy benchmark で重い、という証拠として扱う。
+- source-to-artifact は現時点で `885.8 ms ± 23.2 ms`。ただし control VM compile
+  は `318.252us` 程度で、playground 向けのボトルネックは artifact encode ではなく
+  parse / infer / lower / monomorphize と std/prelude cache 側。
+
 完了履歴:
 
 - `tasks/done/2026-05-14-native-backend-history.md` — Track 1 のここまでのマイルストーン
@@ -674,3 +700,16 @@ Yulang code から小さい regression test を書ける形を作る。
   reusable primitive has to include the whole native force step:
   handler/guard override, return-frame save/restore, eval-context restore,
   nested-thunk stepping, and abort/scope-return handling.
+- Added a correct runtime-IR-based control VM spike in
+  `crates/yulang-runtime/src/vm/control.rs`, reachable through hidden
+  `yulang debug control-vm [--print-roots] <path>`. This compiles erased runtime
+  IR expressions to arena `ExprId`s and then executes the same `Fold` /
+  `sub::sub` / `branch` / `reject` / `catch` / `Resume` structure, instead of
+  replacing `(each 1..20 + each 1..20).list` with a hand-written loop.
+- On `/tmp/yulang_20x20_list.yu` with release CLI and no root printing,
+  existing VM `vm_eval` measured `387.499ms`; the control VM `vm_eval`
+  measured `41.409ms` with `eval_expr_calls=41063`,
+  `continuation_steps=12683`, and `max_continuation_frames=73`. This suggests
+  that avoiding repeated runtime `Expr` cloning in closures/thunks/frames is a
+  real interpreter-side win before doing a dedicated bytecode or native
+  lowering.
