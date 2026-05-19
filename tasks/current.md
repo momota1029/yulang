@@ -277,15 +277,17 @@ release 後に残すもの:
   CPS `ForceThunk` は evaluator / native runtime とも nested thunk を非 thunk まで
   deep force するので、連続する `ForceThunk` chain を1つへ畳む optimizer pass を
   追加した。さらに、構造的に non-thunk と分かる値への `ForceThunk` は、その result
-  uses が同じ continuation tail に閉じている場合だけ消す pass も追加した。20x20 では
-  `collapsed_force_thunk_chains=28`、`removed_redundant_non_thunk_forces=27`、
-  optimized statements は 353 から 298 へ減り、3 seed の `post_call_force_chain` は
+  uses が同じ continuation tail に閉じている場合だけ消す pass も追加した。primitive
+  result は、演算自身が scalar / container value を作るものだけを whitelist し、
+  stored thunk handle を露出しうる `ListIndex` は除外する。20x20 では
+  `collapsed_force_thunk_chains=28`、`removed_redundant_non_thunk_forces=42`、
+  optimized statements は 283 まで減り、3 seed の `post_call_force_chain` は
   2 から 1 へ縮む。
   `YULANG_CPS_DISABLE_FORCE_CHAIN_COLLAPSE=1` はこの pass だけを切る計測用入口。
   同じ生成済み executable の比較では、`force_thunk` helper call が 37368 から
-  27349 へ減った。`hyperfine --warmup 2 --runs 10` では no-collapse
-  679.0ms ± 23.5ms、collapse-only 672.0ms ± 9.8ms、final 637.6ms ± 27.5ms で、
-  no-collapse 比では約 1.06x。
+  23266 へ減った。`hyperfine --warmup 2 --runs 10` は揺れが大きいが、最新の
+  no-collapse / primitive-whitelist final 比較では 662.4ms ± 24.0ms と
+  652.4ms ± 9.7ms。
   残った 3 seed は `post_call_force_chain=1` で、direct call の戻り値は caller から
   まだ thunk surface として見えている。
   trace profile は `dynamic_effect_thunk_specialization_seeds=3` /

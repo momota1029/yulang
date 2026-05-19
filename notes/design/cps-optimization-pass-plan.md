@@ -33,7 +33,10 @@ than copied paper text.
   forces through nested thunks, `ForceThunk(ForceThunk(x))` can be represented
   as one force when the intermediate value has no other use.
 - Redundant force removal for structurally known non-thunk values when all
-  uses of the force result stay in the same continuation tail.
+  uses of the force result stay in the same continuation tail. Primitive
+  results participate only when the primitive constructs or returns a scalar /
+  container value itself; element projection such as `ListIndex` is excluded
+  because it may surface a stored thunk handle.
 - Primitive wrapper reification.
 - Local partial closure apply reification.
 - Known closure parameter apply reification.

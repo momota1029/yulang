@@ -656,24 +656,90 @@ fn substitute_continuation_tail_value(
 }
 
 fn stmt_result_is_definitely_non_thunk(stmt: &CpsStmt) -> bool {
-    // Primitive results are intentionally not included: list/string runtime
-    // primitives may surface thunk handles that still require an explicit force.
+    match stmt {
+        CpsStmt::Primitive { op, .. } => primitive_result_is_definitely_non_thunk(*op),
+        stmt => matches!(
+            stmt,
+            CpsStmt::Literal { .. }
+                | CpsStmt::FreshGuard { .. }
+                | CpsStmt::PeekGuard { .. }
+                | CpsStmt::FindGuard { .. }
+                | CpsStmt::MakeClosure { .. }
+                | CpsStmt::MakeRecursiveClosure { .. }
+                | CpsStmt::ForceThunk { .. }
+                | CpsStmt::Tuple { .. }
+                | CpsStmt::Record { .. }
+                | CpsStmt::RecordWithoutFields { .. }
+                | CpsStmt::Variant { .. }
+                | CpsStmt::RecordHasField { .. }
+                | CpsStmt::VariantTagEq { .. }
+                | CpsStmt::CloneContinuation { .. }
+        ),
+    }
+}
+
+fn primitive_result_is_definitely_non_thunk(op: typed_ir::PrimitiveOp) -> bool {
+    // A primitive result is safe here when the result object/scalar is produced
+    // by the primitive itself. Element projection is different: ListIndex may
+    // surface an existing thunk handle stored in a list and still needs force.
     matches!(
-        stmt,
-        CpsStmt::Literal { .. }
-            | CpsStmt::FreshGuard { .. }
-            | CpsStmt::PeekGuard { .. }
-            | CpsStmt::FindGuard { .. }
-            | CpsStmt::MakeClosure { .. }
-            | CpsStmt::MakeRecursiveClosure { .. }
-            | CpsStmt::ForceThunk { .. }
-            | CpsStmt::Tuple { .. }
-            | CpsStmt::Record { .. }
-            | CpsStmt::RecordWithoutFields { .. }
-            | CpsStmt::Variant { .. }
-            | CpsStmt::RecordHasField { .. }
-            | CpsStmt::VariantTagEq { .. }
-            | CpsStmt::CloneContinuation { .. }
+        op,
+        typed_ir::PrimitiveOp::BoolNot
+            | typed_ir::PrimitiveOp::BoolEq
+            | typed_ir::PrimitiveOp::ListEmpty
+            | typed_ir::PrimitiveOp::ListSingleton
+            | typed_ir::PrimitiveOp::ListLen
+            | typed_ir::PrimitiveOp::ListMerge
+            | typed_ir::PrimitiveOp::ListIndexRange
+            | typed_ir::PrimitiveOp::ListSplice
+            | typed_ir::PrimitiveOp::ListIndexRangeRaw
+            | typed_ir::PrimitiveOp::ListSpliceRaw
+            | typed_ir::PrimitiveOp::ListViewRaw
+            | typed_ir::PrimitiveOp::StringLen
+            | typed_ir::PrimitiveOp::StringIndex
+            | typed_ir::PrimitiveOp::StringIndexRange
+            | typed_ir::PrimitiveOp::StringSplice
+            | typed_ir::PrimitiveOp::StringIndexRangeRaw
+            | typed_ir::PrimitiveOp::StringSpliceRaw
+            | typed_ir::PrimitiveOp::IntAdd
+            | typed_ir::PrimitiveOp::IntSub
+            | typed_ir::PrimitiveOp::IntMul
+            | typed_ir::PrimitiveOp::IntDiv
+            | typed_ir::PrimitiveOp::IntEq
+            | typed_ir::PrimitiveOp::IntLt
+            | typed_ir::PrimitiveOp::IntLe
+            | typed_ir::PrimitiveOp::IntGt
+            | typed_ir::PrimitiveOp::IntGe
+            | typed_ir::PrimitiveOp::IntToString
+            | typed_ir::PrimitiveOp::IntToHex
+            | typed_ir::PrimitiveOp::IntToUpperHex
+            | typed_ir::PrimitiveOp::FloatAdd
+            | typed_ir::PrimitiveOp::FloatSub
+            | typed_ir::PrimitiveOp::FloatMul
+            | typed_ir::PrimitiveOp::FloatDiv
+            | typed_ir::PrimitiveOp::FloatEq
+            | typed_ir::PrimitiveOp::FloatLt
+            | typed_ir::PrimitiveOp::FloatLe
+            | typed_ir::PrimitiveOp::FloatGt
+            | typed_ir::PrimitiveOp::FloatGe
+            | typed_ir::PrimitiveOp::FloatToString
+            | typed_ir::PrimitiveOp::BoolToString
+            | typed_ir::PrimitiveOp::StringConcat
+            | typed_ir::PrimitiveOp::StringEq
+            | typed_ir::PrimitiveOp::StringToBytes
+            | typed_ir::PrimitiveOp::CharEq
+            | typed_ir::PrimitiveOp::CharToString
+            | typed_ir::PrimitiveOp::CharIsWhitespace
+            | typed_ir::PrimitiveOp::CharIsPunctuation
+            | typed_ir::PrimitiveOp::CharIsWord
+            | typed_ir::PrimitiveOp::BytesLen
+            | typed_ir::PrimitiveOp::BytesEq
+            | typed_ir::PrimitiveOp::BytesConcat
+            | typed_ir::PrimitiveOp::BytesIndex
+            | typed_ir::PrimitiveOp::BytesIndexRange
+            | typed_ir::PrimitiveOp::BytesToUtf8Raw
+            | typed_ir::PrimitiveOp::BytesToPath
+            | typed_ir::PrimitiveOp::PathToBytes
     )
 }
 
@@ -4177,6 +4243,141 @@ mod tests {
 
         assert_eq!(removed, 0);
         assert_eq!(function.continuations[0].stmts.len(), 2);
+    }
+
+    #[test]
+    fn removes_force_of_safe_scalar_primitive_result() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("20".to_string()),
+                        },
+                        CpsStmt::Literal {
+                            dest: CpsValueId(1),
+                            literal: CpsLiteral::Int("22".to_string()),
+                        },
+                        CpsStmt::Primitive {
+                            dest: CpsValueId(2),
+                            op: typed_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(0), CpsValueId(1)],
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+
+        assert_eq!(removed, 1);
+        assert_eq!(
+            function.continuations[0].terminator,
+            CpsTerminator::Return(CpsValueId(2))
+        );
+    }
+
+    #[test]
+    fn removes_force_of_safe_list_primitive_result() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Primitive {
+                            dest: CpsValueId(2),
+                            op: typed_ir::PrimitiveOp::ListMerge,
+                            args: vec![CpsValueId(0), CpsValueId(1)],
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+
+        assert_eq!(removed, 1);
+        assert_eq!(
+            function.continuations[0].terminator,
+            CpsTerminator::Return(CpsValueId(2))
+        );
+    }
+
+    #[test]
+    fn keeps_force_of_list_index_primitive_result() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("0".to_string()),
+                        },
+                        CpsStmt::Primitive {
+                            dest: CpsValueId(2),
+                            op: typed_ir::PrimitiveOp::ListIndex,
+                            args: vec![CpsValueId(1), CpsValueId(0)],
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+
+        assert_eq!(removed, 0);
+        assert!(matches!(
+            function.continuations[0].stmts.last(),
+            Some(CpsStmt::ForceThunk { .. })
+        ));
     }
 
     #[test]
