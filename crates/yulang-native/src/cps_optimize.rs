@@ -10,7 +10,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::cps_effect_regions::{
-    DynamicEffectRegionPlanClass, DynamicEffectThunkRewriteStrategy,
+    DynamicEffectRegionPlanClass, DynamicEffectThunkRewritePlan, DynamicEffectThunkRewriteStrategy,
     DynamicEffectThunkSpecializationClass, DynamicEffectThunkSpecializationSeed,
     EffectHandlerRegionClass, analyze_dynamic_effect_handler_candidates,
     analyze_dynamic_effect_region_plans, analyze_dynamic_effect_thunk_argument_plans,
@@ -61,6 +61,7 @@ pub struct CpsOptimizationProfile {
     pub folded_structural_projections: usize,
     pub inlined_pure_direct_calls: usize,
     pub inlined_ready_finite_thunk_calls: usize,
+    pub defunctionalized_finite_handler_thunk_calls: usize,
     pub inlined_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
     pub removed_dead_pure_statements: usize,
@@ -119,6 +120,7 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     fold_structural_projections(output);
     inline_pure_direct_calls(output);
     inline_ready_finite_thunk_calls(output);
+    defunctionalize_finite_handler_thunk_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
@@ -447,6 +449,42 @@ fn inline_ready_finite_thunk_calls(output: &mut CpsOptimizationOutput) {
             inline_ready_finite_thunk_calls_in_function(function, &seeds, &callees);
     }
     output.profile.changed |= output.profile.inlined_ready_finite_thunk_calls > 0;
+}
+
+fn defunctionalize_finite_handler_thunk_calls(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    if std::env::var("YULANG_CPS_ENABLE_FINITE_HANDLER_DEFUN")
+        .map(|value| value != "1")
+        .unwrap_or(true)
+    {
+        return;
+    }
+    let plans = analyze_dynamic_effect_thunk_rewrite_plans(&output.module)
+        .into_iter()
+        .filter(|plan| {
+            plan.strategy == DynamicEffectThunkRewriteStrategy::DefunctionalizeFiniteHandler
+        })
+        .collect::<Vec<_>>();
+    if plans.is_empty() {
+        return;
+    }
+    let callees = output
+        .module
+        .functions
+        .iter()
+        .chain(&output.module.roots)
+        .map(|function| (function.name.clone(), function.clone()))
+        .collect::<HashMap<_, _>>();
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.defunctionalized_finite_handler_thunk_calls +=
+            defunctionalize_finite_handler_thunk_calls_in_function(function, &plans, &callees);
+    }
+    output.profile.changed |= output.profile.defunctionalized_finite_handler_thunk_calls > 0;
 }
 
 fn remove_unused_continuation_params_in_function(function: &mut CpsReprAbiFunction) -> usize {
@@ -1285,7 +1323,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} inlined_local_thunk_forces={} collapsed_force_thunk_chains={} removed_redundant_non_thunk_forces={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_ready_finite_thunk_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} effect_regions={} single_resume_regions={} finite_multi_resume_regions={} escaping_resumption_regions={} nested_effectful_regions={} opaque_effect_regions={} dynamic_effect_handler_candidates={} dynamic_effect_region_plans={} finite_dynamic_effect_region_plans={} dynamic_effect_thunk_argument_plans={} dynamic_effect_thunk_specialization_seeds={} ready_dynamic_effect_thunk_specialization_seeds={} dynamic_effect_thunk_rewrite_plans={} defunctionalized_dynamic_effect_thunk_rewrite_plans={} body_clone_dynamic_effect_thunk_rewrite_plans={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} inlined_local_thunk_forces={} collapsed_force_thunk_chains={} removed_redundant_non_thunk_forces={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_ready_finite_thunk_calls={} defunctionalized_finite_handler_thunk_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} effect_regions={} single_resume_regions={} finite_multi_resume_regions={} escaping_resumption_regions={} nested_effectful_regions={} opaque_effect_regions={} dynamic_effect_handler_candidates={} dynamic_effect_region_plans={} finite_dynamic_effect_region_plans={} dynamic_effect_thunk_argument_plans={} dynamic_effect_thunk_specialization_seeds={} ready_dynamic_effect_thunk_specialization_seeds={} dynamic_effect_thunk_rewrite_plans={} defunctionalized_dynamic_effect_thunk_rewrite_plans={} body_clone_dynamic_effect_thunk_rewrite_plans={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -1309,6 +1347,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.folded_structural_projections,
         profile.inlined_pure_direct_calls,
         profile.inlined_ready_finite_thunk_calls,
+        profile.defunctionalized_finite_handler_thunk_calls,
         profile.inlined_continuation_calls,
         profile.removed_unreachable_continuations,
         profile.removed_dead_pure_statements,
@@ -2301,6 +2340,241 @@ fn inline_ready_finite_thunk_call_at(
     1
 }
 
+fn defunctionalize_finite_handler_thunk_calls_in_function(
+    function: &mut CpsReprAbiFunction,
+    plans: &[DynamicEffectThunkRewritePlan],
+    callees: &HashMap<String, CpsReprAbiFunction>,
+) -> usize {
+    let plans_by_call = plans
+        .iter()
+        .filter(|plan| plan.caller == function.name)
+        .filter(|plan| plan.callee != function.name)
+        .filter(|plan| plan.call_continuation == function.entry)
+        .map(|plan| ((plan.call_continuation, plan.call_stmt_index), plan))
+        .collect::<HashMap<_, _>>();
+    if plans_by_call.is_empty() {
+        return 0;
+    }
+
+    let original_len = function.continuations.len();
+    let mut rewritten = 0;
+    for index in 0..original_len {
+        let continuation_id = function.continuations[index].id;
+        let stmt_len = function.continuations[index].stmts.len();
+        for stmt_index in 0..stmt_len {
+            let Some(plan) = plans_by_call.get(&(continuation_id, stmt_index)) else {
+                continue;
+            };
+            let Some(callee) = callees.get(&plan.callee) else {
+                continue;
+            };
+            rewritten += defunctionalize_finite_handler_thunk_call_at(
+                function, index, stmt_index, plan, callee,
+            );
+            break;
+        }
+    }
+    rewritten
+}
+
+fn defunctionalize_finite_handler_thunk_call_at(
+    function: &mut CpsReprAbiFunction,
+    continuation_index: usize,
+    stmt_index: usize,
+    plan: &DynamicEffectThunkRewritePlan,
+    callee: &CpsReprAbiFunction,
+) -> usize {
+    if plan.finite_callee_boundaries.len() != 1 || callee.continuations.is_empty() {
+        return 0;
+    }
+    let boundary = plan.finite_callee_boundaries[0];
+    let Some(callee_entry) = callee
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == callee.entry)
+    else {
+        return 0;
+    };
+    let Some(callee_boundary) = callee
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == boundary)
+    else {
+        return 0;
+    };
+    let CpsTerminator::EffectfulForce {
+        resume: boundary_resume,
+        ..
+    } = callee_boundary.terminator
+    else {
+        return 0;
+    };
+
+    let Some(thunk_region) = continuation_region(function, plan.thunk_entry) else {
+        return 0;
+    };
+    if thunk_region_has_unsupported_control(function, &thunk_region) {
+        return 0;
+    }
+    if region_has_effectful_terminator(function, &thunk_region) {
+        return 0;
+    }
+
+    let continuation = &function.continuations[continuation_index];
+    let Some(CpsStmt::DirectCall { dest, target, args }) = continuation.stmts.get(stmt_index)
+    else {
+        return 0;
+    };
+    if target != &plan.callee || args.len() != callee.params.len() {
+        return 0;
+    }
+
+    let dest = *dest;
+    let args = args.clone();
+    let return_lane = continuation.return_lane;
+    let rest_environment = continuation.environment.clone();
+    let (rest_param, rest_stmts) =
+        rest_after_inlined_thunk_return(&continuation.stmts, stmt_index + 1, dest);
+    let rest_terminator = continuation.terminator.clone();
+
+    let rest_id = next_function_continuation_id(function);
+    let mut next_continuation = CpsContinuationId(rest_id.0 + 1);
+    let mut next_value = next_function_value_id(function);
+    let mut next_handler = next_function_handler_id(function);
+
+    let continuation_map = callee
+        .continuations
+        .iter()
+        .map(|continuation| {
+            let fresh = next_continuation;
+            next_continuation.0 += 1;
+            (continuation.id, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let handler_map = callee
+        .handlers
+        .iter()
+        .map(|handler| {
+            let fresh = next_handler;
+            next_handler.0 += 1;
+            (handler.id, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let value_map = callee
+        .value_ids()
+        .into_iter()
+        .map(|value| {
+            let fresh = next_value;
+            next_value.0 += 1;
+            (value, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let thunk_continuation_map = thunk_region
+        .iter()
+        .map(|id| {
+            let fresh = next_continuation;
+            next_continuation.0 += 1;
+            (*id, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let thunk_value_map = local_value_defs_for_continuations(function, &thunk_region)
+        .into_iter()
+        .map(|value| {
+            let fresh = next_value;
+            next_value.0 += 1;
+            (value, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let Some(cloned_entry) = continuation_map.get(&callee.entry).copied() else {
+        return 0;
+    };
+    let Some(cloned_boundary) = continuation_map.get(&boundary).copied() else {
+        return 0;
+    };
+    let Some(cloned_boundary_resume) = continuation_map.get(&boundary_resume).copied() else {
+        return 0;
+    };
+    let Some(cloned_thunk_entry) = thunk_continuation_map.get(&plan.thunk_entry).copied() else {
+        return 0;
+    };
+
+    let rest_continuation = CpsReprAbiContinuation {
+        id: rest_id,
+        params: vec![CpsReprAbiValue {
+            value: rest_param,
+            lane: callee_entry.return_lane,
+        }],
+        environment: rest_environment,
+        shot_kind: CpsShotKind::OneShot,
+        return_lane,
+        stmts: rest_stmts,
+        terminator: rest_terminator,
+    };
+    let cloned_handlers = callee
+        .handlers
+        .iter()
+        .cloned()
+        .map(|handler| remap_handler(handler, &continuation_map, &handler_map))
+        .collect::<Vec<_>>();
+    let mut cloned_continuations = callee
+        .continuations
+        .iter()
+        .cloned()
+        .map(|continuation| {
+            remap_inlined_continuation(
+                continuation,
+                rest_id,
+                &continuation_map,
+                &handler_map,
+                &value_map,
+            )
+        })
+        .collect::<Vec<_>>();
+    if let Some(cloned_force_boundary) = cloned_continuations
+        .iter_mut()
+        .find(|continuation| continuation.id == cloned_boundary)
+    {
+        cloned_force_boundary.terminator = CpsTerminator::Continue {
+            target: cloned_thunk_entry,
+            args: Vec::new(),
+        };
+    } else {
+        return 0;
+    }
+
+    let continuation_by_id = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation.clone()))
+        .collect::<HashMap<_, _>>();
+    let cloned_thunk_continuations = thunk_region
+        .iter()
+        .filter_map(|id| continuation_by_id.get(id).cloned())
+        .map(|continuation| {
+            remap_inlined_continuation(
+                continuation,
+                cloned_boundary_resume,
+                &thunk_continuation_map,
+                &HashMap::new(),
+                &thunk_value_map,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let continuation = &mut function.continuations[continuation_index];
+    continuation.stmts.truncate(stmt_index);
+    continuation.terminator = CpsTerminator::Continue {
+        target: cloned_entry,
+        args,
+    };
+    function.continuations.push(rest_continuation);
+    function.continuations.extend(cloned_continuations);
+    function.continuations.extend(cloned_thunk_continuations);
+    function.handlers.extend(cloned_handlers);
+    1
+}
+
 fn rest_after_inlined_thunk_return(
     stmts: &[CpsStmt],
     start: usize,
@@ -2316,6 +2590,107 @@ fn rest_after_inlined_thunk_return(
         next += 1;
     }
     (value, stmts[next..].to_vec())
+}
+
+fn continuation_region(
+    function: &CpsReprAbiFunction,
+    entry: CpsContinuationId,
+) -> Option<Vec<CpsContinuationId>> {
+    let continuations = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation))
+        .collect::<HashMap<_, _>>();
+    let mut visited = HashSet::new();
+    let mut order = Vec::new();
+    let mut queue = VecDeque::from([entry]);
+    while let Some(id) = queue.pop_front() {
+        if !visited.insert(id) {
+            continue;
+        }
+        let continuation = continuations.get(&id)?;
+        order.push(id);
+        for successor in continuation_all_successors(&continuation.terminator) {
+            queue.push_back(successor);
+        }
+    }
+    Some(order)
+}
+
+fn continuation_all_successors(terminator: &CpsTerminator) -> Vec<CpsContinuationId> {
+    match terminator {
+        CpsTerminator::Continue { target, .. } => vec![*target],
+        CpsTerminator::Branch {
+            then_cont,
+            else_cont,
+            ..
+        } => vec![*then_cont, *else_cont],
+        CpsTerminator::Perform { resume, .. }
+        | CpsTerminator::EffectfulCall { resume, .. }
+        | CpsTerminator::EffectfulApply { resume, .. }
+        | CpsTerminator::EffectfulForce { resume, .. } => vec![*resume],
+        CpsTerminator::Return(_) => Vec::new(),
+    }
+}
+
+fn thunk_region_has_unsupported_control(
+    function: &CpsReprAbiFunction,
+    region: &[CpsContinuationId],
+) -> bool {
+    let region = region.iter().copied().collect::<HashSet<_>>();
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| region.contains(&continuation.id))
+        .any(|continuation| {
+            continuation.stmts.iter().any(|stmt| {
+                matches!(
+                    stmt,
+                    CpsStmt::InstallHandler { .. }
+                        | CpsStmt::UninstallHandler { .. }
+                        | CpsStmt::ResumeWithHandler { .. }
+                )
+            })
+        })
+}
+
+fn region_has_effectful_terminator(
+    function: &CpsReprAbiFunction,
+    region: &[CpsContinuationId],
+) -> bool {
+    let region = region.iter().copied().collect::<HashSet<_>>();
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| region.contains(&continuation.id))
+        .any(|continuation| {
+            matches!(
+                continuation.terminator,
+                CpsTerminator::Perform { .. }
+                    | CpsTerminator::EffectfulCall { .. }
+                    | CpsTerminator::EffectfulApply { .. }
+                    | CpsTerminator::EffectfulForce { .. }
+            )
+        })
+}
+
+fn local_value_defs_for_continuations(
+    function: &CpsReprAbiFunction,
+    region: &[CpsContinuationId],
+) -> HashSet<CpsValueId> {
+    let region = region.iter().copied().collect::<HashSet<_>>();
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| region.contains(&continuation.id))
+        .flat_map(|continuation| {
+            continuation
+                .params
+                .iter()
+                .map(|param| param.value)
+                .chain(continuation.stmts.iter().filter_map(stmt_dest))
+        })
+        .collect()
 }
 
 trait CpsReprAbiFunctionValueIds {
@@ -4033,6 +4408,8 @@ impl CpsOptimizationProfile {
             || self.folded_structural_projections > before.folded_structural_projections
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
             || self.inlined_ready_finite_thunk_calls > before.inlined_ready_finite_thunk_calls
+            || self.defunctionalized_finite_handler_thunk_calls
+                > before.defunctionalized_finite_handler_thunk_calls
             || self.inlined_continuation_calls > before.inlined_continuation_calls
             || self.removed_unreachable_continuations > before.removed_unreachable_continuations
             || self.removed_dead_pure_statements > before.removed_dead_pure_statements
@@ -4085,6 +4462,7 @@ impl CpsOptimizationProfile {
             folded_structural_projections: 0,
             inlined_pure_direct_calls: 0,
             inlined_ready_finite_thunk_calls: 0,
+            defunctionalized_finite_handler_thunk_calls: 0,
             inlined_continuation_calls: 0,
             removed_unreachable_continuations: 0,
             removed_dead_pure_statements: 0,
@@ -4113,10 +4491,10 @@ impl CpsOptimizationProfile {
 #[cfg(test)]
 mod tests {
     use crate::cps_ir::{
-        CpsContinuationId, CpsFunction, CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator,
-        CpsValueId,
+        CpsContinuationId, CpsFunction, CpsHandlerId, CpsLiteral, CpsModule, CpsShotKind, CpsStmt,
+        CpsTerminator, CpsValueId,
     };
-    use crate::cps_repr::lower_cps_repr_module;
+    use crate::cps_repr::{CpsReprAbiLane, lower_cps_repr_module};
     use crate::cps_repr_abi::lower_cps_repr_abi_module;
 
     use super::*;
@@ -4132,7 +4510,7 @@ mod tests {
         assert_eq!(optimized.profile.optimized_continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
         assert_eq!(optimized.profile.optimized_statements, 1);
-        assert_eq!(optimized.profile.passes_run, 23);
+        assert_eq!(optimized.profile.passes_run, 24);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.folded_constant_branches, 0);
@@ -4141,6 +4519,12 @@ mod tests {
         assert_eq!(optimized.profile.collapsed_force_thunk_chains, 0);
         assert_eq!(optimized.profile.removed_redundant_non_thunk_forces, 0);
         assert_eq!(optimized.profile.inlined_ready_finite_thunk_calls, 0);
+        assert_eq!(
+            optimized
+                .profile
+                .defunctionalized_finite_handler_thunk_calls,
+            0
+        );
         assert_eq!(optimized.profile.reified_primitive_calls, 0);
         assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
         assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 0);
@@ -6261,6 +6645,153 @@ mod tests {
         assert_eq!(optimized.profile.removed_unreachable_continuations, 1);
     }
 
+    #[test]
+    fn contifies_known_thunk_argument_into_cloned_effectful_force_boundary() {
+        let mut root = CpsReprAbiFunction {
+            name: "root".to_string(),
+            params: Vec::new(),
+            entry: CpsContinuationId(0),
+            continuations: vec![
+                abi_continuation(
+                    CpsContinuationId(0),
+                    Vec::new(),
+                    vec![
+                        CpsStmt::MakeThunk {
+                            dest: CpsValueId(0),
+                            entry: CpsContinuationId(1),
+                        },
+                        CpsStmt::DirectCall {
+                            dest: CpsValueId(1),
+                            target: "collector".to_string(),
+                            args: vec![CpsValueId(0)],
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(2),
+                            thunk: CpsValueId(1),
+                        },
+                    ],
+                    CpsTerminator::Return(CpsValueId(2)),
+                ),
+                abi_continuation(
+                    CpsContinuationId(1),
+                    Vec::new(),
+                    vec![CpsStmt::Literal {
+                        dest: CpsValueId(3),
+                        literal: CpsLiteral::Int("7".to_string()),
+                    }],
+                    CpsTerminator::Return(CpsValueId(3)),
+                ),
+            ],
+            handlers: Vec::new(),
+        };
+        let collector = CpsReprAbiFunction {
+            name: "collector".to_string(),
+            params: vec![abi_value(CpsValueId(0))],
+            entry: CpsContinuationId(0),
+            continuations: vec![
+                abi_continuation(
+                    CpsContinuationId(0),
+                    vec![CpsValueId(0)],
+                    vec![
+                        CpsStmt::InstallHandler {
+                            handler: CpsHandlerId(0),
+                            envs: Vec::new(),
+                            value: CpsContinuationId(1),
+                            escape: CpsContinuationId(1),
+                        },
+                        CpsStmt::AddThunkBoundary {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                            guard: CpsValueId(9),
+                            allowed: typed_ir::Type::Any,
+                            active: true,
+                        },
+                    ],
+                    CpsTerminator::EffectfulForce {
+                        thunk: CpsValueId(1),
+                        resume: CpsContinuationId(1),
+                    },
+                ),
+                abi_continuation(
+                    CpsContinuationId(1),
+                    vec![CpsValueId(2)],
+                    Vec::new(),
+                    CpsTerminator::Return(CpsValueId(2)),
+                ),
+                abi_continuation(
+                    CpsContinuationId(2),
+                    vec![CpsValueId(3), CpsValueId(4)],
+                    Vec::new(),
+                    CpsTerminator::Return(CpsValueId(3)),
+                ),
+            ],
+            handlers: vec![CpsReprAbiHandler {
+                id: CpsHandlerId(0),
+                arms: vec![CpsReprAbiHandlerArm {
+                    effect: typed_ir::Path::from_name(typed_ir::Name("op".to_string())),
+                    entry: CpsContinuationId(2),
+                }],
+            }],
+        };
+        let plan = DynamicEffectThunkRewritePlan {
+            caller: "root".to_string(),
+            call_continuation: CpsContinuationId(0),
+            call_stmt_index: 1,
+            callee: "collector".to_string(),
+            thunk: CpsValueId(0),
+            thunk_entry: CpsContinuationId(1),
+            post_call_force_chain_len: 1,
+            seed_class: DynamicEffectThunkSpecializationClass::ReadyFinite,
+            strategy: DynamicEffectThunkRewriteStrategy::DefunctionalizeFiniteHandler,
+            body_clone_blockers: Vec::new(),
+            finite_effects: Vec::new(),
+            finite_callee_boundaries: vec![CpsContinuationId(0)],
+            finite_arm_entries: vec![CpsContinuationId(2)],
+            finite_performs: Vec::new(),
+            finite_resumes: Vec::new(),
+            finite_resume_actions: Vec::new(),
+            no_resume_effects: Vec::new(),
+            blocked_effects: Vec::new(),
+        };
+        let callees = std::collections::HashMap::from([("collector".to_string(), collector)]);
+
+        let rewritten =
+            defunctionalize_finite_handler_thunk_calls_in_function(&mut root, &[plan], &callees);
+
+        assert_eq!(rewritten, 1);
+        assert!(matches!(
+            root.continuations[0].terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(3),
+                ..
+            }
+        ));
+        let cloned_boundary = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(3))
+            .unwrap();
+        assert_eq!(
+            cloned_boundary.terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(6),
+                args: Vec::new(),
+            }
+        );
+        let cloned_thunk = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(6))
+            .unwrap();
+        assert_eq!(
+            cloned_thunk.terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(4),
+                args: vec![CpsValueId(10)],
+            }
+        );
+    }
+
     fn sample_abi_module() -> CpsReprAbiModule {
         lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
@@ -6282,5 +6813,29 @@ mod tests {
                 }],
             }],
         }))
+    }
+
+    fn abi_continuation(
+        id: CpsContinuationId,
+        params: Vec<CpsValueId>,
+        stmts: Vec<CpsStmt>,
+        terminator: CpsTerminator,
+    ) -> CpsReprAbiContinuation {
+        CpsReprAbiContinuation {
+            id,
+            params: params.into_iter().map(abi_value).collect(),
+            environment: Vec::new(),
+            shot_kind: CpsShotKind::OneShot,
+            return_lane: CpsReprAbiLane::ScalarI64,
+            stmts,
+            terminator,
+        }
+    }
+
+    fn abi_value(value: CpsValueId) -> CpsReprAbiValue {
+        CpsReprAbiValue {
+            value,
+            lane: CpsReprAbiLane::ScalarI64,
+        }
     }
 }

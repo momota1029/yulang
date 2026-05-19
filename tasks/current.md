@@ -662,3 +662,10 @@ Yulang code から小さい regression test を書ける形を作る。
   argument literal schedule. The next implementation work is to consume those
   coordinates in a real handler/thunk/callee rewrite, rather than special-casing
   the operation name.
+- First destructive experiment: pure known-thunk bodies can be contified into a
+  cloned finite-handler callee under `YULANG_CPS_ENABLE_FINITE_HANDLER_DEFUN=1`.
+  The 20x20 thunk body is effectful, and cannot use that shortcut yet.
+  `EffectfulForce` contributes blocked-force / return-frame state that ordinary
+  direct edges and ordinary `EffectfulCall` do not preserve. The next real
+  20x20 step is to represent that force-frame evidence explicitly before
+  removing dynamic handler lookup.

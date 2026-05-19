@@ -71,6 +71,14 @@ than copied paper text.
   locally materialized in the arm. This is still read-only evidence; it makes
   the next destructive pass target a specific handler schedule instead of a
   std path or operation-name special case.
+- The first experimental destructive slice is deliberately narrower than the
+  20x20 hot path: when a ready finite plan forces a known local thunk whose
+  body has no effectful terminators, the callee and thunk region can be cloned
+  into the caller and the cloned `EffectfulForce` boundary can become a direct
+  continuation edge. Effectful thunk bodies are excluded because
+  `EffectfulForce` contributes blocked-force / return-frame state to the
+  resumption; replacing it with an ordinary direct edge or ordinary
+  `EffectfulCall` leaks the handler resume argument into downstream list code.
 
 ## Next Candidates
 
@@ -81,6 +89,10 @@ than copied paper text.
   inlining/contification still has to preserve handler installs, forced thunk
   bodies, dynamic `Perform` sites, and handler arm resumptions as one
   rewriteable region before generic handler lookup can be removed.
+- Reify `EffectfulForce`'s blocked-force / return-frame contribution as
+  explicit IR evidence before transforming the 20x20 effectful thunk body.
+  A normal direct edge or ordinary effectful call is not enough for resumptions
+  that cross the force boundary.
 - Extend environment trimming to handler env payloads once handler-env target
   rebasing is explicit.
 - Extend known thunk force recognition beyond pure value bodies once the IR
