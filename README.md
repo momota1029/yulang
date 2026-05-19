@@ -194,11 +194,14 @@ until a non-thunk value is reached, and removes forces of structurally known
 non-thunk values when their uses stay in the local continuation tail. Primitive
 results are included only when the operation constructs or returns a scalar /
 container value itself; `ListIndex` is intentionally excluded because it can
-surface a stored thunk handle. On the 20x20 nondeterministic `.list.say`
-benchmark this removes 70 redundant force statements and cuts native
-`force_thunk` helper calls from 37368 to 23266. A generated-executable
-`hyperfine --warmup 2 --runs 10` comparison measured 662.4ms -> 652.4ms in the
-latest run, with runtime counters showing the clearer reduction. A read-only algebraic-effect
+surface a stored thunk handle. Direct calls also participate when all direct
+function-return continuations are proven to return non-thunk values; thunk and
+closure entry continuations are kept out of that proof because they use a
+different call protocol. On the 20x20 nondeterministic `.list.say` benchmark
+this removes 84 redundant force statements and cuts native `force_thunk` helper
+calls from 37368 to 20382. A generated-executable `hyperfine --warmup 2 --runs
+10` comparison measured 661.8ms -> 659.8ms in the latest run, with runtime
+counters showing the clearer reduction. A read-only algebraic-effect
 region analysis now classifies `Perform` / handler arm / `Resume` structure
 without special-casing std paths. It also reports dynamic-handler candidates
 where an installed handler at an effectful boundary can catch dynamic

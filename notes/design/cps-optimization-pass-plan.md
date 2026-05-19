@@ -37,6 +37,10 @@ than copied paper text.
   results participate only when the primitive constructs or returns a scalar /
   container value itself; element projection such as `ListIndex` is excluded
   because it may surface a stored thunk handle.
+- Interprocedural direct-call force removal. A callee can be treated as a
+  known non-thunk producer only when every direct return continuation returns a
+  known non-thunk value. Thunk and closure entry continuations are excluded
+  from this proof because they run under their own call protocol.
 - Primitive wrapper reification.
 - Local partial closure apply reification.
 - Known closure parameter apply reification.

@@ -246,6 +246,7 @@ fn collapse_force_thunk_chains(output: &mut CpsOptimizationOutput) {
 
 fn remove_redundant_non_thunk_forces(output: &mut CpsOptimizationOutput) {
     output.profile.passes_run += 1;
+    let direct_non_thunk_returns = direct_non_thunk_return_functions(&output.module);
     for function in output
         .module
         .functions
@@ -253,7 +254,7 @@ fn remove_redundant_non_thunk_forces(output: &mut CpsOptimizationOutput) {
         .chain(&mut output.module.roots)
     {
         output.profile.removed_redundant_non_thunk_forces +=
-            remove_redundant_non_thunk_forces_in_function(function);
+            remove_redundant_non_thunk_forces_in_function(function, &direct_non_thunk_returns);
     }
     output.profile.changed |= output.profile.removed_redundant_non_thunk_forces > 0;
 }
@@ -404,9 +405,22 @@ fn inline_ready_finite_thunk_calls(output: &mut CpsOptimizationOutput) {
     {
         return;
     }
-    let seeds = analyze_dynamic_effect_thunk_specialization_seeds(&output.module)
+    let seeds = analyze_dynamic_effect_thunk_rewrite_plans(&output.module)
         .into_iter()
-        .filter(|seed| seed.class == DynamicEffectThunkSpecializationClass::ReadyFinite)
+        .filter(|plan| plan.strategy == DynamicEffectThunkRewriteStrategy::CalleeBodyClone)
+        .map(|plan| DynamicEffectThunkSpecializationSeed {
+            caller: plan.caller,
+            call_continuation: plan.call_continuation,
+            call_stmt_index: plan.call_stmt_index,
+            callee: plan.callee,
+            thunk: plan.thunk,
+            thunk_entry: plan.thunk_entry,
+            post_call_force_chain_len: plan.post_call_force_chain_len,
+            class: plan.seed_class,
+            finite_effects: plan.finite_effects,
+            no_resume_effects: plan.no_resume_effects,
+            blocked_effects: plan.blocked_effects,
+        })
         .collect::<Vec<_>>();
     if seeds.is_empty() {
         return;
@@ -587,13 +601,20 @@ fn force_thunk_stmt_values(stmt: &CpsStmt) -> Option<(CpsValueId, CpsValueId)> {
     }
 }
 
-fn remove_redundant_non_thunk_forces_in_function(function: &mut CpsReprAbiFunction) -> usize {
+fn remove_redundant_non_thunk_forces_in_function(
+    function: &mut CpsReprAbiFunction,
+    direct_non_thunk_returns: &HashSet<String>,
+) -> usize {
     let value_uses = value_use_counts(function);
     function
         .continuations
         .iter_mut()
         .map(|continuation| {
-            remove_redundant_non_thunk_forces_in_continuation(continuation, &value_uses)
+            remove_redundant_non_thunk_forces_in_continuation(
+                continuation,
+                &value_uses,
+                direct_non_thunk_returns,
+            )
         })
         .sum()
 }
@@ -601,6 +622,7 @@ fn remove_redundant_non_thunk_forces_in_function(function: &mut CpsReprAbiFuncti
 fn remove_redundant_non_thunk_forces_in_continuation(
     continuation: &mut CpsReprAbiContinuation,
     value_uses: &HashMap<CpsValueId, usize>,
+    direct_non_thunk_returns: &HashSet<String>,
 ) -> usize {
     let mut known_non_thunks = HashSet::new();
     let mut removed = 0;
@@ -619,7 +641,10 @@ fn remove_redundant_non_thunk_forces_in_continuation(
         }
 
         if let Some(dest) = stmt_dest(&continuation.stmts[index]) {
-            if stmt_result_is_definitely_non_thunk(&continuation.stmts[index]) {
+            if stmt_result_is_definitely_non_thunk(
+                &continuation.stmts[index],
+                direct_non_thunk_returns,
+            ) {
                 known_non_thunks.insert(dest);
             }
         }
@@ -655,9 +680,103 @@ fn substitute_continuation_tail_value(
         substitute_terminator_values(continuation.terminator.clone(), &substitution);
 }
 
-fn stmt_result_is_definitely_non_thunk(stmt: &CpsStmt) -> bool {
+fn direct_non_thunk_return_functions(module: &CpsReprAbiModule) -> HashSet<String> {
+    let mut known = HashSet::new();
+    loop {
+        let before = known.len();
+        for function in module.functions.iter().chain(&module.roots) {
+            if function_returns_definitely_non_thunk(function, &known) {
+                known.insert(function.name.clone());
+            }
+        }
+        if known.len() == before {
+            return known;
+        }
+    }
+}
+
+fn function_returns_definitely_non_thunk(
+    function: &CpsReprAbiFunction,
+    direct_non_thunk_returns: &HashSet<String>,
+) -> bool {
+    let direct_return_continuations = direct_return_continuations(function);
+    let mut has_return = false;
+    for continuation in &function.continuations {
+        if !direct_return_continuations.contains(&continuation.id) {
+            continue;
+        }
+        let mut known_non_thunks = HashSet::new();
+        for stmt in &continuation.stmts {
+            if let Some(dest) = stmt_dest(stmt) {
+                if stmt_result_is_definitely_non_thunk(stmt, direct_non_thunk_returns) {
+                    known_non_thunks.insert(dest);
+                }
+            }
+        }
+        if let CpsTerminator::Return(value) = continuation.terminator {
+            has_return = true;
+            if !known_non_thunks.contains(&value) {
+                return false;
+            }
+        }
+    }
+    has_return
+}
+
+fn direct_return_continuations(function: &CpsReprAbiFunction) -> HashSet<CpsContinuationId> {
+    let continuations = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = HashSet::new();
+    let mut work = VecDeque::from([function.entry]);
+    for handler in &function.handlers {
+        for arm in &handler.arms {
+            work.push_back(arm.entry);
+        }
+    }
+
+    while let Some(id) = work.pop_front() {
+        if !reachable.insert(id) {
+            continue;
+        }
+        let Some(continuation) = continuations.get(&id) else {
+            continue;
+        };
+        for stmt in &continuation.stmts {
+            if let CpsStmt::InstallHandler { value, escape, .. } = stmt {
+                work.push_back(*value);
+                work.push_back(*escape);
+            }
+        }
+        match &continuation.terminator {
+            CpsTerminator::Continue { target, .. } => work.push_back(*target),
+            CpsTerminator::Branch {
+                then_cont,
+                else_cont,
+                ..
+            } => {
+                work.push_back(*then_cont);
+                work.push_back(*else_cont);
+            }
+            CpsTerminator::EffectfulCall { resume, .. }
+            | CpsTerminator::EffectfulApply { resume, .. }
+            | CpsTerminator::EffectfulForce { resume, .. }
+            | CpsTerminator::Perform { resume, .. } => work.push_back(*resume),
+            CpsTerminator::Return(_) => {}
+        }
+    }
+    reachable
+}
+
+fn stmt_result_is_definitely_non_thunk(
+    stmt: &CpsStmt,
+    direct_non_thunk_returns: &HashSet<String>,
+) -> bool {
     match stmt {
         CpsStmt::Primitive { op, .. } => primitive_result_is_definitely_non_thunk(*op),
+        CpsStmt::DirectCall { target, .. } => direct_non_thunk_returns.contains(target),
         stmt => matches!(
             stmt,
             CpsStmt::Literal { .. }
@@ -4179,7 +4298,7 @@ mod tests {
         .roots
         .remove(0);
 
-        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function, &HashSet::new());
 
         assert_eq!(removed, 1);
         assert_eq!(
@@ -4239,7 +4358,7 @@ mod tests {
         .roots
         .remove(0);
 
-        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function, &HashSet::new());
 
         assert_eq!(removed, 0);
         assert_eq!(function.continuations[0].stmts.len(), 2);
@@ -4285,7 +4404,7 @@ mod tests {
         .roots
         .remove(0);
 
-        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function, &HashSet::new());
 
         assert_eq!(removed, 1);
         assert_eq!(
@@ -4326,7 +4445,7 @@ mod tests {
         .roots
         .remove(0);
 
-        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function, &HashSet::new());
 
         assert_eq!(removed, 1);
         assert_eq!(
@@ -4371,13 +4490,186 @@ mod tests {
         .roots
         .remove(0);
 
-        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function, &HashSet::new());
 
         assert_eq!(removed, 0);
         assert!(matches!(
             function.continuations[0].stmts.last(),
             Some(CpsStmt::ForceThunk { .. })
         ));
+    }
+
+    #[test]
+    fn removes_force_of_direct_call_with_known_non_thunk_return() {
+        let module = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: vec![CpsFunction {
+                name: "callee".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(1)),
+                }],
+            }],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::DirectCall {
+                            dest: CpsValueId(2),
+                            target: "callee".to_string(),
+                            args: Vec::new(),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }));
+        let mut output = CpsOptimizationOutput {
+            profile: CpsOptimizationProfile::measure(&module),
+            module,
+        };
+
+        remove_redundant_non_thunk_forces(&mut output);
+
+        assert_eq!(output.profile.removed_redundant_non_thunk_forces, 2);
+        assert_eq!(
+            output.module.roots[0].continuations[0].terminator,
+            CpsTerminator::Return(CpsValueId(2))
+        );
+    }
+
+    #[test]
+    fn keeps_force_of_direct_call_with_unknown_return() {
+        let module = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: vec![CpsFunction {
+                name: "callee".to_string(),
+                params: vec![CpsValueId(0)],
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: vec![CpsValueId(0)],
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: Vec::new(),
+                    terminator: CpsTerminator::Return(CpsValueId(0)),
+                }],
+            }],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(1),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        },
+                        CpsStmt::DirectCall {
+                            dest: CpsValueId(2),
+                            target: "callee".to_string(),
+                            args: vec![CpsValueId(1)],
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }));
+        let mut output = CpsOptimizationOutput {
+            profile: CpsOptimizationProfile::measure(&module),
+            module,
+        };
+
+        remove_redundant_non_thunk_forces(&mut output);
+
+        assert_eq!(output.profile.removed_redundant_non_thunk_forces, 0);
+        assert!(matches!(
+            output.module.roots[0].continuations[0].stmts.last(),
+            Some(CpsStmt::ForceThunk { .. })
+        ));
+    }
+
+    #[test]
+    fn direct_return_analysis_ignores_thunk_entry_returns() {
+        let module = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: vec![CpsFunction {
+                name: "callee".to_string(),
+                params: vec![CpsValueId(0)],
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: vec![CpsValueId(0)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::MakeThunk {
+                                dest: CpsValueId(1),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("42".to_string()),
+                            },
+                            CpsStmt::ForceThunk {
+                                dest: CpsValueId(3),
+                                thunk: CpsValueId(2),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: vec![CpsValueId(0)],
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(0)),
+                    },
+                ],
+            }],
+            roots: Vec::new(),
+        }));
+
+        let non_thunk_returns = direct_non_thunk_return_functions(&module);
+
+        assert!(non_thunk_returns.contains("callee"));
     }
 
     #[test]
