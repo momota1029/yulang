@@ -2453,6 +2453,82 @@ fn compiled_runtime_bundle_prunes_unreachable_dependencies_before_user_program()
     );
 }
 
+#[test]
+fn compiled_runtime_bundle_keeps_transitive_reachable_dependencies() {
+    let kept = CorePath::new(vec![
+        CoreName("dep".to_string()),
+        CoreName("kept".to_string()),
+    ]);
+    let helper = CorePath::new(vec![
+        CoreName("dep".to_string()),
+        CoreName("helper".to_string()),
+    ]);
+    let dropped = CorePath::new(vec![
+        CoreName("dep".to_string()),
+        CoreName("dropped".to_string()),
+    ]);
+    let dependency = CompiledRuntimeSurface {
+        program: yulang_typed_ir::CoreProgram {
+            program: yulang_typed_ir::PrincipalModule {
+                bindings: vec![
+                    yulang_typed_ir::PrincipalBinding {
+                        name: kept.clone(),
+                        scheme: yulang_typed_ir::Scheme {
+                            requirements: Vec::new(),
+                            body: yulang_typed_ir::Type::Any,
+                        },
+                        body: yulang_typed_ir::Expr::Var(helper.clone()),
+                    },
+                    lit_binding(helper.clone(), "1"),
+                    lit_binding(dropped.clone(), "2"),
+                ],
+                ..yulang_typed_ir::PrincipalModule::default()
+            },
+            graph: yulang_typed_ir::CoreGraphView {
+                bindings: vec![
+                    binding_graph_node(kept.clone()),
+                    binding_graph_node(helper.clone()),
+                    binding_graph_node(dropped.clone()),
+                ],
+                runtime_symbols: vec![
+                    runtime_value_symbol(kept.clone()),
+                    runtime_value_symbol(helper.clone()),
+                    runtime_value_symbol(dropped.clone()),
+                ],
+                ..yulang_typed_ir::CoreGraphView::default()
+            },
+            ..yulang_typed_ir::CoreProgram::default()
+        },
+    };
+    let user = yulang_typed_ir::CoreProgram {
+        program: yulang_typed_ir::PrincipalModule {
+            root_exprs: vec![yulang_typed_ir::Expr::Var(kept.clone())],
+            roots: vec![yulang_typed_ir::PrincipalRoot::Expr(0)],
+            ..yulang_typed_ir::PrincipalModule::default()
+        },
+        graph: yulang_typed_ir::CoreGraphView {
+            root_exprs: vec![yulang_typed_ir::ExprGraphNode {
+                owner: yulang_typed_ir::GraphOwner::RootExpr(0),
+                bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+            }],
+            ..yulang_typed_ir::CoreGraphView::default()
+        },
+        ..yulang_typed_ir::CoreProgram::default()
+    };
+    let bundle = CompiledRuntimeBundle::from_surfaces([&dependency]).unwrap();
+    let merged = bundle.merge_with_user_program(user).unwrap();
+    let merged_bindings = merged
+        .program
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<Vec<_>>();
+
+    assert!(merged_bindings.contains(&kept));
+    assert!(merged_bindings.contains(&helper));
+    assert!(!merged_bindings.contains(&dropped));
+}
+
 fn primitive_type_node(name: &str) -> yulang_typed_ir::PrimitiveTypeGraphNode {
     let family = match name {
         "int" => yulang_typed_ir::PrimitiveTypeFamily::Int,

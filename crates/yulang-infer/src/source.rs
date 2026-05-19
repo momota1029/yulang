@@ -2690,20 +2690,26 @@ fn merge_runtime_bundle_with_user_program(
     dependencies: &CompiledRuntimeSurface,
     mut user_program: CoreProgram,
 ) -> Result<CoreProgram, CompiledRuntimeMergeError> {
-    let mut merged = dependencies.program.clone();
-    clear_core_program_roots(&mut merged);
-    prune_user_program_dependency_runtime_duplicates(&mut user_program, &merged);
-    let expected_edge_offset = next_expected_edge_id(&merged);
-    let adapter_edge_offset = next_adapter_edge_id(&merged);
-    let root_expr_offset = merged.program.root_exprs.len();
+    let dependency_program = &dependencies.program;
+    prune_user_program_dependency_runtime_duplicates(&mut user_program, dependency_program);
+    let user_binding_roots = user_program
+        .program
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<Vec<_>>();
+    let expected_edge_offset = next_expected_edge_id(dependency_program);
+    let adapter_edge_offset = next_adapter_edge_id(dependency_program);
     remap_core_program_runtime_ids(
         &mut user_program,
         expected_edge_offset,
         adapter_edge_offset,
-        root_expr_offset,
+        0,
     );
+    let reachable = collect_runtime_merge_reachable_paths(dependency_program, &user_program);
+    let mut merged = clone_reachable_dependency_program(dependency_program, &reachable);
     merge_core_program_into(&mut merged, user_program)?;
-    prune_core_program_to_reachable_runtime(&mut merged);
+    prune_core_program_to_reachable_runtime_with_extra_roots(&mut merged, &user_binding_roots);
     Ok(merged)
 }
 
@@ -2744,35 +2750,131 @@ fn prune_user_program_dependency_runtime_duplicates(
         .retain(|symbol| !dependency_runtime_symbols.contains(&symbol.path));
 }
 
-fn prune_core_program_to_reachable_runtime(program: &mut CoreProgram) {
-    let bindings_by_path = program
-        .program
-        .bindings
-        .iter()
-        .map(|binding| (binding.name.clone(), binding.body.clone()))
-        .collect::<HashMap<_, _>>();
+fn collect_runtime_merge_reachable_paths(
+    dependencies: &CoreProgram,
+    user_program: &CoreProgram,
+) -> HashSet<typed_ir::Path> {
+    let mut bindings_by_path = HashMap::new();
+    extend_core_binding_body_index(&mut bindings_by_path, dependencies);
+    extend_core_binding_body_index(&mut bindings_by_path, user_program);
+
     let mut reachable = HashSet::new();
     let mut stack = Vec::new();
 
+    collect_core_program_root_runtime_paths(user_program, &mut stack);
+    stack.extend(
+        user_program
+            .program
+            .bindings
+            .iter()
+            .map(|binding| binding.name.clone()),
+    );
+    collect_core_program_role_impl_member_paths(dependencies, &mut stack);
+    collect_core_program_role_impl_member_paths(user_program, &mut stack);
+
+    while let Some(path) = stack.pop() {
+        if !reachable.insert(path.clone()) {
+            continue;
+        }
+        let Some(body) = bindings_by_path.get(&path) else {
+            continue;
+        };
+        collect_core_expr_runtime_paths(body, &mut stack);
+    }
+
+    reachable
+}
+
+fn extend_core_binding_body_index<'a>(
+    bindings_by_path: &mut HashMap<typed_ir::Path, &'a typed_ir::Expr>,
+    program: &'a CoreProgram,
+) {
+    for binding in &program.program.bindings {
+        bindings_by_path.insert(binding.name.clone(), &binding.body);
+    }
+}
+
+fn collect_core_program_root_runtime_paths(program: &CoreProgram, stack: &mut Vec<typed_ir::Path>) {
     for expr in &program.program.root_exprs {
-        collect_core_expr_runtime_paths(expr, &mut stack);
+        collect_core_expr_runtime_paths(expr, stack);
     }
     for root in &program.program.roots {
         match root {
             typed_ir::PrincipalRoot::Binding(path) => stack.push(path.clone()),
             typed_ir::PrincipalRoot::Expr(index) => {
                 if let Some(expr) = program.program.root_exprs.get(*index) {
-                    collect_core_expr_runtime_paths(expr, &mut stack);
+                    collect_core_expr_runtime_paths(expr, stack);
                 }
             }
         }
     }
+}
 
-    // Role implementation members can become concrete principal targets during
-    // monomorphization, after this typed CoreProgram-level pruning pass.
+fn collect_core_program_role_impl_member_paths(
+    program: &CoreProgram,
+    stack: &mut Vec<typed_ir::Path>,
+) {
     for role_impl in &program.graph.role_impls {
         stack.extend(role_impl.members.iter().map(|member| member.value.clone()));
     }
+}
+
+fn clone_reachable_dependency_program(
+    dependencies: &CoreProgram,
+    reachable: &HashSet<typed_ir::Path>,
+) -> CoreProgram {
+    CoreProgram {
+        program: typed_ir::PrincipalModule {
+            path: dependencies.program.path.clone(),
+            bindings: dependencies
+                .program
+                .bindings
+                .iter()
+                .filter(|binding| reachable.contains(&binding.name))
+                .cloned()
+                .collect(),
+            root_exprs: Vec::new(),
+            roots: Vec::new(),
+        },
+        graph: typed_ir::CoreGraphView {
+            bindings: dependencies
+                .graph
+                .bindings
+                .iter()
+                .filter(|node| reachable.contains(&node.binding))
+                .cloned()
+                .collect(),
+            root_exprs: Vec::new(),
+            runtime_symbols: dependencies
+                .graph
+                .runtime_symbols
+                .iter()
+                .filter(|symbol| reachable.contains(&symbol.path))
+                .cloned()
+                .collect(),
+            role_impls: dependencies.graph.role_impls.clone(),
+            primitive_types: dependencies.graph.primitive_types.clone(),
+        },
+        evidence: dependencies.evidence.clone(),
+    }
+}
+
+fn prune_core_program_to_reachable_runtime_with_extra_roots(
+    program: &mut CoreProgram,
+    extra_roots: &[typed_ir::Path],
+) {
+    let bindings_by_path = program
+        .program
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), &binding.body))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = HashSet::new();
+    let mut stack = Vec::new();
+
+    collect_core_program_root_runtime_paths(program, &mut stack);
+    stack.extend(extra_roots.iter().cloned());
+    collect_core_program_role_impl_member_paths(program, &mut stack);
 
     while let Some(path) = stack.pop() {
         if !reachable.insert(path.clone()) {
