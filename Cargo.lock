@@ -3012,6 +3012,7 @@ name = "yulang-infer"
 version = "0.1.3"
 dependencies = [
  "dashmap 6.1.0",
+ "postcard",
  "rowan",
  "rustc-hash 2.1.2",
  "serde",

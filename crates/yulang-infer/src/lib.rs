@@ -60,7 +60,7 @@ pub use solve::{
 };
 pub use source::{
     CompiledRuntimeBundle, CompiledRuntimeMergeError, CompiledRuntimeSurface, CompiledUnitArtifact,
-    CompiledUnitArtifactsImport, CompiledUnitArtifactsImportError,
+    CompiledUnitArtifactBundle, CompiledUnitArtifactsImport, CompiledUnitArtifactsImportError,
     CompiledUnitProfiledLoweredSources, LoweredSources, ProfiledLoweredSources,
     STD_INFER_SNAPSHOT_FORMAT_VERSION, SourceLowerCache, SourceLowerProfile, SourceStdCacheProfile,
     StdCoreSnapshotData, StdInferSnapshot, StdInferSnapshotData, StdInferSnapshotDataError,
@@ -73,12 +73,15 @@ pub use source::{
     StdInferSnapshotRole, StdInferSnapshotRoleArg, StdInferSnapshotRoleImpl,
     StdInferSnapshotRoleImplMember, StdInferSnapshotRoleMethod, StdInferSnapshotScheme,
     StdInferSnapshotSymbol, StdInferSnapshotVisibility, StdSourceCacheKey,
-    build_compiled_unit_artifacts, build_std_core_snapshot_data, build_std_infer_snapshot,
-    build_std_infer_snapshot_data, import_compiled_unit_artifacts, import_std_infer_snapshot_data,
-    lower_entry_with_options, lower_entry_with_options_profiled, lower_source_file,
-    lower_source_file_profiled, lower_source_set, lower_source_set_profiled,
+    build_compiled_unit_artifact_bundle, build_compiled_unit_artifacts,
+    build_std_core_snapshot_data, build_std_infer_snapshot, build_std_infer_snapshot_data,
+    import_compiled_unit_artifact_bundle, import_compiled_unit_artifacts,
+    import_std_infer_snapshot_data, lower_entry_with_options, lower_entry_with_options_profiled,
+    lower_source_file, lower_source_file_profiled, lower_source_set, lower_source_set_profiled,
+    lower_source_set_with_compiled_unit_artifact_bundle_profiled,
     lower_source_set_with_compiled_unit_artifacts_profiled, lower_source_set_with_std_cache,
     lower_source_set_with_std_cache_profiled, lower_source_set_with_std_snapshot,
+    lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
     lower_virtual_source_with_options, lower_virtual_source_with_options_profiled,
     warm_std_source_cache,
 };

@@ -23,22 +23,22 @@ use reborrow_generic::Reborrow as _;
 use rowan::SyntaxNode;
 use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
-    CompiledRuntimeBundle, CompiledUnitArtifact, CompiledUnitArtifactCache,
+    CompiledRuntimeBundle, CompiledUnitArtifactBundle, CompiledUnitArtifactCache,
     ExpectedEdge as InferExpectedEdge, ExpectedEdgeKind as InferExpectedEdgeKind,
     ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
     LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
     ProfiledLoweredSources as InferProfiledLoweredSources,
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions, SourceSet,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
-    TypeErrorKind as InferTypeErrorKind, build_compiled_unit_artifacts,
-    collect_compact_results as collect_infer_compact_results,
+    TypeErrorKind as InferTypeErrorKind, build_compiled_unit_artifact_bundle,
+    build_compiled_unit_artifacts, collect_compact_results as collect_infer_compact_results,
     collect_derived_expected_edge_evidence as collect_infer_derived_expected_edge_evidence,
     collect_expected_adapter_edge_evidence as collect_infer_expected_adapter_edge_evidence,
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
     lower_source_set, lower_source_set_profiled,
-    lower_source_set_with_compiled_unit_artifacts_profiled,
+    lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
     with_profile_enabled as with_infer_profile_enabled,
 };
 use yulang_parser::context::{Env, State};
@@ -3859,30 +3859,23 @@ fn lower_infer_source_set_with_cache(
     let cache = CompiledUnitArtifactCache::from_paths(
         &yulang_sources::YulangCachePaths::for_project(workspace_root()),
     );
-    if let Some(artifacts) =
-        read_cached_std_unit_artifacts(source_set, &cache, &mut pipeline_timings)
+    if let Some(bundle) =
+        read_cached_std_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
     {
         let import_start = pipeline_timings.start();
-        match lower_source_set_with_compiled_unit_artifacts_profiled(source_set, &artifacts) {
-            Ok(lowered) => {
-                pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
-                let mut profile = lowered.lowered.profile;
-                profile.collect = collect;
-                return infer_lower_output(
-                    lowered.lowered.lowered,
-                    fallback_diagnostic_source,
-                    profile,
-                    Some(lowered.runtime),
-                    pipeline_timings,
-                );
-            }
-            Err(err) => {
-                pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
-                if env::var_os("YULANG_DEBUG_STD_ARTIFACT_CACHE").is_some() {
-                    eprintln!("std artifact cache import failed: {err:?}");
-                }
-            }
-        }
+        let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+            source_set, &bundle,
+        );
+        pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
+        let mut profile = lowered.lowered.profile;
+        profile.collect = collect;
+        return infer_lower_output(
+            lowered.lowered.lowered,
+            fallback_diagnostic_source,
+            profile,
+            Some(lowered.runtime),
+            pipeline_timings,
+        );
     }
 
     let mut lowered = if options.infer_phase_timings {
@@ -3898,7 +3891,7 @@ fn lower_infer_source_set_with_cache(
     lowered.lowered.state.finalize_compact_results_profiled();
     pipeline_timings.std_artifact_prepare_finalize =
         InferPipelineTimings::elapsed(prepare_finalize_start);
-    write_std_unit_artifacts(
+    write_std_unit_artifact_bundle(
         source_set,
         &lowered.lowered.state,
         &cache,
@@ -4030,11 +4023,11 @@ fn infer_lower_output(
     }
 }
 
-fn read_cached_std_unit_artifacts(
+fn read_cached_std_unit_artifact_bundle(
     source_set: &SourceSet,
     cache: &CompiledUnitArtifactCache,
     timings: &mut InferPipelineTimings,
-) -> Option<Vec<CompiledUnitArtifact>> {
+) -> Option<CompiledUnitArtifactBundle> {
     let manifest_start = timings.start();
     let manifests = source_set
         .compiled_unit_syntax_artifacts()
@@ -4050,6 +4043,16 @@ fn read_cached_std_unit_artifacts(
         return None;
     }
 
+    let read_start = timings.start();
+    if let Ok(bundle) = cache.read_bundle_for_manifests(&manifests) {
+        timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
+        if timings.enabled {
+            timings.std_artifact_reads += 1;
+        }
+        return Some(bundle);
+    }
+    timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
+
     let mut artifacts = Vec::with_capacity(manifests.len());
     for manifest in manifests {
         let read_start = timings.start();
@@ -4059,26 +4062,41 @@ fn read_cached_std_unit_artifacts(
             timings.std_artifact_reads += 1;
         }
     }
-    Some(artifacts)
+    let build_start = timings.start();
+    let bundle = build_compiled_unit_artifact_bundle(&artifacts).ok()?;
+    timings.std_artifact_build += InferPipelineTimings::elapsed(build_start);
+    let write_start = timings.start();
+    let _ = cache.write_bundle(&bundle);
+    timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
+    if timings.enabled {
+        timings.std_artifact_writes += 1;
+    }
+    Some(bundle)
 }
 
-fn write_std_unit_artifacts(
+fn write_std_unit_artifact_bundle(
     source_set: &SourceSet,
     state: &InferLowerState,
     cache: &CompiledUnitArtifactCache,
     timings: &mut InferPipelineTimings,
 ) {
     let build_start = timings.start();
-    let artifacts = build_compiled_unit_artifacts(source_set, state);
+    let artifacts = build_compiled_unit_artifacts(source_set, state)
+        .into_iter()
+        .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+        .collect::<Vec<_>>();
+    let bundle = if artifacts.is_empty() {
+        None
+    } else {
+        build_compiled_unit_artifact_bundle(&artifacts).ok()
+    };
     timings.std_artifact_build += InferPipelineTimings::elapsed(build_start);
-    for artifact in artifacts {
-        if artifact.manifest.origin == SourceCompilationUnitOrigin::Std {
-            let write_start = timings.start();
-            let _ = cache.write(&artifact);
-            timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
-            if timings.enabled {
-                timings.std_artifact_writes += 1;
-            }
+    if let Some(bundle) = bundle {
+        let write_start = timings.start();
+        let _ = cache.write_bundle(&bundle);
+        timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
+        if timings.enabled {
+            timings.std_artifact_writes += 1;
         }
     }
 }

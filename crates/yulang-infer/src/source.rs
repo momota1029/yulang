@@ -232,6 +232,14 @@ pub struct CompiledUnitArtifact {
     pub runtime: CompiledRuntimeSurface,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitArtifactBundle {
+    pub manifests: Vec<CompiledUnitManifest>,
+    pub namespace: CompiledNamespaceSurface,
+    pub typed: CompiledTypedSurface,
+    pub runtime: CompiledRuntimeBundle,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CompiledTypedSurface {
     pub schemes: Vec<StdInferSnapshotScheme>,
@@ -759,6 +767,25 @@ pub fn import_compiled_namespace_surface(
     })
 }
 
+pub fn import_trusted_compiled_namespace_surface(
+    surface: &CompiledNamespaceSurface,
+) -> CompiledNamespaceImport {
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+    import_compiled_namespace_module_skeletons(&mut state, &surface.modules);
+    let modules = import_compiled_namespace_module_map(&state, &surface.modules);
+    let values = import_compiled_namespace_values(&mut state, surface, &modules);
+    let types = import_compiled_namespace_types(&mut state, surface, &modules);
+    import_compiled_namespace_module_entries(&mut state, surface, &modules, &values, &types);
+
+    CompiledNamespaceImport {
+        state,
+        values,
+        types,
+        validation: trusted_compiled_namespace_validation(surface),
+    }
+}
+
 pub fn import_compiled_typed_artifact(
     artifact: &CompiledUnitTypedArtifact,
 ) -> Result<CompiledTypedImport, CompiledTypedImportError> {
@@ -780,16 +807,51 @@ pub fn import_compiled_unit_artifact(
 pub fn import_compiled_unit_artifacts(
     artifacts: &[CompiledUnitArtifact],
 ) -> Result<CompiledUnitArtifactsImport, CompiledUnitArtifactsImportError> {
+    let bundle = build_compiled_unit_artifact_bundle(artifacts)
+        .map_err(CompiledUnitArtifactsImportError::InvalidRuntime)?;
+    import_compiled_unit_artifact_bundle(&bundle)
+}
+
+pub fn import_compiled_unit_artifact_bundle(
+    bundle: &CompiledUnitArtifactBundle,
+) -> Result<CompiledUnitArtifactsImport, CompiledUnitArtifactsImportError> {
+    let typed = import_compiled_typed_surface(&bundle.namespace, &bundle.typed)
+        .map_err(CompiledUnitArtifactsImportError::InvalidTyped)?;
+
+    Ok(CompiledUnitArtifactsImport {
+        typed,
+        runtime: bundle.runtime.clone(),
+    })
+}
+
+pub fn import_trusted_compiled_unit_artifact_bundle(
+    bundle: &CompiledUnitArtifactBundle,
+) -> CompiledUnitArtifactsImport {
+    let typed = import_trusted_compiled_typed_surface(&bundle.namespace, &bundle.typed);
+    CompiledUnitArtifactsImport {
+        typed,
+        runtime: bundle.runtime.clone(),
+    }
+}
+
+pub fn build_compiled_unit_artifact_bundle(
+    artifacts: &[CompiledUnitArtifact],
+) -> Result<CompiledUnitArtifactBundle, CompiledRuntimeMergeError> {
     let namespace =
         merge_compiled_namespace_surfaces(artifacts.iter().map(|artifact| &artifact.namespace));
     let typed = merge_compiled_typed_surfaces(artifacts);
-    let typed = import_compiled_typed_surface(&namespace, &typed)
-        .map_err(CompiledUnitArtifactsImportError::InvalidTyped)?;
     let runtime =
-        CompiledRuntimeBundle::from_surfaces(artifacts.iter().map(|artifact| &artifact.runtime))
-            .map_err(CompiledUnitArtifactsImportError::InvalidRuntime)?;
+        CompiledRuntimeBundle::from_surfaces(artifacts.iter().map(|artifact| &artifact.runtime))?;
 
-    Ok(CompiledUnitArtifactsImport { typed, runtime })
+    Ok(CompiledUnitArtifactBundle {
+        manifests: artifacts
+            .iter()
+            .map(|artifact| artifact.manifest.clone())
+            .collect(),
+        namespace,
+        typed,
+        runtime,
+    })
 }
 
 pub fn import_compiled_typed_surface(
@@ -826,19 +888,64 @@ pub fn import_compiled_typed_surface(
     })
 }
 
+pub fn import_trusted_compiled_typed_surface(
+    namespace: &CompiledNamespaceSurface,
+    typed: &CompiledTypedSurface,
+) -> CompiledTypedImport {
+    let mut namespace_import = import_trusted_compiled_namespace_surface(namespace);
+    let refs = import_compiled_typed_refs(typed, &namespace_import.values);
+    import_compiled_compact_schemes(typed, &refs, &namespace_import.state);
+    import_compiled_typed_lookup_tables(typed, &refs, &mut namespace_import.state);
+    let coverage = import_compiled_typed_coverage(&namespace_import, &refs);
+
+    CompiledTypedImport {
+        namespace: namespace_import,
+        refs,
+        coverage,
+        validation: trusted_compiled_typed_validation(typed),
+    }
+}
+
 pub fn lower_source_set_with_compiled_unit_artifacts_profiled(
     source_set: &SourceSet,
     artifacts: &[CompiledUnitArtifact],
 ) -> Result<CompiledUnitProfiledLoweredSources, CompiledUnitArtifactsImportError> {
     let import = import_compiled_unit_artifacts(artifacts)?;
+    Ok(lower_source_set_with_compiled_unit_import(
+        source_set, import,
+    ))
+}
+
+pub fn lower_source_set_with_compiled_unit_artifact_bundle_profiled(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitArtifactBundle,
+) -> Result<CompiledUnitProfiledLoweredSources, CompiledUnitArtifactsImportError> {
+    let import = import_compiled_unit_artifact_bundle(bundle)?;
+    Ok(lower_source_set_with_compiled_unit_import(
+        source_set, import,
+    ))
+}
+
+pub fn lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitArtifactBundle,
+) -> CompiledUnitProfiledLoweredSources {
+    let import = import_trusted_compiled_unit_artifact_bundle(bundle);
+    lower_source_set_with_compiled_unit_import(source_set, import)
+}
+
+fn lower_source_set_with_compiled_unit_import(
+    source_set: &SourceSet,
+    import: CompiledUnitArtifactsImport,
+) -> CompiledUnitProfiledLoweredSources {
     let mut profile = source_set_profile_header(source_set);
     profile.std_cache.hits += 1;
     let lowered =
         lower_source_set_from_std_state(source_set, import.typed.namespace.state, profile);
-    Ok(CompiledUnitProfiledLoweredSources {
+    CompiledUnitProfiledLoweredSources {
         lowered,
         runtime: import.runtime,
-    })
+    }
 }
 
 fn import_compiled_compact_schemes(
@@ -3549,6 +3656,18 @@ fn validate_compiled_typed_surface(
     validation
 }
 
+fn trusted_compiled_typed_validation(typed: &CompiledTypedSurface) -> CompiledTypedValidation {
+    CompiledTypedValidation {
+        schemes: typed.schemes.len(),
+        roles: typed.roles.len(),
+        role_methods: typed.role_methods.len(),
+        role_impls: typed.role_impls.len(),
+        effects: typed.effects.len(),
+        effect_methods: typed.effect_methods.len(),
+        ..CompiledTypedValidation::default()
+    }
+}
+
 fn validate_compiled_namespace_surface(
     surface: &CompiledNamespaceSurface,
 ) -> CompiledNamespaceValidation {
@@ -3615,6 +3734,22 @@ fn validate_compiled_namespace_surface(
     }
 
     validation
+}
+
+fn trusted_compiled_namespace_validation(
+    surface: &CompiledNamespaceSurface,
+) -> CompiledNamespaceValidation {
+    CompiledNamespaceValidation {
+        modules: surface.modules.len(),
+        values: surface.values.len(),
+        types: surface.types.len(),
+        operators: surface
+            .modules
+            .iter()
+            .map(|module| module.operators.len())
+            .sum(),
+        ..CompiledNamespaceValidation::default()
+    }
 }
 
 fn merge_compiled_namespace_surfaces<'a>(
