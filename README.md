@@ -185,7 +185,30 @@ by regressions. Native remains experimental and opt-in, but the current release
 gate for the documented effects subset is clear.
 The shared CPS optimizer now also inlines local direct-style closure
 applications, so small captured closure bodies that are constructed and applied
-in the same continuation can avoid heap closure construction.
+in the same continuation can avoid heap closure construction. It also folds
+local one-shot thunk forces whose bodies are pure value computations, turning
+the force into a direct resume continuation and avoiding the native
+return-frame/thunk-helper path for that shape. It also collapses consecutive
+deep `ForceThunk` chains, since CPS `ForceThunk` already peels nested thunks
+until a non-thunk value is reached, and removes forces of structurally known
+non-thunk values when their uses stay in the local continuation tail. On the
+20x20 nondeterministic `.list.say` benchmark this removes 55 redundant force
+statements and cuts native `force_thunk` helper calls from 37368 to 27349; a
+generated-executable `hyperfine --warmup 2 --runs 10` comparison measured
+679.0ms -> 637.6ms for these force simplifications. A read-only algebraic-effect
+region analysis now classifies `Perform` / handler arm / `Resume` structure
+without special-casing std paths. It also reports dynamic-handler candidates
+where an installed handler at an effectful boundary can catch dynamic
+`Perform` sites in a callee or forced thunk body; in the 20x20 nondeterministic
+list benchmark this exposes the `list` handler's `branch` arm as a finite
+multi-resume region through its local resume thunks. The analysis also links
+local thunk arguments at direct call sites to these dynamic handler regions and
+marks the 20x20 outer `list(thunk)` plus the two recursive `list(thunk)` calls
+inside the handler arm as ready finite specialization seeds. A rewrite-plan
+view classifies all three as `DefunctionalizeFiniteHandler`, with ordinary
+callee body cloning blocked by the remaining thunk-surface / handler-boundary
+protocol. This is instrumentation for later handler defunctionalization rather
+than a destructive rewrite.
 The next runtime-layout plan is to replace prototype heap handles with a
 native `YValue` word and MMTk-backed heap, using `i63` immediates for small
 integers and heap `BigInt` objects on overflow. This is a post-prototype plan,

@@ -26,6 +26,14 @@ than copied paper text.
 - Empty return-continuation fold.
 - Literal bool branch fold.
 - Pure `EffectfulCall` rewrite to direct call plus local continuation jump.
+- Local one-shot thunk force inline when the thunk body is a pure value
+  computation and no boundary/control-changing statement separates creation
+  from force.
+- Consecutive deep `ForceThunk` chain collapse. Since CPS `ForceThunk` already
+  forces through nested thunks, `ForceThunk(ForceThunk(x))` can be represented
+  as one force when the intermediate value has no other use.
+- Redundant force removal for structurally known non-thunk values when all
+  uses of the force result stay in the same continuation tail.
 - Primitive wrapper reification.
 - Local partial closure apply reification.
 - Known closure parameter apply reification.
@@ -37,13 +45,31 @@ than copied paper text.
 - Unreachable continuation pruning.
 - Dead pure statement elimination.
 - Direct-style / SSA island counting.
+- Read-only algebraic-effect region analysis over local `Perform` / handler arm
+  / `Resume` structure.
+- Read-only dynamic effect candidate analysis that connects active handler
+  installs at effectful boundaries to dynamic-handler `Perform` sites across
+  direct effectful calls or unknown thunk/apply bodies, using structural effect
+  matching rather than std function names.
+- Read-only dynamic effect thunk specialization seeds that connect direct-call
+  local thunk arguments to finite dynamic handler regions and separate finite
+  resume effects from no-resume effects.
+- Read-only dynamic effect thunk rewrite plans. These classify ready finite
+  seeds as `DefunctionalizeFiniteHandler`, `CalleeBodyClone`, or `Blocked`, and
+  record ordinary body-clone blockers such as recursive callees, post-call
+  force chains, callee handlers, and effectful boundaries.
 
 ## Next Candidates
 
+- Consume `ReadyFinite` dynamic effect thunk specialization seeds in a real
+  rewrite/codegen path. Controlled inlining/contification must bring handler
+  installs, forced thunk bodies, dynamic `Perform` sites, and handler arm
+  resumptions into one rewriteable region before generic handler lookup can be
+  removed.
 - Extend environment trimming to handler env payloads once handler-env target
   rebasing is explicit.
-- Recognize known thunk force shapes that are local, one-shot, and not separated
-  by handler/guard boundary effects.
+- Extend known thunk force recognition beyond pure value bodies once the IR
+  carries enough effect/control evidence to preserve nested force semantics.
 - Split direct-style island analysis into a reusable region object for Cranelift
   lowering decisions, not only profile counting.
 - Add benchmark snapshots to each pass iteration: optimized continuation count,

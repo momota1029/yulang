@@ -18,6 +18,7 @@ pub mod control_ir;
 pub mod cps_capture;
 pub mod cps_closure;
 pub mod cps_compare;
+pub mod cps_effect_regions;
 pub mod cps_effectful_calls;
 pub mod cps_env;
 pub mod cps_eval;
@@ -74,6 +75,17 @@ pub use cps_closure::{
 pub use cps_compare::{
     CpsCompareError, CpsReprI64CompareReport, CpsReprI64RootCompare, compare_cps_module,
     compare_cps_repr_cranelift_i64, compare_cps_repr_cranelift_i64_report,
+};
+pub use cps_effect_regions::{
+    DynamicEffectHandlerCandidate, DynamicEffectRegionPlan, DynamicEffectRegionPlanClass,
+    DynamicEffectThunkArgumentPlan, DynamicEffectThunkBodyCloneBlocker,
+    DynamicEffectThunkRewritePlan, DynamicEffectThunkRewriteStrategy,
+    DynamicEffectThunkSpecializationClass, DynamicEffectThunkSpecializationSeed,
+    EffectBoundaryKind, EffectHandlerRegion, EffectHandlerRegionClass, EffectResumeAction,
+    EffectResumeActionKind, analyze_dynamic_effect_handler_candidates,
+    analyze_dynamic_effect_region_plans, analyze_dynamic_effect_thunk_argument_plans,
+    analyze_dynamic_effect_thunk_rewrite_plans, analyze_dynamic_effect_thunk_specialization_seeds,
+    analyze_effect_handler_regions,
 };
 pub use cps_effectful_calls::reify_effectful_direct_calls;
 pub use cps_env::{

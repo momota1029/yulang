@@ -9,12 +9,24 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use crate::cps_effect_regions::{
+    DynamicEffectRegionPlanClass, DynamicEffectThunkRewriteStrategy,
+    DynamicEffectThunkSpecializationClass, DynamicEffectThunkSpecializationSeed,
+    EffectHandlerRegionClass, analyze_dynamic_effect_handler_candidates,
+    analyze_dynamic_effect_region_plans, analyze_dynamic_effect_thunk_argument_plans,
+    analyze_dynamic_effect_thunk_rewrite_plans, analyze_dynamic_effect_thunk_specialization_seeds,
+    analyze_effect_handler_regions, maybe_trace_dynamic_effect_handler_candidates,
+    maybe_trace_dynamic_effect_region_plans, maybe_trace_dynamic_effect_thunk_argument_plans,
+    maybe_trace_dynamic_effect_thunk_rewrite_plans,
+    maybe_trace_dynamic_effect_thunk_specialization_seeds, maybe_trace_effect_handler_regions,
+};
 use crate::cps_ir::{
     CpsContinuationId, CpsHandlerEnv, CpsRecordField, CpsShotKind, CpsStmt, CpsTerminator,
     CpsValueId,
 };
 use crate::cps_repr_abi::{
-    CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule, CpsReprAbiValue,
+    CpsReprAbiContinuation, CpsReprAbiEnvironmentSlot, CpsReprAbiFunction, CpsReprAbiHandler,
+    CpsReprAbiHandlerArm, CpsReprAbiModule, CpsReprAbiValue,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -38,6 +50,9 @@ pub struct CpsOptimizationProfile {
     pub returned_continuation_calls: usize,
     pub folded_constant_branches: usize,
     pub rewritten_pure_effectful_calls: usize,
+    pub inlined_local_thunk_forces: usize,
+    pub collapsed_force_thunk_chains: usize,
+    pub removed_redundant_non_thunk_forces: usize,
     pub reified_primitive_calls: usize,
     pub reified_partial_closure_calls: usize,
     pub reified_known_closure_parameter_calls: usize,
@@ -45,11 +60,27 @@ pub struct CpsOptimizationProfile {
     pub removed_unused_environment_slots: usize,
     pub folded_structural_projections: usize,
     pub inlined_pure_direct_calls: usize,
+    pub inlined_ready_finite_thunk_calls: usize,
     pub inlined_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
     pub removed_dead_pure_statements: usize,
     pub direct_style_islands: usize,
     pub direct_style_continuations: usize,
+    pub effect_regions: usize,
+    pub single_resume_regions: usize,
+    pub finite_multi_resume_regions: usize,
+    pub escaping_resumption_regions: usize,
+    pub nested_effectful_regions: usize,
+    pub opaque_effect_regions: usize,
+    pub dynamic_effect_handler_candidates: usize,
+    pub dynamic_effect_region_plans: usize,
+    pub finite_dynamic_effect_region_plans: usize,
+    pub dynamic_effect_thunk_argument_plans: usize,
+    pub dynamic_effect_thunk_specialization_seeds: usize,
+    pub ready_dynamic_effect_thunk_specialization_seeds: usize,
+    pub dynamic_effect_thunk_rewrite_plans: usize,
+    pub defunctionalized_dynamic_effect_thunk_rewrite_plans: usize,
+    pub body_clone_dynamic_effect_thunk_rewrite_plans: usize,
     pub changed: bool,
 }
 
@@ -66,6 +97,7 @@ pub fn optimize_cps_repr_abi_module(module: &CpsReprAbiModule) -> CpsOptimizatio
     }
     output.profile.record_optimized_size(&output.module);
     analyze_direct_style_islands(&mut output);
+    analyze_effect_regions(&mut output);
     maybe_trace_profile(&output.profile);
     output
 }
@@ -76,6 +108,9 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     rewrite_returning_continuation_calls(output);
     fold_constant_branches(output);
     rewrite_pure_effectful_calls(output);
+    inline_local_thunk_forces(output);
+    collapse_force_thunk_chains(output);
+    remove_redundant_non_thunk_forces(output);
     reify_direct_primitive_calls(output);
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
@@ -83,6 +118,7 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     remove_unused_environment_slots(output);
     fold_structural_projections(output);
     inline_pure_direct_calls(output);
+    inline_ready_finite_thunk_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
@@ -172,6 +208,54 @@ fn rewrite_pure_effectful_calls(output: &mut CpsOptimizationOutput) {
             rewrite_pure_effectful_calls_in_function(function, &pure_functions);
     }
     output.profile.changed |= output.profile.rewritten_pure_effectful_calls > 0;
+}
+
+fn inline_local_thunk_forces(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.inlined_local_thunk_forces +=
+            inline_local_thunk_forces_in_function(function);
+    }
+    output.profile.changed |= output.profile.inlined_local_thunk_forces > 0;
+}
+
+fn collapse_force_thunk_chains(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    if std::env::var("YULANG_CPS_DISABLE_FORCE_CHAIN_COLLAPSE")
+        .map(|value| value == "1")
+        .unwrap_or(false)
+    {
+        return;
+    }
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.collapsed_force_thunk_chains +=
+            collapse_force_thunk_chains_in_function(function);
+    }
+    output.profile.changed |= output.profile.collapsed_force_thunk_chains > 0;
+}
+
+fn remove_redundant_non_thunk_forces(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.removed_redundant_non_thunk_forces +=
+            remove_redundant_non_thunk_forces_in_function(function);
+    }
+    output.profile.changed |= output.profile.removed_redundant_non_thunk_forces > 0;
 }
 
 fn reify_direct_primitive_calls(output: &mut CpsOptimizationOutput) {
@@ -312,6 +396,40 @@ fn inline_pure_direct_calls(output: &mut CpsOptimizationOutput) {
     output.profile.changed |= output.profile.inlined_pure_direct_calls > 0;
 }
 
+fn inline_ready_finite_thunk_calls(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    if std::env::var("YULANG_CPS_ENABLE_READY_FINITE_INLINE")
+        .map(|value| value != "1")
+        .unwrap_or(true)
+    {
+        return;
+    }
+    let seeds = analyze_dynamic_effect_thunk_specialization_seeds(&output.module)
+        .into_iter()
+        .filter(|seed| seed.class == DynamicEffectThunkSpecializationClass::ReadyFinite)
+        .collect::<Vec<_>>();
+    if seeds.is_empty() {
+        return;
+    }
+    let callees = output
+        .module
+        .functions
+        .iter()
+        .chain(&output.module.roots)
+        .map(|function| (function.name.clone(), function.clone()))
+        .collect::<HashMap<_, _>>();
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.inlined_ready_finite_thunk_calls +=
+            inline_ready_finite_thunk_calls_in_function(function, &seeds, &callees);
+    }
+    output.profile.changed |= output.profile.inlined_ready_finite_thunk_calls > 0;
+}
+
 fn remove_unused_continuation_params_in_function(function: &mut CpsReprAbiFunction) -> usize {
     let unused_slots = unused_continuation_param_slots(function);
     if unused_slots.is_empty() {
@@ -358,6 +476,318 @@ fn unused_continuation_param_slots(
             (!slots.is_empty()).then_some((continuation.id, slots))
         })
         .collect()
+}
+
+fn inline_local_thunk_forces_in_function(function: &mut CpsReprAbiFunction) -> usize {
+    let continuations = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation.clone()))
+        .collect::<HashMap<_, _>>();
+    let value_uses = value_use_counts(function);
+    let mut inlined = 0;
+
+    for continuation in &mut function.continuations {
+        inlined +=
+            inline_local_thunk_force_in_continuation(continuation, &continuations, &value_uses);
+    }
+
+    inlined
+}
+
+fn inline_local_thunk_force_in_continuation(
+    continuation: &mut CpsReprAbiContinuation,
+    continuations: &HashMap<CpsContinuationId, CpsReprAbiContinuation>,
+    value_uses: &HashMap<CpsValueId, usize>,
+) -> usize {
+    let CpsTerminator::EffectfulForce { thunk, resume } = continuation.terminator.clone() else {
+        return 0;
+    };
+    if value_uses.get(&thunk).copied().unwrap_or(0) != 1 {
+        return 0;
+    }
+
+    let Some((thunk_stmt_index, entry)) = local_make_thunk_entry(continuation, thunk) else {
+        return 0;
+    };
+    if !continuation.stmts[thunk_stmt_index + 1..]
+        .iter()
+        .all(direct_style_stmt)
+    {
+        return 0;
+    }
+
+    let Some(entry_continuation) = continuations.get(&entry) else {
+        return 0;
+    };
+    if !local_thunk_force_entry_is_inlineable(entry_continuation) {
+        return 0;
+    }
+    let CpsTerminator::Return(result) = entry_continuation.terminator else {
+        return 0;
+    };
+
+    continuation.stmts.remove(thunk_stmt_index);
+    continuation
+        .stmts
+        .extend(entry_continuation.stmts.iter().cloned());
+    continuation.terminator = CpsTerminator::Continue {
+        target: resume,
+        args: vec![result],
+    };
+    1
+}
+
+fn collapse_force_thunk_chains_in_function(function: &mut CpsReprAbiFunction) -> usize {
+    let value_uses = value_use_counts(function);
+    function
+        .continuations
+        .iter_mut()
+        .map(|continuation| collapse_force_thunk_chains_in_continuation(continuation, &value_uses))
+        .sum()
+}
+
+fn collapse_force_thunk_chains_in_continuation(
+    continuation: &mut CpsReprAbiContinuation,
+    value_uses: &HashMap<CpsValueId, usize>,
+) -> usize {
+    let mut collapsed = 0;
+    let mut index = 0;
+    while index + 1 < continuation.stmts.len() {
+        let Some((first_dest, first_thunk)) = force_thunk_stmt_values(&continuation.stmts[index])
+        else {
+            index += 1;
+            continue;
+        };
+        let Some((second_dest, second_thunk)) =
+            force_thunk_stmt_values(&continuation.stmts[index + 1])
+        else {
+            index += 1;
+            continue;
+        };
+        if second_thunk != first_dest || value_uses.get(&first_dest).copied().unwrap_or(0) != 1 {
+            index += 1;
+            continue;
+        }
+
+        continuation.stmts[index] = CpsStmt::ForceThunk {
+            dest: second_dest,
+            thunk: first_thunk,
+        };
+        continuation.stmts.remove(index + 1);
+        collapsed += 1;
+    }
+    collapsed
+}
+
+fn force_thunk_stmt_values(stmt: &CpsStmt) -> Option<(CpsValueId, CpsValueId)> {
+    match stmt {
+        CpsStmt::ForceThunk { dest, thunk } => Some((*dest, *thunk)),
+        _ => None,
+    }
+}
+
+fn remove_redundant_non_thunk_forces_in_function(function: &mut CpsReprAbiFunction) -> usize {
+    let value_uses = value_use_counts(function);
+    function
+        .continuations
+        .iter_mut()
+        .map(|continuation| {
+            remove_redundant_non_thunk_forces_in_continuation(continuation, &value_uses)
+        })
+        .sum()
+}
+
+fn remove_redundant_non_thunk_forces_in_continuation(
+    continuation: &mut CpsReprAbiContinuation,
+    value_uses: &HashMap<CpsValueId, usize>,
+) -> usize {
+    let mut known_non_thunks = HashSet::new();
+    let mut removed = 0;
+    let mut index = 0;
+    while index < continuation.stmts.len() {
+        if let CpsStmt::ForceThunk { dest, thunk } = continuation.stmts[index] {
+            if known_non_thunks.contains(&thunk)
+                && value_uses.get(&dest).copied().unwrap_or(0)
+                    == count_tail_value_uses(continuation, index + 1, dest)
+            {
+                substitute_continuation_tail_value(continuation, index + 1, dest, thunk);
+                continuation.stmts.remove(index);
+                removed += 1;
+                continue;
+            }
+        }
+
+        if let Some(dest) = stmt_dest(&continuation.stmts[index]) {
+            if stmt_result_is_definitely_non_thunk(&continuation.stmts[index]) {
+                known_non_thunks.insert(dest);
+            }
+        }
+        index += 1;
+    }
+    removed
+}
+
+fn count_tail_value_uses(
+    continuation: &CpsReprAbiContinuation,
+    start: usize,
+    value: CpsValueId,
+) -> usize {
+    continuation.stmts[start..]
+        .iter()
+        .flat_map(stmt_operands)
+        .chain(terminator_values(&continuation.terminator))
+        .filter(|used| *used == value)
+        .count()
+}
+
+fn substitute_continuation_tail_value(
+    continuation: &mut CpsReprAbiContinuation,
+    start: usize,
+    from: CpsValueId,
+    to: CpsValueId,
+) {
+    let substitution = HashMap::from([(from, to)]);
+    for stmt in &mut continuation.stmts[start..] {
+        *stmt = substitute_stmt_values(stmt.clone(), &substitution);
+    }
+    continuation.terminator =
+        substitute_terminator_values(continuation.terminator.clone(), &substitution);
+}
+
+fn stmt_result_is_definitely_non_thunk(stmt: &CpsStmt) -> bool {
+    // Primitive results are intentionally not included: list/string runtime
+    // primitives may surface thunk handles that still require an explicit force.
+    matches!(
+        stmt,
+        CpsStmt::Literal { .. }
+            | CpsStmt::FreshGuard { .. }
+            | CpsStmt::PeekGuard { .. }
+            | CpsStmt::FindGuard { .. }
+            | CpsStmt::MakeClosure { .. }
+            | CpsStmt::MakeRecursiveClosure { .. }
+            | CpsStmt::ForceThunk { .. }
+            | CpsStmt::Tuple { .. }
+            | CpsStmt::Record { .. }
+            | CpsStmt::RecordWithoutFields { .. }
+            | CpsStmt::Variant { .. }
+            | CpsStmt::RecordHasField { .. }
+            | CpsStmt::VariantTagEq { .. }
+            | CpsStmt::CloneContinuation { .. }
+    )
+}
+
+fn local_make_thunk_entry(
+    continuation: &CpsReprAbiContinuation,
+    thunk: CpsValueId,
+) -> Option<(usize, CpsContinuationId)> {
+    continuation
+        .stmts
+        .iter()
+        .enumerate()
+        .find_map(|(index, stmt)| match stmt {
+            CpsStmt::MakeThunk { dest, entry } if *dest == thunk => Some((index, *entry)),
+            _ => None,
+        })
+}
+
+fn local_thunk_force_entry_is_inlineable(continuation: &CpsReprAbiContinuation) -> bool {
+    if continuation.shot_kind != CpsShotKind::OneShot
+        || !continuation.params.is_empty()
+        || continuation.stmts.len() > 12
+    {
+        return false;
+    }
+    let CpsTerminator::Return(result) = continuation.terminator else {
+        return false;
+    };
+    continuation.stmts.iter().all(local_thunk_force_stmt)
+        && continuation
+            .stmts
+            .iter()
+            .any(|stmt| stmt_dest(stmt) == Some(result) && local_thunk_force_return_stmt(stmt))
+}
+
+fn local_thunk_force_stmt(stmt: &CpsStmt) -> bool {
+    matches!(
+        stmt,
+        CpsStmt::Literal { .. }
+            | CpsStmt::Tuple { .. }
+            | CpsStmt::Record { .. }
+            | CpsStmt::RecordWithoutFields { .. }
+            | CpsStmt::Variant { .. }
+            | CpsStmt::Select { .. }
+            | CpsStmt::SelectWithDefault { .. }
+            | CpsStmt::RecordHasField { .. }
+            | CpsStmt::TupleGet { .. }
+            | CpsStmt::VariantTagEq { .. }
+            | CpsStmt::VariantPayload { .. }
+            | CpsStmt::Primitive {
+                op: typed_ir::PrimitiveOp::BoolNot
+                    | typed_ir::PrimitiveOp::BoolEq
+                    | typed_ir::PrimitiveOp::IntAdd
+                    | typed_ir::PrimitiveOp::IntSub
+                    | typed_ir::PrimitiveOp::IntMul
+                    | typed_ir::PrimitiveOp::IntEq
+                    | typed_ir::PrimitiveOp::IntLt
+                    | typed_ir::PrimitiveOp::IntLe
+                    | typed_ir::PrimitiveOp::IntGt
+                    | typed_ir::PrimitiveOp::IntGe
+                    | typed_ir::PrimitiveOp::IntToString
+                    | typed_ir::PrimitiveOp::IntToHex
+                    | typed_ir::PrimitiveOp::IntToUpperHex
+                    | typed_ir::PrimitiveOp::FloatAdd
+                    | typed_ir::PrimitiveOp::FloatSub
+                    | typed_ir::PrimitiveOp::FloatMul
+                    | typed_ir::PrimitiveOp::FloatEq
+                    | typed_ir::PrimitiveOp::FloatLt
+                    | typed_ir::PrimitiveOp::FloatLe
+                    | typed_ir::PrimitiveOp::FloatGt
+                    | typed_ir::PrimitiveOp::FloatGe
+                    | typed_ir::PrimitiveOp::FloatToString
+                    | typed_ir::PrimitiveOp::BoolToString
+                    | typed_ir::PrimitiveOp::StringConcat
+                    | typed_ir::PrimitiveOp::StringLen
+                    | typed_ir::PrimitiveOp::StringEq,
+                ..
+            }
+    )
+}
+
+fn local_thunk_force_return_stmt(stmt: &CpsStmt) -> bool {
+    matches!(
+        stmt,
+        CpsStmt::Literal { .. }
+            | CpsStmt::Tuple { .. }
+            | CpsStmt::Record { .. }
+            | CpsStmt::RecordWithoutFields { .. }
+            | CpsStmt::Variant { .. }
+            | CpsStmt::RecordHasField { .. }
+            | CpsStmt::VariantTagEq { .. }
+            | CpsStmt::Primitive { .. }
+    )
+}
+
+fn value_use_counts(function: &CpsReprAbiFunction) -> HashMap<CpsValueId, usize> {
+    let mut uses = HashMap::new();
+    for continuation in &function.continuations {
+        for slot in &continuation.environment {
+            count_value_use(slot.value, &mut uses);
+        }
+        for stmt in &continuation.stmts {
+            for value in stmt_operands(stmt) {
+                count_value_use(value, &mut uses);
+            }
+        }
+        for value in terminator_values(&continuation.terminator) {
+            count_value_use(value, &mut uses);
+        }
+    }
+    uses
+}
+
+fn count_value_use(value: CpsValueId, uses: &mut HashMap<CpsValueId, usize>) {
+    *uses.entry(value).or_insert(0) += 1;
 }
 
 fn remove_unused_environment_slots_in_function(function: &mut CpsReprAbiFunction) -> usize {
@@ -581,12 +1011,91 @@ fn analyze_direct_style_islands(output: &mut CpsOptimizationOutput) {
     }
 }
 
+fn analyze_effect_regions(output: &mut CpsOptimizationOutput) {
+    output.profile.effect_regions = 0;
+    output.profile.single_resume_regions = 0;
+    output.profile.finite_multi_resume_regions = 0;
+    output.profile.escaping_resumption_regions = 0;
+    output.profile.nested_effectful_regions = 0;
+    output.profile.opaque_effect_regions = 0;
+    output.profile.dynamic_effect_handler_candidates = 0;
+    output.profile.dynamic_effect_region_plans = 0;
+    output.profile.finite_dynamic_effect_region_plans = 0;
+    output.profile.dynamic_effect_thunk_argument_plans = 0;
+    output.profile.dynamic_effect_thunk_specialization_seeds = 0;
+    output
+        .profile
+        .ready_dynamic_effect_thunk_specialization_seeds = 0;
+    output.profile.dynamic_effect_thunk_rewrite_plans = 0;
+    output
+        .profile
+        .defunctionalized_dynamic_effect_thunk_rewrite_plans = 0;
+    output.profile.body_clone_dynamic_effect_thunk_rewrite_plans = 0;
+    for function in output.module.functions.iter().chain(&output.module.roots) {
+        let regions = analyze_effect_handler_regions(function);
+        maybe_trace_effect_handler_regions(function, &regions);
+        for region in regions {
+            output.profile.effect_regions += 1;
+            match region.class {
+                EffectHandlerRegionClass::Opaque => output.profile.opaque_effect_regions += 1,
+                EffectHandlerRegionClass::SingleResume => output.profile.single_resume_regions += 1,
+                EffectHandlerRegionClass::FiniteMultiResume => {
+                    output.profile.finite_multi_resume_regions += 1
+                }
+                EffectHandlerRegionClass::EscapingResumption => {
+                    output.profile.escaping_resumption_regions += 1
+                }
+                EffectHandlerRegionClass::NestedEffectful => {
+                    output.profile.nested_effectful_regions += 1
+                }
+            }
+        }
+    }
+    let dynamic_candidates = analyze_dynamic_effect_handler_candidates(&output.module);
+    maybe_trace_dynamic_effect_handler_candidates(&dynamic_candidates);
+    output.profile.dynamic_effect_handler_candidates = dynamic_candidates.len();
+    let dynamic_plans = analyze_dynamic_effect_region_plans(&output.module);
+    maybe_trace_dynamic_effect_region_plans(&dynamic_plans);
+    output.profile.dynamic_effect_region_plans = dynamic_plans.len();
+    output.profile.finite_dynamic_effect_region_plans = dynamic_plans
+        .iter()
+        .filter(|plan| plan.class == DynamicEffectRegionPlanClass::FiniteResumeSchedule)
+        .count();
+    let thunk_argument_plans = analyze_dynamic_effect_thunk_argument_plans(&output.module);
+    maybe_trace_dynamic_effect_thunk_argument_plans(&thunk_argument_plans);
+    output.profile.dynamic_effect_thunk_argument_plans = thunk_argument_plans.len();
+    let thunk_seeds = analyze_dynamic_effect_thunk_specialization_seeds(&output.module);
+    maybe_trace_dynamic_effect_thunk_specialization_seeds(&thunk_seeds);
+    output.profile.dynamic_effect_thunk_specialization_seeds = thunk_seeds.len();
+    output
+        .profile
+        .ready_dynamic_effect_thunk_specialization_seeds = thunk_seeds
+        .iter()
+        .filter(|seed| seed.class == DynamicEffectThunkSpecializationClass::ReadyFinite)
+        .count();
+    let rewrite_plans = analyze_dynamic_effect_thunk_rewrite_plans(&output.module);
+    maybe_trace_dynamic_effect_thunk_rewrite_plans(&rewrite_plans);
+    output.profile.dynamic_effect_thunk_rewrite_plans = rewrite_plans.len();
+    output
+        .profile
+        .defunctionalized_dynamic_effect_thunk_rewrite_plans = rewrite_plans
+        .iter()
+        .filter(|plan| {
+            plan.strategy == DynamicEffectThunkRewriteStrategy::DefunctionalizeFiniteHandler
+        })
+        .count();
+    output.profile.body_clone_dynamic_effect_thunk_rewrite_plans = rewrite_plans
+        .iter()
+        .filter(|plan| plan.strategy == DynamicEffectThunkRewriteStrategy::CalleeBodyClone)
+        .count();
+}
+
 fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
     if std::env::var_os("YULANG_CPS_OPT_TRACE").is_none() {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} inlined_local_thunk_forces={} collapsed_force_thunk_chains={} removed_redundant_non_thunk_forces={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_ready_finite_thunk_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} effect_regions={} single_resume_regions={} finite_multi_resume_regions={} escaping_resumption_regions={} nested_effectful_regions={} opaque_effect_regions={} dynamic_effect_handler_candidates={} dynamic_effect_region_plans={} finite_dynamic_effect_region_plans={} dynamic_effect_thunk_argument_plans={} dynamic_effect_thunk_specialization_seeds={} ready_dynamic_effect_thunk_specialization_seeds={} dynamic_effect_thunk_rewrite_plans={} defunctionalized_dynamic_effect_thunk_rewrite_plans={} body_clone_dynamic_effect_thunk_rewrite_plans={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -599,6 +1108,9 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.returned_continuation_calls,
         profile.folded_constant_branches,
         profile.rewritten_pure_effectful_calls,
+        profile.inlined_local_thunk_forces,
+        profile.collapsed_force_thunk_chains,
+        profile.removed_redundant_non_thunk_forces,
         profile.reified_primitive_calls,
         profile.reified_partial_closure_calls,
         profile.reified_known_closure_parameter_calls,
@@ -606,11 +1118,27 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.removed_unused_environment_slots,
         profile.folded_structural_projections,
         profile.inlined_pure_direct_calls,
+        profile.inlined_ready_finite_thunk_calls,
         profile.inlined_continuation_calls,
         profile.removed_unreachable_continuations,
         profile.removed_dead_pure_statements,
         profile.direct_style_islands,
         profile.direct_style_continuations,
+        profile.effect_regions,
+        profile.single_resume_regions,
+        profile.finite_multi_resume_regions,
+        profile.escaping_resumption_regions,
+        profile.nested_effectful_regions,
+        profile.opaque_effect_regions,
+        profile.dynamic_effect_handler_candidates,
+        profile.dynamic_effect_region_plans,
+        profile.finite_dynamic_effect_region_plans,
+        profile.dynamic_effect_thunk_argument_plans,
+        profile.dynamic_effect_thunk_specialization_seeds,
+        profile.ready_dynamic_effect_thunk_specialization_seeds,
+        profile.dynamic_effect_thunk_rewrite_plans,
+        profile.defunctionalized_dynamic_effect_thunk_rewrite_plans,
+        profile.body_clone_dynamic_effect_thunk_rewrite_plans,
         profile.changed
     );
 }
@@ -1435,6 +1963,584 @@ fn inline_pure_direct_calls_in_function(
     count
 }
 
+fn inline_ready_finite_thunk_calls_in_function(
+    function: &mut CpsReprAbiFunction,
+    seeds: &[DynamicEffectThunkSpecializationSeed],
+    callees: &HashMap<String, CpsReprAbiFunction>,
+) -> usize {
+    let seeds_by_call = seeds
+        .iter()
+        .filter(|seed| seed.caller == function.name)
+        .filter(|seed| seed.callee != function.name)
+        .filter(|seed| seed.call_continuation == function.entry)
+        .map(|seed| ((seed.call_continuation, seed.call_stmt_index), seed))
+        .collect::<HashMap<_, _>>();
+    if seeds_by_call.is_empty() {
+        return 0;
+    }
+
+    let original_len = function.continuations.len();
+    let mut inlined = 0;
+    for index in 0..original_len {
+        let continuation_id = function.continuations[index].id;
+        let stmt_len = function.continuations[index].stmts.len();
+        for stmt_index in 0..stmt_len {
+            let Some(seed) = seeds_by_call.get(&(continuation_id, stmt_index)) else {
+                continue;
+            };
+            let Some(callee) = callees.get(&seed.callee) else {
+                continue;
+            };
+            inlined += inline_ready_finite_thunk_call_at(function, index, stmt_index, seed, callee);
+            break;
+        }
+    }
+    inlined
+}
+
+fn inline_ready_finite_thunk_call_at(
+    function: &mut CpsReprAbiFunction,
+    continuation_index: usize,
+    stmt_index: usize,
+    seed: &DynamicEffectThunkSpecializationSeed,
+    callee: &CpsReprAbiFunction,
+) -> usize {
+    if callee.handlers.is_empty() || callee.continuations.is_empty() {
+        return 0;
+    }
+    let Some(callee_entry) = callee
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == callee.entry)
+    else {
+        return 0;
+    };
+    let continuation = &function.continuations[continuation_index];
+    let Some(CpsStmt::DirectCall { dest, target, args }) = continuation.stmts.get(stmt_index)
+    else {
+        return 0;
+    };
+    if target != &seed.callee || args.len() != callee.params.len() {
+        return 0;
+    }
+    let dest = *dest;
+    let args = args.clone();
+    let return_lane = continuation.return_lane;
+    let rest_environment = continuation.environment.clone();
+    let (rest_param, rest_stmts) =
+        rest_after_inlined_thunk_return(&continuation.stmts, stmt_index + 1, dest);
+    let rest_terminator = continuation.terminator.clone();
+
+    let rest_id = next_function_continuation_id(function);
+    let mut next_continuation = CpsContinuationId(rest_id.0 + 1);
+    let mut next_value = next_function_value_id(function);
+    let mut next_handler = next_function_handler_id(function);
+    let continuation_map = callee
+        .continuations
+        .iter()
+        .map(|continuation| {
+            let fresh = next_continuation;
+            next_continuation.0 += 1;
+            (continuation.id, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let handler_map = callee
+        .handlers
+        .iter()
+        .map(|handler| {
+            let fresh = next_handler;
+            next_handler.0 += 1;
+            (handler.id, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let value_map = callee
+        .value_ids()
+        .into_iter()
+        .map(|value| {
+            let fresh = next_value;
+            next_value.0 += 1;
+            (value, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let Some(cloned_entry) = continuation_map.get(&callee.entry).copied() else {
+        return 0;
+    };
+
+    let rest_continuation = CpsReprAbiContinuation {
+        id: rest_id,
+        params: vec![CpsReprAbiValue {
+            value: rest_param,
+            lane: callee_entry.return_lane,
+        }],
+        environment: rest_environment,
+        shot_kind: CpsShotKind::OneShot,
+        return_lane,
+        stmts: rest_stmts,
+        terminator: rest_terminator,
+    };
+    let cloned_handlers = callee
+        .handlers
+        .iter()
+        .cloned()
+        .map(|handler| remap_handler(handler, &continuation_map, &handler_map))
+        .collect::<Vec<_>>();
+    let cloned_continuations = callee
+        .continuations
+        .iter()
+        .cloned()
+        .map(|continuation| {
+            remap_inlined_continuation(
+                continuation,
+                rest_id,
+                &continuation_map,
+                &handler_map,
+                &value_map,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let continuation = &mut function.continuations[continuation_index];
+    continuation.stmts.truncate(stmt_index);
+    continuation.terminator = CpsTerminator::Continue {
+        target: cloned_entry,
+        args,
+    };
+    function.continuations.push(rest_continuation);
+    function.continuations.extend(cloned_continuations);
+    function.handlers.extend(cloned_handlers);
+    1
+}
+
+fn rest_after_inlined_thunk_return(
+    stmts: &[CpsStmt],
+    start: usize,
+    call_dest: CpsValueId,
+) -> (CpsValueId, Vec<CpsStmt>) {
+    let mut next = start;
+    let mut value = call_dest;
+    while let Some(CpsStmt::ForceThunk { dest, thunk }) = stmts.get(next) {
+        if *thunk != value {
+            break;
+        }
+        value = *dest;
+        next += 1;
+    }
+    (value, stmts[next..].to_vec())
+}
+
+trait CpsReprAbiFunctionValueIds {
+    fn value_ids(&self) -> HashSet<CpsValueId>;
+}
+
+impl CpsReprAbiFunctionValueIds for CpsReprAbiFunction {
+    fn value_ids(&self) -> HashSet<CpsValueId> {
+        self.params
+            .iter()
+            .map(|value| value.value)
+            .chain(
+                self.continuations
+                    .iter()
+                    .flat_map(continuation_all_value_ids),
+            )
+            .collect()
+    }
+}
+
+fn continuation_all_value_ids(
+    continuation: &CpsReprAbiContinuation,
+) -> impl Iterator<Item = CpsValueId> + '_ {
+    continuation
+        .params
+        .iter()
+        .map(|value| value.value)
+        .chain(continuation.environment.iter().map(|slot| slot.value))
+        .chain(continuation.stmts.iter().flat_map(stmt_all_values))
+        .chain(terminator_values(&continuation.terminator))
+}
+
+fn stmt_all_values(stmt: &CpsStmt) -> Vec<CpsValueId> {
+    stmt_dest(stmt)
+        .into_iter()
+        .chain(stmt_operands(stmt))
+        .collect()
+}
+
+fn remap_handler(
+    handler: CpsReprAbiHandler,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    handlers: &HashMap<crate::cps_ir::CpsHandlerId, crate::cps_ir::CpsHandlerId>,
+) -> CpsReprAbiHandler {
+    CpsReprAbiHandler {
+        id: remap_handler_id(handler.id, handlers),
+        arms: handler
+            .arms
+            .into_iter()
+            .map(|arm| CpsReprAbiHandlerArm {
+                effect: arm.effect,
+                entry: remap_continuation_id(arm.entry, continuations),
+            })
+            .collect(),
+    }
+}
+
+fn remap_inlined_continuation(
+    continuation: CpsReprAbiContinuation,
+    rest_id: CpsContinuationId,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    handlers: &HashMap<crate::cps_ir::CpsHandlerId, crate::cps_ir::CpsHandlerId>,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> CpsReprAbiContinuation {
+    CpsReprAbiContinuation {
+        id: remap_continuation_id(continuation.id, continuations),
+        params: continuation
+            .params
+            .into_iter()
+            .map(|value| remap_abi_value(value, values))
+            .collect(),
+        environment: continuation
+            .environment
+            .into_iter()
+            .map(|slot| remap_environment_slot(slot, values))
+            .collect(),
+        shot_kind: continuation.shot_kind,
+        return_lane: continuation.return_lane,
+        stmts: continuation
+            .stmts
+            .into_iter()
+            .map(|stmt| remap_stmt(stmt, continuations, handlers, values))
+            .collect(),
+        terminator: match continuation.terminator {
+            CpsTerminator::Return(value) => CpsTerminator::Continue {
+                target: rest_id,
+                args: vec![subst_value(value, values)],
+            },
+            terminator => remap_terminator(terminator, continuations, handlers, values),
+        },
+    }
+}
+
+fn remap_abi_value(
+    value: CpsReprAbiValue,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> CpsReprAbiValue {
+    CpsReprAbiValue {
+        value: subst_value(value.value, values),
+        lane: value.lane,
+    }
+}
+
+fn remap_environment_slot(
+    slot: CpsReprAbiEnvironmentSlot,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> CpsReprAbiEnvironmentSlot {
+    CpsReprAbiEnvironmentSlot {
+        index: slot.index,
+        value: subst_value(slot.value, values),
+        lane: slot.lane,
+    }
+}
+
+fn remap_stmt(
+    stmt: CpsStmt,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    handlers: &HashMap<crate::cps_ir::CpsHandlerId, crate::cps_ir::CpsHandlerId>,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> CpsStmt {
+    let stmt = remap_stmt_values(stmt, values);
+    match stmt {
+        CpsStmt::MakeThunk { dest, entry } => CpsStmt::MakeThunk {
+            dest,
+            entry: remap_continuation_id(entry, continuations),
+        },
+        CpsStmt::MakeClosure { dest, entry } => CpsStmt::MakeClosure {
+            dest,
+            entry: remap_continuation_id(entry, continuations),
+        },
+        CpsStmt::MakeRecursiveClosure { dest, entry } => CpsStmt::MakeRecursiveClosure {
+            dest,
+            entry: remap_continuation_id(entry, continuations),
+        },
+        CpsStmt::ResumeWithHandler {
+            dest,
+            resumption,
+            arg,
+            handler,
+            envs,
+        } => CpsStmt::ResumeWithHandler {
+            dest,
+            resumption,
+            arg,
+            handler: remap_handler_id(handler, handlers),
+            envs: remap_handler_envs(envs, continuations, values),
+        },
+        CpsStmt::InstallHandler {
+            handler,
+            envs,
+            value,
+            escape,
+        } => CpsStmt::InstallHandler {
+            handler: remap_handler_id(handler, handlers),
+            envs: remap_handler_envs(envs, continuations, values),
+            value: remap_continuation_id(value, continuations),
+            escape: remap_continuation_id(escape, continuations),
+        },
+        CpsStmt::UninstallHandler { handler } => CpsStmt::UninstallHandler {
+            handler: remap_handler_id(handler, handlers),
+        },
+        stmt => stmt,
+    }
+}
+
+fn remap_stmt_values(stmt: CpsStmt, substitution: &HashMap<CpsValueId, CpsValueId>) -> CpsStmt {
+    match stmt {
+        CpsStmt::Literal { dest, literal } => CpsStmt::Literal {
+            dest: subst_value(dest, substitution),
+            literal,
+        },
+        CpsStmt::FreshGuard { dest, var } => CpsStmt::FreshGuard {
+            dest: subst_value(dest, substitution),
+            var,
+        },
+        CpsStmt::PeekGuard { dest } => CpsStmt::PeekGuard {
+            dest: subst_value(dest, substitution),
+        },
+        CpsStmt::FindGuard { dest, guard } => CpsStmt::FindGuard {
+            dest: subst_value(dest, substitution),
+            guard: subst_value(guard, substitution),
+        },
+        CpsStmt::MakeThunk { dest, entry } => CpsStmt::MakeThunk {
+            dest: subst_value(dest, substitution),
+            entry,
+        },
+        CpsStmt::AddThunkBoundary {
+            dest,
+            thunk,
+            guard,
+            allowed,
+            active,
+        } => CpsStmt::AddThunkBoundary {
+            dest: subst_value(dest, substitution),
+            thunk: subst_value(thunk, substitution),
+            guard: subst_value(guard, substitution),
+            allowed,
+            active,
+        },
+        CpsStmt::MakeClosure { dest, entry } => CpsStmt::MakeClosure {
+            dest: subst_value(dest, substitution),
+            entry,
+        },
+        CpsStmt::MakeRecursiveClosure { dest, entry } => CpsStmt::MakeRecursiveClosure {
+            dest: subst_value(dest, substitution),
+            entry,
+        },
+        CpsStmt::ForceThunk { dest, thunk } => CpsStmt::ForceThunk {
+            dest: subst_value(dest, substitution),
+            thunk: subst_value(thunk, substitution),
+        },
+        CpsStmt::Tuple { dest, items } => CpsStmt::Tuple {
+            dest: subst_value(dest, substitution),
+            items: subst_values(items, substitution),
+        },
+        CpsStmt::Record { dest, base, fields } => CpsStmt::Record {
+            dest: subst_value(dest, substitution),
+            base: base.map(|value| subst_value(value, substitution)),
+            fields: fields
+                .into_iter()
+                .map(|field| CpsRecordField {
+                    name: field.name,
+                    value: subst_value(field.value, substitution),
+                })
+                .collect(),
+        },
+        CpsStmt::RecordWithoutFields { dest, base, fields } => CpsStmt::RecordWithoutFields {
+            dest: subst_value(dest, substitution),
+            base: subst_value(base, substitution),
+            fields,
+        },
+        CpsStmt::Variant { dest, tag, value } => CpsStmt::Variant {
+            dest: subst_value(dest, substitution),
+            tag,
+            value: value.map(|value| subst_value(value, substitution)),
+        },
+        CpsStmt::Select { dest, base, field } => CpsStmt::Select {
+            dest: subst_value(dest, substitution),
+            base: subst_value(base, substitution),
+            field,
+        },
+        CpsStmt::SelectWithDefault {
+            dest,
+            base,
+            field,
+            default,
+        } => CpsStmt::SelectWithDefault {
+            dest: subst_value(dest, substitution),
+            base: subst_value(base, substitution),
+            field,
+            default: subst_value(default, substitution),
+        },
+        CpsStmt::RecordHasField { dest, base, field } => CpsStmt::RecordHasField {
+            dest: subst_value(dest, substitution),
+            base: subst_value(base, substitution),
+            field,
+        },
+        CpsStmt::TupleGet { dest, tuple, index } => CpsStmt::TupleGet {
+            dest: subst_value(dest, substitution),
+            tuple: subst_value(tuple, substitution),
+            index,
+        },
+        CpsStmt::VariantTagEq { dest, variant, tag } => CpsStmt::VariantTagEq {
+            dest: subst_value(dest, substitution),
+            variant: subst_value(variant, substitution),
+            tag,
+        },
+        CpsStmt::VariantPayload { dest, variant } => CpsStmt::VariantPayload {
+            dest: subst_value(dest, substitution),
+            variant: subst_value(variant, substitution),
+        },
+        CpsStmt::Primitive { dest, op, args } => CpsStmt::Primitive {
+            dest: subst_value(dest, substitution),
+            op,
+            args: subst_values(args, substitution),
+        },
+        CpsStmt::DirectCall { dest, target, args } => CpsStmt::DirectCall {
+            dest: subst_value(dest, substitution),
+            target,
+            args: subst_values(args, substitution),
+        },
+        CpsStmt::ApplyClosure { dest, closure, arg } => CpsStmt::ApplyClosure {
+            dest: subst_value(dest, substitution),
+            closure: subst_value(closure, substitution),
+            arg: subst_value(arg, substitution),
+        },
+        CpsStmt::CloneContinuation { dest, source } => CpsStmt::CloneContinuation {
+            dest: subst_value(dest, substitution),
+            source: subst_value(source, substitution),
+        },
+        CpsStmt::Resume {
+            dest,
+            resumption,
+            arg,
+        } => CpsStmt::Resume {
+            dest: subst_value(dest, substitution),
+            resumption: subst_value(resumption, substitution),
+            arg: subst_value(arg, substitution),
+        },
+        CpsStmt::ResumeWithHandler {
+            dest,
+            resumption,
+            arg,
+            handler,
+            envs,
+        } => CpsStmt::ResumeWithHandler {
+            dest: subst_value(dest, substitution),
+            resumption: subst_value(resumption, substitution),
+            arg: subst_value(arg, substitution),
+            handler,
+            envs: subst_handler_envs(envs, substitution),
+        },
+        CpsStmt::InstallHandler {
+            handler,
+            envs,
+            value,
+            escape,
+        } => CpsStmt::InstallHandler {
+            handler,
+            envs: subst_handler_envs(envs, substitution),
+            value,
+            escape,
+        },
+        CpsStmt::UninstallHandler { handler } => CpsStmt::UninstallHandler { handler },
+    }
+}
+
+fn remap_terminator(
+    terminator: CpsTerminator,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    handlers: &HashMap<crate::cps_ir::CpsHandlerId, crate::cps_ir::CpsHandlerId>,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> CpsTerminator {
+    let terminator = substitute_terminator_values(terminator, values);
+    match terminator {
+        CpsTerminator::Continue { target, args } => CpsTerminator::Continue {
+            target: remap_continuation_id(target, continuations),
+            args,
+        },
+        CpsTerminator::Branch {
+            cond,
+            then_cont,
+            else_cont,
+        } => CpsTerminator::Branch {
+            cond,
+            then_cont: remap_continuation_id(then_cont, continuations),
+            else_cont: remap_continuation_id(else_cont, continuations),
+        },
+        CpsTerminator::Perform {
+            effect,
+            payload,
+            resume,
+            handler,
+            blocked,
+        } => CpsTerminator::Perform {
+            effect,
+            payload,
+            resume: remap_continuation_id(resume, continuations),
+            handler: remap_handler_id(handler, handlers),
+            blocked,
+        },
+        CpsTerminator::EffectfulCall {
+            target,
+            args,
+            resume,
+        } => CpsTerminator::EffectfulCall {
+            target,
+            args,
+            resume: remap_continuation_id(resume, continuations),
+        },
+        CpsTerminator::EffectfulApply {
+            closure,
+            arg,
+            resume,
+        } => CpsTerminator::EffectfulApply {
+            closure,
+            arg,
+            resume: remap_continuation_id(resume, continuations),
+        },
+        CpsTerminator::EffectfulForce { thunk, resume } => CpsTerminator::EffectfulForce {
+            thunk,
+            resume: remap_continuation_id(resume, continuations),
+        },
+        CpsTerminator::Return(value) => CpsTerminator::Return(value),
+    }
+}
+
+fn remap_handler_envs(
+    envs: Vec<CpsHandlerEnv>,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> Vec<CpsHandlerEnv> {
+    envs.into_iter()
+        .map(|env| CpsHandlerEnv {
+            entry: remap_continuation_id(env.entry, continuations),
+            values: subst_values(env.values, values),
+            targets: subst_values(env.targets, values),
+        })
+        .collect()
+}
+
+fn remap_continuation_id(
+    id: CpsContinuationId,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+) -> CpsContinuationId {
+    continuations.get(&id).copied().unwrap_or(id)
+}
+
+fn remap_handler_id(
+    id: crate::cps_ir::CpsHandlerId,
+    handlers: &HashMap<crate::cps_ir::CpsHandlerId, crate::cps_ir::CpsHandlerId>,
+) -> crate::cps_ir::CpsHandlerId {
+    handlers.get(&id).copied().unwrap_or(id)
+}
+
 fn substitute_pure_inline_stmt_values(
     stmt: CpsStmt,
     substitution: &HashMap<CpsValueId, CpsValueId>,
@@ -1533,6 +2639,26 @@ fn next_function_value_id(function: &CpsReprAbiFunction) -> CpsValueId {
         .max()
         .unwrap_or(0);
     CpsValueId(max_value + 1)
+}
+
+fn next_function_continuation_id(function: &CpsReprAbiFunction) -> CpsContinuationId {
+    let max_id = function
+        .continuations
+        .iter()
+        .map(|continuation| continuation.id.0)
+        .max()
+        .unwrap_or(0);
+    CpsContinuationId(max_id + 1)
+}
+
+fn next_function_handler_id(function: &CpsReprAbiFunction) -> crate::cps_ir::CpsHandlerId {
+    let max_id = function
+        .handlers
+        .iter()
+        .map(|handler| handler.id.0)
+        .max()
+        .unwrap_or(0);
+    crate::cps_ir::CpsHandlerId(max_id + 1)
 }
 
 fn continuation_value_ids(
@@ -2705,6 +3831,9 @@ impl CpsOptimizationProfile {
             || self.returned_continuation_calls > before.returned_continuation_calls
             || self.folded_constant_branches > before.folded_constant_branches
             || self.rewritten_pure_effectful_calls > before.rewritten_pure_effectful_calls
+            || self.inlined_local_thunk_forces > before.inlined_local_thunk_forces
+            || self.collapsed_force_thunk_chains > before.collapsed_force_thunk_chains
+            || self.removed_redundant_non_thunk_forces > before.removed_redundant_non_thunk_forces
             || self.reified_primitive_calls > before.reified_primitive_calls
             || self.reified_partial_closure_calls > before.reified_partial_closure_calls
             || self.reified_known_closure_parameter_calls
@@ -2713,6 +3842,7 @@ impl CpsOptimizationProfile {
             || self.removed_unused_environment_slots > before.removed_unused_environment_slots
             || self.folded_structural_projections > before.folded_structural_projections
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
+            || self.inlined_ready_finite_thunk_calls > before.inlined_ready_finite_thunk_calls
             || self.inlined_continuation_calls > before.inlined_continuation_calls
             || self.removed_unreachable_continuations > before.removed_unreachable_continuations
             || self.removed_dead_pure_statements > before.removed_dead_pure_statements
@@ -2754,6 +3884,9 @@ impl CpsOptimizationProfile {
             returned_continuation_calls: 0,
             folded_constant_branches: 0,
             rewritten_pure_effectful_calls: 0,
+            inlined_local_thunk_forces: 0,
+            collapsed_force_thunk_chains: 0,
+            removed_redundant_non_thunk_forces: 0,
             reified_primitive_calls: 0,
             reified_partial_closure_calls: 0,
             reified_known_closure_parameter_calls: 0,
@@ -2761,11 +3894,27 @@ impl CpsOptimizationProfile {
             removed_unused_environment_slots: 0,
             folded_structural_projections: 0,
             inlined_pure_direct_calls: 0,
+            inlined_ready_finite_thunk_calls: 0,
             inlined_continuation_calls: 0,
             removed_unreachable_continuations: 0,
             removed_dead_pure_statements: 0,
             direct_style_islands: 0,
             direct_style_continuations: 0,
+            effect_regions: 0,
+            single_resume_regions: 0,
+            finite_multi_resume_regions: 0,
+            escaping_resumption_regions: 0,
+            nested_effectful_regions: 0,
+            opaque_effect_regions: 0,
+            dynamic_effect_handler_candidates: 0,
+            dynamic_effect_region_plans: 0,
+            finite_dynamic_effect_region_plans: 0,
+            dynamic_effect_thunk_argument_plans: 0,
+            dynamic_effect_thunk_specialization_seeds: 0,
+            ready_dynamic_effect_thunk_specialization_seeds: 0,
+            dynamic_effect_thunk_rewrite_plans: 0,
+            defunctionalized_dynamic_effect_thunk_rewrite_plans: 0,
+            body_clone_dynamic_effect_thunk_rewrite_plans: 0,
             changed: false,
         }
     }
@@ -2793,11 +3942,15 @@ mod tests {
         assert_eq!(optimized.profile.optimized_continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
         assert_eq!(optimized.profile.optimized_statements, 1);
-        assert_eq!(optimized.profile.passes_run, 19);
+        assert_eq!(optimized.profile.passes_run, 23);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.folded_constant_branches, 0);
         assert_eq!(optimized.profile.rewritten_pure_effectful_calls, 0);
+        assert_eq!(optimized.profile.inlined_local_thunk_forces, 0);
+        assert_eq!(optimized.profile.collapsed_force_thunk_chains, 0);
+        assert_eq!(optimized.profile.removed_redundant_non_thunk_forces, 0);
+        assert_eq!(optimized.profile.inlined_ready_finite_thunk_calls, 0);
         assert_eq!(optimized.profile.reified_primitive_calls, 0);
         assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
         assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 0);
@@ -2811,6 +3964,219 @@ mod tests {
         assert_eq!(optimized.profile.direct_style_islands, 1);
         assert_eq!(optimized.profile.direct_style_continuations, 1);
         assert!(!optimized.profile.changed);
+    }
+
+    #[test]
+    fn ready_finite_inline_consumes_immediate_force_chain() {
+        let stmts = vec![
+            CpsStmt::DirectCall {
+                dest: CpsValueId(1),
+                target: "collector".to_string(),
+                args: Vec::new(),
+            },
+            CpsStmt::ForceThunk {
+                dest: CpsValueId(2),
+                thunk: CpsValueId(1),
+            },
+            CpsStmt::ForceThunk {
+                dest: CpsValueId(3),
+                thunk: CpsValueId(2),
+            },
+            CpsStmt::Tuple {
+                dest: CpsValueId(4),
+                items: vec![CpsValueId(3)],
+            },
+        ];
+
+        let (rest_param, rest_stmts) = rest_after_inlined_thunk_return(&stmts, 1, CpsValueId(1));
+
+        assert_eq!(rest_param, CpsValueId(3));
+        assert_eq!(rest_stmts.len(), 1);
+        assert!(matches!(rest_stmts[0], CpsStmt::Tuple { .. }));
+    }
+
+    #[test]
+    fn collapses_consecutive_deep_force_thunk_chain() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(2),
+                            thunk: CpsValueId(1),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let collapsed = collapse_force_thunk_chains_in_function(&mut function);
+
+        assert_eq!(collapsed, 2);
+        assert_eq!(
+            function.continuations[0].stmts,
+            vec![CpsStmt::ForceThunk {
+                dest: CpsValueId(3),
+                thunk: CpsValueId(0),
+            }]
+        );
+    }
+
+    #[test]
+    fn keeps_intermediate_force_value_when_it_has_another_use() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(2),
+                            thunk: CpsValueId(1),
+                        },
+                    ],
+                    terminator: CpsTerminator::Continue {
+                        target: CpsContinuationId(1),
+                        args: vec![CpsValueId(1), CpsValueId(2)],
+                    },
+                }],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let collapsed = collapse_force_thunk_chains_in_function(&mut function);
+
+        assert_eq!(collapsed, 0);
+        assert_eq!(function.continuations[0].stmts.len(), 2);
+    }
+
+    #[test]
+    fn removes_force_of_known_non_thunk_value_when_uses_are_local() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(1)),
+                }],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+
+        assert_eq!(removed, 1);
+        assert_eq!(
+            function.continuations[0].stmts,
+            vec![CpsStmt::Literal {
+                dest: CpsValueId(0),
+                literal: CpsLiteral::Int("42".to_string()),
+            }]
+        );
+        assert_eq!(
+            function.continuations[0].terminator,
+            CpsTerminator::Return(CpsValueId(0))
+        );
+    }
+
+    #[test]
+    fn keeps_known_non_thunk_force_when_result_escapes_tail_substitution() {
+        let mut function = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("42".to_string()),
+                            },
+                            CpsStmt::ForceThunk {
+                                dest: CpsValueId(1),
+                                thunk: CpsValueId(0),
+                            },
+                        ],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(1),
+                            args: vec![CpsValueId(1)],
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(2)],
+                        captures: vec![CpsValueId(1)],
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(2)),
+                    },
+                ],
+            }],
+        }))
+        .roots
+        .remove(0);
+
+        let removed = remove_redundant_non_thunk_forces_in_function(&mut function);
+
+        assert_eq!(removed, 0);
+        assert_eq!(function.continuations[0].stmts.len(), 2);
     }
 
     #[test]
@@ -2994,6 +4360,84 @@ mod tests {
         assert_eq!(optimized.profile.removed_unreachable_continuations, 1);
         assert_eq!(optimized.profile.direct_style_islands, 1);
         assert_eq!(optimized.profile.direct_style_continuations, 1);
+    }
+
+    #[test]
+    fn inlines_local_one_shot_thunk_force_to_resume_continue() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("40".to_string()),
+                            },
+                            CpsStmt::MakeThunk {
+                                dest: CpsValueId(1),
+                                entry: CpsContinuationId(1),
+                            },
+                        ],
+                        terminator: CpsTerminator::EffectfulForce {
+                            thunk: CpsValueId(1),
+                            resume: CpsContinuationId(2),
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: vec![CpsValueId(0)],
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(3),
+                                op: yulang_typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(0), CpsValueId(2)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(4)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let root = &optimized.module.roots[0];
+        let entry = &root.continuations[0];
+
+        assert_eq!(root.continuations.len(), 1);
+        assert_eq!(optimized.profile.inlined_local_thunk_forces, 1);
+        assert!(
+            !entry
+                .stmts
+                .iter()
+                .any(|stmt| matches!(stmt, CpsStmt::MakeThunk { .. }))
+        );
+        assert!(matches!(
+            entry.terminator,
+            CpsTerminator::Return(CpsValueId(3))
+        ));
     }
 
     #[test]

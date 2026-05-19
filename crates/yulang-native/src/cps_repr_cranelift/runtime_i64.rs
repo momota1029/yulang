@@ -824,6 +824,11 @@ impl NativeCpsI64GuardStack {
     }
 
     fn restore_snapshot(&mut self, snapshot: NativeCpsI64I64Snapshot) {
+        if let Some(current) = self.snapshot.as_ref() {
+            if current.shares_storage_with(&snapshot) {
+                return;
+            }
+        }
         if self.tail.is_empty() && self.base.shares_storage_with(&snapshot) {
             return;
         }
