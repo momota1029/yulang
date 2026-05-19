@@ -3724,6 +3724,68 @@ fn operator_use_spans_record_resolved_def_for_hover() {
 }
 
 #[test]
+fn var_binding_records_def_span_and_use_span_for_sigil_read() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source = "{ my $x = 1\n  $x + 1\n}\n";
+        let lowered = lower_virtual_source_with_options(
+            source,
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        let first_x = source.find("$x").expect("first $x");
+        let first_x_range =
+            rowan::TextRange::new((first_x as u32).into(), ((first_x + 2) as u32).into());
+
+        // The def_span for the var should land on the first `$x` token.
+        let (&def, _span) = lowered
+            .state
+            .def_spans
+            .iter()
+            .find(|(_, span)| {
+                span.range.start() <= first_x_range.start()
+                    && first_x_range.end() <= span.range.end()
+            })
+            .expect("first $x should have a def_span entry");
+        assert_eq!(
+            lowered
+                .state
+                .def_name(def)
+                .map(|n| n.0.clone())
+                .unwrap_or_default(),
+            "#x",
+            "def_span owner should be the #x init binding",
+        );
+
+        // The second `$x` should be in value_use_spans pointing to the same def.
+        let second_x = source.rfind("$x").expect("second $x");
+        let second_x_range =
+            rowan::TextRange::new((second_x as u32).into(), ((second_x + 2) as u32).into());
+        let matches: Vec<_> = lowered
+            .state
+            .value_use_spans
+            .iter()
+            .filter(|(span, candidate)| {
+                *candidate == def
+                    && span.range.start() <= second_x_range.start()
+                    && second_x_range.end() <= span.range.end()
+            })
+            .collect();
+        assert!(
+            !matches.is_empty(),
+            "second $x should be recorded as a value_use_span of &x"
+        );
+    });
+}
+
+#[test]
 fn def_spans_record_origin_file_for_std_each() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

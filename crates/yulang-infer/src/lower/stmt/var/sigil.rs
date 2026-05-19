@@ -8,6 +8,8 @@ pub(crate) struct VarBinding {
     pub source: Name,
     pub init: Name,
     pub reference: Name,
+    /// `$x` トークン自体の source 範囲。LSP 用に def_span を記録する目印。
+    pub source_span: Option<rowan::TextRange>,
 }
 
 pub(crate) fn binding_var_sigils(binding: &SyntaxNode) -> Vec<VarBinding> {
@@ -41,8 +43,12 @@ fn collect_var_sigils(node: &SyntaxNode, out: &mut Vec<VarBinding>) {
             source: Name(text.to_string()),
             init: internal_var_init_name(raw),
             reference: internal_var_ref_name(raw),
+            source_span: Some(token.text_range()),
         };
-        if !out.iter().any(|existing| existing == &binding) {
+        if !out
+            .iter()
+            .any(|existing: &VarBinding| existing.source == binding.source)
+        {
             out.push(binding);
         }
     }

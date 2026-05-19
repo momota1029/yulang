@@ -17,25 +17,29 @@ pub(in crate::lower) fn lower_var_read_expr_with_span(
         return unit_expr(state);
     };
     let reference_name = Name(format!("&{raw}"));
-    if let Some(act_name) = state.ctx.resolve_var_ref_alias(&reference_name) {
-        if let Some(span) = span {
-            if let Some(def) = state.ctx.resolve_value(&reference_name) {
-                state.record_value_use_span(span, def);
-            }
+    let init_name = Name(format!("#{raw}"));
+    if let Some(span) = span {
+        // `$x` の読み取り箇所は、`my $x = ...` の宣言で pre-register された
+        // init binding (`#x`) を指すように value_use_span を記録する。
+        // declaration の def_span は同じ `$x` トークン上に既に貼られているので、
+        // hover/rename がそれを通じて宣言と使用箇所をリンクできる。
+        if let Some(def) = state.ctx.resolve_value(&init_name) {
+            state.record_value_use_span(span, def);
         }
+    }
+    if let Some(act_name) = state.ctx.resolve_var_ref_alias(&reference_name) {
         let get = resolve_path_expr(state, vec![act_name, Name("get".to_string())]);
         let unit = unit_expr(state);
         return make_app(state, get, unit);
     }
-    if let Some(def) = state.ctx.resolve_value(&reference_name) {
-        if let Some(span) = span {
-            state.record_value_use_span(span, def);
-        }
-        if let Some(act_name) = state.var_ref_acts.get(&def).cloned() {
-            let get = resolve_path_expr(state, vec![act_name, Name("get".to_string())]);
-            let unit = unit_expr(state);
-            return make_app(state, get, unit);
-        }
+    if let Some(get) = state
+        .ctx
+        .resolve_value(&reference_name)
+        .and_then(|def| state.var_ref_acts.get(&def).cloned())
+        .map(|act_name| resolve_path_expr(state, vec![act_name, Name("get".to_string())]))
+    {
+        let unit = unit_expr(state);
+        return make_app(state, get, unit);
     }
     lower_ref_get_read(state, reference_name)
 }
