@@ -11,7 +11,7 @@ use yulang_infer::simplify::compact::{
     compact_type_vars_in_order,
 };
 use yulang_infer::{
-    DefId, LowerState, Name as InferName, Path as InferPath, TypeVar,
+    DefId, FileSpan, LowerState, Name as InferName, Path as InferPath, TypeVar,
     collect_compact_results_for_paths_in_scope, collect_surface_diagnostics, export_core_program,
     format_coalesced_scheme_in_scope, lower_virtual_source_with_options,
     surface_diagnostic::SurfaceDiagnostic,
@@ -531,25 +531,31 @@ fn resolve_hover_target_selection_tvs(
     state: &LowerState,
     target: &HoverTarget,
 ) -> Option<(TypeVar, TypeVar, TypeVar, TypeVar)> {
+    let entry = state.entry_file_id()?;
     state.selection_spans.iter().rev().find_map(|span| {
-        span_contains_range(span.span, target.syntax_range).then_some((
-            span.recv_tv,
-            span.recv_eff,
-            span.result_tv,
-            span.result_eff,
-        ))
+        (span.span.file == entry && span_contains_range(span.span.range, target.syntax_range))
+            .then_some((
+                span.recv_tv,
+                span.recv_eff,
+                span.result_tv,
+                span.result_eff,
+            ))
     })
 }
 
 fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
+    let entry = state.entry_file_id()?;
     state
         .value_use_spans
         .iter()
         .rev()
-        .find_map(|(span, def)| span_contains_range(*span, target.syntax_range).then_some(*def))
+        .find_map(|(span, def)| {
+            (span.file == entry && span_contains_range(span.range, target.syntax_range))
+                .then_some(*def)
+        })
         .or_else(|| {
             state.ref_spans.iter().find_map(|(ref_id, span)| {
-                span_contains_range(*span, target.syntax_range)
+                (span.file == entry && span_contains_range(span.range, target.syntax_range))
                     .then(|| state.ctx.refs.get(*ref_id))
                     .flatten()
             })
@@ -562,11 +568,12 @@ fn span_contains_range(outer: rowan::TextRange, inner: rowan::TextRange) -> bool
 }
 
 fn narrowest_def_span_containing(state: &LowerState, target: rowan::TextRange) -> Option<DefId> {
+    let entry = state.entry_file_id()?;
     state
         .def_spans
         .iter()
-        .filter(|(_, span)| span_contains_range(**span, target))
-        .min_by_key(|(_, span)| usize::from(span.end()) - usize::from(span.start()))
+        .filter(|(_, span)| span.file == entry && span_contains_range(span.range, target))
+        .min_by_key(|(_, span)| usize::from(span.range.end()) - usize::from(span.range.start()))
         .map(|(def, _)| *def)
 }
 
@@ -873,10 +880,33 @@ fn goto_definition_for_source(
     let target = hover_target_at(source, position)?;
     let mut lowered = lower_virtual_source_with_options(source, base_dir, options).ok()?;
     let def = resolve_target_def_id(&mut lowered.state, &target)?;
-    let span = lowered.state.def_spans.get(&def).copied()?;
-    let line_starts = line_starts(source);
-    let range = byte_range_to_lsp(&line_starts, span);
-    Some(Location { uri, range })
+    let file_span = lowered.state.def_spans.get(&def).copied()?;
+    locate_file_span(&lowered.state, file_span, &uri, source)
+}
+
+fn locate_file_span(
+    state: &LowerState,
+    file_span: FileSpan,
+    entry_uri: &Url,
+    entry_source: &str,
+) -> Option<Location> {
+    let entry_file_id = state.entry_file_id();
+    if Some(file_span.file) == entry_file_id {
+        let line_starts = line_starts(entry_source);
+        return Some(Location {
+            uri: entry_uri.clone(),
+            range: byte_range_to_lsp(&line_starts, file_span.range),
+        });
+    }
+
+    let info = state.file_info(file_span.file)?;
+    let target_uri = Url::from_file_path(&info.path).ok()?;
+    let target_source = std::fs::read_to_string(&info.path).ok()?;
+    let line_starts = line_starts(&target_source);
+    Some(Location {
+        uri: target_uri,
+        range: byte_range_to_lsp(&line_starts, file_span.range),
+    })
 }
 
 fn resolve_target_def_id(state: &mut LowerState, target: &HoverTarget) -> Option<DefId> {

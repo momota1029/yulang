@@ -3680,7 +3680,9 @@ fn operator_use_spans_record_resolved_def_for_hover() {
             .state
             .value_use_spans
             .iter()
-            .find(|(span, _)| span.start() <= plus_range.start() && plus_range.end() <= span.end())
+            .find(|(span, _)| {
+                span.range.start() <= plus_range.start() && plus_range.end() <= span.range.end()
+            })
             .expect("hover on + should find a value_use_span");
 
         let (_, def) = span_hit;
@@ -3717,6 +3719,57 @@ fn operator_use_spans_record_resolved_def_for_hover() {
         assert!(
             labels.iter().any(|label| label == "+"),
             "scoped label for + operator should render as `+`, got: {labels:?}",
+        );
+    });
+}
+
+#[test]
+fn def_spans_record_origin_file_for_std_each() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "my a = each [1, 2, 3]\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        // After lowering completes the entry-level use_search is empty, so look up `each`
+        // by walking the canonical binding paths instead of resolving from the user module.
+        let each_def = lowered
+            .state
+            .ctx
+            .collect_all_binding_paths()
+            .into_iter()
+            .find(|(path, _)| {
+                path.segments
+                    .iter()
+                    .map(|name| name.0.as_str())
+                    .eq(["std", "undet", "each"].into_iter())
+            })
+            .map(|(_, def)| def)
+            .expect("std::undet::each binding path should exist");
+        let def_span = lowered
+            .state
+            .def_spans
+            .get(&each_def)
+            .copied()
+            .expect("each should have a def_span recorded in its source file");
+        let info = lowered
+            .state
+            .file_info(def_span.file)
+            .expect("def_span should point at a registered file");
+        assert_eq!(info.origin, yulang_sources::SourceOrigin::Std);
+        let path_text = info.path.to_string_lossy().into_owned();
+        assert!(
+            path_text.ends_with("std/undet.yu") || path_text.ends_with("std\\undet.yu"),
+            "each should be defined in std::undet, got file {:?}",
+            info.path,
         );
     });
 }

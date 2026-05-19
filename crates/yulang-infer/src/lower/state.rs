@@ -1,5 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
+
+use yulang_sources::SourceOrigin;
 
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{
@@ -12,6 +15,23 @@ use crate::lower::ctx::LowerCtx;
 use crate::solve::{CastMethodResolution, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FileId(pub u32);
+
+#[derive(Debug, Clone)]
+pub struct FileInfo {
+    pub path: PathBuf,
+    pub origin: SourceOrigin,
+    pub source_prefix_len: usize,
+}
+
+/// ファイル ID と、そのファイル内の byte 範囲。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FileSpan {
+    pub file: FileId,
+    pub range: rowan::TextRange,
+}
 
 use super::{
     ActiveRecursiveSelfInstance, EnumVariantPatternShape, FunctionSigEffectHint,
@@ -41,14 +61,16 @@ pub struct LowerState {
     pub def_hover_types: HashMap<DefId, String>,
     /// source 上の定義名 span。LSP hover など、lowering 済みの名前解決結果を
     /// source 位置へ戻すために使う。
-    pub def_spans: HashMap<DefId, rowan::TextRange>,
+    pub def_spans: HashMap<DefId, FileSpan>,
     /// source 上の値参照 span。alias されて TypedExpr::Var になる参照も含める。
-    pub value_use_spans: Vec<(rowan::TextRange, DefId)>,
+    pub value_use_spans: Vec<(FileSpan, DefId)>,
     /// source 上の未解決/後解決参照 span。
-    pub ref_spans: HashMap<RefId, rowan::TextRange>,
+    pub ref_spans: HashMap<RefId, FileSpan>,
     /// source 上の field / method selection span。
     pub selection_spans: Vec<SelectionSpan>,
-    record_source_spans: bool,
+    /// lowering 中の各ファイル情報。FileId.0 がインデックス。
+    pub files: Vec<FileInfo>,
+    current_file_id: Option<FileId>,
     source_span_offset: usize,
     /// lambda parameter def ごとの pattern local binder 群。
     pub lambda_local_defs: HashMap<DefId, Vec<DefId>>,
@@ -145,7 +167,7 @@ pub struct LowerState {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SelectionSpan {
-    pub span: rowan::TextRange,
+    pub span: FileSpan,
     pub recv_tv: TypeVar,
     pub recv_eff: TypeVar,
     pub result_tv: TypeVar,
@@ -172,7 +194,8 @@ impl LowerState {
             value_use_spans: Vec::new(),
             ref_spans: HashMap::new(),
             selection_spans: Vec::new(),
-            record_source_spans: false,
+            files: Vec::new(),
+            current_file_id: None,
             source_span_offset: 0,
             lambda_local_defs: HashMap::new(),
             lambda_param_pats: HashMap::new(),
@@ -731,32 +754,54 @@ impl LowerState {
         }
     }
 
-    pub(crate) fn with_source_span_recording<T>(
+    /// 新しいファイルを登録して FileId を発行する。
+    pub fn register_file(&mut self, info: FileInfo) -> FileId {
+        let id = FileId(self.files.len() as u32);
+        self.files.push(info);
+        id
+    }
+
+    /// `current_file_id` と prefix オフセットを設定して f を実行し、終了後に元へ戻す。
+    /// f の間に記録された span は `file_id` でタグ付けされる。
+    pub fn with_current_file<T>(
         &mut self,
-        enabled: bool,
+        file_id: FileId,
         source_span_offset: usize,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let saved = self.record_source_spans;
+        let saved_id = self.current_file_id;
         let saved_offset = self.source_span_offset;
-        self.record_source_spans = enabled;
+        self.current_file_id = Some(file_id);
         self.source_span_offset = source_span_offset;
         let out = f(self);
-        self.record_source_spans = saved;
+        self.current_file_id = saved_id;
         self.source_span_offset = saved_offset;
         out
     }
 
-    fn recorded_source_span(&self, span: rowan::TextRange) -> Option<rowan::TextRange> {
-        if !self.record_source_spans {
-            return None;
-        }
+    pub fn current_file_id(&self) -> Option<FileId> {
+        self.current_file_id
+    }
+
+    pub fn entry_file_id(&self) -> Option<FileId> {
+        self.files
+            .iter()
+            .position(|info| info.origin == SourceOrigin::Entry)
+            .map(|idx| FileId(idx as u32))
+    }
+
+    pub fn file_info(&self, file: FileId) -> Option<&FileInfo> {
+        self.files.get(file.0 as usize)
+    }
+
+    fn recorded_source_span(&self, span: rowan::TextRange) -> Option<FileSpan> {
+        let file = self.current_file_id?;
         let start = usize::from(span.start()).checked_sub(self.source_span_offset)?;
         let end = usize::from(span.end()).checked_sub(self.source_span_offset)?;
-        Some(rowan::TextRange::new(
-            (start as u32).into(),
-            (end as u32).into(),
-        ))
+        Some(FileSpan {
+            file,
+            range: rowan::TextRange::new((start as u32).into(), (end as u32).into()),
+        })
     }
 
     pub fn register_lambda_local_defs(&mut self, param_def: DefId, local_defs: Vec<DefId>) {
