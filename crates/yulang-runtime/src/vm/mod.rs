@@ -135,7 +135,7 @@ pub use model::{VmContinuation, VmPrimitive, VmProfile, VmRequest, VmResult, VmV
 use primitive::*;
 use value::*;
 
-pub use control::{ControlVmModule, compile_control_vm_module};
+pub use control::{CONTROL_VM_ARTIFACT_VERSION, ControlVmModule, compile_control_vm_module};
 
 #[cfg(test)]
 mod tests;

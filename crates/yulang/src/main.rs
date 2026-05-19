@@ -1,9 +1,11 @@
 use std::cmp::Reverse;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs;
 #[cfg(not(windows))]
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process;
@@ -87,6 +89,8 @@ where
         .join()
         .expect("join large-stack yulang thread")
 }
+
+const CONTROL_VM_SOURCE_CACHE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CliOptions {
@@ -546,6 +550,75 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
     }
 }
 
+fn run_cached_control_vm_module_or_exit(
+    module: runtime::ControlVmModule,
+    load_duration: Duration,
+    options: &CliOptions,
+) {
+    if let Some(path) = &options.control_vm_emit {
+        let path = Path::new(path);
+        ensure_parent_dir_or_exit(path, "control VM artifact");
+        if let Err(err) = module.write_artifact_file(path) {
+            eprintln!(
+                "failed to write control VM artifact {}: {err}",
+                path.display()
+            );
+            process::exit(1);
+        }
+        if options.runtime_phase_timings {
+            eprintln!("runtime phase timings:");
+            eprintln!(
+                "    control_vm_source_cache_load: {}",
+                format_duration(load_duration)
+            );
+        }
+        if !options.print_roots {
+            println!("control-vm-emit: {}", path.display());
+        }
+        return;
+    }
+
+    let eval_start = Instant::now();
+    let mut results = Vec::new();
+    let mut profile = runtime::VmProfile::default();
+    for index in 0..module.root_count() {
+        match module.eval_root_expr_profiled(index) {
+            Ok((result, item_profile)) => {
+                profile.merge(item_profile);
+                results.push(result);
+            }
+            Err(err) => {
+                eprintln!("failed to evaluate cached control VM: {err}");
+                process::exit(1);
+            }
+        }
+    }
+    let eval_duration = eval_start.elapsed();
+
+    if options.runtime_phase_timings {
+        eprintln!("runtime phase timings:");
+        eprintln!(
+            "    control_vm_source_cache_load: {}",
+            format_duration(load_duration)
+        );
+        eprintln!("    vm_eval: {}", format_duration(eval_duration));
+        eprintln!(
+            "    control_vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+            profile.eval_expr_calls,
+            profile.max_eval_depth,
+            profile.continuation_steps,
+            profile.max_continuation_frames
+        );
+    }
+    if options.print_roots {
+        for (index, result) in results.iter().enumerate() {
+            println!("[{index}] {}", format_runtime_vm_result(result));
+        }
+    } else {
+        println!("control-vm: ok");
+    }
+}
+
 fn run(options: &CliOptions) {
     if options.install_std {
         let root = default_versioned_std_root();
@@ -860,12 +933,27 @@ fn run_infer_views(
     options: &CliOptions,
     emit_output: bool,
 ) {
+    let (source_set, collect_duration) = collect_infer_source_set_or_exit(path, source, options);
+    if emit_output
+        && can_use_control_vm_source_cache(options)
+        && let Some((module, load_duration)) = read_control_vm_source_cache(&source_set)
+    {
+        run_cached_control_vm_module_or_exit(module, load_duration, options);
+        return;
+    }
+
     let InferLowerOutput {
         mut state,
         diagnostic_source,
         lower_profile,
         runtime_dependencies,
-    } = lower_infer_sources(path, root, source, options);
+    } = lower_infer_sources(
+        path,
+        root,
+        source,
+        options,
+        Some((&source_set, collect_duration)),
+    );
 
     let finalized = with_infer_profile_enabled(options.infer_phase_timings, || {
         state.finalize_compact_results_profiled()
@@ -1123,6 +1211,9 @@ fn run_infer_views(
                 }
             };
             let compile_duration = compile_start.elapsed();
+            if can_write_control_vm_source_cache(options) {
+                write_control_vm_source_cache(&source_set, &module);
+            }
             if let Some(path) = &options.control_vm_emit {
                 let path = Path::new(path);
                 ensure_parent_dir_or_exit(path, "control VM artifact");
@@ -3580,7 +3671,20 @@ fn lower_infer_sources(
     _root: &SyntaxNode<YulangLanguage>,
     source: &str,
     options: &CliOptions,
+    collected: Option<(&SourceSet, Duration)>,
 ) -> InferLowerOutput {
+    if let Some((source_set, collect)) = collected {
+        return lower_infer_source_set_with_cache(source_set, source, collect, options);
+    }
+    let (source_set, collect) = collect_infer_source_set_or_exit(path, source, options);
+    lower_infer_source_set_with_cache(&source_set, source, collect, options)
+}
+
+fn collect_infer_source_set_or_exit(
+    path: Option<&str>,
+    source: &str,
+    options: &CliOptions,
+) -> (SourceSet, Duration) {
     let collect_start = Instant::now();
     let source_set = match path {
         Some(path) => {
@@ -3603,7 +3707,7 @@ fn lower_infer_sources(
         }
     };
     let collect = collect_start.elapsed();
-    lower_infer_source_set_with_cache(&source_set, source, collect, options)
+    (source_set, collect)
 }
 
 fn lower_infer_source_set_with_cache(
@@ -3648,6 +3752,104 @@ fn lower_infer_source_set_with_cache(
     write_std_unit_artifacts(source_set, &lowered.lowered.state, &cache);
     let profile = lowered.profile;
     infer_lower_output(lowered.lowered, fallback_diagnostic_source, profile, None)
+}
+
+fn can_use_control_vm_source_cache(options: &CliOptions) -> bool {
+    options.control_vm
+        && !options.infer
+        && !options.infer_phase_timings
+        && !options.core_ir
+        && !options.runtime_ir
+        && !options.hygiene_ir
+        && !options.run_interpreter
+        && !options.native_compare_i64
+        && !options.native_abi_lanes
+        && options.native_object.is_none()
+        && options.native_exe.is_none()
+        && options.native_value_exe.is_none()
+        && options.native_run.is_none()
+        && options.native_run_exe.is_none()
+        && options.native_run_value_exe.is_none()
+        && options.native_run_cps_repr_exe.is_none()
+        && options.native_run_mmtk_cps_repr_exe.is_none()
+}
+
+fn can_write_control_vm_source_cache(options: &CliOptions) -> bool {
+    can_use_control_vm_source_cache(options)
+}
+
+fn read_control_vm_source_cache(
+    source_set: &SourceSet,
+) -> Option<(runtime::ControlVmModule, Duration)> {
+    let path = control_vm_source_cache_path(source_set);
+    let load_start = Instant::now();
+    let module = runtime::ControlVmModule::read_artifact_file(&path).ok()?;
+    Some((module, load_start.elapsed()))
+}
+
+fn write_control_vm_source_cache(source_set: &SourceSet, module: &runtime::ControlVmModule) {
+    let path = control_vm_source_cache_path(source_set);
+    if let Some(parent) = path.parent() {
+        if fs::create_dir_all(parent).is_err() {
+            return;
+        }
+    }
+    let _ = module.write_artifact_file(&path);
+}
+
+fn control_vm_source_cache_path(source_set: &SourceSet) -> PathBuf {
+    let paths = yulang_sources::YulangCachePaths::for_project(workspace_root());
+    paths
+        .user_cache_root
+        .join("control-vm-source")
+        .join(format!("v{CONTROL_VM_SOURCE_CACHE_VERSION}"))
+        .join(format!(
+            "cv{}-{:016x}.ycvm",
+            runtime::CONTROL_VM_ARTIFACT_VERSION,
+            control_vm_source_cache_key(source_set)
+        ))
+}
+
+fn control_vm_source_cache_key(source_set: &SourceSet) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    CONTROL_VM_SOURCE_CACHE_VERSION.hash(&mut hasher);
+    runtime::CONTROL_VM_ARTIFACT_VERSION.hash(&mut hasher);
+    for artifact in source_set.compiled_unit_syntax_artifacts() {
+        hash_compiled_unit_manifest(&artifact.manifest, &mut hasher);
+    }
+    hasher.finish()
+}
+
+fn hash_compiled_unit_manifest(
+    manifest: &yulang_sources::CompiledUnitManifest,
+    hasher: &mut impl Hasher,
+) {
+    manifest.artifact_format_version.hash(hasher);
+    manifest.parser_format_version.hash(hasher);
+    manifest.unit_index.hash(hasher);
+    source_compilation_unit_origin_key(manifest.origin).hash(hasher);
+    manifest.source_hash.hash(hasher);
+    manifest.syntax_hash.hash(hasher);
+    for file in &manifest.files {
+        file.path.hash(hasher);
+        file.module_path.segments.hash(hasher);
+        file.origin.hash(hasher);
+        file.source_len.hash(hasher);
+        file.source_hash.hash(hasher);
+    }
+    for dependency in &manifest.dependencies {
+        dependency.unit_index.hash(hasher);
+        dependency.source_hash.hash(hasher);
+    }
+}
+
+fn source_compilation_unit_origin_key(origin: SourceCompilationUnitOrigin) -> u8 {
+    match origin {
+        SourceCompilationUnitOrigin::Entry => 0,
+        SourceCompilationUnitOrigin::Std => 1,
+        SourceCompilationUnitOrigin::User => 2,
+        SourceCompilationUnitOrigin::Mixed => 3,
+    }
 }
 
 fn infer_lower_output(
@@ -6535,7 +6737,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (mut state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -6560,7 +6762,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let state = lower_infer_sources(None, &root, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -6577,7 +6779,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let state = lower_infer_sources(None, &root, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -6603,7 +6805,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let state = lower_infer_sources(None, &root, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -6629,7 +6831,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let state = lower_infer_sources(None, &root, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -6659,7 +6861,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (mut state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -6686,7 +6888,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let state = lower_infer_sources(None, &root, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -6708,7 +6910,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (mut state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -6732,7 +6934,7 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
         );
-        let (mut state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors

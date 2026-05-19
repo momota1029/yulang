@@ -48,6 +48,12 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
   source lower は `25.525ms`。
   runtime surface の意味が変わったので compiled-unit artifact format は `v2`。
   これにより、`std::int::add` を含まない古い `v1` cache は自動的に読まれない。
+- hidden debug control VM path には source-fingerprint artifact cache も入った。
+  plain `debug control-vm` / `debug control-vm-emit` は source collection 後、
+  infer/runtime lowering 前に cached `.ycvm` を読める。20x20 の debug timing では
+  miss の `runtime_lower=61.321ms` / `monomorphize=81.489ms` /
+  `vm_compile=817.326us` が、hit では `control_vm_source_cache_load=376.553us`
+  に置き換わった。
 
 完了履歴:
 

@@ -5,7 +5,7 @@ use std::io;
 use std::path::Path;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-const CONTROL_VM_ARTIFACT_VERSION: u32 = 4;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 4;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
