@@ -1775,6 +1775,7 @@ fn path_name(path: &typed_ir::Path) -> String {
 fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
     use typed_ir::PrimitiveOp;
     match op {
+        PrimitiveOp::YadaYada => 0,
         PrimitiveOp::BoolNot
         | PrimitiveOp::ListEmpty
         | PrimitiveOp::ListSingleton
@@ -1790,7 +1791,11 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
         | PrimitiveOp::FloatToString
-        | PrimitiveOp::BoolToString => 1,
+        | PrimitiveOp::BoolToString
+        | PrimitiveOp::CharToString
+        | PrimitiveOp::CharIsWhitespace
+        | PrimitiveOp::CharIsPunctuation
+        | PrimitiveOp::CharIsWord => 1,
         PrimitiveOp::BoolEq
         | PrimitiveOp::ListMerge
         | PrimitiveOp::ListIndex
@@ -1817,6 +1822,7 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::FloatGe
         | PrimitiveOp::StringEq
         | PrimitiveOp::StringConcat
+        | PrimitiveOp::CharEq
         | PrimitiveOp::BytesEq
         | PrimitiveOp::BytesConcat
         | PrimitiveOp::BytesIndex

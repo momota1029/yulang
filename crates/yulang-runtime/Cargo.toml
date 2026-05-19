@@ -8,6 +8,7 @@ repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
 [dependencies]
+unicode-segmentation = "1.12"
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
 
 [dev-dependencies]

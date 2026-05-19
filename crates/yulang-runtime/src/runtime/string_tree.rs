@@ -1,5 +1,8 @@
 use std::rc::Rc;
 
+use unicode_segmentation::UnicodeSegmentation;
+
+/// Historical name kept for callers; the unit is now extended grapheme clusters.
 pub const MAX_LEAF_CHARS: usize = 64;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -79,7 +82,7 @@ where
     pub fn len(&self) -> usize {
         match self {
             Self::Empty => 0,
-            Self::Leaf(value) => value.as_str().chars().count(),
+            Self::Leaf(value) => grapheme_count(value.as_str()),
             Self::Node(node) => node.len_chars,
         }
     }
@@ -101,7 +104,7 @@ where
             (Self::Empty, right) => right,
             (left, Self::Empty) => left,
             (Self::Leaf(left), Self::Leaf(right))
-                if left.as_str().chars().count() + right.as_str().chars().count()
+                if grapheme_count(left.as_str()) + grapheme_count(right.as_str())
                     <= MAX_LEAF_CHARS =>
             {
                 let mut merged = String::with_capacity(left.as_str().len() + right.as_str().len());
@@ -124,10 +127,10 @@ where
         }
     }
 
-    pub fn index(&self, index: usize) -> Option<char> {
+    pub fn index(&self, index: usize) -> Option<String> {
         match self {
             Self::Empty => None,
-            Self::Leaf(value) => value.as_str().chars().nth(index),
+            Self::Leaf(value) => value.as_str().graphemes(true).nth(index).map(str::to_owned),
             Self::Node(node) => {
                 let left_len = node.left.len();
                 if index < left_len {
@@ -148,7 +151,7 @@ where
         }
         match self {
             Self::Empty => Some(Self::Empty),
-            Self::Leaf(value) => Some(Self::from_str(slice_str_by_chars(
+            Self::Leaf(value) => Some(Self::from_str(slice_str_by_graphemes(
                 value.as_str(),
                 start,
                 end,
@@ -430,18 +433,18 @@ where
 
 fn chunk_str(value: &str) -> Vec<String> {
     let mut chunks = Vec::new();
-    let mut current = String::new();
+    let mut start = 0usize;
     let mut current_chars = 0usize;
-    for ch in value.chars() {
+    for (byte_index, _) in value.grapheme_indices(true) {
         if current_chars >= MAX_LEAF_CHARS {
-            chunks.push(std::mem::take(&mut current));
+            chunks.push(value[start..byte_index].to_string());
+            start = byte_index;
             current_chars = 0;
         }
-        current.push(ch);
         current_chars += 1;
     }
-    if !current.is_empty() {
-        chunks.push(current);
+    if start < value.len() {
+        chunks.push(value[start..].to_string());
     }
     chunks
 }
@@ -487,20 +490,36 @@ where
     items.pop().unwrap_or(StringTree::Empty)
 }
 
-fn slice_str_by_chars(value: &str, start: usize, end: usize) -> Option<&str> {
-    if start > end {
-        return None;
-    }
-    let start_byte = byte_index_for_char(value, start)?;
-    let end_byte = byte_index_for_char(value, end)?;
+fn slice_str_by_graphemes(value: &str, start: usize, end: usize) -> Option<&str> {
+    let (start_byte, end_byte) = grapheme_range_to_byte_range(value, start, end)?;
     value.get(start_byte..end_byte)
 }
 
-fn byte_index_for_char(value: &str, index: usize) -> Option<usize> {
-    if index == value.chars().count() {
+pub fn grapheme_count(value: &str) -> usize {
+    value.graphemes(true).count()
+}
+
+pub fn grapheme_range_to_byte_range(
+    value: &str,
+    start: usize,
+    end: usize,
+) -> Option<(usize, usize)> {
+    if start > end || end > grapheme_count(value) {
+        return None;
+    }
+    let start_byte = byte_index_for_grapheme(value, start)?;
+    let end_byte = byte_index_for_grapheme(value, end)?;
+    Some((start_byte, end_byte))
+}
+
+fn byte_index_for_grapheme(value: &str, index: usize) -> Option<usize> {
+    if index == grapheme_count(value) {
         return Some(value.len());
     }
-    value.char_indices().nth(index).map(|(offset, _)| offset)
+    value
+        .grapheme_indices(true)
+        .nth(index)
+        .map(|(offset, _)| offset)
 }
 
 #[cfg(test)]
@@ -538,13 +557,27 @@ mod tests {
             panic!("expected non-empty text");
         };
 
-        assert_eq!(text.index(1), Some('あ'));
+        assert_eq!(text.index(1), Some("あ".to_string()));
         assert_eq!(text.index_range(1, 3).unwrap().to_flat_string(), "あ🙂");
         assert_eq!(
             text.splice(1, 3, RuntimeStringTree::from_str("bc"))
                 .unwrap()
                 .to_flat_string(),
             "abcz"
+        );
+    }
+
+    #[test]
+    fn string_tree_indexes_extended_grapheme_clusters() {
+        let text = RuntimeStringTree::from_str("e\u{301}🇯🇵👨‍👩‍👧‍👦!");
+
+        assert_eq!(text.len(), 4);
+        assert_eq!(text.index(0), Some("e\u{301}".to_string()));
+        assert_eq!(text.index(1), Some("🇯🇵".to_string()));
+        assert_eq!(text.index(2), Some("👨‍👩‍👧‍👦".to_string()));
+        assert_eq!(
+            text.index_range(0, 3).unwrap().to_flat_string(),
+            "e\u{301}🇯🇵👨‍👩‍👧‍👦"
         );
     }
 

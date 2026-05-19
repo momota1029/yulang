@@ -234,6 +234,13 @@ release 後に残すもの:
   CPS optimizer が本体を apply site へ展開し、closure construction は dead pure
   削除で落ちるようにした。これは wrapper 形に限らない captured closure にも効く
   closure 生成削減の入口。
+  continuation environment も未使用 slot を削るようにした。`MakeClosure` /
+  `MakeThunk` / handler env / resume target が参照先 continuation の environment を
+  現在地点から読むため、単純に本文使用だけを見るのではなく、参照先 entry が要求する
+  capture value まで必要集合へ含めてから trimming し、残った slot は helper layout に
+  合わせて dense に reindex する。20x20 では `.list.len` が 1 slot、`.list.say` が
+  2 slots 削れる程度で、単体の generated-executable hyperfine は壁時計改善としては
+  見えない。後続の closure/thunk shrinking と dead pure elimination のための IR hygiene。
   `YULANG_CPS_I64_STATS=1` で生成済み CPS executable が runtime control counter を
   root ごとに stderr へ出す計測入口を追加した。stack 操作は site 別にも出すので、
   clone/replace が make-resumption、thunk force、return-frame continue、route の
@@ -543,3 +550,14 @@ Yulang code から小さい regression test を書ける形を作る。
 - fixture 置き場と CLI runner の入口を決める。
 - examples のうち重要なものを regression test に写す。
 - diagnostics golden は必要な範囲だけ固定する。
+
+## Fixed: Recursive Handler Context Specialization Mix-up
+
+- Repro: two local variable handlers plus a recursive function made
+  principal-unify specialize the same recursive `run` handler with a stale
+  output hint from one context and input shapes from another.
+- Fix: contextual specialization now treats input shapes as the source of truth
+  for closed value slots, drops conflicting output hints, refreshes rebuilt
+  arguments before deriving specialization input shapes, and carries the
+  contextual shapes through active recursive rewrites.
+- Regression: `vm_runs_recursive_function_with_two_local_var_handlers`.

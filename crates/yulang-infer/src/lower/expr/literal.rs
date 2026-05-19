@@ -81,7 +81,7 @@ fn display_expr(
     show
 }
 
-fn string_lit_expr(state: &mut LowerState, text: String) -> TypedExpr {
+pub(super) fn string_lit_expr(state: &mut LowerState, text: String) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_exact_pure_eff_tv();
     state.infer.constrain(prim_type("str"), Neg::Var(tv));

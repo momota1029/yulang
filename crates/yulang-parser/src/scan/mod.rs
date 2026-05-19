@@ -52,6 +52,7 @@ pub fn scan_punct_expr<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
 ) -> Option<(SyntaxKind, Box<str>)> {
     let parser = choice((
+        tag("...").to(SyntaxKind::YadaYada),
         tag("->").to(SyntaxKind::Arrow),
         tag("::").to(SyntaxKind::ColonColon),
         item('(').to(SyntaxKind::ParenL),

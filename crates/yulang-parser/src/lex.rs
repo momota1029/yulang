@@ -233,6 +233,7 @@ pub enum SyntaxKind {
     YmDocBlockSigil = 206,
     Error = 207,
     Lazy = 208,
+    YadaYada = 209,
 
     // nodes
     InvalidToken = 500,
@@ -366,6 +367,8 @@ pub enum SyntaxKind {
     CastDecl = 633,
     MethodLambdaExpr = 635,
     RecursiveLambdaExpr = 636,
+    CaseLambdaExpr = 637,
+    CatchLambdaExpr = 638,
     PatSpread = 624,
 
     // effect row in type argument position: '[ ... ]

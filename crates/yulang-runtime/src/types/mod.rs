@@ -116,6 +116,15 @@ mod tests {
     }
 
     #[test]
+    fn project_runtime_hint_type_preserves_closed_value_union() {
+        let raw = typed_ir::Type::Union(vec![named("bool"), named("int")]);
+
+        let projected = project_runtime_hint_type_with_vars(&raw, &BTreeSet::new());
+
+        assert_eq!(projected, raw);
+    }
+
+    #[test]
     fn project_hir_type_uses_unknown_for_unallowed_value_vars() {
         let raw = typed_ir::Type::Var(typed_ir::TypeVar("t0".to_string()));
 

@@ -192,6 +192,7 @@ pub struct PrincipalBinding {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrimitiveOp {
+    YadaYada,
     BoolNot,
     BoolEq,
     ListEmpty,
@@ -231,6 +232,11 @@ pub enum PrimitiveOp {
     StringEq,
     StringConcat,
     StringToBytes,
+    CharEq,
+    CharToString,
+    CharIsWhitespace,
+    CharIsPunctuation,
+    CharIsWord,
     BytesLen,
     BytesEq,
     BytesConcat,

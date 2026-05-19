@@ -192,7 +192,7 @@ pub(super) fn install_string_index_primitive(
     name: &str,
     op: typed_ir::PrimitiveOp,
 ) {
-    install_binary_mixed_primitive(state, module, name, op, "str", "int", "str");
+    install_binary_mixed_primitive(state, module, name, op, "str", "int", "char");
 }
 
 pub(super) fn install_string_index_range_primitive(
@@ -246,6 +246,33 @@ pub(super) fn install_to_string_primitive(
     param_name: &str,
 ) {
     install_unary_primitive(state, module, name, op, param_name, "str");
+}
+
+pub(super) fn install_char_binary_predicate_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_predicate_primitive(state, module, name, op, "char");
+}
+
+pub(super) fn install_char_to_string_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "char", "str");
+}
+
+pub(super) fn install_char_unary_predicate_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "char", "bool");
 }
 
 pub(super) fn install_string_to_bytes_primitive(

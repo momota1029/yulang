@@ -516,6 +516,7 @@ fn eval_primitive(
 ) -> NativeEvalResult<runtime::VmValue> {
     use typed_ir::PrimitiveOp;
     match op {
+        PrimitiveOp::YadaYada => Err(NativeEvalError::UnsupportedPrimitive { op }),
         PrimitiveOp::BoolNot => {
             expect_arity(op, args, 1)?;
             Ok(runtime::VmValue::Bool(!bool_value(op, &args[0])?))
@@ -716,7 +717,7 @@ fn eval_primitive(
                     value: args[0].clone(),
                 }
             })?;
-            Ok(value_from_string(&value.to_string()))
+            Ok(value_from_string(&value))
         }
         PrimitiveOp::StringIndexRange => {
             expect_arity(op, args, 2)?;
@@ -819,6 +820,34 @@ fn eval_primitive(
             } else {
                 "false"
             }))
+        }
+        PrimitiveOp::CharEq => {
+            expect_arity(op, args, 2)?;
+            Ok(runtime::VmValue::Bool(
+                grapheme_value(op, &args[0])? == grapheme_value(op, &args[1])?,
+            ))
+        }
+        PrimitiveOp::CharToString => {
+            expect_arity(op, args, 1)?;
+            Ok(value_from_string(&grapheme_value(op, &args[0])?))
+        }
+        PrimitiveOp::CharIsWhitespace => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::Bool(
+                runtime::runtime::char_class::is_token_whitespace(&grapheme_value(op, &args[0])?),
+            ))
+        }
+        PrimitiveOp::CharIsPunctuation => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::Bool(
+                runtime::runtime::char_class::is_token_punctuation(&grapheme_value(op, &args[0])?),
+            ))
+        }
+        PrimitiveOp::CharIsWord => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::Bool(
+                runtime::runtime::char_class::is_word_grapheme(&grapheme_value(op, &args[0])?),
+            ))
         }
         PrimitiveOp::StringToBytes
         | PrimitiveOp::BytesLen
@@ -945,6 +974,16 @@ fn string_value(
 ) -> NativeEvalResult<&runtime::runtime::string_tree::StringTree> {
     match value {
         runtime::VmValue::String(value) => Ok(value),
+        value => Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: value.clone(),
+        }),
+    }
+}
+
+fn grapheme_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<String> {
+    match value {
+        runtime::VmValue::String(value) if value.len() == 1 => Ok(value.to_flat_string()),
         value => Err(NativeEvalError::PrimitiveTypeMismatch {
             op,
             value: value.clone(),

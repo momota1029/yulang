@@ -12,12 +12,14 @@ use mmtk::plan::AllocationSemantics;
 use mmtk::util::ObjectReference;
 use mmtk::util::opaque_pointer::{VMMutatorThread, VMThread};
 use rustc_hash::FxHashMap;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::gc_runtime::{
     GcRuntimeContext, NativeFieldValue, NativeHeapBlock, NativeLayoutHandle, NativePayloadBuffer,
     YHeap, YHeapStats, YList, YObject, YObjectKind, YObjectPayload, YString, YSymbolId, YValue,
 };
 use crate::mmtk_binding::{YulangMmtkObjectHeader, YulangMmtkVM, initialize_yulang_mmtk_object};
+use yulang_runtime::runtime::string_tree::{grapheme_count, grapheme_range_to_byte_range};
 
 unsafe extern "C" {
     fn yulang_cps_print_debug_i64(value: i64);
@@ -234,7 +236,7 @@ impl MmtkHeap {
             &[],
             bytes,
             MmtkPayloadStorage::StringLeaf {
-                len_chars: text.chars().count(),
+                len_chars: grapheme_count(text),
                 len_bytes: bytes.len(),
             },
         ))
@@ -1616,7 +1618,7 @@ impl MmtkNativeRuntimeContext {
         insert: YValue,
     ) -> Option<YValue> {
         let text = self.render_string(value)?;
-        let len = text.chars().count();
+        let len = grapheme_count(&text);
         if start > end || end > len {
             return None;
         }
@@ -2260,7 +2262,7 @@ impl MmtkNativeRuntimeContext {
                 let YObjectPayload::String(value) = object.payload() else {
                     return None;
                 };
-                Some(self.render_string_payload(value)?.chars().count())
+                Some(grapheme_count(&self.render_string_payload(value)?))
             }
         }
     }
@@ -2732,7 +2734,7 @@ impl MmtkNativeRuntimeContext {
             0 => {
                 let text = std::str::from_utf8(raw).ok()?;
                 Some(CompactStringTreeStorage::Leaf {
-                    len_chars: text.chars().count(),
+                    len_chars: grapheme_count(text),
                     len_bytes: raw.len(),
                 })
             }
@@ -3194,23 +3196,7 @@ fn path_buf_bytes(path: &std::path::PathBuf) -> Vec<u8> {
 }
 
 fn char_range_to_byte_range(text: &str, start: usize, end: usize) -> Option<(usize, usize)> {
-    if start > end {
-        return None;
-    }
-    let len = text.chars().count();
-    if end > len {
-        return None;
-    }
-    let start_byte = char_index_to_byte_index(text, start)?;
-    let end_byte = char_index_to_byte_index(text, end)?;
-    Some((start_byte, end_byte))
-}
-
-fn char_index_to_byte_index(text: &str, index: usize) -> Option<usize> {
-    if index == text.chars().count() {
-        return Some(text.len());
-    }
-    text.char_indices().nth(index).map(|(byte, _)| byte)
+    grapheme_range_to_byte_range(text, start, end)
 }
 
 fn chunk_str_bytes(value: &str) -> Vec<&[u8]> {
@@ -3220,7 +3206,7 @@ fn chunk_str_bytes(value: &str) -> Vec<&[u8]> {
     let mut chunks = Vec::new();
     let mut start = 0;
     let mut chars = 0;
-    for (byte_index, _) in value.char_indices() {
+    for (byte_index, _) in value.grapheme_indices(true) {
         if chars == MAX_STRING_LEAF_CHARS {
             chunks.push(&value.as_bytes()[start..byte_index]);
             start = byte_index;

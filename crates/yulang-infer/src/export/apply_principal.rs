@@ -13,8 +13,8 @@ use super::evidence::{
     EdgePathSegment, EdgePolarity, ExpectedEdgeEvidence, derive_expected_edge_evidence,
 };
 use super::type_props::{
-    bounds_primary_type, primary_structural_or_concrete_type,
-    primary_structural_or_concrete_type_not_equal, substitution_type_usable, type_has_vars,
+    bounds_primary_type, primary_structural_or_concrete_type_not_equal, substitution_type_usable,
+    type_has_vars,
 };
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds,
@@ -699,14 +699,13 @@ fn monomorphic_type_from_bounds_ref(bounds: &typed_ir::TypeBounds) -> Option<&ty
     bounds
         .lower
         .as_deref()
-        .and_then(primary_structural_or_concrete_type)
+        .filter(|ty| substitution_type_usable(ty, false))
         .or_else(|| {
             bounds
                 .upper
                 .as_deref()
-                .and_then(primary_structural_or_concrete_type)
+                .filter(|ty| substitution_type_usable(ty, false))
         })
-        .filter(|ty| substitution_type_usable(ty, false))
 }
 
 fn collect_candidates_from_bounds(
@@ -1438,6 +1437,16 @@ fn merge_substitution_type(
         return Some(left.clone());
     }
     match (left, right) {
+        (typed_ir::Type::Union(items), other) | (other, typed_ir::Type::Union(items))
+            if items.iter().any(|item| item == other) =>
+        {
+            Some(typed_ir::Type::Union(items.clone()))
+        }
+        (typed_ir::Type::Inter(items), other) | (other, typed_ir::Type::Inter(items))
+            if items.iter().any(|item| item == other) =>
+        {
+            Some(typed_ir::Type::Inter(items.clone()))
+        }
         (
             typed_ir::Type::Named { path, args },
             typed_ir::Type::Named {
@@ -1651,6 +1660,28 @@ mod tests {
             unifier.into_substitutions().collect::<Vec<_>>(),
             vec![(tv("t"), typed_ir::Type::Never)]
         );
+    }
+
+    #[test]
+    fn monomorphic_slot_bounds_keep_closed_union_whole() {
+        let union = typed_ir::Type::Union(vec![named("bool"), named("int")]);
+        let bounds = typed_ir::TypeBounds {
+            lower: Some(Box::new(union.clone())),
+            upper: None,
+        };
+
+        assert_eq!(monomorphic_type_from_bounds_ref(&bounds), Some(&union));
+    }
+
+    #[test]
+    fn substitution_merge_keeps_union_when_other_side_is_member() {
+        let union = typed_ir::Type::Union(vec![named("bool"), named("int")]);
+
+        assert_eq!(
+            merge_substitution_type(&union, &named("bool")),
+            Some(union.clone())
+        );
+        assert_eq!(merge_substitution_type(&named("int"), &union), Some(union));
     }
 
     #[test]

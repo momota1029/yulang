@@ -3244,7 +3244,7 @@ pub(super) extern "C" fn yulang_cps_string_index_i64(value: i64, index: i64) -> 
     let Some(ch) = text.index(index) else {
         return native_cps_i64_string_empty();
     };
-    native_cps_i64_string_heap(&ch.to_string())
+    native_cps_i64_string_heap(&ch)
 }
 
 #[unsafe(no_mangle)]

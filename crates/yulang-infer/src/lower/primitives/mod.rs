@@ -18,14 +18,16 @@ use scalar::{
     install_bytes_binary_predicate_primitive, install_bytes_binary_primitive,
     install_bytes_index_primitive, install_bytes_index_range_primitive,
     install_bytes_len_primitive, install_bytes_to_path_primitive,
-    install_bytes_to_utf8_raw_primitive, install_float_binary_predicate_primitive,
-    install_float_binary_primitive, install_int_binary_predicate_primitive,
-    install_int_binary_primitive, install_path_to_bytes_primitive,
-    install_string_binary_predicate_primitive, install_string_binary_primitive,
-    install_string_index_primitive, install_string_index_range_primitive,
-    install_string_index_range_raw_primitive, install_string_len_primitive,
-    install_string_splice_primitive, install_string_splice_raw_primitive,
-    install_string_to_bytes_primitive, install_to_string_primitive,
+    install_bytes_to_utf8_raw_primitive, install_char_binary_predicate_primitive,
+    install_char_to_string_primitive, install_char_unary_predicate_primitive,
+    install_float_binary_predicate_primitive, install_float_binary_primitive,
+    install_int_binary_predicate_primitive, install_int_binary_primitive,
+    install_path_to_bytes_primitive, install_string_binary_predicate_primitive,
+    install_string_binary_primitive, install_string_index_primitive,
+    install_string_index_range_primitive, install_string_index_range_raw_primitive,
+    install_string_len_primitive, install_string_splice_primitive,
+    install_string_splice_raw_primitive, install_string_to_bytes_primitive,
+    install_to_string_primitive,
 };
 use support::{ensure_builtin_type, ensure_child_module};
 
@@ -36,10 +38,12 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
     let int_module = ensure_child_module(state, std_module, "int");
     let float_module = ensure_child_module(state, std_module, "float");
     let str_module = ensure_child_module(state, std_module, "str");
+    let char_module = ensure_child_module(state, std_module, "char");
     let bytes_module = ensure_child_module(state, std_module, "bytes");
     let path_module = ensure_child_module(state, std_module, "path");
     ensure_builtin_type(state, list_module, "list");
     ensure_builtin_type(state, str_module, "str");
+    ensure_builtin_type(state, char_module, "char");
     ensure_builtin_type(state, bytes_module, "bytes");
     ensure_builtin_type(state, path_module, "path");
 
@@ -235,6 +239,36 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
         str_module,
         "to_bytes",
         typed_ir::PrimitiveOp::StringToBytes,
+    );
+    install_char_binary_predicate_primitive(
+        state,
+        char_module,
+        "eq",
+        typed_ir::PrimitiveOp::CharEq,
+    );
+    install_char_to_string_primitive(
+        state,
+        char_module,
+        "to_string",
+        typed_ir::PrimitiveOp::CharToString,
+    );
+    install_char_unary_predicate_primitive(
+        state,
+        char_module,
+        "is_whitespace",
+        typed_ir::PrimitiveOp::CharIsWhitespace,
+    );
+    install_char_unary_predicate_primitive(
+        state,
+        char_module,
+        "is_punctuation",
+        typed_ir::PrimitiveOp::CharIsPunctuation,
+    );
+    install_char_unary_predicate_primitive(
+        state,
+        char_module,
+        "is_word",
+        typed_ir::PrimitiveOp::CharIsWord,
     );
     install_bytes_len_primitive(state, bytes_module, "len", typed_ir::PrimitiveOp::BytesLen);
     install_bytes_binary_predicate_primitive(

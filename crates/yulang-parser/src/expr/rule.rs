@@ -157,8 +157,9 @@ fn parse_rule_item<I: EventInput, S: EventSink>(
         RuleNudTag::StringStart => {
             i.env.state.sink.start(SyntaxKind::Expr);
             let after = parse_string_lit(i.rb(), nud.lex)?;
+            let trailing = parse_rule_body_tail(after, i.rb())?;
             i.env.state.sink.finish();
-            Some(Either::Left(after))
+            Some(trailing)
         }
         RuleNudTag::OpenParen => {
             i.env.state.sink.start(SyntaxKind::Expr);

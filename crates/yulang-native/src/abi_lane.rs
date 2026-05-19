@@ -373,6 +373,7 @@ fn primitive_result_repr(
 ) -> NativeAbiRepr {
     use typed_ir::PrimitiveOp;
     match op {
+        PrimitiveOp::YadaYada => NativeAbiRepr::Unknown,
         PrimitiveOp::BoolNot
         | PrimitiveOp::BoolEq
         | PrimitiveOp::IntEq
@@ -386,6 +387,10 @@ fn primitive_result_repr(
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
         | PrimitiveOp::StringEq
+        | PrimitiveOp::CharEq
+        | PrimitiveOp::CharIsWhitespace
+        | PrimitiveOp::CharIsPunctuation
+        | PrimitiveOp::CharIsWord
         | PrimitiveOp::BytesEq => NativeAbiRepr::Bool,
         PrimitiveOp::IntAdd | PrimitiveOp::IntSub | PrimitiveOp::IntMul | PrimitiveOp::IntDiv => {
             NativeAbiRepr::Int
@@ -430,7 +435,8 @@ fn primitive_result_repr(
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
         | PrimitiveOp::FloatToString
-        | PrimitiveOp::BoolToString => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::String),
+        | PrimitiveOp::BoolToString
+        | PrimitiveOp::CharToString => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::String),
         PrimitiveOp::StringToBytes
         | PrimitiveOp::BytesConcat
         | PrimitiveOp::BytesIndexRange

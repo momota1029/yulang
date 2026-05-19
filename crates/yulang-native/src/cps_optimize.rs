@@ -42,6 +42,7 @@ pub struct CpsOptimizationProfile {
     pub reified_partial_closure_calls: usize,
     pub reified_known_closure_parameter_calls: usize,
     pub removed_unused_continuation_params: usize,
+    pub removed_unused_environment_slots: usize,
     pub folded_structural_projections: usize,
     pub inlined_pure_direct_calls: usize,
     pub inlined_continuation_calls: usize,
@@ -79,12 +80,14 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
     remove_unused_continuation_params(output);
+    remove_unused_environment_slots(output);
     fold_structural_projections(output);
     inline_pure_direct_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
     remove_unused_continuation_params(output);
+    remove_unused_environment_slots(output);
     prune_unreachable_continuations(output);
     eliminate_dead_pure_statements(output);
     prune_unreachable_continuations(output);
@@ -261,6 +264,20 @@ fn remove_unused_continuation_params(output: &mut CpsOptimizationOutput) {
     output.profile.changed |= output.profile.removed_unused_continuation_params > 0;
 }
 
+fn remove_unused_environment_slots(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.removed_unused_environment_slots +=
+            remove_unused_environment_slots_in_function(function);
+    }
+    output.profile.changed |= output.profile.removed_unused_environment_slots > 0;
+}
+
 fn fold_structural_projections(output: &mut CpsOptimizationOutput) {
     output.profile.passes_run += 1;
     for function in output
@@ -341,6 +358,136 @@ fn unused_continuation_param_slots(
             (!slots.is_empty()).then_some((continuation.id, slots))
         })
         .collect()
+}
+
+fn remove_unused_environment_slots_in_function(function: &mut CpsReprAbiFunction) -> usize {
+    let required_values = required_environment_values_by_continuation(function);
+    let mut removed = 0;
+    for continuation in &mut function.continuations {
+        let Some(required) = required_values.get(&continuation.id) else {
+            continue;
+        };
+        let before = continuation.environment.len();
+        continuation
+            .environment
+            .retain(|slot| required.contains(&slot.value));
+        if before != continuation.environment.len() {
+            for (index, slot) in continuation.environment.iter_mut().enumerate() {
+                slot.index = index;
+            }
+            removed += before - continuation.environment.len();
+        }
+    }
+    removed
+}
+
+fn required_environment_values_by_continuation(
+    function: &CpsReprAbiFunction,
+) -> HashMap<CpsContinuationId, HashSet<CpsValueId>> {
+    let environment_values = function
+        .continuations
+        .iter()
+        .map(|continuation| {
+            (
+                continuation.id,
+                continuation
+                    .environment
+                    .iter()
+                    .map(|slot| slot.value)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    function
+        .continuations
+        .iter()
+        .map(|continuation| {
+            let mut required = HashSet::new();
+            for stmt in &continuation.stmts {
+                required.extend(stmt_operands(stmt));
+                required.extend(referenced_environment_values_in_stmt(
+                    stmt,
+                    &environment_values,
+                ));
+            }
+            required.extend(terminator_values(&continuation.terminator));
+            required.extend(referenced_environment_values_in_terminator(
+                &continuation.terminator,
+                &environment_values,
+            ));
+            (continuation.id, required)
+        })
+        .collect()
+}
+
+fn referenced_environment_values_in_stmt(
+    stmt: &CpsStmt,
+    environment_values: &HashMap<CpsContinuationId, Vec<CpsValueId>>,
+) -> Vec<CpsValueId> {
+    match stmt {
+        CpsStmt::MakeThunk { entry, .. }
+        | CpsStmt::MakeClosure { entry, .. }
+        | CpsStmt::MakeRecursiveClosure { entry, .. } => environment_values
+            .get(entry)
+            .into_iter()
+            .flatten()
+            .copied()
+            .collect(),
+        CpsStmt::InstallHandler {
+            value,
+            escape,
+            envs,
+            ..
+        } => std::iter::once(value)
+            .chain(std::iter::once(escape))
+            .chain(envs.iter().map(|env| &env.entry))
+            .filter_map(|entry| environment_values.get(entry))
+            .flatten()
+            .copied()
+            .collect(),
+        CpsStmt::ResumeWithHandler { envs, .. } => envs
+            .iter()
+            .filter_map(|env| environment_values.get(&env.entry))
+            .flatten()
+            .copied()
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn referenced_environment_values_in_terminator(
+    terminator: &CpsTerminator,
+    environment_values: &HashMap<CpsContinuationId, Vec<CpsValueId>>,
+) -> Vec<CpsValueId> {
+    match terminator {
+        CpsTerminator::Continue { target, .. } => environment_values
+            .get(target)
+            .into_iter()
+            .flatten()
+            .copied()
+            .collect(),
+        CpsTerminator::Branch {
+            then_cont,
+            else_cont,
+            ..
+        } => [then_cont, else_cont]
+            .into_iter()
+            .filter_map(|target| environment_values.get(target))
+            .flatten()
+            .copied()
+            .collect(),
+        CpsTerminator::Perform { resume, .. }
+        | CpsTerminator::EffectfulCall { resume, .. }
+        | CpsTerminator::EffectfulApply { resume, .. }
+        | CpsTerminator::EffectfulForce { resume, .. } => environment_values
+            .get(resume)
+            .into_iter()
+            .flatten()
+            .copied()
+            .collect(),
+        CpsTerminator::Return(_) => Vec::new(),
+    }
 }
 
 fn function_used_values(function: &CpsReprAbiFunction) -> HashSet<CpsValueId> {
@@ -439,7 +586,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -456,6 +603,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.reified_partial_closure_calls,
         profile.reified_known_closure_parameter_calls,
         profile.removed_unused_continuation_params,
+        profile.removed_unused_environment_slots,
         profile.folded_structural_projections,
         profile.inlined_pure_direct_calls,
         profile.inlined_continuation_calls,
@@ -2562,6 +2710,7 @@ impl CpsOptimizationProfile {
             || self.reified_known_closure_parameter_calls
                 > before.reified_known_closure_parameter_calls
             || self.removed_unused_continuation_params > before.removed_unused_continuation_params
+            || self.removed_unused_environment_slots > before.removed_unused_environment_slots
             || self.folded_structural_projections > before.folded_structural_projections
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
             || self.inlined_continuation_calls > before.inlined_continuation_calls
@@ -2609,6 +2758,7 @@ impl CpsOptimizationProfile {
             reified_partial_closure_calls: 0,
             reified_known_closure_parameter_calls: 0,
             removed_unused_continuation_params: 0,
+            removed_unused_environment_slots: 0,
             folded_structural_projections: 0,
             inlined_pure_direct_calls: 0,
             inlined_continuation_calls: 0,
@@ -2643,7 +2793,7 @@ mod tests {
         assert_eq!(optimized.profile.optimized_continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
         assert_eq!(optimized.profile.optimized_statements, 1);
-        assert_eq!(optimized.profile.passes_run, 17);
+        assert_eq!(optimized.profile.passes_run, 19);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.folded_constant_branches, 0);
@@ -2652,6 +2802,7 @@ mod tests {
         assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
         assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 0);
         assert_eq!(optimized.profile.removed_unused_continuation_params, 0);
+        assert_eq!(optimized.profile.removed_unused_environment_slots, 0);
         assert_eq!(optimized.profile.folded_structural_projections, 0);
         assert_eq!(optimized.profile.inlined_pure_direct_calls, 0);
         assert_eq!(optimized.profile.inlined_continuation_calls, 0);
@@ -3976,6 +4127,68 @@ mod tests {
             ));
         }
         assert_eq!(optimized.profile.removed_unused_continuation_params, 1);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
+    }
+
+    #[test]
+    fn removes_unused_closure_environment_slots_and_reindexes_remaining_slots() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("1".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                            CpsStmt::MakeClosure {
+                                dest: CpsValueId(2),
+                                entry: CpsContinuationId(1),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(2)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(3)],
+                        captures: vec![CpsValueId(0), CpsValueId(1)],
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(4),
+                            op: typed_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(1), CpsValueId(3)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let root = &optimized.module.roots[0];
+        let closure_entry = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(1))
+            .unwrap();
+
+        assert_eq!(closure_entry.environment.len(), 1);
+        assert_eq!(closure_entry.environment[0].index, 0);
+        assert_eq!(closure_entry.environment[0].value, CpsValueId(1));
+        assert_eq!(optimized.profile.removed_unused_environment_slots, 1);
         assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
     }
 

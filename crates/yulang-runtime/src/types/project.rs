@@ -20,6 +20,13 @@ pub(crate) fn project_runtime_type_with_vars(
     RuntimeTypeProjector::new(allowed_vars).project(ty)
 }
 
+pub(crate) fn project_runtime_hint_type_with_vars(
+    ty: &typed_ir::Type,
+    allowed_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::Type {
+    RuntimeTypeProjector::new(allowed_vars).project_hint(ty)
+}
+
 pub(crate) fn project_runtime_hir_type_with_vars(
     ty: &typed_ir::Type,
     allowed_vars: &BTreeSet<typed_ir::TypeVar>,
@@ -129,6 +136,69 @@ impl<'a> RuntimeTypeProjector<'a> {
                     body: Box::new(body),
                 }
             }
+        }
+    }
+
+    pub(super) fn project_hint(&mut self, ty: &typed_ir::Type) -> typed_ir::Type {
+        match ty {
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => typed_ir::Type::Fun {
+                param: Box::new(self.project_hint(param)),
+                param_effect: Box::new(self.project_effect(param_effect)),
+                ret_effect: Box::new(self.project_effect(ret_effect)),
+                ret: Box::new(self.project_hint(ret)),
+            },
+            typed_ir::Type::Tuple(items) => {
+                typed_ir::Type::Tuple(items.iter().map(|item| self.project_hint(item)).collect())
+            }
+            typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
+                fields: record
+                    .fields
+                    .iter()
+                    .map(|field| typed_ir::RecordField {
+                        name: field.name.clone(),
+                        value: self.project_hint(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+                spread: record.spread.as_ref().map(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) => {
+                        typed_ir::RecordSpread::Head(Box::new(self.project_hint(ty)))
+                    }
+                    typed_ir::RecordSpread::Tail(ty) => {
+                        typed_ir::RecordSpread::Tail(Box::new(self.project_hint(ty)))
+                    }
+                }),
+            }),
+            typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
+                cases: variant
+                    .cases
+                    .iter()
+                    .map(|case| typed_ir::VariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(|payload| self.project_hint(payload))
+                            .collect(),
+                    })
+                    .collect(),
+                tail: variant
+                    .tail
+                    .as_ref()
+                    .map(|tail| Box::new(self.project_hint(tail))),
+            }),
+            typed_ir::Type::Union(items) => self
+                .project_hint_choice(items, true)
+                .unwrap_or_else(runtime_projection_fallback_type),
+            typed_ir::Type::Inter(items) => self
+                .project_hint_choice(items, false)
+                .unwrap_or_else(runtime_projection_fallback_type),
+            other => self.project(other),
         }
     }
 
@@ -375,6 +445,29 @@ impl<'a> RuntimeTypeProjector<'a> {
             best = choose_core_type_candidate(best, projected, TypeChoice::RuntimeValue);
         }
         best
+    }
+
+    pub(super) fn project_hint_choice(
+        &mut self,
+        items: &[typed_ir::Type],
+        union: bool,
+    ) -> Option<typed_ir::Type> {
+        let mut projected = Vec::new();
+        for item in items {
+            let item = self.project_hint(item);
+            if is_runtime_hole(&item) {
+                continue;
+            }
+            if !projected.contains(&item) {
+                projected.push(item);
+            }
+        }
+        match projected.len() {
+            0 => None,
+            1 => projected.pop(),
+            _ if union => Some(typed_ir::Type::Union(projected)),
+            _ => Some(typed_ir::Type::Inter(projected)),
+        }
     }
 
     pub(super) fn project_hir_choice(&mut self, items: &[typed_ir::Type]) -> Option<RuntimeType> {

@@ -36,6 +36,15 @@ pub(super) fn parse_lambda_expr<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     backslash: Lex,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
+    if let Some(kw) = parse_case_like_lambda_keyword(i.rb(), &backslash) {
+        let config = match kw.kind {
+            SyntaxKind::Case => case_config(SyntaxKind::CaseLambdaExpr),
+            SyntaxKind::Catch => catch_config(SyntaxKind::CatchLambdaExpr),
+            _ => unreachable!("case-like lambda keyword"),
+        };
+        return parse_case_like_lambda_expr(i, backslash, kw, &config);
+    }
+
     if i.lookahead(scan_dot_field).is_some() {
         let led = scan_expr_led(backslash.trailing_trivia_info(), i.rb())?;
         i.env.state.sink.start(SyntaxKind::MethodLambdaExpr);
@@ -55,6 +64,20 @@ pub(super) fn parse_lambda_expr<I: EventInput, S: EventSink>(
     i.env.state.sink.start(SyntaxKind::LambdaExpr);
     i.env.state.sink.lex(&backslash);
     parse_lambda_after_intro(i, backslash.trailing_trivia_info())
+}
+
+fn parse_case_like_lambda_keyword<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    backslash: &Lex,
+) -> Option<Lex> {
+    if backslash.trailing_trivia_info() != TriviaInfo::None {
+        return None;
+    }
+    let kw = peek_stmt_lex(TriviaInfo::None, i.rb())?;
+    if !matches!(kw.kind, SyntaxKind::Case | SyntaxKind::Catch) {
+        return None;
+    }
+    scan_stmt_lex(TriviaInfo::None, i)
 }
 
 fn parse_recursive_lambda_label<I: EventInput, S: EventSink>(
@@ -270,15 +293,7 @@ pub(super) fn parse_case_expr<I: EventInput, S: EventSink>(
     i: In<I, S>,
     case_lex: Lex,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
-    let config = CaseLikeConfig {
-        expr_node: SyntaxKind::CaseExpr,
-        block_node: SyntaxKind::CaseBlock,
-        arm_node: SyntaxKind::CaseArm,
-        guard_node: SyntaxKind::CaseGuard,
-        allow_handler_name: false,
-        allow_inline_list: true,
-        allow_brace_block: false,
-    };
+    let config = case_config(SyntaxKind::CaseExpr);
     parse_case_like_expr(i, case_lex, &config)
 }
 
@@ -286,16 +301,32 @@ pub(super) fn parse_catch_expr<I: EventInput, S: EventSink>(
     i: In<I, S>,
     catch_lex: Lex,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
-    let config = CaseLikeConfig {
-        expr_node: SyntaxKind::CatchExpr,
+    let config = catch_config(SyntaxKind::CatchExpr);
+    parse_case_like_expr(i, catch_lex, &config)
+}
+
+fn case_config(expr_node: SyntaxKind) -> CaseLikeConfig {
+    CaseLikeConfig {
+        expr_node,
+        block_node: SyntaxKind::CaseBlock,
+        arm_node: SyntaxKind::CaseArm,
+        guard_node: SyntaxKind::CaseGuard,
+        allow_handler_name: false,
+        allow_inline_list: true,
+        allow_brace_block: false,
+    }
+}
+
+fn catch_config(expr_node: SyntaxKind) -> CaseLikeConfig {
+    CaseLikeConfig {
+        expr_node,
         block_node: SyntaxKind::CatchBlock,
         arm_node: SyntaxKind::CatchArm,
         guard_node: SyntaxKind::CatchGuard,
         allow_handler_name: true,
         allow_inline_list: false,
         allow_brace_block: true,
-    };
-    parse_case_like_expr(i, catch_lex, &config)
+    }
 }
 
 fn parse_case_like_expr<I: EventInput, S: EventSink>(
@@ -307,6 +338,7 @@ fn parse_case_like_expr<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&kw);
 
     let base_indent = i.env.indent;
+    let target_leading = parse_case_like_label(i.rb(), kw.trailing_trivia_info());
 
     // target expression (the scrutinee)
     let old_stop = i.env.stop.clone();
@@ -314,7 +346,7 @@ fn parse_case_like_expr<I: EventInput, S: EventSink>(
     if config.allow_brace_block {
         i.env.stop.insert(SyntaxKind::BraceL);
     }
-    let target = parse_expr(kw.trailing_trivia_info(), i.rb());
+    let target = parse_expr(target_leading, i.rb());
     i.env.stop = old_stop;
 
     let stop_lex = match target? {
@@ -344,6 +376,62 @@ fn parse_case_like_expr<I: EventInput, S: EventSink>(
         _ => {
             emit_invalid(i.rb(), stop_lex.clone());
             Either::Right(stop_lex)
+        }
+    };
+
+    i.env.state.sink.finish();
+    Some(Ok(result))
+}
+
+fn parse_case_like_label<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading: TriviaInfo,
+) -> TriviaInfo {
+    let Some(label) = peek_stmt_lex(leading, i.rb()) else {
+        return leading;
+    };
+    if label.kind != SyntaxKind::SigilIdent || !label.text.starts_with('\'') {
+        return leading;
+    }
+    let Some(label) = scan_stmt_lex(leading, i.rb()) else {
+        return leading;
+    };
+    i.env.state.sink.lex(&label);
+    label.trailing_trivia_info()
+}
+
+fn parse_case_like_lambda_expr<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    backslash: Lex,
+    kw: Lex,
+    config: &CaseLikeConfig,
+) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
+    i.env.state.sink.start(config.expr_node);
+    i.env.state.sink.lex(&backslash);
+    i.env.state.sink.lex(&kw);
+
+    let base_indent = i.env.indent;
+    let leading = parse_case_like_label(i.rb(), kw.trailing_trivia_info());
+    let nud = scan_expr_nud(leading, i.rb())?;
+    let result = match nud.tag {
+        ExprNudTag::Stop if nud.lex.kind == SyntaxKind::Colon => {
+            i.env.state.sink.start(config.block_node);
+            i.env.state.sink.lex(&nud.lex);
+            let after_colon = nud.lex.trailing_trivia_info();
+            let block_result =
+                parse_case_block_after_colon(i.rb(), after_colon, base_indent, config)?;
+            i.env.state.sink.finish();
+            block_result
+        }
+        ExprNudTag::OpenBrace if config.allow_brace_block => {
+            i.env.state.sink.start(config.block_node);
+            let after_brace = parse_case_brace_block(i.rb(), nud.lex, config)?;
+            i.env.state.sink.finish();
+            Either::Left(after_brace)
+        }
+        _ => {
+            emit_invalid(i.rb(), nud.lex.clone());
+            Either::Right(nud.lex)
         }
     };
 

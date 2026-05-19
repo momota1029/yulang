@@ -4270,6 +4270,7 @@ fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
 
 fn format_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => "...",
         typed_ir::PrimitiveOp::BoolNot => "std::bool::not",
         typed_ir::PrimitiveOp::BoolEq => "std::bool::eq",
         typed_ir::PrimitiveOp::ListEmpty => "std::list::empty",
@@ -4309,6 +4310,11 @@ fn format_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::StringEq => "std::str::eq",
         typed_ir::PrimitiveOp::StringConcat => "std::str::concat",
         typed_ir::PrimitiveOp::StringToBytes => "std::str::to_bytes",
+        typed_ir::PrimitiveOp::CharEq => "std::char::eq",
+        typed_ir::PrimitiveOp::CharToString => "std::char::to_string",
+        typed_ir::PrimitiveOp::CharIsWhitespace => "std::char::is_whitespace",
+        typed_ir::PrimitiveOp::CharIsPunctuation => "std::char::is_punctuation",
+        typed_ir::PrimitiveOp::CharIsWord => "std::char::is_word",
         typed_ir::PrimitiveOp::BytesLen => "std::bytes::len",
         typed_ir::PrimitiveOp::BytesEq => "std::bytes::eq",
         typed_ir::PrimitiveOp::BytesConcat => "std::bytes::concat",

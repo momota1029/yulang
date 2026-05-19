@@ -47,6 +47,7 @@ pub enum PrimitiveTypeFamily {
     Bool,
     Unit,
     Str,
+    Char,
     List,
     ListView,
     Range,

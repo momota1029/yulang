@@ -15,14 +15,240 @@ use crate::types::{Neg, Pos};
 // ── case (match) ─────────────────────────────────────────────────────────────
 
 pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
-    let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
-
     let scrutinee = node
         .children()
         .find(|c| c.kind() == SyntaxKind::Expr)
         .map(|c| lower_expr(state, &c))
         .unwrap_or_else(|| unit_expr(state));
+    if let Some(label) = case_like_label_name(node) {
+        return lower_recursive_case_like(
+            state,
+            label,
+            Some(scrutinee),
+            "#case-receiver",
+            |state, _receiver| state.fresh_exact_pure_eff_tv(),
+            |state, receiver| {
+                let scrutinee = resolve_bound_def_expr(state, receiver.def);
+                lower_case_with_scrutinee(state, node, scrutinee)
+            },
+        );
+    }
+    lower_case_with_scrutinee(state, node, scrutinee)
+}
+
+pub(super) fn lower_case_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
+    if let Some(label) = case_like_label_name(node) {
+        return lower_recursive_case_like(
+            state,
+            label,
+            None,
+            "#case-receiver",
+            |state, _receiver| state.fresh_exact_pure_eff_tv(),
+            |state, receiver| {
+                let scrutinee = resolve_bound_def_expr(state, receiver.def);
+                lower_case_with_scrutinee(state, node, scrutinee)
+            },
+        );
+    }
+    let receiver = fresh_case_like_lambda_receiver(state, "#case-receiver");
+    let scrutinee = resolve_bound_def_expr(state, receiver.def);
+    let body = lower_case_with_scrutinee(state, node, scrutinee);
+    let arg_eff_tv = state.fresh_exact_pure_eff_tv();
+    case_like_lambda_expr(state, receiver, body, arg_eff_tv)
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::lower::expr) struct CaseLikeLambdaReceiver {
+    pub def: crate::ids::DefId,
+    tv: TypeVar,
+}
+
+pub(in crate::lower::expr) fn fresh_case_like_lambda_receiver(
+    state: &mut LowerState,
+    name: &str,
+) -> CaseLikeLambdaReceiver {
+    let def = state.fresh_def();
+    let tv = state.fresh_tv();
+    state.register_def_tv(def, tv);
+    state.register_def_name(def, Name(name.to_string()));
+    if let Some(owner) = state.current_owner {
+        state.register_def_owner(def, owner);
+    }
+    CaseLikeLambdaReceiver { def, tv }
+}
+
+pub(in crate::lower::expr) fn case_like_lambda_expr(
+    state: &mut LowerState,
+    receiver: CaseLikeLambdaReceiver,
+    body: TypedExpr,
+    arg_eff_tv: TypeVar,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    state.infer.constrain(
+        state.pos_fun(
+            Neg::Var(receiver.tv),
+            Neg::Var(arg_eff_tv),
+            Pos::Var(body.eff),
+            Pos::Var(body.tv),
+        ),
+        Neg::Var(tv),
+    );
+    let eff = super::super::stmt::lambda_expr_eff_tv(state, &body, &[receiver.def]);
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Lam(receiver.def, Box::new(body)),
+    }
+}
+
+pub(in crate::lower::expr) fn case_like_label_name(node: &SyntaxNode) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent && token.text().starts_with('\''))
+        .map(|token| Name(token.text().to_string()))
+}
+
+pub(in crate::lower::expr) fn lower_recursive_case_like<F, A>(
+    state: &mut LowerState,
+    label_name: Name,
+    target: Option<TypedExpr>,
+    receiver_name: &str,
+    configure_receiver: A,
+    lower_body: F,
+) -> TypedExpr
+where
+    F: FnOnce(&mut LowerState, CaseLikeLambdaReceiver) -> TypedExpr,
+    A: FnOnce(&mut LowerState, &CaseLikeLambdaReceiver) -> TypeVar,
+{
+    let self_def = state.fresh_def();
+    let self_tv = state.fresh_tv();
+    state.register_def_tv(self_def, self_tv);
+    state.mark_let_bound_def(self_def);
+    state.register_def_name(self_def, label_name.clone());
+    if let Some(owner) = state.current_owner {
+        state.register_def_owner(self_def, owner);
+    }
+
+    let receiver = fresh_case_like_lambda_receiver(state, receiver_name);
+    state.register_def_owner(receiver.def, self_def);
+    let arg_eff_tv = configure_receiver(state, &receiver);
+    preconstrain_recursive_case_like_shape(state, self_def, receiver.tv, arg_eff_tv);
+
+    state.ctx.push_local();
+    state.ctx.bind_local(label_name, self_def);
+    let body = state.with_owner(self_def, |state| lower_body(state, receiver));
+    state.ctx.pop_local();
+
+    let body_expr = case_like_lambda_expr(state, receiver, body, arg_eff_tv);
+    state.insert_principal_body(self_def, body_expr.clone());
+    let self_used = state.take_recursive_self_use(self_def);
+    if self_used {
+        state.mark_recursive_binding(self_def);
+    }
+
+    let bind_pat = recursive_case_like_bind_pat(state, self_def);
+    super::super::stmt::connect_let_pattern(
+        state,
+        &bind_pat,
+        body_expr.tv,
+        body_expr.eff,
+        None,
+        self_used,
+    );
+    let self_expr = resolve_bound_def_expr(state, self_def);
+    let tail = match target {
+        Some(target) => super::make_app(state, self_expr, target),
+        None => self_expr,
+    };
+    block_expr_from_parts(state, vec![TypedStmt::Let(bind_pat, body_expr)], tail)
+}
+
+fn preconstrain_recursive_case_like_shape(
+    state: &mut LowerState,
+    self_def: crate::ids::DefId,
+    receiver_tv: TypeVar,
+    arg_eff_tv: TypeVar,
+) {
+    let Some(&self_tv) = state.def_tvs.get(&self_def) else {
+        return;
+    };
+    let ret_tv = state.fresh_tv();
+    let ret_eff = state.fresh_tv();
+    let fun_tv = state.fresh_tv();
+    state.infer.constrain(
+        state.pos_fun(
+            Neg::Var(receiver_tv),
+            Neg::Var(arg_eff_tv),
+            Pos::Var(ret_eff),
+            Pos::Var(ret_tv),
+        ),
+        Neg::Var(fun_tv),
+    );
+    state.infer.constrain(Pos::Var(self_tv), Neg::Var(fun_tv));
+    state.infer.constrain(Pos::Var(fun_tv), Neg::Var(self_tv));
+    state.provisional_self_root_tvs.insert(self_def, fun_tv);
+    let non_generic_roots = [receiver_tv, arg_eff_tv]
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>();
+    let frozen =
+        crate::scheme::freeze_type_var_with_non_generic(&state.infer, fun_tv, &non_generic_roots);
+    state.provisional_self_schemes.insert(self_def, frozen);
+}
+
+fn recursive_case_like_bind_pat(
+    state: &mut LowerState,
+    self_def: crate::ids::DefId,
+) -> crate::ast::expr::TypedPat {
+    crate::ast::expr::TypedPat {
+        tv: state.fresh_tv(),
+        kind: crate::ast::expr::PatKind::As(
+            Box::new(crate::ast::expr::TypedPat {
+                tv: state.fresh_tv(),
+                kind: crate::ast::expr::PatKind::Wild,
+            }),
+            self_def,
+        ),
+    }
+}
+
+fn block_expr_from_parts(
+    state: &mut LowerState,
+    stmts: Vec<TypedStmt>,
+    tail: TypedExpr,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+    for stmt in &stmts {
+        match stmt {
+            TypedStmt::Let(_, expr) | TypedStmt::Expr(expr) => {
+                state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
+            }
+            TypedStmt::Module(..) => {}
+        }
+    }
+    state.infer.constrain(Pos::Var(tail.tv), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tail.eff), Neg::Var(eff));
+
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Block(TypedBlock {
+            tv,
+            eff,
+            stmts,
+            tail: Some(Box::new(tail)),
+        }),
+    }
+}
+
+fn lower_case_with_scrutinee(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    scrutinee: TypedExpr,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+
     state
         .infer
         .constrain(Pos::Var(scrutinee.eff), Neg::Var(eff));

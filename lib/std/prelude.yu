@@ -1,4 +1,5 @@
 use std::str::*
+use std::char::*
 pub use std::ops::*
 pub use std::error::*
 
@@ -26,6 +27,7 @@ pub infix (<..<) 4.0.0 4.0.0 = std::range::exclusive
 
 pub use std::int::*
 pub use std::str::*
+pub use std::char::*
 pub use std::fold::Fold
 pub use std::list::*
 pub use std::opt::*
@@ -33,6 +35,7 @@ pub use std::result::*
 pub use std::fs::*
 pub use std::bytes::*
 pub use std::path::*
+pub use std::parse::parse
 pub use std::range::*
 pub use std::undet::each
 pub use std::undet::guard
@@ -153,6 +156,9 @@ impl Eq bool:
 impl Eq str:
     our x.eq y = std::str::eq x y
 
+impl Eq char:
+    our x.eq y = std::char::eq x y
+
 impl Eq (list int):
     our xs.eq ys = case (std::list::view_raw xs, std::list::view_raw ys):
         (std::list::list_view::empty, std::list::list_view::empty) -> true
@@ -175,6 +181,9 @@ impl Add (list 'a):
 
 impl Display str:
     our x.show = x
+
+impl Display char:
+    our x.show = std::char::to_string x
 
 impl Display unit:
     our x.show = "()"
@@ -238,6 +247,9 @@ impl Display ('a, 'b, 'c, 'd, 'e):
 
 impl Debug str:
     our x.debug = "\"" + x + "\""
+
+impl Debug char:
+    our x.debug = "'" + std::char::to_string x + "'"
 
 impl Debug unit:
     our x.debug = "()"

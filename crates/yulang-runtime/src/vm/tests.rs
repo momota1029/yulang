@@ -171,6 +171,540 @@ sub:
     }
 
     #[test]
+    fn vm_errors_on_yada_yada_evaluation() {
+        let is_yada_yada = run_with_large_stack(|| {
+            let module = runtime_module_with_std_inner("if true: ... else: 41\n");
+            let module = compile_vm_module(module).expect("compiled runtime VM module");
+            matches!(
+                module.eval_roots().expect_err("yada-yada runtime error"),
+                VmError::YadaYada
+            )
+        });
+
+        assert!(is_yada_yada);
+    }
+
+    #[test]
+    fn vm_runs_unreached_yada_yada_as_never() {
+        let results = eval_source_with_std("if false: ... else: 41\n");
+
+        assert_eq!(results, vec![TestValue::Int("41".to_string())]);
+    }
+
+    #[test]
+    fn vm_typechecks_std_parse_combinator_surface() {
+        let results = eval_source_with_std("my parser() = std::parse::read \"hi\"\n1\n");
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_linear_handler() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "hi!" (\() -> std::parse::read "hi"):
+    result::ok (_, pos) -> pos
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_item_as_char() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "あ!" (\() -> std::parse::item()):
+    result::ok (ch, pos) -> (std::char::to_string ch, pos)
+    result::err _ -> ("", 0)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("あ".to_string()),
+                TestValue::Int("1".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_parse_item_as_grapheme_cluster() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "é!" (\() -> std::parse::item()):
+    result::ok (ch, pos) -> (std::char::to_string ch, pos)
+    result::err _ -> ("", 0)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("é".to_string()),
+                TestValue::Int("1".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_parse_peek_without_consuming() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    case std::parse::peek():
+        opt::just ch -> std::char::to_string ch
+        opt::nil -> ""
+
+case std::parse::run_with_pos "xy" parser:
+    result::ok (value, pos) -> (value, pos)
+    result::err _ -> ("", 9)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("x".to_string()),
+                TestValue::Int("0".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_parse_run_returns_value_only() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run "hi" (\() -> std::parse::read "hi"):
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_run_rejects_trailing_input() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run "hi!" (\() -> std::parse::read "hi"):
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_choice_after_empty_failure() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    std::parse::choice
+        (\() -> std::parse::fail (std::parse::parse_error::message ("left", std::parse::position())))
+        (\() -> std::parse::read "hi")
+
+case std::parse::run_with_pos "hi" parser:
+    result::ok (_, pos) -> pos
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_choice_first_success_example() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    std::parse::choice
+        (\() -> std::parse::read "he")
+        (\() -> std::parse::read "hi")
+
+case std::parse::run_with_pos "hello" parser:
+    result::ok (_, pos) -> pos
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_choice_backtracks_consumed_failure() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    std::parse::choice
+        (\() -> std::parse::read "ha")
+        (\() -> std::parse::read "hi")
+
+case std::parse::run "hi" parser:
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_commit_success_example() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    (\_ -> std::parse::read "hi") (std::parse::commit())
+
+case std::parse::run_full "hi" parser:
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_commit_blocks_empty_backtrack() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    std::parse::choice
+        (\() -> (\_ -> std::parse::fail (std::parse::parse_error::message ("left", std::parse::position()))) (std::parse::commit()))
+        (\() -> std::parse::read "hi")
+
+case std::parse::run "hi" parser:
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_commit_propagates_to_outer_choice() {
+        let results = eval_source_with_std(
+            r#"my parser() =
+    my inner() =
+        std::parse::choice
+            (\() -> (\_ -> std::parse::fail (std::parse::parse_error::message ("inner", std::parse::position()))) (std::parse::commit()))
+            (\() -> std::parse::read "hi")
+    std::parse::choice
+        inner
+        (\() -> std::parse::read "hi")
+
+case std::parse::run "hi" parser:
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_std_parse_token_alias() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "hello" (\() -> std::parse::token "he"):
+    result::ok (_, pos) -> pos
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_rule_lit_as_token_parser() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "hello" ~"he":
+    result::ok (_, pos) -> pos
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_rule_lit_lazy_capture_as_word_record() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "abc-123" ~":name":
+    result::ok (value, pos) -> (value.name, pos)
+    result::err _ -> ("", 0)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("abc".to_string()),
+                TestValue::Int("3".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_rule_lit_mixed_tokens_and_captures() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "tech/rust/index.html" ~":category/:article/index.html":
+    result::ok (value, pos) -> (value.category, value.article, pos)
+    result::err _ -> ("", "", 0)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("tech".to_string()),
+                TestValue::String("rust".to_string()),
+                TestValue::Int("20".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_rule_expr_single_token_parser() {
+        let results = eval_source_with_std(
+            r#"my parser = rule { "he" }
+case std::parse::run_with_pos "hello" parser:
+    result::ok (_, pos) -> pos
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_rule_expr_mixed_tokens_and_value_captures() {
+        let results = eval_source_with_std(
+            r#"my parser = rule { category = std::parse::word "/" article = std::parse::word "/index.html" }
+case std::parse::run "tech/rust/index.html" parser:
+    result::ok value -> (value.category, value.article)
+    result::err _ -> ("", "")
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("tech".to_string()),
+                TestValue::String("rust".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_rule_expr_alternation() {
+        let results = eval_source_with_std(
+            r#"my parser = rule { "a" | "b" }
+case std::parse::run "b" parser:
+    result::ok _ -> 1
+    result::err _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_rule_expr_plus_and_star_quantifiers() {
+        let results = eval_source_with_std(
+            r#"my plus_parser = rule { "ha"+ }
+my star_parser = rule { "ha"* "!" }
+
+case (std::parse::run "hahaha" plus_parser, std::parse::run "hahaha!" star_parser):
+    (result::ok _, result::ok _) -> 1
+    _ -> 2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_rule_expr_parser_ref_quantifier_capture() {
+        let results = eval_source_with_std(
+            r#"my parser = rule { words = std::parse::word+ }
+case std::parse::run "abc" parser:
+    result::ok value -> value.words.len
+    result::err _ -> 0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_rule_expr_repeated_record_group_capture() {
+        let results = eval_source_with_std(
+            r#"my parser = rule { head = std::parse::word tail = ("/" item = std::parse::word)* }
+case std::parse::run "a/b/c" parser:
+    result::ok value -> value.tail
+    result::err _ -> []
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Record(std::collections::BTreeMap::from([(
+                    "item".to_string(),
+                    TestValue::String("b".to_string())
+                )])),
+                TestValue::Record(std::collections::BTreeMap::from([(
+                    "item".to_string(),
+                    TestValue::String("c".to_string())
+                )]))
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_parse_word_stops_before_punctuation() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "abc-123" (\() -> std::parse::word()):
+    result::ok (value, pos) -> (value, pos)
+    result::err _ -> ("", 0)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("abc".to_string()),
+                TestValue::Int("3".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_parse_word_accepts_non_punctuation_unicode() {
+        let results = eval_source_with_std(
+            r#"case std::parse::run_with_pos "あ🙂z!" (\() -> std::parse::word()):
+    result::ok (value, pos) -> (value, pos)
+    result::err _ -> ("", 0)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("あ🙂z".to_string()),
+                TestValue::Int("3".to_string())
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_case_lambda_shorthand() {
+        let results = eval_source_with_std("my choose = \\case: 1 -> 41, _ -> 0\nchoose 1\n");
+
+        assert_eq!(results, vec![TestValue::Int("41".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_catch_lambda_shorthand() {
+        let results = eval_source_with_std("my handle = \\catch: value -> value\nhandle 7\n");
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_catch_lambda_shorthand_effect_handler() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+my handle = \catch:
+    out::say msg, _ -> "handled:" + msg
+    value -> "value"
+
+handle (out::say "hi")
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("handled:hi".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_catch_lambda_shorthand_effect_resume() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+my handle = \catch:
+    out::say _, k -> k ()
+    value -> value
+
+handle (out::say "hi")
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_case_label_self_call() {
+        let results = eval_source_with_std(
+            r#"case 'go 4:
+    0 -> 0
+    n -> n + 'go (n - 1)
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("10".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_case_lambda_label_self_call() {
+        let results = eval_source_with_std(
+            r#"my sum = \case 'go:
+    0 -> 0
+    n -> n + 'go (n - 1)
+
+sum 4
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("10".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_catch_label_self_call_after_resume() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+catch 'loop (sub:
+    out::say "a"
+    out::say "b"
+):
+    out::say _, k -> 'loop (k ())
+    value -> value
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_catch_lambda_label_self_call_after_resume() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+my handle = \catch 'loop:
+    out::say _, k -> 'loop (k ())
+    value -> value
+
+handle (sub:
+    out::say "a"
+    out::say "b"
+)
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
     fn vm_preserves_large_integer_literal_text() {
         let results = eval_source_with_std("99999999999999999999999\n");
 
@@ -311,6 +845,26 @@ my xs = [
         );
 
         assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_recursive_function_with_two_local_var_handlers() {
+        let results = eval_source_with_std(
+            r#"my $pos: int = 0
+my $committed: bool = false
+
+my loop(n: int): int =
+    if n == 0:
+        $pos
+    else:
+        &committed = true
+        loop (n - 1)
+
+loop 1
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
     }
 
     #[test]

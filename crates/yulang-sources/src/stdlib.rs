@@ -90,6 +90,10 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         source: include_str!("../std/bytes.yu"),
     },
     EmbeddedStdFile {
+        name: "char.yu",
+        source: include_str!("../std/char.yu"),
+    },
+    EmbeddedStdFile {
         name: "error.yu",
         source: include_str!("../std/error.yu"),
     },
@@ -132,6 +136,10 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
     EmbeddedStdFile {
         name: "path.yu",
         source: include_str!("../std/path.yu"),
+    },
+    EmbeddedStdFile {
+        name: "parse.yu",
+        source: include_str!("../std/parse.yu"),
     },
     EmbeddedStdFile {
         name: "prelude.yu",

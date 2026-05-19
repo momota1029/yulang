@@ -60,6 +60,7 @@ impl<'m> VmInterpreter<'m> {
         match &expr.kind {
             ExprKind::Var(path) => self.eval_var(path, env),
             ExprKind::EffectOp(path) => Ok(VmResult::Value(VmValue::EffectOp(path.clone()))),
+            ExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => Err(VmError::YadaYada),
             ExprKind::PrimitiveOp(op) => Ok(VmResult::Value(VmValue::PrimitiveOp(Rc::new(
                 VmPrimitive {
                     op: *op,

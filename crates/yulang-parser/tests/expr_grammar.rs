@@ -122,6 +122,13 @@ fn expr_loop_control_nullfix_last() {
 }
 
 #[test]
+fn expr_yada_yada() {
+    let got = parse_expression("...");
+    let expected = vec!["(Expr", "  YadaYada \"...\"", ")"];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_loop_control_call_remains_ident_call() {
     let got = parse_expression_with_word_ops("last()");
     let expected = vec![
@@ -1295,6 +1302,150 @@ fn expr_recursive_lambda() {
 }
 
 #[test]
+fn expr_case_lambda() {
+    let got = parse_expression("\\case: 1 -> 41, _ -> 0");
+    let expected = vec![
+        "(Expr",
+        "  (CaseLambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    Case \"case\"",
+        "    (CaseBlock",
+        "      Colon \":\"",
+        "      (CaseArm",
+        "        (Pattern",
+        "          Number \"1\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Number \"41\"",
+        "        )",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (CaseArm",
+        "        (Pattern",
+        "          Ident \"_\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Number \"0\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_catch_lambda() {
+    let got = parse_expression("\\catch: value -> value");
+    let expected = vec![
+        "(Expr",
+        "  (CatchLambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    Catch \"catch\"",
+        "    (CatchBlock",
+        "      Colon \":\"",
+        "      (CatchArm",
+        "        (Pattern",
+        "          Ident \"value\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Ident \"value\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_case_label() {
+    let got = parse_expression("case 'go 4: 0 -> 0, n -> n");
+    let expected = vec![
+        "(Expr",
+        "  (CaseExpr",
+        "    Case \"case\"",
+        "    SigilIdent \"'go\"",
+        "    (Expr",
+        "      Number \"4\"",
+        "    )",
+        "    (CaseBlock",
+        "      Colon \":\"",
+        "      (CaseArm",
+        "        (Pattern",
+        "          Number \"0\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Number \"0\"",
+        "        )",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (CaseArm",
+        "        (Pattern",
+        "          Ident \"n\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Ident \"n\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_case_lambda_label() {
+    let got = parse_expression("\\case 'go: 0 -> 0, n -> n");
+    let expected = vec![
+        "(Expr",
+        "  (CaseLambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    Case \"case\"",
+        "    SigilIdent \"'go\"",
+        "    (CaseBlock",
+        "      Colon \":\"",
+        "      (CaseArm",
+        "        (Pattern",
+        "          Number \"0\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Number \"0\"",
+        "        )",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (CaseArm",
+        "        (Pattern",
+        "          Ident \"n\"",
+        "        )",
+        "        Arrow \"->\"",
+        "        (Expr",
+        "          Ident \"n\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_lambda_multiple_params() {
     let got = parse_expression("\\() x -> x");
     let expected = vec![
@@ -2088,6 +2239,33 @@ fn expr_rule_expr_simple() {
         "          StringStart \"\\\"\"",
         "          StringText \"hello\"",
         "          StringEnd \"\\\"\"",
+        "        )",
+        "      )",
+        "      BraceR \"}\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_rule_string_quantifier() {
+    let got = parse_expression("rule { \"ha\"+ }");
+    let expected = vec![
+        "(Expr",
+        "  (RuleExpr",
+        "    Rule \"rule\"",
+        "    (BraceGroup",
+        "      BraceL \"{\"",
+        "      (Expr",
+        "        (StringLit",
+        "          StringStart \"\\\"\"",
+        "          StringText \"ha\"",
+        "          StringEnd \"\\\"\"",
+        "        )",
+        "        (RuleQuant",
+        "          RuleQuantPlus \"+\"",
         "        )",
         "      )",
         "      BraceR \"}\"",

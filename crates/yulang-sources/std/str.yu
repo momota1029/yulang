@@ -10,7 +10,7 @@ type str with:
     our s.eprintln = std::out::eprintln s
 
 impl Index str int:
-    type value = str
+    type value = char
     our s.index i = std::str::index_raw s i
 
 impl Index str range:

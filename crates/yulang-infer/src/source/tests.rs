@@ -4281,7 +4281,7 @@ fn lowers_string_role_impls_from_implicit_prelude() {
         assert_eq!(rendered_type(&rendered, "joined"), "std::str::str");
         assert_eq!(rendered_type(&rendered, "shown"), "std::str::str");
         assert_eq!(rendered_type(&rendered, "size"), "int");
-        assert_eq!(rendered_type(&rendered, "first"), "std::str::str");
+        assert_eq!(rendered_type(&rendered, "first"), "std::char::char");
         assert_eq!(rendered_type(&rendered, "slice"), "std::str::str");
     });
 }

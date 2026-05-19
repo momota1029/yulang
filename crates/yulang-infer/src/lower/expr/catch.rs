@@ -17,21 +17,73 @@ use crate::solve::ShiftKeep;
 use crate::symbols::{Name, Path};
 use crate::types::{Neg, Pos};
 
-use super::control::lower_arm_guard;
-use super::{collect_child_arms, lower_expr, neg_prim_type, prim_type, unit_expr};
+use super::control::{case_like_label_name, lower_arm_guard, lower_recursive_case_like};
+use super::{
+    collect_child_arms, lower_expr, neg_prim_type, prim_type, resolve_bound_def_expr, unit_expr,
+};
 
 pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
+    let comp = node
+        .children()
+        .find(|c| c.kind() == SyntaxKind::Expr)
+        .map(|c| lower_expr(state, &c))
+        .unwrap_or_else(|| unit_expr(state));
+    if let Some(label) = case_like_label_name(node) {
+        return lower_recursive_case_like(
+            state,
+            label,
+            Some(comp),
+            "#catch-receiver",
+            configure_catch_lambda_receiver,
+            |state, receiver| {
+                let comp = resolve_bound_def_expr(state, receiver.def);
+                lower_catch_with_comp(state, node, comp)
+            },
+        );
+    }
+    lower_catch_with_comp(state, node, comp)
+}
+
+pub(super) fn lower_catch_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
+    if let Some(label) = case_like_label_name(node) {
+        return lower_recursive_case_like(
+            state,
+            label,
+            None,
+            "#catch-receiver",
+            configure_catch_lambda_receiver,
+            |state, receiver| {
+                let comp = resolve_bound_def_expr(state, receiver.def);
+                lower_catch_with_comp(state, node, comp)
+            },
+        );
+    }
+    let receiver = super::control::fresh_case_like_lambda_receiver(state, "#catch-receiver");
+    let arg_eff_tv = configure_catch_lambda_receiver(state, &receiver);
+    let comp = resolve_bound_def_expr(state, receiver.def);
+    let body = lower_catch_with_comp(state, node, comp);
+    super::control::case_like_lambda_expr(state, receiver, body, arg_eff_tv)
+}
+
+fn configure_catch_lambda_receiver(
+    state: &mut LowerState,
+    receiver: &super::control::CaseLikeLambdaReceiver,
+) -> crate::ids::TypeVar {
+    let arg_eff_tv = state.fresh_tv();
+    state.register_def_eff_tv(receiver.def, arg_eff_tv);
+    state.register_lambda_param_effect_annotation(
+        receiver.def,
+        yulang_typed_ir::ParamEffectAnnotation::Wildcard,
+    );
+    arg_eff_tv
+}
+
+fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedExpr) -> TypedExpr {
     let start = Instant::now();
 
     let result = (|| {
         let tv = state.fresh_tv();
         let eff = state.fresh_tv();
-
-        let comp = node
-            .children()
-            .find(|c| c.kind() == SyntaxKind::Expr)
-            .map(|c| lower_expr(state, &c))
-            .unwrap_or_else(|| unit_expr(state));
 
         let mut arms: Vec<TypedCatchArm> = node
             .children()

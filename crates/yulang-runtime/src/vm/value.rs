@@ -237,6 +237,13 @@ pub(super) fn string_value(value: &VmValue) -> Result<&StringTree, VmError> {
     }
 }
 
+pub(super) fn grapheme_value(value: &VmValue) -> Result<String, VmError> {
+    match value {
+        VmValue::String(value) if value.len() == 1 => Ok(value.to_flat_string()),
+        other => Err(VmError::ExpectedChar(other.clone())),
+    }
+}
+
 pub(super) fn bytes_value(value: &VmValue) -> Result<&BytesTree, VmError> {
     match value {
         VmValue::Bytes(value) => Ok(value),

@@ -5166,6 +5166,7 @@ fn mmtk_cps_control_objects_enabled(options: CpsReprCraneliftOptions) -> bool {
 
 fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => false,
         typed_ir::PrimitiveOp::BoolNot
         | typed_ir::PrimitiveOp::BoolEq
         | typed_ir::PrimitiveOp::IntAdd
@@ -5218,6 +5219,11 @@ fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {
         | typed_ir::PrimitiveOp::IntToUpperHex
         | typed_ir::PrimitiveOp::BoolToString
         | typed_ir::PrimitiveOp::FloatToString => true,
+        typed_ir::PrimitiveOp::CharEq
+        | typed_ir::PrimitiveOp::CharToString
+        | typed_ir::PrimitiveOp::CharIsWhitespace
+        | typed_ir::PrimitiveOp::CharIsPunctuation
+        | typed_ir::PrimitiveOp::CharIsWord => false,
     }
 }
 
@@ -5237,6 +5243,22 @@ fn lower_primitive<M: Module>(
     }
 
     let value = match op {
+        typed_ir::PrimitiveOp::YadaYada => {
+            return Err(CpsReprCraneliftError::UnsupportedPrimitive {
+                function: function.name.clone(),
+                op,
+            });
+        }
+        typed_ir::PrimitiveOp::CharEq
+        | typed_ir::PrimitiveOp::CharToString
+        | typed_ir::PrimitiveOp::CharIsWhitespace
+        | typed_ir::PrimitiveOp::CharIsPunctuation
+        | typed_ir::PrimitiveOp::CharIsWord => {
+            return Err(CpsReprCraneliftError::UnsupportedPrimitive {
+                function: function.name.clone(),
+                op,
+            });
+        }
         typed_ir::PrimitiveOp::BoolNot => {
             if mmtk_yvalue_primitive_lane_enabled(options) {
                 call_i64_helper(
@@ -6093,6 +6115,18 @@ fn validate_primitive(
     op: typed_ir::PrimitiveOp,
 ) -> CpsReprCraneliftResult<()> {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => Err(CpsReprCraneliftError::UnsupportedPrimitive {
+            function: _function.name.clone(),
+            op,
+        }),
+        typed_ir::PrimitiveOp::CharEq
+        | typed_ir::PrimitiveOp::CharToString
+        | typed_ir::PrimitiveOp::CharIsWhitespace
+        | typed_ir::PrimitiveOp::CharIsPunctuation
+        | typed_ir::PrimitiveOp::CharIsWord => Err(CpsReprCraneliftError::UnsupportedPrimitive {
+            function: _function.name.clone(),
+            op,
+        }),
         typed_ir::PrimitiveOp::BoolNot
         | typed_ir::PrimitiveOp::BoolEq
         | typed_ir::PrimitiveOp::IntAdd
@@ -6730,6 +6764,7 @@ fn primitive_arg_lanes(op: typed_ir::PrimitiveOp) -> Option<&'static [CpsReprAbi
 
 fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => CpsReprAbiLane::Unknown,
         typed_ir::PrimitiveOp::BoolNot
         | typed_ir::PrimitiveOp::BoolEq
         | typed_ir::PrimitiveOp::IntEq
@@ -6745,6 +6780,10 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | typed_ir::PrimitiveOp::StringLen
         | typed_ir::PrimitiveOp::BytesLen
         | typed_ir::PrimitiveOp::BytesIndex
+        | typed_ir::PrimitiveOp::CharEq
+        | typed_ir::PrimitiveOp::CharIsWhitespace
+        | typed_ir::PrimitiveOp::CharIsPunctuation
+        | typed_ir::PrimitiveOp::CharIsWord
         | typed_ir::PrimitiveOp::FloatEq
         | typed_ir::PrimitiveOp::FloatLt
         | typed_ir::PrimitiveOp::FloatLe
@@ -6780,7 +6819,8 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | typed_ir::PrimitiveOp::IntToHex
         | typed_ir::PrimitiveOp::IntToUpperHex
         | typed_ir::PrimitiveOp::FloatToString
-        | typed_ir::PrimitiveOp::BoolToString => CpsReprAbiLane::RuntimeValuePtr,
+        | typed_ir::PrimitiveOp::BoolToString
+        | typed_ir::PrimitiveOp::CharToString => CpsReprAbiLane::RuntimeValuePtr,
         typed_ir::PrimitiveOp::ListIndex => CpsReprAbiLane::Unknown,
     }
 }

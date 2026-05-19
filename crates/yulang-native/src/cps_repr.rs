@@ -1037,6 +1037,7 @@ fn literal_lane(literal: &CpsLiteral) -> CpsReprAbiLane {
 fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
     use typed_ir::PrimitiveOp;
     match op {
+        PrimitiveOp::YadaYada => CpsReprAbiLane::Unknown,
         PrimitiveOp::BoolNot
         | PrimitiveOp::BoolEq
         | PrimitiveOp::IntEq
@@ -1051,7 +1052,11 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | PrimitiveOp::ListLen
         | PrimitiveOp::StringLen
         | PrimitiveOp::BytesLen
-        | PrimitiveOp::BytesIndex => CpsReprAbiLane::ScalarI64,
+        | PrimitiveOp::BytesIndex
+        | PrimitiveOp::CharEq
+        | PrimitiveOp::CharIsWhitespace
+        | PrimitiveOp::CharIsPunctuation
+        | PrimitiveOp::CharIsWord => CpsReprAbiLane::ScalarI64,
         PrimitiveOp::FloatEq
         | PrimitiveOp::FloatLt
         | PrimitiveOp::FloatLe
@@ -1087,7 +1092,8 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
         | PrimitiveOp::FloatToString
-        | PrimitiveOp::BoolToString => CpsReprAbiLane::RuntimeValuePtr,
+        | PrimitiveOp::BoolToString
+        | PrimitiveOp::CharToString => CpsReprAbiLane::RuntimeValuePtr,
         PrimitiveOp::ListIndex => CpsReprAbiLane::Unknown,
     }
 }

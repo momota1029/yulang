@@ -6,6 +6,10 @@ macro_rules! yulang_std_sources {
                 text: include_str!(concat!($prefix, "bytes.yu")),
             },
             StdSource {
+                name: "char",
+                text: include_str!(concat!($prefix, "char.yu")),
+            },
+            StdSource {
                 name: "error",
                 text: include_str!(concat!($prefix, "error.yu")),
             },
@@ -48,6 +52,10 @@ macro_rules! yulang_std_sources {
             StdSource {
                 name: "path",
                 text: include_str!(concat!($prefix, "path.yu")),
+            },
+            StdSource {
+                name: "parse",
+                text: include_str!(concat!($prefix, "parse.yu")),
             },
             StdSource {
                 name: "prelude",

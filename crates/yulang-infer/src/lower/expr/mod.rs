@@ -47,16 +47,17 @@ mod operator;
 mod path;
 mod prim;
 mod record;
+mod rule;
 mod suffix;
 mod tuple;
 mod var;
 
 pub(super) use apply::{make_app, make_app_with_cause};
 pub(super) use arms::collect_child_arms;
-use atom::lower_expr_atom;
-use catch::{debug_dump_effect_tv, lower_catch};
+use atom::{lower_expr_atom, lower_yada_yada_expr};
+use catch::{debug_dump_effect_tv, lower_catch, lower_catch_lambda};
 use chain::lower_expr_chain;
-use control::{lower_case, lower_if};
+use control::{lower_case, lower_case_lambda, lower_if};
 pub(super) use effect_rows::{neg_id_is_pure_row, pos_id_is_empty_row};
 use lambda::{lower_lambda, lower_method_lambda, lower_recursive_lambda};
 use list::lower_list_expr;
@@ -70,6 +71,7 @@ pub(super) use path::{
 };
 use prim::{neg_prim_type, prim_type};
 use record::lower_record_literal;
+use rule::{lower_rule_expr, lower_rule_lit};
 use suffix::{apply_suffix, apply_synthetic_field_selection, lower_poly_variant_expr};
 use tuple::lower_tuple_expr;
 use var::{lower_var_assignment, lower_var_read_expr};

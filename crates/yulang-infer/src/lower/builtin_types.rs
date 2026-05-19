@@ -9,6 +9,7 @@ pub(crate) enum PrimitiveTypeFamily {
     List,
     ListView,
     Str,
+    Char,
     Range,
     Bytes,
     Path,
@@ -34,6 +35,7 @@ impl PrimitivePathTable {
             PrimitiveTypeFamily::List,
             PrimitiveTypeFamily::ListView,
             PrimitiveTypeFamily::Str,
+            PrimitiveTypeFamily::Char,
             PrimitiveTypeFamily::Range,
             PrimitiveTypeFamily::Bytes,
             PrimitiveTypeFamily::Path,
@@ -46,6 +48,7 @@ impl PrimitivePathTable {
         source_type_aliases.insert("list_view".to_string(), PrimitiveTypeFamily::ListView);
         source_type_aliases.insert("str".to_string(), PrimitiveTypeFamily::Str);
         source_type_aliases.insert("string".to_string(), PrimitiveTypeFamily::Str);
+        source_type_aliases.insert("char".to_string(), PrimitiveTypeFamily::Char);
         source_type_aliases.insert("range".to_string(), PrimitiveTypeFamily::Range);
         source_type_aliases.insert("bytes".to_string(), PrimitiveTypeFamily::Bytes);
         source_type_aliases.insert("path".to_string(), PrimitiveTypeFamily::Path);
@@ -116,6 +119,10 @@ impl PrimitivePathTable {
         ];
         nodes.extend([
             self.core_type_node(PrimitiveTypeFamily::Str, typed_ir::PrimitiveTypeFamily::Str),
+            self.core_type_node(
+                PrimitiveTypeFamily::Char,
+                typed_ir::PrimitiveTypeFamily::Char,
+            ),
             self.core_type_node(
                 PrimitiveTypeFamily::List,
                 typed_ir::PrimitiveTypeFamily::List,
@@ -211,6 +218,7 @@ fn primitive_std_type_segments(family: PrimitiveTypeFamily) -> (&'static str, &'
         PrimitiveTypeFamily::List => ("list", "list"),
         PrimitiveTypeFamily::ListView => ("list", "list_view"),
         PrimitiveTypeFamily::Str => ("str", "str"),
+        PrimitiveTypeFamily::Char => ("char", "char"),
         PrimitiveTypeFamily::Range => ("range", "range"),
         PrimitiveTypeFamily::Bytes => ("bytes", "bytes"),
         PrimitiveTypeFamily::Path => ("path", "path"),

@@ -11,8 +11,9 @@ use crate::symbols::{Name, OperatorFixity, Path};
 
 use super::{
     apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_poly_variant_expr,
-    lower_var_read_expr, make_app_with_cause, resolve_operator_expr, resolve_path_expr,
-    resolve_path_expr_at, try_resolve_local_operator_expr, try_resolve_operator_expr, unit_expr,
+    lower_var_read_expr, lower_yada_yada_expr, make_app_with_cause, resolve_operator_expr,
+    resolve_path_expr, resolve_path_expr_at, try_resolve_local_operator_expr,
+    try_resolve_operator_expr, unit_expr,
 };
 
 // ── chain lowering ────────────────────────────────────────────────────────────
@@ -105,6 +106,9 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             Token(t) if t.kind() == SyntaxKind::Number => {
                 let expr = lower_number_token(state, t.text(), Some(t.text_range()));
                 head_expr = Some(expr);
+            }
+            Token(t) if t.kind() == SyntaxKind::YadaYada => {
+                head_expr = Some(lower_yada_yada_expr(state));
             }
             Token(t) if t.kind() == SyntaxKind::Nullfix => {
                 let name = Name(t.text().to_string());

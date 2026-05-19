@@ -1,0 +1,143 @@
+use std::list::*
+use std::opt::*
+use std::ops::*
+use std::char::*
+use std::str::*
+use std::var::*
+
+pub enum parse_error:
+    eof int
+    expected(str, int)
+    message(str, int)
+
+pub act parse:
+    pub item: () -> char
+    pub peek: () -> opt char
+    pub position: () -> int
+    pub fail: std::parse::parse_error -> never
+    pub commit: () -> ()
+    pub pick: () -> bool
+
+my act pick:
+    our branch: () -> bool
+    our reject: std::parse::parse_error -> never
+    our cut: () -> ()
+    our loop(x: [pick] 'a, queue): std::result::result 'a std::parse::parse_error = catch x:
+        branch(), k -> loop(k true, std::list::cons(k, queue))
+        reject parse_err, _ -> case std::list::uncons queue:
+            opt::nil -> result::err parse_err
+            opt::just (k, rest) -> loop(k false, rest)
+        cut(), k -> loop(k(), [])
+        value -> result::ok value
+    our once(x: [pick] 'a): std::result::result 'a std::parse::parse_error = loop x []
+
+my dispatch(input: str, pos: int, action: [_] 'b): 'b = catch action:
+    parse::pick(), k -> dispatch input pos (k pick::branch())
+    parse::item(), k ->
+        if pos < input.len:
+            dispatch input (pos + 1) (k input[pos])
+        else:
+            pick::reject (parse_error::eof pos)
+    parse::peek(), k ->
+        if pos < input.len:
+            dispatch input pos (k (opt::just input[pos]))
+        else:
+            dispatch input pos (k opt::nil)
+    parse::position(), k -> dispatch input pos (k pos)
+    parse::fail parse_err, _ -> pick::reject parse_err
+    parse::commit(), k ->
+        pick::cut()
+        dispatch input pos (k())
+    value -> value
+
+pub run_with_pos(input: str, parser: () -> [parse] 'a): std::result::result ('a, int) std::parse::parse_error =
+    pick::once:
+        dispatch input 0:
+            my value = parser()
+            my pos = parse::position()
+            (value, pos)
+
+pub run(input: str, parser: () -> [parse] 'a): std::result::result 'a std::parse::parse_error =
+    case run_with_pos input (\() ->
+        my value = parser()
+        my pos = parse::position()
+        if pos == input.len:
+            value
+        else:
+            parse::fail (parse_error::expected ("<eof>", pos))):
+        result::ok (value, _) -> result::ok value
+        result::err parse_err -> result::err parse_err
+
+pub run_full(input: str, parser: () -> [parse] 'a): std::result::result 'a std::parse::parse_error =
+    run input parser
+
+my read_from(expected: str, i: int): () =
+    if i < expected.len:
+        case parse::peek():
+            opt::just actual ->
+                if actual == expected[i]:
+                    parse::item()
+                    read_from expected (i + 1)
+                else:
+                    parse::fail (parse_error::expected (std::char::to_string expected[i], parse::position()))
+            opt::nil -> parse::fail (parse_error::eof (parse::position()))
+    else:
+        ()
+
+pub token(expected: str): () = read_from expected 0
+pub read(expected: str): () = token expected
+
+pub satisfy(pred: char -> bool, expected: str): char =
+    my pos = parse::position()
+    my actual = parse::item()
+    if pred actual:
+        actual
+    else:
+        parse::fail (parse_error::expected (expected, pos))
+
+pub choice(left: () -> [parse] 'a, right: () -> [parse] 'a): 'a =
+    if parse::pick():
+        left()
+    else:
+        right()
+
+pub optional(p: () -> [parse] 'a): opt 'a =
+    choice
+        (\() -> opt::just (p()))
+        (\() -> opt::nil)
+
+pub many(p: () -> [parse] 'a): list 'a =
+    choice
+        (\() -> [p(), ..many p])
+        (\() -> [])
+
+pub some(p: () -> [parse] 'a): list 'a =
+    [p(), ..many p]
+
+pub many_lazy(p: () -> [parse] 'a): list 'a =
+    choice
+        (\() -> [])
+        (\() -> [p(), ..many_lazy p])
+
+pub some_lazy(p: () -> [parse] 'a): list 'a =
+    [p(), ..many_lazy p]
+
+my word_tail(acc: str): str = case parse::peek():
+    opt::just ch ->
+        if std::char::is_word ch:
+            parse::item()
+            word_tail (acc + std::char::to_string ch)
+        else:
+            acc
+    opt::nil -> acc
+
+pub word(): str = case parse::peek():
+    opt::just ch ->
+        if std::char::is_word ch:
+            parse::item()
+            word_tail (std::char::to_string ch)
+        else:
+            parse::fail (parse_error::expected ("word", parse::position()))
+    opt::nil -> parse::fail (parse_error::eof (parse::position()))
+
+pub use std::parse::parse::*

@@ -5,11 +5,13 @@ use yulang_parser::lex::SyntaxKind;
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::lower::stmt;
 use crate::lower::{LowerState, SyntaxNode};
+use crate::types::{Neg, Pos};
 
 use super::{
-    lower_case, lower_catch, lower_expr, lower_if, lower_lambda, lower_list_expr,
-    lower_method_lambda, lower_number_token, lower_record_literal, lower_recursive_lambda,
-    lower_string_lit, lower_tuple_expr, make_app, prefix_op_ref, unit_expr,
+    lower_case, lower_case_lambda, lower_catch, lower_catch_lambda, lower_expr, lower_if,
+    lower_lambda, lower_list_expr, lower_method_lambda, lower_number_token, lower_record_literal,
+    lower_recursive_lambda, lower_rule_expr, lower_rule_lit, lower_string_lit, lower_tuple_expr,
+    make_app, neg_prim_type, prefix_op_ref, prim_type, unit_expr,
 };
 
 // ── atom lowering ─────────────────────────────────────────────────────────────
@@ -37,6 +39,18 @@ pub(super) fn lower_expr_atom(state: &mut LowerState, node: &SyntaxNode) -> Type
             SyntaxKind::RecursiveLambdaExpr => {
                 let atom_start = Instant::now();
                 let lowered = lower_recursive_lambda(state, node);
+                state.lower_detail.lower_expr_atom_lambda += atom_start.elapsed();
+                return lowered;
+            }
+            SyntaxKind::CaseLambdaExpr => {
+                let atom_start = Instant::now();
+                let lowered = lower_case_lambda(state, node);
+                state.lower_detail.lower_expr_atom_lambda += atom_start.elapsed();
+                return lowered;
+            }
+            SyntaxKind::CatchLambdaExpr => {
+                let atom_start = Instant::now();
+                let lowered = lower_catch_lambda(state, node);
                 state.lower_detail.lower_expr_atom_lambda += atom_start.elapsed();
                 return lowered;
             }
@@ -74,6 +88,19 @@ pub(super) fn lower_expr_atom(state: &mut LowerState, node: &SyntaxNode) -> Type
                 let atom_start = Instant::now();
                 let lowered =
                     lower_number_token(state, &node.text().to_string(), Some(node.text_range()));
+                state.lower_detail.lower_expr_atom_literal += atom_start.elapsed();
+                return lowered;
+            }
+            SyntaxKind::YadaYada => return lower_yada_yada_expr(state),
+            SyntaxKind::RuleLit => {
+                let atom_start = Instant::now();
+                let lowered = lower_rule_lit(state, node);
+                state.lower_detail.lower_expr_atom_literal += atom_start.elapsed();
+                return lowered;
+            }
+            SyntaxKind::RuleExpr => {
+                let atom_start = Instant::now();
+                let lowered = lower_rule_expr(state, node);
                 state.lower_detail.lower_expr_atom_literal += atom_start.elapsed();
                 return lowered;
             }
@@ -151,4 +178,18 @@ pub(super) fn lower_expr_atom(state: &mut LowerState, node: &SyntaxNode) -> Type
     })();
     state.lower_detail.lower_expr_atom += start.elapsed();
     result
+}
+
+pub(super) fn lower_yada_yada_expr(state: &mut LowerState) -> TypedExpr {
+    let atom_start = Instant::now();
+    let tv = state.fresh_tv();
+    let eff = state.fresh_exact_pure_eff_tv();
+    state.infer.constrain(prim_type("never"), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tv), neg_prim_type("never"));
+    state.lower_detail.lower_expr_atom_literal += atom_start.elapsed();
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::PrimitiveOp(yulang_typed_ir::PrimitiveOp::YadaYada),
+    }
 }

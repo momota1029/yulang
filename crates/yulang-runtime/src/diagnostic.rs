@@ -298,6 +298,7 @@ fn display_callee_path(path: &typed_ir::Path) -> String {
 
 fn display_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => "...",
         typed_ir::PrimitiveOp::BoolNot => "not",
         typed_ir::PrimitiveOp::BoolEq => "==",
         typed_ir::PrimitiveOp::IntAdd => "+",
@@ -320,6 +321,7 @@ fn display_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::FloatGe => ">=",
         typed_ir::PrimitiveOp::StringEq => "==",
         typed_ir::PrimitiveOp::StringConcat => "++",
+        typed_ir::PrimitiveOp::CharEq => "==",
         typed_ir::PrimitiveOp::ListIndex => "[]",
         typed_ir::PrimitiveOp::ListIndexRange => "[..]",
         typed_ir::PrimitiveOp::ListSplice => "splice",
@@ -347,6 +349,10 @@ fn primitive_op_name(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::IntToUpperHex => "int.to_upper_hex",
         typed_ir::PrimitiveOp::FloatToString => "float.to_string",
         typed_ir::PrimitiveOp::BoolToString => "bool.to_string",
+        typed_ir::PrimitiveOp::CharToString => "char.to_string",
+        typed_ir::PrimitiveOp::CharIsWhitespace => "char.is_whitespace",
+        typed_ir::PrimitiveOp::CharIsPunctuation => "char.is_punctuation",
+        typed_ir::PrimitiveOp::CharIsWord => "char.is_word",
         _ => "primitive",
     }
 }

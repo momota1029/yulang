@@ -120,9 +120,6 @@ impl Lowerer<'_> {
                     }
                     RuntimeError::UnboundVariable { path: path.clone() }
                 })?;
-                if locals.contains_key(&path) && stored_ty.as_ref() != Some(&ty) {
-                    locals.insert(path.clone(), ty.clone());
-                }
                 reject_non_runtime_hir_type(&ty, TypeSource::Local)?;
                 let kind =
                     if runtime_symbol_kind == Some(typed_ir::RuntimeSymbolKind::EffectOperation) {
@@ -259,7 +256,10 @@ impl Lowerer<'_> {
                 let body =
                     self.lower_expr(*body, body_expected.as_ref(), locals, TypeSource::Expected)?;
                 self.current_function_boundary = previous_function_boundary;
-                let actual_param_ty = locals.get(&local).cloned().unwrap_or(param_ty);
+                let actual_param_ty = locals
+                    .get(&local)
+                    .cloned()
+                    .unwrap_or_else(|| param_ty.clone());
                 restore_local(locals, local, previous);
                 restore_local_param_boundary(
                     &mut self.local_param_boundaries,
@@ -611,10 +611,12 @@ impl Lowerer<'_> {
                             let can_push = can_push_expected_arg_through(pending_arg);
                             let can_push_expected_evidence =
                                 can_push_expected_arg_evidence_through(pending_arg);
-                            if let Some(expected_arg_ty) =
-                                evidence_expected_arg.as_ref().filter(|_| {
+                            if let Some(expected_arg_ty) = evidence_expected_arg
+                                .as_ref()
+                                .filter(|_| {
                                     self.use_expected_arg_evidence && can_push_expected_evidence
                                 })
+                                .filter(|ty| runtime_type_can_be_pushed_as_lowering_expected(ty))
                             {
                                 self.expected_arg_evidence_profile.used_as_lowering_expected += 1;
                                 Some(expected_arg_ty)
@@ -625,11 +627,17 @@ impl Lowerer<'_> {
                                 {
                                     self.expected_arg_evidence_profile.ignored_no_push += 1;
                                 }
-                                if let Some(lower_arg_ty) =
-                                    evidence_arg_lower.as_ref().filter(|_| can_push)
+                                if let Some(lower_arg_ty) = evidence_arg_lower
+                                    .as_ref()
+                                    .filter(|_| can_push)
+                                    .filter(|ty| {
+                                        runtime_type_can_be_pushed_as_lowering_expected(ty)
+                                    })
                                 {
                                     Some(lower_arg_ty)
-                                } else if hir_type_has_type_vars(&arg_ty) && !can_push {
+                                } else if hir_type_has_type_vars(&arg_ty) && !can_push
+                                    || !runtime_type_can_be_pushed_as_lowering_expected(&arg_ty)
+                                {
                                     None
                                 } else {
                                     Some(&arg_ty)
@@ -707,6 +715,21 @@ impl Lowerer<'_> {
                     && !hir_type_compatible(&final_param, &actual_arg_ty)
                 {
                     final_param = actual_arg_ty.clone();
+                }
+                if self.use_principal_elaboration
+                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
+                    && !hir_type_contains_unknown(&actual_arg_ty)
+                    && !hir_type_compatible(&final_param, &actual_arg_ty)
+                    && widened_apply_arg_evidence_accepts_actual(
+                        evidence_expected_arg.as_ref(),
+                        evidence_arg_lower.as_ref(),
+                        &actual_arg_ty,
+                    )
+                {
+                    final_param = actual_arg_ty.clone();
+                    final_fun_parts.param = final_param.clone();
+                    callee.ty =
+                        erased_fun_type(final_fun_parts.param.clone(), final_fun_parts.ret.clone());
                 }
                 if self.use_principal_elaboration
                     && callee_local_hint.is_some()
@@ -1778,7 +1801,7 @@ impl Lowerer<'_> {
         bounds: &typed_ir::TypeBounds,
     ) -> Option<typed_ir::Type> {
         choose_bounds_type(bounds, BoundsChoice::TirEvidence)
-            .map(|ty| project_runtime_type_with_vars(&ty, &self.principal_vars))
+            .map(|ty| project_runtime_hint_type_with_vars(&ty, &self.principal_vars))
     }
 
     pub(super) fn tir_argument_runtime_type(
@@ -1786,7 +1809,7 @@ impl Lowerer<'_> {
         bounds: &typed_ir::TypeBounds,
     ) -> Option<typed_ir::Type> {
         choose_bounds_type(bounds, BoundsChoice::MonomorphicExpected)
-            .map(|ty| project_runtime_type_with_vars(&ty, &self.principal_vars))
+            .map(|ty| project_runtime_hint_type_with_vars(&ty, &self.principal_vars))
     }
 
     pub(super) fn tir_evidence_runtime_hir_type(
@@ -2829,6 +2852,93 @@ fn visible_principal_arg_substitution_map(
         substitutions.remove(&var);
     }
     substitutions
+}
+
+fn widened_apply_arg_evidence_accepts_actual(
+    expected_arg: Option<&RuntimeType>,
+    evidence_arg: Option<&RuntimeType>,
+    actual_arg: &RuntimeType,
+) -> bool {
+    [expected_arg, evidence_arg]
+        .into_iter()
+        .flatten()
+        .any(|hint| {
+            !runtime_type_is_imprecise_runtime_slot(hint)
+                && !hir_type_contains_unknown(hint)
+                && hir_type_compatible(hint, actual_arg)
+        })
+}
+
+fn runtime_type_can_be_pushed_as_lowering_expected(ty: &RuntimeType) -> bool {
+    !runtime_type_contains_value_choice(ty)
+}
+
+fn runtime_type_contains_value_choice(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => false,
+        RuntimeType::Core(ty) => core_type_contains_value_choice(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_contains_value_choice(param) || runtime_type_contains_value_choice(ret)
+        }
+        RuntimeType::Thunk { value, .. } => runtime_type_contains_value_choice(value),
+    }
+}
+
+fn core_type_contains_value_choice(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => true,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_value_choice),
+        typed_ir::Type::Fun {
+            param,
+            param_effect: _,
+            ret_effect: _,
+            ret,
+        } => core_type_contains_value_choice(param) || core_type_contains_value_choice(ret),
+        typed_ir::Type::Tuple(items) => items.iter().any(core_type_contains_value_choice),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_contains_value_choice(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        core_type_contains_value_choice(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_type_contains_value_choice))
+                || variant
+                    .tail
+                    .as_deref()
+                    .is_some_and(core_type_contains_value_choice)
+        }
+        typed_ir::Type::Row { .. } => false,
+        typed_ir::Type::Recursive { body, .. } => core_type_contains_value_choice(body),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => false,
+    }
+}
+
+fn type_arg_contains_value_choice(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => core_type_contains_value_choice(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .is_some_and(core_type_contains_value_choice)
+                || bounds
+                    .upper
+                    .as_deref()
+                    .is_some_and(core_type_contains_value_choice)
+        }
+    }
 }
 
 fn direct_principal_param_var(principal: &typed_ir::Type) -> Option<typed_ir::TypeVar> {

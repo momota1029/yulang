@@ -90,6 +90,7 @@ pub enum VmError {
     ExpectedInt(VmValue),
     ExpectedFloat(VmValue),
     ExpectedString(VmValue),
+    ExpectedChar(VmValue),
     ExpectedBytes(VmValue),
     ExpectedPath(VmValue),
     ExpectedList(VmValue),
@@ -98,6 +99,7 @@ pub enum VmError {
     ExpectedClosure(VmValue),
     ExpectedThunk(VmValue),
     ExpectedEffectId(VmValue),
+    YadaYada,
     InvalidPrimitiveArity {
         expected: usize,
         actual: usize,

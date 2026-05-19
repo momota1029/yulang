@@ -1,7 +1,9 @@
 use super::*;
+use crate::runtime::char_class::{is_token_punctuation, is_token_whitespace, is_word_grapheme};
 
 pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => 0,
         typed_ir::PrimitiveOp::BoolNot
         | typed_ir::PrimitiveOp::ListEmpty
         | typed_ir::PrimitiveOp::ListSingleton
@@ -17,7 +19,11 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::IntToHex
         | typed_ir::PrimitiveOp::IntToUpperHex
         | typed_ir::PrimitiveOp::FloatToString
-        | typed_ir::PrimitiveOp::BoolToString => 1,
+        | typed_ir::PrimitiveOp::BoolToString
+        | typed_ir::PrimitiveOp::CharToString
+        | typed_ir::PrimitiveOp::CharIsWhitespace
+        | typed_ir::PrimitiveOp::CharIsPunctuation
+        | typed_ir::PrimitiveOp::CharIsWord => 1,
         typed_ir::PrimitiveOp::ListMerge
         | typed_ir::PrimitiveOp::ListIndex
         | typed_ir::PrimitiveOp::ListIndexRange
@@ -44,6 +50,7 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::FloatGe
         | typed_ir::PrimitiveOp::StringEq
         | typed_ir::PrimitiveOp::StringConcat
+        | typed_ir::PrimitiveOp::CharEq
         | typed_ir::PrimitiveOp::BytesEq
         | typed_ir::PrimitiveOp::BytesConcat
         | typed_ir::PrimitiveOp::BytesIndex
@@ -58,6 +65,7 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
 
 pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<VmValue, VmError> {
     match op {
+        typed_ir::PrimitiveOp::YadaYada => Err(VmError::YadaYada),
         typed_ir::PrimitiveOp::BoolNot => Ok(VmValue::Bool(!bool_value(&args[0])?)),
         typed_ir::PrimitiveOp::BoolEq => Ok(VmValue::Bool(
             bool_value(&args[0])? == bool_value(&args[1])?,
@@ -198,7 +206,7 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
             let index = usize::try_from(int_value(&args[1])?)
                 .map_err(|_| VmError::ExpectedInt(args[1].clone()))?;
             text.index(index)
-                .map(|ch| VmValue::String(StringTree::from(ch.to_string())))
+                .map(|ch| VmValue::String(StringTree::from(ch)))
                 .ok_or(VmError::ExpectedString(args[0].clone()))
         }
         typed_ir::PrimitiveOp::StringIndexRange => {
@@ -244,6 +252,21 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
         typed_ir::PrimitiveOp::StringToBytes => Ok(VmValue::Bytes(BytesTree::from_bytes(
             string_value(&args[0])?.to_flat_string().as_bytes(),
         ))),
+        typed_ir::PrimitiveOp::CharEq => Ok(VmValue::Bool(
+            grapheme_value(&args[0])? == grapheme_value(&args[1])?,
+        )),
+        typed_ir::PrimitiveOp::CharToString => {
+            Ok(VmValue::String(StringTree::from(grapheme_value(&args[0])?)))
+        }
+        typed_ir::PrimitiveOp::CharIsWhitespace => Ok(VmValue::Bool(is_token_whitespace(
+            &grapheme_value(&args[0])?,
+        ))),
+        typed_ir::PrimitiveOp::CharIsPunctuation => Ok(VmValue::Bool(is_token_punctuation(
+            &grapheme_value(&args[0])?,
+        ))),
+        typed_ir::PrimitiveOp::CharIsWord => {
+            Ok(VmValue::Bool(is_word_grapheme(&grapheme_value(&args[0])?)))
+        }
         typed_ir::PrimitiveOp::BytesLen => {
             Ok(VmValue::Int(bytes_value(&args[0])?.len().to_string()))
         }

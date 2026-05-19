@@ -102,6 +102,12 @@ pub fn scan_expr_nud<I: EventInput, S: EventSink>(
         };
         Some(lex.tag(tag))
     });
+    let yada_yada_parser = from_fn(|mut i: In<I, S>| {
+        let (kind, text) = scan_punct_expr(i.rb())?;
+        (kind == SyntaxKind::YadaYada).then_some(())?;
+        let trailing_trivia = i.run(scan_trivia)?;
+        Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(ExprNudTag::Nullfix))
+    });
     let string_parser = from_fn(|mut i: In<I, S>| {
         let lex = scan_string_start(leading_info, i.rb())?;
         Some(lex.tag(ExprNudTag::StringStart))
@@ -118,6 +124,7 @@ pub fn scan_expr_nud<I: EventInput, S: EventSink>(
     i.choice((
         fence_stop,
         doc_comment_nud,
+        yada_yada_parser,
         op_parser,
         rule_lit_parser,
         string_parser,
@@ -127,6 +134,7 @@ pub fn scan_expr_nud<I: EventInput, S: EventSink>(
 fn read_expr_nud_punct(kind: SyntaxKind, stop: im::HashSet<SyntaxKind>) -> ExprNudTag {
     match kind {
         kind if stop.contains(&kind) => ExprNudTag::Stop,
+        SyntaxKind::YadaYada => ExprNudTag::Nullfix,
         SyntaxKind::ParenL => ExprNudTag::OpenParen,
         SyntaxKind::BracketL => ExprNudTag::OpenBracket,
         SyntaxKind::BraceL => ExprNudTag::OpenBrace,
