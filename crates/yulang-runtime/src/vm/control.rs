@@ -68,6 +68,40 @@ impl ControlVmModule {
         Ok((result, interpreter.profile()))
     }
 
+    pub fn eval_root_expr_with_basic_host_profiled(
+        &self,
+        index: usize,
+        stdout: &mut String,
+    ) -> Result<(VmResult, VmProfile), VmError> {
+        let expr = self
+            .module
+            .root_exprs
+            .get(index)
+            .copied()
+            .ok_or(VmError::MissingRootExpr(index))?;
+        let mut interpreter = ControlInterpreter::new(&self.module);
+        let mut result = interpreter.eval_root_control_result(expr)?;
+        loop {
+            match result {
+                ControlResult::Value(value) => {
+                    return Ok((
+                        VmResult::Value(export_value(&value, Some(&self.module))?),
+                        interpreter.profile(),
+                    ));
+                }
+                ControlResult::Request(request) => {
+                    let exported = interpreter.export_request(&request)?;
+                    let Some(value) = crate::host::handle_host_request(&exported, stdout) else {
+                        return Ok((VmResult::Request(exported), interpreter.profile()));
+                    };
+                    let value = import_value(&value)?;
+                    let resumed = interpreter.resume(request.continuation, value)?;
+                    result = interpreter.normalize_root_result(resumed)?;
+                }
+            }
+        }
+    }
+
     pub fn root_count(&self) -> usize {
         self.module.root_exprs.len()
     }
@@ -1111,7 +1145,16 @@ impl<'m> ControlInterpreter<'m> {
     }
 
     fn eval_root_expr(&mut self, expr: ExprId) -> Result<VmResult, VmError> {
+        let result = self.eval_root_control_result(expr)?;
+        self.export_result(result)
+    }
+
+    fn eval_root_control_result(&mut self, expr: ExprId) -> Result<ControlResult, VmError> {
         let result = self.eval_expr(expr, &ControlEnv::new())?;
+        self.normalize_root_result(result)
+    }
+
+    fn normalize_root_result(&mut self, result: ControlResult) -> Result<ControlResult, VmError> {
         let result = match result {
             ControlResult::Value(ControlValue::Thunk(thunk)) => {
                 self.bind_here(ControlValue::Thunk(thunk))
@@ -1122,7 +1165,7 @@ impl<'m> ControlInterpreter<'m> {
             ControlResult::Request(request) => self.propagate_request(request)?,
             other => other,
         };
-        self.export_result(result)
+        Ok(result)
     }
 
     fn export_result(&self, result: ControlResult) -> Result<VmResult, VmError> {
@@ -1130,13 +1173,19 @@ impl<'m> ControlInterpreter<'m> {
             ControlResult::Value(value) => {
                 Ok(VmResult::Value(export_value(&value, Some(self.module))?))
             }
-            ControlResult::Request(request) => Ok(VmResult::Request(VmRequest {
-                effect: self.module.symbol_path(request.effect).clone(),
-                payload: export_value(&request.payload, Some(self.module))?,
-                continuation: VmContinuation::default(),
-                blocked_id: request.blocked_id,
-            })),
+            ControlResult::Request(request) => {
+                Ok(VmResult::Request(self.export_request(&request)?))
+            }
         }
+    }
+
+    fn export_request(&self, request: &ControlRequest) -> Result<VmRequest, VmError> {
+        Ok(VmRequest {
+            effect: self.module.symbol_path(request.effect).clone(),
+            payload: export_value(&request.payload, Some(self.module))?,
+            continuation: VmContinuation::default(),
+            blocked_id: request.blocked_id,
+        })
     }
 
     fn eval_expr(&mut self, expr: ExprId, env: &ControlEnv) -> Result<ControlResult, VmError> {

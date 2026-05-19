@@ -978,6 +978,23 @@ println "hello"
     }
 
     #[test]
+    fn control_vm_host_specializes_display_say_for_list_receivers() {
+        let (results, stdout) = eval_control_source_with_std_host(
+            r#"use std::undet::*
+[1, 2, 3].say
+["a", "b"].say
+(each [1, 2, 3] + each [1, 2]).list.say
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Unit, TestValue::Unit, TestValue::Unit]
+        );
+        assert_eq!(stdout, "[1, 2, 3]\n[a, b]\n[2, 3, 3, 4, 4, 5]\n");
+    }
+
+    #[test]
     fn vm_host_handles_fs_text_requests() {
         let path = temp_test_path("yulang-fs-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
@@ -3471,6 +3488,21 @@ run_into_strings: {
                 .collect::<Result<Vec<_>, _>>()
                 .expect("control VM results");
             test_values(results)
+        })
+    }
+
+    fn eval_control_source_with_std_host(src: &str) -> (Vec<TestValue>, String) {
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let module = runtime_module_with_std_inner(&src);
+            let module = compile_control_vm_module(module).expect("compiled control VM module");
+            let mut stdout = String::new();
+            let results = (0..module.root_count())
+                .map(|index| module.eval_root_expr_with_basic_host_profiled(index, &mut stdout))
+                .map(|result| result.map(|(value, _)| value))
+                .collect::<Result<Vec<_>, _>>()
+                .expect("control VM results with host output");
+            (test_values(results), stdout)
         })
     }
 

@@ -53,7 +53,7 @@ pub fn eval_root_with_basic_host(
     }
 }
 
-fn handle_host_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
+pub(crate) fn handle_host_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
     handle_out_request(request, stdout)
         .or_else(|| handle_err_request(request))
         .or_else(|| handle_warn_request(request))

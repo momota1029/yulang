@@ -541,10 +541,15 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
     let eval_start = Instant::now();
     let mut results = Vec::new();
     let mut profile = runtime::VmProfile::default();
+    let mut host_stdout = String::new();
     for index in 0..module.root_count() {
-        match module.eval_root_expr_profiled(index) {
+        match module.eval_root_expr_with_basic_host_profiled(index, &mut host_stdout) {
             Ok((result, item_profile)) => {
                 profile.merge(item_profile);
+                if !host_stdout.is_empty() {
+                    print!("{host_stdout}");
+                    host_stdout.clear();
+                }
                 results.push(result);
             }
             Err(err) => {
@@ -571,8 +576,6 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
         for (index, result) in results.iter().enumerate() {
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
-    } else {
-        println!("run: ok");
     }
 }
 
@@ -604,10 +607,15 @@ fn run_cached_control_vm_module_or_exit(
     let eval_start = Instant::now();
     let mut results = Vec::new();
     let mut profile = runtime::VmProfile::default();
+    let mut host_stdout = String::new();
     for index in 0..module.root_count() {
-        match module.eval_root_expr_profiled(index) {
+        match module.eval_root_expr_with_basic_host_profiled(index, &mut host_stdout) {
             Ok((result, item_profile)) => {
                 profile.merge(item_profile);
+                if !host_stdout.is_empty() {
+                    print!("{host_stdout}");
+                    host_stdout.clear();
+                }
                 results.push(result);
             }
             Err(err) => {
@@ -637,8 +645,6 @@ fn run_cached_control_vm_module_or_exit(
         for (index, result) in results.iter().enumerate() {
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
-    } else {
-        println!("run: ok");
     }
 }
 
@@ -1266,10 +1272,15 @@ fn run_infer_views(
             let eval_start = Instant::now();
             let mut results = Vec::new();
             let mut profile = runtime::VmProfile::default();
+            let mut host_stdout = String::new();
             for index in 0..module.root_count() {
-                match module.eval_root_expr_profiled(index) {
+                match module.eval_root_expr_with_basic_host_profiled(index, &mut host_stdout) {
                     Ok((result, item_profile)) => {
                         profile.merge(item_profile);
+                        if !host_stdout.is_empty() {
+                            print!("{host_stdout}");
+                            host_stdout.clear();
+                        }
                         results.push(result);
                     }
                     Err(err) => {
@@ -1297,8 +1308,6 @@ fn run_infer_views(
                 for (index, result) in results.iter().enumerate() {
                     println!("[{index}] {}", format_runtime_vm_result(result));
                 }
-            } else {
-                println!("run: ok");
             }
         }
         if options.native_abi_lanes {
