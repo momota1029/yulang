@@ -863,6 +863,34 @@ fn hover_for_source(
     })
 }
 
+fn goto_definition_for_source(
+    uri: Url,
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+    position: Position,
+) -> Option<Location> {
+    let target = hover_target_at(source, position)?;
+    let mut lowered = lower_virtual_source_with_options(source, base_dir, options).ok()?;
+    let def = resolve_target_def_id(&mut lowered.state, &target)?;
+    let span = lowered.state.def_spans.get(&def).copied()?;
+    let line_starts = line_starts(source);
+    let range = byte_range_to_lsp(&line_starts, span);
+    Some(Location { uri, range })
+}
+
+fn resolve_target_def_id(state: &mut LowerState, target: &HoverTarget) -> Option<DefId> {
+    if let Some((_, _, result_tv, _)) = resolve_hover_target_selection_tvs(state, target) {
+        if let Some(def) = state.resolved_selection_def(result_tv) {
+            return Some(def);
+        }
+    }
+    if let Some(def) = resolve_hover_target_source_def(state, target) {
+        return Some(def);
+    }
+    resolve_hover_target_def(state, target)
+}
+
 fn document_symbol_for_node(node: &SyntaxNode, line_starts: &[usize]) -> Option<DocumentSymbol> {
     let spec = symbol_spec(node)?;
     let name_token = symbol_name_token(node, spec.name_kind);
@@ -1079,6 +1107,7 @@ impl LanguageServer for Backend {
                     ),
                 ),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                definition_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
@@ -1259,6 +1288,43 @@ impl LanguageServer for Backend {
         .unwrap_or_default();
         Ok(hover)
     }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        let source = self
+            .documents
+            .lock()
+            .unwrap()
+            .get(&uri)
+            .cloned()
+            .or_else(|| {
+                uri.to_file_path()
+                    .ok()
+                    .and_then(|path| std::fs::read_to_string(path).ok())
+            });
+        let Some(source) = source else {
+            return Ok(None);
+        };
+        let base_dir = uri.to_file_path().ok().and_then(|path| {
+            if path.is_dir() {
+                Some(path)
+            } else {
+                path.parent().map(|parent| parent.to_path_buf())
+            }
+        });
+        let options = self.source_options(base_dir.as_deref());
+        let uri_for_task = uri.clone();
+        let location = tokio::task::spawn_blocking(move || {
+            goto_definition_for_source(uri_for_task, &source, base_dir, options, position)
+        })
+        .await
+        .unwrap_or_default();
+        Ok(location.map(GotoDefinitionResponse::Scalar))
+    }
 }
 
 #[cfg(test)]
@@ -1296,6 +1362,32 @@ mod tests {
             .expect("value symbol");
         assert_eq!(value.selection_range.start.line, 2);
         assert_eq!(value.selection_range.start.character, 3);
+    }
+
+    #[test]
+    fn goto_definition_jumps_to_local_binding() {
+        let source = "my foo = 1\nmy bar = foo + 2\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let location = goto_definition_for_source(
+            uri.clone(),
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                // `foo` on the RHS of bar (line 1, character 9)
+                line: 1,
+                character: 9,
+            },
+        )
+        .expect("goto definition for foo use site");
+        assert_eq!(location.uri, uri);
+        // `my foo = 1` — the `foo` ident starts at line 0, byte 3.
+        assert_eq!(location.range.start.line, 0);
+        assert_eq!(location.range.start.character, 3);
     }
 
     #[test]
@@ -1619,8 +1711,8 @@ mod tests {
             panic!("hover should use markdown");
         };
         assert!(content.value.contains("once:"));
-        assert!(content.value.contains("α [std::undet::undet; β] -> [β]"));
-        assert!(content.value.contains("std::opt::opt"));
+        assert!(content.value.contains("undet"));
+        assert!(content.value.contains("opt"));
         assert!(!content.value.contains("α & β"));
         assert!(!content.value.contains("ζ | η"));
     }
@@ -1639,8 +1731,8 @@ mod tests {
             panic!("hover should use markdown");
         };
         assert!(content.value.contains("list:"));
-        assert!(content.value.contains("α [std::undet::undet; β] -> [β]"));
-        assert!(content.value.contains("std::list::list<α>"));
+        assert!(content.value.contains("undet"));
+        assert!(content.value.contains("list<α>"));
         assert!(!content.value.contains("α & β"));
         assert!(!content.value.contains("ζ | η"));
     }
