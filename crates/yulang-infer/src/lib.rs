@@ -30,8 +30,9 @@ pub use diagnostic::{
     TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind,
 };
 pub use display::{
-    collect_compact_results, collect_compact_results_for_paths, collect_expected_edges,
-    format_coalesced_scheme, format_compact_scheme, render_compact_results,
+    collect_compact_results, collect_compact_results_for_paths,
+    collect_compact_results_for_paths_in_scope, collect_expected_edges, format_coalesced_scheme,
+    format_coalesced_scheme_in_scope, format_compact_scheme, render_compact_results,
     render_exported_compact_results,
 };
 pub use export::{
@@ -42,6 +43,7 @@ pub use export::{
     export_scheme_body,
 };
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
+pub use lower::ctx::LowerCtx;
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
 pub use lower::{FinalizeCompactProfile, FinalizeCompactResults, LowerDetailProfile, LowerState};
 pub use profile::with_profile_enabled;

@@ -38,6 +38,9 @@ pub struct LowerCtx {
     /// `use` インポートの検索順（先頭が優先）。
     use_search: Vec<ModuleId>,
     use_paths: Vec<Path>,
+    /// lowering 終了後にもモジュールごとの `use` 解決順を再現するためのスナップショット。
+    /// hover 表示で「そのモジュール位置から見える名前」を辿りたいときに使う。
+    module_use_search: HashMap<ModuleId, Vec<ModuleId>>,
 }
 
 impl LowerCtx {
@@ -60,6 +63,7 @@ impl LowerCtx {
             current_module: root,
             use_search: vec![],
             use_paths: vec![],
+            module_use_search: HashMap::new(),
         }
     }
 
@@ -383,7 +387,120 @@ impl LowerCtx {
         self.use_paths.push(path.clone());
         let module_id = self.resolve_module_path(path)?;
         self.use_search.push(module_id);
+        let snapshot = self
+            .module_use_search
+            .entry(self.current_module)
+            .or_default();
+        if !snapshot.contains(&module_id) {
+            snapshot.push(module_id);
+        }
         Some(())
+    }
+
+    /// `module` から `use` で見える ModuleId の検索順を返す（lowering 完了後も参照可能）。
+    pub fn use_search_for_module(&self, module: ModuleId) -> Vec<ModuleId> {
+        self.module_use_search
+            .get(&module)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// `module` から見たときの単純名の型候補を返す（lowering 完了後に hover 表示用に使う）。
+    pub fn resolve_type_candidates_via_snapshot(
+        &self,
+        module: ModuleId,
+        name: &Name,
+    ) -> Vec<DefId> {
+        let mut out = Vec::new();
+        let mut current = Some(module);
+        while let Some(mid) = current {
+            if let Some(&def) = self.modules.node(mid).types.get(name) {
+                if is_accessible_from(module, mid, self.modules.type_visibility(mid, name)) {
+                    push_unique(&mut out, def);
+                }
+            }
+            current = self.modules.node(mid).parent;
+        }
+        for mid in self.use_search_for_module(module) {
+            if let Some(&def) = self.modules.node(mid).types.get(name) {
+                if is_accessible_from(module, mid, self.modules.type_visibility(mid, name)) {
+                    push_unique(&mut out, def);
+                }
+            }
+        }
+        out
+    }
+
+    /// `module` から見たときに修飾パスを型として解決する（lowering 完了後の hover 表示用）。
+    pub fn resolve_path_type_candidates_via_snapshot(
+        &self,
+        module: ModuleId,
+        path: &Path,
+    ) -> Vec<DefId> {
+        let Some((last, module_segs)) = path.segments.split_last() else {
+            return Vec::new();
+        };
+        if module_segs.is_empty() {
+            return self.resolve_type_candidates_via_snapshot(module, last);
+        }
+        let mut out = Vec::new();
+        for mid in self.resolve_module_path_segments_candidates_from(module, module_segs) {
+            if let Some(&def) = self.modules.node(mid).types.get(last) {
+                if is_accessible_from(module, mid, self.modules.type_visibility(mid, last)) {
+                    push_unique(&mut out, def);
+                }
+            }
+        }
+        out
+    }
+
+    /// `module` から見たときの単純名の値候補を返す（lowering 完了後に hover 表示用に使う）。
+    pub fn resolve_value_candidates_via_snapshot(
+        &self,
+        module: ModuleId,
+        name: &Name,
+    ) -> Vec<DefId> {
+        let mut out = Vec::new();
+        let mut current = Some(module);
+        while let Some(mid) = current {
+            if let Some(&def) = self.modules.node(mid).values.get(name) {
+                if is_accessible_from(module, mid, self.modules.value_visibility(mid, name)) {
+                    push_unique(&mut out, def);
+                }
+            }
+            current = self.modules.node(mid).parent;
+        }
+        for mid in self.use_search_for_module(module) {
+            if let Some(&def) = self.modules.node(mid).values.get(name) {
+                if is_accessible_from(module, mid, self.modules.value_visibility(mid, name)) {
+                    push_unique(&mut out, def);
+                }
+            }
+        }
+        out
+    }
+
+    /// `module` から見たときに修飾パスを値として解決する（lowering 完了後の hover 表示用）。
+    pub fn resolve_path_value_candidates_via_snapshot(
+        &self,
+        module: ModuleId,
+        path: &Path,
+    ) -> Vec<DefId> {
+        let Some((last, module_segs)) = path.segments.split_last() else {
+            return Vec::new();
+        };
+        if module_segs.is_empty() {
+            return self.resolve_value_candidates_via_snapshot(module, last);
+        }
+        let mut out = Vec::new();
+        for mid in self.resolve_module_path_segments_candidates_from(module, module_segs) {
+            if let Some(&def) = self.modules.node(mid).values.get(last) {
+                if is_accessible_from(module, mid, self.modules.value_visibility(mid, last)) {
+                    push_unique(&mut out, def);
+                }
+            }
+        }
+        out
     }
 
     pub fn current_use_paths(&self) -> Vec<Path> {

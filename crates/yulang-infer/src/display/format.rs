@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ids::{TypeVar, fresh_type_var};
+use crate::lower::ctx::LowerCtx;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
     CompactType, CompactTypeScheme, CompactVariant,
@@ -65,7 +66,12 @@ pub fn format_type(ty: &Type) -> String {
     format_type_with_namer(ty, &mut namer)
 }
 
-pub(crate) fn format_type_with_namer(ty: &Type, namer: &mut VarNamer) -> String {
+pub fn format_type_in_scope(ty: &Type, scope: &LowerCtx) -> String {
+    let mut namer = VarNamer::with_scope(scope);
+    format_type_with_namer(ty, &mut namer)
+}
+
+pub(crate) fn format_type_with_namer(ty: &Type, namer: &mut VarNamer<'_>) -> String {
     format_type_inner(ty, namer, false)
 }
 
@@ -73,13 +79,35 @@ pub fn format_coalesced_scheme(scheme: &CompactTypeScheme) -> String {
     format_type(&compact_scheme_to_type(scheme))
 }
 
-#[derive(Default)]
-pub(crate) struct VarNamer {
-    names: HashMap<u32, String>,
-    next: usize,
+pub fn format_coalesced_scheme_in_scope(scheme: &CompactTypeScheme, scope: &LowerCtx) -> String {
+    format_type_in_scope(&compact_scheme_to_type(scheme), scope)
 }
 
-impl VarNamer {
+pub(crate) struct VarNamer<'scope> {
+    names: HashMap<u32, String>,
+    next: usize,
+    scope: Option<&'scope LowerCtx>,
+}
+
+impl Default for VarNamer<'_> {
+    fn default() -> Self {
+        Self {
+            names: HashMap::new(),
+            next: 0,
+            scope: None,
+        }
+    }
+}
+
+impl<'scope> VarNamer<'scope> {
+    pub(crate) fn with_scope(scope: &'scope LowerCtx) -> Self {
+        Self {
+            names: HashMap::new(),
+            next: 0,
+            scope: Some(scope),
+        }
+    }
+
     fn name(&mut self, raw: u32) -> String {
         const GREEK: &[&str] = &[
             "α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ρ",
@@ -99,6 +127,61 @@ impl VarNamer {
         self.names.insert(raw, name.clone());
         name
     }
+
+    pub(crate) fn render_path(&self, path: &Path) -> String {
+        match self.scope {
+            Some(ctx) => shortest_unique_type_path(ctx, path),
+            None => path_string(path),
+        }
+    }
+}
+
+/// 与えられた完全修飾 Path に対して、現在のスコープから一意に同じ DefId へ
+/// 解決できる最短サフィックスを返す。曖昧 or 解決不能なら完全修飾のままにする。
+fn shortest_unique_type_path(ctx: &LowerCtx, full_path: &Path) -> String {
+    if full_path.segments.is_empty() {
+        return path_string(full_path);
+    }
+
+    let module = ctx.current_module;
+    let target = ctx
+        .resolve_path_type_candidates_via_snapshot(module, full_path)
+        .into_iter()
+        .next()
+        .or_else(|| {
+            crate::lower::builtin_types::canonical_builtin_type_path(full_path).and_then(
+                |canonical| {
+                    ctx.resolve_path_type_candidates_via_snapshot(module, &canonical)
+                        .into_iter()
+                        .next()
+                },
+            )
+        });
+    let Some(target) = target else {
+        return path_string(full_path);
+    };
+
+    let total = full_path.segments.len();
+    for k in 1..total {
+        let suffix = Path {
+            segments: full_path.segments[total - k..].to_vec(),
+        };
+        let candidates = ctx.resolve_path_type_candidates_via_snapshot(module, &suffix);
+        if candidates.as_slice() == [target] {
+            return path_string(&suffix);
+        }
+        if candidates.is_empty() && k == 1 {
+            if let Some(canonical) =
+                crate::lower::builtin_types::canonical_builtin_type_path(&suffix)
+            {
+                let canon_cands = ctx.resolve_path_type_candidates_via_snapshot(module, &canonical);
+                if canon_cands.as_slice() == [target] {
+                    return path_string(&suffix);
+                }
+            }
+        }
+    }
+    path_string(full_path)
 }
 
 struct CompactToTypeCtx<'a> {
@@ -1451,12 +1534,12 @@ fn is_int_like_type(ty: &Type) -> bool {
     }
 }
 
-fn format_type_inner(ty: &Type, namer: &mut VarNamer, needs_paren: bool) -> String {
+fn format_type_inner(ty: &Type, namer: &mut VarNamer<'_>, needs_paren: bool) -> String {
     match ty {
         Type::Var(tv) => namer.name(tv.0),
-        Type::Prim(path) => path_string(path),
+        Type::Prim(path) => namer.render_path(path),
         Type::Con(path, args) => {
-            let name = path_string(path);
+            let name = namer.render_path(path);
             if args.is_empty() {
                 return name;
             }
@@ -1611,7 +1694,7 @@ fn format_type_inner(ty: &Type, namer: &mut VarNamer, needs_paren: bool) -> Stri
     }
 }
 
-fn format_row_inline(ty: &Type, namer: &mut VarNamer) -> Option<String> {
+fn format_row_inline(ty: &Type, namer: &mut VarNamer<'_>) -> Option<String> {
     if is_empty_row(ty) {
         return None;
     }
@@ -1665,7 +1748,7 @@ fn format_row_inline(ty: &Type, namer: &mut VarNamer) -> Option<String> {
     }
 }
 
-fn format_ret_row_inline(ty: &Type, namer: &mut VarNamer) -> Option<String> {
+fn format_ret_row_inline(ty: &Type, namer: &mut VarNamer<'_>) -> Option<String> {
     match ty {
         Type::Top => Some("⊤".to_string()),
         Type::Row(items, tail) if matches!(tail.as_ref(), Type::Top) => {
@@ -1683,7 +1766,7 @@ fn format_ret_row_inline(ty: &Type, namer: &mut VarNamer) -> Option<String> {
     }
 }
 
-fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer) -> String {
+fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer<'_>) -> String {
     if let Some(rendered) = format_compact_bounds_with_center(bounds, namer) {
         return rendered;
     }
@@ -1718,7 +1801,7 @@ fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer) -> String
 
 pub(crate) fn format_compact_role_constraint_arg_with_namer(
     arg: &CompactBounds,
-    namer: &mut VarNamer,
+    namer: &mut VarNamer<'_>,
 ) -> String {
     if let Some(rendered) = format_compact_bounds_with_center(arg, namer) {
         return rendered;
@@ -1734,7 +1817,7 @@ pub(crate) fn format_compact_role_constraint_arg_with_namer(
 
 fn format_compact_bounds_with_center(
     bounds: &CompactBounds,
-    namer: &mut VarNamer,
+    namer: &mut VarNamer<'_>,
 ) -> Option<String> {
     let shared = shared_center_vars(bounds);
     if shared.is_empty() {
@@ -1784,7 +1867,7 @@ fn shared_center_vars(bounds: &CompactBounds) -> Vec<TypeVar> {
     shared
 }
 
-fn format_shared_center_vars(shared: &[TypeVar], namer: &mut VarNamer) -> String {
+fn format_shared_center_vars(shared: &[TypeVar], namer: &mut VarNamer<'_>) -> String {
     shared
         .iter()
         .map(|tv| namer.name(tv.0))
@@ -1792,13 +1875,13 @@ fn format_shared_center_vars(shared: &[TypeVar], namer: &mut VarNamer) -> String
         .join(" | ")
 }
 
-fn format_compact_type(ty: &CompactType, namer: &mut VarNamer, needs_paren: bool) -> String {
+fn format_compact_type(ty: &CompactType, namer: &mut VarNamer<'_>, needs_paren: bool) -> String {
     format_compact_type_with_join(ty, namer, needs_paren, " | ")
 }
 
 fn format_compact_type_with_join(
     ty: &CompactType,
-    namer: &mut VarNamer,
+    namer: &mut VarNamer<'_>,
     needs_paren: bool,
     join: &str,
 ) -> String {
@@ -1810,7 +1893,8 @@ fn format_compact_type_with_join(
 
     let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
     prims.sort_by(|a, b| path_string(a).cmp(&path_string(b)));
-    parts.extend(prims.into_iter().map(|path| path_string(&path)));
+    let prim_strings: Vec<String> = prims.iter().map(|path| namer.render_path(path)).collect();
+    parts.extend(prim_strings);
 
     let mut cons = ty.cons.clone();
     cons.sort_by(|a, b| path_string(&a.path).cmp(&path_string(&b.path)));
@@ -1858,7 +1942,7 @@ fn format_compact_type_with_join(
 fn format_compact_interval_arg(
     lower: &CompactType,
     upper: &CompactType,
-    namer: &mut VarNamer,
+    namer: &mut VarNamer<'_>,
 ) -> String {
     let mut lower_parts = format_compact_type_parts(lower, namer);
     let upper_parts = format_compact_type_parts(upper, namer);
@@ -1891,7 +1975,7 @@ fn format_compact_interval_arg(
     }
 }
 
-fn format_compact_type_parts(ty: &CompactType, namer: &mut VarNamer) -> Vec<String> {
+fn format_compact_type_parts(ty: &CompactType, namer: &mut VarNamer<'_>) -> Vec<String> {
     let mut parts = Vec::new();
 
     let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
@@ -1900,7 +1984,8 @@ fn format_compact_type_parts(ty: &CompactType, namer: &mut VarNamer) -> Vec<Stri
 
     let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
     prims.sort_by(|a, b| path_string(a).cmp(&path_string(b)));
-    parts.extend(prims.into_iter().map(|path| path_string(&path)));
+    let prim_strings: Vec<String> = prims.iter().map(|path| namer.render_path(path)).collect();
+    parts.extend(prim_strings);
 
     let mut cons = ty.cons.clone();
     cons.sort_by(|a, b| path_string(&a.path).cmp(&path_string(&b.path)));
@@ -1934,8 +2019,8 @@ fn format_compact_type_parts(ty: &CompactType, namer: &mut VarNamer) -> Vec<Stri
     parts
 }
 
-fn format_compact_con(con: &CompactCon, namer: &mut VarNamer) -> String {
-    let name = path_string(&con.path);
+fn format_compact_con(con: &CompactCon, namer: &mut VarNamer<'_>) -> String {
+    let name = namer.render_path(&con.path);
     if con.args.is_empty() {
         return name;
     }
@@ -1948,7 +2033,7 @@ fn format_compact_con(con: &CompactCon, namer: &mut VarNamer) -> String {
     format!("{name}<{args}>")
 }
 
-fn format_compact_fun(fun: &CompactFun, namer: &mut VarNamer) -> String {
+fn format_compact_fun(fun: &CompactFun, namer: &mut VarNamer<'_>) -> String {
     let arg = format_compact_type(&fun.arg, namer, true);
     let ret = format_compact_type(&fun.ret, namer, false);
     let arg_eff = format_compact_row_inline(&fun.arg_eff, namer);
@@ -1961,7 +2046,7 @@ fn format_compact_fun(fun: &CompactFun, namer: &mut VarNamer) -> String {
     }
 }
 
-fn format_compact_record(record: &CompactRecord, namer: &mut VarNamer) -> String {
+fn format_compact_record(record: &CompactRecord, namer: &mut VarNamer<'_>) -> String {
     let fields = record
         .fields
         .iter()
@@ -1978,7 +2063,7 @@ fn format_compact_record(record: &CompactRecord, namer: &mut VarNamer) -> String
     format!("{{{fields}}}")
 }
 
-fn format_compact_record_spread(spread: &CompactRecordSpread, namer: &mut VarNamer) -> String {
+fn format_compact_record_spread(spread: &CompactRecordSpread, namer: &mut VarNamer<'_>) -> String {
     let fields = spread
         .fields
         .iter()
@@ -2003,7 +2088,7 @@ fn format_compact_record_spread(spread: &CompactRecordSpread, namer: &mut VarNam
     }
 }
 
-fn format_compact_variant(variant: &CompactVariant, namer: &mut VarNamer) -> String {
+fn format_compact_variant(variant: &CompactVariant, namer: &mut VarNamer<'_>) -> String {
     let items = variant
         .items
         .iter()
@@ -2027,7 +2112,7 @@ fn format_compact_variant(variant: &CompactVariant, namer: &mut VarNamer) -> Str
     format!(":{{{items}}}")
 }
 
-fn format_compact_row(row: &CompactRow, namer: &mut VarNamer) -> String {
+fn format_compact_row(row: &CompactRow, namer: &mut VarNamer<'_>) -> String {
     let items = row
         .items
         .iter()
@@ -2045,7 +2130,7 @@ fn format_compact_row(row: &CompactRow, namer: &mut VarNamer) -> String {
     }
 }
 
-fn format_compact_row_inline(ty: &CompactType, namer: &mut VarNamer) -> Option<String> {
+fn format_compact_row_inline(ty: &CompactType, namer: &mut VarNamer<'_>) -> Option<String> {
     match ty.rows.as_slice() {
         [] if is_empty_compact(ty) => None,
         [row]

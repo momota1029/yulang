@@ -3616,6 +3616,46 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
 }
 
 #[test]
+fn scoped_formatter_shortens_std_list_paths_in_prelude_scope() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my take_first(xs: list int) = first xs\n\
+             my take_rev(xs: list int) = rev xs\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        lowered.state.finalize_compact_results();
+
+        for (name, expected) in [
+            ("take_first", "list<int> -> opt<int>"),
+            ("take_rev", "list<int> -> list<int>"),
+        ] {
+            let def = lowered
+                .state
+                .ctx
+                .resolve_value(&Name(name.to_string()))
+                .unwrap_or_else(|| panic!("{name} should resolve"));
+            let scheme = lowered
+                .state
+                .compact_scheme_of(def)
+                .unwrap_or_else(|| panic!("{name} should have a compact scheme"));
+            let rendered = crate::display::format::format_coalesced_scheme_in_scope(
+                &scheme,
+                &lowered.state.ctx,
+            );
+            assert_eq!(rendered, expected, "scoped render for {name}");
+        }
+    });
+}
+
+#[test]
 fn lowers_case_over_nominal_list_view_with_apply_in_body() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

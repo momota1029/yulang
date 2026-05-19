@@ -12,8 +12,8 @@ use yulang_infer::simplify::compact::{
 };
 use yulang_infer::{
     DefId, LowerState, Name as InferName, Path as InferPath, TypeVar,
-    collect_compact_results_for_paths, collect_surface_diagnostics, export_core_program,
-    format_coalesced_scheme, lower_virtual_source_with_options,
+    collect_compact_results_for_paths_in_scope, collect_surface_diagnostics, export_core_program,
+    format_coalesced_scheme_in_scope, lower_virtual_source_with_options,
     surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
@@ -583,7 +583,7 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
     }
     state.finalize_compact_results();
     let paths = hover_paths_for_def(state, def);
-    if let Some(result) = collect_compact_results_for_paths(state, &paths)
+    if let Some(result) = collect_compact_results_for_paths_in_scope(state, &paths, &state.ctx)
         .into_iter()
         .next()
     {
@@ -591,7 +591,7 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
     }
     let name = state.def_name(def)?.0.clone();
     let scheme = compact_hover_scheme(state, def)?;
-    Some((name, format_coalesced_scheme(&scheme)))
+    Some((name, format_coalesced_scheme_in_scope(&scheme, &state.ctx)))
 }
 
 fn hover_type_for_selection(
@@ -630,7 +630,10 @@ fn hover_type_for_selection(
     } else {
         direct
     };
-    Some((name.to_string(), format_coalesced_scheme(&scheme)))
+    Some((
+        name.to_string(),
+        format_coalesced_scheme_in_scope(&scheme, &state.ctx),
+    ))
 }
 
 fn public_effect_method_hover_def(state: &LowerState, def: DefId) -> Option<DefId> {

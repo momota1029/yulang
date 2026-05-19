@@ -45,22 +45,40 @@ pub fn collect_compact_results_for_paths(
     state: &LowerState,
     paths: &[(Path, crate::ids::DefId)],
 ) -> Vec<(String, String)> {
+    collect_compact_results_for_paths_impl(state, paths, None)
+}
+
+pub fn collect_compact_results_for_paths_in_scope(
+    state: &LowerState,
+    paths: &[(Path, crate::ids::DefId)],
+    scope: &crate::lower::ctx::LowerCtx,
+) -> Vec<(String, String)> {
+    collect_compact_results_for_paths_impl(state, paths, Some(scope))
+}
+
+fn collect_compact_results_for_paths_impl(
+    state: &LowerState,
+    paths: &[(Path, crate::ids::DefId)],
+    scope: Option<&crate::lower::ctx::LowerCtx>,
+) -> Vec<(String, String)> {
     let mut seen = HashSet::new();
     let mut entries = paths
         .into_iter()
         .filter(|(_, def)| seen.insert(*def))
         .filter_map(|(path, def)| {
+            let label = render_label_path(path, scope, *def);
             if let Some(scheme) = state.runtime_export_schemes.get(def) {
-                return Some((path_string(&path), format_runtime_export_scheme(scheme)));
+                return Some((label, format_runtime_export_scheme(scheme)));
             }
             if let Some(scheme) = state.compact_scheme_of(*def) {
                 let constraints = state.infer.compact_role_constraints_of(*def);
                 return Some((
-                    path_string(&path),
-                    format_coalesced_scheme_with_role_constraints(
+                    label,
+                    format_coalesced_scheme_with_role_constraints_optional_scope(
                         &state.infer,
                         &scheme,
                         &constraints,
+                        scope,
                     ),
                 ));
             }
@@ -69,13 +87,46 @@ pub fn collect_compact_results_for_paths(
             let scheme = frozen.get(def)?;
             let constraints = state.infer.role_constraints_of(*def);
             Some((
-                path_string(&path),
+                label,
                 format_frozen_scheme_with_role_constraints(&state.infer, scheme, &constraints),
             ))
         })
         .collect::<Vec<_>>();
     entries.sort_by(|a, b| a.0.cmp(&b.0));
     entries
+}
+
+fn render_label_path(
+    path: &Path,
+    scope: Option<&crate::lower::ctx::LowerCtx>,
+    def: crate::ids::DefId,
+) -> String {
+    match scope {
+        Some(ctx) => shortest_unique_value_label(ctx, path, def),
+        None => path_string(path),
+    }
+}
+
+fn shortest_unique_value_label(
+    ctx: &crate::lower::ctx::LowerCtx,
+    full_path: &Path,
+    def: crate::ids::DefId,
+) -> String {
+    if full_path.segments.is_empty() {
+        return path_string(full_path);
+    }
+    let module = ctx.current_module;
+    let total = full_path.segments.len();
+    for k in 1..total {
+        let suffix = Path {
+            segments: full_path.segments[total - k..].to_vec(),
+        };
+        let candidates = ctx.resolve_path_value_candidates_via_snapshot(module, &suffix);
+        if candidates.as_slice() == [def] {
+            return path_string(&suffix);
+        }
+    }
+    path_string(full_path)
 }
 
 fn collect_user_observable_binding_paths(state: &LowerState) -> Vec<(Path, crate::ids::DefId)> {
@@ -339,12 +390,25 @@ pub fn format_coalesced_scheme(scheme: &CompactTypeScheme) -> String {
     display_format::format_coalesced_scheme(scheme)
 }
 
+#[cfg(test)]
 fn format_coalesced_scheme_with_role_constraints(
     infer: &Infer,
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
 ) -> String {
-    let mut namer = display_format::VarNamer::default();
+    format_coalesced_scheme_with_role_constraints_optional_scope(infer, scheme, constraints, None)
+}
+
+fn format_coalesced_scheme_with_role_constraints_optional_scope(
+    infer: &Infer,
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    scope: Option<&crate::lower::ctx::LowerCtx>,
+) -> String {
+    let mut namer = match scope {
+        Some(scope) => display_format::VarNamer::with_scope(scope),
+        None => display_format::VarNamer::default(),
+    };
     let body_type = display_format::compact_scheme_to_type(scheme);
     let body = display_format::format_type_with_namer(&body_type, &mut namer);
     let rendered_constraints = constraints
@@ -366,7 +430,7 @@ fn format_coalesced_scheme_with_role_constraints(
 fn format_role_constraint_with_display_namer(
     infer: &Infer,
     constraint: &CompactRoleConstraint,
-    namer: &mut display_format::VarNamer,
+    namer: &mut display_format::VarNamer<'_>,
 ) -> String {
     let arg_infos = infer.role_arg_infos_of(&constraint.role);
     let args = constraint
