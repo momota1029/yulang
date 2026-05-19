@@ -842,11 +842,36 @@ enum ControlValue {
         value: Option<Box<ControlValue>>,
     },
     EffectOp(ControlSymbolId),
-    PrimitiveOp(Rc<ControlPrimitive>),
-    Resume(Rc<ControlResume>),
-    Closure(Rc<ControlClosure>),
-    Thunk(Rc<ControlThunk>),
+    PrimitiveOp(ControlHeap<ControlPrimitive>),
+    Resume(ControlHeap<ControlResume>),
+    Closure(ControlHeap<ControlClosure>),
+    Thunk(ControlHeap<ControlThunk>),
     EffectId(u64),
+}
+
+#[derive(Clone)]
+#[repr(transparent)]
+struct ControlHeap<T>(Rc<T>);
+
+impl<T> ControlHeap<T> {
+    #[inline]
+    fn new(value: T) -> Self {
+        Self(Rc::new(value))
+    }
+
+    #[inline]
+    fn try_unwrap(self) -> Result<T, Self> {
+        Rc::try_unwrap(self.0).map_err(Self)
+    }
+}
+
+impl<T> std::ops::Deref for ControlHeap<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Clone)]
@@ -1210,7 +1235,7 @@ impl<'m> ControlInterpreter<'m> {
             }
             ControlExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => Err(VmError::YadaYada),
             ControlExprKind::PrimitiveOp(op) => Ok(ControlResult::Value(
-                ControlValue::PrimitiveOp(Rc::new(ControlPrimitive {
+                ControlValue::PrimitiveOp(ControlHeap::new(ControlPrimitive {
                     op,
                     args: Vec::new(),
                 })),
@@ -1223,8 +1248,8 @@ impl<'m> ControlInterpreter<'m> {
                 param_forces_thunk_arg,
                 body,
                 result_wraps_thunk,
-            } => Ok(ControlResult::Value(ControlValue::Closure(Rc::new(
-                ControlClosure {
+            } => Ok(ControlResult::Value(ControlValue::Closure(
+                ControlHeap::new(ControlClosure {
                     param,
                     param_forces_thunk_arg,
                     body,
@@ -1232,8 +1257,8 @@ impl<'m> ControlInterpreter<'m> {
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
                     self_name: None,
-                },
-            )))),
+                }),
+            ))),
             ControlExprKind::Apply {
                 callee,
                 arg,
@@ -1292,14 +1317,14 @@ impl<'m> ControlInterpreter<'m> {
                     ControlFrame::BindHere,
                 ))),
             },
-            ControlExprKind::Thunk(expr) => Ok(ControlResult::Value(ControlValue::Thunk(Rc::new(
-                ControlThunk {
+            ControlExprKind::Thunk(expr) => Ok(ControlResult::Value(ControlValue::Thunk(
+                ControlHeap::new(ControlThunk {
                     body: ControlThunkBody::Expr(expr),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
                     blocked: Vec::new(),
-                },
-            )))),
+                }),
+            ))),
             ControlExprKind::LocalPushId { id, body } => {
                 let guard_id = self.fresh_guard_id();
                 let parent = self.guard_stack.clone();
@@ -1341,7 +1366,9 @@ impl<'m> ControlInterpreter<'m> {
                     allowed: self.module.ty(allowed).clone(),
                     active,
                 });
-                Ok(ControlResult::Value(ControlValue::Thunk(Rc::new(thunk))))
+                Ok(ControlResult::Value(ControlValue::Thunk(ControlHeap::new(
+                    thunk,
+                ))))
             }
             ControlExprKind::Coerce { to, expr } => match self.eval_expr(expr, env)? {
                 ControlResult::Value(value) => Ok(ControlResult::Value(control_cast_value(
@@ -1509,7 +1536,7 @@ impl<'m> ControlInterpreter<'m> {
         if delay_arg {
             return self.apply(
                 callee,
-                ControlValue::Thunk(Rc::new(ControlThunk {
+                ControlValue::Thunk(ControlHeap::new(ControlThunk {
                     body: ControlThunkBody::Expr(arg),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
@@ -1573,7 +1600,7 @@ impl<'m> ControlInterpreter<'m> {
             }
             ControlValue::Resume(resume) => self.resume(resume.continuation.clone(), arg),
             ControlValue::EffectOp(effect) => Ok(ControlResult::Value(ControlValue::Thunk(
-                Rc::new(ControlThunk {
+                ControlHeap::new(ControlThunk {
                     body: ControlThunkBody::Emit {
                         effect,
                         payload: arg,
@@ -1612,18 +1639,18 @@ impl<'m> ControlInterpreter<'m> {
 
     fn apply_primitive(
         &mut self,
-        primitive: Rc<ControlPrimitive>,
+        primitive: ControlHeap<ControlPrimitive>,
         arg: ControlValue,
     ) -> Result<ControlResult, VmError> {
-        let mut primitive = match Rc::try_unwrap(primitive) {
+        let mut primitive = match primitive.try_unwrap() {
             Ok(primitive) => primitive,
             Err(primitive) => (*primitive).clone(),
         };
         primitive.args.push(arg);
         if primitive.args.len() < primitive_arity(primitive.op) {
-            return Ok(ControlResult::Value(ControlValue::PrimitiveOp(Rc::new(
-                primitive,
-            ))));
+            return Ok(ControlResult::Value(ControlValue::PrimitiveOp(
+                ControlHeap::new(primitive),
+            )));
         }
         Ok(ControlResult::Value(control_apply_primitive(
             primitive.op,
@@ -1920,7 +1947,7 @@ impl<'m> ControlInterpreter<'m> {
         if let Some(resume) = arm.resume {
             arm_env.insert(
                 resume,
-                ControlValue::Resume(Rc::new(ControlResume {
+                ControlValue::Resume(ControlHeap::new(ControlResume {
                     continuation: inside_handle(request.continuation.clone(), id),
                 })),
             );
@@ -2492,7 +2519,7 @@ fn make_recursive_local_value(
     };
     let mut closure = (*closure).clone();
     closure.self_name = Some(module.symbol_for_name(&name));
-    ControlValue::Closure(Rc::new(closure))
+    ControlValue::Closure(ControlHeap::new(closure))
 }
 
 fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {
@@ -2540,7 +2567,7 @@ fn control_wrap_value(value: ControlValue, result_wraps_thunk: bool) -> ControlV
     if !result_wraps_thunk || matches!(value, ControlValue::Thunk(_)) {
         return value;
     }
-    ControlValue::Thunk(Rc::new(ControlThunk {
+    ControlValue::Thunk(ControlHeap::new(ControlThunk {
         body: ControlThunkBody::Value(value),
         env: ControlEnv::new(),
         guard_stack: GuardStack::default(),
@@ -2780,14 +2807,16 @@ fn import_value(value: &VmValue) -> Result<ControlValue, VmError> {
         },
         VmValue::EffectId(id) => ControlValue::EffectId(*id),
         VmValue::EffectOp(_) => return Err(VmError::ExpectedClosure(value.clone())),
-        VmValue::PrimitiveOp(primitive) => ControlValue::PrimitiveOp(Rc::new(ControlPrimitive {
-            op: primitive.op,
-            args: primitive
-                .args
-                .iter()
-                .map(import_value)
-                .collect::<Result<Vec<_>, _>>()?,
-        })),
+        VmValue::PrimitiveOp(primitive) => {
+            ControlValue::PrimitiveOp(ControlHeap::new(ControlPrimitive {
+                op: primitive.op,
+                args: primitive
+                    .args
+                    .iter()
+                    .map(import_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            }))
+        }
         VmValue::Closure(_) | VmValue::Thunk(_) | VmValue::Resume(_) => {
             return Err(VmError::ExpectedList(VmValue::Unit));
         }
