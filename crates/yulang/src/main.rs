@@ -102,7 +102,7 @@ struct CliOptions {
     hygiene_ir: bool,
     run_interpreter: bool,
     control_vm: bool,
-    control_vm_emit: Option<String>,
+    control_vm_emit: Option<NativeOutput>,
     control_vm_load: Option<String>,
     native_compare_i64: bool,
     native_abi_lanes: bool,
@@ -183,6 +183,8 @@ struct Cli {
 enum Cmd {
     /// Type-check and print principal types (no path = read stdin)
     Check { path: Option<String> },
+    /// Build a Yulang runtime artifact
+    Build(BuildArgs),
     /// Execute the program
     #[command(visible_alias = "interpret")]
     Run(RunArgs),
@@ -227,6 +229,14 @@ struct RunArgs {
     /// Print root expression values after executing them
     #[arg(long)]
     print_roots: bool,
+}
+
+#[derive(clap::Args)]
+struct BuildArgs {
+    path: Option<String>,
+    /// Output path for the YUIR artifact (defaults to target/yulang/yuir/)
+    #[arg(long, value_name = "PATH")]
+    out: Option<String>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
@@ -367,6 +377,14 @@ fn parse_args() -> CliOptions {
             opts.infer = true;
             opts.path = path;
         }
+        Cmd::Build(BuildArgs { path, out }) => {
+            opts.path = path;
+            opts.control_vm = true;
+            opts.control_vm_emit = Some(match out {
+                Some(path) => NativeOutput::Path(path),
+                None => NativeOutput::Default,
+            });
+        }
         Cmd::Run(args) => {
             if (args.native || args.mmtk) && args.interpreter {
                 eprintln!("yulang run: --native/--mmtk and --interpreter cannot be used together");
@@ -396,8 +414,16 @@ fn parse_args() -> CliOptions {
                         opts.native_run_mmtk_cps_repr_exe = Some(NativeOutput::Default);
                     }
                 }
-            } else {
+            } else if args.interpreter {
                 opts.run_interpreter = true;
+            } else {
+                opts.control_vm = true;
+                if let Some(path) = opts.path.as_deref()
+                    && is_yuir_artifact_path(path)
+                {
+                    opts.control_vm = false;
+                    opts.control_vm_load = Some(path.to_string());
+                }
             }
         }
         Cmd::Native(NativeArgs {
@@ -465,7 +491,7 @@ fn parse_args() -> CliOptions {
             }
             DebugOp::ControlVmEmit { path, out } => {
                 opts.control_vm = true;
-                opts.control_vm_emit = Some(out);
+                opts.control_vm_emit = Some(NativeOutput::Path(out));
                 opts.path = path;
             }
             DebugOp::ControlVmLoad { path, print_roots } => {
@@ -556,13 +582,10 @@ fn run_cached_control_vm_module_or_exit(
     options: &CliOptions,
 ) {
     if let Some(path) = &options.control_vm_emit {
-        let path = Path::new(path);
-        ensure_parent_dir_or_exit(path, "control VM artifact");
-        if let Err(err) = module.write_artifact_file(path) {
-            eprintln!(
-                "failed to write control VM artifact {}: {err}",
-                path.display()
-            );
+        let path = yuir_artifact_output_path(path, options.path.as_deref());
+        ensure_parent_dir_or_exit(&path, "YUIR artifact");
+        if let Err(err) = module.write_artifact_file(&path) {
+            eprintln!("failed to write YUIR artifact {}: {err}", path.display());
             process::exit(1);
         }
         if options.runtime_phase_timings {
@@ -573,7 +596,7 @@ fn run_cached_control_vm_module_or_exit(
             );
         }
         if !options.print_roots {
-            println!("control-vm-emit: {}", path.display());
+            println!("build: {}", path.display());
         }
         return;
     }
@@ -1215,13 +1238,10 @@ fn run_infer_views(
                 write_control_vm_source_cache(&source_set, &module);
             }
             if let Some(path) = &options.control_vm_emit {
-                let path = Path::new(path);
-                ensure_parent_dir_or_exit(path, "control VM artifact");
-                if let Err(err) = module.write_artifact_file(path) {
-                    eprintln!(
-                        "failed to write control VM artifact {}: {err}",
-                        path.display()
-                    );
+                let path = yuir_artifact_output_path(path, options.path.as_deref());
+                ensure_parent_dir_or_exit(&path, "YUIR artifact");
+                if let Err(err) = module.write_artifact_file(&path) {
+                    eprintln!("failed to write YUIR artifact {}: {err}", path.display());
                     process::exit(1);
                 }
                 if options.runtime_phase_timings {
@@ -1239,7 +1259,7 @@ fn run_infer_views(
                     );
                 }
                 if !options.print_roots {
-                    println!("control-vm-emit: {}", path.display());
+                    println!("build: {}", path.display());
                 }
                 return;
             }
@@ -2040,6 +2060,23 @@ fn native_mmtk_cps_repr_executable_output_path(
             .project_bin
             .join(format!("{}-mmtk", native_output_stem(input_path))),
     }
+}
+
+fn yuir_artifact_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
+            .project_target_root
+            .join("yuir")
+            .join(format!("{}.yuir", native_output_stem(input_path))),
+    }
+}
+
+fn is_yuir_artifact_path(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("yuir"))
 }
 
 fn native_output_stem(input_path: Option<&str>) -> String {
@@ -6521,6 +6558,16 @@ mod tests {
         assert!(run_executable.ends_with("target/yulang/bin/hello-native"));
         assert!(pure_executable.ends_with("target/yulang/bin/hello-pure"));
         assert!(effects_executable.ends_with("target/yulang/bin/hello-effects"));
+    }
+
+    #[test]
+    fn yuir_default_output_path_uses_target_yulang() {
+        let artifact = yuir_artifact_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
+
+        assert!(artifact.ends_with("target/yulang/yuir/hello.yuir"));
+        assert!(is_yuir_artifact_path("target/yulang/yuir/hello.yuir"));
+        assert!(is_yuir_artifact_path("target/yulang/yuir/hello.YUIR"));
+        assert!(!is_yuir_artifact_path("examples/hello.yu"));
     }
 
     #[test]
