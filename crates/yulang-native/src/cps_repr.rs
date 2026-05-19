@@ -854,6 +854,7 @@ fn propagate_terminator_argument_lanes(
             resume,
             handler,
             blocked,
+            ..
         } => {
             let mut changed = false;
             if let Some(blocked) = blocked {
@@ -2363,7 +2364,9 @@ fn resume_continuation(
                     let result = eval_cps_repr_primitive(*op, args)?;
                     values.insert(*dest, result);
                 }
-                CpsStmt::DirectCall { dest, target, args } => {
+                CpsStmt::DirectCall {
+                    dest, target, args, ..
+                } => {
                     let target_function = function_by_name_repr(module, target)?;
                     let args = args
                         .iter()
@@ -2678,6 +2681,7 @@ fn resume_continuation(
                 resume,
                 handler,
                 blocked,
+                ..
             } => {
                 let payload = read_plain_value(function, &values, *payload)?;
                 trace_repr(
@@ -2895,7 +2899,7 @@ fn resume_continuation(
                     pre_push_count,
                 );
             }
-            CpsTerminator::EffectfulForce { thunk, resume } => {
+            CpsTerminator::EffectfulForce { thunk, resume, .. } => {
                 let value = read_value(function, &values, *thunk)?;
                 match value {
                     CpsReprRuntimeValue::Thunk(thunk) => {
@@ -4166,6 +4170,7 @@ mod tests {
                         dest: CpsValueId(0),
                         target: "make_int".to_string(),
                         args: Vec::new(),
+                        ownership: None,
                     }],
                     terminator: CpsTerminator::Return(CpsValueId(0)),
                 }],
@@ -4215,6 +4220,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -4312,6 +4318,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -4329,6 +4336,7 @@ mod tests {
                             resume: CpsContinuationId(3),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -4432,6 +4440,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -4449,6 +4458,7 @@ mod tests {
                             resume: CpsContinuationId(3),
                             handler: CpsHandlerId(0),
                             blocked: Some(CpsValueId(1)),
+                            ownership: None,
                         },
                     },
                     CpsContinuation {

@@ -10,20 +10,27 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::cps_effect_regions::{
-    DynamicEffectRegionPlanClass, DynamicEffectThunkRewritePlan, DynamicEffectThunkRewriteStrategy,
+    DynamicEffectBoundaryOwnershipClass, DynamicEffectRegionPlanClass,
+    DynamicEffectRowEvidenceClass, DynamicEffectThunkRewritePlan,
+    DynamicEffectThunkRewriteStrategy, DynamicEffectThunkRowEvidenceClass,
     DynamicEffectThunkSpecializationClass, DynamicEffectThunkSpecializationSeed,
-    EffectHandlerRegionClass, analyze_dynamic_effect_handler_candidates,
-    analyze_dynamic_effect_region_plans, analyze_dynamic_effect_thunk_argument_plans,
-    analyze_dynamic_effect_thunk_rewrite_plans, analyze_dynamic_effect_thunk_specialization_seeds,
-    analyze_effect_handler_regions, maybe_trace_dynamic_effect_handler_candidates,
-    maybe_trace_dynamic_effect_region_plans, maybe_trace_dynamic_effect_thunk_argument_plans,
-    maybe_trace_dynamic_effect_thunk_rewrite_plans,
+    EffectBoundaryKind, EffectHandlerRegionClass, analyze_dynamic_effect_boundary_ownership,
+    analyze_dynamic_effect_handler_candidates, analyze_dynamic_effect_region_plans,
+    analyze_dynamic_effect_row_evidence, analyze_dynamic_effect_thunk_argument_plans,
+    analyze_dynamic_effect_thunk_rewrite_plans, analyze_dynamic_effect_thunk_row_evidence,
+    analyze_dynamic_effect_thunk_specialization_seeds, analyze_effect_handler_regions,
+    maybe_trace_dynamic_effect_boundary_ownership, maybe_trace_dynamic_effect_handler_candidates,
+    maybe_trace_dynamic_effect_region_plans, maybe_trace_dynamic_effect_row_evidence,
+    maybe_trace_dynamic_effect_thunk_argument_plans,
+    maybe_trace_dynamic_effect_thunk_rewrite_plans, maybe_trace_dynamic_effect_thunk_row_evidence,
     maybe_trace_dynamic_effect_thunk_specialization_seeds, maybe_trace_effect_handler_regions,
 };
 use crate::cps_ir::{
-    CpsContinuationId, CpsHandlerEnv, CpsRecordField, CpsShotKind, CpsStmt, CpsTerminator,
-    CpsValueId,
+    CpsContinuationId, CpsEffectBoundaryFiniteLayer, CpsEffectBoundaryOwnership,
+    CpsEffectBoundaryResumeAction, CpsEffectPerformOwnership, CpsHandlerEnv, CpsHandlerId,
+    CpsRecordField, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
 };
+use crate::cps_repr::CpsReprAbiLane;
 use crate::cps_repr_abi::{
     CpsReprAbiContinuation, CpsReprAbiEnvironmentSlot, CpsReprAbiFunction, CpsReprAbiHandler,
     CpsReprAbiHandlerArm, CpsReprAbiModule, CpsReprAbiValue,
@@ -61,6 +68,7 @@ pub struct CpsOptimizationProfile {
     pub folded_structural_projections: usize,
     pub inlined_pure_direct_calls: usize,
     pub inlined_ready_finite_thunk_calls: usize,
+    pub defunctionalized_local_finite_handler_regions: usize,
     pub defunctionalized_finite_handler_thunk_calls: usize,
     pub inlined_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
@@ -82,6 +90,21 @@ pub struct CpsOptimizationProfile {
     pub dynamic_effect_thunk_rewrite_plans: usize,
     pub defunctionalized_dynamic_effect_thunk_rewrite_plans: usize,
     pub body_clone_dynamic_effect_thunk_rewrite_plans: usize,
+    pub dynamic_effect_row_evidences: usize,
+    pub closed_finite_dynamic_effect_row_evidences: usize,
+    pub open_dynamic_effect_row_evidences: usize,
+    pub dynamic_effect_thunk_row_evidences: usize,
+    pub closed_finite_dynamic_effect_thunk_row_evidences: usize,
+    pub blocked_dynamic_effect_thunk_row_evidences: usize,
+    pub dynamic_effect_boundary_ownership_evidences: usize,
+    pub closed_finite_dynamic_effect_boundary_ownership_evidences: usize,
+    pub annotated_effectful_force_ownerships: usize,
+    pub annotated_direct_call_thunk_ownerships: usize,
+    pub specialized_owned_perform_functions: usize,
+    pub defunctionalized_owned_perform_functions: usize,
+    pub owned_return_frame_threading_candidates: usize,
+    pub rewritten_owned_perform_resumes: usize,
+    pub rewritten_owned_perform_call_sites: usize,
     pub changed: bool,
 }
 
@@ -96,6 +119,8 @@ pub fn optimize_cps_repr_abi_module(module: &CpsReprAbiModule) -> CpsOptimizatio
             break;
         }
     }
+    annotate_effectful_force_ownership(&mut output);
+    specialize_owned_perform_functions(&mut output);
     output.profile.record_optimized_size(&output.module);
     analyze_direct_style_islands(&mut output);
     analyze_effect_regions(&mut output);
@@ -120,6 +145,7 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     fold_structural_projections(output);
     inline_pure_direct_calls(output);
     inline_ready_finite_thunk_calls(output);
+    defunctionalize_local_finite_handler_regions(output);
     defunctionalize_finite_handler_thunk_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
@@ -373,9 +399,10 @@ fn fold_structural_projections(output: &mut CpsOptimizationOutput) {
         .iter_mut()
         .chain(&mut output.module.roots)
     {
+        let captured_values = function_captured_values(function);
         for continuation in &mut function.continuations {
             output.profile.folded_structural_projections +=
-                fold_structural_projections_in_continuation(continuation);
+                fold_structural_projections_in_continuation(continuation, &captured_values);
         }
     }
     output.profile.changed |= output.profile.folded_structural_projections > 0;
@@ -422,6 +449,7 @@ fn inline_ready_finite_thunk_calls(output: &mut CpsOptimizationOutput) {
             finite_effects: plan.finite_effects,
             finite_callee_boundaries: plan.finite_callee_boundaries,
             finite_arm_entries: plan.finite_arm_entries,
+            finite_perform_functions: plan.finite_perform_functions,
             finite_performs: plan.finite_performs,
             finite_resumes: plan.finite_resumes,
             finite_resume_actions: plan.finite_resume_actions,
@@ -449,6 +477,20 @@ fn inline_ready_finite_thunk_calls(output: &mut CpsOptimizationOutput) {
             inline_ready_finite_thunk_calls_in_function(function, &seeds, &callees);
     }
     output.profile.changed |= output.profile.inlined_ready_finite_thunk_calls > 0;
+}
+
+fn defunctionalize_local_finite_handler_regions(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.defunctionalized_local_finite_handler_regions +=
+            defunctionalize_local_finite_handler_regions_in_function(function);
+    }
+    output.profile.changed |= output.profile.defunctionalized_local_finite_handler_regions > 0;
 }
 
 fn defunctionalize_finite_handler_thunk_calls(output: &mut CpsOptimizationOutput) {
@@ -485,6 +527,744 @@ fn defunctionalize_finite_handler_thunk_calls(output: &mut CpsOptimizationOutput
             defunctionalize_finite_handler_thunk_calls_in_function(function, &plans, &callees);
     }
     output.profile.changed |= output.profile.defunctionalized_finite_handler_thunk_calls > 0;
+}
+
+fn annotate_effectful_force_ownership(output: &mut CpsOptimizationOutput) {
+    let evidences = analyze_dynamic_effect_boundary_ownership(&output.module);
+    maybe_trace_dynamic_effect_boundary_ownership(&evidences);
+    output.profile.dynamic_effect_boundary_ownership_evidences = evidences.len();
+    output
+        .profile
+        .closed_finite_dynamic_effect_boundary_ownership_evidences = evidences
+        .iter()
+        .filter(|evidence| evidence.class == DynamicEffectBoundaryOwnershipClass::ClosedFinite)
+        .count();
+    let mut ownership_by_boundary = evidences
+        .into_iter()
+        .filter(|evidence| evidence.boundary_kind == EffectBoundaryKind::EffectfulForce)
+        .map(|evidence| ((evidence.caller, evidence.boundary), evidence.ownership))
+        .collect::<HashMap<_, _>>();
+    if !ownership_by_boundary.is_empty() {
+        for function in output
+            .module
+            .functions
+            .iter_mut()
+            .chain(&mut output.module.roots)
+        {
+            for continuation in &mut function.continuations {
+                let CpsTerminator::EffectfulForce { ownership, .. } = &mut continuation.terminator
+                else {
+                    continue;
+                };
+                if ownership.is_some() {
+                    continue;
+                }
+                let Some(evidence) =
+                    ownership_by_boundary.remove(&(function.name.clone(), continuation.id))
+                else {
+                    continue;
+                };
+                *ownership = Some(evidence);
+                output.profile.annotated_effectful_force_ownerships += 1;
+            }
+        }
+    }
+
+    let callsite_ownerships = dynamic_thunk_callsite_ownerships(&output.module);
+    if callsite_ownerships.is_empty() {
+        return;
+    }
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        let Some(sites) = callsite_ownerships.get(function.name.as_str()) else {
+            continue;
+        };
+        for continuation in &mut function.continuations {
+            let Some(by_stmt) = sites.get(&continuation.id) else {
+                continue;
+            };
+            for (stmt_index, stmt) in continuation.stmts.iter_mut().enumerate() {
+                let Some(evidence) = by_stmt.get(&stmt_index) else {
+                    continue;
+                };
+                let CpsStmt::DirectCall {
+                    target, ownership, ..
+                } = stmt
+                else {
+                    continue;
+                };
+                if target != &evidence.callee || ownership.is_some() {
+                    continue;
+                }
+                *ownership = Some(evidence.ownership.clone());
+                output.profile.annotated_direct_call_thunk_ownerships += 1;
+            }
+        }
+    }
+}
+
+fn specialize_owned_perform_functions(output: &mut CpsOptimizationOutput) {
+    if std::env::var_os("YULANG_CPS_DISABLE_OWNED_PERFORM_SPECIALIZATION").is_some() {
+        return;
+    }
+    let plans = analyze_dynamic_effect_thunk_rewrite_plans(&output.module)
+        .into_iter()
+        .filter(|plan| {
+            plan.strategy == DynamicEffectThunkRewriteStrategy::DefunctionalizeFiniteHandler
+                && plan.seed_class == DynamicEffectThunkSpecializationClass::ReadyFinite
+                && plan.blocked_effects.is_empty()
+        })
+        .collect::<Vec<_>>();
+    if plans.is_empty() {
+        return;
+    }
+    let originals = output
+        .module
+        .functions
+        .iter()
+        .chain(&output.module.roots)
+        .map(|function| (function.name.clone(), function.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut specializations = HashMap::<OwnedPerformSpecializationKey, String>::new();
+    let mut cloned_functions = Vec::new();
+    let mut rewrites = Vec::<OwnedPerformCallRewrite>::new();
+
+    for plan in plans {
+        let Some(callee) = originals.get(&plan.callee) else {
+            continue;
+        };
+        let Some(caller) = originals.get(&plan.caller) else {
+            continue;
+        };
+        let Some(thunk_region) = continuation_region(caller, plan.thunk_entry) else {
+            continue;
+        };
+        for key in owned_perform_specialization_keys(callee, &plan) {
+            let specialized = if let Some(existing) = specializations.get(&key) {
+                existing.clone()
+            } else {
+                let Some(original) = originals.get(&key.perform_function) else {
+                    continue;
+                };
+                let specialized_name =
+                    owned_perform_specialization_name(&key.perform_function, specializations.len());
+                let Some(cloned) =
+                    clone_owned_perform_specialization(original, &specialized_name, &key, callee)
+                else {
+                    continue;
+                };
+                if cloned.defunctionalized {
+                    output.profile.defunctionalized_owned_perform_functions += 1;
+                    output.profile.rewritten_owned_perform_resumes += cloned.rewritten_resumes;
+                }
+                if key
+                    .resume_actions
+                    .iter()
+                    .any(|action| action.local_thunk_entry.is_some())
+                {
+                    output.profile.owned_return_frame_threading_candidates += 1;
+                    maybe_trace_owned_return_frame_threading_candidate(
+                        &key,
+                        &specialized_name,
+                        original,
+                    );
+                }
+                specializations.insert(key.clone(), specialized_name.clone());
+                cloned_functions.push(cloned.function);
+                specialized_name
+            };
+            rewrites.push(OwnedPerformCallRewrite {
+                caller: plan.caller.clone(),
+                region: thunk_region.clone(),
+                target: key.perform_function.clone(),
+                specialized,
+            });
+        }
+    }
+
+    if cloned_functions.is_empty() || rewrites.is_empty() {
+        return;
+    }
+    output.profile.specialized_owned_perform_functions += cloned_functions.len();
+    output.module.functions.extend(cloned_functions);
+
+    for rewrite in rewrites {
+        let Some(function) = output
+            .module
+            .functions
+            .iter_mut()
+            .chain(&mut output.module.roots)
+            .find(|function| function.name == rewrite.caller)
+        else {
+            continue;
+        };
+        output.profile.rewritten_owned_perform_call_sites +=
+            rewrite_owned_perform_calls(function, &rewrite);
+    }
+    output.profile.changed |= output.profile.rewritten_owned_perform_call_sites > 0;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct OwnedPerformSpecializationKey {
+    owner_function: String,
+    perform_function: String,
+    perform: CpsContinuationId,
+    handler: CpsHandlerId,
+    effect: typed_ir::Path,
+    arm_entry: CpsContinuationId,
+    perform_resume: CpsContinuationId,
+    return_frame_resume: CpsContinuationId,
+    resume_actions: Vec<CpsEffectBoundaryResumeAction>,
+    resume_uses: usize,
+}
+
+#[derive(Debug, Clone)]
+struct OwnedPerformCallRewrite {
+    caller: String,
+    region: Vec<CpsContinuationId>,
+    target: String,
+    specialized: String,
+}
+
+#[derive(Debug, Clone)]
+struct OwnedPerformSpecializationClone {
+    function: CpsReprAbiFunction,
+    defunctionalized: bool,
+    rewritten_resumes: usize,
+}
+
+fn owned_perform_specialization_keys(
+    callee: &CpsReprAbiFunction,
+    plan: &DynamicEffectThunkRewritePlan,
+) -> Vec<OwnedPerformSpecializationKey> {
+    if plan.finite_effects.len() != 1 {
+        return Vec::new();
+    }
+    plan.finite_effects
+        .iter()
+        .enumerate()
+        .filter_map(|(index, effect)| {
+            let arm_entry = plan.finite_arm_entries.get(index).copied()?;
+            let perform = plan.finite_performs.get(index).copied()?;
+            let perform_resume = plan.finite_resumes.get(index).copied()?;
+            let perform_function = plan.finite_perform_functions.get(index)?.clone();
+            let return_frame_resume = plan
+                .finite_callee_boundaries
+                .get(index)
+                .and_then(|boundary| {
+                    callee
+                        .continuations
+                        .iter()
+                        .find(|continuation| continuation.id == *boundary)
+                })
+                .and_then(|continuation| terminator_resume(&continuation.terminator))?;
+            let handler = callee.handlers.iter().find_map(|handler| {
+                handler
+                    .arms
+                    .iter()
+                    .any(|arm| arm.effect == *effect && arm.entry == arm_entry)
+                    .then_some(handler.id)
+            })?;
+            Some(OwnedPerformSpecializationKey {
+                owner_function: plan.callee.clone(),
+                perform_function,
+                perform,
+                handler,
+                effect: effect.clone(),
+                arm_entry,
+                perform_resume,
+                return_frame_resume,
+                resume_actions: plan
+                    .finite_resume_actions
+                    .iter()
+                    .map(|action| CpsEffectBoundaryResumeAction {
+                        continuation: action.continuation,
+                        stmt_index: action.stmt_index,
+                        arg: action.arg,
+                        arg_literal: action.arg_literal.clone(),
+                        local_thunk_entry: action.local_thunk_entry,
+                    })
+                    .collect(),
+                resume_uses: plan.finite_resume_actions.len(),
+            })
+        })
+        .collect()
+}
+
+fn maybe_trace_owned_return_frame_threading_candidate(
+    key: &OwnedPerformSpecializationKey,
+    specialized_name: &str,
+    perform_function: &CpsReprAbiFunction,
+) {
+    if std::env::var_os("YULANG_CPS_OPT_TRACE").is_none() {
+        return;
+    }
+    let local_thunks = key
+        .resume_actions
+        .iter()
+        .filter_map(|action| action.local_thunk_entry)
+        .map(|entry| format!("{:?}", entry))
+        .collect::<Vec<_>>()
+        .join(",");
+    let action_literals = key
+        .resume_actions
+        .iter()
+        .map(|action| {
+            action
+                .arg_literal
+                .as_ref()
+                .map(|literal| format!("{:?}", literal))
+                .unwrap_or_else(|| "<dynamic>".to_string())
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let local_returns = owned_return_frame_local_return_performs(perform_function, key)
+        .into_iter()
+        .map(|shape| {
+            format!(
+                "{:?}->arm:{:?}->payload:{:?}",
+                shape.perform, shape.arm_entry, shape.payload
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    eprintln!(
+        "[CPS-OWNED-RETURN-FRAME-THREAD] specialized={} owner={} perform_function={} perform={:?} perform_resume={:?} return_frame_resume={:?} arm={:?} local_thunks={} action_literals={} local_returns={}",
+        specialized_name,
+        key.owner_function,
+        key.perform_function,
+        key.perform,
+        key.perform_resume,
+        key.return_frame_resume,
+        key.arm_entry,
+        local_thunks,
+        action_literals,
+        local_returns,
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OwnedReturnFrameLocalReturnShape {
+    perform: CpsContinuationId,
+    arm_entry: Option<CpsContinuationId>,
+    payload: CpsValueId,
+}
+
+fn owned_return_frame_local_return_performs(
+    function: &CpsReprAbiFunction,
+    key: &OwnedPerformSpecializationKey,
+) -> Vec<OwnedReturnFrameLocalReturnShape> {
+    let region = continuation_region(function, key.perform_resume).unwrap_or_default();
+    let region = if region.is_empty() {
+        function
+            .continuations
+            .iter()
+            .map(|continuation| continuation.id)
+            .collect()
+    } else {
+        region
+    };
+    let handler_arms = function
+        .handlers
+        .iter()
+        .flat_map(|handler| {
+            handler
+                .arms
+                .iter()
+                .map(move |arm| ((handler.id, arm.effect.clone()), arm.entry))
+        })
+        .collect::<HashMap<_, _>>();
+    let scoped = local_return_performs_in_region(function, &handler_arms, region);
+    if !scoped.is_empty() {
+        return scoped;
+    }
+    let whole_function = function
+        .continuations
+        .iter()
+        .map(|continuation| continuation.id)
+        .collect::<Vec<_>>();
+    local_return_performs_in_region(function, &handler_arms, whole_function)
+}
+
+fn local_return_performs_in_region(
+    function: &CpsReprAbiFunction,
+    handler_arms: &HashMap<(CpsHandlerId, typed_ir::Path), CpsContinuationId>,
+    region: Vec<CpsContinuationId>,
+) -> Vec<OwnedReturnFrameLocalReturnShape> {
+    region
+        .into_iter()
+        .filter_map(|id| {
+            let continuation = function
+                .continuations
+                .iter()
+                .find(|continuation| continuation.id == id)?;
+            let CpsTerminator::Perform {
+                effect,
+                payload,
+                handler,
+                ..
+            } = &continuation.terminator
+            else {
+                return None;
+            };
+            if *handler == CpsHandlerId(usize::MAX) {
+                return None;
+            }
+            let arm_entry = handler_arms.get(&(*handler, effect.clone())).copied();
+            Some(OwnedReturnFrameLocalReturnShape {
+                perform: id,
+                arm_entry,
+                payload: *payload,
+            })
+        })
+        .collect()
+}
+
+fn owned_perform_specialization_name(perform_function: &str, index: usize) -> String {
+    format!("{perform_function}__owned_perform{index}")
+}
+
+fn clone_owned_perform_specialization(
+    original: &CpsReprAbiFunction,
+    name: &str,
+    key: &OwnedPerformSpecializationKey,
+    owner: &CpsReprAbiFunction,
+) -> Option<OwnedPerformSpecializationClone> {
+    let mut cloned = original.clone();
+    cloned.name = name.to_string();
+    let mut defunctionalized = cloned.clone();
+    if let Some(rewritten_resumes) =
+        defunctionalize_owned_perform_in_clone(&mut defunctionalized, key, owner)
+    {
+        return Some(OwnedPerformSpecializationClone {
+            function: defunctionalized,
+            defunctionalized: true,
+            rewritten_resumes,
+        });
+    }
+    let mut annotated = false;
+    for continuation in &mut cloned.continuations {
+        if continuation.id != key.perform {
+            continue;
+        }
+        let CpsTerminator::Perform { ownership, .. } = &mut continuation.terminator else {
+            return None;
+        };
+        *ownership = Some(CpsEffectPerformOwnership {
+            owner_function: key.owner_function.clone(),
+            return_frame_resume: key.return_frame_resume,
+            handler: key.handler,
+            effect: key.effect.clone(),
+            arm_entry: key.arm_entry,
+            resume_actions: key.resume_actions.clone(),
+        });
+        annotated = true;
+    }
+    annotated.then_some(OwnedPerformSpecializationClone {
+        function: cloned,
+        defunctionalized: false,
+        rewritten_resumes: 0,
+    })
+}
+
+fn defunctionalize_owned_perform_in_clone(
+    cloned: &mut CpsReprAbiFunction,
+    key: &OwnedPerformSpecializationKey,
+    owner: &CpsReprAbiFunction,
+) -> Option<usize> {
+    let perform_index = cloned
+        .continuations
+        .iter()
+        .position(|continuation| continuation.id == key.perform)?;
+    let (perform_payload, perform_resume, perform_handler) =
+        match &cloned.continuations[perform_index].terminator {
+            CpsTerminator::Perform {
+                payload,
+                resume,
+                handler,
+                ..
+            } => (*payload, *resume, *handler),
+            _ => return None,
+        };
+    if perform_handler != CpsHandlerId(usize::MAX) && perform_handler != key.handler {
+        return None;
+    }
+
+    let arm_region = continuation_region(owner, key.arm_entry)?;
+    let arm_region_set = arm_region.iter().copied().collect::<HashSet<_>>();
+    let arm_continuation = owner
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == key.arm_entry)?;
+    let resumption_values = arm_continuation
+        .params
+        .iter()
+        .filter(|param| param.lane == CpsReprAbiLane::ResumptionPtr)
+        .map(|param| param.value)
+        .collect::<HashSet<_>>();
+    if resumption_values.is_empty() {
+        return None;
+    }
+
+    let mut next_continuation = next_function_continuation_id(cloned);
+    let continuation_map = arm_region
+        .iter()
+        .map(|id| {
+            let fresh = next_continuation;
+            next_continuation.0 += 1;
+            (*id, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+    let mut next_value = next_function_value_id(cloned);
+    let mut arm_values = local_value_ids_for_continuations(owner, &arm_region)
+        .into_iter()
+        .collect::<Vec<_>>();
+    arm_values.sort_by_key(|value| value.0);
+    let value_map = arm_values
+        .into_iter()
+        .map(|value| {
+            let fresh = next_value;
+            next_value.0 += 1;
+            (value, fresh)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let cloned_arm_entry = continuation_map.get(&key.arm_entry).copied()?;
+    let cloned_resumption_values = resumption_values
+        .iter()
+        .map(|value| subst_value(*value, &value_map))
+        .collect::<HashSet<_>>();
+    let owner_continuations = owner
+        .continuations
+        .iter()
+        .filter(|continuation| arm_region_set.contains(&continuation.id))
+        .cloned()
+        .map(|continuation| {
+            remap_owned_handler_arm_continuation(
+                continuation,
+                &continuation_map,
+                &HashMap::new(),
+                &value_map,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    cloned.continuations.extend(owner_continuations);
+    let cloned_arm_region = arm_region
+        .iter()
+        .filter_map(|id| continuation_map.get(id).copied())
+        .collect::<Vec<_>>();
+    let cloned_arm_continuation = cloned
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == cloned_arm_entry)?;
+    let arm_args = local_finite_handler_arm_args(
+        cloned_arm_continuation,
+        perform_payload,
+        &cloned_resumption_values,
+    )?;
+    let rewrites = local_finite_handler_resume_rewrites(
+        cloned,
+        &cloned_arm_region,
+        &cloned_resumption_values,
+        key.resume_uses,
+    )?;
+    let rewritten_resumes = rewrites.len();
+
+    for rewrite in rewrites {
+        let continuation = cloned
+            .continuations
+            .iter_mut()
+            .find(|continuation| continuation.id == rewrite.continuation)?;
+        continuation.stmts.truncate(rewrite.stmt_index);
+        continuation.terminator = CpsTerminator::Continue {
+            target: perform_resume,
+            args: vec![rewrite.arg],
+        };
+    }
+    cloned.continuations[perform_index].terminator = CpsTerminator::Continue {
+        target: cloned_arm_entry,
+        args: arm_args,
+    };
+    Some(rewritten_resumes)
+}
+
+fn remap_owned_handler_arm_continuation(
+    continuation: CpsReprAbiContinuation,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    handlers: &HashMap<crate::cps_ir::CpsHandlerId, crate::cps_ir::CpsHandlerId>,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> CpsReprAbiContinuation {
+    CpsReprAbiContinuation {
+        id: remap_continuation_id(continuation.id, continuations),
+        params: continuation
+            .params
+            .into_iter()
+            .map(|value| remap_abi_value(value, values))
+            .collect(),
+        environment: continuation
+            .environment
+            .into_iter()
+            .map(|slot| remap_environment_slot(slot, values))
+            .collect(),
+        shot_kind: continuation.shot_kind,
+        return_lane: continuation.return_lane,
+        stmts: continuation
+            .stmts
+            .into_iter()
+            .map(|stmt| remap_stmt(stmt, continuations, handlers, values))
+            .collect(),
+        terminator: remap_terminator(continuation.terminator, continuations, handlers, values),
+    }
+}
+
+fn rewrite_owned_perform_calls(
+    function: &mut CpsReprAbiFunction,
+    rewrite: &OwnedPerformCallRewrite,
+) -> usize {
+    let region = rewrite.region.iter().copied().collect::<HashSet<_>>();
+    let mut rewritten = 0;
+    for continuation in &mut function.continuations {
+        if !region.contains(&continuation.id) {
+            continue;
+        }
+        if let CpsTerminator::EffectfulCall { target, .. } = &mut continuation.terminator
+            && target == &rewrite.target
+        {
+            *target = rewrite.specialized.clone();
+            rewritten += 1;
+        }
+    }
+    rewritten
+}
+
+#[derive(Debug, Clone)]
+struct DynamicThunkCallsiteOwnership {
+    callee: String,
+    ownership: CpsEffectBoundaryOwnership,
+}
+
+fn dynamic_thunk_callsite_ownerships(
+    module: &CpsReprAbiModule,
+) -> HashMap<String, HashMap<CpsContinuationId, HashMap<usize, DynamicThunkCallsiteOwnership>>> {
+    let functions = module
+        .functions
+        .iter()
+        .chain(&module.roots)
+        .map(|function| (function.name.as_str(), function))
+        .collect::<HashMap<_, _>>();
+    let mut ownerships = HashMap::<
+        String,
+        HashMap<CpsContinuationId, HashMap<usize, DynamicThunkCallsiteOwnership>>,
+    >::new();
+    for plan in analyze_dynamic_effect_thunk_rewrite_plans(module)
+        .into_iter()
+        .filter(|plan| plan.seed_class == DynamicEffectThunkSpecializationClass::ReadyFinite)
+    {
+        let Some(callee) = functions.get(plan.callee.as_str()) else {
+            continue;
+        };
+        let Some(boundary) = plan.finite_callee_boundaries.first().copied() else {
+            continue;
+        };
+        let Some(return_frame_resume) = callee
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == boundary)
+            .and_then(|continuation| terminator_resume(&continuation.terminator))
+        else {
+            continue;
+        };
+        let finite_layers = dynamic_thunk_callsite_finite_layers(callee, &plan);
+        if finite_layers.is_empty() {
+            continue;
+        }
+        let ownership = CpsEffectBoundaryOwnership {
+            owner_function: plan.callee.clone(),
+            return_frame_resume,
+            force_thunk: Some(plan.thunk),
+            closed: plan.blocked_effects.is_empty(),
+            finite_layers,
+            no_resume_effects: plan.no_resume_effects,
+            blocked_effects: plan.blocked_effects,
+            open_effects: Vec::new(),
+        };
+        ownerships
+            .entry(plan.caller)
+            .or_default()
+            .entry(plan.call_continuation)
+            .or_default()
+            .insert(
+                plan.call_stmt_index,
+                DynamicThunkCallsiteOwnership {
+                    callee: plan.callee,
+                    ownership,
+                },
+            );
+    }
+    ownerships
+}
+
+fn dynamic_thunk_callsite_finite_layers(
+    callee: &CpsReprAbiFunction,
+    plan: &DynamicEffectThunkRewritePlan,
+) -> Vec<CpsEffectBoundaryFiniteLayer> {
+    plan.finite_effects
+        .iter()
+        .enumerate()
+        .filter_map(|(index, effect)| {
+            let arm_entry = plan.finite_arm_entries.get(index).copied()?;
+            let handler = callee.handlers.iter().find_map(|handler| {
+                handler
+                    .arms
+                    .iter()
+                    .any(|arm| arm.effect == *effect && arm.entry == arm_entry)
+                    .then_some(handler.id)
+            })?;
+            let perform = plan.finite_performs.get(index).copied()?;
+            let perform_resume = plan.finite_resumes.get(index).copied()?;
+            let perform_function = plan
+                .finite_perform_functions
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| plan.callee.clone());
+            Some(CpsEffectBoundaryFiniteLayer {
+                handler,
+                effect: effect.clone(),
+                arm_entry,
+                perform_function,
+                perform,
+                perform_resume,
+                resume_actions: plan
+                    .finite_resume_actions
+                    .iter()
+                    .map(|action| CpsEffectBoundaryResumeAction {
+                        continuation: action.continuation,
+                        stmt_index: action.stmt_index,
+                        arg: action.arg,
+                        arg_literal: action.arg_literal.clone(),
+                        local_thunk_entry: action.local_thunk_entry,
+                    })
+                    .collect(),
+            })
+        })
+        .collect()
+}
+
+fn terminator_resume(terminator: &CpsTerminator) -> Option<CpsContinuationId> {
+    match terminator {
+        CpsTerminator::Perform { resume, .. }
+        | CpsTerminator::EffectfulCall { resume, .. }
+        | CpsTerminator::EffectfulApply { resume, .. }
+        | CpsTerminator::EffectfulForce { resume, .. } => Some(*resume),
+        CpsTerminator::Return(_)
+        | CpsTerminator::Continue { .. }
+        | CpsTerminator::Branch { .. } => None,
+    }
 }
 
 fn remove_unused_continuation_params_in_function(function: &mut CpsReprAbiFunction) -> usize {
@@ -557,7 +1337,8 @@ fn inline_local_thunk_force_in_continuation(
     continuations: &HashMap<CpsContinuationId, CpsReprAbiContinuation>,
     value_uses: &HashMap<CpsValueId, usize>,
 ) -> usize {
-    let CpsTerminator::EffectfulForce { thunk, resume } = continuation.terminator.clone() else {
+    let CpsTerminator::EffectfulForce { thunk, resume, .. } = continuation.terminator.clone()
+    else {
         return 0;
     };
     if value_uses.get(&thunk).copied().unwrap_or(0) != 1 {
@@ -1259,6 +2040,14 @@ fn analyze_effect_regions(output: &mut CpsOptimizationOutput) {
         .profile
         .defunctionalized_dynamic_effect_thunk_rewrite_plans = 0;
     output.profile.body_clone_dynamic_effect_thunk_rewrite_plans = 0;
+    output.profile.dynamic_effect_row_evidences = 0;
+    output.profile.closed_finite_dynamic_effect_row_evidences = 0;
+    output.profile.open_dynamic_effect_row_evidences = 0;
+    output.profile.dynamic_effect_thunk_row_evidences = 0;
+    output
+        .profile
+        .closed_finite_dynamic_effect_thunk_row_evidences = 0;
+    output.profile.blocked_dynamic_effect_thunk_row_evidences = 0;
     for function in output.module.functions.iter().chain(&output.module.roots) {
         let regions = analyze_effect_handler_regions(function);
         maybe_trace_effect_handler_regions(function, &regions);
@@ -1316,6 +2105,30 @@ fn analyze_effect_regions(output: &mut CpsOptimizationOutput) {
         .iter()
         .filter(|plan| plan.strategy == DynamicEffectThunkRewriteStrategy::CalleeBodyClone)
         .count();
+    let row_evidences = analyze_dynamic_effect_row_evidence(&output.module);
+    maybe_trace_dynamic_effect_row_evidence(&row_evidences);
+    output.profile.dynamic_effect_row_evidences = row_evidences.len();
+    output.profile.closed_finite_dynamic_effect_row_evidences = row_evidences
+        .iter()
+        .filter(|evidence| evidence.class == DynamicEffectRowEvidenceClass::ClosedFinite)
+        .count();
+    output.profile.open_dynamic_effect_row_evidences = row_evidences
+        .iter()
+        .filter(|evidence| evidence.class == DynamicEffectRowEvidenceClass::Open)
+        .count();
+    let thunk_row_evidences = analyze_dynamic_effect_thunk_row_evidence(&output.module);
+    maybe_trace_dynamic_effect_thunk_row_evidence(&thunk_row_evidences);
+    output.profile.dynamic_effect_thunk_row_evidences = thunk_row_evidences.len();
+    output
+        .profile
+        .closed_finite_dynamic_effect_thunk_row_evidences = thunk_row_evidences
+        .iter()
+        .filter(|evidence| evidence.class == DynamicEffectThunkRowEvidenceClass::ClosedFinite)
+        .count();
+    output.profile.blocked_dynamic_effect_thunk_row_evidences = thunk_row_evidences
+        .iter()
+        .filter(|evidence| evidence.class == DynamicEffectThunkRowEvidenceClass::Blocked)
+        .count();
 }
 
 fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
@@ -1323,7 +2136,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} inlined_local_thunk_forces={} collapsed_force_thunk_chains={} removed_redundant_non_thunk_forces={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_ready_finite_thunk_calls={} defunctionalized_finite_handler_thunk_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} effect_regions={} single_resume_regions={} finite_multi_resume_regions={} escaping_resumption_regions={} nested_effectful_regions={} opaque_effect_regions={} dynamic_effect_handler_candidates={} dynamic_effect_region_plans={} finite_dynamic_effect_region_plans={} dynamic_effect_thunk_argument_plans={} dynamic_effect_thunk_specialization_seeds={} ready_dynamic_effect_thunk_specialization_seeds={} dynamic_effect_thunk_rewrite_plans={} defunctionalized_dynamic_effect_thunk_rewrite_plans={} body_clone_dynamic_effect_thunk_rewrite_plans={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} inlined_local_thunk_forces={} collapsed_force_thunk_chains={} removed_redundant_non_thunk_forces={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} removed_unused_environment_slots={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_ready_finite_thunk_calls={} defunctionalized_local_finite_handler_regions={} defunctionalized_finite_handler_thunk_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} effect_regions={} single_resume_regions={} finite_multi_resume_regions={} escaping_resumption_regions={} nested_effectful_regions={} opaque_effect_regions={} dynamic_effect_handler_candidates={} dynamic_effect_region_plans={} finite_dynamic_effect_region_plans={} dynamic_effect_thunk_argument_plans={} dynamic_effect_thunk_specialization_seeds={} ready_dynamic_effect_thunk_specialization_seeds={} dynamic_effect_thunk_rewrite_plans={} defunctionalized_dynamic_effect_thunk_rewrite_plans={} body_clone_dynamic_effect_thunk_rewrite_plans={} dynamic_effect_row_evidences={} closed_finite_dynamic_effect_row_evidences={} open_dynamic_effect_row_evidences={} dynamic_effect_thunk_row_evidences={} closed_finite_dynamic_effect_thunk_row_evidences={} blocked_dynamic_effect_thunk_row_evidences={} dynamic_effect_boundary_ownership_evidences={} closed_finite_dynamic_effect_boundary_ownership_evidences={} annotated_effectful_force_ownerships={} annotated_direct_call_thunk_ownerships={} specialized_owned_perform_functions={} defunctionalized_owned_perform_functions={} owned_return_frame_threading_candidates={} rewritten_owned_perform_resumes={} rewritten_owned_perform_call_sites={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -1347,6 +2160,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.folded_structural_projections,
         profile.inlined_pure_direct_calls,
         profile.inlined_ready_finite_thunk_calls,
+        profile.defunctionalized_local_finite_handler_regions,
         profile.defunctionalized_finite_handler_thunk_calls,
         profile.inlined_continuation_calls,
         profile.removed_unreachable_continuations,
@@ -1368,6 +2182,21 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.dynamic_effect_thunk_rewrite_plans,
         profile.defunctionalized_dynamic_effect_thunk_rewrite_plans,
         profile.body_clone_dynamic_effect_thunk_rewrite_plans,
+        profile.dynamic_effect_row_evidences,
+        profile.closed_finite_dynamic_effect_row_evidences,
+        profile.open_dynamic_effect_row_evidences,
+        profile.dynamic_effect_thunk_row_evidences,
+        profile.closed_finite_dynamic_effect_thunk_row_evidences,
+        profile.blocked_dynamic_effect_thunk_row_evidences,
+        profile.dynamic_effect_boundary_ownership_evidences,
+        profile.closed_finite_dynamic_effect_boundary_ownership_evidences,
+        profile.annotated_effectful_force_ownerships,
+        profile.annotated_direct_call_thunk_ownerships,
+        profile.specialized_owned_perform_functions,
+        profile.defunctionalized_owned_perform_functions,
+        profile.owned_return_frame_threading_candidates,
+        profile.rewritten_owned_perform_resumes,
+        profile.rewritten_owned_perform_call_sites,
         profile.changed
     );
 }
@@ -1428,7 +2257,10 @@ fn reify_direct_primitive_stmt(
     stmt: &mut CpsStmt,
     primitives: &HashMap<String, PrimitiveWrapper>,
 ) -> usize {
-    let CpsStmt::DirectCall { dest, target, args } = stmt else {
+    let CpsStmt::DirectCall {
+        dest, target, args, ..
+    } = stmt
+    else {
         return 0;
     };
     let Some(primitive) = primitives.get(target) else {
@@ -1529,6 +2361,7 @@ fn rewrite_pure_effectful_calls_in_function(
             dest,
             target: target.clone(),
             args: args.clone(),
+            ownership: None,
         });
         continuation.terminator = CpsTerminator::Continue {
             target: *resume,
@@ -1634,7 +2467,9 @@ fn partial_closure_call_shape(
     stmt: &CpsStmt,
 ) -> Option<(CpsValueId, PartialClosureCall, &[CpsValueId])> {
     match stmt {
-        CpsStmt::DirectCall { dest, target, args } => Some((
+        CpsStmt::DirectCall {
+            dest, target, args, ..
+        } => Some((
             *dest,
             PartialClosureCall::Direct {
                 target: target.clone(),
@@ -2054,6 +2889,7 @@ impl PartialClosureCall {
                 dest,
                 target: target.clone(),
                 args,
+                ownership: None,
             },
             PartialClosureCall::Primitive { op } => CpsStmt::Primitive {
                 dest,
@@ -2150,7 +2986,10 @@ fn inline_pure_direct_calls_in_function(
     for continuation in &mut function.continuations {
         let mut stmts = Vec::with_capacity(continuation.stmts.len());
         for stmt in continuation.stmts.drain(..) {
-            let CpsStmt::DirectCall { dest, target, args } = &stmt else {
+            let CpsStmt::DirectCall {
+                dest, target, args, ..
+            } = &stmt
+            else {
                 stmts.push(stmt);
                 continue;
             };
@@ -2245,7 +3084,9 @@ fn inline_ready_finite_thunk_call_at(
         return 0;
     };
     let continuation = &function.continuations[continuation_index];
-    let Some(CpsStmt::DirectCall { dest, target, args }) = continuation.stmts.get(stmt_index)
+    let Some(CpsStmt::DirectCall {
+        dest, target, args, ..
+    }) = continuation.stmts.get(stmt_index)
     else {
         return 0;
     };
@@ -2340,6 +3181,252 @@ fn inline_ready_finite_thunk_call_at(
     1
 }
 
+fn defunctionalize_local_finite_handler_regions_in_function(
+    function: &mut CpsReprAbiFunction,
+) -> usize {
+    let regions = analyze_effect_handler_regions(function)
+        .into_iter()
+        .filter(|region| {
+            matches!(
+                region.class,
+                EffectHandlerRegionClass::SingleResume
+                    | EffectHandlerRegionClass::FiniteMultiResume
+            ) && region.resume_uses > 0
+                && region.resume_with_handler_uses == 0
+                && region.clone_uses == 0
+                && region.nested_performs == 0
+                && region.arm_entry.is_some()
+        })
+        .collect::<Vec<_>>();
+    let mut rewritten = 0;
+    for region in regions {
+        if defunctionalize_local_finite_handler_region(function, &region) {
+            rewritten += 1;
+        }
+    }
+    rewritten
+}
+
+fn defunctionalize_local_finite_handler_region(
+    function: &mut CpsReprAbiFunction,
+    region: &crate::cps_effect_regions::EffectHandlerRegion,
+) -> bool {
+    let Some(arm_entry) = region.arm_entry else {
+        return false;
+    };
+    let handler_is_installed = function_installs_handler(function, region.handler);
+    let Some(arm_region) = continuation_region(function, arm_entry) else {
+        return false;
+    };
+    let Some(arm_continuation) = function
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == arm_entry)
+    else {
+        return false;
+    };
+    let resumption_values = arm_continuation
+        .params
+        .iter()
+        .filter(|param| param.lane == CpsReprAbiLane::ResumptionPtr)
+        .map(|param| param.value)
+        .collect::<HashSet<_>>();
+    if resumption_values.is_empty() {
+        return false;
+    }
+    let Some(perform_index) = function
+        .continuations
+        .iter()
+        .position(|continuation| continuation.id == region.perform)
+    else {
+        return false;
+    };
+    let perform_payload = match function.continuations[perform_index].terminator {
+        CpsTerminator::Perform {
+            payload, handler, ..
+        } if handler == region.handler => payload,
+        _ => return false,
+    };
+    let Some(arm_args) =
+        local_finite_handler_arm_args(arm_continuation, perform_payload, &resumption_values)
+    else {
+        return false;
+    };
+    let Some(rewrites) = local_finite_handler_resume_rewrites(
+        function,
+        &arm_region,
+        &resumption_values,
+        region.resume_uses,
+    ) else {
+        return false;
+    };
+
+    for rewrite in rewrites {
+        let Some(continuation) = function
+            .continuations
+            .iter_mut()
+            .find(|continuation| continuation.id == rewrite.continuation)
+        else {
+            return false;
+        };
+        continuation.stmts.truncate(rewrite.stmt_index);
+        continuation.terminator = CpsTerminator::Continue {
+            target: region.resume,
+            args: vec![rewrite.arg],
+        };
+    }
+    function.continuations[perform_index].terminator = CpsTerminator::Continue {
+        target: arm_entry,
+        args: arm_args,
+    };
+    if !handler_is_installed
+        && !function_has_perform_for_handler_effect(function, region.handler, &region.effect)
+    {
+        remove_handler_arm(function, region.handler, &region.effect, arm_entry);
+    }
+    true
+}
+
+fn function_installs_handler(function: &CpsReprAbiFunction, handler: CpsHandlerId) -> bool {
+    function.continuations.iter().any(|continuation| {
+        continuation.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::InstallHandler {
+                    handler: installed,
+                    ..
+                } if *installed == handler
+            )
+        })
+    })
+}
+
+fn function_has_perform_for_handler_effect(
+    function: &CpsReprAbiFunction,
+    handler: CpsHandlerId,
+    effect: &typed_ir::Path,
+) -> bool {
+    function.continuations.iter().any(|continuation| {
+        matches!(
+            &continuation.terminator,
+            CpsTerminator::Perform {
+                handler: perform_handler,
+                effect: perform_effect,
+                ..
+            } if *perform_handler == handler && perform_effect == effect
+        )
+    })
+}
+
+fn remove_handler_arm(
+    function: &mut CpsReprAbiFunction,
+    handler: CpsHandlerId,
+    effect: &typed_ir::Path,
+    entry: CpsContinuationId,
+) {
+    for candidate in &mut function.handlers {
+        if candidate.id != handler {
+            continue;
+        }
+        candidate
+            .arms
+            .retain(|arm| arm.effect != *effect || arm.entry != entry);
+    }
+    function.handlers.retain(|handler| !handler.arms.is_empty());
+}
+
+fn local_finite_handler_arm_args(
+    arm_continuation: &CpsReprAbiContinuation,
+    payload: CpsValueId,
+    resumption_values: &HashSet<CpsValueId>,
+) -> Option<Vec<CpsValueId>> {
+    if arm_continuation.params.is_empty() {
+        return Some(Vec::new());
+    }
+    let mut args = Vec::with_capacity(arm_continuation.params.len());
+    for param in &arm_continuation.params {
+        if resumption_values.contains(&param.value) {
+            args.push(payload);
+        } else if args.is_empty() {
+            args.push(payload);
+        } else {
+            return None;
+        }
+    }
+    Some(args)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LocalFiniteHandlerResumeRewrite {
+    continuation: CpsContinuationId,
+    stmt_index: usize,
+    arg: CpsValueId,
+}
+
+fn local_finite_handler_resume_rewrites(
+    function: &CpsReprAbiFunction,
+    arm_region: &[CpsContinuationId],
+    resumption_values: &HashSet<CpsValueId>,
+    expected_resume_uses: usize,
+) -> Option<Vec<LocalFiniteHandlerResumeRewrite>> {
+    let arm_region = arm_region.iter().copied().collect::<HashSet<_>>();
+    let mut rewrites = Vec::new();
+    for continuation in function
+        .continuations
+        .iter()
+        .filter(|continuation| arm_region.contains(&continuation.id))
+    {
+        for (stmt_index, stmt) in continuation.stmts.iter().enumerate() {
+            match stmt {
+                CpsStmt::Resume {
+                    dest,
+                    resumption,
+                    arg,
+                } if resumption_values.contains(resumption) => {
+                    if stmt_index + 1 != continuation.stmts.len()
+                        || !matches!(continuation.terminator, CpsTerminator::Return(value) if value == *dest)
+                    {
+                        return None;
+                    }
+                    rewrites.push(LocalFiniteHandlerResumeRewrite {
+                        continuation: continuation.id,
+                        stmt_index,
+                        arg: *arg,
+                    });
+                }
+                CpsStmt::ResumeWithHandler { resumption, .. }
+                    if resumption_values.contains(resumption) =>
+                {
+                    return None;
+                }
+                stmt if stmt_uses_values_outside_direct_resume(stmt, resumption_values) => {
+                    return None;
+                }
+                _ => {}
+            }
+        }
+        if terminator_values(&continuation.terminator)
+            .into_iter()
+            .any(|value| resumption_values.contains(&value))
+        {
+            return None;
+        }
+    }
+    if rewrites.len() != expected_resume_uses {
+        return None;
+    }
+    Some(rewrites)
+}
+
+fn stmt_uses_values_outside_direct_resume(stmt: &CpsStmt, values: &HashSet<CpsValueId>) -> bool {
+    match stmt {
+        CpsStmt::Resume { resumption, .. } if values.contains(resumption) => false,
+        _ => stmt_operands(stmt)
+            .into_iter()
+            .any(|value| values.contains(&value)),
+    }
+}
+
 fn defunctionalize_finite_handler_thunk_calls_in_function(
     function: &mut CpsReprAbiFunction,
     plans: &[DynamicEffectThunkRewritePlan],
@@ -2421,7 +3508,9 @@ fn defunctionalize_finite_handler_thunk_call_at(
     }
 
     let continuation = &function.continuations[continuation_index];
-    let Some(CpsStmt::DirectCall { dest, target, args }) = continuation.stmts.get(stmt_index)
+    let Some(CpsStmt::DirectCall {
+        dest, target, args, ..
+    }) = continuation.stmts.get(stmt_index)
     else {
         return 0;
     };
@@ -2690,6 +3779,19 @@ fn local_value_defs_for_continuations(
                 .map(|param| param.value)
                 .chain(continuation.stmts.iter().filter_map(stmt_dest))
         })
+        .collect()
+}
+
+fn local_value_ids_for_continuations(
+    function: &CpsReprAbiFunction,
+    region: &[CpsContinuationId],
+) -> HashSet<CpsValueId> {
+    let region = region.iter().copied().collect::<HashSet<_>>();
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| region.contains(&continuation.id))
+        .flat_map(continuation_all_value_ids)
         .collect()
 }
 
@@ -2967,10 +4069,16 @@ fn remap_stmt_values(stmt: CpsStmt, substitution: &HashMap<CpsValueId, CpsValueI
             op,
             args: subst_values(args, substitution),
         },
-        CpsStmt::DirectCall { dest, target, args } => CpsStmt::DirectCall {
+        CpsStmt::DirectCall {
+            dest,
+            target,
+            args,
+            ownership,
+        } => CpsStmt::DirectCall {
             dest: subst_value(dest, substitution),
             target,
             args: subst_values(args, substitution),
+            ownership: subst_effect_boundary_ownership(ownership, substitution),
         },
         CpsStmt::ApplyClosure { dest, closure, arg } => CpsStmt::ApplyClosure {
             dest: subst_value(dest, substitution),
@@ -3045,12 +4153,14 @@ fn remap_terminator(
             resume,
             handler,
             blocked,
+            ownership,
         } => CpsTerminator::Perform {
             effect,
             payload,
             resume: remap_continuation_id(resume, continuations),
             handler: remap_handler_id(handler, handlers),
             blocked,
+            ownership: remap_effect_perform_ownership(ownership, continuations, handlers),
         },
         CpsTerminator::EffectfulCall {
             target,
@@ -3070,9 +4180,14 @@ fn remap_terminator(
             arg,
             resume: remap_continuation_id(resume, continuations),
         },
-        CpsTerminator::EffectfulForce { thunk, resume } => CpsTerminator::EffectfulForce {
+        CpsTerminator::EffectfulForce {
+            thunk,
+            resume,
+            ownership,
+        } => CpsTerminator::EffectfulForce {
             thunk,
             resume: remap_continuation_id(resume, continuations),
+            ownership: remap_effect_boundary_ownership(ownership, continuations, values),
         },
         CpsTerminator::Return(value) => CpsTerminator::Return(value),
     }
@@ -3090,6 +4205,76 @@ fn remap_handler_envs(
             targets: subst_values(env.targets, values),
         })
         .collect()
+}
+
+fn remap_effect_boundary_ownership(
+    ownership: Option<CpsEffectBoundaryOwnership>,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    values: &HashMap<CpsValueId, CpsValueId>,
+) -> Option<CpsEffectBoundaryOwnership> {
+    ownership.map(|ownership| CpsEffectBoundaryOwnership {
+        owner_function: ownership.owner_function,
+        return_frame_resume: remap_continuation_id(ownership.return_frame_resume, continuations),
+        force_thunk: ownership
+            .force_thunk
+            .map(|value| subst_value(value, values)),
+        closed: ownership.closed,
+        finite_layers: ownership
+            .finite_layers
+            .into_iter()
+            .map(|layer| CpsEffectBoundaryFiniteLayer {
+                handler: layer.handler,
+                effect: layer.effect,
+                arm_entry: remap_continuation_id(layer.arm_entry, continuations),
+                perform_function: layer.perform_function,
+                perform: remap_continuation_id(layer.perform, continuations),
+                perform_resume: remap_continuation_id(layer.perform_resume, continuations),
+                resume_actions: layer
+                    .resume_actions
+                    .into_iter()
+                    .map(|action| CpsEffectBoundaryResumeAction {
+                        continuation: remap_continuation_id(action.continuation, continuations),
+                        stmt_index: action.stmt_index,
+                        arg: subst_value(action.arg, values),
+                        arg_literal: action.arg_literal,
+                        local_thunk_entry: action
+                            .local_thunk_entry
+                            .map(|entry| remap_continuation_id(entry, continuations)),
+                    })
+                    .collect(),
+            })
+            .collect(),
+        no_resume_effects: ownership.no_resume_effects,
+        blocked_effects: ownership.blocked_effects,
+        open_effects: ownership.open_effects,
+    })
+}
+
+fn remap_effect_perform_ownership(
+    ownership: Option<CpsEffectPerformOwnership>,
+    continuations: &HashMap<CpsContinuationId, CpsContinuationId>,
+    handlers: &HashMap<CpsHandlerId, CpsHandlerId>,
+) -> Option<CpsEffectPerformOwnership> {
+    ownership.map(|ownership| CpsEffectPerformOwnership {
+        owner_function: ownership.owner_function,
+        return_frame_resume: remap_continuation_id(ownership.return_frame_resume, continuations),
+        handler: remap_handler_id(ownership.handler, handlers),
+        effect: ownership.effect,
+        arm_entry: remap_continuation_id(ownership.arm_entry, continuations),
+        resume_actions: ownership
+            .resume_actions
+            .into_iter()
+            .map(|action| CpsEffectBoundaryResumeAction {
+                continuation: remap_continuation_id(action.continuation, continuations),
+                stmt_index: action.stmt_index,
+                arg: action.arg,
+                arg_literal: action.arg_literal,
+                local_thunk_entry: action
+                    .local_thunk_entry
+                    .map(|entry| remap_continuation_id(entry, continuations)),
+            })
+            .collect(),
+    })
 }
 
 fn remap_continuation_id(
@@ -3180,10 +4365,16 @@ fn substitute_pure_inline_stmt_values(
             op,
             args: subst_values(args, substitution),
         },
-        CpsStmt::DirectCall { dest, target, args } => CpsStmt::DirectCall {
+        CpsStmt::DirectCall {
+            dest,
+            target,
+            args,
+            ownership,
+        } => CpsStmt::DirectCall {
             dest: subst_value(dest, substitution),
             target,
             args: subst_values(args, substitution),
+            ownership: subst_effect_boundary_ownership(ownership, substitution),
         },
         stmt => stmt,
     }
@@ -3237,9 +4428,14 @@ fn continuation_value_ids(
         .chain(continuation.stmts.iter().filter_map(stmt_dest))
 }
 
-fn fold_structural_projections_in_continuation(continuation: &mut CpsReprAbiContinuation) -> usize {
+fn fold_structural_projections_in_continuation(
+    continuation: &mut CpsReprAbiContinuation,
+    captured_values: &HashSet<CpsValueId>,
+) -> usize {
     let mut aliases = HashMap::<CpsValueId, CpsValueId>::new();
     let mut tuples = HashMap::<CpsValueId, Vec<CpsValueId>>::new();
+    let mut records = HashMap::<CpsValueId, HashMap<typed_ir::Name, CpsValueId>>::new();
+    let mut variants = HashMap::<CpsValueId, (typed_ir::Name, Option<CpsValueId>)>::new();
     let mut scalar_values = HashSet::<CpsValueId>::new();
     let mut stmts = Vec::with_capacity(continuation.stmts.len());
     let mut count = 0;
@@ -3249,26 +4445,154 @@ fn fold_structural_projections_in_continuation(continuation: &mut CpsReprAbiCont
         match stmt {
             CpsStmt::Tuple { dest, items } => {
                 tuples.insert(dest, items.clone());
+                records.remove(&dest);
+                variants.remove(&dest);
                 stmts.push(CpsStmt::Tuple { dest, items });
             }
             CpsStmt::TupleGet { dest, tuple, index } => {
-                if let Some(items) = tuples.get(&tuple) {
+                if !captured_values.contains(&dest)
+                    && let Some(items) = tuples.get(&tuple)
+                {
                     if let Some(value) = items.get(index).copied() {
                         let value = resolve_alias(value, &aliases);
+                        aliases.insert(dest, value);
                         if scalar_values.contains(&value) {
-                            aliases.insert(dest, value);
                             scalar_values.insert(dest);
-                            count += 1;
-                            continue;
                         }
+                        count += 1;
+                        continue;
                     }
                 }
-                tuples.remove(&dest);
+                forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
                 stmts.push(CpsStmt::TupleGet { dest, tuple, index });
+            }
+            CpsStmt::Record { dest, base, fields } => {
+                let known = match base {
+                    Some(base) => records.get(&base).cloned(),
+                    None => Some(HashMap::new()),
+                };
+                if let Some(mut known) = known {
+                    for field in &fields {
+                        known.insert(field.name.clone(), field.value);
+                    }
+                    tuples.remove(&dest);
+                    variants.remove(&dest);
+                    records.insert(dest, known);
+                } else {
+                    forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                }
+                stmts.push(CpsStmt::Record { dest, base, fields });
+            }
+            CpsStmt::RecordWithoutFields { dest, base, fields } => {
+                if let Some(base_fields) = records.get(&base) {
+                    let mut known = base_fields.clone();
+                    for field in &fields {
+                        known.remove(field);
+                    }
+                    tuples.remove(&dest);
+                    variants.remove(&dest);
+                    records.insert(dest, known);
+                } else {
+                    forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                }
+                stmts.push(CpsStmt::RecordWithoutFields { dest, base, fields });
+            }
+            CpsStmt::Select { dest, base, field } => {
+                if !captured_values.contains(&dest)
+                    && let Some(fields) = records.get(&base)
+                    && let Some(value) = fields.get(&field).copied()
+                {
+                    let value = resolve_alias(value, &aliases);
+                    aliases.insert(dest, value);
+                    if scalar_values.contains(&value) {
+                        scalar_values.insert(dest);
+                    }
+                    count += 1;
+                    continue;
+                }
+                forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                stmts.push(CpsStmt::Select { dest, base, field });
+            }
+            CpsStmt::SelectWithDefault {
+                dest,
+                base,
+                field,
+                default,
+            } => {
+                if !captured_values.contains(&dest)
+                    && let Some(fields) = records.get(&base)
+                {
+                    let value = fields.get(&field).copied().unwrap_or(default);
+                    let value = resolve_alias(value, &aliases);
+                    aliases.insert(dest, value);
+                    if scalar_values.contains(&value) {
+                        scalar_values.insert(dest);
+                    }
+                    count += 1;
+                    continue;
+                }
+                forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                stmts.push(CpsStmt::SelectWithDefault {
+                    dest,
+                    base,
+                    field,
+                    default,
+                });
+            }
+            CpsStmt::RecordHasField { dest, base, field } => {
+                if let Some(fields) = records.get(&base) {
+                    let has_field = fields.contains_key(&field);
+                    forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                    scalar_values.insert(dest);
+                    stmts.push(CpsStmt::Literal {
+                        dest,
+                        literal: crate::cps_ir::CpsLiteral::Bool(has_field),
+                    });
+                    count += 1;
+                    continue;
+                }
+                forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                stmts.push(CpsStmt::RecordHasField { dest, base, field });
+            }
+            CpsStmt::Variant { dest, tag, value } => {
+                tuples.remove(&dest);
+                records.remove(&dest);
+                variants.insert(dest, (tag.clone(), value));
+                stmts.push(CpsStmt::Variant { dest, tag, value });
+            }
+            CpsStmt::VariantTagEq { dest, variant, tag } => {
+                if let Some((known_tag, _)) = variants.get(&variant) {
+                    let matches_tag = known_tag == &tag;
+                    forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                    scalar_values.insert(dest);
+                    stmts.push(CpsStmt::Literal {
+                        dest,
+                        literal: crate::cps_ir::CpsLiteral::Bool(matches_tag),
+                    });
+                    count += 1;
+                    continue;
+                }
+                forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                stmts.push(CpsStmt::VariantTagEq { dest, variant, tag });
+            }
+            CpsStmt::VariantPayload { dest, variant } => {
+                if !captured_values.contains(&dest)
+                    && let Some((_, Some(value))) = variants.get(&variant).cloned()
+                {
+                    let value = resolve_alias(value, &aliases);
+                    aliases.insert(dest, value);
+                    if scalar_values.contains(&value) {
+                        scalar_values.insert(dest);
+                    }
+                    count += 1;
+                    continue;
+                }
+                forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
+                stmts.push(CpsStmt::VariantPayload { dest, variant });
             }
             stmt => {
                 if let Some(dest) = stmt_dest(&stmt) {
-                    tuples.remove(&dest);
+                    forget_known_structure(dest, &mut tuples, &mut records, &mut variants);
                     if stmt_produces_scalar_value(&stmt) {
                         scalar_values.insert(dest);
                     }
@@ -3282,6 +4606,17 @@ fn fold_structural_projections_in_continuation(continuation: &mut CpsReprAbiCont
         substitute_terminator_values(continuation.terminator.clone(), &aliases);
     continuation.stmts = stmts;
     count
+}
+
+fn forget_known_structure(
+    value: CpsValueId,
+    tuples: &mut HashMap<CpsValueId, Vec<CpsValueId>>,
+    records: &mut HashMap<CpsValueId, HashMap<typed_ir::Name, CpsValueId>>,
+    variants: &mut HashMap<CpsValueId, (typed_ir::Name, Option<CpsValueId>)>,
+) {
+    tuples.remove(&value);
+    records.remove(&value);
+    variants.remove(&value);
 }
 
 fn stmt_produces_scalar_value(stmt: &CpsStmt) -> bool {
@@ -4210,10 +5545,16 @@ fn substitute_stmt_values(
             op,
             args: subst_values(args, substitution),
         },
-        CpsStmt::DirectCall { dest, target, args } => CpsStmt::DirectCall {
+        CpsStmt::DirectCall {
+            dest,
+            target,
+            args,
+            ownership,
+        } => CpsStmt::DirectCall {
             dest,
             target,
             args: subst_values(args, substitution),
+            ownership: subst_effect_boundary_ownership(ownership, substitution),
         },
         CpsStmt::ApplyClosure { dest, closure, arg } => CpsStmt::ApplyClosure {
             dest,
@@ -4286,12 +5627,14 @@ fn substitute_terminator_values(
             resume,
             handler,
             blocked,
+            ownership,
         } => CpsTerminator::Perform {
             effect,
             payload: subst_value(payload, substitution),
             resume,
             handler,
             blocked: blocked.map(|value| subst_value(value, substitution)),
+            ownership,
         },
         CpsTerminator::EffectfulCall {
             target,
@@ -4311,9 +5654,14 @@ fn substitute_terminator_values(
             arg: subst_value(arg, substitution),
             resume,
         },
-        CpsTerminator::EffectfulForce { thunk, resume } => CpsTerminator::EffectfulForce {
+        CpsTerminator::EffectfulForce {
+            thunk,
+            resume,
+            ownership,
+        } => CpsTerminator::EffectfulForce {
             thunk: subst_value(thunk, substitution),
             resume,
+            ownership: subst_effect_boundary_ownership(ownership, substitution),
         },
     }
 }
@@ -4329,6 +5677,46 @@ fn subst_handler_envs(
             targets: subst_values(env.targets, substitution),
         })
         .collect()
+}
+
+fn subst_effect_boundary_ownership(
+    ownership: Option<CpsEffectBoundaryOwnership>,
+    substitution: &HashMap<CpsValueId, CpsValueId>,
+) -> Option<CpsEffectBoundaryOwnership> {
+    ownership.map(|ownership| CpsEffectBoundaryOwnership {
+        owner_function: ownership.owner_function,
+        return_frame_resume: ownership.return_frame_resume,
+        force_thunk: ownership
+            .force_thunk
+            .map(|value| subst_value(value, substitution)),
+        closed: ownership.closed,
+        finite_layers: ownership
+            .finite_layers
+            .into_iter()
+            .map(|layer| CpsEffectBoundaryFiniteLayer {
+                handler: layer.handler,
+                effect: layer.effect,
+                arm_entry: layer.arm_entry,
+                perform_function: layer.perform_function,
+                perform: layer.perform,
+                perform_resume: layer.perform_resume,
+                resume_actions: layer
+                    .resume_actions
+                    .into_iter()
+                    .map(|action| CpsEffectBoundaryResumeAction {
+                        continuation: action.continuation,
+                        stmt_index: action.stmt_index,
+                        arg: subst_value(action.arg, substitution),
+                        arg_literal: action.arg_literal,
+                        local_thunk_entry: action.local_thunk_entry,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        no_resume_effects: ownership.no_resume_effects,
+        blocked_effects: ownership.blocked_effects,
+        open_effects: ownership.open_effects,
+    })
 }
 
 fn subst_values(
@@ -4408,8 +5796,15 @@ impl CpsOptimizationProfile {
             || self.folded_structural_projections > before.folded_structural_projections
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
             || self.inlined_ready_finite_thunk_calls > before.inlined_ready_finite_thunk_calls
+            || self.defunctionalized_local_finite_handler_regions
+                > before.defunctionalized_local_finite_handler_regions
             || self.defunctionalized_finite_handler_thunk_calls
                 > before.defunctionalized_finite_handler_thunk_calls
+            || self.defunctionalized_owned_perform_functions
+                > before.defunctionalized_owned_perform_functions
+            || self.owned_return_frame_threading_candidates
+                > before.owned_return_frame_threading_candidates
+            || self.rewritten_owned_perform_resumes > before.rewritten_owned_perform_resumes
             || self.inlined_continuation_calls > before.inlined_continuation_calls
             || self.removed_unreachable_continuations > before.removed_unreachable_continuations
             || self.removed_dead_pure_statements > before.removed_dead_pure_statements
@@ -4462,6 +5857,7 @@ impl CpsOptimizationProfile {
             folded_structural_projections: 0,
             inlined_pure_direct_calls: 0,
             inlined_ready_finite_thunk_calls: 0,
+            defunctionalized_local_finite_handler_regions: 0,
             defunctionalized_finite_handler_thunk_calls: 0,
             inlined_continuation_calls: 0,
             removed_unreachable_continuations: 0,
@@ -4483,6 +5879,21 @@ impl CpsOptimizationProfile {
             dynamic_effect_thunk_rewrite_plans: 0,
             defunctionalized_dynamic_effect_thunk_rewrite_plans: 0,
             body_clone_dynamic_effect_thunk_rewrite_plans: 0,
+            dynamic_effect_row_evidences: 0,
+            closed_finite_dynamic_effect_row_evidences: 0,
+            open_dynamic_effect_row_evidences: 0,
+            dynamic_effect_thunk_row_evidences: 0,
+            closed_finite_dynamic_effect_thunk_row_evidences: 0,
+            blocked_dynamic_effect_thunk_row_evidences: 0,
+            dynamic_effect_boundary_ownership_evidences: 0,
+            closed_finite_dynamic_effect_boundary_ownership_evidences: 0,
+            annotated_effectful_force_ownerships: 0,
+            annotated_direct_call_thunk_ownerships: 0,
+            specialized_owned_perform_functions: 0,
+            defunctionalized_owned_perform_functions: 0,
+            owned_return_frame_threading_candidates: 0,
+            rewritten_owned_perform_resumes: 0,
+            rewritten_owned_perform_call_sites: 0,
             changed: false,
         }
     }
@@ -4491,8 +5902,8 @@ impl CpsOptimizationProfile {
 #[cfg(test)]
 mod tests {
     use crate::cps_ir::{
-        CpsContinuationId, CpsFunction, CpsHandlerId, CpsLiteral, CpsModule, CpsShotKind, CpsStmt,
-        CpsTerminator, CpsValueId,
+        CpsContinuationId, CpsFunction, CpsHandlerId, CpsLiteral, CpsModule, CpsRecordField,
+        CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
     };
     use crate::cps_repr::{CpsReprAbiLane, lower_cps_repr_module};
     use crate::cps_repr_abi::lower_cps_repr_abi_module;
@@ -4510,7 +5921,7 @@ mod tests {
         assert_eq!(optimized.profile.optimized_continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
         assert_eq!(optimized.profile.optimized_statements, 1);
-        assert_eq!(optimized.profile.passes_run, 24);
+        assert_eq!(optimized.profile.passes_run, 25);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.folded_constant_branches, 0);
@@ -4547,6 +5958,7 @@ mod tests {
                 dest: CpsValueId(1),
                 target: "collector".to_string(),
                 args: Vec::new(),
+                ownership: None,
             },
             CpsStmt::ForceThunk {
                 dest: CpsValueId(2),
@@ -4929,6 +6341,7 @@ mod tests {
                             dest: CpsValueId(2),
                             target: "callee".to_string(),
                             args: Vec::new(),
+                            ownership: None,
                         },
                         CpsStmt::ForceThunk {
                             dest: CpsValueId(3),
@@ -4989,6 +6402,7 @@ mod tests {
                             dest: CpsValueId(2),
                             target: "callee".to_string(),
                             args: vec![CpsValueId(1)],
+                            ownership: None,
                         },
                         CpsStmt::ForceThunk {
                             dest: CpsValueId(3),
@@ -5272,6 +6686,7 @@ mod tests {
                         terminator: CpsTerminator::EffectfulForce {
                             thunk: CpsValueId(1),
                             resume: CpsContinuationId(2),
+                            ownership: None,
                         },
                     },
                     crate::cps_ir::CpsContinuation {
@@ -5366,6 +6781,7 @@ mod tests {
                             dest: CpsValueId(2),
                             target: "add".to_string(),
                             args: vec![CpsValueId(0), CpsValueId(1)],
+                            ownership: None,
                         },
                     ],
                     terminator: CpsTerminator::Return(CpsValueId(2)),
@@ -5435,6 +6851,7 @@ mod tests {
                             dest: CpsValueId(1),
                             target: "plus_one".to_string(),
                             args: vec![CpsValueId(0)],
+                            ownership: None,
                         },
                     ],
                     terminator: CpsTerminator::Return(CpsValueId(1)),
@@ -5508,6 +6925,7 @@ mod tests {
                             dest: CpsValueId(2),
                             target: "pair".to_string(),
                             args: vec![CpsValueId(0), CpsValueId(1)],
+                            ownership: None,
                         },
                     ],
                     terminator: CpsTerminator::Return(CpsValueId(2)),
@@ -5687,6 +7105,7 @@ mod tests {
                             dest: CpsValueId(5),
                             target: "add".to_string(),
                             args: vec![CpsValueId(0), CpsValueId(4)],
+                            ownership: None,
                         }],
                         terminator: CpsTerminator::Return(CpsValueId(5)),
                     },
@@ -5858,6 +7277,7 @@ mod tests {
                             dest: CpsValueId(5),
                             target: "add".to_string(),
                             args: vec![CpsValueId(0), CpsValueId(4)],
+                            ownership: None,
                         }],
                         terminator: CpsTerminator::Return(CpsValueId(5)),
                     },
@@ -6048,6 +7468,7 @@ mod tests {
                             dest: CpsValueId(5),
                             target: "add".to_string(),
                             args: vec![CpsValueId(0), CpsValueId(4)],
+                            ownership: None,
                         }],
                         terminator: CpsTerminator::Return(CpsValueId(5)),
                     },
@@ -6338,6 +7759,95 @@ mod tests {
         assert_eq!(entry.terminator, CpsTerminator::Return(CpsValueId(1)));
         assert_eq!(optimized.profile.folded_structural_projections, 1);
         assert_eq!(optimized.profile.removed_dead_pure_statements, 2);
+    }
+
+    #[test]
+    fn folds_record_and_variant_projections_from_local_structures() {
+        let mut continuation = CpsReprAbiContinuation {
+            id: CpsContinuationId(0),
+            params: Vec::new(),
+            environment: Vec::new(),
+            shot_kind: CpsShotKind::OneShot,
+            return_lane: CpsReprAbiLane::Unknown,
+            stmts: vec![
+                CpsStmt::Literal {
+                    dest: CpsValueId(0),
+                    literal: CpsLiteral::Int("7".to_string()),
+                },
+                CpsStmt::Literal {
+                    dest: CpsValueId(1),
+                    literal: CpsLiteral::Int("9".to_string()),
+                },
+                CpsStmt::Record {
+                    dest: CpsValueId(2),
+                    base: None,
+                    fields: vec![CpsRecordField {
+                        name: typed_ir::Name("value".to_string()),
+                        value: CpsValueId(0),
+                    }],
+                },
+                CpsStmt::Select {
+                    dest: CpsValueId(3),
+                    base: CpsValueId(2),
+                    field: typed_ir::Name("value".to_string()),
+                },
+                CpsStmt::RecordHasField {
+                    dest: CpsValueId(4),
+                    base: CpsValueId(2),
+                    field: typed_ir::Name("missing".to_string()),
+                },
+                CpsStmt::Variant {
+                    dest: CpsValueId(5),
+                    tag: typed_ir::Name("some".to_string()),
+                    value: Some(CpsValueId(3)),
+                },
+                CpsStmt::VariantTagEq {
+                    dest: CpsValueId(6),
+                    variant: CpsValueId(5),
+                    tag: typed_ir::Name("some".to_string()),
+                },
+                CpsStmt::VariantPayload {
+                    dest: CpsValueId(7),
+                    variant: CpsValueId(5),
+                },
+            ],
+            terminator: CpsTerminator::Return(CpsValueId(7)),
+        };
+
+        let folded =
+            fold_structural_projections_in_continuation(&mut continuation, &HashSet::new());
+
+        assert_eq!(folded, 4);
+        assert_eq!(
+            continuation.terminator,
+            CpsTerminator::Return(CpsValueId(0))
+        );
+        assert!(!continuation.stmts.iter().any(|stmt| matches!(
+            stmt,
+            CpsStmt::Select { .. } | CpsStmt::VariantPayload { .. }
+        )));
+        assert!(continuation.stmts.iter().any(|stmt| matches!(
+            stmt,
+            CpsStmt::Literal {
+                dest: CpsValueId(4),
+                literal: CpsLiteral::Bool(false),
+            }
+        )));
+        assert!(continuation.stmts.iter().any(|stmt| matches!(
+            stmt,
+            CpsStmt::Literal {
+                dest: CpsValueId(6),
+                literal: CpsLiteral::Bool(true),
+            }
+        )));
+        assert!(continuation.stmts.iter().any(|stmt| matches!(
+            stmt,
+            CpsStmt::Variant {
+                dest: CpsValueId(5),
+                value: Some(CpsValueId(0)),
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -6664,6 +8174,7 @@ mod tests {
                             dest: CpsValueId(1),
                             target: "collector".to_string(),
                             args: vec![CpsValueId(0)],
+                            ownership: None,
                         },
                         CpsStmt::ForceThunk {
                             dest: CpsValueId(2),
@@ -6710,6 +8221,7 @@ mod tests {
                     CpsTerminator::EffectfulForce {
                         thunk: CpsValueId(1),
                         resume: CpsContinuationId(1),
+                        ownership: None,
                     },
                 ),
                 abi_continuation(
@@ -6747,6 +8259,7 @@ mod tests {
             finite_effects: Vec::new(),
             finite_callee_boundaries: vec![CpsContinuationId(0)],
             finite_arm_entries: vec![CpsContinuationId(2)],
+            finite_perform_functions: Vec::new(),
             finite_performs: Vec::new(),
             finite_resumes: Vec::new(),
             finite_resume_actions: Vec::new(),
@@ -6788,6 +8301,228 @@ mod tests {
             CpsTerminator::Continue {
                 target: CpsContinuationId(4),
                 args: vec![CpsValueId(10)],
+            }
+        );
+    }
+
+    #[test]
+    fn owned_perform_specialization_clones_perform_function_and_rewrites_thunk_call() {
+        let effect = typed_ir::Path::from_name(typed_ir::Name("branch".to_string()));
+        let producer = CpsReprAbiFunction {
+            name: "producer".to_string(),
+            params: Vec::new(),
+            entry: CpsContinuationId(0),
+            continuations: vec![
+                abi_continuation(
+                    CpsContinuationId(0),
+                    Vec::new(),
+                    vec![CpsStmt::Literal {
+                        dest: CpsValueId(0),
+                        literal: CpsLiteral::Unit,
+                    }],
+                    CpsTerminator::Perform {
+                        effect: effect.clone(),
+                        payload: CpsValueId(0),
+                        resume: CpsContinuationId(1),
+                        handler: CpsHandlerId(usize::MAX),
+                        blocked: None,
+                        ownership: None,
+                    },
+                ),
+                abi_continuation(
+                    CpsContinuationId(1),
+                    vec![CpsValueId(1)],
+                    Vec::new(),
+                    CpsTerminator::Return(CpsValueId(1)),
+                ),
+            ],
+            handlers: Vec::new(),
+        };
+        let key = OwnedPerformSpecializationKey {
+            owner_function: "collector".to_string(),
+            perform_function: "producer".to_string(),
+            perform: CpsContinuationId(0),
+            handler: CpsHandlerId(3),
+            effect: effect.clone(),
+            arm_entry: CpsContinuationId(4),
+            perform_resume: CpsContinuationId(1),
+            return_frame_resume: CpsContinuationId(99),
+            resume_actions: vec![CpsEffectBoundaryResumeAction {
+                continuation: CpsContinuationId(4),
+                stmt_index: 0,
+                arg: CpsValueId(10),
+                arg_literal: None,
+                local_thunk_entry: None,
+            }],
+            resume_uses: 1,
+        };
+        let collector = CpsReprAbiFunction {
+            name: "collector".to_string(),
+            params: Vec::new(),
+            entry: CpsContinuationId(0),
+            continuations: vec![CpsReprAbiContinuation {
+                id: CpsContinuationId(4),
+                params: vec![
+                    abi_value(CpsValueId(10)),
+                    CpsReprAbiValue {
+                        value: CpsValueId(11),
+                        lane: CpsReprAbiLane::ResumptionPtr,
+                    },
+                ],
+                environment: Vec::new(),
+                shot_kind: CpsShotKind::MultiShot,
+                return_lane: CpsReprAbiLane::ScalarI64,
+                stmts: vec![CpsStmt::Resume {
+                    dest: CpsValueId(12),
+                    resumption: CpsValueId(11),
+                    arg: CpsValueId(10),
+                }],
+                terminator: CpsTerminator::Return(CpsValueId(12)),
+            }],
+            handlers: Vec::new(),
+        };
+
+        let cloned = clone_owned_perform_specialization(
+            &producer,
+            "producer__owned_perform0",
+            &key,
+            &collector,
+        )
+        .unwrap();
+        assert!(cloned.defunctionalized);
+        assert_eq!(cloned.rewritten_resumes, 1);
+        let cloned = cloned.function;
+
+        assert_eq!(cloned.name, "producer__owned_perform0");
+        assert_eq!(
+            cloned.continuations[0].terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(2),
+                args: vec![CpsValueId(0), CpsValueId(0)],
+            }
+        );
+        assert_eq!(
+            cloned
+                .continuations
+                .iter()
+                .find(|continuation| continuation.id == CpsContinuationId(2))
+                .unwrap()
+                .terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(1),
+                args: vec![CpsValueId(2)],
+            }
+        );
+
+        let mut caller = CpsReprAbiFunction {
+            name: "root".to_string(),
+            params: Vec::new(),
+            entry: CpsContinuationId(0),
+            continuations: vec![abi_continuation(
+                CpsContinuationId(1),
+                Vec::new(),
+                Vec::new(),
+                CpsTerminator::EffectfulCall {
+                    target: "producer".to_string(),
+                    args: Vec::new(),
+                    resume: CpsContinuationId(2),
+                },
+            )],
+            handlers: Vec::new(),
+        };
+        let rewritten = rewrite_owned_perform_calls(
+            &mut caller,
+            &OwnedPerformCallRewrite {
+                caller: "root".to_string(),
+                region: vec![CpsContinuationId(1)],
+                target: "producer".to_string(),
+                specialized: "producer__owned_perform0".to_string(),
+            },
+        );
+
+        assert_eq!(rewritten, 1);
+        assert!(matches!(
+            &caller.continuations[0].terminator,
+            CpsTerminator::EffectfulCall { target, .. }
+                if target == "producer__owned_perform0"
+        ));
+    }
+
+    #[test]
+    fn defunctionalizes_local_finite_handler_region_to_direct_continues() {
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
+        let mut function = CpsReprAbiFunction {
+            name: "root".to_string(),
+            params: Vec::new(),
+            entry: CpsContinuationId(0),
+            continuations: vec![
+                abi_continuation(
+                    CpsContinuationId(0),
+                    Vec::new(),
+                    vec![CpsStmt::Literal {
+                        dest: CpsValueId(0),
+                        literal: CpsLiteral::Unit,
+                    }],
+                    CpsTerminator::Perform {
+                        effect: effect.clone(),
+                        payload: CpsValueId(0),
+                        resume: CpsContinuationId(1),
+                        handler: CpsHandlerId(0),
+                        blocked: None,
+                        ownership: None,
+                    },
+                ),
+                abi_continuation(
+                    CpsContinuationId(1),
+                    vec![CpsValueId(1)],
+                    Vec::new(),
+                    CpsTerminator::Return(CpsValueId(1)),
+                ),
+                CpsReprAbiContinuation {
+                    id: CpsContinuationId(2),
+                    params: vec![
+                        abi_value(CpsValueId(2)),
+                        CpsReprAbiValue {
+                            value: CpsValueId(3),
+                            lane: CpsReprAbiLane::ResumptionPtr,
+                        },
+                    ],
+                    environment: Vec::new(),
+                    shot_kind: CpsShotKind::MultiShot,
+                    return_lane: CpsReprAbiLane::ScalarI64,
+                    stmts: vec![CpsStmt::Resume {
+                        dest: CpsValueId(4),
+                        resumption: CpsValueId(3),
+                        arg: CpsValueId(2),
+                    }],
+                    terminator: CpsTerminator::Return(CpsValueId(4)),
+                },
+            ],
+            handlers: vec![CpsReprAbiHandler {
+                id: CpsHandlerId(0),
+                arms: vec![CpsReprAbiHandlerArm {
+                    effect,
+                    entry: CpsContinuationId(2),
+                }],
+            }],
+        };
+
+        let rewritten = defunctionalize_local_finite_handler_regions_in_function(&mut function);
+
+        assert_eq!(rewritten, 1);
+        assert_eq!(
+            function.continuations[0].terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(2),
+                args: vec![CpsValueId(0), CpsValueId(0)],
+            }
+        );
+        assert!(function.continuations[2].stmts.is_empty());
+        assert_eq!(
+            function.continuations[2].terminator,
+            CpsTerminator::Continue {
+                target: CpsContinuationId(1),
+                args: vec![CpsValueId(2)],
             }
         );
     }

@@ -129,6 +129,7 @@ pub enum CpsStmt {
         dest: CpsValueId,
         target: String,
         args: Vec<CpsValueId>,
+        ownership: Option<CpsEffectBoundaryOwnership>,
     },
     ApplyClosure {
         dest: CpsValueId,
@@ -189,6 +190,48 @@ pub struct CpsHandlerEnv {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsEffectBoundaryOwnership {
+    pub owner_function: String,
+    pub return_frame_resume: CpsContinuationId,
+    pub force_thunk: Option<CpsValueId>,
+    pub closed: bool,
+    pub finite_layers: Vec<CpsEffectBoundaryFiniteLayer>,
+    pub no_resume_effects: Vec<typed_ir::Path>,
+    pub blocked_effects: Vec<typed_ir::Path>,
+    pub open_effects: Vec<typed_ir::Path>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsEffectBoundaryFiniteLayer {
+    pub handler: CpsHandlerId,
+    pub effect: typed_ir::Path,
+    pub arm_entry: CpsContinuationId,
+    pub perform_function: String,
+    pub perform: CpsContinuationId,
+    pub perform_resume: CpsContinuationId,
+    pub resume_actions: Vec<CpsEffectBoundaryResumeAction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CpsEffectBoundaryResumeAction {
+    pub continuation: CpsContinuationId,
+    pub stmt_index: usize,
+    pub arg: CpsValueId,
+    pub arg_literal: Option<CpsLiteral>,
+    pub local_thunk_entry: Option<CpsContinuationId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsEffectPerformOwnership {
+    pub owner_function: String,
+    pub return_frame_resume: CpsContinuationId,
+    pub handler: CpsHandlerId,
+    pub effect: typed_ir::Path,
+    pub arm_entry: CpsContinuationId,
+    pub resume_actions: Vec<CpsEffectBoundaryResumeAction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CpsTerminator {
     Return(CpsValueId),
     Continue {
@@ -206,6 +249,7 @@ pub enum CpsTerminator {
         resume: CpsContinuationId,
         handler: CpsHandlerId,
         blocked: Option<CpsValueId>,
+        ownership: Option<CpsEffectPerformOwnership>,
     },
     /// Effectful direct function call. Used inside handler scopes when the
     /// callee may perform effects. The resume continuation receives the return
@@ -230,6 +274,7 @@ pub enum CpsTerminator {
     EffectfulForce {
         thunk: CpsValueId,
         resume: CpsContinuationId,
+        ownership: Option<CpsEffectBoundaryOwnership>,
     },
 }
 
@@ -245,7 +290,7 @@ pub struct CpsHandlerArm {
     pub entry: CpsContinuationId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CpsLiteral {
     Int(String),
     Float(String),

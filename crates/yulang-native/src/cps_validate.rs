@@ -395,7 +395,7 @@ fn validate_continuation(
             require_value(function, &values, *arg)?;
             require_continuation(function, continuation_ids, *resume)
         }
-        CpsTerminator::EffectfulForce { thunk, resume } => {
+        CpsTerminator::EffectfulForce { thunk, resume, .. } => {
             require_value(function, &values, *thunk)?;
             require_continuation(function, continuation_ids, *resume)
         }

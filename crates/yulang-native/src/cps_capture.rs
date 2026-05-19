@@ -348,7 +348,7 @@ fn continuation_uses(
                     .copied(),
             );
         }
-        CpsTerminator::EffectfulForce { thunk, resume } => {
+        CpsTerminator::EffectfulForce { thunk, resume, .. } => {
             uses.insert(*thunk);
             uses.extend(
                 continuation_captures

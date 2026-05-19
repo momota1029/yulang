@@ -55,7 +55,10 @@ fn split_continuation_at_effectful_call(
     split: usize,
     suffix_id: CpsContinuationId,
 ) -> CpsContinuation {
-    let CpsStmt::DirectCall { dest, target, args } = continuation.stmts[split].clone() else {
+    let CpsStmt::DirectCall {
+        dest, target, args, ..
+    } = continuation.stmts[split].clone()
+    else {
         unreachable!("split index is selected from a DirectCall statement");
     };
     let suffix_stmts = continuation.stmts.split_off(split + 1);
@@ -216,6 +219,7 @@ mod tests {
                             dest: CpsValueId(1),
                             target: "effectful".to_string(),
                             args: Vec::new(),
+                            ownership: None,
                         },
                         CpsStmt::Primitive {
                             dest: CpsValueId(2),
@@ -293,10 +297,12 @@ mod tests {
                         dest: CpsValueId(0),
                         target: "effectful".to_string(),
                         args: Vec::new(),
+                        ownership: None,
                     }],
                     terminator: CpsTerminator::EffectfulForce {
                         thunk: CpsValueId(0),
                         resume: CpsContinuationId(1),
+                        ownership: None,
                     },
                 }],
                 handlers: Vec::new(),
@@ -335,6 +341,7 @@ mod tests {
                             dest: CpsValueId(0),
                             target: "effectful".to_string(),
                             args: Vec::new(),
+                            ownership: None,
                         },
                         CpsStmt::ForceThunk {
                             dest: CpsValueId(1),
@@ -382,6 +389,7 @@ mod tests {
                         resume: CpsContinuationId(1),
                         handler: CpsHandlerId(0),
                         blocked: None,
+                        ownership: None,
                     },
                 },
                 CpsContinuation {
@@ -425,6 +433,7 @@ mod tests {
                     dest: CpsValueId(0),
                     target: target.to_string(),
                     args: Vec::new(),
+                    ownership: None,
                 }],
                 terminator: CpsTerminator::Return(CpsValueId(0)),
             }],

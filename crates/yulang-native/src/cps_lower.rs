@@ -1944,6 +1944,7 @@ impl<'a> FunctionLowerer<'a> {
             dest: result,
             target: info.name.clone(),
             args: vec![param_value],
+            ownership: None,
         });
         if matches!(info.ret, runtime::Type::Thunk { .. })
             || self.target_may_perform_when_called(path)
@@ -2051,6 +2052,7 @@ impl<'a> FunctionLowerer<'a> {
                 dest: result,
                 target: info.name.clone(),
                 args: call_args,
+                ownership: None,
             });
             if matches!(info.ret, runtime::Type::Thunk { .. })
                 || self.target_may_perform_when_called(target_path)
@@ -2365,6 +2367,7 @@ impl<'a> FunctionLowerer<'a> {
                             self.terminate(CpsTerminator::EffectfulForce {
                                 thunk,
                                 resume: post_cont,
+                                ownership: None,
                             });
                             self.finish_current();
                             self.current = ContinuationBuilder::new(post_cont, vec![ignored]);
@@ -3699,6 +3702,7 @@ impl<'a> FunctionLowerer<'a> {
                 dest,
                 target: info.name.clone(),
                 args: lowered_args,
+                ownership: None,
             });
             let dest = if should_force_direct {
                 let forced = self.fresh_value();
@@ -4184,6 +4188,7 @@ impl<'a> FunctionLowerer<'a> {
                             self.terminate(CpsTerminator::EffectfulForce {
                                 thunk,
                                 resume: post_cont,
+                                ownership: None,
                             });
                             self.finish_current();
                             self.current = ContinuationBuilder::new(post_cont, vec![ignored]);
@@ -4321,6 +4326,7 @@ impl<'a> FunctionLowerer<'a> {
             self.terminate(CpsTerminator::EffectfulForce {
                 thunk: result_id,
                 resume: force_cont,
+                ownership: None,
             });
             self.finish_current();
             self.current = ContinuationBuilder::new(force_cont, vec![forced]);
@@ -4402,6 +4408,7 @@ impl<'a> FunctionLowerer<'a> {
             self.terminate(CpsTerminator::EffectfulForce {
                 thunk: result_id,
                 resume: force_cont,
+                ownership: None,
             });
             self.finish_current();
             self.current = ContinuationBuilder::new(force_cont, vec![forced]);
@@ -4452,6 +4459,7 @@ impl<'a> FunctionLowerer<'a> {
             self.terminate(CpsTerminator::EffectfulForce {
                 thunk: result_id,
                 resume: force_cont,
+                ownership: None,
             });
             self.finish_current();
             self.current = ContinuationBuilder::new(force_cont, vec![forced]);
@@ -4519,6 +4527,7 @@ impl<'a> FunctionLowerer<'a> {
             self.terminate(CpsTerminator::EffectfulForce {
                 thunk: ignored,
                 resume: force_cont,
+                ownership: None,
             });
             self.finish_current();
             self.current = ContinuationBuilder::new(force_cont, vec![forced]);
@@ -4559,6 +4568,7 @@ impl<'a> FunctionLowerer<'a> {
             self.terminate(CpsTerminator::EffectfulForce {
                 thunk: ignored,
                 resume: force_cont,
+                ownership: None,
             });
             self.finish_current();
             self.current = ContinuationBuilder::new(force_cont, vec![forced]);
@@ -4653,6 +4663,7 @@ impl<'a> FunctionLowerer<'a> {
                     dest: payload,
                     target,
                     args: lowered_args,
+                    ownership: None,
                 });
                 let payload = if direct_call_result_needs_force(payload_expr, info) {
                     let forced = self.fresh_value();
@@ -4696,6 +4707,7 @@ impl<'a> FunctionLowerer<'a> {
             resume: resume_cont,
             handler,
             blocked,
+            ownership: None,
         });
         self.finish_current();
 
@@ -5108,6 +5120,7 @@ impl<'a> FunctionLowerer<'a> {
                     dest,
                     target: plan.target,
                     args,
+                    ownership: None,
                 });
                 if plan.info_returns_thunk || plan.target_may_perform {
                     self.mark_active_handlers_external_call();
@@ -5592,7 +5605,11 @@ impl<'a> FunctionLowerer<'a> {
                 captures,
                 shot_kind: CpsShotKind::MultiShot,
                 stmts,
-                terminator: CpsTerminator::EffectfulForce { thunk, resume },
+                terminator: CpsTerminator::EffectfulForce {
+                    thunk,
+                    resume,
+                    ownership: None,
+                },
             });
             // `EffectfulForce` establishes the continuation boundary, then the
             // resumed `ForceThunk` preserves the original statement's deep
@@ -7447,6 +7464,7 @@ mod tests {
                     dest: CpsValueId(2),
                     target: "inc".to_string(),
                     args: vec![CpsValueId(1)],
+                    ownership: None,
                 },
                 // force_if_non_thunk_demand always emits a ForceThunk after
                 // a direct call whose static result type is non-Thunk; it's

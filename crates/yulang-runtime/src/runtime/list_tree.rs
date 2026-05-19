@@ -206,6 +206,17 @@ impl<T: Clone> ListTree<T> {
         out
     }
 
+    pub fn for_each_ref(&self, f: &mut impl FnMut(&T)) {
+        match self {
+            Self::Empty => {}
+            Self::Leaf(value) => f(value),
+            Self::Node(node) => {
+                node.left.for_each_ref(f);
+                node.right.for_each_ref(f);
+            }
+        }
+    }
+
     fn push_items(&self, out: &mut Vec<T>) {
         match self {
             Self::Empty => {}

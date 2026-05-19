@@ -7,7 +7,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::cps_ir::{
-    CpsContinuationId, CpsHandlerId, CpsLiteral, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
+    CpsContinuationId, CpsEffectBoundaryFiniteLayer, CpsEffectBoundaryOwnership,
+    CpsEffectBoundaryResumeAction, CpsHandlerId, CpsLiteral, CpsShotKind, CpsStmt, CpsTerminator,
+    CpsValueId,
 };
 use crate::cps_repr::CpsReprAbiLane;
 use crate::cps_repr_abi::{CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule};
@@ -127,6 +129,7 @@ pub struct DynamicEffectThunkArgumentPlan {
     pub callee_boundary: CpsContinuationId,
     pub callee_force_param_index: usize,
     pub arm_entry: CpsContinuationId,
+    pub perform_function: String,
     pub perform: CpsContinuationId,
     pub resume: CpsContinuationId,
     pub thunk: CpsValueId,
@@ -158,6 +161,7 @@ pub struct DynamicEffectThunkSpecializationSeed {
     pub finite_effects: Vec<typed_ir::Path>,
     pub finite_callee_boundaries: Vec<CpsContinuationId>,
     pub finite_arm_entries: Vec<CpsContinuationId>,
+    pub finite_perform_functions: Vec<String>,
     pub finite_performs: Vec<CpsContinuationId>,
     pub finite_resumes: Vec<CpsContinuationId>,
     pub finite_resume_actions: Vec<EffectResumeAction>,
@@ -195,11 +199,89 @@ pub struct DynamicEffectThunkRewritePlan {
     pub finite_effects: Vec<typed_ir::Path>,
     pub finite_callee_boundaries: Vec<CpsContinuationId>,
     pub finite_arm_entries: Vec<CpsContinuationId>,
+    pub finite_perform_functions: Vec<String>,
     pub finite_performs: Vec<CpsContinuationId>,
     pub finite_resumes: Vec<CpsContinuationId>,
     pub finite_resume_actions: Vec<EffectResumeAction>,
     pub no_resume_effects: Vec<typed_ir::Path>,
     pub blocked_effects: Vec<typed_ir::Path>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DynamicEffectRowEvidenceClass {
+    Empty,
+    ClosedFinite,
+    ClosedNonFinite,
+    Open,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicEffectRowEvidence {
+    pub caller: String,
+    pub boundary: CpsContinuationId,
+    pub boundary_kind: EffectBoundaryKind,
+    pub boundary_target: Option<String>,
+    pub class: DynamicEffectRowEvidenceClass,
+    pub handled_layers: Vec<DynamicEffectRowHandledLayer>,
+    pub open_effects: Vec<DynamicEffectRowOpenEffect>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicEffectRowHandledLayer {
+    pub handler: CpsHandlerId,
+    pub effect: typed_ir::Path,
+    pub arm_entry: CpsContinuationId,
+    pub perform_function: String,
+    pub perform: CpsContinuationId,
+    pub resume: CpsContinuationId,
+    pub class: DynamicEffectRegionPlanClass,
+    pub resume_actions: Vec<EffectResumeAction>,
+    pub clone_uses: usize,
+    pub nested_performs: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicEffectRowOpenEffect {
+    pub effect: typed_ir::Path,
+    pub perform_function: String,
+    pub perform: CpsContinuationId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DynamicEffectThunkRowEvidenceClass {
+    ClosedFinite,
+    ClosedNoResume,
+    Blocked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicEffectThunkRowEvidence {
+    pub caller: String,
+    pub call_continuation: CpsContinuationId,
+    pub call_stmt_index: usize,
+    pub callee: String,
+    pub thunk: CpsValueId,
+    pub thunk_entry: CpsContinuationId,
+    pub class: DynamicEffectThunkRowEvidenceClass,
+    pub finite_effects: Vec<typed_ir::Path>,
+    pub no_resume_effects: Vec<typed_ir::Path>,
+    pub blocked_effects: Vec<typed_ir::Path>,
+    pub finite_resume_actions: Vec<EffectResumeAction>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DynamicEffectBoundaryOwnershipClass {
+    ClosedFinite,
+    OpenOrBlocked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DynamicEffectBoundaryOwnershipEvidence {
+    pub caller: String,
+    pub boundary: CpsContinuationId,
+    pub boundary_kind: EffectBoundaryKind,
+    pub ownership: CpsEffectBoundaryOwnership,
+    pub class: DynamicEffectBoundaryOwnershipClass,
 }
 
 pub fn analyze_effect_handler_regions(function: &CpsReprAbiFunction) -> Vec<EffectHandlerRegion> {
@@ -462,7 +544,10 @@ pub fn analyze_dynamic_effect_thunk_argument_plans(
         for continuation in &function.continuations {
             let local_thunks = local_thunk_entries_by_dest(continuation);
             for (stmt_index, stmt) in continuation.stmts.iter().enumerate() {
-                let CpsStmt::DirectCall { dest, target, args } = stmt else {
+                let CpsStmt::DirectCall {
+                    dest, target, args, ..
+                } = stmt
+                else {
                     continue;
                 };
                 let Some(callee_region_plans) = region_plans_by_callee.get(target.as_str()) else {
@@ -496,6 +581,7 @@ pub fn analyze_dynamic_effect_thunk_argument_plans(
                         callee_boundary: region_plan.boundary,
                         callee_force_param_index: force_param_index,
                         arm_entry: region_plan.arm_entry,
+                        perform_function: region_plan.perform_function.clone(),
                         perform: region_plan.perform,
                         resume: region_plan.resume,
                         thunk,
@@ -535,6 +621,7 @@ pub fn analyze_dynamic_effect_thunk_specialization_seeds(
             let mut finite_effects = Vec::new();
             let mut finite_callee_boundaries = Vec::new();
             let mut finite_arm_entries = Vec::new();
+            let mut finite_perform_functions = Vec::new();
             let mut finite_performs = Vec::new();
             let mut finite_resumes = Vec::new();
             let mut finite_resume_actions = Vec::new();
@@ -544,6 +631,7 @@ pub fn analyze_dynamic_effect_thunk_specialization_seeds(
                 if plan.region_class == DynamicEffectRegionPlanClass::FiniteResumeSchedule {
                     finite_callee_boundaries.push(plan.callee_boundary);
                     finite_arm_entries.push(plan.arm_entry);
+                    finite_perform_functions.push(plan.perform_function);
                     finite_performs.push(plan.perform);
                     finite_resumes.push(plan.resume);
                     finite_resume_actions.extend(plan.resume_actions);
@@ -575,6 +663,7 @@ pub fn analyze_dynamic_effect_thunk_specialization_seeds(
                 finite_effects,
                 finite_callee_boundaries,
                 finite_arm_entries,
+                finite_perform_functions,
                 finite_performs,
                 finite_resumes,
                 finite_resume_actions,
@@ -622,12 +711,192 @@ pub fn analyze_dynamic_effect_thunk_rewrite_plans(
                 finite_effects: seed.finite_effects,
                 finite_callee_boundaries: seed.finite_callee_boundaries,
                 finite_arm_entries: seed.finite_arm_entries,
+                finite_perform_functions: seed.finite_perform_functions,
                 finite_performs: seed.finite_performs,
                 finite_resumes: seed.finite_resumes,
                 finite_resume_actions: seed.finite_resume_actions,
                 no_resume_effects: seed.no_resume_effects,
                 blocked_effects: seed.blocked_effects,
             }
+        })
+        .collect()
+}
+
+pub fn analyze_dynamic_effect_row_evidence(
+    module: &CpsReprAbiModule,
+) -> Vec<DynamicEffectRowEvidence> {
+    let dynamic_performs = dynamic_perform_sites(module);
+    if dynamic_performs.is_empty() {
+        return Vec::new();
+    }
+    let all_dynamic_performs = dynamic_performs.iter().collect::<Vec<_>>();
+    let dynamic_performs_by_function = dynamic_performs.iter().fold(
+        HashMap::<String, Vec<&DynamicPerformSite>>::new(),
+        |mut map, site| {
+            map.entry(site.function.clone()).or_default().push(site);
+            map
+        },
+    );
+
+    let mut evidences = Vec::new();
+    for function in module.functions.iter().chain(&module.roots) {
+        let arm_summaries = handler_arm_summaries(function);
+        for boundary in active_effect_boundaries(function) {
+            let possible_performs = boundary
+                .target
+                .as_ref()
+                .and_then(|target| dynamic_performs_by_function.get(target))
+                .map(Vec::as_slice)
+                .unwrap_or(all_dynamic_performs.as_slice());
+            let mut handled_layers = Vec::new();
+            let mut open_effects = Vec::new();
+
+            for perform in possible_performs {
+                if let Some((handler, arm)) =
+                    nearest_matching_handler_arm(&boundary.active_handlers, &arm_summaries, perform)
+                {
+                    handled_layers.push(DynamicEffectRowHandledLayer {
+                        handler,
+                        effect: arm.effect.clone(),
+                        arm_entry: arm.entry,
+                        perform_function: perform.function.clone(),
+                        perform: perform.perform,
+                        resume: perform.resume,
+                        class: classify_dynamic_plan(&arm.summary),
+                        resume_actions: arm.summary.resume_actions.clone(),
+                        clone_uses: arm.summary.clone_uses,
+                        nested_performs: arm.summary.nested_performs,
+                    });
+                } else {
+                    open_effects.push(DynamicEffectRowOpenEffect {
+                        effect: perform.effect.clone(),
+                        perform_function: perform.function.clone(),
+                        perform: perform.perform,
+                    });
+                }
+            }
+
+            let class = classify_dynamic_effect_row_evidence(&handled_layers, &open_effects);
+            evidences.push(DynamicEffectRowEvidence {
+                caller: function.name.clone(),
+                boundary: boundary.continuation,
+                boundary_kind: boundary.kind,
+                boundary_target: boundary.target,
+                class,
+                handled_layers,
+                open_effects,
+            });
+        }
+    }
+    evidences
+}
+
+pub fn analyze_dynamic_effect_thunk_row_evidence(
+    module: &CpsReprAbiModule,
+) -> Vec<DynamicEffectThunkRowEvidence> {
+    analyze_dynamic_effect_thunk_specialization_seeds(module)
+        .into_iter()
+        .map(|seed| {
+            let class = classify_dynamic_effect_thunk_row_evidence(&seed);
+            DynamicEffectThunkRowEvidence {
+                caller: seed.caller,
+                call_continuation: seed.call_continuation,
+                call_stmt_index: seed.call_stmt_index,
+                callee: seed.callee,
+                thunk: seed.thunk,
+                thunk_entry: seed.thunk_entry,
+                class,
+                finite_effects: seed.finite_effects,
+                no_resume_effects: seed.no_resume_effects,
+                blocked_effects: seed.blocked_effects,
+                finite_resume_actions: seed.finite_resume_actions,
+            }
+        })
+        .collect()
+}
+
+pub fn analyze_dynamic_effect_boundary_ownership(
+    module: &CpsReprAbiModule,
+) -> Vec<DynamicEffectBoundaryOwnershipEvidence> {
+    let functions = module
+        .functions
+        .iter()
+        .chain(&module.roots)
+        .map(|function| (function.name.as_str(), function))
+        .collect::<HashMap<_, _>>();
+    analyze_dynamic_effect_row_evidence(module)
+        .into_iter()
+        .filter_map(|evidence| {
+            let function = functions.get(evidence.caller.as_str())?;
+            let continuation = function
+                .continuations
+                .iter()
+                .find(|continuation| continuation.id == evidence.boundary)?;
+            let (return_frame_resume, force_thunk) =
+                effect_boundary_resume_and_force_thunk(&continuation.terminator)?;
+            let mut finite_layers = Vec::new();
+            let mut no_resume_effects = Vec::new();
+            let mut blocked_effects = Vec::new();
+            for layer in evidence.handled_layers {
+                match layer.class {
+                    DynamicEffectRegionPlanClass::FiniteResumeSchedule => {
+                        finite_layers.push(CpsEffectBoundaryFiniteLayer {
+                            handler: layer.handler,
+                            effect: layer.effect,
+                            arm_entry: layer.arm_entry,
+                            perform_function: layer.perform_function,
+                            perform: layer.perform,
+                            perform_resume: layer.resume,
+                            resume_actions: layer
+                                .resume_actions
+                                .into_iter()
+                                .map(|action| CpsEffectBoundaryResumeAction {
+                                    continuation: action.continuation,
+                                    stmt_index: action.stmt_index,
+                                    arg: action.arg,
+                                    arg_literal: action.arg_literal,
+                                    local_thunk_entry: action.local_thunk_entry,
+                                })
+                                .collect(),
+                        });
+                    }
+                    DynamicEffectRegionPlanClass::Opaque
+                        if layer.resume_actions.is_empty()
+                            && layer.clone_uses == 0
+                            && layer.nested_performs == 0 =>
+                    {
+                        no_resume_effects.push(layer.effect);
+                    }
+                    _ => blocked_effects.push(layer.effect),
+                }
+            }
+            let open_effects = evidence
+                .open_effects
+                .into_iter()
+                .map(|effect| effect.effect)
+                .collect::<Vec<_>>();
+            let closed = open_effects.is_empty() && blocked_effects.is_empty();
+            let class = if closed && !finite_layers.is_empty() {
+                DynamicEffectBoundaryOwnershipClass::ClosedFinite
+            } else {
+                DynamicEffectBoundaryOwnershipClass::OpenOrBlocked
+            };
+            Some(DynamicEffectBoundaryOwnershipEvidence {
+                caller: evidence.caller.clone(),
+                boundary: evidence.boundary,
+                boundary_kind: evidence.boundary_kind,
+                ownership: CpsEffectBoundaryOwnership {
+                    owner_function: evidence.caller,
+                    return_frame_resume,
+                    force_thunk,
+                    closed,
+                    finite_layers,
+                    no_resume_effects,
+                    blocked_effects,
+                    open_effects,
+                },
+                class,
+            })
         })
         .collect()
 }
@@ -825,6 +1094,108 @@ pub fn maybe_trace_dynamic_effect_thunk_rewrite_plans(plans: &[DynamicEffectThun
     }
 }
 
+pub fn maybe_trace_dynamic_effect_row_evidence(evidences: &[DynamicEffectRowEvidence]) {
+    if std::env::var_os("YULANG_CPS_EFFECT_REGION_TRACE").is_none() {
+        return;
+    }
+    for evidence in evidences {
+        eprintln!(
+            "[CPS-DYNAMIC-EFFECT-ROW] caller={} boundary={:?} boundary_kind={:?} boundary_target={:?} class={:?} handled={} open={}",
+            evidence.caller,
+            evidence.boundary,
+            evidence.boundary_kind,
+            evidence.boundary_target,
+            evidence.class,
+            evidence.handled_layers.len(),
+            evidence.open_effects.len(),
+        );
+        for layer in &evidence.handled_layers {
+            eprintln!(
+                "[CPS-DYNAMIC-EFFECT-ROW-HANDLED] handler={:?} effect={} arm={:?} perform_function={} perform={:?} resume={:?} class={:?} actions={} clone={} nested={}",
+                layer.handler,
+                format_path(&layer.effect),
+                layer.arm_entry,
+                layer.perform_function,
+                layer.perform,
+                layer.resume,
+                layer.class,
+                layer.resume_actions.len(),
+                layer.clone_uses,
+                layer.nested_performs,
+            );
+        }
+        for open in &evidence.open_effects {
+            eprintln!(
+                "[CPS-DYNAMIC-EFFECT-ROW-OPEN] effect={} perform_function={} perform={:?}",
+                format_path(&open.effect),
+                open.perform_function,
+                open.perform,
+            );
+        }
+    }
+}
+
+pub fn maybe_trace_dynamic_effect_thunk_row_evidence(evidences: &[DynamicEffectThunkRowEvidence]) {
+    if std::env::var_os("YULANG_CPS_EFFECT_REGION_TRACE").is_none() {
+        return;
+    }
+    for evidence in evidences {
+        eprintln!(
+            "[CPS-DYNAMIC-EFFECT-THUNK-ROW] caller={} call={:?} stmt_index={} callee={} thunk={:?} thunk_entry={:?} class={:?} finite_effects={} no_resume_effects={} blocked_effects={} finite_actions={} finite_action_literals={}",
+            evidence.caller,
+            evidence.call_continuation,
+            evidence.call_stmt_index,
+            evidence.callee,
+            evidence.thunk,
+            evidence.thunk_entry,
+            evidence.class,
+            format_paths(&evidence.finite_effects),
+            format_paths(&evidence.no_resume_effects),
+            format_paths(&evidence.blocked_effects),
+            evidence.finite_resume_actions.len(),
+            format_action_literals(&evidence.finite_resume_actions),
+        );
+    }
+}
+
+pub fn maybe_trace_dynamic_effect_boundary_ownership(
+    evidences: &[DynamicEffectBoundaryOwnershipEvidence],
+) {
+    if std::env::var_os("YULANG_CPS_EFFECT_REGION_TRACE").is_none() {
+        return;
+    }
+    for evidence in evidences {
+        eprintln!(
+            "[CPS-DYNAMIC-EFFECT-BOUNDARY-OWNER] caller={} boundary={:?} boundary_kind={:?} class={:?} owner={} return_resume={:?} force_thunk={:?} closed={} finite_layers={} no_resume_effects={} blocked_effects={} open_effects={}",
+            evidence.caller,
+            evidence.boundary,
+            evidence.boundary_kind,
+            evidence.class,
+            evidence.ownership.owner_function,
+            evidence.ownership.return_frame_resume,
+            evidence.ownership.force_thunk,
+            evidence.ownership.closed,
+            evidence.ownership.finite_layers.len(),
+            format_paths(&evidence.ownership.no_resume_effects),
+            format_paths(&evidence.ownership.blocked_effects),
+            format_paths(&evidence.ownership.open_effects),
+        );
+        for layer in &evidence.ownership.finite_layers {
+            eprintln!(
+                "[CPS-DYNAMIC-EFFECT-BOUNDARY-OWNER-LAYER] handler={:?} effect={} arm={:?} perform_function={} perform={:?} perform_resume={:?} actions={} action_literals={}",
+                layer.handler,
+                format_path(&layer.effect),
+                layer.arm_entry,
+                layer.perform_function,
+                layer.perform,
+                layer.perform_resume,
+                layer.resume_actions.len(),
+                format_boundary_action_literals(&layer.resume_actions),
+            );
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ThunkSpecializationKey {
     caller: String,
@@ -891,6 +1262,82 @@ struct ActiveEffectBoundary {
     active_handlers: Vec<CpsHandlerId>,
 }
 
+fn handler_arm_summaries(
+    function: &CpsReprAbiFunction,
+) -> HashMap<CpsHandlerId, Vec<HandlerArmSummary>> {
+    let continuations = continuation_table(function);
+    let value_lanes = value_lanes(function);
+    function
+        .handlers
+        .iter()
+        .map(|handler| {
+            let arms = handler
+                .arms
+                .iter()
+                .map(|arm| {
+                    let summary = summarize_arm_region(arm.entry, &continuations, &value_lanes)
+                        .unwrap_or_default();
+                    HandlerArmSummary {
+                        effect: arm.effect.clone(),
+                        entry: arm.entry,
+                        class: classify_arm_summary(&summary),
+                        summary,
+                    }
+                })
+                .collect::<Vec<_>>();
+            (handler.id, arms)
+        })
+        .collect()
+}
+
+fn nearest_matching_handler_arm<'a>(
+    active_handlers: &[CpsHandlerId],
+    arm_summaries: &'a HashMap<CpsHandlerId, Vec<HandlerArmSummary>>,
+    perform: &DynamicPerformSite,
+) -> Option<(CpsHandlerId, &'a HandlerArmSummary)> {
+    active_handlers.iter().rev().find_map(|handler| {
+        arm_summaries.get(handler).and_then(|arms| {
+            arms.iter()
+                .find(|arm| effect_matches(&arm.effect, &perform.effect))
+                .map(|arm| (*handler, arm))
+        })
+    })
+}
+
+fn classify_dynamic_effect_row_evidence(
+    handled_layers: &[DynamicEffectRowHandledLayer],
+    open_effects: &[DynamicEffectRowOpenEffect],
+) -> DynamicEffectRowEvidenceClass {
+    if !open_effects.is_empty() {
+        return DynamicEffectRowEvidenceClass::Open;
+    }
+    if handled_layers.is_empty() {
+        return DynamicEffectRowEvidenceClass::Empty;
+    }
+    if handled_layers
+        .iter()
+        .all(|layer| layer.class == DynamicEffectRegionPlanClass::FiniteResumeSchedule)
+    {
+        return DynamicEffectRowEvidenceClass::ClosedFinite;
+    }
+    DynamicEffectRowEvidenceClass::ClosedNonFinite
+}
+
+fn classify_dynamic_effect_thunk_row_evidence(
+    seed: &DynamicEffectThunkSpecializationSeed,
+) -> DynamicEffectThunkRowEvidenceClass {
+    if seed.class != DynamicEffectThunkSpecializationClass::ReadyFinite {
+        return DynamicEffectThunkRowEvidenceClass::Blocked;
+    }
+    if !seed.blocked_effects.is_empty() {
+        return DynamicEffectThunkRowEvidenceClass::Blocked;
+    }
+    if seed.finite_effects.is_empty() {
+        return DynamicEffectThunkRowEvidenceClass::ClosedNoResume;
+    }
+    DynamicEffectThunkRowEvidenceClass::ClosedFinite
+}
+
 fn dynamic_perform_sites(module: &CpsReprAbiModule) -> Vec<DynamicPerformSite> {
     let mut sites = Vec::new();
     for function in module.functions.iter().chain(&module.roots) {
@@ -900,11 +1347,15 @@ fn dynamic_perform_sites(module: &CpsReprAbiModule) -> Vec<DynamicPerformSite> {
                 effect,
                 resume,
                 handler,
+                ownership,
                 ..
             } = &continuation.terminator
             else {
                 continue;
             };
+            if ownership.is_some() {
+                continue;
+            }
             if !is_dynamic_handler(*handler) {
                 continue;
             }
@@ -996,6 +1447,20 @@ fn active_effect_boundaries(function: &CpsReprAbiFunction) -> Vec<ActiveEffectBo
         }
     }
     boundaries
+}
+
+fn effect_boundary_resume_and_force_thunk(
+    terminator: &CpsTerminator,
+) -> Option<(CpsContinuationId, Option<CpsValueId>)> {
+    match terminator {
+        CpsTerminator::EffectfulCall { resume, .. }
+        | CpsTerminator::EffectfulApply { resume, .. } => Some((*resume, None)),
+        CpsTerminator::EffectfulForce { thunk, resume, .. } => Some((*resume, Some(*thunk))),
+        CpsTerminator::Return(_)
+        | CpsTerminator::Continue { .. }
+        | CpsTerminator::Branch { .. }
+        | CpsTerminator::Perform { .. } => None,
+    }
 }
 
 fn continuation_table(
@@ -1370,6 +1835,17 @@ fn format_paths(paths: &[typed_ir::Path]) -> String {
 }
 
 fn format_action_literals(actions: &[EffectResumeAction]) -> String {
+    actions
+        .iter()
+        .map(|action| match &action.arg_literal {
+            Some(literal) => format!("{literal:?}"),
+            None => "unknown".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn format_boundary_action_literals(actions: &[CpsEffectBoundaryResumeAction]) -> String {
     actions
         .iter()
         .map(|action| match &action.arg_literal {
@@ -1772,6 +2248,156 @@ mod tests {
         );
     }
 
+    #[test]
+    fn builds_closed_finite_effect_row_evidence_for_dynamic_boundary() {
+        let module = CpsReprAbiModule {
+            functions: vec![callee_with_dynamic_perform(
+                "producer",
+                path_segments(&["std", "effect", "op"]),
+            )],
+            roots: vec![caller_with_effectful_call_handler_thunk_resumes(
+                "root",
+                "producer",
+                path("op"),
+            )],
+        };
+
+        let evidences = analyze_dynamic_effect_row_evidence(&module);
+
+        assert_eq!(evidences.len(), 1);
+        assert_eq!(
+            evidences[0].class,
+            DynamicEffectRowEvidenceClass::ClosedFinite
+        );
+        assert_eq!(evidences[0].handled_layers.len(), 1);
+        assert!(evidences[0].open_effects.is_empty());
+        assert_eq!(evidences[0].handled_layers[0].handler, CpsHandlerId(0));
+        assert_eq!(evidences[0].handled_layers[0].resume_actions.len(), 2);
+    }
+
+    #[test]
+    fn effect_row_evidence_preserves_duplicate_handler_layers() {
+        let effect = path("op");
+        let module = CpsReprAbiModule {
+            functions: vec![callee_with_dynamic_perform(
+                "producer",
+                path_segments(&["std", "effect", "op"]),
+            )],
+            roots: vec![caller_with_duplicate_effect_handlers(
+                "root", "producer", effect,
+            )],
+        };
+
+        let evidences = analyze_dynamic_effect_row_evidence(&module);
+
+        assert_eq!(evidences.len(), 1);
+        assert_eq!(
+            evidences[0].class,
+            DynamicEffectRowEvidenceClass::ClosedFinite
+        );
+        assert_eq!(evidences[0].handled_layers.len(), 1);
+        assert_eq!(evidences[0].handled_layers[0].handler, CpsHandlerId(1));
+        assert_eq!(
+            evidences[0].handled_layers[0].class,
+            DynamicEffectRegionPlanClass::FiniteResumeSchedule
+        );
+    }
+
+    #[test]
+    fn effect_row_evidence_reports_open_dynamic_performs() {
+        let module = CpsReprAbiModule {
+            functions: vec![callee_with_dynamic_perform(
+                "producer",
+                path_segments(&["std", "effect", "op"]),
+            )],
+            roots: vec![caller_with_effectful_call_handler(
+                "root",
+                "producer",
+                path("other"),
+            )],
+        };
+
+        let evidences = analyze_dynamic_effect_row_evidence(&module);
+
+        assert_eq!(evidences.len(), 1);
+        assert_eq!(evidences[0].class, DynamicEffectRowEvidenceClass::Open);
+        assert!(evidences[0].handled_layers.is_empty());
+        assert_eq!(evidences[0].open_effects.len(), 1);
+        assert_eq!(
+            evidences[0].open_effects[0].effect,
+            path_segments(&["std", "effect", "op"])
+        );
+    }
+
+    #[test]
+    fn builds_closed_finite_thunk_row_evidence_from_argument_flow() {
+        let module = CpsReprAbiModule {
+            functions: vec![
+                callee_with_dynamic_perform("producer", path_segments(&["std", "effect", "op"])),
+                collector_with_effectful_force_handler_thunk_resumes("collector", path("op")),
+            ],
+            roots: vec![root_direct_calls_collector_with_local_thunk(
+                "root",
+                "collector",
+            )],
+        };
+
+        let evidences = analyze_dynamic_effect_thunk_row_evidence(&module);
+
+        assert_eq!(evidences.len(), 1);
+        assert_eq!(
+            evidences[0].class,
+            DynamicEffectThunkRowEvidenceClass::ClosedFinite
+        );
+        assert_eq!(evidences[0].finite_effects, vec![path("op")]);
+        assert!(evidences[0].blocked_effects.is_empty());
+        assert_eq!(evidences[0].finite_resume_actions.len(), 2);
+    }
+
+    #[test]
+    fn builds_effectful_force_boundary_ownership_evidence() {
+        let module = CpsReprAbiModule {
+            functions: vec![
+                callee_with_dynamic_perform("producer", path_segments(&["std", "effect", "op"])),
+                collector_with_effectful_force_handler_thunk_resumes("collector", path("op")),
+            ],
+            roots: vec![root_direct_calls_collector_with_local_thunk(
+                "root",
+                "collector",
+            )],
+        };
+
+        let evidences = analyze_dynamic_effect_boundary_ownership(&module);
+
+        assert_eq!(evidences.len(), 1);
+        assert_eq!(
+            evidences[0].class,
+            DynamicEffectBoundaryOwnershipClass::ClosedFinite
+        );
+        assert_eq!(evidences[0].caller, "collector");
+        assert_eq!(evidences[0].boundary, CpsContinuationId(0));
+        assert_eq!(evidences[0].ownership.owner_function, "collector");
+        assert_eq!(
+            evidences[0].ownership.return_frame_resume,
+            CpsContinuationId(1)
+        );
+        assert_eq!(evidences[0].ownership.force_thunk, Some(CpsValueId(34)));
+        assert!(evidences[0].ownership.closed);
+        assert_eq!(evidences[0].ownership.finite_layers.len(), 1);
+        assert_eq!(
+            evidences[0].ownership.finite_layers[0].handler,
+            CpsHandlerId(0)
+        );
+        assert_eq!(
+            evidences[0].ownership.finite_layers[0].perform_function,
+            "producer"
+        );
+        assert_eq!(
+            evidences[0].ownership.finite_layers[0].resume_actions.len(),
+            2
+        );
+    }
+
     fn function_with_arm_stmts(
         effect: typed_ir::Path,
         arm_stmts: Vec<CpsStmt>,
@@ -1799,6 +2425,7 @@ mod tests {
                         resume: CpsContinuationId(1),
                         handler: CpsHandlerId(0),
                         blocked: None,
+                        ownership: None,
                     },
                 ),
                 continuation(
@@ -1840,6 +2467,84 @@ mod tests {
             return_lane: CpsReprAbiLane::ScalarI64,
             stmts,
             terminator,
+        }
+    }
+
+    fn caller_with_duplicate_effect_handlers(
+        name: &str,
+        target: &str,
+        effect: typed_ir::Path,
+    ) -> CpsReprAbiFunction {
+        CpsReprAbiFunction {
+            name: name.to_string(),
+            params: Vec::new(),
+            entry: CpsContinuationId(0),
+            handlers: vec![
+                CpsReprAbiHandler {
+                    id: CpsHandlerId(0),
+                    arms: vec![CpsReprAbiHandlerArm {
+                        effect: effect.clone(),
+                        entry: CpsContinuationId(3),
+                    }],
+                },
+                CpsReprAbiHandler {
+                    id: CpsHandlerId(1),
+                    arms: vec![CpsReprAbiHandlerArm {
+                        effect,
+                        entry: CpsContinuationId(4),
+                    }],
+                },
+            ],
+            continuations: vec![
+                continuation(
+                    CpsContinuationId(0),
+                    CpsShotKind::OneShot,
+                    vec![
+                        CpsStmt::InstallHandler {
+                            handler: CpsHandlerId(0),
+                            envs: Vec::new(),
+                            value: CpsContinuationId(2),
+                            escape: CpsContinuationId(2),
+                        },
+                        CpsStmt::InstallHandler {
+                            handler: CpsHandlerId(1),
+                            envs: Vec::new(),
+                            value: CpsContinuationId(2),
+                            escape: CpsContinuationId(2),
+                        },
+                    ],
+                    CpsTerminator::EffectfulCall {
+                        target: target.to_string(),
+                        args: Vec::new(),
+                        resume: CpsContinuationId(2),
+                    },
+                ),
+                continuation(
+                    CpsContinuationId(2),
+                    CpsShotKind::OneShot,
+                    Vec::new(),
+                    CpsTerminator::Return(CpsValueId(20)),
+                ),
+                continuation(
+                    CpsContinuationId(3),
+                    CpsShotKind::MultiShot,
+                    vec![CpsStmt::CloneContinuation {
+                        dest: CpsValueId(30),
+                        source: CpsValueId(2),
+                    }],
+                    CpsTerminator::Return(CpsValueId(30)),
+                ),
+                continuation(
+                    CpsContinuationId(4),
+                    CpsShotKind::MultiShot,
+                    vec![CpsStmt::Resume {
+                        dest: CpsValueId(40),
+                        resumption: CpsValueId(2),
+                        arg: CpsValueId(0),
+                    }],
+                    CpsTerminator::Return(CpsValueId(40)),
+                ),
+            ],
         }
     }
 
@@ -1912,6 +2617,7 @@ mod tests {
                         resume: CpsContinuationId(1),
                         handler: CpsHandlerId(usize::MAX),
                         blocked: None,
+                        ownership: None,
                     },
                 ),
                 continuation(
@@ -1973,6 +2679,7 @@ mod tests {
         function.continuations[0].terminator = CpsTerminator::EffectfulForce {
             thunk: CpsValueId(34),
             resume: CpsContinuationId(1),
+            ownership: None,
         };
         function
     }
@@ -1999,6 +2706,7 @@ mod tests {
                             dest: CpsValueId(41),
                             target: collector.to_string(),
                             args: vec![CpsValueId(40)],
+                            ownership: None,
                         },
                         CpsStmt::ForceThunk {
                             dest: CpsValueId(42),
@@ -2044,6 +2752,7 @@ mod tests {
                         resume: CpsContinuationId(1),
                         handler: CpsHandlerId(0),
                         blocked: None,
+                        ownership: None,
                     },
                 ),
                 continuation(

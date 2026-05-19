@@ -210,6 +210,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     crate::cps_ir::CpsContinuation {

@@ -11,7 +11,8 @@ use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
-    CpsContinuationId, CpsHandlerId, CpsLiteral, CpsRecordField, CpsStmt, CpsTerminator, CpsValueId,
+    CpsContinuationId, CpsEffectPerformOwnership, CpsHandlerId, CpsLiteral, CpsRecordField,
+    CpsStmt, CpsTerminator, CpsValueId,
 };
 use crate::cps_lower::{CpsLowerError, lower_cps_module};
 use crate::cps_optimize::{
@@ -691,8 +692,9 @@ struct LocalValueCache {
 
 use self::helper_arity::{
     EFFECTFUL_APPLY_RESUMPTION_HELPERS, INSTALL_HANDLER_FULL_HELPERS, MAKE_CLOSURE_HELPERS,
-    MAKE_ENV_HELPERS, MAKE_RECURSIVE_CLOSURE_HELPERS, MAKE_RESUMPTION_HELPERS, MAKE_THUNK_HELPERS,
-    MMTK_MAKE_CLOSURE_HELPERS, MMTK_MAKE_THUNK_HELPERS, PUSH_RETURN_FRAME_HELPERS, TUPLE_HELPERS,
+    MAKE_ENV_HELPERS, MAKE_OWNED_RESUMPTION_HELPERS, MAKE_RECURSIVE_CLOSURE_HELPERS,
+    MAKE_RESUMPTION_HELPERS, MAKE_THUNK_HELPERS, MMTK_MAKE_CLOSURE_HELPERS,
+    MMTK_MAKE_THUNK_HELPERS, PUSH_RETURN_FRAME_HELPERS, TUPLE_HELPERS,
 };
 
 struct CpsCraneliftLowerCx<'a, 'builder, M: Module, L: CpsLiteralStore> {
@@ -712,6 +714,7 @@ struct PerformTerminatorCase<'a> {
     resume: CpsContinuationId,
     handler: CpsHandlerId,
     blocked: Option<CpsValueId>,
+    ownership: Option<&'a CpsEffectPerformOwnership>,
 }
 
 struct EffectfulCallTerminatorCase<'a> {
@@ -805,6 +808,21 @@ impl HandlerRegistry {
             .filter(|(expected, _)| effect_matches(expected, effect))
             .map(|(_, candidate)| candidate.clone())
             .collect()
+    }
+
+    fn candidate_for_owned_perform(
+        &self,
+        ownership: &CpsEffectPerformOwnership,
+    ) -> Option<HandlerCandidate> {
+        self.candidates
+            .iter()
+            .find(|(effect, candidate)| {
+                candidate.function == ownership.owner_function
+                    && candidate.handler == ownership.handler
+                    && candidate.entry == ownership.arm_entry
+                    && effect_matches(effect, &ownership.effect)
+            })
+            .map(|(_, candidate)| candidate.clone())
     }
 
     fn effect_mask(
@@ -2078,7 +2096,9 @@ fn lower_call_stmt<M: Module>(
     options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
-        CpsStmt::DirectCall { dest, target, args } => {
+        CpsStmt::DirectCall {
+            dest, target, args, ..
+        } => {
             lower_direct_call_stmt(
                 module_backend,
                 builder,
@@ -2411,6 +2431,7 @@ fn lower_effect_terminator<M: Module, L: CpsLiteralStore>(
             resume,
             handler,
             blocked,
+            ownership,
         } => {
             lower_perform_terminator_case(
                 cx,
@@ -2420,6 +2441,7 @@ fn lower_effect_terminator<M: Module, L: CpsLiteralStore>(
                     resume: *resume,
                     handler: *handler,
                     blocked: *blocked,
+                    ownership: ownership.as_ref(),
                 },
             )?;
         }
@@ -2437,7 +2459,7 @@ fn lower_effect_terminator<M: Module, L: CpsLiteralStore>(
                 },
             )?;
         }
-        CpsTerminator::EffectfulForce { thunk, resume } => {
+        CpsTerminator::EffectfulForce { thunk, resume, .. } => {
             lower_effectful_force_terminator(
                 cx,
                 EffectfulForceTerminatorCase {
@@ -2538,6 +2560,7 @@ fn lower_perform_terminator_case<M: Module, L: CpsLiteralStore>(
         cx.functions,
         cx.handlers,
         case.blocked,
+        case.ownership,
         cx.options,
     )
 }
@@ -2599,10 +2622,14 @@ fn lower_perform_terminator<M: Module>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     blocked: Option<CpsValueId>,
+    ownership: Option<&CpsEffectPerformOwnership>,
     options: CpsReprCraneliftOptions,
 ) -> CpsReprCraneliftResult<()> {
     let host_fallback = host_console_effect_kind(effect);
-    let candidates = handlers.candidates_for_effect(effect);
+    let candidates = ownership
+        .and_then(|ownership| handlers.candidate_for_owned_perform(ownership))
+        .map(|candidate| vec![candidate])
+        .unwrap_or_else(|| handlers.candidates_for_effect(effect));
     if candidates.is_empty() {
         let Some(kind) = host_fallback else {
             return Err(CpsReprCraneliftError::UnsupportedTerminator {
@@ -2630,6 +2657,7 @@ fn lower_perform_terminator<M: Module>(
         resume,
         handler,
         functions,
+        ownership,
     )?;
     let payload = read_value(builder, function, payload)?;
     let fallback_handler = if handler.0 == usize::MAX {
@@ -2656,12 +2684,36 @@ fn lower_perform_terminator<M: Module>(
     let blocked = builder
         .ins()
         .select(no_static_block, active_blocked, static_blocked);
-    let selected = call_i64_helper(
-        module_backend,
-        builder,
-        "yulang_cps_select_handler_i64",
-        &[fallback, effect_mask, blocked],
-    )?;
+    let selected = if let Some(ownership) = ownership {
+        let owner = functions
+            .function_ids
+            .get(&ownership.owner_function)
+            .copied()
+            .ok_or_else(|| CpsReprCraneliftError::MissingFunction {
+                name: ownership.owner_function.clone(),
+            })?;
+        let expected_handler = builder.ins().iconst(types::I64, ownership.handler.0 as i64);
+        let expected_owner = builder.ins().iconst(types::I64, owner as i64);
+        call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_select_owned_handler_i64",
+            &[
+                expected_handler,
+                expected_owner,
+                fallback,
+                effect_mask,
+                blocked,
+            ],
+        )?
+    } else {
+        call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_select_handler_i64",
+            &[fallback, effect_mask, blocked],
+        )?
+    };
     // write27-d d2: now that select_handler has recorded the
     // matched real handler's meta, write it back into the
     // resumption as `handled_anchor`. apply_resumption uses
@@ -2673,6 +2725,19 @@ fn lower_perform_terminator<M: Module>(
         "yulang_cps_set_resumption_anchor_from_selected_i64",
         &[resumption],
     )?;
+    if let Some(ownership) = ownership
+        && let Some(candidate) = handlers.candidate_for_owned_perform(ownership)
+    {
+        return lower_handler_candidate_return(
+            module_backend,
+            builder,
+            function,
+            &candidate,
+            payload,
+            resumption,
+            functions,
+        );
+    }
     lower_selected_handler_return(
         module_backend,
         builder,
@@ -3393,6 +3458,78 @@ fn lower_selected_handler_return<M: Module>(
     Ok(())
 }
 
+fn lower_handler_candidate_return<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    candidate: &HandlerCandidate,
+    payload: ir::Value,
+    resumption: ir::Value,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<()> {
+    let callee = continuation_func_ref_by_name(
+        module_backend,
+        builder,
+        &candidate.function,
+        candidate.entry,
+        functions,
+    )?;
+    let fallback_env = if candidate.function == function.name {
+        continuation_environment_argument(module_backend, builder, function, candidate.entry)?
+    } else {
+        builder.ins().iconst(types::I64, 0)
+    };
+    let entry = builder.ins().iconst(types::I64, candidate.entry.0 as i64);
+    let handler_env = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_selected_handler_env_or_i64",
+        &[entry, fallback_env],
+    )?;
+    let _ = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_enter_handler_arm_i64",
+        &[],
+    )?;
+    let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
+    let call = builder
+        .ins()
+        .call(callee, &[handler_env, payload, resumption]);
+    let results = builder.inst_results(call);
+    if results.len() != 1 {
+        return Err(CpsReprCraneliftError::InvalidReturnArity {
+            function: function.name.clone(),
+            arity: results.len(),
+        });
+    }
+    let result = results[0];
+    restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
+    let _ = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_exit_handler_arm_i64",
+        &[],
+    )?;
+    let value = if candidate.continues_to_installed_escape {
+        call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_perform_finish_escaped_i64",
+            &[result],
+        )?
+    } else {
+        call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_perform_finish_i64",
+            &[result],
+        )?
+    };
+    builder.ins().return_(&[value]);
+    Ok(())
+}
+
 fn lower_host_console_perform<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
@@ -3540,6 +3677,7 @@ fn make_resumption<M: Module>(
     resume: CpsContinuationId,
     handler: CpsHandlerId,
     functions: &DeclaredFunctions,
+    ownership: Option<&CpsEffectPerformOwnership>,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let resume_continuation = continuation(function, resume)?;
     if resume_continuation.params.len() != 1 {
@@ -3556,8 +3694,39 @@ fn make_resumption<M: Module>(
         validate_environment_lane(function, slot.value, slot.lane)?;
         env_values.push(read_value(builder, function, slot.value)?);
     }
+    let owned_prefix = if let Some(ownership) = ownership {
+        let owner = functions
+            .function_ids
+            .get(&ownership.owner_function)
+            .copied()
+            .ok_or_else(|| CpsReprCraneliftError::MissingFunction {
+                name: ownership.owner_function.clone(),
+            })?;
+        Some([
+            builder.ins().iconst(types::I64, owner as i64),
+            builder
+                .ins()
+                .iconst(types::I64, ownership.return_frame_resume.0 as i64),
+            builder.ins().iconst(types::I64, resume.0 as i64),
+            builder
+                .ins()
+                .iconst(types::I64, ownership.arm_entry.0 as i64),
+        ])
+    } else {
+        None
+    };
     if env_values.len() > 4 {
         let (env_ptr, env_len) = stack_i64_slice(builder, &env_values)?;
+        if let Some(prefix) = owned_prefix {
+            return call_i64_helper(
+                module_backend,
+                builder,
+                MAKE_OWNED_RESUMPTION_HELPERS.many,
+                &[
+                    code, handler, prefix[0], prefix[1], prefix[2], prefix[3], env_ptr, env_len,
+                ],
+            );
+        }
         return call_i64_helper(
             module_backend,
             builder,
@@ -3566,8 +3735,13 @@ fn make_resumption<M: Module>(
         );
     }
     let mut args = vec![code, handler];
+    let helper_name = if let Some(prefix) = owned_prefix {
+        args.extend(prefix);
+        MAKE_OWNED_RESUMPTION_HELPERS.fixed(resume_continuation.environment.len())
+    } else {
+        MAKE_RESUMPTION_HELPERS.fixed(resume_continuation.environment.len())
+    };
     args.extend(env_values);
-    let helper_name = MAKE_RESUMPTION_HELPERS.fixed(resume_continuation.environment.len());
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -4738,7 +4912,9 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = lower_primitive(module_backend, builder, function, *op, &args, options)?;
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
-        CpsStmt::DirectCall { dest, target, args } => {
+        CpsStmt::DirectCall {
+            dest, target, args, ..
+        } => {
             lower_direct_call_stmt(
                 module_backend,
                 builder,
@@ -7081,6 +7257,7 @@ mod tests {
                         resume: CpsContinuationId(0),
                         handler: crate::cps_ir::CpsHandlerId(0),
                         blocked: None,
+                        ownership: None,
                     },
                 }],
             }],
@@ -7132,6 +7309,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -8653,6 +8831,7 @@ mod tests {
                                 dest: CpsValueId(5),
                                 target: "add".to_string(),
                                 args: vec![CpsValueId(3), CpsValueId(4)],
+                                ownership: None,
                             },
                         ],
                         terminator: CpsTerminator::Return(CpsValueId(5)),
@@ -8837,6 +9016,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -8854,6 +9034,7 @@ mod tests {
                             resume: CpsContinuationId(3),
                             handler: crate::cps_ir::CpsHandlerId(0),
                             blocked: Some(CpsValueId(1)),
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -9059,6 +9240,7 @@ mod tests {
                             resume: CpsContinuationId(2),
                             handler: crate::cps_ir::CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -9149,6 +9331,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -9223,6 +9406,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {

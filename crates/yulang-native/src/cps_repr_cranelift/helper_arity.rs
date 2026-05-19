@@ -31,6 +31,17 @@ pub(super) const MAKE_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
     many: "yulang_cps_make_resumption_i64_many",
 };
 
+pub(super) const MAKE_OWNED_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_make_owned_resumption_i64_0",
+        "yulang_cps_make_owned_resumption_i64_1",
+        "yulang_cps_make_owned_resumption_i64_2",
+        "yulang_cps_make_owned_resumption_i64_3",
+        "yulang_cps_make_owned_resumption_i64_4",
+    ],
+    many: "yulang_cps_make_owned_resumption_i64_many",
+};
+
 pub(super) const MAKE_THUNK_HELPERS: FixedManyHelpers = FixedManyHelpers {
     fixed: [
         "yulang_cps_make_thunk_i64_0",

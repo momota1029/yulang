@@ -1054,6 +1054,7 @@ fn resume_continuation(
                     dest,
                     target,
                     args: arg_ids,
+                    ..
                 } => {
                     let target_function = function_by_name(module, target)?;
                     let call_args = arg_ids
@@ -1532,6 +1533,7 @@ fn resume_continuation(
                 resume,
                 handler,
                 blocked,
+                ..
             } => {
                 trace_cps(
                     "Perform",
@@ -1766,7 +1768,7 @@ fn resume_continuation(
                     pre_push_count,
                 );
             }
-            CpsTerminator::EffectfulForce { thunk, resume } => {
+            CpsTerminator::EffectfulForce { thunk, resume, .. } => {
                 // Effectful thunk force: this eval frame terminates here.
                 // The thunk's body runs as if called via EffectfulCall, with
                 // the post-force cont captured as a return frame.
@@ -3821,6 +3823,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -3931,6 +3934,7 @@ mod tests {
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {
@@ -3948,6 +3952,7 @@ mod tests {
                             resume: CpsContinuationId(3),
                             handler: CpsHandlerId(0),
                             blocked: None,
+                            ownership: None,
                         },
                     },
                     CpsContinuation {

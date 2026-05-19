@@ -35,6 +35,7 @@ enum NativeCpsI64StackKind {
 
 const NATIVE_CPS_I64_STACK_KIND_COUNT: usize = 3;
 const NATIVE_CPS_I64_STATS_SITE_COUNT: usize = 12;
+const NATIVE_CPS_I64_OWNED_RESUMPTION_BASE: i64 = i64::MIN / 2;
 
 impl NativeCpsI64StackKind {
     fn for_item<T>() -> Option<Self> {
@@ -177,6 +178,7 @@ struct NativeCpsI64RuntimeStats {
     site_stacks: [[NativeCpsI64StackSiteStats; NATIVE_CPS_I64_STACK_KIND_COUNT];
         NATIVE_CPS_I64_STATS_SITE_COUNT],
     make_resumption_calls: u64,
+    make_owned_resumption_calls: u64,
     make_thunk_calls: u64,
     make_closure_calls: u64,
     add_thunk_boundary_calls: u64,
@@ -882,6 +884,7 @@ struct NativeCpsI64BlockedEffect {
 }
 
 #[repr(C)]
+#[derive(Clone)]
 pub(super) struct NativeCpsI64Resumption {
     code: NativeCpsI64Continuation,
     env: Box<[i64]>,
@@ -897,6 +900,50 @@ pub(super) struct NativeCpsI64Resumption {
     /// (no merge needed).
     handled_anchor: Option<NativeCpsI64HandlerAnchor>,
     debug_id: u64,
+}
+
+fn native_i64_owned_resumption_token(index: usize) -> i64 {
+    NATIVE_CPS_I64_OWNED_RESUMPTION_BASE + index as i64
+}
+
+fn native_i64_owned_resumption_index(value: i64) -> Option<usize> {
+    if !(NATIVE_CPS_I64_OWNED_RESUMPTION_BASE..0).contains(&value) {
+        return None;
+    }
+    let index = value.checked_sub(NATIVE_CPS_I64_OWNED_RESUMPTION_BASE)?;
+    usize::try_from(index).ok()
+}
+
+fn native_i64_resumption_word(resumption: *const NativeCpsI64Resumption) -> i64 {
+    resumption as isize as i64
+}
+
+fn cloned_native_i64_resumption(value: i64) -> Option<NativeCpsI64Resumption> {
+    if let Some(index) = native_i64_owned_resumption_index(value) {
+        return NATIVE_CPS_I64_OWNED_RESUMPTIONS
+            .with(|resumptions| resumptions.borrow().get(index).cloned());
+    }
+    let is_heap = NATIVE_CPS_I64_RESUMPTIONS
+        .with(|resumptions| resumptions.borrow().contains(&(value as usize)));
+    is_heap.then(|| unsafe { (*(value as usize as *const NativeCpsI64Resumption)).clone() })
+}
+
+fn with_native_i64_resumption_mut(value: i64, update: impl FnOnce(&mut NativeCpsI64Resumption)) {
+    if let Some(index) = native_i64_owned_resumption_index(value) {
+        NATIVE_CPS_I64_OWNED_RESUMPTIONS.with(|resumptions| {
+            if let Some(resumption) = resumptions.borrow_mut().get_mut(index) {
+                update(resumption);
+            }
+        });
+        return;
+    }
+    let is_heap = NATIVE_CPS_I64_RESUMPTIONS
+        .with(|resumptions| resumptions.borrow().contains(&(value as usize)));
+    if is_heap {
+        unsafe {
+            update(&mut *(value as usize as *mut NativeCpsI64Resumption));
+        }
+    }
 }
 
 #[repr(C)]
@@ -1295,6 +1342,8 @@ thread_local! {
     /// codegen queries this set at runtime to dispatch between the
     /// closure path and the anchor-merging resumption path.
     static NATIVE_CPS_I64_RESUMPTIONS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
+    static NATIVE_CPS_I64_OWNED_RESUMPTIONS: RefCell<Vec<NativeCpsI64Resumption>> =
+        const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_ROOT_FUNCTION_IDS: RefCell<Vec<u64>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_HANDLER_STACK: RefCell<NativeCpsI64PersistentStack<NativeCpsI64HandlerFrame>> =
         RefCell::new(NativeCpsI64PersistentStack::default());
@@ -1365,7 +1414,9 @@ thread_local! {
     // semantics); `restore_outer_handler_stack` reinstates the
     // pre-truncation stack so the post-arm `route_scope_return` can
     // walk it. Stored as a stack to support nested Performs.
-    static NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS: RefCell<Vec<Vec<NativeCpsI64HandlerFrame>>> =
+    static NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS: RefCell<Vec<NativeCpsI64HandlerSnapshot>> =
+        const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_OUTER_HANDLER_TOP_RESTORES: RefCell<Vec<(usize, NativeCpsI64HandlerFrame)>> =
         const { RefCell::new(Vec::new()) };
     // write27-c c3: metadata for the handler frame just selected by
     // `select_handler` (prompt, escape continuation, escape env,
@@ -1437,8 +1488,9 @@ fn dump_native_i64_cps_stats() {
     NATIVE_CPS_I64_STATS.with(|stats| {
         let stats = stats.borrow().clone();
         eprintln!(
-            "[JIT-CPS-STATS] control make_resumption={} make_thunk={} make_closure={} add_thunk_boundary={} force_thunk={} continue_return_frame={} return_i64={} root_result={}",
+            "[JIT-CPS-STATS] control make_resumption={} make_owned_resumption={} make_thunk={} make_closure={} add_thunk_boundary={} force_thunk={} continue_return_frame={} return_i64={} root_result={}",
             stats.make_resumption_calls,
+            stats.make_owned_resumption_calls,
             stats.make_thunk_calls,
             stats.make_closure_calls,
             stats.add_thunk_boundary_calls,
@@ -1532,8 +1584,10 @@ pub(super) fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| *next.borrow_mut() = 0);
     NATIVE_CPS_I64_NEXT_PROMPT.with(|next| *next.borrow_mut() = 1);
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| snaps.borrow_mut().clear());
+    NATIVE_CPS_I64_OUTER_HANDLER_TOP_RESTORES.with(|frames| frames.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| meta.borrow_mut().clear());
     NATIVE_CPS_I64_RESUMPTIONS.with(|s| s.borrow_mut().clear());
+    NATIVE_CPS_I64_OWNED_RESUMPTIONS.with(|s| s.borrow_mut().clear());
     NATIVE_CPS_I64_ROOT_FUNCTION_IDS.with(|ids| ids.borrow_mut().clear());
 }
 
@@ -1593,6 +1647,9 @@ pub(super) fn take_native_i64_root_result(value: i64) -> i64 {
 }
 
 fn force_native_i64_root_result(value: i64) -> i64 {
+    if native_i64_word_cannot_be_control_pointer(value as usize) {
+        return value;
+    }
     let is_thunk = usize::try_from(value)
         .ok()
         .is_some_and(|value| NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value)));
@@ -1640,27 +1697,54 @@ fn current_native_i64_handler_stack_with_fallback(
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
         let stack = stack.borrow();
         if stack.is_empty() && fallback >= 0 {
-            vec![NativeCpsI64HandlerFrame {
-                handler: fallback,
-                consumes_mask: effect_mask,
-                guard_stack: current_native_i64_guard_snapshot(),
-                envs: native_cps_i64_empty_snapshot(),
-                prompt: 0,
-                install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
-                escape_owner_function_id: 0,
-                threshold_owner_function_id: 0,
-                inherited: false,
-                escape_continuation: 0,
-                escape_env: native_cps_i64_empty_snapshot(),
-                escape_env_targets: native_cps_i64_empty_snapshot(),
-                return_frame_threshold: 0,
-                return_frame_prefix: native_cps_i64_snapshot(Vec::new()),
-                origin: NativeCpsI64HandlerFrameOrigin::StaticFallback,
-            }]
+            vec![static_fallback_native_i64_handler_frame(
+                fallback,
+                effect_mask,
+            )]
         } else {
             stack.to_vec()
         }
     })
+}
+
+fn current_native_i64_handler_snapshot_with_fallback(
+    fallback: i64,
+    effect_mask: i64,
+) -> NativeCpsI64HandlerSnapshot {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        if stack.is_empty() && fallback >= 0 {
+            native_cps_i64_snapshot(vec![static_fallback_native_i64_handler_frame(
+                fallback,
+                effect_mask,
+            )])
+        } else {
+            stack.snapshot()
+        }
+    })
+}
+
+fn static_fallback_native_i64_handler_frame(
+    fallback: i64,
+    effect_mask: i64,
+) -> NativeCpsI64HandlerFrame {
+    NativeCpsI64HandlerFrame {
+        handler: fallback,
+        consumes_mask: effect_mask,
+        guard_stack: current_native_i64_guard_snapshot(),
+        envs: native_cps_i64_empty_snapshot(),
+        prompt: 0,
+        install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+        escape_owner_function_id: 0,
+        threshold_owner_function_id: 0,
+        inherited: false,
+        escape_continuation: 0,
+        escape_env: native_cps_i64_empty_snapshot(),
+        escape_env_targets: native_cps_i64_empty_snapshot(),
+        return_frame_threshold: 0,
+        return_frame_prefix: native_cps_i64_snapshot(Vec::new()),
+        origin: NativeCpsI64HandlerFrameOrigin::StaticFallback,
+    }
 }
 
 fn take_pending_native_i64_handler_frames() -> Vec<NativeCpsI64HandlerFrame> {
@@ -1803,39 +1887,118 @@ fn make_native_i64_resumption(
     fallback_handler: i64,
     env: Vec<i64>,
 ) -> *mut NativeCpsI64Resumption {
+    make_native_i64_resumption_with_ownership(code, fallback_handler, env, None, true)
+}
+
+fn make_native_i64_owned_resumption(
+    code: usize,
+    fallback_handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+    env: Vec<i64>,
+) -> *mut NativeCpsI64Resumption {
+    let ptr = make_native_i64_resumption_with_ownership(
+        code,
+        fallback_handler,
+        env,
+        Some(NativeCpsI64OwnedResumptionOrigin {
+            owner_function,
+            return_frame_resume,
+            perform_resume,
+            handler_arm,
+        }),
+        false,
+    );
+    ptr
+}
+
+#[derive(Clone, Copy)]
+struct NativeCpsI64OwnedResumptionOrigin {
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+}
+
+fn make_native_i64_resumption_with_ownership(
+    code: usize,
+    fallback_handler: i64,
+    env: Vec<i64>,
+    owned_origin: Option<NativeCpsI64OwnedResumptionOrigin>,
+    heap_allocate: bool,
+) -> *mut NativeCpsI64Resumption {
     let _site = enter_native_cps_i64_stats_site(NativeCpsI64StatsSite::MakeResumption);
-    with_native_cps_i64_stats(|stats| stats.make_resumption_calls += 1);
+    with_native_cps_i64_stats(|stats| {
+        if owned_origin.is_some() {
+            stats.make_owned_resumption_calls += 1;
+        } else {
+            stats.make_resumption_calls += 1;
+        }
+    });
     let code = unsafe { std::mem::transmute::<usize, NativeCpsI64Continuation>(code) };
     // write27-d d2: capture the full Layer 1/2 resumption state.
     // `handled_anchor` is filled in later by
     // `yulang_cps_set_resumption_anchor_from_selected_i64` once
     // `select_handler` has decided which real handler was matched.
     let return_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().snapshot());
-    let handlers = current_native_i64_handler_stack_with_fallback(fallback_handler, -1);
+    let handlers = current_native_i64_handler_snapshot_with_fallback(fallback_handler, -1);
     let debug_id = next_native_i64_resumption_debug_id();
-    let trace_handlers = jit_trace_enabled().then(|| handlers.clone());
-    let ptr = Box::into_raw(Box::new(NativeCpsI64Resumption {
+    let trace_handlers = jit_trace_enabled().then(|| handlers.to_vec());
+    let resumption = NativeCpsI64Resumption {
         code,
         env: env.into_boxed_slice(),
-        handlers: native_cps_i64_snapshot(handlers),
+        handlers,
         guard_stack: current_native_i64_guard_snapshot(),
         return_frames,
         handled_anchor: None,
         debug_id,
-    }));
-    NATIVE_CPS_I64_RESUMPTIONS.with(|s| {
-        s.borrow_mut().insert(ptr as usize);
-    });
+    };
+    let word = if heap_allocate {
+        let ptr = Box::into_raw(Box::new(resumption));
+        NATIVE_CPS_I64_RESUMPTIONS.with(|s| {
+            s.borrow_mut().insert(ptr as usize);
+        });
+        ptr as usize as i64
+    } else {
+        NATIVE_CPS_I64_OWNED_RESUMPTIONS.with(|resumptions| {
+            let mut resumptions = resumptions.borrow_mut();
+            let index = resumptions.len();
+            resumptions.push(resumption);
+            native_i64_owned_resumption_token(index)
+        })
+    };
     if jit_trace_enabled() {
-        eprintln!(
-            "[JIT-CPS] make_resumption: id={} ptr={:#x} handlers={} frames={}",
-            debug_id,
-            ptr as usize,
-            format_handler_stack(trace_handlers.as_deref().unwrap_or(&[])),
-            format_return_frames(unsafe { &(*ptr).return_frames }),
-        );
+        if let Some(origin) = owned_origin {
+            eprintln!(
+                "[JIT-CPS] make_owned_resumption: id={} token={:#x} owner_fn={} return_frame_resume={} perform_resume={} arm={} handlers={} frames={}",
+                debug_id,
+                word,
+                origin.owner_function,
+                origin.return_frame_resume,
+                origin.perform_resume,
+                origin.handler_arm,
+                format_handler_stack(trace_handlers.as_deref().unwrap_or(&[])),
+                cloned_native_i64_resumption(word)
+                    .as_ref()
+                    .map(|resumption| format_return_frames(&resumption.return_frames))
+                    .unwrap_or_else(|| "[]".to_string()),
+            );
+        } else {
+            eprintln!(
+                "[JIT-CPS] make_resumption: id={} ptr={:#x} handlers={} frames={}",
+                debug_id,
+                word,
+                format_handler_stack(trace_handlers.as_deref().unwrap_or(&[])),
+                cloned_native_i64_resumption(word)
+                    .as_ref()
+                    .map(|resumption| format_return_frames(&resumption.return_frames))
+                    .unwrap_or_else(|| "[]".to_string()),
+            );
+        }
     }
-    ptr
+    word as usize as *mut NativeCpsI64Resumption
 }
 
 /// write27-d d2: after `select_handler` records meta about the chosen
@@ -1846,26 +2009,27 @@ fn make_native_i64_resumption(
 pub(super) extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
     resumption: *mut NativeCpsI64Resumption,
 ) -> i64 {
+    let resumption = native_i64_resumption_word(resumption);
     let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|m| m.borrow().last().cloned());
     if let Some(meta) = meta {
         if !meta.synthetic && meta.escape_continuation != 0 {
-            unsafe {
-                (*resumption).handled_anchor = Some(NativeCpsI64HandlerAnchor {
+            with_native_i64_resumption_mut(resumption, |resumption| {
+                resumption.handled_anchor = Some(NativeCpsI64HandlerAnchor {
                     prompt: meta.prompt,
                     install_eval_id: meta.install_eval_id,
                 });
                 let start = native_i64_prompt_frame_start(
-                    &(*resumption).return_frames,
+                    &resumption.return_frames,
                     meta.prompt,
                     meta.return_frame_threshold,
                 );
-                (*resumption).return_frames = capture_native_i64_return_frames_from_start(
-                    &(*resumption).return_frames,
+                resumption.return_frames = capture_native_i64_return_frames_from_start(
+                    &resumption.return_frames,
                     start,
                     meta.install_eval_id,
                 );
                 rebase_native_i64_captured_handlers(
-                    (*resumption).handlers.make_mut(),
+                    resumption.handlers.make_mut(),
                     start,
                     meta.install_eval_id,
                 );
@@ -1877,25 +2041,28 @@ pub(super) extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
                 // marker actually present in the slice. Apply the same fix to
                 // each frame's handler snapshot.
                 recalibrate_inherited_handler_thresholds(
-                    (*resumption).handlers.make_mut(),
-                    &(*resumption).return_frames,
+                    resumption.handlers.make_mut(),
+                    &resumption.return_frames,
                     meta.install_eval_id,
                 );
-                let slice_snapshot = (*resumption).return_frames.clone();
-                for frame in (*resumption).return_frames.make_mut() {
+                let slice_snapshot = resumption.return_frames.clone();
+                for frame in resumption.return_frames.make_mut() {
                     recalibrate_inherited_handler_thresholds(
                         frame.handlers.make_mut(),
                         &slice_snapshot,
                         meta.install_eval_id,
                     );
                 }
-            }
+            });
             if jit_trace_enabled() {
                 eprintln!(
                     "[JIT-CPS] resumption_anchor: prompt={} install_eval={} frames={}",
                     meta.prompt,
                     meta.install_eval_id,
-                    unsafe { format_return_frames(&(*resumption).return_frames) }
+                    cloned_native_i64_resumption(resumption)
+                        .as_ref()
+                        .map(|resumption| format_return_frames(&resumption.return_frames))
+                        .unwrap_or_else(|| "[]".to_string())
                 );
             }
         }
@@ -1975,6 +2142,9 @@ pub(super) extern "C" fn yulang_cps_add_thunk_boundary_i64(
     active: i64,
 ) -> usize {
     with_native_cps_i64_stats(|stats| stats.add_thunk_boundary_calls += 1);
+    if native_i64_word_cannot_be_control_pointer(value) {
+        return value;
+    }
     let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value));
     if !is_thunk {
         return value;
@@ -2194,15 +2364,19 @@ fn describe_native_i64_list_with_hint(
     let NativeCpsI64HeapValue::List(items) = heap else {
         return None;
     };
-    Some(format!(
-        "[{}]",
-        items
-            .to_vec()
-            .iter()
-            .map(|item| describe_cps_repr_i64_value_with_hint(*item, item_hint))
-            .collect::<Vec<_>>()
-            .join(", ")
-    ))
+    let mut rendered = String::with_capacity(items.len().saturating_mul(4).saturating_add(2));
+    rendered.push('[');
+    let mut first = true;
+    items.for_each_ref(&mut |item| {
+        if first {
+            first = false;
+        } else {
+            rendered.push_str(", ");
+        }
+        rendered.push_str(&describe_cps_repr_i64_value_with_hint(*item, item_hint));
+    });
+    rendered.push(']');
+    Some(rendered)
 }
 
 pub(super) fn describe_native_i64_value(value: i64) -> String {
@@ -2217,13 +2391,7 @@ fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
     if depth > 32 {
         return "...".to_string();
     }
-    let resumption_id = NATIVE_CPS_I64_RESUMPTIONS.with(|resumptions| {
-        if resumptions.borrow().contains(&(value as usize)) {
-            Some(unsafe { (*(value as *const NativeCpsI64Resumption)).debug_id })
-        } else {
-            None
-        }
-    });
+    let resumption_id = cloned_native_i64_resumption(value).map(|resumption| resumption.debug_id);
     if let Some(id) = resumption_id {
         return format!("resumption#{id}@{value:#x}");
     }
@@ -2279,15 +2447,22 @@ fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
             native_i64_tag_name(*tag),
             describe_native_i64_value_with_depth(*payload, depth + 1)
         ),
-        NativeCpsI64HeapValue::List(items) => format!(
-            "[{}]",
-            items
-                .to_vec()
-                .iter()
-                .map(|item| describe_native_i64_value_with_depth(*item, depth + 1))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+        NativeCpsI64HeapValue::List(items) => {
+            let mut rendered =
+                String::with_capacity(items.len().saturating_mul(4).saturating_add(2));
+            rendered.push('[');
+            let mut first = true;
+            items.for_each_ref(&mut |item| {
+                if first {
+                    first = false;
+                } else {
+                    rendered.push_str(", ");
+                }
+                rendered.push_str(&describe_native_i64_value_with_depth(*item, depth + 1));
+            });
+            rendered.push(']');
+            rendered
+        }
         NativeCpsI64HeapValue::Bool(value) => value.to_string(),
         NativeCpsI64HeapValue::Unit => "()".to_string(),
         NativeCpsI64HeapValue::Float(value) => native_cps_format_float(*value),
@@ -2340,15 +2515,25 @@ fn describe_native_i64_debug_value_with_depth(value: i64, depth: usize) -> Strin
             native_i64_tag_name(*tag),
             describe_native_i64_debug_value_with_depth(*payload, depth + 1)
         ),
-        NativeCpsI64HeapValue::List(items) => format!(
-            "[{}]",
-            items
-                .to_vec()
-                .iter()
-                .map(|item| describe_native_i64_debug_value_with_depth(*item, depth + 1))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+        NativeCpsI64HeapValue::List(items) => {
+            let mut rendered =
+                String::with_capacity(items.len().saturating_mul(4).saturating_add(2));
+            rendered.push('[');
+            let mut first = true;
+            items.for_each_ref(&mut |item| {
+                if first {
+                    first = false;
+                } else {
+                    rendered.push_str(", ");
+                }
+                rendered.push_str(&describe_native_i64_debug_value_with_depth(
+                    *item,
+                    depth + 1,
+                ));
+            });
+            rendered.push(']');
+            rendered
+        }
         NativeCpsI64HeapValue::Bool(value) => value.to_string(),
         NativeCpsI64HeapValue::Unit => "()".to_string(),
         NativeCpsI64HeapValue::Float(value) => native_cps_format_float(*value),
@@ -2416,6 +2601,138 @@ pub(super) extern "C" fn yulang_cps_make_resumption_i64_many(
     len: i64,
 ) -> *mut NativeCpsI64Resumption {
     make_native_i64_resumption(code, handler, unsafe { native_i64_slice(ptr, len) })
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_make_owned_resumption_i64_0(
+    code: usize,
+    handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_owned_resumption(
+        code,
+        handler,
+        owner_function,
+        return_frame_resume,
+        perform_resume,
+        handler_arm,
+        Vec::new(),
+    )
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_make_owned_resumption_i64_1(
+    code: usize,
+    handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+    a: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_owned_resumption(
+        code,
+        handler,
+        owner_function,
+        return_frame_resume,
+        perform_resume,
+        handler_arm,
+        vec![a],
+    )
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_make_owned_resumption_i64_2(
+    code: usize,
+    handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+    a: i64,
+    b: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_owned_resumption(
+        code,
+        handler,
+        owner_function,
+        return_frame_resume,
+        perform_resume,
+        handler_arm,
+        vec![a, b],
+    )
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_make_owned_resumption_i64_3(
+    code: usize,
+    handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_owned_resumption(
+        code,
+        handler,
+        owner_function,
+        return_frame_resume,
+        perform_resume,
+        handler_arm,
+        vec![a, b, c],
+    )
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_make_owned_resumption_i64_4(
+    code: usize,
+    handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+    d: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_owned_resumption(
+        code,
+        handler,
+        owner_function,
+        return_frame_resume,
+        perform_resume,
+        handler_arm,
+        vec![a, b, c, d],
+    )
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_make_owned_resumption_i64_many(
+    code: usize,
+    handler: i64,
+    owner_function: i64,
+    return_frame_resume: i64,
+    perform_resume: i64,
+    handler_arm: i64,
+    ptr: *const i64,
+    len: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_owned_resumption(
+        code,
+        handler,
+        owner_function,
+        return_frame_resume,
+        perform_resume,
+        handler_arm,
+        unsafe { native_i64_slice(ptr, len) },
+    )
 }
 
 #[unsafe(no_mangle)]
@@ -3584,7 +3901,10 @@ pub(super) extern "C" fn yulang_cps_resume_i64(
     resumption: *const NativeCpsI64Resumption,
     arg: i64,
 ) -> i64 {
-    let resumption = unsafe { &*resumption };
+    let Some(resumption) = cloned_native_i64_resumption(native_i64_resumption_word(resumption))
+    else {
+        return yulang_cps_abort_i64(arg);
+    };
     // write27-e: mirror Layer 2's `CpsStmt::Resume` (cps_repr.rs:1879).
     //   resumed_handlers  = merge_resumption_handlers(captured, current, anchor)
     //   adjusted_frames   = merge_extras_into_frames(captured_frames, current, anchor)
@@ -3653,7 +3973,10 @@ pub(super) extern "C" fn yulang_cps_resume_with_handler_i64(
     updates_existing_handler_env: i64,
 ) -> i64 {
     let _site = enter_native_cps_i64_stats_site(NativeCpsI64StatsSite::ResumeWithHandler);
-    let resumption = unsafe { &*resumption };
+    let Some(resumption) = cloned_native_i64_resumption(native_i64_resumption_word(resumption))
+    else {
+        return yulang_cps_abort_i64(arg);
+    };
     let prompt = yulang_cps_fresh_prompt_i64() as u64;
     let install_eval_id = yulang_cps_current_eval_id_i64() as u64;
     let return_frame_threshold = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
@@ -4284,7 +4607,10 @@ fn effectful_apply_resumption_native(
     env: Vec<i64>,
 ) -> i64 {
     let _site = enter_native_cps_i64_stats_site(NativeCpsI64StatsSite::EffectfulApplyResumption);
-    let resumption = unsafe { &*resumption };
+    let Some(resumption) = cloned_native_i64_resumption(native_i64_resumption_word(resumption))
+    else {
+        return yulang_cps_abort_i64(arg);
+    };
     let current_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().to_vec());
     let current_guards = current_native_i64_guard_snapshot();
     if jit_trace_enabled() {
@@ -4523,7 +4849,7 @@ pub(super) extern "C" fn yulang_cps_effectful_apply_resumption_i64_many(
 /// branch into the closure or resumption path.
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_is_resumption_i64(value: i64) -> i64 {
-    let is = NATIVE_CPS_I64_RESUMPTIONS.with(|s| s.borrow().contains(&(value as usize)));
+    let is = cloned_native_i64_resumption(value).is_some();
     i64::from(is)
 }
 
@@ -4533,7 +4859,6 @@ pub(super) extern "C" fn yulang_cps_select_handler_i64(
     effect_mask: i64,
     blocked: i64,
 ) -> i64 {
-    let stack = current_native_i64_handler_stack_with_fallback(fallback_handler, effect_mask);
     // write27-d d6: two-pass search to dodge JIT-only `PendingEnv`
     // placeholders. `take_pending_native_i64_handler_frames` builds
     // these from capture envs without a real prompt/escape; they
@@ -4541,84 +4866,301 @@ pub(super) extern "C" fn yulang_cps_select_handler_i64(
     // otherwise shadow legitimate handlers. Legacy installs and
     // static fallbacks stay first-class so existing abort_i64 paths
     // still resolve.
-    let is_preferred_origin = |origin: NativeCpsI64HandlerFrameOrigin| {
-        !matches!(origin, NativeCpsI64HandlerFrameOrigin::PendingEnv)
-    };
-    let frame_allowed = |frame: &NativeCpsI64HandlerFrame| {
-        let allowed = (frame.consumes_mask & effect_mask) != 0;
-        if !allowed {
-            return false;
+    match select_native_i64_active_handler_frame(effect_mask, blocked) {
+        NativeCpsI64ActiveHandlerSelection::Matched {
+            index,
+            frame,
+            full_stack,
+        } => {
+            return record_selected_native_i64_handler(index, frame, full_stack);
         }
-        if blocked >= 0 && frame.guard_stack.contains(&blocked) {
-            return false;
+        NativeCpsI64ActiveHandlerSelection::NoMatch => {
+            clear_selected_native_i64_handler();
+            return -1;
         }
-        true
-    };
-    let chosen = stack
+        NativeCpsI64ActiveHandlerSelection::Empty => {}
+    }
+
+    let stack = current_native_i64_handler_stack_with_fallback(fallback_handler, effect_mask);
+    if let Some((index, frame)) = select_native_i64_handler_frame(&stack, effect_mask, blocked) {
+        return record_selected_native_i64_handler(
+            index,
+            frame.clone(),
+            native_cps_i64_snapshot(stack),
+        );
+    }
+    clear_selected_native_i64_handler();
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn yulang_cps_select_owned_handler_i64(
+    expected_handler: i64,
+    expected_owner_function: i64,
+    fallback_handler: i64,
+    effect_mask: i64,
+    blocked: i64,
+) -> i64 {
+    if let Some(selected) = select_and_record_native_i64_owned_top_handler_frame(
+        expected_handler,
+        expected_owner_function.max(0) as u64,
+        effect_mask,
+        blocked,
+    ) {
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] perform_select_owned_top: handler={} owner_fn={}",
+                expected_handler, expected_owner_function
+            );
+        }
+        return selected;
+    }
+    match select_native_i64_owned_active_handler_frame(
+        expected_handler,
+        expected_owner_function.max(0) as u64,
+        effect_mask,
+        blocked,
+    ) {
+        NativeCpsI64ActiveHandlerSelection::Matched {
+            index,
+            frame,
+            full_stack,
+        } => {
+            if jit_trace_enabled() {
+                eprintln!(
+                    "[JIT-CPS] perform_select_owned: handler={} owner_fn={} idx={}",
+                    expected_handler, expected_owner_function, index
+                );
+            }
+            return record_selected_native_i64_handler(index, frame, full_stack);
+        }
+        NativeCpsI64ActiveHandlerSelection::NoMatch => {
+            if jit_trace_enabled() {
+                eprintln!(
+                    "[JIT-CPS] perform_select_owned_fallback: handler={} owner_fn={}",
+                    expected_handler, expected_owner_function
+                );
+            }
+            clear_selected_native_i64_handler();
+        }
+        NativeCpsI64ActiveHandlerSelection::Empty => {}
+    }
+    yulang_cps_select_handler_i64(fallback_handler, effect_mask, blocked)
+}
+
+enum NativeCpsI64ActiveHandlerSelection {
+    Empty,
+    NoMatch,
+    Matched {
+        index: usize,
+        frame: NativeCpsI64HandlerFrame,
+        full_stack: NativeCpsI64HandlerSnapshot,
+    },
+}
+
+fn select_and_record_native_i64_owned_top_handler_frame(
+    expected_handler: i64,
+    expected_owner_function: u64,
+    effect_mask: i64,
+    blocked: i64,
+) -> Option<i64> {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
+        let mut active = active.borrow_mut();
+        let top = active.last()?;
+        if top.handler != expected_handler
+            || top.escape_owner_function_id != expected_owner_function
+            || !native_i64_handler_frame_allowed(top, effect_mask, blocked)
+            || !native_i64_handler_frame_has_preferred_origin(top)
+        {
+            return None;
+        }
+        let index = active.len() - 1;
+        let frame = active.pop()?;
+        Some(record_selected_native_i64_handler_top(index, frame))
+    })
+}
+
+fn select_native_i64_owned_active_handler_frame(
+    expected_handler: i64,
+    expected_owner_function: u64,
+    effect_mask: i64,
+    blocked: i64,
+) -> NativeCpsI64ActiveHandlerSelection {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
+        let mut active = active.borrow_mut();
+        if active.is_empty() {
+            return NativeCpsI64ActiveHandlerSelection::Empty;
+        }
+        let Some((index, frame)) = active.iter().enumerate().rev().find(|(_, frame)| {
+            frame.handler == expected_handler
+                && frame.escape_owner_function_id == expected_owner_function
+                && native_i64_handler_frame_allowed(frame, effect_mask, blocked)
+                && native_i64_handler_frame_has_preferred_origin(frame)
+        }) else {
+            return NativeCpsI64ActiveHandlerSelection::NoMatch;
+        };
+        let frame = frame.clone();
+        let full_stack = active.snapshot();
+        active.truncate(index);
+        NativeCpsI64ActiveHandlerSelection::Matched {
+            index,
+            frame,
+            full_stack,
+        }
+    })
+}
+
+fn select_native_i64_active_handler_frame(
+    effect_mask: i64,
+    blocked: i64,
+) -> NativeCpsI64ActiveHandlerSelection {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
+        let mut active = active.borrow_mut();
+        if active.is_empty() {
+            return NativeCpsI64ActiveHandlerSelection::Empty;
+        }
+        let Some((index, frame)) = select_native_i64_handler_frame(&active, effect_mask, blocked)
+        else {
+            return NativeCpsI64ActiveHandlerSelection::NoMatch;
+        };
+        let frame = frame.clone();
+        let full_stack = active.snapshot();
+        active.truncate(index);
+        NativeCpsI64ActiveHandlerSelection::Matched {
+            index,
+            frame,
+            full_stack,
+        }
+    })
+}
+
+fn select_native_i64_handler_frame(
+    stack: &[NativeCpsI64HandlerFrame],
+    effect_mask: i64,
+    blocked: i64,
+) -> Option<(usize, &NativeCpsI64HandlerFrame)> {
+    stack
         .iter()
         .enumerate()
         .rev()
-        .find(|(_, frame)| frame_allowed(frame) && is_preferred_origin(frame.origin))
+        .find(|(_, frame)| {
+            native_i64_handler_frame_allowed(frame, effect_mask, blocked)
+                && native_i64_handler_frame_has_preferred_origin(frame)
+        })
         .or_else(|| {
             stack
                 .iter()
                 .enumerate()
                 .rev()
-                .find(|(_, frame)| frame_allowed(frame))
-        });
-    if let Some((index, frame)) = chosen {
-        // write27-c c3: stash the pre-truncation stack so the post-arm
-        // `restore_outer_handler_stack` can reinstate the matched
-        // handler. The arm body itself still sees the truncated stack
-        // (matches Layer 1/2's `handler_body_stack`).
-        NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
-            snaps.borrow_mut().push(stack.clone());
-        });
-        // write27-c c3: record the selected frame's metadata so the
-        // post-arm path can wrap the natural return as a ScopeReturn
-        // targeting this frame's escape.
-        NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| {
-            meta.borrow_mut().push(NativeCpsI64SelectedHandlerMeta {
-                prompt: frame.prompt,
-                escape_continuation: frame.escape_continuation,
-                escape_env: frame.escape_env.clone(),
-                return_frame_threshold: frame.return_frame_threshold,
-                install_eval_id: frame.install_eval_id,
-                synthetic: frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID
-                    || frame.escape_continuation == 0,
-            });
-        });
-        NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
-            active.borrow_mut().replace(stack[..index].to_vec());
-        });
-        NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
-            *envs.borrow_mut() = frame.envs.to_vec();
-        });
-        NATIVE_CPS_I64_SELECTED_HANDLER_ID.with(|handler| *handler.borrow_mut() = frame.handler);
-        NATIVE_CPS_I64_SELECTED_HANDLER_OWNER_FUNCTION_ID
-            .with(|owner| *owner.borrow_mut() = frame.escape_owner_function_id);
-        NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = false);
-        if jit_trace_enabled() {
-            eprintln!(
-                "[JIT-CPS] perform_select: handler={} prompt={} install_eval={} owner_fn={} synthetic={} threshold={} idx={} origin={:?} envs={}",
-                frame.handler,
-                frame.prompt,
-                frame.install_eval_id,
-                frame.escape_owner_function_id,
-                frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
-                frame.return_frame_threshold,
-                index,
-                frame.origin,
-                format_handler_envs(&frame.envs),
-            );
-        }
-        return frame.handler;
+                .find(|(_, frame)| native_i64_handler_frame_allowed(frame, effect_mask, blocked))
+        })
+}
+
+fn native_i64_handler_frame_has_preferred_origin(frame: &NativeCpsI64HandlerFrame) -> bool {
+    !matches!(frame.origin, NativeCpsI64HandlerFrameOrigin::PendingEnv)
+}
+
+fn native_i64_handler_frame_allowed(
+    frame: &NativeCpsI64HandlerFrame,
+    effect_mask: i64,
+    blocked: i64,
+) -> bool {
+    if (frame.consumes_mask & effect_mask) == 0 {
+        return false;
     }
+    if blocked >= 0 && frame.guard_stack.contains(&blocked) {
+        return false;
+    }
+    true
+}
+
+fn record_selected_native_i64_handler(
+    index: usize,
+    frame: NativeCpsI64HandlerFrame,
+    full_stack: NativeCpsI64HandlerSnapshot,
+) -> i64 {
+    // write27-c c3: stash the pre-truncation stack so the post-arm
+    // `restore_outer_handler_stack` can reinstate the matched handler. The arm
+    // body itself sees the truncated stack.
+    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
+        snaps.borrow_mut().push(full_stack);
+    });
+    record_selected_native_i64_handler_state(index, frame)
+}
+
+fn record_selected_native_i64_handler_top(index: usize, frame: NativeCpsI64HandlerFrame) -> i64 {
+    NATIVE_CPS_I64_OUTER_HANDLER_TOP_RESTORES.with(|frames| {
+        frames.borrow_mut().push((index, frame.clone()));
+    });
+    record_selected_native_i64_handler_state(index, frame)
+}
+
+fn record_selected_native_i64_handler_state(index: usize, frame: NativeCpsI64HandlerFrame) -> i64 {
+    NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| {
+        meta.borrow_mut().push(NativeCpsI64SelectedHandlerMeta {
+            prompt: frame.prompt,
+            escape_continuation: frame.escape_continuation,
+            escape_env: frame.escape_env.clone(),
+            return_frame_threshold: frame.return_frame_threshold,
+            install_eval_id: frame.install_eval_id,
+            synthetic: frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID
+                || frame.escape_continuation == 0,
+        });
+    });
+    NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
+        *envs.borrow_mut() = frame.envs.to_vec();
+    });
+    NATIVE_CPS_I64_SELECTED_HANDLER_ID.with(|handler| *handler.borrow_mut() = frame.handler);
+    NATIVE_CPS_I64_SELECTED_HANDLER_OWNER_FUNCTION_ID
+        .with(|owner| *owner.borrow_mut() = frame.escape_owner_function_id);
+    NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = false);
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] perform_select: handler={} prompt={} install_eval={} owner_fn={} synthetic={} threshold={} idx={} origin={:?} envs={}",
+            frame.handler,
+            frame.prompt,
+            frame.install_eval_id,
+            frame.escape_owner_function_id,
+            frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+            frame.return_frame_threshold,
+            index,
+            frame.origin,
+            format_handler_envs(&frame.envs),
+        );
+    }
+    frame.handler
+}
+
+fn restore_selected_native_i64_outer_handler_stack() {
+    let restored_snapshot = NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
+        if let Some(snap) = snaps.borrow_mut().pop() {
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+                stack.borrow_mut().replace_snapshot(snap);
+            });
+            true
+        } else {
+            false
+        }
+    });
+    if restored_snapshot {
+        return;
+    }
+    NATIVE_CPS_I64_OUTER_HANDLER_TOP_RESTORES.with(|frames| {
+        if let Some((index, frame)) = frames.borrow_mut().pop() {
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+                let mut stack = stack.borrow_mut();
+                stack.truncate(index);
+                stack.push(frame);
+            });
+        }
+    });
+}
+
+fn clear_selected_native_i64_handler() {
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ID.with(|handler| *handler.borrow_mut() = -1);
     NATIVE_CPS_I64_SELECTED_HANDLER_OWNER_FUNCTION_ID.with(|owner| *owner.borrow_mut() = 0);
     NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = false);
-    -1
 }
 
 #[unsafe(no_mangle)]
@@ -4667,13 +5209,7 @@ pub(super) extern "C" fn yulang_cps_active_blocked_guard_i64(effect_mask: i64) -
 /// don't propagate).
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_restore_outer_handler_stack_i64() -> i64 {
-    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
-        if let Some(snap) = snaps.borrow_mut().pop() {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
-                stack.borrow_mut().replace(snap);
-            });
-        }
-    });
+    restore_selected_native_i64_outer_handler_stack();
     0
 }
 
@@ -4694,13 +5230,7 @@ pub(super) extern "C" fn yulang_cps_restore_outer_handler_stack_i64() -> i64 {
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
     // 1. restore outer.
-    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
-        if let Some(snap) = snaps.borrow_mut().pop() {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
-                stack.borrow_mut().replace(snap);
-            });
-        }
-    });
+    restore_selected_native_i64_outer_handler_stack();
     // 2. wrap as ScopeReturn if applicable.
     let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|m| m.borrow_mut().pop());
     let is_real = meta
@@ -4752,13 +5282,7 @@ pub(super) extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
 
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
-    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
-        if let Some(snap) = snaps.borrow_mut().pop() {
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
-                stack.borrow_mut().replace(snap);
-            });
-        }
-    });
+    restore_selected_native_i64_outer_handler_stack();
     let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| meta.borrow_mut().pop());
     if NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active) {
         return yulang_cps_route_scope_return_i64(value);
@@ -6336,7 +6860,8 @@ pub(super) extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
         return value;
     }
     // Pre-force v2 check.
-    let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&(value as usize)));
+    let is_thunk = !native_i64_word_cannot_be_control_pointer(value as usize)
+        && NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&(value as usize)));
     let top_forces = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
         frames
             .borrow()
@@ -6460,6 +6985,9 @@ pub(super) extern "C" fn yulang_cps_make_thunk_i64_many(
 
 #[unsafe(no_mangle)]
 pub(super) extern "C" fn yulang_cps_is_thunk_i64(value: i64) -> i64 {
+    if native_i64_word_cannot_be_control_pointer(value as usize) {
+        return 0;
+    }
     if crate::mmtk_cps_control::is_mmtk_cps_control_thunk_value(value) {
         return 1;
     }
@@ -6588,6 +7116,15 @@ pub(super) extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
     with_native_cps_i64_stats(|stats| stats.force_thunk_calls += 1);
     let mut value = value;
     loop {
+        if native_i64_word_cannot_be_control_pointer(value) {
+            if jit_trace_enabled() {
+                eprintln!(
+                    "[JIT-CPS] force_thunk.out: value={}",
+                    describe_native_i64_value(value as i64)
+                );
+            }
+            return value as i64;
+        }
         let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value));
         if !is_thunk {
             if crate::mmtk_cps_control::is_mmtk_cps_control_thunk_value(value as i64) {
@@ -6617,6 +7154,10 @@ pub(super) extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
             NativeCpsI64ForceThunkStep::Return(result) => return result,
         }
     }
+}
+
+fn native_i64_word_cannot_be_control_pointer(value: usize) -> bool {
+    value == 0 || value & 0b111 != 0
 }
 
 #[unsafe(no_mangle)]
