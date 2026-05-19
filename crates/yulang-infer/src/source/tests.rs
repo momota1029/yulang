@@ -3688,10 +3688,35 @@ fn operator_use_spans_record_resolved_def_for_hover() {
             .state
             .def_name(*def)
             .expect("operator def should have a name");
+        let def_id = *def;
         assert_eq!(name.0, "+", "+ should resolve to the infix operator def");
         assert!(
-            lowered.state.compact_scheme_of(*def).is_some(),
+            lowered.state.compact_scheme_of(def_id).is_some(),
             "operator def should have a compact scheme available for hover",
+        );
+
+        let paths = lowered
+            .state
+            .ctx
+            .collect_all_binding_paths()
+            .into_iter()
+            .filter(|(_, current)| *current == def_id)
+            .collect::<Vec<_>>();
+        assert!(
+            !paths.is_empty(),
+            "operator def should have at least one binding path"
+        );
+        let labels: Vec<String> = crate::display::collect_compact_results_for_paths_in_scope(
+            &lowered.state,
+            &paths,
+            &lowered.state.ctx,
+        )
+        .into_iter()
+        .map(|(label, _)| label)
+        .collect();
+        assert!(
+            labels.iter().any(|label| label == "+"),
+            "scoped label for + operator should render as `+`, got: {labels:?}",
         );
     });
 }

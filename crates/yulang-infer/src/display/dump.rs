@@ -119,19 +119,46 @@ fn shortest_unique_value_label(
     let fixity = ctx.operator_fixity(def);
     let total = full_path.segments.len();
     for k in 1..total {
-        let suffix = Path {
-            segments: full_path.segments[total - k..].to_vec(),
+        let suffix_segments = full_path.segments[total - k..].to_vec();
+        let lookup_path = Path {
+            segments: lookup_segments_for_operator(suffix_segments.clone(), fixity),
         };
         let candidates = if let Some(fixity) = fixity {
-            ctx.resolve_path_operator_value_candidates_via_snapshot(module, &suffix, fixity)
+            ctx.resolve_path_operator_value_candidates_via_snapshot(module, &lookup_path, fixity)
         } else {
-            ctx.resolve_path_value_candidates_via_snapshot(module, &suffix)
+            ctx.resolve_path_value_candidates_via_snapshot(module, &lookup_path)
         };
         if candidates.as_slice() == [def] {
-            return path_string(&suffix);
+            return path_string(&lookup_path);
         }
     }
-    path_string(full_path)
+    let display = Path {
+        segments: lookup_segments_for_operator(full_path.segments.clone(), fixity),
+    };
+    path_string(&display)
+}
+
+/// `#op:fixity:NAME` 形式の合成 operator binding 名を、生の operator 名へ戻す。
+/// fixity が指定されていて、leaf が合成名なら剥がす。
+fn lookup_segments_for_operator(
+    mut segments: Vec<crate::symbols::Name>,
+    fixity: Option<crate::symbols::OperatorFixity>,
+) -> Vec<crate::symbols::Name> {
+    if fixity.is_none() {
+        return segments;
+    }
+    if let Some(last) = segments.last_mut() {
+        if let Some(stripped) = strip_synthetic_operator_name(&last.0) {
+            *last = crate::symbols::Name(stripped.to_string());
+        }
+    }
+    segments
+}
+
+fn strip_synthetic_operator_name(text: &str) -> Option<&str> {
+    let rest = text.strip_prefix("#op:")?;
+    let (_fixity, name) = rest.split_once(':')?;
+    Some(name)
 }
 
 fn collect_user_observable_binding_paths(state: &LowerState) -> Vec<(Path, crate::ids::DefId)> {
