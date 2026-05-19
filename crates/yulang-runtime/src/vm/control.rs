@@ -1,6 +1,8 @@
 use super::*;
 use crate::ir::RecordSpreadPattern;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::io;
 use std::path::Path;
 
@@ -816,44 +818,118 @@ enum ControlValue {
 #[derive(Clone)]
 enum ControlInt {
     Small(i64),
-    Text(String),
+    Big(Box<BigInt>),
 }
 
 impl ControlInt {
-    fn from_text(value: String) -> Self {
-        value.parse().map(Self::Small).unwrap_or(Self::Text(value))
+    fn from_text(value: String) -> Result<Self, VmError> {
+        if let Ok(value) = value.parse() {
+            return Ok(Self::Small(value));
+        }
+        value
+            .parse()
+            .map(|value| Self::Big(Box::new(value)))
+            .map_err(|_| VmError::ExpectedInt(VmValue::Int(value)))
+    }
+
+    fn from_lit(value: &str) -> Self {
+        Self::from_text(value.to_owned()).expect("typed int literal should parse")
     }
 
     fn to_vm_string(&self) -> String {
         match self {
             Self::Small(value) => value.to_string(),
-            Self::Text(value) => value.clone(),
+            Self::Big(value) => value.to_string(),
         }
     }
 
     fn to_float_string(&self) -> String {
         match self {
             Self::Small(value) => format!("{value}.0"),
-            Self::Text(value) if value.contains('.') => value.clone(),
-            Self::Text(value) => format!("{value}.0"),
+            Self::Big(value) => format!("{value}.0"),
         }
     }
 
     fn as_i64(&self) -> Result<i64, VmError> {
         match self {
             Self::Small(value) => Ok(*value),
-            Self::Text(value) => value
+            Self::Big(value) => value
+                .to_string()
                 .parse()
-                .map_err(|_| VmError::ExpectedInt(VmValue::Int(value.clone()))),
+                .map_err(|_| VmError::ExpectedInt(VmValue::Int(value.to_string()))),
         }
+    }
+
+    fn add(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Small(left), Self::Small(right)) => left
+                .checked_add(*right)
+                .map(Self::Small)
+                .unwrap_or_else(|| Self::normalize(BigInt::from(*left) + BigInt::from(*right))),
+            _ => Self::normalize(self.to_bigint() + other.to_bigint()),
+        }
+    }
+
+    fn sub(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Small(left), Self::Small(right)) => left
+                .checked_sub(*right)
+                .map(Self::Small)
+                .unwrap_or_else(|| Self::normalize(BigInt::from(*left) - BigInt::from(*right))),
+            _ => Self::normalize(self.to_bigint() - other.to_bigint()),
+        }
+    }
+
+    fn mul(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Small(left), Self::Small(right)) => left
+                .checked_mul(*right)
+                .map(Self::Small)
+                .unwrap_or_else(|| Self::normalize(BigInt::from(*left) * BigInt::from(*right))),
+            _ => Self::normalize(self.to_bigint() * other.to_bigint()),
+        }
+    }
+
+    fn div(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Small(left), Self::Small(right)) => left
+                .checked_div(*right)
+                .map(Self::Small)
+                .unwrap_or_else(|| Self::normalize(BigInt::from(*left) / BigInt::from(*right))),
+            _ => Self::normalize(self.to_bigint() / other.to_bigint()),
+        }
+    }
+
+    fn to_bigint(&self) -> BigInt {
+        match self {
+            Self::Small(value) => BigInt::from(*value),
+            Self::Big(value) => (**value).clone(),
+        }
+    }
+
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Self::Small(left), Self::Small(right)) => left.cmp(right),
+            _ => self.to_bigint().cmp(&other.to_bigint()),
+        }
+    }
+
+    fn normalize(value: BigInt) -> Self {
+        value
+            .to_string()
+            .parse()
+            .map(Self::Small)
+            .unwrap_or_else(|_| Self::Big(Box::new(value)))
     }
 }
 
 impl PartialEq for ControlInt {
     fn eq(&self, other: &Self) -> bool {
-        self.to_vm_string() == other.to_vm_string()
+        self.cmp(other).is_eq()
     }
 }
+
+impl Eq for ControlInt {}
 
 #[derive(Clone)]
 struct ControlPrimitive {
@@ -2425,7 +2501,7 @@ fn control_wrap_value(value: ControlValue, result_wraps_thunk: bool) -> ControlV
 
 fn control_value_from_lit(lit: &typed_ir::Lit) -> ControlValue {
     match lit {
-        typed_ir::Lit::Int(value) => ControlValue::Int(ControlInt::from_text(value.clone())),
+        typed_ir::Lit::Int(value) => ControlValue::Int(ControlInt::from_lit(value)),
         typed_ir::Lit::Float(value) => ControlValue::Float(value.clone()),
         typed_ir::Lit::String(value) => ControlValue::String(StringTree::from_str(value)),
         typed_ir::Lit::Bool(value) => ControlValue::Bool(*value),
@@ -2452,32 +2528,40 @@ fn control_apply_primitive(
         typed_ir::PrimitiveOp::BoolEq => Ok(ControlValue::Bool(
             control_bool_value(&args[0])? == control_bool_value(&args[1])?,
         )),
-        typed_ir::PrimitiveOp::IntAdd => Ok(ControlValue::Int(ControlInt::Small(
-            control_int_value(&args[0])? + control_int_value(&args[1])?,
-        ))),
-        typed_ir::PrimitiveOp::IntSub => Ok(ControlValue::Int(ControlInt::Small(
-            control_int_value(&args[0])? - control_int_value(&args[1])?,
-        ))),
-        typed_ir::PrimitiveOp::IntMul => Ok(ControlValue::Int(ControlInt::Small(
-            control_int_value(&args[0])? * control_int_value(&args[1])?,
-        ))),
-        typed_ir::PrimitiveOp::IntDiv => Ok(ControlValue::Int(ControlInt::Small(
-            control_int_value(&args[0])? / control_int_value(&args[1])?,
-        ))),
+        typed_ir::PrimitiveOp::IntAdd => Ok(ControlValue::Int(
+            control_int_value(&args[0])?.add(control_int_value(&args[1])?),
+        )),
+        typed_ir::PrimitiveOp::IntSub => Ok(ControlValue::Int(
+            control_int_value(&args[0])?.sub(control_int_value(&args[1])?),
+        )),
+        typed_ir::PrimitiveOp::IntMul => Ok(ControlValue::Int(
+            control_int_value(&args[0])?.mul(control_int_value(&args[1])?),
+        )),
+        typed_ir::PrimitiveOp::IntDiv => Ok(ControlValue::Int(
+            control_int_value(&args[0])?.div(control_int_value(&args[1])?),
+        )),
         typed_ir::PrimitiveOp::IntEq => Ok(ControlValue::Bool(
             control_int_value(&args[0])? == control_int_value(&args[1])?,
         )),
         typed_ir::PrimitiveOp::IntLt => Ok(ControlValue::Bool(
-            control_int_value(&args[0])? < control_int_value(&args[1])?,
+            control_int_value(&args[0])?
+                .cmp(control_int_value(&args[1])?)
+                .is_lt(),
         )),
         typed_ir::PrimitiveOp::IntLe => Ok(ControlValue::Bool(
-            control_int_value(&args[0])? <= control_int_value(&args[1])?,
+            !control_int_value(&args[0])?
+                .cmp(control_int_value(&args[1])?)
+                .is_gt(),
         )),
         typed_ir::PrimitiveOp::IntGt => Ok(ControlValue::Bool(
-            control_int_value(&args[0])? > control_int_value(&args[1])?,
+            control_int_value(&args[0])?
+                .cmp(control_int_value(&args[1])?)
+                .is_gt(),
         )),
         typed_ir::PrimitiveOp::IntGe => Ok(ControlValue::Bool(
-            control_int_value(&args[0])? >= control_int_value(&args[1])?,
+            !control_int_value(&args[0])?
+                .cmp(control_int_value(&args[1])?)
+                .is_lt(),
         )),
         typed_ir::PrimitiveOp::ListEmpty => Ok(ControlValue::List(ListTree::empty())),
         typed_ir::PrimitiveOp::ListSingleton => Ok(ControlValue::List(ListTree::singleton(
@@ -2496,7 +2580,7 @@ fn control_apply_primitive(
         }
         typed_ir::PrimitiveOp::ListIndex => {
             let list = control_list_value(&args[0])?;
-            let index = usize::try_from(control_int_value(&args[1])?)
+            let index = usize::try_from(control_int_value(&args[1])?.as_i64()?)
                 .map_err(|_| VmError::ExpectedInt(export_value_lossy(&args[1], None)))?;
             list.index(index)
                 .map(|value| (*value).clone())
@@ -2530,9 +2614,9 @@ fn control_apply_primitive(
     }
 }
 
-fn control_int_value(value: &ControlValue) -> Result<i64, VmError> {
+fn control_int_value(value: &ControlValue) -> Result<&ControlInt, VmError> {
     match value {
-        ControlValue::Int(value) => value.as_i64(),
+        ControlValue::Int(value) => Ok(value),
         other => Err(VmError::ExpectedInt(export_value_lossy(other, None))),
     }
 }
@@ -2612,7 +2696,7 @@ fn export_value_lossy(value: &ControlValue, module: Option<&ControlModule>) -> V
 
 fn import_value(value: &VmValue) -> Result<ControlValue, VmError> {
     Ok(match value {
-        VmValue::Int(value) => ControlValue::Int(ControlInt::from_text(value.clone())),
+        VmValue::Int(value) => ControlValue::Int(ControlInt::from_text(value.clone())?),
         VmValue::Float(value) => ControlValue::Float(value.clone()),
         VmValue::String(value) => ControlValue::String(value.clone()),
         VmValue::Bytes(value) => ControlValue::Bytes(value.clone()),

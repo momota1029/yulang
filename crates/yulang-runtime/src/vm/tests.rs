@@ -715,6 +715,21 @@ handle (sub:
     }
 
     #[test]
+    fn control_vm_promotes_overflowing_int_arithmetic_to_bigint() {
+        let results = eval_control_source_artifact_with_std(
+            "9223372036854775807 + 1\n(9223372036854775807 + 2) > 9223372036854775807\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::Int("9223372036854775808".to_string()),
+                TestValue::Bool(true),
+            ]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_primitive_float_add_example() {
         let results = eval_source_with_std("my x = std::float::add 1.0 2.0\nx\n");
 
