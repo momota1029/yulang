@@ -7,4 +7,3 @@ cast(x: int): user_id = user_id { raw: x }
 
 my id: user_id = 7
 my raw: int = id
-raw

@@ -1660,15 +1660,8 @@ mod tests {
         let source = "my assign_var =\n  my ($x) = 1\n  &x = 2\n  $x\n";
         let uri = Url::parse("file:///tmp/test.yu").unwrap();
         let cursor = position_of(source, "$x").expect("position of first $x");
-        let edit = rename_for_source(
-            uri.clone(),
-            source,
-            None,
-            std_source_options(),
-            cursor,
-            "y",
-        )
-        .expect("rename of var $x should succeed");
+        let edit = rename_for_source(uri.clone(), source, None, std_source_options(), cursor, "y")
+            .expect("rename of var $x should succeed");
 
         let changes = edit.changes.expect("workspace edit should have changes");
         let edits = changes.get(&uri).expect("entry edits");
