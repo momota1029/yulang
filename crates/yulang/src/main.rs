@@ -976,6 +976,7 @@ fn run_infer_views(
         diagnostic_source,
         lower_profile,
         runtime_dependencies,
+        mut pipeline_timings,
     } = lower_infer_sources(
         path,
         root,
@@ -988,10 +989,12 @@ fn run_infer_views(
         state.finalize_compact_results_profiled()
     });
 
-    let error_start = Instant::now();
+    let type_errors_start = pipeline_timings.start();
     let errors = state.infer.type_errors();
+    pipeline_timings.type_errors = InferPipelineTimings::elapsed(type_errors_start);
+    let surface_diagnostics_start = pipeline_timings.start();
     let surface_diagnostics = collect_infer_surface_diagnostics(&state);
-    let error_duration = error_start.elapsed();
+    pipeline_timings.surface_diagnostics = InferPipelineTimings::elapsed(surface_diagnostics_start);
     let requests_runtime_pipeline = options.requests_runtime_pipeline();
 
     let (rendered, render_duration) = if options.infer {
@@ -1002,14 +1005,18 @@ fn run_infer_views(
     } else {
         (None, Duration::ZERO)
     };
+    pipeline_timings.render = render_duration;
 
     let (binding_names, quantified_counts) = if options.infer || options.infer_phase_timings {
+        let binding_names_start = pipeline_timings.start();
         let binding_names = state
             .ctx
             .collect_binding_paths()
             .into_iter()
             .map(|(path, def)| (def, format_infer_path(&path)))
             .collect::<HashMap<_, _>>();
+        pipeline_timings.binding_names = InferPipelineTimings::elapsed(binding_names_start);
+        let quantified_counts_start = pipeline_timings.start();
         let quantified_counts = state
             .infer
             .frozen_schemes
@@ -1017,6 +1024,7 @@ fn run_infer_views(
             .iter()
             .map(|(k, v)| (*k, v.quantified.len()))
             .collect::<HashMap<_, _>>();
+        pipeline_timings.quantified_counts = InferPipelineTimings::elapsed(quantified_counts_start);
         (Some(binding_names), Some(quantified_counts))
     } else {
         (None, None)
@@ -1024,11 +1032,15 @@ fn run_infer_views(
 
     let infer_program =
         if errors.is_empty() && surface_diagnostics.is_empty() && requests_runtime_pipeline {
+            let core_export_start = pipeline_timings.start();
             let program = export_core_program(&mut state);
-            Some(merge_runtime_dependencies_or_exit(
-                program,
-                runtime_dependencies.as_ref(),
-            ))
+            pipeline_timings.core_export = InferPipelineTimings::elapsed(core_export_start);
+            let runtime_dependency_merge_start = pipeline_timings.start();
+            let program =
+                merge_runtime_dependencies_or_exit(program, runtime_dependencies.as_ref());
+            pipeline_timings.runtime_dependency_merge =
+                InferPipelineTimings::elapsed(runtime_dependency_merge_start);
+            Some(program)
         } else {
             None
         };
@@ -1256,9 +1268,8 @@ fn run_infer_views(
                 if options.infer_phase_timings {
                     print_infer_phase_timings(
                         &lower_profile,
-                        error_duration,
                         &finalized.profile,
-                        render_duration,
+                        &pipeline_timings,
                         finalized.finalized_defs.len(),
                         binding_names.as_ref().expect("binding names"),
                         quantified_counts.as_ref().expect("quantified counts"),
@@ -1539,9 +1550,8 @@ fn run_infer_views(
         if options.infer_phase_timings {
             print_infer_phase_timings(
                 &lower_profile,
-                error_duration,
                 &finalized.profile,
-                render_duration,
+                &pipeline_timings,
                 finalized.finalized_defs.len(),
                 binding_names.as_ref().expect("binding names"),
                 quantified_counts.as_ref().expect("quantified counts"),
@@ -3374,9 +3384,8 @@ fn runtime_adapter_kind_name(kind: runtime::RuntimeAdapterEventKind) -> &'static
 
 fn print_infer_phase_timings(
     lower: &InferSourceLowerProfile,
-    error_collection: Duration,
     finalize: &InferFinalizeCompactProfile,
-    render: Duration,
+    pipeline: &InferPipelineTimings,
     finalized_defs: usize,
     binding_names: &HashMap<yulang_infer::DefId, String>,
     quantified_counts: &HashMap<yulang_infer::DefId, usize>,
@@ -3583,7 +3592,39 @@ fn print_infer_phase_timings(
         format_duration(lower.std_cache.clone),
         format_duration(lower.std_cache.build)
     );
-    eprintln!("  type_errors: {}", format_duration(error_collection));
+    eprintln!(
+        "    std_artifacts: manifests={} reads={} writes={}",
+        pipeline.std_artifact_manifests, pipeline.std_artifact_reads, pipeline.std_artifact_writes
+    );
+    eprintln!(
+        "      manifest: {}",
+        format_duration(pipeline.std_artifact_manifest)
+    );
+    eprintln!(
+        "      read: {}",
+        format_duration(pipeline.std_artifact_read)
+    );
+    eprintln!(
+        "      import: {}",
+        format_duration(pipeline.std_artifact_import)
+    );
+    eprintln!(
+        "      prepare_finalize: {}",
+        format_duration(pipeline.std_artifact_prepare_finalize)
+    );
+    eprintln!(
+        "      build: {}",
+        format_duration(pipeline.std_artifact_build)
+    );
+    eprintln!(
+        "      write: {}",
+        format_duration(pipeline.std_artifact_write)
+    );
+    eprintln!("  type_errors: {}", format_duration(pipeline.type_errors));
+    eprintln!(
+        "  surface_diagnostics: {}",
+        format_duration(pipeline.surface_diagnostics)
+    );
     eprintln!(
         "  finalize: {}  (iterations={}, finalized_defs={})",
         format_duration(finalize.total),
@@ -3688,7 +3729,20 @@ fn print_infer_phase_timings(
         "      prune_edges: {}",
         format_duration(finalize.commit_ready.prune_edges)
     );
-    eprintln!("  render: {}", format_duration(render));
+    eprintln!("  render: {}", format_duration(pipeline.render));
+    eprintln!(
+        "  binding_names: {}",
+        format_duration(pipeline.binding_names)
+    );
+    eprintln!(
+        "  quantified_counts: {}",
+        format_duration(pipeline.quantified_counts)
+    );
+    eprintln!("  core_export: {}", format_duration(pipeline.core_export));
+    eprintln!(
+        "  runtime_dependency_merge: {}",
+        format_duration(pipeline.runtime_dependency_merge)
+    );
 }
 
 fn format_duration(duration: Duration) -> String {
@@ -3710,6 +3764,45 @@ struct InferLowerOutput {
     diagnostic_source: String,
     lower_profile: InferSourceLowerProfile,
     runtime_dependencies: Option<CompiledRuntimeBundle>,
+    pipeline_timings: InferPipelineTimings,
+}
+
+#[derive(Default)]
+struct InferPipelineTimings {
+    enabled: bool,
+    std_artifact_manifest: Duration,
+    std_artifact_read: Duration,
+    std_artifact_import: Duration,
+    std_artifact_prepare_finalize: Duration,
+    std_artifact_build: Duration,
+    std_artifact_write: Duration,
+    std_artifact_manifests: usize,
+    std_artifact_reads: usize,
+    std_artifact_writes: usize,
+    type_errors: Duration,
+    surface_diagnostics: Duration,
+    render: Duration,
+    binding_names: Duration,
+    quantified_counts: Duration,
+    core_export: Duration,
+    runtime_dependency_merge: Duration,
+}
+
+impl InferPipelineTimings {
+    fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            ..Self::default()
+        }
+    }
+
+    fn start(&self) -> Option<Instant> {
+        self.enabled.then(Instant::now)
+    }
+
+    fn elapsed(start: Option<Instant>) -> Duration {
+        start.map_or(Duration::ZERO, |start| start.elapsed())
+    }
 }
 
 fn lower_infer_sources(
@@ -3762,12 +3855,17 @@ fn lower_infer_source_set_with_cache(
     collect: Duration,
     options: &CliOptions,
 ) -> InferLowerOutput {
+    let mut pipeline_timings = InferPipelineTimings::new(options.infer_phase_timings);
     let cache = CompiledUnitArtifactCache::from_paths(
         &yulang_sources::YulangCachePaths::for_project(workspace_root()),
     );
-    if let Some(artifacts) = read_cached_std_unit_artifacts(source_set, &cache) {
+    if let Some(artifacts) =
+        read_cached_std_unit_artifacts(source_set, &cache, &mut pipeline_timings)
+    {
+        let import_start = pipeline_timings.start();
         match lower_source_set_with_compiled_unit_artifacts_profiled(source_set, &artifacts) {
             Ok(lowered) => {
+                pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
                 let mut profile = lowered.lowered.profile;
                 profile.collect = collect;
                 return infer_lower_output(
@@ -3775,9 +3873,11 @@ fn lower_infer_source_set_with_cache(
                     fallback_diagnostic_source,
                     profile,
                     Some(lowered.runtime),
+                    pipeline_timings,
                 );
             }
             Err(err) => {
+                pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
                 if env::var_os("YULANG_DEBUG_STD_ARTIFACT_CACHE").is_some() {
                     eprintln!("std artifact cache import failed: {err:?}");
                 }
@@ -3794,10 +3894,24 @@ fn lower_infer_source_set_with_cache(
         }
     };
     lowered.profile.collect = collect;
+    let prepare_finalize_start = pipeline_timings.start();
     lowered.lowered.state.finalize_compact_results_profiled();
-    write_std_unit_artifacts(source_set, &lowered.lowered.state, &cache);
+    pipeline_timings.std_artifact_prepare_finalize =
+        InferPipelineTimings::elapsed(prepare_finalize_start);
+    write_std_unit_artifacts(
+        source_set,
+        &lowered.lowered.state,
+        &cache,
+        &mut pipeline_timings,
+    );
     let profile = lowered.profile;
-    infer_lower_output(lowered.lowered, fallback_diagnostic_source, profile, None)
+    infer_lower_output(
+        lowered.lowered,
+        fallback_diagnostic_source,
+        profile,
+        None,
+        pipeline_timings,
+    )
 }
 
 fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
@@ -3901,6 +4015,7 @@ fn infer_lower_output(
     fallback_diagnostic_source: &str,
     lower_profile: InferSourceLowerProfile,
     runtime_dependencies: Option<CompiledRuntimeBundle>,
+    pipeline_timings: InferPipelineTimings,
 ) -> InferLowerOutput {
     InferLowerOutput {
         state: lowered.state,
@@ -3911,26 +4026,38 @@ fn infer_lower_output(
         },
         lower_profile,
         runtime_dependencies,
+        pipeline_timings,
     }
 }
 
 fn read_cached_std_unit_artifacts(
     source_set: &SourceSet,
     cache: &CompiledUnitArtifactCache,
+    timings: &mut InferPipelineTimings,
 ) -> Option<Vec<CompiledUnitArtifact>> {
+    let manifest_start = timings.start();
     let manifests = source_set
         .compiled_unit_syntax_artifacts()
         .into_iter()
         .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
         .map(|artifact| artifact.manifest)
         .collect::<Vec<_>>();
+    timings.std_artifact_manifest += InferPipelineTimings::elapsed(manifest_start);
+    if timings.enabled {
+        timings.std_artifact_manifests = manifests.len();
+    }
     if manifests.is_empty() {
         return None;
     }
 
     let mut artifacts = Vec::with_capacity(manifests.len());
     for manifest in manifests {
+        let read_start = timings.start();
         artifacts.push(cache.read_for_manifest(&manifest).ok()?);
+        timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
+        if timings.enabled {
+            timings.std_artifact_reads += 1;
+        }
     }
     Some(artifacts)
 }
@@ -3939,10 +4066,19 @@ fn write_std_unit_artifacts(
     source_set: &SourceSet,
     state: &InferLowerState,
     cache: &CompiledUnitArtifactCache,
+    timings: &mut InferPipelineTimings,
 ) {
-    for artifact in build_compiled_unit_artifacts(source_set, state) {
+    let build_start = timings.start();
+    let artifacts = build_compiled_unit_artifacts(source_set, state);
+    timings.std_artifact_build += InferPipelineTimings::elapsed(build_start);
+    for artifact in artifacts {
         if artifact.manifest.origin == SourceCompilationUnitOrigin::Std {
+            let write_start = timings.start();
             let _ = cache.write(&artifact);
+            timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
+            if timings.enabled {
+                timings.std_artifact_writes += 1;
+            }
         }
     }
 }
