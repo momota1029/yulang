@@ -2372,6 +2372,87 @@ fn compiled_runtime_bundle_merges_before_user_program_and_remaps_user_evidence()
     assert_eq!(evidence.source_edge, Some(1));
 }
 
+#[test]
+fn compiled_runtime_bundle_prunes_unreachable_dependencies_before_user_program() {
+    let kept = CorePath::new(vec![
+        CoreName("dep".to_string()),
+        CoreName("kept".to_string()),
+    ]);
+    let dropped = CorePath::new(vec![
+        CoreName("dep".to_string()),
+        CoreName("dropped".to_string()),
+    ]);
+    let dependency = CompiledRuntimeSurface {
+        program: yulang_typed_ir::CoreProgram {
+            program: yulang_typed_ir::PrincipalModule {
+                bindings: vec![
+                    lit_binding(kept.clone(), "1"),
+                    lit_binding(dropped.clone(), "2"),
+                ],
+                ..yulang_typed_ir::PrincipalModule::default()
+            },
+            graph: yulang_typed_ir::CoreGraphView {
+                bindings: vec![
+                    binding_graph_node(kept.clone()),
+                    binding_graph_node(dropped.clone()),
+                ],
+                runtime_symbols: vec![
+                    runtime_value_symbol(kept.clone()),
+                    runtime_value_symbol(dropped.clone()),
+                ],
+                ..yulang_typed_ir::CoreGraphView::default()
+            },
+            ..yulang_typed_ir::CoreProgram::default()
+        },
+    };
+    let user = yulang_typed_ir::CoreProgram {
+        program: yulang_typed_ir::PrincipalModule {
+            root_exprs: vec![yulang_typed_ir::Expr::Var(kept.clone())],
+            roots: vec![yulang_typed_ir::PrincipalRoot::Expr(0)],
+            ..yulang_typed_ir::PrincipalModule::default()
+        },
+        graph: yulang_typed_ir::CoreGraphView {
+            root_exprs: vec![yulang_typed_ir::ExprGraphNode {
+                owner: yulang_typed_ir::GraphOwner::RootExpr(0),
+                bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+            }],
+            ..yulang_typed_ir::CoreGraphView::default()
+        },
+        ..yulang_typed_ir::CoreProgram::default()
+    };
+    let bundle = CompiledRuntimeBundle::from_surfaces([&dependency]).unwrap();
+    let merged = bundle.merge_with_user_program(user).unwrap();
+
+    assert!(
+        merged
+            .program
+            .bindings
+            .iter()
+            .any(|binding| binding.name == kept)
+    );
+    assert!(
+        !merged
+            .program
+            .bindings
+            .iter()
+            .any(|binding| binding.name == dropped)
+    );
+    assert!(
+        merged
+            .graph
+            .runtime_symbols
+            .iter()
+            .any(|symbol| symbol.path == kept)
+    );
+    assert!(
+        !merged
+            .graph
+            .runtime_symbols
+            .iter()
+            .any(|symbol| symbol.path == dropped)
+    );
+}
+
 fn primitive_type_node(name: &str) -> yulang_typed_ir::PrimitiveTypeGraphNode {
     let family = match name {
         "int" => yulang_typed_ir::PrimitiveTypeFamily::Int,
@@ -2381,6 +2462,32 @@ fn primitive_type_node(name: &str) -> yulang_typed_ir::PrimitiveTypeGraphNode {
     yulang_typed_ir::PrimitiveTypeGraphNode {
         family,
         path: CorePath::from_name(CoreName(name.to_string())),
+    }
+}
+
+fn lit_binding(name: CorePath, value: &str) -> yulang_typed_ir::PrincipalBinding {
+    yulang_typed_ir::PrincipalBinding {
+        name,
+        scheme: yulang_typed_ir::Scheme {
+            requirements: Vec::new(),
+            body: yulang_typed_ir::Type::Any,
+        },
+        body: yulang_typed_ir::Expr::Lit(yulang_typed_ir::Lit::Int(value.to_string())),
+    }
+}
+
+fn binding_graph_node(binding: CorePath) -> yulang_typed_ir::BindingGraphNode {
+    yulang_typed_ir::BindingGraphNode {
+        binding,
+        scheme_body: yulang_typed_ir::Type::Any,
+        body_bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+    }
+}
+
+fn runtime_value_symbol(path: CorePath) -> yulang_typed_ir::RuntimeSymbol {
+    yulang_typed_ir::RuntimeSymbol {
+        path,
+        kind: yulang_typed_ir::RuntimeSymbolKind::Value,
     }
 }
 

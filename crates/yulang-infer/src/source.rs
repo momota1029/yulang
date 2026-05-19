@@ -2703,6 +2703,7 @@ fn merge_runtime_bundle_with_user_program(
         root_expr_offset,
     );
     merge_core_program_into(&mut merged, user_program)?;
+    prune_core_program_to_reachable_runtime(&mut merged);
     Ok(merged)
 }
 
@@ -2741,6 +2742,224 @@ fn prune_user_program_dependency_runtime_duplicates(
         .graph
         .runtime_symbols
         .retain(|symbol| !dependency_runtime_symbols.contains(&symbol.path));
+}
+
+fn prune_core_program_to_reachable_runtime(program: &mut CoreProgram) {
+    let bindings_by_path = program
+        .program
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.body.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = HashSet::new();
+    let mut stack = Vec::new();
+
+    for expr in &program.program.root_exprs {
+        collect_core_expr_runtime_paths(expr, &mut stack);
+    }
+    for root in &program.program.roots {
+        match root {
+            typed_ir::PrincipalRoot::Binding(path) => stack.push(path.clone()),
+            typed_ir::PrincipalRoot::Expr(index) => {
+                if let Some(expr) = program.program.root_exprs.get(*index) {
+                    collect_core_expr_runtime_paths(expr, &mut stack);
+                }
+            }
+        }
+    }
+
+    // Role implementation members can become concrete principal targets during
+    // monomorphization, after this typed CoreProgram-level pruning pass.
+    for role_impl in &program.graph.role_impls {
+        stack.extend(role_impl.members.iter().map(|member| member.value.clone()));
+    }
+
+    while let Some(path) = stack.pop() {
+        if !reachable.insert(path.clone()) {
+            continue;
+        }
+        let Some(body) = bindings_by_path.get(&path) else {
+            continue;
+        };
+        collect_core_expr_runtime_paths(body, &mut stack);
+    }
+
+    program
+        .program
+        .bindings
+        .retain(|binding| reachable.contains(&binding.name));
+    program.program.roots.retain(|root| match root {
+        typed_ir::PrincipalRoot::Binding(path) => reachable.contains(path),
+        typed_ir::PrincipalRoot::Expr(_) => true,
+    });
+    program
+        .graph
+        .bindings
+        .retain(|node| reachable.contains(&node.binding));
+    program
+        .graph
+        .runtime_symbols
+        .retain(|symbol| reachable.contains(&symbol.path));
+    program.graph.role_impls.retain(|role_impl| {
+        role_impl
+            .members
+            .iter()
+            .any(|member| reachable.contains(&member.value))
+    });
+}
+
+fn collect_core_expr_runtime_paths(expr: &typed_ir::Expr, out: &mut Vec<typed_ir::Path>) {
+    match expr {
+        typed_ir::Expr::Var(path) => out.push(path.clone()),
+        typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => {}
+        typed_ir::Expr::Lambda { body, .. } => collect_core_expr_runtime_paths(body, out),
+        typed_ir::Expr::Apply {
+            callee,
+            arg,
+            evidence,
+        } => {
+            collect_core_expr_runtime_paths(callee, out);
+            collect_core_expr_runtime_paths(arg, out);
+            if let Some(target) = evidence
+                .as_ref()
+                .and_then(|evidence| evidence.principal_elaboration.as_ref())
+                .and_then(|plan| plan.target.as_ref())
+            {
+                out.push(target.clone());
+            }
+        }
+        typed_ir::Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_core_expr_runtime_paths(cond, out);
+            collect_core_expr_runtime_paths(then_branch, out);
+            collect_core_expr_runtime_paths(else_branch, out);
+        }
+        typed_ir::Expr::Tuple(items) => {
+            for item in items {
+                collect_core_expr_runtime_paths(item, out);
+            }
+        }
+        typed_ir::Expr::Record { fields, spread } => {
+            for field in fields {
+                collect_core_expr_runtime_paths(&field.value, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    typed_ir::RecordSpreadExpr::Head(expr)
+                    | typed_ir::RecordSpreadExpr::Tail(expr) => {
+                        collect_core_expr_runtime_paths(expr, out);
+                    }
+                }
+            }
+        }
+        typed_ir::Expr::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_core_expr_runtime_paths(value, out);
+            }
+        }
+        typed_ir::Expr::Select { base, .. } => collect_core_expr_runtime_paths(base, out),
+        typed_ir::Expr::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_core_expr_runtime_paths(scrutinee, out);
+            for arm in arms {
+                collect_core_pattern_runtime_paths(&arm.pattern, out);
+                if let Some(guard) = &arm.guard {
+                    collect_core_expr_runtime_paths(guard, out);
+                }
+                collect_core_expr_runtime_paths(&arm.body, out);
+            }
+        }
+        typed_ir::Expr::Block { stmts, tail } => {
+            for stmt in stmts {
+                collect_core_stmt_runtime_paths(stmt, out);
+            }
+            if let Some(tail) = tail {
+                collect_core_expr_runtime_paths(tail, out);
+            }
+        }
+        typed_ir::Expr::BindHere { expr }
+        | typed_ir::Expr::Coerce { expr, .. }
+        | typed_ir::Expr::Pack { expr, .. } => collect_core_expr_runtime_paths(expr, out),
+        typed_ir::Expr::Handle { body, arms, .. } => {
+            collect_core_expr_runtime_paths(body, out);
+            for arm in arms {
+                out.push(arm.effect.clone());
+                collect_core_pattern_runtime_paths(&arm.payload, out);
+                if let Some(guard) = &arm.guard {
+                    collect_core_expr_runtime_paths(guard, out);
+                }
+                collect_core_expr_runtime_paths(&arm.body, out);
+            }
+        }
+    }
+}
+
+fn collect_core_stmt_runtime_paths(stmt: &typed_ir::Stmt, out: &mut Vec<typed_ir::Path>) {
+    match stmt {
+        typed_ir::Stmt::Let { pattern, value } => {
+            collect_core_pattern_runtime_paths(pattern, out);
+            collect_core_expr_runtime_paths(value, out);
+        }
+        typed_ir::Stmt::Expr(expr) => collect_core_expr_runtime_paths(expr, out),
+        typed_ir::Stmt::Module { body, .. } => collect_core_expr_runtime_paths(body, out),
+    }
+}
+
+fn collect_core_pattern_runtime_paths(pattern: &typed_ir::Pattern, out: &mut Vec<typed_ir::Path>) {
+    match pattern {
+        typed_ir::Pattern::Wildcard | typed_ir::Pattern::Bind(_) | typed_ir::Pattern::Lit(_) => {}
+        typed_ir::Pattern::Tuple(items) => {
+            for item in items {
+                collect_core_pattern_runtime_paths(item, out);
+            }
+        }
+        typed_ir::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_core_pattern_runtime_paths(item, out);
+            }
+            if let Some(spread) = spread {
+                collect_core_pattern_runtime_paths(spread, out);
+            }
+            for item in suffix {
+                collect_core_pattern_runtime_paths(item, out);
+            }
+        }
+        typed_ir::Pattern::Record { fields, spread } => {
+            for field in fields {
+                collect_core_pattern_runtime_paths(&field.pattern, out);
+                if let Some(default) = &field.default {
+                    collect_core_expr_runtime_paths(default, out);
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    typed_ir::RecordSpreadPattern::Head(pattern)
+                    | typed_ir::RecordSpreadPattern::Tail(pattern) => {
+                        collect_core_pattern_runtime_paths(pattern, out);
+                    }
+                }
+            }
+        }
+        typed_ir::Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_core_pattern_runtime_paths(value, out);
+            }
+        }
+        typed_ir::Pattern::Or { left, right } => {
+            collect_core_pattern_runtime_paths(left, out);
+            collect_core_pattern_runtime_paths(right, out);
+        }
+        typed_ir::Pattern::As { pattern, .. } => collect_core_pattern_runtime_paths(pattern, out),
+    }
 }
 
 fn next_expected_edge_id(program: &CoreProgram) -> u32 {

@@ -12,7 +12,8 @@ fn main() {
     println!("cargo:rerun-if-changed=../../lib/std");
 
     let source_set = std_source_set();
-    let lowered = yulang_infer::lower_source_set(&source_set);
+    let mut lowered = yulang_infer::lower_source_set(&source_set);
+    lowered.state.finalize_compact_results_profiled();
     let artifacts = yulang_infer::build_compiled_unit_artifacts(&source_set, &lowered.state);
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR should be set"));
     let path = out_dir.join("std_compiled_unit_artifacts.bin");

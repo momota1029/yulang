@@ -42,9 +42,12 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
   の release `control-vm-emit` では miss が `lower=523.273ms`
   (`infer_lower=471.947ms`, `std lower_roots=467.173ms`)、hit が
   `lower=26.094ms` (`parse=0ns`, `infer_lower=0ns`, `std_cache: hits=1`)。
-  hit 側は runtime dependency bundle がまだ太く、`runtime_lower=125.796ms` /
-  `monomorphize=87.254ms` なので、次に compile-time を詰めるなら cached std
-  dependency pruning が候補。
+  その後、cached runtime dependencies を user program へ merge した直後に typed
+  `CoreProgram` の root reachability pruning を入れ、hit 側の runtime pipeline も
+  `runtime_lower=28.457ms` / `monomorphize=36.449ms` まで戻した。hit の
+  source lower は `25.525ms`。
+  runtime surface の意味が変わったので compiled-unit artifact format は `v2`。
+  これにより、`std::int::add` を含まない古い `v1` cache は自動的に読まれない。
 
 完了履歴:
 
