@@ -909,6 +909,103 @@ fn locate_file_span(
     })
 }
 
+fn rename_for_source(
+    entry_uri: Url,
+    entry_source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+    position: Position,
+    new_name: &str,
+) -> Option<WorkspaceEdit> {
+    if !is_valid_rename_identifier(new_name) {
+        return None;
+    }
+    let target = hover_target_at(entry_source, position)?;
+    let mut lowered =
+        lower_virtual_source_with_options(entry_source, base_dir, options).ok()?;
+    let def = resolve_target_def_id(&mut lowered.state, &target)?;
+
+    // operator は v1 では rename しない（fixity 区分が表示用ラベルから外れているため）。
+    if lowered.state.ctx.operator_fixity(def).is_some() {
+        return None;
+    }
+
+    let def_span = lowered.state.def_spans.get(&def).copied()?;
+    if !is_user_writable_file(&lowered.state, def_span.file) {
+        return None;
+    }
+
+    let mut spans: Vec<FileSpan> = Vec::new();
+    spans.push(def_span);
+    for (span, candidate) in &lowered.state.value_use_spans {
+        if *candidate == def && is_user_writable_file(&lowered.state, span.file) {
+            spans.push(*span);
+        }
+    }
+    spans.sort_by_key(|span| (span.file.0, span.range.start()));
+    spans.dedup();
+
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let mut file_sources: HashMap<yulang_infer::FileId, (Url, Vec<usize>)> = HashMap::new();
+    let entry_file_id = lowered.state.entry_file_id();
+
+    for span in spans {
+        let (uri, line_starts_cached) = match file_sources.get(&span.file) {
+            Some(cached) => cached.clone(),
+            None => {
+                let (uri, source) = if Some(span.file) == entry_file_id {
+                    (entry_uri.clone(), entry_source.to_string())
+                } else {
+                    let info = lowered.state.file_info(span.file)?;
+                    let uri = Url::from_file_path(&info.path).ok()?;
+                    let source = std::fs::read_to_string(&info.path).ok()?;
+                    (uri, source)
+                };
+                let line_starts_owned = line_starts(&source);
+                let entry = (uri, line_starts_owned);
+                file_sources.insert(span.file, entry.clone());
+                entry
+            }
+        };
+        let range = byte_range_to_lsp(&line_starts_cached, span.range);
+        changes
+            .entry(uri)
+            .or_default()
+            .push(TextEdit {
+                range,
+                new_text: new_name.to_string(),
+            });
+    }
+
+    if changes.is_empty() {
+        return None;
+    }
+
+    Some(WorkspaceEdit {
+        changes: Some(changes),
+        document_changes: None,
+        change_annotations: None,
+    })
+}
+
+fn is_user_writable_file(state: &LowerState, file: yulang_infer::FileId) -> bool {
+    state
+        .file_info(file)
+        .map(|info| !matches!(info.origin, yulang_sources::SourceOrigin::Std))
+        .unwrap_or(false)
+}
+
+fn is_valid_rename_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 fn resolve_target_def_id(state: &mut LowerState, target: &HoverTarget) -> Option<DefId> {
     if let Some((_, _, result_tv, _)) = resolve_hover_target_selection_tvs(state, target) {
         if let Some(def) = state.resolved_selection_def(result_tv) {
@@ -1138,6 +1235,7 @@ impl LanguageServer for Backend {
                 ),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
@@ -1355,6 +1453,41 @@ impl LanguageServer for Backend {
         .unwrap_or_default();
         Ok(location.map(GotoDefinitionResponse::Scalar))
     }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let new_name = params.new_name;
+        let source = self
+            .documents
+            .lock()
+            .unwrap()
+            .get(&uri)
+            .cloned()
+            .or_else(|| {
+                uri.to_file_path()
+                    .ok()
+                    .and_then(|path| std::fs::read_to_string(path).ok())
+            });
+        let Some(source) = source else {
+            return Ok(None);
+        };
+        let base_dir = uri.to_file_path().ok().and_then(|path| {
+            if path.is_dir() {
+                Some(path)
+            } else {
+                path.parent().map(|parent| parent.to_path_buf())
+            }
+        });
+        let options = self.source_options(base_dir.as_deref());
+        let uri_for_task = uri.clone();
+        let workspace_edit = tokio::task::spawn_blocking(move || {
+            rename_for_source(uri_for_task, &source, base_dir, options, position, &new_name)
+        })
+        .await
+        .unwrap_or_default();
+        Ok(workspace_edit)
+    }
 }
 
 #[cfg(test)]
@@ -1392,6 +1525,83 @@ mod tests {
             .expect("value symbol");
         assert_eq!(value.selection_range.start.line, 2);
         assert_eq!(value.selection_range.start.character, 3);
+    }
+
+    #[test]
+    fn rename_replaces_local_binding_definition_and_uses() {
+        let source = "my foo = 1\nmy bar = foo + foo\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let edit = rename_for_source(
+            uri.clone(),
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 0,
+                character: 3,
+            },
+            "renamed",
+        )
+        .expect("rename should return edits");
+
+        let changes = edit.changes.expect("workspace edit should have changes");
+        let edits = changes.get(&uri).expect("edits for entry file");
+        assert_eq!(edits.len(), 3, "definition + two uses, got {edits:?}");
+        let texts: Vec<&str> = edits.iter().map(|e| e.new_text.as_str()).collect();
+        assert!(texts.iter().all(|t| *t == "renamed"));
+        let ranges: Vec<(u32, u32)> = edits
+            .iter()
+            .map(|e| (e.range.start.line, e.range.start.character))
+            .collect();
+        assert!(ranges.contains(&(0, 3)), "def site: {ranges:?}");
+        assert!(ranges.contains(&(1, 9)), "first use: {ranges:?}");
+        assert!(ranges.contains(&(1, 15)), "second use: {ranges:?}");
+    }
+
+    #[test]
+    fn rename_refuses_invalid_identifier() {
+        let source = "my foo = 1\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let edit = rename_for_source(
+            uri,
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 0,
+                character: 3,
+            },
+            "1bad",
+        );
+        assert!(edit.is_none(), "rename to '1bad' should be refused");
+    }
+
+    #[test]
+    fn rename_refuses_when_def_lives_in_std() {
+        // `each` is defined in lib/std/undet.yu, so renaming it from the entry file
+        // must refuse to avoid rewriting library sources.
+        let source = "my a = each [1, 2, 3]\n";
+        let uri = Url::parse("file:///tmp/test.yu").unwrap();
+        let edit = rename_for_source(
+            uri,
+            source,
+            None,
+            std_source_options(),
+            position_of(source, "each").expect("each position"),
+            "every",
+        );
+        assert!(
+            edit.is_none(),
+            "rename of `each` (defined in std) must be refused"
+        );
     }
 
     #[test]
