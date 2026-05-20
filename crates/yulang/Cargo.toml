@@ -25,6 +25,7 @@ either = "1.13.0"
 im = "15.1.0"
 reborrow-generic = "0.1.2"
 rowan = "0.15"
+serde_json = "1"
 tower-lsp = { version = "0.20", optional = true }
 tokio = { version = "1", features = ["full"], optional = true }
 unicode-ident = "1"

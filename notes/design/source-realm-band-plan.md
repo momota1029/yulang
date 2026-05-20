@@ -493,6 +493,10 @@ Current first slice:
   into structured constraints, `YulangLockFile::from_source_set` can project the
   current `SourceSet` into a lock-shaped value, and lock validation rejects
   conflicting resolved realms for the same target/anchor pair.
+- `yulang lock <path>` writes the current lock-shaped source graph to
+  `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
+  file, validates its `with` constraints, and fails if the generated graph would
+  change it.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by

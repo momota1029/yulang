@@ -125,6 +125,7 @@ struct CliOptions {
     profile_repeat: usize,
     install_std: bool,
     cache_op: Option<CacheOp>,
+    lock_op: Option<LockOp>,
     server: bool,
 }
 
@@ -147,6 +148,12 @@ enum NativeOutput {
 enum CacheOp {
     Clear,
     Path,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LockOp {
+    check: bool,
+    out: Option<String>,
 }
 
 #[derive(clap::Parser)]
@@ -211,6 +218,8 @@ enum Cmd {
         #[command(subcommand)]
         op: CacheCmd,
     },
+    /// Generate or validate yulang.lock for the current source graph
+    Lock(LockArgs),
     /// Install the embedded std sources and exit
     #[command(hide = true)]
     InstallStd,
@@ -247,6 +256,17 @@ struct RunArgs {
 struct BuildArgs {
     path: Option<String>,
     /// Output path for the YUIR artifact (defaults to target/yulang/yuir/)
+    #[arg(long, value_name = "PATH")]
+    out: Option<String>,
+}
+
+#[derive(clap::Args)]
+struct LockArgs {
+    path: Option<String>,
+    /// Validate the generated lock graph without writing a file
+    #[arg(long)]
+    check: bool,
+    /// Output path for the lock file (defaults to ./yulang.lock)
     #[arg(long, value_name = "PATH")]
     out: Option<String>,
 }
@@ -391,6 +411,7 @@ fn parse_args() -> CliOptions {
         },
         install_std: false,
         cache_op: None,
+        lock_op: None,
         server: false,
     };
     match cli.cmd {
@@ -501,6 +522,10 @@ fn parse_args() -> CliOptions {
                 CacheCmd::Clear => CacheOp::Clear,
                 CacheCmd::Path => CacheOp::Path,
             });
+        }
+        Cmd::Lock(LockArgs { path, check, out }) => {
+            opts.path = path;
+            opts.lock_op = Some(LockOp { check, out });
         }
         Cmd::Debug { op } => match op {
             DebugOp::CompareI64 { path } => {
@@ -681,6 +706,11 @@ fn run(options: &CliOptions) {
         return;
     }
 
+    if let Some(op) = &options.lock_op {
+        run_lock_op_or_exit(op, options);
+        return;
+    }
+
     if options.install_std {
         let root = default_versioned_std_root();
         if let Err(err) = install_embedded_std(&root) {
@@ -767,6 +797,107 @@ fn run_cache_op_or_exit(op: CacheOp) {
             }
         },
     }
+}
+
+fn run_lock_op_or_exit(op: &LockOp, options: &CliOptions) {
+    let source_set = collect_lock_source_set_or_exit(options);
+    let lock = match yulang_sources::YulangLockFile::from_source_set(&source_set) {
+        Ok(lock) => lock,
+        Err(err) => {
+            eprintln!("{err}");
+            process::exit(1);
+        }
+    };
+    let output_path = lock_output_path(op);
+    if op.check {
+        let existing = read_lock_file_or_exit(&output_path);
+        if let Err(err) = existing.validate_with_constraints() {
+            eprintln!("{err}");
+            process::exit(1);
+        }
+        if existing != lock {
+            eprintln!("lock file {} is out of date", output_path.display());
+            process::exit(1);
+        }
+        println!(
+            "lock: ok realms={} dependencies={} with_constraints={}",
+            lock.realms.len(),
+            lock.dependencies.len(),
+            lock.with_constraints.len()
+        );
+        return;
+    }
+
+    ensure_parent_dir_or_exit(&output_path, "lock file");
+    let json = match serde_json::to_string_pretty(&lock) {
+        Ok(json) => json,
+        Err(err) => {
+            eprintln!("failed to encode lock file: {err}");
+            process::exit(1);
+        }
+    };
+    if let Err(err) = fs::write(&output_path, format!("{json}\n")) {
+        eprintln!("failed to write lock file {}: {err}", output_path.display());
+        process::exit(1);
+    }
+    println!("lock: {}", output_path.display());
+}
+
+fn read_lock_file_or_exit(path: &Path) -> yulang_sources::YulangLockFile {
+    let source = match fs::read_to_string(path) {
+        Ok(source) => source,
+        Err(err) => {
+            eprintln!("failed to read lock file {}: {err}", path.display());
+            process::exit(1);
+        }
+    };
+    match serde_json::from_str(&source) {
+        Ok(lock) => lock,
+        Err(err) => {
+            eprintln!("failed to decode lock file {}: {err}", path.display());
+            process::exit(1);
+        }
+    }
+}
+
+fn collect_lock_source_set_or_exit(options: &CliOptions) -> SourceSet {
+    match options.path.as_deref() {
+        Some(path) => {
+            match collect_source_files_with_options(
+                path,
+                source_options(options, path_base_dir(path)),
+            ) {
+                Ok(source_set) => source_set,
+                Err(err) => {
+                    eprintln!("{err}");
+                    process::exit(1);
+                }
+            }
+        }
+        None => {
+            let source = read_source(None);
+            let base_dir = env::current_dir().ok();
+            match collect_virtual_source_files_with_options(
+                &source,
+                base_dir.clone(),
+                source_options(options, base_dir.as_deref()),
+            ) {
+                Ok(source_set) => source_set,
+                Err(err) => {
+                    eprintln!("{err}");
+                    process::exit(1);
+                }
+            }
+        }
+    }
+}
+
+fn lock_output_path(op: &LockOp) -> PathBuf {
+    if let Some(path) = &op.out {
+        return PathBuf::from(path);
+    }
+    let project_root = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    yulang_sources::YulangCachePaths::for_project(&project_root).lock_path(project_root)
 }
 
 fn start_cpu_profile(options: &CliOptions) -> Option<CpuProfileGuard> {
@@ -6828,6 +6959,7 @@ mod tests {
             profile_repeat: 1,
             install_std: false,
             cache_op: None,
+            lock_op: None,
             server: false,
         }
     }
