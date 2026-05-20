@@ -451,9 +451,10 @@ yulang.lock
 
 `realm.toml` declares the current realm when a project wants explicit realm
 identity. It is not required to declare bands. `yulang.lock` records resolved
-realm dependencies and revisions. The lock file is not a cache; it is part of
-reproducible source identity. Fetched realm contents and compiled artifacts
-live in the persistent user cache.
+realm dependencies, revisions, and frozen source hashes when a resolved realm
+comes from a snapshot. The lock file is not a cache; it is part of reproducible
+source identity. Fetched realm contents and compiled artifacts live in the
+persistent user cache.
 
 `yulang realm freeze --version <version> <path>` copies the editable realm
 source into `.yulang/versions/<version>/`, rewrites the frozen `realm.toml` to
@@ -535,6 +536,8 @@ Current first slice:
   same resolved target realm version as the anchor. When source collection loads
   that realm, generated lock output records the resolved target version even if
   the `use` omitted an explicit suffix.
+- generated locks record frozen realm snapshot source hashes, and locked realm
+  imports reject a source path whose `snapshot.json` hash no longer matches.
 - exact dependency requirements such as `ui = "2.4.0"` are enough to select a
   matching frozen local snapshot when the `use` itself omits a version suffix.
   The local resolver also supports small SemVer-style `^` and `~` requirements

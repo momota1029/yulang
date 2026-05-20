@@ -566,6 +566,14 @@ fn read_frozen_realm_snapshot(path: &FsPath) -> Result<FrozenRealmSnapshot, Free
     })
 }
 
+pub(crate) fn frozen_realm_source_hash(root: &FsPath) -> Option<u64> {
+    let snapshot_path = root.join("snapshot.json");
+    let source = fs::read_to_string(snapshot_path).ok()?;
+    serde_json::from_str::<FrozenRealmSnapshot>(&source)
+        .ok()
+        .map(|snapshot| snapshot.source_hash)
+}
+
 fn freeze_temp_root(snapshot_root: &FsPath) -> PathBuf {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1119,6 +1127,12 @@ pub enum SourceLoadError {
         path: PathBuf,
         message: String,
     },
+    LockedRealmHashMismatch {
+        path: PathBuf,
+        realm: ResolvedRealmId,
+        expected: u64,
+        actual: Option<u64>,
+    },
     ModuleNotFound {
         parent: PathBuf,
         name: Name,
@@ -1141,6 +1155,23 @@ impl fmt::Display for SourceLoadError {
             }
             SourceLoadError::InvalidLockFile { path, message } => {
                 write!(f, "invalid lock file {}: {message}", path.display())
+            }
+            SourceLoadError::LockedRealmHashMismatch {
+                path,
+                realm,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "locked realm {} at {} has a different source hash: expected={expected:016x}",
+                    format_resolved_realm(realm),
+                    path.display()
+                )?;
+                match actual {
+                    Some(actual) => write!(f, " actual={actual:016x}"),
+                    None => write!(f, " actual=<missing snapshot>"),
+                }
             }
             SourceLoadError::ModuleNotFound { parent, name } => {
                 write!(
@@ -1405,7 +1436,7 @@ impl SourceLoader {
                 continue;
             };
             if let Some(imported) =
-                self.resolve_import_module_file(&realm, &module_path, &use_.import)
+                self.resolve_import_module_file(&realm, &module_path, &use_.import)?
             {
                 imported_paths.push(imported);
             }
@@ -1492,7 +1523,7 @@ impl SourceLoader {
                 continue;
             };
             if let Some(imported) =
-                self.resolve_import_module_file(&realm, &module_path, &use_.import)
+                self.resolve_import_module_file(&realm, &module_path, &use_.import)?
             {
                 imported_paths.push(imported);
             }
@@ -1537,9 +1568,9 @@ impl SourceLoader {
         requester_realm: &ResolvedRealmId,
         module_path: &ModulePath,
         import: &UseImport,
-    ) -> Option<ResolvedImport> {
+    ) -> Result<Option<ResolvedImport>, SourceLoadError> {
         if module_path.segments.is_empty() {
-            return None;
+            return Ok(None);
         }
 
         if module_path
@@ -1547,63 +1578,81 @@ impl SourceLoader {
             .first()
             .is_some_and(|name| name.0 == "std")
         {
-            let std_root = self.options.std_root.as_ref()?;
-            let path = resolve_module_path_under_root(std_root, &module_path.segments[1..])?;
-            return Some(ResolvedImport {
+            let Some(std_root) = self.options.std_root.as_ref() else {
+                return Ok(None);
+            };
+            let Some(path) = resolve_module_path_under_root(std_root, &module_path.segments[1..])
+            else {
+                return Ok(None);
+            };
+            return Ok(Some(ResolvedImport {
                 path,
                 module_path: module_path.clone(),
                 origin: SourceOrigin::Std,
                 realm: requester_realm.clone(),
                 realm_path_prefix_len: 0,
-            });
+            }));
         }
 
-        if let Some(external) = self.resolve_cross_realm_import(module_path, import) {
-            return Some(external);
+        if let Some(external) = self.resolve_cross_realm_import(module_path, import)? {
+            return Ok(Some(external));
         }
 
-        let path = self
+        let Some(path) = self
             .options
             .search_paths
             .iter()
-            .find_map(|root| resolve_module_path_under_root(root, &module_path.segments))?;
-        Some(ResolvedImport {
+            .find_map(|root| resolve_module_path_under_root(root, &module_path.segments))
+        else {
+            return Ok(None);
+        };
+        Ok(Some(ResolvedImport {
             path,
             module_path: module_path.clone(),
             origin: import_origin(module_path),
             realm: requester_realm.clone(),
             realm_path_prefix_len: 0,
-        })
+        }))
     }
 
     fn resolve_cross_realm_import(
         &mut self,
         module_path: &ModulePath,
         import: &UseImport,
-    ) -> Option<ResolvedImport> {
+    ) -> Result<Option<ResolvedImport>, SourceLoadError> {
         let import_version = import_realm_version(import);
         let with_version = self.resolve_locked_with_constraint_version(module_path, import);
-        let locked_version =
-            selected_import_version(import_version.as_ref(), with_version.as_ref())?;
-        if let Some(locked) = self.resolve_locked_realm_import(module_path, locked_version) {
-            return Some(locked);
+        let Some(locked_version) =
+            selected_import_version(import_version.as_ref(), with_version.as_ref())
+        else {
+            return Ok(None);
+        };
+        if let Some(locked) = self.resolve_locked_realm_import(module_path, locked_version)? {
+            return Ok(Some(locked));
         }
 
         let Some((dependency, identity_len)) =
             self.resolve_manifest_dependency_prefix(module_path, import_version.as_ref())
         else {
-            return None;
+            return Ok(None);
         };
         let selected_version = locked_version
             .cloned()
             .or_else(|| exact_dependency_version(&dependency.requirement));
         let (root_path, root) = if let Some(version) = selected_version.as_ref() {
-            self.find_existing_realm_root(&dependency.identity, Some(version))?
+            let Some(root) = self.find_existing_realm_root(&dependency.identity, Some(version))
+            else {
+                return Ok(None);
+            };
+            root
         } else {
-            self.find_existing_realm_root_for_requirement(
+            let Some(root) = self.find_existing_realm_root_for_requirement(
                 &dependency.identity,
                 &dependency.requirement,
-            )?
+            ) else {
+                return Ok(None);
+            };
+            root
         };
         let manifest = load_realm_manifest(&root_path).ok().flatten();
         let realm = manifest
@@ -1618,25 +1667,29 @@ impl SourceLoader {
             .unwrap_or_default();
         let module_tail = &module_path.segments[identity_len..];
         if module_tail.is_empty() {
-            return None;
+            return Ok(None);
         }
-        let path = resolve_module_path_under_root(&root_path, module_tail)?;
+        let Some(path) = resolve_module_path_under_root(&root_path, module_tail) else {
+            return Ok(None);
+        };
         self.register_realm(realm.clone(), root, dependencies);
-        Some(ResolvedImport {
+        Ok(Some(ResolvedImport {
             path,
             module_path: module_path.clone(),
             origin: SourceOrigin::User,
             realm,
             realm_path_prefix_len: identity_len,
-        })
+        }))
     }
 
     fn resolve_locked_realm_import(
         &mut self,
         module_path: &ModulePath,
         import_version: Option<&RealmVersion>,
-    ) -> Option<ResolvedImport> {
-        let lock = self.lock.clone()?;
+    ) -> Result<Option<ResolvedImport>, SourceLoadError> {
+        let Some(lock) = self.lock.clone() else {
+            return Ok(None);
+        };
         let locked = lock
             .realms
             .iter()
@@ -1647,27 +1700,35 @@ impl SourceLoader {
                 let identity_len = realm_identity_prefix_len(&realm.id.identity, module_path)?;
                 Some((identity_len, realm.clone()))
             })
-            .max_by_key(|(identity_len, _)| *identity_len)?;
+            .max_by_key(|(identity_len, _)| *identity_len);
+        let Some(locked) = locked else {
+            return Ok(None);
+        };
         let identity_len = locked.0;
         let realm = locked.1;
-        let root_path = locked_realm_source_path(&realm.source)?;
+        let Some(root_path) = locked_realm_source_path(&realm.source) else {
+            return Ok(None);
+        };
+        validate_locked_realm_source_hash(&root_path, &realm)?;
         let module_tail = &module_path.segments[identity_len..];
         if module_tail.is_empty() {
-            return None;
+            return Ok(None);
         }
-        let path = resolve_module_path_under_root(&root_path, module_tail)?;
+        let Some(path) = resolve_module_path_under_root(&root_path, module_tail) else {
+            return Ok(None);
+        };
         let manifest = load_realm_manifest(&root_path).ok().flatten();
         let dependencies = manifest
             .map(|manifest| manifest.dependencies)
             .unwrap_or_default();
         self.register_realm(realm.id.clone(), realm.source.into(), dependencies);
-        Some(ResolvedImport {
+        Ok(Some(ResolvedImport {
             path,
             module_path: module_path.clone(),
             origin: SourceOrigin::User,
             realm: realm.id,
             realm_path_prefix_len: identity_len,
-        })
+        }))
     }
 
     fn resolve_locked_with_constraint_version(
@@ -1816,6 +1877,25 @@ fn locked_realm_source_path(source: &LockedRealmSource) -> Option<PathBuf> {
         LockedRealmSource::Local(path) | LockedRealmSource::Cached(path) => Some(path.clone()),
         LockedRealmSource::Embedded(_) | LockedRealmSource::Virtual => None,
     }
+}
+
+fn validate_locked_realm_source_hash(
+    root_path: &FsPath,
+    realm: &LockedRealm,
+) -> Result<(), SourceLoadError> {
+    let Some(expected) = realm.source_hash else {
+        return Ok(());
+    };
+    let actual = frozen_realm_source_hash(root_path);
+    if actual == Some(expected) {
+        return Ok(());
+    }
+    Err(SourceLoadError::LockedRealmHashMismatch {
+        path: root_path.to_path_buf(),
+        realm: realm.id.clone(),
+        expected,
+        actual,
+    })
 }
 
 fn realm_identity_prefix_len(identity: &RealmIdentity, module_path: &ModulePath) -> Option<usize> {
@@ -2050,6 +2130,13 @@ fn version_matches_exact_requirement(version: &RealmVersion, requirement: &str) 
         return true;
     }
     parse_realm_version(version) == parse_realm_version_str(requirement)
+}
+
+fn format_resolved_realm(realm: &ResolvedRealmId) -> String {
+    match &realm.version {
+        Some(version) => format!("{}@{}", realm.identity.0, version.0),
+        None => realm.identity.0.clone(),
+    }
 }
 
 fn exact_dependency_version(requirement: &str) -> Option<RealmVersion> {
@@ -4833,6 +4920,7 @@ ui = "2.4.0"
                     version: Some(RealmVersion("2.4.0".to_string())),
                 },
                 source: LockedRealmSource::Local(ui.clone()),
+                source_hash: None,
             }],
             dependencies: Vec::new(),
             with_constraints: Vec::new(),
@@ -4912,6 +5000,7 @@ ui = "2.4.0"
                         version: Some(RealmVersion("1.0.0".to_string())),
                     },
                     source: LockedRealmSource::Local(ui_v1.clone()),
+                    source_hash: None,
                 },
                 LockedRealm {
                     id: ResolvedRealmId {
@@ -4919,6 +5008,7 @@ ui = "2.4.0"
                         version: Some(RealmVersion("2.4.0".to_string())),
                     },
                     source: LockedRealmSource::Local(ui_v2.clone()),
+                    source_hash: None,
                 },
             ],
             dependencies: Vec::new(),
@@ -5104,7 +5194,7 @@ identity = "ui"
         )
         .unwrap();
         fs::write(ui.join("widget.yu"), "pub x = 1\n").unwrap();
-        freeze_realm_version(&ui, "2.4.0").unwrap();
+        let frozen = freeze_realm_version(&ui, "2.4.0").unwrap();
         fs::write(ui.join("widget.yu"), "pub x = \"editable\"\n").unwrap();
 
         let set = collect_source_files_with_options(
@@ -5128,6 +5218,75 @@ identity = "ui"
                 .ends_with(".yulang/versions/2.4.0/widget.yu")
         );
         assert!(frozen_file.source.contains("pub x = 1"));
+        let generated = YulangLockFile::from_source_set(&set).expect("lock should build");
+        assert_eq!(
+            generated
+                .realms
+                .iter()
+                .find(|realm| realm.id.identity.0 == "ui")
+                .and_then(|realm| realm.source_hash),
+            Some(frozen.snapshot.source_hash)
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn lock_file_rejects_frozen_snapshot_hash_mismatch() {
+        let root = temp_root("freeze-realm-lock-hash");
+        let _ = fs::remove_dir_all(&root);
+        let app = root.join("app");
+        let ui = root.join("ui");
+        fs::create_dir_all(&app).unwrap();
+        fs::create_dir_all(&ui).unwrap();
+        fs::write(app.join("main.yu"), "use ui/widget::*\nx\n").unwrap();
+        fs::write(
+            ui.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+"#,
+        )
+        .unwrap();
+        fs::write(ui.join("widget.yu"), "pub x = 1\n").unwrap();
+        let frozen = freeze_realm_version(&ui, "2.4.0").unwrap();
+        let stale_hash = frozen.snapshot.source_hash ^ 1;
+        let lock = YulangLockFile {
+            format_version: YULANG_LOCK_FORMAT_VERSION,
+            realms: vec![LockedRealm {
+                id: ResolvedRealmId {
+                    identity: RealmIdentity("ui".to_string()),
+                    version: Some(RealmVersion("2.4.0".to_string())),
+                },
+                source: LockedRealmSource::Local(frozen.root.clone()),
+                source_hash: Some(stale_hash),
+            }],
+            dependencies: Vec::new(),
+            with_constraints: Vec::new(),
+        };
+        fs::write(
+            app.join("yulang.lock"),
+            format!("{}\n", serde_json::to_string_pretty(&lock).unwrap()),
+        )
+        .unwrap();
+
+        let err = collect_source_files_with_options(
+            app.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            SourceLoadError::LockedRealmHashMismatch {
+                expected,
+                actual: Some(actual),
+                ..
+            } if expected == stale_hash && actual == frozen.snapshot.source_hash
+        ));
 
         let _ = fs::remove_dir_all(root);
     }

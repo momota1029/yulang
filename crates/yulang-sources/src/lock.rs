@@ -6,10 +6,10 @@ use yulang_typed_ir::Path as ModulePath;
 
 use crate::{
     BandPath, RealmIdentity, RealmVersion, ResolvedRealmId, SourceRealmRoot, SourceSet, UseImport,
-    import_module_path,
+    frozen_realm_source_hash, import_module_path,
 };
 
-pub const YULANG_LOCK_FORMAT_VERSION: u32 = 1;
+pub const YULANG_LOCK_FORMAT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct YulangLockFile {
@@ -36,6 +36,7 @@ impl YulangLockFile {
             .map(|realm| LockedRealm {
                 id: realm.id.clone(),
                 source: LockedRealmSource::from_source_root(&realm.root),
+                source_hash: locked_realm_source_hash(&realm.root),
             })
             .collect();
         let dependencies = source_set
@@ -109,6 +110,8 @@ impl Default for YulangLockFile {
 pub struct LockedRealm {
     pub id: ResolvedRealmId,
     pub source: LockedRealmSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_hash: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +130,15 @@ impl LockedRealmSource {
             SourceRealmRoot::Embedded(name) => Self::Embedded(name.clone()),
             SourceRealmRoot::Virtual => Self::Virtual,
         }
+    }
+}
+
+fn locked_realm_source_hash(root: &SourceRealmRoot) -> Option<u64> {
+    match root {
+        SourceRealmRoot::Local(path) | SourceRealmRoot::Cached(path) => {
+            frozen_realm_source_hash(path)
+        }
+        SourceRealmRoot::Embedded(_) | SourceRealmRoot::Virtual => None,
     }
 }
 
@@ -338,12 +350,14 @@ mod tests {
                 LockedRealm {
                     id: program.clone(),
                     source: LockedRealmSource::Local(PathBuf::from("/workspace/program")),
+                    source_hash: None,
                 },
                 LockedRealm {
                     id: ui.clone(),
                     source: LockedRealmSource::Cached(PathBuf::from(
                         "/home/me/.cache/yulang/realms/ui/widget/2.4.0",
                     )),
+                    source_hash: Some(0x1234),
                 },
             ],
             dependencies: vec![LockedRealmDependency {
