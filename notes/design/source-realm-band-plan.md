@@ -493,6 +493,9 @@ Current first slice:
   into structured constraints, `YulangLockFile::from_source_set` can project the
   current `SourceSet` into a lock-shaped value, and lock validation rejects
   conflicting resolved realms for the same target/anchor pair.
+- local source collection reads `realm.toml` when present. The current schema
+  supports `[realm] identity/version` and `[dependencies]`, and uses that data
+  for `SourceRealm` identity plus lock dependencies.
 - `yulang lock <path>` writes the current lock-shaped source graph to
   `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
   file, validates its `with` constraints, and fails if the generated graph would
@@ -503,10 +506,9 @@ Current first slice:
   the same `mod` edge rule.
 
 This is intentionally still mostly an identity and storage layer. It does not
-yet read a realm manifest, fetch git dependencies, resolve external realm
-imports, implement full `band::module` absolute lookup, resolve `with`
-constraints, or automatically use the persistent compiled-unit cache during
-lowering.
+yet fetch git dependencies, resolve external realm imports, implement full
+`band::module` absolute lookup, resolve `with` constraints, or automatically
+use the persistent compiled-unit cache during lowering.
 
 Resolver work can then proceed in phases:
 

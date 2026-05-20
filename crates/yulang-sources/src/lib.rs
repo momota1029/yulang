@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::io;
@@ -79,13 +79,24 @@ pub fn collect_source_files_with_options(
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
     let mut loader = SourceLoader::new(options);
-    loader.load_entry(entry.as_ref())?;
+    let entry = entry.as_ref();
+    let realm_root = local_realm_root(entry);
+    let manifest = load_realm_manifest(&realm_root)?;
+    loader.load_entry(entry)?;
     sort_files_topologically(&mut loader.files);
     build_syntax_tables(&mut loader.files);
     Ok(SourceSet::from_files_with_realm(
         loader.files,
-        local_realm_id(entry.as_ref()),
-        SourceRealmRoot::Local(local_realm_root(entry.as_ref())),
+        manifest
+            .as_ref()
+            .map(|manifest| manifest.id.clone())
+            .unwrap_or_else(|| local_realm_id(entry)),
+        SourceRealmRoot::Local(realm_root),
+    )
+    .with_realm_dependencies(
+        manifest
+            .map(|manifest| manifest.dependencies)
+            .unwrap_or_default(),
     ))
 }
 
@@ -123,6 +134,12 @@ pub enum SourceRealmRoot {
 pub struct SourceRealmDependency {
     pub identity: RealmIdentity,
     pub requirement: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceRealmManifest {
+    pub id: ResolvedRealmId,
+    pub dependencies: Vec<SourceRealmDependency>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -193,6 +210,75 @@ fn local_realm_root(entry: &FsPath) -> PathBuf {
     path.parent()
         .map(FsPath::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("."))
+}
+
+#[derive(Debug, Deserialize)]
+struct RealmManifestToml {
+    realm: Option<RealmManifestRealmToml>,
+    dependencies: Option<BTreeMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RealmManifestRealmToml {
+    identity: Option<String>,
+    name: Option<String>,
+    version: Option<String>,
+}
+
+fn load_realm_manifest(root: &FsPath) -> Result<Option<SourceRealmManifest>, SourceLoadError> {
+    let path = root.join(cache::YULANG_MANIFEST_FILE);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let source = fs::read_to_string(&path).map_err(|error| SourceLoadError::Io {
+        path: path.clone(),
+        error,
+    })?;
+    let decoded = toml::from_str::<RealmManifestToml>(&source).map_err(|error| {
+        SourceLoadError::InvalidRealmManifest {
+            path: path.clone(),
+            message: error.to_string(),
+        }
+    })?;
+    let realm = decoded
+        .realm
+        .ok_or_else(|| invalid_realm_manifest(&path, "missing [realm] table"))?;
+    let identity = realm
+        .identity
+        .or(realm.name)
+        .filter(|identity| !identity.trim().is_empty())
+        .ok_or_else(|| invalid_realm_manifest(&path, "missing realm.identity"))?;
+    let version = realm
+        .version
+        .filter(|version| !version.trim().is_empty())
+        .map(RealmVersion);
+    let mut dependencies = decoded
+        .dependencies
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(identity, requirement)| {
+            (!identity.trim().is_empty()).then_some(SourceRealmDependency {
+                identity: RealmIdentity(identity),
+                requirement,
+            })
+        })
+        .collect::<Vec<_>>();
+    dependencies.sort_by(|left, right| left.identity.0.cmp(&right.identity.0));
+
+    Ok(Some(SourceRealmManifest {
+        id: ResolvedRealmId {
+            identity: RealmIdentity(identity),
+            version,
+        },
+        dependencies,
+    }))
+}
+
+fn invalid_realm_manifest(path: &FsPath, message: impl Into<String>) -> SourceLoadError {
+    SourceLoadError::InvalidRealmManifest {
+        path: path.to_path_buf(),
+        message: message.into(),
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -272,6 +358,13 @@ impl SourceSet {
                 bands,
             }],
         }
+    }
+
+    pub fn with_realm_dependencies(mut self, dependencies: Vec<SourceRealmDependency>) -> Self {
+        if let Some(realm) = self.realms.first_mut() {
+            realm.dependencies = dependencies;
+        }
+        self
     }
 
     pub fn resolved_band(&self, id: &ResolvedBandId) -> Option<&SourceBand> {
@@ -586,6 +679,10 @@ pub enum SourceLoadError {
         path: PathBuf,
         error: io::Error,
     },
+    InvalidRealmManifest {
+        path: PathBuf,
+        message: String,
+    },
     ModuleNotFound {
         parent: PathBuf,
         name: Name,
@@ -602,6 +699,9 @@ impl fmt::Display for SourceLoadError {
         match self {
             SourceLoadError::Io { path, error } => {
                 write!(f, "failed to read {}: {error}", path.display())
+            }
+            SourceLoadError::InvalidRealmManifest { path, message } => {
+                write!(f, "invalid realm manifest {}: {message}", path.display())
             }
             SourceLoadError::ModuleNotFound { parent, name } => {
                 write!(
@@ -2426,6 +2526,56 @@ mod tests {
         assert_eq!(name.0, "a");
         assert_eq!(names(path), vec!["ui", "widget", "a"]);
         assert_eq!(with_anchor.as_ref().map(names), Some(vec!["program", "ui"]));
+    }
+
+    #[test]
+    fn local_realm_manifest_sets_realm_identity_and_dependencies() {
+        let root = temp_root("realm-manifest");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("realm.toml"),
+            r#"[realm]
+identity = "user/program"
+version = "0.1.3"
+
+[dependencies]
+"ui/widget" = "^2.4"
+"std" = "0.1.3"
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            root.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            set.realms[0].id,
+            ResolvedRealmId {
+                identity: RealmIdentity("user/program".to_string()),
+                version: Some(RealmVersion("0.1.3".to_string())),
+            }
+        );
+        assert_eq!(
+            set.realms[0].dependencies,
+            vec![
+                SourceRealmDependency {
+                    identity: RealmIdentity("std".to_string()),
+                    requirement: "0.1.3".to_string(),
+                },
+                SourceRealmDependency {
+                    identity: RealmIdentity("ui/widget".to_string()),
+                    requirement: "^2.4".to_string(),
+                },
+            ]
+        );
     }
 
     #[test]
