@@ -1,6 +1,9 @@
 use crate::ids::TypeVar;
+use crate::lower::builtin_types::{
+    join_primitive_numeric_type_paths, primitive_numeric_type_family,
+};
 use crate::simplify::compact::{CompactBounds, CompactType, compact_type_var, merge_compact_types};
-use crate::symbols::{Name, Path};
+use crate::symbols::Path;
 
 use super::Infer;
 
@@ -64,10 +67,30 @@ pub(super) fn concrete_bounds_repr(
         (false, false) if bounds.lower == bounds.upper => {
             concrete_or_boundary_compact_type(&bounds.lower, allow_boundary)
         }
-        (false, false) if allow_boundary => boundary_concrete_compact_type(&bounds.lower)
-            .or_else(|| boundary_concrete_compact_type(&bounds.upper)),
+        (false, false) if allow_boundary => {
+            boundary_join_concrete_bounds(&bounds.lower, &bounds.upper)
+                .or_else(|| boundary_concrete_compact_type(&bounds.lower))
+                .or_else(|| boundary_concrete_compact_type(&bounds.upper))
+        }
         _ => None,
     }
+}
+
+fn boundary_join_concrete_bounds(lower: &CompactType, upper: &CompactType) -> Option<CompactType> {
+    let lower = boundary_concrete_compact_type(lower)?;
+    let upper = boundary_concrete_compact_type(upper)?;
+    if lower == upper {
+        return Some(lower);
+    }
+    let lower_path = single_numeric_path(&lower)?;
+    let upper_path = single_numeric_path(&upper)?;
+    let joined_path = join_primitive_numeric_type_paths(lower_path, upper_path)?;
+    let mut joined = CompactType::default();
+    joined.cons.push(crate::simplify::compact::CompactCon {
+        path: joined_path,
+        args: Vec::new(),
+    });
+    Some(joined)
 }
 
 fn concrete_or_boundary_compact_type(
@@ -272,20 +295,30 @@ fn join_local_named_paths(left: &Path, right: &Path) -> Option<Path> {
     if left == right {
         return Some(left.clone());
     }
-    if is_standard_int_path(left) && is_standard_float_path(right)
-        || is_standard_float_path(left) && is_standard_int_path(right)
+    join_primitive_numeric_type_paths(left, right)
+}
+
+fn single_numeric_path(ty: &CompactType) -> Option<&Path> {
+    if !ty.vars.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
     {
-        return Some(Path {
-            segments: vec![Name("float".to_string())],
-        });
+        return None;
     }
-    None
-}
-
-fn is_standard_int_path(path: &Path) -> bool {
-    matches!(path.segments.as_slice(), [Name(name)] if name == "int")
-}
-
-fn is_standard_float_path(path: &Path) -> bool {
-    matches!(path.segments.as_slice(), [Name(name)] if name == "float")
+    let mut paths = ty.prims.iter().chain(
+        ty.cons
+            .iter()
+            .filter(|con| con.args.is_empty())
+            .map(|con| &con.path),
+    );
+    let path = paths.next()?;
+    paths
+        .next()
+        .is_none()
+        .then_some(path)
+        .filter(|path| primitive_numeric_type_family(path).is_some())
 }

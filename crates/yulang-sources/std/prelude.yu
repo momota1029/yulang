@@ -224,13 +224,19 @@ impl Display unit:
 
 my show_list_items(xs: list 'a): str =
     where 'a: Display
-    case std::list::uncons xs:
-        std::opt::opt::nil -> ""
-        std::opt::opt::just (head, tail) ->
-            if std::list::is_empty tail:
-                head.show
+    case std::list::view_raw xs:
+        std::list::list_view::empty -> ""
+        std::list::list_view::leaf item -> item.show
+        std::list::list_view::node(left, right) ->
+            my left_text = show_list_items left
+            my right_text = show_list_items right
+            if left_text == "":
+                right_text
             else:
-                head.show + ", " + show_list_items tail
+                if right_text == "":
+                    left_text
+                else:
+                    left_text + ", " + right_text
 
 impl Display (list 'a):
     where 'a: Display
@@ -290,13 +296,19 @@ impl Debug unit:
 
 my debug_list_items(xs: list 'a): str =
     where 'a: Debug
-    case std::list::uncons xs:
-        std::opt::opt::nil -> ""
-        std::opt::opt::just (head, tail) ->
-            if std::list::is_empty tail:
-                head.debug
+    case std::list::view_raw xs:
+        std::list::list_view::empty -> ""
+        std::list::list_view::leaf item -> item.debug
+        std::list::list_view::node(left, right) ->
+            my left_text = debug_list_items left
+            my right_text = debug_list_items right
+            if left_text == "":
+                right_text
             else:
-                head.debug + ", " + debug_list_items tail
+                if right_text == "":
+                    left_text
+                else:
+                    left_text + ", " + right_text
 
 impl Debug (list 'a):
     where 'a: Debug

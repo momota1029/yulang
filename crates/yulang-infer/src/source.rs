@@ -4204,6 +4204,7 @@ fn import_compiled_namespace_values(
     _modules: &[Option<ModuleId>],
 ) -> Vec<Option<crate::ids::DefId>> {
     let mut out = vec![None; surface.values.len()];
+    let mut defs_by_path = HashMap::<Vec<String>, crate::ids::DefId>::new();
     for symbol in &surface.values {
         let Some(slot) = out.get_mut(symbol.unit_id as usize) else {
             continue;
@@ -4212,7 +4213,12 @@ fn import_compiled_namespace_values(
             continue;
         }
         let path = path_from_snapshot_segments(&symbol.path);
+        if let Some(def) = defs_by_path.get(&symbol.path).copied() {
+            *slot = Some(def);
+            continue;
+        }
         if let Some(def) = state.ctx.resolve_path_value(&path) {
+            defs_by_path.insert(symbol.path.clone(), def);
             *slot = Some(def);
             continue;
         }
@@ -4225,6 +4231,7 @@ fn import_compiled_namespace_values(
             .unwrap_or_else(|| format!("#unit-value{}", symbol.unit_id));
         state.register_def_tv(def, tv);
         state.register_def_name(def, Name(display_name));
+        defs_by_path.insert(symbol.path.clone(), def);
         *slot = Some(def);
     }
     out
@@ -4236,6 +4243,7 @@ fn import_compiled_namespace_types(
     _modules: &[Option<ModuleId>],
 ) -> Vec<Option<crate::ids::DefId>> {
     let mut out = vec![None; surface.types.len()];
+    let mut defs_by_path = HashMap::<Vec<String>, crate::ids::DefId>::new();
     for symbol in &surface.types {
         let Some(slot) = out.get_mut(symbol.unit_id as usize) else {
             continue;
@@ -4244,7 +4252,12 @@ fn import_compiled_namespace_types(
             continue;
         }
         let path = path_from_snapshot_segments(&symbol.path);
+        if let Some(def) = defs_by_path.get(&symbol.path).copied() {
+            *slot = Some(def);
+            continue;
+        }
         if let Some(def) = state.ctx.resolve_path_type(&path) {
+            defs_by_path.insert(symbol.path.clone(), def);
             *slot = Some(def);
             continue;
         }
@@ -4257,6 +4270,7 @@ fn import_compiled_namespace_types(
             .unwrap_or_else(|| format!("#unit-type{}", symbol.unit_id));
         state.register_def_tv(def, tv);
         state.register_def_name(def, Name(display_name));
+        defs_by_path.insert(symbol.path.clone(), def);
         *slot = Some(def);
     }
     out
@@ -4317,15 +4331,15 @@ fn import_compiled_namespace_module_entries(
             let Some(def) = values.get(value.symbol as usize).and_then(|def| *def) else {
                 continue;
             };
+            state.ctx.record_canonical_value_path(
+                def,
+                compiled_namespace_symbol_path(&surface.values, value.symbol),
+            );
             state.insert_value_with_visibility(
                 module_id,
                 Name(value.name.clone()),
                 def,
                 import_snapshot_visibility(value.visibility),
-            );
-            state.ctx.record_canonical_value_path(
-                def,
-                compiled_namespace_symbol_path(&surface.values, value.symbol),
             );
         }
         for ty in &module.types {
@@ -4420,14 +4434,7 @@ fn compiled_namespace_symbols_for_defs(
                 (*current == def).then(|| effect_method_hidden_canonical_path(path, unit_paths))?
             })
             .next()
-            .or_else(|| {
-                canonical_paths
-                    .get(&def)
-                    .filter(|path| {
-                        path_belongs_to_modules(&snapshot_path_segments(path), unit_paths)
-                    })
-                    .cloned()
-            })
+            .or_else(|| canonical_paths.get(&def).cloned())
             .or_else(|| {
                 all_paths
                     .iter()

@@ -1773,9 +1773,23 @@ impl PrincipalUnifier {
             &specialization_substitutions,
             specialization_output,
         );
-        let handler_adapter_plan = handler_plan
+        if specialization_output.is_none() {
+            specialization_output = inferred_specialized_return_shape(
+                &original.scheme.body,
+                rewritten_args.len(),
+                &specialization_substitutions,
+            );
+        }
+        let mut handler_adapter_plan = handler_plan
             .as_ref()
             .map(|(_, plan)| substitute_handler_adapter_plan(plan, &specialization_substitutions));
+        if let (Some(plan), Some(output_shape)) = (
+            handler_adapter_plan.as_mut(),
+            specialization_output.as_ref(),
+        ) && plan.return_wrapper_effect.is_some()
+        {
+            plan.return_value = Some(output_shape.clone());
+        }
         let call_callee_ty = handler_adapter_plan
             .as_ref()
             .map(|plan| {
@@ -1796,12 +1810,25 @@ impl PrincipalUnifier {
         } else {
             Some(specialization_inputs.as_slice())
         };
-        let call_callee_ty = contextual_specialization_scheme(
-            &call_callee_ty,
-            contextual_input_shapes,
-            specialization_output.as_ref(),
-        )
-        .unwrap_or(call_callee_ty);
+        let call_callee_ty = if contextual_input_shapes.is_none() {
+            specialization_output
+                .as_ref()
+                .and_then(|output_shape| {
+                    core_fun_spine_with_output_shape(
+                        &call_callee_ty,
+                        rewritten_args.len(),
+                        output_shape,
+                    )
+                })
+                .unwrap_or(call_callee_ty)
+        } else {
+            contextual_specialization_scheme(
+                &call_callee_ty,
+                contextual_input_shapes,
+                specialization_output.as_ref(),
+            )
+            .unwrap_or(call_callee_ty)
+        };
         let final_context_ty = contextual_final_call_type(
             final_context_ty,
             &call_callee_ty,
@@ -4558,6 +4585,7 @@ fn rewrite_contextual_specialization_refs_expr_inner(
         binding_types,
         shadowed,
     );
+    refresh_known_binding_expr_type(expr, binding_types, shadowed);
     let Some(spine) = principal_unify_apply_spine(expr) else {
         return;
     };
@@ -4616,6 +4644,41 @@ fn rewrite_contextual_specialization_refs_expr_inner(
         matches.pop().expect("single contextual specialization");
     if let Some(rewritten) = rebuild_apply_call_owned(path.clone(), ty.clone(), args, &expr.ty) {
         *expr = rewritten;
+    }
+}
+
+fn refresh_known_binding_expr_type(
+    expr: &mut Expr,
+    binding_types: &HashMap<typed_ir::Path, typed_ir::Type>,
+    shadowed: &BTreeSet<typed_ir::Name>,
+) {
+    match &mut expr.kind {
+        ExprKind::Var(path) => {
+            if path
+                .segments
+                .as_slice()
+                .first()
+                .is_some_and(|name| path.segments.len() == 1 && shadowed.contains(name))
+            {
+                return;
+            }
+            if let Some(ty) = binding_types.get(path) {
+                expr.ty = normalize_hir_function_type(RuntimeType::core(ty.clone()));
+            }
+        }
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            ..
+        } => {
+            if let Some(ty) = principal_rewrite_apply_type(&callee.ty)
+                .or_else(|| principal_apply_type_from_evidence_arg(evidence.as_ref(), arg))
+            {
+                expr.ty = ty;
+            }
+        }
+        _ => {}
     }
 }
 
@@ -6557,6 +6620,17 @@ fn prefer_constructed_union_specialization_output(
         .or(output)
 }
 
+fn inferred_specialized_return_shape(
+    scheme: &typed_ir::Type,
+    arity: usize,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Option<typed_ir::Type> {
+    let substituted = substitute_type(scheme, substitutions);
+    let (_params, ret, _ret_effect) = core_fun_spine_parts_exact(&substituted, arity)?;
+    let ret = normalize_projected_value_shape(ret);
+    closed_slot_type_usable(&ret, false).then_some(ret)
+}
+
 fn constructed_union_item_for_payload(
     item: &typed_ir::Type,
     expected: &typed_ir::Type,
@@ -6643,6 +6717,9 @@ fn input_shape_context_param(
     input_shape: &typed_ir::Type,
 ) -> typed_ir::Type {
     match (param, input_shape) {
+        _ if closed_slot_type_usable(param, false) && type_compatible(param, input_shape) => {
+            param.clone()
+        }
         (typed_ir::Type::Variant(param_variant), typed_ir::Type::Variant(input_variant))
             if variant_input_shape_drops_cases(param_variant, input_variant) =>
         {
@@ -6741,6 +6818,12 @@ fn wrap_expr_in_effect_thunk(expr: Expr, effect: &typed_ir::Type) -> Expr {
 }
 
 fn closed_rebuilt_apply_type(final_ty: &RuntimeType, specialized_ret: &RuntimeType) -> RuntimeType {
+    if runtime_type_value_is_never(final_ty) && !runtime_type_value_is_never(specialized_ret) {
+        return specialized_ret.clone();
+    }
+    if rebuilt_apply_type_prefers_specialized(final_ty, specialized_ret) {
+        return specialized_ret.clone();
+    }
     if (runtime_type_has_vars(final_ty)
         || runtime_type_contains_any(final_ty)
         || runtime_type_contains_unknown(final_ty)
@@ -6752,6 +6835,28 @@ fn closed_rebuilt_apply_type(final_ty: &RuntimeType, specialized_ret: &RuntimeTy
     } else {
         final_ty.clone()
     }
+}
+
+fn rebuilt_apply_type_prefers_specialized(
+    final_ty: &RuntimeType,
+    specialized_ret: &RuntimeType,
+) -> bool {
+    if final_ty == specialized_ret {
+        return false;
+    }
+    let (final_value, final_effect) = runtime_value_and_effect(final_ty);
+    let (specialized_value, specialized_effect) = runtime_value_and_effect(specialized_ret);
+    if !effect_compatible(&specialized_effect, &final_effect)
+        || !closed_slot_type_usable(&specialized_value, false)
+        || !closed_slot_type_usable(&final_value, false)
+    {
+        return false;
+    }
+    needs_runtime_coercion(&specialized_value, &final_value)
+}
+
+fn runtime_type_value_is_never(ty: &RuntimeType) -> bool {
+    matches!(runtime_core_type(ty), typed_ir::Type::Never)
 }
 
 fn refresh_rewritten_args(args: Vec<Expr>) -> Vec<Expr> {
@@ -11025,12 +11130,15 @@ fn normalize_projected_value_shape(ty: typed_ir::Type) -> typed_ir::Type {
             ret_effect,
             ret: Box::new(normalize_projected_value_shape(*ret)),
         },
-        typed_ir::Type::Union(items) => collapse_repeated_top_choice_type(typed_ir::Type::Union(
-            items
-                .into_iter()
-                .map(normalize_projected_value_shape)
-                .collect(),
-        )),
+        typed_ir::Type::Union(items) => {
+            let items = drop_never_union_items(
+                items
+                    .into_iter()
+                    .map(normalize_projected_value_shape)
+                    .collect(),
+            );
+            collapse_repeated_top_choice_type(typed_ir::Type::Union(items))
+        }
         typed_ir::Type::Inter(items) => collapse_repeated_top_choice_type(typed_ir::Type::Inter(
             items
                 .into_iter()
@@ -11075,6 +11183,18 @@ fn normalize_projected_value_substitution_type(
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::Type {
     normalize_projected_value_shape(substitute_type(ty, substitutions))
+}
+
+fn drop_never_union_items(items: Vec<typed_ir::Type>) -> Vec<typed_ir::Type> {
+    if items.len() <= 1 {
+        return items;
+    }
+    let kept = items
+        .iter()
+        .filter(|item| !matches!(item, typed_ir::Type::Never))
+        .cloned()
+        .collect::<Vec<_>>();
+    if kept.is_empty() { items } else { kept }
 }
 
 fn collapse_repeated_top_choice_type(ty: typed_ir::Type) -> typed_ir::Type {

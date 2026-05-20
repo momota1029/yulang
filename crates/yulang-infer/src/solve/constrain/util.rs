@@ -2,6 +2,7 @@ use rustc_hash::FxHashSet;
 
 use super::Infer;
 use crate::ids::{NegId, PosId, TypeVar};
+use crate::lower::builtin_types::can_widen_primitive_numeric_type_paths;
 use crate::symbols::Name;
 use crate::types::{Neg, Pos};
 
@@ -9,15 +10,7 @@ pub(super) fn is_builtin_numeric_widening(
     actual: &crate::symbols::Path,
     expected: &crate::symbols::Path,
 ) -> bool {
-    actual == expected || is_standard_int_path(actual) && is_standard_float_path(expected)
-}
-
-fn is_standard_int_path(path: &crate::symbols::Path) -> bool {
-    matches!(path.segments.as_slice(), [Name(name)] if name == "int")
-}
-
-fn is_standard_float_path(path: &crate::symbols::Path) -> bool {
-    matches!(path.segments.as_slice(), [Name(name)] if name == "float")
+    actual == expected || can_widen_primitive_numeric_type_paths(actual, expected)
 }
 
 pub(super) fn same_row_tail_var_nodes(pos: &Pos, neg: &Neg) -> bool {

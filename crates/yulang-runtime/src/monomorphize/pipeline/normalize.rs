@@ -529,20 +529,3 @@ pub(super) fn collect_effect_vars(effect: &typed_ir::Type, vars: &mut BTreeSet<t
         | typed_ir::Type::Any => {}
     }
 }
-
-pub(super) fn substitute_type_instantiation(
-    instantiation: TypeInstantiation,
-    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-) -> TypeInstantiation {
-    TypeInstantiation {
-        target: instantiation.target,
-        args: instantiation
-            .args
-            .into_iter()
-            .map(|arg| crate::ir::TypeSubstitution {
-                var: arg.var,
-                ty: substitute_type(&arg.ty, substitutions),
-            })
-            .collect(),
-    }
-}

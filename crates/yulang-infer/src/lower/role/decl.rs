@@ -435,7 +435,10 @@ fn sig_input_name(sig: &SigType) -> Option<String> {
 fn role_method_output_name(sig: &SigType, role_arg_names: &[String]) -> Option<String> {
     match sig {
         SigType::Fun { ret, .. } => role_method_output_name(ret, role_arg_names),
-        SigType::Var(var) => Some(var.name.clone()),
+        SigType::Var(var) => role_arg_names
+            .iter()
+            .any(|role_arg| role_arg == &var.name)
+            .then(|| var.name.clone()),
         SigType::Prim { path, .. } if path.segments.len() == 1 => {
             let name = path.segments[0].0.as_str();
             role_arg_names

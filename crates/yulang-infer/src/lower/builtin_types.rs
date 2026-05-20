@@ -21,6 +21,32 @@ pub(crate) enum PrimitiveValueFamily {
     StrConcat,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PrimitiveNumericTypeFamily {
+    Int,
+    Frac,
+    Float,
+}
+
+impl PrimitiveNumericTypeFamily {
+    fn rank(self) -> u8 {
+        match self {
+            Self::Int => 0,
+            Self::Frac => 1,
+            Self::Float => 2,
+        }
+    }
+
+    fn from_rank(rank: u8) -> Option<Self> {
+        match rank {
+            0 => Some(Self::Int),
+            1 => Some(Self::Frac),
+            2 => Some(Self::Float),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct PrimitivePathTable {
     source_types: HashMap<PrimitiveTypeFamily, Path>,
@@ -176,6 +202,64 @@ pub(crate) fn builtin_runtime_type_path(name: &str) -> typed_ir::Path {
 
 pub(crate) fn canonical_builtin_type_path(path: &Path) -> Option<Path> {
     PrimitivePathTable::standard().canonical_builtin_type_path(path)
+}
+
+pub(crate) fn primitive_numeric_type_family(path: &Path) -> Option<PrimitiveNumericTypeFamily> {
+    match path.segments.as_slice() {
+        [Name(name)] if name == "int" => Some(PrimitiveNumericTypeFamily::Int),
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "int" && name == "int" =>
+        {
+            Some(PrimitiveNumericTypeFamily::Int)
+        }
+        [Name(name)] if name == "float" => Some(PrimitiveNumericTypeFamily::Float),
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "float" && name == "float" =>
+        {
+            Some(PrimitiveNumericTypeFamily::Float)
+        }
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "frac" && name == "frac" =>
+        {
+            Some(PrimitiveNumericTypeFamily::Frac)
+        }
+        _ => None,
+    }
+}
+
+pub(crate) fn join_primitive_numeric_type_paths(left: &Path, right: &Path) -> Option<Path> {
+    let left = primitive_numeric_type_family(left)?;
+    let right = primitive_numeric_type_family(right)?;
+    let family = PrimitiveNumericTypeFamily::from_rank(left.rank().max(right.rank()))?;
+    Some(primitive_numeric_type_path(family))
+}
+
+pub(crate) fn primitive_numeric_type_path(family: PrimitiveNumericTypeFamily) -> Path {
+    match family {
+        PrimitiveNumericTypeFamily::Int => Path {
+            segments: vec![Name("int".to_string())],
+        },
+        PrimitiveNumericTypeFamily::Frac => Path {
+            segments: vec![
+                Name("std".to_string()),
+                Name("frac".to_string()),
+                Name("frac".to_string()),
+            ],
+        },
+        PrimitiveNumericTypeFamily::Float => Path {
+            segments: vec![Name("float".to_string())],
+        },
+    }
+}
+
+pub(crate) fn can_widen_primitive_numeric_type_paths(actual: &Path, expected: &Path) -> bool {
+    let Some(actual) = primitive_numeric_type_family(actual) else {
+        return false;
+    };
+    let Some(expected) = primitive_numeric_type_family(expected) else {
+        return false;
+    };
+    actual.rank() <= expected.rank()
 }
 
 pub(crate) fn primitive_runtime_value_path(family: PrimitiveValueFamily) -> typed_ir::Path {

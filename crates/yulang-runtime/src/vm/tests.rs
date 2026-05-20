@@ -1568,6 +1568,8 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
                 "inline-polymorphic-wrappers",
                 "principal-elaborate",
                 "refresh-closed-schemes",
+                "principal-elaborate",
+                "refresh-closed-schemes",
                 "prune-unreachable",
             ]
         );

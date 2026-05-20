@@ -451,7 +451,7 @@ pub fn export_core_program_for_binding_paths(
     paths: &[(Path, DefId)],
 ) -> typed_ir::CoreProgram {
     state.refresh_selection_environment();
-    let target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
+    let target_defs = collect_export_target_defs_for_binding_paths(state, paths);
     state.finalize_compact_results_for_defs(&target_defs);
     state.refresh_selection_environment();
     let expected_edge_evidence = collect_expected_edge_evidence(state);
@@ -504,6 +504,38 @@ pub fn export_core_program_for_binding_paths(
                 .collect(),
         },
     }
+}
+
+fn collect_export_target_defs_for_binding_paths(
+    state: &LowerState,
+    binding_paths: &[(Path, DefId)],
+) -> HashSet<DefId> {
+    let exportable_defs = state
+        .ctx
+        .collect_all_binding_paths()
+        .into_iter()
+        .map(|(_, def)| def)
+        .collect::<HashSet<_>>();
+    let mut target_defs = HashSet::new();
+    let mut pending = Vec::new();
+    for (_, def) in binding_paths {
+        if target_defs.insert(*def) {
+            pending.push(*def);
+        }
+    }
+    while let Some(def) = pending.pop() {
+        let Some(body) = state.principal_bodies.get(&def) else {
+            continue;
+        };
+        extend_target_defs_from_expr(
+            state,
+            body,
+            &exportable_defs,
+            &mut target_defs,
+            &mut pending,
+        );
+    }
+    target_defs
 }
 
 fn build_edge_evidence_cache(state: &LowerState) -> HashMap<ExpectedEdgeId, ExpectedEdgeEvidence> {

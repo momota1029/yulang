@@ -2551,12 +2551,33 @@ fn control_value_from_lit(lit: &typed_ir::Lit) -> ControlValue {
 }
 
 fn control_cast_value(value: ControlValue, expected: &typed_ir::Type) -> ControlValue {
-    if is_float_type(expected)
-        && let ControlValue::Int(value) = value
-    {
-        return ControlValue::Float(value.to_float_string());
+    if is_float_type(expected) {
+        return match value {
+            ControlValue::Int(value) => ControlValue::Float(value.to_float_string()),
+            ControlValue::Record(fields) => control_frac_to_float_string(&fields)
+                .map(ControlValue::Float)
+                .unwrap_or(ControlValue::Record(fields)),
+            value => value,
+        };
     }
     value
+}
+
+fn control_frac_to_float_string(fields: &BTreeMap<typed_ir::Name, ControlValue>) -> Option<String> {
+    let num = control_record_int_field(fields, "num")?;
+    let den = control_record_int_field(fields, "den")?;
+    Some(format_float_value(num / den))
+}
+
+fn control_record_int_field(
+    fields: &BTreeMap<typed_ir::Name, ControlValue>,
+    name: &str,
+) -> Option<f64> {
+    let value = fields.get(&typed_ir::Name(name.to_string()))?;
+    let ControlValue::Int(value) = value else {
+        return None;
+    };
+    value.to_vm_string().parse().ok()
 }
 
 fn control_apply_primitive(

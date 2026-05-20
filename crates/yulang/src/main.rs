@@ -90,7 +90,7 @@ where
         .expect("join large-stack yulang thread")
 }
 
-const YUIR_SOURCE_CACHE_VERSION: u32 = 3;
+const YUIR_SOURCE_CACHE_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CliOptions {

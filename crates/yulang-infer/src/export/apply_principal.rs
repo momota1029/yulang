@@ -383,10 +383,9 @@ fn infer_direct_concrete_bound_substitution(
     if !unifier.params.contains(var) {
         return;
     }
-    if type_mentions_var(actual, var) {
-        return;
-    }
-    if let Some(actual) = primary_structural_or_concrete_type_not_equal(actual, template) {
+    if let Some(actual) = primary_structural_or_concrete_type_not_equal(actual, template)
+        .filter(|actual| !type_mentions_var(actual, var))
+    {
         unifier.bind(var, actual, false);
     }
 }

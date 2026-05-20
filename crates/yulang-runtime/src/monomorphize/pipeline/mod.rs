@@ -324,6 +324,9 @@ const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
     MonoPass::PruneUnreachableSpecializations,
 ];
 
+const PRINCIPAL_ELABORATE_FIXPOINT: &[MonoPass] =
+    &[MonoPass::PrincipalElaborate, MonoPass::RefreshClosedSchemes];
+
 const MONO_PIPELINE: &[MonoStage] = &[
     MonoStage::Repeat {
         name: "initial-specialization",
@@ -366,10 +369,14 @@ fn run_principal_elaborate_pipeline(
         debug,
     )?;
     module = step.module;
-    let step = run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
-    module = step.module;
-    let step = run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, &mut profile, debug)?;
-    module = step.module;
+    module = run_mono_fixpoint(
+        module,
+        "principal-elaborate",
+        PRINCIPAL_ELABORATE_FIXPOINT,
+        8,
+        &mut profile,
+        debug,
+    )?;
     let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
     module = step.module;
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
@@ -436,8 +443,14 @@ fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
 
 fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
     let mut module = inline_polymorphic_wrappers(module);
-    module = principal_elaborate_module(module);
-    module = refresh_closed_specialized_schemes(module);
+    for _ in 0..8 {
+        let before = module.clone();
+        module = principal_elaborate_module(module);
+        module = refresh_closed_specialized_schemes(module);
+        if module == before {
+            break;
+        }
+    }
     module = prune_unreachable_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)
