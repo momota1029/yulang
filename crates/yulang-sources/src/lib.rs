@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::fs;
@@ -1588,20 +1589,29 @@ impl SourceLoader {
             return Some(locked);
         }
 
-        let Some((identity, identity_len, dependency_version)) =
+        let Some((dependency, identity_len)) =
             self.resolve_manifest_dependency_prefix(module_path, import_version.as_ref())
         else {
             return None;
         };
-        let selected_version = locked_version.or(dependency_version.as_ref());
-        let (root_path, root) = self.find_existing_realm_root(&identity, selected_version)?;
+        let selected_version = locked_version
+            .cloned()
+            .or_else(|| exact_dependency_version(&dependency.requirement));
+        let (root_path, root) = if let Some(version) = selected_version.as_ref() {
+            self.find_existing_realm_root(&dependency.identity, Some(version))?
+        } else {
+            self.find_existing_realm_root_for_requirement(
+                &dependency.identity,
+                &dependency.requirement,
+            )?
+        };
         let manifest = load_realm_manifest(&root_path).ok().flatten();
         let realm = manifest
             .as_ref()
             .map(|manifest| manifest.id.clone())
             .unwrap_or_else(|| ResolvedRealmId {
-                identity: identity.clone(),
-                version: selected_version.cloned(),
+                identity: dependency.identity.clone(),
+                version: selected_version.clone(),
             });
         let dependencies = manifest
             .map(|manifest| manifest.dependencies)
@@ -1682,7 +1692,7 @@ impl SourceLoader {
         &self,
         module_path: &ModulePath,
         import_version: Option<&RealmVersion>,
-    ) -> Option<(RealmIdentity, usize, Option<RealmVersion>)> {
+    ) -> Option<(SourceRealmDependency, usize)> {
         self.realms
             .iter()
             .flat_map(|realm| realm.dependencies.iter())
@@ -1691,17 +1701,9 @@ impl SourceLoader {
                 if import_version.is_none() && dependency.requirement.trim().is_empty() {
                     return None;
                 }
-                let dependency_version = import_version
-                    .is_none()
-                    .then(|| exact_dependency_version(&dependency.requirement))
-                    .flatten();
-                Some((
-                    dependency.identity.clone(),
-                    identity_len,
-                    dependency_version,
-                ))
+                Some((dependency.clone(), identity_len))
             })
-            .max_by_key(|(_, identity_len, _)| *identity_len)
+            .max_by_key(|(_, identity_len)| *identity_len)
     }
 
     fn find_existing_realm_root(
@@ -1735,6 +1737,57 @@ impl SourceLoader {
             return Some((cached.clone(), SourceRealmRoot::Cached(cached)));
         }
         None
+    }
+
+    fn find_existing_realm_root_for_requirement(
+        &self,
+        identity: &RealmIdentity,
+        requirement: &str,
+    ) -> Option<(PathBuf, SourceRealmRoot)> {
+        let mut candidates = Vec::new();
+
+        for search_root in &self.options.search_paths {
+            let root = search_root.join(realm_identity_path(identity));
+            push_realm_root_candidate(
+                &mut candidates,
+                root.clone(),
+                SourceRealmRoot::Local(root.clone()),
+                identity,
+                requirement,
+            );
+
+            let frozen_root = root.join(cache::YULANG_PROJECT_DIR).join("versions");
+            push_realm_root_child_candidates(
+                &mut candidates,
+                &frozen_root,
+                SourceRealmRootKind::Local,
+                identity,
+                requirement,
+            );
+        }
+
+        let cached = default_user_cache_root()
+            .join("realms")
+            .join(realm_identity_path(identity));
+        push_realm_root_candidate(
+            &mut candidates,
+            cached.clone(),
+            SourceRealmRoot::Cached(cached.clone()),
+            identity,
+            requirement,
+        );
+        push_realm_root_child_candidates(
+            &mut candidates,
+            &cached,
+            SourceRealmRootKind::Cached,
+            identity,
+            requirement,
+        );
+
+        candidates
+            .into_iter()
+            .max_by(compare_realm_root_candidates)
+            .map(|candidate| (candidate.path, candidate.root))
     }
 }
 
@@ -1804,6 +1857,199 @@ fn realm_root_matches(
     };
     manifest.id.identity == *identity
         && version.is_none_or(|version| manifest.id.version.as_ref() == Some(version))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RealmRootCandidate {
+    path: PathBuf,
+    root: SourceRealmRoot,
+    version: RealmVersion,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SourceRealmRootKind {
+    Local,
+    Cached,
+}
+
+impl SourceRealmRootKind {
+    fn root(self, path: PathBuf) -> SourceRealmRoot {
+        match self {
+            SourceRealmRootKind::Local => SourceRealmRoot::Local(path),
+            SourceRealmRootKind::Cached => SourceRealmRoot::Cached(path),
+        }
+    }
+}
+
+fn push_realm_root_candidate(
+    candidates: &mut Vec<RealmRootCandidate>,
+    path: PathBuf,
+    root: SourceRealmRoot,
+    identity: &RealmIdentity,
+    requirement: &str,
+) {
+    let Ok(Some(manifest)) = load_realm_manifest(&path) else {
+        return;
+    };
+    if manifest.id.identity != *identity {
+        return;
+    }
+    let Some(version) = manifest.id.version else {
+        return;
+    };
+    if !version_satisfies_requirement(&version, requirement) {
+        return;
+    }
+    candidates.push(RealmRootCandidate {
+        path,
+        root,
+        version,
+    });
+}
+
+fn push_realm_root_child_candidates(
+    candidates: &mut Vec<RealmRootCandidate>,
+    root: &FsPath,
+    root_kind: SourceRealmRootKind,
+    identity: &RealmIdentity,
+    requirement: &str,
+) {
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !entry.file_type().is_ok_and(|ty| ty.is_dir()) {
+            continue;
+        }
+        push_realm_root_candidate(
+            candidates,
+            path.clone(),
+            root_kind.root(path),
+            identity,
+            requirement,
+        );
+    }
+}
+
+fn compare_realm_root_candidates(
+    left: &RealmRootCandidate,
+    right: &RealmRootCandidate,
+) -> Ordering {
+    compare_realm_versions(&left.version, &right.version)
+}
+
+fn compare_realm_versions(left: &RealmVersion, right: &RealmVersion) -> Ordering {
+    match (parse_realm_version(left), parse_realm_version(right)) {
+        (Some(left), Some(right)) => left.cmp(&right),
+        (Some(_), None) => Ordering::Greater,
+        (None, Some(_)) => Ordering::Less,
+        (None, None) => left.0.cmp(&right.0),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct ParsedRealmVersion {
+    major: u64,
+    minor: u64,
+    patch: u64,
+}
+
+fn parse_realm_version(version: &RealmVersion) -> Option<ParsedRealmVersion> {
+    parse_realm_version_str(&version.0)
+}
+
+fn parse_realm_version_str(version: &str) -> Option<ParsedRealmVersion> {
+    let core = version
+        .trim()
+        .strip_prefix('v')
+        .unwrap_or_else(|| version.trim())
+        .split(['-', '+'])
+        .next()
+        .unwrap_or_default();
+    if core.is_empty() {
+        return None;
+    }
+    let mut parts = core.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next().unwrap_or("0").parse().ok()?;
+    let patch = parts.next().unwrap_or("0").parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(ParsedRealmVersion {
+        major,
+        minor,
+        patch,
+    })
+}
+
+fn version_satisfies_requirement(version: &RealmVersion, requirement: &str) -> bool {
+    let requirement = requirement.trim();
+    if requirement.is_empty() {
+        return false;
+    }
+    if let Some(base) = requirement.strip_prefix('^') {
+        return version_satisfies_caret(version, base);
+    }
+    if let Some(base) = requirement.strip_prefix('~') {
+        return version_satisfies_tilde(version, base);
+    }
+    if exact_dependency_version(requirement).is_some() {
+        return version_matches_exact_requirement(version, requirement);
+    }
+    false
+}
+
+fn version_satisfies_caret(version: &RealmVersion, base: &str) -> bool {
+    let Some(version) = parse_realm_version(version) else {
+        return false;
+    };
+    let Some(base) = parse_realm_version_str(base) else {
+        return false;
+    };
+    let upper = if base.major > 0 {
+        ParsedRealmVersion {
+            major: base.major + 1,
+            minor: 0,
+            patch: 0,
+        }
+    } else if base.minor > 0 {
+        ParsedRealmVersion {
+            major: 0,
+            minor: base.minor + 1,
+            patch: 0,
+        }
+    } else {
+        ParsedRealmVersion {
+            major: 0,
+            minor: 0,
+            patch: base.patch + 1,
+        }
+    };
+    version >= base && version < upper
+}
+
+fn version_satisfies_tilde(version: &RealmVersion, base: &str) -> bool {
+    let Some(version) = parse_realm_version(version) else {
+        return false;
+    };
+    let Some(base) = parse_realm_version_str(base) else {
+        return false;
+    };
+    let upper = ParsedRealmVersion {
+        major: base.major,
+        minor: base.minor + 1,
+        patch: 0,
+    };
+    version >= base && version < upper
+}
+
+fn version_matches_exact_requirement(version: &RealmVersion, requirement: &str) -> bool {
+    if version.0 == requirement {
+        return true;
+    }
+    parse_realm_version(version) == parse_realm_version_str(requirement)
 }
 
 fn exact_dependency_version(requirement: &str) -> Option<RealmVersion> {
@@ -4882,6 +5128,73 @@ identity = "ui"
                 .ends_with(".yulang/versions/2.4.0/widget.yu")
         );
         assert!(frozen_file.source.contains("pub x = 1"));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn manifest_range_dependency_selects_highest_matching_frozen_snapshot() {
+        let root = temp_root("freeze-realm-range-use");
+        let _ = fs::remove_dir_all(&root);
+        let app = root.join("app");
+        let ui = root.join("ui");
+        fs::create_dir_all(&app).unwrap();
+        fs::create_dir_all(&ui).unwrap();
+        fs::write(
+            app.join("realm.toml"),
+            r#"[realm]
+identity = "user/app"
+version = "0.1.0"
+
+[dependencies]
+ui = "^2.4"
+"#,
+        )
+        .unwrap();
+        fs::write(app.join("main.yu"), "use ui/widget::*\nx\n").unwrap();
+        fs::write(
+            ui.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+"#,
+        )
+        .unwrap();
+
+        fs::write(ui.join("widget.yu"), "pub x = 24\n").unwrap();
+        freeze_realm_version(&ui, "2.4.0").unwrap();
+        fs::write(ui.join("widget.yu"), "pub x = 25\n").unwrap();
+        freeze_realm_version(&ui, "2.5.0").unwrap();
+        fs::write(ui.join("widget.yu"), "pub x = 30\n").unwrap();
+        freeze_realm_version(&ui, "3.0.0").unwrap();
+
+        let set = collect_source_files_with_options(
+            app.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: vec![root.clone()],
+            },
+        )
+        .unwrap();
+
+        let frozen_file = set
+            .files
+            .iter()
+            .find(|file| names(&file.module_path) == vec!["ui", "widget"])
+            .expect("frozen ui widget should load");
+        assert!(
+            frozen_file
+                .path
+                .ends_with(".yulang/versions/2.5.0/widget.yu")
+        );
+        assert!(frozen_file.source.contains("pub x = 25"));
+        assert_eq!(
+            frozen_file.realm,
+            ResolvedRealmId {
+                identity: RealmIdentity("ui".to_string()),
+                version: Some(RealmVersion("2.5.0".to_string())),
+            }
+        );
 
         let _ = fs::remove_dir_all(root);
     }

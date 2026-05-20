@@ -537,16 +537,19 @@ Current first slice:
   the `use` omitted an explicit suffix.
 - exact dependency requirements such as `ui = "2.4.0"` are enough to select a
   matching frozen local snapshot when the `use` itself omits a version suffix.
-  Range solving (`^2.4`, `<3`, etc.) is still deferred.
+  The local resolver also supports small SemVer-style `^` and `~` requirements
+  over already-present editable realms, frozen snapshots, and persistent cache
+  entries. Full registry solving and inequality sets such as `<3` are still
+  deferred.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by
   the same `mod` edge rule.
 
 This is intentionally still mostly an identity and storage layer. It does not
-yet fetch git dependencies, implement full version solving for manifest
-requirements, resolve `with` constraints, or automatically use the persistent
-compiled-unit cache during lowering.
+yet fetch git dependencies, implement full registry version solving for
+manifest requirements, or automatically use the persistent compiled-unit cache
+during lowering.
 
 Resolver work can then proceed in phases:
 
