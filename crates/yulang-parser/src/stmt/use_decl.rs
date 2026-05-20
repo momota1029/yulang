@@ -119,6 +119,10 @@ fn parse_use_after_segment<I: EventInput, S: EventSink>(
             let after = sep.lex.trailing_trivia_info();
             parse_use_alias_ident(i, after)
         }
+        UseTag::Version => {
+            i.env.state.sink.lex(&sep.lex);
+            parse_use_after_segment(i, sep.lex.trailing_trivia_info())
+        }
         UseTag::With => {
             i.env.state.sink.lex(&sep.lex);
             parse_use_with_anchor(i, sep.lex.trailing_trivia_info())
@@ -145,6 +149,10 @@ fn parse_use_after_slash_or_colon_colon<I: EventInput, S: EventSink>(
             i.env.state.sink.lex(&next.lex);
             let after = next.lex.trailing_trivia_info();
             parse_use_after_segment(i, after)
+        }
+        UseTag::Version => {
+            i.env.state.sink.lex(&next.lex);
+            parse_use_after_segment(i, next.lex.trailing_trivia_info())
         }
         UseTag::BraceL => {
             let after = UseGroupMachine.parse_brace_group(i.rb(), next.lex)?;

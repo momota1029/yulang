@@ -309,11 +309,13 @@ pub enum UseImport {
     Alias {
         name: Name,
         path: ModulePath,
+        realm_version: Option<RealmVersion>,
         with_anchor: Option<ModulePath>,
     },
     Glob {
         prefix: ModulePath,
         excluded: Vec<Name>,
+        realm_version: Option<RealmVersion>,
         with_anchor: Option<ModulePath>,
     },
 }
@@ -2060,6 +2062,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
     let mut alias = None;
     let mut imports = Vec::new();
     let mut excluding_glob = None;
+    let mut realm_version = None;
     let with_anchor = use_with_anchor(node);
 
     for item in node.children_with_tokens() {
@@ -2072,6 +2075,9 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
                 | SyntaxKind::Mod => {}
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
                 SyntaxKind::Ident if tok.text() == "with" => break,
+                SyntaxKind::Ident if use_realm_version(tok.text()).is_some() => {
+                    realm_version = use_realm_version(tok.text());
+                }
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
                     path.clear();
@@ -2097,6 +2103,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
                             segments: path.clone(),
                         },
                         excluded: Vec::new(),
+                        realm_version: realm_version.clone(),
                         with_anchor: None,
                     });
                     path.clear();
@@ -2128,7 +2135,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
         }
     }
 
-    push_use_alias_import(path, alias, &mut imports);
+    push_use_alias_import(path, alias, realm_version, &mut imports);
     apply_use_with_anchor(&mut imports, with_anchor);
     imports
 }
@@ -2150,13 +2157,13 @@ fn collect_use_group_imports(
                 SyntaxKind::BraceL => {}
                 SyntaxKind::BraceR => {
                     if !consumed_nested {
-                        push_use_alias_import(path, alias.take(), imports);
+                        push_use_alias_import(path, alias.take(), None, imports);
                     }
                     return;
                 }
                 SyntaxKind::Comma => {
                     if !consumed_nested {
-                        push_use_alias_import(path, alias.take(), imports);
+                        push_use_alias_import(path, alias.take(), None, imports);
                     }
                     path = base.to_vec();
                     after_as = false;
@@ -2190,6 +2197,7 @@ fn collect_use_group_imports(
                             segments: path.clone(),
                         },
                         excluded: Vec::new(),
+                        realm_version: None,
                         with_anchor: None,
                     });
                     path = base.to_vec();
@@ -2222,7 +2230,7 @@ fn collect_use_group_imports(
             }
             NodeOrToken::Node(child) if child.kind() == SyntaxKind::Separator => {
                 if !consumed_nested {
-                    push_use_alias_import(path, alias.take(), imports);
+                    push_use_alias_import(path, alias.take(), None, imports);
                 }
                 path = base.to_vec();
                 after_as = false;
@@ -2233,7 +2241,7 @@ fn collect_use_group_imports(
     }
 
     if !consumed_nested {
-        push_use_alias_import(path, alias, imports);
+        push_use_alias_import(path, alias, None, imports);
     }
 }
 
@@ -2273,7 +2281,12 @@ fn push_use_glob_exclusion(imports: &mut [UseImport], glob_idx: Option<usize>, n
     }
 }
 
-fn push_use_alias_import(path: Vec<Name>, alias: Option<Name>, imports: &mut Vec<UseImport>) {
+fn push_use_alias_import(
+    path: Vec<Name>,
+    alias: Option<Name>,
+    realm_version: Option<RealmVersion>,
+    imports: &mut Vec<UseImport>,
+) {
     if path.is_empty() {
         return;
     }
@@ -2283,8 +2296,17 @@ fn push_use_alias_import(path: Vec<Name>, alias: Option<Name>, imports: &mut Vec
     imports.push(UseImport::Alias {
         name,
         path: ModulePath { segments: path },
+        realm_version,
         with_anchor: None,
     });
+}
+
+fn use_realm_version(text: &str) -> Option<RealmVersion> {
+    let version = text.strip_prefix('v')?;
+    if version.is_empty() || !version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(RealmVersion(version.to_string()))
 }
 
 fn apply_use_with_anchor(imports: &mut [UseImport], with_anchor: Option<ModulePath>) {
@@ -2523,6 +2545,7 @@ mod tests {
             name,
             path,
             with_anchor,
+            ..
         } = &meta.uses[0].import
         else {
             panic!("expected alias import");
@@ -2530,6 +2553,25 @@ mod tests {
         assert_eq!(name.0, "a");
         assert_eq!(names(path), vec!["ui", "widget", "a"]);
         assert_eq!(with_anchor.as_ref().map(names), Some(vec!["program", "ui"]));
+    }
+
+    #[test]
+    fn parses_use_realm_version_metadata() {
+        let meta = parse_source_meta("use yulang v0.1.3/std::prelude\nmy x = prelude");
+
+        assert_eq!(meta.uses.len(), 1);
+        let UseImport::Alias {
+            name,
+            path,
+            realm_version,
+            ..
+        } = &meta.uses[0].import
+        else {
+            panic!("expected alias import");
+        };
+        assert_eq!(name.0, "prelude");
+        assert_eq!(names(path), vec!["yulang", "std", "prelude"]);
+        assert_eq!(realm_version, &Some(RealmVersion("0.1.3".to_string())));
     }
 
     #[test]

@@ -184,6 +184,7 @@ fn use_decl_imports(node: &SyntaxNode) -> Vec<UseImport> {
                 | SyntaxKind::Mod => {}
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
                 SyntaxKind::Ident if tok.text() == "with" => break,
+                SyntaxKind::Ident if is_use_realm_version(tok.text()) => {}
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
                     path.clear();
@@ -389,4 +390,9 @@ fn push_use_alias_import(path: Vec<Name>, alias: Option<Name>, imports: &mut Vec
         name,
         path: Path { segments: path },
     });
+}
+
+fn is_use_realm_version(text: &str) -> bool {
+    text.strip_prefix('v')
+        .is_some_and(|version| version.chars().next().is_some_and(|c| c.is_ascii_digit()))
 }

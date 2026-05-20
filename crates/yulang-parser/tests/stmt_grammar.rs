@@ -1461,6 +1461,23 @@ fn stmt_use_decl_with_anchor() {
 }
 
 #[test]
+fn stmt_use_decl_realm_version_suffix() {
+    let got = parse_stmt_once("use yulang v0.1.3/std::prelude");
+    let expected = vec![
+        "(UseDecl",
+        "  Use \"use\"",
+        "  Ident \"yulang\"",
+        "  Ident \"v0.1.3\"",
+        "  Slash \"/\"",
+        "  Ident \"std\"",
+        "  ColonColon \"::\"",
+        "  Ident \"prelude\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_use_decl_group() {
     let got = parse_stmt_once("use std::io::{Read, Write}");
     let expected = vec![

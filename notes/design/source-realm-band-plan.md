@@ -500,6 +500,10 @@ Current first slice:
   `realm@version/band::module` shape into realm identity/version, band path, and
   module path. It keeps slashes before the final `/` inside the realm identity,
   so `user/program@2.0/ui::widget` resolves as realm `user/program`.
+- `use realm v1.2/band::module` parses the `v...` suffix as source metadata
+  (`realm_version`) without adding it to the normal import path. The ordinary
+  lowerer ignores the suffix, while lock constraint collection can preserve it
+  as the resolved realm version.
 - `yulang lock <path>` writes the current lock-shaped source graph to
   `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
   file, validates its `with` constraints, and fails if the generated graph would

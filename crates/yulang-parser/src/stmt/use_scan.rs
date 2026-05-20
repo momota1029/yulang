@@ -1,3 +1,4 @@
+use chasa::Back as _;
 use chasa::prelude::*;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
@@ -32,6 +33,8 @@ pub enum UseTag {
     Op,
     /// `mod` keyword used by `use mod path`
     Mod,
+    /// `v1.2.3` realm version suffix
+    Version,
     /// `as` キーワード
     As,
     /// `with` anchor used by realm/band version selection
@@ -86,6 +89,19 @@ pub fn scan_use_tok<I: EventInput, S: EventSink>(
         return Some(lex.tag(tag));
     }
 
+    let checkpoint = i.checkpoint();
+    if let Some(((), text)) = i.run(use_version_chars.with_seq()) {
+        let trailing_trivia = i.run(scan_trivia)?;
+        let lex = Lex::new(
+            leading_info,
+            SyntaxKind::Ident,
+            text.as_ref(),
+            trailing_trivia,
+        );
+        return Some(lex.tag(UseTag::Version));
+    }
+    i.rollback(checkpoint);
+
     // 識別子を試みる
     if let Some(((), text)) = i.run(use_ident_chars.with_seq()) {
         let s: Box<str> = text.as_ref().into();
@@ -132,6 +148,15 @@ fn use_ident_chars<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<()> {
     i.choice((one_of(is_xid_start).skip(), item('_').skip()))?;
     i.many_skip(one_of(is_xid_continue))?;
     i.skip(one_of("?!").or_not())
+}
+
+fn use_version_chars<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<()> {
+    i.skip(item('v'))?;
+    i.skip(one_of(|c: char| c.is_ascii_digit()))?;
+    i.many_skip(one_of(|c: char| {
+        c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+')
+    }));
+    Some(())
 }
 
 fn use_op_name_chars<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<()> {

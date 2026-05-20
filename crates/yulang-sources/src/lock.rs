@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use yulang_typed_ir::Path as ModulePath;
 
 use crate::{
-    BandPath, RealmIdentity, ResolvedRealmId, SourceRealmRoot, SourceSet, UseImport,
+    BandPath, RealmIdentity, RealmVersion, ResolvedRealmId, SourceRealmRoot, SourceSet, UseImport,
     import_module_path,
 };
 
@@ -63,7 +63,7 @@ impl YulangLockFile {
                 anchor: constraint.anchor,
                 resolved: ResolvedRealmId {
                     identity: constraint.target,
-                    version: None,
+                    version: constraint.target_version,
                 },
             })
             .collect();
@@ -154,6 +154,7 @@ pub struct SourceWithConstraint {
     pub requester_band: BandPath,
     pub import_path: ModulePath,
     pub target: RealmIdentity,
+    pub target_version: Option<RealmVersion>,
     pub anchor: BandPath,
 }
 
@@ -201,6 +202,7 @@ pub fn collect_source_with_constraints(source_set: &SourceSet) -> Vec<SourceWith
                 requester_band: requester_band.band.clone(),
                 import_path,
                 target,
+                target_version: use_realm_version(&use_.import),
                 anchor,
             });
         }
@@ -219,6 +221,14 @@ fn use_with_anchor(import: &UseImport) -> Option<BandPath> {
         UseImport::Alias { with_anchor, .. } | UseImport::Glob { with_anchor, .. } => with_anchor
             .as_ref()
             .map(|path| BandPath::from_segments(path.segments.clone())),
+    }
+}
+
+fn use_realm_version(import: &UseImport) -> Option<RealmVersion> {
+    match import {
+        UseImport::Alias { realm_version, .. } | UseImport::Glob { realm_version, .. } => {
+            realm_version.clone()
+        }
     }
 }
 
@@ -257,8 +267,7 @@ fn format_resolved_realm(realm: &ResolvedRealmId) -> String {
 mod tests {
     use super::*;
     use crate::{
-        InlineSource, RealmVersion, SourceOptions, SourceOrigin,
-        collect_inline_source_files_with_options,
+        InlineSource, SourceOptions, SourceOrigin, collect_inline_source_files_with_options,
     };
     use yulang_typed_ir::Name;
 
@@ -336,6 +345,37 @@ mod tests {
         assert_eq!(
             constraints[0].anchor,
             BandPath::from_segments(vec![Name("program".to_string()), Name("ui".to_string())])
+        );
+    }
+
+    #[test]
+    fn source_set_collects_with_constraint_version_suffix() {
+        let source_set = collect_inline_source_files_with_options(
+            "use ui/widget v2.4::a with program::ui\nx\n",
+            [InlineSource {
+                path: PathBuf::from("<ui/widget>.yu"),
+                module_path: ModulePath {
+                    segments: vec![Name("ui".to_string()), Name("widget".to_string())],
+                },
+                origin: SourceOrigin::User,
+                source: "pub a = 1\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+
+        let lock = YulangLockFile::from_source_set(&source_set).expect("lock should build");
+
+        assert_eq!(
+            lock.with_constraints[0].resolved,
+            ResolvedRealmId {
+                identity: RealmIdentity("ui/widget".to_string()),
+                version: Some(RealmVersion("2.4".to_string())),
+            }
         );
     }
 
