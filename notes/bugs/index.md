@@ -81,6 +81,28 @@ use std::undet::*
 - 次は round-5 snippet の regression test を戻して、同じ principal
   elaboration 経路で壊れないか確認する。
 
+## 解決済み（2026-05-20 / playground sample 調査）
+
+playground (`web/playground/src/main.ts`) にベタ書きされた 14 個の example を
+`debug control-vm` と `run --interpreter` の両方で実行して調査。3 件が再現し、
+commit `230e028` で全て解決した。snippet は `solved/` へ退避。
+
+- B1 / [`solved/playground_tour_scc_type_leak.yu`](solved/playground_tour_scc_type_leak.yu)
+  — tour 全体での型推論汚染（両 VM 共通）。後段 `render` の symbol variant が
+  前段 `c * c` の TV へ漏れていた。tour の 5 ブロック全揃いでのみ再現。
+- B2 / [`solved/control_vm_record_default_pattern_mismatch.yu`](solved/control_vm_record_default_pattern_mismatch.yu)
+  — control-vm の record pattern named field default が `PatternMismatch`。
+- B3 / [`solved/control_vm_once_open_range_expected_closure.yu`](solved/control_vm_once_open_range_expected_closure.yu)
+  — control-vm の open-range `each` + `.once` が `ExpectedClosure(Unit)`。
+
+修正後は 14 sample 全部が `debug control-vm` / `run --interpreter` 両方で
+一致。詳細は [`solved/index.md`](solved/index.md) の 2026-05-20 エントリ参照。
+
+副次的観察として、B1 のエラー表示で operator def 名が
+`std::ops::#op:infix:==` と未短縮で出ていた。LSP の最短化と同じロジックを
+diagnostic 出力（`crates/yulang-infer/src/diagnostic.rs` の format 経路）にも
+当てたい、というのは別タスクとして残っている。
+
 ## 現在の未解決（2026-05-17 / 非 native regression）
 
 現時点では空。新しい非 native regression が出たらここへ戻す。

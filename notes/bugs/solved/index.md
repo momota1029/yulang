@@ -27,6 +27,28 @@ done
 
 ## 解決済み一覧（時系列で新しいものが上）
 
+### 2026-05-20 playground sample 調査（commit 230e028）
+
+playground (`web/playground/src/main.ts`) の 14 example を `debug control-vm`
+と `run --interpreter` の両方で実行し、3 件の食い違いを記録 → 同 commit で解決。
+修正後は 14 sample 全部が両 VM で一致。
+
+- [`playground_tour_scc_type_leak.yu`](playground_tour_scc_type_leak.yu)
+  — tour サンプル全体で `guard: a*a + b*b == c*c` が
+  `expected int, got [ok(str)]` で reject。後段 `render` の symbol variant
+  `:ok` が SCC 越しに前段 `c * c` の TV へ漏れていた。`struct point` /
+  junction / `render` / `flip` の 5 ブロックが全部揃ったときだけ再現。
+- [`control_vm_record_default_pattern_mismatch.yu`](control_vm_record_default_pattern_mismatch.yu)
+  — `my box {width = 1, height = width} = ...` の record pattern named field
+  default + 同パターン内参照を control-vm が `PatternMismatch`。interpreter は
+  当時から通っていた。
+- [`control_vm_once_open_range_expected_closure.yu`](control_vm_once_open_range_expected_closure.yu)
+  — open-range `each 1..` を `.once` で絞る形が control-vm で
+  `ExpectedClosure(Unit)`。interpreter は当時から通っていた。
+
+副次観察: B1 のエラー表示が `std::ops::#op:infix:==` と未短縮。diagnostic
+出力にも LSP の最短化を当てたい件は別タスクとして親 `index.md` に残した。
+
 ### 2026-05-18 native recursive handler / display 整理
 
 - [`native_recursive_tuple_handler_memory_unsafe.yu`](native_recursive_tuple_handler_memory_unsafe.yu)

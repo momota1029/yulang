@@ -1,0 +1,50 @@
+// playground main.ts 「ツアー」サンプルそのまま。
+// 期待出力（VM / control-vm 一致）:
+//   [0] 25
+//   [1] [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]
+//   [2] "every left dominated"
+//   [3] ["[ok] hello", "[err 404]", "..."]
+//   [4] [111, 11, 101, 1, 110, 10, 100, 0]
+//
+// 旧症状（2026-05-20 / commit 230e028 で解決）:
+//   guard 行の `==` が `expected int, got [ok(str)]` で reject。
+//   後段 `render` の symbol variant `:ok` が SCC 越しに前段の `c * c` の
+//   TV へ漏れていた。tour の 5 ブロックが全部揃ったときだけ再現していた。
+
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2
+
+{
+    my a = each 1..15
+    my b = each a..15
+    my c = each b..15
+    guard: a * a + b * b == c * c
+    (a, b, c)
+}.list
+
+if all [1, 2, 3] < any [3, 4, 5]:
+    "every left dominated"
+else:
+    "no"
+
+my render option = case option:
+    :ok msg -> "[ok] " + msg
+    :err code -> "[err " + code.show + "]"
+    :pending -> "..."
+
+[render(:ok "hello"), render(:err 404), render :pending]
+
+act flip:
+    our coin: () -> bool
+
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c

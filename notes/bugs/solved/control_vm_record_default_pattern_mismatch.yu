@@ -1,0 +1,18 @@
+// playground main.ts 「名前付き既定値」サンプルそのまま。
+//
+// 期待出力（VM / control-vm 一致）:
+//   [0] 1
+//   [1] 9
+//   [2] 12
+//
+// 旧症状（2026-05-20 / commit 230e028 で解決）:
+//   debug control-vm が record pattern の named field default +
+//   同パターン内参照 (height = width) を扱えず PatternMismatch。
+//   interpreter は当時から通っていた。
+
+my box {width = 1, height = width} =
+    width * height
+
+box {}
+box { width: 3 }
+box { width: 3, height: 4 }

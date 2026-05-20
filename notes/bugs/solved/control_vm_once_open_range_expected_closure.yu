@@ -1,0 +1,19 @@
+// playground main.ts 「非決定 once」サンプルそのまま。
+//
+// 期待出力（VM / control-vm 一致）:
+//   [0] just (3, 4, 5)
+//
+// 旧症状（2026-05-20 / commit 230e028 で解決）:
+//   無限範囲 `1..` / `a<..` / `b<..` を `each` → guard → `.once` で
+//   しぼる形が、debug control-vm でクロージャ期待箇所に Unit を渡して
+//   ExpectedClosure(Unit) でパニックしていた。interpreter は当時から通っていた。
+
+{
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+} .once
