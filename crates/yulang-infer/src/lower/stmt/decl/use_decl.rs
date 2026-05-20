@@ -183,6 +183,7 @@ fn use_decl_imports(node: &SyntaxNode) -> Vec<UseImport> {
                 | SyntaxKind::Use
                 | SyntaxKind::Mod => {}
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
+                SyntaxKind::Ident if tok.text() == "with" => break,
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
                     path.clear();

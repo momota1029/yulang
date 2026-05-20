@@ -481,6 +481,14 @@ Current first slice:
 - local file loading creates a `file://...` realm rooted at the entry file's
   directory.
 - files connected by `mod` edges share a band.
+- `use mod path::*` is parsed as `mod path; use path::*` sugar at source
+  metadata level, so small local realm/band examples do not need a separate
+  leading `mod` declaration.
+- `use ... with anchor` is parsed and preserved on `UseImport` metadata. The
+  current lowerer ignores the suffix for ordinary import binding, so the syntax
+  can be introduced before cross-realm version resolution is implemented.
+- `YulangLockFile` defines a serializable first lock schema for resolved realms,
+  realm dependencies, and `with` alignment constraints.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by
@@ -488,7 +496,7 @@ Current first slice:
 
 This is intentionally still mostly an identity and storage layer. It does not
 yet read a realm manifest, fetch git dependencies, resolve external realm
-imports, implement full `band::module` absolute lookup, apply `with`
+imports, implement full `band::module` absolute lookup, resolve `with`
 constraints, or automatically use the persistent compiled-unit cache during
 lowering.
 

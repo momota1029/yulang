@@ -1441,6 +1441,26 @@ fn stmt_use_mod_decl_glob() {
 }
 
 #[test]
+fn stmt_use_decl_with_anchor() {
+    let got = parse_stmt_once("use ui/widget::a with program::ui");
+    let expected = vec![
+        "(UseDecl",
+        "  Use \"use\"",
+        "  Ident \"ui\"",
+        "  Slash \"/\"",
+        "  Ident \"widget\"",
+        "  ColonColon \"::\"",
+        "  Ident \"a\"",
+        "  Ident \"with\"",
+        "  Ident \"program\"",
+        "  ColonColon \"::\"",
+        "  Ident \"ui\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_use_decl_group() {
     let got = parse_stmt_once("use std::io::{Read, Write}");
     let expected = vec![

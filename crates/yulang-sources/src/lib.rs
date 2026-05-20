@@ -13,11 +13,16 @@ use yulang_parser::sink::YulangLanguage;
 use yulang_typed_ir::{Name, Path as ModulePath};
 
 mod cache;
+mod lock;
 mod stdlib;
 
 pub use cache::{
     YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_TARGET_DIR, YulangCachePaths,
     default_user_cache_root, project_target_root,
+};
+pub use lock::{
+    LockedRealm, LockedRealmDependency, LockedRealmSource, LockedWithConstraint,
+    YULANG_LOCK_FORMAT_VERSION, YulangLockFile,
 };
 pub use stdlib::{
     YULANG_LIB_DIR_ENV, YULANG_STD_ENV, YULANG_STDLIB_VERSION, default_user_lib_root,
@@ -213,10 +218,12 @@ pub enum UseImport {
     Alias {
         name: Name,
         path: ModulePath,
+        with_anchor: Option<ModulePath>,
     },
     Glob {
         prefix: ModulePath,
         excluded: Vec<Name>,
+        with_anchor: Option<ModulePath>,
     },
 }
 
@@ -1441,7 +1448,7 @@ fn imported_compiled_syntax_exports(
     public_exports: &[(ModulePath, Vec<CompiledSyntaxExport>)],
 ) -> Vec<CompiledSyntaxExport> {
     match import {
-        UseImport::Alias { name, path } => {
+        UseImport::Alias { name, path, .. } => {
             let Some((module_path, imported_name)) =
                 path.segments.split_last().map(|(last, prefix)| {
                     (
@@ -1466,7 +1473,9 @@ fn imported_compiled_syntax_exports(
                 .into_iter()
                 .collect()
         }
-        UseImport::Glob { prefix, excluded } => public_exports
+        UseImport::Glob {
+            prefix, excluded, ..
+        } => public_exports
             .iter()
             .find(|(candidate, _)| candidate == prefix)
             .map(|(_, exports)| {
@@ -1786,7 +1795,7 @@ fn imported_syntax_exports(
     public_exports: &[HashMap<Name, OpDef>],
 ) -> Vec<(Name, OpDef)> {
     match import {
-        UseImport::Alias { name, path } => {
+        UseImport::Alias { name, path, .. } => {
             let Some((module_path, imported_name)) =
                 path.segments.split_last().map(|(last, prefix)| {
                     (
@@ -1808,7 +1817,9 @@ fn imported_syntax_exports(
                 .map(|op| vec![(name.clone(), op)])
                 .unwrap_or_default()
         }
-        UseImport::Glob { prefix, excluded } => {
+        UseImport::Glob {
+            prefix, excluded, ..
+        } => {
             let Some(idx) = module_index(prefix, module_paths) else {
                 return Vec::new();
             };
@@ -1944,6 +1955,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
     let mut alias = None;
     let mut imports = Vec::new();
     let mut excluding_glob = None;
+    let with_anchor = use_with_anchor(node);
 
     for item in node.children_with_tokens() {
         match item {
@@ -1954,6 +1966,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
                 | SyntaxKind::Use
                 | SyntaxKind::Mod => {}
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
+                SyntaxKind::Ident if tok.text() == "with" => break,
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
                     path.clear();
@@ -1979,6 +1992,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
                             segments: path.clone(),
                         },
                         excluded: Vec::new(),
+                        with_anchor: None,
                     });
                     path.clear();
                     alias = None;
@@ -2010,6 +2024,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
     }
 
     push_use_alias_import(path, alias, &mut imports);
+    apply_use_with_anchor(&mut imports, with_anchor);
     imports
 }
 
@@ -2070,6 +2085,7 @@ fn collect_use_group_imports(
                             segments: path.clone(),
                         },
                         excluded: Vec::new(),
+                        with_anchor: None,
                     });
                     path = base.to_vec();
                     alias = None;
@@ -2162,7 +2178,45 @@ fn push_use_alias_import(path: Vec<Name>, alias: Option<Name>, imports: &mut Vec
     imports.push(UseImport::Alias {
         name,
         path: ModulePath { segments: path },
+        with_anchor: None,
     });
+}
+
+fn apply_use_with_anchor(imports: &mut [UseImport], with_anchor: Option<ModulePath>) {
+    let Some(anchor) = with_anchor else {
+        return;
+    };
+    for import in imports {
+        match import {
+            UseImport::Alias { with_anchor, .. } | UseImport::Glob { with_anchor, .. } => {
+                *with_anchor = Some(anchor.clone());
+            }
+        }
+    }
+}
+
+fn use_with_anchor(node: &SyntaxNode<YulangLanguage>) -> Option<ModulePath> {
+    let mut after_with = false;
+    let mut segments = Vec::new();
+
+    for item in node.children_with_tokens() {
+        let NodeOrToken::Token(tok) = item else {
+            continue;
+        };
+        match tok.kind() {
+            SyntaxKind::Ident if tok.text() == "with" => {
+                after_with = true;
+            }
+            SyntaxKind::Ident if after_with => {
+                segments.push(Name(tok.text().to_string()));
+            }
+            SyntaxKind::ColonColon | SyntaxKind::Slash if after_with => {}
+            _ if after_with && !segments.is_empty() => break,
+            _ => {}
+        }
+    }
+
+    (!segments.is_empty()).then_some(ModulePath { segments })
 }
 
 fn lower_visibility(node: &SyntaxNode<YulangLanguage>) -> Visibility {
@@ -2321,12 +2375,12 @@ mod tests {
             }]
         );
         assert_eq!(meta.uses.len(), 2);
-        let UseImport::Alias { name, path } = &meta.uses[0].import else {
+        let UseImport::Alias { name, path, .. } = &meta.uses[0].import else {
             panic!("expected alias import");
         };
         assert_eq!(name.0, "List");
         assert_eq!(names(path), vec!["list", "List"]);
-        let UseImport::Alias { name, path } = &meta.uses[1].import else {
+        let UseImport::Alias { name, path, .. } = &meta.uses[1].import else {
             panic!("expected alias import");
         };
         assert_eq!(name.0, "list_map");
@@ -2345,7 +2399,10 @@ mod tests {
             }]
         );
         assert_eq!(meta.uses.len(), 1);
-        let UseImport::Glob { prefix, excluded } = &meta.uses[0].import else {
+        let UseImport::Glob {
+            prefix, excluded, ..
+        } = &meta.uses[0].import
+        else {
             panic!("expected glob import");
         };
         assert_eq!(names(prefix), vec!["math"]);
@@ -2353,11 +2410,29 @@ mod tests {
     }
 
     #[test]
+    fn parses_use_with_anchor_metadata() {
+        let meta = parse_source_meta("use ui/widget::a with program::ui\nmy x = a");
+
+        assert_eq!(meta.uses.len(), 1);
+        let UseImport::Alias {
+            name,
+            path,
+            with_anchor,
+        } = &meta.uses[0].import
+        else {
+            panic!("expected alias import");
+        };
+        assert_eq!(name.0, "a");
+        assert_eq!(names(path), vec!["ui", "widget", "a"]);
+        assert_eq!(with_anchor.as_ref().map(names), Some(vec!["program", "ui"]));
+    }
+
+    #[test]
     fn parses_operator_use_metadata() {
         let meta = parse_source_meta("use ops::{(+), id}\nmy x = 1");
 
         assert_eq!(meta.uses.len(), 2);
-        let UseImport::Alias { name, path } = &meta.uses[0].import else {
+        let UseImport::Alias { name, path, .. } = &meta.uses[0].import else {
             panic!("expected operator alias import");
         };
         assert_eq!(name.0, "+");
@@ -2369,7 +2444,10 @@ mod tests {
         let meta = parse_source_meta("use ops::* without (%%), id\nmy x = 1");
 
         assert_eq!(meta.uses.len(), 1);
-        let UseImport::Glob { prefix, excluded } = &meta.uses[0].import else {
+        let UseImport::Glob {
+            prefix, excluded, ..
+        } = &meta.uses[0].import
+        else {
             panic!("expected glob import");
         };
         assert_eq!(names(prefix), vec!["ops"]);

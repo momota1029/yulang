@@ -34,6 +34,8 @@ pub enum UseTag {
     Mod,
     /// `as` キーワード
     As,
+    /// `with` anchor used by realm/band version selection
+    With,
     /// `without` キーワード
     Without,
     /// 停止トークン（それ以外）
@@ -90,6 +92,7 @@ pub fn scan_use_tok<I: EventInput, S: EventSink>(
         let (tag, kind) = match s.as_ref() {
             "mod" => (UseTag::Mod, SyntaxKind::Mod),
             "as" => (UseTag::As, SyntaxKind::As),
+            "with" => (UseTag::With, SyntaxKind::Ident),
             "without" => (UseTag::Without, SyntaxKind::Ident),
             _ => (UseTag::Ident, SyntaxKind::Ident),
         };
