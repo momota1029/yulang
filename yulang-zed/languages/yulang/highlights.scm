@@ -16,21 +16,12 @@
 (rule_lit_lazy
   (rule_lazy_name) @variable.parameter)
 
-; ── shallow semantic-ish syntax ────────────────────
-(binding_decl
-  name: (identifier) @function)
-
-(function_header
-  name: (identifier) @function)
-
+; ── shallow syntax ─────────────────────────────────
 (field_binding_decl
   field: (dot_field) @property)
 
 (value_binding_decl
   name: (identifier) @variable)
-
-(function_call
-  function: (identifier) @function)
 
 (path_expr
   head: (identifier) @namespace)

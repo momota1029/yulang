@@ -1,7 +1,8 @@
 use crate::ids::{DefId, TypeVar};
-use crate::scheme::FrozenScheme;
+use crate::scheme::{FrozenScheme, compact_neg_type, compact_pos_type};
 
 use crate::scheme::SmallSubst;
+use crate::simplify::compact::{CompactBounds, CompactTypeScheme, subst_compact_bounds};
 
 use super::{Infer, RoleConstraint, RoleConstraintArg};
 
@@ -60,6 +61,29 @@ impl Infer {
         frozen_scheme: Option<&FrozenScheme>,
     ) {
         let subst = self.translate_frozen_subst_to_original_with_scheme(frozen_scheme, subst);
+        let compact_constraints = self.compact_role_constraints_of(source_def);
+        if !compact_constraints.is_empty() {
+            if std::env::var_os("YULANG_DEBUG_ROLE_REF").is_some() {
+                eprintln!(
+                    "-- instantiate_compact_role_constraints_for_owner source={:?} owner={:?} constraints={:?} subst={:?}",
+                    source_def, owner, compact_constraints, subst
+                );
+            }
+            for constraint in compact_constraints {
+                self.add_role_constraint(
+                    owner,
+                    RoleConstraint {
+                        role: constraint.role,
+                        args: constraint
+                            .args
+                            .iter()
+                            .map(|arg| materialize_compact_role_arg(&self.arena, arg, &subst))
+                            .collect(),
+                    },
+                );
+            }
+            return;
+        }
         let constraints = self.role_constraints_of(source_def);
         if std::env::var_os("YULANG_DEBUG_ROLE_REF").is_some() {
             eprintln!(
@@ -100,5 +124,17 @@ impl Infer {
             }
         }
         translated
+    }
+}
+
+fn materialize_compact_role_arg(
+    arena: &crate::types::arena::TypeArena,
+    arg: &CompactBounds,
+    subst: &[(TypeVar, TypeVar)],
+) -> RoleConstraintArg {
+    let arg = subst_compact_bounds(arg, subst);
+    RoleConstraintArg {
+        pos: compact_pos_type(arena, &arg.lower, &CompactTypeScheme::default(), false),
+        neg: compact_neg_type(arena, &arg.upper, &CompactTypeScheme::default(), false),
     }
 }

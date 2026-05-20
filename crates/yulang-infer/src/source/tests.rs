@@ -1997,12 +1997,55 @@ fn compiled_typed_import_resolves_scheme_refs() {
 }
 
 #[test]
+fn compiled_typed_import_preserves_operator_role_constraints() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source_set = collect_virtual_source_files_with_options(
+            "my both x y = x + y\n",
+            Some(repo_root),
+            yulang_sources::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results();
+        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+        let std_artifacts = artifacts
+            .into_iter()
+            .filter(|artifact| {
+                artifact.manifest.origin == SourceCompilationUnitOrigin::Std
+            })
+            .collect::<Vec<_>>();
+        let bundle =
+            build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
+        let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+            &source_set,
+            &bundle,
+        )
+        .lowered
+        .lowered;
+        let rendered = render_compact_results(&mut imported.state);
+        let both = rendered
+            .iter()
+            .find(|(name, _)| name == "both")
+            .expect("both should be rendered");
+
+        assert_eq!(both.1, "Add<α> => α -> α -> α");
+    });
+}
+
+#[test]
 fn compiled_typed_validation_reports_missing_scheme_symbol() {
     let typed = CompiledTypedSurface {
         schemes: vec![StdInferSnapshotScheme {
             symbol: 7,
             rendered: "int".to_string(),
             compact: None,
+            role_constraints: Vec::new(),
         }],
         ..CompiledTypedSurface::default()
     };
@@ -2019,6 +2062,7 @@ fn compiled_typed_import_rejects_missing_scheme_symbol() {
             symbol: 7,
             rendered: "int".to_string(),
             compact: None,
+            role_constraints: Vec::new(),
         }],
         ..CompiledTypedSurface::default()
     };
@@ -2313,6 +2357,41 @@ fn compiled_runtime_bundle_merges_surfaces_and_remaps_evidence_ids() {
         panic!("right binding should keep coerce evidence");
     };
     assert_eq!(evidence.source_edge, Some(1));
+}
+
+#[test]
+fn compiled_runtime_bundle_remaps_record_pattern_default_apply_evidence() {
+    let left = runtime_surface_with_coerce_binding("left", 0);
+    let right = runtime_surface_with_record_default_apply_binding("right");
+    let bundle = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap();
+
+    let right_binding = bundle
+        .surface
+        .program
+        .program
+        .bindings
+        .iter()
+        .find(|binding| binding.name.segments[0].0 == "right")
+        .expect("right binding");
+    let yulang_typed_ir::Expr::Block { stmts, .. } = &right_binding.body else {
+        panic!("right binding should keep block body");
+    };
+    let yulang_typed_ir::Stmt::Let { pattern, .. } = &stmts[0] else {
+        panic!("right binding should keep let statement");
+    };
+    let yulang_typed_ir::Pattern::Record { fields, .. } = pattern else {
+        panic!("right binding should keep record pattern");
+    };
+    let yulang_typed_ir::Expr::Apply {
+        evidence: Some(evidence),
+        ..
+    } = fields[0].default.as_ref().expect("record field default")
+    else {
+        panic!("record field default should keep apply evidence");
+    };
+
+    assert_eq!(evidence.callee_source_edge, Some(1));
+    assert_eq!(evidence.arg_source_edge, Some(2));
 }
 
 #[test]
@@ -2672,6 +2751,110 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                 handler_matches: Vec::new(),
             },
         },
+    }
+}
+
+fn runtime_surface_with_record_default_apply_binding(name: &str) -> CompiledRuntimeSurface {
+    let path = CorePath::new(vec![CoreName(name.to_string())]);
+    let callee = CorePath::new(vec![CoreName("callee".to_string())]);
+    let any = yulang_typed_ir::Type::Any;
+    let any_bounds = yulang_typed_ir::TypeBounds::exact(any.clone());
+    let any_scheme = yulang_typed_ir::Scheme {
+        requirements: Vec::new(),
+        body: any.clone(),
+    };
+    let apply_default = yulang_typed_ir::Expr::Apply {
+        callee: Box::new(yulang_typed_ir::Expr::Var(callee)),
+        arg: Box::new(yulang_typed_ir::Expr::Lit(yulang_typed_ir::Lit::Int(
+            "1".to_string(),
+        ))),
+        evidence: Some(yulang_typed_ir::ApplyEvidence {
+            callee_source_edge: Some(0),
+            arg_source_edge: Some(1),
+            callee: any_bounds.clone(),
+            expected_callee: Some(any_bounds.clone()),
+            arg: any_bounds.clone(),
+            expected_arg: Some(any_bounds.clone()),
+            result: any_bounds.clone(),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        }),
+    };
+    CompiledRuntimeSurface {
+        program: yulang_typed_ir::CoreProgram {
+            program: yulang_typed_ir::PrincipalModule {
+                path: CorePath::default(),
+                bindings: vec![yulang_typed_ir::PrincipalBinding {
+                    name: path.clone(),
+                    scheme: any_scheme,
+                    body: yulang_typed_ir::Expr::Block {
+                        stmts: vec![yulang_typed_ir::Stmt::Let {
+                            pattern: yulang_typed_ir::Pattern::Record {
+                                fields: vec![yulang_typed_ir::RecordPatternField {
+                                    name: CoreName("value".to_string()),
+                                    pattern: yulang_typed_ir::Pattern::Bind(CoreName(
+                                        "value".to_string(),
+                                    )),
+                                    default: Some(apply_default),
+                                }],
+                                spread: None,
+                            },
+                            value: yulang_typed_ir::Expr::Record {
+                                fields: Vec::new(),
+                                spread: None,
+                            },
+                        }],
+                        tail: None,
+                    },
+                }],
+                root_exprs: Vec::new(),
+                roots: Vec::new(),
+            },
+            graph: yulang_typed_ir::CoreGraphView {
+                bindings: vec![yulang_typed_ir::BindingGraphNode {
+                    binding: path,
+                    scheme_body: any.clone(),
+                    body_bounds: any_bounds.clone(),
+                }],
+                root_exprs: Vec::new(),
+                runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
+                primitive_types: Vec::new(),
+            },
+            evidence: yulang_typed_ir::PrincipalEvidence {
+                expected_edges: vec![
+                    expected_edge_evidence(0, yulang_typed_ir::ExpectedEdgeKind::ApplicationCallee),
+                    expected_edge_evidence(
+                        1,
+                        yulang_typed_ir::ExpectedEdgeKind::ApplicationArgument,
+                    ),
+                ],
+                expected_adapter_edges: Vec::new(),
+                derived_expected_edges: Vec::new(),
+                handler_matches: Vec::new(),
+            },
+        },
+    }
+}
+
+fn expected_edge_evidence(
+    id: u32,
+    kind: yulang_typed_ir::ExpectedEdgeKind,
+) -> yulang_typed_ir::ExpectedEdgeEvidence {
+    yulang_typed_ir::ExpectedEdgeEvidence {
+        id,
+        kind,
+        source_range: None,
+        actual: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+        expected: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+        actual_effect: None,
+        expected_effect: None,
+        closed: true,
+        informative: true,
+        runtime_usable: true,
     }
 }
 

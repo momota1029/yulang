@@ -272,7 +272,7 @@ struct CompileRunOutput {
 
 fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
     let use_compiled_std_surface =
-        std::env::var_os("YULANG_WASM_USE_COMPILED_STD_SURFACE").is_some();
+        std::env::var_os("YULANG_WASM_DISABLE_COMPILED_STD_SURFACE").is_none();
     compile_and_run_with_embedded_std(
         source,
         use_compiled_std_surface,
@@ -321,7 +321,7 @@ fn compile_and_run_with_embedded_std(
     let mut lowered = profiled_lowered.lowered;
     let infer_lower_ms = elapsed_ms(infer_lower_start);
     let type_render_start = now_ms();
-    let types = yulang_infer::render_exported_compact_results(&mut lowered.state)
+    let types = yulang_infer::render_exported_compact_results_in_scope(&mut lowered.state)
         .into_iter()
         .map(|(name, ty)| TypeResult { name, ty })
         .collect();
@@ -389,7 +389,7 @@ fn compile_and_run_with_embedded_std(
     };
     let monomorphize_ms = elapsed_ms(monomorphize_start);
     let vm_compile_start = now_ms();
-    let vm = match runtime::compile_vm_module(module) {
+    let vm = match runtime::compile_control_vm_module(module) {
         Ok(vm) => vm,
         Err(error) if use_embedded_std && compiled_std_runtime.is_some() => {
             return compile_and_run_with_embedded_std(
@@ -402,7 +402,7 @@ fn compile_and_run_with_embedded_std(
     };
     let vm_compile_ms = elapsed_ms(vm_compile_start);
     let vm_eval_start = now_ms();
-    match runtime::eval_roots_with_basic_host(&vm) {
+    match eval_control_roots_with_basic_host(&vm) {
         Ok(host_output) => {
             if use_embedded_std
                 && compiled_std_runtime.is_some()
@@ -478,6 +478,25 @@ fn compile_and_run_with_embedded_std(
         }
         Err(error) => Err(error.to_string()),
     }
+}
+
+fn eval_control_roots_with_basic_host(
+    module: &runtime::ControlVmModule,
+) -> Result<runtime::HostRunOutput, runtime::VmError> {
+    let mut results = Vec::with_capacity(module.root_count());
+    let mut stdout = String::new();
+    let mut vm_profile = runtime::VmProfile::default();
+    for index in 0..module.root_count() {
+        let (result, profile) =
+            module.eval_root_expr_with_basic_host_profiled(index, &mut stdout)?;
+        vm_profile.merge(profile);
+        results.push(result);
+    }
+    Ok(runtime::HostRunOutput {
+        results,
+        stdout,
+        vm_profile,
+    })
 }
 
 thread_local! {
@@ -645,17 +664,14 @@ mod tests {
         );
     }
 
-    fn assert_std_oracle_cache_hit(output: &RunOutput) {
-        assert_std_oracle_cache_used(output);
-        let timings = output.timings.as_ref().expect("run timings");
-        assert_eq!(timings.source_cache_hits, 1);
-        assert_eq!(timings.source_cache_misses, 0);
-    }
-
     fn assert_compiled_std_bundle_used(output: &RunOutput) {
         let timings = output.timings.as_ref().expect("run timings");
         assert_eq!(timings.source_cache_hits + timings.source_cache_misses, 1);
-        assert!(timings.compiled_std_cache_hit);
+        assert!(
+            timings.compiled_std_cache_hit,
+            "compiled std bundle should be used, fallback={:?}",
+            timings.compiled_std_fallback_reason
+        );
         assert!(timings.compiled_std_artifacts > 1);
         assert!(timings.compiled_std_runtime_bindings > 10);
         assert!(timings.compiled_std_fallback_reason.is_none());
@@ -784,7 +800,7 @@ sub:
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output.results[0].value, "[5, 6, 7, 6, 7, 8, 7, 8, 9]");
                 assert!(output.ok, "{:?}", output.diagnostics);
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -869,7 +885,7 @@ sub:
                 assert!(output.ok, "{:?}", output.diagnostics);
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output.results[0].value, "just 3");
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -897,7 +913,7 @@ sub:
                 assert!(output.ok, "{:?}", output.diagnostics);
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output.results[0].value, "just (3, 4, 5)");
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -905,7 +921,27 @@ sub:
     }
 
     #[test]
-    fn std_oracle_runs_ref_list_assignment_example() {
+    fn compiled_std_bundle_reuses_same_source_without_fallback() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let source = r#"(each 1..20 + each 1..20).list
+"#;
+                let first = run_inner(source);
+                assert!(first.ok, "{:?}", first.diagnostics);
+                assert_compiled_std_bundle_used(&first);
+
+                let second = run_inner(source);
+                assert!(second.ok, "{:?}", second.diagnostics);
+                assert_compiled_std_bundle_used(&second);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn runs_ref_list_assignment_example() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
@@ -920,7 +956,7 @@ sub:
                 assert!(output.ok, "{:?}", output.diagnostics);
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output.results[0].value, "[2, 6, 4]");
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -933,9 +969,9 @@ sub:
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
                 let output = run_inner(
-                    r#"our f x = x + 1
+                    r#"our f(xs: list int) = xs
 my hidden x = x
-pub g = f 1
+pub g = f [1]
 g
 "#,
                 );
@@ -948,7 +984,13 @@ g
                 assert!(names.contains(&"f"));
                 assert!(names.contains(&"g"));
                 assert!(!names.contains(&"hidden"));
-                assert_std_oracle_cache_used(&output);
+                let f = output
+                    .types
+                    .iter()
+                    .find(|item| item.name == "f")
+                    .expect("f should be exported");
+                assert_eq!(f.ty, "list<int> -> list<int>");
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -969,7 +1011,7 @@ g
                 assert_eq!(output.results.len(), 2);
                 assert_eq!(output.results[0].value, "3");
                 assert_eq!(output.results[1].value, "7");
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -977,7 +1019,7 @@ g
     }
 
     #[test]
-    fn std_oracle_prelude_operators_survive_cache() {
+    fn prelude_operators_survive_compiled_std_bundle() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
@@ -998,7 +1040,7 @@ g
                         .collect::<Vec<_>>(),
                     vec!["3", "6", "true", "true", "true"]
                 );
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -1006,13 +1048,13 @@ g
     }
 
     #[test]
-    fn playground_tour_uses_std_oracle_cache() {
+    fn playground_tour_uses_compiled_std_bundle() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
                 let output = run_inner(playground_tour_source());
                 assert!(output.ok, "{:?}", output.diagnostics);
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -1030,7 +1072,7 @@ g
                 assert!(timings.files > 1);
                 assert!(timings.total_ms >= 0.0);
                 assert_eq!(timings.source_cache_hits + timings.source_cache_misses, 1);
-                assert_std_oracle_cache_used(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -1050,7 +1092,7 @@ g
                 assert!(warmup.embedded_std_artifacts_fallback_reason.is_none());
                 let output = run_inner("1 + 2\n");
                 assert!(output.ok, "{:?}", output.diagnostics);
-                assert_std_oracle_cache_hit(&output);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()

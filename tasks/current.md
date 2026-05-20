@@ -19,15 +19,15 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 - `control-vm-emit/load` は binary artifact を扱う。形式は magic
   `YLCVMIR\0` + little-endian u32 version + postcard payload。JSON helper は
   runtime crate に debug support として残るが、CLI の標準測定経路ではない。
-- compact expression shape、symbol table、slot env、hot payload side tables により artifact version は `4`。全
+- compact expression shape、symbol table、slot env、hot payload side tables により artifact version は `5`。全
   `ControlExpr` から full runtime `Type` を落とし、lambda/apply/handler に必要な
   thunk-delay / thunk-wrap の bool shape だけを持つ。さらに binding / var /
   effect op / handler arm / env / request の execution-side path は
   `ControlSymbolId` になった。`ControlEnv` は `HashMap` ではなく dense slot
   `Vec<Option<ControlValue>>`。literals / names / types / expr lists / match arms /
   handle arms / blocks / records は side table 化し、`ControlExprKind` は `Copy`
-  payload だけを持つ。full type は `AddId.allowed`、`Coerce.to`、pattern metadata
-  のような実行に必要な場所にだけ残す。
+  payload だけを持つ。record pattern default は `ExprId` 化した control pattern
+  に落とし、full type は `AddId.allowed`、`Coerce.to` のような実行に必要な場所にだけ残す。
 - `(each 1..20 + each 1..20).list` の control VM binary artifact は 2.2K。release
   hyperfine で `control-vm-load` は `17.2 ms ± 0.4 ms`、既存 generated effects
   executable は `374.8 ms ± 6.9 ms`。この差は「インタプリタ言語が一般に速い」
@@ -50,9 +50,12 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
   その後、finalized std type schemes before artifact write を前提にした current
   cache surface へ切り替えるため、format は `v3`。
   さらに role method selection の未解決 receiver constraints を binding scheme に
-  残すようにしたため、format は `v6`。これにより、`std::int::add`
+  残すようにしたため、format は `v6`。その後、同じ v6 番台に古い凍結/compact
+  surface で書かれた std artifact が残ると tour の型推論へ汚染が再入するため、
+  format は `v7`。これにより、`std::int::add`
   を含まない古い `v1` cache と、effectful guard constraints が崩れる古い `v2`
-  cache、および role constraint が欠ける古い `v3` - `v5` cache は自動的に読まれない。
+  cache、role constraint が欠ける古い `v3` - `v5` cache、および古い v6 std
+  cache は自動的に読まれない。
   手動掃除用に `yulang cache path` / `yulang cache clear` も追加した。
 - hidden debug control VM path には source-fingerprint artifact cache も入った。
   plain `debug control-vm` / `debug control-vm-emit` は source collection 後、
@@ -60,6 +63,15 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
   miss の `runtime_lower=61.321ms` / `monomorphize=81.489ms` /
   `vm_compile=817.326us` が、hit では `control_vm_source_cache_load=376.553us`
   に置き換わった。
+- playground wasm は compiled std runtime surface を default ON に戻した。
+  artifact merge 時に `Stmt::Let` の pattern default expression が expected-edge
+  remap から漏れており、record pattern default 内の `ApplyEvidence` が古い
+  edge ID を指して runtime lowerer の callee/argument validation に落ちていた。
+  pattern 全体を runtime ID remap の対象にした。さらに compiled typed surface
+  に保存された build-time `TypeVar` と runtime lowering の fresh `TypeVar` が
+  衝突しないよう、import 時に artifact 内の最大 `TypeVar` まで allocator を予約する。
+  これで Tour と同一 source の連続 run でも `compiled_std_cache_hit=true` のまま
+  control VM 実行へ進める。
 
 完了履歴:
 
@@ -739,7 +751,7 @@ Yulang code から小さい regression test を書ける形を作る。
   that avoiding repeated runtime `Expr` cloning in closures/thunks/frames is a
   real interpreter-side win before doing a dedicated bytecode or native
   lowering.
-- Current v4 control VM artifact has compact side tables for hot payloads and
+- Current v5 control VM artifact has compact side tables for hot payloads and
   continuation frames store table ids plus program counters instead of cloned
   remaining vectors. On `/tmp/yulang_20x20_list_flat_v4.ycvm`, release
   hyperfine measured `control-vm-load` at `17.2 ms ± 0.4 ms` versus the

@@ -2,15 +2,89 @@
 
 This note defines the source-level packaging vocabulary for Yulang.
 
-The design intentionally follows the Go module/package shape more than the Rust
-crate/module shape, but uses Yulang words:
+The current target shape is:
 
 ```text
 registry / host
-  -> realm
+  -> realm@version
      -> band
-        -> source file
+        -> module tree
+           -> source file
 ```
+
+The public identity is intentionally close to Yulang / Rust namespace syntax:
+
+```text
+yulang@0.1.3/std::prelude
+```
+
+This means:
+
+```text
+realm:      yulang@0.1.3
+band:       std
+module:     prelude
+```
+
+`/` separates the resolved realm from the band. `::` stays inside the band and
+is also the normal module / value / type path separator. A version belongs to
+the realm, never to a band.
+
+## Design Summary
+
+- A realm is the versioned source universe / distribution boundary.
+- A band is the crate-like import, namespace, and build boundary inside a
+  realm.
+- A module tree lives inside one band and is grown by `mod`.
+- Bands do not have independent versions.
+- A band identity is `resolved realm identity + band path`.
+- Compiled artifacts are still source-dependency SCC artifacts. Realm and band
+  identity provide context for those artifacts; they are not necessarily the
+  final cache unit by themselves.
+
+The intended cache hierarchy is:
+
+```text
+SourceRealm
+  -> SourceBand
+     -> SourceDependencyScc
+        -> CompiledUnitArtifact
+```
+
+## Surface Identity
+
+The canonical external form is:
+
+```text
+realm@version/band::module::item
+```
+
+Examples:
+
+```text
+yulang@0.1.3/std::prelude
+github.com/user/app@1.2.0/main
+github.com/user/ui@2.0.1/widget::button
+```
+
+The parser may accept a surface version suffix such as a trailing `v1.2`
+because the CST already has that shape. Lowering should extract that suffix as
+structured version metadata and canonicalize it before resolution:
+
+```text
+surface:   github.com/user/ui/widget::button v1.2
+canonical: github.com/user/ui@1.2/widget::button
+```
+
+Rules:
+
+- at most one version spec may appear in a realm reference;
+- the version spec belongs to the realm;
+- the version spec is not a path segment;
+- cache keys use canonical resolved identity, not the original CST text.
+
+If the surface form is ambiguous, the resolver should report a path/version
+diagnostic instead of guessing a band split.
 
 ## Terms
 
@@ -36,6 +110,7 @@ A realm is the versioned distribution boundary.
 Examples:
 
 ```text
+yulang@0.1.3
 github.com/momota1029/yulang-extra@v0.1.0
 file:///home/me/lib
 embedded:std@2026.05
@@ -68,28 +143,53 @@ resolved realm identity + band path
 
 A band is the import / namespace / build unit inside a realm.
 
-It is closest to a Go package. It is intentionally shorter than `package` and
-fits Yulang's `pub` / `our` vocabulary: a band is the group that shares `our`
-definitions and exports `pub` definitions.
+It is closest to a Rust crate in how Yulang code should feel, while keeping the
+Go-like idea that one versioned distribution can contain several independently
+importable units. A band is the group that shares `our` definitions and exports
+`pub` definitions.
 
 A band owns:
 
 - band path inside its realm;
-- source files;
+- source files in its module tree;
 - public and our exported names;
 - syntax exports;
 - file dependency SCCs;
 - compiled-unit artifacts for its SCCs.
 
-Bands are not published independently. If `tools@v1.2.0` contains `cli` and
-`parser`, both are part of the same `tools@v1.2.0` snapshot:
+Bands are not published independently. If `yulang@0.1.3` contains `std` and
+`ui`, both are part of the same `yulang@0.1.3` snapshot:
 
 ```text
-tools@v1.2.0:cli
-tools@v1.2.0:parser
+yulang@0.1.3/std
+yulang@0.1.3/ui
 ```
 
-### Band Boundary
+Inside the same resolved realm, a path such as `std::prelude` starts at the
+`std` band and then enters the `prelude` module within that band.
+
+### Module
+
+A module is a path segment inside one band.
+
+Modules are grown by `mod`, not by package metadata. The compiler should keep
+this split explicit:
+
+```text
+RealmId / BandId :: ModulePath
+```
+
+That split is important because `std::prelude::Display` means:
+
+```text
+band:   std
+module: prelude
+item:   Display
+```
+
+It does not mean that `std::prelude` is a nested band.
+
+## Band Boundary
 
 The near-term source boundary is defined by `mod`, not by a new manifest file.
 
@@ -99,58 +199,128 @@ The near-term source boundary is defined by `mod`, not by a new manifest file.
 - `current_file_stem/child.yu`.
 
 It does not walk upward and it does not read `child/mod.yu`. This keeps `mod`
-as a local tree edge. A file that is not reached through a `mod` edge becomes a
-band root. In other words, a band is the source subtree that cannot be climbed
-past by more `mod` edges.
+as a local tree edge.
 
-This gives two important future hooks:
+A file that is not reached through a parent `mod` edge becomes a band root. In
+other words, a band is the source tree whose parent is not another local module
+inside the same band.
 
-- `band::name` can mean an absolute path from the current band root.
-- `use realm/...` or `our use realm/...` can import another resolved realm /
-  band without pretending it is a local `mod`.
+Example:
 
-`mod` and band/realm imports are therefore separate operations. `mod` grows the
-current band. `use` can depend on another band once realm resolution exists.
+```text
+realm yulang@0.1.3
+  band std
+    mod prelude
+    mod list
+    mod ops
+  band ui
+    mod widget
+```
 
-## Dependency Rules
+This makes these paths natural:
+
+```text
+std::prelude
+std::list
+ui::widget
+```
+
+It also makes `pub use ui::widget` a same-realm reexport from one band to
+another, as long as visibility allows it.
+
+`mod` and band / realm imports are therefore separate operations. `mod` grows
+the current band. `use` can depend on another band once realm resolution exists.
+
+## Import And Use Resolution
+
+### Same-Realm Lookup
 
 Same-realm imports use the same resolved realm snapshot:
 
 ```text
-tools@v1.2.0:cli
-  -> tools@v1.2.0:parser
+yulang@0.1.3/std::prelude
+  -> yulang@0.1.3/ui::widget
 ```
 
-Cross-realm imports use the version selected by the importing realm's manifest
-and lock:
-
-```text
-app@v2.0.0:main
-  -> tools@v1.2.0:parser
-```
-
-The compiler should avoid allowing a band inside `tools@v1.2.0` to depend on
-`tools@v1.1.0:parser` as if it were a normal same-realm import. That makes
+The compiler should avoid allowing a band inside `yulang@0.1.3` to depend on
+`yulang@0.1.2/std` as if it were a normal same-realm import. That makes
 same-realm identity ambiguous and complicates cache keys.
 
-## Import Path Split
+### Cross-Realm Lookup
 
-An external import path is resolved in three parts:
-
-```text
-use github.com/user/tools/parser
-
-host:  github.com
-realm: github.com/user/tools
-band:  parser
-```
-
-The version is normally not written in source. It is selected by a realm
-manifest and lock:
+Cross-realm imports use the version selected by the importing realm's resolver
+state and lock:
 
 ```text
-require github.com/user/tools v1.2.0
+github.com/user/app@2.0.0/main
+  -> github.com/user/ui@1.2.0/widget::button
 ```
+
+The source path may omit the version if the realm resolver can choose it from a
+lock file, a previous import, or a `with` constraint. After resolution, the
+compiler should work only with the resolved canonical identity.
+
+### `with` Version Alignment
+
+`with` is a version alignment constraint. It is not an import by itself.
+
+Example intent:
+
+```text
+use user/program
+use ui/widget::a with program
+```
+
+The first import resolves the `program` band from the `user` realm. The second
+import targets the `widget` band from the `ui` realm and asks the resolver to
+use the same `ui` realm version that the already resolved `program` dependency
+exposes. This works only when `program` publicly exposes a matching dependency
+or reexport such as `program::ui`. Private implementation dependencies of
+`program` are not visible to `with`.
+
+Resolver rule:
+
+```text
+target import + with anchor
+  -> read the anchor's public dependency / reexport surface
+  -> find the target realm identity
+  -> reuse the anchor-selected version
+```
+
+If the target import also requests a different explicit version, the resolver
+should report a conflict:
+
+```text
+use ui/widget with program     # program exposes ui@1.2.0
+use ui/widget v2.0 with program
+                               # conflict: explicit ui@2.0 vs anchored ui@1.2
+```
+
+`with` participates in lock resolution and cache identity because it changes the
+resolved realm version even when the target source path is the same.
+
+## Relation To Go And Rust
+
+The design borrows Go's useful split:
+
+```text
+module version
+  -> many packages/import units
+```
+
+Yulang names the versioned module-like boundary `realm`, and the import unit
+`band`.
+
+The surface syntax is deliberately not Go-like. Go lets directory paths under a
+module become package paths. Yulang should keep a clearer split:
+
+```text
+realm@version/band::module
+```
+
+This keeps standard library paths such as `yulang@0.1.3/std::prelude` close to
+the existing Rust/Yulang namespace feel while still supporting URL-like realm
+resolution.
 
 ## Relation To Existing SourceSet
 
@@ -182,15 +352,30 @@ Compiled artifacts should eventually include:
 
 - compiler version;
 - artifact format version;
+- parser / operator table format version;
 - resolved realm identity;
 - resolved realm version / revision;
 - band path;
+- source dependency SCC identity;
 - source file identities;
-- dependency band/unit hashes;
+- source hashes and syntax export hashes;
+- dependency band interface hashes;
+- dependency SCC artifact hashes;
 - feature flags and relevant environment knobs.
 
 The cache should never rely on a band path alone. A band path becomes meaningful
 only after its realm has been resolved.
+
+Downstream invalidation should primarily flow through public interface hashes:
+
+```text
+dependency source SCC changed
+  -> dependency band public interface hash changed
+  -> downstream cache entries invalidated
+```
+
+Internal SCC artifacts may change without invalidating downstream bands when
+the exported syntax / namespace / typed / runtime surfaces remain compatible.
 
 ## Cache Locations
 
@@ -255,8 +440,9 @@ realm.toml
 yulang.lock
 ```
 
-`realm.toml` declares the current realm. `yulang.lock` records resolved realm
-dependencies and revisions. The lock file is not a cache; it is part of
+`realm.toml` declares the current realm when a project wants explicit realm
+identity. It is not required to declare bands. `yulang.lock` records resolved
+realm dependencies and revisions. The lock file is not a cache; it is part of
 reproducible source identity. Fetched realm contents and compiled artifacts
 live in the persistent user cache.
 
@@ -272,6 +458,8 @@ RealmVersion
 SourceBand
 BandPath
 ResolvedBandId
+ModulePath
+ResolvedSourcePath
 ```
 
 These types should be data boundaries first. They should not force source
@@ -299,19 +487,23 @@ Current first slice:
   the same `mod` edge rule.
 
 This is intentionally still mostly an identity and storage layer. It does not
-yet read a realm manifest, fetch git dependencies, resolve `use realm/...`,
-implement `band::` absolute lookup, or automatically use the persistent
-compiled-unit cache during lowering.
+yet read a realm manifest, fetch git dependencies, resolve external realm
+imports, implement full `band::module` absolute lookup, apply `with`
+constraints, or automatically use the persistent compiled-unit cache during
+lowering.
 
 Resolver work can then proceed in phases:
 
 1. local realm and virtual single-file realm;
 2. local bands from `mod` edges;
-3. `band::` absolute lookup from the current band root;
-4. realm manifest and lock file;
-5. `use realm/...` resolution;
-6. git / GitHub realm fetch;
-7. persistent realm fetch cache;
-8. compiled artifact cache lookup / invalidation in the source lowering
-   pipeline;
-9. browser embedded realms and IndexedDB/local storage cache.
+3. `band::module` absolute lookup from the current realm;
+4. canonical path parser for `realm@version/band::module`;
+5. version suffix extraction from CST into structured resolver metadata;
+6. realm manifest and lock file;
+7. cross-realm `use` resolution;
+8. `with` version alignment constraints;
+9. git / GitHub realm fetch;
+10. persistent realm fetch cache;
+11. compiled artifact cache lookup / invalidation in the source lowering
+    pipeline;
+12. browser embedded realms and IndexedDB/local storage cache.

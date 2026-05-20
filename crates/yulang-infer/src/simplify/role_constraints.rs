@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::ids::TypeVar;
 
@@ -6,7 +6,7 @@ use super::compact::{CompactBounds, CompactType, CompactTypeScheme, merge_compac
 use super::cooccur::CompactRoleConstraint;
 
 pub(crate) fn rewrite_role_constraints(
-    scheme: &CompactTypeScheme,
+    _scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     subst: &std::collections::HashMap<TypeVar, Option<TypeVar>>,
 ) -> Vec<CompactRoleConstraint> {
@@ -25,7 +25,7 @@ pub(crate) fn rewrite_role_constraints(
         }
     }
     let coalesced = coalesce_role_constraints(out);
-    resolve_disconnected_role_constraint_vars(scheme, coalesced)
+    remove_empty_role_constraints(coalesced)
 }
 
 fn coalesce_role_constraints(
@@ -73,85 +73,21 @@ fn coalesce_role_constraints(
     out
 }
 
-fn resolve_disconnected_role_constraint_vars(
-    scheme: &CompactTypeScheme,
+fn remove_empty_role_constraints(
     constraints: Vec<CompactRoleConstraint>,
 ) -> Vec<CompactRoleConstraint> {
-    let disconnected = disconnected_role_constraint_vars(scheme, &constraints);
-    let mut out = Vec::new();
-    for constraint in constraints {
-        let rewritten = if disconnected.is_empty() {
-            constraint
-        } else {
-            let subst = disconnected
-                .iter()
-                .copied()
-                .map(|tv| (tv, None))
-                .collect::<HashMap<_, _>>();
-            CompactRoleConstraint {
-                role: constraint.role,
-                args: constraint
-                    .args
-                    .iter()
-                    .map(|arg| super::cooccur::rewrite_bounds(arg, &subst))
-                    .collect(),
-            }
-        };
-        if !out.contains(&rewritten) {
-            out.push(rewritten);
-        }
-    }
-    coalesce_role_constraints(out)
-}
-
-fn disconnected_role_constraint_vars(
-    scheme: &CompactTypeScheme,
-    constraints: &[CompactRoleConstraint],
-) -> HashSet<TypeVar> {
-    let ordinary = ordinary_scheme_vars(scheme);
-    let mut adjacency = HashMap::<TypeVar, HashSet<TypeVar>>::new();
-
-    for constraint in constraints {
-        let vars = role_constraint_vars(constraint)
-            .into_iter()
-            .collect::<Vec<_>>();
-        for &tv in &vars {
-            adjacency.entry(tv).or_default();
-        }
-        for &lhs in &vars {
-            let neighbors = adjacency.entry(lhs).or_default();
-            neighbors.extend(vars.iter().copied().filter(|rhs| *rhs != lhs));
-        }
-    }
-
-    let mut reachable = HashSet::new();
-    let mut stack = ordinary
+    constraints
         .into_iter()
-        .filter(|tv| adjacency.contains_key(tv))
-        .collect::<Vec<_>>();
-    while let Some(current) = stack.pop() {
-        if !reachable.insert(current) {
-            continue;
-        }
-        if let Some(neighbors) = adjacency.get(&current) {
-            stack.extend(neighbors.iter().copied());
-        }
-    }
-
-    adjacency
-        .into_keys()
-        .filter(|tv| !reachable.contains(tv))
+        .filter(|constraint| !role_constraint_is_empty(constraint))
         .collect()
 }
 
-fn ordinary_scheme_vars(scheme: &CompactTypeScheme) -> HashSet<TypeVar> {
-    let mut out = HashSet::new();
-    collect_compact_bounds_vars(&scheme.cty, &mut out);
-    for (&tv, bounds) in &scheme.rec_vars {
-        out.insert(tv);
-        collect_compact_bounds_vars(bounds, &mut out);
-    }
-    out
+fn role_constraint_is_empty(constraint: &CompactRoleConstraint) -> bool {
+    constraint.args.iter().all(|arg| {
+        arg.self_var.is_none()
+            && arg.lower == CompactType::default()
+            && arg.upper == CompactType::default()
+    })
 }
 
 fn can_coalesce_role_constraints(
@@ -251,7 +187,7 @@ mod tests {
     use crate::symbols::{Name, Path};
 
     #[test]
-    fn rewrite_role_constraints_resolves_disconnected_role_only_vars() {
+    fn rewrite_role_constraints_drops_empty_constraints_after_rewrite() {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let c = fresh_type_var();
@@ -271,13 +207,12 @@ mod tests {
             role_constraint("S", vec![var_bounds(b), var_bounds(c)]),
         ];
 
-        let rewritten = rewrite_role_constraints(&scheme, &constraints, &HashMap::new());
+        let subst = HashMap::from([(b, None), (c, None)]);
+        let rewritten = rewrite_role_constraints(&scheme, &constraints, &subst);
 
         assert!(
-            rewritten
-                .iter()
-                .all(|constraint| role_constraint_vars(constraint).is_empty()),
-            "role-only disconnected vars should collapse to boundary values",
+            rewritten.is_empty(),
+            "role constraints rewritten to empty bounds should disappear instead of rendering as `_`",
         );
     }
 

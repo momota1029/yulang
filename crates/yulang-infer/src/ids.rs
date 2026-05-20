@@ -39,6 +39,13 @@ pub fn fresh_frozen_type_var() -> TypeVar {
     TypeVar(NEXT_TYPE_VAR.fetch_add(1, Ordering::Relaxed))
 }
 
+pub(crate) fn reserve_type_vars_through(max: TypeVar) {
+    let next = max.0.saturating_add(1);
+    let _ = NEXT_TYPE_VAR.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+        (current < next).then_some(next)
+    });
+}
+
 /// TypeArena 内の Pos ノードへのインデックス。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PosId(pub u32);

@@ -3040,6 +3040,87 @@ run_into_strings: {
     }
 
     #[test]
+    fn control_vm_runs_record_pattern_defaults_from_previous_fields() {
+        let results = eval_control_source_with_std(
+            r#"
+my box {width = 1, height = width} =
+    width * height
+
+box {}
+box { width: 3 }
+box { width: 3, height: 4 }
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::Int("1".to_string()),
+                TestValue::Int("9".to_string()),
+                TestValue::Int("12".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn control_vm_preserves_resumptions_in_list_index_range_raw_queue() {
+        let results = eval_control_source_with_std(
+            r#"use std::undet::*
+
+{
+    my a = each 1..
+    my b = each a<..
+
+    guard: a == 3
+
+    (a, b)
+} .once
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Variant {
+                tag: "just".to_string(),
+                value: Some(Box::new(TestValue::Tuple(vec![
+                    TestValue::Int("3".to_string()),
+                    TestValue::Int("4".to_string()),
+                ]))),
+            }]
+        );
+    }
+
+    #[test]
+    fn control_vm_runs_open_range_pythagorean_once() {
+        let results = eval_control_source_with_std(
+            r#"use std::undet::*
+
+{
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+} .once
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Variant {
+                tag: "just".to_string(),
+                value: Some(Box::new(TestValue::Tuple(vec![
+                    TestValue::Int("3".to_string()),
+                    TestValue::Int("4".to_string()),
+                    TestValue::Int("5".to_string()),
+                ]))),
+            }]
+        );
+    }
+
+    #[test]
     fn vm_runs_std_undet_each_and_once_from_prelude() {
         let results = eval_source_with_std(
             r#"

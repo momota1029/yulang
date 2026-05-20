@@ -140,9 +140,6 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         .unwrap_or_else(|| effect_scope_path(op_path));
                     let arm_is_active = handler_captures_effect_path(state, &comp, &effect_path);
                     active_arms.push(arm_is_active);
-                    if !arm_is_active {
-                        continue;
-                    }
                     let op_use = op_def.and_then(|def| {
                         instantiate_effect_op_use(state, def, &effect_path, &mut effect_arg_substs)
                     });
@@ -161,11 +158,13 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                                     .collect()
                             }),
                     };
-                    constrain_existing_comp_effect_atoms(state, comp.eff, &handled_atom);
                     let handled_op = Neg::Atom(handled_atom.clone());
-                    handled_ops.push(handled_op.clone());
-                    handled_pos_ops.push(Pos::Atom(handled_atom));
-                    handled_effect_paths.push(effect_path.clone());
+                    if arm_is_active {
+                        constrain_existing_comp_effect_atoms(state, comp.eff, &handled_atom);
+                        handled_ops.push(handled_op.clone());
+                        handled_pos_ops.push(Pos::Atom(handled_atom));
+                        handled_effect_paths.push(effect_path.clone());
+                    }
 
                     let resume_tv = state.fresh_tv();
                     let op_call_eff = state.fresh_tv();
@@ -195,10 +194,12 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         state.infer.constrain(Pos::Var(op_call_eff), op_ret_eff_neg);
                         state.infer.constrain(op_ret_pos, Neg::Var(resume_tv));
                         state.infer.constrain(Pos::Var(resume_tv), op_ret_neg);
-                        state.infer.constrain(
-                            Pos::Var(op_call_eff),
-                            state.neg_row(vec![handled_op.clone()], Neg::Top),
-                        );
+                        if arm_is_active {
+                            state.infer.constrain(
+                                Pos::Var(op_call_eff),
+                                state.neg_row(vec![handled_op.clone()], Neg::Top),
+                            );
+                        }
                     }
 
                     if let Some(&k_tv) = state.def_tvs.get(k) {

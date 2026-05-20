@@ -7,7 +7,7 @@ use std::io;
 use std::path::Path;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 4;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 5;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -358,8 +358,56 @@ enum ControlRecordSpread {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+enum ControlPattern {
+    Wildcard,
+    Bind {
+        name: typed_ir::Name,
+    },
+    Lit {
+        lit: typed_ir::Lit,
+    },
+    Tuple {
+        items: Vec<ControlPattern>,
+    },
+    List {
+        prefix: Vec<ControlPattern>,
+        spread: Option<Box<ControlPattern>>,
+        suffix: Vec<ControlPattern>,
+    },
+    Record {
+        fields: Vec<ControlRecordPatternField>,
+        spread: Option<ControlRecordSpreadPattern>,
+    },
+    Variant {
+        tag: typed_ir::Name,
+        value: Option<Box<ControlPattern>>,
+    },
+    Or {
+        left: Box<ControlPattern>,
+        right: Box<ControlPattern>,
+    },
+    As {
+        pattern: Box<ControlPattern>,
+        name: typed_ir::Name,
+    },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct ControlRecordPatternField {
+    name: typed_ir::Name,
+    pattern: ControlPattern,
+    default: Option<ExprId>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+enum ControlRecordSpreadPattern {
+    Head(Box<ControlPattern>),
+    Tail(Box<ControlPattern>),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 struct ControlMatchArm {
-    pattern: Pattern,
+    pattern: ControlPattern,
     guard: Option<ExprId>,
     body: ExprId,
 }
@@ -367,7 +415,7 @@ struct ControlMatchArm {
 #[derive(Clone, Serialize, Deserialize)]
 struct ControlHandleArm {
     effect: ControlSymbolId,
-    payload: Pattern,
+    payload: ControlPattern,
     resume: Option<ControlSymbolId>,
     guard: Option<ExprId>,
     body: ExprId,
@@ -375,9 +423,15 @@ struct ControlHandleArm {
 
 #[derive(Clone, Serialize, Deserialize)]
 enum ControlStmt {
-    Let { pattern: Pattern, value: ExprId },
+    Let {
+        pattern: ControlPattern,
+        value: ExprId,
+    },
     Expr(ExprId),
-    Module { def: ControlSymbolId, body: ExprId },
+    Module {
+        def: ControlSymbolId,
+        body: ExprId,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -515,152 +569,60 @@ impl ControlCompiler {
         id
     }
 
-    fn register_pattern_bindings(&mut self, pattern: &Pattern) {
+    fn pattern(&mut self, pattern: Pattern) -> ControlPattern {
         match pattern {
+            Pattern::Wildcard { .. } => ControlPattern::Wildcard,
             Pattern::Bind { name, .. } => {
-                self.intern_name_path(name);
+                self.intern_name_path(&name);
+                ControlPattern::Bind { name }
             }
-            Pattern::Tuple { items, .. } => {
-                for item in items {
-                    self.register_pattern_bindings(item);
-                }
-            }
-            Pattern::Or { left, right, .. } => {
-                self.register_pattern_bindings(left);
-                self.register_pattern_bindings(right);
-            }
-            Pattern::As { pattern, name, .. } => {
-                self.register_pattern_bindings(pattern);
-                self.intern_name_path(name);
-            }
-            Pattern::Variant {
-                value: Some(value), ..
-            } => {
-                self.register_pattern_bindings(value);
-            }
-            Pattern::Record { fields, spread, .. } => {
-                for field in fields {
-                    self.register_pattern_bindings(&field.pattern);
-                    if let Some(default) = &field.default {
-                        self.register_pattern_expr_bindings(default);
-                    }
-                }
-                if let Some(spread) = spread {
-                    match spread {
-                        RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
-                            self.register_pattern_bindings(pattern);
-                        }
-                    }
-                }
-            }
+            Pattern::Lit { lit, .. } => ControlPattern::Lit { lit },
+            Pattern::Tuple { items, .. } => ControlPattern::Tuple {
+                items: items.into_iter().map(|item| self.pattern(item)).collect(),
+            },
             Pattern::List {
                 prefix,
                 spread,
                 suffix,
                 ..
-            } => {
-                for item in prefix {
-                    self.register_pattern_bindings(item);
-                }
-                for item in suffix {
-                    self.register_pattern_bindings(item);
-                }
-                if let Some(spread) = spread {
-                    self.register_pattern_bindings(spread);
-                }
-            }
-            Pattern::Wildcard { .. }
-            | Pattern::Lit { .. }
-            | Pattern::Variant { value: None, .. } => {}
-        }
-    }
-
-    fn register_pattern_expr_bindings(&mut self, expr: &Expr) {
-        match &expr.kind {
-            ExprKind::Lambda { param, body, .. } => {
-                self.intern_name_path(param);
-                self.register_pattern_expr_bindings(body);
-            }
-            ExprKind::Apply { callee, arg, .. } => {
-                self.register_pattern_expr_bindings(callee);
-                self.register_pattern_expr_bindings(arg);
-            }
-            ExprKind::If {
-                cond,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                self.register_pattern_expr_bindings(cond);
-                self.register_pattern_expr_bindings(then_branch);
-                self.register_pattern_expr_bindings(else_branch);
-            }
-            ExprKind::Tuple(items) => {
-                for item in items {
-                    self.register_pattern_expr_bindings(item);
-                }
-            }
-            ExprKind::Variant {
-                value: Some(value), ..
-            } => self.register_pattern_expr_bindings(value),
-            ExprKind::Match { arms, .. } => {
-                for arm in arms {
-                    self.register_pattern_bindings(&arm.pattern);
-                    if let Some(guard) = &arm.guard {
-                        self.register_pattern_expr_bindings(guard);
+            } => ControlPattern::List {
+                prefix: prefix.into_iter().map(|item| self.pattern(item)).collect(),
+                spread: spread.map(|item| Box::new(self.pattern(*item))),
+                suffix: suffix.into_iter().map(|item| self.pattern(item)).collect(),
+            },
+            Pattern::Record { fields, spread, .. } => ControlPattern::Record {
+                fields: fields
+                    .into_iter()
+                    .map(|field| ControlRecordPatternField {
+                        name: field.name,
+                        pattern: self.pattern(field.pattern),
+                        default: field.default.map(|default| self.expr(default)),
+                    })
+                    .collect(),
+                spread: spread.map(|spread| match spread {
+                    RecordSpreadPattern::Head(pattern) => {
+                        ControlRecordSpreadPattern::Head(Box::new(self.pattern(*pattern)))
                     }
-                    self.register_pattern_expr_bindings(&arm.body);
-                }
-            }
-            ExprKind::Block { stmts, tail } => {
-                for stmt in stmts {
-                    if let Stmt::Let { pattern, .. } = stmt {
-                        self.register_pattern_bindings(pattern);
+                    RecordSpreadPattern::Tail(pattern) => {
+                        ControlRecordSpreadPattern::Tail(Box::new(self.pattern(*pattern)))
                     }
-                }
-                if let Some(tail) = tail {
-                    self.register_pattern_expr_bindings(tail);
-                }
-            }
-            ExprKind::Handle { arms, .. } => {
-                for arm in arms {
-                    self.register_pattern_bindings(&arm.payload);
-                    if let Some(resume) = &arm.resume {
-                        self.intern_name_path(&resume.name);
-                    }
-                    if let Some(guard) = &arm.guard {
-                        self.register_pattern_expr_bindings(guard);
-                    }
-                    self.register_pattern_expr_bindings(&arm.body);
-                }
-            }
-            ExprKind::BindHere { expr }
-            | ExprKind::Thunk { expr, .. }
-            | ExprKind::Coerce { expr, .. }
-            | ExprKind::Pack { expr, .. }
-            | ExprKind::Select { base: expr, .. } => self.register_pattern_expr_bindings(expr),
-            ExprKind::LocalPushId { body, .. } | ExprKind::AddId { thunk: body, .. } => {
-                self.register_pattern_expr_bindings(body);
-            }
-            ExprKind::Record { fields, spread } => {
-                for field in fields {
-                    self.register_pattern_expr_bindings(&field.value);
-                }
-                if let Some(spread) = spread {
-                    match spread {
-                        RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                            self.register_pattern_expr_bindings(expr);
-                        }
-                    }
+                }),
+            },
+            Pattern::Variant { tag, value, .. } => ControlPattern::Variant {
+                tag,
+                value: value.map(|value| Box::new(self.pattern(*value))),
+            },
+            Pattern::Or { left, right, .. } => ControlPattern::Or {
+                left: Box::new(self.pattern(*left)),
+                right: Box::new(self.pattern(*right)),
+            },
+            Pattern::As { pattern, name, .. } => {
+                self.intern_name_path(&name);
+                ControlPattern::As {
+                    pattern: Box::new(self.pattern(*pattern)),
+                    name,
                 }
             }
-            ExprKind::Var(_)
-            | ExprKind::EffectOp(_)
-            | ExprKind::PrimitiveOp(_)
-            | ExprKind::Lit(_)
-            | ExprKind::Variant { value: None, .. }
-            | ExprKind::PeekId
-            | ExprKind::FindId { .. } => {}
         }
     }
 
@@ -715,10 +677,7 @@ impl ControlCompiler {
                 let arms = arms
                     .into_iter()
                     .map(|arm| ControlMatchArm {
-                        pattern: {
-                            self.register_pattern_bindings(&arm.pattern);
-                            arm.pattern
-                        },
+                        pattern: self.pattern(arm.pattern),
                         guard: arm.guard.map(|guard| self.expr(guard)),
                         body: self.expr(arm.body),
                     })
@@ -744,10 +703,7 @@ impl ControlCompiler {
                     .into_iter()
                     .map(|arm| ControlHandleArm {
                         effect: self.intern_path(arm.effect),
-                        payload: {
-                            self.register_pattern_bindings(&arm.payload);
-                            arm.payload
-                        },
+                        payload: self.pattern(arm.payload),
                         resume: arm.resume.map(|resume| self.intern_name_path(&resume.name)),
                         guard: arm.guard.map(|guard| self.expr(guard)),
                         body: self.expr(arm.body),
@@ -810,10 +766,7 @@ impl ControlCompiler {
     fn stmt(&mut self, stmt: Stmt) -> ControlStmt {
         match stmt {
             Stmt::Let { pattern, value } => ControlStmt::Let {
-                pattern: {
-                    self.register_pattern_bindings(&pattern);
-                    pattern
-                },
+                pattern: self.pattern(pattern),
                 value: self.expr(value),
             },
             Stmt::Expr(expr) => ControlStmt::Expr(self.expr(expr)),
@@ -2272,19 +2225,19 @@ impl<'m> ControlInterpreter<'m> {
 
     fn bind_pattern(
         &mut self,
-        pattern: &Pattern,
+        pattern: &ControlPattern,
         value: ControlValue,
         env: &mut ControlEnv,
     ) -> Result<(), VmError> {
         match pattern {
-            Pattern::Wildcard { .. } => Ok(()),
-            Pattern::Bind { name, .. } => {
+            ControlPattern::Wildcard => Ok(()),
+            ControlPattern::Bind { name } => {
                 env.insert(self.module.symbol_for_name(name), value);
                 Ok(())
             }
-            Pattern::Lit { lit, .. } if value == control_value_from_lit(lit) => Ok(()),
-            Pattern::Lit { .. } => Err(VmError::PatternMismatch),
-            Pattern::Tuple { items, .. } => {
+            ControlPattern::Lit { lit } if value == control_value_from_lit(lit) => Ok(()),
+            ControlPattern::Lit { .. } => Err(VmError::PatternMismatch),
+            ControlPattern::Tuple { items } => {
                 let ControlValue::Tuple(values) = value else {
                     return Err(VmError::PatternMismatch);
                 };
@@ -2296,10 +2249,9 @@ impl<'m> ControlInterpreter<'m> {
                 }
                 Ok(())
             }
-            Pattern::Variant {
+            ControlPattern::Variant {
                 tag,
                 value: pattern_value,
-                ..
             } => {
                 let ControlValue::Variant {
                     tag: actual,
@@ -2317,7 +2269,7 @@ impl<'m> ControlInterpreter<'m> {
                     _ => Err(VmError::PatternMismatch),
                 }
             }
-            Pattern::Or { left, right, .. } => {
+            ControlPattern::Or { left, right } => {
                 let snapshot = env.clone();
                 if self.bind_pattern(left, value.clone(), env).is_ok() {
                     return Ok(());
@@ -2325,12 +2277,12 @@ impl<'m> ControlInterpreter<'m> {
                 *env = snapshot;
                 self.bind_pattern(right, value, env)
             }
-            Pattern::As { pattern, name, .. } => {
+            ControlPattern::As { pattern, name } => {
                 self.bind_pattern(pattern, value.clone(), env)?;
                 env.insert(self.module.symbol_for_name(name), value);
                 Ok(())
             }
-            Pattern::Record { fields, spread, .. } => {
+            ControlPattern::Record { fields, spread } => {
                 let ControlValue::Record(values) = value else {
                     return Err(VmError::PatternMismatch);
                 };
@@ -2338,25 +2290,28 @@ impl<'m> ControlInterpreter<'m> {
                 for field in fields {
                     rest.remove(&field.name);
                     let Some(value) = values.get(&field.name).cloned() else {
-                        return Err(VmError::PatternMismatch);
+                        let Some(default) = field.default else {
+                            return Err(VmError::PatternMismatch);
+                        };
+                        let value = self.eval_value(default, env)?;
+                        self.bind_pattern(&field.pattern, value, env)?;
+                        continue;
                     };
                     self.bind_pattern(&field.pattern, value, env)?;
                 }
                 if let Some(spread) = spread {
                     let spread = match spread {
-                        RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
-                            pattern
-                        }
+                        ControlRecordSpreadPattern::Head(pattern)
+                        | ControlRecordSpreadPattern::Tail(pattern) => pattern,
                     };
                     self.bind_pattern(spread, ControlValue::Record(rest), env)?;
                 }
                 Ok(())
             }
-            Pattern::List {
+            ControlPattern::List {
                 prefix,
                 spread,
                 suffix,
-                ..
             } => {
                 let ControlValue::List(values) = value else {
                     return Err(VmError::PatternMismatch);
@@ -2508,7 +2463,7 @@ fn mark_control_request_with_active_blocked(
 
 fn make_recursive_local_value(
     module: &ControlModule,
-    pattern: &Pattern,
+    pattern: &ControlPattern,
     value: ControlValue,
 ) -> ControlValue {
     let Some(name) = single_bind_name(pattern) else {
@@ -2522,10 +2477,10 @@ fn make_recursive_local_value(
     ControlValue::Closure(ControlHeap::new(closure))
 }
 
-fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {
+fn single_bind_name(pattern: &ControlPattern) -> Option<typed_ir::Name> {
     match pattern {
-        Pattern::Bind { name, .. } => Some(name.clone()),
-        Pattern::As { name, .. } => Some(name.clone()),
+        ControlPattern::Bind { name } => Some(name.clone()),
+        ControlPattern::As { name, .. } => Some(name.clone()),
         _ => None,
     }
 }
@@ -2660,6 +2615,27 @@ fn control_apply_primitive(
                 .map_err(|_| VmError::ExpectedInt(export_value_lossy(&args[1], None)))?;
             list.index(index)
                 .map(|value| (*value).clone())
+                .ok_or_else(|| VmError::ExpectedList(export_value_lossy(&args[0], None)))
+        }
+        typed_ir::PrimitiveOp::ListIndexRangeRaw => {
+            let list = control_list_value(&args[0])?;
+            let start = usize::try_from(control_int_value(&args[1])?.as_i64()?)
+                .map_err(|_| VmError::ExpectedInt(export_value_lossy(&args[1], None)))?;
+            let end = usize::try_from(control_int_value(&args[2])?.as_i64()?)
+                .map_err(|_| VmError::ExpectedInt(export_value_lossy(&args[2], None)))?;
+            list.index_range(start, end)
+                .map(ControlValue::List)
+                .ok_or_else(|| VmError::ExpectedList(export_value_lossy(&args[0], None)))
+        }
+        typed_ir::PrimitiveOp::ListSpliceRaw => {
+            let list = control_list_value(&args[0])?;
+            let start = usize::try_from(control_int_value(&args[1])?.as_i64()?)
+                .map_err(|_| VmError::ExpectedInt(export_value_lossy(&args[1], None)))?;
+            let end = usize::try_from(control_int_value(&args[2])?.as_i64()?)
+                .map_err(|_| VmError::ExpectedInt(export_value_lossy(&args[2], None)))?;
+            let insert = control_list_value(&args[3])?;
+            list.splice(start, end, insert.clone())
+                .map(ControlValue::List)
                 .ok_or_else(|| VmError::ExpectedList(export_value_lossy(&args[0], None)))
         }
         typed_ir::PrimitiveOp::ListViewRaw => match control_list_value(&args[0])?.view() {

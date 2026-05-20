@@ -15,11 +15,13 @@ use yulang_sources::{
     collect_virtual_source_files_with_options,
 };
 
+use crate::ids::TypeVar;
 use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
-use crate::simplify::compact::{CompactType, CompactTypeScheme};
+use crate::simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
+use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
 use yulang_typed_ir as typed_ir;
 use yulang_typed_ir::CoreProgram;
@@ -380,7 +382,7 @@ pub struct StdInferSnapshot {
     data: StdInferSnapshotData,
 }
 
-pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 0;
+pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotManifest {
@@ -558,6 +560,8 @@ pub struct StdInferSnapshotScheme {
     pub symbol: u32,
     pub rendered: String,
     pub compact: Option<CompactTypeScheme>,
+    #[serde(default)]
+    pub role_constraints: Vec<CompactRoleConstraint>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -858,6 +862,7 @@ pub fn import_compiled_typed_surface(
     namespace: &CompiledNamespaceSurface,
     typed: &CompiledTypedSurface,
 ) -> Result<CompiledTypedImport, CompiledTypedImportError> {
+    reserve_compiled_typed_type_vars(typed);
     let namespace_validation = namespace.validate();
     if !namespace_validation.is_complete() {
         return Err(CompiledTypedImportError::InvalidNamespace(
@@ -892,6 +897,7 @@ pub fn import_trusted_compiled_typed_surface(
     namespace: &CompiledNamespaceSurface,
     typed: &CompiledTypedSurface,
 ) -> CompiledTypedImport {
+    reserve_compiled_typed_type_vars(typed);
     let mut namespace_import = import_trusted_compiled_namespace_surface(namespace);
     let refs = import_compiled_typed_refs(typed, &namespace_import.values);
     import_compiled_compact_schemes(typed, &refs, &namespace_import.state);
@@ -955,14 +961,171 @@ fn import_compiled_compact_schemes(
 ) {
     for (scheme, def) in typed.schemes.iter().zip(&refs.schemes) {
         if let (Some(compact), Some(def)) = (&scheme.compact, def) {
-            let frozen = crate::scheme::freeze_compact_scheme_with_non_generic(
+            let extra_quantified =
+                crate::scheme::collect_compact_role_constraint_free_vars(&scheme.role_constraints);
+            let frozen = crate::scheme::freeze_compact_scheme_with_non_generic_and_extra_vars(
                 &state.infer,
                 compact,
+                extra_quantified.as_slice(),
                 &std::collections::HashSet::new(),
             );
             state.infer.store_compact_scheme(*def, compact.clone());
+            state
+                .infer
+                .store_compact_role_constraints(*def, scheme.role_constraints.clone());
             state.infer.frozen_schemes.borrow_mut().insert(*def, frozen);
         }
+    }
+}
+
+fn import_std_snapshot_compact_schemes(
+    data: &StdInferSnapshotData,
+    refs: &StdInferSnapshotImportRefs,
+    state: &LowerState,
+) {
+    for (scheme, def) in data.schemes.iter().zip(&refs.schemes) {
+        if let (Some(compact), Some(def)) = (&scheme.compact, def) {
+            let extra_quantified =
+                crate::scheme::collect_compact_role_constraint_free_vars(&scheme.role_constraints);
+            let frozen = crate::scheme::freeze_compact_scheme_with_non_generic_and_extra_vars(
+                &state.infer,
+                compact,
+                extra_quantified.as_slice(),
+                &std::collections::HashSet::new(),
+            );
+            state.infer.store_compact_scheme(*def, compact.clone());
+            state
+                .infer
+                .store_compact_role_constraints(*def, scheme.role_constraints.clone());
+            state.infer.frozen_schemes.borrow_mut().insert(*def, frozen);
+        }
+    }
+}
+
+fn reserve_compiled_typed_type_vars(typed: &CompiledTypedSurface) {
+    if let Some(max) = max_compiled_typed_type_var(typed) {
+        crate::ids::reserve_type_vars_through(max);
+    }
+}
+
+fn reserve_std_infer_snapshot_type_vars(data: &StdInferSnapshotData) {
+    if let Some(max) = max_std_infer_snapshot_type_var(data) {
+        crate::ids::reserve_type_vars_through(max);
+    }
+}
+
+fn max_std_infer_snapshot_type_var(data: &StdInferSnapshotData) -> Option<TypeVar> {
+    let mut max = None;
+    for scheme in &data.schemes {
+        collect_snapshot_scheme_max_type_var(scheme, &mut max);
+    }
+    for role_impl in &data.role_impls {
+        for arg in &role_impl.compact_args {
+            collect_compact_type_max_type_var(arg, &mut max);
+        }
+        for prerequisite in &role_impl.prerequisites {
+            for arg in &prerequisite.args {
+                collect_compact_bounds_max_type_var(arg, &mut max);
+            }
+        }
+    }
+    max
+}
+
+fn max_compiled_typed_type_var(typed: &CompiledTypedSurface) -> Option<TypeVar> {
+    let mut max = None;
+    for scheme in &typed.schemes {
+        collect_snapshot_scheme_max_type_var(scheme, &mut max);
+    }
+    for role_impl in &typed.role_impls {
+        for arg in &role_impl.compact_args {
+            collect_compact_type_max_type_var(arg, &mut max);
+        }
+        for prerequisite in &role_impl.prerequisites {
+            for arg in &prerequisite.args {
+                collect_compact_bounds_max_type_var(arg, &mut max);
+            }
+        }
+    }
+    max
+}
+
+fn collect_snapshot_scheme_max_type_var(scheme: &StdInferSnapshotScheme, max: &mut Option<TypeVar>) {
+    if let Some(compact) = &scheme.compact {
+        collect_compact_scheme_max_type_var(compact, max);
+    }
+    for constraint in &scheme.role_constraints {
+        for arg in &constraint.args {
+            collect_compact_bounds_max_type_var(arg, max);
+        }
+    }
+}
+
+fn collect_compact_scheme_max_type_var(scheme: &CompactTypeScheme, max: &mut Option<TypeVar>) {
+    collect_compact_bounds_max_type_var(&scheme.cty, max);
+    for (var, bounds) in &scheme.rec_vars {
+        push_max_type_var(*var, max);
+        collect_compact_bounds_max_type_var(bounds, max);
+    }
+}
+
+fn collect_compact_bounds_max_type_var(bounds: &CompactBounds, max: &mut Option<TypeVar>) {
+    if let Some(var) = bounds.self_var {
+        push_max_type_var(var, max);
+    }
+    collect_compact_type_max_type_var(&bounds.lower, max);
+    collect_compact_type_max_type_var(&bounds.upper, max);
+}
+
+fn collect_compact_type_max_type_var(ty: &CompactType, max: &mut Option<TypeVar>) {
+    for var in &ty.vars {
+        push_max_type_var(*var, max);
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_compact_bounds_max_type_var(arg, max);
+        }
+    }
+    for fun in &ty.funs {
+        collect_compact_type_max_type_var(&fun.arg, max);
+        collect_compact_type_max_type_var(&fun.arg_eff, max);
+        collect_compact_type_max_type_var(&fun.ret_eff, max);
+        collect_compact_type_max_type_var(&fun.ret, max);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_compact_type_max_type_var(&field.value, max);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_max_type_var(&field.value, max);
+        }
+        collect_compact_type_max_type_var(&spread.tail, max);
+    }
+    for variant in &ty.variants {
+        for (_, payload) in &variant.items {
+            for item in payload {
+                collect_compact_type_max_type_var(item, max);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_compact_type_max_type_var(item, max);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_compact_type_max_type_var(item, max);
+        }
+        collect_compact_type_max_type_var(&row.tail, max);
+    }
+}
+
+fn push_max_type_var(var: TypeVar, max: &mut Option<TypeVar>) {
+    if max.is_none_or(|current| var.0 > current.0) {
+        *max = Some(var);
     }
 }
 
@@ -1115,6 +1278,9 @@ pub fn build_compiled_typed_artifacts(
     source_set: &SourceSet,
     state: &LowerState,
 ) -> Vec<CompiledUnitTypedArtifact> {
+    let mut finalized_state = state.clone();
+    finalized_state.finalize_compact_results();
+    let state = &finalized_state;
     let namespace_artifacts = build_compiled_namespace_artifacts(source_set, state);
     let value_paths = state.ctx.collect_all_binding_paths();
     let value_defs_by_path = value_paths
@@ -1165,6 +1331,7 @@ pub fn import_std_infer_snapshot_data(
 ) -> Result<StdInferSnapshotImport, StdInferSnapshotImportError> {
     data.validate()
         .map_err(StdInferSnapshotImportError::InvalidData)?;
+    reserve_std_infer_snapshot_type_vars(data);
 
     let mut state = LowerState::new();
     install_builtin_primitives(&mut state);
@@ -1174,6 +1341,7 @@ pub fn import_std_infer_snapshot_data(
     let values = import_std_snapshot_values(&state, &data.values);
     let types = import_std_snapshot_types(&state, &data.types);
     let refs = import_std_snapshot_refs(data, &values, &modules);
+    import_std_snapshot_compact_schemes(data, &refs, &state);
     let coverage = import_std_snapshot_coverage(&modules, &values, &types, &refs);
     let missing = StdInferSnapshotImportMissing {
         modules: missing_snapshot_paths(&data.modules, &modules, |module| {
@@ -2178,11 +2346,24 @@ fn collect_std_snapshot_schemes(
                 symbol: *symbol,
                 rendered,
                 compact,
+                role_constraints: snapshot_role_constraints_for_def(state, *def),
             })
         })
         .collect::<Vec<_>>();
     schemes.sort_by(|lhs, rhs| lhs.symbol.cmp(&rhs.symbol));
     schemes
+}
+
+fn snapshot_role_constraints_for_def(
+    state: &LowerState,
+    def: crate::ids::DefId,
+) -> Vec<CompactRoleConstraint> {
+    let compact = state.infer.compact_role_constraints_of(def);
+    if compact.is_empty() {
+        crate::lower::role::compact_role_constraints(&state.infer, def)
+    } else {
+        compact
+    }
 }
 
 fn collect_std_snapshot_roles(state: &LowerState) -> Vec<StdInferSnapshotRole> {
@@ -3328,9 +3509,74 @@ fn remap_record_spread_expr_runtime_ids(
     }
 }
 
+fn remap_core_pattern_runtime_ids(pattern: &mut typed_ir::Pattern, expected_edge_offset: u32) {
+    match pattern {
+        typed_ir::Pattern::Wildcard | typed_ir::Pattern::Bind(_) | typed_ir::Pattern::Lit(_) => {}
+        typed_ir::Pattern::Tuple(items) => {
+            for item in items {
+                remap_core_pattern_runtime_ids(item, expected_edge_offset);
+            }
+        }
+        typed_ir::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                remap_core_pattern_runtime_ids(item, expected_edge_offset);
+            }
+            if let Some(spread) = spread {
+                remap_core_pattern_runtime_ids(spread, expected_edge_offset);
+            }
+            for item in suffix {
+                remap_core_pattern_runtime_ids(item, expected_edge_offset);
+            }
+        }
+        typed_ir::Pattern::Record { fields, spread } => {
+            for field in fields {
+                remap_core_pattern_runtime_ids(&mut field.pattern, expected_edge_offset);
+                if let Some(default) = &mut field.default {
+                    remap_core_expr_runtime_ids(default, expected_edge_offset);
+                }
+            }
+            if let Some(spread) = spread {
+                remap_record_spread_pattern_runtime_ids(spread, expected_edge_offset);
+            }
+        }
+        typed_ir::Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                remap_core_pattern_runtime_ids(value, expected_edge_offset);
+            }
+        }
+        typed_ir::Pattern::Or { left, right } => {
+            remap_core_pattern_runtime_ids(left, expected_edge_offset);
+            remap_core_pattern_runtime_ids(right, expected_edge_offset);
+        }
+        typed_ir::Pattern::As { pattern, .. } => {
+            remap_core_pattern_runtime_ids(pattern, expected_edge_offset);
+        }
+    }
+}
+
+fn remap_record_spread_pattern_runtime_ids(
+    spread: &mut typed_ir::RecordSpreadPattern,
+    expected_edge_offset: u32,
+) {
+    match spread {
+        typed_ir::RecordSpreadPattern::Head(pattern)
+        | typed_ir::RecordSpreadPattern::Tail(pattern) => {
+            remap_core_pattern_runtime_ids(pattern, expected_edge_offset);
+        }
+    }
+}
+
 fn remap_core_stmt_runtime_ids(stmt: &mut typed_ir::Stmt, expected_edge_offset: u32) {
     match stmt {
-        typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
+        typed_ir::Stmt::Let { pattern, value } => {
+            remap_core_pattern_runtime_ids(pattern, expected_edge_offset);
+            remap_core_expr_runtime_ids(value, expected_edge_offset);
+        }
+        typed_ir::Stmt::Expr(value) => {
             remap_core_expr_runtime_ids(value, expected_edge_offset);
         }
         typed_ir::Stmt::Module { body, .. } => {
@@ -3535,6 +3781,7 @@ fn compiled_typed_surface_for_namespace(
                     symbol,
                     rendered: scheme.rendered.clone(),
                     compact: scheme.compact.clone(),
+                    role_constraints: scheme.role_constraints.clone(),
                 })
             })
             .collect(),

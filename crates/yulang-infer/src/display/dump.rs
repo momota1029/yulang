@@ -28,6 +28,15 @@ pub fn render_exported_compact_results(state: &mut LowerState) -> Vec<(String, S
     collect_compact_results_for_paths(state, &collect_non_std_exported_binding_paths(state))
 }
 
+pub fn render_exported_compact_results_in_scope(state: &mut LowerState) -> Vec<(String, String)> {
+    state.finalize_compact_results();
+    collect_compact_results_for_paths_in_scope(
+        state,
+        &collect_non_std_exported_binding_paths(state),
+        &state.ctx,
+    )
+}
+
 pub fn collect_compact_results(state: &LowerState) -> Vec<(String, String)> {
     collect_compact_results_for_paths(state, &collect_user_observable_binding_paths(state))
 }
@@ -1642,11 +1651,11 @@ mod tests {
             .iter()
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
-        assert_eq!(shallow_det.1, "α -> α");
+        assert_eq!(shallow_det.1, "α -> [undet] α");
     }
 
     #[test]
-    fn handler_match_evidence_records_unannotated_callback_keep_none() {
+    fn unannotated_callback_catch_does_not_emit_handler_match_artifacts() {
         let green = yulang_parser::parse_module_to_green(
             "act undet:\n  our bool: () -> bool\n\nmy shallow(f) = catch f():\n  undet::bool(), k -> k true\n",
         );
@@ -1655,13 +1664,10 @@ mod tests {
         lower_root(&mut state, &root);
 
         let program = crate::export_core_program(&mut state);
-        let handler_match = program
-            .evidence
-            .handler_matches
-            .iter()
-            .find(|edge| matches!(edge.keep, yulang_typed_ir::DelimiterKeepEvidence::None))
-            .expect("unannotated callback catch should record Keep::None");
-        assert!(!handler_match.handled.is_empty());
+        assert!(
+            program.evidence.handler_matches.is_empty(),
+            "unannotated callback catch should not capture or export handler_match evidence"
+        );
 
         let rendered = render_compact_results(&mut state);
         let shallow = rendered
@@ -2346,8 +2352,8 @@ mod tests {
             .expect("apply_plus1 should be rendered");
 
         assert_eq!(plus1.1, "Add<int | α> => α -> α | int");
-        assert_eq!(plus1_again.1, "α -> α | int");
-        assert_eq!(apply_plus1.1, "α -> α | int");
+        assert_eq!(plus1_again.1, "Add<int | α> => α -> α | int");
+        assert_eq!(apply_plus1.1, "Add<int | α> => α -> α | int");
     }
 
     #[test]
