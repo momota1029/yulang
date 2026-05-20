@@ -15,9 +15,12 @@ fn main() {
     let mut lowered = yulang_infer::lower_source_set(&source_set);
     lowered.state.finalize_compact_results_profiled();
     let artifacts = yulang_infer::build_compiled_unit_artifacts(&source_set, &lowered.state);
+    let bundle = yulang_infer::build_compiled_unit_artifact_bundle(&artifacts)
+        .expect("build std compiled unit artifact bundle");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR should be set"));
-    let path = out_dir.join("std_compiled_unit_artifacts.bin");
-    let bytes = postcard::to_allocvec(&artifacts).expect("serialize std compiled unit artifacts");
+    let path = out_dir.join("std_compiled_unit_artifact_bundle.bin");
+    let bytes =
+        postcard::to_allocvec(&bundle).expect("serialize std compiled unit artifact bundle");
     fs::write(path, bytes).expect("write std compiled unit artifacts");
 }
 

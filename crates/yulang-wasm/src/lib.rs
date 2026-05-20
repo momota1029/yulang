@@ -7,8 +7,8 @@ use yulang_infer::{
     SourceLowerCache, build_compiled_unit_artifacts, build_std_core_snapshot_data,
     build_std_infer_snapshot_data, collect_surface_diagnostics, export_core_program,
     export_core_program_for_binding_paths, import_std_infer_snapshot_data, lower_source_set,
-    lower_source_set_with_compiled_unit_artifacts_profiled,
-    lower_source_set_with_std_cache_profiled, warm_std_source_cache,
+    lower_source_set_with_std_cache_profiled,
+    lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled, warm_std_source_cache,
 };
 use yulang_runtime as runtime;
 
@@ -90,7 +90,13 @@ pub fn std_compiled_unit_artifacts() -> JsValue {
 #[wasm_bindgen]
 pub fn embedded_std_compiled_unit_artifacts() -> JsValue {
     console_error_panic_hook::set_once();
-    to_js_value(&embedded_std_compiled_unit_artifacts_inner())
+    to_js_value(&embedded_std_compiled_unit_artifact_bundle_inner())
+}
+
+#[wasm_bindgen]
+pub fn embedded_std_compiled_unit_artifact_bundle() -> JsValue {
+    console_error_panic_hook::set_once();
+    to_js_value(&embedded_std_compiled_unit_artifact_bundle_inner())
 }
 
 #[wasm_bindgen]
@@ -99,113 +105,111 @@ pub fn embedded_std_compiled_unit_artifact_status() -> JsValue {
     to_js_value(&embedded_std_compiled_unit_artifact_status_inner())
 }
 
-fn embedded_std_compiled_unit_artifacts_inner() -> Vec<yulang_infer::CompiledUnitArtifact> {
-    load_embedded_std_compiled_unit_artifacts()
-        .expect("embedded std compiled unit artifacts should deserialize and validate")
+fn embedded_std_compiled_unit_artifact_bundle_inner() -> yulang_infer::CompiledUnitArtifactBundle {
+    load_embedded_std_compiled_unit_artifact_bundle()
+        .expect("embedded std compiled unit artifact bundle should deserialize and validate")
 }
 
 fn embedded_std_compiled_unit_artifact_status_inner() -> EmbeddedStdArtifactsOutput {
-    with_embedded_std_compiled_unit_artifacts(|view| match view {
-        Ok(artifacts) => EmbeddedStdArtifactsOutput {
-            runtime_bindings: artifacts
-                .iter()
-                .map(|artifact| artifact.runtime.program.program.bindings.len())
-                .sum(),
-            artifacts: artifacts.len(),
-            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES.len(),
+    with_embedded_std_compiled_unit_artifact_bundle(|view| match view {
+        Ok(bundle) => EmbeddedStdArtifactsOutput {
+            runtime_bindings: bundle.runtime.surface.program.program.bindings.len(),
+            artifacts: bundle.manifests.len(),
+            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACT_BUNDLE_BYTES.len(),
             valid: true,
             fallback_reason: None,
         },
         Err(reason) => EmbeddedStdArtifactsOutput {
             artifacts: 0,
             runtime_bindings: 0,
-            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES.len(),
+            bytes: EMBEDDED_STD_COMPILED_UNIT_ARTIFACT_BUNDLE_BYTES.len(),
             valid: false,
             fallback_reason: Some(reason.to_string()),
         },
     })
 }
 
-const EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/std_compiled_unit_artifacts.bin"));
+const EMBEDDED_STD_COMPILED_UNIT_ARTIFACT_BUNDLE_BYTES: &[u8] = include_bytes!(concat!(
+    env!("OUT_DIR"),
+    "/std_compiled_unit_artifact_bundle.bin"
+));
 
 thread_local! {
-    static EMBEDDED_STD_ARTIFACTS_CACHE: RefCell<
-        Option<Result<Rc<Vec<yulang_infer::CompiledUnitArtifact>>, String>>,
+    static EMBEDDED_STD_ARTIFACT_BUNDLE_CACHE: RefCell<
+        Option<Result<Rc<yulang_infer::CompiledUnitArtifactBundle>, String>>,
     > = const { RefCell::new(None) };
 }
 
-fn with_embedded_std_compiled_unit_artifacts<R>(
-    f: impl FnOnce(Result<&[yulang_infer::CompiledUnitArtifact], &str>) -> R,
+fn with_embedded_std_compiled_unit_artifact_bundle<R>(
+    f: impl FnOnce(Result<&yulang_infer::CompiledUnitArtifactBundle, &str>) -> R,
 ) -> R {
-    EMBEDDED_STD_ARTIFACTS_CACHE.with(|cache| {
+    EMBEDDED_STD_ARTIFACT_BUNDLE_CACHE.with(|cache| {
         let mut cache = cache.borrow_mut();
         if cache.is_none() {
-            *cache = Some(parse_embedded_std_compiled_unit_artifacts().map(Rc::new));
+            *cache = Some(parse_embedded_std_compiled_unit_artifact_bundle().map(Rc::new));
         }
-        let view: Result<&[_], &str> = match cache.as_ref().unwrap() {
-            Ok(rc) => Ok(rc.as_slice()),
+        let view: Result<_, &str> = match cache.as_ref().unwrap() {
+            Ok(rc) => Ok(rc.as_ref()),
             Err(error) => Err(error.as_str()),
         };
         f(view)
     })
 }
 
-fn load_embedded_std_compiled_unit_artifacts()
--> Result<Vec<yulang_infer::CompiledUnitArtifact>, String> {
-    with_embedded_std_compiled_unit_artifacts(|view| match view {
-        Ok(slice) => Ok(slice.to_vec()),
+fn load_embedded_std_compiled_unit_artifact_bundle()
+-> Result<yulang_infer::CompiledUnitArtifactBundle, String> {
+    with_embedded_std_compiled_unit_artifact_bundle(|view| match view {
+        Ok(bundle) => Ok(bundle.clone()),
         Err(error) => Err(error.to_string()),
     })
 }
 
-fn parse_embedded_std_compiled_unit_artifacts()
--> Result<Vec<yulang_infer::CompiledUnitArtifact>, String> {
-    let artifacts = postcard::from_bytes::<Vec<yulang_infer::CompiledUnitArtifact>>(
-        EMBEDDED_STD_COMPILED_UNIT_ARTIFACTS_BYTES,
+fn parse_embedded_std_compiled_unit_artifact_bundle()
+-> Result<yulang_infer::CompiledUnitArtifactBundle, String> {
+    let bundle = postcard::from_bytes::<yulang_infer::CompiledUnitArtifactBundle>(
+        EMBEDDED_STD_COMPILED_UNIT_ARTIFACT_BUNDLE_BYTES,
     )
-    .map_err(|error| format!("deserialize embedded std artifacts: {error}"))?;
-    validate_embedded_std_compiled_unit_artifacts(&artifacts)?;
-    Ok(artifacts)
+    .map_err(|error| format!("deserialize embedded std artifact bundle: {error}"))?;
+    validate_embedded_std_compiled_unit_artifact_bundle(&bundle)?;
+    Ok(bundle)
 }
 
-fn validate_embedded_std_compiled_unit_artifacts(
-    artifacts: &[yulang_infer::CompiledUnitArtifact],
+fn validate_embedded_std_compiled_unit_artifact_bundle(
+    bundle: &yulang_infer::CompiledUnitArtifactBundle,
 ) -> Result<(), String> {
-    if artifacts.is_empty() {
-        return Err("embedded std artifacts are empty".to_string());
+    if bundle.manifests.is_empty() {
+        return Err("embedded std artifact bundle is empty".to_string());
     }
-    for artifact in artifacts {
-        if artifact.manifest.artifact_format_version
-            != yulang_sources::COMPILED_UNIT_ARTIFACT_FORMAT_VERSION
+    for manifest in &bundle.manifests {
+        if manifest.artifact_format_version != yulang_sources::COMPILED_UNIT_ARTIFACT_FORMAT_VERSION
         {
             return Err(format!(
                 "unsupported compiled-unit artifact format {}",
-                artifact.manifest.artifact_format_version
+                manifest.artifact_format_version
             ));
         }
-        if artifact.manifest.parser_format_version
-            != yulang_sources::COMPILED_UNIT_PARSER_FORMAT_VERSION
-        {
+        if manifest.parser_format_version != yulang_sources::COMPILED_UNIT_PARSER_FORMAT_VERSION {
             return Err(format!(
                 "unsupported parser format {}",
-                artifact.manifest.parser_format_version
+                manifest.parser_format_version
             ));
         }
-        let namespace_validation = artifact.namespace.validate();
-        if !namespace_validation.is_complete() {
-            return Err(format!(
-                "invalid namespace surface in unit {}",
-                artifact.manifest.unit_index
-            ));
-        }
-        let typed_validation = artifact.typed.validate(&artifact.namespace);
-        if !typed_validation.is_complete() {
-            return Err(format!(
-                "invalid typed surface in unit {}",
-                artifact.manifest.unit_index
-            ));
-        }
+    }
+    if !bundle.namespace.modules.iter().any(|module| {
+        module
+            .path
+            .first()
+            .is_some_and(|segment| segment.as_str() == "std")
+    }) {
+        return Err("embedded std artifact bundle contains no std module".to_string());
+    }
+    let namespace_validation = bundle.namespace.validate();
+    if !namespace_validation.is_complete() {
+        return Err("invalid namespace surface in embedded std artifact bundle".to_string());
+    }
+    let typed_validation = bundle.typed.validate(&bundle.namespace);
+    if !typed_validation.is_complete() {
+        return Err("invalid typed surface in embedded std artifact bundle".to_string());
     }
     Ok(())
 }
@@ -498,19 +502,16 @@ fn lower_with_embedded_std_artifacts(
     source_set: &yulang_sources::SourceSet,
 ) -> Result<EmbeddedStdLowering, String> {
     let (lowered, artifacts_count, runtime_bindings) =
-        with_embedded_std_compiled_unit_artifacts(|view| {
-            let artifacts = view.map_err(str::to_string)?;
-            if artifacts.is_empty() || !artifacts.iter().any(artifact_has_std_module) {
-                return Err("embedded std artifacts contain no std units".to_string());
+        with_embedded_std_compiled_unit_artifact_bundle(|view| {
+            let bundle = view.map_err(str::to_string)?;
+            if bundle.manifests.is_empty() || !bundle_has_std_module(bundle) {
+                return Err("embedded std artifact bundle contains no std units".to_string());
             }
-            let runtime_bindings = artifacts
-                .iter()
-                .map(|artifact| artifact.runtime.program.program.bindings.len())
-                .sum();
-            let lowered =
-                lower_source_set_with_compiled_unit_artifacts_profiled(source_set, artifacts)
-                    .map_err(|error| format!("import embedded std artifacts: {error:?}"))?;
-            Ok::<_, String>((lowered, artifacts.len(), runtime_bindings))
+            let runtime_bindings = bundle.runtime.surface.program.program.bindings.len();
+            let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+                source_set, bundle,
+            );
+            Ok::<_, String>((lowered, bundle.manifests.len(), runtime_bindings))
         })?;
     let bundled_paths = lowered
         .runtime
@@ -589,8 +590,8 @@ fn remove_program_paths(
     });
 }
 
-fn artifact_has_std_module(artifact: &yulang_infer::CompiledUnitArtifact) -> bool {
-    artifact.namespace.modules.iter().any(|module| {
+fn bundle_has_std_module(bundle: &yulang_infer::CompiledUnitArtifactBundle) -> bool {
+    bundle.namespace.modules.iter().any(|module| {
         module
             .path
             .first()
@@ -651,6 +652,15 @@ mod tests {
         assert_eq!(timings.source_cache_misses, 0);
     }
 
+    fn assert_compiled_std_bundle_used(output: &RunOutput) {
+        let timings = output.timings.as_ref().expect("run timings");
+        assert_eq!(timings.source_cache_hits + timings.source_cache_misses, 1);
+        assert!(timings.compiled_std_cache_hit);
+        assert!(timings.compiled_std_artifacts > 1);
+        assert!(timings.compiled_std_runtime_bindings > 10);
+        assert!(timings.compiled_std_fallback_reason.is_none());
+    }
+
     fn playground_tour_source() -> &'static str {
         r#"// A compact tour of Yulang's current shape.
 
@@ -703,6 +713,29 @@ sub:
                 assert_eq!(output.results[0].value, "[5, 6, 7, 6, 7, 8, 7, 8, 9]");
                 assert!(output.ok, "{:?}", output.diagnostics);
                 assert_std_oracle_cache_used(&output);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn compiled_std_bundle_runs_undet_list_example() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = compile_and_run_with_embedded_std(
+                    r#"(each [1, 2, 3] + each [4, 5, 6]).list
+"#,
+                    true,
+                    None,
+                )
+                .map(|output| compile_run_output("", output))
+                .expect("compiled std bundle output");
+                assert_eq!(output.results.len(), 1);
+                assert_eq!(output.results[0].value, "[5, 6, 7, 6, 7, 8, 7, 8, 9]");
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_compiled_std_bundle_used(&output);
             })
             .unwrap()
             .join()
@@ -1001,7 +1034,7 @@ g
     }
 
     #[test]
-    fn embeds_std_compiled_unit_artifacts_for_wasm_bundle() {
+    fn embeds_std_compiled_unit_artifact_bundle_for_wasm_bundle() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
@@ -1009,29 +1042,32 @@ g
                 assert!(status.valid, "{:?}", status.fallback_reason);
                 assert!(status.artifacts > 1);
                 assert!(status.runtime_bindings > 10);
-                let artifacts = embedded_std_compiled_unit_artifacts_inner();
-                assert!(artifacts.len() > 1);
-                assert!(artifacts.iter().any(|artifact| {
-                    artifact
+                let bundle = embedded_std_compiled_unit_artifact_bundle_inner();
+                assert!(bundle.manifests.len() > 1);
+                assert!(
+                    bundle
                         .namespace
                         .modules
                         .iter()
                         .any(|module| module.path == ["std", "list"])
-                        && artifact
-                            .runtime
-                            .program
-                            .program
-                            .bindings
-                            .iter()
-                            .any(|binding| {
-                                binding
-                                    .name
-                                    .segments
-                                    .iter()
-                                    .map(|name| name.0.as_str())
-                                    .eq(["std", "list", "fold_impl"])
-                            })
-                }));
+                );
+                assert!(
+                    bundle
+                        .runtime
+                        .surface
+                        .program
+                        .program
+                        .bindings
+                        .iter()
+                        .any(|binding| {
+                            binding
+                                .name
+                                .segments
+                                .iter()
+                                .map(|name| name.0.as_str())
+                                .eq(["std", "list", "fold_impl"])
+                        })
+                );
             })
             .unwrap()
             .join()
@@ -1100,21 +1136,7 @@ g
             .spawn(|| {
                 let source_set = std_sources::source_set("1 + 2\n");
                 let mut lowered = lower_source_set(&source_set);
-                let artifacts = embedded_std_compiled_unit_artifacts_inner();
-                let std_surfaces = artifacts
-                    .iter()
-                    .filter(|artifact| {
-                        artifact
-                            .namespace
-                            .modules
-                            .iter()
-                            .any(|module| module.path.first().is_some_and(|part| part == "std"))
-                    })
-                    .map(|artifact| &artifact.runtime)
-                    .collect::<Vec<_>>();
-                assert!(std_surfaces.len() > 1);
-                let bundle = yulang_infer::CompiledRuntimeBundle::from_surfaces(std_surfaces)
-                    .expect("std runtime bundle");
+                let bundle = embedded_std_compiled_unit_artifact_bundle_inner().runtime;
 
                 let mut user_program = export_core_program(&mut lowered.state);
                 remove_program_bindings_present_in_bundle(&mut user_program, &bundle);
