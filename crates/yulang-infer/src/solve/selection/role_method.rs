@@ -7,9 +7,11 @@ use crate::simplify::compact::{
     CompactType, CompactTypeScheme, CompactVariant,
 };
 use crate::solve::role::role_method_info_for_path;
-use crate::solve::{DeferredRoleMethodCall, Infer, RoleArgInfo, RoleMethodInfo};
+use crate::solve::{
+    DeferredRoleMethodCall, Infer, RoleArgInfo, RoleConstraint, RoleConstraintArg, RoleMethodInfo,
+};
 use crate::symbols::Name;
-use crate::types::{Neg, RecordField};
+use crate::types::{Neg, Pos, RecordField};
 
 impl Infer {
     pub(crate) fn has_cast_role_method(&self) -> bool {
@@ -17,6 +19,20 @@ impl Infer {
     }
 
     pub(crate) fn push_deferred_role_method_call(&self, call: DeferredRoleMethodCall) {
+        if let Some(info) = call
+            .role_path
+            .as_ref()
+            .and_then(|path| role_method_info_for_path(&self.role_methods, path))
+            .or_else(|| self.role_methods.get(&call.name).cloned())
+            && let Some(owner) = call.owner
+        {
+            self.add_role_method_call_constraint_for_owner(
+                &info,
+                owner,
+                call.recv_tv,
+                &call.arg_tvs,
+            );
+        }
         self.deferred_role_method_calls.borrow_mut().push(call);
     }
 
@@ -192,11 +208,62 @@ impl Infer {
                         format!("role method call {}", call.name.0),
                     );
                 }
-                RoleMethodResolution::Unresolved => unresolved.push(call),
+                RoleMethodResolution::Unresolved => {
+                    if let Some(owner) = call.owner {
+                        self.add_role_method_call_constraint_for_owner(
+                            &info,
+                            owner,
+                            call.recv_tv,
+                            &call.arg_tvs,
+                        );
+                    }
+                    unresolved.push(call);
+                }
                 RoleMethodResolution::Selected { .. } => {}
             }
         }
         *self.deferred_role_method_calls.borrow_mut() = unresolved;
+    }
+
+    pub(crate) fn add_role_method_call_constraint_for_owner(
+        &self,
+        info: &RoleMethodInfo,
+        owner: crate::ids::DefId,
+        recv_tv: TypeVar,
+        arg_tvs: &[TypeVar],
+    ) {
+        let Some(constraint) = self.role_method_call_constraint(info, recv_tv, arg_tvs) else {
+            return;
+        };
+        self.add_role_constraint(owner, constraint);
+    }
+
+    fn role_method_call_constraint(
+        &self,
+        info: &RoleMethodInfo,
+        recv_tv: TypeVar,
+        arg_tvs: &[TypeVar],
+    ) -> Option<RoleConstraint> {
+        let arg_infos = self.role_arg_infos_of(&info.role);
+        if arg_infos.iter().any(|info| !info.is_input) {
+            return None;
+        }
+        let input_tvs = role_method_input_tvs(info, &arg_infos, Some(recv_tv), arg_tvs)?;
+        if input_tvs.len() != arg_infos.len() {
+            return None;
+        }
+        let mut args = Vec::with_capacity(input_tvs.len());
+        for tvs in input_tvs {
+            let tv = *tvs.first()?;
+            args.push(RoleConstraintArg {
+                pos: self.alloc_pos(Pos::Var(tv)),
+                neg: self.alloc_neg(Neg::Var(tv)),
+            });
+        }
+        Some(RoleConstraint {
+            role: info.role.clone(),
+            args,
+        })
     }
 
     fn constrain_role_method_call_output(&self, output: &CompactType, result_tv: TypeVar) {

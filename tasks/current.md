@@ -47,7 +47,13 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
   `runtime_lower=28.457ms` / `monomorphize=36.449ms` まで戻した。hit の
   source lower は `25.525ms`。
   runtime surface の意味が変わったので compiled-unit artifact format は `v2`。
-  これにより、`std::int::add` を含まない古い `v1` cache は自動的に読まれない。
+  その後、finalized std type schemes before artifact write を前提にした current
+  cache surface へ切り替えるため、format は `v3`。
+  さらに role method selection の未解決 receiver constraints を binding scheme に
+  残すようにしたため、format は `v6`。これにより、`std::int::add`
+  を含まない古い `v1` cache と、effectful guard constraints が崩れる古い `v2`
+  cache、および role constraint が欠ける古い `v3` - `v5` cache は自動的に読まれない。
+  手動掃除用に `yulang cache path` / `yulang cache clear` も追加した。
 - hidden debug control VM path には source-fingerprint artifact cache も入った。
   plain `debug control-vm` / `debug control-vm-emit` は source collection 後、
   infer/runtime lowering 前に cached `.ycvm` を読める。20x20 の debug timing では

@@ -2232,6 +2232,53 @@ fn compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies() {
 }
 
 #[test]
+fn compiled_std_artifact_import_keeps_effectful_guard_constraints() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source_set = collect_virtual_source_files_with_options(
+            "{\n  my a = each 1..3\n  my b = each 1..3\n  guard: a <= b\n  (a, b)\n}.list\n",
+            Some(repo_root.clone()),
+            yulang_sources::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results_profiled();
+        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+        let bundle = build_compiled_unit_artifact_bundle(
+            &artifacts
+                .into_iter()
+                .filter(|artifact| {
+                    artifact.manifest.origin == yulang_sources::SourceCompilationUnitOrigin::Std
+                })
+                .collect::<Vec<_>>(),
+        )
+        .expect("std compiled unit bundle");
+        let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+            &source_set,
+            &bundle,
+        );
+        imported.lowered.lowered.state.finalize_compact_results();
+
+        assert!(
+            imported
+                .lowered
+                .lowered
+                .state
+                .infer
+                .type_errors()
+                .is_empty(),
+            "cached std artifact import should preserve effectful guard constraints: {:?}",
+            imported.lowered.lowered.state.infer.type_errors()
+        );
+    });
+}
+
+#[test]
 fn compiled_runtime_bundle_merges_surfaces_and_remaps_evidence_ids() {
     let left = runtime_surface_with_coerce_binding("left", 0);
     let right = runtime_surface_with_coerce_binding("right", 0);

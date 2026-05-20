@@ -124,6 +124,7 @@ struct CliOptions {
     profile_flamegraph: Option<String>,
     profile_repeat: usize,
     install_std: bool,
+    cache_op: Option<CacheOp>,
     server: bool,
 }
 
@@ -140,6 +141,12 @@ enum ParserMode {
 enum NativeOutput {
     Path(String),
     Default,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CacheOp {
+    Clear,
+    Path,
 }
 
 #[derive(clap::Parser)]
@@ -199,6 +206,11 @@ enum Cmd {
         #[command(subcommand)]
         target: InstallTarget,
     },
+    /// Inspect or clear Yulang cache directories
+    Cache {
+        #[command(subcommand)]
+        op: CacheCmd,
+    },
     /// Install the embedded std sources and exit
     #[command(hide = true)]
     InstallStd,
@@ -250,6 +262,14 @@ enum RunNativeBackend {
 enum InstallTarget {
     /// Install the embedded std sources and exit
     Std,
+}
+
+#[derive(clap::Subcommand)]
+enum CacheCmd {
+    /// Delete the user cache root used by this command
+    Clear,
+    /// Print the user cache root used by this command
+    Path,
 }
 
 #[derive(clap::Args)]
@@ -370,6 +390,7 @@ fn parse_args() -> CliOptions {
             cli.profile_repeat
         },
         install_std: false,
+        cache_op: None,
         server: false,
     };
     match cli.cmd {
@@ -474,6 +495,12 @@ fn parse_args() -> CliOptions {
         }
         | Cmd::InstallStd => {
             opts.install_std = true;
+        }
+        Cmd::Cache { op } => {
+            opts.cache_op = Some(match op {
+                CacheCmd::Clear => CacheOp::Clear,
+                CacheCmd::Path => CacheOp::Path,
+            });
         }
         Cmd::Debug { op } => match op {
             DebugOp::CompareI64 { path } => {
@@ -649,6 +676,11 @@ fn run_cached_control_vm_module_or_exit(
 }
 
 fn run(options: &CliOptions) {
+    if let Some(op) = options.cache_op {
+        run_cache_op_or_exit(op);
+        return;
+    }
+
     if options.install_std {
         let root = default_versioned_std_root();
         if let Err(err) = install_embedded_std(&root) {
@@ -715,6 +747,25 @@ fn run(options: &CliOptions) {
             );
             continue;
         }
+    }
+}
+
+fn run_cache_op_or_exit(op: CacheOp) {
+    let root = yulang_sources::default_user_cache_root();
+    match op {
+        CacheOp::Path => {
+            println!("{}", root.display());
+        }
+        CacheOp::Clear => match fs::remove_dir_all(&root) {
+            Ok(()) => println!("cleared {}", root.display()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                println!("cache already empty {}", root.display());
+            }
+            Err(err) => {
+                eprintln!("failed to clear cache {}: {err}", root.display());
+                process::exit(1);
+            }
+        },
     }
 }
 
@@ -6680,6 +6731,7 @@ mod tests {
             profile_flamegraph: None,
             profile_repeat: 1,
             install_std: false,
+            cache_op: None,
             server: false,
         }
     }

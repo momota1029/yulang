@@ -124,7 +124,9 @@ fn lower_role_method_binding(
                 .map(|t| Name(t.text().trim_start_matches('.').trim().to_string()))
         })
         .or_else(|| ident_name(&pattern))?;
-    let has_receiver = pattern.children().any(|c| c.kind() == SyntaxKind::Field);
+    let has_receiver = pattern
+        .descendants()
+        .any(|node| node.kind() == SyntaxKind::Field);
     let type_expr = pattern
         .children()
         .find(|c| c.kind() == SyntaxKind::TypeAnn)

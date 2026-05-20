@@ -73,6 +73,7 @@ pub struct DeferredRoleMethodCall {
     pub name: Name,
     pub role_path: Option<Path>,
     pub cast_coercion: bool,
+    pub owner: Option<DefId>,
     pub recv_tv: TypeVar,
     pub arg_tvs: Vec<TypeVar>,
     pub result_tv: TypeVar,

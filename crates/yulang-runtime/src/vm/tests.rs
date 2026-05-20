@@ -2091,6 +2091,20 @@ run()
     }
 
     #[test]
+    fn vm_runs_generic_nullary_role_method_through_case_branch() {
+        let results = eval_source_with_std(
+            r#"my render option = case option:
+    :err code -> "[err " + code.show + "]"
+    :pending -> "..."
+
+render(:err 404)
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("[err 404]".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_error_wrap_catches_direct_from_source() {
         let results = eval_source_with_std(
             r#"error fs_err:
