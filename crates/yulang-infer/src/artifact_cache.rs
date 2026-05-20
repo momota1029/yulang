@@ -14,6 +14,7 @@ pub struct CompiledUnitArtifactCacheKey {
     pub artifact_format_version: u32,
     pub parser_format_version: u32,
     pub unit_index: usize,
+    pub identity_hash: u64,
     pub source_hash: u64,
     pub syntax_hash: u64,
 }
@@ -32,6 +33,7 @@ impl CompiledUnitArtifactCacheKey {
             artifact_format_version: manifest.artifact_format_version,
             parser_format_version: manifest.parser_format_version,
             unit_index: manifest.unit_index,
+            identity_hash: hash_compiled_unit_identity(manifest),
             source_hash: manifest.source_hash,
             syntax_hash: manifest.syntax_hash,
         }
@@ -44,8 +46,8 @@ impl CompiledUnitArtifactCacheKey {
 
     fn file_name(&self) -> String {
         format!(
-            "unit-{}-{:016x}-{:016x}.json",
-            self.unit_index, self.source_hash, self.syntax_hash
+            "unit-{}-{:016x}-{:016x}-{:016x}.json",
+            self.unit_index, self.identity_hash, self.source_hash, self.syntax_hash
         )
     }
 }
@@ -324,6 +326,7 @@ fn hash_compiled_unit_manifests(manifests: &[CompiledUnitManifest]) -> u64 {
                 yulang_sources::SourceCompilationUnitOrigin::Mixed => 3,
             },
         );
+        hash_manifest_realm_band_identity(&mut hash, manifest);
         hash_usize(&mut hash, manifest.files.len());
         for file in &manifest.files {
             hash_bytes(&mut hash, file.path.as_bytes());
@@ -351,6 +354,41 @@ fn hash_compiled_unit_manifests(manifests: &[CompiledUnitManifest]) -> u64 {
         hash_u64(&mut hash, manifest.syntax_hash);
     }
     hash
+}
+
+fn hash_compiled_unit_identity(manifest: &CompiledUnitManifest) -> u64 {
+    let mut hash = 0xcbf29ce484222325u64;
+    hash_manifest_realm_band_identity(&mut hash, manifest);
+    hash
+}
+
+fn hash_manifest_realm_band_identity(hash: &mut u64, manifest: &CompiledUnitManifest) {
+    hash_usize(hash, manifest.realms.len());
+    for realm in &manifest.realms {
+        hash_bytes(hash, realm.identity.0.as_bytes());
+        match &realm.version {
+            Some(version) => {
+                hash_u8(hash, 1);
+                hash_bytes(hash, version.0.as_bytes());
+            }
+            None => hash_u8(hash, 0),
+        }
+    }
+    hash_usize(hash, manifest.bands.len());
+    for band in &manifest.bands {
+        hash_bytes(hash, band.realm.identity.0.as_bytes());
+        match &band.realm.version {
+            Some(version) => {
+                hash_u8(hash, 1);
+                hash_bytes(hash, version.0.as_bytes());
+            }
+            None => hash_u8(hash, 0),
+        }
+        hash_usize(hash, band.band.segments.len());
+        for segment in &band.band.segments {
+            hash_bytes(hash, segment.0.as_bytes());
+        }
+    }
 }
 
 fn hash_usize(hash: &mut u64, value: usize) {
@@ -381,10 +419,11 @@ mod tests {
     use super::*;
     use crate::source::{CompiledRuntimeSurface, CompiledTypedSurface, CompiledUnitArtifactBundle};
     use yulang_sources::{
-        CompiledSourceFileIdentity, CompiledSyntaxSurface, SourceCompilationUnitOrigin,
-        SourceOrigin,
+        BandPath, CompiledSourceFileIdentity, CompiledSyntaxSurface, RealmIdentity, ResolvedBandId,
+        ResolvedRealmId, SourceCompilationUnitOrigin, SourceOrigin,
     };
     use yulang_typed_ir::CoreProgram;
+    use yulang_typed_ir::Name;
 
     #[test]
     fn writes_and_reads_compiled_unit_artifact() {
@@ -462,12 +501,26 @@ mod tests {
     }
 
     #[test]
+    fn artifact_key_includes_realm_band_identity() {
+        let first = test_artifact(11, 22);
+        let mut second = test_artifact(11, 22);
+        second.manifest.realms[0].identity.0 = "virtual:other".to_string();
+        second.manifest.bands[0].realm = second.manifest.realms[0].clone();
+
+        assert_ne!(
+            CompiledUnitArtifactCacheKey::from_manifest(&first.manifest),
+            CompiledUnitArtifactCacheKey::from_manifest(&second.manifest)
+        );
+    }
+
+    #[test]
     fn rejects_unsupported_versions() {
         let cache = CompiledUnitArtifactCache::new(temp_root("compiled-unit-cache-version"));
         let key = CompiledUnitArtifactCacheKey {
             artifact_format_version: COMPILED_UNIT_ARTIFACT_FORMAT_VERSION + 1,
             parser_format_version: COMPILED_UNIT_PARSER_FORMAT_VERSION,
             unit_index: 0,
+            identity_hash: 0,
             source_hash: 1,
             syntax_hash: 2,
         };
@@ -487,6 +540,8 @@ mod tests {
                 parser_format_version: COMPILED_UNIT_PARSER_FORMAT_VERSION,
                 unit_index: 0,
                 origin: SourceCompilationUnitOrigin::Entry,
+                realms: vec![test_realm()],
+                bands: vec![test_band()],
                 files: vec![CompiledSourceFileIdentity {
                     path: "main.yu".to_string(),
                     module_path: Default::default(),
@@ -508,6 +563,20 @@ mod tests {
             runtime: CompiledRuntimeSurface {
                 program: CoreProgram::default(),
             },
+        }
+    }
+
+    fn test_realm() -> ResolvedRealmId {
+        ResolvedRealmId {
+            identity: RealmIdentity("virtual:test".to_string()),
+            version: None,
+        }
+    }
+
+    fn test_band() -> ResolvedBandId {
+        ResolvedBandId {
+            realm: test_realm(),
+            band: BandPath::from_segments(vec![Name("main".to_string())]),
         }
     }
 

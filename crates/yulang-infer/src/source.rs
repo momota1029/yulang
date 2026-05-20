@@ -198,6 +198,7 @@ pub struct CompiledUnitImport {
 }
 
 pub struct CompiledUnitArtifactsImport {
+    pub manifests: Vec<CompiledUnitManifest>,
     pub typed: CompiledTypedImport,
     pub runtime: CompiledRuntimeBundle,
 }
@@ -823,6 +824,7 @@ pub fn import_compiled_unit_artifact_bundle(
         .map_err(CompiledUnitArtifactsImportError::InvalidTyped)?;
 
     Ok(CompiledUnitArtifactsImport {
+        manifests: bundle.manifests.clone(),
         typed,
         runtime: bundle.runtime.clone(),
     })
@@ -833,6 +835,7 @@ pub fn import_trusted_compiled_unit_artifact_bundle(
 ) -> CompiledUnitArtifactsImport {
     let typed = import_trusted_compiled_typed_surface(&bundle.namespace, &bundle.typed);
     CompiledUnitArtifactsImport {
+        manifests: bundle.manifests.clone(),
         typed,
         runtime: bundle.runtime.clone(),
     }
@@ -946,12 +949,39 @@ fn lower_source_set_with_compiled_unit_import(
 ) -> CompiledUnitProfiledLoweredSources {
     let mut profile = source_set_profile_header(source_set);
     profile.std_cache.hits += 1;
-    let lowered =
-        lower_source_set_from_std_state(source_set, import.typed.namespace.state, profile);
+    let cached_files = cached_source_file_indices(source_set, &import.manifests);
+    let lowered = lower_source_set_from_cached_state(
+        source_set,
+        import.typed.namespace.state,
+        profile,
+        &cached_files,
+    );
     CompiledUnitProfiledLoweredSources {
         lowered,
         runtime: import.runtime,
     }
+}
+
+fn cached_source_file_indices(
+    source_set: &SourceSet,
+    manifests: &[CompiledUnitManifest],
+) -> HashSet<usize> {
+    if manifests.is_empty() {
+        return HashSet::new();
+    }
+    let units = source_set.compilation_units();
+    let syntax_artifacts = units.syntax_artifacts(source_set);
+    units
+        .units
+        .iter()
+        .zip(syntax_artifacts)
+        .filter(|(_, artifact)| {
+            manifests
+                .iter()
+                .any(|manifest| manifest == &artifact.manifest)
+        })
+        .flat_map(|(unit, _)| unit.files.iter().copied())
+        .collect()
 }
 
 fn import_compiled_compact_schemes(
@@ -1050,7 +1080,10 @@ fn max_compiled_typed_type_var(typed: &CompiledTypedSurface) -> Option<TypeVar> 
     max
 }
 
-fn collect_snapshot_scheme_max_type_var(scheme: &StdInferSnapshotScheme, max: &mut Option<TypeVar>) {
+fn collect_snapshot_scheme_max_type_var(
+    scheme: &StdInferSnapshotScheme,
+    max: &mut Option<TypeVar>,
+) {
     if let Some(compact) = &scheme.compact {
         collect_compact_scheme_max_type_var(compact, max);
     }
@@ -1380,7 +1413,8 @@ pub fn lower_source_set_with_std_snapshot(
         let clone_start = ProfileClock::now();
         let state = snapshot.instantiate();
         profile.std_cache.clone += clone_start.elapsed();
-        lower_source_set_from_std_state(source_set, state, profile)
+        let cached_files = std_source_file_indices(source_set);
+        lower_source_set_from_cached_state(source_set, state, profile, &cached_files)
     })
 }
 
@@ -1445,25 +1479,26 @@ fn lower_source_set_cached_inner(
 
     let mut profile = source_set_profile_header(source_set);
     let state = cache.std_state(source_set, &mut profile);
-    lower_source_set_from_std_state(source_set, state, profile)
+    let cached_files = std_source_file_indices(source_set);
+    lower_source_set_from_cached_state(source_set, state, profile, &cached_files)
 }
 
-fn lower_source_set_from_std_state(
+fn lower_source_set_from_cached_state(
     source_set: &SourceSet,
     mut state: LowerState,
     mut profile: SourceLowerProfile,
+    cached_files: &HashSet<usize>,
 ) -> ProfiledLoweredSources {
     let diagnostic_source = source_set
         .entry_files()
         .next()
         .map(|file| file.source.clone())
         .unwrap_or_default();
-    seed_cached_source_act_templates(source_set, &mut state, &mut profile);
-    for file in source_set
-        .files
-        .iter()
-        .filter(|file| file.origin != SourceOrigin::Std)
-    {
+    seed_cached_source_act_templates(source_set, cached_files, &mut state, &mut profile);
+    for (file_idx, file) in source_set.files.iter().enumerate() {
+        if cached_files.contains(&file_idx) {
+            continue;
+        }
         lower_source_file_inner(file, &mut state, &mut profile);
     }
     let finish_start = ProfileClock::now();
@@ -1482,17 +1517,17 @@ fn lower_source_set_from_std_state(
 
 fn seed_cached_source_act_templates(
     source_set: &SourceSet,
+    cached_files: &HashSet<usize>,
     state: &mut LowerState,
     profile: &mut SourceLowerProfile,
 ) {
     if !state.act_templates.is_empty() {
         return;
     }
-    for file in source_set
-        .files
-        .iter()
-        .filter(|file| file.origin == SourceOrigin::Std)
-    {
+    for (file_idx, file) in source_set.files.iter().enumerate() {
+        if !cached_files.contains(&file_idx) {
+            continue;
+        }
         if !file.source.contains("act ") {
             continue;
         }
@@ -1519,6 +1554,15 @@ fn seed_cached_source_act_templates(
             state.act_templates.insert(Path { segments }, act);
         }
     }
+}
+
+fn std_source_file_indices(source_set: &SourceSet) -> HashSet<usize> {
+    source_set
+        .files
+        .iter()
+        .enumerate()
+        .filter_map(|(file_idx, file)| (file.origin == SourceOrigin::Std).then_some(file_idx))
+        .collect()
 }
 
 fn act_decl_name(node: &SyntaxNode<YulangLanguage>) -> Option<Name> {

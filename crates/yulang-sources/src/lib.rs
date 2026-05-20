@@ -83,7 +83,7 @@ pub fn collect_source_files_with_options(
     ))
 }
 
-pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 8;
+pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 9;
 pub const COMPILED_UNIT_PARSER_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -417,6 +417,8 @@ pub struct CompiledUnitManifest {
     pub parser_format_version: u32,
     pub unit_index: usize,
     pub origin: SourceCompilationUnitOrigin,
+    pub realms: Vec<ResolvedRealmId>,
+    pub bands: Vec<ResolvedBandId>,
     pub files: Vec<CompiledSourceFileIdentity>,
     pub dependencies: Vec<CompiledUnitDependency>,
     pub source_hash: u64,
@@ -1227,6 +1229,7 @@ fn compiled_unit_manifest(
     unit_hashes: &[u64],
     syntax: &CompiledSyntaxSurface,
 ) -> CompiledUnitManifest {
+    let (realms, bands) = compiled_unit_realm_band_identities(unit, source_set);
     let files = unit
         .files
         .iter()
@@ -1257,11 +1260,51 @@ fn compiled_unit_manifest(
         parser_format_version: COMPILED_UNIT_PARSER_FORMAT_VERSION,
         unit_index: unit_idx,
         origin: unit.origin,
+        realms,
+        bands,
         files,
         dependencies,
         source_hash,
         syntax_hash,
     }
+}
+
+fn compiled_unit_realm_band_identities(
+    unit: &SourceCompilationUnit,
+    source_set: &SourceSet,
+) -> (Vec<ResolvedRealmId>, Vec<ResolvedBandId>) {
+    let mut realms = Vec::new();
+    let mut bands = Vec::new();
+    for &file_idx in &unit.files {
+        let Some(band) = &source_set.files[file_idx].band else {
+            continue;
+        };
+        realms.push(band.realm.clone());
+        bands.push(band.clone());
+    }
+    realms.sort_by_key(resolved_realm_sort_key);
+    realms.dedup();
+    bands.sort_by_key(resolved_band_sort_key);
+    bands.dedup();
+    (realms, bands)
+}
+
+fn resolved_realm_sort_key(realm: &ResolvedRealmId) -> String {
+    match &realm.version {
+        Some(version) => format!("{}@{}", realm.identity.0, version.0),
+        None => realm.identity.0.clone(),
+    }
+}
+
+fn resolved_band_sort_key(band: &ResolvedBandId) -> String {
+    let band_path = band
+        .band
+        .segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::");
+    format!("{}/{}", resolved_realm_sort_key(&band.realm), band_path)
 }
 
 fn compiled_syntax_surface(
@@ -2918,6 +2961,46 @@ mod tests {
                 realm: set.realms[0].id.clone(),
                 band: BandPath::root(),
             })
+        );
+    }
+
+    #[test]
+    fn compiled_unit_manifest_records_resolved_realm_and_band() {
+        let set = collect_inline_source_files_with_options(
+            "use ops::*\n1 %% 2\n",
+            [InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: module_path(&["ops"]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+
+        let artifact = set
+            .compiled_unit_syntax_artifacts()
+            .into_iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["ops"])
+            })
+            .expect("ops artifact should exist");
+
+        assert_eq!(artifact.manifest.realms, vec![set.realms[0].id.clone()]);
+        assert_eq!(
+            artifact.manifest.bands,
+            vec![ResolvedBandId {
+                realm: set.realms[0].id.clone(),
+                band: BandPath::from_segments(vec![Name("ops".to_string())]),
+            }]
         );
     }
 

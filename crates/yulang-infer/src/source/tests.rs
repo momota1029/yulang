@@ -2016,9 +2016,7 @@ fn compiled_typed_import_preserves_operator_role_constraints() {
         let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
         let std_artifacts = artifacts
             .into_iter()
-            .filter(|artifact| {
-                artifact.manifest.origin == SourceCompilationUnitOrigin::Std
-            })
+            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
             .collect::<Vec<_>>();
         let bundle =
             build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
@@ -2214,6 +2212,55 @@ fn compiled_unit_import_restores_syntax_and_typed_refs() {
                 .segments
                 .iter()
                 .any(|name| name.0 == "#op:infix:%%"))
+    );
+}
+
+#[test]
+fn compiled_unit_import_skips_cached_dependency_scc() {
+    let source_set = collect_inline_source_files_with_options(
+        "use ops::*\nmy y = 1 %% 2\n",
+        [InlineSource {
+            path: PathBuf::from("<ops>.yu"),
+            module_path: CorePath::new(vec![CoreName("ops".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+            meta: None,
+        }],
+        yulang_sources::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+    let ops_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["ops"])
+        })
+        .expect("ops unit artifact should exist")
+        .clone();
+    let bundle = build_compiled_unit_artifact_bundle(&[ops_artifact]).unwrap();
+
+    let mut imported =
+        lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(&source_set, &bundle);
+    imported.lowered.lowered.state.finalize_compact_results();
+
+    assert_eq!(imported.lowered.profile.entry.files, 1);
+    assert_eq!(imported.lowered.profile.user.files, 0);
+    assert!(
+        imported
+            .lowered
+            .lowered
+            .state
+            .infer
+            .type_errors()
+            .is_empty()
     );
 }
 

@@ -1,6 +1,6 @@
 use std::cmp::Reverse;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fs;
 #[cfg(not(windows))]
@@ -3644,7 +3644,7 @@ fn print_infer_phase_timings(
         format_duration(lower.std_cache.build)
     );
     eprintln!(
-        "    std_artifacts: manifests={} reads={} writes={}",
+        "    compiled_unit_artifacts: manifests={} reads={} writes={}",
         pipeline.std_artifact_manifests, pipeline.std_artifact_reads, pipeline.std_artifact_writes
     );
     eprintln!(
@@ -3911,7 +3911,7 @@ fn lower_infer_source_set_with_cache(
         &yulang_sources::YulangCachePaths::for_project(workspace_root()),
     );
     if let Some(bundle) =
-        read_cached_std_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
+        read_cached_dependency_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
     {
         let import_start = pipeline_timings.start();
         let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
@@ -3942,7 +3942,7 @@ fn lower_infer_source_set_with_cache(
     lowered.lowered.state.finalize_compact_results_profiled();
     pipeline_timings.std_artifact_prepare_finalize =
         InferPipelineTimings::elapsed(prepare_finalize_start);
-    write_std_unit_artifact_bundle(
+    write_dependency_unit_artifact_bundle(
         source_set,
         &lowered.lowered.state,
         &cache,
@@ -4030,6 +4030,15 @@ fn hash_compiled_unit_manifest(
     manifest.parser_format_version.hash(hasher);
     manifest.unit_index.hash(hasher);
     source_compilation_unit_origin_key(manifest.origin).hash(hasher);
+    for realm in &manifest.realms {
+        realm.identity.hash(hasher);
+        realm.version.hash(hasher);
+    }
+    for band in &manifest.bands {
+        band.realm.identity.hash(hasher);
+        band.realm.version.hash(hasher);
+        band.band.segments.hash(hasher);
+    }
     manifest.source_hash.hash(hasher);
     manifest.syntax_hash.hash(hasher);
     for file in &manifest.files {
@@ -4074,18 +4083,13 @@ fn infer_lower_output(
     }
 }
 
-fn read_cached_std_unit_artifact_bundle(
+fn read_cached_dependency_unit_artifact_bundle(
     source_set: &SourceSet,
     cache: &CompiledUnitArtifactCache,
     timings: &mut InferPipelineTimings,
 ) -> Option<CompiledUnitArtifactBundle> {
     let manifest_start = timings.start();
-    let manifests = source_set
-        .compiled_unit_syntax_artifacts()
-        .into_iter()
-        .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
-        .map(|artifact| artifact.manifest)
-        .collect::<Vec<_>>();
+    let manifests = cacheable_dependency_manifests(source_set);
     timings.std_artifact_manifest += InferPipelineTimings::elapsed(manifest_start);
     if timings.enabled {
         timings.std_artifact_manifests = manifests.len();
@@ -4104,15 +4108,25 @@ fn read_cached_std_unit_artifact_bundle(
     }
     timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
 
-    let mut artifacts = Vec::with_capacity(manifests.len());
-    for manifest in manifests {
+    let mut artifacts_by_unit = BTreeMap::new();
+    for manifest in &manifests {
         let read_start = timings.start();
-        artifacts.push(cache.read_for_manifest(&manifest).ok()?);
+        if let Ok(artifact) = cache.read_for_manifest(manifest) {
+            artifacts_by_unit.insert(manifest.unit_index, artifact);
+        }
         timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
         if timings.enabled {
             timings.std_artifact_reads += 1;
         }
     }
+    let selected_units = dependency_closed_cached_units(&manifests, artifacts_by_unit.keys());
+    if selected_units.is_empty() {
+        return None;
+    }
+    let artifacts = artifacts_by_unit
+        .into_iter()
+        .filter_map(|(unit_idx, artifact)| selected_units.contains(&unit_idx).then_some(artifact))
+        .collect::<Vec<_>>();
     let build_start = timings.start();
     let bundle = build_compiled_unit_artifact_bundle(&artifacts).ok()?;
     timings.std_artifact_build += InferPipelineTimings::elapsed(build_start);
@@ -4125,7 +4139,7 @@ fn read_cached_std_unit_artifact_bundle(
     Some(bundle)
 }
 
-fn write_std_unit_artifact_bundle(
+fn write_dependency_unit_artifact_bundle(
     source_set: &SourceSet,
     state: &InferLowerState,
     cache: &CompiledUnitArtifactCache,
@@ -4134,7 +4148,7 @@ fn write_std_unit_artifact_bundle(
     let build_start = timings.start();
     let artifacts = build_compiled_unit_artifacts(source_set, state)
         .into_iter()
-        .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+        .filter(|artifact| is_cacheable_dependency_manifest(&artifact.manifest))
         .collect::<Vec<_>>();
     let bundle = if artifacts.is_empty() {
         None
@@ -4142,12 +4156,66 @@ fn write_std_unit_artifact_bundle(
         build_compiled_unit_artifact_bundle(&artifacts).ok()
     };
     timings.std_artifact_build += InferPipelineTimings::elapsed(build_start);
+    for artifact in &artifacts {
+        let write_start = timings.start();
+        let _ = cache.write(artifact);
+        timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
+        if timings.enabled {
+            timings.std_artifact_writes += 1;
+        }
+    }
     if let Some(bundle) = bundle {
         let write_start = timings.start();
         let _ = cache.write_bundle(&bundle);
         timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
         if timings.enabled {
             timings.std_artifact_writes += 1;
+        }
+    }
+}
+
+fn cacheable_dependency_manifests(
+    source_set: &SourceSet,
+) -> Vec<yulang_sources::CompiledUnitManifest> {
+    source_set
+        .compiled_unit_syntax_artifacts()
+        .into_iter()
+        .map(|artifact| artifact.manifest)
+        .filter(is_cacheable_dependency_manifest)
+        .collect()
+}
+
+fn is_cacheable_dependency_manifest(manifest: &yulang_sources::CompiledUnitManifest) -> bool {
+    manifest.origin != SourceCompilationUnitOrigin::Entry
+        && manifest
+            .files
+            .iter()
+            .all(|file| file.origin != yulang_sources::SourceOrigin::Entry)
+}
+
+fn dependency_closed_cached_units<'a>(
+    manifests: &'a [yulang_sources::CompiledUnitManifest],
+    cached_units: impl Iterator<Item = &'a usize>,
+) -> BTreeSet<usize> {
+    let manifests_by_unit = manifests
+        .iter()
+        .map(|manifest| (manifest.unit_index, manifest))
+        .collect::<BTreeMap<_, _>>();
+    let mut selected = cached_units.copied().collect::<BTreeSet<_>>();
+    loop {
+        let before = selected.len();
+        let previous = selected.clone();
+        selected.retain(|unit_idx| {
+            let Some(manifest) = manifests_by_unit.get(unit_idx) else {
+                return false;
+            };
+            manifest
+                .dependencies
+                .iter()
+                .all(|dependency| previous.contains(&dependency.unit_index))
+        });
+        if selected.len() == before {
+            return selected;
         }
     }
 }
