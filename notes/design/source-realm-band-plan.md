@@ -521,10 +521,10 @@ Current first slice:
   fills only imports without an item suffix. The ordinary lowerer ignores the
   suffix, while lock constraint collection can preserve it as the resolved
   realm version.
-- `yulang lock <path>` writes the current lock-shaped source graph to
-  `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
-  file, validates its `with` constraints, and fails if the generated graph would
-  change it.
+- `yulang lock <path>` writes the current lock-shaped source graph to the entry
+  realm root's `yulang.lock` (or `--out PATH`). `yulang lock <path> --check`
+  reads the lock file, validates its `with` constraints, and fails if the
+  generated graph would change it.
 - source collection can resolve cross-realm `use` when the target realm already
   exists locally. It first honors `yulang.lock` resolved realm sources, then
   falls back to `[dependencies]` in `realm.toml` plus `search_paths`, local

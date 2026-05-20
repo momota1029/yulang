@@ -280,7 +280,7 @@ struct LockArgs {
     /// Validate the generated lock graph without writing a file
     #[arg(long)]
     check: bool,
-    /// Output path for the lock file (defaults to ./yulang.lock)
+    /// Output path for the lock file (defaults to the entry realm root)
     #[arg(long, value_name = "PATH")]
     out: Option<String>,
 }
@@ -848,7 +848,7 @@ fn run_lock_op_or_exit(op: &LockOp, options: &CliOptions) {
             process::exit(1);
         }
     };
-    let output_path = lock_output_path(op);
+    let output_path = lock_output_path(op, options);
     if op.check {
         let existing = read_lock_file_or_exit(&output_path);
         if let Err(err) = existing.validate_with_constraints() {
@@ -959,11 +959,16 @@ fn collect_lock_source_set_or_exit(options: &CliOptions) -> SourceSet {
     }
 }
 
-fn lock_output_path(op: &LockOp) -> PathBuf {
+fn lock_output_path(op: &LockOp, options: &CliOptions) -> PathBuf {
     if let Some(path) = &op.out {
         return PathBuf::from(path);
     }
-    let project_root = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let project_root = options
+        .path
+        .as_deref()
+        .and_then(path_base_dir)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     yulang_sources::YulangCachePaths::for_project(&project_root).lock_path(project_root)
 }
 
@@ -7099,6 +7104,21 @@ mod tests {
         assert_eq!(
             source_options.search_paths,
             vec![PathBuf::from("workspace/app"), PathBuf::from("workspace")]
+        );
+    }
+
+    #[test]
+    fn lock_output_defaults_to_entry_realm_root() {
+        let mut options = test_cli_options();
+        options.path = Some("workspace/app/main.yu".to_string());
+        let op = LockOp {
+            check: false,
+            out: None,
+        };
+
+        assert_eq!(
+            lock_output_path(&op, &options),
+            PathBuf::from("workspace/app/yulang.lock")
         );
     }
 
