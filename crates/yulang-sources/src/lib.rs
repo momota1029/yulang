@@ -3,6 +3,7 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path as FsPath, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rowan::{NodeOrToken, SyntaxNode};
 use serde::{Deserialize, Serialize};
@@ -18,8 +19,8 @@ mod realm_path;
 mod stdlib;
 
 pub use cache::{
-    YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_TARGET_DIR, YulangCachePaths,
-    default_user_cache_root, project_target_root,
+    YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_PROJECT_DIR, YULANG_TARGET_DIR,
+    YulangCachePaths, default_user_cache_root, project_target_root,
 };
 pub use lock::{
     LockedRealm, LockedRealmDependency, LockedRealmSource, LockedWithConstraint,
@@ -155,6 +156,30 @@ pub struct SourceRealmManifest {
     pub dependencies: Vec<SourceRealmDependency>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FrozenRealmSnapshot {
+    pub format_version: u32,
+    pub identity: RealmIdentity,
+    pub version: RealmVersion,
+    pub source_hash: u64,
+    pub files: Vec<FrozenRealmSnapshotFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FrozenRealmSnapshotFile {
+    pub path: String,
+    pub source_len: usize,
+    pub source_hash: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FreezeRealmOutput {
+    pub root: PathBuf,
+    pub snapshot_path: PathBuf,
+    pub snapshot: FrozenRealmSnapshot,
+    pub already_exists: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SourceRealmSeed {
     id: ResolvedRealmId,
@@ -232,13 +257,13 @@ fn local_realm_root(entry: &FsPath) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct RealmManifestToml {
     realm: Option<RealmManifestRealmToml>,
     dependencies: Option<BTreeMap<String, String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct RealmManifestRealmToml {
     identity: Option<String>,
     name: Option<String>,
@@ -293,6 +318,352 @@ fn load_realm_manifest(root: &FsPath) -> Result<Option<SourceRealmManifest>, Sou
         dependencies,
     }))
 }
+
+pub fn freeze_realm_version(
+    root: impl AsRef<FsPath>,
+    version: impl Into<String>,
+) -> Result<FreezeRealmOutput, FreezeRealmError> {
+    freeze_realm_version_inner(root.as_ref(), RealmVersion(version.into()))
+}
+
+fn freeze_realm_version_inner(
+    root: &FsPath,
+    version: RealmVersion,
+) -> Result<FreezeRealmOutput, FreezeRealmError> {
+    if version.0.trim().is_empty() {
+        return Err(FreezeRealmError::InvalidVersion(version.0));
+    }
+    let root = canonicalize_for_dedupe(root);
+    let manifest = load_realm_manifest(&root)
+        .map_err(FreezeRealmError::SourceLoad)?
+        .ok_or_else(|| FreezeRealmError::MissingManifest { root: root.clone() })?;
+    let snapshot_root = root
+        .join(cache::YULANG_PROJECT_DIR)
+        .join("versions")
+        .join(&version.0);
+    let files = collect_freezable_realm_files(&root)?;
+    let snapshot = frozen_realm_snapshot(&root, &manifest, version.clone(), &files)?;
+    let snapshot_path = snapshot_root.join("snapshot.json");
+
+    if snapshot_root.exists() {
+        let existing = read_frozen_realm_snapshot(&snapshot_path)?;
+        if existing.source_hash == snapshot.source_hash {
+            return Ok(FreezeRealmOutput {
+                root: snapshot_root,
+                snapshot_path,
+                snapshot: existing,
+                already_exists: true,
+            });
+        }
+        return Err(FreezeRealmError::SnapshotExistsHashMismatch {
+            path: snapshot_root,
+            existing_hash: existing.source_hash,
+            new_hash: snapshot.source_hash,
+        });
+    }
+
+    let temp_root = freeze_temp_root(&snapshot_root);
+    if temp_root.exists() {
+        fs::remove_dir_all(&temp_root).map_err(|error| FreezeRealmError::Io {
+            path: temp_root.clone(),
+            error,
+        })?;
+    }
+    fs::create_dir_all(&temp_root).map_err(|error| FreezeRealmError::Io {
+        path: temp_root.clone(),
+        error,
+    })?;
+    write_frozen_realm_files(&root, &temp_root, &manifest, &version, &files)?;
+    let snapshot_json = serde_json::to_string_pretty(&snapshot).map_err(|error| {
+        FreezeRealmError::EncodeSnapshot {
+            path: snapshot_path.clone(),
+            message: error.to_string(),
+        }
+    })?;
+    fs::write(
+        temp_root.join("snapshot.json"),
+        format!("{snapshot_json}\n"),
+    )
+    .map_err(|error| FreezeRealmError::Io {
+        path: temp_root.join("snapshot.json"),
+        error,
+    })?;
+    ensure_parent_dir(&snapshot_root)?;
+    fs::rename(&temp_root, &snapshot_root).map_err(|error| FreezeRealmError::Io {
+        path: snapshot_root.clone(),
+        error,
+    })?;
+
+    Ok(FreezeRealmOutput {
+        root: snapshot_root,
+        snapshot_path,
+        snapshot,
+        already_exists: false,
+    })
+}
+
+fn collect_freezable_realm_files(root: &FsPath) -> Result<Vec<PathBuf>, FreezeRealmError> {
+    let mut files = vec![PathBuf::from(cache::YULANG_MANIFEST_FILE)];
+    if root.join(cache::YULANG_LOCK_FILE).is_file() {
+        files.push(PathBuf::from(cache::YULANG_LOCK_FILE));
+    }
+    collect_freezable_realm_files_from(root, root, &mut files)?;
+    files.sort();
+    files.dedup();
+    Ok(files)
+}
+
+fn collect_freezable_realm_files_from(
+    root: &FsPath,
+    dir: &FsPath,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), FreezeRealmError> {
+    for entry in fs::read_dir(dir).map_err(|error| FreezeRealmError::Io {
+        path: dir.to_path_buf(),
+        error,
+    })? {
+        let entry = entry.map_err(|error| FreezeRealmError::Io {
+            path: dir.to_path_buf(),
+            error,
+        })?;
+        let path = entry.path();
+        let file_name = entry.file_name();
+        if file_name == cache::YULANG_PROJECT_DIR || file_name == "target" {
+            continue;
+        }
+        let file_type = entry.file_type().map_err(|error| FreezeRealmError::Io {
+            path: path.clone(),
+            error,
+        })?;
+        if file_type.is_dir() {
+            collect_freezable_realm_files_from(root, &path, files)?;
+            continue;
+        }
+        if file_type.is_file() && path.extension().is_some_and(|ext| ext == "yu") {
+            let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
+            files.push(relative);
+        }
+    }
+    Ok(())
+}
+
+fn frozen_realm_snapshot(
+    source_root: &FsPath,
+    manifest: &SourceRealmManifest,
+    version: RealmVersion,
+    files: &[PathBuf],
+) -> Result<FrozenRealmSnapshot, FreezeRealmError> {
+    let frozen_manifest = frozen_realm_manifest_toml(manifest, &version);
+    let frozen_manifest_bytes = toml::to_string_pretty(&frozen_manifest)
+        .map_err(|error| FreezeRealmError::EncodeManifest {
+            path: source_root.join(cache::YULANG_MANIFEST_FILE),
+            message: error.to_string(),
+        })?
+        .into_bytes();
+    let mut snapshot_files = Vec::new();
+    let mut hash = StableHash::new();
+    hash.write_str("frozen-realm-v1");
+    hash.write_str(&manifest.id.identity.0);
+    hash.write_str(&version.0);
+    for file in files {
+        let path = file.to_string_lossy().replace('\\', "/");
+        let bytes = if file == FsPath::new(cache::YULANG_MANIFEST_FILE) {
+            frozen_manifest_bytes.clone()
+        } else {
+            fs::read(source_root.join(file)).map_err(|error| FreezeRealmError::Io {
+                path: source_root.join(file),
+                error,
+            })?
+        };
+        let file_hash = stable_hash_bytes(&bytes);
+        hash.write_str(&path);
+        hash.write_u64(bytes.len() as u64);
+        hash.write_u64(file_hash);
+        snapshot_files.push(FrozenRealmSnapshotFile {
+            path,
+            source_len: bytes.len(),
+            source_hash: file_hash,
+        });
+    }
+    Ok(FrozenRealmSnapshot {
+        format_version: 1,
+        identity: manifest.id.identity.clone(),
+        version,
+        source_hash: hash.finish(),
+        files: snapshot_files,
+    })
+}
+
+fn write_frozen_realm_files(
+    source_root: &FsPath,
+    output_root: &FsPath,
+    manifest: &SourceRealmManifest,
+    version: &RealmVersion,
+    files: &[PathBuf],
+) -> Result<(), FreezeRealmError> {
+    for relative in files {
+        let output_path = output_root.join(relative);
+        ensure_parent_dir(&output_path)?;
+        if relative == FsPath::new(cache::YULANG_MANIFEST_FILE) {
+            let manifest = frozen_realm_manifest_toml(manifest, version);
+            let encoded = toml::to_string_pretty(&manifest).map_err(|error| {
+                FreezeRealmError::EncodeManifest {
+                    path: output_path.clone(),
+                    message: error.to_string(),
+                }
+            })?;
+            fs::write(&output_path, encoded).map_err(|error| FreezeRealmError::Io {
+                path: output_path,
+                error,
+            })?;
+        } else {
+            fs::copy(source_root.join(relative), &output_path).map_err(|error| {
+                FreezeRealmError::Io {
+                    path: output_path,
+                    error,
+                }
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn frozen_realm_manifest_toml(
+    manifest: &SourceRealmManifest,
+    version: &RealmVersion,
+) -> RealmManifestToml {
+    let dependencies = (!manifest.dependencies.is_empty()).then(|| {
+        manifest
+            .dependencies
+            .iter()
+            .map(|dependency| {
+                (
+                    dependency.identity.0.clone(),
+                    dependency.requirement.clone(),
+                )
+            })
+            .collect::<BTreeMap<_, _>>()
+    });
+    RealmManifestToml {
+        realm: Some(RealmManifestRealmToml {
+            identity: Some(manifest.id.identity.0.clone()),
+            name: None,
+            version: Some(version.0.clone()),
+        }),
+        dependencies,
+    }
+}
+
+fn read_frozen_realm_snapshot(path: &FsPath) -> Result<FrozenRealmSnapshot, FreezeRealmError> {
+    let source = fs::read_to_string(path).map_err(|error| FreezeRealmError::Io {
+        path: path.to_path_buf(),
+        error,
+    })?;
+    serde_json::from_str(&source).map_err(|error| FreezeRealmError::InvalidSnapshot {
+        path: path.to_path_buf(),
+        message: error.to_string(),
+    })
+}
+
+fn freeze_temp_root(snapshot_root: &FsPath) -> PathBuf {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    snapshot_root.with_file_name(format!(
+        ".{}.tmp-{}-{millis}",
+        snapshot_root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("freeze"),
+        std::process::id()
+    ))
+}
+
+fn ensure_parent_dir(path: &FsPath) -> Result<(), FreezeRealmError> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    fs::create_dir_all(parent).map_err(|error| FreezeRealmError::Io {
+        path: parent.to_path_buf(),
+        error,
+    })
+}
+
+#[derive(Debug)]
+pub enum FreezeRealmError {
+    InvalidVersion(String),
+    MissingManifest {
+        root: PathBuf,
+    },
+    SourceLoad(SourceLoadError),
+    Io {
+        path: PathBuf,
+        error: io::Error,
+    },
+    EncodeManifest {
+        path: PathBuf,
+        message: String,
+    },
+    EncodeSnapshot {
+        path: PathBuf,
+        message: String,
+    },
+    InvalidSnapshot {
+        path: PathBuf,
+        message: String,
+    },
+    SnapshotExistsHashMismatch {
+        path: PathBuf,
+        existing_hash: u64,
+        new_hash: u64,
+    },
+}
+
+impl fmt::Display for FreezeRealmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FreezeRealmError::InvalidVersion(version) => {
+                write!(f, "invalid realm version `{version}`")
+            }
+            FreezeRealmError::MissingManifest { root } => {
+                write!(f, "realm manifest not found under {}", root.display())
+            }
+            FreezeRealmError::SourceLoad(error) => write!(f, "{error}"),
+            FreezeRealmError::Io { path, error } => {
+                write!(f, "failed to access {}: {error}", path.display())
+            }
+            FreezeRealmError::EncodeManifest { path, message } => {
+                write!(
+                    f,
+                    "failed to encode realm manifest {}: {message}",
+                    path.display()
+                )
+            }
+            FreezeRealmError::EncodeSnapshot { path, message } => {
+                write!(
+                    f,
+                    "failed to encode realm snapshot {}: {message}",
+                    path.display()
+                )
+            }
+            FreezeRealmError::InvalidSnapshot { path, message } => {
+                write!(f, "invalid realm snapshot {}: {message}", path.display())
+            }
+            FreezeRealmError::SnapshotExistsHashMismatch {
+                path,
+                existing_hash,
+                new_hash,
+            } => write!(
+                f,
+                "frozen realm {} already exists with a different hash: existing={existing_hash:016x} new={new_hash:016x}",
+                path.display()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FreezeRealmError {}
 
 fn load_realm_lock(root: &FsPath) -> Result<Option<YulangLockFile>, SourceLoadError> {
     let path = root.join(cache::YULANG_LOCK_FILE);
@@ -1215,20 +1586,20 @@ impl SourceLoader {
             return Some(locked);
         }
 
-        let Some((identity, identity_len)) =
+        let Some((identity, identity_len, dependency_version)) =
             self.resolve_manifest_dependency_prefix(module_path, import_version.as_ref())
         else {
             return None;
         };
-        let (root_path, root) =
-            self.find_existing_realm_root(&identity, import_version.as_ref())?;
+        let selected_version = import_version.as_ref().or(dependency_version.as_ref());
+        let (root_path, root) = self.find_existing_realm_root(&identity, selected_version)?;
         let manifest = load_realm_manifest(&root_path).ok().flatten();
         let realm = manifest
             .as_ref()
             .map(|manifest| manifest.id.clone())
             .unwrap_or_else(|| ResolvedRealmId {
                 identity: identity.clone(),
-                version: import_version.clone(),
+                version: selected_version.cloned(),
             });
         let dependencies = manifest
             .map(|manifest| manifest.dependencies)
@@ -1291,7 +1662,7 @@ impl SourceLoader {
         &self,
         module_path: &ModulePath,
         import_version: Option<&RealmVersion>,
-    ) -> Option<(RealmIdentity, usize)> {
+    ) -> Option<(RealmIdentity, usize, Option<RealmVersion>)> {
         self.realms
             .iter()
             .flat_map(|realm| realm.dependencies.iter())
@@ -1300,9 +1671,17 @@ impl SourceLoader {
                 if import_version.is_none() && dependency.requirement.trim().is_empty() {
                     return None;
                 }
-                Some((dependency.identity.clone(), identity_len))
+                let dependency_version = import_version
+                    .is_none()
+                    .then(|| exact_dependency_version(&dependency.requirement))
+                    .flatten();
+                Some((
+                    dependency.identity.clone(),
+                    identity_len,
+                    dependency_version,
+                ))
             })
-            .max_by_key(|(_, identity_len)| *identity_len)
+            .max_by_key(|(_, identity_len, _)| *identity_len)
     }
 
     fn find_existing_realm_root(
@@ -1312,6 +1691,15 @@ impl SourceLoader {
     ) -> Option<(PathBuf, SourceRealmRoot)> {
         for search_root in &self.options.search_paths {
             let root = search_root.join(realm_identity_path(identity));
+            if let Some(version) = version {
+                let frozen = root
+                    .join(cache::YULANG_PROJECT_DIR)
+                    .join("versions")
+                    .join(&version.0);
+                if realm_root_matches(&frozen, identity, Some(version)) {
+                    return Some((frozen.clone(), SourceRealmRoot::Local(frozen)));
+                }
+            }
             if realm_root_matches(&root, identity, version) {
                 return Some((root.clone(), SourceRealmRoot::Local(root)));
             }
@@ -1396,6 +1784,18 @@ fn realm_root_matches(
     };
     manifest.id.identity == *identity
         && version.is_none_or(|version| manifest.id.version.as_ref() == Some(version))
+}
+
+fn exact_dependency_version(requirement: &str) -> Option<RealmVersion> {
+    let requirement = requirement.trim();
+    if requirement.is_empty()
+        || requirement
+            .chars()
+            .any(|ch| matches!(ch, '^' | '~' | '*' | '<' | '>' | '=' | ',' | ' '))
+    {
+        return None;
+    }
+    Some(RealmVersion(requirement.to_string()))
 }
 
 fn import_realm_version(import: &UseImport) -> Option<RealmVersion> {
@@ -4135,7 +4535,7 @@ version = "0.1.0"
 "#,
         )
         .unwrap();
-        fs::write(app.join("main.yu"), "use ui/widget::* v2.4.0\nx\n").unwrap();
+        fs::write(app.join("main.yu"), "use ui/widget::*\nx\n").unwrap();
         let lock = YulangLockFile {
             format_version: YULANG_LOCK_FORMAT_VERSION,
             realms: vec![LockedRealm {
@@ -4184,6 +4584,131 @@ version = "2.4.0"
                 .any(|file| names(&file.module_path) == vec!["ui", "widget"]
                     && file.realm.identity.0 == "ui")
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn freeze_realm_writes_versioned_snapshot_under_yulang_dir() {
+        let root = temp_root("freeze-realm");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("widget")).unwrap();
+        fs::create_dir_all(root.join(".yulang").join("versions").join("old")).unwrap();
+        fs::write(
+            root.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+
+[dependencies]
+std = "0.1.3"
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("widget.yu"), "mod part;\npub x = part::x\n").unwrap();
+        fs::write(root.join("widget").join("part.yu"), "pub x = 1\n").unwrap();
+        fs::write(
+            root.join("yulang.lock"),
+            r#"{
+  "format_version": 1,
+  "realms": [],
+  "dependencies": [],
+  "with_constraints": []
+}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join(".yulang")
+                .join("versions")
+                .join("old")
+                .join("ignored.yu"),
+            "pub old = 1\n",
+        )
+        .unwrap();
+
+        let frozen = freeze_realm_version(&root, "2.4.0").unwrap();
+
+        assert!(!frozen.already_exists);
+        assert_eq!(frozen.snapshot.identity, RealmIdentity("ui".to_string()));
+        assert_eq!(frozen.snapshot.version, RealmVersion("2.4.0".to_string()));
+        assert!(frozen.root.ends_with(".yulang/versions/2.4.0"));
+        assert!(frozen.root.join("widget.yu").is_file());
+        assert!(frozen.root.join("widget").join("part.yu").is_file());
+        assert!(frozen.root.join("yulang.lock").is_file());
+        assert!(!frozen.root.join(".yulang").exists());
+        let frozen_manifest = fs::read_to_string(frozen.root.join("realm.toml")).unwrap();
+        assert!(frozen_manifest.contains("version = \"2.4.0\""));
+        assert!(frozen_manifest.contains("std = \"0.1.3\""));
+        let snapshot_source = fs::read_to_string(&frozen.snapshot_path).unwrap();
+        let decoded: FrozenRealmSnapshot = serde_json::from_str(&snapshot_source).unwrap();
+        assert_eq!(decoded, frozen.snapshot);
+
+        let repeated = freeze_realm_version(&root, "2.4.0").unwrap();
+        assert!(repeated.already_exists);
+        assert_eq!(repeated.snapshot.source_hash, frozen.snapshot.source_hash);
+
+        fs::write(root.join("widget.yu"), "pub x = 2\n").unwrap();
+        let err = freeze_realm_version(&root, "2.4.0").unwrap_err();
+        assert!(matches!(
+            err,
+            FreezeRealmError::SnapshotExistsHashMismatch { .. }
+        ));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn frozen_realm_snapshot_resolves_as_versioned_cross_realm_use() {
+        let root = temp_root("freeze-realm-use");
+        let _ = fs::remove_dir_all(&root);
+        let app = root.join("app");
+        let ui = root.join("ui");
+        fs::create_dir_all(&app).unwrap();
+        fs::create_dir_all(&ui).unwrap();
+        fs::write(
+            app.join("realm.toml"),
+            r#"[realm]
+identity = "user/app"
+version = "0.1.0"
+
+[dependencies]
+ui = "2.4.0"
+"#,
+        )
+        .unwrap();
+        fs::write(app.join("main.yu"), "use ui/widget::*\nx\n").unwrap();
+        fs::write(
+            ui.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+"#,
+        )
+        .unwrap();
+        fs::write(ui.join("widget.yu"), "pub x = 1\n").unwrap();
+        freeze_realm_version(&ui, "2.4.0").unwrap();
+        fs::write(ui.join("widget.yu"), "pub x = \"editable\"\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            app.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: vec![root.clone()],
+            },
+        )
+        .unwrap();
+
+        let frozen_file = set
+            .files
+            .iter()
+            .find(|file| names(&file.module_path) == vec!["ui", "widget"])
+            .expect("frozen ui widget should load");
+        assert!(
+            frozen_file
+                .path
+                .ends_with(".yulang/versions/2.4.0/widget.yu")
+        );
+        assert!(frozen_file.source.contains("pub x = 1"));
 
         let _ = fs::remove_dir_all(root);
     }

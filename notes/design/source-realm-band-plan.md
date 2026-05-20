@@ -446,6 +446,7 @@ Project identity files:
 ```text
 realm.toml
 yulang.lock
+.yulang/versions/<version>/
 ```
 
 `realm.toml` declares the current realm when a project wants explicit realm
@@ -453,6 +454,12 @@ identity. It is not required to declare bands. `yulang.lock` records resolved
 realm dependencies and revisions. The lock file is not a cache; it is part of
 reproducible source identity. Fetched realm contents and compiled artifacts
 live in the persistent user cache.
+
+`yulang realm freeze --version <version> <path>` copies the editable realm
+source into `.yulang/versions/<version>/`, rewrites the frozen `realm.toml` to
+that exact version, and writes `snapshot.json` with file hashes plus a realm
+source hash. Re-running the same freeze is a no-op when the hash matches, and a
+different hash for an existing version is rejected.
 
 ## Initial Implementation Shape
 
@@ -520,10 +527,13 @@ Current first slice:
   change it.
 - source collection can resolve cross-realm `use` when the target realm already
   exists locally. It first honors `yulang.lock` resolved realm sources, then
-  falls back to `[dependencies]` in `realm.toml` plus `search_paths` or the
-  persistent `realms/` cache. Loaded files keep their source-level import path
-  for lowering while their `ResolvedBandId` is assigned inside the target
-  realm.
+  falls back to `[dependencies]` in `realm.toml` plus `search_paths`, local
+  `.yulang/versions/<version>/` snapshots, or the persistent `realms/` cache.
+  Loaded files keep their source-level import path for lowering while their
+  `ResolvedBandId` is assigned inside the target realm.
+- exact dependency requirements such as `ui = "2.4.0"` are enough to select a
+  matching frozen local snapshot when the `use` itself omits a version suffix.
+  Range solving (`^2.4`, `<3`, etc.) is still deferred.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by

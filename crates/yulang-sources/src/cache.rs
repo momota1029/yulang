@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 pub const YULANG_MANIFEST_FILE: &str = "realm.toml";
 pub const YULANG_LOCK_FILE: &str = "yulang.lock";
+pub const YULANG_PROJECT_DIR: &str = ".yulang";
 pub const YULANG_TARGET_DIR: &str = "target/yulang";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

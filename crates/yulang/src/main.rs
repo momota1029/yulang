@@ -126,6 +126,7 @@ struct CliOptions {
     install_std: bool,
     cache_op: Option<CacheOp>,
     lock_op: Option<LockOp>,
+    realm_op: Option<RealmOp>,
     server: bool,
 }
 
@@ -154,6 +155,14 @@ enum CacheOp {
 struct LockOp {
     check: bool,
     out: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RealmOp {
+    Freeze {
+        path: Option<String>,
+        version: String,
+    },
 }
 
 #[derive(clap::Parser)]
@@ -220,6 +229,11 @@ enum Cmd {
     },
     /// Generate or validate yulang.lock for the current source graph
     Lock(LockArgs),
+    /// Manage local realms
+    Realm {
+        #[command(subcommand)]
+        op: RealmCmd,
+    },
     /// Install the embedded std sources and exit
     #[command(hide = true)]
     InstallStd,
@@ -269,6 +283,21 @@ struct LockArgs {
     /// Output path for the lock file (defaults to ./yulang.lock)
     #[arg(long, value_name = "PATH")]
     out: Option<String>,
+}
+
+#[derive(clap::Subcommand)]
+enum RealmCmd {
+    /// Freeze an editable realm into .yulang/versions/<version>
+    Freeze(RealmFreezeArgs),
+}
+
+#[derive(clap::Args)]
+struct RealmFreezeArgs {
+    /// Realm root path (defaults to current directory)
+    path: Option<String>,
+    /// Version to write into the frozen realm manifest
+    #[arg(long, value_name = "VERSION")]
+    version: String,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
@@ -412,6 +441,7 @@ fn parse_args() -> CliOptions {
         install_std: false,
         cache_op: None,
         lock_op: None,
+        realm_op: None,
         server: false,
     };
     match cli.cmd {
@@ -527,6 +557,11 @@ fn parse_args() -> CliOptions {
             opts.path = path;
             opts.lock_op = Some(LockOp { check, out });
         }
+        Cmd::Realm { op } => match op {
+            RealmCmd::Freeze(RealmFreezeArgs { path, version }) => {
+                opts.realm_op = Some(RealmOp::Freeze { path, version });
+            }
+        },
         Cmd::Debug { op } => match op {
             DebugOp::CompareI64 { path } => {
                 opts.native_compare_i64 = true;
@@ -711,6 +746,11 @@ fn run(options: &CliOptions) {
         return;
     }
 
+    if let Some(op) = &options.realm_op {
+        run_realm_op_or_exit(op);
+        return;
+    }
+
     if options.install_std {
         let root = default_versioned_std_root();
         if let Err(err) = install_embedded_std(&root) {
@@ -841,6 +881,33 @@ fn run_lock_op_or_exit(op: &LockOp, options: &CliOptions) {
         process::exit(1);
     }
     println!("lock: {}", output_path.display());
+}
+
+fn run_realm_op_or_exit(op: &RealmOp) {
+    match op {
+        RealmOp::Freeze { path, version } => {
+            let root = path.as_deref().unwrap_or(".");
+            match yulang_sources::freeze_realm_version(root, version.clone()) {
+                Ok(output) => {
+                    let status = if output.already_exists {
+                        "already frozen"
+                    } else {
+                        "frozen"
+                    };
+                    println!(
+                        "realm freeze: {status} {} hash={:016x} files={}",
+                        output.root.display(),
+                        output.snapshot.source_hash,
+                        output.snapshot.files.len()
+                    );
+                }
+                Err(err) => {
+                    eprintln!("{err}");
+                    process::exit(1);
+                }
+            }
+        }
+    }
 }
 
 fn read_lock_file_or_exit(path: &Path) -> yulang_sources::YulangLockFile {
