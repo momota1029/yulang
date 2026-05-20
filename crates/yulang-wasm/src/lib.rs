@@ -700,6 +700,78 @@ sub:
 "#
     }
 
+    fn run_with_std_oracle(source: &str) -> RunOutput {
+        compile_and_run_with_embedded_std(
+            source,
+            false,
+            Some("compiled std surface disabled; using std oracle source cache".to_string()),
+        )
+        .map(|output| compile_run_output("", output))
+        .expect("std oracle output")
+    }
+
+    fn run_with_compiled_std_bundle(source: &str) -> RunOutput {
+        compile_and_run_with_embedded_std(source, true, None)
+            .map(|output| compile_run_output("", output))
+            .expect("compiled std bundle output")
+    }
+
+    fn assert_run_outputs_match(left: &RunOutput, right: &RunOutput) {
+        assert_eq!(left.ok, right.ok);
+        assert_eq!(left.stdout, right.stdout);
+        assert_eq!(
+            left.results
+                .iter()
+                .map(|result| (result.index, result.value.as_str()))
+                .collect::<Vec<_>>(),
+            right
+                .results
+                .iter()
+                .map(|result| (result.index, result.value.as_str()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            left.types
+                .iter()
+                .map(|ty| (ty.name.as_str(), ty.ty.as_str()))
+                .collect::<Vec<_>>(),
+            right
+                .types
+                .iter()
+                .map(|ty| (ty.name.as_str(), ty.ty.as_str()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            left.diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.severity,
+                    diagnostic.message.as_str(),
+                    diagnostic.start,
+                    diagnostic.end
+                ))
+                .collect::<Vec<_>>(),
+            right
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.severity,
+                    diagnostic.message.as_str(),
+                    diagnostic.start,
+                    diagnostic.end
+                ))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    fn assert_compiled_std_bundle_matches_oracle(source: &str) {
+        let oracle = run_with_std_oracle(source);
+        let bundle = run_with_compiled_std_bundle(source);
+        assert_std_oracle_cache_used(&oracle);
+        assert_compiled_std_bundle_used(&bundle);
+        assert_run_outputs_match(&oracle, &bundle);
+    }
+
     #[test]
     fn runs_undet_list_example() {
         std::thread::Builder::new()
@@ -720,22 +792,62 @@ sub:
     }
 
     #[test]
-    fn compiled_std_bundle_runs_undet_list_example() {
+    fn compiled_std_bundle_matches_oracle_on_core_playground_examples() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
-                let output = compile_and_run_with_embedded_std(
+                assert_compiled_std_bundle_matches_oracle(
                     r#"(each [1, 2, 3] + each [4, 5, 6]).list
 "#,
-                    true,
-                    None,
-                )
-                .map(|output| compile_run_output("", output))
-                .expect("compiled std bundle output");
-                assert_eq!(output.results.len(), 1);
-                assert_eq!(output.results[0].value, "[5, 6, 7, 6, 7, 8, 7, 8, 9]");
-                assert!(output.ok, "{:?}", output.diagnostics);
-                assert_compiled_std_bundle_used(&output);
+                );
+                assert_compiled_std_bundle_matches_oracle(
+                    r#"{
+    my a = each 1..
+    guard: a == 3
+    a
+}.once
+"#,
+                );
+                assert_compiled_std_bundle_matches_oracle(
+                    r#"({
+    my a = each 1..
+    my b = each 1..
+    my c = each 1..
+
+    guard: a <= b
+    guard: b <= c
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+}).once
+"#,
+                );
+                assert_compiled_std_bundle_matches_oracle(
+                    r#"1 + 2
+2 * 3
+1 == 1
+1 < 2
+2 <= 2
+"#,
+                );
+                assert_compiled_std_bundle_matches_oracle(
+                    r#"1 + 2
+3 + 4
+"#,
+                );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn compiled_std_bundle_matches_oracle_on_playground_tour() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                assert_compiled_std_bundle_matches_oracle(playground_tour_source());
             })
             .unwrap()
             .join()
