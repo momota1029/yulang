@@ -83,7 +83,7 @@ pub fn collect_source_files_with_options(
     ))
 }
 
-pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 9;
+pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 10;
 pub const COMPILED_UNIT_PARSER_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -391,14 +391,25 @@ impl SourceCompilationUnits {
                 compiled_unit_source_hash(unit_idx, unit, &source_set.files, &public_exports)
             })
             .collect::<Vec<_>>();
+        let unit_interface_hashes = self
+            .units
+            .iter()
+            .map(|unit| compiled_unit_interface_hash(unit, &source_set.files, &public_exports))
+            .collect::<Vec<_>>();
 
         self.units
             .iter()
             .enumerate()
             .map(|(unit_idx, unit)| {
                 let syntax = compiled_syntax_surface(unit, &source_set.files, &public_exports);
-                let manifest =
-                    compiled_unit_manifest(unit_idx, unit, source_set, &unit_hashes, &syntax);
+                let manifest = compiled_unit_manifest(
+                    unit_idx,
+                    unit,
+                    source_set,
+                    &unit_hashes,
+                    &unit_interface_hashes,
+                    &syntax,
+                );
                 CompiledUnitSyntaxArtifact { manifest, syntax }
             })
             .collect()
@@ -423,6 +434,7 @@ pub struct CompiledUnitManifest {
     pub dependencies: Vec<CompiledUnitDependency>,
     pub source_hash: u64,
     pub syntax_hash: u64,
+    pub interface_hash: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -438,6 +450,7 @@ pub struct CompiledSourceFileIdentity {
 pub struct CompiledUnitDependency {
     pub unit_index: usize,
     pub source_hash: u64,
+    pub interface_hash: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -952,6 +965,9 @@ fn collect_leading_meta_items(root: &SyntaxNode<YulangLanguage>, meta: &mut Sour
         }
 
         if node.kind() == SyntaxKind::UseDecl {
+            if let Some(decl) = use_mod_module_file_decl(&node) {
+                meta.module_files.push(decl);
+            }
             let visibility = lower_visibility(&node);
             meta.uses.extend(
                 use_decl_imports(&node)
@@ -1227,6 +1243,7 @@ fn compiled_unit_manifest(
     unit: &SourceCompilationUnit,
     source_set: &SourceSet,
     unit_hashes: &[u64],
+    unit_interface_hashes: &[u64],
     syntax: &CompiledSyntaxSurface,
 ) -> CompiledUnitManifest {
     let (realms, bands) = compiled_unit_realm_band_identities(unit, source_set);
@@ -1250,10 +1267,12 @@ fn compiled_unit_manifest(
         .map(|&dep| CompiledUnitDependency {
             unit_index: dep,
             source_hash: unit_hashes[dep],
+            interface_hash: unit_interface_hashes[dep],
         })
         .collect::<Vec<_>>();
     let source_hash = unit_hashes[unit_idx];
     let syntax_hash = stable_hash_compiled_exports(&syntax.public_exports);
+    let interface_hash = unit_interface_hashes[unit_idx];
 
     CompiledUnitManifest {
         artifact_format_version: COMPILED_UNIT_ARTIFACT_FORMAT_VERSION,
@@ -1266,6 +1285,7 @@ fn compiled_unit_manifest(
         dependencies,
         source_hash,
         syntax_hash,
+        interface_hash,
     }
 }
 
@@ -1489,6 +1509,16 @@ fn compiled_unit_source_hash(
         hash.write_compiled_export(export);
     }
     hash.finish()
+}
+
+fn compiled_unit_interface_hash(
+    unit: &SourceCompilationUnit,
+    source_files: &[SourceFile],
+    public_exports: &[HashMap<Name, OpDef>],
+) -> u64 {
+    stable_hash_compiled_exports(
+        &compiled_syntax_surface(unit, source_files, public_exports).public_exports,
+    )
 }
 
 fn stable_hash_bytes(bytes: &[u8]) -> u64 {
@@ -1842,6 +1872,17 @@ fn module_file_decl(node: &SyntaxNode<YulangLanguage>) -> Option<ModuleFileDecl>
     })
 }
 
+fn use_mod_module_file_decl(node: &SyntaxNode<YulangLanguage>) -> Option<ModuleFileDecl> {
+    if node.kind() != SyntaxKind::UseDecl || !has_direct_token(node, SyntaxKind::Mod) {
+        return None;
+    }
+    let name = direct_token_text(node, SyntaxKind::Ident).map(Name)?;
+    Some(ModuleFileDecl {
+        visibility: lower_visibility(node),
+        name,
+    })
+}
+
 fn syntax_export(node: &SyntaxNode<YulangLanguage>) -> Option<SyntaxExport> {
     if node.kind() != SyntaxKind::OpDef {
         return None;
@@ -1907,7 +1948,11 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
     for item in node.children_with_tokens() {
         match item {
             NodeOrToken::Token(tok) => match tok.kind() {
-                SyntaxKind::Pub | SyntaxKind::Our | SyntaxKind::My | SyntaxKind::Use => {}
+                SyntaxKind::Pub
+                | SyntaxKind::Our
+                | SyntaxKind::My
+                | SyntaxKind::Use
+                | SyntaxKind::Mod => {}
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
@@ -2286,6 +2331,25 @@ mod tests {
         };
         assert_eq!(name.0, "list_map");
         assert_eq!(names(path), vec!["list", "map"]);
+    }
+
+    #[test]
+    fn parses_use_mod_as_module_file_and_use_metadata() {
+        let meta = parse_source_meta("use mod math::*\nmy x = answer");
+
+        assert_eq!(
+            meta.module_files,
+            vec![ModuleFileDecl {
+                visibility: Visibility::My,
+                name: Name("math".to_string()),
+            }]
+        );
+        assert_eq!(meta.uses.len(), 1);
+        let UseImport::Glob { prefix, excluded } = &meta.uses[0].import else {
+            panic!("expected glob import");
+        };
+        assert_eq!(names(prefix), vec!["math"]);
+        assert!(excluded.is_empty());
     }
 
     #[test]
@@ -2939,6 +3003,63 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_interface_hash_can_stay_stable_when_source_changes() {
+        let first = collect_inline_source_files_with_options(
+            "use dep::*\nx\n",
+            [InlineSource {
+                path: PathBuf::from("<dep>.yu"),
+                module_path: module_path(&["dep"]),
+                origin: SourceOrigin::User,
+                source: "pub x = 1\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let second = collect_inline_source_files_with_options(
+            "use dep::*\nx\n",
+            [InlineSource {
+                path: PathBuf::from("<dep>.yu"),
+                module_path: module_path(&["dep"]),
+                origin: SourceOrigin::User,
+                source: "pub x = 2\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let dep_artifact = |set: SourceSet| {
+            set.compiled_unit_syntax_artifacts()
+                .into_iter()
+                .find(|artifact| {
+                    artifact
+                        .manifest
+                        .files
+                        .iter()
+                        .any(|file| names(&file.module_path) == vec!["dep"])
+                })
+                .unwrap()
+        };
+        let first_artifact = dep_artifact(first);
+        let second_artifact = dep_artifact(second);
+
+        assert_ne!(
+            first_artifact.manifest.source_hash,
+            second_artifact.manifest.source_hash
+        );
+        assert_eq!(
+            first_artifact.manifest.interface_hash,
+            second_artifact.manifest.interface_hash
+        );
+    }
+
+    #[test]
     fn virtual_source_set_has_resolved_entry_band() {
         let set = collect_virtual_source_files_with_options(
             "1\n",
@@ -3063,6 +3184,65 @@ mod tests {
             set.files[util_band.files[0]].band.as_ref().unwrap().band,
             BandPath::from_segments(vec![Name("util".to_string())])
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn imported_band_keeps_mod_children_inside_same_band() {
+        let root = temp_root("imported-band-mod-tree");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("util")).unwrap();
+        fs::write(root.join("main.yu"), "use util::*\nx\n").unwrap();
+        fs::write(root.join("util.yu"), "mod extra;\npub x = extra::x\n").unwrap();
+        fs::write(root.join("util/extra.yu"), "pub x = 1\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            root.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: vec![root.clone()],
+            },
+        )
+        .unwrap();
+        let realm = &set.realms[0];
+        let util_path = BandPath::from_segments(vec![Name("util".to_string())]);
+        let util_band = realm.band(&util_path).unwrap();
+        let mut util_file_paths = util_band
+            .files
+            .iter()
+            .map(|&file_idx| names(&set.files[file_idx].module_path))
+            .collect::<Vec<_>>();
+        util_file_paths.sort();
+
+        assert_eq!(realm.bands.len(), 2);
+        assert_eq!(util_file_paths, vec![vec!["util"], vec!["util", "extra"]]);
+        assert!(util_band.files.iter().all(|&file_idx| {
+            set.files[file_idx].band.as_ref()
+                == Some(&ResolvedBandId {
+                    realm: realm.id.clone(),
+                    band: util_path.clone(),
+                })
+        }));
+
+        let util_artifacts = set
+            .compiled_unit_syntax_artifacts()
+            .into_iter()
+            .filter(|artifact| {
+                artifact
+                    .manifest
+                    .bands
+                    .iter()
+                    .any(|band| band.band == util_path)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(util_artifacts.len(), 2);
+        assert!(util_artifacts.iter().all(|artifact| artifact.manifest.bands
+            == vec![ResolvedBandId {
+                realm: realm.id.clone(),
+                band: util_path.clone(),
+            }]));
 
         let _ = fs::remove_dir_all(root);
     }

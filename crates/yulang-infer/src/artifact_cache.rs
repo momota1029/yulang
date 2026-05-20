@@ -349,9 +349,11 @@ fn hash_compiled_unit_manifests(manifests: &[CompiledUnitManifest]) -> u64 {
         for dependency in &manifest.dependencies {
             hash_usize(&mut hash, dependency.unit_index);
             hash_u64(&mut hash, dependency.source_hash);
+            hash_u64(&mut hash, dependency.interface_hash);
         }
         hash_u64(&mut hash, manifest.source_hash);
         hash_u64(&mut hash, manifest.syntax_hash);
+        hash_u64(&mut hash, manifest.interface_hash);
     }
     hash
 }
@@ -552,6 +554,7 @@ mod tests {
                 dependencies: Vec::new(),
                 source_hash,
                 syntax_hash,
+                interface_hash: syntax_hash,
             },
             syntax: CompiledSyntaxSurface {
                 modules: Vec::new(),

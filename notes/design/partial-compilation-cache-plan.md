@@ -38,6 +38,48 @@ SourceSet
 prove stable snapshot-local ids, serde payloads, and core serialization. They
 are not the final architecture.
 
+## Current Incremental Cache
+
+Yulang now has an experimental incremental compilation cache for dependency
+SCCs.
+
+The implemented cache is intentionally stronger than a std-only cache:
+
+- compiled-unit artifacts are keyed by compiler/artifact format, source hash,
+  syntax hash, resolved realm identity, and resolved band identity;
+- manifests carry both a full `source_hash` and a source-layer
+  `interface_hash`; dependency entries record both hashes so the next
+  invalidation step can distinguish implementation changes from public surface
+  changes;
+- the CLI writes both individual dependency SCC artifacts and a bundle artifact;
+- the next compile reads the bundle when every dependency SCC matches;
+- if the bundle is missing, the CLI reads individual SCC artifacts and keeps
+  only a dependency-closed subset;
+- source files covered by imported artifacts are not lowered again;
+- entry SCCs are still compiled from source so root expressions, diagnostics,
+  and user-facing output stay conservative.
+
+This is coarse-grained incremental compilation:
+
+```text
+unchanged dependency SCC
+  -> import syntax / namespace / typed / runtime surfaces
+  -> skip source lowering for that SCC
+
+changed entry SCC
+  -> compile from source
+  -> merge imported dependency runtime surfaces
+```
+
+It is not yet full fine-grained incremental compilation. The current
+`interface_hash` is source-layer syntax/interface metadata; it is recorded in
+the manifest but still kept conservative by pairing it with source hashes during
+cache validation. The next precision step is to extend that hash with exported
+namespace and typed-surface data, then use it for downstream invalidation, so an
+implementation-only source change in one SCC does not force dependent SCC
+artifacts out of the selected cache set when their exported surfaces are
+unchanged.
+
 ## Goals
 
 - Make playground first run faster by avoiding repeated std/user dependency

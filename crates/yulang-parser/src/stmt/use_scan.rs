@@ -30,6 +30,8 @@ pub enum UseTag {
     ParenR,
     /// parenthesized operator name
     Op,
+    /// `mod` keyword used by `use mod path`
+    Mod,
     /// `as` キーワード
     As,
     /// `without` キーワード
@@ -86,6 +88,7 @@ pub fn scan_use_tok<I: EventInput, S: EventSink>(
     if let Some(((), text)) = i.run(use_ident_chars.with_seq()) {
         let s: Box<str> = text.as_ref().into();
         let (tag, kind) = match s.as_ref() {
+            "mod" => (UseTag::Mod, SyntaxKind::Mod),
             "as" => (UseTag::As, SyntaxKind::As),
             "without" => (UseTag::Without, SyntaxKind::Ident),
             _ => (UseTag::Ident, SyntaxKind::Ident),

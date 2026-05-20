@@ -1426,6 +1426,21 @@ fn stmt_use_decl_glob() {
 }
 
 #[test]
+fn stmt_use_mod_decl_glob() {
+    let got = parse_stmt_once("use mod math::*");
+    let expected = vec![
+        "(UseDecl",
+        "  Use \"use\"",
+        "  Mod \"mod\"",
+        "  Ident \"math\"",
+        "  ColonColon \"::\"",
+        "  OpName \"*\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_use_decl_group() {
     let got = parse_stmt_once("use std::io::{Read, Write}");
     let expected = vec![

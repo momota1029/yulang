@@ -3644,6 +3644,14 @@ fn print_infer_phase_timings(
         format_duration(lower.std_cache.build)
     );
     eprintln!(
+        "    incremental_cache: candidates={} bundle_hits={} unit_hits={} selected={} writes={}",
+        pipeline.incremental_cache_candidates,
+        pipeline.incremental_cache_bundle_hits,
+        pipeline.incremental_cache_unit_hits,
+        pipeline.incremental_cache_selected_units,
+        pipeline.incremental_cache_writes
+    );
+    eprintln!(
         "    compiled_unit_artifacts: manifests={} reads={} writes={}",
         pipeline.std_artifact_manifests, pipeline.std_artifact_reads, pipeline.std_artifact_writes
     );
@@ -3830,6 +3838,11 @@ struct InferPipelineTimings {
     std_artifact_manifests: usize,
     std_artifact_reads: usize,
     std_artifact_writes: usize,
+    incremental_cache_candidates: usize,
+    incremental_cache_bundle_hits: usize,
+    incremental_cache_unit_hits: usize,
+    incremental_cache_selected_units: usize,
+    incremental_cache_writes: usize,
     type_errors: Duration,
     surface_diagnostics: Duration,
     render: Duration,
@@ -4041,6 +4054,7 @@ fn hash_compiled_unit_manifest(
     }
     manifest.source_hash.hash(hasher);
     manifest.syntax_hash.hash(hasher);
+    manifest.interface_hash.hash(hasher);
     for file in &manifest.files {
         file.path.hash(hasher);
         file.module_path.segments.hash(hasher);
@@ -4051,6 +4065,7 @@ fn hash_compiled_unit_manifest(
     for dependency in &manifest.dependencies {
         dependency.unit_index.hash(hasher);
         dependency.source_hash.hash(hasher);
+        dependency.interface_hash.hash(hasher);
     }
 }
 
@@ -4093,6 +4108,7 @@ fn read_cached_dependency_unit_artifact_bundle(
     timings.std_artifact_manifest += InferPipelineTimings::elapsed(manifest_start);
     if timings.enabled {
         timings.std_artifact_manifests = manifests.len();
+        timings.incremental_cache_candidates = manifests.len();
     }
     if manifests.is_empty() {
         return None;
@@ -4103,6 +4119,8 @@ fn read_cached_dependency_unit_artifact_bundle(
         timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
         if timings.enabled {
             timings.std_artifact_reads += 1;
+            timings.incremental_cache_bundle_hits += 1;
+            timings.incremental_cache_selected_units = bundle.manifests.len();
         }
         return Some(bundle);
     }
@@ -4113,6 +4131,9 @@ fn read_cached_dependency_unit_artifact_bundle(
         let read_start = timings.start();
         if let Ok(artifact) = cache.read_for_manifest(manifest) {
             artifacts_by_unit.insert(manifest.unit_index, artifact);
+            if timings.enabled {
+                timings.incremental_cache_unit_hits += 1;
+            }
         }
         timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
         if timings.enabled {
@@ -4122,6 +4143,9 @@ fn read_cached_dependency_unit_artifact_bundle(
     let selected_units = dependency_closed_cached_units(&manifests, artifacts_by_unit.keys());
     if selected_units.is_empty() {
         return None;
+    }
+    if timings.enabled {
+        timings.incremental_cache_selected_units = selected_units.len();
     }
     let artifacts = artifacts_by_unit
         .into_iter()
@@ -4135,6 +4159,7 @@ fn read_cached_dependency_unit_artifact_bundle(
     timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
     if timings.enabled {
         timings.std_artifact_writes += 1;
+        timings.incremental_cache_writes += 1;
     }
     Some(bundle)
 }
@@ -4162,6 +4187,7 @@ fn write_dependency_unit_artifact_bundle(
         timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
         if timings.enabled {
             timings.std_artifact_writes += 1;
+            timings.incremental_cache_writes += 1;
         }
     }
     if let Some(bundle) = bundle {
@@ -4170,6 +4196,7 @@ fn write_dependency_unit_artifact_bundle(
         timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
         if timings.enabled {
             timings.std_artifact_writes += 1;
+            timings.incremental_cache_writes += 1;
         }
     }
 }
@@ -6766,6 +6793,7 @@ fn path_base_dir(path: &str) -> Option<&Path> {
 mod tests {
     use super::*;
     use yulang_infer::{Name as InferName, RecordField as InferRecordField};
+    use yulang_sources::{InlineSource, SourceOrigin};
 
     fn test_cli_options() -> CliOptions {
         CliOptions {
@@ -6804,6 +6832,40 @@ mod tests {
         }
     }
 
+    fn test_realm_band_source_set() -> SourceSet {
+        yulang_sources::collect_inline_source_files_with_options(
+            "use util::*\nx\n",
+            [
+                InlineSource {
+                    path: PathBuf::from("<util>.yu"),
+                    module_path: typed_ir::Path {
+                        segments: vec![typed_ir::Name("util".to_string())],
+                    },
+                    origin: SourceOrigin::User,
+                    source: "mod extra;\npub x = extra::x\n".to_string(),
+                    meta: None,
+                },
+                InlineSource {
+                    path: PathBuf::from("<util/extra>.yu"),
+                    module_path: typed_ir::Path {
+                        segments: vec![
+                            typed_ir::Name("util".to_string()),
+                            typed_ir::Name("extra".to_string()),
+                        ],
+                    },
+                    origin: SourceOrigin::User,
+                    source: "pub x = 1\n".to_string(),
+                    meta: None,
+                },
+            ],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+    }
+
     #[test]
     fn semantic_pipeline_rejects_invalid_tokens() {
         let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green("2 ** 10"));
@@ -6818,6 +6880,82 @@ mod tests {
         options.show_cst = true;
 
         assert!(!options.requests_semantic_pipeline());
+    }
+
+    #[test]
+    fn cacheable_dependency_manifests_cover_non_entry_band_sccs() {
+        let source_set = test_realm_band_source_set();
+        let manifests = cacheable_dependency_manifests(&source_set);
+        let modules = manifests
+            .iter()
+            .flat_map(|manifest| &manifest.files)
+            .map(|file| {
+                file.module_path
+                    .segments
+                    .iter()
+                    .map(|segment| segment.0.as_str())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(manifests.len(), 2);
+        assert!(modules.contains(&vec!["util"]));
+        assert!(modules.contains(&vec!["util", "extra"]));
+        assert!(
+            manifests
+                .iter()
+                .all(|manifest| is_cacheable_dependency_manifest(manifest))
+        );
+        assert!(manifests.iter().all(|manifest| manifest.bands.len() == 1));
+    }
+
+    #[test]
+    fn dependency_closed_cached_units_drop_sccs_with_missing_dependencies() {
+        let source_set = test_realm_band_source_set();
+        let manifests = cacheable_dependency_manifests(&source_set);
+        let util = manifests
+            .iter()
+            .find(|manifest| {
+                manifest.files.iter().any(|file| {
+                    file.module_path
+                        .segments
+                        .iter()
+                        .map(|segment| segment.0.as_str())
+                        .collect::<Vec<_>>()
+                        == vec!["util"]
+                })
+            })
+            .expect("util manifest");
+        let extra = manifests
+            .iter()
+            .find(|manifest| {
+                manifest.files.iter().any(|file| {
+                    file.module_path
+                        .segments
+                        .iter()
+                        .map(|segment| segment.0.as_str())
+                        .collect::<Vec<_>>()
+                        == vec!["util", "extra"]
+                })
+            })
+            .expect("util::extra manifest");
+
+        assert!(
+            util.dependencies
+                .iter()
+                .any(|dependency| dependency.unit_index == extra.unit_index)
+        );
+        assert!(
+            dependency_closed_cached_units(&manifests, [&util.unit_index].into_iter()).is_empty()
+        );
+        assert_eq!(
+            dependency_closed_cached_units(
+                &manifests,
+                [&util.unit_index, &extra.unit_index].into_iter()
+            )
+            .len(),
+            2
+        );
     }
 
     #[test]

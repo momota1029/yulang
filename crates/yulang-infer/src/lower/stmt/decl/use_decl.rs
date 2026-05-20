@@ -177,7 +177,11 @@ fn use_decl_imports(node: &SyntaxNode) -> Vec<UseImport> {
     for item in node.children_with_tokens() {
         match item {
             NodeOrToken::Token(tok) => match tok.kind() {
-                SyntaxKind::Pub | SyntaxKind::Our | SyntaxKind::My | SyntaxKind::Use => {}
+                SyntaxKind::Pub
+                | SyntaxKind::Our
+                | SyntaxKind::My
+                | SyntaxKind::Use
+                | SyntaxKind::Mod => {}
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);

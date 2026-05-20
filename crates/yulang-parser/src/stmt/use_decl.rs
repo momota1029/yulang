@@ -45,6 +45,11 @@ fn parse_use_spec<I: EventInput, S: EventSink>(
             let after = UseGroupMachine.parse_brace_group(i.rb(), first.lex)?;
             parse_use_alias(i, after)
         }
+        UseTag::Mod => {
+            i.env.state.sink.lex(&first.lex);
+            let after = first.lex.trailing_trivia_info();
+            parse_use_after_mod(i, after)
+        }
         UseTag::Ident => {
             i.env.state.sink.lex(&first.lex);
             let after = first.lex.trailing_trivia_info();
@@ -54,6 +59,32 @@ fn parse_use_spec<I: EventInput, S: EventSink>(
         UseTag::Stop | UseTag::BraceR => Some(Either::Right(first.lex)),
         _ => {
             emit_invalid(i.rb(), first.lex);
+            Some(Either::Left(TriviaInfo::None))
+        }
+    }
+}
+
+/// `use mod path` は `mod path_head; use path` の sugar。
+fn parse_use_after_mod<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+) -> Option<Either<TriviaInfo, Lex>> {
+    if matches!(leading_info, TriviaInfo::Newline { .. }) {
+        return Some(Either::Left(leading_info));
+    }
+
+    let Some(next) = scan_use_tok(leading_info, i.rb()) else {
+        return Some(Either::Left(leading_info));
+    };
+
+    match next.tag {
+        UseTag::Ident => {
+            i.env.state.sink.lex(&next.lex);
+            let after = next.lex.trailing_trivia_info();
+            parse_use_after_segment(i, after)
+        }
+        _ => {
+            emit_invalid(i.rb(), next.lex);
             Some(Either::Left(TriviaInfo::None))
         }
     }
