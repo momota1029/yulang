@@ -496,6 +496,10 @@ Current first slice:
 - local source collection reads `realm.toml` when present. The current schema
   supports `[realm] identity/version` and `[dependencies]`, and uses that data
   for `SourceRealm` identity plus lock dependencies.
+- `parse_canonical_realm_path` parses the canonical
+  `realm@version/band::module` shape into realm identity/version, band path, and
+  module path. It keeps slashes before the final `/` inside the realm identity,
+  so `user/program@2.0/ui::widget` resolves as realm `user/program`.
 - `yulang lock <path>` writes the current lock-shaped source graph to
   `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
   file, validates its `with` constraints, and fails if the generated graph would

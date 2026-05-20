@@ -14,6 +14,7 @@ use yulang_typed_ir::{Name, Path as ModulePath};
 
 mod cache;
 mod lock;
+mod realm_path;
 mod stdlib;
 
 pub use cache::{
@@ -24,6 +25,9 @@ pub use lock::{
     LockedRealm, LockedRealmDependency, LockedRealmSource, LockedWithConstraint,
     SourceWithConstraint, WithConstraintConflict, YULANG_LOCK_FORMAT_VERSION, YulangLockFile,
     collect_source_with_constraints,
+};
+pub use realm_path::{
+    CanonicalRealmPath, CanonicalRealmPathParseError, parse_canonical_realm_path,
 };
 pub use stdlib::{
     YULANG_LIB_DIR_ENV, YULANG_STD_ENV, YULANG_STDLIB_VERSION, default_user_lib_root,
