@@ -1,182 +1,374 @@
-//! Native backend skeleton for Yulang.
+//! Compatibility stub for the archived native backend.
 //!
-//! This crate starts with a small control IR boundary.  Cranelift codegen will
-//! sit behind this boundary later; for now the important behavior is that
-//! supported runtime IR lowers explicitly and unsupported runtime IR fails with
-//! a structured reason.
+//! The historical Cranelift/MMTk implementation now lives under
+//! `archive/yulang-native`. Active crates keep this small API surface while the
+//! user-facing native CLI is removed.
 
-pub mod abi;
-pub mod abi_eval;
-pub mod abi_format;
-pub mod abi_lane;
-pub mod abi_subset;
-pub mod abi_validate;
-pub mod backend_selection;
-pub mod closure;
-pub mod compare;
-pub mod control_ir;
-pub mod cps_capture;
-pub mod cps_closure;
-pub mod cps_compare;
-pub mod cps_effect_regions;
-pub mod cps_effectful_calls;
-pub mod cps_env;
-pub mod cps_eval;
-pub mod cps_frame_trace;
-pub mod cps_ir;
-pub mod cps_lower;
-pub mod cps_optimize;
-pub mod cps_repr;
-pub mod cps_repr_abi;
-pub mod cps_repr_cranelift;
-pub mod cps_validate;
-pub mod cranelift;
-pub mod eval;
-pub mod gc_runtime;
-pub mod lower;
-pub mod mmtk_binding;
-pub mod mmtk_cps_control;
-pub mod mmtk_runtime;
-pub mod native_runtime;
-pub mod value_cranelift;
+use std::collections::BTreeMap;
+use std::fmt;
 
-pub use abi::{
-    NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt, lower_closure_module_to_abi,
-};
-pub use abi_eval::{NativeAbiEvalError, NativeAbiEvalResult, eval_abi_module};
-pub use abi_format::format_abi_module;
-pub use abi_lane::{
-    NativeAbiLaneAnalysis, NativeAbiRepr, NativeAbiReprAnalysis, NativeAbiValueLane,
-    NativeRuntimePtrKind, analyze_abi_reprs, analyze_abi_value_lanes,
-};
-pub use abi_subset::{NativeAbiSubsetError, validate_cranelift_prototype_subset};
-pub use abi_validate::{NativeAbiValidateError, validate_abi_module};
-pub use backend_selection::{
-    NativeBackendPlan, NativeBackendReason, NativeBackendReasonKind, NativeBackendSelection,
-    NativeRootBackend, NativeRootLabel, select_native_backends,
-};
-pub use closure::{
-    NativeClosureAbi, NativeClosureBlock, NativeClosureCapture, NativeClosureCodeRef,
-    NativeClosureEnvRef, NativeClosureEnvironment, NativeClosureFunction, NativeClosureModule,
-    NativeClosureSlot, NativeClosureStmt, closure_convert_module,
-};
-pub use compare::{
-    NativeCompareError, NativeSourceCompareError, NativeValueCompareError, compare_module,
-    compare_module_i64, compare_module_value,
-};
-pub use control_ir::{
-    BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
-    NativeTerminator, ValueId,
-};
-pub use cps_capture::infer_cps_captures;
-pub use cps_closure::{
-    CpsClosureContinuation, CpsClosureFunction, CpsClosureModule, closure_convert_cps_module,
-};
-pub use cps_compare::{
-    CpsCompareError, CpsReprI64CompareReport, CpsReprI64RootCompare, compare_cps_module,
-    compare_cps_repr_cranelift_i64, compare_cps_repr_cranelift_i64_report,
-};
-pub use cps_effect_regions::{
-    DynamicEffectHandlerCandidate, DynamicEffectRegionPlan, DynamicEffectRegionPlanClass,
-    DynamicEffectThunkArgumentPlan, DynamicEffectThunkBodyCloneBlocker,
-    DynamicEffectThunkRewritePlan, DynamicEffectThunkRewriteStrategy,
-    DynamicEffectThunkSpecializationClass, DynamicEffectThunkSpecializationSeed,
-    EffectBoundaryKind, EffectHandlerRegion, EffectHandlerRegionClass, EffectResumeAction,
-    EffectResumeActionKind, analyze_dynamic_effect_handler_candidates,
-    analyze_dynamic_effect_region_plans, analyze_dynamic_effect_thunk_argument_plans,
-    analyze_dynamic_effect_thunk_rewrite_plans, analyze_dynamic_effect_thunk_specialization_seeds,
-    analyze_effect_handler_regions,
-};
-pub use cps_effectful_calls::reify_effectful_direct_calls;
-pub use cps_env::{
-    CpsContinuationEnvironmentLayout, CpsEnvironmentLayout, CpsEnvironmentSlot,
-    CpsFunctionEnvironmentLayout, layout_cps_environments,
-};
-pub use cps_eval::{CpsEvalError, eval_cps_module};
-pub use cps_frame_trace::{
-    CpsFrameTraceEvent, CpsFrameTraceLayer, CpsFrameTraceSlot, with_cps_frame_trace,
-};
-pub use cps_ir::{
-    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerArm,
-    CpsHandlerContextId, CpsHandlerId, CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator,
-    CpsValueId,
-};
-pub use cps_lower::{CpsLowerError, CpsLowerResult, lower_cps_module};
-pub use cps_optimize::{
-    CpsOptimizationOutput, CpsOptimizationProfile, optimize_cps_repr_abi_module,
-};
-pub use cps_repr::{
-    CpsReprAbiAnalysis, CpsReprAbiLane, CpsReprContinuation, CpsReprEnvironmentSlot,
-    CpsReprEvalError, CpsReprFunction, CpsReprFunctionAbiAnalysis, CpsReprFunctionValueAnalysis,
-    CpsReprModule, CpsReprValueAnalysis, CpsReprValueKind, analyze_cps_repr_abi_lanes,
-    analyze_cps_repr_values, eval_cps_repr_module, lower_cps_repr_module,
-};
-pub use cps_repr_abi::{
-    CpsReprAbiContinuation, CpsReprAbiEnvironmentSlot, CpsReprAbiFunction, CpsReprAbiHandler,
-    CpsReprAbiHandlerArm, CpsReprAbiModule, CpsReprAbiValue, lower_cps_repr_abi_module,
-};
-pub use cps_repr_cranelift::{
-    CpsReprCraneliftError, CpsReprCraneliftOptions, CpsReprJitModule, CpsReprObjectModule,
-    compile_cps_repr_abi_module, compile_cps_repr_abi_module_to_object,
-    compile_cps_repr_abi_module_to_object_with_options, compile_cps_repr_abi_module_with_options,
-    compile_runtime_module_to_cps_repr_jit, compile_runtime_module_to_cps_repr_jit_with_options,
-    compile_runtime_module_to_cps_repr_object,
-    compile_runtime_module_to_cps_repr_object_with_options,
-};
-pub use cps_validate::{CpsValidateError, validate_cps_module};
-pub use cranelift::{
-    NativeCraneliftError, NativeJitModule, NativeObjectModule, compile_abi_module,
-    compile_abi_module_to_object,
-};
-pub use eval::{NativeEvalError, eval_module};
-pub use gc_runtime::{
-    GcRuntimeContext, NativeFieldLane, NativeFieldLayout, NativeFieldOffset, NativeFieldSizeAlign,
-    NativeFieldValue, NativeHeapBlock, NativeLayout, NativeLayoutError, NativeLayoutFootprint,
-    NativeLayoutHandle, NativeLayoutId, NativeLayoutKind, NativeLayoutRegistry,
-    NativePayloadBuffer, SpikeHeap, YHeap, YHeapStats, YList, YObject, YObjectHeader, YObjectKind,
-    YObjectPayload, YPerfectSymbolHash, YRoot, YRootFrame, YRootStack, YString, YSymbol,
-    YSymbolHashCollision, YSymbolId, YSymbolPath, YSymbolTable, YTraceBitmap, YTraceEdge,
-    YTraceOrigin, YTraceReport, YValue, YValueKind,
-};
-pub use lower::{NativeLowerError, NativeLowerResult, lower_module};
-pub use mmtk_binding::{
-    YulangMmtkActivePlan, YulangMmtkCollection, YulangMmtkMemorySlice, YulangMmtkObjectHeader,
-    YulangMmtkObjectModel, YulangMmtkReferenceGlue, YulangMmtkScanning, YulangMmtkSlot,
-    YulangMmtkVM,
-};
-pub use mmtk_cps_control::register_mmtk_cps_control_jit_symbols;
-pub use mmtk_runtime::{
-    GcControlStateParts, GcControlThunkParts, MmtkAllocationKindProfile, MmtkAllocationProfile,
-    MmtkConfigError, MmtkRuntimeBoundary, MmtkRuntimeConfig, MmtkRuntimePlan,
-};
-pub use mmtk_runtime::{MmtkHeap, MmtkNativeRuntimeContext, register_mmtk_cps_jit_symbols};
-pub use native_runtime::{
-    NativeRuntimeContext, bool_is_true as native_runtime_bool_is_true,
-    concat_string as native_runtime_concat_string, list_empty as native_runtime_list_empty,
-    list_index as native_runtime_list_index, list_len as native_runtime_list_len,
-    list_merge as native_runtime_list_merge, list_singleton as native_runtime_list_singleton,
-    list_view_raw as native_runtime_list_view_raw, make_bool as native_runtime_make_bool,
-    make_float as native_runtime_make_float, make_int as native_runtime_make_int,
-    make_string as native_runtime_make_string, make_unit as native_runtime_make_unit,
-    record_empty as native_runtime_record_empty, record_insert as native_runtime_record_insert,
-    record_select as native_runtime_record_select, tuple_empty as native_runtime_tuple_empty,
-    tuple_get as native_runtime_tuple_get, tuple_push as native_runtime_tuple_push,
-    variant as native_runtime_variant, variant_payload as native_runtime_variant_payload,
-    variant_tag_eq as native_runtime_variant_tag_eq, yulang_native_bool_is_true,
-    yulang_native_concat_string, yulang_native_context_free, yulang_native_context_new,
-    yulang_native_list_empty, yulang_native_list_index, yulang_native_list_index_range,
-    yulang_native_list_index_range_raw, yulang_native_list_len, yulang_native_list_merge,
-    yulang_native_list_singleton, yulang_native_list_splice, yulang_native_list_splice_raw,
-    yulang_native_list_view_raw, yulang_native_make_bool, yulang_native_make_float,
-    yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
-    yulang_native_print_value, yulang_native_record_empty, yulang_native_record_insert,
-    yulang_native_record_select, yulang_native_string_index_range,
-    yulang_native_string_index_range_raw, yulang_native_string_splice,
-    yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_get,
-    yulang_native_tuple_push, yulang_native_variant, yulang_native_variant_payload,
-    yulang_native_variant_tag_eq,
-};
-pub use value_cranelift::{
-    NativeValueCraneliftError, NativeValueJitModule, NativeValueObjectModule,
-    compile_value_abi_module, compile_value_abi_module_to_object,
-};
+use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
+
+const ARCHIVED_NATIVE_BACKEND: &str =
+    "the native backend has been archived under archive/yulang-native";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeModule;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeClosureModule;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiModule {
+    pub roots: Vec<NativeAbiRoot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiRoot {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeObjectModule {
+    bytes: Vec<u8>,
+}
+
+impl NativeObjectModule {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeValueObjectModule {
+    bytes: Vec<u8>,
+    roots: Vec<String>,
+}
+
+impl NativeValueObjectModule {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn roots(&self) -> &[String] {
+        &self.roots
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprObjectModule {
+    bytes: Vec<u8>,
+    roots: Vec<String>,
+    root_lanes: Vec<CpsReprAbiLane>,
+    root_function_ids: Vec<u64>,
+}
+
+impl CpsReprObjectModule {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn roots(&self) -> &[String] {
+        &self.roots
+    }
+
+    pub fn root_lanes(&self) -> &[CpsReprAbiLane] {
+        &self.root_lanes
+    }
+
+    pub fn root_function_ids(&self) -> &[u64] {
+        &self.root_function_ids
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeJitModule;
+
+impl NativeJitModule {
+    pub fn run_roots_i64(&mut self) -> Result<Vec<i64>, NativeCraneliftError> {
+        Err(NativeCraneliftError::Archived)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeValueJitModule;
+
+impl NativeValueJitModule {
+    pub fn run_roots(&mut self) -> Result<Vec<runtime::VmValue>, NativeValueCraneliftError> {
+        Err(NativeValueCraneliftError::Archived)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprJitModule;
+
+impl CpsReprJitModule {
+    pub fn run_roots_display(&mut self) -> Result<Vec<String>, CpsReprCraneliftError> {
+        Err(CpsReprCraneliftError::Archived)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CpsReprCraneliftOptions {
+    pub mmtk_yvalue_primitives: bool,
+}
+
+impl CpsReprCraneliftOptions {
+    pub fn mmtk_yvalue_primitives() -> Self {
+        Self {
+            mmtk_yvalue_primitives: true,
+        }
+    }
+}
+
+impl Default for CpsReprCraneliftOptions {
+    fn default() -> Self {
+        Self {
+            mmtk_yvalue_primitives: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CpsReprAbiLane {
+    NativeFloat,
+    ScalarI64,
+    RuntimeValuePtr,
+    ClosurePtr,
+    ThunkPtr,
+    ResumptionPtr,
+    OpaqueI64,
+    Conflict,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeRuntimePtrKind {
+    String,
+    RuntimeValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeAbiRepr {
+    Unit,
+    Bool,
+    Int,
+    Float,
+    List(Box<NativeAbiRepr>),
+    Tuple(Vec<NativeAbiRepr>),
+    Record(Vec<NativeAbiField>),
+    Variant(Vec<NativeAbiVariantCase>),
+    RuntimeValuePtr(NativeRuntimePtrKind),
+    ClosurePtr,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiField {
+    pub name: typed_ir::Name,
+    pub value: NativeAbiRepr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiVariantCase {
+    pub tag: typed_ir::Name,
+    pub value: Option<Box<NativeAbiRepr>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NativeAbiReprAnalysis {
+    pub functions: BTreeMap<String, NativeAbiRepr>,
+}
+
+impl NativeAbiReprAnalysis {
+    pub fn function_repr(&self, name: &str) -> Option<&NativeAbiRepr> {
+        self.functions.get(name)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeLowerError {
+    UnsupportedRoot { message: String },
+    UnsupportedExpr { message: String },
+    UnsupportedPattern { message: String },
+    UnsupportedBinding { message: String },
+    MissingRootExpr { index: usize },
+    PrimitiveArityMismatch { message: String },
+    CallArityMismatch { message: String },
+    Archived,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeValueCraneliftError {
+    UnsupportedFunction { message: String },
+    UnsupportedStmt { message: String },
+    UnsupportedLiteral { message: String },
+    AbiInvalid(String),
+    MissingBlock { message: String },
+    MissingValue { message: String },
+    InvalidReturnArity { message: String },
+    Cranelift(String),
+    Archived,
+}
+
+macro_rules! archived_error {
+    ($name:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub enum $name {
+            Archived,
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{ARCHIVED_NATIVE_BACKEND}")
+            }
+        }
+
+        impl std::error::Error for $name {}
+    };
+}
+
+archived_error!(NativeEvalError);
+archived_error!(NativeCraneliftError);
+archived_error!(CpsReprCraneliftError);
+archived_error!(CpsCompareError);
+archived_error!(NativeSourceCompareError);
+archived_error!(CpsLowerError);
+archived_error!(CpsEvalError);
+archived_error!(CpsReprEvalError);
+
+impl fmt::Display for NativeLowerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NativeLowerError::UnsupportedRoot { message }
+            | NativeLowerError::UnsupportedExpr { message }
+            | NativeLowerError::UnsupportedPattern { message }
+            | NativeLowerError::UnsupportedBinding { message }
+            | NativeLowerError::PrimitiveArityMismatch { message }
+            | NativeLowerError::CallArityMismatch { message } => write!(f, "{message}"),
+            NativeLowerError::MissingRootExpr { index } => {
+                write!(f, "missing native root expression {index}")
+            }
+            NativeLowerError::Archived => write!(f, "{ARCHIVED_NATIVE_BACKEND}"),
+        }
+    }
+}
+
+impl std::error::Error for NativeLowerError {}
+
+impl fmt::Display for NativeValueCraneliftError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NativeValueCraneliftError::UnsupportedFunction { message }
+            | NativeValueCraneliftError::UnsupportedStmt { message }
+            | NativeValueCraneliftError::UnsupportedLiteral { message }
+            | NativeValueCraneliftError::AbiInvalid(message)
+            | NativeValueCraneliftError::MissingBlock { message }
+            | NativeValueCraneliftError::MissingValue { message }
+            | NativeValueCraneliftError::InvalidReturnArity { message }
+            | NativeValueCraneliftError::Cranelift(message) => write!(f, "{message}"),
+            NativeValueCraneliftError::Archived => write!(f, "{ARCHIVED_NATIVE_BACKEND}"),
+        }
+    }
+}
+
+impl std::error::Error for NativeValueCraneliftError {}
+
+pub type NativeLowerResult<T> = Result<T, NativeLowerError>;
+pub type CpsLowerResult<T> = Result<T, CpsLowerError>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsModule;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprModule;
+
+pub fn lower_module(_module: &runtime::Module) -> NativeLowerResult<NativeModule> {
+    Err(NativeLowerError::Archived)
+}
+
+pub fn eval_module(_module: &NativeModule) -> Result<Vec<runtime::VmValue>, NativeEvalError> {
+    Err(NativeEvalError::Archived)
+}
+
+pub fn closure_convert_module(_module: &NativeModule) -> NativeClosureModule {
+    NativeClosureModule
+}
+
+pub fn lower_closure_module_to_abi(_module: &NativeClosureModule) -> NativeAbiModule {
+    NativeAbiModule { roots: Vec::new() }
+}
+
+pub fn analyze_abi_reprs(_module: &NativeAbiModule) -> NativeAbiReprAnalysis {
+    NativeAbiReprAnalysis::default()
+}
+
+pub fn compile_abi_module(
+    _module: &NativeAbiModule,
+) -> Result<NativeJitModule, NativeCraneliftError> {
+    Err(NativeCraneliftError::Archived)
+}
+
+pub fn compile_abi_module_to_object(
+    _module: &NativeAbiModule,
+) -> Result<NativeObjectModule, NativeCraneliftError> {
+    Err(NativeCraneliftError::Archived)
+}
+
+pub fn compile_value_abi_module(
+    _module: &NativeAbiModule,
+) -> Result<NativeValueJitModule, NativeValueCraneliftError> {
+    Err(NativeValueCraneliftError::Archived)
+}
+
+pub fn compile_value_abi_module_to_object(
+    _module: &NativeAbiModule,
+) -> Result<NativeValueObjectModule, NativeValueCraneliftError> {
+    Err(NativeValueCraneliftError::Archived)
+}
+
+pub fn compare_module_i64(_module: &runtime::Module) -> Result<(), NativeSourceCompareError> {
+    Err(NativeSourceCompareError::Archived)
+}
+
+pub fn compare_cps_repr_cranelift_i64(_module: &runtime::Module) -> Result<(), CpsCompareError> {
+    Err(CpsCompareError::Archived)
+}
+
+pub fn lower_cps_module(_module: &runtime::Module) -> CpsLowerResult<CpsModule> {
+    Err(CpsLowerError::Archived)
+}
+
+pub fn eval_cps_module(_module: &CpsModule) -> Result<Vec<runtime::VmValue>, CpsEvalError> {
+    Err(CpsEvalError::Archived)
+}
+
+pub fn lower_cps_repr_module(_module: &CpsModule) -> CpsReprModule {
+    CpsReprModule
+}
+
+pub fn eval_cps_repr_module(
+    _module: &CpsReprModule,
+) -> Result<Vec<runtime::VmValue>, CpsReprEvalError> {
+    Err(CpsReprEvalError::Archived)
+}
+
+pub fn compile_runtime_module_to_cps_repr_jit(
+    _module: &runtime::Module,
+) -> Result<CpsReprJitModule, CpsReprCraneliftError> {
+    Err(CpsReprCraneliftError::Archived)
+}
+
+pub fn compile_runtime_module_to_cps_repr_object_with_options(
+    _module: &runtime::Module,
+    _options: CpsReprCraneliftOptions,
+) -> Result<CpsReprObjectModule, CpsReprCraneliftError> {
+    Err(CpsReprCraneliftError::Archived)
+}
+
+pub fn with_cps_frame_trace<T>(
+    f: impl FnOnce() -> Result<T, CpsEvalError>,
+) -> (Result<T, CpsEvalError>, Vec<String>) {
+    (f(), Vec::new())
+}

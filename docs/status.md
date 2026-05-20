@@ -8,9 +8,9 @@ pipeline so it is clear what to expect before you try it.
 It complements two other documents:
 
 - [docs/language/overview.md](language/overview.md) — what each feature does.
-- [docs/native-backend.md](native-backend.md) — detailed native backend status.
+- [docs/native-backend.md](native-backend.md) — archived native backend status.
 - [docs/native-experimental-release.md](native-experimental-release.md) —
-  release-gate notes for the current opt-in native subset.
+  release-gate notes for the archived opt-in native subset.
 
 ## Legend
 
@@ -30,15 +30,17 @@ The columns trace a value through the pipeline:
 - **Interpreter** — runs on the interpreter (the semantic oracle for everything
   else).
 - **Playground** — exercised through the WebAssembly playground.
-- **Native** — runs through the opt-in native backend (`yulang run --native`);
-  see [docs/native-backend.md](native-backend.md) for the detailed subset.
+- **Archived native** — the old Cranelift/MMTk backend implementation is kept
+  under `archive/yulang-native` for reference. The active workspace keeps only a
+  small compatibility stub crate, and native execution is no longer exposed by
+  the CLI.
 - **Docs** — covered by the user-facing language overview.
 
 ## Feature support matrix
 
 ### Core expressions and bindings
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `int` / `float` / `bool` / `unit` / `str` literals | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | String concatenation                 |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
@@ -51,7 +53,7 @@ The columns trace a value through the pipeline:
 
 ### Types and dispatch
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Simple-Sub style inference + subtyping | ✅ | ✅  |   –    |     –      |   –    |  ✅  |
 | `let` polymorphism (SCC based)       |  ✅   |  ✅   |   –    |     –      |   –    |  ✅  |
@@ -64,7 +66,7 @@ The columns trace a value through the pipeline:
 
 ### Control flow
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `sub:` / `return` early exit         |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | `for` / `last` / `next` / `redo`     |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -73,7 +75,7 @@ The columns trace a value through the pipeline:
 
 ### Effects
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Effect declarations and operations   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Algebraic handlers (`catch expr:`)   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -84,7 +86,7 @@ The columns trace a value through the pipeline:
 
 ### Library and host
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `lib/std` prelude (numeric, list, str) | ✅  |  ✅   |   ✅   |     ✅     |   △    |  △   |
 | `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   △    |  △   |
@@ -96,7 +98,7 @@ The columns trace a value through the pipeline:
 
 ### Research / preview surface
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `rule { … }` parser DSL              |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
 | `~"..."` mark / capture syntax       |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
@@ -104,10 +106,9 @@ The columns trace a value through the pipeline:
 
 ## Known limitations
 
-- The native backend is an opt-in experimental release candidate for the subset
-  documented in [docs/native-backend.md](native-backend.md). The interpreter
-  remains the semantic oracle, and unsupported native shapes report diagnostics
-  instead of silently falling back to the interpreter.
+- The old native backend implementation is archived under
+  `archive/yulang-native`. The active CLI does not expose native execution; the
+  interpreter/control VM path is the execution surface.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
   and lands across the pipeline. The `from`-based aggregation path and the

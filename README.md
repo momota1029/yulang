@@ -51,13 +51,6 @@ Check a file and print inferred public types:
 yulang check examples/08_types.yu
 ```
 
-Try the native backend:
-
-```bash
-yulang run --native examples/06_undet_once.yu
-yulang run --mmtk examples/01_hello.yu
-```
-
 The standard library is normally installed to
 `~/.yulang/lib/yulang-0.1.0/std`. `yulang run`, `yulang check`, and
 `yulang server` can also install the embedded standard library automatically
@@ -99,12 +92,11 @@ abstractions underneath.
 - [docs/language/overview.ja.md](docs/language/overview.ja.md):
   Japanese language overview.
 - [docs/status.md](docs/status.md):
-  support status across parser, inference, interpreter, playground, and native
-  backend.
+  support status across parser, inference, interpreter, and playground.
 - [docs/native-backend.md](docs/native-backend.md):
-  native backend support, CLI notes, and current limits.
+  archived native backend support notes and historical limits.
 - [docs/native-experimental-release.md](docs/native-experimental-release.md):
-  release-gate notes for the current opt-in native subset.
+  release-gate notes for the archived opt-in native subset.
 - [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):
   public reference for effect rows, handler hygiene, and hidden handler
   evidence.
@@ -148,30 +140,18 @@ worktree environment or in `~/.cargo/bin`, the extension starts
 The old `yulang-ls` binary is a deprecated stub that delegates to
 `yulang server`.
 
-## Native Backend
+## Archived Native Backend
 
-Native execution is an experimental backend with an explicit subset. The normal
-user-facing entrypoint is:
+The earlier Cranelift/MMTk native backend implementation has been archived
+under `archive/yulang-native`. The active workspace keeps only a small
+compatibility stub crate, and the CLI no longer exposes `yulang run --native`
+or `yulang native`.
 
-```bash
-yulang run --native path/to/file.yu
-```
-
-`yulang native` remains available for artifact generation and backend
-debugging. The interpreter is still the semantic reference; the native backend
-is an opt-in execution path rather than a replacement. See
-[docs/native-backend.md](docs/native-backend.md) for the supported programs,
-CLI details, and known limits.
-
-`yulang run --mmtk` exposes an experimental MMTk-backed runtime lane for
-backend work. It is useful for development and benchmarks, but it is not the
-default native runtime.
-
-Implementation notes, benchmark logs, and optimizer design notes live outside
-the README:
+Historical implementation notes, benchmark logs, and optimizer design notes
+live outside the README:
 
 - [docs/native-experimental-release.md](docs/native-experimental-release.md):
-  release-gate notes for the current opt-in native subset.
+  release-gate notes for the archived opt-in native subset.
 - [notes/design/cps-optimization-pass-plan.md](notes/design/cps-optimization-pass-plan.md):
   CPS optimizer and algebraic-effect rewrite plan.
 - [tasks/current.md](tasks/current.md):
@@ -211,7 +191,7 @@ YU
 - `crates/yulang-typed-ir`: typed intermediate representation and principal-type evidence.
 - `crates/yulang-infer`: type inference and principal-type export.
 - `crates/yulang-runtime`: runtime IR, monomorphization, and interpreter.
-- `crates/yulang-native`: native backend.
+- `archive/yulang-native`: archived native backend experiment.
 - `crates/yulang-wasm`: WebAssembly API used by the playground.
 - `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.
@@ -225,7 +205,7 @@ Yulang is pre-release research software. Syntax, type output, runtime IR, the
 interpreter, and the standard library may change without compatibility
 promises. [docs/status.md](docs/status.md) describes the current support
 matrix; broader limitations are noted there and in
-[docs/native-backend.md](docs/native-backend.md).
+[docs/status.md](docs/status.md).
 
 ## License
 

@@ -215,8 +215,6 @@ enum Cmd {
     /// Execute the program
     #[command(visible_alias = "interpret")]
     Run(RunArgs),
-    /// Native backend: compile and/or run
-    Native(NativeArgs),
     /// Print intermediate representations
     Dump(DumpArgs),
     /// Parser views (parse event tree for one fragment)
@@ -253,18 +251,9 @@ enum Cmd {
 #[derive(clap::Args)]
 struct RunArgs {
     path: Option<String>,
-    /// Execute through the native effects backend
-    #[arg(long)]
-    native: bool,
-    /// Execute through the experimental MMTk-backed native lane
-    #[arg(long)]
-    mmtk: bool,
     /// Execute through the reference interpreter
     #[arg(long)]
     interpreter: bool,
-    /// Select the native backend; implies --native
-    #[arg(long, value_enum)]
-    native_backend: Option<RunNativeBackend>,
     /// Print root expression values after executing them
     #[arg(long)]
     print_roots: bool,
@@ -304,13 +293,6 @@ struct RealmFreezeArgs {
     version: String,
 }
 
-#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
-enum RunNativeBackend {
-    Effects,
-    Pure,
-    Mmtk,
-}
-
 #[derive(clap::Subcommand)]
 enum InstallTarget {
     /// Install the embedded std sources and exit
@@ -323,34 +305,6 @@ enum CacheCmd {
     Clear,
     /// Print the user cache root used by this command
     Path,
-}
-
-#[derive(clap::Args)]
-struct NativeArgs {
-    path: Option<String>,
-    /// What to produce/run
-    #[arg(long, value_enum, default_value_t = NativeKind::Run)]
-    kind: NativeKind,
-    /// Output path for the artifact (defaults to target/yulang/bin/)
-    #[arg(long, value_name = "PATH")]
-    out: Option<String>,
-    /// Print root expression values from generated executable harnesses
-    #[arg(long)]
-    print_roots: bool,
-}
-
-#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
-enum NativeKind {
-    Object,
-    Exe,
-    #[value(name = "pure-exe", alias = "value-exe")]
-    PureExe,
-    Run,
-    RunExe,
-    #[value(name = "run-pure-exe", alias = "run-value-exe")]
-    RunPureExe,
-    #[value(name = "run-effects-exe", alias = "run-cps-repr-exe")]
-    RunEffectsExe,
 }
 
 #[derive(clap::Args)]
@@ -377,10 +331,6 @@ struct ParseArgs {
 
 #[derive(clap::Subcommand)]
 enum DebugOp {
-    /// Compare interpreter / native control / native ABI / Cranelift scalar i64 results
-    CompareI64 { path: Option<String> },
-    /// Print native ABI value representation classification
-    AbiLanes { path: Option<String> },
     /// Execute through the experimental arena-backed control VM
     #[command(hide = true)]
     ControlVm {
@@ -463,35 +413,9 @@ fn parse_args() -> CliOptions {
             });
         }
         Cmd::Run(args) => {
-            if (args.native || args.mmtk) && args.interpreter {
-                eprintln!("yulang run: --native/--mmtk and --interpreter cannot be used together");
-                process::exit(2);
-            }
-            if args.mmtk && args.native_backend.is_some() {
-                eprintln!("yulang run: --mmtk and --native-backend cannot be used together");
-                process::exit(2);
-            }
             opts.path = args.path;
             opts.print_roots = args.print_roots;
-            let native_requested = args.native || args.mmtk || args.native_backend.is_some();
-            if native_requested {
-                let backend = if args.mmtk {
-                    RunNativeBackend::Mmtk
-                } else {
-                    args.native_backend.unwrap_or(RunNativeBackend::Effects)
-                };
-                match backend {
-                    RunNativeBackend::Effects => {
-                        opts.native_run_cps_repr_exe = Some(NativeOutput::Default);
-                    }
-                    RunNativeBackend::Pure => {
-                        opts.native_run_value_exe = Some(NativeOutput::Default);
-                    }
-                    RunNativeBackend::Mmtk => {
-                        opts.native_run_mmtk_cps_repr_exe = Some(NativeOutput::Default);
-                    }
-                }
-            } else if args.interpreter {
+            if args.interpreter {
                 opts.run_interpreter = true;
             } else {
                 opts.control_vm = true;
@@ -501,28 +425,6 @@ fn parse_args() -> CliOptions {
                     opts.control_vm = false;
                     opts.control_vm_load = Some(path.to_string());
                 }
-            }
-        }
-        Cmd::Native(NativeArgs {
-            path,
-            kind,
-            out,
-            print_roots,
-        }) => {
-            opts.path = path;
-            opts.print_roots = print_roots;
-            let output = match out {
-                Some(p) => NativeOutput::Path(p),
-                None => NativeOutput::Default,
-            };
-            match kind {
-                NativeKind::Object => opts.native_object = Some(output),
-                NativeKind::Exe => opts.native_exe = Some(output),
-                NativeKind::PureExe => opts.native_value_exe = Some(output),
-                NativeKind::Run => opts.native_run = Some(output),
-                NativeKind::RunExe => opts.native_run_exe = Some(output),
-                NativeKind::RunPureExe => opts.native_run_value_exe = Some(output),
-                NativeKind::RunEffectsExe => opts.native_run_cps_repr_exe = Some(output),
             }
         }
         Cmd::Dump(DumpArgs {
@@ -568,14 +470,6 @@ fn parse_args() -> CliOptions {
             }
         },
         Cmd::Debug { op } => match op {
-            DebugOp::CompareI64 { path } => {
-                opts.native_compare_i64 = true;
-                opts.path = path;
-            }
-            DebugOp::AbiLanes { path } => {
-                opts.native_abi_lanes = true;
-                opts.path = path;
-            }
             DebugOp::ControlVm { path, print_roots } => {
                 opts.control_vm = true;
                 opts.path = path;
@@ -2550,7 +2444,8 @@ fn classify_native_value_lower_error(
         }
         NativeLowerError::MissingRootExpr { .. }
         | NativeLowerError::PrimitiveArityMismatch { .. }
-        | NativeLowerError::CallArityMismatch { .. } => NativeValueExecutableError::Fatal(message),
+        | NativeLowerError::CallArityMismatch { .. }
+        | NativeLowerError::Archived => NativeValueExecutableError::Fatal(message),
     }
 }
 
@@ -2569,7 +2464,8 @@ fn classify_native_value_cranelift_error(
         | NativeValueCraneliftError::MissingBlock { .. }
         | NativeValueCraneliftError::MissingValue { .. }
         | NativeValueCraneliftError::InvalidReturnArity { .. }
-        | NativeValueCraneliftError::Cranelift(_) => NativeValueExecutableError::Fatal(message),
+        | NativeValueCraneliftError::Cranelift(_)
+        | NativeValueCraneliftError::Archived => NativeValueExecutableError::Fatal(message),
     }
 }
 
