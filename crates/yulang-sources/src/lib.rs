@@ -22,7 +22,8 @@ pub use cache::{
 };
 pub use lock::{
     LockedRealm, LockedRealmDependency, LockedRealmSource, LockedWithConstraint,
-    YULANG_LOCK_FORMAT_VERSION, YulangLockFile,
+    SourceWithConstraint, WithConstraintConflict, YULANG_LOCK_FORMAT_VERSION, YulangLockFile,
+    collect_source_with_constraints,
 };
 pub use stdlib::{
     YULANG_LIB_DIR_ENV, YULANG_STD_ENV, YULANG_STDLIB_VERSION, default_user_lib_root,

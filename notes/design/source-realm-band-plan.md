@@ -489,6 +489,10 @@ Current first slice:
   can be introduced before cross-realm version resolution is implemented.
 - `YulangLockFile` defines a serializable first lock schema for resolved realms,
   realm dependencies, and `with` alignment constraints.
+- `collect_source_with_constraints` gathers `use ... with ...` source metadata
+  into structured constraints, `YulangLockFile::from_source_set` can project the
+  current `SourceSet` into a lock-shaped value, and lock validation rejects
+  conflicting resolved realms for the same target/anchor pair.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by
