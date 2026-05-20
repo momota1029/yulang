@@ -47,10 +47,7 @@ impl YulangLockFile {
                     .iter()
                     .map(|dependency| LockedRealmDependency {
                         from: realm.id.clone(),
-                        to: ResolvedRealmId {
-                            identity: dependency.identity.clone(),
-                            version: None,
-                        },
+                        to: resolved_dependency_realm(source_set, dependency),
                         requirement: dependency.requirement.clone(),
                     })
             })
@@ -194,15 +191,16 @@ pub fn collect_source_with_constraints(source_set: &SourceSet) -> Vec<SourceWith
             let Some(import_path) = import_module_path(&use_.import) else {
                 continue;
             };
-            let Some(target) = realm_identity_from_import_path(&import_path, source_set) else {
+            let Some(resolved_target) = resolved_realm_from_import_path(&import_path, source_set)
+            else {
                 continue;
             };
             constraints.push(SourceWithConstraint {
                 requester: requester_band.realm.clone(),
                 requester_band: requester_band.band.clone(),
                 import_path,
-                target,
-                target_version: use_realm_version(&use_.import),
+                target: resolved_target.identity,
+                target_version: use_realm_version(&use_.import).or(resolved_target.version),
                 anchor,
             });
         }
@@ -232,10 +230,10 @@ fn use_realm_version(import: &UseImport) -> Option<RealmVersion> {
     }
 }
 
-fn realm_identity_from_import_path(
+fn resolved_realm_from_import_path(
     path: &ModulePath,
     source_set: &SourceSet,
-) -> Option<RealmIdentity> {
+) -> Option<ResolvedRealmId> {
     if path.segments.is_empty() {
         return None;
     }
@@ -250,15 +248,43 @@ fn realm_identity_from_import_path(
                     .iter()
                     .zip(&path.segments)
                     .all(|(left, right)| left == &right.0))
-            .then_some((segments.len(), realm.id.identity.clone()))
+            .then_some((segments.len(), realm.id.clone()))
         })
         .max_by_key(|(len, _)| *len)
-        .map(|(_, identity)| identity)
+        .map(|(_, realm)| realm)
         .or_else(|| {
-            path.segments
-                .first()
-                .map(|segment| RealmIdentity(segment.0.clone()))
+            path.segments.first().map(|segment| ResolvedRealmId {
+                identity: RealmIdentity(segment.0.clone()),
+                version: None,
+            })
         })
+}
+
+fn resolved_dependency_realm(
+    source_set: &SourceSet,
+    dependency: &crate::SourceRealmDependency,
+) -> ResolvedRealmId {
+    source_set
+        .realms
+        .iter()
+        .find(|realm| realm.id.identity == dependency.identity)
+        .map(|realm| realm.id.clone())
+        .unwrap_or_else(|| ResolvedRealmId {
+            identity: dependency.identity.clone(),
+            version: exact_dependency_version(&dependency.requirement),
+        })
+}
+
+fn exact_dependency_version(requirement: &str) -> Option<RealmVersion> {
+    let requirement = requirement.trim();
+    if requirement.is_empty()
+        || requirement
+            .chars()
+            .any(|ch| matches!(ch, '^' | '~' | '*' | '<' | '>' | '=' | ',' | ' '))
+    {
+        return None;
+    }
+    Some(RealmVersion(requirement.to_string()))
 }
 
 fn realm_identity_segments(identity: &RealmIdentity) -> Vec<String> {

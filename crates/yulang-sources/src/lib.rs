@@ -1581,8 +1581,10 @@ impl SourceLoader {
         import: &UseImport,
     ) -> Option<ResolvedImport> {
         let import_version = import_realm_version(import);
-        if let Some(locked) = self.resolve_locked_realm_import(module_path, import_version.as_ref())
-        {
+        let with_version = self.resolve_locked_with_constraint_version(module_path, import);
+        let locked_version =
+            selected_import_version(import_version.as_ref(), with_version.as_ref())?;
+        if let Some(locked) = self.resolve_locked_realm_import(module_path, locked_version) {
             return Some(locked);
         }
 
@@ -1591,7 +1593,7 @@ impl SourceLoader {
         else {
             return None;
         };
-        let selected_version = import_version.as_ref().or(dependency_version.as_ref());
+        let selected_version = locked_version.or(dependency_version.as_ref());
         let (root_path, root) = self.find_existing_realm_root(&identity, selected_version)?;
         let manifest = load_realm_manifest(&root_path).ok().flatten();
         let realm = manifest
@@ -1656,6 +1658,24 @@ impl SourceLoader {
             realm: realm.id,
             realm_path_prefix_len: identity_len,
         })
+    }
+
+    fn resolve_locked_with_constraint_version(
+        &self,
+        module_path: &ModulePath,
+        import: &UseImport,
+    ) -> Option<RealmVersion> {
+        let lock = self.lock.as_ref()?;
+        let anchor = import_with_anchor(import)?;
+        lock.with_constraints
+            .iter()
+            .filter(|constraint| constraint.anchor == anchor)
+            .filter_map(|constraint| {
+                let identity_len = realm_identity_prefix_len(&constraint.target, module_path)?;
+                Some((identity_len, constraint.resolved.version.clone()))
+            })
+            .max_by_key(|(identity_len, _)| *identity_len)
+            .and_then(|(_, version)| version)
     }
 
     fn resolve_manifest_dependency_prefix(
@@ -1798,11 +1818,31 @@ fn exact_dependency_version(requirement: &str) -> Option<RealmVersion> {
     Some(RealmVersion(requirement.to_string()))
 }
 
+fn selected_import_version<'a>(
+    import_version: Option<&'a RealmVersion>,
+    with_version: Option<&'a RealmVersion>,
+) -> Option<Option<&'a RealmVersion>> {
+    if let (Some(import_version), Some(with_version)) = (import_version, with_version)
+        && import_version != with_version
+    {
+        return None;
+    }
+    Some(import_version.or(with_version))
+}
+
 fn import_realm_version(import: &UseImport) -> Option<RealmVersion> {
     match import {
         UseImport::Alias { realm_version, .. } | UseImport::Glob { realm_version, .. } => {
             realm_version.clone()
         }
+    }
+}
+
+fn import_with_anchor(import: &UseImport) -> Option<BandPath> {
+    match import {
+        UseImport::Alias { with_anchor, .. } | UseImport::Glob { with_anchor, .. } => with_anchor
+            .as_ref()
+            .map(|path| BandPath::from_segments(path.segments.clone())),
     }
 }
 
@@ -4532,6 +4572,9 @@ version = "2.4.0"
             r#"[realm]
 identity = "user/app"
 version = "0.1.0"
+
+[dependencies]
+ui = "2.4.0"
 "#,
         )
         .unwrap();
@@ -4583,6 +4626,136 @@ version = "2.4.0"
                 .iter()
                 .any(|file| names(&file.module_path) == vec!["ui", "widget"]
                     && file.realm.identity.0 == "ui")
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn lock_with_constraint_selects_cross_realm_version() {
+        let root = temp_root("cross-realm-with-lock-use");
+        let _ = fs::remove_dir_all(&root);
+        let app = root.join("app");
+        let ui_v1 = root.join("deps").join("ui-1.0.0");
+        let ui_v2 = root.join("deps").join("ui-2.4.0");
+        fs::create_dir_all(&app).unwrap();
+        fs::create_dir_all(&ui_v1).unwrap();
+        fs::create_dir_all(&ui_v2).unwrap();
+        fs::write(
+            app.join("realm.toml"),
+            r#"[realm]
+identity = "user/app"
+version = "0.1.0"
+
+[dependencies]
+ui = "2.4.0"
+"#,
+        )
+        .unwrap();
+        fs::write(
+            app.join("main.yu"),
+            "use ui/widget::* with program::ui\nx\n",
+        )
+        .unwrap();
+        let lock = YulangLockFile {
+            format_version: YULANG_LOCK_FORMAT_VERSION,
+            realms: vec![
+                LockedRealm {
+                    id: ResolvedRealmId {
+                        identity: RealmIdentity("ui".to_string()),
+                        version: Some(RealmVersion("1.0.0".to_string())),
+                    },
+                    source: LockedRealmSource::Local(ui_v1.clone()),
+                },
+                LockedRealm {
+                    id: ResolvedRealmId {
+                        identity: RealmIdentity("ui".to_string()),
+                        version: Some(RealmVersion("2.4.0".to_string())),
+                    },
+                    source: LockedRealmSource::Local(ui_v2.clone()),
+                },
+            ],
+            dependencies: Vec::new(),
+            with_constraints: vec![LockedWithConstraint {
+                requester: ResolvedRealmId {
+                    identity: RealmIdentity("user/app".to_string()),
+                    version: Some(RealmVersion("0.1.0".to_string())),
+                },
+                target: RealmIdentity("ui".to_string()),
+                anchor: BandPath::from_segments(vec![
+                    Name("program".to_string()),
+                    Name("ui".to_string()),
+                ]),
+                resolved: ResolvedRealmId {
+                    identity: RealmIdentity("ui".to_string()),
+                    version: Some(RealmVersion("2.4.0".to_string())),
+                },
+            }],
+        };
+        fs::write(
+            app.join("yulang.lock"),
+            format!("{}\n", serde_json::to_string_pretty(&lock).unwrap()),
+        )
+        .unwrap();
+        fs::write(
+            ui_v1.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+version = "1.0.0"
+"#,
+        )
+        .unwrap();
+        fs::write(ui_v1.join("widget.yu"), "pub x = 1\n").unwrap();
+        fs::write(
+            ui_v2.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+version = "2.4.0"
+"#,
+        )
+        .unwrap();
+        fs::write(ui_v2.join("widget.yu"), "pub x = 2\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            app.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        let ui_file = set
+            .files
+            .iter()
+            .find(|file| names(&file.module_path) == vec!["ui", "widget"])
+            .expect("ui widget should load");
+        assert_eq!(
+            ui_file.realm,
+            ResolvedRealmId {
+                identity: RealmIdentity("ui".to_string()),
+                version: Some(RealmVersion("2.4.0".to_string())),
+            }
+        );
+        assert!(ui_file.path.starts_with(&ui_v2));
+        assert!(ui_file.source.contains("pub x = 2"));
+        let generated = YulangLockFile::from_source_set(&set).expect("lock should build");
+        assert_eq!(generated.with_constraints.len(), 1);
+        assert_eq!(
+            generated.with_constraints[0].resolved,
+            ResolvedRealmId {
+                identity: RealmIdentity("ui".to_string()),
+                version: Some(RealmVersion("2.4.0".to_string())),
+            }
+        );
+        assert_eq!(
+            generated
+                .dependencies
+                .iter()
+                .find(|dependency| dependency.to.identity.0 == "ui")
+                .map(|dependency| dependency.to.version.clone()),
+            Some(Some(RealmVersion("2.4.0".to_string())))
         );
 
         let _ = fs::remove_dir_all(root);

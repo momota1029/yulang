@@ -531,6 +531,10 @@ Current first slice:
   `.yulang/versions/<version>/` snapshots, or the persistent `realms/` cache.
   Loaded files keep their source-level import path for lowering while their
   `ResolvedBandId` is assigned inside the target realm.
+- `use ... with anchor` can use `yulang.lock` `with_constraints` to choose the
+  same resolved target realm version as the anchor. When source collection loads
+  that realm, generated lock output records the resolved target version even if
+  the `use` omitted an explicit suffix.
 - exact dependency requirements such as `ui = "2.4.0"` are enough to select a
   matching frozen local snapshot when the `use` itself omits a version suffix.
   Range solving (`^2.4`, `<3`, etc.) is still deferred.
