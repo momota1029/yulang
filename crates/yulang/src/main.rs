@@ -6979,7 +6979,25 @@ fn source_options(options: &CliOptions, base_dir: Option<&Path>) -> SourceOption
     SourceOptions {
         implicit_prelude: !options.no_prelude && std_root.is_some(),
         std_root,
-        search_paths: Vec::new(),
+        search_paths: source_search_paths(base_dir),
+    }
+}
+
+fn source_search_paths(base_dir: Option<&Path>) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    let Some(base_dir) = base_dir else {
+        return paths;
+    };
+    push_unique_search_path(&mut paths, base_dir.to_path_buf());
+    if let Some(parent) = base_dir.parent() {
+        push_unique_search_path(&mut paths, parent.to_path_buf());
+    }
+    paths
+}
+
+fn push_unique_search_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if !paths.iter().any(|existing| existing == &path) {
+        paths.push(path);
     }
 }
 
@@ -7027,6 +7045,7 @@ mod tests {
             install_std: false,
             cache_op: None,
             lock_op: None,
+            realm_op: None,
             server: false,
         }
     }
@@ -7070,6 +7089,17 @@ mod tests {
         let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green("2 ** 10"));
 
         assert!(has_invalid_token(&root));
+    }
+
+    #[test]
+    fn source_options_searches_entry_dir_and_parent_for_local_realms() {
+        let options = test_cli_options();
+        let source_options = source_options(&options, Some(Path::new("workspace/app")));
+
+        assert_eq!(
+            source_options.search_paths,
+            vec![PathBuf::from("workspace/app"), PathBuf::from("workspace")]
+        );
     }
 
     #[test]
