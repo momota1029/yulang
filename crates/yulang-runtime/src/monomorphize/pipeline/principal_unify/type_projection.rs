@@ -17,9 +17,13 @@ pub(super) fn principal_rewrite_type_from_kind(
             else_branch,
             ..
         } if then_branch.ty == else_branch.ty => then_branch.ty.clone(),
-        ExprKind::If { .. } => {
+        ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
             type_projection_metrics::record(TypeProjectionFallbackReason::IfBranchMismatch);
-            fallback
+            choose_projected_if_result(fallback, &then_branch.ty, &else_branch.ty)
         }
         ExprKind::Match { arms, .. } => match arms.first() {
             Some(arm) => arm.body.ty.clone(),
@@ -28,9 +32,9 @@ pub(super) fn principal_rewrite_type_from_kind(
                 fallback
             }
         },
-        ExprKind::Block {
-            tail: Some(tail), ..
-        } => tail.ty.clone(),
+        ExprKind::Block { stmts, tail } => {
+            choose_projected_block_result(fallback, stmts, tail.as_deref())
+        }
         ExprKind::Apply { callee, .. } => match principal_rewrite_apply_type(&callee.ty) {
             Some(ty) => choose_projected_apply_result(fallback, ty),
             None => {
@@ -50,7 +54,12 @@ pub(super) fn principal_rewrite_type_from_kind(
                 fallback
             }
         },
-        ExprKind::Thunk { effect, value, .. } => RuntimeType::thunk(effect.clone(), value.clone()),
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+            ..
+        } => choose_projected_thunk_result(effect.clone(), value.clone(), &expr.ty),
         ExprKind::LocalPushId { body, .. } => body.ty.clone(),
         ExprKind::AddId { thunk, .. } => thunk.ty.clone(),
         ExprKind::Coerce { to, .. } => RuntimeType::core(to.clone()),
@@ -88,6 +97,73 @@ fn choose_projected_force_result(existing: RuntimeType, projected: RuntimeType) 
     } else {
         projected
     }
+}
+
+fn choose_projected_if_result(
+    fallback: RuntimeType,
+    then_ty: &RuntimeType,
+    else_ty: &RuntimeType,
+) -> RuntimeType {
+    let (fallback_value, fallback_effect) = runtime_value_and_effect(&fallback);
+    let (then_value, then_effect) = runtime_value_and_effect(then_ty);
+    let (else_value, else_effect) = runtime_value_and_effect(else_ty);
+    let value = if then_value == else_value
+        && !core_type_contains_unknown(&then_value)
+        && !core_type_has_vars(&then_value)
+    {
+        then_value
+    } else {
+        fallback_value
+    };
+    let effect = merge_effects(merge_effects(fallback_effect, then_effect), else_effect);
+    runtime_type_from_core_value_and_effect(value, effect)
+}
+
+fn choose_projected_block_result(
+    fallback: RuntimeType,
+    stmts: &[Stmt],
+    tail: Option<&Expr>,
+) -> RuntimeType {
+    let (fallback_value, fallback_effect) = runtime_value_and_effect(&fallback);
+    let mut effect = fallback_effect;
+    for stmt in stmts {
+        effect = merge_effects(effect, projected_stmt_effect(stmt));
+    }
+    let value = if let Some(tail) = tail {
+        let (tail_value, tail_effect) = runtime_value_and_effect(&tail.ty);
+        effect = merge_effects(effect, tail_effect);
+        if !core_type_contains_unknown(&tail_value) && !core_type_has_vars(&tail_value) {
+            tail_value
+        } else {
+            fallback_value
+        }
+    } else {
+        fallback_value
+    };
+    runtime_type_from_core_value_and_effect(value, effect)
+}
+
+fn projected_stmt_effect(stmt: &Stmt) -> typed_ir::Type {
+    let expr = match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => value,
+    };
+    let (_value, effect) = runtime_value_and_effect(&expr.ty);
+    effect
+}
+
+fn choose_projected_thunk_result(
+    effect: typed_ir::Type,
+    value: RuntimeType,
+    body_ty: &RuntimeType,
+) -> RuntimeType {
+    let (body_value, body_effect) = runtime_value_and_effect(body_ty);
+    let effect = merge_effects(effect, body_effect);
+    let value = if runtime_type_contains_unknown(&value) || runtime_type_has_vars(&value) {
+        RuntimeType::core(body_value)
+    } else {
+        value
+    };
+    RuntimeType::thunk(effect, value)
 }
 
 fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {

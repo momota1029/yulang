@@ -1775,6 +1775,65 @@ fn compiled_namespace_artifact_preserves_value_and_type_symbols() {
 }
 
 #[test]
+fn compiled_namespace_artifact_canonicalizes_reexported_type_symbols() {
+    let source_set = collect_inline_source_files_with_options(
+        "use facade::*\nmy y: thing = thing { value: 1 }\n",
+        [
+            InlineSource {
+                path: PathBuf::from("<data>.yu"),
+                module_path: CorePath::new(vec![CoreName("data".to_string())]),
+                origin: SourceOrigin::User,
+                source: "pub struct thing:\n  value: int\n".to_string(),
+                meta: None,
+            },
+            InlineSource {
+                path: PathBuf::from("<facade>.yu"),
+                module_path: CorePath::new(vec![CoreName("facade".to_string())]),
+                origin: SourceOrigin::User,
+                source: "pub use data::*\n".to_string(),
+                meta: None,
+            },
+        ],
+        yulang_sources::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_namespace_artifacts(&source_set, &lowered.state);
+    let facade_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["facade"])
+        })
+        .expect("facade namespace artifact should exist");
+    let facade_module = facade_artifact
+        .namespace
+        .modules
+        .iter()
+        .find(|module| module.path == vec!["facade"])
+        .unwrap();
+    let facade_type = facade_module
+        .types
+        .iter()
+        .find(|ty| ty.name == "thing")
+        .expect("facade should reexport thing");
+    let symbol = facade_artifact
+        .namespace
+        .types
+        .iter()
+        .find(|symbol| symbol.unit_id == facade_type.symbol)
+        .expect("reexported type should have a namespace symbol");
+
+    assert_eq!(symbol.path, vec!["data".to_string(), "thing".to_string()]);
+}
+
+#[test]
 fn compiled_namespace_validation_reports_missing_operator_symbol() {
     let surface = CompiledNamespaceSurface {
         modules: vec![CompiledNamespaceModule {
@@ -2033,6 +2092,58 @@ fn compiled_typed_import_preserves_operator_role_constraints() {
             .expect("both should be rendered");
 
         assert_eq!(both.1, "Add<α> => α -> α -> α");
+    });
+}
+
+#[test]
+fn compiled_typed_import_preserves_associated_role_method_output_for_root_expr() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let options = yulang_sources::SourceOptions {
+            std_root: Some(std_root),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+        let first = collect_virtual_source_files_with_options(
+            "(1/3).say\n",
+            Some(repo_root.clone()),
+            options.clone(),
+        )
+        .unwrap();
+        let mut lowered = lower_source_set(&first);
+        lowered.state.finalize_compact_results();
+        let artifacts = build_compiled_unit_artifacts(&first, &lowered.state);
+        let std_artifacts = artifacts
+            .into_iter()
+            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+            .collect::<Vec<_>>();
+        let bundle =
+            build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
+        assert!(
+            bundle.typed.role_methods.iter().any(|method| {
+                method.name == "div"
+                    && method.role == ["std", "prelude", "Div"]
+                    && method.input_names == [Some("a".to_string())]
+                    && method.output_name.as_deref() == Some("out")
+            }),
+            "compiled std bundle should preserve Div::div role method input/output mapping, got {:?}",
+            bundle.typed.role_methods
+        );
+
+        let second =
+            collect_virtual_source_files_with_options("(7/3).say\n", Some(repo_root), options)
+                .unwrap();
+        let mut imported =
+            lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(&second, &bundle)
+                .lowered
+                .lowered;
+        imported.state.finalize_compact_results();
+        assert!(
+            imported.state.infer.type_errors().is_empty(),
+            "cached std import should type-check associated Div output, got {:?}",
+            imported.state.infer.type_errors(),
+        );
     });
 }
 

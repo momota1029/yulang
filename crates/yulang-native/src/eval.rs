@@ -668,6 +668,7 @@ fn eval_primitive(
         PrimitiveOp::IntSub => int_bin_op(op, args, |left, right| left - right),
         PrimitiveOp::IntMul => int_bin_op(op, args, |left, right| left * right),
         PrimitiveOp::IntDiv => int_bin_op(op, args, |left, right| left / right),
+        PrimitiveOp::IntMod => int_bin_op(op, args, |left, right| left % right),
         PrimitiveOp::IntEq => int_cmp_op(op, args, |left, right| left == right),
         PrimitiveOp::IntLt => int_cmp_op(op, args, |left, right| left < right),
         PrimitiveOp::IntLe => int_cmp_op(op, args, |left, right| left <= right),

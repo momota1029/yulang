@@ -1,309 +1,28 @@
 use super::*;
 
 pub(super) fn substitute_binding(
-    binding: Binding,
+    mut binding: Binding,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> Binding {
-    Binding {
-        name: binding.name,
-        type_params: binding.type_params,
-        scheme: substitute_scheme(binding.scheme, substitutions),
-        body: substitute_expr(binding.body, substitutions),
-    }
+    visit_binding_type_surfaces_mut(&mut binding, &mut |_, surface| {
+        substitute_type_surface(surface, substitutions);
+    });
+    binding
 }
 
-pub(super) fn substitute_expr(
-    expr: Expr,
+fn substitute_type_surface(
+    surface: TypeSurfaceMut<'_>,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-) -> Expr {
-    let ty = substitute_hir_type(expr.ty, substitutions);
-    let kind = match expr.kind {
-        ExprKind::Lambda {
-            param,
-            param_effect_annotation,
-            param_function_allowed_effects,
-            body,
-        } => ExprKind::Lambda {
-            param,
-            param_effect_annotation,
-            param_function_allowed_effects,
-            body: Box::new(substitute_expr(*body, substitutions)),
-        },
-        ExprKind::Apply {
-            callee,
-            arg,
-            evidence,
-            instantiation,
-        } => ExprKind::Apply {
-            callee: Box::new(substitute_expr(*callee, substitutions)),
-            arg: Box::new(substitute_expr(*arg, substitutions)),
-            evidence: evidence.map(|evidence| substitute_apply_evidence(evidence, substitutions)),
-            instantiation: instantiation
-                .map(|instantiation| substitute_type_instantiation(instantiation, substitutions)),
-        },
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-            evidence,
-        } => ExprKind::If {
-            cond: Box::new(substitute_expr(*cond, substitutions)),
-            then_branch: Box::new(substitute_expr(*then_branch, substitutions)),
-            else_branch: Box::new(substitute_expr(*else_branch, substitutions)),
-            evidence: evidence.map(|evidence| substitute_join_evidence(evidence, substitutions)),
-        },
-        ExprKind::Tuple(items) => ExprKind::Tuple(
-            items
-                .into_iter()
-                .map(|item| substitute_expr(item, substitutions))
-                .collect(),
-        ),
-        ExprKind::Record { fields, spread } => ExprKind::Record {
-            fields: fields
-                .into_iter()
-                .map(|field| RecordExprField {
-                    name: field.name,
-                    value: substitute_expr(field.value, substitutions),
-                })
-                .collect(),
-            spread: spread.map(|spread| match spread {
-                RecordSpreadExpr::Head(expr) => {
-                    RecordSpreadExpr::Head(Box::new(substitute_expr(*expr, substitutions)))
-                }
-                RecordSpreadExpr::Tail(expr) => {
-                    RecordSpreadExpr::Tail(Box::new(substitute_expr(*expr, substitutions)))
-                }
-            }),
-        },
-        ExprKind::Variant { tag, value } => ExprKind::Variant {
-            tag,
-            value: value.map(|value| Box::new(substitute_expr(*value, substitutions))),
-        },
-        ExprKind::Select { base, field } => ExprKind::Select {
-            base: Box::new(substitute_expr(*base, substitutions)),
-            field,
-        },
-        ExprKind::Match {
-            scrutinee,
-            arms,
-            evidence,
-        } => ExprKind::Match {
-            scrutinee: Box::new(substitute_expr(*scrutinee, substitutions)),
-            arms: arms
-                .into_iter()
-                .map(|arm| MatchArm {
-                    pattern: substitute_pattern(arm.pattern, substitutions),
-                    guard: arm.guard.map(|guard| substitute_expr(guard, substitutions)),
-                    body: substitute_expr(arm.body, substitutions),
-                })
-                .collect(),
-            evidence: substitute_join_evidence(evidence, substitutions),
-        },
-        ExprKind::Block { stmts, tail } => ExprKind::Block {
-            stmts: stmts
-                .into_iter()
-                .map(|stmt| substitute_stmt(stmt, substitutions))
-                .collect(),
-            tail: tail.map(|tail| Box::new(substitute_expr(*tail, substitutions))),
-        },
-        ExprKind::Handle {
-            body,
-            arms,
-            evidence,
-            handler,
-        } => ExprKind::Handle {
-            body: Box::new(substitute_expr(*body, substitutions)),
-            arms: arms
-                .into_iter()
-                .map(|arm| HandleArm {
-                    effect: arm.effect,
-                    payload: substitute_pattern(arm.payload, substitutions),
-                    resume: arm.resume.map(|resume| ResumeBinding {
-                        name: resume.name,
-                        ty: substitute_hir_type(resume.ty, substitutions),
-                    }),
-                    guard: arm.guard.map(|guard| substitute_expr(guard, substitutions)),
-                    body: substitute_expr(arm.body, substitutions),
-                })
-                .collect(),
-            evidence: substitute_join_evidence(evidence, substitutions),
-            handler: substitute_handle_effect(handler, substitutions),
-        },
-        ExprKind::BindHere { expr } => ExprKind::BindHere {
-            expr: Box::new(substitute_expr(*expr, substitutions)),
-        },
-        ExprKind::Thunk {
-            effect,
-            value,
-            expr,
-        } => ExprKind::Thunk {
-            effect: substitute_type(&effect, substitutions),
-            value: substitute_hir_type(value, substitutions),
-            expr: Box::new(substitute_expr(*expr, substitutions)),
-        },
-        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
-            id,
-            body: Box::new(substitute_expr(*body, substitutions)),
-        },
-        ExprKind::PeekId => ExprKind::PeekId,
-        ExprKind::FindId { id } => ExprKind::FindId { id },
-        ExprKind::AddId {
-            id,
-            allowed,
-            active,
-            thunk,
-        } => ExprKind::AddId {
-            id,
-            allowed: substitute_type(&allowed, substitutions),
-            active,
-            thunk: Box::new(substitute_expr(*thunk, substitutions)),
-        },
-        ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
-            from: substitute_type(&from, substitutions),
-            to: substitute_type(&to, substitutions),
-            expr: Box::new(substitute_expr(*expr, substitutions)),
-        },
-        ExprKind::Pack { var, expr } => ExprKind::Pack {
-            var,
-            expr: Box::new(substitute_expr(*expr, substitutions)),
-        },
-        ExprKind::Var(_) | ExprKind::EffectOp(_) | ExprKind::PrimitiveOp(_) | ExprKind::Lit(_) => {
-            expr.kind
+) {
+    match surface {
+        TypeSurfaceMut::Core(ty) => {
+            *ty = substitute_type(ty, substitutions);
         }
-    };
-    Expr { ty, kind }
-}
-
-fn substitute_handle_effect(
-    handler: HandleEffect,
-    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-) -> HandleEffect {
-    HandleEffect {
-        consumes: handler.consumes,
-        residual_before: handler
-            .residual_before
-            .map(|effect| project_runtime_effect(&substitute_type(&effect, substitutions))),
-        residual_after: handler
-            .residual_after
-            .map(|effect| project_runtime_effect(&substitute_type(&effect, substitutions))),
-    }
-}
-
-pub(super) fn substitute_stmt(
-    stmt: Stmt,
-    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-) -> Stmt {
-    match stmt {
-        Stmt::Let { pattern, value } => Stmt::Let {
-            pattern: substitute_pattern(pattern, substitutions),
-            value: substitute_expr(value, substitutions),
-        },
-        Stmt::Expr(expr) => Stmt::Expr(substitute_expr(expr, substitutions)),
-        Stmt::Module { def, body } => Stmt::Module {
-            def,
-            body: substitute_expr(body, substitutions),
-        },
-    }
-}
-
-pub(super) fn substitute_pattern(
-    pattern: Pattern,
-    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-) -> Pattern {
-    match pattern {
-        Pattern::Wildcard { ty } => Pattern::Wildcard {
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::Bind { name, ty } => Pattern::Bind {
-            name,
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::Lit { lit, ty } => Pattern::Lit {
-            lit,
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::Tuple { items, ty } => Pattern::Tuple {
-            items: items
-                .into_iter()
-                .map(|item| substitute_pattern(item, substitutions))
-                .collect(),
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::List {
-            prefix,
-            spread,
-            suffix,
-            ty,
-        } => Pattern::List {
-            prefix: prefix
-                .into_iter()
-                .map(|item| substitute_pattern(item, substitutions))
-                .collect(),
-            spread: spread.map(|spread| Box::new(substitute_pattern(*spread, substitutions))),
-            suffix: suffix
-                .into_iter()
-                .map(|item| substitute_pattern(item, substitutions))
-                .collect(),
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::Record { fields, spread, ty } => Pattern::Record {
-            fields: fields
-                .into_iter()
-                .map(|field| RecordPatternField {
-                    name: field.name,
-                    pattern: substitute_pattern(field.pattern, substitutions),
-                    default: field
-                        .default
-                        .map(|default| substitute_expr(default, substitutions)),
-                })
-                .collect(),
-            spread: spread.map(|spread| match spread {
-                RecordSpreadPattern::Head(pattern) => {
-                    RecordSpreadPattern::Head(Box::new(substitute_pattern(*pattern, substitutions)))
-                }
-                RecordSpreadPattern::Tail(pattern) => {
-                    RecordSpreadPattern::Tail(Box::new(substitute_pattern(*pattern, substitutions)))
-                }
-            }),
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::Variant { tag, value, ty } => {
-            let value = value.map(|value| Box::new(substitute_pattern(*value, substitutions)));
-            let ty = substitute_hir_type(ty, substitutions);
-            let ty = variant_pattern_runtime_type(&tag, value.as_deref(), ty);
-            Pattern::Variant { tag, value, ty }
+        TypeSurfaceMut::Runtime(ty) => {
+            let source = std::mem::replace(ty, RuntimeType::Unknown);
+            *ty = substitute_hir_type(source, substitutions);
         }
-        Pattern::Or { left, right, ty } => Pattern::Or {
-            left: Box::new(substitute_pattern(*left, substitutions)),
-            right: Box::new(substitute_pattern(*right, substitutions)),
-            ty: substitute_hir_type(ty, substitutions),
-        },
-        Pattern::As { pattern, name, ty } => Pattern::As {
-            pattern: Box::new(substitute_pattern(*pattern, substitutions)),
-            name,
-            ty: substitute_hir_type(ty, substitutions),
-        },
     }
-}
-
-fn variant_pattern_runtime_type(
-    tag: &typed_ir::Name,
-    value: Option<&Pattern>,
-    fallback: RuntimeType,
-) -> RuntimeType {
-    if matches!(fallback, RuntimeType::Core(typed_ir::Type::Named { .. })) {
-        return fallback;
-    }
-    RuntimeType::core(typed_ir::Type::Variant(typed_ir::VariantType {
-        cases: vec![typed_ir::VariantCase {
-            name: tag.clone(),
-            payloads: value
-                .iter()
-                .map(|value| runtime_core_type(&pattern_type(value)))
-                .collect(),
-        }],
-        tail: None,
-    }))
 }
 
 pub(super) fn substitute_hir_type(
@@ -327,4 +46,136 @@ pub(super) fn substitute_hir_type(
         ),
     };
     normalize_hir_function_type(ty)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn substitute_binding_covers_apply_evidence_type_surfaces() {
+        let var = typed_ir::TypeVar("a".to_string());
+        let unit = unit_type();
+        let mut substitutions = BTreeMap::new();
+        substitutions.insert(var.clone(), unit.clone());
+        let binding = Binding {
+            name: path("main"),
+            type_params: vec![var.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: typed_ir::Type::Var(var.clone()),
+            },
+            body: Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(path("f")),
+                        RuntimeType::fun(
+                            RuntimeType::core(typed_ir::Type::Var(var.clone())),
+                            RuntimeType::core(typed_ir::Type::Var(var.clone())),
+                        ),
+                    )),
+                    arg: Box::new(unit_expr()),
+                    evidence: Some(apply_evidence_with_var(&var)),
+                    instantiation: Some(TypeInstantiation {
+                        target: path("f"),
+                        args: vec![crate::ir::TypeSubstitution {
+                            var: var.clone(),
+                            ty: typed_ir::Type::Var(var.clone()),
+                        }],
+                    }),
+                },
+                RuntimeType::core(typed_ir::Type::Var(var.clone())),
+            ),
+        };
+
+        let substituted = substitute_binding(binding, &substitutions);
+        let residuals = collect_binding_runtime_type_residuals(&substituted);
+
+        assert!(
+            residuals
+                .iter()
+                .flat_map(|residual| residual.vars.iter())
+                .all(|residual| residual != &var),
+            "{residuals:?}"
+        );
+    }
+
+    fn apply_evidence_with_var(var: &typed_ir::TypeVar) -> typed_ir::ApplyEvidence {
+        typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::exact(typed_ir::Type::Var(var.clone())),
+            expected_callee: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(
+                var.clone(),
+            ))),
+            arg: typed_ir::TypeBounds::exact(typed_ir::Type::Var(var.clone())),
+            expected_arg: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(
+                var.clone(),
+            ))),
+            result: typed_ir::TypeBounds::exact(typed_ir::Type::Var(var.clone())),
+            principal_callee: Some(typed_ir::Type::Var(var.clone())),
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: var.clone(),
+                ty: typed_ir::Type::Var(var.clone()),
+            }],
+            substitution_candidates: vec![typed_ir::PrincipalSubstitutionCandidate {
+                var: var.clone(),
+                relation: typed_ir::PrincipalCandidateRelation::Exact,
+                ty: typed_ir::Type::Var(var.clone()),
+                source_edge: None,
+                path: Vec::new(),
+            }],
+            role_method: false,
+            principal_elaboration: Some(typed_ir::PrincipalElaborationPlan {
+                target: None,
+                principal_callee: typed_ir::Type::Var(var.clone()),
+                substitutions: vec![typed_ir::TypeSubstitution {
+                    var: var.clone(),
+                    ty: typed_ir::Type::Var(var.clone()),
+                }],
+                args: vec![typed_ir::PrincipalElaborationArg {
+                    index: 0,
+                    intrinsic: typed_ir::TypeBounds::exact(typed_ir::Type::Var(var.clone())),
+                    contextual: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(
+                        var.clone(),
+                    ))),
+                    expected_runtime: Some(typed_ir::Type::Var(var.clone())),
+                    source_edge: None,
+                }],
+                result: typed_ir::PrincipalElaborationResult {
+                    intrinsic: typed_ir::TypeBounds::exact(typed_ir::Type::Var(var.clone())),
+                    contextual: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(
+                        var.clone(),
+                    ))),
+                    expected_runtime: Some(typed_ir::Type::Var(var.clone())),
+                },
+                adapters: vec![typed_ir::PrincipalAdapterHole {
+                    kind: typed_ir::PrincipalAdapterKind::Coerce,
+                    source_edge: None,
+                    actual: typed_ir::Type::Var(var.clone()),
+                    expected: typed_ir::Type::Var(var.clone()),
+                }],
+                complete: true,
+                incomplete_reasons: Vec::new(),
+            }),
+        }
+    }
+
+    fn unit_expr() -> Expr {
+        Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Unit),
+            RuntimeType::core(unit_type()),
+        )
+    }
+
+    fn unit_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path("unit"),
+            args: Vec::new(),
+        }
+    }
+
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
+    }
 }

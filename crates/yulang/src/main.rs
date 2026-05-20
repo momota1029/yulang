@@ -46,12 +46,12 @@ use yulang_parser::expr::parse_expr;
 use yulang_parser::lex::{SyntaxKind, TriviaInfo};
 use yulang_parser::mark::parse::parse_doc;
 use yulang_parser::op::standard_op_table;
-use yulang_parser::parse_module_to_green;
 use yulang_parser::pat::parse::parse_pattern;
 use yulang_parser::scan::trivia::scan_trivia;
 use yulang_parser::sink::{Event, EventSink, VecSink, YulangLanguage};
 use yulang_parser::stmt::parse_statement;
 use yulang_parser::typ::parse::parse_type;
+use yulang_parser::{parse_module_to_green, parse_module_to_green_with_ops};
 use yulang_runtime as runtime;
 use yulang_sources::{
     SourceCompilationUnitOrigin, collect_source_files_with_options,
@@ -90,7 +90,7 @@ where
         .expect("join large-stack yulang thread")
 }
 
-const YUIR_SOURCE_CACHE_VERSION: u32 = 1;
+const YUIR_SOURCE_CACHE_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CliOptions {
@@ -120,6 +120,7 @@ struct CliOptions {
     runtime_phase_timings: bool,
     path: Option<String>,
     no_prelude: bool,
+    no_cache: bool,
     std_root: Option<String>,
     profile_flamegraph: Option<String>,
     profile_repeat: usize,
@@ -182,6 +183,9 @@ struct Cli {
     /// Do not implicitly import std::prelude
     #[arg(long, global = true)]
     no_prelude: bool,
+    /// Disable source and dependency artifact cache reads/writes
+    #[arg(long, global = true)]
+    no_cache: bool,
     /// Use an alternate std source root
     #[arg(long, global = true, value_name = "PATH")]
     std_root: Option<String>,
@@ -430,6 +434,7 @@ fn parse_args() -> CliOptions {
         runtime_phase_timings: cli.runtime_phase_timings,
         path: None,
         no_prelude: cli.no_prelude,
+        no_cache: cli.no_cache,
         std_root: cli.std_root,
         profile_flamegraph: cli.profile_flamegraph,
         profile_repeat: if cli.profile_repeat == 0 {
@@ -801,11 +806,6 @@ fn run(options: &CliOptions) {
         }
 
         let run_semantic_pipeline = options.requests_semantic_pipeline();
-
-        if run_semantic_pipeline && has_invalid_token(&root) {
-            eprintln!("error: invalid token in source");
-            process::exit(1);
-        }
 
         if run_semantic_pipeline {
             run_infer_views(
@@ -1217,6 +1217,10 @@ fn run_infer_views(
     emit_output: bool,
 ) {
     let (source_set, collect_duration) = collect_infer_source_set_or_exit(path, source, options);
+    if source_set_has_invalid_tokens(&source_set) {
+        eprintln!("error: invalid token in source");
+        process::exit(1);
+    }
     if emit_output
         && can_use_yuir_source_cache(options)
         && let Some((module, load_duration)) = read_yuir_source_cache(&source_set)
@@ -4072,6 +4076,14 @@ impl InferPipelineTimings {
     }
 }
 
+fn source_set_has_invalid_tokens(source_set: &SourceSet) -> bool {
+    source_set.files.iter().any(|file| {
+        let green = parse_module_to_green_with_ops(&file.source, file.op_table.clone());
+        let root = SyntaxNode::<YulangLanguage>::new_root(green);
+        has_invalid_token(&root)
+    })
+}
+
 fn lower_infer_sources(
     path: Option<&str>,
     _root: &SyntaxNode<YulangLanguage>,
@@ -4126,8 +4138,9 @@ fn lower_infer_source_set_with_cache(
     let cache = CompiledUnitArtifactCache::from_paths(
         &yulang_sources::YulangCachePaths::for_project(workspace_root()),
     );
-    if let Some(bundle) =
-        read_cached_dependency_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
+    if !options.no_cache
+        && let Some(bundle) =
+            read_cached_dependency_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
     {
         let import_start = pipeline_timings.start();
         let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
@@ -4158,12 +4171,14 @@ fn lower_infer_source_set_with_cache(
     lowered.lowered.state.finalize_compact_results_profiled();
     pipeline_timings.std_artifact_prepare_finalize =
         InferPipelineTimings::elapsed(prepare_finalize_start);
-    write_dependency_unit_artifact_bundle(
-        source_set,
-        &lowered.lowered.state,
-        &cache,
-        &mut pipeline_timings,
-    );
+    if !options.no_cache {
+        write_dependency_unit_artifact_bundle(
+            source_set,
+            &lowered.lowered.state,
+            &cache,
+            &mut pipeline_timings,
+        );
+    }
     let profile = lowered.profile;
     infer_lower_output(
         lowered.lowered,
@@ -4176,6 +4191,7 @@ fn lower_infer_source_set_with_cache(
 
 fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
     options.control_vm
+        && !options.no_cache
         && !options.infer
         && !options.infer_phase_timings
         && !options.core_ir
@@ -5325,6 +5341,7 @@ fn format_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::IntSub => "std::int::sub",
         typed_ir::PrimitiveOp::IntMul => "std::int::mul",
         typed_ir::PrimitiveOp::IntDiv => "std::int::div",
+        typed_ir::PrimitiveOp::IntMod => "std::int::mod",
         typed_ir::PrimitiveOp::IntEq => "std::int::eq",
         typed_ir::PrimitiveOp::IntLt => "std::int::lt",
         typed_ir::PrimitiveOp::IntLe => "std::int::le",
@@ -7044,6 +7061,7 @@ mod tests {
             runtime_phase_timings: false,
             path: None,
             no_prelude: true,
+            no_cache: false,
             std_root: None,
             profile_flamegraph: None,
             profile_repeat: 1,
@@ -7129,6 +7147,18 @@ mod tests {
         options.show_cst = true;
 
         assert!(!options.requests_semantic_pipeline());
+    }
+
+    #[test]
+    fn no_cache_disables_yuir_source_cache() {
+        let mut options = test_cli_options();
+        options.infer = false;
+        options.control_vm = true;
+        assert!(can_use_yuir_source_cache(&options));
+
+        options.no_cache = true;
+        assert!(!can_use_yuir_source_cache(&options));
+        assert!(!can_write_yuir_source_cache(&options));
     }
 
     #[test]

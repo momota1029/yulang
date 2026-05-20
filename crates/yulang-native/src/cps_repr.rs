@@ -1050,6 +1050,7 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | PrimitiveOp::IntSub
         | PrimitiveOp::IntMul
         | PrimitiveOp::IntDiv
+        | PrimitiveOp::IntMod
         | PrimitiveOp::ListLen
         | PrimitiveOp::StringLen
         | PrimitiveOp::BytesLen

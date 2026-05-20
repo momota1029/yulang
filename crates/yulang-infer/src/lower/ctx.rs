@@ -182,6 +182,10 @@ impl LowerCtx {
         self.canonical_value_paths.clone()
     }
 
+    pub fn canonical_type_paths(&self) -> HashMap<DefId, Path> {
+        self.canonical_type_paths.clone()
+    }
+
     pub fn record_canonical_value_path(&mut self, def: DefId, path: Path) {
         self.canonical_value_paths.entry(def).or_insert(path);
     }

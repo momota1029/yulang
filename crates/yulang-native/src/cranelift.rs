@@ -592,6 +592,7 @@ fn lower_primitive(
         typed_ir::PrimitiveOp::IntSub => builder.ins().isub(args[0], args[1]),
         typed_ir::PrimitiveOp::IntMul => builder.ins().imul(args[0], args[1]),
         typed_ir::PrimitiveOp::IntDiv => builder.ins().sdiv(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntMod => builder.ins().srem(args[0], args[1]),
         typed_ir::PrimitiveOp::IntLt => {
             int_cmp(builder, ir::condcodes::IntCC::SignedLessThan, args)
         }
@@ -761,6 +762,7 @@ fn validate_scalar_stmt(
             | typed_ir::PrimitiveOp::IntSub
             | typed_ir::PrimitiveOp::IntMul
             | typed_ir::PrimitiveOp::IntDiv
+            | typed_ir::PrimitiveOp::IntMod
             | typed_ir::PrimitiveOp::IntEq
             | typed_ir::PrimitiveOp::IntLt
             | typed_ir::PrimitiveOp::IntLe

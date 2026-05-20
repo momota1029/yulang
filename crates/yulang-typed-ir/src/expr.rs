@@ -215,6 +215,7 @@ pub enum PrimitiveOp {
     IntSub,
     IntMul,
     IntDiv,
+    IntMod,
     IntEq,
     IntLt,
     IntLe,

@@ -491,6 +491,13 @@ fn project_role_impl_associated_type(
     for (template, actual) in templates.iter().zip(actual_inputs) {
         infer_type_substitutions(template, actual, &impl_vars, &mut substitutions);
     }
+    if templates
+        .iter()
+        .zip(actual_inputs)
+        .any(|(template, actual)| substitute_type(template, &substitutions) != *actual)
+    {
+        return None;
+    }
     choose_bounds_type(
         &substitute_bounds(associated.clone(), &substitutions),
         BoundsChoice::TirEvidence,

@@ -961,7 +961,7 @@ fn rebuild_principal_elaboration_plan_status(
         }
     }
     for arg in &plan.args {
-        if principal_plan_arg_type(arg).is_none() {
+        if !principal_plan_arg_slot_complete(&plan, arg) {
             incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::OpenArgType(
                 arg.index,
             ));
@@ -1019,6 +1019,7 @@ struct PrincipalVarUsage {
     value: bool,
     effect: bool,
     type_arg: bool,
+    effectful_input_value: bool,
 }
 
 impl PrincipalVarUsage {
@@ -1034,8 +1035,12 @@ impl PrincipalVarUsage {
         self.type_arg = true;
     }
 
+    fn mark_effectful_input_value(&mut self) {
+        self.effectful_input_value = true;
+    }
+
     fn never_usable(&self) -> bool {
-        self.effect && !self.value
+        !self.type_arg && ((self.effect && !self.value) || self.effectful_input_value)
     }
 }
 
@@ -1065,6 +1070,9 @@ fn collect_principal_var_usage(
             ret,
         } => {
             collect_principal_var_usage(param, false, usage);
+            if !effect_is_empty(param_effect) {
+                collect_effectful_input_value_usage(param, usage);
+            }
             collect_principal_var_usage(param_effect, true, usage);
             collect_principal_var_usage(ret_effect, true, usage);
             collect_principal_var_usage(ret, false, usage);
@@ -1119,6 +1127,74 @@ fn collect_principal_var_usage(
             usage.remove(var);
         }
         typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+    }
+}
+
+fn collect_effectful_input_value_usage(
+    ty: &typed_ir::Type,
+    usage: &mut BTreeMap<typed_ir::TypeVar, PrincipalVarUsage>,
+) {
+    match ty {
+        typed_ir::Type::Var(var) => {
+            usage
+                .entry(var.clone())
+                .or_default()
+                .mark_effectful_input_value();
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_effectful_input_value_usage(param, usage);
+            collect_principal_var_usage(param_effect, true, usage);
+            collect_principal_var_usage(ret_effect, true, usage);
+            collect_effectful_input_value_usage(ret, usage);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_effectful_input_value_usage(item, usage);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_effectful_input_value_usage(&field.value, usage);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_effectful_input_value_usage(ty, usage);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_effectful_input_value_usage(payload, usage);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_effectful_input_value_usage(tail, usage);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_principal_var_usage(item, true, usage);
+            }
+            collect_principal_var_usage(tail, true, usage);
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            collect_effectful_input_value_usage(body, usage);
+            usage.remove(var);
+        }
+        typed_ir::Type::Named { .. }
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
     }
 }
 
@@ -1207,6 +1283,13 @@ fn collect_principal_type_arg_type_usage(
 }
 
 fn principal_fun_param_at(ty: &typed_ir::Type, index: usize) -> Option<&typed_ir::Type> {
+    principal_fun_param_parts_at(ty, index).map(|(param, _)| param)
+}
+
+fn principal_fun_param_parts_at(
+    ty: &typed_ir::Type,
+    index: usize,
+) -> Option<(&typed_ir::Type, &typed_ir::Type)> {
     let mut current = ty;
     for _ in 0..index {
         current = match current {
@@ -1216,8 +1299,12 @@ fn principal_fun_param_at(ty: &typed_ir::Type, index: usize) -> Option<&typed_ir
         };
     }
     match current {
-        typed_ir::Type::Fun { param, .. } => Some(param),
-        typed_ir::Type::Recursive { body, .. } => principal_fun_param_at(body, 0),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ..
+        } => Some((param, param_effect)),
+        typed_ir::Type::Recursive { body, .. } => principal_fun_param_parts_at(body, 0),
         _ => None,
     }
 }
@@ -1242,6 +1329,21 @@ fn principal_plan_arg_type(arg: &typed_ir::PrincipalElaborationArg) -> Option<ty
         .clone()
         .or_else(|| principal_plan_bounds_slot_type(arg.contextual.as_ref(), false))
         .or_else(|| principal_plan_bounds_slot_type(Some(&arg.intrinsic), false))
+}
+
+fn principal_plan_arg_slot_complete(
+    plan: &typed_ir::PrincipalElaborationPlan,
+    arg: &typed_ir::PrincipalElaborationArg,
+) -> bool {
+    if principal_plan_arg_type(arg).is_some() {
+        return true;
+    }
+    let Some((param, param_effect)) =
+        principal_fun_param_parts_at(&plan.principal_callee, arg.index)
+    else {
+        return false;
+    };
+    matches!(param, typed_ir::Type::Never) && !effect_is_empty(param_effect)
 }
 
 fn principal_plan_result_type(
@@ -1324,6 +1426,12 @@ fn merge_projected_type_precision(
     incoming: &typed_ir::Type,
 ) -> Option<typed_ir::Type> {
     if existing == incoming {
+        return Some(existing.clone());
+    }
+    if needs_runtime_coercion(incoming, existing) {
+        return Some(incoming.clone());
+    }
+    if needs_runtime_coercion(existing, incoming) {
         return Some(existing.clone());
     }
     if core_type_is_unknown(existing) || core_type_is_top(existing) {
@@ -2077,6 +2185,13 @@ fn project_role_impl_associated_type(
         );
     }
     if !conflicts.is_empty() {
+        return None;
+    }
+    if templates
+        .iter()
+        .zip(actual_inputs)
+        .any(|(template, actual)| substitute_type(template, &substitutions) != *actual)
+    {
         return None;
     }
     principal_plan_bounds_slot_type(
@@ -3777,6 +3892,118 @@ mod tests {
                 .contains(&typed_ir::TypeSubstitution {
                     var: tv("item"),
                     ty: named("int"),
+                })
+        );
+    }
+
+    #[test]
+    fn associated_role_requirement_uses_matching_impl_inputs_only() {
+        let plan = typed_ir::PrincipalElaborationPlan {
+            target: Some(typed_ir::Path::from_name(typed_ir::Name("div".to_string()))),
+            principal_callee: typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Var(tv("lhs"))),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(typed_ir::Type::Fun {
+                    param: Box::new(typed_ir::Type::Var(tv("rhs"))),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(typed_ir::Type::Never),
+                    ret: Box::new(typed_ir::Type::Var(tv("out"))),
+                }),
+            },
+            substitutions: vec![
+                typed_ir::TypeSubstitution {
+                    var: tv("lhs"),
+                    ty: named("int"),
+                },
+                typed_ir::TypeSubstitution {
+                    var: tv("rhs"),
+                    ty: named("int"),
+                },
+            ],
+            args: vec![
+                typed_ir::PrincipalElaborationArg {
+                    index: 0,
+                    intrinsic: typed_ir::TypeBounds::exact(named("int")),
+                    contextual: None,
+                    expected_runtime: None,
+                    source_edge: None,
+                },
+                typed_ir::PrincipalElaborationArg {
+                    index: 1,
+                    intrinsic: typed_ir::TypeBounds::exact(named("int")),
+                    contextual: None,
+                    expected_runtime: None,
+                    source_edge: None,
+                },
+            ],
+            result: typed_ir::PrincipalElaborationResult {
+                intrinsic: typed_ir::TypeBounds::default(),
+                contextual: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(tv("out")))),
+                expected_runtime: None,
+            },
+            adapters: Vec::new(),
+            complete: false,
+            incomplete_reasons: Vec::new(),
+        };
+
+        let div = typed_ir::Path::from_name(typed_ir::Name("Div".to_string()));
+        let role_impls = vec![
+            typed_ir::RoleImplGraphNode {
+                role: div.clone(),
+                inputs: vec![
+                    typed_ir::TypeBounds::exact(named("float")),
+                    typed_ir::TypeBounds::exact(named("float")),
+                ],
+                associated_types: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("out".to_string()),
+                    value: typed_ir::TypeBounds::exact(named("float")),
+                    optional: false,
+                }],
+                members: Vec::new(),
+            },
+            typed_ir::RoleImplGraphNode {
+                role: div.clone(),
+                inputs: vec![
+                    typed_ir::TypeBounds::exact(named("int")),
+                    typed_ir::TypeBounds::exact(named("int")),
+                ],
+                associated_types: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("out".to_string()),
+                    value: typed_ir::TypeBounds::exact(named("frac")),
+                    optional: false,
+                }],
+                members: Vec::new(),
+            },
+        ];
+        let normalized = normalize_principal_elaboration_plan_with_role_impls(
+            plan,
+            &[],
+            &[typed_ir::RoleRequirement {
+                role: div,
+                args: vec![
+                    typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::exact(
+                        typed_ir::Type::Var(tv("lhs")),
+                    )),
+                    typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::exact(
+                        typed_ir::Type::Var(tv("rhs")),
+                    )),
+                    typed_ir::RoleRequirementArg::Associated {
+                        name: typed_ir::Name("out".to_string()),
+                        bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Var(tv("out"))),
+                    },
+                ],
+            }],
+            &role_impls,
+        );
+
+        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
+        assert!(
+            normalized
+                .substitutions
+                .contains(&typed_ir::TypeSubstitution {
+                    var: tv("out"),
+                    ty: named("frac"),
                 })
         );
     }

@@ -106,6 +106,10 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         source: include_str!("../std/fold.yu"),
     },
     EmbeddedStdFile {
+        name: "frac.yu",
+        source: include_str!("../std/frac.yu"),
+    },
+    EmbeddedStdFile {
         name: "fs.yu",
         source: include_str!("../std/fs.yu"),
     },

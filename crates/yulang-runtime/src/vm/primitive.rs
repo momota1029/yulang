@@ -34,6 +34,7 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::IntSub
         | typed_ir::PrimitiveOp::IntMul
         | typed_ir::PrimitiveOp::IntDiv
+        | typed_ir::PrimitiveOp::IntMod
         | typed_ir::PrimitiveOp::IntEq
         | typed_ir::PrimitiveOp::IntLt
         | typed_ir::PrimitiveOp::IntLe
@@ -81,6 +82,9 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
         )),
         typed_ir::PrimitiveOp::IntDiv => Ok(VmValue::Int(
             (int_value(&args[0])? / int_value(&args[1])?).to_string(),
+        )),
+        typed_ir::PrimitiveOp::IntMod => Ok(VmValue::Int(
+            (int_value(&args[0])? % int_value(&args[1])?).to_string(),
         )),
         typed_ir::PrimitiveOp::IntEq => {
             Ok(VmValue::Bool(int_value(&args[0])? == int_value(&args[1])?))

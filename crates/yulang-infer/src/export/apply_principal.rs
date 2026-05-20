@@ -213,6 +213,7 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached_profiled
         candidates
     };
     complete_substitutions_from_candidates_and_irrelevant_ret(
+        &principal_scheme.requirements,
         principal_callee,
         ret,
         &params,
@@ -254,10 +255,14 @@ fn apply_principal_substitutions_from_parts(
     }
 
     infer_requirement_substitutions(&mut unifier, requirements);
+    let mut runtime_value_params = BTreeSet::new();
+    collect_runtime_value_type_vars(param, &mut runtime_value_params);
+    collect_runtime_value_type_vars(ret, &mut runtime_value_params);
     infer_source_bound_substitutions(
         infer,
         &mut unifier,
         params,
+        &runtime_value_params,
         base_bounds_cache.as_deref_mut(),
         cache,
     );
@@ -320,10 +325,14 @@ fn infer_source_bound_substitutions(
     infer: &Infer,
     unifier: &mut PrincipalSubstitutionUnifier<'_>,
     params: &BTreeSet<typed_ir::TypeVar>,
+    runtime_value_params: &BTreeSet<typed_ir::TypeVar>,
     mut base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
     cache: &mut CompletePrincipalCache,
 ) {
     for param in params {
+        if runtime_value_params.contains(param) {
+            continue;
+        }
         let Some(tv) = source_type_var_from_exported(param) else {
             continue;
         };
@@ -374,12 +383,16 @@ fn infer_direct_concrete_bound_substitution(
     if !unifier.params.contains(var) {
         return;
     }
+    if type_mentions_var(actual, var) {
+        return;
+    }
     if let Some(actual) = primary_structural_or_concrete_type_not_equal(actual, template) {
         unifier.bind(var, actual, false);
     }
 }
 
 fn complete_substitutions_from_candidates_and_irrelevant_ret(
+    requirements: &[typed_ir::RoleRequirement],
     principal_callee: &typed_ir::Type,
     ret: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -395,8 +408,16 @@ fn complete_substitutions_from_candidates_and_irrelevant_ret(
     collect_runtime_value_type_vars(ret, &mut result_value_vars);
     let mut callee_value_vars = BTreeSet::new();
     collect_runtime_value_type_vars(principal_callee, &mut callee_value_vars);
+    let mut callee_effect_vars = BTreeSet::new();
+    collect_runtime_effect_type_vars(principal_callee, &mut callee_effect_vars);
+    let role_input_vars = collect_direct_role_requirement_vars(requirements);
+    let candidate_value_slot_vars = collect_value_slot_candidate_vars(candidates);
     for param in params {
-        if covered.contains(param) || result_value_vars.contains(param) {
+        if covered.contains(param)
+            || result_value_vars.contains(param)
+            || callee_effect_vars.contains(param)
+            || (role_input_vars.contains(param) && !candidate_value_slot_vars.contains(param))
+        {
             continue;
         }
         substitutions.push(typed_ir::TypeSubstitution {
@@ -415,6 +436,47 @@ fn complete_substitutions_from_candidates_and_irrelevant_ret(
     candidates.retain(|candidate| !covered.contains(&candidate.var));
 }
 
+fn collect_value_slot_candidate_vars(
+    candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+) -> BTreeSet<typed_ir::TypeVar> {
+    candidates
+        .iter()
+        .filter(|candidate| {
+            matches!(
+                candidate.path.first(),
+                Some(
+                    typed_ir::PrincipalSlotPathSegment::Arg
+                        | typed_ir::PrincipalSlotPathSegment::Result
+                )
+            )
+        })
+        .map(|candidate| candidate.var.clone())
+        .collect()
+}
+
+fn collect_direct_role_requirement_vars(
+    requirements: &[typed_ir::RoleRequirement],
+) -> BTreeSet<typed_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    for requirement in requirements {
+        for arg in &requirement.args {
+            let bounds = match arg {
+                typed_ir::RoleRequirementArg::Input(bounds)
+                | typed_ir::RoleRequirementArg::Associated { bounds, .. } => bounds,
+            };
+            collect_direct_bound_var(bounds.lower.as_deref(), &mut vars);
+            collect_direct_bound_var(bounds.upper.as_deref(), &mut vars);
+        }
+    }
+    vars
+}
+
+fn collect_direct_bound_var(ty: Option<&typed_ir::Type>, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    if let Some(typed_ir::Type::Var(var)) = ty {
+        vars.insert(var.clone());
+    }
+}
+
 fn promote_unambiguous_candidate_substitutions(
     substitutions: &mut Vec<typed_ir::TypeSubstitution>,
     candidates: &[typed_ir::PrincipalSubstitutionCandidate],
@@ -425,7 +487,10 @@ fn promote_unambiguous_candidate_substitutions(
         .collect::<BTreeSet<_>>();
     let mut by_var = BTreeMap::<typed_ir::TypeVar, Vec<typed_ir::Type>>::new();
     for candidate in candidates {
-        if covered.contains(&candidate.var) || !substitution_type_usable(&candidate.ty, false) {
+        if covered.contains(&candidate.var)
+            || !substitution_type_usable(&candidate.ty, false)
+            || principal_candidate_is_callee_param_context(candidate)
+        {
             continue;
         }
         let choices = by_var.entry(candidate.var.clone()).or_default();
@@ -440,6 +505,19 @@ fn promote_unambiguous_candidate_substitutions(
         let ty = choices.into_iter().next().unwrap_or(typed_ir::Type::Never);
         substitutions.push(typed_ir::TypeSubstitution { var, ty });
     }
+}
+
+fn principal_candidate_is_callee_param_context(
+    candidate: &typed_ir::PrincipalSubstitutionCandidate,
+) -> bool {
+    matches!(
+        candidate.path.as_slice(),
+        [
+            typed_ir::PrincipalSlotPathSegment::Callee,
+            typed_ir::PrincipalSlotPathSegment::FunctionParam,
+            ..
+        ]
+    )
 }
 
 fn collect_runtime_value_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
@@ -493,6 +571,84 @@ fn collect_runtime_value_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<type
         }
         typed_ir::Type::Recursive { body, .. } => collect_runtime_value_type_vars(body, vars),
         typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+    }
+}
+
+fn collect_runtime_effect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_runtime_value_type_vars(param_effect, vars);
+            collect_runtime_value_type_vars(ret_effect, vars);
+            collect_runtime_effect_type_vars(param, vars);
+            collect_runtime_effect_type_vars(ret, vars);
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_runtime_effect_type_arg_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_runtime_effect_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_runtime_effect_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_runtime_effect_type_vars(ty, vars);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_runtime_effect_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_runtime_effect_type_vars(tail, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_runtime_value_type_vars(item, vars);
+            }
+            collect_runtime_value_type_vars(tail, vars);
+        }
+        typed_ir::Type::Recursive { body, .. } => collect_runtime_effect_type_vars(body, vars),
+        typed_ir::Type::Var(_)
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
+    }
+}
+
+fn collect_runtime_effect_type_arg_vars(
+    arg: &typed_ir::TypeArg,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_runtime_effect_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = &bounds.lower {
+                collect_runtime_effect_type_vars(lower, vars);
+            }
+            if let Some(upper) = &bounds.upper {
+                collect_runtime_effect_type_vars(upper, vars);
+            }
+        }
     }
 }
 
@@ -931,6 +1087,72 @@ fn type_arg_mentions_any_param(
                     .upper
                     .as_ref()
                     .is_some_and(|ty| type_mentions_any_param(ty, params))
+        }
+    }
+}
+
+fn type_mentions_var(ty: &typed_ir::Type, target: &typed_ir::TypeVar) -> bool {
+    match ty {
+        typed_ir::Type::Var(var) => var == target,
+        typed_ir::Type::Named { args, .. } => {
+            args.iter().any(|arg| type_arg_mentions_var(arg, target))
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_mentions_var(param, target)
+                || type_mentions_var(param_effect, target)
+                || type_mentions_var(ret_effect, target)
+                || type_mentions_var(ret, target)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(|item| type_mentions_var(item, target)),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_mentions_var(&field.value, target))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_mentions_var(ty, target)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|payload| type_mentions_var(payload, target))
+            }) || variant
+                .tail
+                .as_ref()
+                .is_some_and(|tail| type_mentions_var(tail, target))
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(|item| type_mentions_var(item, target))
+                || type_mentions_var(tail, target)
+        }
+        typed_ir::Type::Recursive { var, body } => var == target || type_mentions_var(body, target),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+    }
+}
+
+fn type_arg_mentions_var(arg: &typed_ir::TypeArg, target: &typed_ir::TypeVar) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_mentions_var(ty, target),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| type_mentions_var(ty, target))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| type_mentions_var(ty, target))
         }
     }
 }
@@ -1595,6 +1817,13 @@ mod tests {
         }
     }
 
+    fn effect_row(effect: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Row {
+            items: vec![effect],
+            tail: Box::new(typed_ir::Type::Never),
+        }
+    }
+
     fn variant(case_name: &str, payloads: Vec<typed_ir::Type>) -> typed_ir::Type {
         typed_ir::Type::Variant(typed_ir::VariantType {
             cases: vec![typed_ir::VariantCase {
@@ -1691,6 +1920,65 @@ mod tests {
         unifier.infer_value(&typed_ir::Type::Var(tv("t")), &named("bool"));
 
         assert!(unifier.into_substitutions().next().is_none());
+    }
+
+    #[test]
+    fn irrelevant_return_defaults_value_only_param_to_unit() {
+        let principal = fun(typed_ir::Type::Var(tv("t")), typed_ir::Type::Never);
+        let params = BTreeSet::from([tv("t")]);
+        let mut substitutions = Vec::new();
+        let mut candidates = Vec::new();
+
+        complete_substitutions_from_candidates_and_irrelevant_ret(
+            &[],
+            &principal,
+            &typed_ir::Type::Never,
+            &params,
+            &mut substitutions,
+            &mut candidates,
+        );
+
+        assert_eq!(
+            substitutions,
+            vec![typed_ir::TypeSubstitution {
+                var: tv("t"),
+                ty: typed_ir::Type::Tuple(Vec::new())
+            }]
+        );
+    }
+
+    #[test]
+    fn irrelevant_return_keeps_effect_payload_param_open() {
+        let effect = typed_ir::Type::Named {
+            path: typed_ir::Path {
+                segments: vec![
+                    typed_ir::Name("std".to_string()),
+                    typed_ir::Name("flow".to_string()),
+                    typed_ir::Name("sub".to_string()),
+                ],
+            },
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(tv("t")))],
+        };
+        let principal = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Var(tv("t"))),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(effect_row(effect)),
+            ret: Box::new(typed_ir::Type::Never),
+        };
+        let params = BTreeSet::from([tv("t")]);
+        let mut substitutions = Vec::new();
+        let mut candidates = Vec::new();
+
+        complete_substitutions_from_candidates_and_irrelevant_ret(
+            &[],
+            &principal,
+            &typed_ir::Type::Never,
+            &params,
+            &mut substitutions,
+            &mut candidates,
+        );
+
+        assert!(substitutions.is_empty());
     }
 
     #[test]

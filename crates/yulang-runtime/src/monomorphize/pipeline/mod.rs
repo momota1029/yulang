@@ -12,7 +12,10 @@ use std::time::Duration;
 use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::invariant::{RuntimeStage, check_runtime_invariants, check_strict_runtime_value_types};
+use crate::invariant::{
+    RuntimeStage, check_runtime_invariants, check_strict_runtime_type_surfaces,
+    check_strict_runtime_value_types,
+};
 use crate::ir::{
     Binding, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, MatchArm, Module, Pattern,
     RecordExprField, RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding,
@@ -27,7 +30,7 @@ use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
     core_type_has_vars, effect_is_empty, effect_paths_match, hir_type_has_vars,
     project_runtime_effect, project_runtime_type_with_vars, runtime_core_type, should_thunk_effect,
-    substitute_apply_evidence, substitute_join_evidence, substitute_scheme, substitute_type,
+    substitute_type,
 };
 use crate::validate::validate_module;
 
@@ -384,6 +387,9 @@ fn run_principal_elaborate_pipeline(
 fn check_strict_monomorphized_runtime_types_if_requested(module: &Module) -> RuntimeResult<()> {
     if std::env::var_os("YULANG_STRICT_MONO_RUNTIME_TYPES").is_some() {
         check_strict_runtime_value_types(module, RuntimeStage::Monomorphized)?;
+    }
+    if std::env::var_os("YULANG_STRICT_MONO_TYPE_SURFACES").is_some() {
+        check_strict_runtime_type_surfaces(module, RuntimeStage::Monomorphized)?;
     }
     Ok(())
 }

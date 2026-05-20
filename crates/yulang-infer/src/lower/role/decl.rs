@@ -160,6 +160,13 @@ fn lower_role_method_binding(
             role: role_path.clone(),
             args: role_arg_tvs.to_vec(),
             sig: sig.clone(),
+            input_names: sig
+                .as_ref()
+                .map(role_method_input_names)
+                .unwrap_or_default(),
+            output_name: sig
+                .as_ref()
+                .and_then(|sig| role_method_output_name(sig, role_arg_names)),
             has_receiver,
             has_default_body: body_node.is_some(),
         },
@@ -403,4 +410,39 @@ fn collect_fun_input_sig_vars(sig: &SigType) -> HashSet<String> {
     let mut out = HashSet::new();
     collect_fun_input_sig_vars_inner(sig, &mut out);
     out
+}
+
+fn role_method_input_names(sig: &SigType) -> Vec<Option<String>> {
+    let mut out = Vec::new();
+    collect_role_method_input_names(sig, &mut out);
+    out
+}
+
+fn collect_role_method_input_names(sig: &SigType, out: &mut Vec<Option<String>>) {
+    if let SigType::Fun { arg, ret, .. } = sig {
+        out.push(sig_input_name(arg));
+        collect_role_method_input_names(ret, out);
+    }
+}
+
+fn sig_input_name(sig: &SigType) -> Option<String> {
+    match sig {
+        SigType::Var(var) => Some(var.name.clone()),
+        _ => None,
+    }
+}
+
+fn role_method_output_name(sig: &SigType, role_arg_names: &[String]) -> Option<String> {
+    match sig {
+        SigType::Fun { ret, .. } => role_method_output_name(ret, role_arg_names),
+        SigType::Var(var) => Some(var.name.clone()),
+        SigType::Prim { path, .. } if path.segments.len() == 1 => {
+            let name = path.segments[0].0.as_str();
+            role_arg_names
+                .iter()
+                .any(|role_arg| role_arg == name)
+                .then(|| name.to_string())
+        }
+        _ => None,
+    }
 }

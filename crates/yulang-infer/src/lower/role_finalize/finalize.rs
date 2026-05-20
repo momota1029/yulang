@@ -10,9 +10,11 @@ use crate::scc::{
     compress_components, compute_component_sccs, refs_by_def, refs_by_owner,
     share_type_vars_within_sccs_with_refs_by_owner,
 };
+use crate::scheme::compact_pos_type;
 use crate::simplify::compact::{CompactType, CompactTypeScheme};
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraints;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
+use crate::types::Neg;
 
 use super::super::{FinalizeCompactProfile, FinalizeCompactResults};
 use super::{
@@ -318,6 +320,7 @@ impl LowerState {
                 }
 
                 if !replacements.is_empty() {
+                    self.apply_role_output_replacements_to_live_graph(&replacements);
                     scheme = apply_role_output_replacements_to_scheme(&scheme, &replacements);
                     remaining =
                         apply_role_output_replacements_to_constraints(&remaining, &replacements);
@@ -347,6 +350,17 @@ impl LowerState {
         };
         let stripped = self.strip_transparent_expansive_wrappers(body);
         !self.is_syntactic_value_expr(stripped)
+    }
+
+    fn apply_role_output_replacements_to_live_graph(
+        &mut self,
+        replacements: &[(TypeVar, CompactType)],
+    ) {
+        let empty_scheme = CompactTypeScheme::default();
+        for (target, ty) in replacements {
+            let pos = compact_pos_type(&self.infer.arena, ty, &empty_scheme, false);
+            self.infer.constrain(pos, Neg::Var(*target));
+        }
     }
 
     fn strip_transparent_expansive_wrappers<'a>(&'a self, expr: &'a TypedExpr) -> &'a TypedExpr {

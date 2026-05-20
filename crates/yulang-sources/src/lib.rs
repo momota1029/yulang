@@ -115,7 +115,7 @@ pub fn collect_source_files_with_options(
     ))
 }
 
-pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 10;
+pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 13;
 pub const COMPILED_UNIT_PARSER_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -4200,6 +4200,53 @@ version = "0.1.3"
             matches!(
                 item,
                 NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Prefix && tok.text() == "fail"
+            )
+        }));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn implicit_prelude_reexports_operator_syntax_from_std_ops() {
+        let root = temp_root("implicit-prelude-reexported-operator-syntax");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("std")).unwrap();
+        fs::write(root.join("main.yu"), "my y = 5 div 2\nmy z = 5 mod 2\n").unwrap();
+        fs::write(root.join("std").join("prelude.yu"), "pub use std::ops::*\n").unwrap();
+        fs::write(
+            root.join("std").join("ops.yu"),
+            "pub infix(div) 60 61 = \\x -> \\y -> x\npub infix(mod) 60 61 = \\x -> \\y -> x\n",
+        )
+        .unwrap();
+
+        let set = collect_source_files_with_options(
+            root.join("main.yu"),
+            SourceOptions {
+                std_root: Some(root.join("std")),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let main = set
+            .files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let parsed = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(&main.source, main.op_table.clone()),
+        );
+
+        assert!(parsed.descendants_with_tokens().any(|item| {
+            matches!(
+                item,
+                NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "div"
+            )
+        }));
+        assert!(parsed.descendants_with_tokens().any(|item| {
+            matches!(
+                item,
+                NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "mod"
             )
         }));
 

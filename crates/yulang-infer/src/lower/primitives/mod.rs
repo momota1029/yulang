@@ -114,6 +114,7 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
     install_int_binary_primitive(state, int_module, "sub", typed_ir::PrimitiveOp::IntSub);
     install_int_binary_primitive(state, int_module, "mul", typed_ir::PrimitiveOp::IntMul);
     install_int_binary_primitive(state, int_module, "div", typed_ir::PrimitiveOp::IntDiv);
+    install_int_binary_primitive(state, int_module, "mod", typed_ir::PrimitiveOp::IntMod);
     install_int_binary_predicate_primitive(state, int_module, "eq", typed_ir::PrimitiveOp::IntEq);
     install_int_binary_predicate_primitive(state, int_module, "lt", typed_ir::PrimitiveOp::IntLt);
     install_int_binary_predicate_primitive(state, int_module, "le", typed_ir::PrimitiveOp::IntLe);

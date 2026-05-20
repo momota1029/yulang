@@ -519,7 +519,13 @@ impl Infer {
             self.add_edge(owner, info.def);
             self.decrement_pending_selection(owner);
             self.instantiate_role_constraints_for_owner(info.def, owner, &subst);
-            self.add_role_method_call_constraint_for_owner(info, owner, recv_tv, &[]);
+            self.add_role_method_call_constraint_for_owner(
+                info,
+                owner,
+                recv_tv,
+                &[],
+                selection.result_tv,
+            );
         }
         let method_resolution =
             super::role_method::resolve_role_method_call(self, info, Some(recv_tv), &[]);

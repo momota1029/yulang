@@ -108,6 +108,7 @@ fn supported_primitive(op: typed_ir::PrimitiveOp) -> bool {
             | typed_ir::PrimitiveOp::IntSub
             | typed_ir::PrimitiveOp::IntMul
             | typed_ir::PrimitiveOp::IntDiv
+            | typed_ir::PrimitiveOp::IntMod
             | typed_ir::PrimitiveOp::IntEq
             | typed_ir::PrimitiveOp::IntLt
             | typed_ir::PrimitiveOp::IntLe

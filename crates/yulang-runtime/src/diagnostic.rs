@@ -305,6 +305,7 @@ fn display_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::IntSub => "-",
         typed_ir::PrimitiveOp::IntMul => "*",
         typed_ir::PrimitiveOp::IntDiv => "/",
+        typed_ir::PrimitiveOp::IntMod => "mod",
         typed_ir::PrimitiveOp::IntEq => "==",
         typed_ir::PrimitiveOp::IntLt => "<",
         typed_ir::PrimitiveOp::IntLe => "<=",

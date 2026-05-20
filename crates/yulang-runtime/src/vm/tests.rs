@@ -751,6 +751,20 @@ handle (sub:
     }
 
     #[test]
+    fn control_vm_runs_source_mixed_numeric_add_with_float_widening() {
+        let results = eval_control_source_with_std("(1 + 2.5, 1.0 + 2, 1 + 2)\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Float("3.5".to_string()),
+                TestValue::Float("3.0".to_string()),
+                TestValue::Int("3".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_matches_struct_constructor_patterns_as_records() {
         let results = eval_source_with_std(
             r#"struct pair { a: int, b: int }
@@ -1435,6 +1449,30 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
         );
 
         assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_int_div_frac_show_without_annotation() {
+        let (results, stdout) = eval_source_with_std_host("(1 / 3).show.say\n");
+
+        assert_eq!(stdout, "1/3\n");
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_source_int_div_frac_say_without_annotation() {
+        let (results, stdout) = eval_source_with_std_host("(1 / 3).say\n");
+
+        assert_eq!(stdout, "1/3\n");
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn control_vm_runs_source_int_float_div_with_runtime_cast() {
+        let (results, stdout) = eval_control_source_with_std_host("(1 / 3.0).say\n");
+
+        assert_eq!(stdout, "0.3333333333333333\n");
+        assert_eq!(results, vec![TestValue::Unit]);
     }
 
     #[test]

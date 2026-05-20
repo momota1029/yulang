@@ -383,7 +383,7 @@ pub struct StdInferSnapshot {
     data: StdInferSnapshotData,
 }
 
-pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 1;
+pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotManifest {
@@ -582,6 +582,10 @@ pub struct StdInferSnapshotRoleMethod {
     pub role: Vec<String>,
     pub name: String,
     pub symbol: u32,
+    #[serde(default)]
+    pub input_names: Vec<Option<String>>,
+    #[serde(default)]
+    pub output_name: Option<String>,
     pub has_receiver: bool,
     pub has_default_body: bool,
 }
@@ -1190,6 +1194,8 @@ fn import_compiled_typed_lookup_tables(
             role: path_from_snapshot_segments(&method.role),
             args: Vec::new(),
             sig: None,
+            input_names: method.input_names.clone(),
+            output_name: method.output_name.clone(),
             has_receiver: method.has_receiver,
             has_default_body: method.has_default_body,
         };
@@ -2309,20 +2315,10 @@ fn missing_snapshot_paths<T>(
 fn collect_std_snapshot_values(
     state: &LowerState,
 ) -> (Vec<StdInferSnapshotSymbol>, HashMap<crate::ids::DefId, u32>) {
-    let mut values = state
-        .ctx
-        .collect_all_binding_paths()
-        .into_iter()
-        .map(|(path, def)| {
-            (
-                def,
-                StdInferSnapshotSymbol {
-                    path: snapshot_path_segments(&path),
-                    snapshot_id: 0,
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut values = canonical_snapshot_symbols(
+        state.ctx.collect_all_binding_paths(),
+        &state.ctx.canonical_value_paths(),
+    );
     values.sort_by(|(_, lhs), (_, rhs)| lhs.path.cmp(&rhs.path));
     let mut id_map = HashMap::new();
     for (index, (def, symbol)) in values.iter_mut().enumerate() {
@@ -2338,20 +2334,10 @@ fn collect_std_snapshot_values(
 fn collect_std_snapshot_types(
     state: &LowerState,
 ) -> (Vec<StdInferSnapshotSymbol>, HashMap<crate::ids::DefId, u32>) {
-    let mut types = state
-        .ctx
-        .collect_all_type_paths()
-        .into_iter()
-        .map(|(path, def)| {
-            (
-                def,
-                StdInferSnapshotSymbol {
-                    path: snapshot_path_segments(&path),
-                    snapshot_id: 0,
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut types = canonical_snapshot_symbols(
+        state.ctx.collect_all_type_paths(),
+        &state.ctx.canonical_type_paths(),
+    );
     types.sort_by(|(_, lhs), (_, rhs)| lhs.path.cmp(&rhs.path));
     let mut id_map = HashMap::new();
     for (index, (def, symbol)) in types.iter_mut().enumerate() {
@@ -2362,6 +2348,36 @@ fn collect_std_snapshot_types(
         types.into_iter().map(|(_, symbol)| symbol).collect(),
         id_map,
     )
+}
+
+fn canonical_snapshot_symbols(
+    paths: Vec<(Path, crate::ids::DefId)>,
+    canonical_paths: &HashMap<crate::ids::DefId, Path>,
+) -> Vec<(crate::ids::DefId, StdInferSnapshotSymbol)> {
+    let mut by_def = HashMap::<crate::ids::DefId, Path>::new();
+    for (path, def) in paths {
+        let path = canonical_paths.get(&def).cloned().unwrap_or(path);
+        by_def
+            .entry(def)
+            .and_modify(|current| {
+                if snapshot_path_segments(&path) < snapshot_path_segments(current) {
+                    *current = path.clone();
+                }
+            })
+            .or_insert(path);
+    }
+    by_def
+        .into_iter()
+        .map(|(def, path)| {
+            (
+                def,
+                StdInferSnapshotSymbol {
+                    path: snapshot_path_segments(&path),
+                    snapshot_id: 0,
+                },
+            )
+        })
+        .collect()
 }
 
 fn collect_std_snapshot_schemes(
@@ -2447,6 +2463,8 @@ fn collect_std_snapshot_role_methods(
                     role: snapshot_path_segments(&info.role),
                     name: info.name.0.clone(),
                     symbol,
+                    input_names: info.input_names.clone(),
+                    output_name: info.output_name.clone(),
                     has_receiver: info.has_receiver,
                     has_default_body: info.has_default_body,
                 })
@@ -2652,13 +2670,12 @@ fn compiled_namespace_surface_for_modules(
         &unit_paths,
         &mut value_defs,
     );
-    let no_canonical_paths = HashMap::new();
     let types = compiled_namespace_symbols_for_defs(
         type_paths,
         module_ids
             .iter()
             .flat_map(|module| state.ctx.modules.node(*module).types.values().copied()),
-        &no_canonical_paths,
+        &state.ctx.canonical_type_paths(),
         &unit_paths,
         &mut type_defs,
     );
@@ -3842,6 +3859,8 @@ fn compiled_typed_surface_for_namespace(
                     role: method.role.clone(),
                     name: method.name.clone(),
                     symbol,
+                    input_names: method.input_names.clone(),
+                    output_name: method.output_name.clone(),
                     has_receiver: method.has_receiver,
                     has_default_body: method.has_default_body,
                 })
@@ -4313,15 +4332,15 @@ fn import_compiled_namespace_module_entries(
             let Some(def) = types.get(ty.symbol as usize).and_then(|def| *def) else {
                 continue;
             };
+            state.ctx.record_canonical_type_path(
+                def,
+                compiled_namespace_symbol_path(&surface.types, ty.symbol),
+            );
             state.insert_type_with_visibility(
                 module_id,
                 Name(ty.name.clone()),
                 def,
                 import_snapshot_visibility(ty.visibility),
-            );
-            state.ctx.record_canonical_type_path(
-                def,
-                compiled_namespace_symbol_path(&surface.types, ty.symbol),
             );
         }
     }

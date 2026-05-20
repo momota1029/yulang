@@ -74,7 +74,12 @@ fn lower_expr_chain_prefix_with_pipe_arg(
                     Some(t.text_range()),
                 ));
             }
-            Token(t) if matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) => {
+            Token(t)
+                if matches!(
+                    t.kind(),
+                    SyntaxKind::Ident | SyntaxKind::SigilIdent | SyntaxKind::Mod
+                ) =>
+            {
                 path_segs.push(Name(t.text().to_string()));
                 path_tail_span = Some(t.text_range());
             }
@@ -518,6 +523,7 @@ fn path_sep_ident_with_span(node: &SyntaxNode) -> Option<(Name, rowan::TextRange
                     | SyntaxKind::Infix
                     | SyntaxKind::Suffix
                     | SyntaxKind::Nullfix
+                    | SyntaxKind::Mod
             )
         })
         .map(|t| (Name(t.text().to_string()), t.text_range()))

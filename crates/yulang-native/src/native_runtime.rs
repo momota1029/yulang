@@ -42,6 +42,7 @@ pub const NATIVE_PRIMITIVE_FLOAT_GT: i64 = 118;
 pub const NATIVE_PRIMITIVE_FLOAT_GE: i64 = 119;
 pub const NATIVE_PRIMITIVE_STRING_INDEX: i64 = 120;
 pub const NATIVE_PRIMITIVE_STRING_EQ: i64 = 121;
+pub const NATIVE_PRIMITIVE_INT_MOD: i64 = 122;
 
 #[derive(Default)]
 pub struct NativeRuntimeContext {
@@ -251,6 +252,9 @@ pub fn primitive_binary(
         }
         NATIVE_PRIMITIVE_INT_DIV => {
             runtime::VmValue::Int((int_value(left)? / int_value(right)?).to_string())
+        }
+        NATIVE_PRIMITIVE_INT_MOD => {
+            runtime::VmValue::Int((int_value(left)? % int_value(right)?).to_string())
         }
         NATIVE_PRIMITIVE_INT_EQ => runtime::VmValue::Bool(int_value(left)? == int_value(right)?),
         NATIVE_PRIMITIVE_INT_LT => runtime::VmValue::Bool(int_value(left)? < int_value(right)?),

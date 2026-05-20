@@ -309,6 +309,7 @@ fn is_path_segment(token: &Token<ExprNudTag>) -> bool {
             | SyntaxKind::Infix
             | SyntaxKind::Suffix
             | SyntaxKind::Nullfix
+            | SyntaxKind::Mod
     )
 }
 

@@ -37,6 +37,8 @@ pub struct RoleMethodInfo {
     pub role: Path,
     pub args: Vec<TypeVar>,
     pub sig: Option<crate::lower::signature::SigType>,
+    pub input_names: Vec<Option<String>>,
+    pub output_name: Option<String>,
     pub has_receiver: bool,
     pub has_default_body: bool,
 }

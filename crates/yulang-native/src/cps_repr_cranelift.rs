@@ -5395,7 +5395,8 @@ fn mmtk_yvalue_primitive_supported(op: typed_ir::PrimitiveOp) -> bool {
         | typed_ir::PrimitiveOp::IntToUpperHex
         | typed_ir::PrimitiveOp::BoolToString
         | typed_ir::PrimitiveOp::FloatToString => true,
-        typed_ir::PrimitiveOp::CharEq
+        typed_ir::PrimitiveOp::IntMod
+        | typed_ir::PrimitiveOp::CharEq
         | typed_ir::PrimitiveOp::CharToString
         | typed_ir::PrimitiveOp::CharIsWhitespace
         | typed_ir::PrimitiveOp::CharIsPunctuation
@@ -5516,6 +5517,16 @@ fn lower_primitive<M: Module>(
                 )?
             } else {
                 builder.ins().sdiv(args[0], args[1])
+            }
+        }
+        typed_ir::PrimitiveOp::IntMod => {
+            if mmtk_yvalue_primitive_lane_enabled(options) {
+                return Err(CpsReprCraneliftError::UnsupportedPrimitive {
+                    function: function.name.clone(),
+                    op,
+                });
+            } else {
+                builder.ins().srem(args[0], args[1])
             }
         }
         typed_ir::PrimitiveOp::IntEq => mmtk_int_pred_or_scalar_cmp(
@@ -6309,6 +6320,7 @@ fn validate_primitive(
         | typed_ir::PrimitiveOp::IntSub
         | typed_ir::PrimitiveOp::IntMul
         | typed_ir::PrimitiveOp::IntDiv
+        | typed_ir::PrimitiveOp::IntMod
         | typed_ir::PrimitiveOp::IntEq
         | typed_ir::PrimitiveOp::IntLt
         | typed_ir::PrimitiveOp::IntLe
@@ -6952,6 +6964,7 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | typed_ir::PrimitiveOp::IntSub
         | typed_ir::PrimitiveOp::IntMul
         | typed_ir::PrimitiveOp::IntDiv
+        | typed_ir::PrimitiveOp::IntMod
         | typed_ir::PrimitiveOp::ListLen
         | typed_ir::PrimitiveOp::StringLen
         | typed_ir::PrimitiveOp::BytesLen

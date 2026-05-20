@@ -392,9 +392,11 @@ fn primitive_result_repr(
         | PrimitiveOp::CharIsPunctuation
         | PrimitiveOp::CharIsWord
         | PrimitiveOp::BytesEq => NativeAbiRepr::Bool,
-        PrimitiveOp::IntAdd | PrimitiveOp::IntSub | PrimitiveOp::IntMul | PrimitiveOp::IntDiv => {
-            NativeAbiRepr::Int
-        }
+        PrimitiveOp::IntAdd
+        | PrimitiveOp::IntSub
+        | PrimitiveOp::IntMul
+        | PrimitiveOp::IntDiv
+        | PrimitiveOp::IntMod => NativeAbiRepr::Int,
         PrimitiveOp::FloatAdd
         | PrimitiveOp::FloatSub
         | PrimitiveOp::FloatMul

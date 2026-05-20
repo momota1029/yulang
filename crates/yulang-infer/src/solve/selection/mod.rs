@@ -60,6 +60,9 @@ impl Infer {
         subst: &[(TypeVar, TypeVar)],
         frozen_scheme: Option<&FrozenScheme>,
     ) {
+        if self.is_role_method_def(source_def) {
+            return;
+        }
         let subst = self.translate_frozen_subst_to_original_with_scheme(frozen_scheme, subst);
         let compact_constraints = self.compact_role_constraints_of(source_def);
         if !compact_constraints.is_empty() {

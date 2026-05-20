@@ -37,6 +37,7 @@ pub use std::bytes::*
 pub use std::path::*
 pub use std::parse::parse
 pub use std::range::*
+pub use std::frac::*
 pub use std::undet::each
 pub use std::undet::guard
 pub use std::index::Index
@@ -64,7 +65,8 @@ pub role Mul 'a:
     our a.mul: 'a -> 'a
 
 pub role Div 'a:
-    our a.div: 'a -> 'a
+    type out
+    our a.div: 'a -> out
 
 pub role Len 'a:
     our a.len: int
@@ -83,6 +85,8 @@ pub role Cast 'from:
     our from.cast: to
 
 cast(p: path): bytes = std::path::to_bytes p
+cast(x: int): frac = std::frac::new x 1
+cast(x: frac): float = std::frac::to_float x
 
 pub role LowerHex 'a:
     our a.lower_hex: str
@@ -100,7 +104,8 @@ impl Mul int:
     our x.mul y = std::int::mul x y
 
 impl Div int:
-    our x.div y = std::int::div x y
+    type out = frac
+    our x.div y = std::frac::new x y
 
 impl Eq int:
     our x.eq y = std::int::eq x y
@@ -133,6 +138,7 @@ impl Mul float:
     our x.mul y = std::float::mul x y
 
 impl Div float:
+    type out = float
     our x.div y = std::float::div x y
 
 impl Eq float:
@@ -148,6 +154,34 @@ impl Display float:
     our x.show = std::float::to_string x
 
 impl Debug float:
+    our x.debug = x.show
+
+impl Add frac:
+    our x.add y = std::frac::add x y
+
+impl Sub frac:
+    our x.sub y = std::frac::sub x y
+
+impl Mul frac:
+    our x.mul y = std::frac::mul x y
+
+impl Div frac:
+    type out = frac
+    our x.div y = std::frac::div x y
+
+impl Eq frac:
+    our x.eq y = std::frac::eq x y
+
+impl Ord frac:
+    our x.lt y = std::frac::lt x y
+    our x.le y = std::frac::le x y
+    our x.gt y = std::frac::gt x y
+    our x.ge y = std::frac::ge x y
+
+impl Display frac:
+    our x.show = std::frac::to_string x
+
+impl Debug frac:
     our x.debug = x.show
 
 impl Eq bool:

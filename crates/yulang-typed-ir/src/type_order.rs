@@ -1,17 +1,26 @@
 use crate::{Name, Path, Type};
 
 pub fn can_widen_named_paths(actual: &Path, expected: &Path) -> bool {
-    actual == expected || is_standard_int_path(actual) && is_standard_float_path(expected)
+    actual == expected
+        || is_standard_int_path(actual) && is_standard_frac_path(expected)
+        || is_standard_frac_path(actual) && is_standard_float_path(expected)
+        || is_standard_int_path(actual) && is_standard_float_path(expected)
 }
 
 pub fn join_named_paths(left: &Path, right: &Path) -> Option<Path> {
     if left == right {
         return Some(left.clone());
     }
-    if is_standard_int_path(left) && is_standard_float_path(right)
-        || is_standard_float_path(left) && is_standard_int_path(right)
+    if is_standard_float_path(left) && (is_standard_int_path(right) || is_standard_frac_path(right))
+        || is_standard_float_path(right)
+            && (is_standard_int_path(left) || is_standard_frac_path(left))
     {
         return Some(standard_float_path());
+    }
+    if is_standard_int_path(left) && is_standard_frac_path(right)
+        || is_standard_frac_path(left) && is_standard_int_path(right)
+    {
+        return Some(standard_frac_path());
     }
     None
 }
@@ -64,12 +73,24 @@ fn is_standard_float_path(path: &Path) -> bool {
     path == &standard_float_path()
 }
 
+fn is_standard_frac_path(path: &Path) -> bool {
+    path == &standard_frac_path()
+}
+
 fn standard_int_path() -> Path {
     Path::from_name(Name("int".to_string()))
 }
 
 fn standard_float_path() -> Path {
     Path::from_name(Name("float".to_string()))
+}
+
+fn standard_frac_path() -> Path {
+    Path::new(vec![
+        Name("std".to_string()),
+        Name("frac".to_string()),
+        Name("frac".to_string()),
+    ])
 }
 
 #[cfg(test)]
@@ -98,6 +119,23 @@ mod tests {
     fn widens_int_to_float() {
         assert!(can_widen_named_paths(
             &Path::from_name(Name("int".to_string())),
+            &Path::from_name(Name("float".to_string())),
+        ));
+    }
+
+    #[test]
+    fn widens_int_to_frac_and_frac_to_float() {
+        let frac = Path::new(vec![
+            Name("std".to_string()),
+            Name("frac".to_string()),
+            Name("frac".to_string()),
+        ]);
+        assert!(can_widen_named_paths(
+            &Path::from_name(Name("int".to_string())),
+            &frac,
+        ));
+        assert!(can_widen_named_paths(
+            &frac,
             &Path::from_name(Name("float".to_string())),
         ));
     }

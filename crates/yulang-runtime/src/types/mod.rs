@@ -268,6 +268,36 @@ mod tests {
     }
 
     #[test]
+    fn project_runtime_effect_erases_open_effect_atom_args() {
+        let raw = typed_ir::Type::Row {
+            items: vec![
+                named("std::flow::sub"),
+                effect_with_type_arg("std::flow::sub", typed_ir::Type::Unknown),
+            ],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+
+        let projected = project_runtime_effect(&raw);
+
+        assert_eq!(
+            projected,
+            typed_ir::Type::Row {
+                items: vec![named("std::flow::sub")],
+                tail: Box::new(typed_ir::Type::Never),
+            }
+        );
+    }
+
+    #[test]
+    fn project_runtime_effect_keeps_closed_effect_atom_args() {
+        let sub_int = effect_with_type_arg("std::flow::sub", named("int"));
+
+        let projected = project_runtime_effect(&sub_int);
+
+        assert_eq!(projected, sub_int);
+    }
+
+    #[test]
     fn closed_projection_erases_synthetic_ref_effect_args_in_rows() {
         let loop_effect = named("std::flow::loop");
         let ref_effect = effect_with_type_arg("&count#1", typed_ir::Type::Unknown);

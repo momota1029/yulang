@@ -1806,6 +1806,7 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::IntSub
         | PrimitiveOp::IntMul
         | PrimitiveOp::IntDiv
+        | PrimitiveOp::IntMod
         | PrimitiveOp::IntEq
         | PrimitiveOp::IntLt
         | PrimitiveOp::IntLe

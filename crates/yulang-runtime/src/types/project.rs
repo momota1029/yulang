@@ -319,22 +319,19 @@ impl<'a> RuntimeTypeProjector<'a> {
 
     pub(super) fn project_effect(&mut self, ty: &typed_ir::Type) -> typed_ir::Type {
         match ty {
+            typed_ir::Type::Unknown => typed_ir::Type::Never,
             typed_ir::Type::Never => typed_ir::Type::Never,
             typed_ir::Type::Any => typed_ir::Type::Any,
             typed_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
                 typed_ir::Type::Var(var.clone())
             }
-            typed_ir::Type::Var(_) => runtime_projection_fallback_type(),
+            typed_ir::Type::Var(_) => typed_ir::Type::Never,
             typed_ir::Type::Named { path, args } if is_never_path(path) && args.is_empty() => {
                 typed_ir::Type::Never
             }
             typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
                 path: path.clone(),
-                args: if is_synthetic_var_effect_path(path) {
-                    Vec::new()
-                } else {
-                    args.iter().map(|arg| self.project_arg(arg)).collect()
-                },
+                args: self.project_effect_atom_args(path, args),
             },
             typed_ir::Type::Row { items, tail } => self.project_effect_row(items, tail),
             typed_ir::Type::Union(items) => self.project_effect_choice(items),
@@ -379,6 +376,24 @@ impl<'a> RuntimeTypeProjector<'a> {
             effect => push_unique_effect(&mut projected, effect),
         }
         runtime_effect_row_from_items(projected)
+    }
+
+    fn project_effect_atom_args(
+        &mut self,
+        path: &typed_ir::Path,
+        args: &[typed_ir::TypeArg],
+    ) -> Vec<typed_ir::TypeArg> {
+        if is_synthetic_var_effect_path(path) {
+            return Vec::new();
+        }
+        let projected = args
+            .iter()
+            .map(|arg| self.project_arg(arg))
+            .collect::<Vec<_>>();
+        if projected.iter().any(type_arg_contains_runtime_hole) {
+            return Vec::new();
+        }
+        projected
     }
 
     pub(super) fn project_effect_choice(&mut self, items: &[typed_ir::Type]) -> typed_ir::Type {
@@ -513,6 +528,70 @@ fn type_arg_type_is_effect_like(ty: &typed_ir::Type) -> bool {
         }
         typed_ir::Type::Recursive { body, .. } => type_arg_type_is_effect_like(body),
         _ => false,
+    }
+}
+
+fn type_arg_contains_runtime_hole(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => core_type_contains_runtime_hole(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .is_some_and(core_type_contains_runtime_hole)
+                || bounds
+                    .upper
+                    .as_deref()
+                    .is_some_and(core_type_contains_runtime_hole)
+        }
+    }
+}
+
+fn core_type_contains_runtime_hole(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_runtime_hole),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_contains_runtime_hole(param)
+                || core_type_contains_runtime_hole(param_effect)
+                || core_type_contains_runtime_hole(ret_effect)
+                || core_type_contains_runtime_hole(ret)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_type_contains_runtime_hole),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_contains_runtime_hole(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        core_type_contains_runtime_hole(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_type_contains_runtime_hole))
+                || variant
+                    .tail
+                    .as_deref()
+                    .is_some_and(core_type_contains_runtime_hole)
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_contains_runtime_hole)
+                || core_type_contains_runtime_hole(tail)
+        }
+        typed_ir::Type::Recursive { body, .. } => core_type_contains_runtime_hole(body),
+        typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => false,
     }
 }
 

@@ -1,11 +1,13 @@
+use std::collections::BTreeSet;
+
 use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::ir::{
-    Expr, ExprKind, MatchArm, Module, Pattern, RecordExprField, RecordPatternField,
-    RecordSpreadExpr, RecordSpreadPattern, Stmt, Type as RuntimeType,
+    Expr, ExprKind, HandleEffect, JoinEvidence, MatchArm, Module, Pattern, RecordExprField,
+    RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, Stmt, Type as RuntimeType,
 };
-use crate::types::core_type_is_runtime_projection_fallback;
+use crate::types::{core_type_is_runtime_projection_fallback, type_compatible};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeStage {
@@ -28,6 +30,7 @@ pub fn check_runtime_invariants(module: &Module, stage: RuntimeStage) -> Runtime
     let mut checker = InvariantChecker {
         stage,
         strict_value_types: false,
+        strict_type_surfaces: false,
     };
     for binding in &module.bindings {
         if matches!(stage, RuntimeStage::BeforeVm) && !binding.type_params.is_empty() {
@@ -52,6 +55,28 @@ pub fn check_strict_runtime_value_types(module: &Module, stage: RuntimeStage) ->
     let mut checker = InvariantChecker {
         stage,
         strict_value_types: true,
+        strict_type_surfaces: false,
+    };
+    for binding in &module.bindings {
+        checker.expr(
+            &binding.body,
+            format!("binding {}", path_name(&binding.name)),
+        )?;
+    }
+    for (index, expr) in module.root_exprs.iter().enumerate() {
+        checker.expr(expr, format!("root #{index}"))?;
+    }
+    Ok(())
+}
+
+pub fn check_strict_runtime_type_surfaces(
+    module: &Module,
+    stage: RuntimeStage,
+) -> RuntimeResult<()> {
+    let mut checker = InvariantChecker {
+        stage,
+        strict_value_types: true,
+        strict_type_surfaces: true,
     };
     for binding in &module.bindings {
         checker.expr(
@@ -68,6 +93,7 @@ pub fn check_strict_runtime_value_types(module: &Module, stage: RuntimeStage) ->
 struct InvariantChecker {
     stage: RuntimeStage,
     strict_value_types: bool,
+    strict_type_surfaces: bool,
 }
 
 impl InvariantChecker {
@@ -85,21 +111,47 @@ impl InvariantChecker {
                 "runtime expression type must not contain unresolved runtime fallback",
             );
         }
+        if self.strict_surfaces_enabled() && !matches!(expr.kind, ExprKind::Thunk { .. }) {
+            self.strict_runtime_type_surface(&expr.ty, format!("{context}.ty"))?;
+        }
         match &expr.kind {
             ExprKind::Lambda { body, .. } => self.expr(body, format!("{context}/lambda")),
-            ExprKind::Apply { callee, arg, .. } => {
+            ExprKind::Apply {
+                callee,
+                arg,
+                evidence,
+                instantiation,
+            } => {
                 self.expr(callee, format!("{context}/apply.callee"))?;
-                self.expr(arg, format!("{context}/apply.arg"))
+                self.expr(arg, format!("{context}/apply.arg"))?;
+                if self.strict_surfaces_enabled() {
+                    if let Some(evidence) = evidence {
+                        self.apply_evidence(evidence, format!("{context}/apply.evidence"))?;
+                    }
+                    if let Some(instantiation) = instantiation {
+                        self.type_instantiation(
+                            instantiation,
+                            format!("{context}/apply.instantiation"),
+                        )?;
+                    }
+                }
+                Ok(())
             }
             ExprKind::If {
                 cond,
                 then_branch,
                 else_branch,
-                ..
+                evidence,
             } => {
                 self.expr(cond, format!("{context}/if.cond"))?;
                 self.expr(then_branch, format!("{context}/if.then"))?;
-                self.expr(else_branch, format!("{context}/if.else"))
+                self.expr(else_branch, format!("{context}/if.else"))?;
+                if self.strict_surfaces_enabled()
+                    && let Some(evidence) = evidence
+                {
+                    self.join_evidence(evidence, format!("{context}/if.evidence"))?;
+                }
+                Ok(())
             }
             ExprKind::Tuple(items) => {
                 for (index, item) in items.iter().enumerate() {
@@ -121,11 +173,16 @@ impl InvariantChecker {
             }
             ExprKind::Select { base, .. } => self.expr(base, format!("{context}/select")),
             ExprKind::Match {
-                scrutinee, arms, ..
+                scrutinee,
+                arms,
+                evidence,
             } => {
                 self.expr(scrutinee, format!("{context}/match.scrutinee"))?;
                 for (index, arm) in arms.iter().enumerate() {
                     self.match_arm(arm, format!("{context}/match.arm[{index}]"))?;
+                }
+                if self.strict_surfaces_enabled() {
+                    self.join_evidence(evidence, format!("{context}/match.evidence"))?;
                 }
                 Ok(())
             }
@@ -142,10 +199,15 @@ impl InvariantChecker {
                 body,
                 arms,
                 handler,
+                evidence,
                 ..
             } => {
                 if !handler.consumes.is_empty() && !matches!(body.ty, RuntimeType::Thunk { .. }) {
                     return self.fail(context, "effectful handler body must be a thunk");
+                }
+                if self.strict_surfaces_enabled() {
+                    self.join_evidence(evidence, format!("{context}/handle.evidence"))?;
+                    self.handle_effect(handler, format!("{context}/handle.effect"))?;
                 }
                 self.expr(body, format!("{context}/handle.body"))?;
                 for (index, arm) in arms.iter().enumerate() {
@@ -153,6 +215,14 @@ impl InvariantChecker {
                         &arm.payload,
                         format!("{context}/handle.arm[{index}].payload"),
                     )?;
+                    if self.strict_surfaces_enabled()
+                        && let Some(resume) = &arm.resume
+                    {
+                        self.strict_runtime_type_surface(
+                            &resume.ty,
+                            format!("{context}/handle.arm[{index}].resume"),
+                        )?;
+                    }
                     if let Some(guard) = &arm.guard {
                         self.expr(guard, format!("{context}/handle.arm[{index}].guard"))?;
                     }
@@ -180,6 +250,10 @@ impl InvariantChecker {
                         "VM thunk value type must not contain runtime fallback Any",
                     );
                 }
+                if self.strict_surfaces_enabled() {
+                    self.strict_core_type_surface(effect, format!("{context}/thunk.effect"))?;
+                    self.strict_runtime_type_surface(value, format!("{context}/thunk.value"))?;
+                }
                 match &expr.ty {
                     RuntimeType::Thunk {
                         effect: ty_effect,
@@ -195,7 +269,12 @@ impl InvariantChecker {
             ExprKind::LocalPushId { body, .. } => {
                 self.expr(body, format!("{context}/local_push_id"))
             }
-            ExprKind::AddId { thunk, .. } => self.expr(thunk, format!("{context}/add_id")),
+            ExprKind::AddId { allowed, thunk, .. } => {
+                if self.strict_surfaces_enabled() {
+                    self.strict_core_type_surface(allowed, format!("{context}/add_id.allowed"))?;
+                }
+                self.expr(thunk, format!("{context}/add_id"))
+            }
             ExprKind::Coerce {
                 expr: inner,
                 from,
@@ -210,6 +289,10 @@ impl InvariantChecker {
                         context,
                         "VM coerce type must not contain runtime fallback Any",
                     );
+                }
+                if self.strict_surfaces_enabled() {
+                    self.strict_core_type_surface(from, format!("{context}/coerce.from"))?;
+                    self.strict_core_type_surface(to, format!("{context}/coerce.to"))?;
                 }
                 self.expr(inner, format!("{context}/coerce"))
             }
@@ -255,6 +338,9 @@ impl InvariantChecker {
                 "runtime pattern type must not contain unresolved runtime fallback",
             );
         }
+        if self.strict_surfaces_enabled() {
+            self.strict_runtime_type_surface(pattern_ty(pattern), format!("{context}.ty"))?;
+        }
         match pattern {
             Pattern::Tuple { items, .. } | Pattern::List { prefix: items, .. } => {
                 for (index, item) in items.iter().enumerate() {
@@ -297,6 +383,167 @@ impl InvariantChecker {
             Pattern::As { pattern, .. } => self.pattern(pattern, format!("{context}/as")),
             Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => Ok(()),
         }
+    }
+
+    fn strict_surfaces_enabled(&self) -> bool {
+        self.strict_type_surfaces
+            && matches!(
+                self.stage,
+                RuntimeStage::Monomorphized | RuntimeStage::BeforeVm
+            )
+    }
+
+    fn apply_evidence(
+        &mut self,
+        evidence: &typed_ir::ApplyEvidence,
+        context: String,
+    ) -> RuntimeResult<()> {
+        self.type_bounds(&evidence.callee, format!("{context}.callee"))?;
+        if let Some(bounds) = &evidence.expected_callee {
+            self.type_bounds(bounds, format!("{context}.expected_callee"))?;
+        }
+        self.type_bounds(&evidence.arg, format!("{context}.arg"))?;
+        if let Some(bounds) = &evidence.expected_arg {
+            self.type_bounds(bounds, format!("{context}.expected_arg"))?;
+        }
+        self.type_bounds(&evidence.result, format!("{context}.result"))?;
+        if let Some(principal) = &evidence.principal_callee {
+            self.strict_core_type_surface(principal, format!("{context}.principal_callee"))?;
+        }
+        for (index, substitution) in evidence.substitutions.iter().enumerate() {
+            self.strict_core_type_surface(
+                &substitution.ty,
+                format!("{context}.substitution[{index}]"),
+            )?;
+        }
+        for (index, candidate) in evidence.substitution_candidates.iter().enumerate() {
+            self.strict_core_type_surface(&candidate.ty, format!("{context}.candidate[{index}]"))?;
+        }
+        if let Some(plan) = &evidence.principal_elaboration {
+            self.principal_elaboration_plan(plan, format!("{context}.principal_elaboration"))?;
+        }
+        Ok(())
+    }
+
+    fn principal_elaboration_plan(
+        &mut self,
+        plan: &typed_ir::PrincipalElaborationPlan,
+        context: String,
+    ) -> RuntimeResult<()> {
+        self.strict_core_type_surface(
+            &plan.principal_callee,
+            format!("{context}.principal_callee"),
+        )?;
+        for (index, substitution) in plan.substitutions.iter().enumerate() {
+            self.strict_core_type_surface(
+                &substitution.ty,
+                format!("{context}.substitution[{index}]"),
+            )?;
+        }
+        for arg in &plan.args {
+            self.type_bounds(
+                &arg.intrinsic,
+                format!("{context}.arg[{}].intrinsic", arg.index),
+            )?;
+            if let Some(bounds) = &arg.contextual {
+                self.type_bounds(bounds, format!("{context}.arg[{}].contextual", arg.index))?;
+            }
+            if let Some(ty) = &arg.expected_runtime {
+                self.strict_core_type_surface(
+                    ty,
+                    format!("{context}.arg[{}].expected_runtime", arg.index),
+                )?;
+            }
+        }
+        self.type_bounds(
+            &plan.result.intrinsic,
+            format!("{context}.result.intrinsic"),
+        )?;
+        if let Some(bounds) = &plan.result.contextual {
+            self.type_bounds(bounds, format!("{context}.result.contextual"))?;
+        }
+        if let Some(ty) = &plan.result.expected_runtime {
+            self.strict_core_type_surface(ty, format!("{context}.result.expected_runtime"))?;
+        }
+        for (index, adapter) in plan.adapters.iter().enumerate() {
+            self.strict_core_type_surface(
+                &adapter.actual,
+                format!("{context}.adapter[{index}].actual"),
+            )?;
+            self.strict_core_type_surface(
+                &adapter.expected,
+                format!("{context}.adapter[{index}].expected"),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn type_instantiation(
+        &mut self,
+        instantiation: &crate::ir::TypeInstantiation,
+        context: String,
+    ) -> RuntimeResult<()> {
+        for (index, substitution) in instantiation.args.iter().enumerate() {
+            self.strict_core_type_surface(&substitution.ty, format!("{context}.arg[{index}]"))?;
+        }
+        Ok(())
+    }
+
+    fn join_evidence(&mut self, evidence: &JoinEvidence, context: String) -> RuntimeResult<()> {
+        self.strict_core_type_surface(&evidence.result, format!("{context}.result"))
+    }
+
+    fn handle_effect(&mut self, handler: &HandleEffect, context: String) -> RuntimeResult<()> {
+        if let Some(ty) = &handler.residual_before {
+            self.strict_core_type_surface(ty, format!("{context}.residual_before"))?;
+        }
+        if let Some(ty) = &handler.residual_after {
+            self.strict_core_type_surface(ty, format!("{context}.residual_after"))?;
+        }
+        Ok(())
+    }
+
+    fn type_bounds(&mut self, bounds: &typed_ir::TypeBounds, context: String) -> RuntimeResult<()> {
+        if let Some(lower) = bounds.lower.as_deref() {
+            self.strict_core_type_surface(lower, format!("{context}.lower"))?;
+        }
+        if let Some(upper) = bounds.upper.as_deref() {
+            self.strict_core_type_surface(upper, format!("{context}.upper"))?;
+        }
+        if let (Some(lower), Some(upper)) = (bounds.lower.as_deref(), bounds.upper.as_deref())
+            && !type_compatible(upper, lower)
+        {
+            return self.fail(context, "type bounds lower must be compatible with upper");
+        }
+        Ok(())
+    }
+
+    fn strict_runtime_type_surface(
+        &mut self,
+        ty: &RuntimeType,
+        context: String,
+    ) -> RuntimeResult<()> {
+        if runtime_type_has_unresolved_hole(ty) {
+            return self.fail(
+                format!("{context}: {:?}", ty),
+                "runtime type surface must not contain unresolved type hole",
+            );
+        }
+        Ok(())
+    }
+
+    fn strict_core_type_surface(
+        &mut self,
+        ty: &typed_ir::Type,
+        context: String,
+    ) -> RuntimeResult<()> {
+        if core_type_has_unresolved_hole(ty) {
+            return self.fail(
+                format!("{context}: {:?}", ty),
+                "runtime type surface must not contain unresolved type hole",
+            );
+        }
+        Ok(())
     }
 
     fn record_spread(
@@ -369,6 +616,98 @@ fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool
         RuntimeType::Thunk { value, .. } => {
             runtime_type_has_runtime_fallback_in_value_position(value)
         }
+    }
+}
+
+fn runtime_type_has_unresolved_hole(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => true,
+        RuntimeType::Core(ty) => core_type_has_unresolved_hole(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_has_unresolved_hole(param) || runtime_type_has_unresolved_hole(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_has_unresolved_hole(effect) || runtime_type_has_unresolved_hole(value)
+        }
+    }
+}
+
+fn core_type_has_unresolved_hole(ty: &typed_ir::Type) -> bool {
+    core_type_has_unresolved_hole_inner(ty, &mut BTreeSet::new())
+}
+
+fn core_type_has_unresolved_hole_inner(
+    ty: &typed_ir::Type,
+    bound: &mut BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    match ty {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Var(var) => !bound.contains(var),
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(ty) => core_type_has_unresolved_hole_inner(ty, bound),
+            typed_ir::TypeArg::Bounds(bounds) => {
+                bounds
+                    .lower
+                    .as_deref()
+                    .is_some_and(|ty| core_type_has_unresolved_hole_inner(ty, bound))
+                    || bounds
+                        .upper
+                        .as_deref()
+                        .is_some_and(|ty| core_type_has_unresolved_hole_inner(ty, bound))
+            }
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_has_unresolved_hole_inner(param, bound)
+                || core_type_has_unresolved_hole_inner(param_effect, bound)
+                || core_type_has_unresolved_hole_inner(ret_effect, bound)
+                || core_type_has_unresolved_hole_inner(ret, bound)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items
+            .iter()
+            .any(|item| core_type_has_unresolved_hole_inner(item, bound)),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_has_unresolved_hole_inner(&field.value, bound))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        core_type_has_unresolved_hole_inner(ty, bound)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|payload| core_type_has_unresolved_hole_inner(payload, bound))
+            }) || variant
+                .tail
+                .as_deref()
+                .is_some_and(|tail| core_type_has_unresolved_hole_inner(tail, bound))
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| core_type_has_unresolved_hole_inner(item, bound))
+                || core_type_has_unresolved_hole_inner(tail, bound)
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            let inserted = bound.insert(var.clone());
+            let has_hole = core_type_has_unresolved_hole_inner(body, bound);
+            if inserted {
+                bound.remove(var);
+            }
+            has_hole
+        }
+        typed_ir::Type::Never | typed_ir::Type::Any => false,
     }
 }
 
@@ -573,7 +912,7 @@ mod tests {
         ));
 
         let err =
-            check_strict_runtime_value_types(&module, RuntimeStage::Monomorphized).unwrap_err();
+            check_strict_runtime_type_surfaces(&module, RuntimeStage::Monomorphized).unwrap_err();
 
         assert!(matches!(
             err,
@@ -604,12 +943,131 @@ mod tests {
         ));
 
         let err =
-            check_strict_runtime_value_types(&module, RuntimeStage::Monomorphized).unwrap_err();
+            check_strict_runtime_type_surfaces(&module, RuntimeStage::Monomorphized).unwrap_err();
 
         assert!(matches!(
             err,
             RuntimeError::InvariantViolation {
                 message: "runtime pattern type must not contain unresolved runtime fallback",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_add_id_allowed_after_monomorphize() {
+        let module = module_with_expr(Expr::typed(
+            ExprKind::AddId {
+                id: EffectIdRef::Peek,
+                allowed: typed_ir::Type::Unknown,
+                active: true,
+                thunk: Box::new(unit_thunk()),
+            },
+            RuntimeType::thunk(typed_ir::Type::Never, RuntimeType::core(unit())),
+        ));
+
+        let err =
+            check_strict_runtime_type_surfaces(&module, RuntimeStage::Monomorphized).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "runtime type surface must not contain unresolved type hole",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_handle_effect_after_monomorphize() {
+        let module = module_with_expr(Expr::typed(
+            ExprKind::Handle {
+                body: Box::new(unit_expr()),
+                arms: Vec::new(),
+                evidence: JoinEvidence { result: unit() },
+                handler: HandleEffect {
+                    consumes: Vec::new(),
+                    residual_before: Some(typed_ir::Type::Unknown),
+                    residual_after: None,
+                },
+            },
+            RuntimeType::core(unit()),
+        ));
+
+        let err =
+            check_strict_runtime_type_surfaces(&module, RuntimeStage::Monomorphized).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "runtime type surface must not contain unresolved type hole",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_apply_evidence_after_monomorphize() {
+        let module = module_with_expr(apply_expr_with_evidence(typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::exact(fun_type(unit(), unit())),
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::exact(unit()),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::exact(unit()),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: vec![typed_ir::PrincipalSubstitutionCandidate {
+                var: typed_ir::TypeVar("a".to_string()),
+                relation: typed_ir::PrincipalCandidateRelation::Exact,
+                ty: typed_ir::Type::Unknown,
+                source_edge: None,
+                path: Vec::new(),
+            }],
+            role_method: false,
+            principal_elaboration: None,
+        }));
+
+        let err =
+            check_strict_runtime_type_surfaces(&module, RuntimeStage::Monomorphized).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "runtime type surface must not contain unresolved type hole",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_conflicting_apply_evidence_bounds_after_monomorphize() {
+        let module = module_with_expr(apply_expr_with_evidence(typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds {
+                lower: Some(Box::new(named("int"))),
+                upper: Some(Box::new(named("str"))),
+            },
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::exact(unit()),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::exact(unit()),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        }));
+
+        let err =
+            check_strict_runtime_type_surfaces(&module, RuntimeStage::Monomorphized).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "type bounds lower must be compatible with upper",
                 ..
             }
         ));
@@ -635,8 +1093,50 @@ mod tests {
         }
     }
 
+    fn apply_expr_with_evidence(evidence: typed_ir::ApplyEvidence) -> Expr {
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name("f".to_string()))),
+                    RuntimeType::fun(RuntimeType::core(unit()), RuntimeType::core(unit())),
+                )),
+                arg: Box::new(unit_expr()),
+                evidence: Some(evidence),
+                instantiation: None,
+            },
+            RuntimeType::core(unit()),
+        )
+    }
+
+    fn unit_expr() -> Expr {
+        Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Unit),
+            RuntimeType::core(unit()),
+        )
+    }
+
+    fn unit_thunk() -> Expr {
+        Expr::typed(
+            ExprKind::Thunk {
+                effect: typed_ir::Type::Never,
+                value: RuntimeType::core(unit()),
+                expr: Box::new(unit_expr()),
+            },
+            RuntimeType::thunk(typed_ir::Type::Never, RuntimeType::core(unit())),
+        )
+    }
+
     fn unit() -> typed_ir::Type {
         named("unit")
+    }
+
+    fn fun_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
+            param: Box::new(param),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(ret),
+        }
     }
 
     fn named(name: &str) -> typed_ir::Type {

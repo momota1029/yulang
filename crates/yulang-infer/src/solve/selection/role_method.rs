@@ -25,12 +25,14 @@ impl Infer {
             .and_then(|path| role_method_info_for_path(&self.role_methods, path))
             .or_else(|| self.role_methods.get(&call.name).cloned())
             && let Some(owner) = call.owner
+            && role_method_value_arg_count(&info).is_none_or(|arity| call.arg_tvs.len() >= arity)
         {
             self.add_role_method_call_constraint_for_owner(
                 &info,
                 owner,
                 call.recv_tv,
                 &call.arg_tvs,
+                call.result_tv,
             );
         }
         self.deferred_role_method_calls.borrow_mut().push(call);
@@ -215,6 +217,7 @@ impl Infer {
                             owner,
                             call.recv_tv,
                             &call.arg_tvs,
+                            call.result_tv,
                         );
                     }
                     unresolved.push(call);
@@ -231,8 +234,13 @@ impl Infer {
         owner: crate::ids::DefId,
         recv_tv: TypeVar,
         arg_tvs: &[TypeVar],
+        result_tv: TypeVar,
     ) {
-        let Some(constraint) = self.role_method_call_constraint(info, recv_tv, arg_tvs) else {
+        if role_method_value_arg_count(info).is_some_and(|arity| arg_tvs.len() < arity) {
+            return;
+        }
+        let Some(constraint) = self.role_method_call_constraint(info, recv_tv, arg_tvs, result_tv)
+        else {
             return;
         };
         self.add_role_constraint(owner, constraint);
@@ -243,18 +251,19 @@ impl Infer {
         info: &RoleMethodInfo,
         recv_tv: TypeVar,
         arg_tvs: &[TypeVar],
+        result_tv: TypeVar,
     ) -> Option<RoleConstraint> {
         let arg_infos = self.role_arg_infos_of(&info.role);
-        if arg_infos.iter().any(|info| !info.is_input) {
-            return None;
-        }
-        let input_tvs = role_method_input_tvs(info, &arg_infos, Some(recv_tv), arg_tvs)?;
-        if input_tvs.len() != arg_infos.len() {
-            return None;
-        }
-        let mut args = Vec::with_capacity(input_tvs.len());
-        for tvs in input_tvs {
-            let tv = *tvs.first()?;
+        let input_map = role_method_input_tv_map(info, &arg_infos, Some(recv_tv), arg_tvs)?;
+        let mut args = Vec::with_capacity(arg_infos.len());
+        for arg_info in &arg_infos {
+            let tv = if arg_info.is_input {
+                *input_map.get(&arg_info.name)?.first()?
+            } else if info.output_name.as_deref() == Some(arg_info.name.as_str()) {
+                result_tv
+            } else {
+                return None;
+            };
             args.push(RoleConstraintArg {
                 pos: self.alloc_pos(Pos::Var(tv)),
                 neg: self.alloc_neg(Neg::Var(tv)),
@@ -664,6 +673,24 @@ fn role_method_input_tvs(
     recv_tv: Option<TypeVar>,
     arg_tvs: &[TypeVar],
 ) -> Option<Vec<Vec<TypeVar>>> {
+    let mapped = role_method_input_tv_map(info, arg_infos, recv_tv, arg_tvs)?;
+    let input_names = arg_infos
+        .iter()
+        .filter(|info| info.is_input)
+        .map(|info| info.name.clone())
+        .collect::<Vec<_>>();
+    input_names
+        .into_iter()
+        .map(|name| mapped.get(&name).cloned())
+        .collect()
+}
+
+fn role_method_input_tv_map(
+    info: &RoleMethodInfo,
+    arg_infos: &[RoleArgInfo],
+    recv_tv: Option<TypeVar>,
+    arg_tvs: &[TypeVar],
+) -> Option<HashMap<String, Vec<TypeVar>>> {
     let mut mapped = HashMap::<String, Vec<TypeVar>>::new();
     let mut remaining_arg_tvs = arg_tvs;
     if info.has_receiver {
@@ -678,53 +705,14 @@ fn role_method_input_tvs(
         let recv_name = arg_infos.iter().find(|info| info.is_input)?.name.clone();
         mapped.entry(recv_name).or_default().push(recv_tv);
     }
-    if let Some(sig) = info.sig.as_ref() {
-        let mut sig_inputs = Vec::new();
-        collect_sig_input_var_names(sig, &mut sig_inputs);
-        for (arg_tv, sig_name) in remaining_arg_tvs.iter().zip(sig_inputs) {
-            if let Some(name) = sig_name {
-                mapped.entry(name).or_default().push(*arg_tv);
-            }
+    for (arg_tv, sig_name) in remaining_arg_tvs.iter().zip(&info.input_names) {
+        if let Some(name) = sig_name {
+            mapped.entry(name.clone()).or_default().push(*arg_tv);
         }
     }
-    let input_names = arg_infos
-        .iter()
-        .filter(|info| info.is_input)
-        .map(|info| info.name.clone())
-        .collect::<Vec<_>>();
-    input_names
-        .into_iter()
-        .map(|name| mapped.get(&name).cloned())
-        .collect()
-}
-
-fn collect_sig_input_var_names(
-    sig: &crate::lower::signature::SigType,
-    out: &mut Vec<Option<String>>,
-) {
-    match sig {
-        crate::lower::signature::SigType::Fun { arg, ret, .. } => {
-            out.push(sig_var_name(arg));
-            collect_sig_input_var_names(ret, out);
-        }
-        _ => {}
-    }
-}
-
-fn sig_var_name(sig: &crate::lower::signature::SigType) -> Option<String> {
-    match sig {
-        crate::lower::signature::SigType::Var(var) => Some(var.name.clone()),
-        _ => None,
-    }
+    Some(mapped)
 }
 
 fn role_method_value_arg_count(info: &RoleMethodInfo) -> Option<usize> {
-    info.sig.as_ref().map(count_sig_value_args)
-}
-
-fn count_sig_value_args(sig: &crate::lower::signature::SigType) -> usize {
-    match sig {
-        crate::lower::signature::SigType::Fun { ret, .. } => 1 + count_sig_value_args(ret),
-        _ => 0,
-    }
+    Some(info.input_names.len())
 }

@@ -912,6 +912,16 @@ impl ControlInt {
         }
     }
 
+    fn rem(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Small(left), Self::Small(right)) => left
+                .checked_rem(*right)
+                .map(Self::Small)
+                .unwrap_or_else(|| Self::normalize(BigInt::from(*left) % BigInt::from(*right))),
+            _ => Self::normalize(self.to_bigint() % other.to_bigint()),
+        }
+    }
+
     fn to_bigint(&self) -> BigInt {
         match self {
             Self::Small(value) => BigInt::from(*value),
@@ -2570,6 +2580,9 @@ fn control_apply_primitive(
         )),
         typed_ir::PrimitiveOp::IntDiv => Ok(ControlValue::Int(
             control_int_value(&args[0])?.div(control_int_value(&args[1])?),
+        )),
+        typed_ir::PrimitiveOp::IntMod => Ok(ControlValue::Int(
+            control_int_value(&args[0])?.rem(control_int_value(&args[1])?),
         )),
         typed_ir::PrimitiveOp::IntEq => Ok(ControlValue::Bool(
             control_int_value(&args[0])? == control_int_value(&args[1])?,
