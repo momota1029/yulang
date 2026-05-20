@@ -194,7 +194,7 @@ pub fn collect_source_with_constraints(source_set: &SourceSet) -> Vec<SourceWith
             let Some(import_path) = import_module_path(&use_.import) else {
                 continue;
             };
-            let Some(target) = realm_identity_from_import_path(&import_path) else {
+            let Some(target) = realm_identity_from_import_path(&import_path, source_set) else {
                 continue;
             };
             constraints.push(SourceWithConstraint {
@@ -232,17 +232,42 @@ fn use_realm_version(import: &UseImport) -> Option<RealmVersion> {
     }
 }
 
-fn realm_identity_from_import_path(path: &ModulePath) -> Option<RealmIdentity> {
+fn realm_identity_from_import_path(
+    path: &ModulePath,
+    source_set: &SourceSet,
+) -> Option<RealmIdentity> {
     if path.segments.is_empty() {
         return None;
     }
-    Some(RealmIdentity(
-        path.segments
-            .iter()
-            .map(|segment| segment.0.as_str())
-            .collect::<Vec<_>>()
-            .join("/"),
-    ))
+    source_set
+        .realms
+        .iter()
+        .filter_map(|realm| {
+            let segments = realm_identity_segments(&realm.id.identity);
+            (!segments.is_empty()
+                && segments.len() < path.segments.len()
+                && segments
+                    .iter()
+                    .zip(&path.segments)
+                    .all(|(left, right)| left == &right.0))
+            .then_some((segments.len(), realm.id.identity.clone()))
+        })
+        .max_by_key(|(len, _)| *len)
+        .map(|(_, identity)| identity)
+        .or_else(|| {
+            path.segments
+                .first()
+                .map(|segment| RealmIdentity(segment.0.clone()))
+        })
+}
+
+fn realm_identity_segments(identity: &RealmIdentity) -> Vec<String> {
+    identity
+        .0
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn format_band_path(path: &BandPath) -> String {
@@ -338,10 +363,7 @@ mod tests {
         let constraints = collect_source_with_constraints(&source_set);
 
         assert_eq!(constraints.len(), 1);
-        assert_eq!(
-            constraints[0].target,
-            RealmIdentity("ui/widget".to_string())
-        );
+        assert_eq!(constraints[0].target, RealmIdentity("ui".to_string()));
         assert_eq!(
             constraints[0].anchor,
             BandPath::from_segments(vec![Name("program".to_string()), Name("ui".to_string())])
@@ -373,7 +395,7 @@ mod tests {
         assert_eq!(
             lock.with_constraints[0].resolved,
             ResolvedRealmId {
-                identity: RealmIdentity("ui/widget".to_string()),
+                identity: RealmIdentity("ui".to_string()),
                 version: Some(RealmVersion("2.4".to_string())),
             }
         );
@@ -405,12 +427,12 @@ mod tests {
         assert_eq!(lock.with_constraints.len(), 1);
         assert_eq!(
             lock.with_constraints[0].target,
-            RealmIdentity("ui/widget".to_string())
+            RealmIdentity("ui".to_string())
         );
         assert_eq!(
             lock.with_constraints[0].resolved,
             ResolvedRealmId {
-                identity: RealmIdentity("ui/widget".to_string()),
+                identity: RealmIdentity("ui".to_string()),
                 version: None,
             }
         );

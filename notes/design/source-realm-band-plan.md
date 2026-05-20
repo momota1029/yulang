@@ -518,15 +518,21 @@ Current first slice:
   `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
   file, validates its `with` constraints, and fails if the generated graph would
   change it.
+- source collection can resolve cross-realm `use` when the target realm already
+  exists locally. It first honors `yulang.lock` resolved realm sources, then
+  falls back to `[dependencies]` in `realm.toml` plus `search_paths` or the
+  persistent `realms/` cache. Loaded files keep their source-level import path
+  for lowering while their `ResolvedBandId` is assigned inside the target
+  realm.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by
   the same `mod` edge rule.
 
 This is intentionally still mostly an identity and storage layer. It does not
-yet fetch git dependencies, resolve external realm imports, implement full
-`band::module` absolute lookup, resolve `with` constraints, or automatically
-use the persistent compiled-unit cache during lowering.
+yet fetch git dependencies, implement full version solving for manifest
+requirements, resolve `with` constraints, or automatically use the persistent
+compiled-unit cache during lowering.
 
 Resolver work can then proceed in phases:
 
@@ -536,7 +542,7 @@ Resolver work can then proceed in phases:
 4. canonical path parser for `realm@version/band::module`;
 5. version suffix extraction from CST into structured resolver metadata;
 6. realm manifest and lock file;
-7. cross-realm `use` resolution;
+7. cross-realm `use` resolution for already-local realms;
 8. `with` version alignment constraints;
 9. git / GitHub realm fetch;
 10. persistent realm fetch cache;

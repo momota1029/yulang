@@ -51,14 +51,18 @@ pub fn collect_virtual_source_files_with_options(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
-    let mut loader = SourceLoader::new(options);
+    let mut loader = SourceLoader::new(options, None);
+    loader.register_realm(
+        virtual_single_file_realm_id(),
+        SourceRealmRoot::Virtual,
+        Vec::new(),
+    );
     loader.load_virtual_entry(source, base_dir.as_deref())?;
     sort_files_topologically(&mut loader.files);
     build_syntax_tables(&mut loader.files);
-    Ok(SourceSet::from_files_with_realm(
+    Ok(SourceSet::from_files_with_realms(
         loader.files,
-        virtual_single_file_realm_id(),
-        SourceRealmRoot::Virtual,
+        loader.realms,
     ))
 }
 
@@ -82,25 +86,30 @@ pub fn collect_source_files_with_options(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
-    let mut loader = SourceLoader::new(options);
     let entry = entry.as_ref();
     let realm_root = local_realm_root(entry);
     let manifest = load_realm_manifest(&realm_root)?;
-    loader.load_entry(entry)?;
+    let lock = load_realm_lock(&realm_root)?;
+    let realm_id = manifest
+        .as_ref()
+        .map(|manifest| manifest.id.clone())
+        .unwrap_or_else(|| local_realm_id(entry));
+    let dependencies = manifest
+        .as_ref()
+        .map(|manifest| manifest.dependencies.clone())
+        .unwrap_or_default();
+    let mut loader = SourceLoader::new(options, lock);
+    loader.register_realm(
+        realm_id.clone(),
+        SourceRealmRoot::Local(realm_root),
+        dependencies,
+    );
+    loader.load_entry(entry, realm_id)?;
     sort_files_topologically(&mut loader.files);
     build_syntax_tables(&mut loader.files);
-    Ok(SourceSet::from_files_with_realm(
+    Ok(SourceSet::from_files_with_realms(
         loader.files,
-        manifest
-            .as_ref()
-            .map(|manifest| manifest.id.clone())
-            .unwrap_or_else(|| local_realm_id(entry)),
-        SourceRealmRoot::Local(realm_root),
-    )
-    .with_realm_dependencies(
-        manifest
-            .map(|manifest| manifest.dependencies)
-            .unwrap_or_default(),
+        loader.realms,
     ))
 }
 
@@ -144,6 +153,13 @@ pub struct SourceRealmDependency {
 pub struct SourceRealmManifest {
     pub id: ResolvedRealmId,
     pub dependencies: Vec<SourceRealmDependency>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceRealmSeed {
+    id: ResolvedRealmId,
+    root: SourceRealmRoot,
+    dependencies: Vec<SourceRealmDependency>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -278,6 +294,23 @@ fn load_realm_manifest(root: &FsPath) -> Result<Option<SourceRealmManifest>, Sou
     }))
 }
 
+fn load_realm_lock(root: &FsPath) -> Result<Option<YulangLockFile>, SourceLoadError> {
+    let path = root.join(cache::YULANG_LOCK_FILE);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let source = fs::read_to_string(&path).map_err(|error| SourceLoadError::Io {
+        path: path.clone(),
+        error,
+    })?;
+    serde_json::from_str::<YulangLockFile>(&source)
+        .map(Some)
+        .map_err(|error| SourceLoadError::InvalidLockFile {
+            path,
+            message: error.to_string(),
+        })
+}
+
 fn invalid_realm_manifest(path: &FsPath, message: impl Into<String>) -> SourceLoadError {
     SourceLoadError::InvalidRealmManifest {
         path: path.to_path_buf(),
@@ -354,16 +387,39 @@ impl SourceSet {
         realm: ResolvedRealmId,
         root: SourceRealmRoot,
     ) -> Self {
-        let bands = assign_source_bands(&mut files, &realm);
-        Self {
+        for file in &mut files {
+            file.realm = realm.clone();
+            file.realm_path_prefix_len = 0;
+        }
+        Self::from_files_with_realms(
             files,
-            realms: vec![SourceRealm {
+            vec![SourceRealmSeed {
                 id: realm,
                 root,
                 dependencies: Vec::new(),
-                bands,
             }],
-        }
+        )
+    }
+
+    fn from_files_with_realms(mut files: Vec<SourceFile>, realms: Vec<SourceRealmSeed>) -> Self {
+        let realms = realms
+            .into_iter()
+            .map(|realm| {
+                let file_indices = files
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, file)| (file.realm == realm.id).then_some(idx))
+                    .collect::<Vec<_>>();
+                let bands = assign_source_bands(&mut files, &file_indices, &realm.id);
+                SourceRealm {
+                    id: realm.id,
+                    root: realm.root,
+                    dependencies: realm.dependencies,
+                    bands,
+                }
+            })
+            .collect();
+        Self { files, realms }
     }
 
     pub fn with_realm_dependencies(mut self, dependencies: Vec<SourceRealmDependency>) -> Self {
@@ -440,15 +496,11 @@ pub enum SourceCompilationUnitOrigin {
 
 impl SourceCompilationUnits {
     fn from_source_set(source_set: &SourceSet) -> Self {
-        let module_paths = source_set
-            .files
-            .iter()
-            .map(|file| file.module_path.clone())
-            .collect::<Vec<_>>();
         let dependencies = source_set
             .files
             .iter()
-            .map(|file| source_dependencies(file, &module_paths))
+            .enumerate()
+            .map(|(file_idx, _)| source_dependencies(file_idx, &source_set.files))
             .collect::<Vec<_>>();
         let components = source_sccs(&dependencies);
         let mut file_to_unit = vec![0; source_set.files.len()];
@@ -663,6 +715,8 @@ pub struct SourceFile {
     pub path: PathBuf,
     pub module_path: ModulePath,
     pub origin: SourceOrigin,
+    pub realm: ResolvedRealmId,
+    pub realm_path_prefix_len: usize,
     pub band: Option<ResolvedBandId>,
     pub op_table: OpTable,
     pub source_prefix_len: usize,
@@ -689,6 +743,10 @@ pub enum SourceLoadError {
         path: PathBuf,
         message: String,
     },
+    InvalidLockFile {
+        path: PathBuf,
+        message: String,
+    },
     ModuleNotFound {
         parent: PathBuf,
         name: Name,
@@ -708,6 +766,9 @@ impl fmt::Display for SourceLoadError {
             }
             SourceLoadError::InvalidRealmManifest { path, message } => {
                 write!(f, "invalid realm manifest {}: {message}", path.display())
+            }
+            SourceLoadError::InvalidLockFile { path, message } => {
+                write!(f, "invalid lock file {}: {message}", path.display())
             }
             SourceLoadError::ModuleNotFound { parent, name } => {
                 write!(
@@ -741,6 +802,8 @@ impl std::error::Error for SourceLoadError {}
 
 struct SourceLoader {
     options: SourceOptions,
+    lock: Option<YulangLockFile>,
+    realms: Vec<SourceRealmSeed>,
     seen: HashSet<PathBuf>,
     files: Vec<SourceFile>,
 }
@@ -775,6 +838,8 @@ impl InlineSourceLoader {
             PathBuf::from("<virtual-entry>"),
             ModulePath { segments: vec![] },
             SourceOrigin::Entry,
+            inline_realm_id(),
+            0,
             source,
             source_prefix,
             None,
@@ -795,7 +860,16 @@ impl InlineSourceLoader {
             source,
             meta,
         } = source;
-        self.load_source(path, module_path, origin, &source, "", meta);
+        self.load_source(
+            path,
+            module_path,
+            origin,
+            inline_realm_id(),
+            0,
+            &source,
+            "",
+            meta,
+        );
     }
 
     fn load_source(
@@ -803,6 +877,8 @@ impl InlineSourceLoader {
         path: PathBuf,
         module_path: ModulePath,
         origin: SourceOrigin,
+        realm: ResolvedRealmId,
+        realm_path_prefix_len: usize,
         source: &str,
         source_prefix: &str,
         cached_meta: Option<SourceMeta>,
@@ -822,6 +898,8 @@ impl InlineSourceLoader {
             path,
             module_path,
             origin,
+            realm,
+            realm_path_prefix_len,
             band: None,
             op_table: standard_op_table(),
             source_prefix_len,
@@ -835,15 +913,33 @@ impl InlineSourceLoader {
 }
 
 impl SourceLoader {
-    fn new(options: SourceOptions) -> Self {
+    fn new(options: SourceOptions, lock: Option<YulangLockFile>) -> Self {
         Self {
             options,
+            lock,
+            realms: Vec::new(),
             seen: HashSet::new(),
             files: Vec::new(),
         }
     }
 
-    fn load_entry(&mut self, path: &FsPath) -> Result<(), SourceLoadError> {
+    fn register_realm(
+        &mut self,
+        id: ResolvedRealmId,
+        root: SourceRealmRoot,
+        dependencies: Vec<SourceRealmDependency>,
+    ) {
+        if self.realms.iter().any(|realm| realm.id == id) {
+            return;
+        }
+        self.realms.push(SourceRealmSeed {
+            id,
+            root,
+            dependencies,
+        });
+    }
+
+    fn load_entry(&mut self, path: &FsPath, realm: ResolvedRealmId) -> Result<(), SourceLoadError> {
         let source_prefix = if self.options.implicit_prelude && self.options.std_root.is_some() {
             "use std::prelude::*\n"
         } else {
@@ -853,6 +949,8 @@ impl SourceLoader {
             path,
             ModulePath { segments: vec![] },
             SourceOrigin::Entry,
+            realm,
+            0,
             source_prefix,
         )
     }
@@ -871,6 +969,8 @@ impl SourceLoader {
             source,
             ModulePath { segments: vec![] },
             SourceOrigin::Entry,
+            virtual_single_file_realm_id(),
+            0,
             source_prefix,
             base_dir,
         )
@@ -881,8 +981,10 @@ impl SourceLoader {
         path: &FsPath,
         module_path: ModulePath,
         origin: SourceOrigin,
+        realm: ResolvedRealmId,
+        realm_path_prefix_len: usize,
     ) -> Result<(), SourceLoadError> {
-        self.load_module_with_prefix(path, module_path, origin, "")
+        self.load_module_with_prefix(path, module_path, origin, realm, realm_path_prefix_len, "")
     }
 
     fn load_module_with_prefix(
@@ -890,6 +992,8 @@ impl SourceLoader {
         path: &FsPath,
         module_path: ModulePath,
         origin: SourceOrigin,
+        realm: ResolvedRealmId,
+        realm_path_prefix_len: usize,
         source_prefix: &str,
     ) -> Result<(), SourceLoadError> {
         let canonical = canonicalize_for_dedupe(path);
@@ -923,20 +1027,24 @@ impl SourceLoader {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let imported_paths = meta
-            .uses
-            .iter()
-            .filter_map(|use_| import_module_path(&use_.import))
-            .filter_map(|module_path| {
-                self.resolve_import_module_file(&module_path)
-                    .map(|path| (path, module_path.clone(), import_origin(&module_path)))
-            })
-            .collect::<Vec<_>>();
+        let mut imported_paths = Vec::new();
+        for use_ in &meta.uses {
+            let Some(module_path) = import_module_path(&use_.import) else {
+                continue;
+            };
+            if let Some(imported) =
+                self.resolve_import_module_file(&realm, &module_path, &use_.import)
+            {
+                imported_paths.push(imported);
+            }
+        }
 
         self.files.push(SourceFile {
             path: path.to_path_buf(),
             module_path,
             origin,
+            realm: realm.clone(),
+            realm_path_prefix_len,
             band: None,
             op_table: standard_op_table(),
             source_prefix_len,
@@ -945,10 +1053,22 @@ impl SourceLoader {
         });
 
         for (path, module_path, origin) in module_paths {
-            self.load_module(&path, module_path, origin)?;
+            self.load_module(
+                &path,
+                module_path,
+                origin,
+                realm.clone(),
+                realm_path_prefix_len,
+            )?;
         }
-        for (path, module_path, origin) in imported_paths {
-            self.load_module(&path, module_path, origin)?;
+        for imported in imported_paths {
+            self.load_module(
+                &imported.path,
+                imported.module_path,
+                imported.origin,
+                imported.realm,
+                imported.realm_path_prefix_len,
+            )?;
         }
         Ok(())
     }
@@ -958,6 +1078,8 @@ impl SourceLoader {
         source: &str,
         module_path: ModulePath,
         origin: SourceOrigin,
+        realm: ResolvedRealmId,
+        realm_path_prefix_len: usize,
         source_prefix: &str,
         base_dir: Option<&FsPath>,
     ) -> Result<(), SourceLoadError> {
@@ -992,20 +1114,24 @@ impl SourceLoader {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let imported_paths = meta
-            .uses
-            .iter()
-            .filter_map(|use_| import_module_path(&use_.import))
-            .filter_map(|module_path| {
-                self.resolve_import_module_file(&module_path)
-                    .map(|path| (path, module_path.clone(), import_origin(&module_path)))
-            })
-            .collect::<Vec<_>>();
+        let mut imported_paths = Vec::new();
+        for use_ in &meta.uses {
+            let Some(module_path) = import_module_path(&use_.import) else {
+                continue;
+            };
+            if let Some(imported) =
+                self.resolve_import_module_file(&realm, &module_path, &use_.import)
+            {
+                imported_paths.push(imported);
+            }
+        }
 
         self.files.push(SourceFile {
             path: synthetic_path,
             module_path,
             origin,
+            realm: realm.clone(),
+            realm_path_prefix_len,
             band: None,
             op_table: standard_op_table(),
             source_prefix_len,
@@ -1014,15 +1140,32 @@ impl SourceLoader {
         });
 
         for (path, module_path, origin) in module_paths {
-            self.load_module(&path, module_path, origin)?;
+            self.load_module(
+                &path,
+                module_path,
+                origin,
+                realm.clone(),
+                realm_path_prefix_len,
+            )?;
         }
-        for (path, module_path, origin) in imported_paths {
-            self.load_module(&path, module_path, origin)?;
+        for imported in imported_paths {
+            self.load_module(
+                &imported.path,
+                imported.module_path,
+                imported.origin,
+                imported.realm,
+                imported.realm_path_prefix_len,
+            )?;
         }
         Ok(())
     }
 
-    fn resolve_import_module_file(&self, module_path: &ModulePath) -> Option<PathBuf> {
+    fn resolve_import_module_file(
+        &mut self,
+        requester_realm: &ResolvedRealmId,
+        module_path: &ModulePath,
+        import: &UseImport,
+    ) -> Option<ResolvedImport> {
         if module_path.segments.is_empty() {
             return None;
         }
@@ -1033,13 +1176,233 @@ impl SourceLoader {
             .is_some_and(|name| name.0 == "std")
         {
             let std_root = self.options.std_root.as_ref()?;
-            return resolve_module_path_under_root(std_root, &module_path.segments[1..]);
+            let path = resolve_module_path_under_root(std_root, &module_path.segments[1..])?;
+            return Some(ResolvedImport {
+                path,
+                module_path: module_path.clone(),
+                origin: SourceOrigin::Std,
+                realm: requester_realm.clone(),
+                realm_path_prefix_len: 0,
+            });
         }
 
-        self.options
+        if let Some(external) = self.resolve_cross_realm_import(module_path, import) {
+            return Some(external);
+        }
+
+        let path = self
+            .options
             .search_paths
             .iter()
-            .find_map(|root| resolve_module_path_under_root(root, &module_path.segments))
+            .find_map(|root| resolve_module_path_under_root(root, &module_path.segments))?;
+        Some(ResolvedImport {
+            path,
+            module_path: module_path.clone(),
+            origin: import_origin(module_path),
+            realm: requester_realm.clone(),
+            realm_path_prefix_len: 0,
+        })
+    }
+
+    fn resolve_cross_realm_import(
+        &mut self,
+        module_path: &ModulePath,
+        import: &UseImport,
+    ) -> Option<ResolvedImport> {
+        let import_version = import_realm_version(import);
+        if let Some(locked) = self.resolve_locked_realm_import(module_path, import_version.as_ref())
+        {
+            return Some(locked);
+        }
+
+        let Some((identity, identity_len)) =
+            self.resolve_manifest_dependency_prefix(module_path, import_version.as_ref())
+        else {
+            return None;
+        };
+        let (root_path, root) =
+            self.find_existing_realm_root(&identity, import_version.as_ref())?;
+        let manifest = load_realm_manifest(&root_path).ok().flatten();
+        let realm = manifest
+            .as_ref()
+            .map(|manifest| manifest.id.clone())
+            .unwrap_or_else(|| ResolvedRealmId {
+                identity: identity.clone(),
+                version: import_version.clone(),
+            });
+        let dependencies = manifest
+            .map(|manifest| manifest.dependencies)
+            .unwrap_or_default();
+        let module_tail = &module_path.segments[identity_len..];
+        if module_tail.is_empty() {
+            return None;
+        }
+        let path = resolve_module_path_under_root(&root_path, module_tail)?;
+        self.register_realm(realm.clone(), root, dependencies);
+        Some(ResolvedImport {
+            path,
+            module_path: module_path.clone(),
+            origin: SourceOrigin::User,
+            realm,
+            realm_path_prefix_len: identity_len,
+        })
+    }
+
+    fn resolve_locked_realm_import(
+        &mut self,
+        module_path: &ModulePath,
+        import_version: Option<&RealmVersion>,
+    ) -> Option<ResolvedImport> {
+        let lock = self.lock.clone()?;
+        let locked = lock
+            .realms
+            .iter()
+            .filter_map(|realm| {
+                if import_version.is_some() && realm.id.version.as_ref() != import_version {
+                    return None;
+                }
+                let identity_len = realm_identity_prefix_len(&realm.id.identity, module_path)?;
+                Some((identity_len, realm.clone()))
+            })
+            .max_by_key(|(identity_len, _)| *identity_len)?;
+        let identity_len = locked.0;
+        let realm = locked.1;
+        let root_path = locked_realm_source_path(&realm.source)?;
+        let module_tail = &module_path.segments[identity_len..];
+        if module_tail.is_empty() {
+            return None;
+        }
+        let path = resolve_module_path_under_root(&root_path, module_tail)?;
+        let manifest = load_realm_manifest(&root_path).ok().flatten();
+        let dependencies = manifest
+            .map(|manifest| manifest.dependencies)
+            .unwrap_or_default();
+        self.register_realm(realm.id.clone(), realm.source.into(), dependencies);
+        Some(ResolvedImport {
+            path,
+            module_path: module_path.clone(),
+            origin: SourceOrigin::User,
+            realm: realm.id,
+            realm_path_prefix_len: identity_len,
+        })
+    }
+
+    fn resolve_manifest_dependency_prefix(
+        &self,
+        module_path: &ModulePath,
+        import_version: Option<&RealmVersion>,
+    ) -> Option<(RealmIdentity, usize)> {
+        self.realms
+            .iter()
+            .flat_map(|realm| realm.dependencies.iter())
+            .filter_map(|dependency| {
+                let identity_len = realm_identity_prefix_len(&dependency.identity, module_path)?;
+                if import_version.is_none() && dependency.requirement.trim().is_empty() {
+                    return None;
+                }
+                Some((dependency.identity.clone(), identity_len))
+            })
+            .max_by_key(|(_, identity_len)| *identity_len)
+    }
+
+    fn find_existing_realm_root(
+        &self,
+        identity: &RealmIdentity,
+        version: Option<&RealmVersion>,
+    ) -> Option<(PathBuf, SourceRealmRoot)> {
+        for search_root in &self.options.search_paths {
+            let root = search_root.join(realm_identity_path(identity));
+            if realm_root_matches(&root, identity, version) {
+                return Some((root.clone(), SourceRealmRoot::Local(root)));
+            }
+        }
+
+        let mut cached = default_user_cache_root()
+            .join("realms")
+            .join(realm_identity_path(identity));
+        if let Some(version) = version {
+            cached.push(&version.0);
+        }
+        if realm_root_matches(&cached, identity, version) {
+            return Some((cached.clone(), SourceRealmRoot::Cached(cached)));
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedImport {
+    path: PathBuf,
+    module_path: ModulePath,
+    origin: SourceOrigin,
+    realm: ResolvedRealmId,
+    realm_path_prefix_len: usize,
+}
+
+impl From<LockedRealmSource> for SourceRealmRoot {
+    fn from(source: LockedRealmSource) -> Self {
+        match source {
+            LockedRealmSource::Local(path) => SourceRealmRoot::Local(path),
+            LockedRealmSource::Cached(path) => SourceRealmRoot::Cached(path),
+            LockedRealmSource::Embedded(name) => SourceRealmRoot::Embedded(name),
+            LockedRealmSource::Virtual => SourceRealmRoot::Virtual,
+        }
+    }
+}
+
+fn locked_realm_source_path(source: &LockedRealmSource) -> Option<PathBuf> {
+    match source {
+        LockedRealmSource::Local(path) | LockedRealmSource::Cached(path) => Some(path.clone()),
+        LockedRealmSource::Embedded(_) | LockedRealmSource::Virtual => None,
+    }
+}
+
+fn realm_identity_prefix_len(identity: &RealmIdentity, module_path: &ModulePath) -> Option<usize> {
+    let identity_segments = realm_identity_segments(identity);
+    if identity_segments.is_empty() || identity_segments.len() >= module_path.segments.len() {
+        return None;
+    }
+    identity_segments
+        .iter()
+        .zip(&module_path.segments)
+        .all(|(left, right)| left == &right.0)
+        .then_some(identity_segments.len())
+}
+
+fn realm_identity_segments(identity: &RealmIdentity) -> Vec<String> {
+    identity
+        .0
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn realm_identity_path(identity: &RealmIdentity) -> PathBuf {
+    identity
+        .0
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect()
+}
+
+fn realm_root_matches(
+    root: &FsPath,
+    identity: &RealmIdentity,
+    version: Option<&RealmVersion>,
+) -> bool {
+    let Ok(Some(manifest)) = load_realm_manifest(root) else {
+        return false;
+    };
+    manifest.id.identity == *identity
+        && version.is_none_or(|version| manifest.id.version.as_ref() == Some(version))
+}
+
+fn import_realm_version(import: &UseImport) -> Option<RealmVersion> {
+    match import {
+        UseImport::Alias { realm_version, .. } | UseImport::Glob { realm_version, .. } => {
+            realm_version.clone()
+        }
     }
 }
 
@@ -1101,13 +1464,10 @@ fn collect_leading_meta_items(root: &SyntaxNode<YulangLanguage>, meta: &mut Sour
 }
 
 fn sort_files_topologically(files: &mut Vec<SourceFile>) {
-    let module_paths = files
-        .iter()
-        .map(|file| file.module_path.clone())
-        .collect::<Vec<_>>();
     let dependencies = files
         .iter()
-        .map(|file| source_dependencies(file, &module_paths))
+        .enumerate()
+        .map(|(file_idx, _)| source_dependencies(file_idx, files))
         .collect::<Vec<_>>();
     let mut marks = vec![VisitMark::Unvisited; files.len()];
     let mut order = Vec::new();
@@ -1126,17 +1486,19 @@ fn sort_files_topologically(files: &mut Vec<SourceFile>) {
         .collect();
 }
 
-fn assign_source_bands(files: &mut [SourceFile], realm: &ResolvedRealmId) -> Vec<SourceBand> {
-    let module_paths = files
-        .iter()
-        .map(|file| file.module_path.clone())
-        .collect::<Vec<_>>();
+fn assign_source_bands(
+    files: &mut [SourceFile],
+    file_indices: &[usize],
+    realm: &ResolvedRealmId,
+) -> Vec<SourceBand> {
     let mod_dependencies = files
         .iter()
-        .map(|file| source_mod_dependencies(file, &module_paths))
+        .enumerate()
+        .map(|(file_idx, _)| source_mod_dependencies(file_idx, files))
         .collect::<Vec<_>>();
     let mut incoming = vec![0usize; files.len()];
-    for deps in &mod_dependencies {
+    for &file_idx in file_indices {
+        let deps = &mod_dependencies[file_idx];
         for &dep in deps {
             incoming[dep] += 1;
         }
@@ -1145,10 +1507,10 @@ fn assign_source_bands(files: &mut [SourceFile], realm: &ResolvedRealmId) -> Vec
     let mut roots = incoming
         .iter()
         .enumerate()
-        .filter_map(|(idx, count)| (*count == 0).then_some(idx))
+        .filter_map(|(idx, count)| (files[idx].realm == *realm && *count == 0).then_some(idx))
         .collect::<Vec<_>>();
-    if roots.is_empty() && !files.is_empty() {
-        roots.push(0);
+    if roots.is_empty() {
+        roots.extend(file_indices.first().copied());
     }
 
     let mut assigned = vec![false; files.len()];
@@ -1157,7 +1519,7 @@ fn assign_source_bands(files: &mut [SourceFile], realm: &ResolvedRealmId) -> Vec
         if assigned[root_idx] {
             continue;
         }
-        let band_path = BandPath::from_segments(files[root_idx].module_path.segments.clone());
+        let band_path = source_file_band_path(&files[root_idx]);
         let band_id = ResolvedBandId {
             realm: realm.clone(),
             band: band_path.clone(),
@@ -1186,11 +1548,11 @@ fn assign_source_bands(files: &mut [SourceFile], realm: &ResolvedRealmId) -> Vec
         });
     }
 
-    for file_idx in 0..files.len() {
+    for &file_idx in file_indices {
         if assigned[file_idx] {
             continue;
         }
-        let band_path = BandPath::from_segments(files[file_idx].module_path.segments.clone());
+        let band_path = source_file_band_path(&files[file_idx]);
         let band_id = ResolvedBandId {
             realm: realm.clone(),
             band: band_path.clone(),
@@ -1207,16 +1569,30 @@ fn assign_source_bands(files: &mut [SourceFile], realm: &ResolvedRealmId) -> Vec
     bands
 }
 
-fn source_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<usize> {
-    let mut deps = source_mod_dependencies(file, module_paths);
+fn source_file_band_path(file: &SourceFile) -> BandPath {
+    let prefix_len = file
+        .realm_path_prefix_len
+        .min(file.module_path.segments.len());
+    BandPath::from_segments(
+        file.module_path.segments[prefix_len..]
+            .first()
+            .cloned()
+            .into_iter()
+            .collect(),
+    )
+}
+
+fn source_dependencies(file_idx: usize, files: &[SourceFile]) -> Vec<usize> {
+    let mut deps = source_mod_dependencies(file_idx, files);
+    let file = &files[file_idx];
 
     for use_ in &file.meta.uses {
         match &use_.import {
             UseImport::Alias { path, .. } => {
-                push_best_module_dependency(path, &file.module_path, module_paths, &mut deps);
+                push_best_module_dependency(path, file_idx, files, &mut deps);
             }
             UseImport::Glob { prefix, .. } => {
-                push_best_module_dependency(prefix, &file.module_path, module_paths, &mut deps);
+                push_best_module_dependency(prefix, file_idx, files, &mut deps);
             }
         }
     }
@@ -1226,12 +1602,13 @@ fn source_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<us
     deps
 }
 
-fn source_mod_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<usize> {
+fn source_mod_dependencies(file_idx: usize, files: &[SourceFile]) -> Vec<usize> {
     let mut deps = Vec::new();
+    let file = &files[file_idx];
     for decl in &file.meta.module_files {
         let mut child = file.module_path.segments.clone();
         child.push(decl.name.clone());
-        push_module_dependency(&child, &file.module_path, module_paths, &mut deps);
+        push_module_dependency(&child, file_idx, files, &mut deps);
     }
     deps.sort_unstable();
     deps.dedup();
@@ -1800,19 +2177,21 @@ fn inline_dependencies(module_path: &ModulePath, meta: &SourceMeta) -> Vec<Modul
 
 fn push_best_module_dependency(
     path: &ModulePath,
-    current: &ModulePath,
-    module_paths: &[ModulePath],
+    current_idx: usize,
+    files: &[SourceFile],
     deps: &mut Vec<usize>,
 ) {
-    let Some((idx, _)) = module_paths
+    let current = &files[current_idx];
+    let Some((idx, _)) = files
         .iter()
         .enumerate()
-        .filter(|(_, candidate)| {
-            !candidate.segments.is_empty()
-                && *candidate != current
-                && is_prefix(&candidate.segments, &path.segments)
+        .filter(|(idx, candidate)| {
+            *idx != current_idx
+                && !candidate.module_path.segments.is_empty()
+                && import_can_target_realm(path, current, candidate)
+                && is_prefix(&candidate.module_path.segments, &path.segments)
         })
-        .max_by_key(|(_, candidate)| candidate.segments.len())
+        .max_by_key(|(_, candidate)| candidate.module_path.segments.len())
     else {
         return;
     };
@@ -1821,17 +2200,30 @@ fn push_best_module_dependency(
 
 fn push_module_dependency(
     path: &[Name],
-    current: &ModulePath,
-    module_paths: &[ModulePath],
+    current_idx: usize,
+    files: &[SourceFile],
     deps: &mut Vec<usize>,
 ) {
-    if let Some((idx, _)) = module_paths
-        .iter()
-        .enumerate()
-        .find(|(_, candidate)| candidate.segments == path && *candidate != current)
-    {
+    let current = &files[current_idx];
+    if let Some((idx, _)) = files.iter().enumerate().find(|(idx, candidate)| {
+        *idx != current_idx
+            && candidate.realm == current.realm
+            && candidate.module_path.segments == path
+    }) {
         deps.push(idx);
     }
+}
+
+fn import_can_target_realm(
+    path: &ModulePath,
+    current: &SourceFile,
+    candidate: &SourceFile,
+) -> bool {
+    if candidate.realm == current.realm {
+        return true;
+    }
+    let prefix_len = realm_identity_prefix_len(&candidate.realm.identity, path);
+    prefix_len == Some(candidate.realm_path_prefix_len)
 }
 
 fn is_prefix(prefix: &[Name], path: &[Name]) -> bool {
@@ -3651,6 +4043,147 @@ version = "0.1.3"
                 realm: realm.id.clone(),
                 band: util_path.clone(),
             }]));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn manifest_dependency_use_loads_cross_realm_source() {
+        let root = temp_root("cross-realm-use");
+        let _ = fs::remove_dir_all(&root);
+        let app = root.join("app");
+        let ui = root.join("deps").join("ui");
+        fs::create_dir_all(ui.join("widget")).unwrap();
+        fs::create_dir_all(&app).unwrap();
+        fs::write(
+            app.join("realm.toml"),
+            r#"[realm]
+identity = "user/app"
+version = "0.1.0"
+
+[dependencies]
+ui = "2.4.0"
+"#,
+        )
+        .unwrap();
+        fs::write(app.join("main.yu"), "use ui/widget::*\nx\n").unwrap();
+        fs::write(
+            ui.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+version = "2.4.0"
+"#,
+        )
+        .unwrap();
+        fs::write(ui.join("widget.yu"), "mod part;\npub x = part::x\n").unwrap();
+        fs::write(ui.join("widget").join("part.yu"), "pub x = 1\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            app.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: vec![root.join("deps")],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(set.realms.len(), 2);
+        let ui_realm = set
+            .realms
+            .iter()
+            .find(|realm| realm.id.identity.0 == "ui")
+            .expect("ui realm should be loaded");
+        assert_eq!(ui_realm.id.version, Some(RealmVersion("2.4.0".to_string())));
+        let widget_band = ui_realm
+            .band(&BandPath::from_segments(vec![Name("widget".to_string())]))
+            .expect("widget band should be assigned inside ui realm");
+        let mut widget_modules = widget_band
+            .files
+            .iter()
+            .map(|&idx| names(&set.files[idx].module_path))
+            .collect::<Vec<_>>();
+        widget_modules.sort();
+        assert_eq!(
+            widget_modules,
+            vec![vec!["ui", "widget"], vec!["ui", "widget", "part"]]
+        );
+        assert!(widget_band.files.iter().all(|&idx| {
+            set.files[idx].band.as_ref()
+                == Some(&ResolvedBandId {
+                    realm: ui_realm.id.clone(),
+                    band: BandPath::from_segments(vec![Name("widget".to_string())]),
+                })
+        }));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn lock_file_use_loads_cross_realm_source() {
+        let root = temp_root("cross-realm-lock-use");
+        let _ = fs::remove_dir_all(&root);
+        let app = root.join("app");
+        let ui = root.join("deps").join("ui-2.4.0");
+        fs::create_dir_all(&app).unwrap();
+        fs::create_dir_all(&ui).unwrap();
+        fs::write(
+            app.join("realm.toml"),
+            r#"[realm]
+identity = "user/app"
+version = "0.1.0"
+"#,
+        )
+        .unwrap();
+        fs::write(app.join("main.yu"), "use ui/widget::* v2.4.0\nx\n").unwrap();
+        let lock = YulangLockFile {
+            format_version: YULANG_LOCK_FORMAT_VERSION,
+            realms: vec![LockedRealm {
+                id: ResolvedRealmId {
+                    identity: RealmIdentity("ui".to_string()),
+                    version: Some(RealmVersion("2.4.0".to_string())),
+                },
+                source: LockedRealmSource::Local(ui.clone()),
+            }],
+            dependencies: Vec::new(),
+            with_constraints: Vec::new(),
+        };
+        fs::write(
+            app.join("yulang.lock"),
+            format!("{}\n", serde_json::to_string_pretty(&lock).unwrap()),
+        )
+        .unwrap();
+        fs::write(
+            ui.join("realm.toml"),
+            r#"[realm]
+identity = "ui"
+version = "2.4.0"
+"#,
+        )
+        .unwrap();
+        fs::write(ui.join("widget.yu"), "pub x = 1\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            app.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        assert!(set.realms.iter().any(|realm| realm.id
+            == ResolvedRealmId {
+                identity: RealmIdentity("ui".to_string()),
+                version: Some(RealmVersion("2.4.0".to_string())),
+            }));
+        assert!(
+            set.files
+                .iter()
+                .any(|file| names(&file.module_path) == vec!["ui", "widget"]
+                    && file.realm.identity.0 == "ui")
+        );
 
         let _ = fs::remove_dir_all(root);
     }
