@@ -270,6 +270,7 @@ fn collect_use_group_imports(node: &SyntaxNode, base: &[Name], imports: &mut Vec
                     consumed_nested = false;
                 }
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
+                SyntaxKind::Ident if is_use_realm_version(tok.text()) => {}
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
                     path = base.to_vec();

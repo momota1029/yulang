@@ -121,7 +121,7 @@ fn parse_use_after_segment<I: EventInput, S: EventSink>(
         }
         UseTag::Version => {
             i.env.state.sink.lex(&sep.lex);
-            parse_use_after_segment(i, sep.lex.trailing_trivia_info())
+            parse_use_after_suffix(i, sep.lex.trailing_trivia_info())
         }
         UseTag::With => {
             i.env.state.sink.lex(&sep.lex);
@@ -149,10 +149,6 @@ fn parse_use_after_slash_or_colon_colon<I: EventInput, S: EventSink>(
             i.env.state.sink.lex(&next.lex);
             let after = next.lex.trailing_trivia_info();
             parse_use_after_segment(i, after)
-        }
-        UseTag::Version => {
-            i.env.state.sink.lex(&next.lex);
-            parse_use_after_segment(i, next.lex.trailing_trivia_info())
         }
         UseTag::BraceL => {
             let after = UseGroupMachine.parse_brace_group(i.rb(), next.lex)?;
@@ -230,6 +226,10 @@ fn parse_use_after_glob<I: EventInput, S: EventSink>(
             i.env.state.sink.lex(&next.lex);
             parse_use_without_list(i, next.lex.trailing_trivia_info())
         }
+        UseTag::Version => {
+            i.env.state.sink.lex(&next.lex);
+            parse_use_after_suffix(i, next.lex.trailing_trivia_info())
+        }
         UseTag::With => {
             i.env.state.sink.lex(&next.lex);
             parse_use_with_anchor(i, next.lex.trailing_trivia_info())
@@ -291,6 +291,10 @@ fn parse_use_without_after_item<I: EventInput, S: EventSink>(
             i.env.state.sink.lex(&next.lex);
             parse_use_with_anchor(i, next.lex.trailing_trivia_info())
         }
+        UseTag::Version => {
+            i.env.state.sink.lex(&next.lex);
+            parse_use_after_suffix(i, next.lex.trailing_trivia_info())
+        }
         _ => Some(Either::Right(next.lex)),
     }
 }
@@ -313,6 +317,10 @@ fn parse_use_alias<I: EventInput, S: EventSink>(
             i.env.state.sink.lex(&next.lex);
             let after = next.lex.trailing_trivia_info();
             parse_use_alias_ident(i, after)
+        }
+        UseTag::Version => {
+            i.env.state.sink.lex(&next.lex);
+            parse_use_after_suffix(i, next.lex.trailing_trivia_info())
         }
         UseTag::With => {
             i.env.state.sink.lex(&next.lex);
@@ -414,6 +422,27 @@ fn parse_use_alias_ident<I: EventInput, S: EventSink>(
             emit_invalid(i.rb(), alias.lex);
             Some(Either::Left(TriviaInfo::None))
         }
+    }
+}
+
+fn parse_use_after_suffix<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+) -> Option<Either<TriviaInfo, Lex>> {
+    if matches!(leading_info, TriviaInfo::Newline { .. }) {
+        return Some(Either::Left(leading_info));
+    }
+
+    let Some(next) = scan_use_tok(leading_info, i.rb()) else {
+        return Some(Either::Left(leading_info));
+    };
+
+    match next.tag {
+        UseTag::With => {
+            i.env.state.sink.lex(&next.lex);
+            parse_use_with_anchor(i, next.lex.trailing_trivia_info())
+        }
+        _ => Some(Either::Right(next.lex)),
     }
 }
 

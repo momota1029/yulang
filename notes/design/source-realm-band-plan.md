@@ -76,6 +76,14 @@ surface:   github.com/user/ui/widget::button v1.2
 canonical: github.com/user/ui@1.2/widget::button
 ```
 
+Grouped imports may put the suffix on each item, or once after the group as a
+default for unversioned items:
+
+```yulang
+use user/{realm1 v1.3, realm2::a::b::c v1.4}
+use realm/band::{module1, module2::*} v1.2
+```
+
 Rules:
 
 - at most one version spec may appear in a realm reference;
@@ -500,10 +508,12 @@ Current first slice:
   `realm@version/band::module` shape into realm identity/version, band path, and
   module path. It keeps slashes before the final `/` inside the realm identity,
   so `user/program@2.0/ui::widget` resolves as realm `user/program`.
-- `use realm v1.2/band::module` parses the `v...` suffix as source metadata
-  (`realm_version`) without adding it to the normal import path. The ordinary
-  lowerer ignores the suffix, while lock constraint collection can preserve it
-  as the resolved realm version.
+- `use realm/band::module v1.2` parses the trailing `v...` suffix as source
+  metadata (`realm_version`) without adding it to the normal import path. A
+  suffix on a grouped item wins over an outer group suffix; the outer suffix
+  fills only imports without an item suffix. The ordinary lowerer ignores the
+  suffix, while lock constraint collection can preserve it as the resolved
+  realm version.
 - `yulang lock <path>` writes the current lock-shaped source graph to
   `yulang.lock` (or `--out PATH`). `yulang lock <path> --check` reads the lock
   file, validates its `with` constraints, and fails if the generated graph would

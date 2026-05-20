@@ -2062,7 +2062,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
     let mut alias = None;
     let mut imports = Vec::new();
     let mut excluding_glob = None;
-    let mut realm_version = None;
+    let mut default_realm_version = None;
     let with_anchor = use_with_anchor(node);
 
     for item in node.children_with_tokens() {
@@ -2076,7 +2076,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
                 SyntaxKind::Ident if tok.text() == "with" => break,
                 SyntaxKind::Ident if use_realm_version(tok.text()).is_some() => {
-                    realm_version = use_realm_version(tok.text());
+                    default_realm_version = use_realm_version(tok.text());
                 }
                 SyntaxKind::Ident if tok.text() == "without" => {
                     excluding_glob = imports.len().checked_sub(1);
@@ -2103,7 +2103,7 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
                             segments: path.clone(),
                         },
                         excluded: Vec::new(),
-                        realm_version: realm_version.clone(),
+                        realm_version: None,
                         with_anchor: None,
                     });
                     path.clear();
@@ -2135,7 +2135,8 @@ fn use_decl_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
         }
     }
 
-    push_use_alias_import(path, alias, realm_version, &mut imports);
+    push_use_alias_import(path, alias, None, &mut imports);
+    apply_use_realm_version_default(&mut imports, default_realm_version);
     apply_use_with_anchor(&mut imports, with_anchor);
     imports
 }
@@ -2150,6 +2151,8 @@ fn collect_use_group_imports(
     let mut after_as = false;
     let mut consumed_nested = false;
     let mut excluding_glob = None;
+    let mut item_realm_version = None;
+    let mut last_item_import_idx = None;
 
     for item in node.children_with_tokens() {
         match item {
@@ -2157,17 +2160,29 @@ fn collect_use_group_imports(
                 SyntaxKind::BraceL => {}
                 SyntaxKind::BraceR => {
                     if !consumed_nested {
-                        push_use_alias_import(path, alias.take(), None, imports);
+                        push_use_alias_import(
+                            path,
+                            alias.take(),
+                            item_realm_version.take(),
+                            imports,
+                        );
                     }
                     return;
                 }
                 SyntaxKind::Comma => {
                     if !consumed_nested {
-                        push_use_alias_import(path, alias.take(), None, imports);
+                        push_use_alias_import(
+                            path,
+                            alias.take(),
+                            item_realm_version.take(),
+                            imports,
+                        );
                     }
                     path = base.to_vec();
                     after_as = false;
                     consumed_nested = false;
+                    item_realm_version = None;
+                    last_item_import_idx = None;
                 }
                 SyntaxKind::ColonColon | SyntaxKind::Slash => {}
                 SyntaxKind::Ident if tok.text() == "without" => {
@@ -2176,6 +2191,16 @@ fn collect_use_group_imports(
                     alias = None;
                     after_as = false;
                     consumed_nested = true;
+                    item_realm_version = None;
+                    last_item_import_idx = excluding_glob;
+                }
+                SyntaxKind::Ident if use_realm_version(tok.text()).is_some() => {
+                    let version = use_realm_version(tok.text());
+                    if let (Some(idx), Some(version)) = (last_item_import_idx, version.clone()) {
+                        set_use_import_realm_version(imports, idx, version);
+                    } else {
+                        item_realm_version = version;
+                    }
                 }
                 SyntaxKind::Ident if excluding_glob.is_some() => {
                     push_use_glob_exclusion(
@@ -2200,10 +2225,12 @@ fn collect_use_group_imports(
                         realm_version: None,
                         with_anchor: None,
                     });
+                    last_item_import_idx = imports.len().checked_sub(1);
                     path = base.to_vec();
                     alias = None;
                     after_as = false;
                     consumed_nested = true;
+                    item_realm_version = None;
                 }
                 SyntaxKind::OpName if excluding_glob.is_some() => {
                     push_use_glob_exclusion(
@@ -2227,21 +2254,25 @@ fn collect_use_group_imports(
                 alias = None;
                 after_as = false;
                 consumed_nested = true;
+                item_realm_version = None;
+                last_item_import_idx = imports.len().checked_sub(1);
             }
             NodeOrToken::Node(child) if child.kind() == SyntaxKind::Separator => {
                 if !consumed_nested {
-                    push_use_alias_import(path, alias.take(), None, imports);
+                    push_use_alias_import(path, alias.take(), item_realm_version.take(), imports);
                 }
                 path = base.to_vec();
                 after_as = false;
                 consumed_nested = false;
+                item_realm_version = None;
+                last_item_import_idx = None;
             }
             _ => {}
         }
     }
 
     if !consumed_nested {
-        push_use_alias_import(path, alias, None, imports);
+        push_use_alias_import(path, alias, item_realm_version, imports);
     }
 }
 
@@ -2278,6 +2309,35 @@ fn push_use_glob_exclusion(imports: &mut [UseImport], glob_idx: Option<usize>, n
     };
     if !excluded.contains(&name) {
         excluded.push(name);
+    }
+}
+
+fn set_use_import_realm_version(imports: &mut [UseImport], idx: usize, version: RealmVersion) {
+    let Some(import) = imports.get_mut(idx) else {
+        return;
+    };
+    match import {
+        UseImport::Alias { realm_version, .. } | UseImport::Glob { realm_version, .. } => {
+            *realm_version = Some(version);
+        }
+    }
+}
+
+fn apply_use_realm_version_default(
+    imports: &mut [UseImport],
+    default_realm_version: Option<RealmVersion>,
+) {
+    let Some(default_realm_version) = default_realm_version else {
+        return;
+    };
+    for import in imports {
+        match import {
+            UseImport::Alias { realm_version, .. } | UseImport::Glob { realm_version, .. } => {
+                if realm_version.is_none() {
+                    *realm_version = Some(default_realm_version.clone());
+                }
+            }
+        }
     }
 }
 
@@ -2557,7 +2617,7 @@ mod tests {
 
     #[test]
     fn parses_use_realm_version_metadata() {
-        let meta = parse_source_meta("use yulang v0.1.3/std::prelude\nmy x = prelude");
+        let meta = parse_source_meta("use yulang/std::prelude v0.1.3\nmy x = prelude");
 
         assert_eq!(meta.uses.len(), 1);
         let UseImport::Alias {
@@ -2572,6 +2632,79 @@ mod tests {
         assert_eq!(name.0, "prelude");
         assert_eq!(names(path), vec!["yulang", "std", "prelude"]);
         assert_eq!(realm_version, &Some(RealmVersion("0.1.3".to_string())));
+    }
+
+    #[test]
+    fn parses_group_item_use_realm_version_metadata() {
+        let meta = parse_source_meta("use user/{realm1 v1.3, realm2::a::b::c v1.4}\nmy x = c");
+
+        assert_eq!(meta.uses.len(), 2);
+        let UseImport::Alias {
+            name,
+            path,
+            realm_version,
+            ..
+        } = &meta.uses[0].import
+        else {
+            panic!("expected alias import");
+        };
+        assert_eq!(name.0, "realm1");
+        assert_eq!(names(path), vec!["user", "realm1"]);
+        assert_eq!(realm_version, &Some(RealmVersion("1.3".to_string())));
+
+        let UseImport::Alias {
+            name,
+            path,
+            realm_version,
+            ..
+        } = &meta.uses[1].import
+        else {
+            panic!("expected alias import");
+        };
+        assert_eq!(name.0, "c");
+        assert_eq!(names(path), vec!["user", "realm2", "a", "b", "c"]);
+        assert_eq!(realm_version, &Some(RealmVersion("1.4".to_string())));
+    }
+
+    #[test]
+    fn parses_group_use_realm_version_default_metadata() {
+        let meta = parse_source_meta(
+            "use user/{realm1 v1.3, realm2::a, realm3::module::*} v1.0\nmy x = a",
+        );
+
+        assert_eq!(meta.uses.len(), 3);
+        let UseImport::Alias {
+            path,
+            realm_version,
+            ..
+        } = &meta.uses[0].import
+        else {
+            panic!("expected alias import");
+        };
+        assert_eq!(names(path), vec!["user", "realm1"]);
+        assert_eq!(realm_version, &Some(RealmVersion("1.3".to_string())));
+
+        let UseImport::Alias {
+            path,
+            realm_version,
+            ..
+        } = &meta.uses[1].import
+        else {
+            panic!("expected alias import");
+        };
+        assert_eq!(names(path), vec!["user", "realm2", "a"]);
+        assert_eq!(realm_version, &Some(RealmVersion("1.0".to_string())));
+
+        let UseImport::Glob {
+            prefix,
+            realm_version,
+            ..
+        } = &meta.uses[2].import
+        else {
+            panic!("expected glob import");
+        };
+        assert_eq!(names(prefix), vec!["user", "realm3", "module"]);
+        assert_eq!(realm_version, &Some(RealmVersion("1.0".to_string())));
     }
 
     #[test]

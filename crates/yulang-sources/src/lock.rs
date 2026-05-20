@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn source_set_collects_with_constraint_version_suffix() {
         let source_set = collect_inline_source_files_with_options(
-            "use ui/widget v2.4::a with program::ui\nx\n",
+            "use ui/widget::a v2.4 with program::ui\nx\n",
             [InlineSource {
                 path: PathBuf::from("<ui/widget>.yu"),
                 module_path: ModulePath {

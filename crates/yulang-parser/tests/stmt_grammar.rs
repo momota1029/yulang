@@ -1462,16 +1462,71 @@ fn stmt_use_decl_with_anchor() {
 
 #[test]
 fn stmt_use_decl_realm_version_suffix() {
-    let got = parse_stmt_once("use yulang v0.1.3/std::prelude");
+    let got = parse_stmt_once("use yulang/std::prelude v0.1.3");
     let expected = vec![
         "(UseDecl",
         "  Use \"use\"",
         "  Ident \"yulang\"",
-        "  Ident \"v0.1.3\"",
         "  Slash \"/\"",
         "  Ident \"std\"",
         "  ColonColon \"::\"",
         "  Ident \"prelude\"",
+        "  Ident \"v0.1.3\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_use_decl_group_item_realm_version_suffix() {
+    let got = parse_stmt_once("use user/{realm1 v1.3, realm2::a::b::c v1.4}");
+    let expected = vec![
+        "(UseDecl",
+        "  Use \"use\"",
+        "  Ident \"user\"",
+        "  Slash \"/\"",
+        "  (BraceGroup",
+        "    BraceL \"{\"",
+        "    Ident \"realm1\"",
+        "    Ident \"v1.3\"",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    Ident \"realm2\"",
+        "    ColonColon \"::\"",
+        "    Ident \"a\"",
+        "    ColonColon \"::\"",
+        "    Ident \"b\"",
+        "    ColonColon \"::\"",
+        "    Ident \"c\"",
+        "    Ident \"v1.4\"",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_use_decl_group_realm_version_default_suffix() {
+    let got = parse_stmt_once("use user/{realm1, realm2::a} v1.3");
+    let expected = vec![
+        "(UseDecl",
+        "  Use \"use\"",
+        "  Ident \"user\"",
+        "  Slash \"/\"",
+        "  (BraceGroup",
+        "    BraceL \"{\"",
+        "    Ident \"realm1\"",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    Ident \"realm2\"",
+        "    ColonColon \"::\"",
+        "    Ident \"a\"",
+        "    BraceR \"}\"",
+        "  )",
+        "  Ident \"v1.3\"",
         ")",
     ];
     assert_eq!(got, expected);
