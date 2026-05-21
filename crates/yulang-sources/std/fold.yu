@@ -12,4 +12,4 @@ pub role Fold 'container:
         case found:
             opt::nil -> false
             opt::just _ -> true
-    our continer.each = std::undet::each container
+    our container.each: [std::undet::undet] item = std::undet::each container

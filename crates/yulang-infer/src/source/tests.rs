@@ -3954,6 +3954,32 @@ fn source_loader_surfaces_missing_impl_for_concrete_multi_arg_role_constraint() 
 }
 
 #[test]
+fn source_loader_implicit_prelude_does_not_report_role_receiver_type_arg_as_value() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "my value = 0\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let diagnostics = crate::surface_diagnostic::collect_surface_diagnostics(&lowered.state);
+
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.message != "undefined name `container`"),
+            "role receiver type argument should not be left as an unresolved value ref: {diagnostics:?}",
+        );
+    });
+}
+
+#[test]
 fn lowers_enum_constructor_and_annotated_case_from_source_loader() {
     let mut lowered = lower_virtual_source_with_options(
         "enum opt 'a = nil | just 'a\n\
