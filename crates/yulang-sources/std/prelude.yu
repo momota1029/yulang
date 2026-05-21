@@ -37,7 +37,7 @@ pub use std::bytes::*
 pub use std::path::*
 pub use std::parse::parse
 pub use std::range::*
-pub use std::frac::*
+pub use std::frac::{frac, new}
 pub use std::undet::each
 pub use std::undet::guard
 pub use std::index::Index
