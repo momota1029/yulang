@@ -39,6 +39,6 @@ pub act undet:
     pub (x: [_] _).list = list x
     pub (x: [_] _).logic = logic x
     pub (x: [_] _).once = once x
-    pub (x: [_] _).guard = guard x
+    pub (x: [_] _).guard f = guard: f x
 
 pub use std::undet::undet::*
