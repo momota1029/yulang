@@ -158,7 +158,8 @@ pub(super) fn should_use_visible_root_type(
             (typed_ir::Type::Tuple(graph_items), typed_ir::Type::Tuple(visible_items))
                 if graph_items.len() != visible_items.len()
         )
-        || (!core_types_compatible(graph, visible)
+        || (!is_concrete_visible_root_type(graph)
+            && !core_types_compatible(graph, visible)
             && is_concrete_visible_root_type(visible)
             && !contains_non_runtime_type(visible))
 }

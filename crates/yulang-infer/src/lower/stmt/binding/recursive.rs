@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::ids::DefId;
-use crate::lower::LowerState;
+use crate::lower::{LowerState, SyntaxNode};
 use crate::types::{Neg, Pos};
 
 use super::ArgPatInfo;
@@ -10,6 +10,7 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     state: &mut LowerState,
     owner: DefId,
     arg_pats: &[ArgPatInfo],
+    header: Option<&SyntaxNode>,
 ) {
     if arg_pats.is_empty() {
         return;
@@ -32,7 +33,8 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
         state.infer.add_non_generic_var(owner, tv);
     }
 
-    let mut ret_tv = state.fresh_tv();
+    let body_ret_tv = state.fresh_tv();
+    let mut ret_tv = body_ret_tv;
     let mut ret_eff = state.fresh_tv();
     for arg_pat in arg_pats.iter().rev() {
         let fun_tv = state.fresh_tv();
@@ -51,6 +53,9 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
 
     state.infer.constrain(Pos::Var(owner_tv), Neg::Var(ret_tv));
     state.infer.constrain(Pos::Var(ret_tv), Neg::Var(owner_tv));
+    if let Some(header) = header {
+        super::annotation::connect_binding_type_annotation(state, header, body_ret_tv);
+    }
     state.provisional_self_root_tvs.insert(owner, ret_tv);
     let frozen =
         crate::scheme::freeze_type_var_with_non_generic(&state.infer, ret_tv, &non_generic_roots);

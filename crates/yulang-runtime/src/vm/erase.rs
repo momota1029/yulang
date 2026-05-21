@@ -6,6 +6,7 @@
 //! missing thunk boundaries or unresolved polymorphism.
 
 use super::*;
+use crate::runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
 
 pub(super) fn erase_module(
     module: Module,
@@ -33,7 +34,7 @@ pub(super) fn erase_binding(
     binding: Binding,
     effects: &EffectPathResolver,
 ) -> Result<Binding, VmError> {
-    if !binding.type_params.is_empty() {
+    if !binding.type_params.is_empty() && !binding_is_parametric_runtime_intrinsic(&binding) {
         return Err(VmError::ResidualPolymorphicBinding {
             path: binding.name,
             vars: binding.type_params,

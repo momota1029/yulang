@@ -1328,7 +1328,26 @@ impl<'m> ControlInterpreter<'m> {
                 let id = self.eval_effect_id(id)?;
                 let result = self.eval_expr(thunk, env)?;
                 let ControlResult::Value(ControlValue::Thunk(thunk)) = result else {
-                    return Ok(result);
+                    return Ok(match result {
+                        ControlResult::Request(request) => {
+                            let blocked = [BlockedEffect {
+                                guard_id: id,
+                                allowed: self.module.ty(allowed).clone(),
+                                active,
+                            }];
+                            let request = if active {
+                                mark_control_request_with_active_blocked(
+                                    self.module,
+                                    request,
+                                    &blocked,
+                                )
+                            } else {
+                                mark_control_request_with_blocked(self.module, request, &blocked)
+                            };
+                            ControlResult::Request(request)
+                        }
+                        other => other,
+                    });
                 };
                 let mut thunk = (*thunk).clone();
                 thunk.blocked.push(BlockedEffect {
@@ -2021,11 +2040,17 @@ impl<'m> ControlInterpreter<'m> {
             return Ok(ControlResult::Request(request));
         }
         let arms_slice = self.module.handle_arms(arms);
-        let Some((arm_index, arm)) = arms_slice
-            .iter()
-            .enumerate()
-            .skip(start_arm_index)
-            .find(|(_, arm)| arm.effect == request.effect)
+        let Some((arm_index, arm)) =
+            arms_slice
+                .iter()
+                .enumerate()
+                .skip(start_arm_index)
+                .find(|(_, arm)| {
+                    effect_operation_path_matches(
+                        self.module.symbol_path(arm.effect),
+                        self.module.symbol_path(request.effect),
+                    )
+                })
         else {
             return Ok(ControlResult::Request(request));
         };

@@ -54,7 +54,12 @@ pub(crate) fn lower_binding_with_type_scope(
             _ => None,
         };
         if let Some(owner) = owner {
-            super::super::preconstrain_recursive_binding_header_shape(state, owner, &arg_pats);
+            super::super::preconstrain_recursive_binding_header_shape(
+                state,
+                owner,
+                &arg_pats,
+                Some(&header),
+            );
         }
 
         let raw_body = if let Some(body) = body_node {
@@ -109,12 +114,7 @@ pub(crate) fn lower_binding_with_type_scope(
             }
         };
 
-        let cast_body = if arg_pats.is_empty() {
-            super::super::apply_binding_type_annotation_cast(state, &header, raw_body)
-        } else {
-            super::super::connect_binding_type_annotation(state, &header, raw_body.tv);
-            raw_body
-        };
+        let cast_body = super::super::apply_binding_type_annotation_cast(state, &header, raw_body);
         let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
         if let Some(def) = owner {
             state.insert_principal_body(def, body_expr.clone());
@@ -319,7 +319,7 @@ fn lower_dotted_method_binding(
             .set_extension_method_receiver_expects_computation(def, receiver_expects_computation);
     }
 
-    super::super::preconstrain_recursive_binding_header_shape(state, def, &arg_pats);
+    super::super::preconstrain_recursive_binding_header_shape(state, def, &arg_pats, Some(header));
 
     let raw_body = if let Some(body) = body_node {
         state.ctx.push_local();
@@ -359,12 +359,7 @@ fn lower_dotted_method_binding(
         }
     };
 
-    let cast_body = if arg_pats.is_empty() {
-        super::super::apply_binding_type_annotation_cast(state, header, raw_body)
-    } else {
-        super::super::connect_binding_type_annotation(state, header, raw_body.tv);
-        raw_body
-    };
+    let cast_body = super::super::apply_binding_type_annotation_cast(state, header, raw_body);
     let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
     state.insert_principal_body(def, body_expr.clone());
     let bind_pat = TypedPat {

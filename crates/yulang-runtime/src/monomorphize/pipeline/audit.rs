@@ -1,4 +1,5 @@
 use super::*;
+use crate::runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
 
 pub(super) fn audit_monomorphized_module(module: &Module) -> RuntimeResult<()> {
     audit_no_residual_type_params(module)?;
@@ -7,6 +8,9 @@ pub(super) fn audit_monomorphized_module(module: &Module) -> RuntimeResult<()> {
 
 fn audit_no_residual_type_params(module: &Module) -> RuntimeResult<()> {
     for binding in &module.bindings {
+        if binding_is_parametric_runtime_intrinsic(binding) {
+            continue;
+        }
         if binding.type_params.is_empty() {
             continue;
         }
@@ -50,7 +54,16 @@ fn residual_runtime_type_vars_by_binding(
     module: &Module,
 ) -> Vec<(typed_ir::Path, Vec<TypeSurfaceResidual>)> {
     let mut out = Vec::<(typed_ir::Path, Vec<TypeSurfaceResidual>)>::new();
+    let primitive_bindings = module
+        .bindings
+        .iter()
+        .filter(|binding| binding_is_parametric_runtime_intrinsic(binding))
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
     for item in collect_module_binding_runtime_type_residuals(module) {
+        if primitive_bindings.contains(&item.binding) {
+            continue;
+        }
         if let Some((_, residuals)) = out.iter_mut().find(|(binding, _)| binding == &item.binding) {
             residuals.push(item.residual);
         } else {

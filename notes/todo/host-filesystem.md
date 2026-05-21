@@ -7,6 +7,14 @@
 
 - `notes/design/error-handling-plan.md`
 
+## 新案(2026-05-21編集)
+- `file_handle`を用意する。といってもロックがある訳ではなく、「`path`と`str`の組」として。一応これについて`our open: path -> file_handle`と`our read: file_handle -> str`と`our splice: file_handle -> range -> str -> str`、あと`our lines_range: file_handle -> range -> range`をエフェクトとして用意。実際にファイルを開いたり閉じたりするわけではないので、closeはなし。
+- `file_handle`自身は変数ではないが、`read`/`set`(splice)があるので変数として渡してやることも出来る
+- 基本的に`lines`は「`lines_range`を書き込み時に取得し、`splice`を翻訳する」変数の配列を返す。`file_line`という型を作っていい感じにやる。
+- これはundetの回収後に回収されるエフェクトなので、結果としてファイルが綺麗に編集されるというわけ。最後の編集とか良く分からないのでガンガン編集しちゃうのはアリだと思う。
+- 複数取ると普通に死ぬが、別にガードとかはしなくていいと思う(あるあるだし)。
+- テストのときはmockなので編集はstrだけになるのもポイント高い。
+
 ## 現在の状態
 
 - `std::console` は `print` / `println` を提供する。

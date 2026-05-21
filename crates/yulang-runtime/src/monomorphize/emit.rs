@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use super::*;
 use crate::ir::{
-    Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, MatchArm, Module, Pattern, RecordExprField,
-    RecordSpreadExpr, Stmt, Type as RuntimeType,
+    Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, JoinEvidence, MatchArm, Module, Pattern,
+    RecordExprField, RecordSpreadExpr, Stmt, Type as RuntimeType,
 };
-use crate::types::{runtime_core_type, thunk_effect};
+use crate::types::{core_types_compatible, runtime_core_type, thunk_effect};
 
 pub struct DemandEmitter<'a> {
     semantics: DemandSemantics,
@@ -559,31 +559,35 @@ impl<'a> BodyEmitter<'a> {
                 scrutinee,
                 arms,
                 evidence,
-            } => Ok(Expr::typed(
-                ExprKind::Match {
-                    scrutinee: Box::new(self.rewrite_expr(scrutinee, None)?),
-                    arms: arms
-                        .iter()
-                        .map(|arm| {
-                            let inserted = self.insert_checked_pattern_bindings(&arm.pattern);
-                            let guard = arm
-                                .guard
-                                .as_ref()
-                                .map(|guard| self.rewrite_expr(guard, None))
-                                .transpose()?;
-                            let body = self.rewrite_expr(&arm.body, expected)?;
-                            self.restore_inserted_locals(inserted);
-                            Ok(MatchArm {
-                                pattern: arm.pattern.clone(),
-                                guard,
-                                body,
+            } => {
+                let expr_ty = self.expr_type(expr, expected)?;
+                let arm_expected = join_arm_expected(expected, &expr_ty);
+                Ok(Expr::typed(
+                    ExprKind::Match {
+                        scrutinee: Box::new(self.rewrite_expr(scrutinee, None)?),
+                        arms: arms
+                            .iter()
+                            .map(|arm| {
+                                let inserted = self.insert_checked_pattern_bindings(&arm.pattern);
+                                let guard = arm
+                                    .guard
+                                    .as_ref()
+                                    .map(|guard| self.rewrite_expr(guard, None))
+                                    .transpose()?;
+                                let body = self.rewrite_expr(&arm.body, arm_expected.as_ref())?;
+                                self.restore_inserted_locals(inserted);
+                                Ok(MatchArm {
+                                    pattern: arm.pattern.clone(),
+                                    guard,
+                                    body,
+                                })
                             })
-                        })
-                        .collect::<Result<Vec<_>, DemandEmitError>>()?,
-                    evidence: evidence.clone(),
-                },
-                self.expr_type(expr, expected)?,
-            )),
+                            .collect::<Result<Vec<_>, DemandEmitError>>()?,
+                        evidence: refreshed_join_evidence(evidence, &expr_ty),
+                    },
+                    expr_ty,
+                ))
+            }
             ExprKind::Block { stmts, tail } => self.rewrite_block(expr, stmts, tail, expected),
             ExprKind::Handle {
                 body,
@@ -591,6 +595,8 @@ impl<'a> BodyEmitter<'a> {
                 evidence,
                 handler,
             } => {
+                let expr_ty = self.expr_type(expr, expected)?;
+                let arm_expected = join_arm_expected(expected, &expr_ty);
                 let body = self.rewrite_expr(body, None)?;
                 let handled_body_for_resume = body.clone();
                 let handler = self.rewrite_handle_effect(handler, &body);
@@ -621,7 +627,7 @@ impl<'a> BodyEmitter<'a> {
                                     .as_ref()
                                     .map(|guard| self.rewrite_expr(guard, None))
                                     .transpose()?;
-                                let body = self.rewrite_expr(&arm.body, expected)?;
+                                let body = self.rewrite_expr(&arm.body, arm_expected.as_ref())?;
                                 self.restore_inserted_locals(inserted);
                                 Ok(crate::ir::HandleArm {
                                     effect: arm.effect.clone(),
@@ -632,10 +638,10 @@ impl<'a> BodyEmitter<'a> {
                                 })
                             })
                             .collect::<Result<Vec<_>, DemandEmitError>>()?,
-                        evidence: evidence.clone(),
+                        evidence: refreshed_join_evidence(evidence, &expr_ty),
                         handler,
                     },
-                    self.expr_type(expr, expected)?,
+                    expr_ty,
                 ))
             }
             ExprKind::BindHere { expr: inner } => {
@@ -1472,11 +1478,19 @@ impl<'a> BodyEmitter<'a> {
         expr: &Expr,
         expected: Option<&DemandSignature>,
     ) -> Result<RuntimeType, DemandEmitError> {
-        expected
-            .filter(|signature| signature.is_closed())
-            .map(runtime_type)
-            .transpose()
-            .map(|ty| ty.unwrap_or_else(|| expr.ty.clone()))
+        let Some(expected) = expected.filter(|signature| signature.is_closed()) else {
+            return Ok(expr.ty.clone());
+        };
+        let expected = runtime_type(expected)?;
+        let expected_core = runtime_core_type(&expected);
+        let actual_core = runtime_core_type(&expr.ty);
+        if core_types_compatible(&expected_core, &actual_core)
+            || core_types_compatible(&actual_core, &expected_core)
+        {
+            Ok(expected)
+        } else {
+            Ok(expr.ty.clone())
+        }
     }
 
     fn value_expr_type(
@@ -3188,6 +3202,34 @@ fn restore_local(
         None => {
             locals.remove(&local);
         }
+    }
+}
+
+fn join_arm_expected(
+    expected: Option<&DemandSignature>,
+    expr_ty: &RuntimeType,
+) -> Option<DemandSignature> {
+    let expr_signature = DemandSignature::from_runtime_type(expr_ty);
+    let Some(expected) = expected.filter(|signature| signature.is_closed()) else {
+        return Some(expr_signature);
+    };
+    let Ok(expected_ty) = runtime_type(expected) else {
+        return Some(expr_signature);
+    };
+    let expected_core = runtime_core_type(&expected_ty);
+    let expr_core = runtime_core_type(expr_ty);
+    if core_types_compatible(&expected_core, &expr_core)
+        || core_types_compatible(&expr_core, &expected_core)
+    {
+        Some(expected.clone())
+    } else {
+        Some(expr_signature)
+    }
+}
+
+fn refreshed_join_evidence(_evidence: &JoinEvidence, expr_ty: &RuntimeType) -> JoinEvidence {
+    JoinEvidence {
+        result: runtime_core_type(expr_ty),
     }
 }
 

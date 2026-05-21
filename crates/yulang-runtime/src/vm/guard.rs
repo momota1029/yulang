@@ -202,6 +202,21 @@ pub(super) fn effect_path_matches_allowed(
         .any(|(index, _)| effect.segments[index..].starts_with(&allowed.segments))
 }
 
+pub(super) fn effect_operation_path_matches(
+    handled: &typed_ir::Path,
+    requested: &typed_ir::Path,
+) -> bool {
+    handled == requested
+        || (handled.segments.len() == requested.segments.len()
+            && handled.segments.len() > 1
+            && handled.segments[..handled.segments.len() - 1]
+                == requested.segments[..requested.segments.len() - 1]
+            && effect_segment_matches_allowed(
+                &handled.segments[handled.segments.len() - 1],
+                &requested.segments[requested.segments.len() - 1],
+            ))
+}
+
 fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::Name) -> bool {
     allowed == effect
         || effect

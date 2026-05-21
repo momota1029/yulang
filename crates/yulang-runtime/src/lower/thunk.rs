@@ -767,9 +767,6 @@ fn add_id_with_peek(thunk: Expr, allowed: typed_ir::Type, active: bool) -> Expr 
 }
 
 fn add_id_required(thunk: Expr, id: EffectIdRef, allowed: typed_ir::Type, active: bool) -> Expr {
-    if !matches!(thunk.ty, RuntimeType::Thunk { .. }) {
-        return thunk;
-    }
     Expr::typed(
         ExprKind::AddId {
             id,

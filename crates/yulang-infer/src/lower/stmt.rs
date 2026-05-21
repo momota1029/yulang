@@ -62,9 +62,9 @@ use act::{lower_act_decl, preregister_act_decl};
 pub(super) use binding::preregister_binding_as_module_value;
 pub(crate) use binding::{
     ArgPatInfo, HeaderArg, apply_binding_type_annotation_cast, binding_sig_var_names,
-    collect_header_args, connect_binding_type_annotation, connect_pattern_sig_annotation,
-    lower_binding_body, lower_binding_with_type_scope, make_arg_pat_info,
-    preconstrain_recursive_binding_header_shape, preregister_binding, wrap_header_lambdas,
+    collect_header_args, connect_pattern_sig_annotation, lower_binding_body,
+    lower_binding_with_type_scope, make_arg_pat_info, preconstrain_recursive_binding_header_shape,
+    preregister_binding, wrap_header_lambdas,
 };
 use binding::{direct_binding_name, extract_binding_lhs, lower_binding};
 pub(super) use control::collect_block_items;

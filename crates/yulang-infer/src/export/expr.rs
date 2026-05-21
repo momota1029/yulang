@@ -88,6 +88,59 @@ fn export_variant_pattern_payload<'a>(
     }
 }
 
+fn collect_pattern_local_defs(pat: &TypedPat, out: &mut Vec<DefId>) {
+    match &pat.kind {
+        PatKind::Tuple(items) | PatKind::PolyVariant(_, items) => {
+            for item in items {
+                collect_pattern_local_defs(item, out);
+            }
+        }
+        PatKind::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_pattern_local_defs(item, out);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_local_defs(spread, out);
+            }
+            for item in suffix {
+                collect_pattern_local_defs(item, out);
+            }
+        }
+        PatKind::Record { spread, fields } => {
+            for field in fields {
+                collect_pattern_local_defs(&field.pat, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordPatSpread::Head(pat) | RecordPatSpread::Tail(pat) => {
+                        collect_pattern_local_defs(pat, out);
+                    }
+                }
+            }
+        }
+        PatKind::Con(_, payload) => {
+            if let Some(payload) = payload {
+                collect_pattern_local_defs(payload, out);
+            }
+        }
+        PatKind::Or(left, right) => {
+            collect_pattern_local_defs(left, out);
+            collect_pattern_local_defs(right, out);
+        }
+        PatKind::As(inner, def) => {
+            collect_pattern_local_defs(inner, out);
+            if !out.contains(def) {
+                out.push(*def);
+            }
+        }
+        PatKind::Wild | PatKind::Lit(_) | PatKind::UnresolvedName(_) => {}
+    }
+}
+
 pub(super) fn collect_expr_export_type_vars(expr: &TypedExpr, vars: &mut HashSet<TypeVar>) {
     vars.insert(expr.tv);
     vars.insert(expr.eff);
@@ -248,6 +301,7 @@ pub(super) struct ExprExporter<'a> {
     state: &'a LowerState,
     globals: &'a HashMap<DefId, Path>,
     locals: HashMap<DefId, Path>,
+    local_names: HashMap<Name, Path>,
     principal_scheme_cache: &'a mut HashMap<DefId, Option<typed_ir::Scheme>>,
     base_bounds_cache: &'a mut HashMap<TypeVar, typed_ir::TypeBounds>,
     complete_principal_cache: &'a mut CompletePrincipalCache,
@@ -323,6 +377,7 @@ impl<'a> ExprExporter<'a> {
             state,
             globals,
             locals: HashMap::new(),
+            local_names: HashMap::new(),
             principal_scheme_cache,
             base_bounds_cache,
             complete_principal_cache,
@@ -404,8 +459,10 @@ impl<'a> ExprExporter<'a> {
                     .lambda_param_function_allowed_effects
                     .get(def)
                     .cloned();
-                let body = self.with_lambda_scope(*def, |this| this.export_expr(body));
-                let body = self.wrap_lambda_param_pattern(*def, &param, body);
+                let body = self.with_lambda_scope(*def, |this| {
+                    let body = this.export_expr(body);
+                    this.wrap_lambda_param_pattern(*def, &param, body)
+                });
                 typed_ir::Expr::Lambda {
                     param,
                     param_effect_annotation,
@@ -501,10 +558,12 @@ impl<'a> ExprExporter<'a> {
                 scrutinee: Box::new(self.export_expr(scrutinee)),
                 arms: arms
                     .iter()
-                    .map(|arm| typed_ir::MatchArm {
-                        pattern: self.export_pat(&arm.pat),
-                        guard: arm.guard.as_ref().map(|guard| self.export_expr(guard)),
-                        body: self.export_expr(&arm.body),
+                    .map(|arm| {
+                        self.with_pattern_scope(&arm.pat, |this| typed_ir::MatchArm {
+                            pattern: this.export_pat(&arm.pat),
+                            guard: arm.guard.as_ref().map(|guard| this.export_expr(guard)),
+                            body: this.export_expr(&arm.body),
+                        })
                     })
                     .collect(),
                 evidence: Some(typed_ir::JoinEvidence {
@@ -1000,25 +1059,26 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn export_block(&mut self, block: &TypedBlock) -> typed_ir::Expr {
-        typed_ir::Expr::Block {
-            stmts: block
-                .stmts
-                .iter()
-                .map(|stmt| self.export_stmt(stmt))
-                .collect(),
-            tail: block
-                .tail
-                .as_ref()
-                .map(|tail| Box::new(self.export_expr(tail))),
+        let mut previous_defs = Vec::new();
+        let mut previous_names = Vec::new();
+        let mut stmts = Vec::with_capacity(block.stmts.len());
+        for stmt in &block.stmts {
+            stmts.push(self.export_stmt(stmt));
+            if let TypedStmt::Let(pattern, _) = stmt {
+                self.push_pattern_scope(pattern, &mut previous_defs, &mut previous_names);
+            }
         }
+        let tail = block
+            .tail
+            .as_ref()
+            .map(|tail| Box::new(self.export_expr(tail)));
+        self.restore_local_scope(previous_defs, previous_names);
+        typed_ir::Expr::Block { stmts, tail }
     }
 
     fn export_stmt(&mut self, stmt: &TypedStmt) -> typed_ir::Stmt {
         match stmt {
-            TypedStmt::Let(pattern, value) => typed_ir::Stmt::Let {
-                pattern: self.export_pat(pattern),
-                value: self.export_expr(value),
-            },
+            TypedStmt::Let(pattern, value) => self.export_let_stmt(pattern, value),
             TypedStmt::Expr(expr) => typed_ir::Stmt::Expr(self.export_expr(expr)),
             TypedStmt::Module(def, body) => typed_ir::Stmt::Module {
                 def: self.path_for_def(*def),
@@ -1027,27 +1087,53 @@ impl<'a> ExprExporter<'a> {
         }
     }
 
+    fn export_let_stmt(&mut self, pattern: &TypedPat, value: &TypedExpr) -> typed_ir::Stmt {
+        let mut defs = Vec::new();
+        collect_pattern_local_defs(pattern, &mut defs);
+
+        let mut previous_defs = Vec::new();
+        let mut previous_names = Vec::new();
+        for def in defs
+            .into_iter()
+            .filter(|def| self.state.is_recursive_binding(*def))
+        {
+            self.push_local_def(def, &mut previous_defs, &mut previous_names);
+        }
+
+        let value = self.export_expr(value);
+        self.restore_local_scope(previous_defs, previous_names);
+
+        typed_ir::Stmt::Let {
+            pattern: self.export_pat(pattern),
+            value,
+        }
+    }
+
     fn export_catch_arm(&mut self, arm: &TypedCatchArm) -> typed_ir::HandleArm {
         match &arm.kind {
-            CatchArmKind::Value(pattern, body) => typed_ir::HandleArm {
-                effect: typed_ir::Path::default(),
-                payload: self.export_pat(pattern),
-                resume: None,
-                guard: arm.guard.as_ref().map(|guard| self.export_expr(guard)),
-                body: self.export_expr(body),
-            },
+            CatchArmKind::Value(pattern, body) => {
+                self.with_pattern_scope(pattern, |this| typed_ir::HandleArm {
+                    effect: typed_ir::Path::default(),
+                    payload: this.export_pat(pattern),
+                    resume: None,
+                    guard: arm.guard.as_ref().map(|guard| this.export_expr(guard)),
+                    body: this.export_expr(body),
+                })
+            }
             CatchArmKind::Effect {
                 op_path,
                 pat,
                 k,
                 body,
-            } => typed_ir::HandleArm {
-                effect: self.export_effect_operation_path(op_path),
-                payload: self.export_pat(pat),
-                resume: Some(self.local_name_for_def(*k)),
-                guard: arm.guard.as_ref().map(|guard| self.export_expr(guard)),
-                body: self.with_local(*k, |this| this.export_expr(body)),
-            },
+            } => self.with_local(*k, |this| {
+                this.with_pattern_scope(pat, |this| typed_ir::HandleArm {
+                    effect: this.export_effect_operation_path(op_path),
+                    payload: this.export_pat(pat),
+                    resume: Some(this.local_name_for_def(*k)),
+                    guard: arm.guard.as_ref().map(|guard| this.export_expr(guard)),
+                    body: this.export_expr(body),
+                })
+            }),
         }
     }
 
@@ -1110,7 +1196,10 @@ impl<'a> ExprExporter<'a> {
                     .as_ref()
                     .map(|payload| Box::new(self.export_pat(payload))),
             },
-            PatKind::UnresolvedName(name) => typed_ir::Pattern::Bind(export_name(name)),
+            PatKind::UnresolvedName(name) => typed_ir::Pattern::Bind(
+                self.local_name_for_source_name(name)
+                    .unwrap_or_else(|| export_name(name)),
+            ),
             PatKind::Or(lhs, rhs) => typed_ir::Pattern::Or {
                 left: Box::new(self.export_pat(lhs)),
                 right: Box::new(self.export_pat(rhs)),
@@ -1123,13 +1212,11 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn with_local<T>(&mut self, def: DefId, f: impl FnOnce(&mut Self) -> T) -> T {
-        let previous = self.locals.insert(def, self.scoped_local_path(def));
+        let mut previous_defs = Vec::new();
+        let mut previous_names = Vec::new();
+        self.push_local_def(def, &mut previous_defs, &mut previous_names);
         let out = f(self);
-        if let Some(previous) = previous {
-            self.locals.insert(def, previous);
-        } else {
-            self.locals.remove(&def);
-        }
+        self.restore_local_scope(previous_defs, previous_names);
         out
     }
 
@@ -1145,26 +1232,73 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn with_lambda_scope<T>(&mut self, def: DefId, f: impl FnOnce(&mut Self) -> T) -> T {
-        let mut previous = Vec::new();
-        previous.push((def, self.locals.insert(def, self.scoped_local_path(def))));
+        let mut previous_defs = Vec::new();
+        let mut previous_names = Vec::new();
+        self.push_local_def(def, &mut previous_defs, &mut previous_names);
         if let Some(local_defs) = self.state.lambda_local_defs.get(&def) {
             for &local_def in local_defs {
-                previous.push((
-                    local_def,
-                    self.locals
-                        .insert(local_def, self.scoped_local_path(local_def)),
-                ));
+                self.push_local_def(local_def, &mut previous_defs, &mut previous_names);
             }
         }
         let out = f(self);
-        for (local_def, old) in previous.into_iter().rev() {
+        self.restore_local_scope(previous_defs, previous_names);
+        out
+    }
+
+    fn with_pattern_scope<T>(&mut self, pat: &TypedPat, f: impl FnOnce(&mut Self) -> T) -> T {
+        let mut previous_defs = Vec::new();
+        let mut previous_names = Vec::new();
+        self.push_pattern_scope(pat, &mut previous_defs, &mut previous_names);
+        let out = f(self);
+        self.restore_local_scope(previous_defs, previous_names);
+        out
+    }
+
+    fn push_pattern_scope(
+        &mut self,
+        pat: &TypedPat,
+        previous_defs: &mut Vec<(DefId, Option<Path>)>,
+        previous_names: &mut Vec<(Name, Option<Path>)>,
+    ) {
+        let mut defs = Vec::new();
+        collect_pattern_local_defs(pat, &mut defs);
+        for def in defs {
+            self.push_local_def(def, previous_defs, previous_names);
+        }
+    }
+
+    fn push_local_def(
+        &mut self,
+        def: DefId,
+        previous_defs: &mut Vec<(DefId, Option<Path>)>,
+        previous_names: &mut Vec<(Name, Option<Path>)>,
+    ) {
+        let path = self.scoped_local_path(def);
+        previous_defs.push((def, self.locals.insert(def, path.clone())));
+        if let Some(name) = self.state.def_name(def).cloned() {
+            previous_names.push((name.clone(), self.local_names.insert(name, path)));
+        }
+    }
+
+    fn restore_local_scope(
+        &mut self,
+        previous_defs: Vec<(DefId, Option<Path>)>,
+        previous_names: Vec<(Name, Option<Path>)>,
+    ) {
+        for (name, old) in previous_names.into_iter().rev() {
             if let Some(old) = old {
-                self.locals.insert(local_def, old);
+                self.local_names.insert(name, old);
             } else {
-                self.locals.remove(&local_def);
+                self.local_names.remove(&name);
             }
         }
-        out
+        for (def, old) in previous_defs.into_iter().rev() {
+            if let Some(old) = old {
+                self.locals.insert(def, old);
+            } else {
+                self.locals.remove(&def);
+            }
+        }
     }
 
     fn wrap_lambda_param_pattern(
@@ -1176,7 +1310,9 @@ impl<'a> ExprExporter<'a> {
         let Some(pat) = self.state.lambda_param_pats.get(&def).cloned() else {
             return body;
         };
-        if matches!(&pat.kind, PatKind::UnresolvedName(name) if export_name(name) == *param) {
+        if matches!(&pat.kind, PatKind::UnresolvedName(name)
+            if self.state.def_name(def).is_some_and(|def_name| name == def_name))
+        {
             return body;
         }
         typed_ir::Expr::Block {
@@ -1189,14 +1325,19 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn local_name_for_def(&self, def: DefId) -> typed_ir::Name {
-        if let Some(name) = self.state.def_name(def) {
-            return export_name(name);
-        }
-        self.path_for_def(def)
+        self.scoped_local_path(def)
             .segments
             .last()
-            .cloned()
+            .map(export_name)
+            .or_else(|| self.path_for_def(def).segments.last().cloned())
             .unwrap_or(typed_ir::Name(format!("local_{}", def.0)))
+    }
+
+    fn local_name_for_source_name(&self, name: &Name) -> Option<typed_ir::Name> {
+        self.local_names
+            .get(name)
+            .and_then(|path| path.segments.last())
+            .map(export_name)
     }
 
     fn path_for_ref(&self, ref_id: RefId) -> typed_ir::Path {
@@ -1277,7 +1418,7 @@ impl<'a> ExprExporter<'a> {
     fn scoped_local_path(&self, def: DefId) -> Path {
         if let Some(name) = self.state.def_name(def) {
             return Path {
-                segments: vec![name.clone()],
+                segments: vec![Name(format!("{}#local_{}", name.0, def.0))],
             };
         }
         self.synthetic_local_path(def)

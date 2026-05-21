@@ -487,7 +487,9 @@ fn coalesce_root_fun_field(
     }
 
     let ty = if positive {
-        bounds.lower
+        common_compact_type(&bounds.lower, &bounds.upper)
+            .filter(|ty| !is_empty_compact(ty))
+            .unwrap_or(bounds.lower)
     } else {
         common_compact_type(&bounds.lower, &bounds.upper)
             .filter(|ty| !is_empty_compact(ty))

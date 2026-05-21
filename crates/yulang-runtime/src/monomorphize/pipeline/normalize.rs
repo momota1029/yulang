@@ -1,4 +1,5 @@
 use super::*;
+use crate::runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
 use crate::types::{
     BoundsChoice, choose_bounds_type, core_type_contains_unknown,
     core_type_is_imprecise_runtime_slot, runtime_core_type, type_compatible,
@@ -33,11 +34,82 @@ pub(super) fn refresh_specialized_scheme_from_body(binding: &mut Binding) {
     if matches!(binding.body.kind, ExprKind::PrimitiveOp(_)) {
         return;
     }
+    let body_scheme = core_value_type(&binding.body.ty);
+    if core_type_choice_widens(&binding.scheme.body, &body_scheme) {
+        binding.body.ty =
+            normalize_hir_function_type(RuntimeType::core(binding.scheme.body.clone()));
+        refresh_binding_type_params(binding);
+        return;
+    }
     binding.scheme = typed_ir::Scheme {
         requirements: Vec::new(),
-        body: core_value_type(&binding.body.ty),
+        body: body_scheme,
     };
     refresh_binding_type_params(binding);
+}
+
+fn core_type_choice_widens(projected: &typed_ir::Type, current: &typed_ir::Type) -> bool {
+    match (projected, current) {
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), current) => {
+            items.iter().any(|item| item == current)
+        }
+        (
+            typed_ir::Type::Fun {
+                param: projected_param,
+                param_effect: projected_param_effect,
+                ret_effect: projected_ret_effect,
+                ret: projected_ret,
+            },
+            typed_ir::Type::Fun {
+                param: current_param,
+                param_effect: current_param_effect,
+                ret_effect: current_ret_effect,
+                ret: current_ret,
+            },
+        ) => {
+            core_type_choice_widens(projected_param, current_param)
+                || core_type_choice_widens(projected_param_effect, current_param_effect)
+                || core_type_choice_widens(projected_ret_effect, current_ret_effect)
+                || core_type_choice_widens(projected_ret, current_ret)
+        }
+        (
+            typed_ir::Type::Named {
+                path: projected_path,
+                args: projected_args,
+            },
+            typed_ir::Type::Named {
+                path: current_path,
+                args: current_args,
+            },
+        ) if projected_path == current_path && projected_args.len() == current_args.len() => {
+            projected_args
+                .iter()
+                .zip(current_args)
+                .any(|(projected, current)| type_arg_choice_widens(projected, current))
+        }
+        _ => false,
+    }
+}
+
+fn type_arg_choice_widens(projected: &typed_ir::TypeArg, current: &typed_ir::TypeArg) -> bool {
+    match (projected, current) {
+        (typed_ir::TypeArg::Type(projected), typed_ir::TypeArg::Type(current)) => {
+            core_type_choice_widens(projected, current)
+        }
+        (typed_ir::TypeArg::Bounds(projected), typed_ir::TypeArg::Bounds(current)) => {
+            projected
+                .lower
+                .as_deref()
+                .zip(current.lower.as_deref())
+                .is_some_and(|(projected, current)| core_type_choice_widens(projected, current))
+                || projected
+                    .upper
+                    .as_deref()
+                    .zip(current.upper.as_deref())
+                    .is_some_and(|(projected, current)| core_type_choice_widens(projected, current))
+        }
+        _ => false,
+    }
 }
 
 pub(super) fn refresh_closed_specialized_schemes(mut module: Module) -> Module {
@@ -48,6 +120,15 @@ pub(super) fn refresh_closed_specialized_schemes(mut module: Module) -> Module {
             || (was_closed_binding && is_synthetic_local_act_helper_path(&binding.name))
         {
             refresh_specialized_scheme_from_body(binding);
+        }
+    }
+    module
+}
+
+pub(super) fn normalize_parametric_primitive_intrinsics(mut module: Module) -> Module {
+    for binding in &mut module.bindings {
+        if binding_is_parametric_runtime_intrinsic(binding) {
+            binding.type_params.clear();
         }
     }
     module

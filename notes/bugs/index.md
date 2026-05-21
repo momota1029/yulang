@@ -103,6 +103,36 @@ commit `230e028` で全て解決した。snippet は `solved/` へ退避。
 diagnostic 出力（`crates/yulang-infer/src/diagnostic.rs` の format 経路）にも
 当てたい、というのは別タスクとして残っている。
 
+## 現在の未解決（2026-05-21 / キャッシュ汚染）
+
+`each` + role method `+` の式が、キャッシュ有無で出力がブレる。
+
+```text
+~/r/yulang> echo "([1,2].each + [1,3].each).list.say" | yulang run
+error: cannot infer all runtime types needed for `std::ops::#op:infix:+`.
+Add a type annotation that fixes the remaining type variable: 'a.
+Source: binding type parameters.
+
+~/r/yulang> echo "([1,2].each + [1,3].each).list.say" | yulang run --no-cache
+[2, 4, 3, 5]
+```
+
+`--no-cache` では正しく `[2, 4, 3, 5]` に届くので、式そのものは型付け可能。
+キャッシュ有りのときだけ runtime monomorphize の型変数 `'a` が未確定で残る。
+同入力で出力がブレるので、substitution の不足ではなく realm / キャッシュ層
+の汚染。2026-05-20 の `each` / `say` 切り分けと同じ系統。
+
+副次観察: 診断の operator 名が `std::ops::#op:infix:+` と未短縮で出ている。
+これは 2026-05-20 解決済みエントリ B1 の補足（diagnostic 出力の最短化、
+`crates/yulang-infer/src/diagnostic.rs`）と同じ別タスク。
+
+確認:
+
+```bash
+echo "([1,2].each + [1,3].each).list.say" | yulang run            # error
+echo "([1,2].each + [1,3].each).list.say" | yulang run --no-cache # [2, 4, 3, 5]
+```
+
 ## 現在の未解決（2026-05-17 / 非 native regression）
 
 現時点では空。新しい非 native regression が出たらここへ戻す。

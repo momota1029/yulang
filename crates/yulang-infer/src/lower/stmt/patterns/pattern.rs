@@ -44,10 +44,29 @@ pub(crate) fn record_pat_spread_pat(spread: &RecordPatSpread) -> &TypedPat {
 
 fn record_pat_spread_alias_def(state: &LowerState, spread: &RecordPatSpread) -> Option<DefId> {
     let pat = record_pat_spread_pat(spread);
-    let PatKind::UnresolvedName(name) = &pat.kind else {
-        return None;
-    };
-    state.ctx.resolve_bound_value(name)
+    match &pat.kind {
+        PatKind::As(_, def) => Some(*def),
+        PatKind::UnresolvedName(name) => state.ctx.resolve_bound_value(name),
+        _ => None,
+    }
+}
+
+fn local_binding_pat_kind(state: &mut LowerState, name: Name) -> PatKind {
+    if let Some(def) = state.ctx.resolve_local_value(&name) {
+        let tv = state.def_tvs.get(&def).copied().unwrap_or_else(|| {
+            let tv = state.fresh_tv();
+            state.register_def_tv(def, tv);
+            tv
+        });
+        return PatKind::As(
+            Box::new(TypedPat {
+                tv,
+                kind: PatKind::Wild,
+            }),
+            def,
+        );
+    }
+    PatKind::UnresolvedName(name)
 }
 
 fn pattern_has_poly_variant_colon(node: &SyntaxNode) -> bool {
@@ -109,7 +128,7 @@ fn lower_ctor_or_name_pat(
         && !pattern_has_poly_variant_colon(node)
         && let Some(name) = pattern_binding_name(node)
     {
-        return PatKind::UnresolvedName(name);
+        return local_binding_pat_kind(state, name);
     }
 
     if let Some(path) = super::pattern_ctor_path(node) {
@@ -144,7 +163,7 @@ fn lower_ctor_or_name_pat(
             let inner_pat = lower_pat(state, &inner_node);
             PatKind::Con(ref_id, Some(Box::new(inner_pat)))
         } else {
-            PatKind::UnresolvedName(name)
+            local_binding_pat_kind(state, name)
         }
     } else {
         PatKind::Wild
@@ -504,7 +523,7 @@ fn lower_record_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
                         });
                         TypedPat {
                             tv: def_tv,
-                            kind: PatKind::UnresolvedName(fname.clone()),
+                            kind: local_binding_pat_kind(state, fname.clone()),
                         }
                     });
                 fields.push(RecordPatField {

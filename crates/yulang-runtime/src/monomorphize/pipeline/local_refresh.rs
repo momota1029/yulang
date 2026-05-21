@@ -259,7 +259,7 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, Run
 }
 
 fn project_expr_runtime_types(expr: Expr) -> Expr {
-    let ty = substitute_hir_type(expr.ty, &BTreeMap::new());
+    let mut ty = substitute_hir_type(expr.ty, &BTreeMap::new());
     let kind = match expr.kind {
         ExprKind::Lambda {
             param,
@@ -287,6 +287,12 @@ fn project_expr_runtime_types(expr: Expr) -> Expr {
                 None => arg,
             };
             let callee = refresh_applied_callee_runtime_type(callee, &arg.ty);
+            if let Some(apply_ty) = project_apply_runtime_type_from_callee(&callee.ty)
+                .filter(|ty| !runtime_type_contains_unknown(ty))
+                && apply_ty != ty
+            {
+                ty = apply_ty;
+            }
             ExprKind::Apply {
                 callee: Box::new(refresh_applied_callee_result_runtime_type(callee, &ty)),
                 arg: Box::new(arg),
@@ -1308,6 +1314,7 @@ fn refresh_stmt_local_types(stmt: Stmt, locals: &mut HashMap<typed_ir::Path, Run
         }
         Stmt::Expr(expr) => Stmt::Expr(refresh_expr_local_types(expr, locals)),
         Stmt::Module { def, body } => {
+            locals.insert(def.clone(), body.ty.clone());
             let body = refresh_expr_local_types(body, locals);
             locals.insert(def.clone(), body.ty.clone());
             Stmt::Module { def, body }

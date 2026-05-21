@@ -120,6 +120,11 @@ impl Lowerer<'_> {
                     }
                     RuntimeError::UnboundVariable { path: path.clone() }
                 })?;
+                let ty = if reject_non_runtime_hir_type(&ty, TypeSource::Local).is_err() {
+                    project_runtime_hir_runtime_type_with_vars(ty, &self.principal_vars)
+                } else {
+                    ty
+                };
                 reject_non_runtime_hir_type(&ty, TypeSource::Local)?;
                 let kind =
                     if runtime_symbol_kind == Some(typed_ir::RuntimeSymbolKind::EffectOperation) {
@@ -353,6 +358,7 @@ impl Lowerer<'_> {
                             .or_else(|| self.tir_evidence_runtime_type(&evidence.result))
                     })
                     .map(RuntimeType::core);
+                let has_evidence_result = evidence_result.is_some();
                 let callee_local_hint = match callee_expr.as_ref() {
                     Some(typed_ir::Expr::Var(path)) => locals.get(path).cloned(),
                     _ => None,
@@ -445,6 +451,31 @@ impl Lowerer<'_> {
                     callee = Some(lowered);
                 }
                 let ret_hint = fun_parts.as_ref().map(|parts| parts.ret.clone());
+                let boundary_stored_ret_hint = if callee_boundary_effect.is_some() {
+                    callee_stored_hint
+                        .as_ref()
+                        .and_then(|ty| function_parts(ty).ok())
+                        .map(|parts| parts.ret)
+                } else {
+                    None
+                };
+                let boundary_thunk_result_hint = if callee_boundary_effect.is_some() {
+                    ret_hint
+                        .as_ref()
+                        .filter(|ty| matches!(ty, RuntimeType::Thunk { .. }))
+                        .cloned()
+                        .or_else(|| {
+                            boundary_stored_ret_hint
+                                .as_ref()
+                                .filter(|ty| matches!(ty, RuntimeType::Thunk { .. }))
+                                .cloned()
+                        })
+                } else {
+                    None
+                };
+                let boundary_result_hint = boundary_thunk_result_hint;
+                let preserve_boundary_thunk_result = boundary_result_hint.is_some();
+                let has_apply_result_hint = has_evidence_result || ret_hint.is_some();
                 let structural_result_hint = callee_expr
                     .as_ref()
                     .zip(arg_expr.as_ref())
@@ -463,15 +494,28 @@ impl Lowerer<'_> {
                 .unwrap_or_else(|| RuntimeType::core(self.fresh_type_var("apply_result")));
                 let result_ty = match (expected, structural_result_hint.as_ref()) {
                     (Some(expected), Some(structural))
-                        if apply_target.is_some()
-                            && !hir_type_compatible(expected, &result_ty)
+                        if !hir_type_compatible(expected, &result_ty)
                             && hir_type_compatible(expected, structural) =>
                     {
                         expected.clone()
                     }
                     (Some(expected), _)
+                        if has_apply_result_hint
+                            && matches!(
+                                expected_source,
+                                TypeSource::BindingScheme | TypeSource::RootGraph
+                            )
+                            && !runtime_type_is_imprecise_runtime_slot(expected)
+                            && !hir_type_contains_unknown(expected)
+                            && !hir_type_compatible(expected, &result_ty) =>
+                    {
+                        expected.clone()
+                    }
+                    (Some(expected), _)
                         if apply_target.is_some()
-                            && callee_stored_hint.as_ref().is_some_and(hir_type_has_type_vars)
+                            && callee_stored_hint
+                                .as_ref()
+                                .is_some_and(hir_type_has_type_vars)
                             && !runtime_type_is_imprecise_runtime_slot(expected)
                             && !hir_type_contains_unknown(expected)
                             && !hir_type_compatible(expected, &result_ty) =>
@@ -480,7 +524,10 @@ impl Lowerer<'_> {
                     }
                     _ => result_ty,
                 };
-                if let Some(expected) = expected {
+                let result_ty = boundary_result_hint.unwrap_or(result_ty);
+                if let Some(expected) = expected
+                    && !preserve_boundary_thunk_result
+                {
                     require_apply_result_compatible(expected, &result_ty, expected_source)
                         .map_err(|error| {
                             error.with_type_mismatch_context(apply_type_mismatch_context(
@@ -581,10 +628,18 @@ impl Lowerer<'_> {
                     Some(callee) => callee,
                     None => {
                         let callee_expected = match callee_hint.as_ref() {
-                            Some(ty @ RuntimeType::Fun { .. })
-                                if !hir_type_contains_unknown(ty) =>
+                            Some(ty)
+                                if !hir_type_contains_unknown(ty)
+                                    && function_parts(ty).ok().is_none_or(|parts| {
+                                        hir_type_compatible(&parts.ret, &result_ty)
+                                    }) =>
                             {
                                 Some(ty.clone())
+                            }
+                            Some(ty)
+                                if !hir_type_contains_unknown(ty) && function_parts(ty).is_ok() =>
+                            {
+                                Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
                             }
                             None if use_polymorphic_arg_hint => {
                                 Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
@@ -862,15 +917,19 @@ impl Lowerer<'_> {
                     _ => None,
                 };
                 let (apply_ty, apply_ty_overrides_ret) = match &final_fun_parts.ret {
+                    ret if preserve_boundary_thunk_result
+                        && matches!(ret, RuntimeType::Thunk { .. }) =>
+                    {
+                        (ret.clone(), false)
+                    }
                     RuntimeType::Unknown
                     | RuntimeType::Core(
                         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_),
                     ) => (result_ty, true),
-                    ret
-                        if expected.is_some_and(|expected| {
-                            !hir_type_compatible(expected, ret)
-                                && hir_type_compatible(expected, &result_ty)
-                        }) =>
+                    ret if expected.is_some_and(|expected| {
+                        !hir_type_compatible(expected, ret)
+                            && hir_type_compatible(expected, &result_ty)
+                    }) =>
                     {
                         (result_ty, true)
                     }
@@ -1274,12 +1333,7 @@ impl Lowerer<'_> {
                     RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
                     _ => expected.cloned().unwrap_or_else(|| expr.ty.clone()),
                 };
-                let expr = Expr::typed(
-                    ExprKind::BindHere {
-                        expr: Box::new(expr),
-                    },
-                    value_ty,
-                );
+                let expr = bind_here_if_thunk(expr, value_ty);
                 finalize_effectful_expr_profiled(
                     expr,
                     expected,
@@ -1393,7 +1447,8 @@ impl Lowerer<'_> {
                     .cloned()
                     .or_else(|| evidence_expected.filter(|ty| !hir_type_has_type_vars(ty)))
                     .unwrap_or_else(|| RuntimeType::core(from.clone()));
-                let to = core_type(&ty).clone();
+                let value_ty = value_hir_type(&ty).clone();
+                let to = runtime_core_type(&value_ty);
                 let from = if self.implicit_cast_method_path(&from, &to).is_some() {
                     from
                 } else {
@@ -1401,7 +1456,10 @@ impl Lowerer<'_> {
                 };
                 if let Some(cast) = self.implicit_cast_method_path(&from, &to) {
                     let callee_ty = self.env.get(&cast).cloned().unwrap_or_else(|| {
-                        RuntimeType::fun(RuntimeType::core(from.clone()), RuntimeType::core(to))
+                        RuntimeType::fun(
+                            RuntimeType::core(from.clone()),
+                            RuntimeType::core(to.clone()),
+                        )
                     });
                     let callee = Expr::typed(ExprKind::Var(cast), callee_ty);
                     let expr = Expr::typed(
@@ -1411,7 +1469,7 @@ impl Lowerer<'_> {
                             evidence: None,
                             instantiation: None,
                         },
-                        ty,
+                        RuntimeType::core(to),
                     );
                     return finalize_effectful_expr_profiled(
                         expr,
@@ -2502,6 +2560,7 @@ impl Lowerer<'_> {
                 Some(RuntimeType::Fun { .. }) | None => None,
             })
             .or(fallback_evidence_ty)
+            .or_else(|| evidence.is_some().then_some(typed_ir::Type::Unknown))
             .ok_or(RuntimeError::MissingJoinEvidence { node })
     }
 
@@ -2689,6 +2748,24 @@ impl Lowerer<'_> {
                     .find(|member| member.name.0 == "cast")
                     .map(|member| member.value.clone())
             })
+    }
+}
+
+fn project_runtime_hir_runtime_type_with_vars(
+    ty: RuntimeType,
+    allowed_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> RuntimeType {
+    match ty {
+        RuntimeType::Unknown => RuntimeType::Unknown,
+        RuntimeType::Core(core) => project_runtime_hir_type_with_vars(&core, allowed_vars),
+        RuntimeType::Fun { param, ret } => RuntimeType::fun(
+            project_runtime_hir_runtime_type_with_vars(*param, allowed_vars),
+            project_runtime_hir_runtime_type_with_vars(*ret, allowed_vars),
+        ),
+        RuntimeType::Thunk { effect, value } => RuntimeType::thunk(
+            project_runtime_effect(&effect),
+            project_runtime_hir_runtime_type_with_vars(*value, allowed_vars),
+        ),
     }
 }
 

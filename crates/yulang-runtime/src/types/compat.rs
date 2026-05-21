@@ -16,6 +16,9 @@ pub(super) fn type_compatible_inner(
     if expected == actual || core_type_is_never(expected) && core_type_is_never(actual) {
         return true;
     }
+    if core_type_is_unit_value(expected) && core_type_is_unit_value(actual) {
+        return true;
+    }
     if depth == 0 {
         return false;
     }
@@ -123,6 +126,20 @@ pub(super) fn type_compatible_inner(
                 body: actual_body,
             },
         ) if var == actual_var => type_compatible_inner(body, actual_body, depth - 1),
+        _ => false,
+    }
+}
+
+fn core_type_is_unit_value(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Tuple(items) => items.is_empty(),
+        typed_ir::Type::Named { path, args } => {
+            args.is_empty()
+                && path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.0 == "unit")
+        }
         _ => false,
     }
 }

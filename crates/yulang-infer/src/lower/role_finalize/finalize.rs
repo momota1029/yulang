@@ -12,7 +12,7 @@ use crate::scc::{
 };
 use crate::scheme::compact_pos_type;
 use crate::simplify::compact::{CompactType, CompactTypeScheme};
-use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraints;
+use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::types::Neg;
 
@@ -32,6 +32,11 @@ impl LowerState {
     /// SCC 圧縮・SCC 内共有・ready component の compact 化までをまとめて行う。
     pub fn finalize_compact_results(&mut self) -> Vec<DefId> {
         self.finalize_compact_results_profiled().finalized_defs
+    }
+
+    fn role_arg_input_flags(&self, role: &crate::symbols::Path) -> Option<Vec<bool>> {
+        let infos = self.infer.role_arg_infos_of(role);
+        (!infos.is_empty()).then(|| infos.into_iter().map(|info| info.is_input).collect())
     }
 
     pub fn finalize_compact_results_profiled(&mut self) -> FinalizeCompactResults {
@@ -325,7 +330,11 @@ impl LowerState {
                     remaining =
                         apply_role_output_replacements_to_constraints(&remaining, &replacements);
                     let (rewritten_scheme, rewritten_constraints) =
-                        coalesce_by_co_occurrence_with_role_constraints(&scheme, &remaining);
+                        coalesce_by_co_occurrence_with_role_constraint_inputs(
+                            &scheme,
+                            &remaining,
+                            |role| self.role_arg_input_flags(role),
+                        );
                     scheme = rewritten_scheme;
                     constraints = rewritten_constraints;
                     progressed = true;

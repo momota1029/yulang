@@ -57,7 +57,9 @@ pub(super) fn lower_recursive_lambda(state: &mut LowerState, node: &SyntaxNode) 
     }
 
     let arg_pats = lambda_arg_pats(state, node, lambda_pat_nodes(node));
-    super::super::stmt::preconstrain_recursive_binding_header_shape(state, self_def, &arg_pats);
+    super::super::stmt::preconstrain_recursive_binding_header_shape(
+        state, self_def, &arg_pats, None,
+    );
 
     state.ctx.push_local();
     state.ctx.bind_local(label_name, self_def);

@@ -202,7 +202,22 @@ impl<'m> VmInterpreter<'m> {
                 let id = self.eval_effect_id(*id)?;
                 let result = self.eval_expr(thunk, env)?;
                 let VmResult::Value(VmValue::Thunk(thunk)) = result else {
-                    return Ok(result);
+                    return Ok(match result {
+                        VmResult::Request(request) => {
+                            let blocked = [BlockedEffect {
+                                guard_id: id,
+                                allowed: allowed.clone(),
+                                active: *active,
+                            }];
+                            let request = if *active {
+                                mark_request_with_active_blocked(request, &blocked)
+                            } else {
+                                mark_request_with_blocked(request, &blocked)
+                            };
+                            VmResult::Request(request)
+                        }
+                        other => other,
+                    });
                 };
                 let mut thunk = (*thunk).clone();
                 thunk.blocked.push(BlockedEffect {
@@ -881,7 +896,7 @@ impl<'m> VmInterpreter<'m> {
         let Some((arm_index, arm)) = arms
             .iter()
             .enumerate()
-            .find(|(_, arm)| arm.effect == request.effect)
+            .find(|(_, arm)| effect_operation_path_matches(&arm.effect, &request.effect))
         else {
             return Ok(VmResult::Request(request));
         };

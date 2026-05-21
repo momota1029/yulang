@@ -27,9 +27,13 @@ pub(super) fn validate_expr(
         }
         ExprKind::PrimitiveOp(_) => {}
         ExprKind::Lit(lit) => {
-            let actual = core_type(&expr.ty);
-            if !literal_core_type_accepts(lit, actual) {
-                require_same_type(&literal_core_type(lit), actual, TypeSource::Expected)?;
+            let actual = hir_value_core_type(&expr.ty);
+            if !literal_core_type_accepts(lit, actual.as_ref()) {
+                require_same_type(
+                    &literal_core_type(lit),
+                    actual.as_ref(),
+                    TypeSource::Expected,
+                )?;
             }
         }
         ExprKind::Lambda { param, body, .. } => {
@@ -319,8 +323,8 @@ pub(super) fn validate_stmt(
         }
         Stmt::Expr(expr) => validate_expr(expr, bindings, type_arg_kinds, locals),
         Stmt::Module { def, body } => {
-            validate_expr(body, bindings, type_arg_kinds, locals)?;
             locals.insert(def.clone(), body.ty.clone());
+            validate_expr(body, bindings, type_arg_kinds, locals)?;
             Ok(())
         }
     }

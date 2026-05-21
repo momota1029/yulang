@@ -71,9 +71,8 @@ impl VmModule {
 pub fn compile_vm_module(module: Module) -> Result<VmModule, VmError> {
     check_runtime_invariants(&module, RuntimeStage::BeforeVm).map_err(VmError::Runtime)?;
     let effects = EffectPathResolver::collect(&module);
-    Ok(VmModule {
-        module: erase_module(module, &effects)?,
-    })
+    let module = erase_module(module, &effects)?;
+    Ok(VmModule { module })
 }
 
 #[derive(Debug, Clone, PartialEq)]

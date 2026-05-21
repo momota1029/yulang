@@ -14,6 +14,7 @@ use crate::ir::{
     Binding, Expr, ExprKind, HandleArm, HandleEffect, MatchArm, Module, Pattern, RecordSpreadExpr,
     RecordSpreadPattern, ResumeBinding, Root, Stmt, Type as RuntimeType, TypeInstantiation,
 };
+use crate::runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
 use crate::types::{
     BoundsChoice, choose_bounds_type, collect_type_vars, core_types_compatible,
     diagnostic_core_type, effect_compatible, is_qualified_runtime_path,
@@ -98,6 +99,9 @@ fn validate_binding(
     bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
+    if binding_is_parametric_runtime_intrinsic(binding) {
+        return Ok(());
+    }
     if !binding.type_params.is_empty() {
         return Ok(());
     }

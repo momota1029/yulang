@@ -748,7 +748,13 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
     let mut conflicts = BTreeSet::new();
     for substitution in &plan.substitutions {
         let allow_never = never_usable_vars.contains(&substitution.var);
-        if projected_unit_substitution_is_only_open_default(substitution, substitution_candidates) {
+        if projected_unit_substitution_is_only_open_default(substitution, substitution_candidates)
+            || projected_unit_substitution_is_shadowed_by_plan_input(
+                substitution,
+                &plan,
+                &required_vars,
+            )
+        {
             continue;
         }
         if !principal_plan_substitution_type_usable(&substitution.ty, allow_never) {
@@ -861,7 +867,7 @@ fn projected_unit_substitution_is_only_open_default(
     substitution: &typed_ir::TypeSubstitution,
     substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
 ) -> bool {
-    if !matches!(substitution.ty, typed_ir::Type::Tuple(ref items) if items.is_empty()) {
+    if !principal_plan_substitution_is_unit_default(&substitution.ty) {
         return false;
     }
     let mut has_candidate = false;
@@ -875,6 +881,47 @@ fn projected_unit_substitution_is_only_open_default(
         }
     }
     has_candidate
+}
+
+fn projected_unit_substitution_is_shadowed_by_plan_input(
+    substitution: &typed_ir::TypeSubstitution,
+    plan: &typed_ir::PrincipalElaborationPlan,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    if !principal_plan_substitution_is_unit_default(&substitution.ty)
+        || !required_vars.contains(&substitution.var)
+    {
+        return false;
+    }
+    let mut projected = BTreeMap::new();
+    let mut conflicts = BTreeSet::new();
+    for arg in &plan.args {
+        let Some(template) = principal_fun_param_at(&plan.principal_callee, arg.index) else {
+            continue;
+        };
+        let Some(actual) = principal_plan_arg_type(arg) else {
+            continue;
+        };
+        project_closed_substitutions_from_type(
+            template,
+            &actual,
+            required_vars,
+            &mut projected,
+            &mut conflicts,
+            false,
+            64,
+        );
+    }
+    if conflicts.contains(&substitution.var) {
+        return false;
+    }
+    projected.get(&substitution.var).is_some_and(|ty| {
+        ty != &substitution.ty && principal_plan_substitution_type_usable(ty, false)
+    })
+}
+
+fn principal_plan_substitution_is_unit_default(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Tuple(items) if items.is_empty())
 }
 
 fn principal_plan_result_self_closed_type(
@@ -1413,7 +1460,7 @@ fn principal_plan_slot_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bo
         && !type_has_vars(ty)
 }
 
-fn insert_exact_projected_substitution(
+pub(crate) fn insert_exact_projected_substitution(
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     var: typed_ir::TypeVar,
@@ -1453,19 +1500,21 @@ fn merge_projected_type_precision(
     if existing == incoming {
         return Some(existing.clone());
     }
-    if needs_runtime_coercion(incoming, existing) {
-        return Some(incoming.clone());
-    }
-    if needs_runtime_coercion(existing, incoming) {
-        return Some(existing.clone());
-    }
-    if core_type_is_unknown(existing) || core_type_is_top(existing) {
-        return Some(incoming.clone());
-    }
-    if core_type_is_unknown(incoming) || core_type_is_top(incoming) {
-        return Some(existing.clone());
-    }
     match (existing, incoming) {
+        (existing, typed_ir::Type::Union(incoming_items))
+            if incoming_items
+                .iter()
+                .any(|item| merge_projected_type_precision(existing, item).is_some()) =>
+        {
+            return Some(incoming.clone());
+        }
+        (typed_ir::Type::Union(existing_items), incoming)
+            if existing_items
+                .iter()
+                .any(|item| merge_projected_type_precision(item, incoming).is_some()) =>
+        {
+            return Some(existing.clone());
+        }
         (
             typed_ir::Type::Named {
                 path: existing_path,
@@ -1485,20 +1534,6 @@ fn merge_projected_type_precision(
                 path: existing_path.clone(),
                 args,
             })
-        }
-        (existing, typed_ir::Type::Union(incoming_items))
-            if incoming_items
-                .iter()
-                .any(|item| merge_projected_type_precision(existing, item).is_some()) =>
-        {
-            Some(existing.clone())
-        }
-        (typed_ir::Type::Union(existing_items), incoming)
-            if existing_items
-                .iter()
-                .any(|item| merge_projected_type_precision(item, incoming).is_some()) =>
-        {
-            Some(incoming.clone())
         }
         (existing, typed_ir::Type::Inter(incoming_items))
             if incoming_items
@@ -1554,6 +1589,14 @@ fn merge_projected_type_precision(
         }),
         _ => None,
     }
+    .or_else(|| needs_runtime_coercion(incoming, existing).then(|| incoming.clone()))
+    .or_else(|| needs_runtime_coercion(existing, incoming).then(|| existing.clone()))
+    .or_else(|| {
+        (core_type_is_unknown(existing) || core_type_is_top(existing)).then(|| incoming.clone())
+    })
+    .or_else(|| {
+        (core_type_is_unknown(incoming) || core_type_is_top(incoming)).then(|| existing.clone())
+    })
 }
 
 fn merge_projected_effect_precision(
@@ -4368,6 +4411,28 @@ mod tests {
         assert!(conflicts.is_empty(), "{conflicts:?}");
         assert_eq!(substitutions.get(&left), None);
         assert_eq!(substitutions.get(&right), None);
+    }
+
+    #[test]
+    fn principal_normalize_lets_closed_input_override_unit_default() {
+        let a = tv("a");
+        let mut plan = list_plan_for_arg(list_of(named("int")));
+        plan.substitutions = vec![typed_ir::TypeSubstitution {
+            var: a.clone(),
+            ty: typed_ir::Type::Tuple(Vec::new()),
+        }];
+
+        let normalized = normalize_principal_elaboration_plan(plan, &[]);
+
+        assert!(normalized.complete, "{normalized:?}");
+        assert_eq!(
+            normalized
+                .substitutions
+                .iter()
+                .find(|substitution| substitution.var == a)
+                .map(|substitution| &substitution.ty),
+            Some(&named("int"))
+        );
     }
 
     fn list_plan_for_arg(arg_ty: typed_ir::Type) -> typed_ir::PrincipalElaborationPlan {

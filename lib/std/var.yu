@@ -20,6 +20,6 @@ act var 't:
         update_effect: \() -> set:ref_update::update:get()
     }
 
-    my run(v, x: [_] _) = catch x:
+    my run(v: 't, x: [_] 'r): 'r = catch x:
         get(), k -> run v: k v
         set v, k -> run v: k()

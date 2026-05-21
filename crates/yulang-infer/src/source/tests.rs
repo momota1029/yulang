@@ -4311,6 +4311,54 @@ fn scoped_formatter_shortens_std_list_paths_in_prelude_scope() {
 }
 
 #[test]
+fn role_input_coalesce_removes_concrete_residual_vars() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            r#"my $pos: int = 0
+my $committed: bool = false
+
+my loop(n: int): int =
+    if n == 0:
+        $pos
+    else:
+        &committed = true
+        loop (n - 1)
+"#,
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        lowered.state.finalize_compact_results();
+
+        let def = lowered
+            .state
+            .ctx
+            .resolve_value(&Name("loop".to_string()))
+            .expect("loop should resolve");
+        let scheme = lowered
+            .state
+            .compact_scheme_of(def)
+            .expect("loop should have a compact scheme");
+        let rendered =
+            crate::display::format::format_coalesced_scheme_in_scope(&scheme, &lowered.state.ctx);
+        assert_eq!(rendered, "int -> int");
+        assert!(
+            lowered
+                .state
+                .infer
+                .compact_role_constraints_of(def)
+                .is_empty()
+        );
+    });
+}
+
+#[test]
 fn operator_use_spans_record_resolved_def_for_hover() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

@@ -16,7 +16,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
-    coalesce_by_co_occurrence_with_role_constraints,
+    coalesce_by_co_occurrence_with_role_constraint_inputs,
 };
 use crate::solve::Infer;
 
@@ -314,7 +314,15 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 let cooccur_start = Instant::now();
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
-                        coalesce_by_co_occurrence_with_role_constraints(compact, &constraints)
+                        coalesce_by_co_occurrence_with_role_constraint_inputs(
+                            compact,
+                            &constraints,
+                            |role| {
+                                let infos = infer.role_arg_infos_of(role);
+                                (!infos.is_empty())
+                                    .then(|| infos.into_iter().map(|info| info.is_input).collect())
+                            },
+                        )
                     } else {
                         (coalesce_by_co_occurrence(compact), Vec::new())
                     };

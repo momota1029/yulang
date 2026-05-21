@@ -90,6 +90,20 @@ pub fn coalesce_by_co_occurrence_with_role_constraints(
     (output.scheme, output.constraints)
 }
 
+pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
+    let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
+        scheme,
+        constraints,
+        Some(&role_arg_inputs),
+        std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+    );
+    (output.scheme, output.constraints)
+}
+
 pub fn coalesce_by_co_occurrence_with_role_constraints_report(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
@@ -97,13 +111,17 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
     coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
+        None,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
     )
 }
 
+type RoleArgInputs<'a> = dyn Fn(&Path) -> Option<Vec<bool>> + 'a;
+
 fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
+    role_arg_inputs: Option<&RoleArgInputs<'_>>,
     use_representatives: bool,
 ) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
@@ -111,7 +129,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     let mut rounds = Vec::new();
 
     loop {
-        let protected_vars = centered_constraint_vars(&current_constraints);
+        let protected_vars = protected_role_constraint_vars(&current_constraints, role_arg_inputs);
         let mut analysis =
             analyze_co_occurrences_with_role_constraints(&current_scheme, &current_constraints);
         let mut rec_vars = current_scheme.rec_vars.clone();
@@ -208,19 +226,55 @@ pub struct CoalesceRound {
     pub representatives: HashMap<TypeVar, CompactType>,
 }
 
-fn centered_constraint_vars(constraints: &[CompactRoleConstraint]) -> HashSet<TypeVar> {
+fn protected_role_constraint_vars(
+    constraints: &[CompactRoleConstraint],
+    role_arg_inputs: Option<&RoleArgInputs<'_>>,
+) -> HashSet<TypeVar> {
     constraints
         .iter()
-        .flat_map(|constraint| constraint.args.iter().filter_map(centered_constraint_var))
+        .flat_map(|constraint| {
+            let inputs = role_arg_inputs
+                .and_then(|lookup| lookup(&constraint.role))
+                .filter(|inputs| inputs.len() == constraint.args.len());
+            constraint
+                .args
+                .iter()
+                .enumerate()
+                .filter_map(move |(index, arg)| {
+                    protected_role_arg_var(arg, inputs.as_deref(), index)
+                })
+        })
         .collect()
 }
 
-fn centered_constraint_var(bounds: &CompactBounds) -> Option<TypeVar> {
+fn protected_role_arg_var(
+    bounds: &CompactBounds,
+    role_arg_inputs: Option<&[bool]>,
+    index: usize,
+) -> Option<TypeVar> {
+    match role_arg_inputs.and_then(|inputs| inputs.get(index).copied()) {
+        Some(true) => exact_center_var(bounds),
+        Some(false) => projection_target_var(bounds),
+        None => projection_target_var(bounds),
+    }
+}
+
+fn exact_center_var(bounds: &CompactBounds) -> Option<TypeVar> {
     bounds.self_var.or_else(|| {
         let lower = single_compact_var(&bounds.lower);
         let upper = single_compact_var(&bounds.upper);
         match (lower, upper) {
             (Some(lhs), Some(rhs)) if lhs == rhs => Some(lhs),
+            _ => None,
+        }
+    })
+}
+
+fn projection_target_var(bounds: &CompactBounds) -> Option<TypeVar> {
+    exact_center_var(bounds).or_else(|| {
+        let lower = single_compact_var(&bounds.lower);
+        let upper = single_compact_var(&bounds.upper);
+        match (lower, upper) {
             (Some(tv), None) | (None, Some(tv)) => Some(tv),
             _ => None,
         }
@@ -857,7 +911,8 @@ mod tests {
         };
 
         let coalesced =
-            coalesce_by_co_occurrence_with_role_constraints_report_inner(&scheme, &[], true).scheme;
+            coalesce_by_co_occurrence_with_role_constraints_report_inner(&scheme, &[], None, true)
+                .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());
         assert_eq!(coalesced.cty.lower.funs.len(), 1);
         assert_eq!(

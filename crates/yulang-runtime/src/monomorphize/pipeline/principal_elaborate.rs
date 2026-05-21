@@ -346,6 +346,7 @@ pub(super) fn principal_elaboration_plan_for_expr(
         );
         (plan.complete
             && plan_completes_binding_substitution_vars(&plan, binding)
+            && plan.args.len() >= spine.args.len()
             && plan
                 .target
                 .as_ref()

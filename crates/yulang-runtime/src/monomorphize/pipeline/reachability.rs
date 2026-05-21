@@ -55,8 +55,9 @@ pub(super) fn root_reachable_binding_paths(module: &Module) -> HashSet<typed_ir:
 }
 
 pub(super) fn prune_unreachable_bindings(module: Module) -> Module {
-    let reachable =
+    let mut reachable =
         reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
+    retain_reachable_specializations_for_original_refs(&module.bindings, &mut reachable);
     let bindings = module
         .bindings
         .into_iter()
@@ -84,8 +85,9 @@ pub(super) fn prune_unreachable_bindings(module: Module) -> Module {
 }
 
 pub(super) fn prune_unreachable_specializations(module: Module) -> Module {
-    let reachable =
+    let mut reachable =
         reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
+    retain_reachable_specializations_for_original_refs(&module.bindings, &mut reachable);
     let bindings = module
         .bindings
         .into_iter()
@@ -99,6 +101,29 @@ pub(super) fn prune_unreachable_specializations(module: Module) -> Module {
         root_exprs: module.root_exprs,
         roots: module.roots,
         role_impls: module.role_impls,
+    }
+}
+
+fn retain_reachable_specializations_for_original_refs(
+    bindings: &[Binding],
+    reachable: &mut HashSet<typed_ir::Path>,
+) {
+    let mut by_original = HashMap::<typed_ir::Path, Vec<typed_ir::Path>>::new();
+    for binding in bindings {
+        let Some(original) = unspecialized_path(&binding.name) else {
+            continue;
+        };
+        by_original
+            .entry(original)
+            .or_default()
+            .push(binding.name.clone());
+    }
+    let originals = reachable.iter().cloned().collect::<Vec<_>>();
+    for original in originals {
+        let Some(specializations) = by_original.get(&original) else {
+            continue;
+        };
+        reachable.extend(specializations.iter().cloned());
     }
 }
 

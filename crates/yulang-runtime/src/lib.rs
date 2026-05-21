@@ -15,6 +15,7 @@ pub mod lower;
 pub mod monomorphize;
 pub mod refine;
 pub mod runtime;
+mod runtime_intrinsic;
 pub mod types;
 pub mod validate;
 pub mod vm;
