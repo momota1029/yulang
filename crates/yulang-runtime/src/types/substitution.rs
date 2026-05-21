@@ -1008,10 +1008,35 @@ fn principal_elaboration_never_usable_vars(
 ) -> BTreeSet<typed_ir::TypeVar> {
     let mut usage = BTreeMap::<typed_ir::TypeVar, PrincipalVarUsage>::new();
     collect_principal_var_usage(&plan.principal_callee, false, &mut usage);
-    usage
+    let mut vars = usage
         .into_iter()
         .filter_map(|(var, usage)| usage.never_usable().then_some(var))
-        .collect()
+        .collect::<BTreeSet<_>>();
+    collect_never_runtime_arg_vars(plan, &mut vars);
+    vars
+}
+
+fn collect_never_runtime_arg_vars(
+    plan: &typed_ir::PrincipalElaborationPlan,
+    out: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    for arg in &plan.args {
+        if !arg
+            .expected_runtime
+            .as_ref()
+            .is_some_and(core_type_is_never)
+        {
+            continue;
+        }
+        let Some((param, _param_effect)) =
+            principal_fun_param_parts_at(&plan.principal_callee, arg.index)
+        else {
+            continue;
+        };
+        if let typed_ir::Type::Var(var) = param {
+            out.insert(var.clone());
+        }
+    }
 }
 
 #[derive(Default)]

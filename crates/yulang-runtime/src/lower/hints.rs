@@ -71,7 +71,19 @@ pub(super) fn choose_apply_arg_type(
 ) -> Option<RuntimeType> {
     match (&evidence_arg, &param_hint) {
         (_, Some(param @ RuntimeType::Thunk { .. })) => Some(param.clone()),
+        (Some(evidence), Some(param)) if argument_evidence_widens_past_param(evidence, param) => {
+            Some(param.clone())
+        }
         _ => choose_hir_type_hint(evidence_arg, param_hint),
+    }
+}
+
+fn argument_evidence_widens_past_param(evidence: &RuntimeType, param: &RuntimeType) -> bool {
+    match (evidence, param) {
+        (RuntimeType::Core(evidence), RuntimeType::Core(param)) => {
+            needs_runtime_coercion(evidence, param)
+        }
+        _ => false,
     }
 }
 
@@ -109,6 +121,11 @@ pub(super) fn choose_expected_hir_type(
     match (&ty, expected) {
         (RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_)), Some(expected)) => {
             Some(expected)
+        }
+        (RuntimeType::Core(actual), Some(RuntimeType::Core(expected)))
+            if needs_runtime_coercion(&expected, actual) =>
+        {
+            Some(ty)
         }
         (_, Some(expected)) if hir_type_compatible(&expected, &ty) => {
             Some(more_informative_hir_type(&expected, &ty))

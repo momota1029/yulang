@@ -163,6 +163,15 @@ sub:
     }
 
     #[test]
+    fn vm_runs_method_lambda_suffix_chain() {
+        let results = eval_source_with_std(
+            "my sum_plus_one = \\.fold(0, \\acc x -> acc + x).add(1)\nsum_plus_one [1, 2, 3]\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_recursive_lambda_label_self_call() {
         let results =
             eval_source_with_std("my sum = \\'go n -> if n == 0: 0 else: n + 'go (n - 1)\nsum 4\n");
@@ -1476,6 +1485,38 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn vm_runs_source_frac_as_float_annotation() {
+        let (results, stdout) = eval_source_with_std_host("(7 / 3 as float).say\n");
+
+        assert_eq!(stdout, "2.3333333333333335\n");
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn control_vm_runs_source_frac_as_float_annotation() {
+        let (results, stdout) = eval_control_source_with_std_host("(7 / 3 as float).say\n");
+
+        assert_eq!(stdout, "2.3333333333333335\n");
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_source_int_add_as_float_annotation() {
+        let (results, stdout) = eval_source_with_std_host("(1 + 2 as float).say\n");
+
+        assert_eq!(stdout, "3.0\n");
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn control_vm_runs_source_int_add_as_float_annotation() {
+        let (results, stdout) = eval_control_source_with_std_host("(1 + 2 as float).say\n");
+
+        assert_eq!(stdout, "3.0\n");
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
     fn vm_keeps_open_identity_join_from_using_unrelated_cast() {
         let results = eval_source_with_std("my choose x = if true: x else: x\nchoose ()\n");
 
@@ -1570,6 +1611,7 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
                 "refresh-closed-schemes",
                 "principal-elaborate",
                 "refresh-closed-schemes",
+                "semantic-cast-coercions",
                 "prune-unreachable",
             ]
         );
@@ -3714,7 +3756,9 @@ box { width: 3, height: 4 }
         .unwrap();
         let program = export_core_program(&mut lowered.state);
         let module = lower_core_program(program).expect("lowered runtime module");
-        monomorphize_module_profiled(module).expect("monomorphized runtime module")
+        let (module, profile) =
+            monomorphize_module_profiled(module).expect("monomorphized runtime module");
+        (module, profile)
     }
 
     fn mono_binding_named(binding: &Binding, base: &str) -> bool {

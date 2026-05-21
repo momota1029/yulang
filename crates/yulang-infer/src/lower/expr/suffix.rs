@@ -3,7 +3,7 @@ use crate::profile::ProfileClock as Instant;
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{ExprKind, PolyVariantOrigin, TypedExpr};
-use crate::diagnostic::{ConstraintCause, ConstraintReason};
+use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
 use crate::types::{Neg, Pos};
@@ -27,6 +27,7 @@ pub(super) fn apply_suffix(
         SyntaxKind::ApplyColon => apply_colon_suffix(state, acc, suffix),
         SyntaxKind::Assign => lower_var_assignment(state, acc, suffix),
         SyntaxKind::InfixNode => apply_infix_suffix(state, acc, suffix),
+        SyntaxKind::TypeAnn => apply_type_ann_suffix(state, acc, suffix),
         SyntaxKind::PrefixNode => {
             let op_ref = prefix_op_ref(state, suffix);
             let arg = lazy_operator_arg(state, &op_ref, acc);
@@ -42,6 +43,36 @@ pub(super) fn apply_suffix(
     };
     state.lower_detail.apply_suffix += start.elapsed();
     result
+}
+
+fn apply_type_ann_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
+    let Some(type_expr) = suffix
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeExpr)
+    else {
+        return acc;
+    };
+    let Some(sig) = crate::lower::signature::parse_sig_type_expr(&type_expr) else {
+        return acc;
+    };
+    let cause = ConstraintCause {
+        span: Some(type_expr.text_range()),
+        reason: ConstraintReason::Annotation,
+    };
+    let mut vars = state.current_type_scope().cloned().unwrap_or_default();
+    let lower = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
+    let mut neg_vars = vars.clone();
+    let upper = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
+    let ann_tv = state.fresh_tv();
+    state
+        .infer
+        .constrain_with_cause(lower, Neg::Var(ann_tv), cause.clone());
+    state
+        .infer
+        .constrain_with_cause(Pos::Var(ann_tv), upper, cause.clone());
+    state
+        .implicit_cast_boundary(acc, ann_tv, ExpectedEdgeKind::Annotation, cause, true)
+        .0
 }
 
 pub(super) fn apply_synthetic_field_selection(

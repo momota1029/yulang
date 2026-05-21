@@ -1276,6 +1276,51 @@ fn expr_method_lambda() {
 }
 
 #[test]
+fn expr_method_lambda_chain() {
+    let got = parse_expression("\\.method1(a, b).method2(c, d)");
+    let expected = vec![
+        "(Expr",
+        "  (MethodLambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    (Field",
+        "      DotField \".method1\"",
+        "    )",
+        "    (ApplyC",
+        "      ParenL \"(\"",
+        "      (Expr",
+        "        Ident \"a\"",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (Expr",
+        "        Ident \"b\"",
+        "      )",
+        "      ParenR \")\"",
+        "    )",
+        "    (Field",
+        "      DotField \".method2\"",
+        "    )",
+        "    (ApplyC",
+        "      ParenL \"(\"",
+        "      (Expr",
+        "        Ident \"c\"",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (Expr",
+        "        Ident \"d\"",
+        "      )",
+        "      ParenR \")\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_recursive_lambda() {
     let got = parse_expression("\\'self x -> 'self x");
     let expected = vec![

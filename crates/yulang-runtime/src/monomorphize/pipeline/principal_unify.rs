@@ -247,15 +247,24 @@ impl PrincipalUnifier {
         self.rewrite_surviving_template_bindings(&mut module);
         self.finish_profile_timer("rewrite-surviving-template-bindings", started);
         let started = self.profile_timer();
-        self.settle_pending_specializations();
-        self.flush_emitted_specializations(&mut module);
+        self.settle_flushed_specialization_refs(&mut module);
         self.finish_profile_timer("flush-final-specialization-refs", started);
         let profile = self.finish_profile();
         (module, profile)
     }
 
     fn flush_emitted_specializations(&mut self, module: &mut Module) {
-        module.bindings.extend(std::mem::take(&mut self.emitted));
+        let emitted = std::mem::take(&mut self.emitted);
+        if !emitted.is_empty() {
+            let emitted_paths = emitted
+                .iter()
+                .map(|binding| binding.name.clone())
+                .collect::<HashSet<_>>();
+            module
+                .bindings
+                .retain(|binding| !emitted_paths.contains(&binding.name));
+            module.bindings.extend(emitted);
+        }
         add_single_specialization_aliases(module, &self.root_specializations);
         rewrite_contextual_specialization_refs(module, &self.root_specializations);
         rewrite_single_specialization_refs(module, &self.root_specializations);
@@ -266,6 +275,42 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|root| self.rewrite_root_binding(root))
             .collect();
+    }
+
+    fn settle_flushed_specialization_refs(&mut self, module: &mut Module) {
+        for _ in 0..8 {
+            self.settle_pending_specializations();
+            self.flush_emitted_specializations(module);
+            if !self.rewrite_flushed_specialization_bodies(module) {
+                return;
+            }
+        }
+    }
+
+    fn rewrite_flushed_specialization_bodies(&mut self, module: &mut Module) -> bool {
+        let mut changed = false;
+        for binding in &mut module.bindings {
+            if !binding.type_params.is_empty() {
+                continue;
+            }
+            let original_body = binding.body.clone();
+            let original_ty = original_body.ty.clone();
+            let body_context = Self::binding_body_runtime_context(binding);
+            let body = refresh_local_expr_types(original_body.clone());
+            self.push_rewrite_context("flushed-specialization");
+            let body = self.rewrite_expr(body, body_context);
+            self.pop_rewrite_context();
+            let body = retag_runtime_expr_spine_type(project_runtime_expr_types(body), original_ty);
+            if body == original_body {
+                continue;
+            }
+            self.bump("principal-unify-rewrite-flushed-specialization");
+            binding.body = body;
+            self.emitted_by_path
+                .insert(binding.name.clone(), binding.clone());
+            changed = true;
+        }
+        changed
     }
 
     fn rewrite_surviving_template_bindings(&mut self, module: &mut Module) {
@@ -1938,6 +1983,12 @@ impl PrincipalUnifier {
             self.bump("principal-unify-binding-scheme-slots-completed-plan");
             plan = completed;
         }
+        if let Some(completed) =
+            self.complete_plan_from_argument_runtime_types(original, &plan, args)
+        {
+            self.bump("principal-unify-argument-runtime-completed-plan");
+            plan = completed;
+        }
         if let Some(completed) = self.complete_plan_from_role_associated_outputs(original, &plan) {
             self.bump("principal-unify-role-associated-completed-plan");
             plan = completed;
@@ -2103,13 +2154,14 @@ impl PrincipalUnifier {
         for (arg, (param, param_effect)) in args.iter().zip(&params) {
             let (actual_value, actual_effect) = runtime_value_and_effect(&arg.ty);
             if !core_type_contains_unknown(&actual_value) && !core_type_has_vars(&actual_value) {
+                let allow_never_value = matches!(actual_value, typed_ir::Type::Never);
                 project_closed_substitutions_from_type(
                     param,
                     &actual_value,
                     &required_vars,
                     &mut projected,
                     &mut conflicts,
-                    false,
+                    allow_never_value,
                     64,
                 );
             }
@@ -2142,6 +2194,7 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
             .collect();
+        mark_never_runtime_arg_slots(&mut plan, args);
         let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
@@ -3282,6 +3335,7 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
             .collect();
+        mark_never_runtime_arg_slots(&mut plan, args);
         fill_plan_runtime_slots_from_principal(&mut plan, args.len());
         fill_effectful_input_runtime_slot_from_result(&mut plan, args.len());
         let mut normalized =
@@ -3558,6 +3612,7 @@ impl PrincipalUnifier {
             else {
                 return Some(output_shape.cloned());
             };
+            let before_input_refinement = substitutions.clone();
             let mut conflicts = BTreeSet::new();
             for ((param, _param_effect), input_shape) in params.iter().zip(input_shapes) {
                 project_contextual_input_value_substitutions_from_type(
@@ -3570,10 +3625,20 @@ impl PrincipalUnifier {
                 );
             }
             if !conflicts.is_empty() {
-                self.bump("principal-unify-context-input-conflict");
-                return None;
+                if required_vars_are_closed(&required_vars, &before_input_refinement) {
+                    *substitutions = before_input_refinement;
+                    self.bump("principal-unify-context-input-conflict-ignored");
+                    ret_template = Some(ret);
+                    if output_shape.is_none() {
+                        return Some(None);
+                    }
+                } else {
+                    self.bump("principal-unify-context-input-conflict");
+                    return None;
+                }
+            } else {
+                ret_template = Some(ret);
             }
-            ret_template = Some(ret);
         } else if output_shape.is_some()
             && let Some((_params, ret, _ret_effect)) =
                 core_fun_spine_parts_exact(&original.scheme.body, arity)
@@ -3637,10 +3702,6 @@ impl PrincipalUnifier {
         let emitted = std::mem::take(&mut self.emitted);
         let mut rewritten = Vec::with_capacity(emitted.len());
         for mut binding in emitted {
-            if !self.handler_specialization_paths.contains(&binding.name) {
-                rewritten.push(binding);
-                continue;
-            }
             let original_ty = binding.body.ty.clone();
             let original_scheme = binding.scheme.body.clone();
             let body_context = Self::binding_body_runtime_context(&binding);
@@ -3749,7 +3810,13 @@ impl PrincipalUnifier {
             &binding.scheme.body,
             input_shapes.as_deref(),
             output_shape.as_ref(),
-        ) {
+        )
+        .filter(|contextual_scheme| {
+            Self::contextual_specialization_scheme_preserves_precision(
+                contextual_scheme,
+                &binding.body.ty,
+            )
+        }) {
             binding.scheme.body = contextual_scheme.clone();
             binding.body = retag_runtime_expr_spine_type(
                 binding.body,
@@ -3760,6 +3827,15 @@ impl PrincipalUnifier {
         self.record_target_phase_timing(&original_name, "intern-final-refresh-project", started);
         self.emitted_by_path.insert(path.clone(), binding.clone());
         self.emitted.push(binding);
+    }
+
+    fn contextual_specialization_scheme_preserves_precision(
+        contextual_scheme: &typed_ir::Type,
+        current_ty: &RuntimeType,
+    ) -> bool {
+        let contextual_ty =
+            normalize_hir_function_type(RuntimeType::core(contextual_scheme.clone()));
+        runtime_type_shape_usable(&contextual_ty) || !runtime_type_shape_usable(current_ty)
     }
 
     fn intern_effect_context_specialization(
@@ -4601,6 +4677,7 @@ fn rewrite_contextual_specialization_refs_expr_inner(
     let Some(candidates) = root_specializations.get(&lookup_target) else {
         return;
     };
+    let current_specialized = (spine.target != &lookup_target).then_some(spine.target);
     let args = spine
         .args
         .iter()
@@ -4608,6 +4685,7 @@ fn rewrite_contextual_specialization_refs_expr_inner(
         .collect::<Vec<_>>();
     let mut matches = candidates
         .iter()
+        .filter(|path| current_specialized.is_none_or(|current| current == *path))
         .filter_map(|path| {
             let ty = binding_types.get(path)?;
             let (params, _, _) = core_fun_spine_parts_exact(ty, args.len())?;
@@ -4615,7 +4693,7 @@ fn rewrite_contextual_specialization_refs_expr_inner(
                 return None;
             }
             let context_score =
-                rebuilt_specialization_call_score(ty, args.len(), &expr.ty, &spine.evidences)
+                rebuilt_specialization_call_score(ty, &args, &expr.ty, &spine.evidences)
                     .unwrap_or(0);
             let precision_score = rebuilt_specialization_precision_score(ty, args.len());
             Some((path, ty, context_score, precision_score))
@@ -4633,6 +4711,11 @@ fn rewrite_contextual_specialization_refs_expr_inner(
             .first()
             .is_some_and(|(_, first_ty, _, _)| matches.iter().all(|(_, ty, _, _)| ty == first_ty))
     {
+        let last = matches.pop().expect("non-empty contextual matches");
+        matches.clear();
+        matches.push(last);
+    }
+    if matches.len() > 1 && matches.iter().all(|(_, _, score, _)| *score >= 512) {
         let last = matches.pop().expect("non-empty contextual matches");
         matches.clear();
         matches.push(last);
@@ -4927,10 +5010,11 @@ fn rewrite_contextual_specialization_refs_children(
 
 fn rebuilt_specialization_call_score(
     callee_ty: &typed_ir::Type,
-    arity: usize,
+    args: &[Expr],
     final_ty: &RuntimeType,
     evidences: &[Option<&typed_ir::ApplyEvidence>],
 ) -> Option<usize> {
+    let arity = args.len();
     let final_score =
         core_fun_spine_parts_exact(callee_ty, arity).and_then(|(_params, ret, ret_effect)| {
             let expected = runtime_type_from_core_value_and_effect(ret, ret_effect);
@@ -4939,22 +5023,57 @@ fn rebuilt_specialization_call_score(
     let evidence_score = rebuilt_specialization_evidence_score(callee_ty, evidences);
     let effect_context_score =
         rebuilt_specialization_effect_context_score(callee_ty, arity, final_ty);
-    match (final_score, evidence_score, effect_context_score) {
-        (Some(final_score), Some(evidence_score), Some(effect_context_score)) => {
-            Some(final_score + evidence_score + effect_context_score)
-        }
-        (Some(final_score), Some(evidence_score), None) => Some(final_score + evidence_score),
-        (Some(final_score), None, Some(effect_context_score)) => {
-            Some(final_score + effect_context_score)
-        }
-        (None, Some(evidence_score), Some(effect_context_score)) => {
-            Some(evidence_score + effect_context_score)
-        }
-        (Some(final_score), None, None) => Some(final_score),
-        (None, Some(evidence_score), None) => Some(evidence_score),
-        (None, None, Some(effect_context_score)) => Some(effect_context_score),
-        (None, None, None) => None,
+    let arg_effect_score = rebuilt_specialization_arg_effect_score(callee_ty, args)?;
+    let mut total = 0;
+    let mut has_signal = false;
+    for score in [
+        final_score,
+        evidence_score,
+        effect_context_score,
+        arg_effect_score,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        total += score;
+        has_signal = true;
     }
+    has_signal.then_some(total)
+}
+
+fn rebuilt_specialization_arg_effect_score(
+    callee_ty: &typed_ir::Type,
+    args: &[Expr],
+) -> Option<Option<usize>> {
+    let (params, _ret, _ret_effect) = core_fun_spine_parts_exact(callee_ty, args.len())?;
+    let mut total = 0usize;
+    let mut has_signal = false;
+    for (arg, (_param, param_effect)) in args.iter().zip(params) {
+        let (_actual_value, actual_effect) = runtime_value_and_effect(&arg.ty);
+        let actual_paths = effect_paths(&actual_effect);
+        if actual_paths.is_empty() {
+            continue;
+        }
+        let candidate_paths = effect_paths(&param_effect);
+        if actual_paths.iter().any(|actual| {
+            !candidate_paths
+                .iter()
+                .any(|candidate| effect_paths_match(candidate, actual))
+        }) {
+            return None;
+        }
+        let extra = candidate_paths
+            .iter()
+            .filter(|candidate| {
+                !actual_paths
+                    .iter()
+                    .any(|actual| effect_paths_match(candidate, actual))
+            })
+            .count();
+        total += 512usize.saturating_sub(extra * 16);
+        has_signal = true;
+    }
+    Some(has_signal.then_some(total))
 }
 
 fn rebuilt_specialization_effect_context_score(
@@ -5697,20 +5816,37 @@ fn variant_pattern_payload_runtime_type(
     pattern_ty: &RuntimeType,
     tag: &typed_ir::Name,
 ) -> Option<RuntimeType> {
-    runtime_variant_payload_type(expected, tag)
-        .or_else(|| runtime_variant_payload_type(pattern_ty, tag))
+    runtime_variant_case_payload_type(expected, tag)
+        .or_else(|| runtime_variant_case_payload_type(pattern_ty, tag))
+        .or_else(|| runtime_named_variant_payload_type(expected, tag))
+        .or_else(|| runtime_named_variant_payload_type(pattern_ty, tag))
         .map(RuntimeType::core)
 }
 
-fn runtime_variant_payload_type(ty: &RuntimeType, tag: &typed_ir::Name) -> Option<typed_ir::Type> {
+fn runtime_variant_case_payload_type(
+    ty: &RuntimeType,
+    tag: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Core(typed_ir::Type::Variant(variant)) => variant
             .cases
             .iter()
             .find(|case| case.name == *tag)
             .and_then(|case| variant_case_payload_type(&case.payloads)),
-        RuntimeType::Core(typed_ir::Type::Named { args, .. }) => {
-            named_variant_payload_from_type_args(tag, args)
+        RuntimeType::Unknown
+        | RuntimeType::Core(_)
+        | RuntimeType::Fun { .. }
+        | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn runtime_named_variant_payload_type(
+    ty: &RuntimeType,
+    tag: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
+    match ty {
+        RuntimeType::Core(typed_ir::Type::Named { path, args }) => {
+            named_variant_payload_from_type_args(path, tag, args)
         }
         RuntimeType::Unknown
         | RuntimeType::Core(_)
@@ -5728,6 +5864,7 @@ fn variant_case_payload_type(payloads: &[typed_ir::Type]) -> Option<typed_ir::Ty
 }
 
 fn named_variant_payload_from_type_args(
+    path: &typed_ir::Path,
     tag: &typed_ir::Name,
     args: &[typed_ir::TypeArg],
 ) -> Option<typed_ir::Type> {
@@ -5738,7 +5875,33 @@ fn named_variant_payload_from_type_args(
             _ => {}
         }
     }
-    runtime_single_type_arg(args)
+    if args.len() == 1 {
+        match tag.0.as_str() {
+            "just" | "leaf" => return runtime_single_type_arg(args),
+            "node" if path_last_segment_is(path, "list_view") => {
+                let item = type_arg_core(&args[0])?;
+                let list = typed_ir::Type::Named {
+                    path: sibling_type_path(path, "list"),
+                    args: vec![typed_ir::TypeArg::Type(item)],
+                };
+                return Some(typed_ir::Type::Tuple(vec![list.clone(), list]));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn path_last_segment_is(path: &typed_ir::Path, name: &str) -> bool {
+    path.segments.last().is_some_and(|last| last.0 == name)
+}
+
+fn sibling_type_path(path: &typed_ir::Path, name: &str) -> typed_ir::Path {
+    let mut path = path.clone();
+    if let Some(last) = path.segments.last_mut() {
+        *last = typed_ir::Name(name.to_string());
+    }
+    path
 }
 
 fn runtime_named_single_type_arg(ty: &RuntimeType) -> Option<typed_ir::Type> {
@@ -6024,6 +6187,17 @@ fn missing_required_vars(
         .collect::<Vec<_>>();
     vars.sort_by(|left, right| left.0.cmp(&right.0));
     vars
+}
+
+fn required_vars_are_closed(
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> bool {
+    required_vars.iter().all(|var| {
+        substitutions
+            .get(var)
+            .is_some_and(|ty| !core_type_has_vars(ty) && !core_type_contains_unknown(ty))
+    })
 }
 
 fn variant_constructor_payload_type_vars(expr: &Expr) -> Option<BTreeSet<typed_ir::TypeVar>> {
@@ -7824,8 +7998,14 @@ fn runtime_lambda_return_value_context(ty: &RuntimeType) -> Option<typed_ir::Typ
 
 fn runtime_function_type_with_param(ty: RuntimeType, param: typed_ir::Type) -> Option<RuntimeType> {
     match ty {
-        RuntimeType::Fun { ret, .. } => Some(RuntimeType::Fun {
-            param: Box::new(RuntimeType::core(param)),
+        RuntimeType::Fun {
+            param: existing_param,
+            ret,
+        } => Some(RuntimeType::Fun {
+            param: Box::new(runtime_param_with_updated_value_shape(
+                *existing_param,
+                param,
+            )),
             ret,
         }),
         RuntimeType::Thunk { effect, value } => runtime_function_type_with_param(*value, param)
@@ -7844,6 +8024,28 @@ fn runtime_function_type_with_param(ty: RuntimeType, param: typed_ir::Type) -> O
             },
         ))),
         RuntimeType::Unknown | RuntimeType::Core(_) => None,
+    }
+}
+
+fn runtime_param_with_updated_value_shape(
+    existing: RuntimeType,
+    value: typed_ir::Type,
+) -> RuntimeType {
+    match existing {
+        RuntimeType::Thunk {
+            effect,
+            value: existing_value,
+        } => RuntimeType::Thunk {
+            effect,
+            value: Box::new(runtime_param_with_updated_value_shape(
+                *existing_value,
+                value,
+            )),
+        },
+        RuntimeType::Fun { .. } if matches!(value, typed_ir::Type::Fun { .. }) => {
+            normalize_hir_function_type(RuntimeType::core(value))
+        }
+        _ => RuntimeType::core(value),
     }
 }
 
@@ -9366,11 +9568,21 @@ fn fill_effectful_erased_arg_never_substitutions(
         if !required_vars.contains(&var) || substitutions.contains_key(&var) {
             continue;
         }
-        let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
-        if matches!(actual, typed_ir::Type::Never)
-            && effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect)
-        {
+        let (actual, _actual_effect) = runtime_value_and_effect(&arg.ty);
+        if matches!(actual, typed_ir::Type::Never) {
             substitutions.insert(var, typed_ir::Type::Never);
+        }
+    }
+}
+
+fn mark_never_runtime_arg_slots(plan: &mut typed_ir::PrincipalElaborationPlan, args: &[&Expr]) {
+    for arg_slot in &mut plan.args {
+        let Some(arg) = args.get(arg_slot.index) else {
+            continue;
+        };
+        let (actual, _actual_effect) = runtime_value_and_effect(&arg.ty);
+        if matches!(actual, typed_ir::Type::Never) {
+            arg_slot.expected_runtime = Some(typed_ir::Type::Never);
         }
     }
 }

@@ -288,8 +288,16 @@ pub(super) fn validate_expr(
             expr: inner,
         } => {
             validate_expr(inner, bindings, type_arg_kinds, locals)?;
-            require_same_type(from, core_type(&inner.ty), TypeSource::Validation)?;
-            require_same_type(to, core_type(&expr.ty), TypeSource::Validation)?;
+            require_same_type(
+                from,
+                hir_value_core_type(&inner.ty).as_ref(),
+                TypeSource::Validation,
+            )?;
+            require_same_type(
+                to,
+                hir_value_core_type(&expr.ty).as_ref(),
+                TypeSource::Validation,
+            )?;
         }
         ExprKind::Pack { expr: inner, .. } => {
             validate_expr(inner, bindings, type_arg_kinds, locals)?;

@@ -98,6 +98,7 @@ pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     crate::monomorphize::effect_hole_metrics::reset();
     type_projection_metrics::reset();
     let lowered = run_mono_pipeline_unprofiled(module)?;
+    let lowered = normalize_semantic_cast_coercions(lowered);
     let lowered = normalize_monomorphized_metadata(lowered);
     audit_monomorphized_module(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
@@ -114,6 +115,7 @@ pub fn monomorphize_module_profiled(
     crate::monomorphize::effect_hole_metrics::reset();
     type_projection_metrics::reset();
     let (lowered, profile) = run_mono_pipeline(module)?;
+    let lowered = normalize_semantic_cast_coercions(lowered);
     let lowered = normalize_monomorphized_metadata(lowered);
     audit_monomorphized_module(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
@@ -279,6 +281,7 @@ enum MonoPass {
     DemandSpecialize,
     RefineTypes,
     RefreshClosedSchemes,
+    SemanticCastCoercions,
     CanonicalizeSpecializations,
     InlinePolymorphicWrappers,
     PruneUnreachableSpecializations,
@@ -292,6 +295,7 @@ impl MonoPass {
             MonoPass::DemandSpecialize => "demand-specialize",
             MonoPass::RefineTypes => "refine-types",
             MonoPass::RefreshClosedSchemes => "refresh-closed-schemes",
+            MonoPass::SemanticCastCoercions => "semantic-cast-coercions",
             MonoPass::CanonicalizeSpecializations => "canonicalize-specializations",
             MonoPass::InlinePolymorphicWrappers => "inline-polymorphic-wrappers",
             MonoPass::PruneUnreachableSpecializations => "prune-unreachable-specializations",
@@ -340,6 +344,7 @@ const MONO_PIPELINE: &[MonoStage] = &[
         passes: SPECIALIZATION_FIXPOINT,
         limit: 8,
     },
+    MonoStage::Pass(MonoPass::SemanticCastCoercions),
     MonoStage::Pass(MonoPass::PruneUnreachable),
 ];
 
@@ -377,6 +382,9 @@ fn run_principal_elaborate_pipeline(
         &mut profile,
         debug,
     )?;
+    let step =
+        run_profiled_mono_pass(module, MonoPass::SemanticCastCoercions, &mut profile, debug)?;
+    module = step.module;
     let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
     module = step.module;
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
@@ -451,6 +459,7 @@ fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<
             break;
         }
     }
+    module = normalize_semantic_cast_coercions(module);
     module = prune_unreachable_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)
@@ -610,6 +619,9 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
         MonoPass::RefineTypes => refine_module_types_for_mono(module),
         MonoPass::RefreshClosedSchemes => {
             run_tracked_infallible_pass(module, refresh_closed_specialized_schemes)
+        }
+        MonoPass::SemanticCastCoercions => {
+            run_tracked_infallible_pass(module, normalize_semantic_cast_coercions)
         }
         MonoPass::CanonicalizeSpecializations => {
             run_tracked_infallible_pass(module, canonicalize_equivalent_specializations)

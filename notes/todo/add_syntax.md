@@ -3,6 +3,8 @@
 - `_.method`より安心安全
 - parser / lowering / VM regression 追加済み。`\.x` は `\recv -> recv.x`
   相当として既存の suffix lowering に乗せる。
+- 2026-05-21: `\.method1(a, b).method2(c, d)` のように suffix chain を
+  そのまま続けられることを parser / VM regression で固定。
 
 # `\'label x ->` (2026-05-17 実装済み)
 - 再帰関数の略記。普通に`'label x`で起動できると嬉しいね

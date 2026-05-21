@@ -7,7 +7,7 @@ use std::io;
 use std::path::Path;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 5;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 8;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1041,6 +1041,9 @@ enum ControlFrame {
         arms: ControlMatchArmsId,
         env: ControlEnv,
     },
+    Variant {
+        tag: ControlNameId,
+    },
     BlockLet {
         block: ControlBlockId,
         stmt_index: usize,
@@ -1143,17 +1146,19 @@ impl<'m> ControlInterpreter<'m> {
     }
 
     fn normalize_root_result(&mut self, result: ControlResult) -> Result<ControlResult, VmError> {
-        let result = match result {
-            ControlResult::Value(ControlValue::Thunk(thunk)) => {
-                self.bind_here(ControlValue::Thunk(thunk))
-            }
-            other => Ok(other),
-        }?;
-        let result = match result {
-            ControlResult::Request(request) => self.propagate_request(request)?,
-            other => other,
-        };
-        Ok(result)
+        let mut result = result;
+        loop {
+            result = match result {
+                ControlResult::Value(ControlValue::Thunk(thunk)) => {
+                    self.bind_here(ControlValue::Thunk(thunk))?
+                }
+                ControlResult::Request(request) => match self.propagate_request(request)? {
+                    ControlResult::Request(request) => return Ok(ControlResult::Request(request)),
+                    result => result,
+                },
+                result => return Ok(result),
+            };
+        }
     }
 
     fn export_result(&self, result: ControlResult) -> Result<VmResult, VmError> {
@@ -1248,15 +1253,17 @@ impl<'m> ControlInterpreter<'m> {
                 self.continue_if_result(result, then_branch, else_branch, env)
             }
             ControlExprKind::Tuple(items) => self.eval_tuple(Vec::new(), items, 0, env.clone()),
-            ControlExprKind::Variant { tag, value } => {
-                Ok(ControlResult::Value(ControlValue::Variant {
+            ControlExprKind::Variant { tag, value } => match value {
+                Some(value) => {
+                    let result = self.eval_expr(value, env)?;
+                    let result = self.force_value_result(result)?;
+                    self.continue_variant_value(tag, result)
+                }
+                None => Ok(ControlResult::Value(ControlValue::Variant {
                     tag: self.module.name(tag).clone(),
-                    value: value
-                        .map(|value| self.eval_value(value, env))
-                        .transpose()?
-                        .map(Box::new),
-                }))
-            }
+                    value: None,
+                })),
+            },
             ControlExprKind::Match { scrutinee, arms } => match self.eval_expr(scrutinee, env)? {
                 ControlResult::Value(value) => self.eval_match(value, arms, env),
                 ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
@@ -1429,6 +1436,36 @@ impl<'m> ControlInterpreter<'m> {
         match value {
             ControlValue::Bool(true) => self.eval_expr(then_branch, env),
             ControlValue::Bool(false) => self.eval_expr(else_branch, env),
+            other => Err(VmError::ExpectedBool(export_value_lossy(
+                &other,
+                Some(self.module),
+            ))),
+        }
+    }
+
+    fn continue_if_value_frame(
+        &mut self,
+        value: ControlValue,
+        then_branch: ExprId,
+        else_branch: ExprId,
+        env: ControlEnv,
+    ) -> Result<ControlResult, VmError> {
+        match value {
+            ControlValue::Thunk(thunk) => match self.bind_here(ControlValue::Thunk(thunk))? {
+                ControlResult::Value(value) => {
+                    self.continue_if_value_frame(value, then_branch, else_branch, env)
+                }
+                ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                    request,
+                    ControlFrame::If {
+                        then_branch,
+                        else_branch,
+                        env,
+                    },
+                ))),
+            },
+            ControlValue::Bool(true) => self.eval_expr(then_branch, &env),
+            ControlValue::Bool(false) => self.eval_expr(else_branch, &env),
             other => Err(VmError::ExpectedBool(export_value_lossy(
                 &other,
                 Some(self.module),
@@ -1631,7 +1668,8 @@ impl<'m> ControlInterpreter<'m> {
         let exprs = self.module.expr_list(items);
         while let Some(&next) = exprs.get(next_index) {
             next_index += 1;
-            match self.eval_expr(next, &env)? {
+            let result = self.eval_expr(next, &env)?;
+            match self.force_value_result(result)? {
                 ControlResult::Value(value) => done.push(value),
                 ControlResult::Request(request) => {
                     return Ok(ControlResult::Request(push_frame(
@@ -1647,6 +1685,71 @@ impl<'m> ControlInterpreter<'m> {
             }
         }
         Ok(ControlResult::Value(ControlValue::Tuple(done)))
+    }
+
+    fn force_value_result(&mut self, result: ControlResult) -> Result<ControlResult, VmError> {
+        match result {
+            ControlResult::Value(ControlValue::Thunk(thunk)) => {
+                self.bind_here(ControlValue::Thunk(thunk))
+            }
+            result => Ok(result),
+        }
+    }
+
+    fn continue_tuple_item(
+        &mut self,
+        mut done: Vec<ControlValue>,
+        items: ControlExprListId,
+        next_index: usize,
+        env: ControlEnv,
+        value: ControlValue,
+    ) -> Result<ControlResult, VmError> {
+        match value {
+            ControlValue::Thunk(thunk) => match self.bind_here(ControlValue::Thunk(thunk))? {
+                ControlResult::Value(value) => {
+                    self.continue_tuple_item(done, items, next_index, env, value)
+                }
+                ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                    request,
+                    ControlFrame::Tuple {
+                        done,
+                        items,
+                        next_index,
+                        env,
+                    },
+                ))),
+            },
+            value => {
+                done.push(value);
+                self.eval_tuple(done, items, next_index, env)
+            }
+        }
+    }
+
+    fn continue_variant_value(
+        &mut self,
+        tag: ControlNameId,
+        result: ControlResult,
+    ) -> Result<ControlResult, VmError> {
+        match result {
+            ControlResult::Value(ControlValue::Thunk(thunk)) => {
+                match self.bind_here(ControlValue::Thunk(thunk))? {
+                    result @ ControlResult::Value(_) => self.continue_variant_value(tag, result),
+                    ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                        request,
+                        ControlFrame::Variant { tag },
+                    ))),
+                }
+            }
+            ControlResult::Value(value) => Ok(ControlResult::Value(ControlValue::Variant {
+                tag: self.module.name(tag).clone(),
+                value: Some(Box::new(value)),
+            })),
+            ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                request,
+                ControlFrame::Variant { tag },
+            ))),
+        }
     }
 
     fn eval_record(
@@ -1819,6 +1922,29 @@ impl<'m> ControlInterpreter<'m> {
         }
     }
 
+    fn continue_block_expr(
+        &mut self,
+        value: ControlValue,
+        block: ControlBlockId,
+        next_index: usize,
+        env: ControlEnv,
+    ) -> Result<ControlResult, VmError> {
+        match value {
+            ControlValue::Thunk(thunk) => match self.bind_here(ControlValue::Thunk(thunk))? {
+                ControlResult::Value(_) => self.eval_block(block, next_index, env),
+                ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                    request,
+                    ControlFrame::BlockExpr {
+                        block,
+                        next_index,
+                        env,
+                    },
+                ))),
+            },
+            _ => self.eval_block(block, next_index, env),
+        }
+    }
+
     fn eval_handle(
         &mut self,
         body: ExprId,
@@ -1916,7 +2042,10 @@ impl<'m> ControlInterpreter<'m> {
             );
         }
         if let Some(guard) = arm.guard {
-            return match self.eval_expr(guard, &arm_env)? {
+            let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+            let guard_result = self.eval_expr(guard, &arm_env);
+            self.guard_stack = previous;
+            return match guard_result? {
                 ControlResult::Value(guard) => self.continue_handle_guard(
                     guard,
                     request,
@@ -1947,7 +2076,10 @@ impl<'m> ControlInterpreter<'m> {
                 ))),
             };
         }
-        let result = self.eval_expr(arm.body, &arm_env)?;
+        let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+        let result = self.eval_expr(arm.body, &arm_env);
+        self.guard_stack = previous;
+        let result = result?;
         self.continue_handle_result(result, outer, result_wraps_thunk)
     }
 
@@ -1968,7 +2100,11 @@ impl<'m> ControlInterpreter<'m> {
     ) -> Result<ControlResult, VmError> {
         match guard {
             ControlValue::Bool(true) => {
-                let result = self.eval_expr(body, &arm_env)?;
+                let previous =
+                    std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+                let result = self.eval_expr(body, &arm_env);
+                self.guard_stack = previous;
+                let result = result?;
                 self.continue_handle_result(result, outer, result_wraps_thunk)
             }
             ControlValue::Bool(false) => self.handle_request(
@@ -2036,25 +2172,18 @@ impl<'m> ControlInterpreter<'m> {
                 then_branch,
                 else_branch,
                 env,
-            } => match value {
-                ControlValue::Bool(true) => self.eval_expr(then_branch, &env),
-                ControlValue::Bool(false) => self.eval_expr(else_branch, &env),
-                other => Err(VmError::ExpectedBool(export_value_lossy(
-                    &other,
-                    Some(self.module),
-                ))),
-            },
+            } => self.continue_if_value_frame(value, then_branch, else_branch, env),
             ControlFrame::Tuple {
-                mut done,
+                done,
                 items,
                 next_index,
                 env,
-            } => {
-                done.push(value);
-                self.eval_tuple(done, items, next_index, env)
-            }
+            } => self.continue_tuple_item(done, items, next_index, env, value),
             ControlFrame::Select { field } => self.select_field(value, &field),
             ControlFrame::Match { arms, env } => self.eval_match(value, arms, &env),
+            ControlFrame::Variant { tag } => {
+                self.continue_variant_value(tag, ControlResult::Value(value))
+            }
             ControlFrame::BlockLet {
                 block,
                 stmt_index,
@@ -2071,7 +2200,7 @@ impl<'m> ControlInterpreter<'m> {
                 block,
                 next_index,
                 env,
-            } => self.eval_block(block, next_index, env),
+            } => self.continue_block_expr(value, block, next_index, env),
             ControlFrame::Handle {
                 id,
                 arms,
@@ -2554,30 +2683,10 @@ fn control_cast_value(value: ControlValue, expected: &typed_ir::Type) -> Control
     if is_float_type(expected) {
         return match value {
             ControlValue::Int(value) => ControlValue::Float(value.to_float_string()),
-            ControlValue::Record(fields) => control_frac_to_float_string(&fields)
-                .map(ControlValue::Float)
-                .unwrap_or(ControlValue::Record(fields)),
             value => value,
         };
     }
     value
-}
-
-fn control_frac_to_float_string(fields: &BTreeMap<typed_ir::Name, ControlValue>) -> Option<String> {
-    let num = control_record_int_field(fields, "num")?;
-    let den = control_record_int_field(fields, "den")?;
-    Some(format_float_value(num / den))
-}
-
-fn control_record_int_field(
-    fields: &BTreeMap<typed_ir::Name, ControlValue>,
-    name: &str,
-) -> Option<f64> {
-    let value = fields.get(&typed_ir::Name(name.to_string()))?;
-    let ControlValue::Int(value) = value else {
-        return None;
-    };
-    value.to_vm_string().parse().ok()
 }
 
 fn control_apply_primitive(

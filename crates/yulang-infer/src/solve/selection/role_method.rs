@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::ids::{DefId, TypeVar};
 use crate::scheme::compact_pos_type;
@@ -8,7 +8,8 @@ use crate::simplify::compact::{
 };
 use crate::solve::role::role_method_info_for_path;
 use crate::solve::{
-    DeferredRoleMethodCall, Infer, RoleArgInfo, RoleConstraint, RoleConstraintArg, RoleMethodInfo,
+    DeferredRoleMethodCall, Infer, RoleArgInfo, RoleConstraint, RoleConstraintArg,
+    RoleImplCandidate, RoleMethodInfo,
 };
 use crate::symbols::Name;
 use crate::types::{Neg, Pos, RecordField};
@@ -76,10 +77,14 @@ impl Infer {
         let arg_infos = self.role_arg_infos_of(&info.role);
         let mut indices = Vec::new();
         let mut concrete_args = Vec::new();
+        let mut source_index = None;
+        let mut target_index = None;
         for (index, arg_info) in arg_infos.iter().enumerate() {
             let tv = if arg_info.is_input {
+                source_index = Some(index);
                 source_tv
             } else if arg_info.name == "to" {
+                target_index = Some(index);
                 target_tv
             } else {
                 continue;
@@ -127,10 +132,32 @@ impl Infer {
                 .copied()
                 .map(CastMethodResolution::Concrete)
                 .unwrap_or(CastMethodResolution::Unresolved),
-            [] if role_matches.is_empty() => CastMethodResolution::Missing {
-                role: path_string(&info.role),
-                args: render_concrete_role_args(&concrete_args),
-            },
+            [] if role_matches.is_empty() => {
+                let has_cast_chain = source_index
+                    .zip(target_index)
+                    .and_then(|(source_index, target_index)| {
+                        let source =
+                            concrete_arg_for_index(&indices, &concrete_args, source_index)?;
+                        let target =
+                            concrete_arg_for_index(&indices, &concrete_args, target_index)?;
+                        Some(has_transitive_cast_path(
+                            &candidates,
+                            source_index,
+                            target_index,
+                            source,
+                            target,
+                        ))
+                    })
+                    .unwrap_or(false);
+                if has_cast_chain {
+                    CastMethodResolution::Unresolved
+                } else {
+                    CastMethodResolution::Missing {
+                        role: path_string(&info.role),
+                        args: render_concrete_role_args(&concrete_args),
+                    }
+                }
+            }
             [] => CastMethodResolution::Unresolved,
             _ => CastMethodResolution::Ambiguous {
                 role: path_string(&info.role),
@@ -354,6 +381,56 @@ pub(super) fn resolve_role_method_call(
         },
         _ => RoleMethodResolution::Unresolved,
     }
+}
+
+fn concrete_arg_for_index<'a>(
+    indices: &[usize],
+    concrete_args: &'a [CompactType],
+    index: usize,
+) -> Option<&'a CompactType> {
+    indices
+        .iter()
+        .position(|candidate| *candidate == index)
+        .and_then(|arg_index| concrete_args.get(arg_index))
+}
+
+fn has_transitive_cast_path(
+    candidates: &[RoleImplCandidate],
+    source_index: usize,
+    target_index: usize,
+    source: &CompactType,
+    target: &CompactType,
+) -> bool {
+    let edges = candidates
+        .iter()
+        .filter_map(|candidate| {
+            let source = candidate.compact_args.get(source_index)?.clone();
+            let target = candidate.compact_args.get(target_index)?.clone();
+            (is_nominal_cast_arg(&source) && is_nominal_cast_arg(&target))
+                .then_some((source, target))
+        })
+        .collect::<Vec<_>>();
+    let mut seen = Vec::new();
+    let mut queue = VecDeque::from([source.clone()]);
+
+    while let Some(current) = queue.pop_front() {
+        if seen.contains(&current) {
+            continue;
+        }
+        seen.push(current.clone());
+        for (from, to) in &edges {
+            if from != &current {
+                continue;
+            }
+            if to == target {
+                return true;
+            }
+            if !seen.contains(to) {
+                queue.push_back(to.clone());
+            }
+        }
+    }
+    false
 }
 
 fn is_nominal_cast_arg(arg: &CompactType) -> bool {

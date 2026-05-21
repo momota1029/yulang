@@ -37,13 +37,19 @@ impl<'m> VmInterpreter<'m> {
             .get(index)
             .ok_or(VmError::MissingRootExpr(index))?;
         let result = self.eval_expr(expr, &Env::new())?;
-        let result = match result {
-            VmResult::Value(VmValue::Thunk(thunk)) => self.bind_here(VmValue::Thunk(thunk)),
-            other => Ok(other),
-        }?;
-        match result {
-            VmResult::Request(request) => self.propagate_request(request),
-            other => Ok(other),
+        self.normalize_root_result(result)
+    }
+
+    fn normalize_root_result(&mut self, mut result: VmResult) -> Result<VmResult, VmError> {
+        loop {
+            result = match result {
+                VmResult::Value(VmValue::Thunk(thunk)) => self.bind_here(VmValue::Thunk(thunk))?,
+                VmResult::Request(request) => match self.propagate_request(request)? {
+                    VmResult::Request(request) => return Ok(VmResult::Request(request)),
+                    result => result,
+                },
+                result => return Ok(result),
+            };
         }
     }
 
@@ -106,16 +112,24 @@ impl<'m> VmInterpreter<'m> {
                 let result = self.eval_expr(cond, env)?;
                 self.continue_if_result(result, then_branch, else_branch, env)
             }
-            ExprKind::Tuple(items) => self.eval_tuple(Vec::new(), items.clone(), env.clone()),
+            ExprKind::Tuple(items) => self.eval_tuple(
+                Vec::new(),
+                items.clone(),
+                env.clone(),
+                tuple_type_forces_items(&expr.ty),
+            ),
             ExprKind::Record { fields, spread } => self.eval_record(fields, spread, env),
-            ExprKind::Variant { tag, value } => Ok(VmResult::Value(VmValue::Variant {
-                tag: tag.clone(),
-                value: value
-                    .as_ref()
-                    .map(|value| self.eval_value(value, env))
-                    .transpose()?
-                    .map(Box::new),
-            })),
+            ExprKind::Variant { tag, value } => {
+                if let Some(value) = value {
+                    let result = self.eval_expr(value, env)?;
+                    let result = self.force_value_result(result, true)?;
+                    return self.continue_variant_value(tag.clone(), result);
+                }
+                Ok(VmResult::Value(VmValue::Variant {
+                    tag: tag.clone(),
+                    value: None,
+                }))
+            }
             ExprKind::Select { base, field } => match self.eval_expr(base, env)? {
                 VmResult::Value(value) => self.select_field(value, field),
                 VmResult::Request(request) => Ok(VmResult::Request(push_frame(
@@ -272,6 +286,33 @@ impl<'m> VmInterpreter<'m> {
         match value {
             VmValue::Bool(true) => self.eval_expr(then_branch, env),
             VmValue::Bool(false) => self.eval_expr(else_branch, env),
+            other => Err(VmError::ExpectedBool(other)),
+        }
+    }
+
+    fn continue_if_value_frame(
+        &mut self,
+        value: VmValue,
+        then_branch: Expr,
+        else_branch: Expr,
+        env: Env,
+    ) -> Result<VmResult, VmError> {
+        match value {
+            VmValue::Thunk(thunk) => match self.bind_here(VmValue::Thunk(thunk))? {
+                VmResult::Value(value) => {
+                    self.continue_if_value_frame(value, then_branch, else_branch, env)
+                }
+                VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                    request,
+                    Frame::If {
+                        then_branch,
+                        else_branch,
+                        env,
+                    },
+                ))),
+            },
+            VmValue::Bool(true) => self.eval_expr(&then_branch, &env),
+            VmValue::Bool(false) => self.eval_expr(&else_branch, &env),
             other => Err(VmError::ExpectedBool(other)),
         }
     }
@@ -486,10 +527,16 @@ impl<'m> VmInterpreter<'m> {
         mut done: Vec<VmValue>,
         mut remaining: Vec<Expr>,
         env: Env,
+        force_items: bool,
     ) -> Result<VmResult, VmError> {
         remaining.reverse();
         while let Some(next) = remaining.pop() {
-            match self.eval_expr(&next, &env)? {
+            let result = self.eval_expr(&next, &env)?;
+            let result = self.force_value_result(
+                result,
+                force_items || !matches!(next.ty, Type::Thunk { .. }),
+            )?;
+            match result {
                 VmResult::Value(value) => done.push(value),
                 VmResult::Request(request) => {
                     remaining.reverse();
@@ -499,12 +546,79 @@ impl<'m> VmInterpreter<'m> {
                             done,
                             remaining,
                             env,
+                            force_items,
                         },
                     )));
                 }
             }
         }
         Ok(VmResult::Value(VmValue::Tuple(done)))
+    }
+
+    fn force_value_result(&mut self, result: VmResult, force: bool) -> Result<VmResult, VmError> {
+        if !force {
+            return Ok(result);
+        }
+        match result {
+            VmResult::Value(VmValue::Thunk(thunk)) => self.bind_here(VmValue::Thunk(thunk)),
+            result => Ok(result),
+        }
+    }
+
+    fn continue_tuple_item(
+        &mut self,
+        mut done: Vec<VmValue>,
+        remaining: Vec<Expr>,
+        env: Env,
+        force_items: bool,
+        value: VmValue,
+    ) -> Result<VmResult, VmError> {
+        if force_items {
+            if let VmValue::Thunk(thunk) = value {
+                return match self.bind_here(VmValue::Thunk(thunk))? {
+                    VmResult::Value(value) => {
+                        self.continue_tuple_item(done, remaining, env, force_items, value)
+                    }
+                    VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                        request,
+                        Frame::Tuple {
+                            done,
+                            remaining,
+                            env,
+                            force_items,
+                        },
+                    ))),
+                };
+            }
+        }
+        done.push(value);
+        self.eval_tuple(done, remaining, env, force_items)
+    }
+
+    fn continue_variant_value(
+        &mut self,
+        tag: typed_ir::Name,
+        result: VmResult,
+    ) -> Result<VmResult, VmError> {
+        match result {
+            VmResult::Value(VmValue::Thunk(thunk)) => {
+                match self.bind_here(VmValue::Thunk(thunk))? {
+                    result @ VmResult::Value(_) => self.continue_variant_value(tag, result),
+                    VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                        request,
+                        Frame::Variant { tag },
+                    ))),
+                }
+            }
+            VmResult::Value(value) => Ok(VmResult::Value(VmValue::Variant {
+                tag,
+                value: Some(Box::new(value)),
+            })),
+            VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                request,
+                Frame::Variant { tag },
+            ))),
+        }
     }
 
     pub(super) fn eval_record(
@@ -583,6 +697,29 @@ impl<'m> VmInterpreter<'m> {
             return self.eval_expr(&arm.body, &arm_env);
         }
         Err(VmError::PatternMismatch)
+    }
+
+    fn continue_block_expr(
+        &mut self,
+        value: VmValue,
+        remaining: Vec<Stmt>,
+        tail: Option<Expr>,
+        env: Env,
+    ) -> Result<VmResult, VmError> {
+        match value {
+            VmValue::Thunk(thunk) => match self.bind_here(VmValue::Thunk(thunk))? {
+                VmResult::Value(_) => self.eval_block(remaining, tail, env),
+                VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                    request,
+                    Frame::BlockExpr {
+                        remaining,
+                        tail,
+                        env,
+                    },
+                ))),
+            },
+            _ => self.eval_block(remaining, tail, env),
+        }
     }
 
     pub(super) fn eval_block(
@@ -761,7 +898,10 @@ impl<'m> VmInterpreter<'m> {
             );
         }
         if let Some(guard) = &arm.guard {
-            return match self.eval_expr(guard, &arm_env)? {
+            let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+            let guard_result = self.eval_expr(guard, &arm_env);
+            self.guard_stack = previous;
+            return match guard_result? {
                 VmResult::Value(guard) => self.continue_handle_guard(
                     guard,
                     request,
@@ -790,7 +930,10 @@ impl<'m> VmInterpreter<'m> {
                 ))),
             };
         }
-        let result = self.eval_expr(&arm.body, &arm_env)?;
+        let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+        let result = self.eval_expr(&arm.body, &arm_env);
+        self.guard_stack = previous;
+        let result = result?;
         self.continue_handle_result_for_type(result, outer, expected_ty)
     }
 
@@ -809,7 +952,11 @@ impl<'m> VmInterpreter<'m> {
     ) -> Result<VmResult, VmError> {
         match guard {
             VmValue::Bool(true) => {
-                let result = self.eval_expr(&body, &arm_env)?;
+                let previous =
+                    std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+                let result = self.eval_expr(&body, &arm_env);
+                self.guard_stack = previous;
+                let result = result?;
                 self.continue_handle_result_for_type(result, outer, &expected_ty)
             }
             VmValue::Bool(false) => {
@@ -870,21 +1017,16 @@ impl<'m> VmInterpreter<'m> {
                 then_branch,
                 else_branch,
                 env,
-            } => match value {
-                VmValue::Bool(true) => self.eval_expr(&then_branch, &env),
-                VmValue::Bool(false) => self.eval_expr(&else_branch, &env),
-                other => Err(VmError::ExpectedBool(other)),
-            },
+            } => self.continue_if_value_frame(value, then_branch, else_branch, env),
             Frame::Tuple {
-                mut done,
+                done,
                 remaining,
                 env,
-            } => {
-                done.push(value);
-                self.eval_tuple(done, remaining, env)
-            }
+                force_items,
+            } => self.continue_tuple_item(done, remaining, env, force_items, value),
             Frame::Select { field } => self.select_field(value, &field),
             Frame::Match { arms, env } => self.eval_match(value, &arms, &env),
+            Frame::Variant { tag } => self.continue_variant_value(tag, VmResult::Value(value)),
             Frame::BlockLet {
                 pattern,
                 remaining,
@@ -898,7 +1040,7 @@ impl<'m> VmInterpreter<'m> {
                 remaining,
                 tail,
                 env,
-            } => self.eval_block(remaining, tail, env),
+            } => self.continue_block_expr(value, remaining, tail, env),
             Frame::Handle {
                 id,
                 arms,
@@ -1117,6 +1259,10 @@ fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
         param_ty,
         Type::Thunk { .. } | Type::Core(typed_ir::Type::Any)
     )
+}
+
+fn tuple_type_forces_items(ty: &Type) -> bool {
+    matches!(ty, Type::Core(typed_ir::Type::Tuple(_)))
 }
 
 fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {

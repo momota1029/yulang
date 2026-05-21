@@ -445,6 +445,14 @@ impl Lowerer<'_> {
                     callee = Some(lowered);
                 }
                 let ret_hint = fun_parts.as_ref().map(|parts| parts.ret.clone());
+                let structural_result_hint = callee_expr
+                    .as_ref()
+                    .zip(arg_expr.as_ref())
+                    .and_then(|(callee, arg)| self.visible_structural_apply_type(callee, arg))
+                    .filter(|ty| {
+                        is_concrete_visible_root_type(ty) && !contains_non_runtime_type(ty)
+                    })
+                    .map(RuntimeType::core);
                 let result_ty = choose_apply_result_type(
                     evidence_result,
                     ret_hint,
@@ -453,6 +461,25 @@ impl Lowerer<'_> {
                 .and_then(|ty| choose_expected_hir_type(ty, expected.cloned()))
                 .or_else(|| expected.cloned())
                 .unwrap_or_else(|| RuntimeType::core(self.fresh_type_var("apply_result")));
+                let result_ty = match (expected, structural_result_hint.as_ref()) {
+                    (Some(expected), Some(structural))
+                        if apply_target.is_some()
+                            && !hir_type_compatible(expected, &result_ty)
+                            && hir_type_compatible(expected, structural) =>
+                    {
+                        expected.clone()
+                    }
+                    (Some(expected), _)
+                        if apply_target.is_some()
+                            && callee_stored_hint.as_ref().is_some_and(hir_type_has_type_vars)
+                            && !runtime_type_is_imprecise_runtime_slot(expected)
+                            && !hir_type_contains_unknown(expected)
+                            && !hir_type_compatible(expected, &result_ty) =>
+                    {
+                        expected.clone()
+                    }
+                    _ => result_ty,
+                };
                 if let Some(expected) = expected {
                     require_apply_result_compatible(expected, &result_ty, expected_source)
                         .map_err(|error| {
@@ -834,13 +861,26 @@ impl Lowerer<'_> {
                     ExprKind::EffectOp(path) => Some((path.clone(), arg_value_core)),
                     _ => None,
                 };
-                let apply_ty = match &final_fun_parts.ret {
+                let (apply_ty, apply_ty_overrides_ret) = match &final_fun_parts.ret {
                     RuntimeType::Unknown
                     | RuntimeType::Core(
                         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_),
-                    ) => result_ty,
-                    _ => final_fun_parts.ret,
+                    ) => (result_ty, true),
+                    ret
+                        if expected.is_some_and(|expected| {
+                            !hir_type_compatible(expected, ret)
+                                && hir_type_compatible(expected, &result_ty)
+                        }) =>
+                    {
+                        (result_ty, true)
+                    }
+                    _ => (final_fun_parts.ret.clone(), false),
                 };
+                if apply_ty_overrides_ret {
+                    final_fun_parts.ret = apply_ty.clone();
+                    callee.ty =
+                        erased_fun_type(final_fun_parts.param.clone(), final_fun_parts.ret.clone());
+                }
                 let boundary_allowed = callee_boundary_effect.map(|allowed| {
                     (
                         callee_boundary.as_ref().map(|boundary| boundary.id),
@@ -869,10 +909,14 @@ impl Lowerer<'_> {
                     }
                 }
                 if let Some((boundary_id, allowed)) = boundary_allowed {
-                    if !matches!(apply.ty, RuntimeType::Thunk { .. })
-                        && let Some(effect) = boundary_ret_effect
-                    {
-                        apply = attach_expr_effect(apply, effect);
+                    if !matches!(apply.ty, RuntimeType::Thunk { .. }) {
+                        if let Some(effect) = boundary_ret_effect {
+                            apply = attach_expr_effect(apply, effect);
+                        } else if local_callback_boundary_needs_wildcard_effect(
+                            &final_fun_parts.ret,
+                        ) {
+                            apply = attach_expr_effect(apply, wildcard_effect_type());
+                        }
                     }
                     let Some(boundary_id) = boundary_id else {
                         apply = add_boundary_id_with_peek(apply, allowed);
@@ -1340,20 +1384,47 @@ impl Lowerer<'_> {
                 let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
                 let (expr, from) =
                     force_core_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
-                let from = evidence_actual
+                let evidence_from = evidence_actual
                     .as_ref()
                     .filter(|ty| !hir_type_has_type_vars(ty))
                     .and_then(RuntimeType::as_core)
-                    .cloned()
-                    .unwrap_or(from);
+                    .cloned();
                 let ty = expected
                     .cloned()
                     .or_else(|| evidence_expected.filter(|ty| !hir_type_has_type_vars(ty)))
                     .unwrap_or_else(|| RuntimeType::core(from.clone()));
+                let to = core_type(&ty).clone();
+                let from = if self.implicit_cast_method_path(&from, &to).is_some() {
+                    from
+                } else {
+                    evidence_from.unwrap_or(from)
+                };
+                if let Some(cast) = self.implicit_cast_method_path(&from, &to) {
+                    let callee_ty = self.env.get(&cast).cloned().unwrap_or_else(|| {
+                        RuntimeType::fun(RuntimeType::core(from.clone()), RuntimeType::core(to))
+                    });
+                    let callee = Expr::typed(ExprKind::Var(cast), callee_ty);
+                    let expr = Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(callee),
+                            arg: Box::new(expr),
+                            evidence: None,
+                            instantiation: None,
+                        },
+                        ty,
+                    );
+                    return finalize_effectful_expr_profiled(
+                        expr,
+                        expected,
+                        expected_source,
+                        &mut self.runtime_adapter_profile,
+                        self.current_runtime_adapter_source.clone(),
+                    );
+                }
                 let expr = Expr::typed(
                     ExprKind::Coerce {
                         from,
-                        to: core_type(&ty).clone(),
+                        to,
                         expr: Box::new(expr),
                     },
                     ty,
@@ -2091,18 +2162,19 @@ impl Lowerer<'_> {
                 callee,
                 arg,
                 evidence,
-            } => evidence
-                .as_ref()
-                .and_then(|evidence| self.visible_apply_evidence_result_type(evidence))
-                .or_else(|| {
-                    let callee_ty = self.visible_expr_type(callee);
-                    let arg_ty = self.visible_expr_type(arg);
-                    callee_ty
-                        .as_ref()
-                        .and_then(|callee_ty| visible_apply_result_type(callee_ty, arg_ty.as_ref()))
-                        .or(callee_ty)
-                        .or(arg_ty)
-                }),
+            } => {
+                let evidence_ty = evidence
+                    .as_ref()
+                    .and_then(|evidence| self.visible_apply_evidence_result_type(evidence));
+                let structural_ty = self.visible_structural_apply_type(callee, arg);
+                structural_ty
+                    .clone()
+                    .filter(|ty| {
+                        is_concrete_visible_root_type(ty) && !contains_non_runtime_type(ty)
+                    })
+                    .or(evidence_ty)
+                    .or(structural_ty)
+            }
             typed_ir::Expr::Lambda { .. } => None,
             typed_ir::Expr::If {
                 then_branch,
@@ -2150,6 +2222,52 @@ impl Lowerer<'_> {
                 self.visible_expr_type(expr)
             }
         }
+    }
+
+    fn visible_structural_expr_type(&self, expr: &typed_ir::Expr) -> Option<typed_ir::Type> {
+        match expr {
+            typed_ir::Expr::Apply { callee, arg, .. } => {
+                self.visible_structural_apply_type(callee, arg)
+            }
+            typed_ir::Expr::If {
+                then_branch,
+                else_branch,
+                ..
+            } => merge_visible_type_options(
+                self.visible_structural_expr_type(then_branch),
+                self.visible_structural_expr_type(else_branch),
+            ),
+            typed_ir::Expr::Match { arms, .. } => arms
+                .iter()
+                .filter_map(|arm| self.visible_structural_expr_type(&arm.body))
+                .reduce(|left, right| choose_core_type(left, right, TypeChoice::VisiblePrincipal)),
+            typed_ir::Expr::Handle { arms, .. } => arms
+                .iter()
+                .filter_map(|arm| self.visible_structural_expr_type(&arm.body))
+                .reduce(|left, right| choose_core_type(left, right, TypeChoice::VisiblePrincipal))
+                .filter(|ty| !core_type_is_imprecise_runtime_slot(ty)),
+            typed_ir::Expr::Block { tail, .. } => tail
+                .as_deref()
+                .and_then(|tail| self.visible_structural_expr_type(tail)),
+            typed_ir::Expr::BindHere { expr }
+            | typed_ir::Expr::Coerce { expr, .. }
+            | typed_ir::Expr::Pack { expr, .. } => self.visible_structural_expr_type(expr),
+            _ => self.visible_expr_type(expr),
+        }
+    }
+
+    fn visible_structural_apply_type(
+        &self,
+        callee: &typed_ir::Expr,
+        arg: &typed_ir::Expr,
+    ) -> Option<typed_ir::Type> {
+        let callee_ty = self.visible_structural_expr_type(callee);
+        let arg_ty = self.visible_structural_expr_type(arg);
+        callee_ty
+            .as_ref()
+            .and_then(|callee_ty| visible_apply_result_type(callee_ty, arg_ty.as_ref()))
+            .or(callee_ty)
+            .or(arg_ty)
     }
 
     pub(super) fn runtime_symbol_kind(
@@ -2762,6 +2880,10 @@ fn type_ret_effect(ty: &typed_ir::Type) -> Option<typed_ir::Type> {
 
 fn runtime_type_returns_function(ty: &RuntimeType) -> bool {
     matches!(value_hir_type(ty), RuntimeType::Fun { .. })
+}
+
+fn local_callback_boundary_needs_wildcard_effect(ty: &RuntimeType) -> bool {
+    runtime_type_is_imprecise_runtime_slot(ty)
 }
 
 fn choose_final_apply_param(

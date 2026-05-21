@@ -1,4 +1,9 @@
 use super::*;
+use crate::types::{
+    BoundsChoice, choose_bounds_type, core_type_contains_unknown,
+    core_type_is_imprecise_runtime_slot, runtime_core_type, type_compatible,
+};
+use std::collections::VecDeque;
 
 pub(super) fn normalize_hir_function_type(ty: RuntimeType) -> RuntimeType {
     match ty {
@@ -46,6 +51,476 @@ pub(super) fn refresh_closed_specialized_schemes(mut module: Module) -> Module {
         }
     }
     module
+}
+
+pub(super) fn normalize_semantic_cast_coercions(mut module: Module) -> Module {
+    let role_impls = module.role_impls.clone();
+    for binding in &mut module.bindings {
+        binding.body = normalize_semantic_cast_coercions_expr(binding.body.clone(), &role_impls);
+    }
+    for root in &mut module.root_exprs {
+        *root = normalize_semantic_cast_coercions_expr(root.clone(), &role_impls);
+    }
+    module
+}
+
+fn normalize_semantic_cast_coercions_expr(
+    expr: Expr,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Expr {
+    let ty = expr.ty.clone();
+    let kind = match expr.kind {
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body: Box::new(normalize_semantic_cast_coercions_expr(*body, role_impls)),
+        },
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+        } => ExprKind::Apply {
+            callee: Box::new(normalize_semantic_cast_coercions_expr(*callee, role_impls)),
+            arg: Box::new(normalize_semantic_cast_coercions_expr(*arg, role_impls)),
+            evidence,
+            instantiation,
+        },
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            evidence,
+        } => ExprKind::If {
+            cond: Box::new(normalize_semantic_cast_coercions_expr(*cond, role_impls)),
+            then_branch: Box::new(normalize_semantic_cast_coercions_expr(
+                *then_branch,
+                role_impls,
+            )),
+            else_branch: Box::new(normalize_semantic_cast_coercions_expr(
+                *else_branch,
+                role_impls,
+            )),
+            evidence,
+        },
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .into_iter()
+                .map(|item| normalize_semantic_cast_coercions_expr(item, role_impls))
+                .collect(),
+        ),
+        ExprKind::Record { fields, spread } => ExprKind::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| RecordExprField {
+                    name: field.name,
+                    value: normalize_semantic_cast_coercions_expr(field.value, role_impls),
+                })
+                .collect(),
+            spread: spread
+                .map(|spread| normalize_semantic_cast_coercions_record_spread(spread, role_impls)),
+        },
+        ExprKind::Variant { tag, value } => ExprKind::Variant {
+            tag,
+            value: value
+                .map(|value| Box::new(normalize_semantic_cast_coercions_expr(*value, role_impls))),
+        },
+        ExprKind::Select { base, field } => ExprKind::Select {
+            base: Box::new(normalize_semantic_cast_coercions_expr(*base, role_impls)),
+            field,
+        },
+        ExprKind::Match {
+            scrutinee,
+            arms,
+            evidence,
+        } => ExprKind::Match {
+            scrutinee: Box::new(normalize_semantic_cast_coercions_expr(
+                *scrutinee, role_impls,
+            )),
+            arms: arms
+                .into_iter()
+                .map(|arm| normalize_semantic_cast_coercions_match_arm(arm, role_impls))
+                .collect(),
+            evidence,
+        },
+        ExprKind::Block { stmts, tail } => ExprKind::Block {
+            stmts: stmts
+                .into_iter()
+                .map(|stmt| normalize_semantic_cast_coercions_stmt(stmt, role_impls))
+                .collect(),
+            tail: tail
+                .map(|tail| Box::new(normalize_semantic_cast_coercions_expr(*tail, role_impls))),
+        },
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => ExprKind::Handle {
+            body: Box::new(normalize_semantic_cast_coercions_expr(*body, role_impls)),
+            arms: arms
+                .into_iter()
+                .map(|arm| normalize_semantic_cast_coercions_handle_arm(arm, role_impls))
+                .collect(),
+            evidence,
+            handler,
+        },
+        ExprKind::BindHere { expr } => ExprKind::BindHere {
+            expr: Box::new(normalize_semantic_cast_coercions_expr(*expr, role_impls)),
+        },
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => ExprKind::Thunk {
+            effect,
+            value,
+            expr: Box::new(normalize_semantic_cast_coercions_expr(*expr, role_impls)),
+        },
+        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
+            id,
+            body: Box::new(normalize_semantic_cast_coercions_expr(*body, role_impls)),
+        },
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk: Box::new(normalize_semantic_cast_coercions_expr(*thunk, role_impls)),
+        },
+        ExprKind::Coerce { from, to, expr } => {
+            let expr = normalize_semantic_cast_coercions_expr(*expr, role_impls);
+            let actual = precise_coerce_actual_type(&expr, &from);
+            if actual == to {
+                return expr;
+            }
+            if let Some(steps) = semantic_cast_path(role_impls, &actual, &to) {
+                return apply_semantic_cast_path(expr, steps);
+            }
+            ExprKind::Coerce {
+                from: actual,
+                to,
+                expr: Box::new(expr),
+            }
+        }
+        ExprKind::Pack { var, expr } => ExprKind::Pack {
+            var,
+            expr: Box::new(normalize_semantic_cast_coercions_expr(*expr, role_impls)),
+        },
+        ExprKind::Var(path) => ExprKind::Var(path),
+        ExprKind::EffectOp(path) => ExprKind::EffectOp(path),
+        ExprKind::PrimitiveOp(op) => ExprKind::PrimitiveOp(op),
+        ExprKind::Lit(lit) => ExprKind::Lit(lit),
+        ExprKind::PeekId => ExprKind::PeekId,
+        ExprKind::FindId { id } => ExprKind::FindId { id },
+    };
+    Expr::typed(kind, ty)
+}
+
+fn precise_coerce_actual_type(expr: &Expr, fallback: &typed_ir::Type) -> typed_ir::Type {
+    let actual = runtime_core_type(&expr.ty);
+    if implicit_cast_endpoint_is_open(&actual) {
+        fallback.clone()
+    } else {
+        actual
+    }
+}
+
+fn normalize_semantic_cast_coercions_stmt(
+    stmt: Stmt,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Stmt {
+    match stmt {
+        Stmt::Let { pattern, value } => Stmt::Let {
+            pattern: normalize_semantic_cast_coercions_pattern(pattern, role_impls),
+            value: normalize_semantic_cast_coercions_expr(value, role_impls),
+        },
+        Stmt::Expr(expr) => Stmt::Expr(normalize_semantic_cast_coercions_expr(expr, role_impls)),
+        Stmt::Module { def, body } => Stmt::Module {
+            def,
+            body: normalize_semantic_cast_coercions_expr(body, role_impls),
+        },
+    }
+}
+
+fn normalize_semantic_cast_coercions_match_arm(
+    arm: MatchArm,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> MatchArm {
+    MatchArm {
+        pattern: normalize_semantic_cast_coercions_pattern(arm.pattern, role_impls),
+        guard: arm
+            .guard
+            .map(|guard| normalize_semantic_cast_coercions_expr(guard, role_impls)),
+        body: normalize_semantic_cast_coercions_expr(arm.body, role_impls),
+    }
+}
+
+fn normalize_semantic_cast_coercions_handle_arm(
+    arm: HandleArm,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> HandleArm {
+    HandleArm {
+        effect: arm.effect,
+        payload: normalize_semantic_cast_coercions_pattern(arm.payload, role_impls),
+        resume: arm.resume,
+        guard: arm
+            .guard
+            .map(|guard| normalize_semantic_cast_coercions_expr(guard, role_impls)),
+        body: normalize_semantic_cast_coercions_expr(arm.body, role_impls),
+    }
+}
+
+fn normalize_semantic_cast_coercions_pattern(
+    pattern: Pattern,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Pattern {
+    match pattern {
+        Pattern::Tuple { items, ty } => Pattern::Tuple {
+            items: items
+                .into_iter()
+                .map(|item| normalize_semantic_cast_coercions_pattern(item, role_impls))
+                .collect(),
+            ty,
+        },
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ty,
+        } => Pattern::List {
+            prefix: prefix
+                .into_iter()
+                .map(|item| normalize_semantic_cast_coercions_pattern(item, role_impls))
+                .collect(),
+            spread: spread.map(|spread| {
+                Box::new(normalize_semantic_cast_coercions_pattern(
+                    *spread, role_impls,
+                ))
+            }),
+            suffix: suffix
+                .into_iter()
+                .map(|item| normalize_semantic_cast_coercions_pattern(item, role_impls))
+                .collect(),
+            ty,
+        },
+        Pattern::Record { fields, spread, ty } => Pattern::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| RecordPatternField {
+                    name: field.name,
+                    pattern: normalize_semantic_cast_coercions_pattern(field.pattern, role_impls),
+                    default: field
+                        .default
+                        .map(|expr| normalize_semantic_cast_coercions_expr(expr, role_impls)),
+                })
+                .collect(),
+            spread: spread.map(|spread| {
+                normalize_semantic_cast_coercions_record_pattern_spread(spread, role_impls)
+            }),
+            ty,
+        },
+        Pattern::Variant { tag, value, ty } => Pattern::Variant {
+            tag,
+            value: value.map(|value| {
+                Box::new(normalize_semantic_cast_coercions_pattern(
+                    *value, role_impls,
+                ))
+            }),
+            ty,
+        },
+        Pattern::Or { left, right, ty } => Pattern::Or {
+            left: Box::new(normalize_semantic_cast_coercions_pattern(*left, role_impls)),
+            right: Box::new(normalize_semantic_cast_coercions_pattern(
+                *right, role_impls,
+            )),
+            ty,
+        },
+        Pattern::As { pattern, name, ty } => Pattern::As {
+            pattern: Box::new(normalize_semantic_cast_coercions_pattern(
+                *pattern, role_impls,
+            )),
+            name,
+            ty,
+        },
+        Pattern::Wildcard { ty } => Pattern::Wildcard { ty },
+        Pattern::Bind { name, ty } => Pattern::Bind { name, ty },
+        Pattern::Lit { lit, ty } => Pattern::Lit { lit, ty },
+    }
+}
+
+fn normalize_semantic_cast_coercions_record_spread(
+    spread: RecordSpreadExpr,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> RecordSpreadExpr {
+    match spread {
+        RecordSpreadExpr::Head(expr) => RecordSpreadExpr::Head(Box::new(
+            normalize_semantic_cast_coercions_expr(*expr, role_impls),
+        )),
+        RecordSpreadExpr::Tail(expr) => RecordSpreadExpr::Tail(Box::new(
+            normalize_semantic_cast_coercions_expr(*expr, role_impls),
+        )),
+    }
+}
+
+fn normalize_semantic_cast_coercions_record_pattern_spread(
+    spread: RecordSpreadPattern,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> RecordSpreadPattern {
+    match spread {
+        RecordSpreadPattern::Head(pattern) => RecordSpreadPattern::Head(Box::new(
+            normalize_semantic_cast_coercions_pattern(*pattern, role_impls),
+        )),
+        RecordSpreadPattern::Tail(pattern) => RecordSpreadPattern::Tail(Box::new(
+            normalize_semantic_cast_coercions_pattern(*pattern, role_impls),
+        )),
+    }
+}
+
+#[derive(Clone)]
+struct SemanticCastStep {
+    method: typed_ir::Path,
+    from: typed_ir::Type,
+    to: typed_ir::Type,
+}
+
+fn apply_semantic_cast_path(expr: Expr, steps: Vec<SemanticCastStep>) -> Expr {
+    steps.into_iter().fold(expr, |value, step| {
+        let callee_ty = RuntimeType::fun(
+            RuntimeType::core(step.from.clone()),
+            RuntimeType::core(step.to.clone()),
+        );
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(ExprKind::Var(step.method), callee_ty)),
+                arg: Box::new(value),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::core(step.to),
+        )
+    })
+}
+
+fn semantic_cast_path(
+    role_impls: &[typed_ir::RoleImplGraphNode],
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
+) -> Option<Vec<SemanticCastStep>> {
+    if !semantic_cast_target_needs_apply(expected) {
+        return None;
+    }
+    if primitive_runtime_coercion_covers(actual, expected) {
+        return None;
+    }
+    if implicit_cast_endpoint_is_open(actual) || implicit_cast_endpoint_is_open(expected) {
+        return None;
+    }
+    if type_compatible(actual, expected) && type_compatible(expected, actual) {
+        return None;
+    }
+    let edges = semantic_cast_edges(role_impls);
+    let mut seen = Vec::new();
+    let mut queue = VecDeque::from([(actual.clone(), Vec::new())]);
+
+    while let Some((current, path)) = queue.pop_front() {
+        if seen.iter().any(|seen| same_core_type(seen, &current)) {
+            continue;
+        }
+        seen.push(current.clone());
+        for edge in &edges {
+            if !same_core_type(&edge.from, &current) {
+                continue;
+            }
+            let mut next_path = path.clone();
+            next_path.push(edge.clone());
+            if same_core_type(&edge.to, expected) {
+                return Some(next_path);
+            }
+            queue.push_back((edge.to.clone(), next_path));
+        }
+    }
+    None
+}
+
+fn semantic_cast_edges(role_impls: &[typed_ir::RoleImplGraphNode]) -> Vec<SemanticCastStep> {
+    role_impls
+        .iter()
+        .filter(|role_impl| {
+            role_impl
+                .role
+                .segments
+                .last()
+                .is_some_and(|name| name.0 == "Cast")
+        })
+        .filter_map(|role_impl| {
+            let input = role_impl.inputs.first()?;
+            let input = choose_bounds_type(input, BoundsChoice::ValidationEvidence)?;
+            let target = role_impl
+                .associated_types
+                .iter()
+                .find(|associated| associated.name.0 == "to")?;
+            let target = choose_bounds_type(&target.value, BoundsChoice::ValidationEvidence)?;
+            let method = role_impl
+                .members
+                .iter()
+                .find(|member| member.name.0 == "cast")
+                .map(|member| member.value.clone())?;
+            Some(SemanticCastStep {
+                method,
+                from: input,
+                to: target,
+            })
+        })
+        .collect()
+}
+
+fn same_core_type(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    type_compatible(left, right) && type_compatible(right, left)
+}
+
+fn implicit_cast_endpoint_is_open(ty: &typed_ir::Type) -> bool {
+    core_type_is_imprecise_runtime_slot(ty)
+        || core_type_has_vars(ty)
+        || core_type_contains_unknown(ty)
+}
+
+fn semantic_cast_target_needs_apply(ty: &typed_ir::Type) -> bool {
+    matches!(
+        ty,
+        typed_ir::Type::Named { path, args }
+            if args.is_empty()
+                && path
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "float")
+    )
+}
+
+fn primitive_runtime_coercion_covers(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {
+    is_bare_named_type(actual, "int") && is_bare_named_type(expected, "float")
+}
+
+fn is_bare_named_type(ty: &typed_ir::Type, name: &str) -> bool {
+    matches!(
+        ty,
+        typed_ir::Type::Named { path, args }
+            if args.is_empty()
+                && path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.0 == name)
+    )
 }
 
 fn is_synthetic_local_act_helper_path(path: &typed_ir::Path) -> bool {
@@ -527,5 +1002,197 @@ pub(super) fn collect_effect_vars(effect: &typed_ir::Type, vars: &mut BTreeSet<t
         | typed_ir::Type::Unknown
         | typed_ir::Type::Never
         | typed_ir::Type::Any => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn semantic_cast_coercion_is_reachable_before_prune() {
+        let frac = named_type(&["std", "frac", "frac"]);
+        let float = named_type(&["float"]);
+        let value_path = path(&["local", "value"]);
+        let cast_path = path(&["std", "prelude", "&cast#0", "cast"]);
+        let cast_ty = typed_ir::Type::Fun {
+            param: Box::new(frac.clone()),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(float.clone()),
+        };
+        let module = Module {
+            path: typed_ir::Path::default(),
+            bindings: vec![
+                Binding {
+                    name: value_path.clone(),
+                    type_params: Vec::new(),
+                    scheme: typed_ir::Scheme {
+                        requirements: Vec::new(),
+                        body: frac.clone(),
+                    },
+                    body: Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Unit),
+                        RuntimeType::core(frac.clone()),
+                    ),
+                },
+                Binding {
+                    name: cast_path.clone(),
+                    type_params: Vec::new(),
+                    scheme: typed_ir::Scheme {
+                        requirements: Vec::new(),
+                        body: cast_ty.clone(),
+                    },
+                    body: Expr::typed(
+                        ExprKind::Lambda {
+                            param: typed_ir::Name("x".to_string()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Float("0.0".to_string())),
+                                RuntimeType::core(float.clone()),
+                            )),
+                        },
+                        RuntimeType::core(cast_ty),
+                    ),
+                },
+            ],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Coerce {
+                    from: frac.clone(),
+                    to: float.clone(),
+                    expr: Box::new(Expr::typed(
+                        ExprKind::Var(value_path),
+                        RuntimeType::core(frac.clone()),
+                    )),
+                },
+                RuntimeType::core(float.clone()),
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: vec![typed_ir::RoleImplGraphNode {
+                role: path(&["std", "prelude", "Cast"]),
+                inputs: vec![typed_ir::TypeBounds::exact(frac)],
+                associated_types: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("to".to_string()),
+                    value: typed_ir::TypeBounds::exact(float),
+                    optional: false,
+                }],
+                members: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("cast".to_string()),
+                    value: cast_path.clone(),
+                    optional: false,
+                }],
+            }],
+        };
+
+        let module = prune_unreachable_bindings(normalize_semantic_cast_coercions(module));
+
+        assert!(
+            module
+                .bindings
+                .iter()
+                .any(|binding| binding.name == cast_path)
+        );
+        let ExprKind::Apply { callee, .. } = &module.root_exprs[0].kind else {
+            panic!("semantic Cast coercion should become an apply before pruning");
+        };
+        assert!(matches!(&callee.kind, ExprKind::Var(path) if path == &cast_path));
+    }
+
+    #[test]
+    fn semantic_cast_coercion_uses_inner_runtime_type_when_from_is_stale() {
+        let frac = named_type(&["std", "frac", "frac"]);
+        let float = named_type(&["float"]);
+        let root = Expr::typed(
+            ExprKind::Coerce {
+                from: frac,
+                to: float.clone(),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Float("1.0".to_string())),
+                    RuntimeType::core(float.clone()),
+                )),
+            },
+            RuntimeType::core(float),
+        );
+        let module = normalize_semantic_cast_coercions(Module {
+            path: typed_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        });
+
+        assert!(matches!(module.root_exprs[0].kind, ExprKind::Lit(_)));
+    }
+
+    #[test]
+    fn semantic_cast_coercion_leaves_primitive_int_to_float_runtime_coerce() {
+        let int = named_type(&["int"]);
+        let frac = named_type(&["std", "frac", "frac"]);
+        let float = named_type(&["float"]);
+        let root = Expr::typed(
+            ExprKind::Coerce {
+                from: int.clone(),
+                to: float.clone(),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("3".to_string())),
+                    RuntimeType::core(int.clone()),
+                )),
+            },
+            RuntimeType::core(float.clone()),
+        );
+        let module = normalize_semantic_cast_coercions(Module {
+            path: typed_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+            role_impls: vec![
+                cast_role_impl(int.clone(), frac.clone(), path(&["cast", "int_to_frac"])),
+                cast_role_impl(frac, float.clone(), path(&["cast", "frac_to_float"])),
+            ],
+        });
+
+        let ExprKind::Coerce { from, to, .. } = &module.root_exprs[0].kind else {
+            panic!("primitive int -> float should stay a runtime coercion");
+        };
+        assert_eq!(from, &int);
+        assert_eq!(to, &float);
+    }
+
+    fn cast_role_impl(
+        from: typed_ir::Type,
+        to: typed_ir::Type,
+        method: typed_ir::Path,
+    ) -> typed_ir::RoleImplGraphNode {
+        typed_ir::RoleImplGraphNode {
+            role: path(&["std", "prelude", "Cast"]),
+            inputs: vec![typed_ir::TypeBounds::exact(from)],
+            associated_types: vec![typed_ir::RecordField {
+                name: typed_ir::Name("to".to_string()),
+                value: typed_ir::TypeBounds::exact(to),
+                optional: false,
+            }],
+            members: vec![typed_ir::RecordField {
+                name: typed_ir::Name("cast".to_string()),
+                value: method,
+                optional: false,
+            }],
+        }
+    }
+
+    fn path(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path::new(
+            segments
+                .iter()
+                .map(|segment| typed_ir::Name((*segment).to_string()))
+                .collect(),
+        )
+    }
+
+    fn named_type(segments: &[&str]) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(segments),
+            args: Vec::new(),
+        }
     }
 }

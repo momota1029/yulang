@@ -887,6 +887,125 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn lower_coerce_prefers_semantic_cast_impl() {
+        let frac = typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("frac".to_string()),
+                typed_ir::Name("frac".to_string()),
+            ]),
+            args: Vec::new(),
+        };
+        let float = named_type("float");
+        let cast_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("cast".to_string()),
+        ]);
+        let value_path = typed_ir::Path::from_name(typed_ir::Name("value".to_string()));
+        let cast_ty = typed_ir::Type::Fun {
+            param: Box::new(frac.clone()),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(float.clone()),
+        };
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![
+                    typed_ir::PrincipalBinding {
+                        name: value_path.clone(),
+                        scheme: typed_ir::Scheme {
+                            requirements: Vec::new(),
+                            body: frac.clone(),
+                        },
+                        body: typed_ir::Expr::Record {
+                            fields: vec![
+                                typed_ir::RecordExprField {
+                                    name: typed_ir::Name("num".to_string()),
+                                    value: typed_ir::Expr::Lit(typed_ir::Lit::Int("7".to_string())),
+                                },
+                                typed_ir::RecordExprField {
+                                    name: typed_ir::Name("den".to_string()),
+                                    value: typed_ir::Expr::Lit(typed_ir::Lit::Int("3".to_string())),
+                                },
+                            ],
+                            spread: None,
+                        },
+                    },
+                    typed_ir::PrincipalBinding {
+                        name: cast_path.clone(),
+                        scheme: typed_ir::Scheme {
+                            requirements: Vec::new(),
+                            body: cast_ty.clone(),
+                        },
+                        body: typed_ir::Expr::Lambda {
+                            param: typed_ir::Name("x".to_string()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Float(
+                                "0.0".to_string(),
+                            ))),
+                        },
+                    },
+                ],
+                root_exprs: vec![typed_ir::Expr::Coerce {
+                    expr: Box::new(typed_ir::Expr::Var(value_path.clone())),
+                    evidence: Some(typed_ir::CoerceEvidence {
+                        source_edge: None,
+                        actual: typed_ir::TypeBounds::exact(frac.clone()),
+                        expected: typed_ir::TypeBounds::exact(float.clone()),
+                    }),
+                }],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
+            },
+            graph: typed_ir::CoreGraphView {
+                bindings: vec![
+                    typed_ir::BindingGraphNode {
+                        binding: value_path,
+                        scheme_body: frac.clone(),
+                        body_bounds: typed_ir::TypeBounds::exact(frac.clone()),
+                    },
+                    typed_ir::BindingGraphNode {
+                        binding: cast_path.clone(),
+                        scheme_body: cast_ty,
+                        body_bounds: typed_ir::TypeBounds::exact(float.clone()),
+                    },
+                ],
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(float),
+                }],
+                role_impls: vec![typed_ir::RoleImplGraphNode {
+                    role: typed_ir::Path::new(vec![typed_ir::Name("Cast".to_string())]),
+                    inputs: vec![typed_ir::TypeBounds::exact(frac)],
+                    associated_types: vec![typed_ir::RecordField {
+                        name: typed_ir::Name("to".to_string()),
+                        value: typed_ir::TypeBounds::exact(named_type("float")),
+                        optional: false,
+                    }],
+                    members: vec![typed_ir::RecordField {
+                        name: typed_ir::Name("cast".to_string()),
+                        value: cast_path.clone(),
+                        optional: false,
+                    }],
+                }],
+                runtime_symbols: Vec::new(),
+                primitive_types: Vec::new(),
+            },
+            evidence: typed_ir::PrincipalEvidence::default(),
+        };
+
+        let module = lower_core_program(program).expect("lowered");
+
+        let ExprKind::Apply { callee, .. } = &module.root_exprs[0].kind else {
+            panic!("coerce should lower through Cast impl apply");
+        };
+        assert!(matches!(&callee.kind, ExprKind::Var(path) if path == &cast_path));
+        assert_eq!(core_type(&module.root_exprs[0].ty), &named_type("float"));
+    }
+
+    #[test]
     pub(super) fn lower_coerce_accepts_representation_source_edge_table() {
         let program = typed_ir::CoreProgram {
             program: typed_ir::PrincipalModule {

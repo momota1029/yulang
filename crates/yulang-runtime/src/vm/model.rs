@@ -151,6 +151,7 @@ pub(super) enum Frame {
         done: Vec<VmValue>,
         remaining: Vec<Expr>,
         env: Env,
+        force_items: bool,
     },
     Select {
         field: typed_ir::Name,
@@ -158,6 +159,9 @@ pub(super) enum Frame {
     Match {
         arms: Vec<MatchArm>,
         env: Env,
+    },
+    Variant {
+        tag: typed_ir::Name,
     },
     BlockLet {
         pattern: Pattern,

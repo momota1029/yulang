@@ -535,7 +535,17 @@ impl<'a> ExprExporter<'a> {
                     let edge_kind = self.lookup_edge_evidence(*edge_id).map(|edge| edge.kind);
                     if edge_kind != Some(crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce)
                     {
-                        return self.export_expr(expr);
+                        let mut evidence = complete_coerce_principal_evidence(
+                            &self.state.infer,
+                            *edge_id,
+                            *actual_tv,
+                            *expected_tv,
+                        );
+                        evidence.source_edge = None;
+                        return typed_ir::Expr::Coerce {
+                            expr: Box::new(self.export_expr(expr)),
+                            evidence: Some(evidence),
+                        };
                     }
                     typed_ir::Expr::Coerce {
                         expr: Box::new(self.export_expr(expr)),
