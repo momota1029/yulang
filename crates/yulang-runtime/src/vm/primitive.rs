@@ -10,6 +10,7 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::ListLen
         | typed_ir::PrimitiveOp::ListViewRaw
         | typed_ir::PrimitiveOp::StringLen
+        | typed_ir::PrimitiveOp::StringLineCount
         | typed_ir::PrimitiveOp::StringToBytes
         | typed_ir::PrimitiveOp::BytesLen
         | typed_ir::PrimitiveOp::BytesToUtf8Raw
@@ -29,6 +30,7 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::ListIndexRange
         | typed_ir::PrimitiveOp::StringIndex
         | typed_ir::PrimitiveOp::StringIndexRange
+        | typed_ir::PrimitiveOp::StringLineRange
         | typed_ir::PrimitiveOp::BoolEq
         | typed_ir::PrimitiveOp::IntAdd
         | typed_ir::PrimitiveOp::IntSub
@@ -205,6 +207,17 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
         typed_ir::PrimitiveOp::StringLen => {
             Ok(VmValue::Int(string_value(&args[0])?.len().to_string()))
         }
+        typed_ir::PrimitiveOp::StringLineCount => Ok(VmValue::Int(
+            string_value(&args[0])?.line_count().to_string(),
+        )),
+        typed_ir::PrimitiveOp::StringLineRange => {
+            let text = string_value(&args[0])?;
+            let index = usize::try_from(int_value(&args[1])?)
+                .map_err(|_| VmError::ExpectedInt(args[1].clone()))?;
+            text.line_range(index, index + 1)
+                .map(|range| range_value(range.start, range.end))
+                .ok_or(VmError::ExpectedString(args[0].clone()))
+        }
         typed_ir::PrimitiveOp::StringIndex => {
             let text = string_value(&args[0])?;
             let index = usize::try_from(int_value(&args[1])?)
@@ -338,6 +351,23 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
         typed_ir::PrimitiveOp::BoolToString => Ok(VmValue::String(StringTree::from(
             bool_value(&args[0])?.to_string(),
         ))),
+    }
+}
+
+fn range_value(start: usize, end: usize) -> VmValue {
+    VmValue::Variant {
+        tag: typed_ir::Name("within".to_string()),
+        value: Some(Box::new(VmValue::Tuple(vec![
+            bound_value("included", start),
+            bound_value("excluded", end),
+        ]))),
+    }
+}
+
+fn bound_value(tag: &str, value: usize) -> VmValue {
+    VmValue::Variant {
+        tag: typed_ir::Name(tag.to_string()),
+        value: Some(Box::new(VmValue::Int(value.to_string()))),
     }
 }
 

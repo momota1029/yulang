@@ -221,6 +221,15 @@ pub(super) fn type_arg_compatible(
     actual: &typed_ir::TypeArg,
     depth: usize,
 ) -> bool {
+    if type_arg_is_effect_like(expected) || type_arg_is_effect_like(actual) {
+        let Some(expected) = type_arg_effect_type(expected) else {
+            return false;
+        };
+        let Some(actual) = type_arg_effect_type(actual) else {
+            return false;
+        };
+        return effect_compatible(expected, actual);
+    }
     match (expected, actual) {
         (typed_ir::TypeArg::Type(left), typed_ir::TypeArg::Type(right)) => {
             type_compatible_inner(left, right, depth)
@@ -243,6 +252,28 @@ pub(super) fn type_arg_compatible(
                 _ => true,
             }
         }
+    }
+}
+
+fn type_arg_is_effect_like(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_is_effect_like(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(type_is_effect_like)
+                || bounds.upper.as_deref().is_some_and(type_is_effect_like)
+        }
+    }
+}
+
+fn type_arg_effect_type(arg: &typed_ir::TypeArg) -> Option<&typed_ir::Type> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) if type_is_effect_like(ty) => Some(ty),
+        typed_ir::TypeArg::Type(_) => None,
+        typed_ir::TypeArg::Bounds(bounds) => bounds
+            .lower
+            .as_deref()
+            .filter(|ty| type_is_effect_like(ty))
+            .or_else(|| bounds.upper.as_deref().filter(|ty| type_is_effect_like(ty))),
     }
 }
 

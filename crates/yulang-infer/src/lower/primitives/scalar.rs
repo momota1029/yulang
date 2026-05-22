@@ -186,6 +186,15 @@ pub(super) fn install_string_len_primitive(
     install_unary_primitive(state, module, name, op, "str", "int");
 }
 
+pub(super) fn install_string_line_count_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "str", "int");
+}
+
 pub(super) fn install_string_index_primitive(
     state: &mut LowerState,
     module: ModuleId,
@@ -202,6 +211,15 @@ pub(super) fn install_string_index_range_primitive(
     op: typed_ir::PrimitiveOp,
 ) {
     install_binary_mixed_primitive(state, module, name, op, "str", "range", "str");
+}
+
+pub(super) fn install_string_line_range_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_mixed_primitive(state, module, name, op, "str", "int", "range");
 }
 
 pub(super) fn install_string_index_range_raw_primitive(

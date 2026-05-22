@@ -25,7 +25,8 @@ use scalar::{
     install_path_to_bytes_primitive, install_string_binary_predicate_primitive,
     install_string_binary_primitive, install_string_index_primitive,
     install_string_index_range_primitive, install_string_index_range_raw_primitive,
-    install_string_len_primitive, install_string_splice_primitive,
+    install_string_len_primitive, install_string_line_count_primitive,
+    install_string_line_range_primitive, install_string_splice_primitive,
     install_string_splice_raw_primitive, install_string_to_bytes_primitive,
     install_to_string_primitive,
 };
@@ -197,6 +198,18 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
         typed_ir::PrimitiveOp::StringEq,
     );
     install_string_len_primitive(state, str_module, "len", typed_ir::PrimitiveOp::StringLen);
+    install_string_line_count_primitive(
+        state,
+        str_module,
+        "line_count",
+        typed_ir::PrimitiveOp::StringLineCount,
+    );
+    install_string_line_range_primitive(
+        state,
+        str_module,
+        "line_range",
+        typed_ir::PrimitiveOp::StringLineRange,
+    );
     install_string_index_primitive(
         state,
         str_module,

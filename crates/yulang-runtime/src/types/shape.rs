@@ -69,54 +69,9 @@ pub(crate) fn hir_type_has_vars(ty: &RuntimeType) -> bool {
 }
 
 pub(crate) fn core_type_has_vars(ty: &typed_ir::Type) -> bool {
-    match ty {
-        typed_ir::Type::Var(_) => true,
-        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
-            typed_ir::TypeArg::Type(ty) => core_type_has_vars(ty),
-            typed_ir::TypeArg::Bounds(bounds) => {
-                bounds.lower.as_deref().is_some_and(core_type_has_vars)
-                    || bounds.upper.as_deref().is_some_and(core_type_has_vars)
-            }
-        }),
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => {
-            core_type_has_vars(param)
-                || core_type_has_vars(param_effect)
-                || core_type_has_vars(ret_effect)
-                || core_type_has_vars(ret)
-        }
-        typed_ir::Type::Tuple(items)
-        | typed_ir::Type::Union(items)
-        | typed_ir::Type::Inter(items) => items.iter().any(core_type_has_vars),
-        typed_ir::Type::Record(record) => {
-            record
-                .fields
-                .iter()
-                .any(|field| core_type_has_vars(&field.value))
-                || record.spread.as_ref().is_some_and(|spread| match spread {
-                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
-                        core_type_has_vars(ty)
-                    }
-                })
-        }
-        typed_ir::Type::Variant(variant) => {
-            variant
-                .cases
-                .iter()
-                .flat_map(|case| &case.payloads)
-                .any(core_type_has_vars)
-                || variant.tail.as_deref().is_some_and(core_type_has_vars)
-        }
-        typed_ir::Type::Row { items, tail } => {
-            items.iter().any(core_type_has_vars) || core_type_has_vars(tail)
-        }
-        typed_ir::Type::Recursive { body, .. } => core_type_has_vars(body),
-        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
-    }
+    let mut vars = BTreeSet::new();
+    collect_type_vars(ty, &mut vars);
+    !vars.is_empty()
 }
 
 pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {

@@ -1680,6 +1680,45 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn vm_runs_source_ref_string_range_assignment_example() {
+        let results = eval_source_with_std(
+            r#"{
+    my $s = "aあ🙂z"
+    my removed = $s[range 1 3]
+    &s[range 1 3] = "bc"
+    ($s, removed)
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("abcz".to_string()),
+                TestValue::String("あ🙂".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_source_ref_string_lines_edit_example() {
+        let results = eval_source_with_std(
+            r#"{
+    my $s = "a\nb\nc"
+    for line: ref _ str in &s.lines:
+        if line.get() == "b\n":
+            line[std::range::full()] = "B\n"
+        else:
+            ()
+    $s
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("a\nB\nc".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_ref_multiple_scalar_assignment_example() {
         let results = eval_source_with_std(
             r#"{

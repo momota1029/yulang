@@ -7,7 +7,7 @@ use crate::types::{
     normalize_principal_elaboration_plan_with_role_impls, project_closed_substitutions_from_type,
     project_closed_substitutions_from_type_bounds, project_runtime_hir_type_with_vars,
     project_runtime_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
-    substitute_bounds, type_compatible,
+    substitute_bounds, type_compatible, type_is_effect_like,
 };
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -2465,6 +2465,7 @@ impl PrincipalUnifier {
         let mut conflicts = BTreeSet::new();
         for (arg, (param, param_effect)) in args.iter().zip(&params) {
             let (actual_value, actual_effect) = runtime_value_and_effect(&arg.ty);
+            let actual_value = project_runtime_type_with_vars(&actual_value, &BTreeSet::new());
             if !core_type_contains_unknown(&actual_value) && !core_type_has_vars(&actual_value) {
                 let allow_never_value = matches!(actual_value, typed_ir::Type::Never);
                 project_closed_substitutions_from_type(
@@ -10859,6 +10860,7 @@ fn project_direct_runtime_arg_value_substitution(
         return;
     }
     let actual = normalize_projected_value_substitution_type(actual, substitutions);
+    let actual = project_runtime_type_with_vars(&actual, &BTreeSet::new());
     if !closed_slot_type_usable(&actual, false) {
         return;
     }
@@ -12894,6 +12896,10 @@ fn receiver_type_matches_impl(
     impl_receiver: &typed_ir::Type,
     actual_receiver: &typed_ir::Type,
 ) -> bool {
+    if type_is_effect_like(impl_receiver) || type_is_effect_like(actual_receiver) {
+        return effect_compatible(impl_receiver, actual_receiver)
+            && effect_compatible(actual_receiver, impl_receiver);
+    }
     match (impl_receiver, actual_receiver) {
         (left, right) if left == right => true,
         (
@@ -12944,6 +12950,15 @@ fn receiver_type_matches_impl(
 }
 
 fn receiver_type_arg_matches_impl(left: &typed_ir::TypeArg, right: &typed_ir::TypeArg) -> bool {
+    if receiver_type_arg_is_effect_like(left) || receiver_type_arg_is_effect_like(right) {
+        let Some(left) = receiver_type_arg_effect_type(left) else {
+            return false;
+        };
+        let Some(right) = receiver_type_arg_effect_type(right) else {
+            return false;
+        };
+        return effect_compatible(left, right) && effect_compatible(right, left);
+    }
     match (left, right) {
         (typed_ir::TypeArg::Type(left), typed_ir::TypeArg::Type(right)) => {
             receiver_type_matches_impl(left, right)
@@ -12955,6 +12970,28 @@ fn receiver_type_arg_matches_impl(left: &typed_ir::TypeArg, right: &typed_ir::Ty
         (typed_ir::TypeArg::Bounds(left), typed_ir::TypeArg::Bounds(right)) => {
             receiver_bounds_match(left, right)
         }
+    }
+}
+
+fn receiver_type_arg_is_effect_like(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_is_effect_like(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(type_is_effect_like)
+                || bounds.upper.as_deref().is_some_and(type_is_effect_like)
+        }
+    }
+}
+
+fn receiver_type_arg_effect_type(arg: &typed_ir::TypeArg) -> Option<&typed_ir::Type> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) if type_is_effect_like(ty) => Some(ty),
+        typed_ir::TypeArg::Type(_) => None,
+        typed_ir::TypeArg::Bounds(bounds) => bounds
+            .lower
+            .as_deref()
+            .filter(|ty| type_is_effect_like(ty))
+            .or_else(|| bounds.upper.as_deref().filter(|ty| type_is_effect_like(ty))),
     }
 }
 

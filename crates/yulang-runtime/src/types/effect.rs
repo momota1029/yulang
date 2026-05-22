@@ -13,6 +13,17 @@ pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {
     }
 }
 
+pub(crate) fn type_is_effect_like(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Row { .. } => true,
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            !items.is_empty() && items.iter().all(type_is_effect_like)
+        }
+        typed_ir::Type::Recursive { body, .. } => type_is_effect_like(body),
+        _ => false,
+    }
+}
+
 pub(crate) fn effect_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     if core_type_contains_unknown(expected) || core_type_contains_unknown(actual) {
         return true;

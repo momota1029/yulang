@@ -343,6 +343,8 @@ fn primitive_op_name(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::ListSpliceRaw => "list.splice_raw",
         typed_ir::PrimitiveOp::ListViewRaw => "list.view_raw",
         typed_ir::PrimitiveOp::StringLen => "string.len",
+        typed_ir::PrimitiveOp::StringLineCount => "string.line_count",
+        typed_ir::PrimitiveOp::StringLineRange => "string.line_range",
         typed_ir::PrimitiveOp::StringIndexRangeRaw => "string.index_range_raw",
         typed_ir::PrimitiveOp::StringSpliceRaw => "string.splice_raw",
         typed_ir::PrimitiveOp::IntToString => "int.to_string",

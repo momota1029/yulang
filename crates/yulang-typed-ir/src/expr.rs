@@ -211,6 +211,8 @@ pub enum PrimitiveOp {
     StringSplice,
     StringIndexRangeRaw,
     StringSpliceRaw,
+    StringLineCount,
+    StringLineRange,
     IntAdd,
     IntSub,
     IntMul,

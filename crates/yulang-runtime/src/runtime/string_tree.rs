@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{ops::Range, rc::Rc};
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -11,7 +11,7 @@ where
     S: StringLeaf,
 {
     Empty,
-    Leaf(S),
+    Leaf(Rc<StringLeafNode<S>>),
     Node(Rc<StringNode<S>>),
 }
 
@@ -22,7 +22,7 @@ where
     fn clone(&self) -> Self {
         match self {
             Self::Empty => Self::Empty,
-            Self::Leaf(value) => Self::Leaf(value.clone()),
+            Self::Leaf(leaf) => Self::Leaf(leaf.clone()),
             Self::Node(node) => Self::Node(node.clone()),
         }
     }
@@ -82,7 +82,7 @@ where
     pub fn len(&self) -> usize {
         match self {
             Self::Empty => 0,
-            Self::Leaf(value) => grapheme_count(value.as_str()),
+            Self::Leaf(leaf) => leaf.len_chars,
             Self::Node(node) => node.len_chars,
         }
     }
@@ -90,9 +90,33 @@ where
     pub fn len_bytes(&self) -> usize {
         match self {
             Self::Empty => 0,
-            Self::Leaf(value) => value.as_str().len(),
+            Self::Leaf(leaf) => leaf.len_bytes,
             Self::Node(node) => node.len_bytes,
         }
+    }
+
+    pub fn line_count(&self) -> usize {
+        self.line_breaks() + 1
+    }
+
+    pub fn line_start(&self, line: usize) -> Option<usize> {
+        if line >= self.line_count() {
+            return None;
+        }
+        self.line_start_unchecked(line)
+    }
+
+    pub fn line_range(&self, start: usize, end: usize) -> Option<Range<usize>> {
+        if start > end || end > self.line_count() {
+            return None;
+        }
+        let start = self.line_start(start)?;
+        let end = if end == self.line_count() {
+            self.len()
+        } else {
+            self.line_start(end)?
+        };
+        Some(start..end)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -104,10 +128,9 @@ where
             (Self::Empty, right) => right,
             (left, Self::Empty) => left,
             (Self::Leaf(left), Self::Leaf(right))
-                if grapheme_count(left.as_str()) + grapheme_count(right.as_str())
-                    <= MAX_LEAF_CHARS =>
+                if left.len_chars + right.len_chars <= MAX_LEAF_CHARS =>
             {
-                let mut merged = String::with_capacity(left.as_str().len() + right.as_str().len());
+                let mut merged = String::with_capacity(left.len_bytes + right.len_bytes);
                 merged.push_str(left.as_str());
                 merged.push_str(right.as_str());
                 Self::leaf(merged)
@@ -130,7 +153,7 @@ where
     pub fn index(&self, index: usize) -> Option<String> {
         match self {
             Self::Empty => None,
-            Self::Leaf(value) => value.as_str().graphemes(true).nth(index).map(str::to_owned),
+            Self::Leaf(leaf) => leaf.as_str().graphemes(true).nth(index).map(str::to_owned),
             Self::Node(node) => {
                 let left_len = node.left.len();
                 if index < left_len {
@@ -151,8 +174,8 @@ where
         }
         match self {
             Self::Empty => Some(Self::Empty),
-            Self::Leaf(value) => Some(Self::from_str(slice_str_by_graphemes(
-                value.as_str(),
+            Self::Leaf(leaf) => Some(Self::from_str(slice_str_by_graphemes(
+                leaf.as_str(),
                 start,
                 end,
             )?)),
@@ -189,11 +212,12 @@ where
     pub fn view(&self) -> StringView<S> {
         match self {
             Self::Empty => StringView::Empty,
-            Self::Leaf(value) => StringView::Leaf(value.clone()),
+            Self::Leaf(leaf) => StringView::Leaf(leaf.value.clone()),
             Self::Node(node) => StringView::Node {
                 color: node.color,
                 len_chars: node.len_chars,
                 len_bytes: node.len_bytes,
+                line_breaks: node.line_breaks,
                 left: node.left.clone(),
                 right: node.right.clone(),
             },
@@ -219,7 +243,7 @@ where
         if value.is_empty() {
             Self::Empty
         } else {
-            Self::Leaf(S::from_string(value))
+            Self::Leaf(Rc::new(StringLeafNode::new(value)))
         }
     }
 
@@ -245,6 +269,7 @@ where
             color,
             len_chars: left.len() + right.len(),
             len_bytes: left.len_bytes() + right.len_bytes(),
+            line_breaks: left.line_breaks() + right.line_breaks(),
             left,
             right,
         }))
@@ -253,10 +278,38 @@ where
     fn push_str(&self, out: &mut String) {
         match self {
             Self::Empty => {}
-            Self::Leaf(value) => out.push_str(value.as_str()),
+            Self::Leaf(leaf) => out.push_str(leaf.as_str()),
             Self::Node(node) => {
                 node.left.push_str(out);
                 node.right.push_str(out);
+            }
+        }
+    }
+
+    fn line_breaks(&self) -> usize {
+        match self {
+            Self::Empty => 0,
+            Self::Leaf(leaf) => leaf.line_breaks,
+            Self::Node(node) => node.line_breaks,
+        }
+    }
+
+    fn line_start_unchecked(&self, line: usize) -> Option<usize> {
+        if line == 0 {
+            return Some(0);
+        }
+        match self {
+            Self::Empty => None,
+            Self::Leaf(leaf) => line_start_in_leaf(leaf.as_str(), line),
+            Self::Node(node) => {
+                let left_breaks = node.left.line_breaks();
+                if line <= left_breaks {
+                    node.left.line_start_unchecked(line)
+                } else {
+                    node.right
+                        .line_start_unchecked(line - left_breaks)
+                        .map(|start| node.left.len() + start)
+                }
             }
         }
     }
@@ -408,6 +461,7 @@ where
         color: Color,
         len_chars: usize,
         len_bytes: usize,
+        line_breaks: usize,
         left: StringTree<S>,
         right: StringTree<S>,
     },
@@ -420,6 +474,38 @@ pub enum Color {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StringLeafNode<S = Rc<str>>
+where
+    S: StringLeaf,
+{
+    pub value: S,
+    pub len_chars: usize,
+    pub len_bytes: usize,
+    pub line_breaks: usize,
+}
+
+impl<S> StringLeafNode<S>
+where
+    S: StringLeaf,
+{
+    fn new(value: String) -> Self {
+        let len_chars = grapheme_count(&value);
+        let len_bytes = value.len();
+        let line_breaks = line_break_count(&value);
+        Self {
+            value: S::from_string(value),
+            len_chars,
+            len_bytes,
+            line_breaks,
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        self.value.as_str()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StringNode<S = Rc<str>>
 where
     S: StringLeaf,
@@ -427,6 +513,7 @@ where
     pub color: Color,
     pub len_chars: usize,
     pub len_bytes: usize,
+    pub line_breaks: usize,
     pub left: StringTree<S>,
     pub right: StringTree<S>,
 }
@@ -499,6 +586,13 @@ pub fn grapheme_count(value: &str) -> usize {
     value.graphemes(true).count()
 }
 
+pub fn line_break_count(value: &str) -> usize {
+    value
+        .graphemes(true)
+        .filter(|grapheme| grapheme.chars().any(|ch| ch == '\n'))
+        .count()
+}
+
 pub fn grapheme_range_to_byte_range(
     value: &str,
     start: usize,
@@ -522,6 +616,19 @@ fn byte_index_for_grapheme(value: &str, index: usize) -> Option<usize> {
         .map(|(offset, _)| offset)
 }
 
+fn line_start_in_leaf(value: &str, line: usize) -> Option<usize> {
+    let mut seen_breaks = 0usize;
+    for (index, grapheme) in value.graphemes(true).enumerate() {
+        if grapheme.chars().any(|ch| ch == '\n') {
+            seen_breaks += 1;
+            if seen_breaks == line {
+                return Some(index + 1);
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Color, MAX_LEAF_CHARS, StringTree, StringView};
@@ -535,6 +642,42 @@ mod tests {
         assert_eq!(text.len(), 3);
         assert_eq!(text.len_bytes(), "aあ🙂".len());
         assert_eq!(text.to_flat_string(), "aあ🙂");
+    }
+
+    #[test]
+    fn string_tree_tracks_line_starts_as_grapheme_offsets() {
+        let text = RuntimeStringTree::from_str("a👨‍👩‍👧‍👦\nβ\n");
+
+        assert_eq!(text.line_count(), 3);
+        assert_eq!(text.line_start(0), Some(0));
+        assert_eq!(text.line_start(1), Some(3));
+        assert_eq!(text.line_start(2), Some(5));
+        assert_eq!(text.line_start(3), None);
+        assert_eq!(text.line_range(1, 2), Some(3..5));
+        assert_eq!(
+            text.index_range(3, 5).unwrap().to_flat_string(),
+            "β\n".to_string()
+        );
+    }
+
+    #[test]
+    fn string_tree_line_ranges_cross_leaf_boundaries() {
+        let source = format!("{}\n{}\n{}", "a".repeat(MAX_LEAF_CHARS), "b", "c");
+        let text = RuntimeStringTree::from_str(&source);
+
+        assert!(matches!(text.view(), StringView::Node { .. }));
+        assert_eq!(text.line_count(), 3);
+        assert_eq!(text.line_start(1), Some(MAX_LEAF_CHARS + 1));
+        assert_eq!(text.line_start(2), Some(MAX_LEAF_CHARS + 3));
+        assert_eq!(
+            text.index_range(
+                text.line_range(1, 2).unwrap().start,
+                text.line_range(1, 2).unwrap().end
+            )
+            .unwrap()
+            .to_flat_string(),
+            "b\n"
+        );
     }
 
     #[test]
@@ -591,6 +734,7 @@ mod tests {
             color,
             len_chars,
             len_bytes,
+            line_breaks,
             ..
         } = text.view()
         else {
@@ -600,6 +744,7 @@ mod tests {
         assert_eq!(color, Color::Black);
         assert_eq!(len_chars, MAX_LEAF_CHARS * 2);
         assert_eq!(len_bytes, MAX_LEAF_CHARS * 2);
+        assert_eq!(line_breaks, 0);
     }
 
     #[test]

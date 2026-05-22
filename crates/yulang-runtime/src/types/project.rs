@@ -252,7 +252,7 @@ impl<'a> RuntimeTypeProjector<'a> {
     }
 
     pub(super) fn project_type_arg_type(&mut self, ty: &typed_ir::Type) -> typed_ir::Type {
-        if type_arg_type_is_effect_like(ty) {
+        if type_is_effect_like(ty) {
             self.project_effect(ty)
         } else {
             self.project(ty)
@@ -510,25 +510,8 @@ fn choose_hir_projection_type(left: RuntimeType, right: RuntimeType) -> RuntimeT
 }
 
 fn bounds_type_arg_is_effect_like(bounds: &typed_ir::TypeBounds) -> bool {
-    bounds
-        .lower
-        .as_deref()
-        .is_some_and(type_arg_type_is_effect_like)
-        || bounds
-            .upper
-            .as_deref()
-            .is_some_and(type_arg_type_is_effect_like)
-}
-
-fn type_arg_type_is_effect_like(ty: &typed_ir::Type) -> bool {
-    match ty {
-        typed_ir::Type::Row { .. } => true,
-        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
-            !items.is_empty() && items.iter().all(type_arg_type_is_effect_like)
-        }
-        typed_ir::Type::Recursive { body, .. } => type_arg_type_is_effect_like(body),
-        _ => false,
-    }
+    bounds.lower.as_deref().is_some_and(type_is_effect_like)
+        || bounds.upper.as_deref().is_some_and(type_is_effect_like)
 }
 
 fn type_arg_contains_runtime_hole(arg: &typed_ir::TypeArg) -> bool {

@@ -7,13 +7,84 @@
 
 - `notes/design/error-handling-plan.md`
 
-## 新案(2026-05-21編集)
-- `file_handle`を用意する。といってもロックがある訳ではなく、「`path`と`str`の組」として。一応これについて`our open: path -> file_handle`と`our read: file_handle -> str`と`our splice: file_handle -> range -> str -> str`、あと`our lines_range: file_handle -> range -> range`をエフェクトとして用意。実際にファイルを開いたり閉じたりするわけではないので、closeはなし。
-- `file_handle`自身は変数ではないが、`read`/`set`(splice)があるので変数として渡してやることも出来る
-- 基本的に`lines`は「`lines_range`を書き込み時に取得し、`splice`を翻訳する」変数の配列を返す。`file_line`という型を作っていい感じにやる。
-- これはundetの回収後に回収されるエフェクトなので、結果としてファイルが綺麗に編集されるというわけ。最後の編集とか良く分からないのでガンガン編集しちゃうのはアリだと思う。
-- 複数取ると普通に死ぬが、別にガードとかはしなくていいと思う(あるあるだし)。
-- テストのときはmockなので編集はstrだけになるのもポイント高い。
+## File-backed str 案(2026-05-23編集)
+
+ファイル編集 API は、`file_handle` 専用の操作を前面に出すよりも、
+「隠蔽された `file_handle` を `str` 変数のように操作している」と見える形へ寄せる。
+`file_handle` の実体は概念的には `(path, str)` だが、外側からはその組を直接見せない。
+`file_handle` に `get` / `set` さえ定義できれば、既存の `str` 変数向け lens を
+そのまま使える。
+
+中心の考え方:
+
+- `fs::read` / `fs::open` は、隠蔽型 `file_handle` の mutable ref を返す。
+  - 型としては `ref<'[fs], file_handle>` だが、`file_handle` には `str` と同じ
+    get / set surface を生やす。
+  - 表面上は `str` 変数として読める。
+  - `get(file_handle) -> str` は内部の text を返す。
+  - `set(file_handle, str)` は内部の text を置き換えて dirty にする。
+  - `replace` / `splice` / `lines` などの lens は `old = get(file)`、
+    `new = str_operation(old)`、`set(file, new)` へ展開できる。
+  - `[fs]` effect 解決時に、内部の `path` と現在の `str` を使って書き戻す。
+- `str` の破壊的変換は、すべて `get` / `set` の上の lens として定義する。
+  - append / insert / replace / delete は API として用意してよい。
+  - `splice(range, replacement) -> removed_str` は、`get` した旧 `str` に対する
+    pure splice と、`set` による置き換えで実装できる。
+  - `range` は byte range ではなく書記素クラスタ range。
+  - `str[range]` と同じ座標系を使う。
+- `lines` は `str` surface 側に生やす。
+  - `text.lines` は line view を返す。
+  - line view は、元の get/set cell への lens として素直に実装する。
+  - `file_handle` 専用の line view を作らず、通常の `str` lens を再利用する。
+- `[fs]` effect の解決時に、dirty な `file_handle` の現在の `str` を backing file へ適用する。
+  - 実際にファイルを開きっぱなしにするわけではない。
+  - close は public API として持たない。
+  - unresolved な `[fs]` のままなら、mock / test host では通常の `str` 編集として扱える。
+
+想定 API の雰囲気:
+
+```yu
+my &text = fs::open "a.txt"
+
+for line in text.lines:
+  if line.starts_with "TODO":
+    line[0..4] = "DONE"
+```
+
+このとき `line[0..4] = "DONE"` は:
+
+1. `text.get()` で現在の `str` を読む
+2. line view / local range を現在の `str` 上の書記素 range へ変換する
+3. pure `str.splice` で新しい `str` と失われた `str` を作る
+4. `text.set(new_text)` で内部の `str` を置き換える
+5. 返り値は置換で失われた `str`
+
+実装上の分担:
+
+- `StringTree`
+  - 書記素長、byte 長、改行数を node metadata として持つ。
+  - `line_count` / `line_start` / `line_range` は書記素 range を返す。
+- `file_handle`
+  - 隠蔽型として `(path, str)` を持つ。
+  - `get` / `set` を提供する。
+  - `set` のたびに内部 `str` を更新し、dirty にする。
+- line view
+  - 作成時の line identity / range と、元の get/set cell への参照を持つ。
+  - 書き込み時に `get` した現在の `str` で range を再解決し、`set` で戻す。
+- fs host
+  - effect 解決時に dirty な `file_handle` の `str` を path へ書き戻す。
+  - 複数の `file_handle` が同じ path を編集した場合は、最初の安定版では guard しない。
+
+未決:
+
+- `fs::read` と `fs::open` の名前を分けるか。
+  - 既存 `read_text` は互換 API として当面残す。
+  - editable なものは `open_text` / `read` / `open` のどれを主名にするか決める。
+- `line view` が、元 `str` の別 splice で削除済みになった場合の扱い。
+  - trap / empty range / stale line error のどれにするか。
+- `[fs]` effect 解決時の splice 適用順。
+  - ひとつの editable string 内では記録順。
+  - 同じ path を複数 editable string が持つ場合は未定義寄りでよい。
 
 ## 現在の状態
 

@@ -5834,6 +5834,8 @@ fn format_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::ListSpliceRaw => "std::list::splice_raw",
         typed_ir::PrimitiveOp::ListViewRaw => "std::list::view_raw",
         typed_ir::PrimitiveOp::StringLen => "std::str::len",
+        typed_ir::PrimitiveOp::StringLineCount => "std::str::line_count",
+        typed_ir::PrimitiveOp::StringLineRange => "std::str::line_range",
         typed_ir::PrimitiveOp::StringIndex => "std::str::index_raw",
         typed_ir::PrimitiveOp::StringIndexRange => "std::str::index_range",
         typed_ir::PrimitiveOp::StringSplice => "std::str::splice",
