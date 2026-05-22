@@ -81,6 +81,7 @@ pub use source::{
     lower_source_set_with_compiled_unit_artifact_bundle_profiled,
     lower_source_set_with_compiled_unit_artifacts_profiled, lower_source_set_with_std_cache,
     lower_source_set_with_std_cache_profiled, lower_source_set_with_std_snapshot,
+    lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
     lower_virtual_source_with_options, lower_virtual_source_with_options_profiled,
     warm_std_source_cache,

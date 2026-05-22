@@ -8,7 +8,8 @@ use yulang_infer::{
     build_std_infer_snapshot_data, collect_surface_diagnostics, export_core_program,
     export_core_program_for_binding_paths, import_std_infer_snapshot_data, lower_source_set,
     lower_source_set_with_std_cache_profiled,
-    lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled, warm_std_source_cache,
+    lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled,
+    warm_std_source_cache,
 };
 use yulang_runtime as runtime;
 
@@ -527,8 +528,11 @@ fn lower_with_embedded_std_artifacts(
                 return Err("embedded std artifact bundle contains no std units".to_string());
             }
             let runtime_bindings = bundle.runtime.surface.program.program.bindings.len();
-            let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-                source_set, bundle,
+            let lowered =
+                lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled(
+                source_set,
+                bundle,
+                std_source_file_indices(source_set),
             );
             Ok::<_, String>((lowered, bundle.manifests.len(), runtime_bindings))
         })?;
@@ -555,6 +559,17 @@ fn lower_with_embedded_std_artifacts(
         artifacts: artifacts_count,
         runtime_bindings,
     })
+}
+
+fn std_source_file_indices(source_set: &yulang_sources::SourceSet) -> Vec<usize> {
+    source_set
+        .files
+        .iter()
+        .enumerate()
+        .filter_map(|(index, file)| {
+            (file.origin == yulang_sources::SourceOrigin::Std).then_some(index)
+        })
+        .collect()
 }
 
 fn compiled_builtin_runtime_surface(
@@ -1054,6 +1069,43 @@ g
             .spawn(|| {
                 let output = run_inner(playground_tour_source());
                 assert!(output.ok, "{:?}", output.diagnostics);
+                assert_compiled_std_bundle_used(&output);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn callback_hygiene_playground_example_uses_compiled_std_bundle() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner(
+                    r#"// Callback effects are hygienic:
+// f's return is not captured by g's local sub.
+
+use std::*
+use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    h()
+    return 1
+
+my a = sub:
+    my b = g f
+    println b.show
+    2
+
+a
+"#,
+                );
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(output.stdout, "");
+                assert_eq!(output.results.len(), 1);
+                assert_eq!(output.results[0].value, "0");
                 assert_compiled_std_bundle_used(&output);
             })
             .unwrap()

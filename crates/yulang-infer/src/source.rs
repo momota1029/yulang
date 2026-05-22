@@ -925,7 +925,9 @@ pub fn lower_source_set_with_compiled_unit_artifacts_profiled(
 ) -> Result<CompiledUnitProfiledLoweredSources, CompiledUnitArtifactsImportError> {
     let import = import_compiled_unit_artifacts(artifacts)?;
     Ok(lower_source_set_with_compiled_unit_import(
-        source_set, import,
+        source_set,
+        import,
+        HashSet::new(),
     ))
 }
 
@@ -935,7 +937,9 @@ pub fn lower_source_set_with_compiled_unit_artifact_bundle_profiled(
 ) -> Result<CompiledUnitProfiledLoweredSources, CompiledUnitArtifactsImportError> {
     let import = import_compiled_unit_artifact_bundle(bundle)?;
     Ok(lower_source_set_with_compiled_unit_import(
-        source_set, import,
+        source_set,
+        import,
+        HashSet::new(),
     ))
 }
 
@@ -944,16 +948,32 @@ pub fn lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
     bundle: &CompiledUnitArtifactBundle,
 ) -> CompiledUnitProfiledLoweredSources {
     let import = import_trusted_compiled_unit_artifact_bundle(bundle);
-    lower_source_set_with_compiled_unit_import(source_set, import)
+    lower_source_set_with_compiled_unit_import(source_set, import, HashSet::new())
+}
+
+/// Lowers a source set on top of trusted compiled artifacts while forcing
+/// selected files to act as cache hits.
+///
+/// This keeps source-only metadata such as synthetic act templates available
+/// without re-lowering files whose typed/runtime surfaces came from the bundle.
+pub fn lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitArtifactBundle,
+    cached_files: impl IntoIterator<Item = usize>,
+) -> CompiledUnitProfiledLoweredSources {
+    let import = import_trusted_compiled_unit_artifact_bundle(bundle);
+    lower_source_set_with_compiled_unit_import(source_set, import, cached_files)
 }
 
 fn lower_source_set_with_compiled_unit_import(
     source_set: &SourceSet,
     import: CompiledUnitArtifactsImport,
+    extra_cached_files: impl IntoIterator<Item = usize>,
 ) -> CompiledUnitProfiledLoweredSources {
     let mut profile = source_set_profile_header(source_set);
     profile.std_cache.hits += 1;
-    let cached_files = cached_source_file_indices(source_set, &import.manifests);
+    let mut cached_files = cached_source_file_indices(source_set, &import.manifests);
+    cached_files.extend(extra_cached_files);
     let lowered = lower_source_set_from_cached_state(
         source_set,
         import.typed.namespace.state,
