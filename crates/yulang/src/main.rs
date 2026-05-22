@@ -818,22 +818,19 @@ fn run(options: &CliOptions) {
             continue;
         }
 
-        let parse_start = startup_profile.start();
-        let green = parse_module_to_green(&source);
-        let root = SyntaxNode::<YulangLanguage>::new_root(green);
-        startup_profile.entry_parse = StartupProfile::elapsed(parse_start);
-
+        let run_semantic_pipeline = options.requests_semantic_pipeline();
         if options.show_cst && emit_output {
+            let parse_start = startup_profile.start();
+            let green = parse_module_to_green(&source);
+            let root = SyntaxNode::<YulangLanguage>::new_root(green);
+            startup_profile.entry_parse = StartupProfile::elapsed(parse_start);
             print_cst(&root, 0);
             println!();
         }
 
-        let run_semantic_pipeline = options.requests_semantic_pipeline();
-
         if run_semantic_pipeline {
             run_infer_views(
                 options.path.as_deref(),
-                &root,
                 &source,
                 options,
                 emit_output,
@@ -1236,7 +1233,6 @@ fn emit_parse_stop_if_any<I: yulang_parser::EventInput>(
 
 fn run_infer_views(
     path: Option<&str>,
-    root: &SyntaxNode<YulangLanguage>,
     source: &str,
     options: &CliOptions,
     emit_output: bool,
@@ -1244,13 +1240,6 @@ fn run_infer_views(
 ) {
     let (source_set, collect_duration) = collect_infer_source_set_or_exit(path, source, options);
     startup_profile.record_source_set(&source_set, collect_duration);
-    let invalid_token_start = startup_profile.start();
-    let has_invalid_tokens = source_set_has_invalid_tokens(&source_set);
-    startup_profile.invalid_token_scan = StartupProfile::elapsed(invalid_token_start);
-    if has_invalid_tokens {
-        eprintln!("error: invalid token in source");
-        process::exit(1);
-    }
     if emit_output && can_use_yuir_source_cache(options) {
         let lookup_start = startup_profile.start();
         let cached = read_yuir_source_cache(&source_set);
@@ -1260,6 +1249,13 @@ fn run_infer_views(
             return;
         }
     }
+    let invalid_token_start = startup_profile.start();
+    let has_invalid_tokens = source_set_has_invalid_tokens(&source_set);
+    startup_profile.invalid_token_scan = StartupProfile::elapsed(invalid_token_start);
+    if has_invalid_tokens {
+        eprintln!("error: invalid token in source");
+        process::exit(1);
+    }
 
     let infer_lower_start = startup_profile.start();
     let InferLowerOutput {
@@ -1268,13 +1264,7 @@ fn run_infer_views(
         lower_profile,
         runtime_dependencies,
         mut pipeline_timings,
-    } = lower_infer_sources(
-        path,
-        root,
-        source,
-        options,
-        Some((&source_set, collect_duration)),
-    );
+    } = lower_infer_sources(path, source, options, Some((&source_set, collect_duration)));
     startup_profile.infer_lower = StartupProfile::elapsed(infer_lower_start);
 
     let infer_finalize_start = startup_profile.start();
@@ -4254,7 +4244,6 @@ fn source_set_has_invalid_tokens(source_set: &SourceSet) -> bool {
 
 fn lower_infer_sources(
     path: Option<&str>,
-    _root: &SyntaxNode<YulangLanguage>,
     source: &str,
     options: &CliOptions,
     collected: Option<(&SourceSet, Duration)>,
@@ -7659,10 +7648,7 @@ mod tests {
     fn infer_error_headline_reports_missing_impl() {
         let source = "role Display 'a:\n    our a.display: string\n\nmy shown = 1.display\n";
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -7684,10 +7670,7 @@ mod tests {
             "my id: user_id = 1\n",
         );
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let state = lower_infer_sources(None, &root, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7701,10 +7684,7 @@ mod tests {
     fn infer_error_context_reports_annotation_edge() {
         let source = "my x: int = \"s\"\n";
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let state = lower_infer_sources(None, &root, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7727,10 +7707,7 @@ mod tests {
     fn infer_error_context_reports_application_argument_edge() {
         let source = "my f(x: int) = x\nf \"s\"\n";
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let state = lower_infer_sources(None, &root, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7753,10 +7730,7 @@ mod tests {
     fn infer_error_context_reports_derived_record_field_edge() {
         let source = "my p: { a: { b: int } } = { a: { b: \"s\" } }\n";
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let state = lower_infer_sources(None, &root, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7783,10 +7757,7 @@ mod tests {
             "my shown = 1.display\n",
         );
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -7810,10 +7781,7 @@ mod tests {
             "my id: user_id = 1\n",
         );
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let state = lower_infer_sources(None, &root, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7832,10 +7800,7 @@ mod tests {
             "impl Pair int:\n    our x.first = 1\n",
         );
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -7856,10 +7821,7 @@ mod tests {
             "impl Score int:\n    our x.other = 1\n",
         );
         let options = test_cli_options();
-        let root = SyntaxNode::<YulangLanguage>::new_root(
-            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
-        );
-        let mut state = lower_infer_sources(None, &root, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
