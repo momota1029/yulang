@@ -38,10 +38,142 @@ pub use stdlib::{
 };
 
 pub fn parse_source_meta(source: &str) -> SourceMeta {
-    let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+    let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(
+        leading_meta_parse_source(source),
+    ));
     let mut meta = SourceMeta::default();
     collect_leading_meta_items(&root, &mut meta);
     meta
+}
+
+fn leading_meta_parse_source(source: &str) -> &str {
+    match leading_meta_source_end(source) {
+        Some(end) => &source[..end],
+        None => source,
+    }
+}
+
+fn leading_meta_source_end(source: &str) -> Option<usize> {
+    let mut end = 0;
+    let mut continuation = LeadingMetaContinuation::None;
+
+    for (line_start, line_end, line) in source_lines(source) {
+        let trimmed = line.trim_start();
+        let top_level = trimmed.len() == line.len();
+
+        if trimmed.trim_end().is_empty() || is_line_comment(trimmed) {
+            end = line_end;
+            continue;
+        }
+
+        if let LeadingMetaContinuation::Delimited(depth) = &mut continuation {
+            *depth += delimiter_depth_delta(line);
+            end = line_end;
+            if *depth <= 0 {
+                continuation = LeadingMetaContinuation::None;
+            }
+            continue;
+        }
+
+        if matches!(continuation, LeadingMetaContinuation::SyntaxExportBody) && !top_level {
+            end = line_end;
+            continue;
+        }
+
+        if !top_level {
+            return (line_start != 0).then_some(end);
+        }
+
+        let Some(kind) = leading_meta_decl_kind(trimmed) else {
+            return Some(end);
+        };
+        end = line_end;
+        let delimiter_depth = delimiter_depth_delta(line);
+        continuation = if delimiter_depth > 0 {
+            LeadingMetaContinuation::Delimited(delimiter_depth)
+        } else if kind == LeadingMetaDeclKind::SyntaxExport {
+            LeadingMetaContinuation::SyntaxExportBody
+        } else {
+            LeadingMetaContinuation::None
+        };
+    }
+
+    None
+}
+
+fn source_lines(source: &str) -> impl Iterator<Item = (usize, usize, &str)> {
+    source.split_inclusive('\n').scan(0, |start, line| {
+        let line_start = *start;
+        *start += line.len();
+        let line_end = *start;
+        Some((line_start, line_end, line))
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LeadingMetaContinuation {
+    None,
+    Delimited(i32),
+    SyntaxExportBody,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LeadingMetaDeclKind {
+    Module,
+    Use,
+    SyntaxExport,
+}
+
+fn leading_meta_decl_kind(line: &str) -> Option<LeadingMetaDeclKind> {
+    let line = strip_leading_visibility(line);
+    if starts_with_keyword(line, "mod") {
+        return Some(LeadingMetaDeclKind::Module);
+    }
+    if starts_with_keyword(line, "use") {
+        return Some(LeadingMetaDeclKind::Use);
+    }
+
+    let line = strip_leading_keyword(line, "lazy").unwrap_or(line);
+    ["prefix", "infix", "suffix", "nullfix"]
+        .iter()
+        .any(|keyword| starts_with_keyword(line, keyword))
+        .then_some(LeadingMetaDeclKind::SyntaxExport)
+}
+
+fn strip_leading_visibility(line: &str) -> &str {
+    ["pub", "my", "our"]
+        .iter()
+        .find_map(|keyword| strip_leading_keyword(line, keyword))
+        .unwrap_or(line)
+}
+
+fn strip_leading_keyword<'a>(line: &'a str, keyword: &str) -> Option<&'a str> {
+    starts_with_keyword(line, keyword).then(|| line[keyword.len()..].trim_start())
+}
+
+fn starts_with_keyword(line: &str, keyword: &str) -> bool {
+    let Some(rest) = line.strip_prefix(keyword) else {
+        return false;
+    };
+    rest.chars()
+        .next()
+        .is_none_or(|ch| ch.is_whitespace() || matches!(ch, '(' | ';' | ':' | '{'))
+}
+
+fn is_line_comment(line: &str) -> bool {
+    line.starts_with("//") || line.starts_with("--")
+}
+
+fn delimiter_depth_delta(line: &str) -> i32 {
+    let mut depth = 0;
+    for ch in line.chars() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            _ => {}
+        }
+    }
+    depth
 }
 
 pub fn collect_source_files(entry: impl AsRef<FsPath>) -> Result<SourceSet, SourceLoadError> {
@@ -53,6 +185,23 @@ pub fn collect_virtual_source_files_with_options(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
+    collect_virtual_source_files_with_options_inner(source, base_dir, options, true)
+}
+
+pub fn collect_virtual_source_files_for_cache_key_with_options(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+) -> Result<SourceSet, SourceLoadError> {
+    collect_virtual_source_files_with_options_inner(source, base_dir, options, false)
+}
+
+fn collect_virtual_source_files_with_options_inner(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+    build_tables: bool,
+) -> Result<SourceSet, SourceLoadError> {
     let mut loader = SourceLoader::new(options, None);
     loader.register_realm(
         virtual_single_file_realm_id(),
@@ -61,7 +210,9 @@ pub fn collect_virtual_source_files_with_options(
     );
     loader.load_virtual_entry(source, base_dir.as_deref())?;
     sort_files_topologically(&mut loader.files);
-    build_syntax_tables(&mut loader.files);
+    if build_tables {
+        build_syntax_tables(&mut loader.files);
+    }
     Ok(SourceSet::from_files_with_realms(
         loader.files,
         loader.realms,
@@ -88,6 +239,21 @@ pub fn collect_source_files_with_options(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
+    collect_source_files_with_options_inner(entry, options, true)
+}
+
+pub fn collect_source_files_for_cache_key_with_options(
+    entry: impl AsRef<FsPath>,
+    options: SourceOptions,
+) -> Result<SourceSet, SourceLoadError> {
+    collect_source_files_with_options_inner(entry, options, false)
+}
+
+fn collect_source_files_with_options_inner(
+    entry: impl AsRef<FsPath>,
+    options: SourceOptions,
+    build_tables: bool,
+) -> Result<SourceSet, SourceLoadError> {
     let entry = entry.as_ref();
     let realm_root = local_realm_root(entry);
     let manifest = load_realm_manifest(&realm_root)?;
@@ -108,7 +274,9 @@ pub fn collect_source_files_with_options(
     );
     loader.load_entry(entry, realm_id)?;
     sort_files_topologically(&mut loader.files);
-    build_syntax_tables(&mut loader.files);
+    if build_tables {
+        build_syntax_tables(&mut loader.files);
+    }
     Ok(SourceSet::from_files_with_realms(
         loader.files,
         loader.realms,
@@ -849,6 +1017,10 @@ impl SourceSet {
     pub fn compiled_unit_syntax_artifacts(&self) -> Vec<CompiledUnitSyntaxArtifact> {
         let units = self.compilation_units();
         units.syntax_artifacts(self)
+    }
+
+    pub fn build_syntax_tables(&mut self) {
+        build_syntax_tables(&mut self.files);
     }
 }
 
@@ -3967,6 +4139,20 @@ version = "0.1.3"
     }
 
     #[test]
+    fn parses_leading_lazy_operator_export_with_indented_body_metadata() {
+        let meta = parse_source_meta(
+            "pub lazy infix(and) 2.0.0 2.0.1 = \\a -> \\b ->\n    if a():\n        b()\n    else:\n        false\n\nmy x = 1\nuse late::*\n",
+        );
+
+        assert_eq!(meta.syntax_exports.len(), 1);
+        let export = &meta.syntax_exports[0];
+        assert_eq!(export.visibility, Visibility::Pub);
+        assert_eq!(export.name.0, "and");
+        assert!(export.op.infix.is_some());
+        assert!(meta.uses.is_empty());
+    }
+
+    #[test]
     fn stops_metadata_after_first_ordinary_item() {
         let meta = parse_source_meta("my x = 1\nmod late;\nuse late::x");
 
@@ -4488,6 +4674,70 @@ version = "0.1.3"
                 NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
             )
         }));
+    }
+
+    #[test]
+    fn cache_key_source_collection_preserves_syntax_artifacts_without_operator_tables() {
+        let root = temp_root("cache-key-source-collection");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "use ops::*\nmy y = 1 %% 2\n").unwrap();
+        fs::write(
+            root.join("ops.yu"),
+            "pub infix (%%) 50 51 = \\x -> \\y -> x\n",
+        )
+        .unwrap();
+        let options = SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: vec![root.clone()],
+        };
+
+        let full =
+            collect_source_files_with_options(root.join("main.yu"), options.clone()).unwrap();
+        let mut cache_key =
+            collect_source_files_for_cache_key_with_options(root.join("main.yu"), options).unwrap();
+
+        assert_eq!(
+            cache_key.compiled_unit_syntax_artifacts(),
+            full.compiled_unit_syntax_artifacts()
+        );
+
+        let entry = cache_key
+            .files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let parsed_without_tables = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(&entry.source, entry.op_table.clone()),
+        );
+        assert!(
+            !parsed_without_tables
+                .descendants_with_tokens()
+                .any(|item| matches!(
+                    item,
+                    NodeOrToken::Token(tok)
+                        if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
+                ))
+        );
+
+        cache_key.build_syntax_tables();
+        let entry = cache_key
+            .files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let parsed_with_tables = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(&entry.source, entry.op_table.clone()),
+        );
+        assert!(parsed_with_tables.descendants_with_tokens().any(|item| {
+            matches!(
+                item,
+                NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
+            )
+        }));
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

@@ -54,7 +54,8 @@ use yulang_parser::typ::parse::parse_type;
 use yulang_parser::{parse_module_to_green, parse_module_to_green_with_ops};
 use yulang_runtime as runtime;
 use yulang_sources::{
-    SourceCompilationUnitOrigin, SourceOrigin, collect_source_files_with_options,
+    SourceCompilationUnitOrigin, SourceOrigin, collect_source_files_for_cache_key_with_options,
+    collect_source_files_with_options, collect_virtual_source_files_for_cache_key_with_options,
     collect_virtual_source_files_with_options, default_versioned_std_root, install_embedded_std,
     resolve_or_install_std_root,
 };
@@ -1238,7 +1239,11 @@ fn run_infer_views(
     emit_output: bool,
     startup_profile: &mut StartupProfile,
 ) {
-    let (source_set, collect_duration) = collect_infer_source_set_or_exit(path, source, options);
+    let (mut source_set, collect_duration) = if emit_output && can_use_yuir_source_cache(options) {
+        collect_infer_cache_key_source_set_or_exit(path, source, options)
+    } else {
+        collect_infer_source_set_or_exit(path, source, options)
+    };
     startup_profile.record_source_set(&source_set, collect_duration);
     if emit_output && can_use_yuir_source_cache(options) {
         let lookup_start = startup_profile.start();
@@ -1248,6 +1253,9 @@ fn run_infer_views(
             run_cached_control_vm_module_or_exit(module, load_duration, options, startup_profile);
             return;
         }
+        let table_start = startup_profile.start();
+        source_set.build_syntax_tables();
+        startup_profile.source_collect += StartupProfile::elapsed(table_start);
     }
     let invalid_token_start = startup_profile.start();
     let has_invalid_tokens = source_set_has_invalid_tokens(&source_set);
@@ -4268,6 +4276,37 @@ fn collect_infer_source_set_or_exit(
         None => {
             let base_dir = env::current_dir().ok();
             collect_virtual_source_files_with_options(
+                source,
+                base_dir.clone(),
+                source_options(options, base_dir.as_deref()),
+            )
+        }
+    };
+    let source_set = match source_set {
+        Ok(source_set) => source_set,
+        Err(err) => {
+            eprintln!("{err}");
+            process::exit(1);
+        }
+    };
+    let collect = collect_start.elapsed();
+    (source_set, collect)
+}
+
+fn collect_infer_cache_key_source_set_or_exit(
+    path: Option<&str>,
+    source: &str,
+    options: &CliOptions,
+) -> (SourceSet, Duration) {
+    let collect_start = Instant::now();
+    let source_set = match path {
+        Some(path) => collect_source_files_for_cache_key_with_options(
+            path,
+            source_options(options, path_base_dir(path)),
+        ),
+        None => {
+            let base_dir = env::current_dir().ok();
+            collect_virtual_source_files_for_cache_key_with_options(
                 source,
                 base_dir.clone(),
                 source_options(options, base_dir.as_deref()),
