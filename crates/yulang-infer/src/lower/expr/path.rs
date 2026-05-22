@@ -195,7 +195,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             state.def_names.get(&def),
             state.current_owner,
             state.def_owner(def),
-            state.infer.frozen_schemes.borrow().contains_key(&def),
+            state.infer.frozen_scheme_of(def).is_some(),
             state.def_eff_tvs.contains_key(&def),
             state.is_let_bound_def(def),
         );
@@ -250,7 +250,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
             state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
         }
-    } else if let Some(scheme) = state.infer.frozen_schemes.borrow().get(&def) {
+    } else if let Some(scheme) = state.infer.frozen_scheme_of(def) {
         let subst =
             crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
         if debug_ref {
@@ -269,7 +269,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
                     def,
                     owner,
                     &subst,
-                    Some(scheme),
+                    Some(&scheme),
                 );
         }
     } else if let Some(&def_tv) = state.def_tvs.get(&def) {
@@ -391,7 +391,7 @@ fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
         let lambda_value = principal_body_is_lambda_value(state, def);
         let aliasable_same_owner = def == owner || !state.is_let_bound_def(def) || !lambda_value;
         if same_owner && aliasable_same_owner && !(has_role_constraints && lambda_value) {
-            return match state.infer.frozen_schemes.borrow().get(&def) {
+            return match state.infer.frozen_scheme_of(def) {
                 Some(scheme) => scheme.quantified.is_empty(),
                 None => true,
             };
@@ -407,9 +407,7 @@ fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
         && state.def_owner(def).is_none()
         && state
             .infer
-            .frozen_schemes
-            .borrow()
-            .get(&def)
+            .frozen_scheme_of(def)
             .map(|scheme| scheme.quantified.is_empty())
             .unwrap_or(false);
 

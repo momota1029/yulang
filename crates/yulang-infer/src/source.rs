@@ -1259,19 +1259,10 @@ fn import_compiled_compact_schemes(
 ) {
     for (scheme, def) in typed.schemes.iter().zip(&refs.schemes) {
         if let (Some(compact), Some(def)) = (&scheme.compact, def) {
-            let extra_quantified =
-                crate::scheme::collect_compact_role_constraint_free_vars(&scheme.role_constraints);
-            let frozen = crate::scheme::freeze_compact_scheme_with_non_generic_and_extra_vars(
-                &state.infer,
-                compact,
-                extra_quantified.as_slice(),
-                &std::collections::HashSet::new(),
-            );
             state.infer.store_compact_scheme(*def, compact.clone());
             state
                 .infer
                 .store_compact_role_constraints(*def, scheme.role_constraints.clone());
-            state.infer.frozen_schemes.borrow_mut().insert(*def, frozen);
         }
     }
 }
@@ -1283,19 +1274,10 @@ fn import_std_snapshot_compact_schemes(
 ) {
     for (scheme, def) in data.schemes.iter().zip(&refs.schemes) {
         if let (Some(compact), Some(def)) = (&scheme.compact, def) {
-            let extra_quantified =
-                crate::scheme::collect_compact_role_constraint_free_vars(&scheme.role_constraints);
-            let frozen = crate::scheme::freeze_compact_scheme_with_non_generic_and_extra_vars(
-                &state.infer,
-                compact,
-                extra_quantified.as_slice(),
-                &std::collections::HashSet::new(),
-            );
             state.infer.store_compact_scheme(*def, compact.clone());
             state
                 .infer
                 .store_compact_role_constraints(*def, scheme.role_constraints.clone());
-            state.infer.frozen_schemes.borrow_mut().insert(*def, frozen);
         }
     }
 }
@@ -1764,7 +1746,9 @@ fn lower_source_set_from_cached_state(
         .next()
         .map(|file| file.source.clone())
         .unwrap_or_default();
-    seed_cached_source_act_templates(source_set, cached_files, &mut state, &mut profile);
+    if uncached_sources_may_copy_cached_act(source_set, cached_files) {
+        seed_cached_source_act_templates(source_set, cached_files, &mut state, &mut profile);
+    }
     for (file_idx, file) in source_set.files.iter().enumerate() {
         if cached_files.contains(&file_idx) {
             continue;
@@ -1783,6 +1767,31 @@ fn lower_source_set_from_cached_state(
         },
         profile,
     }
+}
+
+fn uncached_sources_may_copy_cached_act(
+    source_set: &SourceSet,
+    cached_files: &HashSet<usize>,
+) -> bool {
+    source_set
+        .files
+        .iter()
+        .enumerate()
+        .filter(|(file_idx, _)| !cached_files.contains(file_idx))
+        .any(|(_, file)| source_may_contain_act_copy(&file.source))
+}
+
+fn source_may_contain_act_copy(source: &str) -> bool {
+    source.lines().any(line_may_contain_act_copy)
+}
+
+fn line_may_contain_act_copy(line: &str) -> bool {
+    let Some((before_equal, _)) = line.split_once('=') else {
+        return false;
+    };
+    before_equal
+        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+        .any(|token| token == "act")
 }
 
 fn seed_cached_source_act_templates(

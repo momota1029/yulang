@@ -803,7 +803,7 @@ impl Infer {
         level_source: TypeVar,
         receiver_tv: Option<TypeVar>,
     ) -> Option<(TypeVar, SmallSubst)> {
-        if let Some(scheme) = self.frozen_schemes.borrow().get(&def).cloned() {
+        if let Some(scheme) = self.frozen_scheme_of(def) {
             let tv = fresh_type_var();
             let level = self.level_of(level_source);
             self.register_level(tv, level);

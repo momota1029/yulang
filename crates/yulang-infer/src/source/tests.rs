@@ -2038,18 +2038,19 @@ fn compiled_typed_import_resolves_scheme_refs() {
                 .borrow()
                 .contains_key(def)))
     );
+    let def = imported
+        .refs
+        .schemes
+        .iter()
+        .find_map(|def| *def)
+        .expect("imported scheme def");
     assert!(
         imported
-            .refs
-            .schemes
-            .iter()
-            .any(|def| def.as_ref().is_some_and(|def| imported
-                .namespace
-                .state
-                .infer
-                .frozen_schemes
-                .borrow()
-                .contains_key(def)))
+            .namespace
+            .state
+            .infer
+            .frozen_scheme_of(def)
+            .is_some()
     );
 }
 
@@ -2416,6 +2417,17 @@ fn compiled_unit_semantic_bundle_import_skips_cached_dependency_scc_without_runt
     assert_eq!(imported.profile.entry.files, 1);
     assert_eq!(imported.profile.user.files, 0);
     assert!(imported.lowered.state.infer.type_errors().is_empty());
+}
+
+#[test]
+fn cached_source_act_template_seed_is_only_needed_for_act_copy_sources() {
+    assert!(!source_may_contain_act_copy("my x = 1\nx\n"));
+    assert!(!source_may_contain_act_copy("my fact = 1\n"));
+    assert!(!source_may_contain_act_copy(
+        "pub act out:\n  our write: str -> ()\n"
+    ));
+    assert!(source_may_contain_act_copy("my act next = last\n"));
+    assert!(source_may_contain_act_copy("my act\tnext = last\n"));
 }
 
 #[test]

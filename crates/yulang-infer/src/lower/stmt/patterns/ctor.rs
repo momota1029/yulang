@@ -94,13 +94,13 @@ pub(crate) fn resolve_pattern_constructor_ref(state: &mut LowerState, def: DefId
         }
     }
 
-    if let Some(scheme) = state.infer.frozen_schemes.borrow().get(&def) {
+    if let Some(scheme) = state.infer.frozen_scheme_of(def) {
         if state.infer.compact_schemes.borrow().get(&def).is_some()
             || state.current_owner.is_none()
             || !state.is_let_bound_def(def)
         {
             let subst =
-                crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, scheme, tv, &[]);
+                crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
             if let Some(owner) = state.current_owner {
                 state
                     .infer

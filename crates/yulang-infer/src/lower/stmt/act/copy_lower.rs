@@ -108,7 +108,7 @@ fn try_copy_lowered_act_body(
         return false;
     }
     for (_, def) in &source_values {
-        if state.infer.frozen_schemes.borrow().contains_key(def) {
+        if state.infer.frozen_scheme_of(*def).is_some() {
             continue;
         }
         let Some(&tv) = state.def_tvs.get(def) else {
@@ -139,8 +139,7 @@ fn try_copy_lowered_act_body(
     let mut copied_defs = Vec::with_capacity(source_values.len());
     for (name, source_def) in source_values {
         let frozen = {
-            let frozen_map = state.infer.frozen_schemes.borrow();
-            let Some(source_frozen) = frozen_map.get(&source_def) else {
+            let Some(source_frozen) = state.infer.frozen_scheme_of(source_def) else {
                 return false;
             };
             let source_effect_path = state
@@ -149,7 +148,7 @@ fn try_copy_lowered_act_body(
                 .unwrap_or(&copy.source_path);
             super::super::transform_copied_frozen_scheme(
                 state,
-                source_frozen,
+                &source_frozen,
                 subst.as_slice(),
                 source_effect_path,
                 dest_path,
@@ -320,12 +319,7 @@ fn copy_effect_ops_from_source_module(
         let Some(source_neg_sig) = state.effect_op_neg_sigs.get(&source_def) else {
             continue;
         };
-        let source_frozen = state
-            .infer
-            .frozen_schemes
-            .borrow()
-            .get(&source_def)
-            .cloned();
+        let source_frozen = state.infer.frozen_scheme_of(source_def);
         let source_effect_path = state
             .effect_op_effect_paths
             .get(&source_def)

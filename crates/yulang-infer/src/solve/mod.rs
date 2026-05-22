@@ -352,6 +352,24 @@ impl Infer {
         self.frozen_schemes.borrow_mut().insert(def, scheme);
     }
 
+    pub fn frozen_scheme_of(&self, def: DefId) -> Option<FrozenScheme> {
+        if let Some(scheme) = self.frozen_schemes.borrow().get(&def).cloned() {
+            return Some(scheme);
+        }
+        let compact = self.compact_schemes.borrow().get(&def).cloned()?;
+        let constraints = self.compact_role_constraints_of(def);
+        let extra_quantified =
+            crate::scheme::collect_compact_role_constraint_free_vars(&constraints);
+        let frozen = crate::scheme::freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
+            self,
+            compact,
+            extra_quantified.as_slice(),
+            &self.non_generic_vars_of(def),
+        );
+        self.store_frozen_scheme(def, frozen.clone());
+        Some(frozen)
+    }
+
     pub fn mark_frozen_ref_committed(&self, def: DefId) {
         self.frozen_ref_commits.borrow_mut().insert(def, ());
     }

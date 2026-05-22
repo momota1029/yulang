@@ -44,7 +44,7 @@ impl Infer {
         owner: DefId,
         subst: &[(TypeVar, TypeVar)],
     ) {
-        let scheme = self.frozen_schemes.borrow().get(&source_def).cloned();
+        let scheme = self.frozen_scheme_of(source_def);
         self.instantiate_role_constraints_for_owner_with_scheme(
             source_def,
             owner,

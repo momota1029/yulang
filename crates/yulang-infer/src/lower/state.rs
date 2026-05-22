@@ -1277,13 +1277,7 @@ impl LowerState {
             if !self.infer.is_frozen_ref_committed(resolved.def_id) {
                 continue;
             }
-            let Some(scheme) = self
-                .infer
-                .frozen_schemes
-                .borrow()
-                .get(&resolved.def_id)
-                .cloned()
-            else {
+            let Some(scheme) = self.infer.frozen_scheme_of(resolved.def_id) else {
                 continue;
             };
             let subst = crate::scheme::instantiate_frozen_scheme_with_subst(
