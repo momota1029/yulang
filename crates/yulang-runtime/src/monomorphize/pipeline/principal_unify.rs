@@ -301,7 +301,9 @@ impl PrincipalUnifier {
     fn settle_flushed_specialization_refs(&mut self, module: &mut Module) {
         for _ in 0..8 {
             self.settle_pending_specializations();
-            self.flush_emitted_specializations(module);
+            if !self.emitted.is_empty() {
+                self.flush_emitted_specializations(module);
+            }
             if !self.rewrite_flushed_specialization_bodies(module) {
                 return;
             }
@@ -310,8 +312,12 @@ impl PrincipalUnifier {
 
     fn rewrite_flushed_specialization_bodies(&mut self, module: &mut Module) -> bool {
         let mut changed = false;
+        let candidate_paths = self.flushed_specialization_rewrite_candidate_paths(module);
         for binding in &mut module.bindings {
             if !binding.type_params.is_empty() {
+                continue;
+            }
+            if !binding_body_has_principal_rewrite_candidate(&binding.body, &candidate_paths) {
                 continue;
             }
             let original_body = binding.body.clone();
@@ -332,6 +338,25 @@ impl PrincipalUnifier {
             changed = true;
         }
         changed
+    }
+
+    fn flushed_specialization_rewrite_candidate_paths(
+        &self,
+        module: &Module,
+    ) -> HashSet<typed_ir::Path> {
+        let mut paths = self
+            .generic_bindings
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>();
+        extend_specialization_rewrite_candidate_paths(&mut paths, &self.root_specializations);
+        extend_specialization_rewrite_candidate_paths(&mut paths, &self.role_method_rewrites);
+        extend_specialization_rewrite_candidate_paths(
+            &mut paths,
+            &module_specializations_by_original(module),
+        );
+        paths.extend(self.emitted_by_path.keys().cloned());
+        paths
     }
 
     fn rewrite_surviving_template_bindings(&mut self, module: &mut Module) {
@@ -5056,6 +5081,190 @@ fn module_specializations_by_original(
         out.entry(original).or_default().push(binding.name.clone());
     }
     out
+}
+
+fn extend_specialization_rewrite_candidate_paths(
+    paths: &mut HashSet<typed_ir::Path>,
+    specializations_by_original: &HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
+) {
+    for (original, specializations) in specializations_by_original {
+        paths.insert(original.clone());
+        paths.extend(specializations.iter().cloned());
+    }
+}
+
+fn binding_body_has_principal_rewrite_candidate(
+    body: &Expr,
+    candidate_paths: &HashSet<typed_ir::Path>,
+) -> bool {
+    let mut vars = HashSet::new();
+    collect_expr_vars(body, &mut vars);
+    vars.iter().any(|path| candidate_paths.contains(path))
+        || expr_has_principal_rewrite_candidate_ref(body, candidate_paths)
+}
+
+fn expr_has_principal_rewrite_candidate_ref(
+    expr: &Expr,
+    candidate_paths: &HashSet<typed_ir::Path>,
+) -> bool {
+    match &expr.kind {
+        ExprKind::EffectOp(path) => candidate_paths.contains(path),
+        ExprKind::Lambda { body, .. } => {
+            expr_has_principal_rewrite_candidate_ref(body, candidate_paths)
+        }
+        ExprKind::Apply {
+            callee,
+            arg,
+            instantiation,
+            ..
+        } => {
+            instantiation
+                .as_ref()
+                .is_some_and(|instantiation| candidate_paths.contains(&instantiation.target))
+                || expr_has_principal_rewrite_candidate_ref(callee, candidate_paths)
+                || expr_has_principal_rewrite_candidate_ref(arg, candidate_paths)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_has_principal_rewrite_candidate_ref(cond, candidate_paths)
+                || expr_has_principal_rewrite_candidate_ref(then_branch, candidate_paths)
+                || expr_has_principal_rewrite_candidate_ref(else_branch, candidate_paths)
+        }
+        ExprKind::Tuple(items) => items
+            .iter()
+            .any(|item| expr_has_principal_rewrite_candidate_ref(item, candidate_paths)),
+        ExprKind::Record { fields, spread } => {
+            fields.iter().any(|field| {
+                expr_has_principal_rewrite_candidate_ref(&field.value, candidate_paths)
+            }) || spread.as_ref().is_some_and(|spread| match spread {
+                RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                    expr_has_principal_rewrite_candidate_ref(expr, candidate_paths)
+                }
+            })
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_deref()
+            .is_some_and(|value| expr_has_principal_rewrite_candidate_ref(value, candidate_paths)),
+        ExprKind::Select { base, .. } => {
+            expr_has_principal_rewrite_candidate_ref(base, candidate_paths)
+        }
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            expr_has_principal_rewrite_candidate_ref(scrutinee, candidate_paths)
+                || arms.iter().any(|arm| {
+                    pattern_has_principal_rewrite_candidate_ref(&arm.pattern, candidate_paths)
+                        || arm.guard.as_ref().is_some_and(|guard| {
+                            expr_has_principal_rewrite_candidate_ref(guard, candidate_paths)
+                        })
+                        || expr_has_principal_rewrite_candidate_ref(&arm.body, candidate_paths)
+                })
+        }
+        ExprKind::Block { stmts, tail } => {
+            stmts
+                .iter()
+                .any(|stmt| stmt_has_principal_rewrite_candidate_ref(stmt, candidate_paths))
+                || tail.as_deref().is_some_and(|tail| {
+                    expr_has_principal_rewrite_candidate_ref(tail, candidate_paths)
+                })
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            expr_has_principal_rewrite_candidate_ref(body, candidate_paths)
+                || arms.iter().any(|arm| {
+                    pattern_has_principal_rewrite_candidate_ref(&arm.payload, candidate_paths)
+                        || arm.guard.as_ref().is_some_and(|guard| {
+                            expr_has_principal_rewrite_candidate_ref(guard, candidate_paths)
+                        })
+                        || expr_has_principal_rewrite_candidate_ref(&arm.body, candidate_paths)
+                })
+        }
+        ExprKind::BindHere { expr }
+        | ExprKind::Thunk { expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => {
+            expr_has_principal_rewrite_candidate_ref(expr, candidate_paths)
+        }
+        ExprKind::LocalPushId { body, .. } => {
+            expr_has_principal_rewrite_candidate_ref(body, candidate_paths)
+        }
+        ExprKind::AddId { thunk, .. } => {
+            expr_has_principal_rewrite_candidate_ref(thunk, candidate_paths)
+        }
+        ExprKind::Var(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => false,
+    }
+}
+
+fn stmt_has_principal_rewrite_candidate_ref(
+    stmt: &Stmt,
+    candidate_paths: &HashSet<typed_ir::Path>,
+) -> bool {
+    match stmt {
+        Stmt::Let { pattern, value } => {
+            pattern_has_principal_rewrite_candidate_ref(pattern, candidate_paths)
+                || expr_has_principal_rewrite_candidate_ref(value, candidate_paths)
+        }
+        Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            expr_has_principal_rewrite_candidate_ref(value, candidate_paths)
+        }
+    }
+}
+
+fn pattern_has_principal_rewrite_candidate_ref(
+    pattern: &Pattern,
+    candidate_paths: &HashSet<typed_ir::Path>,
+) -> bool {
+    match pattern {
+        Pattern::Tuple { items, .. } => items
+            .iter()
+            .any(|item| pattern_has_principal_rewrite_candidate_ref(item, candidate_paths)),
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            prefix
+                .iter()
+                .any(|item| pattern_has_principal_rewrite_candidate_ref(item, candidate_paths))
+                || spread.as_deref().is_some_and(|spread| {
+                    pattern_has_principal_rewrite_candidate_ref(spread, candidate_paths)
+                })
+                || suffix
+                    .iter()
+                    .any(|item| pattern_has_principal_rewrite_candidate_ref(item, candidate_paths))
+        }
+        Pattern::Record { fields, spread, .. } => {
+            fields.iter().any(|field| {
+                pattern_has_principal_rewrite_candidate_ref(&field.pattern, candidate_paths)
+                    || field.default.as_ref().is_some_and(|default| {
+                        expr_has_principal_rewrite_candidate_ref(default, candidate_paths)
+                    })
+            }) || spread.as_ref().is_some_and(|spread| match spread {
+                RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
+                    pattern_has_principal_rewrite_candidate_ref(pattern, candidate_paths)
+                }
+            })
+        }
+        Pattern::Variant { value, .. } => value.as_deref().is_some_and(|value| {
+            pattern_has_principal_rewrite_candidate_ref(value, candidate_paths)
+        }),
+        Pattern::Or { left, right, .. } => {
+            pattern_has_principal_rewrite_candidate_ref(left, candidate_paths)
+                || pattern_has_principal_rewrite_candidate_ref(right, candidate_paths)
+        }
+        Pattern::As { pattern, .. } => {
+            pattern_has_principal_rewrite_candidate_ref(pattern, candidate_paths)
+        }
+        Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => false,
+    }
 }
 
 fn handler_specialization_originals(
