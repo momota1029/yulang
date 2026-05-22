@@ -1257,8 +1257,15 @@ fn run_infer_views(
         source_set.build_syntax_tables();
         startup_profile.source_collect += StartupProfile::elapsed(table_start);
     }
+    let prepared_cache = prepare_infer_cache(&source_set, options);
+    let cached_files = prepared_cache
+        .bundle
+        .as_ref()
+        .map(|bundle| cached_source_file_indices_for_bundle(&source_set, bundle))
+        .unwrap_or_default();
+
     let invalid_token_start = startup_profile.start();
-    let has_invalid_tokens = source_set_has_invalid_tokens(&source_set);
+    let has_invalid_tokens = source_set_has_invalid_tokens(&source_set, &cached_files);
     startup_profile.invalid_token_scan = StartupProfile::elapsed(invalid_token_start);
     if has_invalid_tokens {
         eprintln!("error: invalid token in source");
@@ -1272,7 +1279,13 @@ fn run_infer_views(
         lower_profile,
         runtime_dependencies,
         mut pipeline_timings,
-    } = lower_infer_sources(path, source, options, Some((&source_set, collect_duration)));
+    } = lower_infer_sources(
+        path,
+        source,
+        options,
+        Some((&source_set, collect_duration)),
+        Some(prepared_cache),
+    );
     startup_profile.infer_lower = StartupProfile::elapsed(infer_lower_start);
 
     let infer_finalize_start = startup_profile.start();
@@ -4242,8 +4255,11 @@ impl InferPipelineTimings {
     }
 }
 
-fn source_set_has_invalid_tokens(source_set: &SourceSet) -> bool {
-    source_set.files.iter().any(|file| {
+fn source_set_has_invalid_tokens(source_set: &SourceSet, cached_files: &BTreeSet<usize>) -> bool {
+    source_set.files.iter().enumerate().any(|(file_idx, file)| {
+        if cached_files.contains(&file_idx) {
+            return false;
+        }
         let green = parse_module_to_green_with_ops(&file.source, file.op_table.clone());
         let root = SyntaxNode::<YulangLanguage>::new_root(green);
         has_invalid_token(&root)
@@ -4255,12 +4271,19 @@ fn lower_infer_sources(
     source: &str,
     options: &CliOptions,
     collected: Option<(&SourceSet, Duration)>,
+    prepared_cache: Option<PreparedInferCache>,
 ) -> InferLowerOutput {
     if let Some((source_set, collect)) = collected {
-        return lower_infer_source_set_with_cache(source_set, source, collect, options);
+        return lower_infer_source_set_with_cache(
+            source_set,
+            source,
+            collect,
+            options,
+            prepared_cache,
+        );
     }
     let (source_set, collect) = collect_infer_source_set_or_exit(path, source, options);
-    lower_infer_source_set_with_cache(&source_set, source, collect, options)
+    lower_infer_source_set_with_cache(&source_set, source, collect, options, None)
 }
 
 fn collect_infer_source_set_or_exit(
@@ -4329,16 +4352,14 @@ fn lower_infer_source_set_with_cache(
     fallback_diagnostic_source: &str,
     collect: Duration,
     options: &CliOptions,
+    prepared_cache: Option<PreparedInferCache>,
 ) -> InferLowerOutput {
-    let profile_timings = options.infer_phase_timings || options.startup_profile;
-    let mut pipeline_timings = InferPipelineTimings::new(profile_timings);
-    let cache = CompiledUnitArtifactCache::from_paths(
-        &yulang_sources::YulangCachePaths::for_project(workspace_root()),
-    );
-    if !options.no_cache
-        && let Some(bundle) =
-            read_cached_dependency_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
-    {
+    let PreparedInferCache {
+        cache,
+        bundle,
+        mut pipeline_timings,
+    } = prepared_cache.unwrap_or_else(|| prepare_infer_cache(source_set, options));
+    if let Some(bundle) = bundle {
         let import_start = pipeline_timings.start();
         let mut lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
             source_set, &bundle,
@@ -4363,7 +4384,7 @@ fn lower_infer_source_set_with_cache(
         );
     }
 
-    let mut lowered = if profile_timings {
+    let mut lowered = if pipeline_timings.enabled {
         lower_source_set_profiled(source_set)
     } else {
         InferProfiledLoweredSources {
@@ -4392,6 +4413,30 @@ fn lower_infer_source_set_with_cache(
         None,
         pipeline_timings,
     )
+}
+
+struct PreparedInferCache {
+    cache: CompiledUnitArtifactCache,
+    bundle: Option<CompiledUnitArtifactBundle>,
+    pipeline_timings: InferPipelineTimings,
+}
+
+fn prepare_infer_cache(source_set: &SourceSet, options: &CliOptions) -> PreparedInferCache {
+    let profile_timings = options.infer_phase_timings || options.startup_profile;
+    let mut pipeline_timings = InferPipelineTimings::new(profile_timings);
+    let cache = CompiledUnitArtifactCache::from_paths(
+        &yulang_sources::YulangCachePaths::for_project(workspace_root()),
+    );
+    let bundle = (!options.no_cache)
+        .then(|| {
+            read_cached_dependency_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
+        })
+        .flatten();
+    PreparedInferCache {
+        cache,
+        bundle,
+        pipeline_timings,
+    }
 }
 
 fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
@@ -4635,6 +4680,35 @@ fn cacheable_dependency_manifests(
         .into_iter()
         .map(|artifact| artifact.manifest)
         .filter(is_cacheable_dependency_manifest)
+        .collect()
+}
+
+fn cached_source_file_indices_for_bundle(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitArtifactBundle,
+) -> BTreeSet<usize> {
+    cached_source_file_indices_for_manifests(source_set, &bundle.manifests)
+}
+
+fn cached_source_file_indices_for_manifests(
+    source_set: &SourceSet,
+    manifests: &[yulang_sources::CompiledUnitManifest],
+) -> BTreeSet<usize> {
+    if manifests.is_empty() {
+        return BTreeSet::new();
+    }
+    let units = source_set.compilation_units();
+    let syntax_artifacts = units.syntax_artifacts(source_set);
+    units
+        .units
+        .iter()
+        .zip(syntax_artifacts)
+        .filter(|(_, artifact)| {
+            manifests
+                .iter()
+                .any(|manifest| manifest == &artifact.manifest)
+        })
+        .flat_map(|(unit, _)| unit.files.iter().copied())
         .collect()
 }
 
@@ -7446,6 +7520,54 @@ mod tests {
     }
 
     #[test]
+    fn invalid_token_scan_skips_cached_dependency_files_only() {
+        let source_set = yulang_sources::collect_inline_source_files_with_options(
+            "use util::*\nmy y = x\n",
+            [InlineSource {
+                path: PathBuf::from("<util>.yu"),
+                module_path: typed_ir::Path {
+                    segments: vec![typed_ir::Name("util".to_string())],
+                },
+                origin: SourceOrigin::User,
+                source: "pub x = {\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let manifests = cacheable_dependency_manifests(&source_set);
+        let cached_files = cached_source_file_indices_for_manifests(&source_set, &manifests);
+
+        assert!(source_set_has_invalid_tokens(&source_set, &BTreeSet::new()));
+        assert!(!source_set_has_invalid_tokens(&source_set, &cached_files));
+
+        let entry_invalid = yulang_sources::collect_inline_source_files_with_options(
+            "use util::*\nmy y = {\n",
+            [InlineSource {
+                path: PathBuf::from("<util>.yu"),
+                module_path: typed_ir::Path {
+                    segments: vec![typed_ir::Name("util".to_string())],
+                },
+                origin: SourceOrigin::User,
+                source: "pub x = 1\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let manifests = cacheable_dependency_manifests(&entry_invalid);
+        let cached_files = cached_source_file_indices_for_manifests(&entry_invalid, &manifests);
+
+        assert!(source_set_has_invalid_tokens(&entry_invalid, &cached_files));
+    }
+
+    #[test]
     fn native_default_output_paths_use_target_yulang() {
         let object = native_object_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
         let executable =
@@ -7687,7 +7809,7 @@ mod tests {
     fn infer_error_headline_reports_missing_impl() {
         let source = "role Display 'a:\n    our a.display: string\n\nmy shown = 1.display\n";
         let options = test_cli_options();
-        let mut state = lower_infer_sources(None, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -7709,7 +7831,7 @@ mod tests {
             "my id: user_id = 1\n",
         );
         let options = test_cli_options();
-        let state = lower_infer_sources(None, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7723,7 +7845,7 @@ mod tests {
     fn infer_error_context_reports_annotation_edge() {
         let source = "my x: int = \"s\"\n";
         let options = test_cli_options();
-        let state = lower_infer_sources(None, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7746,7 +7868,7 @@ mod tests {
     fn infer_error_context_reports_application_argument_edge() {
         let source = "my f(x: int) = x\nf \"s\"\n";
         let options = test_cli_options();
-        let state = lower_infer_sources(None, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7769,7 +7891,7 @@ mod tests {
     fn infer_error_context_reports_derived_record_field_edge() {
         let source = "my p: { a: { b: int } } = { a: { b: \"s\" } }\n";
         let options = test_cli_options();
-        let state = lower_infer_sources(None, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7796,7 +7918,7 @@ mod tests {
             "my shown = 1.display\n",
         );
         let options = test_cli_options();
-        let mut state = lower_infer_sources(None, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -7820,7 +7942,7 @@ mod tests {
             "my id: user_id = 1\n",
         );
         let options = test_cli_options();
-        let state = lower_infer_sources(None, source, &options, None).state;
+        let state = lower_infer_sources(None, source, &options, None, None).state;
         let errors = state.infer.type_errors();
         let error = errors
             .iter()
@@ -7839,7 +7961,7 @@ mod tests {
             "impl Pair int:\n    our x.first = 1\n",
         );
         let options = test_cli_options();
-        let mut state = lower_infer_sources(None, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
@@ -7860,7 +7982,7 @@ mod tests {
             "impl Score int:\n    our x.other = 1\n",
         );
         let options = test_cli_options();
-        let mut state = lower_infer_sources(None, source, &options, None).state;
+        let mut state = lower_infer_sources(None, source, &options, None, None).state;
         let _ = state.finalize_compact_results();
         let errors = state.infer.type_errors();
         let error = errors
