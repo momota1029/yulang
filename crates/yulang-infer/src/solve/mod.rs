@@ -655,7 +655,6 @@ impl Infer {
     }
 
     pub fn register_ref_type_method(&mut self, type_path: Path, name: Name, def: DefId) {
-        self.register_ref_type_path(type_path.clone());
         self.ref_type_methods
             .entry(type_path)
             .or_default()
@@ -767,5 +766,38 @@ fn compact_instance_direct_var(instance: &OwnedSchemeInstance) -> Option<TypeVar
             .map(|tv| crate::simplify::compact::subst_lookup_small(instance.subst.as_slice(), tv))
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ref_method_owner_does_not_become_ref_wrapper_type() {
+        let mut infer = Infer::new();
+        let ref_path = crate::std_ref_paths::standard_ref_type_path();
+        let list_path = Path {
+            segments: vec![
+                Name("std".to_string()),
+                Name("list".to_string()),
+                Name("list".to_string()),
+            ],
+        };
+        let push = Name("push".to_string());
+        let push_def = DefId(1);
+
+        infer.register_ref_type_path(ref_path.clone());
+        infer.register_ref_type_method(list_path.clone(), push.clone(), push_def);
+
+        assert_eq!(infer.primary_ref_type_path(), Some(ref_path));
+        assert!(!infer.is_ref_type_path(&list_path));
+        assert_eq!(
+            infer
+                .ref_type_methods
+                .get(&list_path)
+                .and_then(|methods| methods.get(&push).copied()),
+            Some(push_def),
+        );
     }
 }
