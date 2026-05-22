@@ -217,8 +217,7 @@ fn run_reuses_compiled_std_cache_for_list_each_role_add() {
     ));
     let std_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib/std");
     fs::write(&warmup_path, "(7/3).say\n").expect("write warmup source");
-    fs::write(&undet_path, "([1,2].each + [1,3].each).list.say\n")
-        .expect("write undet source");
+    fs::write(&undet_path, "([1,2].each + [1,3].each).list.say\n").expect("write undet source");
 
     let warmup_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -252,7 +251,10 @@ fn run_reuses_compiled_std_cache_for_list_each_role_add() {
         String::from_utf8_lossy(&undet_output.stdout),
         String::from_utf8_lossy(&undet_output.stderr)
     );
-    assert_eq!(String::from_utf8_lossy(&undet_output.stdout), "[2, 4, 3, 5]\n");
+    assert_eq!(
+        String::from_utf8_lossy(&undet_output.stdout),
+        "[2, 4, 3, 5]\n"
+    );
 }
 
 fn unique_suffix() -> u128 {
