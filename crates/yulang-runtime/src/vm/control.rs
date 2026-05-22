@@ -3,6 +3,7 @@ use crate::ir::RecordSpreadPattern;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 use std::io;
 use std::path::Path;
 
@@ -995,7 +996,7 @@ struct ControlResume {
 
 #[derive(Clone, Default)]
 struct ControlContinuation {
-    frames: Vec<ControlFrame>,
+    frames: VecDeque<ControlFrame>,
     guard_stack: GuardStack,
 }
 
@@ -1089,12 +1090,14 @@ enum ControlFrame {
 
 #[derive(Clone, Default)]
 struct ControlEnv {
-    slots: Vec<Option<ControlValue>>,
+    slots: Rc<Vec<Option<ControlValue>>>,
 }
 
 impl ControlEnv {
     fn new() -> Self {
-        Self { slots: Vec::new() }
+        Self {
+            slots: Rc::new(Vec::new()),
+        }
     }
 
     fn get(&self, symbol: ControlSymbolId) -> Option<&ControlValue> {
@@ -1102,10 +1105,11 @@ impl ControlEnv {
     }
 
     fn insert(&mut self, symbol: ControlSymbolId, value: ControlValue) {
-        if self.slots.len() <= symbol.0 {
-            self.slots.resize_with(symbol.0 + 1, || None);
+        let slots = Rc::make_mut(&mut self.slots);
+        if slots.len() <= symbol.0 {
+            slots.resize_with(symbol.0 + 1, || None);
         }
-        self.slots[symbol.0] = Some(value);
+        slots[symbol.0] = Some(value);
     }
 }
 
@@ -1534,7 +1538,7 @@ impl<'m> ControlInterpreter<'m> {
                         effect: *effect,
                         payload: payload.clone(),
                         continuation: ControlContinuation {
-                            frames: Vec::new(),
+                            frames: VecDeque::new(),
                             guard_stack: self.guard_stack.clone(),
                         },
                         blocked_id: None,
@@ -2058,18 +2062,11 @@ impl<'m> ControlInterpreter<'m> {
             return Ok(ControlResult::Request(request));
         };
         let next_arm_index = arm_index + 1;
-        let outer = outside_handle(request.continuation.clone(), id);
+        let (outer, inner) = split_handle_continuations(&request.continuation, id);
         let mut arm_env = env.clone();
-        self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
-        if let Some(resume) = arm.resume {
-            arm_env.insert(
-                resume,
-                ControlValue::Resume(ControlHeap::new(ControlResume {
-                    continuation: inside_handle(request.continuation.clone(), id),
-                })),
-            );
-        }
         if let Some(guard) = arm.guard {
+            self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
+            insert_control_resume(&mut arm_env, arm.resume, inner);
             let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
             let guard_result = self.eval_expr(guard, &arm_env);
             self.guard_stack = previous;
@@ -2104,6 +2101,8 @@ impl<'m> ControlInterpreter<'m> {
                 ))),
             };
         }
+        self.bind_pattern(&arm.payload, request.payload, &mut arm_env)?;
+        insert_control_resume(&mut arm_env, arm.resume, inner);
         let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
         let result = self.eval_expr(arm.body, &arm_env);
         self.guard_stack = previous;
@@ -2162,7 +2161,7 @@ impl<'m> ControlInterpreter<'m> {
             .max_continuation_frames
             .max(continuation.frames.len());
         let result = loop {
-            let Some(frame) = continuation.frames.pop() else {
+            let Some(frame) = continuation.frames.pop_back() else {
                 break Ok(ControlResult::Value(value));
             };
             self.profile.continuation_steps += 1;
@@ -2238,7 +2237,7 @@ impl<'m> ControlInterpreter<'m> {
             } => match value {
                 ControlValue::Thunk(thunk) => {
                     let result = self.bind_here(ControlValue::Thunk(thunk))?;
-                    continuation.frames.push(ControlFrame::Handle {
+                    continuation.frames.push_back(ControlFrame::Handle {
                         id,
                         arms,
                         env,
@@ -2337,7 +2336,7 @@ impl<'m> ControlInterpreter<'m> {
                 self.continue_result(result, continuation)
             }
             ControlResult::Request(request) => {
-                continuation.frames.push(ControlFrame::BindHere);
+                continuation.frames.push_back(ControlFrame::BindHere);
                 self.continue_result(ControlResult::Request(request), continuation)
             }
             other => self.continue_result(other, continuation),
@@ -2354,13 +2353,18 @@ impl<'m> ControlInterpreter<'m> {
         before: usize,
     ) -> Result<ControlResult, VmError> {
         let end = before.min(request.continuation.frames.len());
-        let frames = request.continuation.frames.get(..end).unwrap_or(&[]);
-        let Some(index) = frames.iter().rposition(|frame| {
-            matches!(
-                frame,
-                ControlFrame::Handle { .. } | ControlFrame::BlockedEffects { .. }
-            )
-        }) else {
+        let Some(index) = request
+            .continuation
+            .frames
+            .iter()
+            .take(end)
+            .rposition(|frame| {
+                matches!(
+                    frame,
+                    ControlFrame::Handle { .. } | ControlFrame::BlockedEffects { .. }
+                )
+            })
+        else {
             return Ok(ControlResult::Request(request));
         };
         if let ControlFrame::BlockedEffects { blocked, active } =
@@ -2538,37 +2542,68 @@ impl<'m> ControlInterpreter<'m> {
     }
 }
 
-fn inside_handle(mut continuation: ControlContinuation, id: u64) -> ControlContinuation {
-    if let Some(index) = continuation.frames.iter().position(
+fn split_handle_continuations(
+    continuation: &ControlContinuation,
+    id: u64,
+) -> (ControlContinuation, ControlContinuation) {
+    let Some(index) = continuation.frames.iter().position(
         |frame| matches!(frame, ControlFrame::Handle { id: current, .. } if *current == id),
-    ) {
-        continuation.frames.drain(..=index);
-    } else {
-        continuation.frames.clear();
-    }
-    continuation
+    ) else {
+        return (
+            ControlContinuation {
+                frames: VecDeque::new(),
+                guard_stack: continuation.guard_stack.clone(),
+            },
+            ControlContinuation {
+                frames: VecDeque::new(),
+                guard_stack: continuation.guard_stack.clone(),
+            },
+        );
+    };
+
+    let outer_guard_stack =
+        if let ControlFrame::Handle { guard_stack, .. } = &continuation.frames[index] {
+            guard_stack.clone()
+        } else {
+            continuation.guard_stack.clone()
+        };
+
+    (
+        ControlContinuation {
+            frames: continuation.frames.iter().take(index).cloned().collect(),
+            guard_stack: outer_guard_stack,
+        },
+        ControlContinuation {
+            frames: continuation
+                .frames
+                .iter()
+                .skip(index + 1)
+                .cloned()
+                .collect(),
+            guard_stack: continuation.guard_stack.clone(),
+        },
+    )
 }
 
-fn outside_handle(mut continuation: ControlContinuation, id: u64) -> ControlContinuation {
-    if let Some(index) = continuation.frames.iter().position(
-        |frame| matches!(frame, ControlFrame::Handle { id: current, .. } if *current == id),
-    ) {
-        if let ControlFrame::Handle { guard_stack, .. } = &continuation.frames[index] {
-            continuation.guard_stack = guard_stack.clone();
-        }
-        continuation.frames.truncate(index);
-    } else {
-        continuation.frames.clear();
+fn insert_control_resume(
+    env: &mut ControlEnv,
+    resume: Option<ControlSymbolId>,
+    continuation: ControlContinuation,
+) {
+    if let Some(resume) = resume {
+        env.insert(
+            resume,
+            ControlValue::Resume(ControlHeap::new(ControlResume { continuation })),
+        );
     }
-    continuation
 }
 
 fn push_frame(mut request: ControlRequest, frame: ControlFrame) -> ControlRequest {
-    request.continuation.frames.insert(0, frame);
+    request.continuation.frames.push_front(frame);
     request
 }
 
-fn prepend_frames(continuation: &mut ControlContinuation, mut frames: Vec<ControlFrame>) {
+fn prepend_frames(continuation: &mut ControlContinuation, mut frames: VecDeque<ControlFrame>) {
     frames.append(&mut continuation.frames);
     continuation.frames = frames;
 }
