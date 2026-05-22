@@ -1529,7 +1529,7 @@ mod tests {
             .unwrap();
         match &id.body {
             typed_ir::Expr::Lambda { param, body, .. } => {
-                assert_eq!(param.0, "x");
+                assert!(param.0.starts_with("x#local_"));
                 assert_eq!(
                     body.as_ref(),
                     &typed_ir::Expr::Var(typed_ir::Path::from_name(param.clone()))

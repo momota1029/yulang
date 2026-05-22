@@ -18,12 +18,16 @@ macro_rules! yulang_std_sources {
                 text: include_str!(concat!($prefix, "flow.yu")),
             },
             StdSource {
-                name: "fs",
-                text: include_str!(concat!($prefix, "fs.yu")),
-            },
-            StdSource {
                 name: "fold",
                 text: include_str!(concat!($prefix, "fold.yu")),
+            },
+            StdSource {
+                name: "frac",
+                text: include_str!(concat!($prefix, "frac.yu")),
+            },
+            StdSource {
+                name: "fs",
+                text: include_str!(concat!($prefix, "fs.yu")),
             },
             StdSource {
                 name: "index",

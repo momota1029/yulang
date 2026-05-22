@@ -488,7 +488,10 @@ fn coalesce_root_fun_field(
 
     let ty = if positive {
         common_compact_type(&bounds.lower, &bounds.upper)
-            .filter(|ty| !is_empty_compact(ty))
+            .filter(|common| {
+                !is_empty_compact(common)
+                    && !has_non_var_shape_outside_common(&bounds.lower, common)
+            })
             .unwrap_or(bounds.lower)
     } else {
         common_compact_type(&bounds.lower, &bounds.upper)
@@ -2427,6 +2430,23 @@ fn has_non_var_shape(ty: &CompactType) -> bool {
         || !ty.variants.is_empty()
         || !ty.tuples.is_empty()
         || !ty.rows.is_empty()
+}
+
+fn has_non_var_shape_outside_common(ty: &CompactType, common: &CompactType) -> bool {
+    ty.prims.iter().any(|item| !common.prims.contains(item))
+        || ty.cons.iter().any(|item| !common.cons.contains(item))
+        || ty.funs.iter().any(|item| !common.funs.contains(item))
+        || ty.records.iter().any(|item| !common.records.contains(item))
+        || ty
+            .record_spreads
+            .iter()
+            .any(|item| !common.record_spreads.contains(item))
+        || ty
+            .variants
+            .iter()
+            .any(|item| !common.variants.contains(item))
+        || ty.tuples.iter().any(|item| !common.tuples.contains(item))
+        || ty.rows.iter().any(|item| !common.rows.contains(item))
 }
 
 fn is_explicit_empty_row_compact(ty: &CompactType) -> bool {

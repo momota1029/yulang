@@ -587,7 +587,8 @@ fn lowers_pipeline_as_first_argument_to_rhs_spine() {
         },
     )
     .unwrap();
-    let program = crate::export_core_program(&mut lowered.state);
+    let binding_paths = lowered.state.ctx.collect_all_binding_paths();
+    let program = crate::export_core_program_for_binding_paths(&mut lowered.state, &binding_paths);
     let y = program
         .program
         .bindings
@@ -764,10 +765,7 @@ fn lowers_list_len_helper_from_implicit_prelude() {
         .find(|(name, _)| name == "size")
         .expect("size should be rendered");
 
-    assert_eq!(
-        size.1,
-        "Len<std::list::list<int> | α> => (α & std::list::list<int>) -> int"
-    );
+    assert_eq!(size.1, "std::list::list<int> -> int");
 
     let _ = fs::remove_dir_all(root);
 }
