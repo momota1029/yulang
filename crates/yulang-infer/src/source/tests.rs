@@ -2374,6 +2374,51 @@ fn compiled_unit_import_skips_cached_dependency_scc() {
 }
 
 #[test]
+fn compiled_unit_semantic_bundle_import_skips_cached_dependency_scc_without_runtime() {
+    let source_set = collect_inline_source_files_with_options(
+        "use ops::*\nmy y = 1 %% 2\n",
+        [InlineSource {
+            path: PathBuf::from("<ops>.yu"),
+            module_path: CorePath::new(vec![CoreName("ops".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+            meta: None,
+        }],
+        yulang_sources::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+    let ops_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["ops"])
+        })
+        .expect("ops unit artifact should exist")
+        .clone();
+    let bundle = build_compiled_unit_artifact_bundle(&[ops_artifact]).unwrap();
+    let semantic_bundle = CompiledUnitSemanticArtifactBundle::from(&bundle);
+
+    let mut imported =
+        lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+            &source_set,
+            &semantic_bundle,
+        );
+    imported.lowered.state.finalize_compact_results();
+
+    assert_eq!(imported.profile.entry.files, 1);
+    assert_eq!(imported.profile.user.files, 0);
+    assert!(imported.lowered.state.infer.type_errors().is_empty());
+}
+
+#[test]
 fn compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

@@ -203,6 +203,11 @@ pub struct CompiledUnitArtifactsImport {
     pub runtime: CompiledRuntimeBundle,
 }
 
+pub struct CompiledUnitSemanticImport {
+    pub manifests: Vec<CompiledUnitManifest>,
+    pub typed: CompiledTypedImport,
+}
+
 pub struct CompiledUnitProfiledLoweredSources {
     pub lowered: ProfiledLoweredSources,
     pub runtime: CompiledRuntimeBundle,
@@ -261,6 +266,13 @@ pub struct CompiledUnitArtifactBundle {
     pub namespace: CompiledNamespaceSurface,
     pub typed: CompiledTypedSurface,
     pub runtime: CompiledRuntimeBundle,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitSemanticArtifactBundle {
+    pub manifests: Vec<CompiledUnitManifest>,
+    pub namespace: CompiledNamespaceSurface,
+    pub typed: CompiledTypedSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -939,6 +951,21 @@ pub fn import_trusted_compiled_unit_artifact_bundle_profiled(
     )
 }
 
+pub fn import_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+    bundle: &CompiledUnitSemanticArtifactBundle,
+) -> (CompiledUnitSemanticImport, CompiledUnitImportProfile) {
+    let mut profile = CompiledUnitImportProfile::default();
+    let typed = import_trusted_compiled_typed_surface_profiled(
+        &bundle.namespace,
+        &bundle.typed,
+        Some(&mut profile),
+    );
+    let start = Instant::now();
+    let manifests = bundle.manifests.clone();
+    profile.manifests_clone += start.elapsed();
+    (CompiledUnitSemanticImport { manifests, typed }, profile)
+}
+
 pub fn build_compiled_unit_artifact_bundle(
     artifacts: &[CompiledUnitArtifact],
 ) -> Result<CompiledUnitArtifactBundle, CompiledRuntimeMergeError> {
@@ -957,6 +984,31 @@ pub fn build_compiled_unit_artifact_bundle(
         typed,
         runtime,
     })
+}
+
+pub fn build_compiled_unit_semantic_artifact_bundle(
+    artifacts: &[CompiledUnitArtifact],
+) -> CompiledUnitSemanticArtifactBundle {
+    CompiledUnitSemanticArtifactBundle {
+        manifests: artifacts
+            .iter()
+            .map(|artifact| artifact.manifest.clone())
+            .collect(),
+        namespace: merge_compiled_namespace_surfaces(
+            artifacts.iter().map(|artifact| &artifact.namespace),
+        ),
+        typed: merge_compiled_typed_surfaces(artifacts),
+    }
+}
+
+impl From<&CompiledUnitArtifactBundle> for CompiledUnitSemanticArtifactBundle {
+    fn from(bundle: &CompiledUnitArtifactBundle) -> Self {
+        Self {
+            manifests: bundle.manifests.clone(),
+            namespace: bundle.namespace.clone(),
+            typed: bundle.typed.clone(),
+        }
+    }
 }
 
 pub fn import_compiled_typed_surface(
@@ -1105,6 +1157,27 @@ pub fn lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with
     (lowered, profile)
 }
 
+pub fn lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitSemanticArtifactBundle,
+) -> ProfiledLoweredSources {
+    let (import, _) = import_trusted_compiled_unit_semantic_artifact_bundle_profiled(bundle);
+    lower_source_set_with_compiled_unit_semantic_import(source_set, import, HashSet::new())
+}
+
+pub fn lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled_with_import_profile(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitSemanticArtifactBundle,
+) -> (ProfiledLoweredSources, CompiledUnitImportProfile) {
+    let (import, mut profile) =
+        import_trusted_compiled_unit_semantic_artifact_bundle_profiled(bundle);
+    let start = Instant::now();
+    let lowered =
+        lower_source_set_with_compiled_unit_semantic_import(source_set, import, HashSet::new());
+    profile.cached_state_lower += start.elapsed();
+    (lowered, profile)
+}
+
 /// Lowers a source set on top of trusted compiled artifacts while forcing
 /// selected files to act as cache hits.
 ///
@@ -1138,6 +1211,23 @@ fn lower_source_set_with_compiled_unit_import(
         lowered,
         runtime: import.runtime,
     }
+}
+
+fn lower_source_set_with_compiled_unit_semantic_import(
+    source_set: &SourceSet,
+    import: CompiledUnitSemanticImport,
+    extra_cached_files: impl IntoIterator<Item = usize>,
+) -> ProfiledLoweredSources {
+    let mut profile = source_set_profile_header(source_set);
+    profile.std_cache.hits += 1;
+    let mut cached_files = cached_source_file_indices(source_set, &import.manifests);
+    cached_files.extend(extra_cached_files);
+    lower_source_set_from_cached_state(
+        source_set,
+        import.typed.namespace.state,
+        profile,
+        &cached_files,
+    )
 }
 
 fn cached_source_file_indices(

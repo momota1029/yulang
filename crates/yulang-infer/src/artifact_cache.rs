@@ -8,7 +8,9 @@ use yulang_sources::{
     CompiledUnitManifest, YulangCachePaths,
 };
 
-use crate::source::{CompiledUnitArtifact, CompiledUnitArtifactBundle};
+use crate::source::{
+    CompiledUnitArtifact, CompiledUnitArtifactBundle, CompiledUnitSemanticArtifactBundle,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CompiledUnitArtifactCacheKey {
@@ -122,6 +124,16 @@ impl CompiledUnitArtifactCache {
 
     pub fn bundle_artifact_path(&self, key: &CompiledUnitArtifactBundleCacheKey) -> PathBuf {
         key.directory(&self.root).join(key.file_name())
+    }
+
+    pub fn semantic_bundle_artifact_path(
+        &self,
+        key: &CompiledUnitArtifactBundleCacheKey,
+    ) -> PathBuf {
+        key.directory(&self.root).join(format!(
+            "semantic-bundle-{}-{:016x}.bin",
+            key.unit_count, key.manifest_hash
+        ))
     }
 
     pub fn write(
@@ -283,6 +295,80 @@ impl CompiledUnitArtifactCache {
         let key_duration = key_start.elapsed();
         let (bundle, mut profile) = self.read_bundle_profiled(&key)?;
         profile.key += key_duration;
+        Ok((bundle, profile))
+    }
+
+    pub fn write_semantic_bundle(
+        &self,
+        bundle: &CompiledUnitSemanticArtifactBundle,
+    ) -> Result<PathBuf, CompiledUnitArtifactCacheError> {
+        let key = CompiledUnitArtifactBundleCacheKey::from_manifests(&bundle.manifests)?;
+        let path = self.semantic_bundle_artifact_path(&key);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| CompiledUnitArtifactCacheError::Io {
+                path: parent.to_path_buf(),
+                error: io_error_string(error),
+            })?;
+        }
+        let bytes = postcard::to_allocvec(bundle).map_err(|error| {
+            CompiledUnitArtifactCacheError::Serialize {
+                error: error.to_string(),
+            }
+        })?;
+        fs::write(&path, bytes).map_err(|error| CompiledUnitArtifactCacheError::Io {
+            path: path.clone(),
+            error: io_error_string(error),
+        })?;
+        Ok(path)
+    }
+
+    pub fn read_semantic_bundle_for_manifests_profiled(
+        &self,
+        manifests: &[CompiledUnitManifest],
+    ) -> Result<
+        (
+            CompiledUnitSemanticArtifactBundle,
+            CompiledUnitArtifactBundleReadProfile,
+        ),
+        CompiledUnitArtifactCacheError,
+    > {
+        let key_start = Instant::now();
+        let key = CompiledUnitArtifactBundleCacheKey::from_manifests(manifests)?;
+        let key_duration = key_start.elapsed();
+        validate_key_for_current_compiler_parts(
+            key.artifact_format_version,
+            key.parser_format_version,
+        )?;
+        let mut profile = CompiledUnitArtifactBundleReadProfile {
+            key: key_duration,
+            ..CompiledUnitArtifactBundleReadProfile::default()
+        };
+        let path = self.semantic_bundle_artifact_path(&key);
+        let read_start = Instant::now();
+        let bytes = fs::read(&path).map_err(|error| CompiledUnitArtifactCacheError::Io {
+            path: path.clone(),
+            error: io_error_string(error),
+        })?;
+        profile.read_file = read_start.elapsed();
+        profile.bytes = bytes.len();
+        let decode_start = Instant::now();
+        let bundle = postcard::from_bytes::<CompiledUnitSemanticArtifactBundle>(&bytes).map_err(
+            |error| CompiledUnitArtifactCacheError::Deserialize {
+                path: path.clone(),
+                error: error.to_string(),
+            },
+        )?;
+        profile.decode = decode_start.elapsed();
+        let validate_start = Instant::now();
+        let actual = CompiledUnitArtifactBundleCacheKey::from_manifests(&bundle.manifests)?;
+        if actual != key {
+            return Err(CompiledUnitArtifactCacheError::BundleKeyMismatch {
+                path,
+                expected: key,
+                actual,
+            });
+        }
+        profile.validate = validate_start.elapsed();
         Ok((bundle, profile))
     }
 }
