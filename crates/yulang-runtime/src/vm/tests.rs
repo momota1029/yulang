@@ -1611,10 +1611,6 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
                 "refresh-closed-schemes",
                 "semantic-cast-coercions",
                 "prune-unreachable",
-                "principal-elaborate",
-                "refresh-closed-schemes",
-                "semantic-cast-coercions",
-                "prune-unreachable",
                 "semantic-cast-coercions",
                 "prune-unreachable",
             ]

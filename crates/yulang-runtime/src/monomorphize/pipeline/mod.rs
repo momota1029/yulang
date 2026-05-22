@@ -332,13 +332,6 @@ const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
     MonoPass::PruneUnreachableSpecializations,
 ];
 
-const PRINCIPAL_ELABORATE_FIXPOINT: &[MonoPass] = &[
-    MonoPass::PrincipalElaborate,
-    MonoPass::RefreshClosedSchemes,
-    MonoPass::SemanticCastCoercions,
-    MonoPass::PruneUnreachable,
-];
-
 const MONO_PIPELINE: &[MonoStage] = &[
     MonoStage::Repeat {
         name: "initial-specialization",
@@ -382,14 +375,7 @@ fn run_principal_elaborate_pipeline(
         debug,
     )?;
     module = step.module;
-    module = run_mono_fixpoint(
-        module,
-        "principal-elaborate",
-        PRINCIPAL_ELABORATE_FIXPOINT,
-        8,
-        &mut profile,
-        debug,
-    )?;
+    module = run_principal_elaborate_fixpoint(module, 8, &mut profile, debug)?;
     let step =
         run_profiled_mono_pass(module, MonoPass::SemanticCastCoercions, &mut profile, debug)?;
     module = step.module;
@@ -460,12 +446,15 @@ fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
 fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
     let mut module = inline_polymorphic_wrappers(module);
     for _ in 0..8 {
-        let before = module.clone();
         module = principal_elaborate_module(module);
         module = refresh_closed_specialized_schemes(module);
         module = normalize_semantic_cast_coercions(module);
         module = prune_unreachable_bindings(module);
-        if module == before {
+        if module
+            .bindings
+            .iter()
+            .all(|binding| binding.type_params.is_empty())
+        {
             break;
         }
     }
@@ -479,6 +468,52 @@ fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<
             context,
             message: "principal elaboration plan incomplete",
         });
+    }
+    Ok(module)
+}
+
+fn run_principal_elaborate_fixpoint(
+    mut module: Module,
+    limit: usize,
+    profile: &mut MonomorphizeProfile,
+    debug: bool,
+) -> RuntimeResult<Module> {
+    for round in 0..limit {
+        let mut round_progress = MonoProgress::default();
+        let step = run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, profile, debug)?;
+        module = step.module;
+        round_progress.merge(step.progress);
+
+        let step = run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, profile, debug)?;
+        module = step.module;
+        round_progress.merge(step.progress);
+
+        let step = run_profiled_mono_pass(module, MonoPass::SemanticCastCoercions, profile, debug)?;
+        module = step.module;
+        round_progress.merge(step.progress);
+
+        let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, profile, debug)?;
+        module = step.module;
+        let monomorphic_after_prune = module
+            .bindings
+            .iter()
+            .all(|binding| binding.type_params.is_empty());
+        round_progress.merge(step.progress);
+
+        if monomorphic_after_prune || !round_progress.changed() {
+            if debug {
+                eprintln!("mono fixpoint principal-elaborate converged after {round} rounds");
+            }
+            return Ok(module);
+        } else if debug {
+            eprintln!(
+                "mono fixpoint principal-elaborate round {round}: progress {}",
+                round_progress.format()
+            );
+        }
+    }
+    if debug {
+        eprintln!("mono fixpoint principal-elaborate reached round limit");
     }
     Ok(module)
 }
