@@ -200,6 +200,61 @@ fn run_reuses_compiled_std_cache_for_undet_role_add() {
     );
 }
 
+#[test]
+fn run_reuses_compiled_std_cache_for_list_each_role_add() {
+    let suffix = unique_suffix();
+    let cache_root = std::env::temp_dir().join(format!(
+        "yulang-cli-list-each-cache-{}-{suffix}",
+        std::process::id()
+    ));
+    let warmup_path = std::env::temp_dir().join(format!(
+        "yulang-cli-list-each-cache-warmup-{}-{suffix}.yu",
+        std::process::id()
+    ));
+    let undet_path = std::env::temp_dir().join(format!(
+        "yulang-cli-list-each-cache-run-{}-{suffix}.yu",
+        std::process::id()
+    ));
+    let std_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib/std");
+    fs::write(&warmup_path, "(7/3).say\n").expect("write warmup source");
+    fs::write(&undet_path, "([1,2].each + [1,3].each).list.say\n")
+        .expect("write undet source");
+
+    let warmup_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("run")
+        .arg(&warmup_path)
+        .output()
+        .expect("run yulang cache warmup");
+    assert!(
+        warmup_output.status.success(),
+        "warmup run failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&warmup_output.stdout),
+        String::from_utf8_lossy(&warmup_output.stderr)
+    );
+
+    let undet_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("run")
+        .arg(&undet_path)
+        .output()
+        .expect("run yulang with compiled std cache");
+    let _ = fs::remove_file(&warmup_path);
+    let _ = fs::remove_file(&undet_path);
+    let _ = fs::remove_dir_all(&cache_root);
+    assert!(
+        undet_output.status.success(),
+        "cached list each run failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&undet_output.stdout),
+        String::from_utf8_lossy(&undet_output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&undet_output.stdout), "[2, 4, 3, 5]\n");
+}
+
 fn unique_suffix() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

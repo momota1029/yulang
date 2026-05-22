@@ -4039,10 +4039,18 @@ fn lower_infer_source_set_with_cache(
             read_cached_dependency_unit_artifact_bundle(source_set, &cache, &mut pipeline_timings)
     {
         let import_start = pipeline_timings.start();
-        let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+        let mut lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
             source_set, &bundle,
         );
         pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
+        let prepare_finalize_start = pipeline_timings.start();
+        lowered
+            .lowered
+            .lowered
+            .state
+            .finalize_compact_results_profiled();
+        pipeline_timings.std_artifact_prepare_finalize =
+            InferPipelineTimings::elapsed(prepare_finalize_start);
         let mut profile = lowered.lowered.profile;
         profile.collect = collect;
         return infer_lower_output(
