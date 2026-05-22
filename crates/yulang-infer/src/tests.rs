@@ -2717,6 +2717,38 @@ fn source_record_field_selection_resolves_from_annotation() {
 }
 
 #[test]
+fn surface_type_mismatch_reports_expected_found_and_origins() {
+    let lowered = lower_virtual_source_with_options(
+        "my value: int = true\nvalue\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let diagnostics = collect_surface_diagnostics(&lowered.state);
+    let diagnostic = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message == "expected int, found bool")
+        .unwrap_or_else(|| {
+            panic!("expected concrete type mismatch diagnostic, got {diagnostics:?}")
+        });
+
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "literal `true` contributes this type"
+            && related.file_span.is_some()),
+        "type mismatch should report actual literal origin, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "type annotation contributes this expectation"),
+        "type mismatch should report expected annotation origin, got {diagnostic:?}",
+    );
+}
+
+#[test]
 fn source_record_field_selection_final_fallback_introduces_record_requirement() {
     let lowered = lower_virtual_source_with_options(
         "my get_y p = p.y\nget_y {x: 3, y: 4}\n",

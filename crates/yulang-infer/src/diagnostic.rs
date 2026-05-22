@@ -1,10 +1,12 @@
 use rowan::TextRange;
 
 use crate::ids::{NegId, PosId, TypeVar};
+use crate::lower::state::FileSpan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeOrigin {
     pub span: Option<TextRange>,
+    pub file_span: Option<FileSpan>,
     pub kind: TypeOriginKind,
     pub label: Option<String>,
 }
@@ -181,6 +183,7 @@ impl TypeOrigin {
     pub fn unknown() -> Self {
         Self {
             span: None,
+            file_span: None,
             kind: TypeOriginKind::Unknown,
             label: None,
         }
@@ -189,6 +192,7 @@ impl TypeOrigin {
     pub fn synthetic(label: impl Into<String>) -> Self {
         Self {
             span: None,
+            file_span: None,
             kind: TypeOriginKind::Synthetic,
             label: Some(label.into()),
         }

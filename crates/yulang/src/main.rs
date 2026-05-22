@@ -5411,6 +5411,14 @@ fn print_infer_surface_diagnostic(diagnostic: &InferSurfaceDiagnostic, source: &
     } else {
         eprintln!("  at <unknown>");
     }
+    for related in &diagnostic.related {
+        if let Some(span) = related.span {
+            let (line, col) = line_col(source, u32::from(span.start()) as usize);
+            eprintln!("  related at {line}:{col}: {}", related.message);
+        } else {
+            eprintln!("  related at <unknown>: {}", related.message);
+        }
+    }
 }
 
 fn print_infer_program(program: &typed_ir::CoreProgram, verbose: bool) {

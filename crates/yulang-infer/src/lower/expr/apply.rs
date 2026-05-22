@@ -35,6 +35,7 @@ pub(crate) fn make_app_with_cause(
     let passing_style = argument_passing_style(state, &func);
     let tv = state.fresh_tv_with_origin(TypeOrigin {
         span: cause.span,
+        file_span: None,
         kind: TypeOriginKind::ApplicationResult,
         label: None,
     });

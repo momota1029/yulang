@@ -610,6 +610,7 @@ pub(super) fn sig_var(
     }
     let tv = state.fresh_tv_with_origin(TypeOrigin {
         span: Some(var.span),
+        file_span: None,
         kind: TypeOriginKind::Annotation,
         label: Some(format!("'{}", var.name)),
     });
@@ -699,6 +700,7 @@ fn fresh_sig_annotation_tv(
 ) -> TypeVar {
     state.fresh_tv_with_origin(TypeOrigin {
         span: Some(span),
+        file_span: None,
         kind: TypeOriginKind::Annotation,
         label: Some(label.into()),
     })

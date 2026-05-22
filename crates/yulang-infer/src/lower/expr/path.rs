@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
+use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::ids::DefId;
 use crate::lower::LowerState;
 use crate::symbols::{ModuleId, Name, OperatorFixity, Path};
@@ -30,7 +31,12 @@ pub(in crate::lower) fn resolve_path_expr_at(
 
     if let [Name(name)] = path.segments.as_slice() {
         if name == "true" || name == "false" {
-            let tv = state.fresh_tv();
+            let tv = state.fresh_tv_with_origin(TypeOrigin {
+                span,
+                file_span: None,
+                kind: TypeOriginKind::Literal,
+                label: Some(name.clone()),
+            });
             let eff = state.fresh_exact_pure_eff_tv();
             state.infer.constrain(prim_type("bool"), Neg::Var(tv));
             let result = TypedExpr {

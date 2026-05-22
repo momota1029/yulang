@@ -84,10 +84,11 @@ pub fn configure_arg_effect_from_ann(
                 })
                 .unwrap_or_else(ConstraintCause::unknown);
             if let Some(ann) = ann {
-                state.infer.register_origin(
+                state.register_origin(
                     arg_eff_tv,
                     TypeOrigin {
                         span: Some(ann.span),
+                        file_span: None,
                         kind: TypeOriginKind::Annotation,
                         label: Some("effect annotation".to_string()),
                     },
@@ -232,6 +233,7 @@ fn lower_row_tail(state: &mut LowerState, node: &SyntaxNode) -> Option<crate::id
 fn annotation_tv(state: &LowerState, node: &SyntaxNode) -> crate::ids::TypeVar {
     state.fresh_tv_with_origin(TypeOrigin {
         span: Some(node.text_range()),
+        file_span: None,
         kind: TypeOriginKind::Annotation,
         label: Some(node.text().to_string()),
     })

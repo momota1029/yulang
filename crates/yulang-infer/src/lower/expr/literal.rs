@@ -17,6 +17,7 @@ pub(super) fn lower_number_token(
 ) -> TypedExpr {
     let tv = state.fresh_tv_with_origin(TypeOrigin {
         span,
+        file_span: None,
         kind: TypeOriginKind::Literal,
         label: Some(text.to_string()),
     });

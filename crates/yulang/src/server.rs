@@ -94,7 +94,13 @@ fn diagnostics_for_lowered_source(
     mut lowered: yulang_infer::LoweredSources,
 ) -> Vec<Diagnostic> {
     let surface = collect_surface_diagnostics(&lowered.state);
-    let mut diagnostics = surface_to_lsp(uri, &lowered.diagnostic_source, document_source, surface);
+    let mut diagnostics = surface_to_lsp(
+        uri,
+        &lowered.state,
+        &lowered.diagnostic_source,
+        document_source,
+        surface,
+    );
     if !diagnostics.is_empty() {
         return diagnostics;
     }
@@ -117,6 +123,7 @@ fn diagnostics_for_lowered_source(
 
 fn surface_to_lsp(
     uri: &Url,
+    state: &LowerState,
     diagnostic_source: &str,
     document_source: &str,
     diags: Vec<SurfaceDiagnostic>,
@@ -135,15 +142,16 @@ fn surface_to_lsp(
                 .related
                 .into_iter()
                 .filter_map(|related| {
-                    let range = related
-                        .span
-                        .and_then(|span| shift_span_to_document(span, prefix_len))
-                        .map(|span| byte_range_to_lsp(&line_starts, span))?;
-                    Some(DiagnosticRelatedInformation {
-                        location: Location {
-                            uri: uri.clone(),
-                            range,
-                        },
+                    surface_related_location(
+                        uri,
+                        state,
+                        &line_starts,
+                        prefix_len,
+                        related.span,
+                        related.file_span,
+                    )
+                    .map(|location| DiagnosticRelatedInformation {
+                        location,
                         message: related.message,
                     })
                 })
@@ -158,6 +166,42 @@ fn surface_to_lsp(
             }
         })
         .collect()
+}
+
+fn surface_related_location(
+    entry_uri: &Url,
+    state: &LowerState,
+    entry_line_starts: &[usize],
+    prefix_len: usize,
+    span: Option<rowan::TextRange>,
+    file_span: Option<FileSpan>,
+) -> Option<Location> {
+    if let Some(file_span) = file_span {
+        let entry_file = state.entry_file_id();
+        if Some(file_span.file) == entry_file {
+            return Some(Location {
+                uri: entry_uri.clone(),
+                range: byte_range_to_lsp(entry_line_starts, file_span.range),
+            });
+        }
+
+        let info = state.file_info(file_span.file)?;
+        let uri = Url::from_file_path(&info.path).ok()?;
+        let source = std::fs::read_to_string(&info.path).ok()?;
+        let line_starts = line_starts(&source);
+        return Some(Location {
+            uri,
+            range: byte_range_to_lsp(&line_starts, file_span.range),
+        });
+    }
+
+    let range = span
+        .and_then(|span| shift_span_to_document(span, prefix_len))
+        .map(|span| byte_range_to_lsp(entry_line_starts, span))?;
+    Some(Location {
+        uri: entry_uri.clone(),
+        range,
+    })
 }
 
 fn runtime_error_to_lsp(
@@ -2213,6 +2257,52 @@ mod tests {
                 .any(|info| info.message.contains("expected type here is `int`")
                     && info.message.contains("annotation")),
             "{related:?}"
+        );
+    }
+
+    #[test]
+    fn surface_diagnostics_include_related_locations() {
+        let source = "my value: int = true\nvalue\n";
+        let uri = Url::parse("file:///diagnostics.yu").expect("test uri");
+        let lowered = lower_virtual_source_with_options(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should lower");
+        let diagnostics = collect_surface_diagnostics(&lowered.state);
+        let lsp = surface_to_lsp(
+            &uri,
+            &lowered.state,
+            &lowered.diagnostic_source,
+            source,
+            diagnostics,
+        );
+        let diagnostic = lsp
+            .iter()
+            .find(|diagnostic| diagnostic.message == "expected int, found bool")
+            .unwrap_or_else(|| panic!("expected surface type mismatch diagnostic, got {lsp:?}"));
+        let related = diagnostic
+            .related_information
+            .as_ref()
+            .expect("related information");
+
+        assert!(
+            related.iter().any(|info| info.location.uri == uri
+                && info.message == "literal `true` contributes this type"
+                && info.location.range.start
+                    == position_of(source, "true").expect("true position")),
+            "{related:?}",
+        );
+        assert!(
+            related.iter().any(|info| info.location.uri == uri
+                && info.message == "type annotation contributes this expectation"
+                && info.location.range.start == position_of(source, "int").expect("int position")),
+            "{related:?}",
         );
     }
 

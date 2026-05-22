@@ -37,6 +37,16 @@ pub fn render_exported_compact_results_in_scope(state: &mut LowerState) -> Vec<(
     )
 }
 
+pub(crate) fn format_pos_for_diagnostic(infer: &Infer, pos: PosId) -> String {
+    let mut namer = VarNamer::default();
+    format_pos_id(infer, pos, &mut namer, false)
+}
+
+pub(crate) fn format_neg_for_diagnostic(infer: &Infer, neg: NegId) -> String {
+    let mut namer = VarNamer::default();
+    format_neg_id(infer, neg, &mut namer, false)
+}
+
 pub fn collect_compact_results(state: &LowerState) -> Vec<(String, String)> {
     collect_compact_results_for_paths(state, &collect_user_observable_binding_paths(state))
 }

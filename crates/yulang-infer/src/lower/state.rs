@@ -324,8 +324,20 @@ impl LowerState {
 
     pub fn fresh_tv_at_origin(&self, level: u32, origin: TypeOrigin) -> TypeVar {
         let tv = self.fresh_tv_at(level);
-        self.infer.register_origin(tv, origin);
+        self.register_origin(tv, origin);
         tv
+    }
+
+    pub fn register_origin(&self, tv: TypeVar, origin: TypeOrigin) {
+        self.infer
+            .register_origin(tv, self.origin_with_file_span(origin));
+    }
+
+    fn origin_with_file_span(&self, mut origin: TypeOrigin) -> TypeOrigin {
+        if origin.file_span.is_none() {
+            origin.file_span = origin.span.and_then(|span| self.recorded_source_span(span));
+        }
+        origin
     }
 
     pub fn record_expected_edge(

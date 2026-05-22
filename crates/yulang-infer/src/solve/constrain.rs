@@ -217,6 +217,7 @@ mod tests {
             tv,
             TypeOrigin {
                 span: Some(TextRange::new(0.into(), 1.into())),
+                file_span: None,
                 kind: TypeOriginKind::Literal,
                 label: Some("1".to_string()),
             },

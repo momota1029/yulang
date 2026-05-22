@@ -66,6 +66,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => state
                     .fresh_tv_with_origin(TypeOrigin {
                         span: Some(ann.span),
+                        file_span: None,
                         kind: TypeOriginKind::Annotation,
                         label: Some("argument read effect".to_string()),
                     }),

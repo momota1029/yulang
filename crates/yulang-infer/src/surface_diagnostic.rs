@@ -2,8 +2,10 @@ use std::collections::BTreeSet;
 
 use rowan::TextRange;
 
-use crate::diagnostic::{ExpectedShape, TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind};
-use crate::lower::LowerState;
+use crate::diagnostic::{
+    ConstraintReason, ExpectedShape, TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind,
+};
+use crate::lower::{FileSpan, LowerState};
 use crate::symbols::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +19,7 @@ pub struct SurfaceDiagnostic {
 pub struct SurfaceRelatedDiagnostic {
     pub message: String,
     pub span: Option<TextRange>,
+    pub file_span: Option<FileSpan>,
 }
 
 pub fn collect_surface_diagnostics(state: &LowerState) -> Vec<SurfaceDiagnostic> {
@@ -52,7 +55,7 @@ pub fn collect_surface_diagnostics(state: &LowerState) -> Vec<SurfaceDiagnostic>
     }
 
     for error in state.infer.type_errors() {
-        push_type_error(&mut diagnostics, &mut seen, &error);
+        push_type_error(&mut diagnostics, &mut seen, state, &error);
     }
 
     diagnostics
@@ -78,20 +81,25 @@ fn push_unique(
 fn push_type_error(
     diagnostics: &mut Vec<SurfaceDiagnostic>,
     seen: &mut BTreeSet<(String, Option<u32>)>,
+    state: &LowerState,
     error: &TypeError,
 ) {
     push_unique(
         diagnostics,
         seen,
-        type_error_message(error),
+        type_error_message(state, error),
         error.cause.span,
         type_error_related(error),
     );
 }
 
-fn type_error_message(error: &TypeError) -> String {
+fn type_error_message(state: &LowerState, error: &TypeError) -> String {
     match &error.kind {
-        TypeErrorKind::ConstructorMismatch => "type mismatch".to_string(),
+        TypeErrorKind::ConstructorMismatch => format!(
+            "expected {}, found {}",
+            crate::display::dump::format_neg_for_diagnostic(&state.infer, error.neg),
+            crate::display::dump::format_pos_for_diagnostic(&state.infer, error.pos),
+        ),
         TypeErrorKind::TupleArityMismatch { pos_len, neg_len } => {
             format!("tuple arity mismatch: expected {neg_len}, found {pos_len}")
         }
@@ -201,22 +209,48 @@ fn impl_preview_suffix(previews: &[String]) -> String {
 
 fn type_error_related(error: &TypeError) -> Vec<SurfaceRelatedDiagnostic> {
     let mut related = Vec::new();
+    if let Some(message) = type_error_cause_message(error) {
+        push_related(&mut related, message, error.cause.span, None);
+    }
     for origin in &error.origins {
         let Some(span) = origin.span else {
             continue;
         };
-        let message = type_origin_message(origin);
-        if related.iter().any(|existing: &SurfaceRelatedDiagnostic| {
-            existing.span == Some(span) && existing.message == message
-        }) {
-            continue;
-        }
-        related.push(SurfaceRelatedDiagnostic {
-            message,
-            span: Some(span),
-        });
+        push_related(
+            &mut related,
+            type_origin_message(origin),
+            Some(span),
+            origin.file_span,
+        );
     }
     related
+}
+
+fn push_related(
+    related: &mut Vec<SurfaceRelatedDiagnostic>,
+    message: String,
+    span: Option<TextRange>,
+    file_span: Option<FileSpan>,
+) {
+    if related.iter().any(|existing| {
+        existing.span == span && existing.file_span == file_span && existing.message == message
+    }) {
+        return;
+    }
+    related.push(SurfaceRelatedDiagnostic {
+        message,
+        span,
+        file_span,
+    });
+}
+
+fn type_error_cause_message(error: &TypeError) -> Option<String> {
+    match error.cause.reason {
+        ConstraintReason::Annotation => {
+            Some("type annotation contributes this expectation".to_string())
+        }
+        _ => None,
+    }
 }
 
 fn type_origin_message(origin: &TypeOrigin) -> String {
