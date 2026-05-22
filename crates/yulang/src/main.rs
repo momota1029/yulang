@@ -23,10 +23,11 @@ use reborrow_generic::Reborrow as _;
 use rowan::SyntaxNode;
 use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
-    CompiledRuntimeBundle, CompiledUnitArtifactBundle, CompiledUnitArtifactCache,
-    ExpectedEdge as InferExpectedEdge, ExpectedEdgeKind as InferExpectedEdgeKind,
-    ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
-    LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
+    CompiledRuntimeBundle, CompiledUnitArtifactBundle, CompiledUnitArtifactBundleReadProfile,
+    CompiledUnitArtifactCache, CompiledUnitImportProfile, ExpectedEdge as InferExpectedEdge,
+    ExpectedEdgeKind as InferExpectedEdgeKind, ExpectedShape as InferExpectedShape,
+    FinalizeCompactProfile as InferFinalizeCompactProfile, LowerState as InferLowerState,
+    Neg as InferNeg, Path as InferPath, Pos as InferPos,
     ProfiledLoweredSources as InferProfiledLoweredSources,
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions, SourceSet,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
@@ -39,6 +40,7 @@ use yulang_infer::{
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
     lower_source_set, lower_source_set_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
+    lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile,
     with_profile_enabled as with_infer_profile_enabled,
 };
 use yulang_parser::context::{Env, State};
@@ -3935,9 +3937,18 @@ fn print_infer_phase_timings(
         format_duration(pipeline.std_artifact_read)
     );
     eprintln!(
+        "        key={} file={} decode={} validate={} bytes={}",
+        format_duration(pipeline.std_artifact_read_key),
+        format_duration(pipeline.std_artifact_read_file),
+        format_duration(pipeline.std_artifact_read_decode),
+        format_duration(pipeline.std_artifact_read_validate),
+        format_bytes(pipeline.std_artifact_read_bytes),
+    );
+    eprintln!(
         "      import: {}",
         format_duration(pipeline.std_artifact_import)
     );
+    print_compiled_unit_import_profile("        ", &pipeline.std_artifact_import_profile);
     eprintln!(
         "      prepare_finalize: {}",
         format_duration(pipeline.std_artifact_prepare_finalize)
@@ -4127,6 +4138,15 @@ fn print_startup_profile(
             format_duration(pipeline.std_artifact_build),
             format_duration(pipeline.std_artifact_write),
         );
+        eprintln!(
+            "        read_detail: key={} file={} decode={} validate={} bytes={}",
+            format_duration(pipeline.std_artifact_read_key),
+            format_duration(pipeline.std_artifact_read_file),
+            format_duration(pipeline.std_artifact_read_decode),
+            format_duration(pipeline.std_artifact_read_validate),
+            format_bytes(pipeline.std_artifact_read_bytes),
+        );
+        print_compiled_unit_import_profile("        ", &pipeline.std_artifact_import_profile);
     }
     eprintln!("  infer:");
     eprintln!("    lower_total: {}", format_duration(profile.infer_lower));
@@ -4204,6 +4224,48 @@ fn format_duration(duration: Duration) -> String {
     format!("{:.3}s", duration.as_secs_f64())
 }
 
+fn format_bytes(bytes: usize) -> String {
+    if bytes < 1024 {
+        return format!("{bytes}B");
+    }
+    let kib = bytes as f64 / 1024.0;
+    if kib < 1024.0 {
+        return format!("{kib:.1}KiB");
+    }
+    format!("{:.1}MiB", kib / 1024.0)
+}
+
+fn print_compiled_unit_import_profile(indent: &str, profile: &CompiledUnitImportProfile) {
+    eprintln!(
+        "{indent}import_namespace: builtin={} skeletons={} module_map={} values={} types={} entries={} validation={}",
+        format_duration(profile.namespace_builtin),
+        format_duration(profile.namespace_skeletons),
+        format_duration(profile.namespace_module_map),
+        format_duration(profile.namespace_values),
+        format_duration(profile.namespace_types),
+        format_duration(profile.namespace_entries),
+        format_duration(profile.namespace_validation),
+    );
+    eprintln!(
+        "{indent}import_typed: reserve={} refs={} schemes={} lookup_tables={} coverage={} validation={}",
+        format_duration(profile.reserve_type_vars),
+        format_duration(profile.typed_refs),
+        format_duration(profile.compact_schemes),
+        format_duration(profile.lookup_tables),
+        format_duration(profile.typed_coverage),
+        format_duration(profile.typed_validation),
+    );
+    eprintln!(
+        "{indent}import_clone: manifests={} runtime={}",
+        format_duration(profile.manifests_clone),
+        format_duration(profile.runtime_clone),
+    );
+    eprintln!(
+        "{indent}import_apply: cached_state_lower={}",
+        format_duration(profile.cached_state_lower),
+    );
+}
+
 struct InferLowerOutput {
     state: InferLowerState,
     diagnostic_source: String,
@@ -4217,7 +4279,13 @@ struct InferPipelineTimings {
     enabled: bool,
     std_artifact_manifest: Duration,
     std_artifact_read: Duration,
+    std_artifact_read_key: Duration,
+    std_artifact_read_file: Duration,
+    std_artifact_read_decode: Duration,
+    std_artifact_read_validate: Duration,
+    std_artifact_read_bytes: usize,
     std_artifact_import: Duration,
+    std_artifact_import_profile: CompiledUnitImportProfile,
     std_artifact_prepare_finalize: Duration,
     std_artifact_build: Duration,
     std_artifact_write: Duration,
@@ -4252,6 +4320,14 @@ impl InferPipelineTimings {
 
     fn elapsed(start: Option<Instant>) -> Duration {
         start.map_or(Duration::ZERO, |start| start.elapsed())
+    }
+
+    fn add_bundle_read_profile(&mut self, profile: CompiledUnitArtifactBundleReadProfile) {
+        self.std_artifact_read_key += profile.key;
+        self.std_artifact_read_file += profile.read_file;
+        self.std_artifact_read_decode += profile.decode;
+        self.std_artifact_read_validate += profile.validate;
+        self.std_artifact_read_bytes += profile.bytes;
     }
 }
 
@@ -4361,9 +4437,19 @@ fn lower_infer_source_set_with_cache(
     } = prepared_cache.unwrap_or_else(|| prepare_infer_cache(source_set, options));
     if let Some(bundle) = bundle {
         let import_start = pipeline_timings.start();
-        let mut lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-            source_set, &bundle,
-        );
+        let (mut lowered, import_profile) = if pipeline_timings.enabled {
+            lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile(
+                source_set, &bundle,
+            )
+        } else {
+            (
+                lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+                    source_set, &bundle,
+                ),
+                CompiledUnitImportProfile::default(),
+            )
+        };
+        pipeline_timings.std_artifact_import_profile = import_profile;
         pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
         let prepare_finalize_start = pipeline_timings.start();
         lowered
@@ -4586,8 +4672,9 @@ fn read_cached_dependency_unit_artifact_bundle(
     }
 
     let read_start = timings.start();
-    if let Ok(bundle) = cache.read_bundle_for_manifests(&manifests) {
+    if let Ok((bundle, read_profile)) = cache.read_bundle_for_manifests_profiled(&manifests) {
         timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
+        timings.add_bundle_read_profile(read_profile);
         if timings.enabled {
             timings.std_artifact_reads += 1;
             timings.incremental_cache_bundle_hits += 1;

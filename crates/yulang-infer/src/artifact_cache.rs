@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use yulang_sources::{
     COMPILED_UNIT_ARTIFACT_FORMAT_VERSION, COMPILED_UNIT_PARSER_FORMAT_VERSION,
@@ -91,6 +92,15 @@ impl CompiledUnitArtifactBundleCacheKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompiledUnitArtifactCache {
     root: PathBuf,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompiledUnitArtifactBundleReadProfile {
+    pub key: Duration,
+    pub read_file: Duration,
+    pub decode: Duration,
+    pub validate: Duration,
+    pub bytes: usize,
 }
 
 impl CompiledUnitArtifactCache {
@@ -202,15 +212,33 @@ impl CompiledUnitArtifactCache {
         &self,
         key: &CompiledUnitArtifactBundleCacheKey,
     ) -> Result<CompiledUnitArtifactBundle, CompiledUnitArtifactCacheError> {
+        self.read_bundle_profiled(key).map(|(bundle, _)| bundle)
+    }
+
+    pub fn read_bundle_profiled(
+        &self,
+        key: &CompiledUnitArtifactBundleCacheKey,
+    ) -> Result<
+        (
+            CompiledUnitArtifactBundle,
+            CompiledUnitArtifactBundleReadProfile,
+        ),
+        CompiledUnitArtifactCacheError,
+    > {
         validate_key_for_current_compiler_parts(
             key.artifact_format_version,
             key.parser_format_version,
         )?;
+        let mut profile = CompiledUnitArtifactBundleReadProfile::default();
         let path = self.bundle_artifact_path(key);
+        let read_start = Instant::now();
         let bytes = fs::read(&path).map_err(|error| CompiledUnitArtifactCacheError::Io {
             path: path.clone(),
             error: io_error_string(error),
         })?;
+        profile.read_file = read_start.elapsed();
+        profile.bytes = bytes.len();
+        let decode_start = Instant::now();
         let bundle =
             postcard::from_bytes::<CompiledUnitArtifactBundle>(&bytes).map_err(|error| {
                 CompiledUnitArtifactCacheError::Deserialize {
@@ -218,6 +246,8 @@ impl CompiledUnitArtifactCache {
                     error: error.to_string(),
                 }
             })?;
+        profile.decode = decode_start.elapsed();
+        let validate_start = Instant::now();
         let actual = CompiledUnitArtifactBundleCacheKey::from_manifests(&bundle.manifests)?;
         if &actual != key {
             return Err(CompiledUnitArtifactCacheError::BundleKeyMismatch {
@@ -226,16 +256,34 @@ impl CompiledUnitArtifactCache {
                 actual,
             });
         }
-        Ok(bundle)
+        profile.validate = validate_start.elapsed();
+        Ok((bundle, profile))
     }
 
     pub fn read_bundle_for_manifests(
         &self,
         manifests: &[CompiledUnitManifest],
     ) -> Result<CompiledUnitArtifactBundle, CompiledUnitArtifactCacheError> {
-        self.read_bundle(&CompiledUnitArtifactBundleCacheKey::from_manifests(
-            manifests,
-        )?)
+        self.read_bundle_for_manifests_profiled(manifests)
+            .map(|(bundle, _)| bundle)
+    }
+
+    pub fn read_bundle_for_manifests_profiled(
+        &self,
+        manifests: &[CompiledUnitManifest],
+    ) -> Result<
+        (
+            CompiledUnitArtifactBundle,
+            CompiledUnitArtifactBundleReadProfile,
+        ),
+        CompiledUnitArtifactCacheError,
+    > {
+        let key_start = Instant::now();
+        let key = CompiledUnitArtifactBundleCacheKey::from_manifests(manifests)?;
+        let key_duration = key_start.elapsed();
+        let (bundle, mut profile) = self.read_bundle_profiled(&key)?;
+        profile.key += key_duration;
+        Ok((bundle, profile))
     }
 }
 

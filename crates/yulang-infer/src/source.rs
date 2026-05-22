@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::{Path as FsPath, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rowan::SyntaxNode;
 use serde::{Deserialize, Serialize};
@@ -206,6 +206,26 @@ pub struct CompiledUnitArtifactsImport {
 pub struct CompiledUnitProfiledLoweredSources {
     pub lowered: ProfiledLoweredSources,
     pub runtime: CompiledRuntimeBundle,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CompiledUnitImportProfile {
+    pub reserve_type_vars: Duration,
+    pub namespace_builtin: Duration,
+    pub namespace_skeletons: Duration,
+    pub namespace_module_map: Duration,
+    pub namespace_values: Duration,
+    pub namespace_types: Duration,
+    pub namespace_entries: Duration,
+    pub namespace_validation: Duration,
+    pub typed_refs: Duration,
+    pub compact_schemes: Duration,
+    pub lookup_tables: Duration,
+    pub typed_coverage: Duration,
+    pub typed_validation: Duration,
+    pub manifests_clone: Duration,
+    pub runtime_clone: Duration,
+    pub cached_state_lower: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -795,6 +815,55 @@ pub fn import_trusted_compiled_namespace_surface(
     }
 }
 
+fn import_trusted_compiled_namespace_surface_profiled(
+    surface: &CompiledNamespaceSurface,
+    mut profile: Option<&mut CompiledUnitImportProfile>,
+) -> CompiledNamespaceImport {
+    let start = Instant::now();
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_builtin += start.elapsed();
+    }
+    let start = Instant::now();
+    import_compiled_namespace_module_skeletons(&mut state, &surface.modules);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_skeletons += start.elapsed();
+    }
+    let start = Instant::now();
+    let modules = import_compiled_namespace_module_map(&state, &surface.modules);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_module_map += start.elapsed();
+    }
+    let start = Instant::now();
+    let values = import_compiled_namespace_values(&mut state, surface, &modules);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_values += start.elapsed();
+    }
+    let start = Instant::now();
+    let types = import_compiled_namespace_types(&mut state, surface, &modules);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_types += start.elapsed();
+    }
+    let start = Instant::now();
+    import_compiled_namespace_module_entries(&mut state, surface, &modules, &values, &types);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_entries += start.elapsed();
+    }
+
+    let start = Instant::now();
+    let validation = trusted_compiled_namespace_validation(surface);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.namespace_validation += start.elapsed();
+    }
+    CompiledNamespaceImport {
+        state,
+        values,
+        types,
+        validation,
+    }
+}
+
 pub fn import_compiled_typed_artifact(
     artifact: &CompiledUnitTypedArtifact,
 ) -> Result<CompiledTypedImport, CompiledTypedImportError> {
@@ -843,6 +912,31 @@ pub fn import_trusted_compiled_unit_artifact_bundle(
         typed,
         runtime: bundle.runtime.clone(),
     }
+}
+
+pub fn import_trusted_compiled_unit_artifact_bundle_profiled(
+    bundle: &CompiledUnitArtifactBundle,
+) -> (CompiledUnitArtifactsImport, CompiledUnitImportProfile) {
+    let mut profile = CompiledUnitImportProfile::default();
+    let typed = import_trusted_compiled_typed_surface_profiled(
+        &bundle.namespace,
+        &bundle.typed,
+        Some(&mut profile),
+    );
+    let start = Instant::now();
+    let manifests = bundle.manifests.clone();
+    profile.manifests_clone += start.elapsed();
+    let start = Instant::now();
+    let runtime = bundle.runtime.clone();
+    profile.runtime_clone += start.elapsed();
+    (
+        CompiledUnitArtifactsImport {
+            manifests,
+            typed,
+            runtime,
+        },
+        profile,
+    )
 }
 
 pub fn build_compiled_unit_artifact_bundle(
@@ -919,6 +1013,52 @@ pub fn import_trusted_compiled_typed_surface(
     }
 }
 
+fn import_trusted_compiled_typed_surface_profiled(
+    namespace: &CompiledNamespaceSurface,
+    typed: &CompiledTypedSurface,
+    mut profile: Option<&mut CompiledUnitImportProfile>,
+) -> CompiledTypedImport {
+    let start = Instant::now();
+    reserve_compiled_typed_type_vars(typed);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.reserve_type_vars += start.elapsed();
+    }
+    let mut namespace_import =
+        import_trusted_compiled_namespace_surface_profiled(namespace, profile.as_deref_mut());
+    let start = Instant::now();
+    let refs = import_compiled_typed_refs(typed, &namespace_import.values);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.typed_refs += start.elapsed();
+    }
+    let start = Instant::now();
+    import_compiled_compact_schemes(typed, &refs, &namespace_import.state);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.compact_schemes += start.elapsed();
+    }
+    let start = Instant::now();
+    import_compiled_typed_lookup_tables(typed, &refs, &mut namespace_import.state);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.lookup_tables += start.elapsed();
+    }
+    let start = Instant::now();
+    let coverage = import_compiled_typed_coverage(&namespace_import, &refs);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.typed_coverage += start.elapsed();
+    }
+    let start = Instant::now();
+    let validation = trusted_compiled_typed_validation(typed);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.typed_validation += start.elapsed();
+    }
+
+    CompiledTypedImport {
+        namespace: namespace_import,
+        refs,
+        coverage,
+        validation,
+    }
+}
+
 pub fn lower_source_set_with_compiled_unit_artifacts_profiled(
     source_set: &SourceSet,
     artifacts: &[CompiledUnitArtifact],
@@ -949,6 +1089,20 @@ pub fn lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
 ) -> CompiledUnitProfiledLoweredSources {
     let import = import_trusted_compiled_unit_artifact_bundle(bundle);
     lower_source_set_with_compiled_unit_import(source_set, import, HashSet::new())
+}
+
+pub fn lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile(
+    source_set: &SourceSet,
+    bundle: &CompiledUnitArtifactBundle,
+) -> (
+    CompiledUnitProfiledLoweredSources,
+    CompiledUnitImportProfile,
+) {
+    let (import, mut profile) = import_trusted_compiled_unit_artifact_bundle_profiled(bundle);
+    let start = Instant::now();
+    let lowered = lower_source_set_with_compiled_unit_import(source_set, import, HashSet::new());
+    profile.cached_state_lower += start.elapsed();
+    (lowered, profile)
 }
 
 /// Lowers a source set on top of trusted compiled artifacts while forcing
