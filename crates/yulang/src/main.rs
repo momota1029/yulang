@@ -54,7 +54,7 @@ use yulang_parser::typ::parse::parse_type;
 use yulang_parser::{parse_module_to_green, parse_module_to_green_with_ops};
 use yulang_runtime as runtime;
 use yulang_sources::{
-    SourceCompilationUnitOrigin, collect_source_files_with_options,
+    SourceCompilationUnitOrigin, SourceOrigin, collect_source_files_with_options,
     collect_virtual_source_files_with_options, default_versioned_std_root, install_embedded_std,
     resolve_or_install_std_root,
 };
@@ -118,6 +118,7 @@ struct CliOptions {
     verbose_ir: bool,
     infer_phase_timings: bool,
     runtime_phase_timings: bool,
+    startup_profile: bool,
     path: Option<String>,
     no_prelude: bool,
     no_cache: bool,
@@ -198,6 +199,9 @@ struct Cli {
     /// Print coarse timing breakdown for runtime lowering / interpreter execution
     #[arg(long, global = true)]
     runtime_phase_timings: bool,
+    /// Print end-to-end startup timing breakdown
+    #[arg(long, global = true)]
+    startup_profile: bool,
     /// Write a CPU flamegraph SVG with pprof
     #[arg(long, global = true, value_name = "SVG")]
     profile_flamegraph: Option<String>,
@@ -382,6 +386,7 @@ fn parse_args() -> CliOptions {
         verbose_ir: cli.verbose_ir,
         infer_phase_timings: cli.infer_phase_timings,
         runtime_phase_timings: cli.runtime_phase_timings,
+        startup_profile: cli.startup_profile,
         path: None,
         no_prelude: cli.no_prelude,
         no_cache: cli.no_cache,
@@ -513,7 +518,114 @@ fn read_source(path: Option<&str>) -> String {
     }
 }
 
+struct StartupProfile {
+    enabled: bool,
+    started: Instant,
+    printed: bool,
+    read_source: Duration,
+    entry_parse: Duration,
+    source_collect: Duration,
+    invalid_token_scan: Duration,
+    source_files: usize,
+    entry_files: usize,
+    std_files: usize,
+    user_files: usize,
+    source_realms: usize,
+    yuir_source_cache_lookup: Duration,
+    yuir_source_cache_hit: bool,
+    yuir_source_cache_load: Duration,
+    yuir_source_cache_write: Duration,
+    infer_lower: Duration,
+    infer_finalize: Duration,
+    diagnostics: Duration,
+    render: Duration,
+    binding_metadata: Duration,
+    core_export: Duration,
+    runtime_dependency_merge: Duration,
+    runtime_lower: Duration,
+    monomorphize: Duration,
+    vm_compile: Duration,
+    vm_eval: Duration,
+    yuir_artifact_write: Duration,
+}
+
+impl StartupProfile {
+    fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            started: Instant::now(),
+            printed: false,
+            read_source: Duration::ZERO,
+            entry_parse: Duration::ZERO,
+            source_collect: Duration::ZERO,
+            invalid_token_scan: Duration::ZERO,
+            source_files: 0,
+            entry_files: 0,
+            std_files: 0,
+            user_files: 0,
+            source_realms: 0,
+            yuir_source_cache_lookup: Duration::ZERO,
+            yuir_source_cache_hit: false,
+            yuir_source_cache_load: Duration::ZERO,
+            yuir_source_cache_write: Duration::ZERO,
+            infer_lower: Duration::ZERO,
+            infer_finalize: Duration::ZERO,
+            diagnostics: Duration::ZERO,
+            render: Duration::ZERO,
+            binding_metadata: Duration::ZERO,
+            core_export: Duration::ZERO,
+            runtime_dependency_merge: Duration::ZERO,
+            runtime_lower: Duration::ZERO,
+            monomorphize: Duration::ZERO,
+            vm_compile: Duration::ZERO,
+            vm_eval: Duration::ZERO,
+            yuir_artifact_write: Duration::ZERO,
+        }
+    }
+
+    fn start(&self) -> Option<Instant> {
+        self.enabled.then(Instant::now)
+    }
+
+    fn elapsed(start: Option<Instant>) -> Duration {
+        start.map_or(Duration::ZERO, |start| start.elapsed())
+    }
+
+    fn record_source_set(&mut self, source_set: &SourceSet, collect: Duration) {
+        if !self.enabled {
+            return;
+        }
+        self.source_collect = collect;
+        self.source_files = source_set.files.len();
+        self.entry_files = source_set.files_with_origin(SourceOrigin::Entry).count();
+        self.std_files = source_set.files_with_origin(SourceOrigin::Std).count();
+        self.user_files = source_set.files_with_origin(SourceOrigin::User).count();
+        self.source_realms = source_set.realms.len();
+    }
+
+    fn record_runtime_lower(&mut self, profile: &RuntimePhaseProfile) {
+        if !self.enabled {
+            return;
+        }
+        self.runtime_lower += profile.lower;
+        self.monomorphize += profile.monomorphize;
+    }
+
+    fn print_once(
+        &mut self,
+        lower: Option<&InferSourceLowerProfile>,
+        pipeline: Option<&InferPipelineTimings>,
+    ) {
+        if !self.enabled || self.printed {
+            return;
+        }
+        self.printed = true;
+        print_startup_profile(self, lower, pipeline);
+    }
+}
+
 fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
+    let mut startup_profile = StartupProfile::new(options.startup_profile);
     let load_start = Instant::now();
     let module = match runtime::ControlVmModule::read_artifact_file(Path::new(path)) {
         Ok(module) => module,
@@ -523,6 +635,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
         }
     };
     let load_duration = load_start.elapsed();
+    startup_profile.yuir_source_cache_load = load_duration;
 
     let eval_start = Instant::now();
     let mut results = Vec::new();
@@ -545,6 +658,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
         }
     }
     let eval_duration = eval_start.elapsed();
+    startup_profile.vm_eval = eval_duration;
 
     if options.runtime_phase_timings {
         eprintln!("runtime phase timings:");
@@ -563,20 +677,26 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
     }
+    startup_profile.print_once(None, None);
 }
 
 fn run_cached_control_vm_module_or_exit(
     module: runtime::ControlVmModule,
     load_duration: Duration,
     options: &CliOptions,
+    startup_profile: &mut StartupProfile,
 ) {
+    startup_profile.yuir_source_cache_hit = true;
+    startup_profile.yuir_source_cache_load = load_duration;
     if let Some(path) = &options.control_vm_emit {
         let path = yuir_artifact_output_path(path, options.path.as_deref());
         ensure_parent_dir_or_exit(&path, "YUIR artifact");
+        let write_start = startup_profile.start();
         if let Err(err) = module.write_artifact_file(&path) {
             eprintln!("failed to write YUIR artifact {}: {err}", path.display());
             process::exit(1);
         }
+        startup_profile.yuir_artifact_write += StartupProfile::elapsed(write_start);
         if options.runtime_phase_timings {
             eprintln!("runtime phase timings:");
             eprintln!(
@@ -587,6 +707,7 @@ fn run_cached_control_vm_module_or_exit(
         if !options.print_roots {
             println!("build: {}", path.display());
         }
+        startup_profile.print_once(None, None);
         return;
     }
 
@@ -611,6 +732,7 @@ fn run_cached_control_vm_module_or_exit(
         }
     }
     let eval_duration = eval_start.elapsed();
+    startup_profile.vm_eval = eval_duration;
 
     if options.runtime_phase_timings {
         eprintln!("runtime phase timings:");
@@ -632,6 +754,7 @@ fn run_cached_control_vm_module_or_exit(
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
     }
+    startup_profile.print_once(None, None);
 }
 
 fn run(options: &CliOptions) {
@@ -681,18 +804,24 @@ fn run(options: &CliOptions) {
     }
 
     for iteration in 0..options.profile_repeat {
-        let source = read_source(options.path.as_deref());
         let emit_output = iteration + 1 == options.profile_repeat;
+        let mut startup_profile = StartupProfile::new(options.startup_profile && emit_output);
+        let read_start = startup_profile.start();
+        let source = read_source(options.path.as_deref());
+        startup_profile.read_source = StartupProfile::elapsed(read_start);
 
         if let Some(mode) = options.parse_mode {
             if emit_output {
                 run_parser_view(mode, &source);
+                startup_profile.print_once(None, None);
             }
             continue;
         }
 
+        let parse_start = startup_profile.start();
         let green = parse_module_to_green(&source);
         let root = SyntaxNode::<YulangLanguage>::new_root(green);
+        startup_profile.entry_parse = StartupProfile::elapsed(parse_start);
 
         if options.show_cst && emit_output {
             print_cst(&root, 0);
@@ -708,9 +837,11 @@ fn run(options: &CliOptions) {
                 &source,
                 options,
                 emit_output,
+                &mut startup_profile,
             );
             continue;
         }
+        startup_profile.print_once(None, None);
     }
 }
 
@@ -1109,20 +1240,28 @@ fn run_infer_views(
     source: &str,
     options: &CliOptions,
     emit_output: bool,
+    startup_profile: &mut StartupProfile,
 ) {
     let (source_set, collect_duration) = collect_infer_source_set_or_exit(path, source, options);
-    if source_set_has_invalid_tokens(&source_set) {
+    startup_profile.record_source_set(&source_set, collect_duration);
+    let invalid_token_start = startup_profile.start();
+    let has_invalid_tokens = source_set_has_invalid_tokens(&source_set);
+    startup_profile.invalid_token_scan = StartupProfile::elapsed(invalid_token_start);
+    if has_invalid_tokens {
         eprintln!("error: invalid token in source");
         process::exit(1);
     }
-    if emit_output
-        && can_use_yuir_source_cache(options)
-        && let Some((module, load_duration)) = read_yuir_source_cache(&source_set)
-    {
-        run_cached_control_vm_module_or_exit(module, load_duration, options);
-        return;
+    if emit_output && can_use_yuir_source_cache(options) {
+        let lookup_start = startup_profile.start();
+        let cached = read_yuir_source_cache(&source_set);
+        startup_profile.yuir_source_cache_lookup = StartupProfile::elapsed(lookup_start);
+        if let Some((module, load_duration)) = cached {
+            run_cached_control_vm_module_or_exit(module, load_duration, options, startup_profile);
+            return;
+        }
     }
 
+    let infer_lower_start = startup_profile.start();
     let InferLowerOutput {
         mut state,
         diagnostic_source,
@@ -1136,17 +1275,22 @@ fn run_infer_views(
         options,
         Some((&source_set, collect_duration)),
     );
+    startup_profile.infer_lower = StartupProfile::elapsed(infer_lower_start);
 
+    let infer_finalize_start = startup_profile.start();
     let finalized = with_infer_profile_enabled(options.infer_phase_timings, || {
         state.finalize_compact_results_profiled()
     });
+    startup_profile.infer_finalize = StartupProfile::elapsed(infer_finalize_start);
 
     let type_errors_start = pipeline_timings.start();
+    let diagnostics_start = startup_profile.start();
     let errors = state.infer.type_errors();
     pipeline_timings.type_errors = InferPipelineTimings::elapsed(type_errors_start);
     let surface_diagnostics_start = pipeline_timings.start();
     let surface_diagnostics = collect_infer_surface_diagnostics(&state);
     pipeline_timings.surface_diagnostics = InferPipelineTimings::elapsed(surface_diagnostics_start);
+    startup_profile.diagnostics = StartupProfile::elapsed(diagnostics_start);
     let requests_runtime_pipeline = options.requests_runtime_pipeline();
 
     let (rendered, render_duration) = if options.infer {
@@ -1158,7 +1302,9 @@ fn run_infer_views(
         (None, Duration::ZERO)
     };
     pipeline_timings.render = render_duration;
+    startup_profile.render = render_duration;
 
+    let binding_metadata_start = startup_profile.start();
     let (binding_names, quantified_counts) = if options.infer || options.infer_phase_timings {
         let binding_names_start = pipeline_timings.start();
         let binding_names = state
@@ -1181,17 +1327,20 @@ fn run_infer_views(
     } else {
         (None, None)
     };
+    startup_profile.binding_metadata = StartupProfile::elapsed(binding_metadata_start);
 
     let infer_program =
         if errors.is_empty() && surface_diagnostics.is_empty() && requests_runtime_pipeline {
             let core_export_start = pipeline_timings.start();
             let program = export_core_program(&mut state);
             pipeline_timings.core_export = InferPipelineTimings::elapsed(core_export_start);
+            startup_profile.core_export = pipeline_timings.core_export;
             let runtime_dependency_merge_start = pipeline_timings.start();
             let program =
                 merge_runtime_dependencies_or_exit(program, runtime_dependencies.as_ref());
             pipeline_timings.runtime_dependency_merge =
                 InferPipelineTimings::elapsed(runtime_dependency_merge_start);
+            startup_profile.runtime_dependency_merge = pipeline_timings.runtime_dependency_merge;
             Some(program)
         } else {
             None
@@ -1395,6 +1544,7 @@ fn run_infer_views(
                 options.runtime_phase_timings,
                 &diagnostic_source,
             );
+            startup_profile.record_runtime_lower(&lowered.profile);
             let compile_start = Instant::now();
             let module = match runtime::compile_control_vm_module(lowered.module) {
                 Ok(module) => module,
@@ -1404,16 +1554,20 @@ fn run_infer_views(
                 }
             };
             let compile_duration = compile_start.elapsed();
+            startup_profile.vm_compile = compile_duration;
             if can_write_yuir_source_cache(options) {
-                write_yuir_source_cache(&source_set, &module);
+                startup_profile.yuir_source_cache_write +=
+                    write_yuir_source_cache(&source_set, &module);
             }
             if let Some(path) = &options.control_vm_emit {
                 let path = yuir_artifact_output_path(path, options.path.as_deref());
                 ensure_parent_dir_or_exit(&path, "YUIR artifact");
+                let write_start = startup_profile.start();
                 if let Err(err) = module.write_artifact_file(&path) {
                     eprintln!("failed to write YUIR artifact {}: {err}", path.display());
                     process::exit(1);
                 }
+                startup_profile.yuir_artifact_write += StartupProfile::elapsed(write_start);
                 if options.runtime_phase_timings {
                     print_runtime_phase_timings(&lowered.profile, Some(compile_duration), None);
                 }
@@ -1430,6 +1584,7 @@ fn run_infer_views(
                 if !options.print_roots {
                     println!("build: {}", path.display());
                 }
+                startup_profile.print_once(Some(&lower_profile), Some(&pipeline_timings));
                 return;
             }
             let eval_start = Instant::now();
@@ -1453,6 +1608,7 @@ fn run_infer_views(
                 }
             }
             let eval_duration = eval_start.elapsed();
+            startup_profile.vm_eval = eval_duration;
             if options.runtime_phase_timings {
                 print_runtime_phase_timings(
                     &lowered.profile,
@@ -1709,6 +1865,7 @@ fn run_infer_views(
                 quantified_counts.as_ref().expect("quantified counts"),
             );
         }
+        startup_profile.print_once(Some(&lower_profile), Some(&pipeline_timings));
     }
 }
 
@@ -3907,6 +4064,121 @@ fn print_infer_phase_timings(
     );
 }
 
+fn print_startup_profile(
+    profile: &StartupProfile,
+    lower: Option<&InferSourceLowerProfile>,
+    pipeline: Option<&InferPipelineTimings>,
+) {
+    eprintln!("startup profile:");
+    eprintln!("  total: {}", format_duration(profile.started.elapsed()));
+    eprintln!("  input:");
+    eprintln!("    read_source: {}", format_duration(profile.read_source));
+    eprintln!("    entry_parse: {}", format_duration(profile.entry_parse));
+    eprintln!(
+        "    source_collect: {}",
+        format_duration(profile.source_collect)
+    );
+    eprintln!(
+        "    invalid_token_scan: {}",
+        format_duration(profile.invalid_token_scan)
+    );
+    eprintln!(
+        "    source_files: total={} entry={} std={} user={} realms={}",
+        profile.source_files,
+        profile.entry_files,
+        profile.std_files,
+        profile.user_files,
+        profile.source_realms,
+    );
+    eprintln!("  caches:");
+    eprintln!(
+        "    yuir_source_cache: hit={} lookup={} load={} write={}",
+        profile.yuir_source_cache_hit,
+        format_duration(profile.yuir_source_cache_lookup),
+        format_duration(profile.yuir_source_cache_load),
+        format_duration(profile.yuir_source_cache_write),
+    );
+    if let Some(pipeline) = pipeline {
+        eprintln!(
+            "    compiled_unit_cache: candidates={} bundle_hits={} unit_hits={} selected={} writes={}",
+            pipeline.incremental_cache_candidates,
+            pipeline.incremental_cache_bundle_hits,
+            pipeline.incremental_cache_unit_hits,
+            pipeline.incremental_cache_selected_units,
+            pipeline.incremental_cache_writes,
+        );
+        eprintln!(
+            "      manifest={} read={} import={} prepare_finalize={} build={} write={}",
+            format_duration(pipeline.std_artifact_manifest),
+            format_duration(pipeline.std_artifact_read),
+            format_duration(pipeline.std_artifact_import),
+            format_duration(pipeline.std_artifact_prepare_finalize),
+            format_duration(pipeline.std_artifact_build),
+            format_duration(pipeline.std_artifact_write),
+        );
+    }
+    eprintln!("  infer:");
+    eprintln!("    lower_total: {}", format_duration(profile.infer_lower));
+    if let Some(lower) = lower {
+        eprintln!(
+            "      source_lower_total: {}",
+            format_duration(lower.total())
+        );
+        eprintln!(
+            "      parse={} infer_lower={} finish={}",
+            format_duration(lower.parse),
+            format_duration(lower.infer_lower()),
+            format_duration(lower.finish),
+        );
+        eprintln!(
+            "      files: total={} entry={} std={} user={}",
+            lower.files, lower.entry_files, lower.std_files, lower.user_files,
+        );
+        eprintln!(
+            "      entry: parse={} lower_roots={}",
+            format_duration(lower.entry.parse),
+            format_duration(lower.entry.lower_roots),
+        );
+        eprintln!(
+            "      std: parse={} lower_roots={}",
+            format_duration(lower.std.parse),
+            format_duration(lower.std.lower_roots),
+        );
+        eprintln!(
+            "      user: parse={} lower_roots={}",
+            format_duration(lower.user.parse),
+            format_duration(lower.user.lower_roots),
+        );
+    }
+    eprintln!("    finalize: {}", format_duration(profile.infer_finalize));
+    eprintln!("    diagnostics: {}", format_duration(profile.diagnostics));
+    eprintln!("    render: {}", format_duration(profile.render));
+    eprintln!(
+        "    binding_metadata: {}",
+        format_duration(profile.binding_metadata)
+    );
+    eprintln!("    core_export: {}", format_duration(profile.core_export));
+    eprintln!(
+        "    runtime_dependency_merge: {}",
+        format_duration(profile.runtime_dependency_merge)
+    );
+    eprintln!("  runtime:");
+    eprintln!(
+        "    runtime_lower: {}",
+        format_duration(profile.runtime_lower)
+    );
+    eprintln!(
+        "    monomorphize: {}",
+        format_duration(profile.monomorphize)
+    );
+    eprintln!("    vm_compile: {}", format_duration(profile.vm_compile));
+    eprintln!("    vm_eval: {}", format_duration(profile.vm_eval));
+    eprintln!(
+        "    yuir_artifact_write: {}",
+        format_duration(profile.yuir_artifact_write)
+    );
+}
+
 fn format_duration(duration: Duration) -> String {
     let nanos = duration.as_nanos();
     if nanos < 1_000 {
@@ -4030,7 +4302,8 @@ fn lower_infer_source_set_with_cache(
     collect: Duration,
     options: &CliOptions,
 ) -> InferLowerOutput {
-    let mut pipeline_timings = InferPipelineTimings::new(options.infer_phase_timings);
+    let profile_timings = options.infer_phase_timings || options.startup_profile;
+    let mut pipeline_timings = InferPipelineTimings::new(profile_timings);
     let cache = CompiledUnitArtifactCache::from_paths(
         &yulang_sources::YulangCachePaths::for_project(workspace_root()),
     );
@@ -4062,7 +4335,7 @@ fn lower_infer_source_set_with_cache(
         );
     }
 
-    let mut lowered = if options.infer_phase_timings {
+    let mut lowered = if profile_timings {
         lower_source_set_profiled(source_set)
     } else {
         InferProfiledLoweredSources {
@@ -4125,14 +4398,16 @@ fn read_yuir_source_cache(source_set: &SourceSet) -> Option<(runtime::ControlVmM
     Some((module, load_start.elapsed()))
 }
 
-fn write_yuir_source_cache(source_set: &SourceSet, module: &runtime::ControlVmModule) {
+fn write_yuir_source_cache(source_set: &SourceSet, module: &runtime::ControlVmModule) -> Duration {
     let path = yuir_source_cache_path(source_set);
+    let started = Instant::now();
     if let Some(parent) = path.parent() {
         if fs::create_dir_all(parent).is_err() {
-            return;
+            return started.elapsed();
         }
     }
     let _ = module.write_artifact_file(&path);
+    started.elapsed()
 }
 
 fn yuir_source_cache_path(source_set: &SourceSet) -> PathBuf {
@@ -6963,6 +7238,7 @@ mod tests {
             verbose_ir: false,
             infer_phase_timings: false,
             runtime_phase_timings: false,
+            startup_profile: false,
             path: None,
             no_prelude: true,
             no_cache: false,
