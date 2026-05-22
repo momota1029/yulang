@@ -13,8 +13,8 @@ use yulang_infer::simplify::compact::{
 use yulang_infer::{
     DefId, FileSpan, LowerState, Name as InferName, Path as InferPath, TypeVar,
     collect_compact_results_for_paths_in_scope, collect_surface_diagnostics, export_core_program,
-    format_coalesced_scheme_in_scope, lower_virtual_source_with_options,
-    surface_diagnostic::SurfaceDiagnostic,
+    format_coalesced_scheme_in_scope, lower_virtual_module_source_with_options,
+    lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
@@ -67,7 +67,7 @@ impl Backend {
         let options = self.source_options(base_dir.as_deref());
         let uri_for_diagnostics = uri.clone();
         let diagnostics = tokio::task::spawn_blocking(move || {
-            match lower_virtual_source_with_options(&source, base_dir, options) {
+            match lower_document_source_with_options(&path, &source, base_dir, options) {
                 Ok(lowered) => {
                     diagnostics_for_lowered_source(&uri_for_diagnostics, &source, lowered)
                 }
@@ -86,6 +86,44 @@ impl Backend {
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
     }
+}
+
+fn lower_document_source_with_options(
+    path: &std::path::Path,
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+) -> std::result::Result<yulang_infer::LoweredSources, yulang_infer::SourceLoadError> {
+    if let Some(module_path) = std_module_path_for_document(path, options.std_root.as_deref()) {
+        return lower_virtual_module_source_with_options(source, base_dir, module_path, options);
+    }
+    lower_virtual_source_with_options(source, base_dir, options)
+}
+
+fn std_module_path_for_document(
+    path: &std::path::Path,
+    std_root: Option<&std::path::Path>,
+) -> Option<InferPath> {
+    let std_root = std_root?;
+    let relative = path.strip_prefix(std_root).ok()?;
+    let mut segments = vec![InferName("std".to_string())];
+    for component in relative.components() {
+        let std::path::Component::Normal(part) = component else {
+            return None;
+        };
+        let mut name = part.to_string_lossy().to_string();
+        if name == "mod.yu" {
+            continue;
+        }
+        if let Some(stripped) = name.strip_suffix(".yu") {
+            name = stripped.to_string();
+        }
+        if name.is_empty() {
+            continue;
+        }
+        segments.push(InferName(name));
+    }
+    (segments.len() > 1).then_some(InferPath { segments })
 }
 
 fn diagnostics_for_lowered_source(
@@ -2303,6 +2341,59 @@ mod tests {
                 && info.message == "type annotation contributes this expectation"
                 && info.location.range.start == position_of(source, "int").expect("int position")),
             "{related:?}",
+        );
+    }
+
+    #[test]
+    fn std_document_is_lowered_under_std_module_path() {
+        let options = std_source_options();
+        let std_root = options.std_root.clone().expect("std root");
+        let path = std_root.join("result.yu");
+        let source = std::fs::read_to_string(&path).expect("std result source");
+        let lowered = lower_document_source_with_options(
+            &path,
+            &source,
+            path.parent().map(|parent| parent.to_path_buf()),
+            options,
+        )
+        .expect("std document should lower");
+        let entry = lowered
+            .state
+            .files
+            .iter()
+            .find(|file| file.origin == yulang_sources::SourceOrigin::Entry)
+            .expect("virtual std document entry");
+
+        assert_eq!(
+            entry.path,
+            path.parent().expect("parent").join("<virtual-entry>")
+        );
+        assert_eq!(
+            lowered.state.ctx.module_path(
+                lowered
+                    .state
+                    .ctx
+                    .resolve_module_path(&InferPath {
+                        segments: vec![
+                            InferName("std".to_string()),
+                            InferName("result".to_string())
+                        ],
+                    })
+                    .expect("std::result module")
+            ),
+            InferPath {
+                segments: vec![
+                    InferName("std".to_string()),
+                    InferName("result".to_string())
+                ],
+            }
+        );
+        let diagnostics = collect_surface_diagnostics(&lowered.state);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.message.contains("std::result::result")),
+            "{diagnostics:?}",
         );
     }
 

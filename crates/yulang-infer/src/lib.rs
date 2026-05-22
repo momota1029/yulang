@@ -89,8 +89,8 @@ pub use source::{
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile,
     lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled,
     lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled_with_import_profile,
-    lower_virtual_source_with_options, lower_virtual_source_with_options_profiled,
-    warm_std_source_cache,
+    lower_virtual_module_source_with_options, lower_virtual_source_with_options,
+    lower_virtual_source_with_options_profiled, warm_std_source_cache,
 };
 pub use surface_diagnostic::{SurfaceDiagnostic, collect_surface_diagnostics};
 pub use symbols::{

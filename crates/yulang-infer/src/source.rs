@@ -10,7 +10,7 @@ use yulang_parser::sink::YulangLanguage;
 use yulang_sources::{
     CompiledSyntaxSurface, CompiledUnitManifest, SourceCompilationUnitOrigin, SourceFile,
     SourceLoadError, SourceOptions, SourceOrigin, SourceSet, collect_source_files_with_options,
-    collect_virtual_source_files_with_options,
+    collect_virtual_module_source_files_with_options, collect_virtual_source_files_with_options,
 };
 
 use crate::ids::TypeVar;
@@ -686,6 +686,24 @@ pub fn lower_virtual_source_with_options(
     options: SourceOptions,
 ) -> Result<LoweredSources, SourceLoadError> {
     let source_set = collect_virtual_source_files_with_options(source, base_dir, options)?;
+    Ok(lower_source_set(&source_set))
+}
+
+pub fn lower_virtual_module_source_with_options(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    module_path: Path,
+    options: SourceOptions,
+) -> Result<LoweredSources, SourceLoadError> {
+    let module_path = typed_ir::Path {
+        segments: module_path
+            .segments
+            .into_iter()
+            .map(|name| typed_ir::Name(name.0))
+            .collect(),
+    };
+    let source_set =
+        collect_virtual_module_source_files_with_options(source, base_dir, module_path, options)?;
     Ok(lower_source_set(&source_set))
 }
 

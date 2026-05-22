@@ -189,6 +189,22 @@ pub fn collect_virtual_source_files_with_options(
     collect_virtual_source_files_with_options_inner(source, base_dir, options, true, false)
 }
 
+pub fn collect_virtual_module_source_files_with_options(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    module_path: ModulePath,
+    options: SourceOptions,
+) -> Result<SourceSet, SourceLoadError> {
+    collect_virtual_module_source_files_with_options_inner(
+        source,
+        base_dir,
+        module_path,
+        options,
+        true,
+        false,
+    )
+}
+
 pub fn collect_virtual_source_files_for_cache_key_with_options(
     source: &str,
     base_dir: Option<PathBuf>,
@@ -211,6 +227,32 @@ fn collect_virtual_source_files_with_options_inner(
         Vec::new(),
     );
     loader.load_virtual_entry(source, base_dir.as_deref())?;
+    sort_files_topologically(&mut loader.files);
+    if build_tables {
+        build_syntax_tables(&mut loader.files);
+    }
+    loader.write_std_graph_cache_if_needed();
+    Ok(SourceSet::from_files_with_realms(
+        loader.files,
+        loader.realms,
+    ))
+}
+
+fn collect_virtual_module_source_files_with_options_inner(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    module_path: ModulePath,
+    options: SourceOptions,
+    build_tables: bool,
+    use_std_graph_cache: bool,
+) -> Result<SourceSet, SourceLoadError> {
+    let mut loader = SourceLoader::new(options, None, use_std_graph_cache);
+    loader.register_realm(
+        virtual_single_file_realm_id(),
+        SourceRealmRoot::Virtual,
+        Vec::new(),
+    );
+    loader.load_virtual_entry_module(source, module_path, base_dir.as_deref())?;
     sort_files_topologically(&mut loader.files);
     if build_tables {
         build_syntax_tables(&mut loader.files);
@@ -1818,6 +1860,28 @@ impl SourceLoader {
         self.load_virtual_module_with_prefix(
             source,
             ModulePath { segments: vec![] },
+            SourceOrigin::Entry,
+            virtual_single_file_realm_id(),
+            0,
+            source_prefix,
+            base_dir,
+        )
+    }
+
+    fn load_virtual_entry_module(
+        &mut self,
+        source: &str,
+        module_path: ModulePath,
+        base_dir: Option<&FsPath>,
+    ) -> Result<(), SourceLoadError> {
+        let source_prefix = if self.options.implicit_prelude && self.options.std_root.is_some() {
+            "use std::prelude::*\n"
+        } else {
+            ""
+        };
+        self.load_virtual_module_with_prefix(
+            source,
+            module_path,
             SourceOrigin::Entry,
             virtual_single_file_realm_id(),
             0,
