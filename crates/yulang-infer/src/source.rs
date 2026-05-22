@@ -1,6 +1,4 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::path::{Path as FsPath, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -1807,11 +1805,12 @@ fn seed_cached_source_act_templates(
         if !cached_files.contains(&file_idx) {
             continue;
         }
-        if !file.source.contains("act ") {
+        let source = file.source_text_for_lazy_parse();
+        if !source.contains("act ") {
             continue;
         }
         let parse_start = ProfileClock::now();
-        let green = parse_module_to_green_with_ops(&file.source, file.op_table.clone());
+        let green = parse_module_to_green_with_ops(&source, file.op_table.clone());
         let parse = parse_start.elapsed();
         profile.parse += parse;
         push_origin_profile(profile, file.origin, parse, Duration::ZERO);
@@ -2183,8 +2182,8 @@ impl StdSourceFileCacheKey {
                 .iter()
                 .map(|name| name.0.clone())
                 .collect(),
-            source_len: file.source.len(),
-            source_hash: source_hash(&file.source),
+            source_len: file.source_identity_len(),
+            source_hash: file.source_identity_hash(),
         }
     }
 }
@@ -5050,12 +5049,6 @@ fn path_from_snapshot_segments(segments: &[String]) -> Path {
     Path {
         segments: segments.iter().cloned().map(Name).collect(),
     }
-}
-
-fn source_hash(source: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    source.hash(&mut hasher);
-    hasher.finish()
 }
 
 #[cfg(test)]

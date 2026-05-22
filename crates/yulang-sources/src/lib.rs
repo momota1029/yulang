@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
@@ -1277,7 +1278,37 @@ pub struct SourceFile {
     pub op_table: OpTable,
     pub source_prefix_len: usize,
     pub source: String,
+    pub source_identity: Option<SourceIdentity>,
     pub meta: SourceMeta,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceIdentity {
+    pub len: usize,
+    pub hash: u64,
+}
+
+impl SourceFile {
+    pub fn source_identity_len(&self) -> usize {
+        self.source_identity
+            .map(|identity| identity.len)
+            .unwrap_or_else(|| self.source.len())
+    }
+
+    pub fn source_identity_hash(&self) -> u64 {
+        self.source_identity
+            .map(|identity| identity.hash)
+            .unwrap_or_else(|| stable_hash_bytes(self.source.as_bytes()))
+    }
+
+    pub fn source_text_for_lazy_parse(&self) -> Cow<'_, str> {
+        if !self.source.is_empty() || self.source_identity.is_none() {
+            return Cow::Borrowed(self.source.as_str());
+        }
+        fs::read_to_string(&self.path)
+            .map(Cow::Owned)
+            .unwrap_or_else(|_| Cow::Borrowed(self.source.as_str()))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1379,7 +1410,7 @@ impl fmt::Display for SourceLoadError {
 
 impl std::error::Error for SourceLoadError {}
 
-const STD_GRAPH_CACHE_FORMAT_VERSION: u32 = 1;
+const STD_GRAPH_CACHE_FORMAT_VERSION: u32 = 2;
 
 struct StdGraphCache {
     files_by_path: HashMap<PathBuf, StdGraphCacheFile>,
@@ -1458,9 +1489,9 @@ struct StdGraphCacheFile {
     realm_path_prefix_len: usize,
     source_prefix_len: usize,
     source_len: u64,
+    source_hash: u64,
     modified_secs: u64,
     modified_nanos: u32,
-    source: String,
     meta: StdGraphCacheMeta,
 }
 
@@ -1477,9 +1508,9 @@ impl StdGraphCacheFile {
             realm_path_prefix_len: file.realm_path_prefix_len,
             source_prefix_len: file.source_prefix_len,
             source_len: metadata.len(),
+            source_hash: file.source_identity_hash(),
             modified_secs,
             modified_nanos,
-            source: file.source.clone(),
             meta: StdGraphCacheMeta::from_source_meta(&file.meta),
         })
     }
@@ -1513,7 +1544,11 @@ impl StdGraphCacheFile {
             band: None,
             op_table: standard_op_table(),
             source_prefix_len: self.source_prefix_len,
-            source: self.source.clone(),
+            source: String::new(),
+            source_identity: Some(SourceIdentity {
+                len: self.source_len as usize,
+                hash: self.source_hash,
+            }),
             meta: self.meta.to_source_meta(),
         }
     }
@@ -1695,6 +1730,7 @@ impl InlineSourceLoader {
             op_table: standard_op_table(),
             source_prefix_len,
             source,
+            source_identity: None,
             meta,
         });
         for dependency in dependencies {
@@ -1875,6 +1911,7 @@ impl SourceLoader {
             op_table: standard_op_table(),
             source_prefix_len,
             source,
+            source_identity: None,
             meta,
         });
 
@@ -2036,6 +2073,7 @@ impl SourceLoader {
             op_table: standard_op_table(),
             source_prefix_len,
             source,
+            source_identity: None,
             meta,
         });
 
@@ -3017,8 +3055,8 @@ fn compiled_unit_manifest(
                 path: file.path.to_string_lossy().to_string(),
                 module_path: file.module_path.clone(),
                 origin: file.origin,
-                source_len: file.source.len(),
-                source_hash: stable_hash_bytes(file.source.as_bytes()),
+                source_len: file.source_identity_len(),
+                source_hash: file.source_identity_hash(),
             }
         })
         .collect::<Vec<_>>();
@@ -3265,8 +3303,8 @@ fn compiled_unit_source_hash(
         hash.write_str(&file.path.to_string_lossy());
         hash.write_path(&file.module_path);
         hash.write_str(source_origin_tag(file.origin));
-        hash.write_u64(file.source.len() as u64);
-        hash.write_u64(stable_hash_bytes(file.source.as_bytes()));
+        hash.write_u64(file.source_identity_len() as u64);
+        hash.write_u64(file.source_identity_hash());
     }
     for export in &compiled_syntax_surface(unit, source_files, public_exports).public_exports {
         hash.write_compiled_export(export);
@@ -5094,12 +5132,26 @@ version = "0.1.3"
             cached_prelude.meta.to_source_meta(),
             parse_source_meta("pub infix (%%) 50 51 = \\x -> \\y -> x\n")
         );
+        assert_eq!(
+            cached_prelude.source_hash,
+            stable_hash_bytes("pub infix (%%) 50 51 = \\x -> \\y -> x\n".as_bytes())
+        );
 
         let second =
             collect_source_files_for_cache_key_with_options(root.join("main.yu"), options).unwrap();
         assert_eq!(
             second.compiled_unit_syntax_artifacts(),
             first.compiled_unit_syntax_artifacts()
+        );
+        let std_file = second
+            .files
+            .iter()
+            .find(|file| file.origin == SourceOrigin::Std)
+            .expect("std file should come from graph cache");
+        assert!(std_file.source.is_empty());
+        assert_eq!(
+            std_file.source_identity_hash(),
+            stable_hash_bytes("pub infix (%%) 50 51 = \\x -> \\y -> x\n".as_bytes())
         );
 
         let _ = fs::remove_dir_all(root);

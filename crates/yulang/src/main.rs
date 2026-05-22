@@ -1244,13 +1244,19 @@ fn run_infer_views(
     emit_output: bool,
     startup_profile: &mut StartupProfile,
 ) {
-    let (mut source_set, collect_duration) = if emit_output && can_use_yuir_source_cache(options) {
-        collect_infer_cache_key_source_set_or_exit(path, source, options)
-    } else {
-        collect_infer_source_set_or_exit(path, source, options)
-    };
-    startup_profile.record_source_set(&source_set, collect_duration);
-    if emit_output && can_use_yuir_source_cache(options) {
+    let use_yuir_cache_key_collection = emit_output && can_use_yuir_source_cache(options);
+    let use_dependency_cache_key_collection =
+        !use_yuir_cache_key_collection && can_use_dependency_cache_key_source_collection(options);
+    let (mut source_set, mut collect_duration) =
+        if use_yuir_cache_key_collection || use_dependency_cache_key_collection {
+            collect_infer_cache_key_source_set_or_exit(path, source, options)
+        } else {
+            collect_infer_source_set_or_exit(path, source, options)
+        };
+    let use_cache_key_collection =
+        use_yuir_cache_key_collection || use_dependency_cache_key_collection;
+    if use_yuir_cache_key_collection {
+        startup_profile.record_source_set(&source_set, collect_duration);
         let lookup_start = startup_profile.start();
         let cached = read_yuir_source_cache(&source_set);
         startup_profile.yuir_source_cache_lookup = StartupProfile::elapsed(lookup_start);
@@ -1258,11 +1264,17 @@ fn run_infer_views(
             run_cached_control_vm_module_or_exit(module, load_duration, options, startup_profile);
             return;
         }
-        let table_start = startup_profile.start();
-        source_set.build_syntax_tables();
-        startup_profile.source_collect += StartupProfile::elapsed(table_start);
     }
     let prepared_cache = prepare_infer_cache(&source_set, options);
+    if use_cache_key_collection {
+        if prepared_cache.bundle.is_none() {
+            let (full_source_set, full_collect) =
+                collect_infer_source_set_or_exit(path, source, options);
+            source_set = full_source_set;
+            collect_duration += full_collect;
+        }
+    }
+    startup_profile.record_source_set(&source_set, collect_duration);
     let cached_files = prepared_cache
         .bundle
         .as_ref()
@@ -1270,8 +1282,18 @@ fn run_infer_views(
         .unwrap_or_default();
 
     let invalid_token_start = startup_profile.start();
-    let has_invalid_tokens = source_set_has_invalid_tokens(&source_set, &cached_files);
+    let mut has_invalid_tokens = source_set_has_invalid_tokens(&source_set, &cached_files);
     startup_profile.invalid_token_scan = StartupProfile::elapsed(invalid_token_start);
+    if has_invalid_tokens && use_cache_key_collection && prepared_cache.bundle.is_some() {
+        let table_start = startup_profile.start();
+        source_set.build_syntax_tables();
+        collect_duration += StartupProfile::elapsed(table_start);
+        startup_profile.record_source_set(&source_set, collect_duration);
+
+        let invalid_token_start = startup_profile.start();
+        has_invalid_tokens = source_set_has_invalid_tokens(&source_set, &cached_files);
+        startup_profile.invalid_token_scan += StartupProfile::elapsed(invalid_token_start);
+    }
     if has_invalid_tokens {
         eprintln!("error: invalid token in source");
         process::exit(1);
@@ -4589,6 +4611,10 @@ fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
         && options.native_run_value_exe.is_none()
         && options.native_run_cps_repr_exe.is_none()
         && options.native_run_mmtk_cps_repr_exe.is_none()
+}
+
+fn can_use_dependency_cache_key_source_collection(options: &CliOptions) -> bool {
+    !options.no_cache && !options.no_prelude && options.requests_semantic_pipeline()
 }
 
 fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
