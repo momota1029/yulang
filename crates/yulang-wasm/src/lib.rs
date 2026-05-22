@@ -1083,23 +1083,21 @@ g
             .spawn(|| {
                 let output = run_inner(
                     r#"// Callback effects are hygienic:
-// f's return is not captured by g's local sub.
+// a callback's return is not captured by g's local sub.
 
 use std::*
 use std::flow::*
 
-our f() = return 0
-
 our g h = sub:
-    h()
+    h 0
+    h 1
+    h 2
     return 1
 
-my a = sub:
-    my b = g f
+sub:
+    my b = g (\i -> if i == 0: return i)
     println b.show
     2
-
-a
 "#,
                 );
                 assert!(output.ok, "{:?}", output.diagnostics);
