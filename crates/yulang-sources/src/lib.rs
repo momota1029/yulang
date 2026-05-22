@@ -185,7 +185,7 @@ pub fn collect_virtual_source_files_with_options(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
-    collect_virtual_source_files_with_options_inner(source, base_dir, options, true)
+    collect_virtual_source_files_with_options_inner(source, base_dir, options, true, false)
 }
 
 pub fn collect_virtual_source_files_for_cache_key_with_options(
@@ -193,7 +193,7 @@ pub fn collect_virtual_source_files_for_cache_key_with_options(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
-    collect_virtual_source_files_with_options_inner(source, base_dir, options, false)
+    collect_virtual_source_files_with_options_inner(source, base_dir, options, false, true)
 }
 
 fn collect_virtual_source_files_with_options_inner(
@@ -201,8 +201,9 @@ fn collect_virtual_source_files_with_options_inner(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
     build_tables: bool,
+    use_std_graph_cache: bool,
 ) -> Result<SourceSet, SourceLoadError> {
-    let mut loader = SourceLoader::new(options, None);
+    let mut loader = SourceLoader::new(options, None, use_std_graph_cache);
     loader.register_realm(
         virtual_single_file_realm_id(),
         SourceRealmRoot::Virtual,
@@ -213,6 +214,7 @@ fn collect_virtual_source_files_with_options_inner(
     if build_tables {
         build_syntax_tables(&mut loader.files);
     }
+    loader.write_std_graph_cache_if_needed();
     Ok(SourceSet::from_files_with_realms(
         loader.files,
         loader.realms,
@@ -239,20 +241,21 @@ pub fn collect_source_files_with_options(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
-    collect_source_files_with_options_inner(entry, options, true)
+    collect_source_files_with_options_inner(entry, options, true, false)
 }
 
 pub fn collect_source_files_for_cache_key_with_options(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
 ) -> Result<SourceSet, SourceLoadError> {
-    collect_source_files_with_options_inner(entry, options, false)
+    collect_source_files_with_options_inner(entry, options, false, true)
 }
 
 fn collect_source_files_with_options_inner(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
     build_tables: bool,
+    use_std_graph_cache: bool,
 ) -> Result<SourceSet, SourceLoadError> {
     let entry = entry.as_ref();
     let realm_root = local_realm_root(entry);
@@ -266,7 +269,7 @@ fn collect_source_files_with_options_inner(
         .as_ref()
         .map(|manifest| manifest.dependencies.clone())
         .unwrap_or_default();
-    let mut loader = SourceLoader::new(options, lock);
+    let mut loader = SourceLoader::new(options, lock, use_std_graph_cache);
     loader.register_realm(
         realm_id.clone(),
         SourceRealmRoot::Local(realm_root),
@@ -277,6 +280,7 @@ fn collect_source_files_with_options_inner(
     if build_tables {
         build_syntax_tables(&mut loader.files);
     }
+    loader.write_std_graph_cache_if_needed();
     Ok(SourceSet::from_files_with_realms(
         loader.files,
         loader.realms,
@@ -873,19 +877,19 @@ pub struct SourceMeta {
     pub syntax_exports: Vec<SyntaxExport>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleFileDecl {
     pub visibility: Visibility,
     pub name: Name,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UseDeclMeta {
     pub visibility: Visibility,
     pub import: UseImport,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UseImport {
     Alias {
         name: Name,
@@ -1375,9 +1379,221 @@ impl fmt::Display for SourceLoadError {
 
 impl std::error::Error for SourceLoadError {}
 
+const STD_GRAPH_CACHE_FORMAT_VERSION: u32 = 1;
+
+struct StdGraphCache {
+    files_by_path: HashMap<PathBuf, StdGraphCacheFile>,
+}
+
+impl StdGraphCache {
+    fn read(std_root: &FsPath) -> Option<Self> {
+        let path = std_graph_cache_path(std_root);
+        let source = fs::read_to_string(path).ok()?;
+        let snapshot = serde_json::from_str::<StdGraphCacheSnapshot>(&source).ok()?;
+        if !snapshot.matches_root(std_root) {
+            return None;
+        }
+        let files_by_path = snapshot
+            .files
+            .into_iter()
+            .map(|file| {
+                (
+                    canonicalize_for_dedupe(&std_root.join(&file.relative_path)),
+                    file,
+                )
+            })
+            .collect();
+        Some(Self { files_by_path })
+    }
+
+    fn file_for_path(&self, path: &FsPath) -> Option<&StdGraphCacheFile> {
+        self.files_by_path.get(&canonicalize_for_dedupe(path))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct StdGraphCacheSnapshot {
+    format_version: u32,
+    std_root: String,
+    files: Vec<StdGraphCacheFile>,
+}
+
+impl StdGraphCacheSnapshot {
+    fn from_files(std_root: &FsPath, files: &[SourceFile]) -> Option<Self> {
+        let std_root = canonicalize_for_dedupe(std_root);
+        let mut files = files
+            .iter()
+            .filter(|file| file.origin == SourceOrigin::Std)
+            .filter_map(|file| StdGraphCacheFile::from_source_file(&std_root, file))
+            .collect::<Vec<_>>();
+        if files.is_empty() {
+            return None;
+        }
+        files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+        Some(Self {
+            format_version: STD_GRAPH_CACHE_FORMAT_VERSION,
+            std_root: std_root.to_string_lossy().to_string(),
+            files,
+        })
+    }
+
+    fn matches_root(&self, std_root: &FsPath) -> bool {
+        if self.format_version != STD_GRAPH_CACHE_FORMAT_VERSION {
+            return false;
+        }
+        let std_root = canonicalize_for_dedupe(std_root);
+        if self.std_root != std_root.to_string_lossy().as_ref() {
+            return false;
+        }
+        self.files
+            .iter()
+            .all(|file| file.matches_file_metadata(&std_root))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct StdGraphCacheFile {
+    relative_path: PathBuf,
+    module_path: ModulePath,
+    realm_path_prefix_len: usize,
+    source_prefix_len: usize,
+    source_len: u64,
+    modified_secs: u64,
+    modified_nanos: u32,
+    source: String,
+    meta: StdGraphCacheMeta,
+}
+
+impl StdGraphCacheFile {
+    fn from_source_file(std_root: &FsPath, file: &SourceFile) -> Option<Self> {
+        let path = canonicalize_for_dedupe(&file.path);
+        let relative_path = path.strip_prefix(std_root).ok()?.to_path_buf();
+        let metadata = fs::metadata(&file.path).ok()?;
+        let modified = metadata.modified().ok()?;
+        let (modified_secs, modified_nanos) = system_time_parts(modified)?;
+        Some(Self {
+            relative_path,
+            module_path: file.module_path.clone(),
+            realm_path_prefix_len: file.realm_path_prefix_len,
+            source_prefix_len: file.source_prefix_len,
+            source_len: metadata.len(),
+            modified_secs,
+            modified_nanos,
+            source: file.source.clone(),
+            meta: StdGraphCacheMeta::from_source_meta(&file.meta),
+        })
+    }
+
+    fn matches_file_metadata(&self, std_root: &FsPath) -> bool {
+        let path = std_root.join(&self.relative_path);
+        let Ok(metadata) = fs::metadata(path) else {
+            return false;
+        };
+        if metadata.len() != self.source_len {
+            return false;
+        }
+        let Ok(modified) = metadata.modified() else {
+            return false;
+        };
+        system_time_parts(modified) == Some((self.modified_secs, self.modified_nanos))
+    }
+
+    fn to_source_file(
+        &self,
+        path: PathBuf,
+        realm: ResolvedRealmId,
+        realm_path_prefix_len: usize,
+    ) -> SourceFile {
+        SourceFile {
+            path,
+            module_path: self.module_path.clone(),
+            origin: SourceOrigin::Std,
+            realm,
+            realm_path_prefix_len,
+            band: None,
+            op_table: standard_op_table(),
+            source_prefix_len: self.source_prefix_len,
+            source: self.source.clone(),
+            meta: self.meta.to_source_meta(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct StdGraphCacheMeta {
+    module_files: Vec<ModuleFileDecl>,
+    uses: Vec<UseDeclMeta>,
+    syntax_exports: Vec<CompiledSyntaxExport>,
+}
+
+impl StdGraphCacheMeta {
+    fn from_source_meta(meta: &SourceMeta) -> Self {
+        Self {
+            module_files: meta.module_files.clone(),
+            uses: meta.uses.clone(),
+            syntax_exports: meta
+                .syntax_exports
+                .iter()
+                .map(|export| CompiledSyntaxExport {
+                    visibility: export.visibility,
+                    name: export.name.clone(),
+                    op: CompiledOperatorSyntax::from_op_def(&export.op),
+                })
+                .collect(),
+        }
+    }
+
+    fn to_source_meta(&self) -> SourceMeta {
+        SourceMeta {
+            module_files: self.module_files.clone(),
+            uses: self.uses.clone(),
+            syntax_exports: self
+                .syntax_exports
+                .iter()
+                .map(CompiledSyntaxExport::to_syntax_export)
+                .collect(),
+        }
+    }
+}
+
+fn write_std_graph_cache(std_root: &FsPath, files: &[SourceFile]) {
+    let Some(snapshot) = StdGraphCacheSnapshot::from_files(std_root, files) else {
+        return;
+    };
+    let path = std_graph_cache_path(std_root);
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    if fs::create_dir_all(parent).is_err() {
+        return;
+    }
+    let Ok(encoded) = serde_json::to_vec(&snapshot) else {
+        return;
+    };
+    let _ = fs::write(path, encoded);
+}
+
+fn std_graph_cache_path(std_root: &FsPath) -> PathBuf {
+    let std_root = canonicalize_for_dedupe(std_root);
+    let key = stable_hash_bytes(std_root.to_string_lossy().as_bytes());
+    default_user_cache_root()
+        .join("source-graphs")
+        .join(format!(
+            "std-v{STD_GRAPH_CACHE_FORMAT_VERSION}-{key:016x}.json"
+        ))
+}
+
+fn system_time_parts(time: SystemTime) -> Option<(u64, u32)> {
+    let duration = time.duration_since(UNIX_EPOCH).ok()?;
+    Some((duration.as_secs(), duration.subsec_nanos()))
+}
+
 struct SourceLoader {
     options: SourceOptions,
     lock: Option<YulangLockFile>,
+    use_std_graph_cache: bool,
+    std_graph_cache: Option<StdGraphCache>,
+    std_graph_cache_incomplete: bool,
     realms: Vec<SourceRealmSeed>,
     seen: HashSet<PathBuf>,
     files: Vec<SourceFile>,
@@ -1488,10 +1704,20 @@ impl InlineSourceLoader {
 }
 
 impl SourceLoader {
-    fn new(options: SourceOptions, lock: Option<YulangLockFile>) -> Self {
+    fn new(
+        options: SourceOptions,
+        lock: Option<YulangLockFile>,
+        use_std_graph_cache: bool,
+    ) -> Self {
+        let std_graph_cache = use_std_graph_cache
+            .then(|| options.std_root.as_deref().and_then(StdGraphCache::read))
+            .flatten();
         Self {
             options,
             lock,
+            use_std_graph_cache,
+            std_graph_cache,
+            std_graph_cache_incomplete: false,
             realms: Vec::new(),
             seen: HashSet::new(),
             files: Vec::new(),
@@ -1512,6 +1738,19 @@ impl SourceLoader {
             root,
             dependencies,
         });
+    }
+
+    fn write_std_graph_cache_if_needed(&self) {
+        if !self.use_std_graph_cache {
+            return;
+        }
+        if self.std_graph_cache.is_some() && !self.std_graph_cache_incomplete {
+            return;
+        }
+        let Some(std_root) = self.options.std_root.as_deref() else {
+            return;
+        };
+        write_std_graph_cache(std_root, &self.files);
     }
 
     fn load_entry(&mut self, path: &FsPath, realm: ResolvedRealmId) -> Result<(), SourceLoadError> {
@@ -1573,6 +1812,18 @@ impl SourceLoader {
     ) -> Result<(), SourceLoadError> {
         let canonical = canonicalize_for_dedupe(path);
         if !self.seen.insert(canonical) {
+            return Ok(());
+        }
+
+        if origin == SourceOrigin::Std
+            && source_prefix.is_empty()
+            && self.load_cached_std_module(
+                path,
+                &module_path,
+                realm.clone(),
+                realm_path_prefix_len,
+            )?
+        {
             return Ok(());
         }
 
@@ -1646,6 +1897,80 @@ impl SourceLoader {
             )?;
         }
         Ok(())
+    }
+
+    fn load_cached_std_module(
+        &mut self,
+        path: &FsPath,
+        module_path: &ModulePath,
+        realm: ResolvedRealmId,
+        realm_path_prefix_len: usize,
+    ) -> Result<bool, SourceLoadError> {
+        let Some(cache) = self.std_graph_cache.as_ref() else {
+            return Ok(false);
+        };
+        let Some(cached) = cache.file_for_path(path) else {
+            self.std_graph_cache_incomplete = true;
+            return Ok(false);
+        };
+        if &cached.module_path != module_path {
+            self.std_graph_cache_incomplete = true;
+            return Ok(false);
+        }
+
+        let source_file =
+            cached.to_source_file(path.to_path_buf(), realm.clone(), realm_path_prefix_len);
+        let meta = source_file.meta.clone();
+        let module_paths = meta
+            .module_files
+            .iter()
+            .map(|decl| {
+                let mut child_module = module_path.segments.clone();
+                child_module.push(decl.name.clone());
+                resolve_module_file(path, &decl.name).map(|path| {
+                    (
+                        path,
+                        ModulePath {
+                            segments: child_module,
+                        },
+                        child_origin(SourceOrigin::Std),
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut imported_paths = Vec::new();
+        for use_ in &meta.uses {
+            let Some(module_path) = import_module_path(&use_.import) else {
+                continue;
+            };
+            if let Some(imported) =
+                self.resolve_import_module_file(&realm, &module_path, &use_.import)?
+            {
+                imported_paths.push(imported);
+            }
+        }
+
+        self.files.push(source_file);
+
+        for (path, module_path, origin) in module_paths {
+            self.load_module(
+                &path,
+                module_path,
+                origin,
+                realm.clone(),
+                realm_path_prefix_len,
+            )?;
+        }
+        for imported in imported_paths {
+            self.load_module(
+                &imported.path,
+                imported.module_path,
+                imported.origin,
+                imported.realm,
+                imported.realm_path_prefix_len,
+            )?;
+        }
+        Ok(true)
     }
 
     fn load_virtual_module_with_prefix(
@@ -4736,6 +5061,46 @@ version = "0.1.3"
                 NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
             )
         }));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn cache_key_source_collection_reuses_std_graph_snapshot() {
+        let root = temp_root("std-graph-cache");
+        let _ = fs::remove_dir_all(&root);
+        let std_root = root.join("std");
+        fs::create_dir_all(&std_root).unwrap();
+        fs::write(root.join("main.yu"), "my y = 1 %% 2\n").unwrap();
+        fs::write(
+            std_root.join("prelude.yu"),
+            "pub infix (%%) 50 51 = \\x -> \\y -> x\n",
+        )
+        .unwrap();
+        let options = SourceOptions {
+            std_root: Some(std_root.clone()),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+
+        let first =
+            collect_source_files_for_cache_key_with_options(root.join("main.yu"), options.clone())
+                .unwrap();
+        let cache = StdGraphCache::read(&std_root).expect("std graph cache should be written");
+        let cached_prelude = cache
+            .file_for_path(&std_root.join("prelude.yu"))
+            .expect("prelude should be cached");
+        assert_eq!(
+            cached_prelude.meta.to_source_meta(),
+            parse_source_meta("pub infix (%%) 50 51 = \\x -> \\y -> x\n")
+        );
+
+        let second =
+            collect_source_files_for_cache_key_with_options(root.join("main.yu"), options).unwrap();
+        assert_eq!(
+            second.compiled_unit_syntax_artifacts(),
+            first.compiled_unit_syntax_artifacts()
+        );
 
         let _ = fs::remove_dir_all(root);
     }
