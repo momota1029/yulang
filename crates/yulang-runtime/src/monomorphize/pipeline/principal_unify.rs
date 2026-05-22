@@ -46,6 +46,7 @@ struct PrincipalUnifier {
     role_associated_impls: Vec<typed_ir::RoleImplGraphNode>,
     specializations: HashMap<String, typed_ir::Path>,
     root_specializations: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
+    module_specializations: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
     role_method_rewrites: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
     emitted: Vec<Binding>,
     emitted_by_path: HashMap<typed_ir::Path, Binding>,
@@ -163,6 +164,7 @@ impl PrincipalUnifier {
             .collect::<HashSet<_>>();
         let role_impls = principal_unify_role_impls(&module);
         let role_associated_impls = module.role_impls.clone();
+        let module_specializations = module_specializations_by_original(&module);
         let never_effect_ops = collect_never_effect_ops(&module);
         let next_index = next_principal_unify_index(&module);
         Self {
@@ -175,6 +177,7 @@ impl PrincipalUnifier {
             role_associated_impls,
             specializations: HashMap::new(),
             root_specializations: HashMap::new(),
+            module_specializations,
             role_method_rewrites: HashMap::new(),
             emitted: Vec::new(),
             emitted_by_path: HashMap::new(),
@@ -284,11 +287,8 @@ impl PrincipalUnifier {
             module.bindings.extend(emitted);
         }
         add_single_specialization_aliases(module, &self.root_specializations);
-        rewrite_contextual_specialization_refs(module, &self.root_specializations);
-        rewrite_single_specialization_refs(module, &self.root_specializations);
-        let module_specializations = module_specializations_by_original(module);
-        rewrite_contextual_specialization_refs(module, &module_specializations);
-        rewrite_single_specialization_refs(module, &module_specializations);
+        rewrite_contextual_specialization_refs(module, &self.module_specializations);
+        rewrite_single_specialization_refs(module, &self.module_specializations);
         remove_specialized_generic_originals(module, &self.root_specializations);
         module.roots = module
             .roots
@@ -312,7 +312,7 @@ impl PrincipalUnifier {
 
     fn rewrite_flushed_specialization_bodies(&mut self, module: &mut Module) -> bool {
         let mut changed = false;
-        let candidate_paths = self.flushed_specialization_rewrite_candidate_paths(module);
+        let candidate_paths = self.flushed_specialization_rewrite_candidate_paths();
         for binding in &mut module.bindings {
             if !binding.type_params.is_empty() {
                 continue;
@@ -340,10 +340,7 @@ impl PrincipalUnifier {
         changed
     }
 
-    fn flushed_specialization_rewrite_candidate_paths(
-        &self,
-        module: &Module,
-    ) -> HashSet<typed_ir::Path> {
+    fn flushed_specialization_rewrite_candidate_paths(&self) -> HashSet<typed_ir::Path> {
         let mut paths = self
             .generic_bindings
             .iter()
@@ -351,12 +348,19 @@ impl PrincipalUnifier {
             .collect::<HashSet<_>>();
         extend_specialization_rewrite_candidate_paths(&mut paths, &self.root_specializations);
         extend_specialization_rewrite_candidate_paths(&mut paths, &self.role_method_rewrites);
-        extend_specialization_rewrite_candidate_paths(
-            &mut paths,
-            &module_specializations_by_original(module),
-        );
+        extend_specialization_rewrite_candidate_paths(&mut paths, &self.module_specializations);
         paths.extend(self.emitted_by_path.keys().cloned());
         paths
+    }
+
+    fn register_module_specialization(&mut self, path: &typed_ir::Path) {
+        let Some(original) = unspecialized_path(path) else {
+            return;
+        };
+        let entry = self.module_specializations.entry(original).or_default();
+        if !entry.contains(path) {
+            entry.push(path.clone());
+        }
     }
 
     fn rewrite_surviving_template_bindings(&mut self, module: &mut Module) {
@@ -3938,6 +3942,7 @@ impl PrincipalUnifier {
             .entry(original.name.clone())
             .or_default()
             .push(path.clone());
+        self.register_module_specialization(&path);
         debug_principal_unify_emit(&original.name, &path, &substitutions);
         self.pending_specializations
             .push_back(PendingPrincipalSpecialization {
@@ -4230,6 +4235,7 @@ impl PrincipalUnifier {
         let path = principal_unified_path(&binding.name, self.next_index);
         self.next_index += 1;
         self.specializations.insert(key, path.clone());
+        self.register_module_specialization(&path);
         debug_principal_unify_emit(&original_name, &path, &BTreeMap::new());
         binding.name = path.clone();
         binding.type_params.clear();
