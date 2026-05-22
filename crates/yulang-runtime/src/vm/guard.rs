@@ -126,13 +126,8 @@ pub(super) fn mark_request_with_blocked(
         if effect_is_allowed(&blocked.allowed, &request.effect) {
             continue;
         }
-        if request
-            .blocked_id
-            .is_some_and(|blocked| request.continuation.guard_stack.contains(blocked))
-        {
-            continue;
-        }
-        request.blocked_id = Some(blocked.guard_id);
+        let has_live_blocker = request_has_live_blocker(&request);
+        add_request_blocker(&mut request, blocked.guard_id, !has_live_blocker);
     }
     request
 }
@@ -145,12 +140,60 @@ pub(super) fn mark_request_with_active_blocked(
         if effect_is_allowed(&blocked.allowed, &request.effect) {
             continue;
         }
-        if request.blocked_id.is_some() {
-            continue;
-        }
-        request.blocked_id = Some(blocked.guard_id);
+        let has_live_blocker = request_has_live_blocker(&request);
+        add_request_blocker(&mut request, blocked.guard_id, !has_live_blocker);
     }
     request
+}
+
+pub(super) fn request_is_blocked_by_stack(request: &VmRequest, stack: &GuardStack) -> bool {
+    request
+        .blocked_id
+        .is_some_and(|blocked| stack.contains(blocked))
+        || request
+            .continuation
+            .blocked_ids
+            .iter()
+            .any(|blocked| stack.contains(*blocked))
+}
+
+fn add_request_blocker(request: &mut VmRequest, guard_id: u64, replace_primary: bool) {
+    if replace_primary {
+        if let Some(previous) = request.blocked_id
+            && previous != guard_id
+            && !request.continuation.blocked_ids.contains(&previous)
+        {
+            request.continuation.blocked_ids.push(previous);
+        }
+        request.blocked_id = Some(guard_id);
+    } else if request.blocked_id != Some(guard_id)
+        && !request.continuation.blocked_ids.contains(&guard_id)
+    {
+        request.continuation.blocked_ids.push(guard_id);
+    }
+}
+
+fn request_has_live_blocker(request: &VmRequest) -> bool {
+    request_blocker_is_live(request, request.blocked_id)
+        || request
+            .continuation
+            .blocked_ids
+            .iter()
+            .any(|blocked| request_blocker_is_live(request, Some(*blocked)))
+}
+
+fn request_blocker_is_live(request: &VmRequest, blocked: Option<u64>) -> bool {
+    blocked.is_some_and(|blocked| {
+        request.continuation.guard_stack.contains(blocked)
+            || request.continuation.frames.iter().any(|frame| match frame {
+                Frame::Handle { guard_stack, .. } => guard_stack.contains(blocked),
+                Frame::HandleGuard {
+                    handler_guard_stack,
+                    ..
+                } => handler_guard_stack.contains(blocked),
+                _ => false,
+            })
+    })
 }
 
 pub(super) fn push_frame(mut request: VmRequest, frame: Frame) -> VmRequest {

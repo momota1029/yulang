@@ -1253,6 +1253,24 @@ fn expr_lambda_inline() {
 }
 
 #[test]
+fn expr_ml_lambda_body_keeps_tail_parsing() {
+    let got = parse_expression_with_word_ops("g \\i -> if i == 0: return i");
+
+    assert!(
+        got.iter().any(|line| line.contains("(InfixNode")),
+        "{got:?}"
+    );
+    assert!(
+        got.iter().any(|line| line.contains("Infix \"==\"")),
+        "{got:?}"
+    );
+    assert!(
+        !got.iter().any(|line| line.contains("(InvalidToken")),
+        "{got:?}"
+    );
+}
+
+#[test]
 fn expr_method_lambda() {
     let got = parse_expression("\\.foo(1)");
     let expected = vec![

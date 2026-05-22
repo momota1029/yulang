@@ -5,6 +5,7 @@ impl VmContinuation {
         Self {
             frames: Vec::new(),
             guard_stack,
+            blocked_ids: Vec::new(),
         }
     }
 

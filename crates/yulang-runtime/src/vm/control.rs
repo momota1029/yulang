@@ -1005,6 +1005,7 @@ struct ControlRequest {
     payload: ControlValue,
     continuation: ControlContinuation,
     blocked_id: Option<u64>,
+    blocked_ids: Vec<u64>,
 }
 
 enum ControlResult {
@@ -1176,7 +1177,11 @@ impl<'m> ControlInterpreter<'m> {
         Ok(VmRequest {
             effect: self.module.symbol_path(request.effect).clone(),
             payload: export_value(&request.payload, Some(self.module))?,
-            continuation: VmContinuation::default(),
+            continuation: VmContinuation {
+                frames: Vec::new(),
+                guard_stack: GuardStack::default(),
+                blocked_ids: request.blocked_ids.clone(),
+            },
             blocked_id: request.blocked_id,
         })
     }
@@ -1533,6 +1538,7 @@ impl<'m> ControlInterpreter<'m> {
                             guard_stack: self.guard_stack.clone(),
                         },
                         blocked_id: None,
+                        blocked_ids: Vec::new(),
                     },
                     &thunk,
                 )))
@@ -2033,10 +2039,7 @@ impl<'m> ControlInterpreter<'m> {
         handler_guard_stack: &GuardStack,
         result_wraps_thunk: bool,
     ) -> Result<ControlResult, VmError> {
-        if request
-            .blocked_id
-            .is_some_and(|blocked| handler_guard_stack.contains(blocked))
-        {
+        if control_request_is_blocked_by_stack(&request, handler_guard_stack) {
             return Ok(ControlResult::Request(request));
         }
         let arms_slice = self.module.handle_arms(arms);
@@ -2597,13 +2600,8 @@ fn mark_control_request_with_blocked(
         if effect_is_allowed(&blocked.allowed, module.symbol_path(request.effect)) {
             continue;
         }
-        if request
-            .blocked_id
-            .is_some_and(|blocked| request.continuation.guard_stack.contains(blocked))
-        {
-            continue;
-        }
-        request.blocked_id = Some(blocked.guard_id);
+        let has_live_blocker = control_request_has_live_blocker(&request);
+        add_control_request_blocker(&mut request, blocked.guard_id, !has_live_blocker);
     }
     request
 }
@@ -2617,12 +2615,56 @@ fn mark_control_request_with_active_blocked(
         if effect_is_allowed(&blocked.allowed, module.symbol_path(request.effect)) {
             continue;
         }
-        if request.blocked_id.is_some() {
-            continue;
-        }
-        request.blocked_id = Some(blocked.guard_id);
+        let has_live_blocker = control_request_has_live_blocker(&request);
+        add_control_request_blocker(&mut request, blocked.guard_id, !has_live_blocker);
     }
     request
+}
+
+fn control_request_is_blocked_by_stack(request: &ControlRequest, stack: &GuardStack) -> bool {
+    request
+        .blocked_id
+        .is_some_and(|blocked| stack.contains(blocked))
+        || request
+            .blocked_ids
+            .iter()
+            .any(|blocked| stack.contains(*blocked))
+}
+
+fn add_control_request_blocker(request: &mut ControlRequest, guard_id: u64, replace_primary: bool) {
+    if replace_primary {
+        if let Some(previous) = request.blocked_id
+            && previous != guard_id
+            && !request.blocked_ids.contains(&previous)
+        {
+            request.blocked_ids.push(previous);
+        }
+        request.blocked_id = Some(guard_id);
+    } else if request.blocked_id != Some(guard_id) && !request.blocked_ids.contains(&guard_id) {
+        request.blocked_ids.push(guard_id);
+    }
+}
+
+fn control_request_has_live_blocker(request: &ControlRequest) -> bool {
+    control_request_blocker_is_live(request, request.blocked_id)
+        || request
+            .blocked_ids
+            .iter()
+            .any(|blocked| control_request_blocker_is_live(request, Some(*blocked)))
+}
+
+fn control_request_blocker_is_live(request: &ControlRequest, blocked: Option<u64>) -> bool {
+    blocked.is_some_and(|blocked| {
+        request.continuation.guard_stack.contains(blocked)
+            || request.continuation.frames.iter().any(|frame| match frame {
+                ControlFrame::Handle { guard_stack, .. } => guard_stack.contains(blocked),
+                ControlFrame::HandleGuard {
+                    handler_guard_stack,
+                    ..
+                } => handler_guard_stack.contains(blocked),
+                _ => false,
+            })
+    })
 }
 
 fn make_recursive_local_value(

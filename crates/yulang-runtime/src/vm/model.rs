@@ -82,6 +82,7 @@ pub struct VmResume {
 pub struct VmContinuation {
     pub(super) frames: Vec<Frame>,
     pub(super) guard_stack: GuardStack,
+    pub(super) blocked_ids: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

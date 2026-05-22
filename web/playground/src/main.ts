@@ -383,13 +383,12 @@ use std::*
 use std::flow::*
 
 our g h = sub:
-    h 0
-    h 1
-    h 2
+    for i in 0..3:
+        h i
     return 1
 
 sub:
-    my b = g (\\i -> if i == 0: return i)
+    my b = g \\i -> if i == 0: return i
     println b.show
     2
 `,

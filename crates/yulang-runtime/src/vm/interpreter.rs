@@ -887,10 +887,7 @@ impl<'m> VmInterpreter<'m> {
         handler_guard_stack: &GuardStack,
         expected_ty: &Type,
     ) -> Result<VmResult, VmError> {
-        if request
-            .blocked_id
-            .is_some_and(|blocked| handler_guard_stack.contains(blocked))
-        {
+        if request_is_blocked_by_stack(&request, handler_guard_stack) {
             return Ok(VmResult::Request(request));
         }
         let Some((arm_index, arm)) = arms

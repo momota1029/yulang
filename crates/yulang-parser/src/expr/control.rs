@@ -106,8 +106,10 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
             crate::pat::scan::PatNudTag::Stop if nud.lex.kind == SyntaxKind::Arrow => {
                 i.env.state.sink.lex(&nud.lex);
                 i.env.state.line_indent = i.env.indent;
-                let body = parse_inline_or_indent(i.rb(), nud.lex.trailing_trivia_info())?;
                 i.env.stop = old_stop;
+                let mut body_in = i.rb();
+                body_in.env.ml_arg = false;
+                let body = parse_inline_or_indent(body_in, nud.lex.trailing_trivia_info())?;
                 i.env.state.sink.finish();
                 return Some(Ok(body));
             }
@@ -131,7 +133,9 @@ fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
             Either::Right(stop) if stop.kind == SyntaxKind::Arrow => {
                 i.env.state.sink.lex(&stop);
                 i.env.state.line_indent = i.env.indent;
-                let body = parse_inline_or_indent(i.rb(), stop.trailing_trivia_info())?;
+                let mut body_in = i.rb();
+                body_in.env.ml_arg = false;
+                let body = parse_inline_or_indent(body_in, stop.trailing_trivia_info())?;
                 i.env.state.sink.finish();
                 return Some(Ok(body));
             }

@@ -2577,6 +2577,69 @@ sub:
     }
 
     #[test]
+    fn vm_keeps_nested_callback_return_effect_hygienic_across_sub() {
+        let results = eval_source_with_std(
+            r#"use std::flow::*
+
+our each0 f = f 0
+our g h = sub:
+    each0 (\i -> h i)
+    return 1
+
+sub:
+    my b = g (\i -> if i == 0: return i)
+    2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
+    }
+
+    #[test]
+    fn vm_keeps_for_callback_return_effect_hygienic_across_sub() {
+        let (results, stdout) = eval_source_with_std_host(
+            r#"use std::*
+use std::flow::*
+
+our g h = sub:
+    for i in 0..3:
+        h i
+    return 1
+
+sub:
+    my b = g \i -> if i == 0: return i
+    println b.show
+    2
+"#,
+        );
+
+        assert_eq!(stdout, "");
+        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
+    }
+
+    #[test]
+    fn control_vm_keeps_for_callback_return_effect_hygienic_across_sub() {
+        let (results, stdout) = eval_control_source_with_std_host(
+            r#"use std::*
+use std::flow::*
+
+our g h = sub:
+    for i in 0..3:
+        h i
+    return 1
+
+sub:
+    my b = g \i -> if i == 0: return i
+    println b.show
+    2
+"#,
+        );
+
+        assert_eq!(stdout, "");
+        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_handler_function_without_join_evidence() {
         let results = eval_source_with_std(
             r#"act log:
@@ -3421,6 +3484,7 @@ box { width: 3, height: 4 }
                 parent: parent.clone(),
             }],
             guard_stack: child.clone(),
+            blocked_ids: Vec::new(),
         };
         let cloned = continuation.clone();
 
