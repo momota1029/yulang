@@ -332,8 +332,12 @@ const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
     MonoPass::PruneUnreachableSpecializations,
 ];
 
-const PRINCIPAL_ELABORATE_FIXPOINT: &[MonoPass] =
-    &[MonoPass::PrincipalElaborate, MonoPass::RefreshClosedSchemes];
+const PRINCIPAL_ELABORATE_FIXPOINT: &[MonoPass] = &[
+    MonoPass::PrincipalElaborate,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::SemanticCastCoercions,
+    MonoPass::PruneUnreachable,
+];
 
 const MONO_PIPELINE: &[MonoStage] = &[
     MonoStage::Repeat {
@@ -459,6 +463,8 @@ fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<
         let before = module.clone();
         module = principal_elaborate_module(module);
         module = refresh_closed_specialized_schemes(module);
+        module = normalize_semantic_cast_coercions(module);
+        module = prune_unreachable_bindings(module);
         if module == before {
             break;
         }
