@@ -423,7 +423,10 @@ impl InstanceLowerBounds {
             return;
         }
         let lower = RuntimeType::Core(typed_ir::Type::Tuple(
-            items.iter().map(|item| runtime_core_type(&item.ty)).collect(),
+            items
+                .iter()
+                .map(|item| runtime_core_type(&item.ty))
+                .collect(),
         ));
         self.merge_runtime_type(ty, &lower);
     }
@@ -536,7 +539,10 @@ fn core_type_is_meaningful_instance_lower(ty: &typed_ir::Type) -> bool {
 }
 
 fn core_type_is_bottom_like_instance_lower(ty: &typed_ir::Type) -> bool {
-    matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never)
+    matches!(
+        ty,
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never
+    )
 }
 
 fn bounds_has_open_or_default(bounds: &typed_ir::TypeBounds) -> bool {
