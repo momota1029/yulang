@@ -9,29 +9,44 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 
 - `notes/todo/index.md`
 
-## Monomorphize lower-bound invariant
+## Runtime finalize type-graph rewrite
 
-現在の monomorphize 作業では、次を設計上の不変条件として扱う。
+`yulang-runtime-finalize` は、旧 lower-bound 中心の実装を active path から外し、
+型グラフ / 主型の fresh 単相化 / Top-Bottom aware bounds を核にして作り直す。
 
-- 関数呼び出しでは、callee / argument / result の型はきっぱり分かれる。
-  「関数型が返ってきて合わないのでエラー」という状態を後段で扱わない。
-  あり得る不一致は、主型・制約・下界解決のどこかと一致しない場合として見る。
-- 単相化した関数インスタンスでは、呼び出し側で既知の型を仮引数スロットの
-  下界へ入れる。
-- その下界は、型制約を集めるのと同じ一般規則で伝播する。
-  `Apply` は callee の引数/結果を分けて見る。`Lambda` は param/body を分けて見る。
-  tuple / record / variant / thunk / effect は構造再帰で分解し、内部の下界へ入れる。
-- 伝播によって別の下界が生まれ、出力型はその時点で主型に従って定まる。
-- 単相化した関数の内部にある局所関数・局所変数は、その単相化インスタンス内の
-  局所下界だけを見る。多相関数本体の共有スキームへ下界を流さない。
-- 式へ型を付ける段階では、解けた下界を再帰的に読む。変数参照は独立した型の
-  所有者ではなく、束縛スロットを参照するだけにする。
-- `Local` / `ApplyEvidence` / binding reference など、失敗した表面ごとに後段同期パスを
-  足さない。必要な情報は、単相化インスタンス内の lower-bound collection / solve /
-  materialize の責務へ戻す。
+旧実装は `crates/yulang-runtime-finalize/archive/2026-05-23-pre-rewrite` に保存済み。
+active `src/` へは旧 `BodyGraph` / `InstancePlanner` / emit / validator を戻さず、
+必要な規則を新しい type graph solver へ移植する。
+
+新しい不変条件:
+
+- まず新しい型グラフを作る。
+- 多相 binding は use-site で主型を fresh 化し、その単相化済み主型を型グラフへ入れる。
+- 引数、式、局所変数、結果などから得た型情報を、型グラフ上の lower / upper bounds として入れる。
+- solve は基本的に下界を優先し、すべての型変数をできるだけ下界で埋める。
+- solve 後の型グラフは完全に単一化され、各型変数の lower と upper が同時に分かる。
+- 単相化された binding body は、その閉じた param / result / effect と解決済み bounds を使って
+  次の型グラフで同じ手順を繰り返す。
+- `Any` は Top、`Never` は Bottom、`Unknown` は hole として扱う。
+  `Any` を曖昧型として使わない。
+- `lower <= T <= upper` の slot を解き、型が合わない場所だけ cast / coerce の対象にする。
+- 共有スキームへ instance-local な解を逆流させない。
+- path / module / fixture 名の文字列比較で型を決めない。
 
 直近の実験:
 
+- `yulang-runtime-finalize` の新 type graph path は、`Apply(Var(poly), arg)` の root use-site を
+  fresh principal type + runtime arg lower bound で解き、単相 alias を emit したうえで root callee を
+  alias へ差し替えるところまで到達した。
+  同じ binding / type substitutions の use-site は alias を共有する。
+  emit した alias body も worklist に入り、単相化済み lambda param 型を local lower bound として
+  body 内の次の多相呼び出しを解く。
+  apply use-site は direct param lower ではなく、`callee <: arg -> result_hole` の制約分解へ移行し始めた。
+  `my first x y = x; first 1 true` は `a -> b -> a <: int -> r0` / `r0 <: bool -> r1` を分解し、
+  `first.mono0 : int -> bool -> int` 相当として VM 実行結果 `1` まで確認済み。
+  `my id x = x; id 1` は finalized module を `yulang-vm::compile_vm_module` へ渡し、
+  `my f y = id y; f 1` は `f.mono0` から `id.mono1` を追加で emit し、どちらも VM 実行結果 `1`
+  まで確認済み。
 - experimental control VM は hidden debug path として
   `yulang debug control-vm`, `control-vm-emit`, `control-vm-load` を持つ。
   これは runtime IR を arena-backed control IR に変換し、closures / thunks /

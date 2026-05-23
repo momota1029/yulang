@@ -1,0 +1,1761 @@
+use std::collections::{HashMap, HashSet};
+
+use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeType};
+use yulang_typed_ir as typed_ir;
+
+use crate::{
+    FinalizeDiagnostic, FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput,
+    RootGraphSolution, TypeGraph, materialize_core_type, materialize_runtime_type,
+    output::RootGraphRoot,
+};
+
+pub fn finalize_module(mut module: Module) -> FinalizeResult<FinalizeOutput> {
+    let root_graph_inputs = collect_root_graph_inputs(&module);
+    let mut root_graph_solutions = solve_root_graphs(&module)?;
+    loop {
+        canonicalize_aliases(&mut root_graph_solutions);
+        let emitted = append_monomorphic_bindings(&mut module, &root_graph_solutions)?;
+        rewrite_root_exprs(&mut module, &root_graph_solutions)?;
+        rewrite_binding_exprs(&mut module, &root_graph_solutions)?;
+
+        let solution_count = root_graph_solutions.len();
+        collect_binding_body_graphs(&module, &emitted, &mut root_graph_solutions)?;
+        if emitted.is_empty() && root_graph_solutions.len() == solution_count {
+            break;
+        }
+    }
+    prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
+    Ok(FinalizeOutput {
+        module,
+        report: FinalizeReport {
+            root_graph_inputs,
+            root_graph_solutions,
+        },
+    })
+}
+
+pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
+    module
+        .roots
+        .iter()
+        .filter_map(|root| match root {
+            Root::Binding(path) => Some(RootGraphInput {
+                root: RootGraphRoot::Binding(path.clone()),
+                known_type: None,
+            }),
+            Root::Expr(index) => module.root_exprs.get(*index).map(|expr| RootGraphInput {
+                root: RootGraphRoot::Expr(*index),
+                known_type: runtime_type_is_closed(&expr.ty).then(|| expr.ty.clone()),
+            }),
+        })
+        .collect()
+}
+
+pub fn solve_root_graphs(module: &Module) -> FinalizeResult<Vec<RootGraphSolution>> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding))
+        .collect::<HashMap<_, _>>();
+    let mut solutions = Vec::new();
+    for root in &module.roots {
+        let Root::Expr(index) = root else {
+            continue;
+        };
+        let expr = module
+            .root_exprs
+            .get(*index)
+            .ok_or(FinalizeDiagnostic::UnsupportedRootShape)?;
+        collect_expr_graphs(
+            RootGraphRoot::Expr(*index),
+            expr,
+            &bindings,
+            &HashMap::new(),
+            &mut solutions,
+        )?;
+    }
+    Ok(solutions)
+}
+
+fn collect_binding_body_graphs(
+    module: &Module,
+    aliases: &[typed_ir::Path],
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding))
+        .collect::<HashMap<_, _>>();
+    for alias in aliases {
+        let Some(binding) = bindings.get(alias) else {
+            return Err(FinalizeDiagnostic::MissingBinding {
+                binding: alias.clone(),
+            });
+        };
+        collect_expr_graphs(
+            RootGraphRoot::Binding(alias.clone()),
+            &binding.body,
+            &bindings,
+            &binding_local_types(binding),
+            solutions,
+        )?;
+    }
+    Ok(())
+}
+
+fn collect_expr_graphs(
+    owner: RootGraphRoot,
+    expr: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
+    if let Some(solution) =
+        solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?
+    {
+        solutions.push(solution);
+        return Ok(());
+    }
+    match &expr.kind {
+        ExprKind::Lambda { param, body, .. } => {
+            let mut scoped_locals = local_types.clone();
+            if let Some(param_ty) = runtime_function_param(&expr.ty) {
+                scoped_locals.insert(path_from_name(param), param_ty);
+            }
+            collect_expr_graphs(owner, body, bindings, &scoped_locals, solutions)
+        }
+        ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => {
+            collect_expr_graphs(owner, body, bindings, local_types, solutions)
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            collect_expr_graphs(owner.clone(), callee, bindings, local_types, solutions)?;
+            collect_expr_graphs(owner, arg, bindings, local_types, solutions)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_graphs(owner.clone(), cond, bindings, local_types, solutions)?;
+            collect_expr_graphs(owner.clone(), then_branch, bindings, local_types, solutions)?;
+            collect_expr_graphs(owner, else_branch, bindings, local_types, solutions)
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                collect_expr_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_graphs(
+                    owner.clone(),
+                    &field.value,
+                    bindings,
+                    local_types,
+                    solutions,
+                )?;
+            }
+            if let Some(spread) = spread {
+                collect_record_spread_graphs(owner, spread, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_graphs(owner, value, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        ExprKind::Select { base, .. } | ExprKind::Thunk { expr: base, .. } => {
+            collect_expr_graphs(owner, base, bindings, local_types, solutions)
+        }
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_expr_graphs(owner.clone(), scrutinee, bindings, local_types, solutions)?;
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_graphs(owner.clone(), guard, bindings, local_types, solutions)?;
+                }
+                collect_expr_graphs(owner.clone(), &arm.body, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                collect_stmt_graphs(owner.clone(), stmt, bindings, local_types, solutions)?;
+            }
+            if let Some(tail) = tail {
+                collect_expr_graphs(owner, tail, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            collect_expr_graphs(owner.clone(), body, bindings, local_types, solutions)?;
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_graphs(owner.clone(), guard, bindings, local_types, solutions)?;
+                }
+                collect_expr_graphs(owner.clone(), &arm.body, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn solve_simple_apply(
+    owner: RootGraphRoot,
+    expr: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    alias_index: usize,
+) -> FinalizeResult<Option<RootGraphSolution>> {
+    let Some(spine) = ApplySpine::new(expr) else {
+        return Ok(None);
+    };
+    let binding_path = spine.binding;
+    let Some(binding) = bindings.get(binding_path) else {
+        return Err(FinalizeDiagnostic::MissingBinding {
+            binding: binding_path.clone(),
+        });
+    };
+    if binding.type_params.is_empty() {
+        return Ok(None);
+    }
+    let mut graph = TypeGraph::default();
+    let principal = graph.instantiate_principal(binding);
+    let mut current = principal.principal_type.clone();
+    for arg in spine.args {
+        let result = graph.fresh_hole("apply");
+        let expected = typed_ir::Type::Fun {
+            param: Box::new(runtime_type_to_core(expr_lower_type(arg, local_types))),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Unknown),
+            ret: Box::new(result.clone()),
+        };
+        graph.constrain_subtype(current, expected)?;
+        current = result;
+    }
+    let graph = graph.solve();
+    if !graph.is_complete() {
+        return Err(FinalizeDiagnostic::IncompleteGraph {
+            binding: binding_path.clone(),
+        });
+    }
+    let callee_type = RuntimeType::Core(graph.materialize_core(principal.principal_type.clone()));
+    let result_type = RuntimeType::Core(graph.materialize_core(current));
+    let type_substitutions = principal.original_substitutions(&graph);
+    Ok(Some(RootGraphSolution {
+        root: owner,
+        occurrence: alias_index,
+        binding: binding_path.clone(),
+        alias: alias_path(binding_path, alias_index),
+        callee_type,
+        result_type,
+        graph,
+        type_substitutions,
+    }))
+}
+
+struct ApplySpine<'a> {
+    binding: &'a typed_ir::Path,
+    args: Vec<&'a Expr>,
+}
+
+impl<'a> ApplySpine<'a> {
+    fn new(expr: &'a Expr) -> Option<Self> {
+        let mut args = Vec::new();
+        let mut current = expr;
+        while let ExprKind::Apply { callee, arg, .. } = &current.kind {
+            args.push(arg.as_ref());
+            current = callee;
+        }
+        if args.is_empty() {
+            return None;
+        }
+        args.reverse();
+        let ExprKind::Var(binding) = &current.kind else {
+            return None;
+        };
+        Some(Self { binding, args })
+    }
+}
+
+fn collect_record_spread_graphs(
+    owner: RootGraphRoot,
+    spread: &yulang_runtime_ir::RecordSpreadExpr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
+            collect_expr_graphs(owner, expr, bindings, local_types, solutions)
+        }
+    }
+}
+
+fn collect_stmt_graphs(
+    owner: RootGraphRoot,
+    stmt: &yulang_runtime_ir::Stmt,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { pattern, value } => {
+            collect_pattern_graphs(owner.clone(), pattern, bindings, local_types, solutions)?;
+            collect_expr_graphs(owner, value, bindings, local_types, solutions)
+        }
+        yulang_runtime_ir::Stmt::Expr(expr)
+        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
+            collect_expr_graphs(owner, expr, bindings, local_types, solutions)
+        }
+    }
+}
+
+fn collect_pattern_graphs(
+    owner: RootGraphRoot,
+    pattern: &yulang_runtime_ir::Pattern,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
+    use yulang_runtime_ir::Pattern;
+
+    match pattern {
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+            }
+            if let Some(spread) = spread {
+                collect_pattern_graphs(owner.clone(), spread, bindings, local_types, solutions)?;
+            }
+            for item in suffix {
+                collect_pattern_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                collect_pattern_graphs(
+                    owner.clone(),
+                    &field.pattern,
+                    bindings,
+                    local_types,
+                    solutions,
+                )?;
+                if let Some(default) = &field.default {
+                    collect_expr_graphs(owner.clone(), default, bindings, local_types, solutions)?;
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_graphs(owner, pattern, bindings, local_types, solutions)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_graphs(owner, value, bindings, local_types, solutions)?;
+            }
+            Ok(())
+        }
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_graphs(owner.clone(), left, bindings, local_types, solutions)?;
+            collect_pattern_graphs(owner, right, bindings, local_types, solutions)
+        }
+        Pattern::As { pattern, .. } => {
+            collect_pattern_graphs(owner, pattern, bindings, local_types, solutions)
+        }
+        Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => Ok(()),
+    }
+}
+
+fn binding_local_types(binding: &Binding) -> HashMap<typed_ir::Path, RuntimeType> {
+    let mut local_types = HashMap::new();
+    let ExprKind::Lambda { param, .. } = &binding.body.kind else {
+        return local_types;
+    };
+    if let Some((param_ty, _)) = function_parts(&binding.scheme.body) {
+        local_types.insert(path_from_name(param), RuntimeType::Core(param_ty.clone()));
+    }
+    local_types
+}
+
+fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path, RuntimeType>) -> RuntimeType {
+    if !matches!(expr.ty, RuntimeType::Unknown) {
+        return expr.ty.clone();
+    }
+    let ExprKind::Var(path) = &expr.kind else {
+        return RuntimeType::Unknown;
+    };
+    local_types
+        .get(path)
+        .cloned()
+        .unwrap_or(RuntimeType::Unknown)
+}
+
+fn runtime_type_to_core(ty: RuntimeType) -> typed_ir::Type {
+    match ty {
+        RuntimeType::Unknown => typed_ir::Type::Unknown,
+        RuntimeType::Core(ty) => ty,
+        RuntimeType::Fun { param, ret } => typed_ir::Type::Fun {
+            param: Box::new(runtime_type_to_core(*param)),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Unknown),
+            ret: Box::new(runtime_type_to_core(*ret)),
+        },
+        RuntimeType::Thunk { value, .. } => runtime_type_to_core(*value),
+    }
+}
+
+fn runtime_function_param(ty: &RuntimeType) -> Option<RuntimeType> {
+    let RuntimeType::Fun { param, .. } = ty else {
+        return None;
+    };
+    Some((**param).clone())
+}
+
+fn path_from_name(name: &typed_ir::Name) -> typed_ir::Path {
+    typed_ir::Path::from_name(name.clone())
+}
+
+fn canonicalize_aliases(solutions: &mut [RootGraphSolution]) {
+    let mut aliases = HashMap::new();
+    let mut next_alias = 0;
+    for solution in solutions {
+        let key = InstanceKey {
+            binding: solution.binding.clone(),
+            substitutions: solution.type_substitutions.clone(),
+        };
+        let alias = aliases.entry(key).or_insert_with(|| {
+            let alias = alias_path(&solution.binding, next_alias);
+            next_alias += 1;
+            alias
+        });
+        solution.alias = alias.clone();
+    }
+}
+
+fn append_monomorphic_bindings(
+    module: &mut Module,
+    solutions: &[RootGraphSolution],
+) -> FinalizeResult<Vec<typed_ir::Path>> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut emitted_aliases = module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    let emitted = solutions
+        .iter()
+        .filter(|solution| emitted_aliases.insert(solution.alias.clone()))
+        .map(|solution| {
+            let binding = bindings.get(&solution.binding).ok_or_else(|| {
+                FinalizeDiagnostic::MissingBinding {
+                    binding: solution.binding.clone(),
+                }
+            })?;
+            Ok(Binding {
+                name: solution.alias.clone(),
+                type_params: Vec::new(),
+                scheme: typed_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: materialize_core_type(
+                        binding.scheme.body.clone(),
+                        &solution.type_substitutions,
+                    ),
+                },
+                body: materialize_expr(binding.body.clone(), &solution.type_substitutions),
+            })
+        })
+        .collect::<FinalizeResult<Vec<_>>>()?;
+    let aliases = emitted
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<Vec<_>>();
+    module.bindings.extend(emitted);
+    Ok(aliases)
+}
+
+fn rewrite_root_exprs(module: &mut Module, solutions: &[RootGraphSolution]) -> FinalizeResult<()> {
+    for (root_index, expr) in module.root_exprs.iter_mut().enumerate() {
+        let root_solutions = solutions
+            .iter()
+            .filter(|solution| solution.root == RootGraphRoot::Expr(root_index))
+            .collect::<Vec<_>>();
+        let mut cursor = 0;
+        rewrite_root_expr(expr, &root_solutions, &mut cursor)?;
+    }
+    Ok(())
+}
+
+fn rewrite_binding_exprs(
+    module: &mut Module,
+    solutions: &[RootGraphSolution],
+) -> FinalizeResult<()> {
+    for binding in &mut module.bindings {
+        let binding_solutions = solutions
+            .iter()
+            .filter(|solution| solution.root == RootGraphRoot::Binding(binding.name.clone()))
+            .collect::<Vec<_>>();
+        let mut cursor = 0;
+        rewrite_root_expr(&mut binding.body, &binding_solutions, &mut cursor)?;
+    }
+    Ok(())
+}
+
+fn rewrite_root_expr(
+    expr: &mut Expr,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> FinalizeResult<()> {
+    if rewrite_simple_apply(expr, solutions, cursor)? {
+        return Ok(());
+    }
+    match &mut expr.kind {
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => rewrite_root_expr(body, solutions, cursor),
+        ExprKind::Apply { callee, arg, .. } => {
+            rewrite_root_expr(callee, solutions, cursor)?;
+            rewrite_root_expr(arg, solutions, cursor)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            rewrite_root_expr(cond, solutions, cursor)?;
+            rewrite_root_expr(then_branch, solutions, cursor)?;
+            rewrite_root_expr(else_branch, solutions, cursor)
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                rewrite_root_expr(item, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                rewrite_root_expr(&mut field.value, solutions, cursor)?;
+            }
+            if let Some(spread) = spread {
+                rewrite_record_spread_expr(spread, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                rewrite_root_expr(value, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        ExprKind::Select { base, .. } | ExprKind::Thunk { expr: base, .. } => {
+            rewrite_root_expr(base, solutions, cursor)
+        }
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            rewrite_root_expr(scrutinee, solutions, cursor)?;
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    rewrite_root_expr(guard, solutions, cursor)?;
+                }
+                rewrite_root_expr(&mut arm.body, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                rewrite_stmt(stmt, solutions, cursor)?;
+            }
+            if let Some(tail) = tail {
+                rewrite_root_expr(tail, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            rewrite_root_expr(body, solutions, cursor)?;
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    rewrite_root_expr(guard, solutions, cursor)?;
+                }
+                rewrite_root_expr(&mut arm.body, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn rewrite_simple_apply(
+    expr: &mut Expr,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> FinalizeResult<bool> {
+    if !matches!(expr.kind, ExprKind::Apply { .. }) {
+        return Ok(false);
+    };
+    let Some(binding_path) = apply_spine_binding(expr) else {
+        return Ok(false);
+    };
+    let Some(solution) = solutions.get(*cursor) else {
+        return Ok(false);
+    };
+    if solution.binding != *binding_path {
+        return Ok(false);
+    }
+    replace_apply_spine_binding(expr, &solution.alias, &solution.callee_type);
+    materialize_expr_in_place(expr, &solution.type_substitutions);
+    expr.ty = solution.result_type.clone();
+    *cursor += 1;
+    Ok(true)
+}
+
+fn apply_spine_binding(expr: &Expr) -> Option<&typed_ir::Path> {
+    let mut current = expr;
+    while let ExprKind::Apply { callee, .. } = &current.kind {
+        current = callee;
+    }
+    let ExprKind::Var(path) = &current.kind else {
+        return None;
+    };
+    Some(path)
+}
+
+fn replace_apply_spine_binding(expr: &mut Expr, alias: &typed_ir::Path, callee_type: &RuntimeType) {
+    match &mut expr.kind {
+        ExprKind::Apply { callee, .. } => replace_apply_spine_binding(callee, alias, callee_type),
+        ExprKind::Var(path) => {
+            *path = alias.clone();
+            expr.ty = callee_type.clone();
+        }
+        _ => {}
+    }
+}
+
+fn rewrite_record_spread_expr(
+    spread: &mut yulang_runtime_ir::RecordSpreadExpr,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> FinalizeResult<()> {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
+            rewrite_root_expr(expr, solutions, cursor)
+        }
+    }
+}
+
+fn rewrite_stmt(
+    stmt: &mut yulang_runtime_ir::Stmt,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> FinalizeResult<()> {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { pattern, value } => {
+            rewrite_pattern(pattern, solutions, cursor)?;
+            rewrite_root_expr(value, solutions, cursor)
+        }
+        yulang_runtime_ir::Stmt::Expr(expr)
+        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
+            rewrite_root_expr(expr, solutions, cursor)
+        }
+    }
+}
+
+fn rewrite_pattern(
+    pattern: &mut yulang_runtime_ir::Pattern,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> FinalizeResult<()> {
+    use yulang_runtime_ir::Pattern;
+
+    match pattern {
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                rewrite_pattern(item, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                rewrite_pattern(item, solutions, cursor)?;
+            }
+            if let Some(spread) = spread {
+                rewrite_pattern(spread, solutions, cursor)?;
+            }
+            for item in suffix {
+                rewrite_pattern(item, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                rewrite_pattern(&mut field.pattern, solutions, cursor)?;
+                if let Some(default) = &mut field.default {
+                    rewrite_root_expr(default, solutions, cursor)?;
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+                        rewrite_pattern(pattern, solutions, cursor)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                rewrite_pattern(value, solutions, cursor)?;
+            }
+            Ok(())
+        }
+        Pattern::Or { left, right, .. } => {
+            rewrite_pattern(left, solutions, cursor)?;
+            rewrite_pattern(right, solutions, cursor)
+        }
+        Pattern::As { pattern, .. } => rewrite_pattern(pattern, solutions, cursor),
+        Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => Ok(()),
+    }
+}
+
+fn prune_specialized_polymorphic_bindings(module: &mut Module, solutions: &[RootGraphSolution]) {
+    let specialized = solutions
+        .iter()
+        .map(|solution| solution.binding.clone())
+        .collect::<HashSet<_>>();
+    if specialized.is_empty() {
+        return;
+    }
+    let referenced = referenced_paths(module);
+    module.bindings.retain(|binding| {
+        binding.type_params.is_empty()
+            || !specialized.contains(&binding.name)
+            || referenced.contains(&binding.name)
+    });
+}
+
+fn referenced_paths(module: &Module) -> HashSet<typed_ir::Path> {
+    let mut paths = HashSet::new();
+    for expr in &module.root_exprs {
+        collect_expr_paths(expr, &mut paths);
+    }
+    for binding in &module.bindings {
+        if binding.type_params.is_empty() {
+            collect_expr_paths(&binding.body, &mut paths);
+        }
+    }
+    paths
+}
+
+fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) -> Expr {
+    let ty = materialize_runtime_type(expr.ty, substitutions);
+    let kind = match expr.kind {
+        ExprKind::Var(path) => ExprKind::Var(path),
+        ExprKind::EffectOp(path) => ExprKind::EffectOp(path),
+        ExprKind::PrimitiveOp(op) => ExprKind::PrimitiveOp(op),
+        ExprKind::Lit(lit) => ExprKind::Lit(lit),
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body: Box::new(materialize_expr(*body, substitutions)),
+        },
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+        } => ExprKind::Apply {
+            callee: Box::new(materialize_expr(*callee, substitutions)),
+            arg: Box::new(materialize_expr(*arg, substitutions)),
+            evidence,
+            instantiation,
+        },
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .into_iter()
+                .map(|item| materialize_expr(item, substitutions))
+                .collect(),
+        ),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            evidence,
+        } => ExprKind::If {
+            cond: Box::new(materialize_expr(*cond, substitutions)),
+            then_branch: Box::new(materialize_expr(*then_branch, substitutions)),
+            else_branch: Box::new(materialize_expr(*else_branch, substitutions)),
+            evidence: evidence.map(|evidence| materialize_join_evidence(evidence, substitutions)),
+        },
+        ExprKind::Record { fields, spread } => ExprKind::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| yulang_runtime_ir::RecordExprField {
+                    name: field.name,
+                    value: materialize_expr(field.value, substitutions),
+                })
+                .collect(),
+            spread: spread.map(|spread| materialize_record_spread_expr(spread, substitutions)),
+        },
+        ExprKind::Variant { tag, value } => ExprKind::Variant {
+            tag,
+            value: value.map(|value| Box::new(materialize_expr(*value, substitutions))),
+        },
+        ExprKind::Select { base, field } => ExprKind::Select {
+            base: Box::new(materialize_expr(*base, substitutions)),
+            field,
+        },
+        ExprKind::Match {
+            scrutinee,
+            arms,
+            evidence,
+        } => ExprKind::Match {
+            scrutinee: Box::new(materialize_expr(*scrutinee, substitutions)),
+            arms: arms
+                .into_iter()
+                .map(|arm| materialize_match_arm(arm, substitutions))
+                .collect(),
+            evidence: materialize_join_evidence(evidence, substitutions),
+        },
+        ExprKind::Block { stmts, tail } => ExprKind::Block {
+            stmts: stmts
+                .into_iter()
+                .map(|stmt| materialize_stmt(stmt, substitutions))
+                .collect(),
+            tail: tail.map(|tail| Box::new(materialize_expr(*tail, substitutions))),
+        },
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => ExprKind::Handle {
+            body: Box::new(materialize_expr(*body, substitutions)),
+            arms: arms
+                .into_iter()
+                .map(|arm| materialize_handle_arm(arm, substitutions))
+                .collect(),
+            evidence: materialize_join_evidence(evidence, substitutions),
+            handler: materialize_handle_effect(handler, substitutions),
+        },
+        ExprKind::BindHere { expr } => ExprKind::BindHere {
+            expr: Box::new(materialize_expr(*expr, substitutions)),
+        },
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => ExprKind::Thunk {
+            effect: materialize_core_type(effect, substitutions),
+            value: materialize_runtime_type(value, substitutions),
+            expr: Box::new(materialize_expr(*expr, substitutions)),
+        },
+        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
+            id,
+            body: Box::new(materialize_expr(*body, substitutions)),
+        },
+        ExprKind::PeekId => ExprKind::PeekId,
+        ExprKind::FindId { id } => ExprKind::FindId { id },
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
+            id,
+            allowed: materialize_core_type(allowed, substitutions),
+            active,
+            thunk: Box::new(materialize_expr(*thunk, substitutions)),
+        },
+        ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
+            from: materialize_core_type(from, substitutions),
+            to: materialize_core_type(to, substitutions),
+            expr: Box::new(materialize_expr(*expr, substitutions)),
+        },
+        ExprKind::Pack { var, expr } => ExprKind::Pack {
+            var,
+            expr: Box::new(materialize_expr(*expr, substitutions)),
+        },
+    };
+    Expr::typed(kind, ty)
+}
+
+fn materialize_expr_in_place(expr: &mut Expr, substitutions: &[typed_ir::TypeSubstitution]) {
+    *expr = materialize_expr(expr.clone(), substitutions);
+}
+
+fn materialize_stmt(
+    stmt: yulang_runtime_ir::Stmt,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::Stmt {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
+            pattern: materialize_pattern(pattern, substitutions),
+            value: materialize_expr(value, substitutions),
+        },
+        yulang_runtime_ir::Stmt::Expr(expr) => {
+            yulang_runtime_ir::Stmt::Expr(materialize_expr(expr, substitutions))
+        }
+        yulang_runtime_ir::Stmt::Module { def, body } => yulang_runtime_ir::Stmt::Module {
+            def,
+            body: materialize_expr(body, substitutions),
+        },
+    }
+}
+
+fn materialize_pattern(
+    pattern: yulang_runtime_ir::Pattern,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::Pattern {
+    use yulang_runtime_ir::Pattern;
+
+    match pattern {
+        Pattern::Wildcard { ty } => Pattern::Wildcard {
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::Bind { name, ty } => Pattern::Bind {
+            name,
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::Lit { lit, ty } => Pattern::Lit {
+            lit,
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::Tuple { items, ty } => Pattern::Tuple {
+            items: items
+                .into_iter()
+                .map(|item| materialize_pattern(item, substitutions))
+                .collect(),
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ty,
+        } => Pattern::List {
+            prefix: prefix
+                .into_iter()
+                .map(|item| materialize_pattern(item, substitutions))
+                .collect(),
+            spread: spread.map(|spread| Box::new(materialize_pattern(*spread, substitutions))),
+            suffix: suffix
+                .into_iter()
+                .map(|item| materialize_pattern(item, substitutions))
+                .collect(),
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::Record { fields, spread, ty } => Pattern::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| yulang_runtime_ir::RecordPatternField {
+                    name: field.name,
+                    pattern: materialize_pattern(field.pattern, substitutions),
+                    default: field
+                        .default
+                        .map(|expr| materialize_expr(expr, substitutions)),
+                })
+                .collect(),
+            spread,
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::Variant { tag, value, ty } => Pattern::Variant {
+            tag,
+            value: value.map(|value| Box::new(materialize_pattern(*value, substitutions))),
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::Or { left, right, ty } => Pattern::Or {
+            left: Box::new(materialize_pattern(*left, substitutions)),
+            right: Box::new(materialize_pattern(*right, substitutions)),
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+        Pattern::As { pattern, name, ty } => Pattern::As {
+            pattern: Box::new(materialize_pattern(*pattern, substitutions)),
+            name,
+            ty: materialize_runtime_type(ty, substitutions),
+        },
+    }
+}
+
+fn materialize_record_spread_expr(
+    spread: yulang_runtime_ir::RecordSpreadExpr,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::RecordSpreadExpr {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
+            yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(materialize_expr(
+                *expr,
+                substitutions,
+            )))
+        }
+        yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
+            yulang_runtime_ir::RecordSpreadExpr::Tail(Box::new(materialize_expr(
+                *expr,
+                substitutions,
+            )))
+        }
+    }
+}
+
+fn materialize_match_arm(
+    arm: yulang_runtime_ir::MatchArm,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::MatchArm {
+    yulang_runtime_ir::MatchArm {
+        pattern: materialize_pattern(arm.pattern, substitutions),
+        guard: arm
+            .guard
+            .map(|guard| materialize_expr(guard, substitutions)),
+        body: materialize_expr(arm.body, substitutions),
+    }
+}
+
+fn materialize_handle_arm(
+    arm: yulang_runtime_ir::HandleArm,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::HandleArm {
+    yulang_runtime_ir::HandleArm {
+        effect: arm.effect,
+        payload: materialize_pattern(arm.payload, substitutions),
+        resume: arm.resume.map(|resume| yulang_runtime_ir::ResumeBinding {
+            name: resume.name,
+            ty: materialize_runtime_type(resume.ty, substitutions),
+        }),
+        guard: arm
+            .guard
+            .map(|guard| materialize_expr(guard, substitutions)),
+        body: materialize_expr(arm.body, substitutions),
+    }
+}
+
+fn materialize_join_evidence(
+    evidence: yulang_runtime_ir::JoinEvidence,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::JoinEvidence {
+    yulang_runtime_ir::JoinEvidence {
+        result: materialize_core_type(evidence.result, substitutions),
+    }
+}
+
+fn materialize_handle_effect(
+    handler: yulang_runtime_ir::HandleEffect,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> yulang_runtime_ir::HandleEffect {
+    yulang_runtime_ir::HandleEffect {
+        consumes: handler.consumes,
+        residual_before: handler
+            .residual_before
+            .map(|ty| materialize_core_type(ty, substitutions)),
+        residual_after: handler
+            .residual_after
+            .map(|ty| materialize_core_type(ty, substitutions)),
+    }
+}
+
+fn collect_expr_paths(expr: &Expr, paths: &mut HashSet<typed_ir::Path>) {
+    match &expr.kind {
+        ExprKind::Var(path) | ExprKind::EffectOp(path) => {
+            paths.insert(path.clone());
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => collect_expr_paths(body, paths),
+        ExprKind::Apply { callee, arg, .. } => {
+            collect_expr_paths(callee, paths);
+            collect_expr_paths(arg, paths);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_paths(cond, paths);
+            collect_expr_paths(then_branch, paths);
+            collect_expr_paths(else_branch, paths);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                collect_expr_paths(item, paths);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_paths(&field.value, paths);
+            }
+            if let Some(spread) = spread {
+                collect_record_spread_expr_paths(spread, paths);
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_paths(value, paths);
+            }
+        }
+        ExprKind::Select { base, .. } => collect_expr_paths(base, paths),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_expr_paths(scrutinee, paths);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_paths(guard, paths);
+                }
+                collect_expr_paths(&arm.body, paths);
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                collect_stmt_paths(stmt, paths);
+            }
+            if let Some(tail) = tail {
+                collect_expr_paths(tail, paths);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            collect_expr_paths(body, paths);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_paths(guard, paths);
+                }
+                collect_expr_paths(&arm.body, paths);
+            }
+        }
+        ExprKind::Thunk { expr, .. } => collect_expr_paths(expr, paths),
+        ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+}
+
+fn collect_record_spread_expr_paths(
+    spread: &yulang_runtime_ir::RecordSpreadExpr,
+    paths: &mut HashSet<typed_ir::Path>,
+) {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => collect_expr_paths(expr, paths),
+    }
+}
+
+fn collect_stmt_paths(stmt: &yulang_runtime_ir::Stmt, paths: &mut HashSet<typed_ir::Path>) {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { pattern, value } => {
+            collect_pattern_paths(pattern, paths);
+            collect_expr_paths(value, paths);
+        }
+        yulang_runtime_ir::Stmt::Expr(expr)
+        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
+            collect_expr_paths(expr, paths);
+        }
+    }
+}
+
+fn collect_pattern_paths(
+    pattern: &yulang_runtime_ir::Pattern,
+    paths: &mut HashSet<typed_ir::Path>,
+) {
+    use yulang_runtime_ir::Pattern;
+
+    match pattern {
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_paths(item, paths);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_paths(item, paths);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_paths(spread, paths);
+            }
+            for item in suffix {
+                collect_pattern_paths(item, paths);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                collect_pattern_paths(&field.pattern, paths);
+                if let Some(default) = &field.default {
+                    collect_expr_paths(default, paths);
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_paths(pattern, paths);
+                    }
+                }
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_paths(value, paths);
+            }
+        }
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_paths(left, paths);
+            collect_pattern_paths(right, paths);
+        }
+        Pattern::As { pattern, .. } => collect_pattern_paths(pattern, paths),
+        Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => {}
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct InstanceKey {
+    binding: typed_ir::Path,
+    substitutions: Vec<typed_ir::TypeSubstitution>,
+}
+
+fn alias_path(original: &typed_ir::Path, index: usize) -> typed_ir::Path {
+    let mut segments = original.segments.clone();
+    segments.push(typed_ir::Name(format!("mono{index}")));
+    typed_ir::Path::new(segments)
+}
+
+fn function_parts(ty: &typed_ir::Type) -> Option<(&typed_ir::Type, &typed_ir::Type)> {
+    let typed_ir::Type::Fun { param, ret, .. } = ty else {
+        return None;
+    };
+    Some((param, ret))
+}
+
+fn runtime_type_is_closed(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => false,
+        RuntimeType::Core(ty) => core_type_is_closed(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_is_closed(param) && runtime_type_is_closed(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_is_closed(effect) && runtime_type_is_closed(value)
+        }
+    }
+}
+
+fn core_type_is_closed(ty: &yulang_typed_ir::Type) -> bool {
+    use yulang_typed_ir::Type;
+
+    match ty {
+        Type::Unknown | Type::Var(_) => false,
+        Type::Never | Type::Any => true,
+        Type::Named { args, .. } => args.iter().all(type_arg_is_closed),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_is_closed(param)
+                && core_type_is_closed(param_effect)
+                && core_type_is_closed(ret_effect)
+                && core_type_is_closed(ret)
+        }
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => {
+            items.iter().all(core_type_is_closed)
+        }
+        Type::Record(record) => record
+            .fields
+            .iter()
+            .all(|field| core_type_is_closed(&field.value)),
+        Type::Variant(variant) => variant
+            .cases
+            .iter()
+            .all(|case| case.payloads.iter().all(core_type_is_closed)),
+        Type::Row { items, tail } => {
+            items.iter().all(core_type_is_closed) && core_type_is_closed(tail)
+        }
+        Type::Recursive { body, .. } => core_type_is_closed(body),
+    }
+}
+
+fn type_arg_is_closed(arg: &yulang_typed_ir::TypeArg) -> bool {
+    match arg {
+        yulang_typed_ir::TypeArg::Type(ty) => core_type_is_closed(ty),
+        yulang_typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_none_or(|ty| core_type_is_closed(ty))
+                && bounds
+                    .upper
+                    .as_ref()
+                    .is_none_or(|ty| core_type_is_closed(ty))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use yulang_runtime_ir::{Expr, ExprKind};
+    use yulang_typed_ir as typed_ir;
+
+    #[test]
+    fn closed_root_expr_becomes_root_graph_input() {
+        let ty = RuntimeType::Core(typed_ir::Type::Tuple(Vec::new()));
+        let module = Module {
+            path: path("test"),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(ExprKind::Tuple(Vec::new()), ty.clone())],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        assert_eq!(
+            collect_root_graph_inputs(&module),
+            vec![RootGraphInput {
+                root: RootGraphRoot::Expr(0),
+                known_type: Some(ty),
+            }]
+        );
+    }
+
+    #[test]
+    fn open_root_expr_does_not_make_fake_any_input() {
+        let module = Module {
+            path: path("test"),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Tuple(Vec::new()),
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        assert_eq!(collect_root_graph_inputs(&module)[0].known_type, None);
+    }
+
+    #[test]
+    fn root_apply_solves_id_one_graph() {
+        let int = int_type();
+        let module = Module {
+            path: path("test"),
+            bindings: vec![id_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(ExprKind::Var(path("id")), RuntimeType::Unknown)),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                        RuntimeType::Core(int.clone()),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_module(module).unwrap();
+
+        assert_eq!(output.report.root_graph_solutions.len(), 1);
+        let solution = &output.report.root_graph_solutions[0];
+        assert_eq!(solution.binding, path("id"));
+        assert_eq!(solution.result_type, RuntimeType::Core(int.clone()));
+        assert!(solution.graph.is_complete());
+        assert_eq!(solution.graph.substitutions()[0].ty, int);
+        assert_eq!(solution.alias, path(&["id", "mono0"]));
+        assert_eq!(output.module.bindings.len(), 1);
+        assert_eq!(output.module.bindings[0].name, path(&["id", "mono0"]));
+        assert!(output.module.bindings[0].type_params.is_empty());
+        assert_eq!(
+            simple_apply_callee_path(&output.module.root_exprs[0]),
+            Some(path(&["id", "mono0"]))
+        );
+        assert_eq!(
+            output.module.root_exprs[0].ty,
+            RuntimeType::Core(int.clone())
+        );
+    }
+
+    #[test]
+    fn root_tuple_solves_two_id_uses_separately() {
+        let int = int_type();
+        let bool_ty = bool_type();
+        let module = Module {
+            path: path("test"),
+            bindings: vec![id_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Tuple(vec![
+                    id_call(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                        RuntimeType::Core(int.clone()),
+                    )),
+                    id_call(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                        RuntimeType::Core(bool_ty.clone()),
+                    )),
+                ]),
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_module(module).unwrap();
+
+        assert_eq!(output.report.root_graph_solutions.len(), 2);
+        assert_eq!(
+            output.report.root_graph_solutions[0].result_type,
+            RuntimeType::Core(int.clone())
+        );
+        assert_eq!(
+            output.report.root_graph_solutions[1].result_type,
+            RuntimeType::Core(bool_ty.clone())
+        );
+        assert_eq!(
+            output.report.root_graph_solutions[0].graph.substitutions()[0].ty,
+            int
+        );
+        assert_eq!(
+            output.report.root_graph_solutions[1].graph.substitutions()[0].ty,
+            bool_ty
+        );
+        assert_eq!(output.module.bindings.len(), 2);
+        assert_eq!(output.module.bindings[0].name, path(&["id", "mono0"]));
+        assert_eq!(output.module.bindings[1].name, path(&["id", "mono1"]));
+        let ExprKind::Tuple(items) = &output.module.root_exprs[0].kind else {
+            panic!("root should stay a tuple");
+        };
+        assert_eq!(
+            simple_apply_callee_path(&items[0]),
+            Some(path(&["id", "mono0"]))
+        );
+        assert_eq!(
+            simple_apply_callee_path(&items[1]),
+            Some(path(&["id", "mono1"]))
+        );
+        assert_eq!(items[0].ty, RuntimeType::Core(int.clone()));
+        assert_eq!(items[1].ty, RuntimeType::Core(bool_ty.clone()));
+    }
+
+    #[test]
+    fn repeated_same_instance_reuses_one_alias() {
+        let int = int_type();
+        let module = Module {
+            path: path("test"),
+            bindings: vec![id_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Tuple(vec![
+                    id_call(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                        RuntimeType::Core(int.clone()),
+                    )),
+                    id_call(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Int("2".into())),
+                        RuntimeType::Core(int.clone()),
+                    )),
+                ]),
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_module(module).unwrap();
+
+        assert_eq!(output.report.root_graph_solutions.len(), 2);
+        assert_eq!(
+            output.report.root_graph_solutions[0].alias,
+            output.report.root_graph_solutions[1].alias
+        );
+        assert_eq!(output.module.bindings.len(), 1);
+        assert_eq!(output.module.bindings[0].name, path(&["id", "mono0"]));
+        let ExprKind::Tuple(items) = &output.module.root_exprs[0].kind else {
+            panic!("root should stay a tuple");
+        };
+        assert_eq!(
+            simple_apply_callee_path(&items[0]),
+            Some(path(&["id", "mono0"]))
+        );
+        assert_eq!(
+            simple_apply_callee_path(&items[1]),
+            Some(path(&["id", "mono0"]))
+        );
+    }
+
+    #[test]
+    fn source_my_id_x_eq_x_id_1_solves_root_graph() {
+        let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
+
+        let output = finalize_module(module).unwrap();
+
+        assert_eq!(output.report.root_graph_solutions.len(), 1);
+        let solution = &output.report.root_graph_solutions[0];
+        assert!(solution.graph.is_complete());
+        assert!(matches!(solution.result_type, RuntimeType::Core(_)));
+    }
+
+    #[test]
+    fn source_my_id_x_eq_x_two_roots_solve_separate_graphs() {
+        let module = runtime_module_from_source_without_std("my id x = x\nid 1\nid true\n");
+
+        let output = finalize_module(module).unwrap();
+
+        assert_eq!(output.report.root_graph_solutions.len(), 2);
+        assert!(
+            output
+                .report
+                .root_graph_solutions
+                .iter()
+                .all(|solution| solution.graph.is_complete())
+        );
+        assert_ne!(
+            output.report.root_graph_solutions[0].result_type,
+            output.report.root_graph_solutions[1].result_type
+        );
+        assert!(output.module.bindings.iter().any(|binding| {
+            binding.name == path(&["id", "mono0"]) && binding.type_params.is_empty()
+        }));
+        assert!(output.module.bindings.iter().any(|binding| {
+            binding.name == path(&["id", "mono1"]) && binding.type_params.is_empty()
+        }));
+    }
+
+    #[test]
+    fn finalized_source_id_1_runs_on_vm() {
+        let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
+
+        let output = finalize_module(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "1".into()
+            ))]
+        );
+    }
+
+    #[test]
+    fn finalized_source_solves_polymorphic_call_inside_monomorphic_body() {
+        let module = runtime_module_from_source_without_std("my id x = x\nmy f y = id y\nf 1\n");
+
+        let output = finalize_module(module).unwrap();
+        let aliases = output
+            .module
+            .bindings
+            .iter()
+            .map(|binding| binding.name.clone())
+            .collect::<Vec<_>>();
+        assert!(aliases.contains(&path(&["f", "mono0"])));
+        assert!(aliases.contains(&path(&["id", "mono1"])));
+        assert!(
+            output
+                .module
+                .bindings
+                .iter()
+                .all(|binding| binding.type_params.is_empty())
+        );
+
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "1".into()
+            ))]
+        );
+    }
+
+    #[test]
+    fn finalized_source_runs_first_1_true_from_apply_constraints() {
+        let module = runtime_module_from_source_without_std("my first x y = x\nfirst 1 true\n");
+
+        let output = finalize_module(module).unwrap();
+        let solution = &output.report.root_graph_solutions[0];
+        assert_eq!(
+            solution.result_type,
+            RuntimeType::Core(typed_ir::Type::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })
+        );
+        assert!(
+            output
+                .module
+                .bindings
+                .iter()
+                .all(|binding| binding.type_params.is_empty())
+        );
+
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "1".into()
+            ))]
+        );
+    }
+
+    fn id_call(arg: Expr) -> Expr {
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(ExprKind::Var(path("id")), RuntimeType::Unknown)),
+                arg: Box::new(arg),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Unknown,
+        )
+    }
+
+    fn simple_apply_callee_path(expr: &Expr) -> Option<typed_ir::Path> {
+        let ExprKind::Apply { callee, .. } = &expr.kind else {
+            return None;
+        };
+        let ExprKind::Var(path) = &callee.kind else {
+            return None;
+        };
+        Some(path.clone())
+    }
+
+    fn id_binding() -> Binding {
+        Binding {
+            name: path("id"),
+            type_params: vec![typed_ir::TypeVar("a".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: typed_ir::Type::Fun {
+                    param: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(typed_ir::Type::Never),
+                    ret: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                },
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Var(path("x")),
+                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn int_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path("Int"),
+            args: Vec::new(),
+        }
+    }
+
+    fn bool_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path("Bool"),
+            args: Vec::new(),
+        }
+    }
+
+    fn path(name: impl IntoPathArg) -> typed_ir::Path {
+        name.into_path()
+    }
+
+    trait IntoPathArg {
+        fn into_path(self) -> typed_ir::Path;
+    }
+
+    impl IntoPathArg for &str {
+        fn into_path(self) -> typed_ir::Path {
+            typed_ir::Path::from_name(typed_ir::Name(self.into()))
+        }
+    }
+
+    impl<const N: usize> IntoPathArg for &[&str; N] {
+        fn into_path(self) -> typed_ir::Path {
+            typed_ir::Path::new(
+                self.iter()
+                    .map(|segment| typed_ir::Name((*segment).into()))
+                    .collect(),
+            )
+        }
+    }
+
+    fn runtime_module_from_source_without_std(src: &str) -> Module {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            src,
+            None,
+            yulang_infer::SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = yulang_infer::export_core_program(&mut lowered.state);
+        yulang_runtime::lower_core_program(program).unwrap()
+    }
+}

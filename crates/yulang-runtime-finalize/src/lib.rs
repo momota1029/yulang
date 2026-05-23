@@ -1,33 +1,25 @@
 //! Runtime finalization for Yulang.
 //!
-//! This crate is the new home for runtime type closure, monomorphic instance
-//! planning, cast insertion, and final hole policy.  It is still experimental:
-//! the public surface is intentionally small while the principal and body graph
-//! responsibilities are separated.
+//! The active rewrite starts from a fresh type graph.  A polymorphic principal
+//! type is first instantiated into that graph, then expression evidence is
+//! collected as lower/upper bounds.  Solving prefers lower bounds and returns a
+//! fully materializable monomorphic view of the graph.
+//!
+//! The previous implementation is archived under
+//! `archive/2026-05-23-pre-rewrite`.
 
-mod body;
 mod diagnostic;
-mod effect;
-mod emit;
-mod module;
+mod graph;
 mod output;
-mod planner;
-mod principal;
-mod role;
-mod types;
-mod validate;
+mod solver;
 
-pub use body::{BodyGraph, BodySolution, NestedInstancePlan};
-pub use diagnostic::{
-    BodyIncompleteReason, FinalizeDiagnostic, FinalizeError, FinalizeResult,
-    PrincipalIncompleteReason,
+pub use diagnostic::{FinalizeDiagnostic, FinalizeResult};
+pub use graph::ResolvedTypeVar;
+pub use graph::{
+    GraphSolution, PrincipalInstance, PrincipalTypeParam, RuntimeBounds, TypeGraph, TypeVarBounds,
+    materialize_core_type, materialize_runtime_type,
 };
-pub use emit::{InstanceAliases, emit_instance_bindings, emit_instance_bindings_with_aliases};
-pub use module::{RootBindingRequest, finalize_root_bindings, finalize_simple_root_exprs};
 pub use output::{
-    FinalizeOutput, FinalizeReport, RootInstance, TopLevelDemand, TopLevelRoot, finalize_module,
+    FinalizeOutput, FinalizeReport, RootGraphInput, RootGraphRoot, RootGraphSolution,
 };
-pub use planner::{FinalizedInstance, InstancePlan, InstancePlanner, InstanceState};
-pub use principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
-pub use role::{AssociatedProjection, RoleContext, RoleMemberResolution, RoleProjectionStatus};
-pub use validate::{validate_closed_module, validate_finalized_output};
+pub use solver::{collect_root_graph_inputs, finalize_module};
