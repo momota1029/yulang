@@ -3491,6 +3491,7 @@ fn clone_reachable_dependency_program(
                 .filter(|symbol| reachable.contains(&symbol.path))
                 .cloned()
                 .collect(),
+            enum_variants: dependencies.graph.enum_variants.clone(),
             role_impls: dependencies.graph.role_impls.clone(),
             primitive_types: dependencies.graph.primitive_types.clone(),
         },
@@ -3974,6 +3975,7 @@ fn merge_core_program_into(
         &mut target.graph.runtime_symbols,
         source.graph.runtime_symbols,
     )?;
+    merge_enum_variant_graph_nodes(&mut target.graph.enum_variants, source.graph.enum_variants);
     merge_role_impl_graph_nodes(&mut target.graph.role_impls, source.graph.role_impls);
     merge_primitive_type_graph_nodes(
         &mut target.graph.primitive_types,
@@ -3992,6 +3994,17 @@ fn merge_core_program_into(
         .derived_expected_edges
         .extend(source.evidence.derived_expected_edges);
     Ok(())
+}
+
+fn merge_enum_variant_graph_nodes(
+    target: &mut Vec<typed_ir::EnumVariantGraphNode>,
+    source: Vec<typed_ir::EnumVariantGraphNode>,
+) {
+    for node in source {
+        if !target.contains(&node) {
+            target.push(node);
+        }
+    }
 }
 
 fn merge_primitive_type_graph_nodes(

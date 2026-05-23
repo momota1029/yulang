@@ -21,7 +21,7 @@ use super::type_props::{
     erase_open_vars_from_runtime_type,
 };
 use super::types::{
-    export_coalesced_type_bounds_for_tv, export_compact_type_bounds,
+    export_coalesced_type_bounds_for_tv, export_compact_type_bounds, export_frozen_scheme,
     export_relevant_type_bounds_for_tv, export_type_bounds_for_tv,
 };
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedBlock, TypedExpr, TypedStmt};
@@ -592,15 +592,75 @@ fn export_type_graph_view_for_paths(
         .collect();
     let root_exprs = export_root_expr_nodes(state);
     let runtime_symbols = export_runtime_symbols(state, paths);
+    let enum_variants = export_enum_variant_graph_nodes(state);
     let role_impls = export_role_impl_graph_nodes(state, paths);
     let primitive_types = state.primitive_paths.export_core_type_nodes();
     typed_ir::CoreGraphView {
         bindings: binding_nodes,
         root_exprs,
         runtime_symbols,
+        enum_variants,
         role_impls,
         primitive_types,
     }
+}
+
+fn export_enum_variant_graph_nodes(state: &LowerState) -> Vec<typed_ir::EnumVariantGraphNode> {
+    let mut nodes = state
+        .enum_variant_patterns
+        .iter()
+        .filter_map(|(def, shape)| {
+            let tag = state.enum_variant_tags.get(def)?;
+            let scheme = state.infer.frozen_scheme_of(*def)?;
+            let scheme_body = export_frozen_scheme(&state.infer, &scheme).body;
+            let (type_params, payload) =
+                enum_variant_surface_from_constructor_type(&scheme_body, &shape.enum_path)?;
+            Some(typed_ir::EnumVariantGraphNode {
+                enum_path: export_path(&shape.enum_path),
+                tag: typed_ir::Name(tag.0.clone()),
+                type_params,
+                payload,
+            })
+        })
+        .collect::<Vec<_>>();
+    nodes.sort_by(|left, right| {
+        left.enum_path
+            .segments
+            .cmp(&right.enum_path.segments)
+            .then_with(|| left.tag.cmp(&right.tag))
+    });
+    nodes
+}
+
+fn enum_variant_surface_from_constructor_type(
+    ty: &typed_ir::Type,
+    enum_path: &Path,
+) -> Option<(Vec<typed_ir::TypeVar>, Option<typed_ir::Type>)> {
+    let mut params = Vec::new();
+    let mut current = ty;
+    while let typed_ir::Type::Fun { param, ret, .. } = current {
+        params.push((**param).clone());
+        current = ret;
+    }
+    let typed_ir::Type::Named { path, args } = current else {
+        return None;
+    };
+    if path != &export_path(enum_path) {
+        return None;
+    }
+    let type_params = args
+        .iter()
+        .filter_map(|arg| match arg {
+            typed_ir::TypeArg::Type(typed_ir::Type::Var(var)) => Some(var.clone()),
+            _ => None,
+        })
+        .collect();
+    let payload = match params.as_slice() {
+        [] => None,
+        [param] => Some(param.clone()),
+        params => Some(typed_ir::Type::Tuple(params.to_vec())),
+    };
+    Some((type_params, payload))
 }
 
 fn export_role_impl_graph_nodes(

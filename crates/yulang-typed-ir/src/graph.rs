@@ -7,6 +7,7 @@ pub struct CoreGraphView {
     pub bindings: Vec<BindingGraphNode>,
     pub root_exprs: Vec<ExprGraphNode>,
     pub runtime_symbols: Vec<RuntimeSymbol>,
+    pub enum_variants: Vec<EnumVariantGraphNode>,
     #[serde(default)]
     pub role_impls: Vec<RoleImplGraphNode>,
     #[serde(default)]
@@ -32,6 +33,14 @@ pub struct ExprGraphNode {
 pub struct RuntimeSymbol {
     pub path: Path,
     pub kind: RuntimeSymbolKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnumVariantGraphNode {
+    pub enum_path: Path,
+    pub tag: crate::names::Name,
+    pub type_params: Vec<crate::types::TypeVar>,
+    pub payload: Option<Type>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -18,6 +18,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -106,6 +107,7 @@ mod tests {
                     },
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -391,6 +393,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(unit_type()),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -483,6 +486,7 @@ mod tests {
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -616,6 +620,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -732,6 +737,7 @@ mod tests {
                     path: action_path,
                     kind: typed_ir::RuntimeSymbolKind::EffectOperation,
                 }],
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -784,6 +790,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(bool_type()),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -825,6 +832,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -869,6 +877,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -991,6 +1000,7 @@ mod tests {
                     }],
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
@@ -1028,6 +1038,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -1108,6 +1119,7 @@ mod tests {
                     path: effect_path.clone(),
                     kind: typed_ir::RuntimeSymbolKind::EffectOperation,
                 }],
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -1185,6 +1197,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -1237,6 +1250,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(tuple_ty.clone()),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -1292,6 +1306,7 @@ mod tests {
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -1498,6 +1513,7 @@ mod tests {
                     path: effect_path,
                     kind: typed_ir::RuntimeSymbolKind::EffectOperation,
                 }],
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -1958,6 +1974,75 @@ mod tests {
         assert_eq!(core_type(value), &named_type("int"));
     }
 
+    #[test]
+    pub(super) fn lower_variant_pattern_uses_named_constructor_payload_type() {
+        let item = typed_ir::TypeVar("item".to_string());
+        let tag = typed_ir::Name("node".to_string());
+        let list_view_path = path(&["std", "list", "list_view"]);
+        let str_type = RuntimePrimitivePathTable::standard()
+            .primitive_type(typed_ir::PrimitiveTypeFamily::Str, Vec::new());
+        let list_view_str = typed_ir::Type::Named {
+            path: list_view_path.clone(),
+            args: vec![typed_ir::TypeArg::Type(str_type.clone())],
+        };
+        let list_item = list_type(typed_ir::Type::Var(item.clone()));
+        let list_str = list_type(str_type);
+        let constructor_path = path(&["std", "list", "list_view", "node"]);
+        let constructor_ty = RuntimeType::fun(
+            RuntimeType::core(typed_ir::Type::Tuple(vec![
+                list_item.clone(),
+                list_item.clone(),
+            ])),
+            RuntimeType::core(typed_ir::Type::Named {
+                path: list_view_path,
+                args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(item))],
+            }),
+        );
+        let graph = typed_ir::CoreGraphView::default();
+        let mut lowerer = Lowerer {
+            env: HashMap::from([(constructor_path, constructor_ty)]),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &graph,
+            runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
+            principal_vars: BTreeSet::new(),
+            expected_edges_by_id: HashMap::new(),
+            use_expected_arg_evidence: false,
+            use_principal_elaboration: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
+            current_function_boundary: None,
+            current_runtime_adapter_source: None,
+            current_binding: None,
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let left = typed_ir::Name("left".to_string());
+        let right = typed_ir::Name("right".to_string());
+        let pattern = typed_ir::Pattern::Variant {
+            tag,
+            value: Some(Box::new(typed_ir::Pattern::Tuple(vec![
+                typed_ir::Pattern::Bind(left.clone()),
+                typed_ir::Pattern::Bind(right.clone()),
+            ]))),
+        };
+        let mut locals = HashMap::new();
+
+        lower_core_pattern(&mut lowerer, pattern, &list_view_str, &mut locals).expect("lowered");
+
+        assert_eq!(
+            locals.get(&typed_ir::Path::from_name(left)),
+            Some(&RuntimeType::core(list_str.clone()))
+        );
+        assert_eq!(
+            locals.get(&typed_ir::Path::from_name(right)),
+            Some(&RuntimeType::core(list_str))
+        );
+    }
+
     pub(super) fn effectful_action_binding(
         name: typed_ir::Path,
         fn_ty: typed_ir::Type,
@@ -2010,5 +2095,14 @@ mod tests {
             ]),
             args: vec![typed_ir::TypeArg::Type(item)],
         }
+    }
+
+    fn path(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path::new(
+            segments
+                .iter()
+                .map(|segment| typed_ir::Name((*segment).to_string()))
+                .collect(),
+        )
     }
 }

@@ -212,7 +212,7 @@ pub(super) fn lower_core_pattern(
             })
         }
         typed_ir::Pattern::Variant { tag, value } => {
-            let payload_ty = variant_payload_expected(Some(ty), &tag);
+            let payload_ty = variant_payload_expected(lowerer, Some(ty), &tag);
             let value = value
                 .map(|value| {
                     let erased_payload = typed_ir::Type::Any;
@@ -286,17 +286,6 @@ fn named_struct_record_type(
     Some(substitute_record_type_vars(record, &substitutions))
 }
 
-fn runtime_constructor_parts(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
-    match ty {
-        RuntimeType::Fun { param, ret } => Some((param.as_ref().clone(), ret.as_ref().clone())),
-        RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => Some((
-            RuntimeType::core((**param).clone()),
-            RuntimeType::core((**ret).clone()),
-        )),
-        _ => None,
-    }
-}
-
 fn named_type_path(ty: &RuntimeType) -> Option<&typed_ir::Path> {
     let RuntimeType::Core(typed_ir::Type::Named { path, args: _ }) = ty else {
         return None;
@@ -329,7 +318,7 @@ fn substitute_record_type_vars(
     }
 }
 
-fn substitute_pattern_type_vars(
+pub(super) fn substitute_pattern_type_vars(
     ty: &typed_ir::Type,
     substitutions: &HashMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::Type {

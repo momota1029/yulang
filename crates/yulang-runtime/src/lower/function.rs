@@ -59,6 +59,7 @@ pub(super) fn record_field_expected(
 }
 
 pub(super) fn variant_payload_expected(
+    lowerer: &Lowerer<'_>,
     expected: Option<&typed_ir::Type>,
     tag: &typed_ir::Name,
 ) -> Option<typed_ir::Type> {
@@ -66,11 +67,95 @@ pub(super) fn variant_payload_expected(
         Some(typed_ir::Type::Variant(variant)) => {
             variant_payload_expected_from_variant(variant, tag)
         }
+        Some(typed_ir::Type::Named { path, args }) => {
+            named_variant_payload_expected_from_graph(lowerer, path, args, tag).or_else(|| {
+                named_variant_payload_expected_from_constructor(lowerer, path, args, tag)
+            })
+        }
         Some(typed_ir::Type::Union(items) | typed_ir::Type::Inter(items)) => items
             .iter()
-            .find_map(|item| variant_payload_expected(Some(item), tag)),
+            .find_map(|item| variant_payload_expected(lowerer, Some(item), tag)),
         _ => None,
     }
+}
+
+fn named_variant_payload_expected_from_graph(
+    lowerer: &Lowerer<'_>,
+    path: &typed_ir::Path,
+    args: &[typed_ir::TypeArg],
+    tag: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
+    let node = lowerer
+        .graph
+        .enum_variants
+        .iter()
+        .find(|node| node.enum_path == *path && node.tag == *tag)?;
+    let payload = node.payload.as_ref()?;
+    let substitutions = node
+        .type_params
+        .iter()
+        .zip(args.iter())
+        .filter_map(|(param, arg)| type_arg_to_core_type(arg).map(|ty| (param.clone(), ty)))
+        .collect::<HashMap<_, _>>();
+    Some(substitute_pattern_type_vars(payload, &substitutions))
+}
+
+fn type_arg_to_core_type(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => Some(ty.clone()),
+        typed_ir::TypeArg::Bounds(bounds) => runtime_bounds_type(bounds),
+    }
+}
+
+fn named_variant_payload_expected_from_constructor(
+    lowerer: &Lowerer<'_>,
+    path: &typed_ir::Path,
+    args: &[typed_ir::TypeArg],
+    tag: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
+    let mut constructor_path = path.clone();
+    constructor_path.push(tag.clone());
+    named_variant_payload_from_constructor(lowerer.env.get(&constructor_path), path, args).or_else(
+        || {
+            lowerer.env.iter().find_map(|(candidate_path, candidate)| {
+                (candidate_path.segments.last() == Some(tag))
+                    .then(|| named_variant_payload_from_constructor(Some(candidate), path, args))
+                    .flatten()
+            })
+        },
+    )
+}
+
+fn named_variant_payload_from_constructor(
+    constructor: Option<&RuntimeType>,
+    path: &typed_ir::Path,
+    args: &[typed_ir::TypeArg],
+) -> Option<typed_ir::Type> {
+    let (param, ret) = runtime_constructor_parts(constructor?)?;
+    let RuntimeType::Core(typed_ir::Type::Named {
+        path: ret_path,
+        args: ret_args,
+    }) = &ret
+    else {
+        return None;
+    };
+    if ret_path != path || ret_args.len() != args.len() {
+        return None;
+    }
+    let RuntimeType::Core(param) = param else {
+        return None;
+    };
+    let substitutions = ret_args
+        .iter()
+        .zip(args.iter())
+        .filter_map(|(from, to)| match (from, to) {
+            (typed_ir::TypeArg::Type(typed_ir::Type::Var(var)), typed_ir::TypeArg::Type(ty)) => {
+                Some((var.clone(), ty.clone()))
+            }
+            _ => None,
+        })
+        .collect::<HashMap<_, _>>();
+    Some(substitute_pattern_type_vars(&param, &substitutions))
 }
 
 fn variant_payload_expected_from_variant(
@@ -89,6 +174,17 @@ fn variant_case_payload_value_type(payloads: &[typed_ir::Type]) -> Option<typed_
         [] => None,
         [payload] => Some(payload.clone()),
         payloads => Some(typed_ir::Type::Tuple(payloads.to_vec())),
+    }
+}
+
+pub(super) fn runtime_constructor_parts(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
+    match ty {
+        RuntimeType::Fun { param, ret } => Some((param.as_ref().clone(), ret.as_ref().clone())),
+        RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => Some((
+            RuntimeType::core((**param).clone()),
+            RuntimeType::core((**ret).clone()),
+        )),
+        _ => None,
     }
 }
 

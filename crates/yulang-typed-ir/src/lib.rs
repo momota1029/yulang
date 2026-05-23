@@ -18,8 +18,9 @@ pub use expr::{
     VariantExprSource,
 };
 pub use graph::{
-    BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, PrimitiveTypeFamily,
-    PrimitiveTypeGraphNode, RoleImplGraphNode, RuntimeSymbol, RuntimeSymbolKind, TypeGraphView,
+    BindingGraphNode, CoreGraphView, EnumVariantGraphNode, ExprGraphNode, GraphOwner,
+    PrimitiveTypeFamily, PrimitiveTypeGraphNode, RoleImplGraphNode, RuntimeSymbol,
+    RuntimeSymbolKind, TypeGraphView,
 };
 pub use names::{Name, Path};
 pub use type_order::{

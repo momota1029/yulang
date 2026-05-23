@@ -2226,6 +2226,7 @@ version = "0.1.0"
 dependencies = [
  "postcard",
  "serde",
+ "yulang-compile",
  "yulang-infer",
  "yulang-runtime",
  "yulang-runtime-ir",

@@ -1141,7 +1141,7 @@ impl Lowerer<'_> {
             } => {
                 let expected_core = expected.and_then(RuntimeType::as_core);
                 let expected_payload =
-                    variant_payload_expected(expected_core, &tag).map(RuntimeType::core);
+                    variant_payload_expected(self, expected_core, &tag).map(RuntimeType::core);
                 let value = value
                     .map(|value| {
                         self.lower_expr(

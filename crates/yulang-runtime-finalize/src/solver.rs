@@ -1966,6 +1966,28 @@ mod tests {
         );
     }
 
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_runtime_ir_cache_can_enter_runtime_finalize() {
+        let cache_start = std::time::Instant::now();
+        let cached =
+            runtime_module_from_source_with_prewarmed_std_cache_large_stack("\"hello\".println\n");
+        let cache_read = cache_start.elapsed();
+
+        assert!(cached.dependency_cache_hit);
+        assert!(!cached.dependency_manifests.is_empty());
+
+        let finalize_start = std::time::Instant::now();
+        let output = finalize_module(cached.module).unwrap();
+        let finalize = finalize_start.elapsed();
+        eprintln!(
+            "prewarmed std runtime-ir finalize profile: cache_read={:?} finalize={:?}",
+            cache_read, finalize
+        );
+
+        assert_eq!(output.module.root_exprs.len(), 1);
+    }
+
     fn id_call(arg: Expr) -> Expr {
         Expr::typed(
             ExprKind::Apply {
@@ -2067,6 +2089,42 @@ mod tests {
         .unwrap();
         let program = yulang_infer::export_core_program(&mut lowered.state);
         yulang_runtime::lower_core_program(program).unwrap()
+    }
+
+    fn runtime_module_from_source_with_prewarmed_std_cache_large_stack(
+        src: &str,
+    ) -> yulang_compile::CachedRuntimeIrModule {
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+            let cache_paths = yulang_compile::YulangCachePaths::for_project(&repo_root);
+            let options = yulang_compile::SourceOptions {
+                std_root: Some(repo_root.join("lib/std")),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            };
+
+            yulang_compile::runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
+                &src,
+                Some(repo_root),
+                options,
+                &cache_paths,
+            )
+            .expect("read prewarmed std compiled dependency cache")
+        })
+    }
+
+    fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
+    where
+        T: Send + 'static,
+    {
+        std::thread::Builder::new()
+            .name("runtime-finalize-large-stack".into())
+            .stack_size(128 * 1024 * 1024)
+            .spawn(f)
+            .expect("spawn large-stack runtime-finalize test thread")
+            .join()
+            .expect("large-stack runtime-finalize test panicked")
     }
 
     fn artifact_cache_root(name: &str) -> std::path::PathBuf {

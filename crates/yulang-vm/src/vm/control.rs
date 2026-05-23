@@ -8,7 +8,7 @@ use std::path::Path;
 use yulang_runtime::ir::RecordSpreadPattern;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 8;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 10;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

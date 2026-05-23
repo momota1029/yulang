@@ -637,6 +637,33 @@ mod tests {
     }
 
     #[test]
+    fn rejects_artifact_missing_runtime_enum_variant_surface() {
+        let root = temp_root("compiled-unit-cache-missing-enum-variants");
+        let _ = fs::remove_dir_all(&root);
+        let cache = CompiledUnitArtifactCache::new(&root);
+        let artifact = test_artifact(11, 22);
+        let key = CompiledUnitArtifactCacheKey::from_manifest(&artifact.manifest);
+        let path = cache.artifact_path(&key);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        let mut value = serde_json::to_value(&artifact).unwrap();
+        value
+            .pointer_mut("/runtime/program/graph")
+            .and_then(|graph| graph.as_object_mut())
+            .unwrap()
+            .remove("enum_variants");
+        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+
+        let err = cache.read(&key).unwrap_err();
+
+        assert!(matches!(
+            err,
+            CompiledUnitArtifactCacheError::Deserialize { .. }
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn artifact_key_includes_realm_band_identity() {
         let first = test_artifact(11, 22);
         let mut second = test_artifact(11, 22);

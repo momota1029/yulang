@@ -2635,6 +2635,66 @@ fn compiled_runtime_bundle_merges_primitive_type_metadata() {
 }
 
 #[test]
+fn compiled_runtime_bundle_merges_enum_variant_payload_surface() {
+    let mut left = runtime_surface_with_coerce_binding("left", 0);
+    let mut right = runtime_surface_with_coerce_binding("right", 0);
+    left.program
+        .graph
+        .enum_variants
+        .push(enum_variant_node("list_view", "empty", None));
+    right
+        .program
+        .graph
+        .enum_variants
+        .push(enum_variant_node("list_view", "empty", None));
+    right.program.graph.enum_variants.push(enum_variant_node(
+        "list_view",
+        "node",
+        Some(yulang_typed_ir::Type::Tuple(vec![
+            yulang_typed_ir::Type::Named {
+                path: CorePath::from_name(CoreName("list".to_string())),
+                args: vec![yulang_typed_ir::TypeArg::Type(yulang_typed_ir::Type::Var(
+                    yulang_typed_ir::TypeVar("a".to_string()),
+                ))],
+            },
+            yulang_typed_ir::Type::Named {
+                path: CorePath::from_name(CoreName("list".to_string())),
+                args: vec![yulang_typed_ir::TypeArg::Type(yulang_typed_ir::Type::Var(
+                    yulang_typed_ir::TypeVar("a".to_string()),
+                ))],
+            },
+        ])),
+    ));
+
+    let bundle = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap();
+
+    assert_eq!(
+        bundle.surface.program.graph.enum_variants,
+        vec![
+            enum_variant_node("list_view", "empty", None),
+            enum_variant_node(
+                "list_view",
+                "node",
+                Some(yulang_typed_ir::Type::Tuple(vec![
+                    yulang_typed_ir::Type::Named {
+                        path: CorePath::from_name(CoreName("list".to_string())),
+                        args: vec![yulang_typed_ir::TypeArg::Type(yulang_typed_ir::Type::Var(
+                            yulang_typed_ir::TypeVar("a".to_string()),
+                        ))],
+                    },
+                    yulang_typed_ir::Type::Named {
+                        path: CorePath::from_name(CoreName("list".to_string())),
+                        args: vec![yulang_typed_ir::TypeArg::Type(yulang_typed_ir::Type::Var(
+                            yulang_typed_ir::TypeVar("a".to_string()),
+                        ))],
+                    },
+                ])),
+            ),
+        ]
+    );
+}
+
+#[test]
 fn compiled_runtime_bundle_rejects_conflicting_primitive_type_metadata() {
     let mut left = runtime_surface_with_coerce_binding("left", 0);
     let mut right = runtime_surface_with_coerce_binding("right", 0);
@@ -2880,6 +2940,19 @@ fn primitive_type_node(name: &str) -> yulang_typed_ir::PrimitiveTypeGraphNode {
     }
 }
 
+fn enum_variant_node(
+    enum_name: &str,
+    tag: &str,
+    payload: Option<yulang_typed_ir::Type>,
+) -> yulang_typed_ir::EnumVariantGraphNode {
+    yulang_typed_ir::EnumVariantGraphNode {
+        enum_path: CorePath::from_name(CoreName(enum_name.to_string())),
+        tag: CoreName(tag.to_string()),
+        type_params: vec![yulang_typed_ir::TypeVar("a".to_string())],
+        payload,
+    }
+}
+
 fn lit_binding(name: CorePath, value: &str) -> yulang_typed_ir::PrincipalBinding {
     yulang_typed_ir::PrincipalBinding {
         name,
@@ -2943,6 +3016,7 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
@@ -3034,6 +3108,7 @@ fn runtime_surface_with_record_default_apply_binding(name: &str) -> CompiledRunt
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
