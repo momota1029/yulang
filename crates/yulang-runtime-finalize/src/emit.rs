@@ -10,6 +10,13 @@ use crate::principal::InstanceKey;
 
 pub fn emit_instance_bindings(plan: &InstancePlan) -> Vec<Binding> {
     let aliases = InstanceAliases::from_plan(plan);
+    emit_instance_bindings_with_aliases(plan, &aliases)
+}
+
+pub fn emit_instance_bindings_with_aliases(
+    plan: &InstancePlan,
+    aliases: &InstanceAliases,
+) -> Vec<Binding> {
     plan.finalized_instances
         .iter()
         .map(|instance| emit_instance_binding(instance, &aliases))

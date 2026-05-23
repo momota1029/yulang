@@ -25,6 +25,9 @@ pub enum FinalizeDiagnostic {
     MissingBinding {
         binding: typed_ir::Path,
     },
+    MissingRootExpr {
+        index: usize,
+    },
     BodyResultMismatch {
         binding: typed_ir::Path,
         expected: RuntimeType,

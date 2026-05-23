@@ -21,6 +21,7 @@ pub struct FinalizeOutput {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FinalizeReport {
     pub planned_instances: Vec<InstanceKey>,
+    pub root_instances: Vec<RootInstance>,
     pub diagnostics: Vec<FinalizeDiagnostic>,
 }
 
@@ -36,6 +37,13 @@ impl FinalizeReport {
             self.planned_instances.push(key);
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RootInstance {
+    pub original: typed_ir::Path,
+    pub key: InstanceKey,
+    pub alias: typed_ir::Path,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
