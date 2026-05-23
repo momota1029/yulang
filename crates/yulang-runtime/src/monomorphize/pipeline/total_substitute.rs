@@ -123,17 +123,6 @@ impl TypeVarLowerApplication<'_> {
         );
         self.expr(&mut binding.body, active);
         if active {
-            if let Some(lower) = local_var_runtime_lower(&binding.body, &binding.name) {
-                let next = merge_runtime_open_or_default_slots_with_lower(&binding.body.ty, &lower);
-                self.record_core_change(&mut binding.body.ty, next);
-            }
-            let body = binding.body.ty.clone();
-            apply_local_var_runtime_lower(
-                &mut binding.body,
-                &binding.name,
-                &body,
-                &mut self.applied_slots,
-            );
             let scheme_body = runtime_core_type(&binding.body.ty);
             self.record_core_change(&mut binding.scheme.body, scheme_body);
         }
@@ -164,24 +153,6 @@ impl TypeVarLowerApplication<'_> {
                         &body.ty,
                         &mut self.applied_slots,
                     );
-                }
-                if active {
-                    let local = typed_ir::Path::from_name(param.clone());
-                    if let Some(lower) = local_var_runtime_lower(body, &local) {
-                        apply_runtime_function_param_lower(
-                            &mut expr.ty,
-                            &lower,
-                            &mut self.applied_slots,
-                        );
-                    }
-                    if let Some(param_ty) = runtime_function_param_for_substitute(&expr.ty) {
-                        apply_local_var_runtime_lower(
-                            body,
-                            &local,
-                            &param_ty,
-                            &mut self.applied_slots,
-                        );
-                    }
                 }
             }
             ExprKind::Apply {
@@ -648,262 +619,13 @@ fn pattern_runtime_type_mut_for_substitute(pattern: &mut Pattern) -> &mut Runtim
     }
 }
 
-fn local_var_runtime_lower(expr: &Expr, local: &typed_ir::Path) -> Option<RuntimeType> {
-    let mut lower = None;
-    collect_local_var_runtime_lower(expr, local, &mut lower);
-    lower
-}
-
-fn collect_local_var_runtime_lower(
-    expr: &Expr,
-    local: &typed_ir::Path,
-    lower: &mut Option<RuntimeType>,
-) {
-    if let ExprKind::Var(path) = &expr.kind
-        && path == local
-        && runtime_type_is_usable_lower_for_substitute(&expr.ty)
-    {
-        merge_optional_runtime_lower(lower, expr.ty.clone());
-    }
-    match &expr.kind {
-        ExprKind::Lambda { param, body, .. } => {
-            if typed_ir::Path::from_name(param.clone()) != *local {
-                collect_local_var_runtime_lower(body, local, lower);
-            }
-        }
-        ExprKind::Apply { callee, arg, .. } => {
-            collect_local_var_runtime_lower(callee, local, lower);
-            collect_local_var_runtime_lower(arg, local, lower);
-        }
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-            ..
-        } => {
-            collect_local_var_runtime_lower(cond, local, lower);
-            collect_local_var_runtime_lower(then_branch, local, lower);
-            collect_local_var_runtime_lower(else_branch, local, lower);
-        }
-        ExprKind::Tuple(items) => {
-            for item in items {
-                collect_local_var_runtime_lower(item, local, lower);
-            }
-        }
-        ExprKind::Record { fields, spread } => {
-            for field in fields {
-                collect_local_var_runtime_lower(&field.value, local, lower);
-            }
-            if let Some(spread) = spread {
-                match spread {
-                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                        collect_local_var_runtime_lower(expr, local, lower);
-                    }
-                }
-            }
-        }
-        ExprKind::Variant { value, .. } => {
-            if let Some(value) = value {
-                collect_local_var_runtime_lower(value, local, lower);
-            }
-        }
-        ExprKind::Select { base, .. } => collect_local_var_runtime_lower(base, local, lower),
-        ExprKind::Match {
-            scrutinee, arms, ..
-        } => {
-            collect_local_var_runtime_lower(scrutinee, local, lower);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_local_var_runtime_lower(guard, local, lower);
-                }
-                collect_local_var_runtime_lower(&arm.body, local, lower);
-            }
-        }
-        ExprKind::Block { stmts, tail } => {
-            for stmt in stmts {
-                collect_local_var_runtime_lower_from_stmt(stmt, local, lower);
-            }
-            if let Some(tail) = tail {
-                collect_local_var_runtime_lower(tail, local, lower);
-            }
-        }
-        ExprKind::Handle { body, arms, .. } => {
-            collect_local_var_runtime_lower(body, local, lower);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_local_var_runtime_lower(guard, local, lower);
-                }
-                collect_local_var_runtime_lower(&arm.body, local, lower);
-            }
-        }
-        ExprKind::BindHere { expr }
-        | ExprKind::Thunk { expr, .. }
-        | ExprKind::LocalPushId { body: expr, .. }
-        | ExprKind::AddId { thunk: expr, .. }
-        | ExprKind::Coerce { expr, .. }
-        | ExprKind::Pack { expr, .. } => {
-            collect_local_var_runtime_lower(expr, local, lower);
-        }
-        ExprKind::Var(_)
-        | ExprKind::EffectOp(_)
-        | ExprKind::PrimitiveOp(_)
-        | ExprKind::Lit(_)
-        | ExprKind::PeekId
-        | ExprKind::FindId { .. } => {}
-    }
-}
-
-fn collect_local_var_runtime_lower_from_stmt(
-    stmt: &Stmt,
-    local: &typed_ir::Path,
-    lower: &mut Option<RuntimeType>,
-) {
-    match stmt {
-        Stmt::Let { value, .. } => collect_local_var_runtime_lower(value, local, lower),
-        Stmt::Expr(expr) | Stmt::Module { body: expr, .. } => {
-            collect_local_var_runtime_lower(expr, local, lower)
-        }
-    }
-}
-
-fn apply_local_var_runtime_lower(
-    expr: &mut Expr,
-    local: &typed_ir::Path,
-    lower: &RuntimeType,
-    applied_slots: &mut usize,
-) {
-    if let ExprKind::Var(path) = &expr.kind
-        && path == local
-    {
-        let next = merge_runtime_open_or_default_slots_with_lower(&expr.ty, lower);
-        if expr.ty != next {
-            expr.ty = next;
-            *applied_slots += 1;
-        }
-    }
-    match &mut expr.kind {
-        ExprKind::Lambda { param, body, .. } => {
-            if typed_ir::Path::from_name(param.clone()) != *local {
-                apply_local_var_runtime_lower(body, local, lower, applied_slots);
-            }
-        }
-        ExprKind::Apply { callee, arg, .. } => {
-            apply_local_var_runtime_lower(callee, local, lower, applied_slots);
-            apply_local_var_runtime_lower(arg, local, lower, applied_slots);
-        }
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-            ..
-        } => {
-            apply_local_var_runtime_lower(cond, local, lower, applied_slots);
-            apply_local_var_runtime_lower(then_branch, local, lower, applied_slots);
-            apply_local_var_runtime_lower(else_branch, local, lower, applied_slots);
-        }
-        ExprKind::Tuple(items) => {
-            for item in items {
-                apply_local_var_runtime_lower(item, local, lower, applied_slots);
-            }
-        }
-        ExprKind::Record { fields, spread } => {
-            for field in fields {
-                apply_local_var_runtime_lower(&mut field.value, local, lower, applied_slots);
-            }
-            if let Some(spread) = spread {
-                match spread {
-                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                        apply_local_var_runtime_lower(expr, local, lower, applied_slots);
-                    }
-                }
-            }
-        }
-        ExprKind::Variant { value, .. } => {
-            if let Some(value) = value {
-                apply_local_var_runtime_lower(value, local, lower, applied_slots);
-            }
-        }
-        ExprKind::Select { base, .. } => {
-            apply_local_var_runtime_lower(base, local, lower, applied_slots)
-        }
-        ExprKind::Match {
-            scrutinee, arms, ..
-        } => {
-            apply_local_var_runtime_lower(scrutinee, local, lower, applied_slots);
-            for arm in arms {
-                if let Some(guard) = &mut arm.guard {
-                    apply_local_var_runtime_lower(guard, local, lower, applied_slots);
-                }
-                apply_local_var_runtime_lower(&mut arm.body, local, lower, applied_slots);
-            }
-        }
-        ExprKind::Block { stmts, tail } => {
-            for stmt in stmts {
-                apply_local_var_runtime_lower_to_stmt(stmt, local, lower, applied_slots);
-            }
-            if let Some(tail) = tail {
-                apply_local_var_runtime_lower(tail, local, lower, applied_slots);
-            }
-        }
-        ExprKind::Handle { body, arms, .. } => {
-            apply_local_var_runtime_lower(body, local, lower, applied_slots);
-            for arm in arms {
-                if let Some(guard) = &mut arm.guard {
-                    apply_local_var_runtime_lower(guard, local, lower, applied_slots);
-                }
-                apply_local_var_runtime_lower(&mut arm.body, local, lower, applied_slots);
-            }
-        }
-        ExprKind::BindHere { expr }
-        | ExprKind::Thunk { expr, .. }
-        | ExprKind::LocalPushId { body: expr, .. }
-        | ExprKind::AddId { thunk: expr, .. }
-        | ExprKind::Coerce { expr, .. }
-        | ExprKind::Pack { expr, .. } => {
-            apply_local_var_runtime_lower(expr, local, lower, applied_slots);
-        }
-        ExprKind::Var(_)
-        | ExprKind::EffectOp(_)
-        | ExprKind::PrimitiveOp(_)
-        | ExprKind::Lit(_)
-        | ExprKind::PeekId
-        | ExprKind::FindId { .. } => {}
-    }
-}
-
-fn apply_local_var_runtime_lower_to_stmt(
-    stmt: &mut Stmt,
-    local: &typed_ir::Path,
-    lower: &RuntimeType,
-    applied_slots: &mut usize,
-) {
-    match stmt {
-        Stmt::Let { value, .. } => {
-            apply_local_var_runtime_lower(value, local, lower, applied_slots);
-        }
-        Stmt::Expr(expr) | Stmt::Module { body: expr, .. } => {
-            apply_local_var_runtime_lower(expr, local, lower, applied_slots);
-        }
-    }
-}
-
-fn merge_optional_runtime_lower(target: &mut Option<RuntimeType>, lower: RuntimeType) {
-    match target {
-        Some(current) => {
-            let next = merge_runtime_open_or_default_slots_with_lower(current, &lower);
-            if &next != current {
-                *current = next;
-            }
-        }
-        None => *target = Some(lower),
-    }
-}
-
 fn choose_bounds_runtime_type_for_substitute(bounds: &typed_ir::TypeBounds) -> Option<RuntimeType> {
     choose_bounds_type(bounds, BoundsChoice::VisiblePrincipal).map(RuntimeType::core)
 }
 
-fn runtime_function_parts_for_substitute(ty: &RuntimeType) -> Option<(&RuntimeType, &RuntimeType)> {
+pub(super) fn runtime_function_parts_for_substitute(
+    ty: &RuntimeType,
+) -> Option<(&RuntimeType, &RuntimeType)> {
     match ty {
         RuntimeType::Fun { param, ret } => Some((param, ret)),
         RuntimeType::Core(typed_ir::Type::Fun { .. }) => Some((ty, ty)),
@@ -912,7 +634,7 @@ fn runtime_function_parts_for_substitute(ty: &RuntimeType) -> Option<(&RuntimeTy
     }
 }
 
-fn runtime_function_lower_parts_for_substitute(
+pub(super) fn runtime_function_lower_parts_for_substitute(
     ty: &RuntimeType,
 ) -> Option<(RuntimeType, RuntimeType)> {
     match ty {
@@ -926,18 +648,7 @@ fn runtime_function_lower_parts_for_substitute(
     }
 }
 
-fn runtime_function_param_for_substitute(ty: &RuntimeType) -> Option<RuntimeType> {
-    match ty {
-        RuntimeType::Fun { param, .. } => Some(param.as_ref().clone()),
-        RuntimeType::Core(typed_ir::Type::Fun { param, .. }) => {
-            Some(RuntimeType::core(param.as_ref().clone()))
-        }
-        RuntimeType::Thunk { value, .. } => runtime_function_param_for_substitute(value),
-        RuntimeType::Unknown | RuntimeType::Core(_) => None,
-    }
-}
-
-fn apply_runtime_function_param_lower(
+pub(super) fn apply_runtime_function_param_lower(
     ty: &mut RuntimeType,
     candidate: &RuntimeType,
     applied_slots: &mut usize,
@@ -965,7 +676,7 @@ fn apply_runtime_function_param_lower(
     }
 }
 
-fn apply_runtime_function_result_lower(
+pub(super) fn apply_runtime_function_result_lower(
     ty: &mut RuntimeType,
     candidate: &RuntimeType,
     applied_slots: &mut usize,
@@ -993,7 +704,10 @@ fn apply_runtime_function_result_lower(
     }
 }
 
-fn merge_runtime_open_slots_with_lower(current: &RuntimeType, lower: &RuntimeType) -> RuntimeType {
+pub(super) fn merge_runtime_open_slots_with_lower(
+    current: &RuntimeType,
+    lower: &RuntimeType,
+) -> RuntimeType {
     match current {
         RuntimeType::Unknown => lower.clone(),
         RuntimeType::Core(current) => RuntimeType::core(merge_core_open_slots_with_lower(
@@ -1029,7 +743,7 @@ fn merge_runtime_open_slots_with_lower(current: &RuntimeType, lower: &RuntimeTyp
     }
 }
 
-fn merge_runtime_open_or_default_slots_with_lower(
+pub(super) fn merge_runtime_open_or_default_slots_with_lower(
     current: &RuntimeType,
     lower: &RuntimeType,
 ) -> RuntimeType {

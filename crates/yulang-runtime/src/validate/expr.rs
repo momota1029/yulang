@@ -57,10 +57,25 @@ pub(super) fn validate_expr(
             }
             match &callee.ty {
                 RuntimeType::Fun { param, ret } => {
+                    if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some()
+                        && let Err(_) =
+                            require_apply_arg_hir_type(param, &arg.ty, TypeSource::ApplyEvidence)
+                    {
+                        eprintln!(
+                            "validate apply arg mismatch callee={:?} callee_ty={:?} arg={:?} arg_ty={:?} result_ty={:?} evidence={:?}",
+                            callee.kind, callee.ty, arg.kind, arg.ty, expr.ty, evidence
+                        );
+                    }
                     require_apply_arg_hir_type(param, &arg.ty, TypeSource::ApplyEvidence)?;
                     if let Err(err) =
                         require_apply_result_hir_type(ret, &expr.ty, TypeSource::ApplyEvidence)
                     {
+                        if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+                            eprintln!(
+                                "validate apply result mismatch callee={:?} callee_ty={:?} arg_ty={:?} result_ty={:?} evidence={:?}",
+                                callee.kind, callee.ty, arg.ty, expr.ty, evidence
+                            );
+                        }
                         if !apply_evidence_result_matches(evidence.as_ref(), &expr.ty)? {
                             return Err(err);
                         }

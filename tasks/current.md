@@ -9,6 +9,27 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 
 - `notes/todo/index.md`
 
+## Monomorphize lower-bound invariant
+
+現在の monomorphize 作業では、次を設計上の不変条件として扱う。
+
+- 関数呼び出しでは、callee / argument / result の型はきっぱり分かれる。
+  「関数型が返ってきて合わないのでエラー」という状態を後段で扱わない。
+  あり得る不一致は、主型・制約・下界解決のどこかと一致しない場合として見る。
+- 単相化した関数インスタンスでは、呼び出し側で既知の型を仮引数スロットの
+  下界へ入れる。
+- その下界は、型制約を集めるのと同じ一般規則で伝播する。
+  `Apply` は callee の引数/結果を分けて見る。`Lambda` は param/body を分けて見る。
+  tuple / record / variant / thunk / effect は構造再帰で分解し、内部の下界へ入れる。
+- 伝播によって別の下界が生まれ、出力型はその時点で主型に従って定まる。
+- 単相化した関数の内部にある局所関数・局所変数は、その単相化インスタンス内の
+  局所下界だけを見る。多相関数本体の共有スキームへ下界を流さない。
+- 式へ型を付ける段階では、解けた下界を再帰的に読む。変数参照は独立した型の
+  所有者ではなく、束縛スロットを参照するだけにする。
+- `Local` / `ApplyEvidence` / binding reference など、失敗した表面ごとに後段同期パスを
+  足さない。必要な情報は、単相化インスタンス内の lower-bound collection / solve /
+  materialize の責務へ戻す。
+
 直近の実験:
 
 - experimental control VM は hidden debug path として
