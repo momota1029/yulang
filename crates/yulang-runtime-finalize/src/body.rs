@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use yulang_runtime_ir::{Binding, Expr, ExprKind, Stmt, Type as RuntimeType};
+use yulang_runtime_ir::{
+    Binding, Expr, ExprKind, RecordExprField, RecordSpreadExpr, Stmt, Type as RuntimeType,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{BodyIncompleteReason, FinalizeDiagnostic, FinalizeError, FinalizeResult};
@@ -171,6 +173,80 @@ impl BodyGraph {
                 ));
                 let ty = self.choose_known_type(materialized_ty, Some(inferred))?;
                 Ok(Expr::typed(ExprKind::Tuple(solved_items), ty))
+            }
+            ExprKind::Record { fields, spread } => {
+                let solved_fields = fields
+                    .into_iter()
+                    .map(|field| {
+                        let value = self.solve_expr(env, nested_instances, field.value)?;
+                        Ok(RecordExprField {
+                            name: field.name,
+                            value,
+                        })
+                    })
+                    .collect::<FinalizeResult<Vec<_>>>()?;
+                let solved_spread = spread
+                    .map(|spread| self.solve_record_spread(env, nested_instances, spread))
+                    .transpose()?;
+                let inferred = infer_record_type(&solved_fields, solved_spread.as_ref());
+                let ty = self.choose_known_type(materialized_ty, inferred)?;
+                Ok(Expr::typed(
+                    ExprKind::Record {
+                        fields: solved_fields,
+                        spread: solved_spread,
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::Select { base, field } => {
+                let solved_base = self.solve_expr(env, nested_instances, *base)?;
+                let inferred = select_field_type(&solved_base.ty, &field);
+                let ty = self.choose_known_type(materialized_ty, inferred)?;
+                Ok(Expr::typed(
+                    ExprKind::Select {
+                        base: Box::new(solved_base),
+                        field,
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::Variant { tag, value } => {
+                let solved_value = value
+                    .map(|value| self.solve_expr(env, nested_instances, *value))
+                    .transpose()?;
+                let inferred = infer_variant_type(&tag, solved_value.as_ref());
+                let ty = self.choose_known_type(materialized_ty, inferred)?;
+                Ok(Expr::typed(
+                    ExprKind::Variant {
+                        tag,
+                        value: solved_value.map(Box::new),
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+                evidence,
+            } => {
+                let solved_cond = self.solve_expr(env, nested_instances, *cond)?;
+                let solved_then = self.solve_expr(env, nested_instances, *then_branch)?;
+                let solved_else = self.solve_expr(env, nested_instances, *else_branch)?;
+                let inferred = runtime_types_match(&solved_then.ty, &solved_else.ty)
+                    .then(|| solved_then.ty.clone());
+                let ty = self.choose_known_type(materialized_ty, inferred)?;
+                self.choose_known_type(ty.clone(), Some(solved_then.ty.clone()))?;
+                self.choose_known_type(ty.clone(), Some(solved_else.ty.clone()))?;
+                Ok(Expr::typed(
+                    ExprKind::If {
+                        cond: Box::new(solved_cond),
+                        then_branch: Box::new(solved_then),
+                        else_branch: Box::new(solved_else),
+                        evidence,
+                    },
+                    ty,
+                ))
             }
             ExprKind::Block { stmts, tail } => {
                 let mut block_env = env.clone();
@@ -416,6 +492,26 @@ impl BodyGraph {
             },
             ty,
         ))
+    }
+
+    fn solve_record_spread(
+        &self,
+        env: &mut BTreeMap<typed_ir::Name, RuntimeType>,
+        nested_instances: &mut Vec<NestedInstancePlan>,
+        spread: RecordSpreadExpr,
+    ) -> FinalizeResult<RecordSpreadExpr> {
+        match spread {
+            RecordSpreadExpr::Head(expr) => Ok(RecordSpreadExpr::Head(Box::new(self.solve_expr(
+                env,
+                nested_instances,
+                *expr,
+            )?))),
+            RecordSpreadExpr::Tail(expr) => Ok(RecordSpreadExpr::Tail(Box::new(self.solve_expr(
+                env,
+                nested_instances,
+                *expr,
+            )?))),
+        }
     }
 
     fn solve_handle_arm(
@@ -674,6 +770,66 @@ fn runtime_function_parts(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)
         }
         RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => None,
     }
+}
+
+fn infer_record_type(
+    fields: &[RecordExprField],
+    spread: Option<&RecordSpreadExpr>,
+) -> Option<RuntimeType> {
+    if spread.is_some() {
+        return None;
+    }
+    let fields = fields
+        .iter()
+        .map(|field| {
+            let RuntimeType::Core(ty) = &field.value.ty else {
+                return None;
+            };
+            Some(typed_ir::RecordField {
+                name: field.name.clone(),
+                value: ty.clone(),
+                optional: false,
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(RuntimeType::Core(typed_ir::Type::Record(
+        typed_ir::RecordType {
+            fields,
+            spread: None,
+        },
+    )))
+}
+
+fn select_field_type(base: &RuntimeType, field: &typed_ir::Name) -> Option<RuntimeType> {
+    let RuntimeType::Core(typed_ir::Type::Record(record)) = base else {
+        return None;
+    };
+    record
+        .fields
+        .iter()
+        .find(|record_field| &record_field.name == field)
+        .map(|field| RuntimeType::Core(field.value.clone()))
+}
+
+fn infer_variant_type(tag: &typed_ir::Name, value: Option<&Expr>) -> Option<RuntimeType> {
+    let payloads = match value {
+        Some(value) => {
+            let RuntimeType::Core(ty) = &value.ty else {
+                return None;
+            };
+            vec![ty.clone()]
+        }
+        None => Vec::new(),
+    };
+    Some(RuntimeType::Core(typed_ir::Type::Variant(
+        typed_ir::VariantType {
+            cases: vec![typed_ir::VariantCase {
+                name: tag.clone(),
+                payloads,
+            }],
+            tail: None,
+        },
+    )))
 }
 
 fn callee_var_path(expr: &Expr) -> Option<&typed_ir::Path> {
@@ -940,6 +1096,63 @@ mod tests {
         );
     }
 
+    #[test]
+    fn body_graph_solves_if_with_matching_branch_types() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["choose_int"]),
+                closed_param_types: vec![RuntimeType::Core(bool_type())],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&choose_int_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(int_type()));
+    }
+
+    #[test]
+    fn body_graph_solves_record_and_select() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["select_answer"]),
+                closed_param_types: vec![RuntimeType::Core(unit_type())],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&select_answer_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(int_type()));
+    }
+
+    #[test]
+    fn body_graph_solves_variant_construction() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["some_int"]),
+                closed_param_types: vec![RuntimeType::Core(unit_type())],
+                closed_result_type: RuntimeType::Core(some_int_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&some_int_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(some_int_type()));
+    }
+
     fn id_binding() -> Binding {
         Binding {
             name: path(&["id"]),
@@ -959,6 +1172,110 @@ mod tests {
                     body: Box::new(Expr::typed(
                         ExprKind::Var(path(&["x"])),
                         RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn choose_int_binding() -> Binding {
+        Binding {
+            name: path(&["choose_int"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(bool_type(), int_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("flag".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::If {
+                            cond: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["flag"])),
+                                RuntimeType::Core(bool_type()),
+                            )),
+                            then_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(int_type()),
+                            )),
+                            else_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("2".into())),
+                                RuntimeType::Core(int_type()),
+                            )),
+                            evidence: Some(yulang_runtime_ir::JoinEvidence { result: int_type() }),
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn select_answer_binding() -> Binding {
+        Binding {
+            name: path(&["select_answer"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(unit_type(), int_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_unit".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Select {
+                            base: Box::new(Expr::typed(
+                                ExprKind::Record {
+                                    fields: vec![RecordExprField {
+                                        name: typed_ir::Name("answer".into()),
+                                        value: Expr::typed(
+                                            ExprKind::Lit(typed_ir::Lit::Int("42".into())),
+                                            RuntimeType::Core(int_type()),
+                                        ),
+                                    }],
+                                    spread: None,
+                                },
+                                RuntimeType::Unknown,
+                            )),
+                            field: typed_ir::Name("answer".into()),
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn some_int_binding() -> Binding {
+        Binding {
+            name: path(&["some_int"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(unit_type(), some_int_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_unit".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Variant {
+                            tag: typed_ir::Name("some".into()),
+                            value: Some(Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(int_type()),
+                            ))),
+                        },
+                        RuntimeType::Unknown,
                     )),
                 },
                 RuntimeType::Unknown,
@@ -1279,8 +1596,25 @@ mod tests {
         }
     }
 
+    fn bool_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "bool", "Bool"]),
+            args: Vec::new(),
+        }
+    }
+
     fn unit_type() -> typed_ir::Type {
         typed_ir::Type::Tuple(Vec::new())
+    }
+
+    fn some_int_type() -> typed_ir::Type {
+        typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: vec![typed_ir::VariantCase {
+                name: typed_ir::Name("some".into()),
+                payloads: vec![int_type()],
+            }],
+            tail: None,
+        })
     }
 
     fn effect_row(names: &[&str]) -> typed_ir::Type {
