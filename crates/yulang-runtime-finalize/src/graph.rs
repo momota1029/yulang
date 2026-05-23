@@ -204,10 +204,7 @@ impl TypeGraph {
         lower: typed_ir::Type,
         upper: typed_ir::Type,
     ) -> FinalizeResult<()> {
-        if lower == upper
-            || matches!(lower, typed_ir::Type::Never)
-            || matches!(upper, typed_ir::Type::Any)
-        {
+        if lower == upper || matches!(upper, typed_ir::Type::Any) {
             return Ok(());
         }
         match (lower, upper) {
@@ -564,10 +561,7 @@ fn push_bound(
 }
 
 fn is_vacuous_bound(ty: &typed_ir::Type, side: BoundSide) -> bool {
-    matches!(
-        (side, ty),
-        (BoundSide::Lower, typed_ir::Type::Never) | (BoundSide::Upper, typed_ir::Type::Any)
-    )
+    matches!((side, ty), (BoundSide::Upper, typed_ir::Type::Any))
 }
 
 fn rename_type(

@@ -111,10 +111,9 @@ fn collect_expr_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
-    if let Some(solution) =
-        solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?
-    {
-        solutions.push(solution);
+    let found = solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?;
+    if !found.is_empty() {
+        solutions.extend(found);
         return Ok(());
     }
     match &expr.kind {
@@ -217,9 +216,9 @@ fn solve_simple_apply(
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     alias_index: usize,
-) -> FinalizeResult<Option<RootGraphSolution>> {
+) -> FinalizeResult<Vec<RootGraphSolution>> {
     let Some(spine) = ApplySpine::new(expr) else {
-        return Ok(None);
+        return Ok(Vec::new());
     };
     let binding_path = spine.binding;
     let Some(binding) = bindings.get(binding_path) else {
@@ -228,15 +227,19 @@ fn solve_simple_apply(
         });
     };
     if binding.type_params.is_empty() {
-        return Ok(None);
+        return Ok(Vec::new());
     }
+    let mut solutions =
+        solve_spine_value_args(owner.clone(), &spine, bindings, local_types, alias_index)?;
     let mut graph = TypeGraph::default();
     let principal = graph.instantiate_principal(binding);
+    collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
     let mut current = principal.principal_type.clone();
-    for arg in spine.args {
+    for step in &spine.steps {
         let result = graph.fresh_hole("apply");
+        let arg_type = step.arg_type(local_types);
         let expected = typed_ir::Type::Fun {
-            param: Box::new(runtime_type_to_core(expr_lower_type(arg, local_types))),
+            param: Box::new(arg_type),
             param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(typed_ir::Type::Unknown),
             ret: Box::new(result.clone()),
@@ -251,42 +254,193 @@ fn solve_simple_apply(
         });
     }
     let callee_type = RuntimeType::Core(graph.materialize_core(principal.principal_type.clone()));
-    let result_type = RuntimeType::Core(graph.materialize_core(current));
+    let result_type = solved_expr_result_type(&expr.ty, &graph, current);
     let type_substitutions = principal.original_substitutions(&graph);
-    Ok(Some(RootGraphSolution {
+    solutions.push(RootGraphSolution {
         root: owner,
-        occurrence: alias_index,
+        occurrence: alias_index + solutions.len(),
         binding: binding_path.clone(),
-        alias: alias_path(binding_path, alias_index),
+        alias: alias_path(binding_path, alias_index + solutions.len()),
         callee_type,
         result_type,
         graph,
         type_substitutions,
-    }))
+    });
+    Ok(solutions)
+}
+
+fn solved_expr_result_type(
+    expr_ty: &RuntimeType,
+    graph: &crate::GraphSolution,
+    result: typed_ir::Type,
+) -> RuntimeType {
+    let materialized = materialize_runtime_type(expr_ty.clone(), &graph.substitutions());
+    if runtime_type_is_closed(&materialized) {
+        materialized
+    } else {
+        RuntimeType::Core(graph.materialize_core(result))
+    }
+}
+
+fn solve_spine_value_args(
+    owner: RootGraphRoot,
+    spine: &ApplySpine<'_>,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    alias_index: usize,
+) -> FinalizeResult<Vec<RootGraphSolution>> {
+    let mut solutions = Vec::new();
+    for step in &spine.steps {
+        let ExprKind::Var(arg_binding_path) = &step.arg.kind else {
+            continue;
+        };
+        let Some(binding) = bindings.get(arg_binding_path) else {
+            continue;
+        };
+        if binding.type_params.is_empty() {
+            continue;
+        }
+        let solution = solve_value_arg(
+            owner.clone(),
+            binding,
+            step.arg_type(local_types),
+            alias_index + solutions.len(),
+        )?;
+        solutions.push(solution);
+    }
+    Ok(solutions)
+}
+
+fn solve_value_arg(
+    owner: RootGraphRoot,
+    binding: &Binding,
+    expected_type: typed_ir::Type,
+    alias_index: usize,
+) -> FinalizeResult<RootGraphSolution> {
+    let mut graph = TypeGraph::default();
+    let principal = graph.instantiate_principal(binding);
+    graph.constrain_subtype(principal.principal_type.clone(), expected_type)?;
+    let graph = graph.solve();
+    if !graph.is_complete() {
+        return Err(FinalizeDiagnostic::IncompleteGraph {
+            binding: binding.name.clone(),
+        });
+    }
+    let callee_type = RuntimeType::Core(graph.materialize_core(principal.principal_type.clone()));
+    let type_substitutions = principal.original_substitutions(&graph);
+    Ok(RootGraphSolution {
+        root: owner,
+        occurrence: alias_index,
+        binding: binding.name.clone(),
+        alias: alias_path(&binding.name, alias_index),
+        result_type: callee_type.clone(),
+        callee_type,
+        graph,
+        type_substitutions,
+    })
+}
+
+fn collect_spine_substitutions(
+    graph: &mut TypeGraph,
+    principal: &crate::PrincipalInstance,
+    steps: &[ApplyStep<'_>],
+) -> FinalizeResult<()> {
+    for step in steps {
+        if let Some(evidence) = step.evidence {
+            for substitution in &evidence.substitutions {
+                collect_spine_substitution(graph, principal, &substitution.var, &substitution.ty)?;
+            }
+        }
+        if let Some(instantiation) = step.instantiation {
+            for substitution in &instantiation.args {
+                collect_spine_substitution(graph, principal, &substitution.var, &substitution.ty)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn collect_spine_substitution(
+    graph: &mut TypeGraph,
+    principal: &crate::PrincipalInstance,
+    var: &typed_ir::TypeVar,
+    ty: &typed_ir::Type,
+) -> FinalizeResult<()> {
+    let Some(param) = principal
+        .type_params
+        .iter()
+        .find(|param| param.original == *var)
+    else {
+        return Ok(());
+    };
+    graph.constrain_subtype(ty.clone(), typed_ir::Type::Var(param.fresh.clone()))
 }
 
 struct ApplySpine<'a> {
     binding: &'a typed_ir::Path,
-    args: Vec<&'a Expr>,
+    steps: Vec<ApplyStep<'a>>,
+}
+
+struct ApplyStep<'a> {
+    arg: &'a Expr,
+    evidence: Option<&'a typed_ir::ApplyEvidence>,
+    instantiation: Option<&'a yulang_runtime_ir::TypeInstantiation>,
+}
+
+impl ApplyStep<'_> {
+    fn arg_type(&self, local_types: &HashMap<typed_ir::Path, RuntimeType>) -> typed_ir::Type {
+        let expr_ty = runtime_type_to_core(expr_lower_type(self.arg, local_types));
+        if core_type_is_closed(&expr_ty) {
+            return expr_ty;
+        }
+        self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty)
+    }
 }
 
 impl<'a> ApplySpine<'a> {
     fn new(expr: &'a Expr) -> Option<Self> {
-        let mut args = Vec::new();
+        let mut steps = Vec::new();
         let mut current = expr;
-        while let ExprKind::Apply { callee, arg, .. } = &current.kind {
-            args.push(arg.as_ref());
+        while let ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+            ..
+        } = &current.kind
+        {
+            steps.push(ApplyStep {
+                arg: arg.as_ref(),
+                evidence: evidence.as_ref(),
+                instantiation: instantiation.as_ref(),
+            });
             current = callee;
         }
-        if args.is_empty() {
+        if steps.is_empty() {
             return None;
         }
-        args.reverse();
+        steps.reverse();
         let ExprKind::Var(binding) = &current.kind else {
             return None;
         };
-        Some(Self { binding, args })
+        Some(Self { binding, steps })
     }
+}
+
+fn apply_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    evidence
+        .expected_arg
+        .as_ref()
+        .and_then(type_from_bounds)
+        .or_else(|| type_from_bounds(&evidence.arg))
+}
+
+fn type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
+    bounds
+        .lower
+        .as_deref()
+        .cloned()
+        .or_else(|| bounds.upper.as_deref().cloned())
 }
 
 fn collect_record_spread_graphs(
@@ -539,20 +693,29 @@ fn rewrite_root_expr(
     solutions: &[&RootGraphSolution],
     cursor: &mut usize,
 ) -> FinalizeResult<()> {
-    if rewrite_simple_apply(expr, solutions, cursor)? {
+    if rewrite_polymorphic_var(expr, solutions, cursor) {
         return Ok(());
     }
+    let is_apply_spine =
+        matches!(expr.kind, ExprKind::Apply { .. }) && apply_spine_binding(expr).is_some();
     match &mut expr.kind {
+        ExprKind::Apply { .. } if is_apply_spine => {
+            rewrite_apply_spine_args(expr, solutions, cursor)?;
+            if rewrite_simple_apply(expr, solutions, cursor)? {
+                return Ok(());
+            }
+            Ok(())
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            rewrite_root_expr(callee, solutions, cursor)?;
+            rewrite_root_expr(arg, solutions, cursor)
+        }
         ExprKind::Lambda { body, .. }
         | ExprKind::BindHere { expr: body }
         | ExprKind::LocalPushId { body, .. }
         | ExprKind::AddId { thunk: body, .. }
         | ExprKind::Coerce { expr: body, .. }
         | ExprKind::Pack { expr: body, .. } => rewrite_root_expr(body, solutions, cursor),
-        ExprKind::Apply { callee, arg, .. } => {
-            rewrite_root_expr(callee, solutions, cursor)?;
-            rewrite_root_expr(arg, solutions, cursor)
-        }
         ExprKind::If {
             cond,
             then_branch,
@@ -620,6 +783,38 @@ fn rewrite_root_expr(
         }
         _ => Ok(()),
     }
+}
+
+fn rewrite_polymorphic_var(
+    expr: &mut Expr,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> bool {
+    let ExprKind::Var(path) = &mut expr.kind else {
+        return false;
+    };
+    let Some(solution) = solutions.get(*cursor) else {
+        return false;
+    };
+    if solution.binding != *path {
+        return false;
+    }
+    *path = solution.alias.clone();
+    expr.ty = solution.result_type.clone();
+    *cursor += 1;
+    true
+}
+
+fn rewrite_apply_spine_args(
+    expr: &mut Expr,
+    solutions: &[&RootGraphSolution],
+    cursor: &mut usize,
+) -> FinalizeResult<()> {
+    let ExprKind::Apply { callee, arg, .. } = &mut expr.kind else {
+        return Ok(());
+    };
+    rewrite_apply_spine_args(callee, solutions, cursor)?;
+    rewrite_root_expr(arg, solutions, cursor)
 }
 
 fn rewrite_simple_apply(
@@ -1653,6 +1848,43 @@ mod tests {
             vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
                 "1".into()
             ))]
+        );
+    }
+
+    #[test]
+    fn finalized_source_runs_twice_id_1() {
+        let module = runtime_module_from_source_without_std(
+            "my id x = x\nmy twice f x = f (f x)\ntwice id 1\n",
+        );
+
+        let output = finalize_module(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "1".into()
+            ))]
+        );
+    }
+
+    #[test]
+    fn finalized_source_runs_flip_pair_1_2() {
+        let module = runtime_module_from_source_without_std(
+            "my pair x y = (x, y)\nmy flip f x y = f y x\nflip pair 1 2\n",
+        );
+
+        let output = finalize_module(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Tuple(vec![
+                yulang_vm::VmValue::Int("2".into()),
+                yulang_vm::VmValue::Int("1".into()),
+            ]))]
         );
     }
 
