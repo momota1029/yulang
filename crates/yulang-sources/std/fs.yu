@@ -5,8 +5,6 @@ use std::range::*
 use std::path::*
 use std::var::*
 
-type file_handle with:
-
 pub act fs:
     my open_text_raw: path -> (int, file_handle)
     my file_get: file_handle -> str

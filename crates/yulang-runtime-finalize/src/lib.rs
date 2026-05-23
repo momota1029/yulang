@@ -8,11 +8,18 @@
 //! The previous implementation is archived under
 //! `archive/2026-05-23-pre-rewrite`.
 
+mod cache;
 mod diagnostic;
 mod graph;
 mod output;
 mod solver;
 
+pub use cache::{
+    CachedFinalizeInstance, FINALIZE_INSTANCE_CACHE_FORMAT_VERSION, FinalizeInstanceArtifactCache,
+    FinalizeInstanceArtifactCacheError, FinalizeInstanceArtifactCacheKey, FinalizeInstanceCache,
+    FinalizeInstanceCachePolicy, FinalizeInstanceCacheProfile, FinalizeInstanceCacheSurface,
+    FinalizeInstanceKey,
+};
 pub use diagnostic::{FinalizeDiagnostic, FinalizeResult};
 pub use graph::ResolvedTypeVar;
 pub use graph::{
@@ -22,4 +29,4 @@ pub use graph::{
 pub use output::{
     FinalizeOutput, FinalizeReport, RootGraphInput, RootGraphRoot, RootGraphSolution,
 };
-pub use solver::{collect_root_graph_inputs, finalize_module};
+pub use solver::{collect_root_graph_inputs, finalize_module, finalize_module_with_cache};

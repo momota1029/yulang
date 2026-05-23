@@ -3,7 +3,7 @@ use std::index::*
 use std::fold::*
 use std::range::*
 use std::var::*
-
+/*
 type lines 'e with:
     struct self:
         source: ref 'e str
@@ -31,11 +31,12 @@ my fold_lines(ls: lines 'e, i: int, end: int, acc, f) =
 impl Fold (lines 'e):
     type item = ref 'e str
     our ls.fold z f = fold_lines(ls, 0, std::str::line_count (ls.source.get()), z, f)
+*/
 
 type str with:
     our s.splice r insert = std::str::splice s r insert
     our s.len = std::str::len s
-    our &s.lines = line_view &s
+    //our &s.lines = line_view &s
     our s.print = std::out::print s
     our s.println = std::out::println s
     our s.eprint = std::out::eprint s

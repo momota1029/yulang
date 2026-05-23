@@ -1,6 +1,6 @@
 use yulang_runtime_ir::{Module, Type as RuntimeType};
 
-use crate::GraphSolution;
+use crate::{FinalizeInstanceCacheProfile, GraphSolution};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinalizeOutput {
@@ -12,6 +12,7 @@ pub struct FinalizeOutput {
 pub struct FinalizeReport {
     pub root_graph_inputs: Vec<RootGraphInput>,
     pub root_graph_solutions: Vec<RootGraphSolution>,
+    pub cache_profile: FinalizeInstanceCacheProfile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2224,9 +2224,12 @@ dependencies = [
 name = "yulang-runtime-finalize"
 version = "0.1.0"
 dependencies = [
+ "postcard",
+ "serde",
  "yulang-infer",
  "yulang-runtime",
  "yulang-runtime-ir",
+ "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",
 ]

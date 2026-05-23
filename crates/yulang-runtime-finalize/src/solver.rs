@@ -4,17 +4,25 @@ use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeTy
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    FinalizeDiagnostic, FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput,
-    RootGraphSolution, TypeGraph, materialize_core_type, materialize_runtime_type,
-    output::RootGraphRoot,
+    CachedFinalizeInstance, FinalizeDiagnostic, FinalizeInstanceCache, FinalizeInstanceKey,
+    FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
+    materialize_core_type, materialize_runtime_type, output::RootGraphRoot,
 };
 
-pub fn finalize_module(mut module: Module) -> FinalizeResult<FinalizeOutput> {
+pub fn finalize_module(module: Module) -> FinalizeResult<FinalizeOutput> {
+    let mut cache = FinalizeInstanceCache::default();
+    finalize_module_with_cache(module, &mut cache)
+}
+
+pub fn finalize_module_with_cache(
+    mut module: Module,
+    cache: &mut FinalizeInstanceCache,
+) -> FinalizeResult<FinalizeOutput> {
     let root_graph_inputs = collect_root_graph_inputs(&module);
     let mut root_graph_solutions = solve_root_graphs(&module)?;
     loop {
         canonicalize_aliases(&mut root_graph_solutions);
-        let emitted = append_monomorphic_bindings(&mut module, &root_graph_solutions)?;
+        let emitted = append_monomorphic_bindings(&mut module, &root_graph_solutions, cache)?;
         rewrite_root_exprs(&mut module, &root_graph_solutions)?;
         rewrite_binding_exprs(&mut module, &root_graph_solutions)?;
 
@@ -30,6 +38,7 @@ pub fn finalize_module(mut module: Module) -> FinalizeResult<FinalizeOutput> {
         report: FinalizeReport {
             root_graph_inputs,
             root_graph_solutions,
+            cache_profile: cache.profile(),
         },
     })
 }
@@ -603,10 +612,7 @@ fn canonicalize_aliases(solutions: &mut [RootGraphSolution]) {
     let mut aliases = HashMap::new();
     let mut next_alias = 0;
     for solution in solutions {
-        let key = InstanceKey {
-            binding: solution.binding.clone(),
-            substitutions: solution.type_substitutions.clone(),
-        };
+        let key = solution_instance_key(solution);
         let alias = aliases.entry(key).or_insert_with(|| {
             let alias = alias_path(&solution.binding, next_alias);
             next_alias += 1;
@@ -619,6 +625,7 @@ fn canonicalize_aliases(solutions: &mut [RootGraphSolution]) {
 fn append_monomorphic_bindings(
     module: &mut Module,
     solutions: &[RootGraphSolution],
+    cache: &mut FinalizeInstanceCache,
 ) -> FinalizeResult<Vec<typed_ir::Path>> {
     let bindings = module
         .bindings
@@ -634,22 +641,35 @@ fn append_monomorphic_bindings(
         .iter()
         .filter(|solution| emitted_aliases.insert(solution.alias.clone()))
         .map(|solution| {
+            let key = solution_instance_key(solution);
+            if let Some(cached) = cache.get(&key) {
+                return Ok(cached.binding_with_alias(solution.alias.clone()));
+            }
             let binding = bindings.get(&solution.binding).ok_or_else(|| {
                 FinalizeDiagnostic::MissingBinding {
                     binding: solution.binding.clone(),
                 }
             })?;
+            let scheme = typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: materialize_core_type(
+                    binding.scheme.body.clone(),
+                    &solution.type_substitutions,
+                ),
+            };
+            let body = materialize_expr(binding.body.clone(), &solution.type_substitutions);
+            cache.insert(CachedFinalizeInstance {
+                key,
+                scheme: scheme.clone(),
+                body: body.clone(),
+                callee_type: solution.callee_type.clone(),
+                result_type: solution.result_type.clone(),
+            });
             Ok(Binding {
                 name: solution.alias.clone(),
                 type_params: Vec::new(),
-                scheme: typed_ir::Scheme {
-                    requirements: Vec::new(),
-                    body: materialize_core_type(
-                        binding.scheme.body.clone(),
-                        &solution.type_substitutions,
-                    ),
-                },
-                body: materialize_expr(binding.body.clone(), &solution.type_substitutions),
+                scheme,
+                body,
             })
         })
         .collect::<FinalizeResult<Vec<_>>>()?;
@@ -1457,10 +1477,11 @@ fn collect_pattern_paths(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct InstanceKey {
-    binding: typed_ir::Path,
-    substitutions: Vec<typed_ir::TypeSubstitution>,
+fn solution_instance_key(solution: &RootGraphSolution) -> FinalizeInstanceKey {
+    FinalizeInstanceKey {
+        binding: solution.binding.clone(),
+        substitutions: solution.type_substitutions.clone(),
+    }
 }
 
 fn alias_path(original: &typed_ir::Path, index: usize) -> typed_ir::Path {
@@ -1544,7 +1565,12 @@ fn type_arg_is_closed(arg: &yulang_typed_ir::TypeArg) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::FinalizeInstanceArtifactCache;
     use yulang_runtime_ir::{Expr, ExprKind};
+    use yulang_sources::{
+        CompiledSourceFileIdentity, CompiledUnitDependency, CompiledUnitManifest,
+        SourceCompilationUnitOrigin, SourceOrigin,
+    };
     use yulang_typed_ir as typed_ir;
 
     #[test]
@@ -1625,6 +1651,58 @@ mod tests {
             output.module.root_exprs[0].ty,
             RuntimeType::Core(int.clone())
         );
+    }
+
+    #[test]
+    fn finalize_instance_cache_surface_reuses_materialized_binding() {
+        let mut cache = FinalizeInstanceCache::default();
+        let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
+
+        let first = finalize_module_with_cache(module.clone(), &mut cache).unwrap();
+        assert_eq!(first.report.cache_profile.inserts, 1);
+        assert_eq!(cache.to_surface().instances.len(), 1);
+
+        let second = finalize_module_with_cache(module.clone(), &mut cache).unwrap();
+        assert!(second.report.cache_profile.hits >= 1);
+        assert_eq!(second.module.bindings[0].name, path(&["id", "mono0"]));
+
+        let surface = cache.to_surface();
+        let mut restored = FinalizeInstanceCache::from_surface(surface);
+        let third = finalize_module_with_cache(module, &mut restored).unwrap();
+        assert_eq!(third.report.cache_profile.hits, 1);
+        assert_eq!(third.module.bindings[0].name, path(&["id", "mono0"]));
+
+        let mut stale_surface = cache.to_surface();
+        stale_surface.format_version += 1;
+        assert!(
+            FinalizeInstanceCache::from_surface(stale_surface)
+                .to_surface()
+                .instances
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn finalize_instance_artifact_cache_rehydrates_solver_cache() {
+        let root = artifact_cache_root("solver-rehydrate");
+        let _ = std::fs::remove_dir_all(&root);
+        let artifact_cache = FinalizeInstanceArtifactCache::new(&root);
+        let manifests = vec![compiled_manifest(0, 11), compiled_manifest(1, 29)];
+        let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
+
+        let mut first_cache = FinalizeInstanceCache::default();
+        let first = finalize_module_with_cache(module.clone(), &mut first_cache).unwrap();
+        assert_eq!(first.report.cache_profile.inserts, 1);
+        artifact_cache
+            .write_cache_for_manifests(&manifests, &first_cache)
+            .unwrap();
+
+        let mut restored = artifact_cache.read_cache_for_manifests(&manifests);
+        let second = finalize_module_with_cache(module, &mut restored).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+
+        assert_eq!(second.report.cache_profile.hits, 1);
+        assert_eq!(second.module.bindings[0].name, path(&["id", "mono0"]));
     }
 
     #[test]
@@ -1989,5 +2067,41 @@ mod tests {
         .unwrap();
         let program = yulang_infer::export_core_program(&mut lowered.state);
         yulang_runtime::lower_core_program(program).unwrap()
+    }
+
+    fn artifact_cache_root(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "yulang-finalize-cache-{name}-{}",
+            std::process::id()
+        ))
+    }
+
+    fn compiled_manifest(unit_index: usize, hash: u64) -> CompiledUnitManifest {
+        CompiledUnitManifest {
+            artifact_format_version: 17,
+            parser_format_version: 1,
+            unit_index,
+            origin: SourceCompilationUnitOrigin::Std,
+            realms: Vec::new(),
+            bands: Vec::new(),
+            files: vec![CompiledSourceFileIdentity {
+                path: format!("std/{unit_index}.yu"),
+                module_path: path(&["std", "cache_test"]),
+                origin: SourceOrigin::Std,
+                source_len: 10,
+                source_hash: hash,
+            }],
+            dependencies: (unit_index > 0)
+                .then(|| CompiledUnitDependency {
+                    unit_index: unit_index - 1,
+                    source_hash: hash - 1,
+                    interface_hash: hash + 1,
+                })
+                .into_iter()
+                .collect(),
+            source_hash: hash,
+            syntax_hash: hash + 10,
+            interface_hash: hash + 20,
+        }
     }
 }
