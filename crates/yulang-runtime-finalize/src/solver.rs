@@ -2098,15 +2098,18 @@ mod tests {
         run_with_large_stack(move || {
             let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
             let cache_paths = yulang_compile::YulangCachePaths::for_project(&repo_root);
+            let std_root = yulang_sources::resolve_or_install_std_root(None, None)
+                .expect("resolve installed std root")
+                .expect("installed std root should be available");
             let options = yulang_compile::SourceOptions {
-                std_root: Some(repo_root.join("lib/std")),
+                std_root: Some(std_root),
                 implicit_prelude: true,
                 search_paths: Vec::new(),
             };
 
             yulang_compile::runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
                 &src,
-                Some(repo_root),
+                None,
                 options,
                 &cache_paths,
             )
