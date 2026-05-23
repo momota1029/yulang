@@ -7,6 +7,7 @@
 
 mod body;
 mod diagnostic;
+mod effect;
 mod emit;
 mod module;
 mod output;

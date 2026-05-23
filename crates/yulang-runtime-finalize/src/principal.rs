@@ -4,6 +4,7 @@ use yulang_typed_ir as typed_ir;
 use crate::diagnostic::{
     FinalizeDiagnostic, FinalizeError, FinalizeResult, PrincipalIncompleteReason,
 };
+use crate::effect::EffectLane;
 use crate::role::{RoleContext, RoleProjectionStatus};
 use crate::types::{
     LowerSubstitutions, materialize_core_type, materialize_runtime_type, runtime_type_is_closed,
@@ -25,7 +26,7 @@ pub struct PrincipalGraph {
     requirements: Vec<typed_ir::RoleRequirement>,
     param: typed_ir::Type,
     param_effect: typed_ir::Type,
-    ret_effect: typed_ir::Type,
+    effect_lane: EffectLane,
     ret: typed_ir::Type,
 }
 
@@ -42,7 +43,7 @@ impl PrincipalGraph {
                 requirements: binding.scheme.requirements.clone(),
                 param: (**param).clone(),
                 param_effect: (**param_effect).clone(),
-                ret_effect: (**ret_effect).clone(),
+                effect_lane: EffectLane::from_return_effect((**ret_effect).clone()),
                 ret: (**ret).clone(),
             }),
             body => Err(FinalizeError::Diagnostic(
@@ -90,8 +91,8 @@ impl PrincipalGraph {
             ));
         }
 
-        let closed_effect = materialize_core_type(self.ret_effect.clone(), &substitutions);
-        if !crate::types::runtime_type_is_closed(&RuntimeType::Core(closed_effect.clone())) {
+        let effect = self.effect_lane.solve(&substitutions);
+        if !effect.is_closed {
             return Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::IncompletePrincipalInstance {
                     binding: self.original_binding.clone(),
@@ -104,7 +105,7 @@ impl PrincipalGraph {
             original_binding: self.original_binding.clone(),
             closed_param_types: vec![closed_param],
             closed_result_type: closed_result,
-            closed_effect,
+            closed_effect: effect.closed_effect,
             captured_env_shape: None,
         };
 
