@@ -1322,9 +1322,9 @@ mod tests {
         let ExprKind::Coerce { from, to, expr } = &then_branch.kind else {
             panic!("int branch should be coerced to float");
         };
-        assert_eq!(*from, simple_int_type());
+        assert_eq!(*from, qualified_int_type());
         assert_eq!(*to, float_type());
-        assert_eq!(expr.ty, RuntimeType::Core(simple_int_type()));
+        assert_eq!(expr.ty, RuntimeType::Core(qualified_int_type()));
     }
 
     #[test]
@@ -1537,7 +1537,7 @@ mod tests {
                             )),
                             then_branch: Box::new(Expr::typed(
                                 ExprKind::Lit(typed_ir::Lit::Int("1".into())),
-                                RuntimeType::Core(simple_int_type()),
+                                RuntimeType::Core(qualified_int_type()),
                             )),
                             else_branch: Box::new(Expr::typed(
                                 ExprKind::Lit(typed_ir::Lit::Float("2.0".into())),
@@ -1950,9 +1950,16 @@ mod tests {
         }
     }
 
+    fn qualified_int_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "int", "int"]),
+            args: Vec::new(),
+        }
+    }
+
     fn float_type() -> typed_ir::Type {
         typed_ir::Type::Named {
-            path: path(&["float"]),
+            path: path(&["std", "float", "float"]),
             args: Vec::new(),
         }
     }

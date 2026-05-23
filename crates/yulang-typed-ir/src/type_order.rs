@@ -2,25 +2,17 @@ use crate::{Name, Path, Type};
 
 pub fn can_widen_named_paths(actual: &Path, expected: &Path) -> bool {
     actual == expected
-        || is_standard_int_path(actual) && is_standard_frac_path(expected)
-        || is_standard_frac_path(actual) && is_standard_float_path(expected)
-        || is_standard_int_path(actual) && is_standard_float_path(expected)
+        || numeric_type_family(actual).is_some_and(|actual| {
+            numeric_type_family(expected).is_some_and(|expected| actual.rank() <= expected.rank())
+        })
 }
 
 pub fn join_named_paths(left: &Path, right: &Path) -> Option<Path> {
     if left == right {
         return Some(left.clone());
     }
-    if is_standard_float_path(left) && (is_standard_int_path(right) || is_standard_frac_path(right))
-        || is_standard_float_path(right)
-            && (is_standard_int_path(left) || is_standard_frac_path(left))
-    {
-        return Some(standard_float_path());
-    }
-    if is_standard_int_path(left) && is_standard_frac_path(right)
-        || is_standard_frac_path(left) && is_standard_int_path(right)
-    {
-        return Some(standard_frac_path());
+    if let (Some(left), Some(right)) = (numeric_type_family(left), numeric_type_family(right)) {
+        return NumericTypeFamily::from_rank(left.rank().max(right.rank())).map(numeric_type_path);
     }
     None
 }
@@ -65,32 +57,65 @@ pub fn normalize_union_members(items: Vec<Type>) -> Vec<Type> {
     out
 }
 
-fn is_standard_int_path(path: &Path) -> bool {
-    path == &standard_int_path()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NumericTypeFamily {
+    Int,
+    Frac,
+    Float,
 }
 
-fn is_standard_float_path(path: &Path) -> bool {
-    path == &standard_float_path()
+impl NumericTypeFamily {
+    fn rank(self) -> u8 {
+        match self {
+            Self::Int => 0,
+            Self::Frac => 1,
+            Self::Float => 2,
+        }
+    }
+
+    fn from_rank(rank: u8) -> Option<Self> {
+        match rank {
+            0 => Some(Self::Int),
+            1 => Some(Self::Frac),
+            2 => Some(Self::Float),
+            _ => None,
+        }
+    }
 }
 
-fn is_standard_frac_path(path: &Path) -> bool {
-    path == &standard_frac_path()
+fn numeric_type_family(path: &Path) -> Option<NumericTypeFamily> {
+    match path.segments.as_slice() {
+        [Name(name)] if name == "int" => Some(NumericTypeFamily::Int),
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "int" && name == "int" =>
+        {
+            Some(NumericTypeFamily::Int)
+        }
+        [Name(name)] if name == "float" => Some(NumericTypeFamily::Float),
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "float" && name == "float" =>
+        {
+            Some(NumericTypeFamily::Float)
+        }
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "frac" && name == "frac" =>
+        {
+            Some(NumericTypeFamily::Frac)
+        }
+        _ => None,
+    }
 }
 
-fn standard_int_path() -> Path {
-    Path::from_name(Name("int".to_string()))
-}
-
-fn standard_float_path() -> Path {
-    Path::from_name(Name("float".to_string()))
-}
-
-fn standard_frac_path() -> Path {
-    Path::new(vec![
-        Name("std".to_string()),
-        Name("frac".to_string()),
-        Name("frac".to_string()),
-    ])
+fn numeric_type_path(family: NumericTypeFamily) -> Path {
+    match family {
+        NumericTypeFamily::Int => Path::from_name(Name("int".to_string())),
+        NumericTypeFamily::Float => Path::from_name(Name("float".to_string())),
+        NumericTypeFamily::Frac => Path::new(vec![
+            Name("std".to_string()),
+            Name("frac".to_string()),
+            Name("frac".to_string()),
+        ]),
+    }
 }
 
 #[cfg(test)]
@@ -121,6 +146,34 @@ mod tests {
             &Path::from_name(Name("int".to_string())),
             &Path::from_name(Name("float".to_string())),
         ));
+    }
+
+    #[test]
+    fn widens_qualified_numeric_paths() {
+        let std_int = Path::new(vec![
+            Name("std".to_string()),
+            Name("int".to_string()),
+            Name("int".to_string()),
+        ]);
+        let std_float = Path::new(vec![
+            Name("std".to_string()),
+            Name("float".to_string()),
+            Name("float".to_string()),
+        ]);
+
+        assert!(can_widen_named_paths(&std_int, &std_float));
+        assert!(can_widen_named_paths(
+            &std_int,
+            &Path::from_name(Name("float".to_string())),
+        ));
+        assert!(can_widen_named_paths(
+            &Path::from_name(Name("int".to_string())),
+            &std_float,
+        ));
+        assert_eq!(
+            join_named_paths(&std_int, &std_float),
+            Some(Path::from_name(Name("float".to_string())))
+        );
     }
 
     #[test]
