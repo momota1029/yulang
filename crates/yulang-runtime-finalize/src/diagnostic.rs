@@ -22,6 +22,9 @@ pub enum FinalizeDiagnostic {
         binding: typed_ir::Path,
         reason: BodyIncompleteReason,
     },
+    MissingBinding {
+        binding: typed_ir::Path,
+    },
     BodyResultMismatch {
         binding: typed_ir::Path,
         expected: RuntimeType,

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use yulang_runtime_ir::{Binding, Expr, ExprKind, Stmt, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -91,9 +91,14 @@ impl BodyGraph {
 
         Ok(BodySolution {
             param: self.param.clone(),
+            param_type: self
+                .initial_env
+                .get(&self.param)
+                .cloned()
+                .unwrap_or(RuntimeType::Unknown),
             body: solved_body,
             result_type: self.expected_result.clone(),
-            nested_instances,
+            nested_instances: dedupe_nested_instances(nested_instances),
         })
     }
 
@@ -241,12 +246,11 @@ impl BodyGraph {
             ));
         }
         let principal = PrincipalGraph::from_binding(binding)?.solve_call(arg.ty.clone())?;
-        let nested_body = BodyGraph::from_binding_instance(binding, &principal)?
-            .with_known_bindings(self.known_bindings.values().cloned())
-            .solve()?;
+        let result_type = principal.key.closed_result_type.clone();
         Ok(NestedInstancePlan {
-            key: principal.key,
-            result_type: nested_body.result_type,
+            key: principal.key.clone(),
+            principal,
+            result_type,
         })
     }
 
@@ -337,6 +341,7 @@ impl BodyGraph {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BodySolution {
     pub param: typed_ir::Name,
+    pub param_type: RuntimeType,
     pub body: Expr,
     pub result_type: RuntimeType,
     pub nested_instances: Vec<NestedInstancePlan>,
@@ -345,7 +350,19 @@ pub struct BodySolution {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NestedInstancePlan {
     pub key: InstanceKey,
+    pub principal: PrincipalSolution,
     pub result_type: RuntimeType,
+}
+
+fn dedupe_nested_instances(instances: Vec<NestedInstancePlan>) -> Vec<NestedInstancePlan> {
+    let mut seen = HashSet::new();
+    let mut deduped = Vec::new();
+    for instance in instances {
+        if seen.insert(instance.key.clone()) {
+            deduped.push(instance);
+        }
+    }
+    deduped
 }
 
 #[cfg(test)]
@@ -431,6 +448,41 @@ mod tests {
                 closed_effect: typed_ir::Type::Never,
                 captured_env_shape: None,
             }
+        );
+    }
+
+    #[test]
+    fn body_graph_deduplicates_repeated_nested_instances() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["use_id_twice"]),
+                closed_param_types: vec![RuntimeType::Core(int_type())],
+                closed_result_type: RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                    int_type(),
+                    int_type(),
+                ])),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: typed_ir::TypeVar("a".into()),
+                ty: int_type(),
+            }],
+        };
+
+        let graph = BodyGraph::from_binding_instance(&use_id_twice_binding(), &principal)
+            .unwrap()
+            .with_known_bindings([id_binding()]);
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(
+            solution.body.ty,
+            RuntimeType::Core(typed_ir::Type::Tuple(vec![int_type(), int_type()]))
+        );
+        assert_eq!(solution.nested_instances.len(), 1);
+        assert_eq!(
+            solution.nested_instances[0].key.original_binding,
+            path(&["id"])
         );
     }
 
@@ -540,6 +592,53 @@ mod tests {
                 RuntimeType::Unknown,
             ),
         }
+    }
+
+    fn use_id_twice_binding() -> Binding {
+        Binding {
+            name: path(&["use_id_twice"]),
+            type_params: vec![typed_ir::TypeVar("a".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    typed_ir::Type::Tuple(vec![
+                        typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                        typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    ]),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Tuple(vec![id_call_expr(), id_call_expr()]),
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn id_call_expr() -> Expr {
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(path(&["id"])),
+                    RuntimeType::Unknown,
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Var(path(&["x"])),
+                    RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Unknown,
+        )
     }
 
     fn function_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
