@@ -20,6 +20,7 @@ mod substitution;
 pub(crate) use choice::*;
 pub(crate) use compat::*;
 pub(crate) use core_view::*;
+pub use effect::effect_is_empty;
 pub(crate) use effect::*;
 pub(crate) use meaning::*;
 pub(crate) use project::*;

@@ -1,27 +1,26 @@
-//! Typed runtime IR for Yulang.
+//! Runtime lowering, validation, and monomorphization for Yulang.
 //!
-//! Runtime IR is intentionally not a second type inference engine. It accepts
-//! the principal types and local evidence produced by the infer pipeline, then
-//! builds a runtime tree where every expression has a VM-facing type witness. Polymorphic
-//! variables that appear in a principal type are kept as `forall` parameters;
-//! observation-only variables are erased before validation.
+//! This crate accepts the principal types and local evidence produced by the
+//! infer pipeline, then builds and finalizes a runtime tree where every
+//! expression has an execution-facing type witness. The runtime IR data
+//! structures themselves live in `yulang-runtime-ir` and are re-exported here
+//! for compatibility.
 
 pub mod diagnostic;
-pub mod host;
 pub mod hygiene;
 pub mod invariant;
-pub mod ir;
 pub mod lower;
 pub mod monomorphize;
 pub mod refine;
-pub mod runtime;
 mod runtime_intrinsic;
 pub mod types;
 pub mod validate;
-pub mod vm;
+
+pub mod ir {
+    pub use yulang_runtime_ir::*;
+}
 
 pub use diagnostic::{RuntimeError, RuntimeResult, TypeSource};
-pub use host::{HostRunOutput, eval_root_with_basic_host, eval_roots_with_basic_host};
 pub use hygiene::{format_hygiene_expr, format_hygiene_module};
 pub use invariant::{
     RuntimeStage, check_runtime_invariants, check_strict_runtime_type_surfaces,
@@ -49,8 +48,5 @@ pub use monomorphize::{
     SubstitutionSpecializeTargetSkips, monomorphize_module, monomorphize_module_profiled,
 };
 pub use refine::refine_module_types;
+pub use runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
 pub use validate::validate_module;
-pub use vm::{
-    CONTROL_VM_ARTIFACT_VERSION, ControlVmModule, VmError, VmModule, VmProfile, VmRequest,
-    VmResult, VmValue, compile_control_vm_module, compile_vm_module,
-};

@@ -1,11 +1,11 @@
 use super::*;
-use crate::ir::RecordSpreadPattern;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::io;
 use std::path::Path;
+use yulang_runtime::ir::RecordSpreadPattern;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
 pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 8;
@@ -81,10 +81,12 @@ impl ControlVmModule {
             .copied()
             .ok_or(VmError::MissingRootExpr(index))?;
         let mut interpreter = ControlInterpreter::new(&self.module);
+        let mut host = crate::host::BasicHost::new(stdout);
         let mut result = interpreter.eval_root_control_result(expr)?;
         loop {
             match result {
                 ControlResult::Value(value) => {
+                    host.flush_dirty_files()?;
                     return Ok((
                         VmResult::Value(export_value(&value, Some(&self.module))?),
                         interpreter.profile(),
@@ -92,7 +94,7 @@ impl ControlVmModule {
                 }
                 ControlResult::Request(request) => {
                     let exported = interpreter.export_request(&request)?;
-                    let Some(value) = crate::host::handle_host_request(&exported, stdout) else {
+                    let Some(value) = host.handle_request(&exported) else {
                         return Ok((VmResult::Request(exported), interpreter.profile()));
                     };
                     let value = import_value(&value)?;
@@ -786,6 +788,7 @@ enum ControlValue {
     String(StringTree),
     Bytes(BytesTree),
     Path(Rc<PathBuf>),
+    FileHandle(VmFileHandle),
     Bool(bool),
     Unit,
     List(ListTree<Rc<ControlValue>>),
@@ -2939,6 +2942,7 @@ fn export_value(value: &ControlValue, module: Option<&ControlModule>) -> Result<
         ControlValue::String(value) => VmValue::String(value.clone()),
         ControlValue::Bytes(value) => VmValue::Bytes(value.clone()),
         ControlValue::Path(value) => VmValue::Path(value.clone()),
+        ControlValue::FileHandle(value) => VmValue::FileHandle(value.clone()),
         ControlValue::Bool(value) => VmValue::Bool(*value),
         ControlValue::Unit => VmValue::Unit,
         ControlValue::List(value) => {
@@ -2998,6 +3002,7 @@ fn import_value(value: &VmValue) -> Result<ControlValue, VmError> {
         VmValue::String(value) => ControlValue::String(value.clone()),
         VmValue::Bytes(value) => ControlValue::Bytes(value.clone()),
         VmValue::Path(value) => ControlValue::Path(value.clone()),
+        VmValue::FileHandle(value) => ControlValue::FileHandle(value.clone()),
         VmValue::Bool(value) => ControlValue::Bool(*value),
         VmValue::Unit => ControlValue::Unit,
         VmValue::List(value) => {
@@ -3052,6 +3057,7 @@ impl PartialEq for ControlValue {
             (Self::String(left), Self::String(right)) => left == right,
             (Self::Bytes(left), Self::Bytes(right)) => left == right,
             (Self::Path(left), Self::Path(right)) => left == right,
+            (Self::FileHandle(left), Self::FileHandle(right)) => left == right,
             (Self::Bool(left), Self::Bool(right)) => left == right,
             (Self::Unit, Self::Unit) => true,
             (

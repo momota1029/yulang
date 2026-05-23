@@ -124,6 +124,203 @@ pub(crate) fn substitute_type(
     substitute_type_inner(ty, substitutions, &mut BTreeSet::new(), &BTreeSet::new())
 }
 
+pub(crate) fn close_type_substitution_map_recursively(
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> usize {
+    let vars = substitutions.keys().cloned().collect::<Vec<_>>();
+    let mut changed = 0;
+    for var in vars {
+        let Some(ty) = substitutions.get(&var).cloned() else {
+            continue;
+        };
+        if type_substitution_depends_on_var(&ty, &var, substitutions, &mut BTreeSet::new()) {
+            continue;
+        }
+        if substitution_closure_has_choice_or_recursive(&ty, substitutions, &mut BTreeSet::new()) {
+            continue;
+        }
+        let substituted = substitute_type(&ty, substitutions);
+        if substituted != ty {
+            substitutions.insert(var, substituted);
+            changed += 1;
+        }
+    }
+    changed
+}
+
+pub(crate) fn retain_acyclic_type_substitutions(
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> usize {
+    let vars = substitutions.keys().cloned().collect::<Vec<_>>();
+    let mut removed_vars = Vec::new();
+    for var in vars {
+        let Some(ty) = substitutions.get(&var) else {
+            continue;
+        };
+        if type_substitution_depends_on_var(ty, &var, substitutions, &mut BTreeSet::new()) {
+            removed_vars.push(var);
+        }
+    }
+    let removed = removed_vars.len();
+    for var in removed_vars {
+        substitutions.remove(&var);
+    }
+    removed
+}
+
+fn substitution_closure_has_choice_or_recursive(
+    ty: &typed_ir::Type,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    seen: &mut BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    match ty {
+        typed_ir::Type::Var(var) => {
+            if !seen.insert(var.clone()) {
+                return false;
+            }
+            substitutions.get(var).is_some_and(|ty| {
+                substitution_closure_has_choice_or_recursive(ty, substitutions, seen)
+            })
+        }
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) | typed_ir::Type::Recursive { .. } => {
+            true
+        }
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(ty) => {
+                substitution_closure_has_choice_or_recursive(ty, substitutions, seen)
+            }
+            typed_ir::TypeArg::Bounds(bounds) => {
+                bounds.lower.as_deref().is_some_and(|ty| {
+                    substitution_closure_has_choice_or_recursive(ty, substitutions, seen)
+                }) || bounds.upper.as_deref().is_some_and(|ty| {
+                    substitution_closure_has_choice_or_recursive(ty, substitutions, seen)
+                })
+            }
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            substitution_closure_has_choice_or_recursive(param, substitutions, seen)
+                || substitution_closure_has_choice_or_recursive(param_effect, substitutions, seen)
+                || substitution_closure_has_choice_or_recursive(ret_effect, substitutions, seen)
+                || substitution_closure_has_choice_or_recursive(ret, substitutions, seen)
+        }
+        typed_ir::Type::Tuple(items) => items
+            .iter()
+            .any(|ty| substitution_closure_has_choice_or_recursive(ty, substitutions, seen)),
+        typed_ir::Type::Record(record) => {
+            record.fields.iter().any(|field| {
+                substitution_closure_has_choice_or_recursive(&field.value, substitutions, seen)
+            }) || record.spread.as_ref().is_some_and(|spread| match spread {
+                typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                    substitution_closure_has_choice_or_recursive(ty, substitutions, seen)
+                }
+            })
+        }
+        typed_ir::Type::Variant(variant) => variant
+            .cases
+            .iter()
+            .flat_map(|case| &case.payloads)
+            .any(|ty| substitution_closure_has_choice_or_recursive(ty, substitutions, seen)),
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|ty| substitution_closure_has_choice_or_recursive(ty, substitutions, seen))
+                || substitution_closure_has_choice_or_recursive(tail, substitutions, seen)
+        }
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+    }
+}
+
+fn type_substitution_depends_on_var(
+    ty: &typed_ir::Type,
+    target: &typed_ir::TypeVar,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    seen: &mut BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    match ty {
+        typed_ir::Type::Var(var) => {
+            if var == target {
+                return true;
+            }
+            if !seen.insert(var.clone()) {
+                return false;
+            }
+            substitutions
+                .get(var)
+                .is_some_and(|ty| type_substitution_depends_on_var(ty, target, substitutions, seen))
+        }
+        typed_ir::Type::Named { args, .. } => args
+            .iter()
+            .any(|arg| type_arg_substitution_depends_on_var(arg, target, substitutions, seen)),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_substitution_depends_on_var(param, target, substitutions, seen)
+                || type_substitution_depends_on_var(param_effect, target, substitutions, seen)
+                || type_substitution_depends_on_var(ret_effect, target, substitutions, seen)
+                || type_substitution_depends_on_var(ret, target, substitutions, seen)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items
+            .iter()
+            .any(|ty| type_substitution_depends_on_var(ty, target, substitutions, seen)),
+        typed_ir::Type::Record(record) => {
+            record.fields.iter().any(|field| {
+                type_substitution_depends_on_var(&field.value, target, substitutions, seen)
+            }) || record.spread.as_ref().is_some_and(|spread| match spread {
+                typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                    type_substitution_depends_on_var(ty, target, substitutions, seen)
+                }
+            })
+        }
+        typed_ir::Type::Variant(variant) => variant
+            .cases
+            .iter()
+            .flat_map(|case| &case.payloads)
+            .any(|ty| type_substitution_depends_on_var(ty, target, substitutions, seen)),
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|ty| type_substitution_depends_on_var(ty, target, substitutions, seen))
+                || type_substitution_depends_on_var(tail, target, substitutions, seen)
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            var != target && type_substitution_depends_on_var(body, target, substitutions, seen)
+        }
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+    }
+}
+
+fn type_arg_substitution_depends_on_var(
+    arg: &typed_ir::TypeArg,
+    target: &typed_ir::TypeVar,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    seen: &mut BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => {
+            type_substitution_depends_on_var(ty, target, substitutions, seen)
+        }
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .is_some_and(|ty| type_substitution_depends_on_var(ty, target, substitutions, seen))
+                || bounds.upper.as_deref().is_some_and(|ty| {
+                    type_substitution_depends_on_var(ty, target, substitutions, seen)
+                })
+        }
+    }
+}
+
 fn substitute_type_inner(
     ty: &typed_ir::Type,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
@@ -2460,12 +2657,7 @@ pub(crate) fn project_closed_substitutions_from_type(
                 }
             }
         }
-        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual)
-            if principal_plan_substitution_type_usable(
-                &normalize_projected_substitution_type(actual, substitutions),
-                allow_never,
-            ) =>
-        {
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
             let actual = normalize_projected_substitution_type(actual, substitutions);
             for item in items {
                 if !projection_choice_item_matches_actual(item, &actual, allow_never) {
@@ -2723,13 +2915,20 @@ fn project_closed_substitutions_from_type_arg(
                     false,
                     depth,
                 );
+            } else {
+                project_closed_substitutions_from_type_bounds(
+                    template,
+                    &actual_bounds,
+                    params,
+                    substitutions,
+                    conflicts,
+                    false,
+                    depth,
+                );
             }
         }
         (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Type(actual)) => {
             let actual = normalize_projected_substitution_type(actual, substitutions);
-            if !principal_plan_substitution_type_usable(&actual, false) {
-                return;
-            }
             project_closed_substitutions_from_bounds(
                 template,
                 &actual,
@@ -2766,10 +2965,6 @@ fn project_closed_substitutions_from_bounds(
     allow_never: bool,
     depth: usize,
 ) {
-    if !principal_plan_substitution_type_usable(actual, allow_never) {
-        return;
-    }
-
     if let Some(lower) = template.lower.as_deref() {
         project_closed_substitutions_from_type(
             lower,
@@ -3604,6 +3799,59 @@ mod tests {
     }
 
     #[test]
+    fn close_type_substitution_map_recursively_materializes_aliases() {
+        let a = tv("a");
+        let b = tv("b");
+        let c = tv("c");
+        let mut substitutions = BTreeMap::from([
+            (a.clone(), list_of(typed_ir::Type::Var(b.clone()))),
+            (b.clone(), typed_ir::Type::Var(c.clone())),
+            (c.clone(), named("int")),
+        ]);
+
+        let changed = close_type_substitution_map_recursively(&mut substitutions);
+
+        assert_eq!(changed, 2);
+        assert_eq!(substitutions.get(&a), Some(&list_of(named("int"))));
+        assert_eq!(substitutions.get(&b), Some(&named("int")));
+        assert_eq!(substitutions.get(&c), Some(&named("int")));
+    }
+
+    #[test]
+    fn close_type_substitution_map_recursively_keeps_cycles_open() {
+        let a = tv("a");
+        let b = tv("b");
+        let mut substitutions = BTreeMap::from([
+            (a.clone(), typed_ir::Type::Var(b.clone())),
+            (b.clone(), typed_ir::Type::Var(a.clone())),
+        ]);
+
+        let changed = close_type_substitution_map_recursively(&mut substitutions);
+
+        assert_eq!(changed, 0);
+        assert_eq!(substitutions.get(&a), Some(&typed_ir::Type::Var(b.clone())));
+        assert_eq!(substitutions.get(&b), Some(&typed_ir::Type::Var(a)));
+    }
+
+    #[test]
+    fn retain_acyclic_type_substitutions_removes_structural_cycles() {
+        let a = tv("a");
+        let b = tv("b");
+        let mut substitutions = BTreeMap::from([
+            (a.clone(), list_of(typed_ir::Type::Var(b.clone()))),
+            (b.clone(), list_of(typed_ir::Type::Var(a.clone()))),
+            (tv("c"), named("int")),
+        ]);
+
+        let removed = retain_acyclic_type_substitutions(&mut substitutions);
+
+        assert_eq!(removed, 2);
+        assert!(!substitutions.contains_key(&a));
+        assert!(!substitutions.contains_key(&b));
+        assert_eq!(substitutions.get(&tv("c")), Some(&named("int")));
+    }
+
+    #[test]
     fn substitute_type_stops_at_alias_cycles() {
         let a = tv("a");
         let b = tv("b");
@@ -3769,6 +4017,7 @@ mod tests {
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(!normalized.complete);
+        assert!(normalized.substitutions.is_empty());
         assert!(normalized.incomplete_reasons.contains(
             &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
         ));
@@ -3783,6 +4032,7 @@ mod tests {
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(!normalized.complete);
+        assert!(normalized.substitutions.is_empty());
         assert!(normalized.incomplete_reasons.contains(
             &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
         ));
@@ -3806,6 +4056,51 @@ mod tests {
                 ty: named("int"),
             }]
         );
+    }
+
+    #[test]
+    fn closed_projection_keeps_partial_type_arg_bounds_when_actual_has_unknown_child() {
+        let effect = tv("effect");
+        let item = tv("item");
+        let choice = tv("choice");
+        let template = typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+            lower: Some(Box::new(typed_ir::Type::Union(vec![
+                typed_ir::Type::Var(choice.clone()),
+                named_with_args(
+                    "ref",
+                    vec![
+                        typed_ir::TypeArg::Type(typed_ir::Type::Var(effect.clone())),
+                        typed_ir::TypeArg::Type(typed_ir::Type::Var(item.clone())),
+                    ],
+                ),
+            ]))),
+            upper: Some(Box::new(typed_ir::Type::Var(choice.clone()))),
+        });
+        let actual = typed_ir::TypeArg::Type(named_with_args(
+            "ref",
+            vec![
+                typed_ir::TypeArg::Type(typed_ir::Type::Unknown),
+                typed_ir::TypeArg::Type(named("str")),
+            ],
+        ));
+        let params = BTreeSet::from([effect.clone(), item.clone(), choice.clone()]);
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+
+        project_closed_substitutions_from_type_arg(
+            &template,
+            &actual,
+            &params,
+            &mut substitutions,
+            &mut conflicts,
+            false,
+            64,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert_eq!(substitutions.get(&item), Some(&named("str")));
+        assert!(!substitutions.contains_key(&effect));
+        assert!(!substitutions.contains_key(&choice));
     }
 
     #[test]
@@ -4140,8 +4435,9 @@ mod tests {
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(!normalized.complete);
+        assert!(normalized.substitutions.is_empty());
         assert!(normalized.incomplete_reasons.contains(
-            &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+            &typed_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(tv("a"))
         ));
     }
 

@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::fmt::Write as _;
-use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
+use yulang_vm as runtime_vm;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RunOutput {
@@ -103,10 +103,10 @@ pub enum DiagnosticSeverity {
     Error,
 }
 
-pub fn format_vm_result(result: &runtime::VmResult) -> String {
+pub fn format_vm_result(result: &runtime_vm::VmResult) -> String {
     match result {
-        runtime::VmResult::Value(value) => format_vm_value(value),
-        runtime::VmResult::Request(request) => format!(
+        runtime_vm::VmResult::Value(value) => format_vm_value(value),
+        runtime_vm::VmResult::Request(request) => format!(
             "request {} {} blocked={:?}",
             format_core_path(&request.effect),
             format_vm_value(&request.payload),
@@ -115,33 +115,34 @@ pub fn format_vm_result(result: &runtime::VmResult) -> String {
     }
 }
 
-fn format_vm_value(value: &runtime::VmValue) -> String {
+fn format_vm_value(value: &runtime_vm::VmValue) -> String {
     let mut out = String::new();
     format_vm_value_into(&mut out, value);
     out
 }
 
-fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
+fn format_vm_value_into(out: &mut String, value: &runtime_vm::VmValue) {
     match value {
-        runtime::VmValue::Int(value) | runtime::VmValue::Float(value) => out.push_str(value),
-        runtime::VmValue::String(value) => {
+        runtime_vm::VmValue::Int(value) | runtime_vm::VmValue::Float(value) => out.push_str(value),
+        runtime_vm::VmValue::String(value) => {
             let _ = write!(out, "{:?}", value.to_flat_string());
         }
-        runtime::VmValue::Bytes(value) => {
+        runtime_vm::VmValue::Bytes(value) => {
             let _ = write!(out, "<bytes len={}>", value.len());
         }
-        runtime::VmValue::Path(value) => {
+        runtime_vm::VmValue::Path(value) => {
             let _ = write!(out, "{:?}", value.display().to_string());
         }
-        runtime::VmValue::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
-        runtime::VmValue::Unit => out.push_str("()"),
-        runtime::VmValue::List(items) => format_vm_list_into(out, items),
-        runtime::VmValue::Tuple(items) => {
+        runtime_vm::VmValue::FileHandle(_) => out.push_str("<file>"),
+        runtime_vm::VmValue::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
+        runtime_vm::VmValue::Unit => out.push_str("()"),
+        runtime_vm::VmValue::List(items) => format_vm_list_into(out, items),
+        runtime_vm::VmValue::Tuple(items) => {
             out.push('(');
             format_vm_values(out, items.iter());
             out.push(')');
         }
-        runtime::VmValue::Record(fields) => {
+        runtime_vm::VmValue::Record(fields) => {
             out.push('{');
             let mut first = true;
             for (name, value) in fields {
@@ -151,7 +152,7 @@ fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
             }
             out.push('}');
         }
-        runtime::VmValue::Variant { tag, value } => match value {
+        runtime_vm::VmValue::Variant { tag, value } => match value {
             Some(value) => {
                 out.push_str(&tag.0);
                 out.push(' ');
@@ -159,14 +160,14 @@ fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
             }
             None => out.push_str(&tag.0),
         },
-        runtime::VmValue::EffectOp(path) => {
+        runtime_vm::VmValue::EffectOp(path) => {
             let _ = write!(out, "<effect-op {}>", format_core_path(path));
         }
-        runtime::VmValue::PrimitiveOp(_) => out.push_str("<primitive>"),
-        runtime::VmValue::Resume(_) => out.push_str("<resume>"),
-        runtime::VmValue::Closure(_) => out.push_str("<closure>"),
-        runtime::VmValue::Thunk(_) => out.push_str("<thunk>"),
-        runtime::VmValue::EffectId(id) => {
+        runtime_vm::VmValue::PrimitiveOp(_) => out.push_str("<primitive>"),
+        runtime_vm::VmValue::Resume(_) => out.push_str("<resume>"),
+        runtime_vm::VmValue::Closure(_) => out.push_str("<closure>"),
+        runtime_vm::VmValue::Thunk(_) => out.push_str("<thunk>"),
+        runtime_vm::VmValue::EffectId(id) => {
             let _ = write!(out, "<effect-id {id}>");
         }
     }
@@ -174,7 +175,7 @@ fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
 
 fn format_vm_list_into(
     out: &mut String,
-    items: &runtime::runtime::list_tree::ListTree<std::rc::Rc<runtime::VmValue>>,
+    items: &runtime_vm::runtime::list_tree::ListTree<std::rc::Rc<runtime_vm::VmValue>>,
 ) {
     out.push('[');
     let mut first = true;
@@ -184,23 +185,23 @@ fn format_vm_list_into(
 
 fn format_vm_list_items(
     out: &mut String,
-    items: &runtime::runtime::list_tree::ListTree<std::rc::Rc<runtime::VmValue>>,
+    items: &runtime_vm::runtime::list_tree::ListTree<std::rc::Rc<runtime_vm::VmValue>>,
     first: &mut bool,
 ) {
     match items {
-        runtime::runtime::list_tree::ListTree::Empty => {}
-        runtime::runtime::list_tree::ListTree::Leaf(value) => {
+        runtime_vm::runtime::list_tree::ListTree::Empty => {}
+        runtime_vm::runtime::list_tree::ListTree::Leaf(value) => {
             push_separator(out, first);
             format_vm_value_into(out, value);
         }
-        runtime::runtime::list_tree::ListTree::Node(node) => {
+        runtime_vm::runtime::list_tree::ListTree::Node(node) => {
             format_vm_list_items(out, &node.left, first);
             format_vm_list_items(out, &node.right, first);
         }
     }
 }
 
-fn format_vm_values<'a>(out: &mut String, values: impl Iterator<Item = &'a runtime::VmValue>) {
+fn format_vm_values<'a>(out: &mut String, values: impl Iterator<Item = &'a runtime_vm::VmValue>) {
     let mut first = true;
     for value in values {
         push_separator(out, &mut first);

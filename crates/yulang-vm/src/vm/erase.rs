@@ -6,7 +6,7 @@
 //! missing thunk boundaries or unresolved polymorphism.
 
 use super::*;
-use crate::runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
+use yulang_runtime::binding_is_parametric_runtime_intrinsic;
 
 pub(super) fn erase_module(
     module: Module,

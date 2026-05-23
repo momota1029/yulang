@@ -3,8 +3,15 @@ use std::error::Throw
 use std::result::*
 use std::range::*
 use std::path::*
+use std::var::*
+
+type file_handle with:
 
 pub act fs:
+    my open_text_raw: path -> (int, file_handle)
+    my file_get: file_handle -> str
+    my file_set: (file_handle, str) -> unit
+    my file_flush: file_handle -> int
     pub read_at: (path, range) -> (int, str, range)
     pub write_at: (path, range, str) -> int
     pub exists: path -> bool
@@ -45,6 +52,31 @@ pub read_text(path: path): result str fs_err = case read_at path (std::range::fu
 
 pub write_text(path: path, text: str): result unit fs_err =
     write_at path (std::range::full()) text
+
+pub open_text(path: path): result (ref '[fs] str) fs_err =
+    my (code, handle) = fs::open_text_raw path
+    if std::int::eq code 0:
+        my text = ref {
+            get: \() -> fs::file_get handle,
+            update_effect: \() ->
+                fs::file_set (handle, ref_update::update (fs::file_get handle))
+        }
+        result::ok text
+    else:
+        result::err (err_from_code path code)
+
+pub open_text_or_throw(path: path): ref '[fs] str =
+    my (code, handle) = fs::open_text_raw path
+    if std::int::eq code 0:
+        ref {
+            get: \() -> fs::file_get handle,
+            update_effect: \() ->
+                fs::file_set (handle, ref_update::update (fs::file_get handle))
+        }
+    else:
+        (err_from_code path code).throw
+
+pub open(path: path): ref '[fs] str = open_text_or_throw path
 
 pub read_text_or_throw path = case read_text path:
     result::ok text -> text

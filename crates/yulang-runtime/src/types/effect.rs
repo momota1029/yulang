@@ -4,7 +4,7 @@ pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
     !effect_is_empty(effect) && !core_type_is_unknown(effect) && !core_type_is_top(effect)
 }
 
-pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {
+pub fn effect_is_empty(effect: &typed_ir::Type) -> bool {
     match effect {
         effect if core_type_is_never(effect) => true,
         typed_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),

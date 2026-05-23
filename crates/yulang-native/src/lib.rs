@@ -9,6 +9,7 @@ use std::fmt;
 
 use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
+use yulang_vm as runtime_vm;
 
 const ARCHIVED_NATIVE_BACKEND: &str =
     "the native backend has been archived under archive/yulang-native";
@@ -95,7 +96,7 @@ impl NativeJitModule {
 pub struct NativeValueJitModule;
 
 impl NativeValueJitModule {
-    pub fn run_roots(&mut self) -> Result<Vec<runtime::VmValue>, NativeValueCraneliftError> {
+    pub fn run_roots(&mut self) -> Result<Vec<runtime_vm::VmValue>, NativeValueCraneliftError> {
         Err(NativeValueCraneliftError::Archived)
     }
 }
@@ -288,7 +289,7 @@ pub fn lower_module(_module: &runtime::Module) -> NativeLowerResult<NativeModule
     Err(NativeLowerError::Archived)
 }
 
-pub fn eval_module(_module: &NativeModule) -> Result<Vec<runtime::VmValue>, NativeEvalError> {
+pub fn eval_module(_module: &NativeModule) -> Result<Vec<runtime_vm::VmValue>, NativeEvalError> {
     Err(NativeEvalError::Archived)
 }
 
@@ -340,7 +341,7 @@ pub fn lower_cps_module(_module: &runtime::Module) -> CpsLowerResult<CpsModule> 
     Err(CpsLowerError::Archived)
 }
 
-pub fn eval_cps_module(_module: &CpsModule) -> Result<Vec<runtime::VmValue>, CpsEvalError> {
+pub fn eval_cps_module(_module: &CpsModule) -> Result<Vec<runtime_vm::VmValue>, CpsEvalError> {
     Err(CpsEvalError::Archived)
 }
 
@@ -350,7 +351,7 @@ pub fn lower_cps_repr_module(_module: &CpsModule) -> CpsReprModule {
 
 pub fn eval_cps_repr_module(
     _module: &CpsReprModule,
-) -> Result<Vec<runtime::VmValue>, CpsReprEvalError> {
+) -> Result<Vec<runtime_vm::VmValue>, CpsReprEvalError> {
     Err(CpsReprEvalError::Archived)
 }
 

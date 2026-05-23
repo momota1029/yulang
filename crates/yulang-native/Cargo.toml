@@ -10,3 +10,4 @@ readme = "../../README.md"
 [dependencies]
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
 yulang-runtime = { version = "0.1.1", path = "../yulang-runtime" }
+yulang-vm = { version = "0.1.0", path = "../yulang-vm" }

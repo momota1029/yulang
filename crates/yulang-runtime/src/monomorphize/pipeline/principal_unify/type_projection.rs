@@ -25,13 +25,7 @@ pub(super) fn principal_rewrite_type_from_kind(
             type_projection_metrics::record(TypeProjectionFallbackReason::IfBranchMismatch);
             choose_projected_if_result(fallback, &then_branch.ty, &else_branch.ty)
         }
-        ExprKind::Match { arms, .. } => match arms.first() {
-            Some(arm) => arm.body.ty.clone(),
-            None => {
-                type_projection_metrics::record(TypeProjectionFallbackReason::MatchNoArms);
-                fallback
-            }
-        },
+        ExprKind::Match { arms, .. } => choose_projected_match_result(fallback, arms),
         ExprKind::Block { stmts, tail } => {
             choose_projected_block_result(fallback, stmts, tail.as_deref())
         }
@@ -117,6 +111,66 @@ fn choose_projected_if_result(
     };
     let effect = merge_effects(merge_effects(fallback_effect, then_effect), else_effect);
     runtime_type_from_core_value_and_effect(value, effect)
+}
+
+fn choose_projected_match_result(fallback: RuntimeType, arms: &[MatchArm]) -> RuntimeType {
+    if arms.is_empty() {
+        type_projection_metrics::record(TypeProjectionFallbackReason::MatchNoArms);
+        return fallback;
+    }
+    let (fallback_value, fallback_effect) = runtime_value_and_effect(&fallback);
+    let mut effect = fallback_effect;
+    let mut projected_value = None::<typed_ir::Type>;
+    let mut conflict = false;
+    for arm in arms {
+        let (value, arm_effect) = runtime_value_and_effect(&arm.body.ty);
+        effect = merge_effects(effect, arm_effect);
+        if !match_arm_value_type_usable(&value) {
+            continue;
+        }
+        let value = match projected_match_arm_value(&fallback_value, value) {
+            Some(value) => value,
+            None => continue,
+        };
+        match &projected_value {
+            Some(existing) => {
+                if let Some(merged) = merge_projected_value_type_precision(existing, &value) {
+                    projected_value = Some(merged);
+                } else {
+                    conflict = true;
+                }
+            }
+            None => projected_value = Some(value),
+        }
+    }
+    let value = if !conflict {
+        projected_value.unwrap_or(fallback_value)
+    } else {
+        fallback_value
+    };
+    runtime_type_from_core_value_and_effect(value, effect)
+}
+
+fn projected_match_arm_value(
+    fallback_value: &typed_ir::Type,
+    arm_value: typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    if let Some(merged) = merge_projected_value_type_precision(fallback_value, &arm_value) {
+        return Some(merged);
+    }
+    if core_type_contains_unknown(fallback_value) || core_type_has_vars(fallback_value) {
+        None
+    } else {
+        Some(arm_value)
+    }
+}
+
+fn match_arm_value_type_usable(value: &typed_ir::Type) -> bool {
+    !matches!(
+        value,
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never
+    ) && !core_type_contains_unknown(value)
+        && !core_type_has_vars(value)
 }
 
 fn choose_projected_block_result(

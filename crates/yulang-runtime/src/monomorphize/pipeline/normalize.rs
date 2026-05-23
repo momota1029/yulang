@@ -120,6 +120,8 @@ pub(super) fn refresh_closed_specialized_schemes(mut module: Module) -> Module {
             || (was_closed_binding && is_synthetic_local_act_helper_path(&binding.name))
         {
             refresh_specialized_scheme_from_body(binding);
+        } else {
+            refresh_binding_type_params(binding);
         }
     }
     module

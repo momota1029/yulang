@@ -141,6 +141,7 @@ impl PrincipalUnifier {
             .iter()
             .map(|binding| (binding.name.clone(), binding_required_vars(binding)))
             .collect::<HashMap<_, _>>();
+        let module_specializations = module_specializations_by_original(&module);
         let bindings_by_path = module
             .bindings
             .iter()
@@ -149,6 +150,7 @@ impl PrincipalUnifier {
                     || required_vars_by_path
                         .get(&binding.name)
                         .is_some_and(|vars| !vars.is_empty())
+                    || module_specializations.contains_key(&binding.name)
             })
             .map(|binding| (binding.name.clone(), binding.clone()))
             .collect::<HashMap<_, _>>();
@@ -159,12 +161,12 @@ impl PrincipalUnifier {
                 required_vars_by_path
                     .get(&binding.name)
                     .is_some_and(|vars| !vars.is_empty())
+                    || module_specializations.contains_key(&binding.name)
             })
             .map(|binding| binding.name.clone())
             .collect::<HashSet<_>>();
         let role_impls = principal_unify_role_impls(&module);
         let role_associated_impls = module.role_impls.clone();
-        let module_specializations = module_specializations_by_original(&module);
         let never_effect_ops = collect_never_effect_ops(&module);
         let next_index = next_principal_unify_index(&module);
         Self {
@@ -289,7 +291,6 @@ impl PrincipalUnifier {
         add_single_specialization_aliases(module, &self.root_specializations);
         rewrite_contextual_specialization_refs(module, &self.module_specializations);
         rewrite_single_specialization_refs(module, &self.module_specializations);
-        remove_specialized_generic_originals(module, &self.root_specializations);
         module.roots = module
             .roots
             .clone()
@@ -304,10 +305,34 @@ impl PrincipalUnifier {
             if !self.emitted.is_empty() {
                 self.flush_emitted_specializations(module);
             }
-            if !self.rewrite_flushed_specialization_bodies(module) {
+            let changed_roots = self.rewrite_flushed_specialization_roots(module);
+            let changed_bindings = self.rewrite_flushed_specialization_bodies(module);
+            if !changed_roots && !changed_bindings {
                 return;
             }
         }
+    }
+
+    fn rewrite_flushed_specialization_roots(&mut self, module: &mut Module) -> bool {
+        let mut changed = false;
+        let candidate_paths = self.flushed_specialization_rewrite_candidate_paths();
+        for expr in &mut module.root_exprs {
+            if !binding_body_has_principal_rewrite_candidate(expr, &candidate_paths) {
+                continue;
+            }
+            let original = expr.clone();
+            let body = refresh_local_expr_types(original.clone());
+            self.push_rewrite_context("flushed-specialization-root");
+            let body = self.rewrite_expr(body, None);
+            self.pop_rewrite_context();
+            let body = project_runtime_expr_types(body);
+            if body == original {
+                continue;
+            }
+            *expr = body;
+            changed = true;
+        }
+        changed
     }
 
     fn rewrite_flushed_specialization_bodies(&mut self, module: &mut Module) -> bool {
@@ -969,35 +994,35 @@ impl PrincipalUnifier {
                     result_context.as_ref(),
                     visible_match_arm_result_type(&arms).as_ref(),
                 );
-                ty = RuntimeType::core(result.clone());
                 let arm_context = Some(typed_ir::TypeBounds::exact(result.clone()));
                 let scrutinee = self.rewrite_expr(*scrutinee, scrutinee_context);
-                let scrutinee_ty = scrutinee.ty.clone();
+                let scrutinee_ty = RuntimeType::core(runtime_core_type(&scrutinee.ty));
+                let arms = arms
+                    .into_iter()
+                    .map(|arm| {
+                        let pattern = self.rewrite_pattern_defaults(arm.pattern);
+                        self.local_value_contexts.push(BTreeMap::new());
+                        self.record_local_value_type_with_expected(&pattern, &scrutinee_ty);
+                        let guard = arm.guard.map(|guard| self.rewrite_expr(guard, None));
+                        let body = self.rewrite_expr(arm.body, arm_context.clone());
+                        let body = self.adapt_join_body_never_effect(body, &result);
+                        self.local_value_contexts.pop();
+                        MatchArm {
+                            pattern,
+                            guard,
+                            body,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let result = contextual_join_result_type_with_arm_result(
+                    result,
+                    result_context.as_ref(),
+                    visible_match_arm_result_type(&arms).as_ref(),
+                );
+                ty = RuntimeType::core(result.clone());
                 ExprKind::Match {
                     scrutinee: Box::new(scrutinee),
-                    arms: arms
-                        .into_iter()
-                        .map(|arm| {
-                            let pattern = self.rewrite_pattern_defaults(arm.pattern);
-                            self.local_value_contexts.push(BTreeMap::new());
-                            self.record_local_value_type_with_expected(&pattern, &scrutinee_ty);
-                            let guard = arm.guard.map(|guard| self.rewrite_expr(guard, None));
-                            let body = {
-                                let body_context = self
-                                    .expr_is_nullary_generic_var(&arm.body)
-                                    .then(|| arm_context.clone())
-                                    .flatten();
-                                self.rewrite_expr(arm.body, body_context)
-                            };
-                            let body = self.adapt_join_body_never_effect(body, &result);
-                            self.local_value_contexts.pop();
-                            MatchArm {
-                                pattern,
-                                guard,
-                                body,
-                            }
-                        })
-                        .collect(),
+                    arms,
                     evidence: JoinEvidence { result },
                 }
             }
@@ -1483,6 +1508,13 @@ impl PrincipalUnifier {
                 );
             }
             Pattern::Tuple { items, ty } => {
+                if items.len() == 1
+                    && tuple_pattern_item_runtime_type(expected, ty, 0).is_none()
+                    && runtime_type_shape_usable(expected)
+                {
+                    self.record_local_value_type_with_expected(&items[0], expected);
+                    return;
+                }
                 for (index, item) in items.iter().enumerate() {
                     let item_expected = tuple_pattern_item_runtime_type(expected, ty, index)
                         .unwrap_or_else(|| pattern_runtime_type(item).clone());
@@ -1572,7 +1604,7 @@ impl PrincipalUnifier {
                 let value_context = pattern_value_context(&pattern);
                 let value = self.rewrite_expr(value, value_context);
                 let pattern = self.rewrite_pattern_defaults(pattern);
-                self.record_local_value_type(&pattern);
+                self.record_local_value_type_with_expected(&pattern, &value.ty);
                 Stmt::Let { pattern, value }
             }
             Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
@@ -1731,7 +1763,7 @@ impl PrincipalUnifier {
                         .or_else(|| self.local_var_ref_binding_context(&pattern));
                     let value = self.rewrite_expr(value, value_context);
                     let pattern = self.rewrite_pattern_defaults(pattern);
-                    self.record_local_value_type(&pattern);
+                    self.record_local_value_type_with_expected(&pattern, &value.ty);
                     Stmt::Let { pattern, value }
                 }
                 Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
@@ -1822,15 +1854,23 @@ impl PrincipalUnifier {
             return None;
         };
         self.finish_profile_timer("apply-spine", started);
-        if self.should_skip_partial_callee_rewrite(spine.target, spine.args.len()) {
+        self.record_target_apply_visit(spine.target);
+        if self.local_value_type(spine.target).is_some() {
             return None;
         }
-        self.record_target_apply_visit(spine.target);
-        if self.local_value_type(spine.target).is_some() || is_specialized_path(spine.target) {
+        if is_specialized_path(spine.target) {
+            if let Some(expr) =
+                self.rewrite_imprecise_specialized_call_from_original(expr, &spine, result_context)
+            {
+                return Some(expr);
+            }
             return None;
         }
         if let Some(expr) = self.rewrite_role_method_from_receiver(expr, &spine, result_context) {
             return Some(expr);
+        }
+        if self.should_skip_partial_callee_rewrite(spine.target, spine.args.len()) {
+            return None;
         }
         if !self.generic_bindings.contains(spine.target) {
             if let Some(expr) =
@@ -1987,9 +2027,7 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "non-function-principal");
             return None;
         };
-        if handler_info.is_none()
-            && !borrowed_args_accept_specialization_inputs(&spine.args, &params)
-        {
+        if !borrowed_arg_values_accept_specialization_inputs(&spine.args, &params) {
             let Some(adjusted) =
                 self.complete_plan_from_argument_runtime_types(&original, &plan, &spine.args)
             else {
@@ -2015,10 +2053,16 @@ impl PrincipalUnifier {
             };
             params = adjusted_params;
             ret = adjusted_ret;
-            if !borrowed_args_accept_specialization_inputs(&spine.args, &params) {
+            if !borrowed_arg_values_accept_specialization_inputs(&spine.args, &params) {
                 self.bump_skip(spine.target, "conflicting-specialization-inputs");
                 return None;
             }
+        }
+        if handler_info.is_none()
+            && !borrowed_args_accept_specialization_inputs(&spine.args, &params)
+        {
+            self.bump_skip(spine.target, "conflicting-specialization-inputs");
+            return None;
         }
         let is_handler_binding = handler_info.is_some();
         let rewritten_args = spine
@@ -2301,6 +2345,10 @@ impl PrincipalUnifier {
             self.bump("principal-unify-argument-runtime-completed-plan");
             plan = completed;
         }
+        if let Some(completed) = self.complete_plan_from_body_return_values(original, &plan) {
+            self.bump("principal-unify-body-return-value-completed-plan");
+            plan = completed;
+        }
         if let Some(completed) = self.complete_plan_from_role_associated_outputs(original, &plan) {
             self.bump("principal-unify-role-associated-completed-plan");
             plan = completed;
@@ -2531,7 +2579,7 @@ impl PrincipalUnifier {
             projected_substitutions,
         );
         debug_principal_unify_normalized_plan(&normalized);
-        normalized.complete.then_some(normalized)
+        Some(normalized)
     }
 
     fn complete_plan_from_binding_scheme_slots(
@@ -2598,6 +2646,76 @@ impl PrincipalUnifier {
             &mut substitutions,
             &mut conflicts,
         );
+        if !conflicts.is_empty() || substitutions == before {
+            return None;
+        }
+        let projected_substitutions = substitutions.clone();
+        let mut plan = plan.clone();
+        plan.substitutions = substitutions
+            .into_iter()
+            .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
+            .collect();
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
+            plan,
+            &[],
+            &original.scheme.requirements,
+            &self.role_associated_impls,
+        );
+        preserve_projected_substitutions_if_normalized_empty(
+            &mut normalized,
+            projected_substitutions,
+        );
+        debug_principal_unify_normalized_plan(&normalized);
+        Some(normalized)
+    }
+
+    fn complete_plan_from_body_return_values(
+        &mut self,
+        original: &Binding,
+        plan: &typed_ir::PrincipalElaborationPlan,
+    ) -> Option<typed_ir::PrincipalElaborationPlan> {
+        let required_vars = self.required_vars_for_binding(original);
+        if required_vars.is_empty() {
+            return None;
+        }
+        let before = plan_substitution_map(plan);
+        if missing_required_vars(original, &before).is_empty() {
+            return None;
+        }
+        let substituted = substitute_binding(original.clone(), &before);
+        let Some((_, ret, _)) =
+            core_fun_spine_parts_exact(&substituted.scheme.body, plan.args.len())
+        else {
+            return None;
+        };
+        let body = binding_body_after_applied_args(&substituted.body, plan.args.len())?;
+        let mut candidates = Vec::new();
+        collect_body_return_value_candidates(body, &mut candidates);
+        if candidates.is_empty() {
+            return None;
+        }
+        let mut substitutions = before.clone();
+        let mut conflicts = BTreeSet::new();
+        for candidate in candidates {
+            project_slot_lower_template_against_closed_actual(
+                &ret,
+                &candidate,
+                &required_vars,
+                &mut substitutions,
+                &mut conflicts,
+                false,
+                64,
+            );
+            project_closed_substitutions_from_type(
+                &ret,
+                &candidate,
+                &required_vars,
+                &mut substitutions,
+                &mut conflicts,
+                false,
+                64,
+            );
+        }
         if !conflicts.is_empty() || substitutions == before {
             return None;
         }
@@ -2736,6 +2854,11 @@ impl PrincipalUnifier {
                 substitute_type(&runtime_core_type(&spine.args[0].ty), substitutions)
             })
             .unwrap_or_else(|| runtime_core_type(&spine.args[0].ty));
+        let receiver_ty = Self::role_receiver_type_from_evidence(
+            receiver_ty,
+            spine.evidences.first().copied().flatten(),
+            active_substitutions.as_ref(),
+        );
         if matches!(receiver_ty, typed_ir::Type::Unknown | typed_ir::Type::Any)
             && !role_spine_has_local_imprecise_receiver(spine)
         {
@@ -2991,6 +3114,30 @@ impl PrincipalUnifier {
         Some(rewritten)
     }
 
+    fn role_receiver_type_from_evidence(
+        receiver_ty: typed_ir::Type,
+        evidence: Option<&typed_ir::ApplyEvidence>,
+        active_substitutions: Option<&BTreeMap<typed_ir::TypeVar, typed_ir::Type>>,
+    ) -> typed_ir::Type {
+        if closed_slot_type_usable(&receiver_ty, false)
+            && !core_type_has_vars(&receiver_ty)
+            && !core_type_contains_unknown(&receiver_ty)
+        {
+            return receiver_ty;
+        }
+        let Some(evidence_ty) = evidence.and_then(apply_evidence_actual_input_shape) else {
+            return receiver_ty;
+        };
+        let evidence_ty = active_substitutions
+            .map(|substitutions| substitute_type(&evidence_ty, substitutions))
+            .unwrap_or(evidence_ty);
+        if closed_slot_type_usable(&evidence_ty, false) {
+            evidence_ty
+        } else {
+            receiver_ty
+        }
+    }
+
     fn rewrite_single_emitted_role_specialization(
         &self,
         role_method: &typed_ir::Path,
@@ -3190,6 +3337,9 @@ impl PrincipalUnifier {
         else {
             return None;
         };
+        if specialization_params_lose_visible_arg_precision(&spine.args, &params) {
+            return None;
+        }
         let rewritten_args = spine
             .args
             .iter()
@@ -3216,6 +3366,49 @@ impl PrincipalUnifier {
         self.bump("principal-unify-single-specialization-rewrite");
         debug_principal_unify_rewrite(spine.target, &specialized);
         rebuild_apply_call_owned(specialized, callee_ty, rewritten_args, final_ty)
+    }
+
+    fn rewrite_imprecise_specialized_call_from_original(
+        &mut self,
+        expr: &Expr,
+        spine: &PrincipalUnifyApplySpine<'_>,
+        result_context: Option<&typed_ir::TypeBounds>,
+    ) -> Option<Expr> {
+        let current = self.binding_by_path_or_emitted(spine.target)?;
+        let (params, _, _) = core_fun_spine_parts_exact(&current.scheme.body, spine.args.len())?;
+        if !specialization_params_lose_visible_arg_precision(&spine.args, &params) {
+            return None;
+        }
+        let original_path = unspecialized_path(spine.target)?;
+        let Some(original) = self
+            .generic_binding(&original_path)
+            .or_else(|| self.bindings_by_path.get(&original_path))
+            .cloned()
+        else {
+            return None;
+        };
+        let args = spine
+            .args
+            .iter()
+            .map(|arg| (*arg).clone())
+            .collect::<Vec<_>>();
+        let Some(rebuilt) = rebuild_unadapted_apply_call_owned(
+            original_path.clone(),
+            original.scheme.body.clone(),
+            args,
+            &expr.ty,
+        ) else {
+            return None;
+        };
+        let inserted_generic = self.generic_bindings.insert(original_path.clone());
+        self.incomplete_plan_targets.remove(&original_path);
+        self.incomplete_plan_cache
+            .retain(|key, _| key.target != original_path);
+        let rewritten = self.rewrite_apply_from_principal_plan(&rebuilt, result_context);
+        if inserted_generic {
+            self.generic_bindings.remove(&original_path);
+        }
+        rewritten
     }
 
     fn rewrite_non_generic_effect_context_call(
@@ -3581,11 +3774,14 @@ impl PrincipalUnifier {
             true,
             64,
         );
-        project_ref_effect_arg_vars_from_value_arg(
-            &ret,
+        project_slot_lower_template_against_closed_actual(
+            &ret_effect,
+            &projected_ret_effect,
             &required_vars,
             &mut substitutions,
             &mut conflicts,
+            true,
+            64,
         );
         if ret_effect_has_unfilled_required_var(&ret_effect, &required_vars, &substitutions)
             && let Some(active_residual_effect) = active_handler_residual_effect
@@ -4115,6 +4311,7 @@ impl PrincipalUnifier {
         let preplanned_handler = handler_plan.is_some();
         if let Some(plan) = handler_plan.as_ref() {
             binding = self.apply_intern_handler_plan(binding, &original_name, &path, plan);
+            binding = substitute_binding(binding, &substitutions);
         }
         let binding_body_context = specialization_binding_body_context(
             &binding.scheme.body,
@@ -4131,6 +4328,7 @@ impl PrincipalUnifier {
             && !preplanned_handler
         {
             binding = self.apply_intern_handler_plan(binding, &original_name, &path, &plan);
+            binding = substitute_binding(binding, &substitutions);
         }
         if let Some(output_shape) = &output_shape
             && let Some(contextual_scheme) = core_fun_spine_with_output_shape(
@@ -4166,6 +4364,27 @@ impl PrincipalUnifier {
         }
         self.finish_profile_timer("intern-final-refresh-project", started);
         self.record_target_phase_timing(&original_name, "intern-final-refresh-project", started);
+        let started = self.profile_timer();
+        let original_ty = binding.body.ty.clone();
+        let original_scheme = binding.scheme.body.clone();
+        let body_context = Self::binding_body_runtime_context(&binding);
+        self.active_specializations
+            .push(ActivePrincipalSpecialization {
+                target: original_name.clone(),
+                substitutions: substitutions.clone(),
+                path: path.clone(),
+                handler_plan: None,
+                input_shapes: input_shapes.clone(),
+                output_shape: output_shape.clone(),
+            });
+        self.push_rewrite_context("intern-final");
+        let body = self.rewrite_expr(binding.body, body_context);
+        self.pop_rewrite_context();
+        self.active_specializations.pop();
+        binding.body = retag_runtime_expr_spine_type(project_runtime_expr_types(body), original_ty);
+        binding.scheme.body = original_scheme;
+        self.finish_profile_timer("intern-final-rewrite-body", started);
+        self.record_target_phase_timing(&original_name, "intern-final-rewrite-body", started);
         self.emitted_by_path.insert(path.clone(), binding.clone());
         self.emitted.push(binding);
     }
@@ -4425,24 +4644,6 @@ impl PrincipalUnifier {
             return None;
         };
         Some(substitutions.clone())
-    }
-
-    fn expr_is_nullary_generic_var(&self, expr: &Expr) -> bool {
-        match &expr.kind {
-            ExprKind::Var(path) => self
-                .generic_binding(path)
-                .is_some_and(|binding| core_fun_spine_exact(&binding.scheme.body, 1).is_none()),
-            ExprKind::Thunk { expr, .. }
-            | ExprKind::LocalPushId { body: expr, .. }
-            | ExprKind::Pack { expr, .. }
-            | ExprKind::BindHere { expr }
-            | ExprKind::Coerce { expr, .. } => self.expr_is_nullary_generic_var(expr),
-            ExprKind::Block {
-                tail: Some(tail), ..
-            } => self.expr_is_nullary_generic_var(tail),
-            ExprKind::AddId { thunk, .. } => self.expr_is_nullary_generic_var(thunk),
-            _ => false,
-        }
     }
 }
 
@@ -4846,6 +5047,53 @@ fn block_tail_expr(expr: &Expr) -> &Expr {
     current
 }
 
+fn collect_body_return_value_candidates(expr: &Expr, out: &mut Vec<typed_ir::Type>) {
+    match &expr.kind {
+        ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_body_return_value_candidates(then_branch, out);
+            collect_body_return_value_candidates(else_branch, out);
+        }
+        ExprKind::Match { arms, .. } => {
+            for arm in arms {
+                collect_body_return_value_candidates(&arm.body, out);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            collect_body_return_value_candidates(body, out);
+            for arm in arms {
+                collect_body_return_value_candidates(&arm.body, out);
+            }
+        }
+        ExprKind::Block {
+            tail: Some(tail), ..
+        } => collect_body_return_value_candidates(tail, out),
+        ExprKind::Coerce { to, .. } => push_body_return_value_candidate(to.clone(), out),
+        ExprKind::Pack { expr, .. } | ExprKind::BindHere { expr } => {
+            collect_body_return_value_candidates(expr, out)
+        }
+        ExprKind::LocalPushId { body, .. } => collect_body_return_value_candidates(body, out),
+        _ => {
+            let (value, _effect) = runtime_value_and_effect(&expr.ty);
+            push_body_return_value_candidate(value, out);
+        }
+    }
+}
+
+fn push_body_return_value_candidate(value: typed_ir::Type, out: &mut Vec<typed_ir::Type>) {
+    if matches!(
+        value,
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never
+    ) || out.iter().any(|existing| existing == &value)
+    {
+        return;
+    }
+    out.push(value);
+}
+
 fn ret_effect_has_unfilled_required_var(
     ret_effect: &typed_ir::Type,
     required_vars: &BTreeSet<typed_ir::TypeVar>,
@@ -5034,46 +5282,6 @@ fn rewrite_contextual_specialization_refs(
             root_specializations,
             &binding_types,
         );
-    }
-}
-
-fn remove_specialized_generic_originals(
-    module: &mut Module,
-    root_specializations: &HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
-) {
-    module.bindings.retain(|binding| {
-        binding.type_params.is_empty() || !root_specializations.contains_key(&binding.name)
-    });
-    close_specialized_nested_effect_only_originals(module, root_specializations);
-}
-
-fn close_specialized_nested_effect_only_originals(
-    module: &mut Module,
-    root_specializations: &HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
-) {
-    for binding in &mut module.bindings {
-        if binding.type_params.is_empty()
-            || binding.name.segments.len() == 1
-            || !root_specializations.contains_key(&binding.name)
-        {
-            continue;
-        }
-        let effect_only_vars = binding_effect_only_vars(binding);
-        if !binding
-            .type_params
-            .iter()
-            .all(|var| effect_only_vars.contains(var))
-        {
-            continue;
-        }
-        let substitutions = binding
-            .type_params
-            .iter()
-            .cloned()
-            .map(|var| (var, typed_ir::Type::Never))
-            .collect::<BTreeMap<_, _>>();
-        *binding = substitute_binding(binding.clone(), &substitutions);
-        binding.type_params.clear();
     }
 }
 
@@ -5361,6 +5569,9 @@ fn rewrite_contextual_specialization_refs_expr_inner(
         .filter_map(|path| {
             let ty = binding_types.get(path)?;
             let (params, _, _) = core_fun_spine_parts_exact(ty, args.len())?;
+            if specialization_params_lose_visible_arg_precision(&spine.args, &params) {
+                return None;
+            }
             if !owned_args_fit_contextual_specialization(&args, &params) {
                 return None;
             }
@@ -6674,6 +6885,7 @@ fn contextual_join_result_type_with_arm_result(
         return contextual;
     };
     if core_type_is_imprecise_runtime_slot(&contextual)
+        || core_type_contains_unknown(&contextual) && !core_type_contains_unknown(arm_result)
         || !core_types_compatible(&contextual, arm_result)
             && !core_types_compatible(arm_result, &contextual)
     {
@@ -6685,21 +6897,33 @@ fn contextual_join_result_type_with_arm_result(
 
 fn visible_match_arm_result_type(arms: &[MatchArm]) -> Option<typed_ir::Type> {
     arms.iter()
-        .map(|arm| runtime_core_type(&arm.body.ty))
-        .filter(visible_join_arm_result_usable)
+        .filter_map(|arm| visible_join_arm_expr_result_type(&arm.body))
         .reduce(|left, right| choose_core_type(left, right, TypeChoice::VisiblePrincipal))
 }
 
 fn visible_handle_arm_result_type(arms: &[HandleArm]) -> Option<typed_ir::Type> {
     arms.iter()
-        .map(|arm| runtime_core_type(&arm.body.ty))
-        .filter(visible_join_arm_result_usable)
+        .filter_map(|arm| visible_join_arm_expr_result_type(&arm.body))
         .reduce(|left, right| choose_core_type(left, right, TypeChoice::VisiblePrincipal))
+}
+
+fn visible_join_arm_expr_result_type(expr: &Expr) -> Option<typed_ir::Type> {
+    let ty = runtime_core_type(&expr.ty);
+    if visible_join_arm_result_usable(&ty) {
+        return Some(ty);
+    }
+    if core_type_contains_unknown(&ty)
+        && let ExprKind::Coerce { expr, .. } = &expr.kind
+    {
+        return visible_join_arm_expr_result_type(expr);
+    }
+    None
 }
 
 fn visible_join_arm_result_usable(ty: &typed_ir::Type) -> bool {
     !core_type_is_never(ty)
         && !core_type_is_imprecise_runtime_slot(ty)
+        && !core_type_contains_unknown(ty)
         && !contains_non_runtime_type(ty)
 }
 
@@ -6870,13 +7094,29 @@ fn runtime_single_type_arg(args: &[typed_ir::TypeArg]) -> Option<typed_ir::Type>
 fn type_arg_core(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
     match arg {
         typed_ir::TypeArg::Type(ty) => Some(ty.clone()),
-        typed_ir::TypeArg::Bounds(bounds) => match (&bounds.lower, &bounds.upper) {
-            (Some(lower), Some(upper)) if lower == upper => Some((**lower).clone()),
-            (Some(lower), None) => Some((**lower).clone()),
-            (None, Some(upper)) => Some((**upper).clone()),
-            _ => None,
-        },
+        typed_ir::TypeArg::Bounds(bounds) => closed_type_from_precise_bounds(bounds),
     }
+}
+
+fn closed_type_from_precise_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
+    let lower = bounds
+        .lower
+        .as_deref()
+        .cloned()
+        .map(collapse_repeated_top_choice_type);
+    let upper = bounds
+        .upper
+        .as_deref()
+        .cloned()
+        .map(collapse_repeated_top_choice_type);
+    let choice = match (lower, upper) {
+        (Some(lower), Some(upper)) if lower == upper => lower,
+        (Some(lower), Some(upper)) if type_choice_contains(&lower, &upper) => upper,
+        (Some(lower), Some(upper)) if type_choice_contains(&upper, &lower) => lower,
+        (Some(ty), None) | (None, Some(ty)) => ty,
+        _ => return None,
+    };
+    closed_slot_type_usable(&choice, false).then_some(choice)
 }
 
 fn refresh_apply_expr_type_from_callee(expr: Expr) -> Expr {
@@ -7350,6 +7590,136 @@ fn borrowed_args_accept_specialization_inputs(
     })
 }
 
+fn borrowed_arg_values_accept_specialization_inputs(
+    args: &[&Expr],
+    params: &[(typed_ir::Type, typed_ir::Type)],
+) -> bool {
+    args.iter().zip(params).all(|(arg, (param, _effect))| {
+        let actual = runtime_core_type(&arg.ty);
+        if core_type_has_vars(&actual) || core_type_has_vars(param) {
+            return true;
+        }
+        if core_type_contains_unknown(&actual) || core_type_contains_unknown(param) {
+            return !unit_default_conflicts_with_visible_shape(param, &actual);
+        }
+        core_types_compatible(param, &actual)
+            || core_types_compatible(&actual, param)
+            || runtime_ref_value_args_compatible(param, &actual)
+    })
+}
+
+fn specialization_params_lose_visible_arg_precision(
+    args: &[&Expr],
+    params: &[(typed_ir::Type, typed_ir::Type)],
+) -> bool {
+    args.iter().zip(params).any(|(arg, (param, _effect))| {
+        let actual = runtime_core_type(&arg.ty);
+        specialization_param_loses_visible_precision(param, &actual)
+    })
+}
+
+fn specialization_param_loses_visible_precision(
+    param: &typed_ir::Type,
+    actual: &typed_ir::Type,
+) -> bool {
+    if param == actual
+        || core_type_has_vars(param)
+        || core_type_has_vars(actual)
+        || core_type_contains_unknown(param)
+        || core_type_contains_unknown(actual)
+    {
+        return false;
+    }
+    if unit_default_conflicts_with_visible_shape(param, actual) {
+        return true;
+    }
+    match (param, actual) {
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if path == actual_path && args.len() == actual_args.len() => args
+            .iter()
+            .zip(actual_args)
+            .any(|(param, actual)| type_arg_loses_visible_precision(param, actual)),
+        (
+            typed_ir::Type::Fun {
+                param,
+                ret_effect,
+                ret,
+                ..
+            },
+            typed_ir::Type::Fun {
+                param: actual_param,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+                ..
+            },
+        ) => {
+            specialization_param_loses_visible_precision(param, actual_param)
+                || specialization_param_loses_visible_precision(ret_effect, actual_ret_effect)
+                || specialization_param_loses_visible_precision(ret, actual_ret)
+        }
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            items
+                .iter()
+                .zip(actual_items)
+                .any(|(param, actual)| specialization_param_loses_visible_precision(param, actual))
+        }
+        _ => false,
+    }
+}
+
+fn type_arg_loses_visible_precision(param: &typed_ir::TypeArg, actual: &typed_ir::TypeArg) -> bool {
+    match (param, actual) {
+        (typed_ir::TypeArg::Type(param), typed_ir::TypeArg::Type(actual)) => {
+            specialization_param_loses_visible_precision(param, actual)
+        }
+        (typed_ir::TypeArg::Bounds(param), typed_ir::TypeArg::Bounds(actual)) => {
+            bounds_loses_visible_precision(param, actual)
+        }
+        (typed_ir::TypeArg::Type(param), typed_ir::TypeArg::Bounds(actual)) => actual
+            .lower
+            .as_deref()
+            .or(actual.upper.as_deref())
+            .is_some_and(|actual| specialization_param_loses_visible_precision(param, actual)),
+        (typed_ir::TypeArg::Bounds(param), typed_ir::TypeArg::Type(actual)) => param
+            .lower
+            .as_deref()
+            .or(param.upper.as_deref())
+            .is_some_and(|param| specialization_param_loses_visible_precision(param, actual)),
+    }
+}
+
+fn bounds_loses_visible_precision(
+    param: &typed_ir::TypeBounds,
+    actual: &typed_ir::TypeBounds,
+) -> bool {
+    match (
+        param.lower.as_deref().or(param.upper.as_deref()),
+        actual.lower.as_deref().or(actual.upper.as_deref()),
+    ) {
+        (Some(param), Some(actual)) => specialization_param_loses_visible_precision(param, actual),
+        _ => false,
+    }
+}
+
+fn unit_default_conflicts_with_visible_shape(
+    param: &typed_ir::Type,
+    actual: &typed_ir::Type,
+) -> bool {
+    principal_runtime_substitution_is_unit_default(param)
+        && !principal_runtime_substitution_is_unit_default(actual)
+        && !matches!(
+            actual,
+            typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never
+        )
+}
+
 fn owned_args_fit_contextual_specialization(
     args: &[Expr],
     params: &[(typed_ir::Type, typed_ir::Type)],
@@ -7500,6 +7870,44 @@ fn rebuild_apply_call_owned(
     final_ty: &RuntimeType,
 ) -> Option<Expr> {
     rebuild_apply_call_owned_with_final_arg_effect(path, callee_ty, args, final_ty, None)
+}
+
+fn rebuild_unadapted_apply_call_owned(
+    path: typed_ir::Path,
+    callee_ty: typed_ir::Type,
+    args: Vec<Expr>,
+    final_ty: &RuntimeType,
+) -> Option<Expr> {
+    let mut call = Expr::typed(
+        ExprKind::Var(path),
+        normalize_hir_function_type(RuntimeType::core(callee_ty.clone())),
+    );
+    let mut current = callee_ty;
+    let arity = args.len();
+    for (index, arg) in args.into_iter().enumerate() {
+        if index > 0 {
+            call = force_rebuilt_thunked_function_callee(call);
+        }
+        let (_param, _param_effect, next, ret_effect) =
+            core_fun_parts_with_effects_exact(&current)?;
+        let specialized_ret = runtime_type_from_core_value_and_effect(next.clone(), ret_effect);
+        let ty = if index + 1 == arity {
+            final_ty.clone()
+        } else {
+            specialized_ret
+        };
+        call = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(call),
+                arg: Box::new(arg),
+                evidence: None,
+                instantiation: None,
+            },
+            ty,
+        );
+        current = next;
+    }
+    Some(call)
 }
 
 fn rebuild_apply_call_owned_with_final_arg_effect(
@@ -8411,6 +8819,7 @@ fn principal_arg_adapter(
     if actual != *param
         && !type_compatible(param, &actual)
         && !variant_row_accepts_actual(param, &actual)
+        && !runtime_ref_value_args_compatible(param, &actual)
     {
         return None;
     }
@@ -8591,6 +9000,15 @@ fn apply_evidence_input_shape(evidence: &typed_ir::ApplyEvidence) -> Option<type
         .as_ref()
         .and_then(contextual_specialization_shape_from_bounds)
         .or_else(|| contextual_specialization_shape_from_bounds(&evidence.arg))
+}
+
+fn apply_evidence_actual_input_shape(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    contextual_specialization_shape_from_bounds(&evidence.arg).or_else(|| {
+        evidence
+            .expected_arg
+            .as_ref()
+            .and_then(contextual_specialization_shape_from_bounds)
+    })
 }
 
 fn contextual_specialization_shape_from_bounds(
@@ -8823,7 +9241,9 @@ fn runtime_type_has_vars(ty: &RuntimeType) -> bool {
 }
 
 fn runtime_type_shape_usable(ty: &RuntimeType) -> bool {
-    !runtime_type_has_vars(ty) && !runtime_type_contains_any(ty)
+    !runtime_type_has_vars(ty)
+        && !runtime_type_contains_unknown(ty)
+        && !runtime_type_contains_any(ty)
 }
 
 fn runtime_type_contains_any(ty: &RuntimeType) -> bool {
@@ -12745,10 +13165,9 @@ fn collect_type_var_effect_usage(
                 entry.0 = true;
             }
         }
-        typed_ir::Type::Named { path, args } => {
-            for (index, arg) in args.iter().enumerate() {
-                let arg_in_effect = in_effect || (is_std_var_ref_path(path) && index == 0);
-                collect_type_arg_effect_usage(arg, arg_in_effect, usage);
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_effect_usage(arg, in_effect, usage);
             }
         }
         typed_ir::Type::Fun {
@@ -12802,75 +13221,48 @@ fn is_std_var_ref_path(path: &typed_ir::Path) -> bool {
     std.0 == "std" && var.0 == "var" && ref_name.0 == "ref"
 }
 
-fn project_ref_effect_arg_vars_from_value_arg(
-    ty: &typed_ir::Type,
-    required_vars: &BTreeSet<typed_ir::TypeVar>,
-    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
-) {
-    let typed_ir::Type::Named { path, args } = ty else {
-        return;
+fn runtime_ref_value_args_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
+    let (
+        typed_ir::Type::Named {
+            path: expected_path,
+            args: expected_args,
+        },
+        typed_ir::Type::Named {
+            path: actual_path,
+            args: actual_args,
+        },
+    ) = (expected, actual)
+    else {
+        return false;
     };
-    if !is_std_var_ref_path(path) || args.len() < 2 {
-        return;
+    if !is_std_var_ref_path(expected_path)
+        || !is_std_var_ref_path(actual_path)
+        || expected_args.len() < 2
+        || actual_args.len() < 2
+    {
+        return false;
     }
-    let Some(value_arg) = closed_type_arg(&args[1], substitutions) else {
-        return;
-    };
-    for var in ref_effect_arg_vars(&args[0]) {
-        if required_vars.contains(&var) {
-            insert_projected_value_substitution(substitutions, conflicts, var, value_arg.clone());
-        }
-    }
+    runtime_ref_value_type_arg_compatible(&expected_args[1], &actual_args[1])
 }
 
-fn closed_type_arg(
-    arg: &typed_ir::TypeArg,
-    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
-) -> Option<typed_ir::Type> {
-    let ty = match arg {
-        typed_ir::TypeArg::Type(ty) => substitute_type(ty, substitutions),
-        typed_ir::TypeArg::Bounds(bounds) => {
-            let bounds = substitute_bounds(bounds.clone(), substitutions);
-            closed_type_from_bounds(Some(&bounds))?
+fn runtime_ref_value_type_arg_compatible(
+    expected: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+) -> bool {
+    match (expected, actual) {
+        (typed_ir::TypeArg::Type(expected), typed_ir::TypeArg::Type(actual)) => {
+            expected == actual || type_compatible(expected, actual)
         }
-    };
-    (!core_type_has_vars(&ty) && !core_type_contains_unknown(&ty)).then_some(ty)
-}
-
-fn ref_effect_arg_vars(arg: &typed_ir::TypeArg) -> Vec<typed_ir::TypeVar> {
-    let mut vars = BTreeSet::new();
-    match arg {
-        typed_ir::TypeArg::Type(ty) => collect_ref_effect_arg_vars(ty, &mut vars),
-        typed_ir::TypeArg::Bounds(bounds) => {
-            if let Some(lower) = bounds.lower.as_deref() {
-                collect_ref_effect_arg_vars(lower, &mut vars);
-            }
-            if let Some(upper) = bounds.upper.as_deref() {
-                collect_ref_effect_arg_vars(upper, &mut vars);
-            }
+        (typed_ir::TypeArg::Bounds(bounds), typed_ir::TypeArg::Type(actual))
+        | (typed_ir::TypeArg::Type(actual), typed_ir::TypeArg::Bounds(bounds)) => {
+            closed_type_from_bounds(Some(bounds))
+                .is_some_and(|expected| expected == *actual || type_compatible(&expected, actual))
         }
-    }
-    vars.into_iter().collect()
-}
-
-fn collect_ref_effect_arg_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
-    match ty {
-        typed_ir::Type::Var(var) => {
-            vars.insert(var.clone());
+        (typed_ir::TypeArg::Bounds(expected), typed_ir::TypeArg::Bounds(actual)) => {
+            let expected = closed_type_from_bounds(Some(expected));
+            let actual = closed_type_from_bounds(Some(actual));
+            matches!((expected, actual), (Some(expected), Some(actual)) if expected == actual || type_compatible(&expected, &actual))
         }
-        typed_ir::Type::Named { args, .. } => {
-            for arg in args {
-                vars.extend(ref_effect_arg_vars(arg));
-            }
-        }
-        typed_ir::Type::Row { items, tail } => {
-            for item in items {
-                collect_ref_effect_arg_vars(item, vars);
-            }
-            collect_ref_effect_arg_vars(tail, vars);
-        }
-        _ => {}
     }
 }
 
@@ -13102,6 +13494,33 @@ fn empty_module() -> Module {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lower_effect_choice_projection_closes_required_row_var() {
+        let residual = typed_ir::TypeVar("residual".to_string());
+        let actual = typed_ir::Type::Row {
+            items: vec![named("fs_err")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let template =
+            typed_ir::Type::Union(vec![typed_ir::Type::Var(residual.clone()), actual.clone()]);
+        let required_vars = BTreeSet::from([residual.clone()]);
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+
+        project_slot_lower_template_against_closed_actual(
+            &template,
+            &actual,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
+            true,
+            64,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert_eq!(substitutions.get(&residual), Some(&actual));
+    }
 
     #[test]
     fn rewrites_complete_principal_plan_without_runtime_inference() {

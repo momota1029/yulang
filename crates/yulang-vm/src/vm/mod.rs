@@ -3,18 +3,17 @@ use std::fmt;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use yulang_typed_ir as typed_ir;
-
-use crate::diagnostic::RuntimeError;
-use crate::invariant::{RuntimeStage, check_runtime_invariants};
-use crate::ir::{
+use yulang_runtime::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern,
     RecordExprField, RecordSpreadExpr, Stmt, Type,
 };
+use yulang_runtime::types::effect_is_empty;
+use yulang_runtime::{RuntimeError, RuntimeStage, check_runtime_invariants};
+use yulang_typed_ir as typed_ir;
+
 use crate::runtime::bytes_tree::BytesTree;
 use crate::runtime::list_tree::{ListTree, ListView};
 use crate::runtime::string_tree::StringTree;
-use crate::types::effect_is_empty;
 
 pub struct VmModule {
     module: Module,
@@ -107,6 +106,7 @@ pub enum VmError {
     UnsupportedEffectIdVar(usize),
     UnsupportedFindId,
     UnexpectedRequest(typed_ir::Path),
+    HostIo(String),
 }
 
 impl fmt::Display for VmError {
@@ -129,8 +129,11 @@ mod value;
 use erase::*;
 use guard::*;
 use interpreter::*;
+pub(crate) use model::VmFileHandleState;
 use model::*;
-pub use model::{VmContinuation, VmPrimitive, VmProfile, VmRequest, VmResult, VmValue};
+pub use model::{
+    VmContinuation, VmFileHandle, VmPrimitive, VmProfile, VmRequest, VmResult, VmValue,
+};
 use primitive::*;
 use value::*;
 

@@ -13,6 +13,7 @@ pub enum VmValue {
     String(StringTree),
     Bytes(BytesTree),
     Path(Rc<PathBuf>),
+    FileHandle(VmFileHandle),
     Bool(bool),
     Unit,
     List(ListTree<Rc<VmValue>>),
@@ -28,6 +29,18 @@ pub enum VmValue {
     Closure(Rc<VmClosure>),
     Thunk(Rc<VmThunk>),
     EffectId(u64),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VmFileHandle {
+    pub(crate) state: Rc<std::cell::RefCell<VmFileHandleState>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct VmFileHandleState {
+    pub(crate) path: Rc<PathBuf>,
+    pub(crate) text: StringTree,
+    pub(crate) dirty: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -65,6 +65,7 @@ use yulang_sources::{
     resolve_or_install_std_root,
 };
 use yulang_typed_ir as typed_ir;
+use yulang_vm as runtime_vm;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -633,7 +634,7 @@ impl StartupProfile {
 fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
     let mut startup_profile = StartupProfile::new(options.startup_profile);
     let load_start = Instant::now();
-    let module = match runtime::ControlVmModule::read_artifact_file(Path::new(path)) {
+    let module = match runtime_vm::ControlVmModule::read_artifact_file(Path::new(path)) {
         Ok(module) => module,
         Err(err) => {
             eprintln!("failed to read YUIR artifact {path}: {err}");
@@ -645,7 +646,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
 
     let eval_start = Instant::now();
     let mut results = Vec::new();
-    let mut profile = runtime::VmProfile::default();
+    let mut profile = runtime_vm::VmProfile::default();
     let mut host_stdout = String::new();
     for index in 0..module.root_count() {
         match module.eval_root_expr_with_basic_host_profiled(index, &mut host_stdout) {
@@ -687,7 +688,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
 }
 
 fn run_cached_control_vm_module_or_exit(
-    module: runtime::ControlVmModule,
+    module: runtime_vm::ControlVmModule,
     load_duration: Duration,
     options: &CliOptions,
     startup_profile: &mut StartupProfile,
@@ -719,7 +720,7 @@ fn run_cached_control_vm_module_or_exit(
 
     let eval_start = Instant::now();
     let mut results = Vec::new();
-    let mut profile = runtime::VmProfile::default();
+    let mut profile = runtime_vm::VmProfile::default();
     let mut host_stdout = String::new();
     for index in 0..module.root_count() {
         match module.eval_root_expr_with_basic_host_profiled(index, &mut host_stdout) {
@@ -1485,7 +1486,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let compile_start = Instant::now();
-            let module = match runtime::compile_vm_module(lowered.module) {
+            let module = match runtime_vm::compile_vm_module(lowered.module) {
                 Ok(module) => module,
                 Err(err) => {
                     eprintln!("failed to compile runtime IR: {err}");
@@ -1498,7 +1499,7 @@ fn run_infer_views(
             let mut host_stdout = String::new();
             for index in 0..module.module().root_exprs.len() {
                 let result =
-                    match runtime::eval_root_with_basic_host(&module, index, &mut host_stdout) {
+                    match runtime_vm::eval_root_with_basic_host(&module, index, &mut host_stdout) {
                         Ok(result) => result,
                         Err(err) => {
                             eprintln!("failed to evaluate runtime IR: {err}");
@@ -1584,7 +1585,7 @@ fn run_infer_views(
             );
             startup_profile.record_runtime_lower(&lowered.profile);
             let compile_start = Instant::now();
-            let module = match runtime::compile_control_vm_module(lowered.module) {
+            let module = match runtime_vm::compile_control_vm_module(lowered.module) {
                 Ok(module) => module,
                 Err(err) => {
                     eprintln!("failed to compile control VM: {err}");
@@ -1627,7 +1628,7 @@ fn run_infer_views(
             }
             let eval_start = Instant::now();
             let mut results = Vec::new();
-            let mut profile = runtime::VmProfile::default();
+            let mut profile = runtime_vm::VmProfile::default();
             let mut host_stdout = String::new();
             for index in 0..module.root_count() {
                 match module.eval_root_expr_with_basic_host_profiled(index, &mut host_stdout) {
@@ -4621,14 +4622,19 @@ fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
     can_use_yuir_source_cache(options)
 }
 
-fn read_yuir_source_cache(source_set: &SourceSet) -> Option<(runtime::ControlVmModule, Duration)> {
+fn read_yuir_source_cache(
+    source_set: &SourceSet,
+) -> Option<(runtime_vm::ControlVmModule, Duration)> {
     let path = yuir_source_cache_path(source_set);
     let load_start = Instant::now();
-    let module = runtime::ControlVmModule::read_artifact_file(&path).ok()?;
+    let module = runtime_vm::ControlVmModule::read_artifact_file(&path).ok()?;
     Some((module, load_start.elapsed()))
 }
 
-fn write_yuir_source_cache(source_set: &SourceSet, module: &runtime::ControlVmModule) -> Duration {
+fn write_yuir_source_cache(
+    source_set: &SourceSet,
+    module: &runtime_vm::ControlVmModule,
+) -> Duration {
     let path = yuir_source_cache_path(source_set);
     let started = Instant::now();
     if let Some(parent) = path.parent() {
@@ -4648,7 +4654,7 @@ fn yuir_source_cache_path(source_set: &SourceSet) -> PathBuf {
         .join(format!("v{YUIR_SOURCE_CACHE_VERSION}"))
         .join(format!(
             "yuir{}-{:016x}.yuir",
-            runtime::CONTROL_VM_ARTIFACT_VERSION,
+            runtime_vm::CONTROL_VM_ARTIFACT_VERSION,
             yuir_source_cache_key(source_set)
         ))
 }
@@ -4656,7 +4662,7 @@ fn yuir_source_cache_path(source_set: &SourceSet) -> PathBuf {
 fn yuir_source_cache_key(source_set: &SourceSet) -> u64 {
     let mut hasher = DefaultHasher::new();
     YUIR_SOURCE_CACHE_VERSION.hash(&mut hasher);
-    runtime::CONTROL_VM_ARTIFACT_VERSION.hash(&mut hasher);
+    runtime_vm::CONTROL_VM_ARTIFACT_VERSION.hash(&mut hasher);
     for artifact in source_set.compiled_unit_syntax_artifacts() {
         hash_compiled_unit_manifest(&artifact.manifest, &mut hasher);
     }
@@ -5760,10 +5766,10 @@ fn print_runtime_binding(binding: &runtime::Binding, verbose: bool) {
     );
 }
 
-fn format_runtime_vm_result(result: &runtime::VmResult) -> String {
+fn format_runtime_vm_result(result: &runtime_vm::VmResult) -> String {
     match result {
-        runtime::VmResult::Value(value) => format_runtime_vm_value(value),
-        runtime::VmResult::Request(request) => format!(
+        runtime_vm::VmResult::Value(value) => format_runtime_vm_value(value),
+        runtime_vm::VmResult::Request(request) => format!(
             "request {} {} blocked={:?}",
             format_core_path(&request.effect),
             format_runtime_vm_value(&request.payload),
@@ -5772,15 +5778,15 @@ fn format_runtime_vm_result(result: &runtime::VmResult) -> String {
     }
 }
 
-fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
+fn format_runtime_vm_value(value: &runtime_vm::VmValue) -> String {
     match value {
-        runtime::VmValue::Int(value) | runtime::VmValue::Float(value) => value.clone(),
-        runtime::VmValue::String(value) => format!("{:?}", value.to_flat_string()),
-        runtime::VmValue::Bytes(value) => format!("<bytes len={}>", value.len()),
-        runtime::VmValue::Path(value) => format!("{:?}", value.display().to_string()),
-        runtime::VmValue::Bool(value) => value.to_string(),
-        runtime::VmValue::Unit => "()".to_string(),
-        runtime::VmValue::List(items) => format!(
+        runtime_vm::VmValue::Int(value) | runtime_vm::VmValue::Float(value) => value.clone(),
+        runtime_vm::VmValue::String(value) => format!("{:?}", value.to_flat_string()),
+        runtime_vm::VmValue::Bytes(value) => format!("<bytes len={}>", value.len()),
+        runtime_vm::VmValue::Path(value) => format!("{:?}", value.display().to_string()),
+        runtime_vm::VmValue::Bool(value) => value.to_string(),
+        runtime_vm::VmValue::Unit => "()".to_string(),
+        runtime_vm::VmValue::List(items) => format!(
             "[{}]",
             items
                 .to_vec()
@@ -5789,7 +5795,7 @@ fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        runtime::VmValue::Tuple(items) => format!(
+        runtime_vm::VmValue::Tuple(items) => format!(
             "({})",
             items
                 .iter()
@@ -5797,7 +5803,7 @@ fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        runtime::VmValue::Record(fields) => format!(
+        runtime_vm::VmValue::Record(fields) => format!(
             "{{{}}}",
             fields
                 .iter()
@@ -5805,16 +5811,17 @@ fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        runtime::VmValue::Variant { tag, value } => match value {
+        runtime_vm::VmValue::Variant { tag, value } => match value {
             Some(value) => format!("{} {}", tag.0, format_runtime_vm_value(value)),
             None => tag.0.clone(),
         },
-        runtime::VmValue::EffectOp(path) => format!("<effect-op {}>", format_core_path(path)),
-        runtime::VmValue::PrimitiveOp(_) => "<primitive>".to_string(),
-        runtime::VmValue::Resume(_) => "<resume>".to_string(),
-        runtime::VmValue::Closure(_) => "<closure>".to_string(),
-        runtime::VmValue::Thunk(_) => "<thunk>".to_string(),
-        runtime::VmValue::EffectId(id) => format!("<effect-id {id}>"),
+        runtime_vm::VmValue::EffectOp(path) => format!("<effect-op {}>", format_core_path(path)),
+        runtime_vm::VmValue::PrimitiveOp(_) => "<primitive>".to_string(),
+        runtime_vm::VmValue::Resume(_) => "<resume>".to_string(),
+        runtime_vm::VmValue::Closure(_) => "<closure>".to_string(),
+        runtime_vm::VmValue::Thunk(_) => "<thunk>".to_string(),
+        runtime_vm::VmValue::EffectId(id) => format!("<effect-id {id}>"),
+        runtime_vm::VmValue::FileHandle(_) => "<file>".to_string(),
     }
 }
 
@@ -8021,7 +8028,7 @@ mod tests {
             let program = export_core_program(&mut lowered.state);
             let module = runtime::lower_core_program(program).expect("lowered runtime IR");
             let (module, _) = runtime::monomorphize_module_profiled(module).expect("monomorphized");
-            let vm = runtime::compile_vm_module(module).expect("compiled VM module");
+            let vm = runtime_vm::compile_vm_module(module).expect("compiled VM module");
             let results = vm.eval_roots().expect("evaluated roots");
             assert_eq!(results.len(), 1);
             assert_eq!(format_runtime_vm_result(&results[0]), "[2, 6, 4]");

@@ -81,8 +81,8 @@ pub(super) fn bind_pattern_with_defaults(
             }
             if let Some(spread) = spread {
                 let spread = match spread {
-                    crate::RecordSpreadPattern::Head(pattern)
-                    | crate::RecordSpreadPattern::Tail(pattern) => pattern,
+                    yulang_runtime::ir::RecordSpreadPattern::Head(pattern)
+                    | yulang_runtime::ir::RecordSpreadPattern::Tail(pattern) => pattern,
                 };
                 bind_pattern_with_defaults(spread, VmValue::Record(rest), env, eval_default)?;
             }

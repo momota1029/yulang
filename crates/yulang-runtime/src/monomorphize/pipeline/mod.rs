@@ -36,6 +36,8 @@ use crate::validate::validate_module;
 
 mod audit;
 mod canonicalize;
+mod conflict_casts;
+mod fill_holes;
 mod handler_boundary;
 mod local_refresh;
 mod locals;
@@ -48,11 +50,15 @@ mod principal_unify;
 mod reachability;
 mod shape;
 mod substitute;
+mod total_substitute;
+mod type_graph;
 mod type_projection_metrics;
 mod type_surface;
 
 use audit::*;
 use canonicalize::*;
+use conflict_casts::*;
+use fill_holes::*;
 use handler_boundary::*;
 use local_refresh::*;
 use locals::*;
@@ -65,6 +71,7 @@ use principal_unify::*;
 use reachability::*;
 use shape::*;
 use substitute::*;
+use total_substitute::*;
 use type_surface::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,10 +106,15 @@ impl Default for MonomorphizeMode {
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     crate::monomorphize::effect_hole_metrics::reset();
     type_projection_metrics::reset();
+    preview_type_graph_pipeline_if_requested("pre-monomorphize", &module);
     let lowered = run_mono_pipeline_unprofiled(module)?;
     let lowered = normalize_semantic_cast_coercions(lowered);
     let lowered = normalize_monomorphized_metadata(lowered);
     let lowered = normalize_parametric_primitive_intrinsics(lowered);
+    preview_type_graph_pipeline_if_requested("post-monomorphize", &lowered);
+    let (lowered, final_defaults) = fill_final_type_holes(lowered);
+    report_final_type_holes_if_requested("final-defaults", &final_defaults);
+    preview_type_graph_pipeline_if_requested("final-defaulted", &lowered);
     audit_monomorphized_module(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     check_strict_monomorphized_runtime_types_if_requested(&lowered)?;
@@ -117,10 +129,15 @@ pub fn monomorphize_module_profiled(
 ) -> RuntimeResult<(Module, MonomorphizeProfile)> {
     crate::monomorphize::effect_hole_metrics::reset();
     type_projection_metrics::reset();
+    preview_type_graph_pipeline_if_requested("pre-monomorphize", &module);
     let (lowered, profile) = run_mono_pipeline(module)?;
     let lowered = normalize_semantic_cast_coercions(lowered);
     let lowered = normalize_monomorphized_metadata(lowered);
     let lowered = normalize_parametric_primitive_intrinsics(lowered);
+    preview_type_graph_pipeline_if_requested("post-monomorphize", &lowered);
+    let (lowered, final_defaults) = fill_final_type_holes(lowered);
+    report_final_type_holes_if_requested("final-defaults", &final_defaults);
+    preview_type_graph_pipeline_if_requested("final-defaulted", &lowered);
     audit_monomorphized_module(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     check_strict_monomorphized_runtime_types_if_requested(&lowered)?;
@@ -381,6 +398,8 @@ fn run_principal_elaborate_pipeline(
     module = step.module;
     let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
     module = step.module;
+    module = remove_specialized_generic_original_bindings(module);
+    module = remove_runtime_unreferenced_generic_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)
     {
@@ -401,6 +420,157 @@ fn check_strict_monomorphized_runtime_types_if_requested(module: &Module) -> Run
         check_strict_runtime_type_surfaces(module, RuntimeStage::Monomorphized)?;
     }
     Ok(())
+}
+
+fn report_final_type_holes_if_requested(label: &'static str, report: &FillHolesReport) {
+    if std::env::var_os("YULANG_DEBUG_TYPE_GRAPH_PIPELINE").is_none() {
+        return;
+    }
+    eprintln!(
+        "type graph {label}: applied_filled_value_holes={} applied_filled_effect_holes={}",
+        report.filled_value_holes, report.filled_effect_holes,
+    );
+}
+
+fn preview_type_graph_pipeline_if_requested(label: &'static str, module: &Module) {
+    if std::env::var_os("YULANG_DEBUG_TYPE_GRAPH_PIPELINE").is_none() {
+        return;
+    }
+    let total = total_substitute_module_preview(module);
+    let casts = insert_conflict_casts_preview(module);
+    eprintln!(
+        "type graph preview[{label}]: slots={} edges={} conflicts={} binding_slots={} apply_edges={} direct_mismatches={} direct_mismatch_equal_edges={} direct_mismatch_apply_edges={} direct_mismatch_let_edges={} root_index_sum={} local_name_bytes={} self_edges={} bounds_evidence={} bounds_lower_candidates={} bounds_exact_candidates={} bounds_upper_requirements={} bounds_upper_only_dependencies={} bounds_bottom_like_exclusions={} bounds_empty={} bounds_lower_upper_diverged={} bounds_lower_visible_diverged={} apply_callee_bounds={} apply_arg_bounds={} apply_result_bounds={} handler_result_bounds={} slots_with_lower_evidence={} slots_with_closed_lower_evidence={} slots_with_multiple_lower_evidence={} slots_with_upper_requirements={} slots_with_only_upper_requirements={} role_bounds_evidence={} role_input_lower_candidates={} role_associated_lower_candidates={} role_upper_only_dependencies={} role_bottom_like_exclusions={} role_associated_resolution_attempts={} role_associated_resolution_missing_inputs={} role_associated_resolution_missing_impls={} role_associated_resolution_ambiguous_impls={} role_associated_resolution_resolved={} role_associated_resolution_projected_type_vars={} type_var_lower_evidence={} type_var_lower_derived_structural_evidence={} type_var_lower_vars={} type_var_lower_scoped_vars={} type_var_lower_vars_used_in_multiple_scopes={} type_var_lower_solved_vars={} type_var_lower_closed_solved_vars={} type_var_lower_recursive_substitution_vars={} type_var_lower_closed_after_recursive_substitution_vars={} type_var_lower_residual_open_vars_after_recursive_substitution={} type_var_lower_residual_open_recursive_cycle_vars_after_substitution={} type_var_lower_residual_open_missing_substitution_vars_after_substitution={} type_var_lower_residual_open_with_apply_substitution={} type_var_lower_residual_open_with_principal_candidate={} type_var_lower_residual_open_with_principal_elaboration={} type_var_lower_residual_open_with_type_instantiation={} type_var_lower_residual_open_with_role_associated_resolution={} type_var_lower_residual_open_with_structural_decomposition={} type_var_lower_residual_open_with_mixed_sources={} type_var_lower_structural_iterations={} type_var_lower_structural_candidate_visits={} type_var_lower_structural_addition_attempts={} type_var_lower_conflicting_vars={} type_var_lower_closed_conflicting_vars={} type_var_lower_conflicts_with_apply_substitution={} type_var_lower_conflicts_with_principal_candidate={} type_var_lower_conflicts_with_principal_elaboration={} type_var_lower_conflicts_with_type_instantiation={} type_var_lower_conflicts_with_role_associated_resolution={} type_var_lower_conflicts_with_structural_decomposition={} type_var_lower_conflicts_with_mixed_sources={} type_var_lower_bottom_like_exclusions={} type_var_lower_identity_exclusions={} lower_snapshot_solved_slots={} lower_snapshot_closed_solved_slots={} lower_snapshot_open_solved_slots={} lower_snapshot_conflicting_lower_slots={} lower_snapshot_closed_conflicting_lower_slots={} lower_snapshot_upper_only_slots={} lower_snapshot_slots_without_bounds={} lower_snapshot_solved_groups={} lower_snapshot_conflicting_lower_groups={} lower_snapshot_upper_only_groups={} lower_snapshot_groups_without_bounds={} lower_solution_checked_edges={} lower_solution_mismatched_edges={} lower_solution_unresolved_edges={} upper_supplement_requirements={} upper_supplement_checked_against_lower={} upper_supplement_satisfied_by_lower={} upper_supplement_mismatched_with_lower={} upper_supplemented_slots={} upper_supplement_closed_slots={} upper_supplement_open_slots={} upper_supplement_ambiguous_slots={} applied_slots={} inserted_casts={} unresolved_conflicts={} filled_value_holes={} filled_effect_holes={}",
+        total.graph.slots,
+        total.graph.edges,
+        total.graph.conflicts,
+        total.graph.binding_slots,
+        total.graph.apply_edges,
+        total.graph.direct_mismatches,
+        total.graph.direct_mismatch_equal_edges,
+        total.graph.direct_mismatch_apply_edges,
+        total.graph.direct_mismatch_let_edges,
+        total.graph.root_index_sum,
+        total.graph.local_name_bytes,
+        total.graph.self_edges,
+        total.graph.bounds_evidence,
+        total.graph.bounds_lower_candidates,
+        total.graph.bounds_exact_candidates,
+        total.graph.bounds_upper_requirements,
+        total.graph.bounds_upper_only_dependencies,
+        total.graph.bounds_bottom_like_exclusions,
+        total.graph.bounds_empty,
+        total.graph.bounds_lower_upper_diverged,
+        total.graph.bounds_lower_visible_diverged,
+        total.graph.apply_callee_bounds,
+        total.graph.apply_arg_bounds,
+        total.graph.apply_result_bounds,
+        total.graph.handler_result_bounds,
+        total.graph.slots_with_lower_evidence,
+        total.graph.slots_with_closed_lower_evidence,
+        total.graph.slots_with_multiple_lower_evidence,
+        total.graph.slots_with_upper_requirements,
+        total.graph.slots_with_only_upper_requirements,
+        total.graph.role_bounds_evidence,
+        total.graph.role_input_lower_candidates,
+        total.graph.role_associated_lower_candidates,
+        total.graph.role_upper_only_dependencies,
+        total.graph.role_bottom_like_exclusions,
+        total.graph.role_associated_resolution_attempts,
+        total.graph.role_associated_resolution_missing_inputs,
+        total.graph.role_associated_resolution_missing_impls,
+        total.graph.role_associated_resolution_ambiguous_impls,
+        total.graph.role_associated_resolution_resolved,
+        total.graph.role_associated_resolution_projected_type_vars,
+        total.type_vars.evidence,
+        total.type_vars.derived_structural_lower_evidence,
+        total.type_vars.vars,
+        total.type_vars.scoped_vars,
+        total.type_vars.vars_used_in_multiple_scopes,
+        total.type_vars.solved_vars,
+        total.type_vars.closed_solved_vars,
+        total.type_vars.recursive_substitution_vars,
+        total.type_vars.closed_after_recursive_substitution_vars,
+        total
+            .type_vars
+            .residual_open_vars_after_recursive_substitution,
+        total
+            .type_vars
+            .residual_open_recursive_cycle_vars_after_substitution,
+        total
+            .type_vars
+            .residual_open_missing_substitution_vars_after_substitution,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_apply_substitution,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_principal_candidate,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_principal_elaboration,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_type_instantiation,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_role_associated_resolution,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_structural_decomposition,
+        total
+            .type_vars
+            .residual_open_after_recursive_substitution_with_mixed_sources,
+        total.type_vars.structural_decomposition_iterations,
+        total.type_vars.structural_decomposition_candidate_visits,
+        total.type_vars.structural_decomposition_addition_attempts,
+        total.type_vars.conflicting_vars,
+        total.type_vars.closed_conflicting_vars,
+        total.type_vars.conflicting_vars_with_apply_substitution,
+        total.type_vars.conflicting_vars_with_principal_candidate,
+        total.type_vars.conflicting_vars_with_principal_elaboration,
+        total.type_vars.conflicting_vars_with_type_instantiation,
+        total
+            .type_vars
+            .conflicting_vars_with_role_associated_resolution,
+        total
+            .type_vars
+            .conflicting_vars_with_structural_decomposition,
+        total.type_vars.conflicting_vars_with_mixed_sources,
+        total.type_vars.bottom_like_exclusions,
+        total.type_vars.identity_lower_exclusions,
+        total.lower_snapshot.solved_slots,
+        total.lower_snapshot.closed_solved_slots,
+        total.lower_snapshot.open_solved_slots,
+        total.lower_snapshot.conflicting_lower_slots,
+        total.lower_snapshot.closed_conflicting_lower_slots,
+        total.lower_snapshot.upper_only_slots,
+        total.lower_snapshot.slots_without_bounds,
+        total.lower_snapshot.solved_groups,
+        total.lower_snapshot.conflicting_lower_groups,
+        total.lower_snapshot.upper_only_groups,
+        total.lower_snapshot.groups_without_bounds,
+        total.lower_snapshot.lower_solution_checked_edges,
+        total.lower_snapshot.lower_solution_mismatched_edges,
+        total.lower_snapshot.lower_solution_unresolved_edges,
+        total.upper_supplement.upper_requirements,
+        total.upper_supplement.checked_against_lower,
+        total.upper_supplement.satisfied_by_lower,
+        total.upper_supplement.mismatched_with_lower,
+        total.upper_supplemented_slots,
+        total.upper_supplement.closed_supplemented_slots,
+        total.upper_supplement.open_supplemented_slots,
+        total.upper_supplement.ambiguous_supplement_slots,
+        total.applied_slots,
+        casts.inserted_casts,
+        casts.unresolved_conflicts,
+        total.final_defaults.filled_value_holes,
+        total.final_defaults.filled_effect_holes,
+    );
+    if std::env::var_os("YULANG_DEBUG_TYPE_GRAPH_PIPELINE_DETAILS").is_some() {
+        for sample in &total.type_vars.residual_open_samples {
+            eprintln!("type graph detail[{label}]: residual_open {sample}");
+        }
+    }
 }
 
 fn run_legacy_demand_fixpoint_pipeline(
@@ -460,6 +630,8 @@ fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<
     }
     module = normalize_semantic_cast_coercions(module);
     module = prune_unreachable_bindings(module);
+    module = remove_specialized_generic_original_bindings(module);
+    module = remove_runtime_unreferenced_generic_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)
     {

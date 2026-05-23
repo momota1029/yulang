@@ -101,12 +101,15 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, Run
             } else {
                 evidence.result
             };
+            let scrutinee = refresh_expr_local_types(*scrutinee, locals);
+            let scrutinee_ty = RuntimeType::core(runtime_core_type(&scrutinee.ty));
             ExprKind::Match {
-                scrutinee: Box::new(refresh_expr_local_types(*scrutinee, locals)),
+                scrutinee: Box::new(scrutinee),
                 arms: arms
                     .into_iter()
                     .map(|arm| {
                         let pattern = refresh_pattern_default_local_types(arm.pattern, locals);
+                        let pattern = refresh_pattern_value_local_types(pattern, &scrutinee_ty);
                         let saved = locals.clone();
                         push_pattern_local_types(&pattern, locals);
                         let guard = arm
@@ -1618,6 +1621,14 @@ pub(super) fn refresh_pattern_value_local_types(
                     ty: value_ty.clone(),
                 }
             }
+            _ if items.len() == 1 && runtime_type_local_binding_usable(value_ty) => {
+                let mut items = items.into_iter();
+                let item = items.next().expect("single tuple pattern item");
+                Pattern::Tuple {
+                    items: vec![refresh_pattern_value_local_types(item, value_ty)],
+                    ty: value_ty.clone(),
+                }
+            }
             _ => Pattern::Tuple {
                 items,
                 ty: value_ty.clone(),
@@ -1709,16 +1720,56 @@ fn variant_payload_runtime_type(
     value_ty: &RuntimeType,
     tag: &typed_ir::Name,
 ) -> Option<RuntimeType> {
-    let RuntimeType::Core(typed_ir::Type::Variant(variant)) = value_ty else {
-        return None;
-    };
-    let case = variant.cases.iter().find(|case| &case.name == tag)?;
-    // Pattern::Variant carries `Option<Box<Pattern>>`, so we only look at
-    // the first payload slot; multi-payload variants are not representable
-    // here.
-    case.payloads
-        .first()
-        .map(|ty| RuntimeType::core(ty.clone()))
+    match value_ty {
+        RuntimeType::Core(typed_ir::Type::Variant(variant)) => {
+            let case = variant.cases.iter().find(|case| &case.name == tag)?;
+            // Pattern::Variant carries `Option<Box<Pattern>>`, so we only look at
+            // the first payload slot; multi-payload variants are not representable
+            // here.
+            case.payloads
+                .first()
+                .map(|ty| RuntimeType::core(ty.clone()))
+        }
+        RuntimeType::Core(typed_ir::Type::Named { args, .. }) => {
+            named_variant_payload_runtime_type(args, tag)
+        }
+        RuntimeType::Unknown
+        | RuntimeType::Core(_)
+        | RuntimeType::Fun { .. }
+        | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn named_variant_payload_runtime_type(
+    args: &[typed_ir::TypeArg],
+    tag: &typed_ir::Name,
+) -> Option<RuntimeType> {
+    if args.len() == 2 {
+        let index = match tag.0.as_str() {
+            "ok" => 0,
+            "err" => 1,
+            _ => return None,
+        };
+        return type_arg_runtime_type(&args[index]);
+    }
+    if args.len() == 1 {
+        return match tag.0.as_str() {
+            "just" | "leaf" => type_arg_runtime_type(&args[0]),
+            _ => None,
+        };
+    }
+    None
+}
+
+fn type_arg_runtime_type(arg: &typed_ir::TypeArg) -> Option<RuntimeType> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => Some(RuntimeType::core(ty.clone())),
+        typed_ir::TypeArg::Bounds(bounds) => bounds
+            .lower
+            .as_deref()
+            .or(bounds.upper.as_deref())
+            .map(|ty| RuntimeType::core(ty.clone())),
+    }
 }
 
 /// Extract the element type from a `std::list::list<T>`-shaped runtime
@@ -1741,6 +1792,7 @@ fn list_item_runtime_type(value_ty: &RuntimeType) -> Option<RuntimeType> {
 fn runtime_type_local_binding_usable(ty: &RuntimeType) -> bool {
     !matches!(ty, RuntimeType::Core(typed_ir::Type::Any))
         && !hir_type_has_vars(ty)
+        && !runtime_type_contains_unknown(ty)
         && !runtime_type_has_any(ty)
 }
 

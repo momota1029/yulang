@@ -1,13 +1,13 @@
 [package]
-name = "yulang-runtime"
-version = "0.1.1"
+name = "yulang-runtime-ir"
+version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Runtime lowering, validation, and monomorphization for Yulang"
+description = "Runtime IR data structures for Yulang"
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
+publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-yulang-runtime-ir = { path = "../yulang-runtime-ir" }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }

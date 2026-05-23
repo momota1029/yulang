@@ -2618,6 +2618,7 @@ impl Lowerer<'_> {
             &params,
             &mut substitutions,
         );
+        close_type_substitution_map_recursively(&mut substitutions);
         let substituted_ty = substitute_hir_type(&template_ty, &substitutions);
         let value_params = hir_value_type_params(&info.ty)
             .into_iter()

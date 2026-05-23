@@ -1,13 +1,14 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::ir::{Binding, Module, Type as RuntimeType};
-    use crate::{
-        RuntimeResult, lower_core_program, monomorphize_module, monomorphize_module_profiled,
-    };
     use std::path::PathBuf;
     use std::thread;
     use yulang_infer::{SourceOptions, export_core_program, lower_virtual_source_with_options};
+    use yulang_runtime::ir::{Binding, Module, Type as RuntimeType};
+    use yulang_runtime::{
+        RuntimeError, RuntimeResult, lower_core_program, monomorphize_module,
+        monomorphize_module_profiled,
+    };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum TestValue {
@@ -760,6 +761,13 @@ handle (sub:
     }
 
     #[test]
+    fn vm_runs_source_int_float_add_example() {
+        let results = eval_source_with_std("1 + 2.3\n");
+
+        assert_eq!(results, vec![TestValue::Float("3.3".to_string())]);
+    }
+
+    #[test]
     fn control_vm_runs_source_mixed_numeric_add_with_float_widening() {
         let results = eval_control_source_with_std("(1 + 2.5, 1.0 + 2, 1 + 2)\n");
 
@@ -1051,6 +1059,35 @@ my text = case read_text path:
                 TestValue::String("hello".to_string()),
             ])]
         );
+    }
+
+    #[test]
+    fn vm_host_flushes_file_handle_string_edits() {
+        let path = temp_test_path("yulang-file-handle-lines");
+        std::fs::write(&path, "a\nb\nc").expect("write file handle fixture");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!(
+            r#"{{
+    my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
+    my text: ref '[fs] str = case open_text path:
+        result::ok text -> text
+        result::err e -> e.throw
+    for line: ref _ str in std::str::line_view text:
+        if line.get() == "b\n":
+            line[std::range::full()] = "B\n"
+        else:
+            ()
+    text.get()
+}}
+"#
+        );
+        let (results, stdout) = eval_source_with_std_host(&source);
+        let disk = std::fs::read_to_string(&path).expect("read edited file handle fixture");
+        let _ = std::fs::remove_file(&path);
+
+        assert!(stdout.is_empty());
+        assert_eq!(results, vec![TestValue::String("a\nB\nc".to_string())]);
+        assert_eq!(disk, "a\nB\nc");
     }
 
     #[test]
@@ -1603,18 +1640,28 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
             .iter()
             .map(|pass| pass.name)
             .collect::<Vec<_>>();
-        assert_eq!(
-            pass_names,
-            vec![
-                "inline-polymorphic-wrappers",
-                "principal-elaborate",
-                "refresh-closed-schemes",
-                "semantic-cast-coercions",
-                "prune-unreachable",
-                "semantic-cast-coercions",
-                "prune-unreachable",
-            ]
+        assert_eq!(pass_names.first(), Some(&"inline-polymorphic-wrappers"));
+        assert!(
+            !pass_names
+                .iter()
+                .any(|pass| matches!(*pass, "demand-specialize" | "refine-types"))
         );
+        let [middle @ .., "semantic-cast-coercions", "prune-unreachable"] = &pass_names[1..] else {
+            panic!("principal pipeline should end with final cast normalization and prune");
+        };
+        assert!(!middle.is_empty());
+        assert_eq!(middle.len() % 4, 0);
+        for round in middle.chunks_exact(4) {
+            assert_eq!(
+                round,
+                [
+                    "principal-elaborate",
+                    "refresh-closed-schemes",
+                    "semantic-cast-coercions",
+                    "prune-unreachable"
+                ]
+            );
+        }
         assert_eq!(profile.demand_queue_profile().attempted, 0);
     }
 
@@ -3816,7 +3863,7 @@ box { width: 3, height: 4 }
 
     fn runtime_module_with_std_profile(
         src: &str,
-    ) -> (Module, crate::monomorphize::MonomorphizeProfile) {
+    ) -> (Module, yulang_runtime::monomorphize::MonomorphizeProfile) {
         let src = src.to_string();
         run_with_large_stack(move || runtime_module_with_std_profile_inner(&src))
     }
@@ -3844,7 +3891,7 @@ box { width: 3, height: 4 }
 
     fn runtime_module_with_std_profile_inner(
         src: &str,
-    ) -> (Module, crate::monomorphize::MonomorphizeProfile) {
+    ) -> (Module, yulang_runtime::monomorphize::MonomorphizeProfile) {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let std_root = repo_root.join("lib/std");
         let mut lowered = lower_virtual_source_with_options(
@@ -3989,6 +4036,9 @@ box { width: 3, height: 4 }
             VmValue::String(value) => TestValue::String(value.to_flat_string()),
             VmValue::Bytes(value) => TestValue::Bytes(value.len()),
             VmValue::Path(value) => TestValue::Path(value.display().to_string()),
+            VmValue::FileHandle(value) => {
+                TestValue::Path(value.state.borrow().path.display().to_string())
+            }
             VmValue::Bool(value) => TestValue::Bool(value),
             VmValue::Unit => TestValue::Unit,
             VmValue::List(items) => TestValue::List(

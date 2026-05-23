@@ -1,3 +1,9 @@
+//! Runtime IR data structures for Yulang.
+//!
+//! This crate owns the execution-facing expression tree and runtime type
+//! witnesses. It does not lower, solve, monomorphize, validate, or execute the
+//! tree; those responsibilities live in crates layered above this one.
+
 use serde::{Deserialize, Serialize};
 use yulang_typed_ir as typed_ir;
 

@@ -1,6 +1,11 @@
 use yulang_typed_ir as typed_ir;
 
-use crate::vm::{VmError, VmModule, VmProfile, VmRequest, VmResult, VmValue};
+use crate::runtime::string_tree::StringTree;
+use crate::vm::{
+    VmError, VmFileHandle, VmFileHandleState, VmModule, VmProfile, VmRequest, VmResult, VmValue,
+};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct HostRunOutput {
     pub results: Vec<VmResult>,
@@ -32,6 +37,7 @@ pub fn eval_root_with_basic_host(
     index: usize,
     stdout: &mut String,
 ) -> Result<(VmResult, VmProfile), VmError> {
+    let mut host = BasicHost::new(stdout);
     let (mut result, mut vm_profile) = module.eval_root_expr_profiled(index)?;
     loop {
         match result {
@@ -40,9 +46,12 @@ pub fn eval_root_with_basic_host(
                 result = forced.0;
                 vm_profile.merge(forced.1);
             }
-            VmResult::Value(_) => return Ok((result, vm_profile)),
+            VmResult::Value(_) => {
+                host.flush_dirty_files()?;
+                return Ok((result, vm_profile));
+            }
             VmResult::Request(request) => {
-                let Some(value) = handle_host_request(&request, stdout) else {
+                let Some(value) = host.handle_request(&request) else {
                     return Ok((VmResult::Request(request), vm_profile));
                 };
                 let resumed = module.resume_request_profiled(request, value)?;
@@ -53,13 +62,31 @@ pub fn eval_root_with_basic_host(
     }
 }
 
-pub(crate) fn handle_host_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
-    handle_out_request(request, stdout)
-        .or_else(|| handle_err_request(request))
-        .or_else(|| handle_warn_request(request))
-        .or_else(|| handle_die_request(request))
-        .or_else(|| handle_debug_request(request))
-        .or_else(|| handle_fs_request(request))
+pub(crate) struct BasicHost<'a> {
+    stdout: &'a mut String,
+    file_handles: Vec<VmFileHandle>,
+}
+
+impl<'a> BasicHost<'a> {
+    pub(crate) fn new(stdout: &'a mut String) -> Self {
+        Self {
+            stdout,
+            file_handles: Vec::new(),
+        }
+    }
+
+    pub(crate) fn handle_request(&mut self, request: &VmRequest) -> Option<VmValue> {
+        handle_out_request(request, self.stdout)
+            .or_else(|| handle_err_request(request))
+            .or_else(|| handle_warn_request(request))
+            .or_else(|| handle_die_request(request))
+            .or_else(|| handle_debug_request(request))
+            .or_else(|| self.handle_fs_request(request))
+    }
+
+    pub(crate) fn flush_dirty_files(&mut self) -> Result<(), VmError> {
+        flush_dirty_files(&self.file_handles)
+    }
 }
 
 fn handle_out_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
@@ -103,67 +130,100 @@ fn out_effect_is(path: &typed_ir::Path, act: &str, op: &str) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn handle_fs_request(request: &VmRequest) -> Option<VmValue> {
-    use std::fs;
+impl BasicHost<'_> {
+    fn handle_fs_request(&mut self, request: &VmRequest) -> Option<VmValue> {
+        use std::fs;
 
-    let op = fs_effect_operation(&request.effect)?;
-    match op {
-        "read_at" => {
-            let (path, range) = host_path_range_pair(&request.payload)?;
-            Some(match fs::read(path.as_ref()) {
-                Ok(bytes) => host_read_at_result(&bytes, &range),
-                Err(error) => host_fs_error_result(host_fs_error_code(&error)),
-            })
+        let op = fs_effect_operation(&request.effect)?;
+        match op {
+            "open_text_raw" => {
+                let path = host_path_value(&request.payload)?;
+                Some(match fs::read_to_string(path.as_ref()) {
+                    Ok(text) => {
+                        let handle = host_file_handle(path, StringTree::from(text), false);
+                        self.file_handles.push(handle.clone());
+                        host_file_open_result(0, handle)
+                    }
+                    Err(error) => host_file_open_result(
+                        host_fs_error_code(&error),
+                        host_file_handle(path, StringTree::from(""), false),
+                    ),
+                })
+            }
+            "file_get" => {
+                let handle = host_file_handle_value(&request.payload)?;
+                Some(VmValue::String(handle.state.borrow().text.clone()))
+            }
+            "file_set" => {
+                let (handle, text) = host_file_handle_text_pair(&request.payload)?;
+                let mut state = handle.state.borrow_mut();
+                state.text = text;
+                state.dirty = true;
+                Some(VmValue::Unit)
+            }
+            "file_flush" => {
+                let handle = host_file_handle_value(&request.payload)?;
+                Some(VmValue::Int(flush_file_handle(&handle).to_string()))
+            }
+            "read_at" => {
+                let (path, range) = host_path_range_pair(&request.payload)?;
+                Some(match fs::read(path.as_ref()) {
+                    Ok(bytes) => host_read_at_result(&bytes, &range),
+                    Err(error) => host_fs_error_result(host_fs_error_code(&error)),
+                })
+            }
+            "write_at" => {
+                let (path, range, text) = host_path_range_text_triple(&request.payload)?;
+                let code = match fs::read(path.as_ref()) {
+                    Ok(mut bytes) => {
+                        let (start, end) = host_normalized_int_range(&range, bytes.len())?;
+                        bytes.splice(start..end, text.as_bytes().iter().copied());
+                        fs::write(path.as_ref(), bytes)
+                            .err()
+                            .map_or(0, |error| host_fs_error_code(&error))
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                        fs::write(path.as_ref(), text.as_bytes())
+                            .err()
+                            .map_or(0, |error| host_fs_error_code(&error))
+                    }
+                    Err(error) => host_fs_error_code(&error),
+                };
+                Some(VmValue::Int(code.to_string()))
+            }
+            "read_text" => {
+                let path = host_path_string(&request.payload)?;
+                Some(match fs::read_to_string(path) {
+                    Ok(text) => host_opt_some(VmValue::String(text.into())),
+                    Err(_) => host_opt_none(),
+                })
+            }
+            "write_text" => {
+                let (path, text) = host_path_text_pair(&request.payload)?;
+                Some(VmValue::Bool(fs::write(path, text).is_ok()))
+            }
+            "exists" => {
+                let path = host_path_value(&request.payload)?;
+                Some(VmValue::Bool(path.exists()))
+            }
+            "is_file" => {
+                let path = host_path_value(&request.payload)?;
+                Some(VmValue::Bool(path.is_file()))
+            }
+            "is_dir" => {
+                let path = host_path_value(&request.payload)?;
+                Some(VmValue::Bool(path.is_dir()))
+            }
+            _ => None,
         }
-        "write_at" => {
-            let (path, range, text) = host_path_range_text_triple(&request.payload)?;
-            let code = match fs::read(path.as_ref()) {
-                Ok(mut bytes) => {
-                    let (start, end) = host_normalized_int_range(&range, bytes.len())?;
-                    bytes.splice(start..end, text.as_bytes().iter().copied());
-                    fs::write(path.as_ref(), bytes)
-                        .err()
-                        .map_or(0, |error| host_fs_error_code(&error))
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    fs::write(path.as_ref(), text.as_bytes())
-                        .err()
-                        .map_or(0, |error| host_fs_error_code(&error))
-                }
-                Err(error) => host_fs_error_code(&error),
-            };
-            Some(VmValue::Int(code.to_string()))
-        }
-        "read_text" => {
-            let path = host_path_string(&request.payload)?;
-            Some(match fs::read_to_string(path) {
-                Ok(text) => host_opt_some(VmValue::String(text.into())),
-                Err(_) => host_opt_none(),
-            })
-        }
-        "write_text" => {
-            let (path, text) = host_path_text_pair(&request.payload)?;
-            Some(VmValue::Bool(fs::write(path, text).is_ok()))
-        }
-        "exists" => {
-            let path = host_path_value(&request.payload)?;
-            Some(VmValue::Bool(path.exists()))
-        }
-        "is_file" => {
-            let path = host_path_value(&request.payload)?;
-            Some(VmValue::Bool(path.is_file()))
-        }
-        "is_dir" => {
-            let path = host_path_value(&request.payload)?;
-            Some(VmValue::Bool(path.is_dir()))
-        }
-        _ => None,
     }
 }
 
 #[cfg(target_arch = "wasm32")]
-fn handle_fs_request(_request: &VmRequest) -> Option<VmValue> {
-    None
+impl BasicHost<'_> {
+    fn handle_fs_request(&mut self, _request: &VmRequest) -> Option<VmValue> {
+        None
+    }
 }
 
 fn fs_effect_operation(path: &typed_ir::Path) -> Option<&str> {
@@ -238,6 +298,86 @@ fn host_path_text_pair(value: &VmValue) -> Option<(String, String)> {
         return None;
     };
     Some((host_path_string(path)?, host_path_string(text)?))
+}
+
+fn host_file_handle(path: Rc<std::path::PathBuf>, text: StringTree, dirty: bool) -> VmFileHandle {
+    VmFileHandle {
+        state: Rc::new(RefCell::new(VmFileHandleState { path, text, dirty })),
+    }
+}
+
+fn host_file_handle_value(value: &VmValue) -> Option<VmFileHandle> {
+    match value {
+        VmValue::FileHandle(handle) => Some(handle.clone()),
+        _ => None,
+    }
+}
+
+fn host_file_handle_text_pair(value: &VmValue) -> Option<(VmFileHandle, StringTree)> {
+    let VmValue::Tuple(items) = value else {
+        return None;
+    };
+    let [handle, text] = items.as_slice() else {
+        return None;
+    };
+    Some((
+        host_file_handle_value(handle)?,
+        string_tree_value(text)?.clone(),
+    ))
+}
+
+fn string_tree_value(value: &VmValue) -> Option<&StringTree> {
+    match value {
+        VmValue::String(text) => Some(text),
+        _ => None,
+    }
+}
+
+fn host_file_open_result(code: i64, handle: VmFileHandle) -> VmValue {
+    VmValue::Tuple(vec![
+        VmValue::Int(code.to_string()),
+        VmValue::FileHandle(handle),
+    ])
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn flush_dirty_files(handles: &[VmFileHandle]) -> Result<(), VmError> {
+    for handle in handles {
+        let code = flush_file_handle(handle);
+        if code != 0 {
+            let path = handle.state.borrow().path.display().to_string();
+            return Err(VmError::HostIo(format!(
+                "failed to flush file_handle {path}: code {code}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn flush_dirty_files(_handles: &[VmFileHandle]) -> Result<(), VmError> {
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn flush_file_handle(handle: &VmFileHandle) -> i64 {
+    let mut state = handle.state.borrow_mut();
+    if !state.dirty {
+        return 0;
+    }
+    let text = state.text.to_flat_string();
+    match std::fs::write(state.path.as_ref(), text) {
+        Ok(()) => {
+            state.dirty = false;
+            0
+        }
+        Err(error) => host_fs_error_code(&error),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn flush_file_handle(_handle: &VmFileHandle) -> i64 {
+    0
 }
 
 fn host_read_at_result(bytes: &[u8], range: &VmValue) -> VmValue {
@@ -368,6 +508,7 @@ fn host_string(value: &VmValue) -> String {
         VmValue::Unit => "()".to_string(),
         VmValue::Bytes(value) => format!("<bytes len={}>", value.len()),
         VmValue::Path(value) => value.display().to_string(),
+        VmValue::FileHandle(handle) => handle.state.borrow().path.display().to_string(),
         _ => format!("{value:?}"),
     }
 }
@@ -378,6 +519,12 @@ fn host_debug_string(value: &VmValue) -> String {
         VmValue::String(value) => format!("{:?}", value.to_flat_string()),
         VmValue::Bytes(value) => format!("<bytes len={}>", value.len()),
         VmValue::Path(value) => format!("{:?}", value.display().to_string()),
+        VmValue::FileHandle(handle) => {
+            format!(
+                "<file_handle {:?}>",
+                handle.state.borrow().path.display().to_string()
+            )
+        }
         VmValue::Bool(value) => value.to_string(),
         VmValue::Unit => "()".to_string(),
         VmValue::List(items) => format!(

@@ -190,7 +190,9 @@ YU
 - `crates/yulang-sources`: source sets, realms, compilation units, and syntax artifacts.
 - `crates/yulang-typed-ir`: typed intermediate representation and principal-type evidence.
 - `crates/yulang-infer`: type inference and principal-type export.
-- `crates/yulang-runtime`: runtime IR, monomorphization, and interpreter.
+- `crates/yulang-runtime-ir`: execution-facing runtime IR data structures.
+- `crates/yulang-runtime`: runtime lowering, validation, and monomorphization.
+- `crates/yulang-vm`: VM execution, host requests, and control VM artifacts.
 - `archive/yulang-native`: archived native backend experiment.
 - `crates/yulang-wasm`: WebAssembly API used by the playground.
 - `examples`: executable examples for the current language implementation.

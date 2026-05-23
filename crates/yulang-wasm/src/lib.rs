@@ -12,6 +12,7 @@ use yulang_infer::{
     warm_std_source_cache,
 };
 use yulang_runtime as runtime;
+use yulang_vm as runtime_vm;
 
 pub use color::{ColorizeOutput, HighlightSpan};
 pub use output::{
@@ -390,7 +391,7 @@ fn compile_and_run_with_embedded_std(
     };
     let monomorphize_ms = elapsed_ms(monomorphize_start);
     let vm_compile_start = now_ms();
-    let vm = match runtime::compile_control_vm_module(module) {
+    let vm = match runtime_vm::compile_control_vm_module(module) {
         Ok(vm) => vm,
         Err(error) if use_embedded_std && compiled_std_runtime.is_some() => {
             return compile_and_run_with_embedded_std(
@@ -410,12 +411,12 @@ fn compile_and_run_with_embedded_std(
                 && host_output
                     .results
                     .iter()
-                    .any(|result| matches!(result, runtime::VmResult::Request(_)))
+                    .any(|result| matches!(result, runtime_vm::VmResult::Request(_)))
             {
                 let requests = host_output
                     .results
                     .iter()
-                    .filter(|result| matches!(result, runtime::VmResult::Request(_)))
+                    .filter(|result| matches!(result, runtime_vm::VmResult::Request(_)))
                     .map(output::format_vm_result)
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -482,18 +483,18 @@ fn compile_and_run_with_embedded_std(
 }
 
 fn eval_control_roots_with_basic_host(
-    module: &runtime::ControlVmModule,
-) -> Result<runtime::HostRunOutput, runtime::VmError> {
+    module: &runtime_vm::ControlVmModule,
+) -> Result<runtime_vm::HostRunOutput, runtime_vm::VmError> {
     let mut results = Vec::with_capacity(module.root_count());
     let mut stdout = String::new();
-    let mut vm_profile = runtime::VmProfile::default();
+    let mut vm_profile = runtime_vm::VmProfile::default();
     for index in 0..module.root_count() {
         let (result, profile) =
             module.eval_root_expr_with_basic_host_profiled(index, &mut stdout)?;
         vm_profile.merge(profile);
         results.push(result);
     }
-    Ok(runtime::HostRunOutput {
+    Ok(runtime_vm::HostRunOutput {
         results,
         stdout,
         vm_profile,
@@ -1322,8 +1323,8 @@ sub:
                     .expect("merged runtime program");
                 let module = runtime::lower_core_program(merged).expect("lowered runtime program");
                 let module = runtime::monomorphize_module(module).expect("monomorphized module");
-                let vm = runtime::compile_vm_module(module).expect("compiled vm module");
-                let output = runtime::eval_roots_with_basic_host(&vm).expect("vm output");
+                let vm = runtime_vm::compile_vm_module(module).expect("compiled vm module");
+                let output = runtime_vm::eval_roots_with_basic_host(&vm).expect("vm output");
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output::format_vm_result(&output.results[0]), "41");
             })
@@ -1357,8 +1358,8 @@ sub:
 
                 let module = runtime::lower_core_program(merged).expect("lowered runtime program");
                 let module = runtime::monomorphize_module(module).expect("monomorphized module");
-                let vm = runtime::compile_vm_module(module).expect("compiled vm module");
-                let output = runtime::eval_roots_with_basic_host(&vm).expect("vm output");
+                let vm = runtime_vm::compile_vm_module(module).expect("compiled vm module");
+                let output = runtime_vm::eval_roots_with_basic_host(&vm).expect("vm output");
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output::format_vm_result(&output.results[0]), "3");
             })

@@ -2,7 +2,7 @@ use yulang_typed_ir as typed_ir;
 
 use crate::ir::{Binding, ExprKind};
 
-pub(crate) fn binding_is_parametric_runtime_intrinsic(binding: &Binding) -> bool {
+pub fn binding_is_parametric_runtime_intrinsic(binding: &Binding) -> bool {
     matches!(binding.body.kind, ExprKind::PrimitiveOp(_)) || binding_is_var_ref_constructor(binding)
 }
 
