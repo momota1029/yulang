@@ -4,11 +4,15 @@ use yulang_runtime_ir::{Binding, Expr, ExprKind, Stmt, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{BodyIncompleteReason, FinalizeDiagnostic, FinalizeError, FinalizeResult};
+use crate::effect::{
+    close_handle_effect, expr_forced_effect, handler_output_type, materialize_handle_effect,
+    runtime_value_type, should_thunk_effect,
+};
 use crate::principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
 use crate::role::{RoleContext, RoleProjectionStatus, role_method_parts};
 use crate::types::{
-    LowerSubstitutions, materialize_expr_type, path_as_local_name, runtime_type_is_closed,
-    runtime_types_match,
+    LowerSubstitutions, materialize_core_type, materialize_expr_type, materialize_runtime_type,
+    path_as_local_name, runtime_type_is_closed, runtime_types_match,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +21,7 @@ pub struct BodyGraph {
     param: typed_ir::Name,
     body: Expr,
     expected_result: RuntimeType,
+    expected_effect: typed_ir::Type,
     substitutions: LowerSubstitutions,
     initial_env: BTreeMap<typed_ir::Name, RuntimeType>,
     known_bindings: HashMap<typed_ir::Path, Binding>,
@@ -63,6 +68,7 @@ impl BodyGraph {
             param: param.clone(),
             body: (**body).clone(),
             expected_result: key.closed_result_type.clone(),
+            expected_effect: key.closed_effect.clone(),
             substitutions,
             initial_env,
             known_bindings: HashMap::new(),
@@ -87,11 +93,14 @@ impl BodyGraph {
         let mut env = self.initial_env.clone();
         let mut nested_instances = Vec::new();
         let solved_body = self.solve_expr(&mut env, &mut nested_instances, self.body.clone())?;
-        if !runtime_types_match(&self.expected_result, &solved_body.ty) {
+        let expected_body_type = self.expected_body_type();
+        if !runtime_types_match(&self.expected_result, &solved_body.ty)
+            && !runtime_types_match(&expected_body_type, &solved_body.ty)
+        {
             return Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::BodyResultMismatch {
                     binding: self.binding.clone(),
-                    expected: self.expected_result.clone(),
+                    expected: expected_body_type,
                     actual: solved_body.ty,
                 },
             ));
@@ -104,10 +113,21 @@ impl BodyGraph {
                 .get(&self.param)
                 .cloned()
                 .unwrap_or(RuntimeType::Unknown),
+            result_type: solved_body.ty.clone(),
             body: solved_body,
-            result_type: self.expected_result.clone(),
             nested_instances: dedupe_nested_instances(nested_instances),
         })
+    }
+
+    fn expected_body_type(&self) -> RuntimeType {
+        if should_thunk_effect(&self.expected_effect) {
+            RuntimeType::Thunk {
+                effect: self.expected_effect.clone(),
+                value: Box::new(self.expected_result.clone()),
+            }
+        } else {
+            self.expected_result.clone()
+        }
     }
 
     fn solve_expr(
@@ -128,6 +148,10 @@ impl BodyGraph {
             ExprKind::Lit(lit) => {
                 let ty = self.require_closed_expr_type(materialized_ty)?;
                 Ok(Expr::typed(ExprKind::Lit(lit), ty))
+            }
+            ExprKind::EffectOp(path) => {
+                let ty = self.require_closed_expr_type(materialized_ty)?;
+                Ok(Expr::typed(ExprKind::EffectOp(path), ty))
             }
             ExprKind::Tuple(items) => {
                 let solved_items = items
@@ -203,12 +227,253 @@ impl BodyGraph {
                         ));
                     }
                 }
+                let solved_callee = self.solve_expr(env, nested_instances, *callee)?;
+                if let Some((expected_arg, result)) = runtime_function_parts(&solved_callee.ty) {
+                    let solved_arg_ty =
+                        self.choose_known_type(solved_arg.ty.clone(), Some(expected_arg))?;
+                    let solved_arg = if solved_arg_ty == solved_arg.ty {
+                        solved_arg
+                    } else {
+                        Expr::typed(solved_arg.kind, solved_arg_ty)
+                    };
+                    let ty = self.choose_known_type(materialized_ty, Some(result))?;
+                    return Ok(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(solved_callee),
+                            arg: Box::new(solved_arg),
+                            evidence,
+                            instantiation,
+                        },
+                        ty,
+                    ));
+                }
                 Err(FinalizeError::Diagnostic(
                     FinalizeDiagnostic::UnsupportedBodyShape {
                         binding: self.binding.clone(),
                         reason: BodyIncompleteReason::UnsupportedExpression,
                     },
                 ))
+            }
+            ExprKind::Handle {
+                body,
+                arms,
+                evidence,
+                handler,
+            } => self.solve_handle_expr(
+                env,
+                nested_instances,
+                materialized_ty,
+                *body,
+                arms,
+                evidence,
+                handler,
+            ),
+            ExprKind::BindHere { expr } => {
+                let solved_expr = self.solve_expr(env, nested_instances, *expr)?;
+                let forced_ty = runtime_value_type(&solved_expr.ty);
+                let ty = self.choose_known_type(materialized_ty, Some(forced_ty))?;
+                Ok(Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(solved_expr),
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::Thunk {
+                effect,
+                value,
+                expr,
+            } => {
+                let closed_effect = materialize_core_type(effect, &self.substitutions);
+                let closed_value = materialize_runtime_type(value, &self.substitutions);
+                let solved_expr = self.solve_expr(env, nested_instances, *expr)?;
+                self.choose_known_type(closed_value.clone(), Some(solved_expr.ty.clone()))?;
+                let thunk_ty = RuntimeType::Thunk {
+                    effect: closed_effect.clone(),
+                    value: Box::new(closed_value.clone()),
+                };
+                let ty = self.choose_known_type(materialized_ty, Some(thunk_ty))?;
+                Ok(Expr::typed(
+                    ExprKind::Thunk {
+                        effect: closed_effect,
+                        value: closed_value,
+                        expr: Box::new(solved_expr),
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::LocalPushId { id, body } => {
+                let solved_body = self.solve_expr(env, nested_instances, *body)?;
+                let ty = self.choose_known_type(materialized_ty, Some(solved_body.ty.clone()))?;
+                Ok(Expr::typed(
+                    ExprKind::LocalPushId {
+                        id,
+                        body: Box::new(solved_body),
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
+                let solved_thunk = self.solve_expr(env, nested_instances, *thunk)?;
+                let ty = self.choose_known_type(materialized_ty, Some(solved_thunk.ty.clone()))?;
+                Ok(Expr::typed(
+                    ExprKind::AddId {
+                        id,
+                        allowed: materialize_core_type(allowed, &self.substitutions),
+                        active,
+                        thunk: Box::new(solved_thunk),
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::Coerce { from, to, expr } => {
+                let solved_expr = self.solve_expr(env, nested_instances, *expr)?;
+                let closed_to = materialize_core_type(to, &self.substitutions);
+                let ty = self.choose_known_type(
+                    materialized_ty,
+                    Some(RuntimeType::Core(closed_to.clone())),
+                )?;
+                Ok(Expr::typed(
+                    ExprKind::Coerce {
+                        from: materialize_core_type(from, &self.substitutions),
+                        to: closed_to,
+                        expr: Box::new(solved_expr),
+                    },
+                    ty,
+                ))
+            }
+            ExprKind::Pack { var, expr } => {
+                let solved_expr = self.solve_expr(env, nested_instances, *expr)?;
+                let ty = self.choose_known_type(materialized_ty, Some(solved_expr.ty.clone()))?;
+                Ok(Expr::typed(
+                    ExprKind::Pack {
+                        var,
+                        expr: Box::new(solved_expr),
+                    },
+                    ty,
+                ))
+            }
+            _ => Err(FinalizeError::Diagnostic(
+                FinalizeDiagnostic::UnsupportedBodyShape {
+                    binding: self.binding.clone(),
+                    reason: BodyIncompleteReason::UnsupportedExpression,
+                },
+            )),
+        }
+    }
+
+    fn solve_handle_expr(
+        &self,
+        env: &mut BTreeMap<typed_ir::Name, RuntimeType>,
+        nested_instances: &mut Vec<NestedInstancePlan>,
+        materialized_ty: RuntimeType,
+        body: Expr,
+        arms: Vec<yulang_runtime_ir::HandleArm>,
+        evidence: yulang_runtime_ir::JoinEvidence,
+        handler: yulang_runtime_ir::HandleEffect,
+    ) -> FinalizeResult<Expr> {
+        let solved_body = self.solve_expr(env, nested_instances, body)?;
+        let handler = materialize_handle_effect(handler, &self.substitutions);
+        let mut solved_arms = Vec::with_capacity(arms.len());
+        let mut arm_effects = Vec::new();
+        for arm in arms {
+            let solved_arm = self.solve_handle_arm(env, nested_instances, arm)?;
+            if let Some(guard) = &solved_arm.guard {
+                if let Some(effect) = expr_forced_effect(guard) {
+                    arm_effects.push(effect);
+                }
+            }
+            if let Some(effect) = expr_forced_effect(&solved_arm.body) {
+                arm_effects.push(effect);
+            }
+            solved_arms.push(solved_arm);
+        }
+        let residual_before = handler
+            .residual_before
+            .clone()
+            .or_else(|| crate::effect::thunk_effect(&solved_body.ty))
+            .unwrap_or(typed_ir::Type::Never);
+        let handler = close_handle_effect(
+            residual_before,
+            &handler.consumes,
+            arm_effects
+                .into_iter()
+                .reduce(crate::effect::merge_effect_rows),
+        );
+        let inferred = handler_output_type(&solved_body.ty, &handler);
+        let ty = self.choose_known_type(materialized_ty, Some(inferred))?;
+        Ok(Expr::typed(
+            ExprKind::Handle {
+                body: Box::new(solved_body),
+                arms: solved_arms,
+                evidence,
+                handler,
+            },
+            ty,
+        ))
+    }
+
+    fn solve_handle_arm(
+        &self,
+        env: &BTreeMap<typed_ir::Name, RuntimeType>,
+        nested_instances: &mut Vec<NestedInstancePlan>,
+        arm: yulang_runtime_ir::HandleArm,
+    ) -> FinalizeResult<yulang_runtime_ir::HandleArm> {
+        let mut arm_env = env.clone();
+        let payload = self.solve_pattern(&mut arm_env, arm.payload)?;
+        let resume = arm
+            .resume
+            .map(|resume| self.solve_resume_binding(&mut arm_env, resume))
+            .transpose()?;
+        let guard = arm
+            .guard
+            .map(|guard| self.solve_expr(&mut arm_env, nested_instances, guard))
+            .transpose()?;
+        let body = self.solve_expr(&mut arm_env, nested_instances, arm.body)?;
+        Ok(yulang_runtime_ir::HandleArm {
+            effect: arm.effect,
+            payload,
+            resume,
+            guard,
+            body,
+        })
+    }
+
+    fn solve_resume_binding(
+        &self,
+        env: &mut BTreeMap<typed_ir::Name, RuntimeType>,
+        resume: yulang_runtime_ir::ResumeBinding,
+    ) -> FinalizeResult<yulang_runtime_ir::ResumeBinding> {
+        let ty = materialize_expr_type(resume.ty, &self.substitutions);
+        let ty = self.require_closed_expr_type(ty)?;
+        env.insert(resume.name.clone(), ty.clone());
+        Ok(yulang_runtime_ir::ResumeBinding {
+            name: resume.name,
+            ty,
+        })
+    }
+
+    fn solve_pattern(
+        &self,
+        env: &mut BTreeMap<typed_ir::Name, RuntimeType>,
+        pattern: yulang_runtime_ir::Pattern,
+    ) -> FinalizeResult<yulang_runtime_ir::Pattern> {
+        match pattern {
+            yulang_runtime_ir::Pattern::Bind { name, ty } => {
+                let ty = materialize_expr_type(ty, &self.substitutions);
+                let ty = self.require_closed_expr_type(ty)?;
+                env.insert(name.clone(), ty.clone());
+                Ok(yulang_runtime_ir::Pattern::Bind { name, ty })
+            }
+            yulang_runtime_ir::Pattern::Wildcard { ty } => {
+                let ty = materialize_expr_type(ty, &self.substitutions);
+                let ty = self.require_closed_expr_type(ty)?;
+                Ok(yulang_runtime_ir::Pattern::Wildcard { ty })
             }
             _ => Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::UnsupportedBodyShape {
@@ -383,6 +648,31 @@ fn runtime_core_type(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Core(ty) => Some(ty.clone()),
         RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn runtime_function_parts(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
+    match ty {
+        RuntimeType::Fun { param, ret } => Some((param.as_ref().clone(), ret.as_ref().clone())),
+        RuntimeType::Core(typed_ir::Type::Fun {
+            param,
+            ret_effect,
+            ret,
+            ..
+        }) => {
+            let value = RuntimeType::Core(ret.as_ref().clone());
+            let effect = crate::effect::project_runtime_effect(ret_effect);
+            let ret = if crate::effect::should_thunk_effect(&effect) {
+                RuntimeType::Thunk {
+                    effect,
+                    value: Box::new(value),
+                }
+            } else {
+                value
+            };
+            Some((RuntimeType::Core(param.as_ref().clone()), ret))
+        }
+        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => None,
     }
 }
 
@@ -573,6 +863,83 @@ mod tests {
         );
     }
 
+    #[test]
+    fn body_graph_forces_thunk_with_bind_here() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["force_io"]),
+                closed_param_types: vec![RuntimeType::Thunk {
+                    effect: effect_row(&["io"]),
+                    value: Box::new(RuntimeType::Core(int_type())),
+                }],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: effect_row(&["io"]),
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&force_io_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(int_type()));
+    }
+
+    #[test]
+    fn body_graph_handler_subtracts_consumed_effects() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["handle_io"]),
+                closed_param_types: vec![RuntimeType::Core(unit_type())],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: effect_row(&["log"]),
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&handle_io_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(
+            solution.body.ty,
+            RuntimeType::Thunk {
+                effect: effect_row(&["log"]),
+                value: Box::new(RuntimeType::Core(int_type())),
+            }
+        );
+        let ExprKind::Handle { handler, .. } = &solution.body.kind else {
+            panic!("expected handle");
+        };
+        assert_eq!(handler.residual_before, Some(effect_row(&["io", "log"])));
+        assert_eq!(handler.residual_after, Some(effect_row(&["log"])));
+    }
+
+    #[test]
+    fn body_graph_applies_closed_effect_operation_callee() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["perform_io"]),
+                closed_param_types: vec![RuntimeType::Core(unit_type())],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: effect_row(&["io"]),
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&perform_io_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(
+            solution.body.ty,
+            RuntimeType::Thunk {
+                effect: effect_row(&["io"]),
+                value: Box::new(RuntimeType::Core(int_type())),
+            }
+        );
+    }
+
     fn id_binding() -> Binding {
         Binding {
             name: path(&["id"]),
@@ -592,6 +959,130 @@ mod tests {
                     body: Box::new(Expr::typed(
                         ExprKind::Var(path(&["x"])),
                         RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn force_io_binding() -> Binding {
+        Binding {
+            name: path(&["force_io"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(unit_type(), int_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::BindHere {
+                            expr: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["x"])),
+                                RuntimeType::Thunk {
+                                    effect: effect_row(&["io"]),
+                                    value: Box::new(RuntimeType::Core(int_type())),
+                                },
+                            )),
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn handle_io_binding() -> Binding {
+        Binding {
+            name: path(&["handle_io"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(unit_type(), int_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_unit".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Handle {
+                            body: Box::new(Expr::typed(
+                                ExprKind::Thunk {
+                                    effect: effect_row(&["io", "log"]),
+                                    value: RuntimeType::Core(int_type()),
+                                    expr: Box::new(Expr::typed(
+                                        ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                        RuntimeType::Core(int_type()),
+                                    )),
+                                },
+                                RuntimeType::Unknown,
+                            )),
+                            arms: vec![yulang_runtime_ir::HandleArm {
+                                effect: path(&["io"]),
+                                payload: yulang_runtime_ir::Pattern::Wildcard {
+                                    ty: RuntimeType::Core(unit_type()),
+                                },
+                                resume: None,
+                                guard: None,
+                                body: Expr::typed(
+                                    ExprKind::Lit(typed_ir::Lit::Int("2".into())),
+                                    RuntimeType::Core(int_type()),
+                                ),
+                            }],
+                            evidence: yulang_runtime_ir::JoinEvidence { result: int_type() },
+                            handler: yulang_runtime_ir::HandleEffect {
+                                consumes: vec![path(&["io"])],
+                                residual_before: None,
+                                residual_after: None,
+                            },
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn perform_io_binding() -> Binding {
+        Binding {
+            name: path(&["perform_io"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(unit_type(), int_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(Expr::typed(
+                                ExprKind::EffectOp(path(&["io", "read"])),
+                                RuntimeType::Fun {
+                                    param: Box::new(RuntimeType::Core(unit_type())),
+                                    ret: Box::new(RuntimeType::Thunk {
+                                        effect: effect_row(&["io"]),
+                                        value: Box::new(RuntimeType::Core(int_type())),
+                                    }),
+                                },
+                            )),
+                            arg: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["x"])),
+                                RuntimeType::Core(unit_type()),
+                            )),
+                            evidence: None,
+                            instantiation: None,
+                        },
+                        RuntimeType::Unknown,
                     )),
                 },
                 RuntimeType::Unknown,
@@ -786,6 +1277,22 @@ mod tests {
             path: path(&["std", "int", "Int"]),
             args: Vec::new(),
         }
+    }
+
+    fn unit_type() -> typed_ir::Type {
+        typed_ir::Type::Tuple(Vec::new())
+    }
+
+    fn effect_row(names: &[&str]) -> typed_ir::Type {
+        crate::effect::effect_row_from_items(
+            names
+                .iter()
+                .map(|name| typed_ir::Type::Named {
+                    path: path(&[name]),
+                    args: Vec::new(),
+                })
+                .collect(),
+        )
     }
 
     fn path(segments: &[&str]) -> typed_ir::Path {

@@ -84,14 +84,19 @@ fn emit_instance_binding(instance: &FinalizedInstance, aliases: &InstanceAliases
         .cloned()
         .unwrap_or_else(|| instance.key.original_binding.clone());
     let param_type = instance.body.param_type.clone();
-    let result_type = instance.body.result_type.clone();
+    let runtime_result_type = instance.body.result_type.clone();
+    let scheme_result_type = instance.key.closed_result_type.clone();
     let body = rewrite_expr_aliases(instance.body.body.clone(), aliases);
     Binding {
         name: alias,
         type_params: Vec::new(),
         scheme: typed_ir::Scheme {
             requirements: Vec::new(),
-            body: function_scheme_type(&param_type, &instance.key.closed_effect, &result_type),
+            body: function_scheme_type(
+                &param_type,
+                &instance.key.closed_effect,
+                &scheme_result_type,
+            ),
         },
         body: Expr::typed(
             ExprKind::Lambda {
@@ -102,7 +107,7 @@ fn emit_instance_binding(instance: &FinalizedInstance, aliases: &InstanceAliases
             },
             RuntimeType::Fun {
                 param: Box::new(param_type),
-                ret: Box::new(result_type),
+                ret: Box::new(runtime_result_type),
             },
         ),
     }
@@ -168,7 +173,91 @@ fn rewrite_expr_aliases(expr: Expr, aliases: &InstanceAliases) -> Expr {
             },
             ty,
         ),
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => Expr::typed(
+            ExprKind::Handle {
+                body: Box::new(rewrite_expr_aliases(*body, aliases)),
+                arms: arms
+                    .into_iter()
+                    .map(|arm| rewrite_handle_arm_aliases(arm, aliases))
+                    .collect(),
+                evidence,
+                handler,
+            },
+            ty,
+        ),
+        ExprKind::BindHere { expr } => Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(rewrite_expr_aliases(*expr, aliases)),
+            },
+            ty,
+        ),
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => Expr::typed(
+            ExprKind::Thunk {
+                effect,
+                value,
+                expr: Box::new(rewrite_expr_aliases(*expr, aliases)),
+            },
+            ty,
+        ),
+        ExprKind::LocalPushId { id, body } => Expr::typed(
+            ExprKind::LocalPushId {
+                id,
+                body: Box::new(rewrite_expr_aliases(*body, aliases)),
+            },
+            ty,
+        ),
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => Expr::typed(
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk: Box::new(rewrite_expr_aliases(*thunk, aliases)),
+            },
+            ty,
+        ),
+        ExprKind::Coerce { from, to, expr } => Expr::typed(
+            ExprKind::Coerce {
+                from,
+                to,
+                expr: Box::new(rewrite_expr_aliases(*expr, aliases)),
+            },
+            ty,
+        ),
+        ExprKind::Pack { var, expr } => Expr::typed(
+            ExprKind::Pack {
+                var,
+                expr: Box::new(rewrite_expr_aliases(*expr, aliases)),
+            },
+            ty,
+        ),
         kind => Expr::typed(kind, ty),
+    }
+}
+
+fn rewrite_handle_arm_aliases(
+    arm: yulang_runtime_ir::HandleArm,
+    aliases: &InstanceAliases,
+) -> yulang_runtime_ir::HandleArm {
+    yulang_runtime_ir::HandleArm {
+        effect: arm.effect,
+        payload: arm.payload,
+        resume: arm.resume,
+        guard: arm.guard.map(|guard| rewrite_expr_aliases(guard, aliases)),
+        body: rewrite_expr_aliases(arm.body, aliases),
     }
 }
 
@@ -231,7 +320,7 @@ fn alias_path(key: &InstanceKey, index: usize) -> typed_ir::Path {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::InstancePlanner;
+    use crate::{BodySolution, FinalizedInstance, InstancePlan, InstancePlanner};
     use yulang_runtime_ir::{Expr, ExprKind};
 
     #[test]
@@ -251,6 +340,93 @@ mod tests {
         };
         let ExprKind::Apply { callee, .. } = &body.kind else {
             panic!("expected apply body");
+        };
+        let expected = path(&["id", "mono1"]);
+        assert!(matches!(&callee.kind, ExprKind::Var(path) if path == &expected));
+    }
+
+    #[test]
+    fn emit_instance_bindings_rewrites_nested_callee_inside_thunk() {
+        let plan = InstancePlan {
+            finalized_instances: vec![
+                FinalizedInstance {
+                    key: InstanceKey {
+                        original_binding: path(&["use_id_in_thunk"]),
+                        closed_param_types: vec![RuntimeType::Core(int_type())],
+                        closed_result_type: RuntimeType::Core(int_type()),
+                        closed_effect: io_effect(),
+                        captured_env_shape: None,
+                    },
+                    body: BodySolution {
+                        param: typed_ir::Name("x".into()),
+                        param_type: RuntimeType::Core(int_type()),
+                        body: Expr::typed(
+                            ExprKind::Thunk {
+                                effect: io_effect(),
+                                value: RuntimeType::Core(int_type()),
+                                expr: Box::new(Expr::typed(
+                                    ExprKind::Apply {
+                                        callee: Box::new(Expr::typed(
+                                            ExprKind::Var(path(&["id"])),
+                                            RuntimeType::Fun {
+                                                param: Box::new(RuntimeType::Core(int_type())),
+                                                ret: Box::new(RuntimeType::Core(int_type())),
+                                            },
+                                        )),
+                                        arg: Box::new(Expr::typed(
+                                            ExprKind::Var(path(&["x"])),
+                                            RuntimeType::Core(int_type()),
+                                        )),
+                                        evidence: None,
+                                        instantiation: None,
+                                    },
+                                    RuntimeType::Core(int_type()),
+                                )),
+                            },
+                            RuntimeType::Thunk {
+                                effect: io_effect(),
+                                value: Box::new(RuntimeType::Core(int_type())),
+                            },
+                        ),
+                        result_type: RuntimeType::Thunk {
+                            effect: io_effect(),
+                            value: Box::new(RuntimeType::Core(int_type())),
+                        },
+                        nested_instances: Vec::new(),
+                    },
+                },
+                FinalizedInstance {
+                    key: InstanceKey {
+                        original_binding: path(&["id"]),
+                        closed_param_types: vec![RuntimeType::Core(int_type())],
+                        closed_result_type: RuntimeType::Core(int_type()),
+                        closed_effect: typed_ir::Type::Never,
+                        captured_env_shape: None,
+                    },
+                    body: BodySolution {
+                        param: typed_ir::Name("x".into()),
+                        param_type: RuntimeType::Core(int_type()),
+                        body: Expr::typed(
+                            ExprKind::Var(path(&["x"])),
+                            RuntimeType::Core(int_type()),
+                        ),
+                        result_type: RuntimeType::Core(int_type()),
+                        nested_instances: Vec::new(),
+                    },
+                },
+            ],
+            report: crate::FinalizeReport::default(),
+        };
+        let emitted = emit_instance_bindings(&plan);
+
+        let ExprKind::Lambda { body, .. } = &emitted[0].body.kind else {
+            panic!("expected emitted lambda");
+        };
+        let ExprKind::Thunk { expr, .. } = &body.kind else {
+            panic!("expected thunk body");
+        };
+        let ExprKind::Apply { callee, .. } = &expr.kind else {
+            panic!("expected nested apply");
         };
         let expected = path(&["id", "mono1"]);
         assert!(matches!(&callee.kind, ExprKind::Var(path) if path == &expected));
@@ -334,6 +510,16 @@ mod tests {
         typed_ir::Type::Named {
             path: path(&["std", "int", "Int"]),
             args: Vec::new(),
+        }
+    }
+
+    fn io_effect() -> typed_ir::Type {
+        typed_ir::Type::Row {
+            items: vec![typed_ir::Type::Named {
+                path: path(&["io"]),
+                args: Vec::new(),
+            }],
+            tail: Box::new(typed_ir::Type::Never),
         }
     }
 
