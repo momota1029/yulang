@@ -11,3 +11,8 @@ publish = false
 [dependencies]
 yulang-runtime-ir = { path = "../yulang-runtime-ir" }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
+
+[dev-dependencies]
+yulang-infer = { path = "../yulang-infer" }
+yulang-runtime = { path = "../yulang-runtime" }
+yulang-vm = { path = "../yulang-vm" }

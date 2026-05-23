@@ -2224,8 +2224,11 @@ dependencies = [
 name = "yulang-runtime-finalize"
 version = "0.1.0"
 dependencies = [
+ "yulang-infer",
+ "yulang-runtime",
  "yulang-runtime-ir",
  "yulang-typed-ir",
+ "yulang-vm",
 ]
 
 [[package]]

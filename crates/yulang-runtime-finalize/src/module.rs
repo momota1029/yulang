@@ -80,6 +80,7 @@ pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<Finalize
     let plan = planner.run()?;
     let aliases = InstanceAliases::from_plan(&plan);
     let emitted = emit_instance_bindings_with_aliases(&plan, &aliases);
+    let finalized_originals = finalized_polymorphic_originals(&plan);
     let mut report = plan.report;
     for (index, original, key) in roots {
         let Some(alias) = aliases.alias_for(&key).cloned() else {
@@ -98,6 +99,7 @@ pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<Finalize
         });
     }
     module.bindings.extend(emitted);
+    prune_finalized_polymorphic_bindings(&mut module, &finalized_originals);
 
     let output = FinalizeOutput { module, report };
     validate_finalized_output(&output)?;
@@ -248,6 +250,23 @@ fn runtime_result_after_args(
     }
 }
 
+fn finalized_polymorphic_originals(plan: &crate::InstancePlan) -> HashSet<typed_ir::Path> {
+    plan.finalized_instances
+        .iter()
+        .filter(|instance| !instance.key.closed_param_types.is_empty())
+        .map(|instance| instance.key.original_binding.clone())
+        .collect()
+}
+
+fn prune_finalized_polymorphic_bindings(
+    module: &mut Module,
+    finalized_originals: &HashSet<typed_ir::Path>,
+) {
+    module.bindings.retain(|binding| {
+        binding.type_params.is_empty() || !finalized_originals.contains(&binding.name)
+    });
+}
+
 fn runtime_core_type_for_root(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Core(ty) => Some(ty.clone()),
@@ -333,6 +352,8 @@ fn type_arg_is_closed_for_root(arg: &typed_ir::TypeArg) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use yulang_runtime_ir::{Binding, Expr, ExprKind, Root};
 
@@ -424,8 +445,8 @@ mod tests {
 
         let output = finalize_simple_root_exprs(module).unwrap();
 
-        assert_eq!(output.module.bindings.len(), 2);
-        assert_eq!(output.module.bindings[1].name, path(&["id", "mono0"]));
+        assert_eq!(output.module.bindings.len(), 1);
+        assert_eq!(output.module.bindings[0].name, path(&["id", "mono0"]));
         assert_eq!(
             output.module.root_exprs[0].ty,
             RuntimeType::Core(int_type())
@@ -478,8 +499,8 @@ mod tests {
 
         let output = finalize_simple_root_exprs(module).unwrap();
 
-        assert_eq!(output.module.bindings.len(), 2);
-        assert_eq!(output.module.bindings[1].name, path(&["pair", "mono0"]));
+        assert_eq!(output.module.bindings.len(), 1);
+        assert_eq!(output.module.bindings[0].name, path(&["pair", "mono0"]));
         assert_eq!(
             output.module.root_exprs[0].ty,
             RuntimeType::Core(typed_ir::Type::Tuple(vec![int_type(), bool_type()]))
@@ -512,6 +533,79 @@ mod tests {
     }
 
     #[test]
+    fn finalized_curried_apply_root_runs_on_vm() {
+        let module = Module {
+            path: path(&["test"]),
+            bindings: vec![pair_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["pair"])),
+                                RuntimeType::Unknown,
+                            )),
+                            arg: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(int_type()),
+                            )),
+                            evidence: None,
+                            instantiation: None,
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                        RuntimeType::Core(bool_type()),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_simple_root_exprs(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Tuple(vec![
+                yulang_vm::VmValue::Int("1".to_string()),
+                yulang_vm::VmValue::Bool(true),
+            ]))]
+        );
+    }
+
+    #[test]
+    #[ignore = "requires source-lowered range Fold and ref writes to finalize through runtime-finalize"]
+    fn finalized_source_for_range_ref_write_body_runs_on_vm() {
+        let module = runtime_module_from_source_with_std_large_stack(String::from(
+            r#"{
+    my $total = 0
+    for x in 1..5:
+        &total = $total + x
+    $total
+}
+"#,
+        ));
+
+        let output = finalize_simple_root_exprs(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "15".to_string()
+            ))]
+        );
+    }
+
+    #[test]
     fn finalize_simple_root_exprs_uses_module_role_impls() {
         let module = Module {
             path: path(&["test"]),
@@ -537,9 +631,9 @@ mod tests {
 
         let output = finalize_simple_root_exprs(module).unwrap();
 
-        assert_eq!(output.module.bindings.len(), 2);
+        assert_eq!(output.module.bindings.len(), 1);
         assert_eq!(
-            output.module.bindings[1].name,
+            output.module.bindings[0].name,
             path(&["index_value", "mono0"])
         );
         assert_eq!(
@@ -832,5 +926,38 @@ mod tests {
                 .map(|segment| typed_ir::Name((*segment).into()))
                 .collect(),
         )
+    }
+
+    fn runtime_module_from_source_with_std(src: &str) -> Module {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            src,
+            Some(repo_root),
+            yulang_infer::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = yulang_infer::export_core_program(&mut lowered.state);
+        yulang_runtime::lower_core_program(program).unwrap()
+    }
+
+    fn runtime_module_from_source_with_std_large_stack(src: String) -> Module {
+        run_with_large_stack(move || runtime_module_from_source_with_std(&src))
+    }
+
+    fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
+    where
+        T: Send + 'static,
+    {
+        std::thread::Builder::new()
+            .stack_size(128 * 1024 * 1024)
+            .spawn(f)
+            .expect("spawn large-stack runtime-finalize test thread")
+            .join()
+            .unwrap()
     }
 }
