@@ -194,6 +194,34 @@ mod tests {
         );
     }
 
+    #[test]
+    fn planner_resolves_role_method_callee_to_impl_member() {
+        let mut planner = InstancePlanner::new_with_roles(
+            [use_role_get_binding(), index_lines_get_binding()],
+            [index_lines_bool_impl()],
+        );
+
+        let root = planner
+            .request_root(
+                &path(&["use_role_get"]),
+                RuntimeType::Core(lines_type(typed_ir::Type::Never)),
+            )
+            .unwrap();
+        let plan = planner.run().unwrap();
+
+        assert_eq!(root.closed_result_type, RuntimeType::Core(bool_type()));
+        assert_eq!(
+            plan.finalized_instances
+                .iter()
+                .map(|instance| instance.key.original_binding.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                path(&["use_role_get"]),
+                path(&["std", "index", "&impl#lines", "get"])
+            ]
+        );
+    }
+
     fn id_key() -> InstanceKey {
         InstanceKey {
             original_binding: path(&["id"]),
@@ -311,6 +339,68 @@ mod tests {
         }
     }
 
+    fn use_role_get_binding() -> Binding {
+        Binding {
+            name: path(&["use_role_get"]),
+            type_params: vec![typed_ir::TypeVar("input".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("input".into())),
+                    bool_type(),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["std", "index", "Index", "get"])),
+                                RuntimeType::Unknown,
+                            )),
+                            arg: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["x"])),
+                                RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                    "input".into(),
+                                ))),
+                            )),
+                            evidence: None,
+                            instantiation: None,
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn index_lines_get_binding() -> Binding {
+        Binding {
+            name: path(&["std", "index", "&impl#lines", "get"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(lines_type(typed_ir::Type::Never), bool_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_lines".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                        RuntimeType::Core(bool_type()),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
     fn index_lines_bool_impl() -> typed_ir::RoleImplGraphNode {
         typed_ir::RoleImplGraphNode {
             role: path(&["std", "index", "Index"]),
@@ -322,7 +412,11 @@ mod tests {
                 value: typed_ir::TypeBounds::lower(bool_type()),
                 optional: false,
             }],
-            members: Vec::new(),
+            members: vec![typed_ir::RecordField {
+                name: typed_ir::Name("get".into()),
+                value: path(&["std", "index", "&impl#lines", "get"]),
+                optional: false,
+            }],
         }
     }
 

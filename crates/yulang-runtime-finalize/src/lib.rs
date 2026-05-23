@@ -28,4 +28,4 @@ pub use output::{
 };
 pub use planner::{FinalizedInstance, InstancePlan, InstancePlanner, InstanceState};
 pub use principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
-pub use role::{AssociatedProjection, RoleContext, RoleProjectionStatus};
+pub use role::{AssociatedProjection, RoleContext, RoleMemberResolution, RoleProjectionStatus};

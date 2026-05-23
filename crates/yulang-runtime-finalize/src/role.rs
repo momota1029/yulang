@@ -58,12 +58,61 @@ impl RoleContext {
             }),
         }
     }
+
+    pub fn resolve_member(
+        &self,
+        role: &typed_ir::Path,
+        input_lowers: &[typed_ir::Type],
+        member_name: &typed_ir::Name,
+    ) -> FinalizeResult<RoleMemberResolution> {
+        let mut matches = Vec::new();
+        for impl_node in self
+            .impls
+            .iter()
+            .filter(|impl_node| &impl_node.role == role)
+        {
+            if !impl_inputs_accept(impl_node, input_lowers)? {
+                continue;
+            }
+            let Some(member) = impl_node
+                .members
+                .iter()
+                .find(|member| &member.name == member_name)
+            else {
+                continue;
+            };
+            matches.push(member.value.clone());
+        }
+        matches.sort_by_key(canonical_path);
+        matches.dedup();
+
+        match matches.as_slice() {
+            [] => Ok(RoleMemberResolution {
+                status: RoleProjectionStatus::Missing,
+                binding: None,
+            }),
+            [binding] => Ok(RoleMemberResolution {
+                status: RoleProjectionStatus::Resolved,
+                binding: Some(binding.clone()),
+            }),
+            _ => Ok(RoleMemberResolution {
+                status: RoleProjectionStatus::Ambiguous,
+                binding: None,
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssociatedProjection {
     pub status: RoleProjectionStatus,
     pub ty: Option<typed_ir::Type>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleMemberResolution {
+    pub status: RoleProjectionStatus,
+    pub binding: Option<typed_ir::Path>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +145,34 @@ fn match_impl_inputs(
         }
     }
     Ok(Some(substitutions))
+}
+
+fn impl_inputs_accept(
+    impl_node: &typed_ir::RoleImplGraphNode,
+    input_lowers: &[typed_ir::Type],
+) -> FinalizeResult<bool> {
+    if impl_node.inputs.is_empty() {
+        return Ok(true);
+    }
+    match_impl_inputs(impl_node, input_lowers).map(|matched| matched.is_some())
+}
+
+pub(crate) fn role_method_parts(path: &typed_ir::Path) -> Option<(typed_ir::Path, typed_ir::Name)> {
+    let (member_name, role_segments) = path.segments.split_last()?;
+    if role_segments.is_empty() {
+        return None;
+    }
+    Some((
+        typed_ir::Path::new(role_segments.to_vec()),
+        member_name.clone(),
+    ))
+}
+
+fn canonical_path(path: &typed_ir::Path) -> Vec<String> {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.clone())
+        .collect()
 }
 
 #[cfg(test)]
@@ -134,6 +211,37 @@ mod tests {
         assert_eq!(projection.ty, None);
     }
 
+    #[test]
+    fn role_context_resolves_member_binding_from_input_lower() {
+        let context = RoleContext::new([index_lines_impl()]);
+
+        let resolution = context
+            .resolve_member(
+                &path(&["std", "index", "Index"]),
+                &[lines_type(effect_var("fs"))],
+                &typed_ir::Name("get".into()),
+            )
+            .unwrap();
+
+        assert_eq!(resolution.status, RoleProjectionStatus::Resolved);
+        assert_eq!(
+            resolution.binding,
+            Some(path(&["std", "index", "&impl#lines", "get"]))
+        );
+    }
+
+    #[test]
+    fn role_method_parts_splits_role_path_and_member_name() {
+        assert_eq!(
+            role_method_parts(&path(&["std", "index", "Index", "get"])),
+            Some((
+                path(&["std", "index", "Index"]),
+                typed_ir::Name("get".into())
+            ))
+        );
+        assert_eq!(role_method_parts(&path(&["get"])), None);
+    }
+
     fn index_lines_impl() -> typed_ir::RoleImplGraphNode {
         typed_ir::RoleImplGraphNode {
             role: path(&["std", "index", "Index"]),
@@ -147,7 +255,11 @@ mod tests {
                 ))),
                 optional: false,
             }],
-            members: Vec::new(),
+            members: vec![typed_ir::RecordField {
+                name: typed_ir::Name("get".into()),
+                value: path(&["std", "index", "&impl#lines", "get"]),
+                optional: false,
+            }],
         }
     }
 

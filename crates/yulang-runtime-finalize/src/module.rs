@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use yulang_runtime_ir::{Module, Root, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -7,17 +7,28 @@ use crate::diagnostic::{FinalizeDiagnostic, FinalizeError, FinalizeResult};
 use crate::emit::{InstanceAliases, emit_instance_bindings_with_aliases};
 use crate::output::{FinalizeOutput, RootInstance};
 use crate::planner::InstancePlanner;
+use crate::role::{RoleContext, RoleProjectionStatus, role_method_parts};
 
 pub fn finalize_root_bindings(
     mut module: Module,
     requests: impl IntoIterator<Item = RootBindingRequest>,
 ) -> FinalizeResult<FinalizeOutput> {
+    let role_context = RoleContext::new(module.role_impls.clone());
+    let binding_paths = binding_paths(&module);
     let mut planner =
         InstancePlanner::new_with_roles(module.bindings.clone(), module.role_impls.clone());
     let mut roots = Vec::new();
     for request in requests {
-        let key = planner.request_root(&request.binding, request.arg_lower)?;
-        roots.push((request.binding, key));
+        let requested = request.binding;
+        let target = resolve_root_target(
+            &role_context,
+            &binding_paths,
+            &requested,
+            &request.arg_lower,
+        )?
+        .unwrap_or_else(|| requested.clone());
+        let key = planner.request_root(&target, request.arg_lower)?;
+        roots.push((requested, key));
     }
 
     let plan = planner.run()?;
@@ -40,6 +51,8 @@ pub fn finalize_root_bindings(
 }
 
 pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<FinalizeOutput> {
+    let role_context = RoleContext::new(module.role_impls.clone());
+    let binding_paths = binding_paths(&module);
     let mut planner =
         InstancePlanner::new_with_roles(module.bindings.clone(), module.role_impls.clone());
     let mut roots = Vec::new();
@@ -47,7 +60,9 @@ pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<Finalize
         let Some((binding, arg_lower)) = simple_root_apply(expr) else {
             continue;
         };
-        let key = planner.request_root(binding, arg_lower)?;
+        let target = resolve_root_target(&role_context, &binding_paths, binding, &arg_lower)?
+            .unwrap_or_else(|| binding.clone());
+        let key = planner.request_root(&target, arg_lower)?;
         roots.push((index, binding.clone(), key));
     }
 
@@ -80,6 +95,38 @@ pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<Finalize
 pub struct RootBindingRequest {
     pub binding: typed_ir::Path,
     pub arg_lower: RuntimeType,
+}
+
+fn binding_paths(module: &Module) -> HashSet<typed_ir::Path> {
+    module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect()
+}
+
+fn resolve_root_target(
+    roles: &RoleContext,
+    binding_paths: &HashSet<typed_ir::Path>,
+    requested: &typed_ir::Path,
+    arg_lower: &RuntimeType,
+) -> FinalizeResult<Option<typed_ir::Path>> {
+    if binding_paths.contains(requested) {
+        return Ok(Some(requested.clone()));
+    }
+    let Some((role, member_name)) = role_method_parts(requested) else {
+        return Ok(None);
+    };
+    let Some(input_lower) = runtime_core_type_for_root(arg_lower) else {
+        return Ok(None);
+    };
+    let resolution = roles.resolve_member(&role, &[input_lower], &member_name)?;
+    if resolution.status != RoleProjectionStatus::Resolved {
+        return Ok(None);
+    }
+    Ok(resolution
+        .binding
+        .filter(|binding| binding_paths.contains(binding)))
 }
 
 fn rewrite_unambiguous_roots(module: &mut Module, roots: &[RootInstance]) {
@@ -133,6 +180,13 @@ fn rewrite_simple_root_apply(
     };
     expr.ty = key.closed_result_type.clone();
     Ok(())
+}
+
+fn runtime_core_type_for_root(ty: &RuntimeType) -> Option<typed_ir::Type> {
+    match ty {
+        RuntimeType::Core(ty) => Some(ty.clone()),
+        RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => None,
+    }
 }
 
 fn runtime_type_is_closed_for_root(ty: &RuntimeType) -> bool {
@@ -362,6 +416,47 @@ mod tests {
         );
     }
 
+    #[test]
+    fn finalize_simple_root_exprs_resolves_role_method_to_impl_member() {
+        let module = Module {
+            path: path(&["test"]),
+            bindings: vec![index_lines_get_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(path(&["std", "index", "Index", "get"])),
+                        RuntimeType::Unknown,
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::String("a\nb".into())),
+                        RuntimeType::Core(lines_type(typed_ir::Type::Never)),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: vec![index_lines_bool_impl()],
+        };
+
+        let output = finalize_simple_root_exprs(module).unwrap();
+
+        assert_eq!(output.module.bindings.len(), 2);
+        assert_eq!(
+            output.module.bindings[1].name,
+            path(&["std", "index", "&impl#lines", "get", "mono0"])
+        );
+        assert_eq!(
+            output.module.root_exprs[0].ty,
+            RuntimeType::Core(bool_type())
+        );
+        assert_eq!(
+            output.report.root_instances[0].original,
+            path(&["std", "index", "Index", "get"])
+        );
+    }
+
     fn id_binding() -> Binding {
         Binding {
             name: path(&["id"]),
@@ -469,6 +564,29 @@ mod tests {
         }
     }
 
+    fn index_lines_get_binding() -> Binding {
+        Binding {
+            name: path(&["std", "index", "&impl#lines", "get"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(lines_type(typed_ir::Type::Never), bool_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_lines".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                        RuntimeType::Core(bool_type()),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
     fn index_lines_bool_impl() -> typed_ir::RoleImplGraphNode {
         typed_ir::RoleImplGraphNode {
             role: path(&["std", "index", "Index"]),
@@ -480,7 +598,11 @@ mod tests {
                 value: typed_ir::TypeBounds::lower(bool_type()),
                 optional: false,
             }],
-            members: Vec::new(),
+            members: vec![typed_ir::RecordField {
+                name: typed_ir::Name("get".into()),
+                value: path(&["std", "index", "&impl#lines", "get"]),
+                optional: false,
+            }],
         }
     }
 

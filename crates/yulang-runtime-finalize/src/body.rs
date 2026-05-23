@@ -5,7 +5,7 @@ use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{BodyIncompleteReason, FinalizeDiagnostic, FinalizeError, FinalizeResult};
 use crate::principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
-use crate::role::RoleContext;
+use crate::role::{RoleContext, RoleProjectionStatus, role_method_parts};
 use crate::types::{
     LowerSubstitutions, materialize_expr_type, path_as_local_name, runtime_type_is_closed,
     runtime_types_match,
@@ -178,7 +178,9 @@ impl BodyGraph {
             } => {
                 let solved_arg = self.solve_expr(env, nested_instances, *arg)?;
                 if let Some(path) = callee_var_path(&callee) {
-                    if let Some(binding) = self.known_bindings.get(path) {
+                    if let Some((target_path, binding)) =
+                        self.resolve_runtime_callee_binding(path, &solved_arg)?
+                    {
                         let nested = self.solve_nested_polymorphic_call(binding, &solved_arg)?;
                         let ty = self.choose_known_type(
                             materialized_ty,
@@ -188,7 +190,7 @@ impl BodyGraph {
                             param: Box::new(solved_arg.ty.clone()),
                             ret: Box::new(ty.clone()),
                         };
-                        let solved_callee = Expr::typed(ExprKind::Var(path.clone()), callee_ty);
+                        let solved_callee = Expr::typed(ExprKind::Var(target_path), callee_ty);
                         nested_instances.push(nested);
                         return Ok(Expr::typed(
                             ExprKind::Apply {
@@ -238,6 +240,36 @@ impl BodyGraph {
                 body: self.solve_expr(env, nested_instances, body)?,
             }),
         }
+    }
+
+    fn resolve_runtime_callee_binding(
+        &self,
+        path: &typed_ir::Path,
+        arg: &Expr,
+    ) -> FinalizeResult<Option<(typed_ir::Path, &Binding)>> {
+        if let Some(binding) = self.known_bindings.get(path) {
+            return Ok(Some((path.clone(), binding)));
+        }
+        let Some(roles) = self.roles.as_ref() else {
+            return Ok(None);
+        };
+        let Some((role, member_name)) = role_method_parts(path) else {
+            return Ok(None);
+        };
+        let Some(input_lower) = runtime_core_type(&arg.ty) else {
+            return Ok(None);
+        };
+        let resolution = roles.resolve_member(&role, &[input_lower], &member_name)?;
+        if resolution.status != RoleProjectionStatus::Resolved {
+            return Ok(None);
+        }
+        let Some(binding_path) = resolution.binding else {
+            return Ok(None);
+        };
+        let Some(binding) = self.known_bindings.get(&binding_path) else {
+            return Ok(None);
+        };
+        Ok(Some((binding_path, binding)))
     }
 
     fn solve_nested_polymorphic_call(
@@ -344,6 +376,13 @@ impl BodyGraph {
                 },
             ))
         }
+    }
+}
+
+fn runtime_core_type(ty: &RuntimeType) -> Option<typed_ir::Type> {
+    match ty {
+        RuntimeType::Core(ty) => Some(ty.clone()),
+        RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => None,
     }
 }
 
