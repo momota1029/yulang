@@ -15,6 +15,7 @@ mod planner;
 mod principal;
 mod role;
 mod types;
+mod validate;
 
 pub use body::{BodyGraph, BodySolution, NestedInstancePlan};
 pub use diagnostic::{
@@ -29,3 +30,4 @@ pub use output::{
 pub use planner::{FinalizedInstance, InstancePlan, InstancePlanner, InstanceState};
 pub use principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
 pub use role::{AssociatedProjection, RoleContext, RoleMemberResolution, RoleProjectionStatus};
+pub use validate::{validate_closed_module, validate_finalized_output};

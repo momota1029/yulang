@@ -8,6 +8,7 @@ use crate::emit::{InstanceAliases, emit_instance_bindings_with_aliases};
 use crate::output::{FinalizeOutput, RootInstance};
 use crate::planner::InstancePlanner;
 use crate::role::{RoleContext, RoleProjectionStatus, role_method_parts};
+use crate::validate::validate_finalized_output;
 
 pub fn finalize_root_bindings(
     mut module: Module,
@@ -47,7 +48,9 @@ pub fn finalize_root_bindings(
     rewrite_unambiguous_roots(&mut module, &report.root_instances);
     module.bindings.extend(emitted);
 
-    Ok(FinalizeOutput { module, report })
+    let output = FinalizeOutput { module, report };
+    validate_finalized_output(&output)?;
+    Ok(output)
 }
 
 pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<FinalizeOutput> {
@@ -88,7 +91,9 @@ pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<Finalize
     }
     module.bindings.extend(emitted);
 
-    Ok(FinalizeOutput { module, report })
+    let output = FinalizeOutput { module, report };
+    validate_finalized_output(&output)?;
+    Ok(output)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

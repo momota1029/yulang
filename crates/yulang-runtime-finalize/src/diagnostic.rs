@@ -45,6 +45,9 @@ pub enum FinalizeDiagnostic {
         expected: typed_ir::Type,
         actual: RuntimeType,
     },
+    Validation {
+        reason: ValidationReason,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,4 +63,33 @@ pub enum BodyIncompleteReason {
     MissingInstanceParameter,
     UnsupportedExpression,
     OpenExpressionType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationReason {
+    MissingBinding {
+        binding: typed_ir::Path,
+    },
+    OpenRuntimeType {
+        ty: RuntimeType,
+    },
+    OpenCoreType {
+        ty: typed_ir::Type,
+    },
+    UnboundVariable {
+        path: typed_ir::Path,
+    },
+    TypeMismatch {
+        expected: RuntimeType,
+        actual: RuntimeType,
+    },
+    NonFunctionCallee {
+        ty: RuntimeType,
+    },
+    ExpectedThunk {
+        ty: RuntimeType,
+    },
+    InvalidRootExpr {
+        index: usize,
+    },
 }
