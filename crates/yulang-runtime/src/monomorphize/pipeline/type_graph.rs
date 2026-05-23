@@ -27,6 +27,10 @@ impl TypeGraph {
         &self.conflicts
     }
 
+    pub(super) fn slot_at(&self, index: usize) -> Option<&TypeGraphSlot> {
+        self.slots.get(index)
+    }
+
     pub(super) fn solve_lower_snapshot(&self) -> TypeGraphLowerSolution {
         let mut union = TypeGraphUnionFind::new(self.slots.len());
         for edge in &self.edges {
@@ -904,7 +908,13 @@ struct TypeGraphTypeVarLowerEvidence {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-struct TypeGraphTypeVarScope(usize);
+pub(super) struct TypeGraphTypeVarScope(usize);
+
+impl TypeGraphTypeVarScope {
+    pub(super) fn from_index(index: usize) -> Self {
+        Self(index)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct TypeGraphScopedTypeVar {
@@ -1257,7 +1267,6 @@ impl TypeGraphLowerSolution {
             .count()
     }
 
-    #[cfg(test)]
     pub(super) fn candidate(&self, slot: TypeGraphSlotId) -> Option<&RuntimeType> {
         self.slot_candidates.get(slot.0).and_then(Option::as_ref)
     }
@@ -1296,6 +1305,13 @@ impl TypeGraphTypeVarLowerSolution {
             .values()
             .map(BTreeMap::len)
             .sum()
+    }
+
+    pub(super) fn substitutions_for_scope(
+        &self,
+        scope: TypeGraphTypeVarScope,
+    ) -> Option<&BTreeMap<typed_ir::TypeVar, typed_ir::Type>> {
+        self.substitutions_by_scope.get(&scope)
     }
 
     #[cfg(test)]

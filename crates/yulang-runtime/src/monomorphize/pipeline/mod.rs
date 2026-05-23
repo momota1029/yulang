@@ -112,6 +112,9 @@ pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     let lowered = normalize_monomorphized_metadata(lowered);
     let lowered = normalize_parametric_primitive_intrinsics(lowered);
     preview_type_graph_pipeline_if_requested("post-monomorphize", &lowered);
+    let (lowered, total_substitute) = total_substitute_module(lowered);
+    report_total_substitute_if_requested("total-substitute", &total_substitute);
+    preview_type_graph_pipeline_if_requested("total-substituted", &lowered);
     let (lowered, final_defaults) = fill_final_type_holes(lowered);
     report_final_type_holes_if_requested("final-defaults", &final_defaults);
     preview_type_graph_pipeline_if_requested("final-defaulted", &lowered);
@@ -135,6 +138,9 @@ pub fn monomorphize_module_profiled(
     let lowered = normalize_monomorphized_metadata(lowered);
     let lowered = normalize_parametric_primitive_intrinsics(lowered);
     preview_type_graph_pipeline_if_requested("post-monomorphize", &lowered);
+    let (lowered, total_substitute) = total_substitute_module(lowered);
+    report_total_substitute_if_requested("total-substitute", &total_substitute);
+    preview_type_graph_pipeline_if_requested("total-substituted", &lowered);
     let (lowered, final_defaults) = fill_final_type_holes(lowered);
     report_final_type_holes_if_requested("final-defaults", &final_defaults);
     preview_type_graph_pipeline_if_requested("final-defaulted", &lowered);
@@ -429,6 +435,20 @@ fn report_final_type_holes_if_requested(label: &'static str, report: &FillHolesR
     eprintln!(
         "type graph {label}: applied_filled_value_holes={} applied_filled_effect_holes={}",
         report.filled_value_holes, report.filled_effect_holes,
+    );
+}
+
+fn report_total_substitute_if_requested(label: &'static str, report: &TotalSubstituteReport) {
+    if std::env::var_os("YULANG_DEBUG_TYPE_GRAPH_PIPELINE").is_none() {
+        return;
+    }
+    eprintln!(
+        "type graph {label}: applied_slots={} type_var_lower_substitutions={} type_var_lower_residual_open={}",
+        report.applied_slots,
+        report.type_vars.solved_vars,
+        report
+            .type_vars
+            .residual_open_vars_after_recursive_substitution,
     );
 }
 
