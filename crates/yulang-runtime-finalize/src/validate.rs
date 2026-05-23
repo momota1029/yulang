@@ -4,7 +4,7 @@ use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Stmt, Type as Run
 use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{FinalizeDiagnostic, FinalizeError, FinalizeResult, ValidationReason};
-use crate::effect::{handler_output_type, should_thunk_effect};
+use crate::effect::{handler_output_type, runtime_value_type, should_thunk_effect};
 use crate::output::FinalizeOutput;
 use crate::types::runtime_types_match;
 
@@ -250,13 +250,18 @@ fn validate_expr(
             cond,
             then_branch,
             else_branch,
-            ..
+            evidence,
         } => {
             validate_expr(cond, bindings, locals)?;
             validate_expr(then_branch, bindings, locals)?;
             validate_expr(else_branch, bindings, locals)?;
-            require_runtime_type(&expr.ty, &then_branch.ty)?;
-            require_runtime_type(&expr.ty, &else_branch.ty)?;
+            let expected_value = runtime_value_type(&expr.ty);
+            if let Some(evidence) = evidence {
+                require_closed_core_type(&evidence.result)?;
+                require_runtime_type(&RuntimeType::Core(evidence.result.clone()), &expected_value)?;
+            }
+            require_join_branch_type(&expected_value, &then_branch.ty)?;
+            require_join_branch_type(&expected_value, &else_branch.ty)?;
         }
         ExprKind::Match {
             scrutinee, arms, ..
@@ -364,6 +369,20 @@ fn pattern_type(pattern: &yulang_runtime_ir::Pattern) -> &RuntimeType {
 
 fn require_runtime_type(expected: &RuntimeType, actual: &RuntimeType) -> FinalizeResult<()> {
     if runtime_types_match(expected, actual) {
+        Ok(())
+    } else {
+        validation_err(ValidationReason::TypeMismatch {
+            expected: expected.clone(),
+            actual: actual.clone(),
+        })
+    }
+}
+
+fn require_join_branch_type(expected: &RuntimeType, actual: &RuntimeType) -> FinalizeResult<()> {
+    let actual_value = runtime_value_type(actual);
+    if runtime_types_match(expected, &actual_value)
+        || matches!(actual_value, RuntimeType::Core(typed_ir::Type::Never))
+    {
         Ok(())
     } else {
         validation_err(ValidationReason::TypeMismatch {
@@ -497,6 +516,56 @@ mod tests {
             bindings: vec![effectful_binding()],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(path(&["effectful"]))],
+            role_impls: Vec::new(),
+        };
+
+        validate_closed_module(&module).unwrap();
+    }
+
+    #[test]
+    fn validator_accepts_effectful_if_condition_lifted_to_thunk() {
+        let effect = io_effect();
+        let expr = Expr::typed(
+            ExprKind::Thunk {
+                effect: effect.clone(),
+                value: RuntimeType::Core(int_type()),
+                expr: Box::new(Expr::typed(
+                    ExprKind::If {
+                        cond: Box::new(Expr::typed(
+                            ExprKind::BindHere {
+                                expr: Box::new(Expr::typed(
+                                    ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                                    RuntimeType::Thunk {
+                                        effect: effect.clone(),
+                                        value: Box::new(RuntimeType::Core(bool_type())),
+                                    },
+                                )),
+                            },
+                            RuntimeType::Core(bool_type()),
+                        )),
+                        then_branch: Box::new(Expr::typed(
+                            ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                            RuntimeType::Core(int_type()),
+                        )),
+                        else_branch: Box::new(Expr::typed(
+                            ExprKind::Lit(typed_ir::Lit::Int("0".into())),
+                            RuntimeType::Core(int_type()),
+                        )),
+                        evidence: Some(yulang_runtime_ir::JoinEvidence { result: int_type() }),
+                    },
+                    RuntimeType::Core(int_type()),
+                )),
+            },
+            RuntimeType::Thunk {
+                effect,
+                value: Box::new(RuntimeType::Core(int_type())),
+            },
+        );
+        let module = Module {
+            path: path(&["test"]),
+            bindings: Vec::new(),
+            root_exprs: vec![expr],
+            roots: vec![Root::Expr(0)],
             role_impls: Vec::new(),
         };
 

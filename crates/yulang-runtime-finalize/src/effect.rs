@@ -112,13 +112,24 @@ pub(crate) fn expr_forced_effect(expr: &yulang_runtime_ir::Expr) -> Option<typed
         ExprKind::LocalPushId { body, .. } => expr_forced_effect(body),
         ExprKind::AddId { thunk, .. } => expr_forced_effect(thunk),
         ExprKind::Coerce { expr, .. } | ExprKind::Pack { expr, .. } => expr_forced_effect(expr),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => merge_effects(
+            expr_forced_effect(cond),
+            merge_effects(
+                expr_forced_effect(then_branch),
+                expr_forced_effect(else_branch),
+            ),
+        ),
         ExprKind::Var(_)
         | ExprKind::EffectOp(_)
         | ExprKind::PrimitiveOp(_)
         | ExprKind::Lit(_)
         | ExprKind::Lambda { .. }
         | ExprKind::Thunk { .. }
-        | ExprKind::If { .. }
         | ExprKind::Record { .. }
         | ExprKind::Variant { .. }
         | ExprKind::Select { .. }

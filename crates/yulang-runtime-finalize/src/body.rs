@@ -8,7 +8,7 @@ use yulang_typed_ir as typed_ir;
 use crate::diagnostic::{BodyIncompleteReason, FinalizeDiagnostic, FinalizeError, FinalizeResult};
 use crate::effect::{
     close_handle_effect, expr_forced_effect, handler_output_type, materialize_handle_effect,
-    runtime_value_type, should_thunk_effect,
+    project_runtime_effect, runtime_value_type, should_thunk_effect,
 };
 use crate::principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
 use crate::role::{RoleContext, RoleProjectionStatus, role_method_parts};
@@ -230,23 +230,38 @@ impl BodyGraph {
                 else_branch,
                 evidence,
             } => {
-                let solved_cond = self.solve_expr(env, nested_instances, *cond)?;
-                let solved_then = self.solve_expr(env, nested_instances, *then_branch)?;
-                let solved_else = self.solve_expr(env, nested_instances, *else_branch)?;
-                let inferred = runtime_types_match(&solved_then.ty, &solved_else.ty)
-                    .then(|| solved_then.ty.clone());
-                let ty = self.choose_known_type(materialized_ty, inferred)?;
-                self.choose_known_type(ty.clone(), Some(solved_then.ty.clone()))?;
-                self.choose_known_type(ty.clone(), Some(solved_else.ty.clone()))?;
-                Ok(Expr::typed(
+                let solved_cond =
+                    force_thunk_value(self.solve_expr(env, nested_instances, *cond)?);
+                let solved_then =
+                    force_thunk_value(self.solve_expr(env, nested_instances, *then_branch)?);
+                let solved_else =
+                    force_thunk_value(self.solve_expr(env, nested_instances, *else_branch)?);
+                let evidence = evidence.map(|evidence| yulang_runtime_ir::JoinEvidence {
+                    result: materialize_core_type(evidence.result, &self.substitutions),
+                });
+                let materialized_value_ty = runtime_value_type(&materialized_ty);
+                let inferred = evidence
+                    .as_ref()
+                    .map(|evidence| RuntimeType::Core(evidence.result.clone()))
+                    .or_else(|| {
+                        runtime_types_match(&solved_then.ty, &solved_else.ty)
+                            .then(|| solved_then.ty.clone())
+                    });
+                let value_ty = self.choose_known_type(materialized_value_ty, inferred)?;
+                let solved_then = self.adapt_join_branch(&value_ty, solved_then)?;
+                let solved_else = self.adapt_join_branch(&value_ty, solved_else)?;
+                let expr = Expr::typed(
                     ExprKind::If {
                         cond: Box::new(solved_cond),
                         then_branch: Box::new(solved_then),
                         else_branch: Box::new(solved_else),
                         evidence,
                     },
-                    ty,
-                ))
+                    value_ty,
+                );
+                let expr = attach_forced_effect(expr);
+                let ty = self.choose_known_type(materialized_ty, Some(expr.ty.clone()))?;
+                Ok(Expr::typed(expr.kind, ty))
             }
             ExprKind::Block { stmts, tail } => {
                 let mut block_env = env.clone();
@@ -726,6 +741,30 @@ impl BodyGraph {
         }
     }
 
+    fn adapt_join_branch(&self, expected: &RuntimeType, branch: Expr) -> FinalizeResult<Expr> {
+        let actual = runtime_value_type(&branch.ty);
+        if runtime_type_flows_to(expected, &actual) {
+            return Ok(branch);
+        }
+        if let Some((from, to)) = runtime_coercion(&actual, expected) {
+            return Ok(Expr::typed(
+                ExprKind::Coerce {
+                    from,
+                    to,
+                    expr: Box::new(branch),
+                },
+                expected.clone(),
+            ));
+        }
+        Err(FinalizeError::Diagnostic(
+            FinalizeDiagnostic::BodyResultMismatch {
+                binding: self.binding.clone(),
+                expected: expected.clone(),
+                actual,
+            },
+        ))
+    }
+
     fn require_closed_expr_type(&self, ty: RuntimeType) -> FinalizeResult<RuntimeType> {
         if runtime_type_is_closed(&ty) {
             Ok(ty)
@@ -737,6 +776,78 @@ impl BodyGraph {
                 },
             ))
         }
+    }
+}
+
+fn force_thunk_value(expr: Expr) -> Expr {
+    let RuntimeType::Thunk { value, .. } = expr.ty.clone() else {
+        return expr;
+    };
+    Expr::typed(
+        ExprKind::BindHere {
+            expr: Box::new(expr),
+        },
+        *value,
+    )
+}
+
+fn attach_forced_effect(expr: Expr) -> Expr {
+    let Some(effect) = expr_forced_effect(&expr).map(|effect| project_runtime_effect(&effect))
+    else {
+        return expr;
+    };
+    if !should_thunk_effect(&effect) {
+        return expr;
+    }
+    let value = expr.ty.clone();
+    Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value: value.clone(),
+            expr: Box::new(expr),
+        },
+        RuntimeType::Thunk {
+            effect,
+            value: Box::new(value),
+        },
+    )
+}
+
+fn runtime_type_flows_to(expected: &RuntimeType, actual: &RuntimeType) -> bool {
+    let actual = runtime_value_type(actual);
+    runtime_types_match(expected, &actual)
+        || matches!(actual, RuntimeType::Core(typed_ir::Type::Never))
+}
+
+fn runtime_coercion(
+    actual: &RuntimeType,
+    expected: &RuntimeType,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    match (actual, expected) {
+        (
+            RuntimeType::Core(actual @ typed_ir::Type::Named { .. }),
+            RuntimeType::Core(expected @ typed_ir::Type::Named { .. }),
+        ) if can_widen_runtime_value(actual, expected) => Some((actual.clone(), expected.clone())),
+        _ => None,
+    }
+}
+
+fn can_widen_runtime_value(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {
+    match (actual, expected) {
+        (
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+            typed_ir::Type::Named {
+                path: expected_path,
+                args: expected_args,
+            },
+        ) if actual_args.is_empty() && expected_args.is_empty() => {
+            actual_path != expected_path
+                && typed_ir::can_widen_named_paths(actual_path, expected_path)
+        }
+        _ => false,
     }
 }
 
@@ -1153,6 +1264,97 @@ mod tests {
         assert_eq!(solution.body.ty, RuntimeType::Core(some_int_type()));
     }
 
+    #[test]
+    fn body_graph_lifts_if_condition_effect_to_thunk_result() {
+        let effect = effect_row(&["junction"]);
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["choose_with_effectful_cond"]),
+                closed_param_types: vec![RuntimeType::Core(unit_type())],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: effect.clone(),
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph =
+            BodyGraph::from_binding_instance(&choose_with_effectful_cond_binding(), &principal)
+                .unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(
+            solution.body.ty,
+            RuntimeType::Thunk {
+                effect: effect.clone(),
+                value: Box::new(RuntimeType::Core(int_type())),
+            }
+        );
+        let ExprKind::Thunk { expr, .. } = &solution.body.kind else {
+            panic!("if should be lifted into an effect thunk");
+        };
+        let ExprKind::If { cond, .. } = &expr.kind else {
+            panic!("thunk body should remain an if");
+        };
+        assert!(matches!(cond.kind, ExprKind::BindHere { .. }));
+    }
+
+    #[test]
+    fn body_graph_coerces_if_branch_to_join_result_type() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["choose_float"]),
+                closed_param_types: vec![RuntimeType::Core(bool_type())],
+                closed_result_type: RuntimeType::Core(float_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&choose_float_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(float_type()));
+        let ExprKind::If { then_branch, .. } = &solution.body.kind else {
+            panic!("body should remain an if");
+        };
+        let ExprKind::Coerce { from, to, expr } = &then_branch.kind else {
+            panic!("int branch should be coerced to float");
+        };
+        assert_eq!(*from, simple_int_type());
+        assert_eq!(*to, float_type());
+        assert_eq!(expr.ty, RuntimeType::Core(simple_int_type()));
+    }
+
+    #[test]
+    fn body_graph_coerces_if_int_branch_to_frac_result_type() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["choose_frac"]),
+                closed_param_types: vec![RuntimeType::Core(bool_type())],
+                closed_result_type: RuntimeType::Core(frac_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: Vec::new(),
+        };
+
+        let graph = BodyGraph::from_binding_instance(&choose_frac_binding(), &principal).unwrap();
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(frac_type()));
+        let ExprKind::If { then_branch, .. } = &solution.body.kind else {
+            panic!("body should remain an if");
+        };
+        let ExprKind::Coerce { from, to, expr } = &then_branch.kind else {
+            panic!("int branch should be coerced to frac");
+        };
+        assert_eq!(*from, simple_int_type());
+        assert_eq!(*to, frac_type());
+        assert_eq!(expr.ty, RuntimeType::Core(simple_int_type()));
+    }
+
     fn id_binding() -> Binding {
         Binding {
             name: path(&["id"]),
@@ -1245,6 +1447,144 @@ mod tests {
                                 RuntimeType::Unknown,
                             )),
                             field: typed_ir::Name("answer".into()),
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn choose_with_effectful_cond_binding() -> Binding {
+        let effect = effect_row(&["junction"]);
+        Binding {
+            name: path(&["choose_with_effectful_cond"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: typed_ir::Type::Fun {
+                    param: Box::new(unit_type()),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(effect.clone()),
+                    ret: Box::new(int_type()),
+                },
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_unit".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::If {
+                            cond: Box::new(Expr::typed(
+                                ExprKind::Apply {
+                                    callee: Box::new(Expr::typed(
+                                        ExprKind::Var(path(&["make_flag"])),
+                                        RuntimeType::Fun {
+                                            param: Box::new(RuntimeType::Core(unit_type())),
+                                            ret: Box::new(RuntimeType::Thunk {
+                                                effect: effect.clone(),
+                                                value: Box::new(RuntimeType::Core(bool_type())),
+                                            }),
+                                        },
+                                    )),
+                                    arg: Box::new(Expr::typed(
+                                        ExprKind::Var(path(&["_unit"])),
+                                        RuntimeType::Core(unit_type()),
+                                    )),
+                                    evidence: None,
+                                    instantiation: None,
+                                },
+                                RuntimeType::Unknown,
+                            )),
+                            then_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(int_type()),
+                            )),
+                            else_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("0".into())),
+                                RuntimeType::Core(int_type()),
+                            )),
+                            evidence: Some(yulang_runtime_ir::JoinEvidence { result: int_type() }),
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn choose_float_binding() -> Binding {
+        Binding {
+            name: path(&["choose_float"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(bool_type(), float_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("flag".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::If {
+                            cond: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["flag"])),
+                                RuntimeType::Core(bool_type()),
+                            )),
+                            then_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(simple_int_type()),
+                            )),
+                            else_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Float("2.0".into())),
+                                RuntimeType::Core(float_type()),
+                            )),
+                            evidence: Some(yulang_runtime_ir::JoinEvidence {
+                                result: float_type(),
+                            }),
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn choose_frac_binding() -> Binding {
+        Binding {
+            name: path(&["choose_frac"]),
+            type_params: Vec::new(),
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(bool_type(), frac_type()),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("flag".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::If {
+                            cond: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["flag"])),
+                                RuntimeType::Core(bool_type()),
+                            )),
+                            then_branch: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(simple_int_type()),
+                            )),
+                            else_branch: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["existing_frac"])),
+                                RuntimeType::Core(frac_type()),
+                            )),
+                            evidence: Some(yulang_runtime_ir::JoinEvidence {
+                                result: frac_type(),
+                            }),
                         },
                         RuntimeType::Unknown,
                     )),
@@ -1599,6 +1939,27 @@ mod tests {
     fn bool_type() -> typed_ir::Type {
         typed_ir::Type::Named {
             path: path(&["std", "bool", "Bool"]),
+            args: Vec::new(),
+        }
+    }
+
+    fn simple_int_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["int"]),
+            args: Vec::new(),
+        }
+    }
+
+    fn float_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["float"]),
+            args: Vec::new(),
+        }
+    }
+
+    fn frac_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "frac", "frac"]),
             args: Vec::new(),
         }
     }
