@@ -12,7 +12,8 @@ pub fn finalize_root_bindings(
     mut module: Module,
     requests: impl IntoIterator<Item = RootBindingRequest>,
 ) -> FinalizeResult<FinalizeOutput> {
-    let mut planner = InstancePlanner::new(module.bindings.clone());
+    let mut planner =
+        InstancePlanner::new_with_roles(module.bindings.clone(), module.role_impls.clone());
     let mut roots = Vec::new();
     for request in requests {
         let key = planner.request_root(&request.binding, request.arg_lower)?;
@@ -39,7 +40,8 @@ pub fn finalize_root_bindings(
 }
 
 pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<FinalizeOutput> {
-    let mut planner = InstancePlanner::new(module.bindings.clone());
+    let mut planner =
+        InstancePlanner::new_with_roles(module.bindings.clone(), module.role_impls.clone());
     let mut roots = Vec::new();
     for (index, expr) in module.root_exprs.iter().enumerate() {
         let Some((binding, arg_lower)) = simple_root_apply(expr) else {
@@ -319,6 +321,47 @@ mod tests {
         );
     }
 
+    #[test]
+    fn finalize_simple_root_exprs_uses_module_role_impls() {
+        let module = Module {
+            path: path(&["test"]),
+            bindings: vec![index_value_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(path(&["index_value"])),
+                        RuntimeType::Unknown,
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::String("a\nb".into())),
+                        RuntimeType::Core(lines_type(typed_ir::Type::Never)),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: vec![index_lines_bool_impl()],
+        };
+
+        let output = finalize_simple_root_exprs(module).unwrap();
+
+        assert_eq!(output.module.bindings.len(), 2);
+        assert_eq!(
+            output.module.bindings[1].name,
+            path(&["index_value", "mono0"])
+        );
+        assert_eq!(
+            output.module.root_exprs[0].ty,
+            RuntimeType::Core(bool_type())
+        );
+        assert_eq!(
+            output.report.root_instances[0].alias,
+            path(&["index_value", "mono0"])
+        );
+    }
+
     fn id_binding() -> Binding {
         Binding {
             name: path(&["id"]),
@@ -384,6 +427,63 @@ mod tests {
         }
     }
 
+    fn index_value_binding() -> Binding {
+        Binding {
+            name: path(&["index_value"]),
+            type_params: vec![
+                typed_ir::TypeVar("input".into()),
+                typed_ir::TypeVar("value".into()),
+            ],
+            scheme: typed_ir::Scheme {
+                requirements: vec![typed_ir::RoleRequirement {
+                    role: path(&["std", "index", "Index"]),
+                    args: vec![
+                        typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::lower(
+                            typed_ir::Type::Var(typed_ir::TypeVar("input".into())),
+                        )),
+                        typed_ir::RoleRequirementArg::Associated {
+                            name: typed_ir::Name("value".into()),
+                            bounds: typed_ir::TypeBounds::lower(typed_ir::Type::Var(
+                                typed_ir::TypeVar("value".into()),
+                            )),
+                        },
+                    ],
+                }],
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("input".into())),
+                    typed_ir::Type::Var(typed_ir::TypeVar("value".into())),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("_input".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar("value".into()))),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn index_lines_bool_impl() -> typed_ir::RoleImplGraphNode {
+        typed_ir::RoleImplGraphNode {
+            role: path(&["std", "index", "Index"]),
+            inputs: vec![typed_ir::TypeBounds::lower(lines_type(
+                typed_ir::Type::Var(typed_ir::TypeVar("e".into())),
+            ))],
+            associated_types: vec![typed_ir::RecordField {
+                name: typed_ir::Name("value".into()),
+                value: typed_ir::TypeBounds::lower(bool_type()),
+                optional: false,
+            }],
+            members: Vec::new(),
+        }
+    }
+
     fn function_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
         typed_ir::Type::Fun {
             param: Box::new(param),
@@ -404,6 +504,13 @@ mod tests {
         typed_ir::Type::Named {
             path: path(&["std", "bool", "Bool"]),
             args: Vec::new(),
+        }
+    }
+
+    fn lines_type(effect: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "string", "Lines"]),
+            args: vec![typed_ir::TypeArg::Type(effect)],
         }
     }
 

@@ -5,6 +5,7 @@ use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{BodyIncompleteReason, FinalizeDiagnostic, FinalizeError, FinalizeResult};
 use crate::principal::{InstanceKey, PrincipalGraph, PrincipalSolution};
+use crate::role::RoleContext;
 use crate::types::{
     LowerSubstitutions, materialize_expr_type, path_as_local_name, runtime_type_is_closed,
     runtime_types_match,
@@ -19,6 +20,7 @@ pub struct BodyGraph {
     substitutions: LowerSubstitutions,
     initial_env: BTreeMap<typed_ir::Name, RuntimeType>,
     known_bindings: HashMap<typed_ir::Path, Binding>,
+    roles: Option<RoleContext>,
 }
 
 impl BodyGraph {
@@ -64,6 +66,7 @@ impl BodyGraph {
             substitutions,
             initial_env,
             known_bindings: HashMap::new(),
+            roles: None,
         })
     }
 
@@ -72,6 +75,11 @@ impl BodyGraph {
             .into_iter()
             .map(|binding| (binding.name.clone(), binding))
             .collect();
+        self
+    }
+
+    pub fn with_roles(mut self, roles: RoleContext) -> Self {
+        self.roles = Some(roles);
         self
     }
 
@@ -245,7 +253,8 @@ impl BodyGraph {
                 },
             ));
         }
-        let principal = PrincipalGraph::from_binding(binding)?.solve_call(arg.ty.clone())?;
+        let principal = PrincipalGraph::from_binding(binding)?
+            .solve_call_with_roles(arg.ty.clone(), self.roles.as_ref())?;
         let result_type = principal.key.closed_result_type.clone();
         Ok(NestedInstancePlan {
             key: principal.key.clone(),
