@@ -60,13 +60,21 @@ pub fn finalize_simple_root_exprs(mut module: Module) -> FinalizeResult<Finalize
         InstancePlanner::new_with_roles(module.bindings.clone(), module.role_impls.clone());
     let mut roots = Vec::new();
     for (index, expr) in module.root_exprs.iter().enumerate() {
-        let Some((binding, arg_lower)) = simple_root_apply(expr) else {
+        let Some(apply) = simple_root_apply(expr) else {
             continue;
         };
-        let target = resolve_root_target(&role_context, &binding_paths, binding, &arg_lower)?
-            .unwrap_or_else(|| binding.clone());
-        let key = planner.request_root(&target, arg_lower)?;
-        roots.push((index, binding.clone(), key));
+        let target = resolve_root_target(
+            &role_context,
+            &binding_paths,
+            apply.binding,
+            apply
+                .arg_lowers
+                .first()
+                .expect("root apply has at least one arg"),
+        )?
+        .unwrap_or_else(|| apply.binding.clone());
+        let key = planner.request_root_args(&target, apply.arg_lowers)?;
+        roots.push((index, apply.binding.clone(), key));
     }
 
     let plan = planner.run()?;
@@ -157,17 +165,33 @@ fn rewrite_unambiguous_roots(module: &mut Module, roots: &[RootInstance]) {
     }
 }
 
-fn simple_root_apply(expr: &yulang_runtime_ir::Expr) -> Option<(&typed_ir::Path, RuntimeType)> {
-    let yulang_runtime_ir::ExprKind::Apply { callee, arg, .. } = &expr.kind else {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RootApply<'a> {
+    binding: &'a typed_ir::Path,
+    arg_lowers: Vec<RuntimeType>,
+}
+
+fn simple_root_apply(expr: &yulang_runtime_ir::Expr) -> Option<RootApply<'_>> {
+    let mut args = Vec::new();
+    let mut current = expr;
+    while let yulang_runtime_ir::ExprKind::Apply { callee, arg, .. } = &current.kind {
+        if !runtime_type_is_closed_for_root(&arg.ty) {
+            return None;
+        }
+        args.push(arg.ty.clone());
+        current = callee;
+    }
+    args.reverse();
+    let yulang_runtime_ir::ExprKind::Var(path) = &current.kind else {
         return None;
     };
-    let yulang_runtime_ir::ExprKind::Var(path) = &callee.kind else {
-        return None;
-    };
-    if !runtime_type_is_closed_for_root(&arg.ty) {
+    if args.is_empty() {
         return None;
     }
-    Some((path, arg.ty.clone()))
+    Some(RootApply {
+        binding: path,
+        arg_lowers: args,
+    })
 }
 
 fn rewrite_simple_root_apply(
@@ -175,16 +199,53 @@ fn rewrite_simple_root_apply(
     key: &crate::InstanceKey,
     alias: typed_ir::Path,
 ) -> FinalizeResult<()> {
-    let yulang_runtime_ir::ExprKind::Apply { callee, arg, .. } = &mut expr.kind else {
-        return Ok(());
-    };
-    callee.kind = yulang_runtime_ir::ExprKind::Var(alias);
-    callee.ty = RuntimeType::Fun {
-        param: Box::new(arg.ty.clone()),
-        ret: Box::new(key.closed_result_type.clone()),
-    };
+    let arg_lowers = key.closed_param_types.clone();
+    rewrite_root_apply_chain(expr, alias, &arg_lowers, &key.closed_result_type);
     expr.ty = key.closed_result_type.clone();
     Ok(())
+}
+
+fn rewrite_root_apply_chain(
+    expr: &mut yulang_runtime_ir::Expr,
+    alias: typed_ir::Path,
+    params: &[RuntimeType],
+    result: &RuntimeType,
+) -> usize {
+    match &mut expr.kind {
+        yulang_runtime_ir::ExprKind::Apply { callee, .. } => {
+            let applied = rewrite_root_apply_chain(callee, alias, params, result) + 1;
+            expr.ty = runtime_result_after_args(params, result, applied);
+            applied
+        }
+        yulang_runtime_ir::ExprKind::Var(path) => {
+            *path = alias;
+            expr.ty = runtime_function_chain_type(params, result.clone());
+            0
+        }
+        _ => 0,
+    }
+}
+
+fn runtime_function_chain_type(params: &[RuntimeType], result: RuntimeType) -> RuntimeType {
+    params
+        .iter()
+        .rev()
+        .fold(result, |ret, param| RuntimeType::Fun {
+            param: Box::new(param.clone()),
+            ret: Box::new(ret),
+        })
+}
+
+fn runtime_result_after_args(
+    params: &[RuntimeType],
+    result: &RuntimeType,
+    applied: usize,
+) -> RuntimeType {
+    if applied >= params.len() {
+        result.clone()
+    } else {
+        runtime_function_chain_type(&params[applied..], result.clone())
+    }
 }
 
 fn runtime_core_type_for_root(ty: &RuntimeType) -> Option<typed_ir::Type> {
@@ -381,6 +442,76 @@ mod tests {
     }
 
     #[test]
+    fn finalize_simple_root_exprs_emits_and_rewrites_curried_apply_root() {
+        let module = Module {
+            path: path(&["test"]),
+            bindings: vec![pair_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["pair"])),
+                                RuntimeType::Unknown,
+                            )),
+                            arg: Box::new(Expr::typed(
+                                ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                                RuntimeType::Core(int_type()),
+                            )),
+                            evidence: None,
+                            instantiation: None,
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                        RuntimeType::Core(bool_type()),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_simple_root_exprs(module).unwrap();
+
+        assert_eq!(output.module.bindings.len(), 2);
+        assert_eq!(output.module.bindings[1].name, path(&["pair", "mono0"]));
+        assert_eq!(
+            output.module.root_exprs[0].ty,
+            RuntimeType::Core(typed_ir::Type::Tuple(vec![int_type(), bool_type()]))
+        );
+        let ExprKind::Apply { callee, .. } = &output.module.root_exprs[0].kind else {
+            panic!("expected outer apply");
+        };
+        let ExprKind::Apply { callee, .. } = &callee.kind else {
+            panic!("expected inner apply");
+        };
+        let expected = path(&["pair", "mono0"]);
+        assert!(matches!(&callee.kind, ExprKind::Var(path) if path == &expected));
+        assert_eq!(
+            callee.ty,
+            RuntimeType::Fun {
+                param: Box::new(RuntimeType::Core(int_type())),
+                ret: Box::new(RuntimeType::Fun {
+                    param: Box::new(RuntimeType::Core(bool_type())),
+                    ret: Box::new(RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                        int_type(),
+                        bool_type()
+                    ]))),
+                }),
+            }
+        );
+        assert_eq!(
+            output.report.root_instances[0].alias,
+            path(&["pair", "mono0"])
+        );
+    }
+
+    #[test]
     fn finalize_simple_root_exprs_uses_module_role_impls() {
         let module = Module {
             path: path(&["test"]),
@@ -518,6 +649,59 @@ mod tests {
                             )),
                             evidence: None,
                             instantiation: None,
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn pair_binding() -> Binding {
+        Binding {
+            name: path(&["pair"]),
+            type_params: vec![typed_ir::TypeVar("a".into()), typed_ir::TypeVar("b".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    function_type(
+                        typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        typed_ir::Type::Tuple(vec![
+                            typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                            typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        ]),
+                    ),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lambda {
+                            param: typed_ir::Name("y".into()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(Expr::typed(
+                                ExprKind::Tuple(vec![
+                                    Expr::typed(
+                                        ExprKind::Var(path(&["x"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "a".into(),
+                                        ))),
+                                    ),
+                                    Expr::typed(
+                                        ExprKind::Var(path(&["y"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "b".into(),
+                                        ))),
+                                    ),
+                                ]),
+                                RuntimeType::Unknown,
+                            )),
                         },
                         RuntimeType::Unknown,
                     )),

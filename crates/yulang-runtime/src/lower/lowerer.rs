@@ -187,7 +187,10 @@ impl Lowerer<'_> {
                     }
                     let expected_core = core_type(expected);
                     require_same_type(expected_core, &ty, expected_source)?;
-                    if needs_runtime_coercion(expected_core, &ty) {
+                    if self
+                        .primitive_paths
+                        .needs_runtime_coercion(expected_core, &ty)
+                    {
                         let expr = Expr::typed(ExprKind::Lit(lit), ty);
                         return Ok(Expr::typed(
                             ExprKind::Coerce {
@@ -2684,7 +2687,10 @@ impl Lowerer<'_> {
                     expected.clone(),
                 ));
             }
-            if needs_runtime_coercion(&expected_core, &actual_core) {
+            if self
+                .primitive_paths
+                .needs_runtime_coercion(&expected_core, &actual_core)
+            {
                 let (expr, _) = force_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
                 return Ok(Expr::typed(
                     ExprKind::Coerce {

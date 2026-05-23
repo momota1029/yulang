@@ -46,9 +46,17 @@ impl InstancePlanner {
         binding: &typed_ir::Path,
         arg_lower: RuntimeType,
     ) -> FinalizeResult<InstanceKey> {
+        self.request_root_args(binding, vec![arg_lower])
+    }
+
+    pub fn request_root_args(
+        &mut self,
+        binding: &typed_ir::Path,
+        arg_lowers: Vec<RuntimeType>,
+    ) -> FinalizeResult<InstanceKey> {
         let binding = self.binding(binding)?.clone();
         let principal = PrincipalGraph::from_binding(&binding)?
-            .solve_call_with_roles(arg_lower, Some(&self.roles))?;
+            .solve_call_args_with_roles(arg_lowers, Some(&self.roles))?;
         let key = principal.key.clone();
         self.enqueue(principal);
         Ok(key)
@@ -162,6 +170,41 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(plan.finalized_instances.len(), 1);
+    }
+
+    #[test]
+    fn planner_finalizes_curried_root_request_args() {
+        let mut planner = InstancePlanner::new([pair_binding()]);
+        let root = planner
+            .request_root_args(
+                &path(&["pair"]),
+                vec![
+                    RuntimeType::Core(int_type()),
+                    RuntimeType::Core(bool_type()),
+                ],
+            )
+            .unwrap();
+        let plan = planner.run().unwrap();
+
+        assert_eq!(
+            root.closed_param_types,
+            vec![
+                RuntimeType::Core(int_type()),
+                RuntimeType::Core(bool_type())
+            ]
+        );
+        assert_eq!(
+            root.closed_result_type,
+            RuntimeType::Core(typed_ir::Type::Tuple(vec![int_type(), bool_type()]))
+        );
+        assert_eq!(plan.finalized_instances.len(), 1);
+        assert_eq!(
+            plan.finalized_instances[0].body.params,
+            vec![
+                (typed_ir::Name("x".into()), RuntimeType::Core(int_type())),
+                (typed_ir::Name("y".into()), RuntimeType::Core(bool_type()))
+            ]
+        );
     }
 
     #[test]
@@ -394,6 +437,59 @@ mod tests {
                     body: Box::new(Expr::typed(
                         ExprKind::Lit(typed_ir::Lit::Bool(true)),
                         RuntimeType::Core(bool_type()),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn pair_binding() -> Binding {
+        Binding {
+            name: path(&["pair"]),
+            type_params: vec![typed_ir::TypeVar("a".into()), typed_ir::TypeVar("b".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    function_type(
+                        typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        typed_ir::Type::Tuple(vec![
+                            typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                            typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        ]),
+                    ),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lambda {
+                            param: typed_ir::Name("y".into()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(Expr::typed(
+                                ExprKind::Tuple(vec![
+                                    Expr::typed(
+                                        ExprKind::Var(path(&["x"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "a".into(),
+                                        ))),
+                                    ),
+                                    Expr::typed(
+                                        ExprKind::Var(path(&["y"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "b".into(),
+                                        ))),
+                                    ),
+                                ]),
+                                RuntimeType::Unknown,
+                            )),
+                        },
+                        RuntimeType::Unknown,
                     )),
                 },
                 RuntimeType::Unknown,

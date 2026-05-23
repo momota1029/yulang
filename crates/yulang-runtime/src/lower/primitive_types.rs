@@ -6,6 +6,7 @@ type PrimitiveTypeFamily = typed_ir::PrimitiveTypeFamily;
 #[derive(Debug, Clone)]
 pub(super) struct RuntimePrimitivePathTable {
     types: HashMap<PrimitiveTypeFamily, typed_ir::Path>,
+    type_order: typed_ir::PrimitiveTypeOrder,
 }
 
 impl RuntimePrimitivePathTable {
@@ -13,6 +14,7 @@ impl RuntimePrimitivePathTable {
         let mut types = HashMap::new();
         for family in [
             PrimitiveTypeFamily::Int,
+            PrimitiveTypeFamily::Frac,
             PrimitiveTypeFamily::Float,
             PrimitiveTypeFamily::Bool,
             PrimitiveTypeFamily::Unit,
@@ -26,7 +28,10 @@ impl RuntimePrimitivePathTable {
         ] {
             types.insert(family, standard_primitive_type_path(family));
         }
-        Self { types }
+        Self {
+            types,
+            type_order: typed_ir::PrimitiveTypeOrder::standard(),
+        }
     }
 
     pub(super) fn from_graph(graph: &typed_ir::CoreGraphView) -> Self {
@@ -34,6 +39,8 @@ impl RuntimePrimitivePathTable {
         for node in &graph.primitive_types {
             table.types.insert(node.family, node.path.clone());
         }
+        table.type_order =
+            typed_ir::PrimitiveTypeOrder::from_primitive_types(&graph.primitive_types);
         table
     }
 
@@ -67,6 +74,14 @@ impl RuntimePrimitivePathTable {
         }
     }
 
+    pub(super) fn needs_runtime_coercion(
+        &self,
+        expected: &typed_ir::Type,
+        actual: &typed_ir::Type,
+    ) -> bool {
+        crate::types::needs_runtime_coercion_with_order(&self.type_order, expected, actual)
+    }
+
     fn primitive_type_path(&self, family: PrimitiveTypeFamily) -> typed_ir::Path {
         self.types
             .get(&family)
@@ -94,6 +109,7 @@ pub(super) fn unit_type() -> typed_ir::Type {
 fn standard_primitive_type_path(family: PrimitiveTypeFamily) -> typed_ir::Path {
     match family {
         PrimitiveTypeFamily::Int => bare_path("int"),
+        PrimitiveTypeFamily::Frac => std_path("frac", "frac"),
         PrimitiveTypeFamily::Float => bare_path("float"),
         PrimitiveTypeFamily::Bool => bare_path("bool"),
         PrimitiveTypeFamily::Unit => bare_path("unit"),

@@ -24,35 +24,46 @@ pub struct InstanceKey {
 pub struct PrincipalGraph {
     original_binding: typed_ir::Path,
     requirements: Vec<typed_ir::RoleRequirement>,
-    param: typed_ir::Type,
-    param_effect: typed_ir::Type,
-    effect_lane: EffectLane,
+    params: Vec<typed_ir::Type>,
+    param_effects: Vec<typed_ir::Type>,
+    ret_effects: Vec<typed_ir::Type>,
     ret: typed_ir::Type,
 }
 
 impl PrincipalGraph {
     pub fn from_binding(binding: &Binding) -> FinalizeResult<Self> {
-        match &binding.scheme.body {
-            typed_ir::Type::Fun {
-                param,
-                param_effect,
-                ret_effect,
-                ret,
-            } => Ok(Self {
-                original_binding: binding.name.clone(),
-                requirements: binding.scheme.requirements.clone(),
-                param: (**param).clone(),
-                param_effect: (**param_effect).clone(),
-                effect_lane: EffectLane::from_return_effect((**ret_effect).clone()),
-                ret: (**ret).clone(),
-            }),
-            body => Err(FinalizeError::Diagnostic(
+        let mut params = Vec::new();
+        let mut param_effects = Vec::new();
+        let mut ret_effects = Vec::new();
+        let mut current = &binding.scheme.body;
+        while let typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } = current
+        {
+            params.push((**param).clone());
+            param_effects.push((**param_effect).clone());
+            ret_effects.push((**ret_effect).clone());
+            current = ret;
+        }
+        if params.is_empty() {
+            return Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::PrincipalTypeIsNotCallable {
                     binding: binding.name.clone(),
-                    actual: body.clone(),
+                    actual: binding.scheme.body.clone(),
                 },
-            )),
+            ));
         }
+        Ok(Self {
+            original_binding: binding.name.clone(),
+            requirements: binding.scheme.requirements.clone(),
+            params,
+            param_effects,
+            ret_effects,
+            ret: current.clone(),
+        })
     }
 
     pub fn solve_call(&self, arg_lower: RuntimeType) -> FinalizeResult<PrincipalSolution> {
@@ -64,24 +75,46 @@ impl PrincipalGraph {
         arg_lower: RuntimeType,
         roles: Option<&RoleContext>,
     ) -> FinalizeResult<PrincipalSolution> {
+        self.solve_call_args_with_roles(vec![arg_lower], roles)
+    }
+
+    pub fn solve_call_args_with_roles(
+        &self,
+        arg_lowers: Vec<RuntimeType>,
+        roles: Option<&RoleContext>,
+    ) -> FinalizeResult<PrincipalSolution> {
         let mut substitutions = LowerSubstitutions::default();
-        unify_runtime_with_core(&mut substitutions, &self.param, &arg_lower)?;
-        if let Some(roles) = roles {
-            solve_role_associated_lowers(&mut substitutions, roles, &self.requirements)?;
-        }
-        let closed_param =
-            materialize_runtime_type(RuntimeType::Core(self.param.clone()), &substitutions);
-        if !runtime_type_is_closed(&closed_param) {
+        if arg_lowers.is_empty() || arg_lowers.len() > self.params.len() {
             return Err(FinalizeError::Diagnostic(
-                FinalizeDiagnostic::IncompletePrincipalInstance {
+                FinalizeDiagnostic::PrincipalTypeIsNotCallable {
                     binding: self.original_binding.clone(),
-                    reason: PrincipalIncompleteReason::OpenParameter,
+                    actual: self.principal_type(),
                 },
             ));
         }
+        for (param, arg_lower) in self.params.iter().zip(&arg_lowers) {
+            unify_runtime_with_core(&mut substitutions, param, arg_lower)?;
+        }
+        if let Some(roles) = roles {
+            solve_role_associated_lowers(&mut substitutions, roles, &self.requirements)?;
+        }
+        let mut closed_params = Vec::with_capacity(arg_lowers.len());
+        for param in self.params.iter().take(arg_lowers.len()) {
+            let closed_param =
+                materialize_runtime_type(RuntimeType::Core(param.clone()), &substitutions);
+            if !runtime_type_is_closed(&closed_param) {
+                return Err(FinalizeError::Diagnostic(
+                    FinalizeDiagnostic::IncompletePrincipalInstance {
+                        binding: self.original_binding.clone(),
+                        reason: PrincipalIncompleteReason::OpenParameter,
+                    },
+                ));
+            }
+            closed_params.push(closed_param);
+        }
 
-        let closed_result =
-            materialize_runtime_type(RuntimeType::Core(self.ret.clone()), &substitutions);
+        let result = self.result_after_args(arg_lowers.len());
+        let closed_result = materialize_runtime_type(RuntimeType::Core(result), &substitutions);
         if !runtime_type_is_closed(&closed_result) {
             return Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::IncompletePrincipalInstance {
@@ -91,7 +124,9 @@ impl PrincipalGraph {
             ));
         }
 
-        let effect = self.effect_lane.solve(&substitutions);
+        let effect_lane =
+            EffectLane::from_return_effect(self.ret_effects[arg_lowers.len() - 1].clone());
+        let effect = effect_lane.solve(&substitutions);
         if !effect.is_closed {
             return Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::IncompletePrincipalInstance {
@@ -103,7 +138,7 @@ impl PrincipalGraph {
 
         let key = InstanceKey {
             original_binding: self.original_binding.clone(),
-            closed_param_types: vec![closed_param],
+            closed_param_types: closed_params,
             closed_result_type: closed_result,
             closed_effect: effect.closed_effect,
             captured_env_shape: None,
@@ -116,7 +151,33 @@ impl PrincipalGraph {
     }
 
     pub fn param_effect(&self) -> &typed_ir::Type {
-        &self.param_effect
+        &self.param_effects[0]
+    }
+
+    fn result_after_args(&self, arg_count: usize) -> typed_ir::Type {
+        let mut result = self.ret.clone();
+        for index in (arg_count..self.params.len()).rev() {
+            result = typed_ir::Type::Fun {
+                param: Box::new(self.params[index].clone()),
+                param_effect: Box::new(self.param_effects[index].clone()),
+                ret_effect: Box::new(self.ret_effects[index].clone()),
+                ret: Box::new(result),
+            };
+        }
+        result
+    }
+
+    fn principal_type(&self) -> typed_ir::Type {
+        let mut result = self.ret.clone();
+        for index in (0..self.params.len()).rev() {
+            result = typed_ir::Type::Fun {
+                param: Box::new(self.params[index].clone()),
+                param_effect: Box::new(self.param_effects[index].clone()),
+                ret_effect: Box::new(self.ret_effects[index].clone()),
+                ret: Box::new(result),
+            };
+        }
+        result
     }
 }
 
@@ -295,6 +356,39 @@ mod tests {
     }
 
     #[test]
+    fn principal_graph_closes_curried_instance_from_argument_lowers() {
+        let binding = pair_binding();
+        let graph = PrincipalGraph::from_binding(&binding).unwrap();
+
+        let solution = graph
+            .solve_call_args_with_roles(
+                vec![
+                    RuntimeType::Core(int_type()),
+                    RuntimeType::Core(bool_type()),
+                ],
+                None,
+            )
+            .unwrap();
+
+        assert_eq!(
+            solution.key,
+            InstanceKey {
+                original_binding: path(&["pair"]),
+                closed_param_types: vec![
+                    RuntimeType::Core(int_type()),
+                    RuntimeType::Core(bool_type())
+                ],
+                closed_result_type: RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                    int_type(),
+                    bool_type(),
+                ])),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            }
+        );
+    }
+
+    #[test]
     fn principal_graph_rejects_open_result() {
         let binding = const_open_binding();
         let graph = PrincipalGraph::from_binding(&binding).unwrap();
@@ -346,6 +440,27 @@ mod tests {
         }
     }
 
+    fn pair_binding() -> Binding {
+        Binding {
+            name: path(&["pair"]),
+            type_params: vec![typed_ir::TypeVar("a".into()), typed_ir::TypeVar("b".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    function_type(
+                        typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        typed_ir::Type::Tuple(vec![
+                            typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                            typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        ]),
+                    ),
+                ),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        }
+    }
+
     fn const_open_binding() -> Binding {
         Binding {
             name: path(&["open"]),
@@ -360,6 +475,15 @@ mod tests {
                 },
             },
             body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        }
+    }
+
+    fn function_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
+            param: Box::new(param),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(ret),
         }
     }
 

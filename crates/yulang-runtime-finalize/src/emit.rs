@@ -46,13 +46,11 @@ impl InstanceAliases {
     }
 
     fn alias_for_call(&self, path: &typed_ir::Path, ty: &RuntimeType) -> Option<&typed_ir::Path> {
-        let RuntimeType::Fun { param, ret } = ty else {
-            return None;
-        };
+        let (params, result) = runtime_function_chain(ty)?;
         self.by_call.get(&InstanceCallKey {
             original_binding: path.clone(),
-            param: (**param).clone(),
-            result: (**ret).clone(),
+            params,
+            result,
         })
     }
 }
@@ -60,7 +58,7 @@ impl InstanceAliases {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct InstanceCallKey {
     original_binding: typed_ir::Path,
-    param: RuntimeType,
+    params: Vec<RuntimeType>,
     result: RuntimeType,
 }
 
@@ -68,11 +66,7 @@ impl InstanceCallKey {
     fn from_instance(key: &InstanceKey) -> Self {
         Self {
             original_binding: key.original_binding.clone(),
-            param: key
-                .closed_param_types
-                .first()
-                .cloned()
-                .unwrap_or(RuntimeType::Unknown),
+            params: key.closed_param_types.clone(),
             result: key.closed_result_type.clone(),
         }
     }
@@ -83,33 +77,24 @@ fn emit_instance_binding(instance: &FinalizedInstance, aliases: &InstanceAliases
         .alias_for(&instance.key)
         .cloned()
         .unwrap_or_else(|| instance.key.original_binding.clone());
-    let param_type = instance.body.param_type.clone();
+    let params = solution_params(&instance.body);
+    let param_types = params.iter().map(|(_, ty)| ty.clone()).collect::<Vec<_>>();
     let runtime_result_type = instance.body.result_type.clone();
     let scheme_result_type = instance.key.closed_result_type.clone();
     let body = rewrite_expr_aliases(instance.body.body.clone(), aliases);
+    let body = wrap_lambdas(params, body, runtime_result_type.clone());
     Binding {
         name: alias,
         type_params: Vec::new(),
         scheme: typed_ir::Scheme {
             requirements: Vec::new(),
-            body: function_scheme_type(
-                &param_type,
+            body: function_scheme_type_chain(
+                &param_types,
                 &instance.key.closed_effect,
                 &scheme_result_type,
             ),
         },
-        body: Expr::typed(
-            ExprKind::Lambda {
-                param: instance.body.param.clone(),
-                param_effect_annotation: None,
-                param_function_allowed_effects: None,
-                body: Box::new(body),
-            },
-            RuntimeType::Fun {
-                param: Box::new(param_type),
-                ret: Box::new(runtime_result_type),
-            },
-        ),
+        body,
     }
 }
 
@@ -289,17 +274,26 @@ fn rewrite_record_spread_aliases(
     }
 }
 
-fn function_scheme_type(
-    param: &RuntimeType,
+fn function_scheme_type_chain(
+    params: &[RuntimeType],
     effect: &typed_ir::Type,
     result: &RuntimeType,
 ) -> typed_ir::Type {
-    typed_ir::Type::Fun {
-        param: Box::new(runtime_type_core_or_unknown(param)),
-        param_effect: Box::new(typed_ir::Type::Never),
-        ret_effect: Box::new(effect.clone()),
-        ret: Box::new(runtime_type_core_or_unknown(result)),
+    let mut ret = runtime_type_core_or_unknown(result);
+    for (index, param) in params.iter().enumerate().rev() {
+        let ret_effect = if index + 1 == params.len() {
+            effect.clone()
+        } else {
+            typed_ir::Type::Never
+        };
+        ret = typed_ir::Type::Fun {
+            param: Box::new(runtime_type_core_or_unknown(param)),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(ret_effect),
+            ret: Box::new(ret),
+        };
     }
+    ret
 }
 
 fn runtime_type_core_or_unknown(ty: &RuntimeType) -> typed_ir::Type {
@@ -308,6 +302,54 @@ fn runtime_type_core_or_unknown(ty: &RuntimeType) -> typed_ir::Type {
         RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => {
             typed_ir::Type::Unknown
         }
+    }
+}
+
+fn solution_params(solution: &crate::BodySolution) -> Vec<(typed_ir::Name, RuntimeType)> {
+    if solution.params.is_empty() {
+        vec![(solution.param.clone(), solution.param_type.clone())]
+    } else {
+        solution.params.clone()
+    }
+}
+
+fn wrap_lambdas(
+    params: Vec<(typed_ir::Name, RuntimeType)>,
+    body: Expr,
+    result_type: RuntimeType,
+) -> Expr {
+    let mut expr = body;
+    let mut ret_type = result_type;
+    for (param, param_type) in params.into_iter().rev() {
+        let lambda_type = RuntimeType::Fun {
+            param: Box::new(param_type.clone()),
+            ret: Box::new(ret_type),
+        };
+        expr = Expr::typed(
+            ExprKind::Lambda {
+                param,
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(expr),
+            },
+            lambda_type.clone(),
+        );
+        ret_type = lambda_type;
+    }
+    expr
+}
+
+fn runtime_function_chain(ty: &RuntimeType) -> Option<(Vec<RuntimeType>, RuntimeType)> {
+    let mut params = Vec::new();
+    let mut current = ty;
+    while let RuntimeType::Fun { param, ret } = current {
+        params.push((**param).clone());
+        current = ret;
+    }
+    if params.is_empty() {
+        None
+    } else {
+        Some((params, current.clone()))
     }
 }
 
@@ -346,6 +388,61 @@ mod tests {
     }
 
     #[test]
+    fn emit_instance_bindings_wraps_curried_instance_params() {
+        let plan = InstancePlan {
+            finalized_instances: vec![FinalizedInstance {
+                key: InstanceKey {
+                    original_binding: path(&["pair"]),
+                    closed_param_types: vec![
+                        RuntimeType::Core(int_type()),
+                        RuntimeType::Core(bool_type()),
+                    ],
+                    closed_result_type: RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                        int_type(),
+                        bool_type(),
+                    ])),
+                    closed_effect: typed_ir::Type::Never,
+                    captured_env_shape: None,
+                },
+                body: BodySolution {
+                    param: typed_ir::Name("x".into()),
+                    param_type: RuntimeType::Core(int_type()),
+                    params: vec![
+                        (typed_ir::Name("x".into()), RuntimeType::Core(int_type())),
+                        (typed_ir::Name("y".into()), RuntimeType::Core(bool_type())),
+                    ],
+                    body: Expr::typed(
+                        ExprKind::Tuple(vec![
+                            Expr::typed(ExprKind::Var(path(&["x"])), RuntimeType::Core(int_type())),
+                            Expr::typed(
+                                ExprKind::Var(path(&["y"])),
+                                RuntimeType::Core(bool_type()),
+                            ),
+                        ]),
+                        RuntimeType::Core(typed_ir::Type::Tuple(vec![int_type(), bool_type()])),
+                    ),
+                    result_type: RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                        int_type(),
+                        bool_type(),
+                    ])),
+                    nested_instances: Vec::new(),
+                },
+            }],
+            report: crate::FinalizeReport::default(),
+        };
+
+        let emitted = emit_instance_bindings(&plan);
+
+        let ExprKind::Lambda { body, .. } = &emitted[0].body.kind else {
+            panic!("expected first lambda");
+        };
+        let ExprKind::Lambda { body, .. } = &body.kind else {
+            panic!("expected second lambda");
+        };
+        assert!(matches!(body.kind, ExprKind::Tuple(_)));
+    }
+
+    #[test]
     fn emit_instance_bindings_rewrites_nested_callee_inside_thunk() {
         let plan = InstancePlan {
             finalized_instances: vec![
@@ -360,6 +457,7 @@ mod tests {
                     body: BodySolution {
                         param: typed_ir::Name("x".into()),
                         param_type: RuntimeType::Core(int_type()),
+                        params: vec![(typed_ir::Name("x".into()), RuntimeType::Core(int_type()))],
                         body: Expr::typed(
                             ExprKind::Thunk {
                                 effect: io_effect(),
@@ -406,6 +504,7 @@ mod tests {
                     body: BodySolution {
                         param: typed_ir::Name("x".into()),
                         param_type: RuntimeType::Core(int_type()),
+                        params: vec![(typed_ir::Name("x".into()), RuntimeType::Core(int_type()))],
                         body: Expr::typed(
                             ExprKind::Var(path(&["x"])),
                             RuntimeType::Core(int_type()),
@@ -509,6 +608,13 @@ mod tests {
     fn int_type() -> typed_ir::Type {
         typed_ir::Type::Named {
             path: path(&["std", "int", "Int"]),
+            args: Vec::new(),
+        }
+    }
+
+    fn bool_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "bool", "Bool"]),
             args: Vec::new(),
         }
     }

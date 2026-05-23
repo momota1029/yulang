@@ -335,7 +335,7 @@ fn runtime_type_from_scheme(ty: &typed_ir::Type) -> RuntimeType {
             ret,
             ..
         } => {
-            let ret = RuntimeType::Core(ret.as_ref().clone());
+            let ret = runtime_type_from_scheme(ret);
             let ret = if should_thunk_effect(ret_effect) {
                 RuntimeType::Thunk {
                     effect: ret_effect.as_ref().clone(),

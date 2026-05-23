@@ -1670,6 +1670,15 @@ mod tests {
             node.family == typed_ir::PrimitiveTypeFamily::Int
                 && node.path == typed_ir::Path::from_name(typed_ir::Name("int".to_string()))
         }));
+        assert!(program.graph.primitive_types.iter().any(|node| {
+            node.family == typed_ir::PrimitiveTypeFamily::Frac
+                && node.path
+                    == typed_ir::Path::new(vec![
+                        typed_ir::Name("std".to_string()),
+                        typed_ir::Name("frac".to_string()),
+                        typed_ir::Name("frac".to_string()),
+                    ])
+        }));
     }
 
     #[test]

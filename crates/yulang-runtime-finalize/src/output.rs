@@ -71,6 +71,10 @@ mod tests {
         let solution = BodySolution {
             param: typed_ir::Name("x".into()),
             param_type: RuntimeType::Core(typed_ir::Type::Tuple(Vec::new())),
+            params: vec![(
+                typed_ir::Name("x".into()),
+                RuntimeType::Core(typed_ir::Type::Tuple(Vec::new())),
+            )],
             body: yulang_runtime_ir::Expr::typed(
                 yulang_runtime_ir::ExprKind::Tuple(Vec::new()),
                 RuntimeType::Core(typed_ir::Type::Tuple(Vec::new())),

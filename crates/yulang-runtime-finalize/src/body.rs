@@ -20,7 +20,7 @@ use crate::types::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BodyGraph {
     binding: typed_ir::Path,
-    param: typed_ir::Name,
+    params: Vec<typed_ir::Name>,
     body: Expr,
     expected_result: RuntimeType,
     expected_effect: typed_ir::Type,
@@ -44,31 +44,42 @@ impl BodyGraph {
                 },
             ));
         }
-        let Some(param_type) = key.closed_param_types.first().cloned() else {
+        if key.closed_param_types.is_empty() {
             return Err(FinalizeError::Diagnostic(
                 FinalizeDiagnostic::UnsupportedBodyShape {
                     binding: binding.name.clone(),
                     reason: BodyIncompleteReason::MissingInstanceParameter,
                 },
             ));
-        };
-        let ExprKind::Lambda { param, body, .. } = &binding.body.kind else {
-            return Err(FinalizeError::Diagnostic(
-                FinalizeDiagnostic::UnsupportedBodyShape {
-                    binding: binding.name.clone(),
-                    reason: BodyIncompleteReason::NonLambdaBinding,
-                },
-            ));
-        };
+        }
 
         let substitutions = LowerSubstitutions::from_type_substitutions(&principal.substitutions)?;
+        let mut params = Vec::with_capacity(key.closed_param_types.len());
         let mut initial_env = BTreeMap::new();
-        initial_env.insert(param.clone(), param_type);
+        let mut body = &binding.body;
+        for param_type in &key.closed_param_types {
+            let ExprKind::Lambda {
+                param,
+                body: lambda_body,
+                ..
+            } = &body.kind
+            else {
+                return Err(FinalizeError::Diagnostic(
+                    FinalizeDiagnostic::UnsupportedBodyShape {
+                        binding: binding.name.clone(),
+                        reason: BodyIncompleteReason::NonLambdaBinding,
+                    },
+                ));
+            };
+            params.push(param.clone());
+            initial_env.insert(param.clone(), param_type.clone());
+            body = lambda_body;
+        }
 
         Ok(Self {
             binding: binding.name.clone(),
-            param: param.clone(),
-            body: (**body).clone(),
+            params,
+            body: body.clone(),
             expected_result: key.closed_result_type.clone(),
             expected_effect: key.closed_effect.clone(),
             substitutions,
@@ -109,12 +120,30 @@ impl BodyGraph {
         }
 
         Ok(BodySolution {
-            param: self.param.clone(),
+            param: self
+                .params
+                .first()
+                .cloned()
+                .unwrap_or_else(|| typed_ir::Name("_".into())),
             param_type: self
-                .initial_env
-                .get(&self.param)
+                .params
+                .first()
+                .and_then(|param| self.initial_env.get(param))
                 .cloned()
                 .unwrap_or(RuntimeType::Unknown),
+            params: self
+                .params
+                .iter()
+                .map(|param| {
+                    (
+                        param.clone(),
+                        self.initial_env
+                            .get(param)
+                            .cloned()
+                            .unwrap_or(RuntimeType::Unknown),
+                    )
+                })
+                .collect(),
             result_type: solved_body.ty.clone(),
             body: solved_body,
             nested_instances: dedupe_nested_instances(nested_instances),
@@ -291,34 +320,46 @@ impl BodyGraph {
                 evidence,
                 instantiation,
             } => {
-                let solved_arg = self.solve_expr(env, nested_instances, *arg)?;
-                if let Some(path) = callee_var_path(&callee) {
+                let chain = collect_apply_chain(*callee, *arg, evidence, instantiation);
+                let mut solved_args = Vec::with_capacity(chain.args.len());
+                for arg in chain.args {
+                    solved_args.push(SolvedApplyArg {
+                        arg: self.solve_expr(env, nested_instances, arg.arg)?,
+                        evidence: arg.evidence,
+                        instantiation: arg.instantiation,
+                    });
+                }
+                if let Some(path) = callee_var_path(&chain.callee) {
                     if let Some((target_path, binding)) =
-                        self.resolve_runtime_callee_binding(path, &solved_arg)?
+                        self.resolve_runtime_callee_binding(path, &solved_args[0].arg)?
                     {
-                        let nested = self.solve_nested_polymorphic_call(binding, &solved_arg)?;
+                        let arg_types = solved_args
+                            .iter()
+                            .map(|arg| arg.arg.ty.clone())
+                            .collect::<Vec<_>>();
+                        let nested = self.solve_nested_polymorphic_call(binding, &arg_types)?;
                         let ty = self.choose_known_type(
                             materialized_ty,
                             Some(nested.key.closed_result_type.clone()),
                         )?;
-                        let callee_ty = RuntimeType::Fun {
-                            param: Box::new(solved_arg.ty.clone()),
-                            ret: Box::new(ty.clone()),
-                        };
+                        let callee_ty = runtime_function_chain_type(&arg_types, ty.clone());
                         let solved_callee = Expr::typed(ExprKind::Var(target_path), callee_ty);
                         nested_instances.push(nested);
-                        return Ok(Expr::typed(
-                            ExprKind::Apply {
-                                callee: Box::new(solved_callee),
-                                arg: Box::new(solved_arg),
-                                evidence,
-                                instantiation,
-                            },
-                            ty,
-                        ));
+                        return Ok(rebuild_apply_chain(solved_callee, solved_args, ty));
                     }
                 }
-                let solved_callee = self.solve_expr(env, nested_instances, *callee)?;
+                let ApplyChain { callee, mut args } =
+                    rebuild_unsolved_apply_chain(chain.callee, solved_args);
+                let Some(first_arg) = args.pop() else {
+                    return Err(FinalizeError::Diagnostic(
+                        FinalizeDiagnostic::UnsupportedBodyShape {
+                            binding: self.binding.clone(),
+                            reason: BodyIncompleteReason::UnsupportedExpression,
+                        },
+                    ));
+                };
+                let solved_arg = first_arg.arg;
+                let solved_callee = self.solve_expr(env, nested_instances, callee)?;
                 if let Some((expected_arg, result)) = runtime_function_parts(&solved_callee.ty) {
                     let solved_arg_ty =
                         self.choose_known_type(solved_arg.ty.clone(), Some(expected_arg))?;
@@ -332,8 +373,8 @@ impl BodyGraph {
                         ExprKind::Apply {
                             callee: Box::new(solved_callee),
                             arg: Box::new(solved_arg),
-                            evidence,
-                            instantiation,
+                            evidence: first_arg.evidence,
+                            instantiation: first_arg.instantiation,
                         },
                         ty,
                     ));
@@ -651,7 +692,7 @@ impl BodyGraph {
     fn solve_nested_polymorphic_call(
         &self,
         binding: &Binding,
-        arg: &Expr,
+        arg_types: &[RuntimeType],
     ) -> FinalizeResult<NestedInstancePlan> {
         if binding.name == self.binding {
             return Err(FinalizeError::Diagnostic(
@@ -662,7 +703,7 @@ impl BodyGraph {
             ));
         }
         let principal = PrincipalGraph::from_binding(binding)?
-            .solve_call_with_roles(arg.ty.clone(), self.roles.as_ref())?;
+            .solve_call_args_with_roles(arg_types.to_vec(), self.roles.as_ref())?;
         let result_type = principal.key.closed_result_type.clone();
         Ok(NestedInstancePlan {
             key: principal.key.clone(),
@@ -916,9 +957,130 @@ fn callee_var_path(expr: &Expr) -> Option<&typed_ir::Path> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct ApplyChain {
+    callee: Expr,
+    args: Vec<ApplyArg>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ApplyArg {
+    arg: Expr,
+    evidence: Option<typed_ir::ApplyEvidence>,
+    instantiation: Option<yulang_runtime_ir::TypeInstantiation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SolvedApplyArg {
+    arg: Expr,
+    evidence: Option<typed_ir::ApplyEvidence>,
+    instantiation: Option<yulang_runtime_ir::TypeInstantiation>,
+}
+
+fn collect_apply_chain(
+    callee: Expr,
+    arg: Expr,
+    evidence: Option<typed_ir::ApplyEvidence>,
+    instantiation: Option<yulang_runtime_ir::TypeInstantiation>,
+) -> ApplyChain {
+    let mut args = vec![ApplyArg {
+        arg,
+        evidence,
+        instantiation,
+    }];
+    let mut callee = callee;
+    loop {
+        let ty = callee.ty;
+        match callee.kind {
+            ExprKind::Apply {
+                callee: next_callee,
+                arg,
+                evidence,
+                instantiation,
+            } => {
+                args.push(ApplyArg {
+                    arg: *arg,
+                    evidence,
+                    instantiation,
+                });
+                callee = *next_callee;
+            }
+            kind => {
+                args.reverse();
+                return ApplyChain {
+                    callee: Expr::typed(kind, ty),
+                    args,
+                };
+            }
+        }
+    }
+}
+
+fn rebuild_apply_chain(callee: Expr, args: Vec<SolvedApplyArg>, result: RuntimeType) -> Expr {
+    let mut expr = callee;
+    for arg in args {
+        let ret = runtime_function_parts(&expr.ty)
+            .map(|(_, ret)| ret)
+            .unwrap_or_else(|| result.clone());
+        expr = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(expr),
+                arg: Box::new(arg.arg),
+                evidence: arg.evidence,
+                instantiation: arg.instantiation,
+            },
+            ret,
+        );
+    }
+    if expr.ty == result {
+        expr
+    } else {
+        Expr::typed(expr.kind, result)
+    }
+}
+
+fn rebuild_unsolved_apply_chain(callee: Expr, mut args: Vec<SolvedApplyArg>) -> ApplyChain {
+    let Some(last) = args.pop() else {
+        return ApplyChain {
+            callee,
+            args: Vec::new(),
+        };
+    };
+    let callee = args.into_iter().fold(callee, |callee, arg| {
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg.arg),
+                evidence: arg.evidence,
+                instantiation: arg.instantiation,
+            },
+            RuntimeType::Unknown,
+        )
+    });
+    ApplyChain {
+        callee,
+        args: vec![ApplyArg {
+            arg: last.arg,
+            evidence: last.evidence,
+            instantiation: last.instantiation,
+        }],
+    }
+}
+
+fn runtime_function_chain_type(params: &[RuntimeType], result: RuntimeType) -> RuntimeType {
+    params
+        .iter()
+        .rev()
+        .fold(result, |ret, param| RuntimeType::Fun {
+            param: Box::new(param.clone()),
+            ret: Box::new(ret),
+        })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BodySolution {
     pub param: typed_ir::Name,
     pub param_type: RuntimeType,
+    pub params: Vec<(typed_ir::Name, RuntimeType)>,
     pub body: Expr,
     pub result_type: RuntimeType,
     pub nested_instances: Vec<NestedInstancePlan>,
@@ -1022,6 +1184,81 @@ mod tests {
                 original_binding: path(&["id"]),
                 closed_param_types: vec![RuntimeType::Core(int_type())],
                 closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            }
+        );
+    }
+
+    #[test]
+    fn body_graph_records_nested_curried_polymorphic_call_instance() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["use_pair"]),
+                closed_param_types: vec![
+                    RuntimeType::Core(int_type()),
+                    RuntimeType::Core(bool_type()),
+                ],
+                closed_result_type: RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                    int_type(),
+                    bool_type(),
+                ])),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: vec![
+                typed_ir::TypeSubstitution {
+                    var: typed_ir::TypeVar("a".into()),
+                    ty: int_type(),
+                },
+                typed_ir::TypeSubstitution {
+                    var: typed_ir::TypeVar("b".into()),
+                    ty: bool_type(),
+                },
+            ],
+        };
+
+        let graph = BodyGraph::from_binding_instance(&use_pair_binding(), &principal)
+            .unwrap()
+            .with_known_bindings([pair_binding()]);
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(
+            solution.body.ty,
+            RuntimeType::Core(typed_ir::Type::Tuple(vec![int_type(), bool_type()]))
+        );
+        let ExprKind::Apply { callee, .. } = &solution.body.kind else {
+            panic!("expected outer apply");
+        };
+        let ExprKind::Apply { callee, .. } = &callee.kind else {
+            panic!("expected inner apply");
+        };
+        assert_eq!(
+            callee.ty,
+            RuntimeType::Fun {
+                param: Box::new(RuntimeType::Core(int_type())),
+                ret: Box::new(RuntimeType::Fun {
+                    param: Box::new(RuntimeType::Core(bool_type())),
+                    ret: Box::new(RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                        int_type(),
+                        bool_type()
+                    ]))),
+                }),
+            }
+        );
+        assert_eq!(solution.nested_instances.len(), 1);
+        assert_eq!(
+            solution.nested_instances[0].key,
+            InstanceKey {
+                original_binding: path(&["pair"]),
+                closed_param_types: vec![
+                    RuntimeType::Core(int_type()),
+                    RuntimeType::Core(bool_type())
+                ],
+                closed_result_type: RuntimeType::Core(typed_ir::Type::Tuple(vec![
+                    int_type(),
+                    bool_type(),
+                ])),
                 closed_effect: typed_ir::Type::Never,
                 captured_env_shape: None,
             }
@@ -1308,6 +1545,59 @@ mod tests {
                     body: Box::new(Expr::typed(
                         ExprKind::Var(path(&["x"])),
                         RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn pair_binding() -> Binding {
+        Binding {
+            name: path(&["pair"]),
+            type_params: vec![typed_ir::TypeVar("a".into()), typed_ir::TypeVar("b".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    function_type(
+                        typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        typed_ir::Type::Tuple(vec![
+                            typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                            typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        ]),
+                    ),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lambda {
+                            param: typed_ir::Name("y".into()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(Expr::typed(
+                                ExprKind::Tuple(vec![
+                                    Expr::typed(
+                                        ExprKind::Var(path(&["x"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "a".into(),
+                                        ))),
+                                    ),
+                                    Expr::typed(
+                                        ExprKind::Var(path(&["y"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "b".into(),
+                                        ))),
+                                    ),
+                                ]),
+                                RuntimeType::Unknown,
+                            )),
+                        },
+                        RuntimeType::Unknown,
                     )),
                 },
                 RuntimeType::Unknown,
@@ -1722,6 +2012,72 @@ mod tests {
                             )),
                             evidence: None,
                             instantiation: None,
+                        },
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn use_pair_binding() -> Binding {
+        Binding {
+            name: path(&["use_pair"]),
+            type_params: vec![typed_ir::TypeVar("a".into()), typed_ir::TypeVar("b".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    function_type(
+                        typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        typed_ir::Type::Tuple(vec![
+                            typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                            typed_ir::Type::Var(typed_ir::TypeVar("b".into())),
+                        ]),
+                    ),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Lambda {
+                            param: typed_ir::Name("y".into()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(Expr::typed(
+                                ExprKind::Apply {
+                                    callee: Box::new(Expr::typed(
+                                        ExprKind::Apply {
+                                            callee: Box::new(Expr::typed(
+                                                ExprKind::Var(path(&["pair"])),
+                                                RuntimeType::Unknown,
+                                            )),
+                                            arg: Box::new(Expr::typed(
+                                                ExprKind::Var(path(&["x"])),
+                                                RuntimeType::Core(typed_ir::Type::Var(
+                                                    typed_ir::TypeVar("a".into()),
+                                                )),
+                                            )),
+                                            evidence: None,
+                                            instantiation: None,
+                                        },
+                                        RuntimeType::Unknown,
+                                    )),
+                                    arg: Box::new(Expr::typed(
+                                        ExprKind::Var(path(&["y"])),
+                                        RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                            "b".into(),
+                                        ))),
+                                    )),
+                                    evidence: None,
+                                    instantiation: None,
+                                },
+                                RuntimeType::Unknown,
+                            )),
                         },
                         RuntimeType::Unknown,
                     )),

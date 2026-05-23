@@ -339,6 +339,30 @@ mod tests {
     }
 
     #[test]
+    fn full_path_numeric_widening_requires_registered_primitive_order() {
+        let order = typed_ir::PrimitiveTypeOrder::from_primitive_types(&[
+            primitive_type_node(typed_ir::PrimitiveTypeFamily::Int, "std::int::int"),
+            primitive_type_node(typed_ir::PrimitiveTypeFamily::Frac, "std::frac::frac"),
+            primitive_type_node(typed_ir::PrimitiveTypeFamily::Float, "std::float::float"),
+        ]);
+
+        assert!(!needs_runtime_coercion(
+            &named("std::float::float"),
+            &named("std::int::int")
+        ));
+        assert!(needs_runtime_coercion_with_order(
+            &order,
+            &named("std::float::float"),
+            &named("std::int::int")
+        ));
+        assert!(!needs_runtime_coercion_with_order(
+            &order,
+            &named("std::float::float"),
+            &named("int")
+        ));
+    }
+
+    #[test]
     fn type_compatibility_depth_exhaustion_is_not_success() {
         assert!(type_compatible_inner(&named("int"), &named("int"), 0));
         assert!(!type_compatible_inner(&named("int"), &named("bool"), 0));
@@ -435,6 +459,20 @@ mod tests {
                     .collect(),
             ),
             args: Vec::new(),
+        }
+    }
+
+    fn primitive_type_node(
+        family: typed_ir::PrimitiveTypeFamily,
+        path: &str,
+    ) -> typed_ir::PrimitiveTypeGraphNode {
+        typed_ir::PrimitiveTypeGraphNode {
+            family,
+            path: typed_ir::Path::new(
+                path.split("::")
+                    .map(|segment| typed_ir::Name(segment.to_string()))
+                    .collect(),
+            ),
         }
     }
 

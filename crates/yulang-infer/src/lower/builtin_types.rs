@@ -131,6 +131,12 @@ impl PrimitivePathTable {
         let mut nodes = vec![
             core_primitive_type_node(typed_ir::PrimitiveTypeFamily::Int, bare_runtime_path("int")),
             core_primitive_type_node(
+                typed_ir::PrimitiveTypeFamily::Frac,
+                runtime_path(primitive_numeric_type_path(
+                    PrimitiveNumericTypeFamily::Frac,
+                )),
+            ),
+            core_primitive_type_node(
                 typed_ir::PrimitiveTypeFamily::Float,
                 bare_runtime_path("float"),
             ),

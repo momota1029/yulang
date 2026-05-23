@@ -27,8 +27,7 @@ pub act loop:
     my act next = last
     my act redo = last
 
-    our for_in(xs: 'container, f: 'item -> ['e; loop] _) =
-        where 'container: std::fold::Fold 'item
+    our for_in(xs, f: _ -> [loop] _) =
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f x:
                 last(), _ -> last::break()

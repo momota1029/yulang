@@ -23,7 +23,8 @@ pub use graph::{
 };
 pub use names::{Name, Path};
 pub use type_order::{
-    can_widen_named_paths, join_named_paths, join_types, normalize_union_members,
+    PrimitiveTypeOrder, can_widen_named_paths, join_named_paths, join_types,
+    normalize_union_members,
 };
 pub use types::{
     RecordField, RecordSpread, RecordType, RoleRequirement, RoleRequirementArg, Scheme, Type,

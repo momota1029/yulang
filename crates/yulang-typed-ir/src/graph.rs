@@ -43,6 +43,7 @@ pub struct PrimitiveTypeGraphNode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveTypeFamily {
     Int,
+    Frac,
     Float,
     Bool,
     Unit,
