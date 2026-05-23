@@ -169,7 +169,7 @@ impl BodyGraph {
                 instantiation,
             } => {
                 let solved_arg = self.solve_expr(env, nested_instances, *arg)?;
-                if let ExprKind::Var(path) = &callee.kind {
+                if let Some(path) = callee_var_path(&callee) {
                     if let Some(binding) = self.known_bindings.get(path) {
                         let nested = self.solve_nested_polymorphic_call(binding, &solved_arg)?;
                         let ty = self.choose_known_type(
@@ -338,6 +338,16 @@ impl BodyGraph {
     }
 }
 
+fn callee_var_path(expr: &Expr) -> Option<&typed_ir::Path> {
+    match &expr.kind {
+        ExprKind::Var(path) => Some(path),
+        ExprKind::BindHere { expr }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => callee_var_path(expr),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BodySolution {
     pub param: typed_ir::Name,
@@ -486,6 +496,35 @@ mod tests {
         );
     }
 
+    #[test]
+    fn body_graph_accepts_wrapped_polymorphic_callee() {
+        let principal = PrincipalSolution {
+            key: InstanceKey {
+                original_binding: path(&["use_wrapped_id"]),
+                closed_param_types: vec![RuntimeType::Core(int_type())],
+                closed_result_type: RuntimeType::Core(int_type()),
+                closed_effect: typed_ir::Type::Never,
+                captured_env_shape: None,
+            },
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: typed_ir::TypeVar("a".into()),
+                ty: int_type(),
+            }],
+        };
+
+        let graph = BodyGraph::from_binding_instance(&use_wrapped_id_binding(), &principal)
+            .unwrap()
+            .with_known_bindings([id_binding()]);
+        let solution = graph.solve().unwrap();
+
+        assert_eq!(solution.body.ty, RuntimeType::Core(int_type()));
+        assert_eq!(solution.nested_instances.len(), 1);
+        assert_eq!(
+            solution.nested_instances[0].key.original_binding,
+            path(&["id"])
+        );
+    }
+
     fn id_binding() -> Binding {
         Binding {
             name: path(&["id"]),
@@ -615,6 +654,50 @@ mod tests {
                     param_function_allowed_effects: None,
                     body: Box::new(Expr::typed(
                         ExprKind::Tuple(vec![id_call_expr(), id_call_expr()]),
+                        RuntimeType::Unknown,
+                    )),
+                },
+                RuntimeType::Unknown,
+            ),
+        }
+    }
+
+    fn use_wrapped_id_binding() -> Binding {
+        Binding {
+            name: path(&["use_wrapped_id"]),
+            type_params: vec![typed_ir::TypeVar("a".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: function_type(
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                    typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                ),
+            },
+            body: Expr::typed(
+                ExprKind::Lambda {
+                    param: typed_ir::Name("x".into()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(Expr::typed(
+                                ExprKind::BindHere {
+                                    expr: Box::new(Expr::typed(
+                                        ExprKind::Var(path(&["id"])),
+                                        RuntimeType::Unknown,
+                                    )),
+                                },
+                                RuntimeType::Unknown,
+                            )),
+                            arg: Box::new(Expr::typed(
+                                ExprKind::Var(path(&["x"])),
+                                RuntimeType::Core(typed_ir::Type::Var(typed_ir::TypeVar(
+                                    "a".into(),
+                                ))),
+                            )),
+                            evidence: None,
+                            instantiation: None,
+                        },
                         RuntimeType::Unknown,
                     )),
                 },
