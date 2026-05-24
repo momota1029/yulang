@@ -4188,6 +4188,15 @@ sub:
     }
 
     #[test]
+    fn cached_std_finalize_accepts_refs_example() {
+        // The legacy monomorphizer still loses the `+` receiver through the
+        // compiled dependency path; keep this as a finalize-only mainline gate.
+        assert_std_dependency_cache_ref_source_finalizes_to_vm_input(&playground_source(
+            include_str!("../../../examples/02_refs.yu"),
+        ));
+    }
+
+    #[test]
     fn cached_std_control_vm_legacy_runtime_and_finalize_match_examples() {
         for case in control_vm_example_oracle_cases() {
             assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
@@ -4756,11 +4765,15 @@ sub:
         });
     }
 
-    fn example_oracle_cases() -> [RuntimeOracleCase; 11] {
+    fn example_oracle_cases() -> [RuntimeOracleCase; 12] {
         [
             RuntimeOracleCase {
                 name: "01_struct_with",
                 source: include_str!("../../../examples/01_struct_with.yu"),
+            },
+            RuntimeOracleCase {
+                name: "03_for_last",
+                source: include_str!("../../../examples/03_for_last.yu"),
             },
             RuntimeOracleCase {
                 name: "04_sub_return",
@@ -4805,13 +4818,17 @@ sub:
         ]
     }
 
-    fn control_vm_example_oracle_cases() -> [RuntimeOracleCase; 11] {
+    fn control_vm_example_oracle_cases() -> [RuntimeOracleCase; 12] {
         // showcase is covered by the finalize/VM-input gate above; the control
         // VM currently overflows its own execution stack on that full tour.
         [
             RuntimeOracleCase {
                 name: "01_struct_with",
                 source: include_str!("../../../examples/01_struct_with.yu"),
+            },
+            RuntimeOracleCase {
+                name: "03_for_last",
+                source: include_str!("../../../examples/03_for_last.yu"),
             },
             RuntimeOracleCase {
                 name: "04_sub_return",
@@ -5198,7 +5215,12 @@ sub:
         let src = src.to_string();
         run_with_large_stack(move || {
             let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let cache_paths = yulang_compile::YulangCachePaths::for_project(&repo_root);
+            // Keep std dependency-cache coverage without trusting artifacts from
+            // a developer's long-lived cache across solver/runtime changes.
+            let cache_paths = yulang_compile::YulangCachePaths::with_user_cache_root(
+                &repo_root,
+                artifact_cache_root("std-runtime-ir"),
+            );
             let std_root = yulang_sources::resolve_or_install_std_root(None, None)
                 .expect("resolve installed std root")
                 .expect("installed std root should be available");
@@ -5257,7 +5279,7 @@ sub:
             .expect("lock runtime-finalize large-stack test");
         std::thread::Builder::new()
             .name("runtime-finalize-large-stack".into())
-            .stack_size(128 * 1024 * 1024)
+            .stack_size(512 * 1024 * 1024)
             .spawn(f)
             .expect("spawn large-stack runtime-finalize test thread")
             .join()
