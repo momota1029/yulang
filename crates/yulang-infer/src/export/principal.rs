@@ -706,12 +706,14 @@ fn export_role_impl_graph_nodes(
     state: &LowerState,
     paths: &[(Path, DefId)],
 ) -> Vec<typed_ir::RoleImplGraphNode> {
-    let mut def_paths = paths
-        .iter()
-        .map(|(path, def)| (*def, export_path(path)))
-        .collect::<HashMap<_, _>>();
-    for (def, path) in collect_canonical_binding_paths(state) {
-        def_paths.entry(def).or_insert_with(|| export_path(&path));
+    let mut def_paths: HashMap<DefId, typed_ir::Path> = collect_canonical_binding_paths(state)
+        .into_iter()
+        .map(|(def, path)| (def, export_path(&path)))
+        .collect();
+    for (path, def) in paths {
+        def_paths
+            .entry(*def)
+            .or_insert_with(|| export_path(path));
     }
     for (path, def) in state.ctx.collect_all_binding_paths() {
         def_paths.entry(def).or_insert_with(|| export_path(&path));

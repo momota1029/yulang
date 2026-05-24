@@ -120,14 +120,34 @@ YULANG_RUNTIME_FINALIZE=1 target/debug/yulang run --no-cache --print-roots notes
 
 ### 残っている 1 件 (2026-05-25 夜 update)
 
-commit `26f50fe Fix finalize graph edge regressions` 周辺で、前 round の
-残り 3 件 (handler-state / default-empty-call / inline-wrap-conditional)
-は **--no-cache の cold 経路で** すべて通るようになった。代わりに、同じ
-commit を境に別系統の regression が 1 件表面化した。
+現時点で未解決の YULANG_RUNTIME_FINALIZE=1 regression は無し
+(2026-05-25 深夜の調査で最後の 1 件も解消、下記)。新しい regression が
+出たらここへ戻す。
 
-| snippet | 症状 |
+### 解消済み (2026-05-25 深夜, `crates/yulang-infer/src/export/principal.rs` の role-impl path seeding 修正)
+
+「state binding を declare しただけで for の Fold::fold dispatch が漏れる」
+と読めていた最後の 1 件は、実は state binding 関係なし。`for _ in [list]:`
+の dead-code elim されない位置で list の Fold dispatch が落ちるのが本質
+だった。
+
+原因は `export_role_impl_graph_nodes` の def_paths seeding 順序。Fold は
+`std::prelude` から `pub use` で再エクスポートされているため、
+`std::list::&impl#337::fold` (canonical) と
+`std::prelude::&impl#337::fold` (prelude alias) の両方が
+user-observable paths に並ぶ。HashMap::collect の last-wins で
+prelude path が `role_impl.members[0].value` に書き込まれていた一方、
+`module.bindings` は canonical path でしか登録されていないので、finalize の
+`role_method_candidates` で list の Fold impl が候補リストから消えていた。
+range は HashMap の iteration order の偶然で canonical が勝っていたので
+通っていた。
+
+修正: `def_paths` を canonical paths から先に seed し、user paths と
+all_binding_paths は欠落補完にだけ使う。
+
+| 元 snippet | 状態 |
 |---|---|
-| [`finalize_state_in_for_scope_fold_not_dispatched.yu`](finalize_state_in_for_scope_fold_not_dispatched.yu) | `my $n = 0` のような state binding と `for ... in ...:` を同じ scope に置くだけで、for の `std::fold::Fold::fold` role dispatch に失敗し、`request std::fold::Fold::fold [...] blocked=None` が外まで漏れる。state なし for / state なしブロックはどちらも通る。元 snippet [`solved/wrap_inside_for_body_leaks_fail.yu`] も同根 (for body 内 update が application type mismatch に化けて出る)。 |
+| [`solved/finalize_list_fold_dispatch_prelude_alias_path.yu`](solved/finalize_list_fold_dispatch_prelude_alias_path.yu) | `{ my $n = 0; for _ in [1]: 1; $n }` が finalize でも `[0] 0` |
 
 ### 解消済み (2026-05-25 夜, commit `26f50fe Fix finalize graph edge regressions` 周辺)
 
@@ -174,13 +194,16 @@ commit を境に別系統の regression が 1 件表面化した。
   下の「2026-05-21 / キャッシュ汚染」と同枠。
 
 メモ:
-- 残り 1 件 (state + for) は「state binding を declare しただけで for body
-  の effect row が `&n` 行で広がり、Fold role の receiver 型解決経路が
-  狂う」と読める。`reference/control-flow.md` の最初の例で踏むので影響大。
-  `examples/03_for_last.yu` (state なし for) は通るので、Fold dispatch
-  そのものは生きている。state binding の存在が `for body : [&n; e] _` の
-  level lifting 後に Fold の `[Fold::fold; e]` row との subtype edge を
-  立てそびれている可能性。
+- 旧仮説 (state binding が for body の effect row を `&n` 行で広げて Fold
+  receiver 型解決を狂わせる) は赤鯖。state は無くても `{ for _ in [1]: 1 }`
+  だけで再現した。dead-code elim が効く位置 (top-level の `for ...; 0`) は
+  再現しなかったので state が引き金に見えていた。
+- 真因は infer の export で role_impl member path が `prelude` alias 側に
+  上書きされていたこと。Fold が `pub use` で prelude に再公開されている
+  role 全部が潜在的に同じ問題を抱えていたが、`module.bindings` への登録は
+  常に canonical path なので、`bindings.get(member.value)` が None になる
+  形で finalize 側だけが落ちていた (legacy runtime は別経路で role 解決を
+  していたため見えなかった)。
 
 ## 現在の未解決（2026-05-21 / キャッシュ汚染）
 

@@ -1,0 +1,31 @@
+-- fixed: `crates/yulang-infer/src/export/principal.rs` の
+-- `export_role_impl_graph_nodes` で role_impl の member.value を
+-- 決める def_paths を user-observable paths から seed していた。
+-- list の Fold impl は `std::list::&impl#337::fold` (canonical) と
+-- `std::prelude::&impl#337::fold` (Fold が prelude 経由で公開されて
+-- いるための再エクスポート) の両方が user-paths に並んでいて、
+-- HashMap::collect の last-wins で `prelude` 側が勝ち、`role_impl.
+-- members[0].value` に prelude path が記録されていた。一方
+-- `module.bindings` には canonical path (`std::list::&impl#337::fold`)
+-- でしか登録されていないので、finalize の
+-- `role_method_candidates` で `bindings.get(&member.value)` が None
+-- になり、list の Fold impl が候補リストから消えていた。range は
+-- HashMap iteration order の偶然で `range` 側が勝っていたので通って
+-- いた。
+--
+-- Fix: `def_paths` を canonical paths から先に seed し、user paths と
+-- all_binding_paths は欠落補完にだけ使う。
+--
+-- 当初は state binding が原因に見えていたが、
+-- `{ for _ in [1]: 1 }` のように block でも単独でも同じく
+-- 落ちる (上位の for_in が dead-code eliminate されなければ症状が
+-- 出るだけだった)。state binding は赤鯖。
+--
+-- 期待: `[0] 0`
+
+{
+    my $n = 0
+    for _ in [1]:
+        1
+    $n
+}
