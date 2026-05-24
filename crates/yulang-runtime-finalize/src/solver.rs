@@ -3186,6 +3186,300 @@ f 3
     }
 
     #[test]
+    #[ignore = "diagnostic: report typed/untyped expression coverage"]
+    fn rina_finalize_type_coverage_report() {
+        let src = r#"{
+    my $x = 0
+    {
+        &x = 9
+    }
+    $x
+}
+"#
+        .to_string();
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&src);
+            let output = finalize_module(cached.module).unwrap();
+            let mut stats = TypeCoverageStats::default();
+            for binding in &output.module.bindings {
+                walk_expr_for_coverage(&binding.body, &mut stats);
+            }
+            for expr in &output.module.root_exprs {
+                walk_expr_for_coverage(expr, &mut stats);
+            }
+            eprintln!("=== type coverage report ===");
+            eprintln!("total: {}", stats.total);
+            eprintln!("concrete: {}", stats.concrete);
+            eprintln!("with Unknown: {}", stats.with_unknown);
+            eprintln!("with Var: {}", stats.with_var);
+            eprintln!("by kind missing concrete:");
+            let mut entries: Vec<_> = stats.by_kind_unconcrete.iter().collect();
+            entries.sort_by_key(|(k, _)| k.to_string());
+            for (kind, count) in entries {
+                eprintln!("  {kind}: {count}");
+            }
+            eprintln!("=== first 20 unconcrete samples ===");
+            for (i, sample) in stats.samples.iter().enumerate().take(20) {
+                eprintln!("  [{i}] {sample}");
+            }
+        });
+    }
+
+    #[derive(Default)]
+    struct TypeCoverageStats {
+        total: usize,
+        concrete: usize,
+        with_unknown: usize,
+        with_var: usize,
+        by_kind_unconcrete: std::collections::BTreeMap<&'static str, usize>,
+        samples: Vec<String>,
+    }
+
+    fn expr_kind_tag(expr: &Expr) -> &'static str {
+        match &expr.kind {
+            ExprKind::Var(_) => "Var",
+            ExprKind::EffectOp(_) => "EffectOp",
+            ExprKind::PrimitiveOp(_) => "PrimitiveOp",
+            ExprKind::Lit(_) => "Lit",
+            ExprKind::Lambda { .. } => "Lambda",
+            ExprKind::Apply { .. } => "Apply",
+            ExprKind::If { .. } => "If",
+            ExprKind::Tuple(_) => "Tuple",
+            ExprKind::Record { .. } => "Record",
+            ExprKind::Variant { .. } => "Variant",
+            ExprKind::Select { .. } => "Select",
+            ExprKind::Match { .. } => "Match",
+            ExprKind::Block { .. } => "Block",
+            ExprKind::Handle { .. } => "Handle",
+            ExprKind::BindHere { .. } => "BindHere",
+            ExprKind::Thunk { .. } => "Thunk",
+            ExprKind::LocalPushId { .. } => "LocalPushId",
+            ExprKind::PeekId => "PeekId",
+            ExprKind::FindId { .. } => "FindId",
+            ExprKind::AddId { .. } => "AddId",
+            ExprKind::Coerce { .. } => "Coerce",
+            ExprKind::Pack { .. } => "Pack",
+        }
+    }
+
+    fn type_has_unknown(ty: &RuntimeType) -> bool {
+        match ty {
+            RuntimeType::Unknown => true,
+            RuntimeType::Core(ty) => core_type_contains_unknown(ty),
+            RuntimeType::Fun { param, ret } => type_has_unknown(param) || type_has_unknown(ret),
+            RuntimeType::Thunk { effect, value } => {
+                core_type_contains_unknown(effect) || type_has_unknown(value)
+            }
+        }
+    }
+
+    fn type_has_var(ty: &RuntimeType) -> bool {
+        match ty {
+            RuntimeType::Unknown => false,
+            RuntimeType::Core(ty) => core_type_contains_var(ty),
+            RuntimeType::Fun { param, ret } => type_has_var(param) || type_has_var(ret),
+            RuntimeType::Thunk { effect, value } => {
+                core_type_contains_var(effect) || type_has_var(value)
+            }
+        }
+    }
+
+    fn core_type_contains_unknown(ty: &typed_ir::Type) -> bool {
+        match ty {
+            typed_ir::Type::Unknown => true,
+            typed_ir::Type::Var(_) | typed_ir::Type::Never | typed_ir::Type::Any => false,
+            typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+                typed_ir::TypeArg::Type(t) => core_type_contains_unknown(t),
+                typed_ir::TypeArg::Bounds(b) => {
+                    b.lower
+                        .as_deref()
+                        .is_some_and(core_type_contains_unknown)
+                        || b.upper
+                            .as_deref()
+                            .is_some_and(core_type_contains_unknown)
+                }
+            }),
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => {
+                core_type_contains_unknown(param)
+                    || core_type_contains_unknown(param_effect)
+                    || core_type_contains_unknown(ret_effect)
+                    || core_type_contains_unknown(ret)
+            }
+            typed_ir::Type::Tuple(items)
+            | typed_ir::Type::Union(items)
+            | typed_ir::Type::Inter(items) => items.iter().any(core_type_contains_unknown),
+            typed_ir::Type::Row { items, tail } => {
+                items.iter().any(core_type_contains_unknown) || core_type_contains_unknown(tail)
+            }
+            typed_ir::Type::Record(record) => record
+                .fields
+                .iter()
+                .any(|f| core_type_contains_unknown(&f.value)),
+            typed_ir::Type::Variant(variant) => variant
+                .cases
+                .iter()
+                .any(|c| c.payloads.iter().any(core_type_contains_unknown)),
+            typed_ir::Type::Recursive { body, .. } => core_type_contains_unknown(body),
+        }
+    }
+
+    fn core_type_contains_var(ty: &typed_ir::Type) -> bool {
+        match ty {
+            typed_ir::Type::Var(_) => true,
+            typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+            typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+                typed_ir::TypeArg::Type(t) => core_type_contains_var(t),
+                typed_ir::TypeArg::Bounds(b) => {
+                    b.lower.as_deref().is_some_and(core_type_contains_var)
+                        || b.upper.as_deref().is_some_and(core_type_contains_var)
+                }
+            }),
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => {
+                core_type_contains_var(param)
+                    || core_type_contains_var(param_effect)
+                    || core_type_contains_var(ret_effect)
+                    || core_type_contains_var(ret)
+            }
+            typed_ir::Type::Tuple(items)
+            | typed_ir::Type::Union(items)
+            | typed_ir::Type::Inter(items) => items.iter().any(core_type_contains_var),
+            typed_ir::Type::Row { items, tail } => {
+                items.iter().any(core_type_contains_var) || core_type_contains_var(tail)
+            }
+            typed_ir::Type::Record(record) => record
+                .fields
+                .iter()
+                .any(|f| core_type_contains_var(&f.value)),
+            typed_ir::Type::Variant(variant) => variant
+                .cases
+                .iter()
+                .any(|c| c.payloads.iter().any(core_type_contains_var)),
+            typed_ir::Type::Recursive { body, .. } => core_type_contains_var(body),
+        }
+    }
+
+    fn walk_expr_for_coverage(expr: &Expr, stats: &mut TypeCoverageStats) {
+        stats.total += 1;
+        let kind = expr_kind_tag(expr);
+        let has_unknown = type_has_unknown(&expr.ty);
+        let has_var = type_has_var(&expr.ty);
+        if has_unknown {
+            stats.with_unknown += 1;
+        }
+        if has_var {
+            stats.with_var += 1;
+        }
+        if has_unknown || has_var {
+            *stats.by_kind_unconcrete.entry(kind).or_default() += 1;
+            if stats.samples.len() < 40 {
+                stats
+                    .samples
+                    .push(format!("{kind} ty={:?}", &expr.ty));
+            }
+        } else {
+            stats.concrete += 1;
+        }
+        match &expr.kind {
+            ExprKind::Lambda { body, .. }
+            | ExprKind::BindHere { expr: body }
+            | ExprKind::LocalPushId { body, .. }
+            | ExprKind::AddId { thunk: body, .. }
+            | ExprKind::Coerce { expr: body, .. }
+            | ExprKind::Pack { expr: body, .. }
+            | ExprKind::Thunk { expr: body, .. } => walk_expr_for_coverage(body, stats),
+            ExprKind::Apply { callee, arg, .. } => {
+                walk_expr_for_coverage(callee, stats);
+                walk_expr_for_coverage(arg, stats);
+            }
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                walk_expr_for_coverage(cond, stats);
+                walk_expr_for_coverage(then_branch, stats);
+                walk_expr_for_coverage(else_branch, stats);
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    walk_expr_for_coverage(item, stats);
+                }
+            }
+            ExprKind::Record { fields, spread } => {
+                for field in fields {
+                    walk_expr_for_coverage(&field.value, stats);
+                }
+                if let Some(spread) = spread {
+                    let e = match spread {
+                        yulang_runtime_ir::RecordSpreadExpr::Head(e)
+                        | yulang_runtime_ir::RecordSpreadExpr::Tail(e) => e,
+                    };
+                    walk_expr_for_coverage(e, stats);
+                }
+            }
+            ExprKind::Variant { value, .. } => {
+                if let Some(value) = value {
+                    walk_expr_for_coverage(value, stats);
+                }
+            }
+            ExprKind::Select { base, .. } => walk_expr_for_coverage(base, stats),
+            ExprKind::Match {
+                scrutinee, arms, ..
+            } => {
+                walk_expr_for_coverage(scrutinee, stats);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        walk_expr_for_coverage(guard, stats);
+                    }
+                    walk_expr_for_coverage(&arm.body, stats);
+                }
+            }
+            ExprKind::Block { stmts, tail } => {
+                for stmt in stmts {
+                    match stmt {
+                        yulang_runtime_ir::Stmt::Let { value, .. } => {
+                            walk_expr_for_coverage(value, stats);
+                        }
+                        yulang_runtime_ir::Stmt::Expr(e) => walk_expr_for_coverage(e, stats),
+                        yulang_runtime_ir::Stmt::Module { body, .. } => {
+                            walk_expr_for_coverage(body, stats);
+                        }
+                    }
+                }
+                if let Some(tail) = tail {
+                    walk_expr_for_coverage(tail, stats);
+                }
+            }
+            ExprKind::Handle { body, arms, .. } => {
+                walk_expr_for_coverage(body, stats);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        walk_expr_for_coverage(guard, stats);
+                    }
+                    walk_expr_for_coverage(&arm.body, stats);
+                }
+            }
+            ExprKind::Var(_)
+            | ExprKind::EffectOp(_)
+            | ExprKind::PrimitiveOp(_)
+            | ExprKind::Lit(_)
+            | ExprKind::PeekId
+            | ExprKind::FindId { .. } => {}
+        }
+    }
+
+    #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
     fn prewarmed_std_finalize_runs_ref_assignment_inside_nested_block() {
         let results = finalized_int_values_from_prewarmed_std_cache(
