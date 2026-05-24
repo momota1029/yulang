@@ -122,8 +122,9 @@ fn collect_expr_graphs(
 ) -> FinalizeResult<()> {
     let found = solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?;
     if !found.is_empty() {
+        collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, solutions)?;
         solutions.extend(found);
-        return collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, solutions);
+        return Ok(());
     }
     if let Some(solution) =
         solve_bare_polymorphic_var(owner.clone(), expr, bindings, local_types, solutions.len())?
@@ -300,10 +301,10 @@ fn solve_simple_apply(
     let mut current = principal.principal_type.clone();
     for step in &spine.steps {
         let result = graph.fresh_hole("apply");
-        let arg_type = step.arg_type(local_types);
+        let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
         let expected = typed_ir::Type::Fun {
             param: Box::new(arg_type),
-            param_effect: Box::new(typed_ir::Type::Never),
+            param_effect: Box::new(arg_effect),
             ret_effect: Box::new(typed_ir::Type::Unknown),
             ret: Box::new(result.clone()),
         };
@@ -463,11 +464,37 @@ struct ApplyStep<'a> {
 
 impl ApplyStep<'_> {
     fn arg_type(&self, local_types: &HashMap<typed_ir::Path, RuntimeType>) -> typed_ir::Type {
-        let expr_ty = runtime_type_to_core(expr_lower_type(self.arg, local_types));
-        if core_type_is_closed(&expr_ty) {
-            return expr_ty;
+        self.arg_type_and_effect(local_types).0
+    }
+
+    fn arg_type_and_effect(
+        &self,
+        local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> (typed_ir::Type, typed_ir::Type) {
+        let runtime_ty = expr_lower_type(self.arg, local_types);
+        if let RuntimeType::Thunk { effect, value } = &runtime_ty {
+            let value_is_closed = runtime_type_is_closed(value);
+            let arg_type = if value_is_closed {
+                runtime_type_to_core((**value).clone())
+            } else {
+                let expr_ty = runtime_type_to_core(runtime_ty.clone());
+                self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty)
+            };
+            let arg_effect = if core_type_is_closed(effect)
+                && (value_is_closed || !matches!(effect, typed_ir::Type::Any))
+            {
+                effect.clone()
+            } else {
+                typed_ir::Type::Never
+            };
+            return (arg_type, arg_effect);
         }
-        self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty)
+        let expr_ty = runtime_type_to_core(runtime_ty);
+        if core_type_is_closed(&expr_ty) {
+            return (expr_ty, typed_ir::Type::Never);
+        }
+        let fallback = self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty);
+        (fallback, typed_ir::Type::Never)
     }
 }
 
@@ -2137,18 +2164,21 @@ mod tests {
 
     #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_compiles_ref_scalar_assignment() {
-        assert_prewarmed_std_ref_source_finalizes_to_vm_input(
+    fn prewarmed_std_finalize_runs_ref_scalar_assignment() {
+        let results = finalized_values_from_prewarmed_std_cache(
             r#"{
     my $x = 10
-    my $y = 20
-
     &x = 11
-    &y = 21
-
-    ($x, $y)
+    $x
 }
 "#,
+        );
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "11".into()
+            ))]
         );
     }
 
@@ -2170,8 +2200,8 @@ mod tests {
 
     #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_compiles_ref_assignment_inside_nested_block() {
-        assert_prewarmed_std_ref_source_finalizes_to_vm_input(
+    fn prewarmed_std_finalize_runs_ref_assignment_inside_nested_block() {
+        let results = finalized_values_from_prewarmed_std_cache(
             r#"{
     my $x = 0
     {
@@ -2181,6 +2211,27 @@ mod tests {
 }
 "#,
         );
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "9".into()
+            ))]
+        );
+    }
+
+    fn finalized_values_from_prewarmed_std_cache(src: &str) -> Vec<yulang_vm::VmResult> {
+        let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(src);
+        let output = finalize_module(cached.module).unwrap();
+        assert!(
+            output
+                .module
+                .bindings
+                .iter()
+                .all(|binding| binding.type_params.is_empty())
+        );
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        vm.eval_roots().unwrap()
     }
 
     fn assert_prewarmed_std_ref_source_finalizes_to_vm_input(src: &str) {
