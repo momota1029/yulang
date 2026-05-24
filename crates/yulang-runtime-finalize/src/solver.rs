@@ -3202,9 +3202,11 @@ f 3
             let output = finalize_module(cached.module).unwrap();
             let mut stats = TypeCoverageStats::default();
             for binding in &output.module.bindings {
+                stats.set_owner(format!("binding {:?}", binding.name));
                 walk_expr_for_coverage(&binding.body, &mut stats);
             }
-            for expr in &output.module.root_exprs {
+            for (i, expr) in output.module.root_exprs.iter().enumerate() {
+                stats.set_owner(format!("root_expr[{i}]"));
                 walk_expr_for_coverage(expr, &mut stats);
             }
             eprintln!("=== type coverage report ===");
@@ -3218,8 +3220,14 @@ f 3
             for (kind, count) in entries {
                 eprintln!("  {kind}: {count}");
             }
-            eprintln!("=== first 20 unconcrete samples ===");
-            for (i, sample) in stats.samples.iter().enumerate().take(20) {
+            eprintln!("by owner missing concrete:");
+            let mut owner_entries: Vec<_> = stats.by_owner_unconcrete.iter().collect();
+            owner_entries.sort_by_key(|(o, _)| o.clone());
+            for (owner, count) in owner_entries {
+                eprintln!("  {owner}: {count}");
+            }
+            eprintln!("=== first 40 unconcrete samples ===");
+            for (i, sample) in stats.samples.iter().enumerate().take(40) {
                 eprintln!("  [{i}] {sample}");
             }
         });
@@ -3232,7 +3240,15 @@ f 3
         with_unknown: usize,
         with_var: usize,
         by_kind_unconcrete: std::collections::BTreeMap<&'static str, usize>,
+        by_owner_unconcrete: std::collections::BTreeMap<String, usize>,
         samples: Vec<String>,
+        current_owner: String,
+    }
+
+    impl TypeCoverageStats {
+        fn set_owner(&mut self, owner: String) {
+            self.current_owner = owner;
+        }
     }
 
     fn expr_kind_tag(expr: &Expr) -> &'static str {
@@ -3381,10 +3397,20 @@ f 3
         }
         if has_unknown || has_var {
             *stats.by_kind_unconcrete.entry(kind).or_default() += 1;
+            *stats
+                .by_owner_unconcrete
+                .entry(stats.current_owner.clone())
+                .or_default() += 1;
             if stats.samples.len() < 40 {
+                let owner = stats.current_owner.clone();
+                let detail = match &expr.kind {
+                    ExprKind::Var(path) => format!("Var({path:?})"),
+                    ExprKind::EffectOp(path) => format!("EffectOp({path:?})"),
+                    _ => kind.to_string(),
+                };
                 stats
                     .samples
-                    .push(format!("{kind} ty={:?}", &expr.ty));
+                    .push(format!("[{owner}] {detail} ty={:?}", &expr.ty));
             }
         } else {
             stats.concrete += 1;
