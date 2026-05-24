@@ -2591,6 +2591,23 @@ mod tests {
     }
 
     #[test]
+    fn finalized_source_runs_if_int_float_join() {
+        let module =
+            runtime_module_from_source_without_std("my x = if true { 1 } else { 2.0 }\nx\n");
+
+        let output = finalize_module(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Float(
+                "1.0".into()
+            ))]
+        );
+    }
+
+    #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
     fn prewarmed_std_runtime_ir_cache_can_enter_runtime_finalize() {
         let cache_start = std::time::Instant::now();
