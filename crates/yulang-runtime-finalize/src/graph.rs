@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use yulang_runtime_ir::{Binding, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -71,6 +71,22 @@ impl TypeGraph {
         upper: typed_ir::Type,
     ) -> FinalizeResult<()> {
         self.constrain_core(lower, upper)
+    }
+
+    pub fn default_unbound_lower(
+        &mut self,
+        vars: BTreeSet<typed_ir::TypeVar>,
+        lower: typed_ir::Type,
+    ) -> FinalizeResult<()> {
+        for var in vars {
+            let Some(slot) = self.slots.get_mut(&var) else {
+                continue;
+            };
+            if slot.lower.is_none() && slot.upper.is_none() {
+                slot.push_lower(var, lower.clone())?;
+            }
+        }
+        Ok(())
     }
 
     pub fn solve(self) -> GraphSolution {
@@ -180,13 +196,7 @@ impl TypeGraph {
                 else {
                     return Ok(());
                 };
-                if items.len() != actual_items.len() {
-                    return Ok(());
-                }
-                for (template, actual) in items.iter().zip(actual_items) {
-                    self.collect_core(template, actual, side)?;
-                }
-                self.collect_core(tail, actual_tail, side)
+                self.collect_row(items, tail, actual_items, actual_tail, side)
             }
             typed_ir::Type::Unknown
             | typed_ir::Type::Never
@@ -283,12 +293,7 @@ impl TypeGraph {
                     items: upper_items,
                     tail: upper_tail,
                 },
-            ) if lower_items.len() == upper_items.len() => {
-                for (lower, upper) in lower_items.into_iter().zip(upper_items) {
-                    self.constrain_core(lower, upper)?;
-                }
-                self.constrain_core(*lower_tail, *upper_tail)
-            }
+            ) => self.constrain_row(lower_items, *lower_tail, upper_items, *upper_tail),
             _ => Ok(()),
         }
     }
@@ -377,6 +382,55 @@ impl TypeGraph {
         }
     }
 
+    fn collect_row(
+        &mut self,
+        template_items: &[typed_ir::Type],
+        template_tail: &typed_ir::Type,
+        actual_items: &[typed_ir::Type],
+        actual_tail: &typed_ir::Type,
+        side: BoundSide,
+    ) -> FinalizeResult<()> {
+        let RowResidual {
+            matched,
+            unmatched_left,
+            unmatched_right,
+        } = split_row_items(template_items, actual_items);
+        if matched.is_empty() && !template_items.is_empty() && !actual_items.is_empty() {
+            return Ok(());
+        }
+        for (template, actual) in matched {
+            self.collect_core(template, actual, side)?;
+        }
+        if !unmatched_left.is_empty() {
+            return Ok(());
+        }
+        let residual = effect_row_from_items_and_tail(unmatched_right, actual_tail.clone());
+        self.collect_core(template_tail, &residual, side)
+    }
+
+    fn constrain_row(
+        &mut self,
+        lower_items: Vec<typed_ir::Type>,
+        lower_tail: typed_ir::Type,
+        upper_items: Vec<typed_ir::Type>,
+        upper_tail: typed_ir::Type,
+    ) -> FinalizeResult<()> {
+        let RowResidual {
+            matched,
+            unmatched_left,
+            unmatched_right,
+        } = split_row_items(&lower_items, &upper_items);
+        if matched.is_empty() && !lower_items.is_empty() && !upper_items.is_empty() {
+            return Ok(());
+        }
+        for (lower, upper) in matched {
+            self.constrain_core(lower.clone(), upper.clone())?;
+        }
+        let lower_residual = effect_row_from_items_and_tail(unmatched_left, lower_tail);
+        let upper_residual = effect_row_from_items_and_tail(unmatched_right, upper_tail);
+        self.constrain_core(lower_residual, upper_residual)
+    }
+
     fn record(
         &mut self,
         var: typed_ir::TypeVar,
@@ -422,6 +476,25 @@ impl PrincipalInstance {
                     })
             })
             .collect()
+    }
+
+    pub fn effect_only_type_params(&self) -> BTreeSet<typed_ir::TypeVar> {
+        let params = self
+            .type_params
+            .iter()
+            .map(|param| param.fresh.clone())
+            .collect::<BTreeSet<_>>();
+        let mut vars = TypePositionVars::default();
+        collect_type_position_vars(
+            &self.principal_type,
+            TypePosition::Value,
+            &params,
+            &mut vars,
+        );
+        vars.effect
+            .difference(&vars.value)
+            .cloned()
+            .collect::<BTreeSet<_>>()
     }
 }
 
@@ -565,6 +638,12 @@ fn push_bound(
         if previous == &ty {
             return Ok(());
         }
+        if matches!(
+            (&*previous, &ty),
+            (typed_ir::Type::Var(_), typed_ir::Type::Var(_))
+        ) {
+            return Ok(());
+        }
         if matches!(ty, typed_ir::Type::Var(_)) && !matches!(previous, typed_ir::Type::Var(_)) {
             return Ok(());
         }
@@ -583,7 +662,225 @@ fn push_bound(
 }
 
 fn is_vacuous_bound(ty: &typed_ir::Type, side: BoundSide) -> bool {
-    matches!((side, ty), (BoundSide::Upper, typed_ir::Type::Any))
+    matches!(
+        (side, ty),
+        (BoundSide::Lower, typed_ir::Type::Never) | (BoundSide::Upper, typed_ir::Type::Any)
+    )
+}
+
+struct RowResidual<'a> {
+    matched: Vec<(&'a typed_ir::Type, &'a typed_ir::Type)>,
+    unmatched_left: Vec<typed_ir::Type>,
+    unmatched_right: Vec<typed_ir::Type>,
+}
+
+#[derive(Default)]
+struct TypePositionVars {
+    value: BTreeSet<typed_ir::TypeVar>,
+    effect: BTreeSet<typed_ir::TypeVar>,
+}
+
+#[derive(Clone, Copy)]
+enum TypePosition {
+    Value,
+    Effect,
+}
+
+fn collect_type_position_vars(
+    ty: &typed_ir::Type,
+    position: TypePosition,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    vars: &mut TypePositionVars,
+) {
+    match ty {
+        typed_ir::Type::Var(var) if params.contains(var) => match position {
+            TypePosition::Value => {
+                vars.value.insert(var.clone());
+            }
+            TypePosition::Effect => {
+                vars.effect.insert(var.clone());
+            }
+        },
+        typed_ir::Type::Var(_)
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_position_vars(param, TypePosition::Value, params, vars);
+            collect_type_position_vars(param_effect, TypePosition::Effect, params, vars);
+            collect_type_position_vars(ret_effect, TypePosition::Effect, params, vars);
+            collect_type_position_vars(ret, TypePosition::Value, params, vars);
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_position_vars(arg, params, vars);
+            }
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_type_position_vars(item, position, params, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_effect_item_position_vars(item, params, vars);
+            }
+            collect_type_position_vars(tail, TypePosition::Effect, params, vars);
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_type_position_vars(&field.value, TypePosition::Value, params, vars);
+            }
+            if let Some(spread) = &record.spread {
+                collect_record_spread_position_vars(spread, params, vars);
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_position_vars(payload, TypePosition::Value, params, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_type_position_vars(tail, TypePosition::Value, params, vars);
+            }
+        }
+        typed_ir::Type::Recursive { body, .. } => {
+            collect_type_position_vars(body, position, params, vars);
+        }
+    }
+}
+
+fn collect_effect_item_position_vars(
+    ty: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    vars: &mut TypePositionVars,
+) {
+    match ty {
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_position_vars(arg, params, vars);
+            }
+        }
+        other => collect_type_position_vars(other, TypePosition::Effect, params, vars),
+    }
+}
+
+fn collect_type_arg_position_vars(
+    arg: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    vars: &mut TypePositionVars,
+) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => {
+            collect_type_position_vars(ty, TypePosition::Value, params, vars);
+        }
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = bounds.lower.as_deref() {
+                collect_type_position_vars(lower, TypePosition::Value, params, vars);
+            }
+            if let Some(upper) = bounds.upper.as_deref() {
+                collect_type_position_vars(upper, TypePosition::Value, params, vars);
+            }
+        }
+    }
+}
+
+fn collect_record_spread_position_vars(
+    spread: &typed_ir::RecordSpread,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    vars: &mut TypePositionVars,
+) {
+    match spread {
+        typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+            collect_type_position_vars(ty, TypePosition::Value, params, vars);
+        }
+    }
+}
+
+fn split_row_items<'a>(
+    left_items: &'a [typed_ir::Type],
+    right_items: &'a [typed_ir::Type],
+) -> RowResidual<'a> {
+    let mut matched_right = vec![false; right_items.len()];
+    let mut matched = Vec::new();
+    let mut unmatched_left = Vec::new();
+
+    for left in left_items {
+        let Some((index, right)) = right_items
+            .iter()
+            .enumerate()
+            .find(|(index, right)| !matched_right[*index] && same_effect_head(left, right))
+        else {
+            unmatched_left.push(left.clone());
+            continue;
+        };
+        matched_right[index] = true;
+        matched.push((left, right));
+    }
+
+    let unmatched_right = right_items
+        .iter()
+        .enumerate()
+        .filter_map(|(index, right)| (!matched_right[index]).then_some(right.clone()))
+        .collect();
+
+    RowResidual {
+        matched,
+        unmatched_left,
+        unmatched_right,
+    }
+}
+
+fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    match (left, right) {
+        (
+            typed_ir::Type::Named { path, .. },
+            typed_ir::Type::Named {
+                path: actual_path, ..
+            },
+        ) => effect_paths_match(path, actual_path),
+        _ => false,
+    }
+}
+
+fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
+    left == right
+        || qualified_prefix_effect_paths_match(left, right)
+        || qualified_prefix_effect_paths_match(right, left)
+}
+
+fn qualified_prefix_effect_paths_match(parent: &typed_ir::Path, child: &typed_ir::Path) -> bool {
+    effect_path_can_match_child_prefix(parent)
+        && child.segments.len() > parent.segments.len()
+        && child.segments.starts_with(parent.segments.as_slice())
+}
+
+fn effect_path_can_match_child_prefix(path: &typed_ir::Path) -> bool {
+    path.segments.len() > 1
+        || path.segments.first().is_some_and(|name| {
+            name.0.starts_with('#') || name.0.starts_with('&') && name.0.contains('#')
+        })
+}
+
+fn effect_row_from_items_and_tail(
+    items: Vec<typed_ir::Type>,
+    tail: typed_ir::Type,
+) -> typed_ir::Type {
+    if items.is_empty() {
+        return tail;
+    }
+    typed_ir::Type::Row {
+        items,
+        tail: Box::new(tail),
+    }
 }
 
 fn rename_type(
@@ -930,6 +1227,71 @@ mod tests {
         assert_eq!(
             graph.slot(&var).and_then(TypeVarBounds::solution_ref),
             Some(&any_type())
+        );
+    }
+
+    #[test]
+    fn bottom_lower_and_top_upper_are_vacuous_bounds() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("a".into());
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(never_type())),
+                    upper: Some(RuntimeType::Core(any_type())),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(graph.slot(&var).and_then(TypeVarBounds::solution_ref), None);
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(int_type())),
+                    upper: Some(RuntimeType::Core(any_type())),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&int_type())
+        );
+    }
+
+    #[test]
+    fn symbolic_bounds_do_not_conflict_before_concrete_bounds_arrive() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("a".into());
+        let first = typed_ir::Type::Var(typed_ir::TypeVar("b".into()));
+        let second = typed_ir::Type::Var(typed_ir::TypeVar("c".into()));
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(first.clone())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(second)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&first)
         );
     }
 

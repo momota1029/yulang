@@ -20,19 +20,28 @@ pub fn finalize_module_with_cache(
 ) -> FinalizeResult<FinalizeOutput> {
     let root_graph_inputs = collect_root_graph_inputs(&module);
     let mut root_graph_solutions = solve_root_graphs(&module)?;
+    let mut scanned_binding_bodies = HashSet::new();
     loop {
         canonicalize_aliases(&mut root_graph_solutions);
         let emitted = append_monomorphic_bindings(&mut module, &root_graph_solutions, cache)?;
         rewrite_root_exprs(&mut module, &root_graph_solutions)?;
         rewrite_binding_exprs(&mut module, &root_graph_solutions)?;
+        let role_rewrites = rewrite_role_method_calls(&mut module);
 
         let solution_count = root_graph_solutions.len();
-        collect_binding_body_graphs(&module, &emitted, &mut root_graph_solutions)?;
-        if emitted.is_empty() && root_graph_solutions.len() == solution_count {
+        let scan_targets =
+            next_binding_body_scan_targets(&module, &emitted, &mut scanned_binding_bodies);
+        collect_binding_body_graphs(&module, &scan_targets, &mut root_graph_solutions)?;
+        if emitted.is_empty()
+            && scan_targets.is_empty()
+            && !role_rewrites
+            && root_graph_solutions.len() == solution_count
+        {
             break;
         }
     }
     prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
+    normalize_materialized_module(&mut module);
     Ok(FinalizeOutput {
         module,
         report: FinalizeReport {
@@ -41,6 +50,19 @@ pub fn finalize_module_with_cache(
             cache_profile: cache.profile(),
         },
     })
+}
+
+fn normalize_materialized_module(module: &mut Module) {
+    let substitutions = [];
+    let reachable = reachable_paths(module);
+    for binding in &mut module.bindings {
+        if reachable.contains(&binding.name) {
+            materialize_expr_in_place(&mut binding.body, &substitutions);
+        }
+    }
+    for expr in &mut module.root_exprs {
+        materialize_expr_in_place(expr, &substitutions);
+    }
 }
 
 pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
@@ -111,6 +133,38 @@ fn collect_binding_body_graphs(
         )?;
     }
     Ok(())
+}
+
+fn next_binding_body_scan_targets(
+    module: &Module,
+    emitted: &[typed_ir::Path],
+    scanned: &mut HashSet<typed_ir::Path>,
+) -> Vec<typed_ir::Path> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.type_params.is_empty()))
+        .collect::<HashMap<_, _>>();
+    let reachable = reachable_paths(module);
+    let mut targets = Vec::new();
+    let mut pushed = HashSet::new();
+    for path in emitted {
+        if !bindings.contains_key(path) {
+            continue;
+        }
+        if scanned.insert(path.clone()) && pushed.insert(path.clone()) {
+            targets.push(path.clone());
+        }
+    }
+    for path in reachable.iter() {
+        if !bindings.get(path).copied().unwrap_or(false) {
+            continue;
+        }
+        if scanned.insert(path.clone()) && pushed.insert(path.clone()) {
+            targets.push(path.clone());
+        }
+    }
+    targets
 }
 
 fn collect_expr_graphs(
@@ -311,6 +365,7 @@ fn solve_simple_apply(
         graph.constrain_subtype(current, expected)?;
         current = result;
     }
+    graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     let graph = graph.solve();
     if !graph.is_complete() {
         return Err(FinalizeDiagnostic::IncompleteGraph {
@@ -384,6 +439,7 @@ fn solve_value_arg(
     let mut graph = TypeGraph::default();
     let principal = graph.instantiate_principal(binding);
     graph.constrain_subtype(principal.principal_type.clone(), expected_type)?;
+    graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     let graph = graph.solve();
     if !graph.is_complete() {
         return Err(FinalizeDiagnostic::IncompleteGraph {
@@ -875,6 +931,383 @@ fn rewrite_binding_exprs(
     Ok(())
 }
 
+fn rewrite_role_method_calls(module: &mut Module) -> bool {
+    let candidates = role_method_candidates(module);
+    if candidates.is_empty() {
+        return false;
+    }
+    let reachable = reachable_paths(module);
+    let mut changed = false;
+    for binding in &mut module.bindings {
+        if !reachable.contains(&binding.name) {
+            continue;
+        }
+        let mut local_types = binding_local_types(binding);
+        changed |= rewrite_role_method_expr(&mut binding.body, &mut local_types, &candidates);
+    }
+    for expr in &mut module.root_exprs {
+        changed |= rewrite_role_method_expr(expr, &mut HashMap::new(), &candidates);
+    }
+    changed
+}
+
+#[derive(Clone)]
+struct RoleMethodCandidate {
+    role: typed_ir::Path,
+    member: typed_ir::Name,
+    value: typed_ir::Path,
+    inputs: Vec<typed_ir::TypeBounds>,
+    callee_type: RuntimeType,
+}
+
+fn role_method_candidates(module: &Module) -> Vec<RoleMethodCandidate> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding))
+        .collect::<HashMap<_, _>>();
+    module
+        .role_impls
+        .iter()
+        .flat_map(|role_impl| {
+            role_impl.members.iter().filter_map(|member| {
+                let binding = bindings.get(&member.value)?;
+                Some(RoleMethodCandidate {
+                    role: role_impl.role.clone(),
+                    member: member.name.clone(),
+                    value: member.value.clone(),
+                    inputs: role_impl.inputs.clone(),
+                    callee_type: RuntimeType::Core(binding.scheme.body.clone()),
+                })
+            })
+        })
+        .collect()
+}
+
+fn rewrite_role_method_expr(
+    expr: &mut Expr,
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+    candidates: &[RoleMethodCandidate],
+) -> bool {
+    let mut changed = false;
+    match &mut expr.kind {
+        ExprKind::Apply { callee, arg, .. } => {
+            changed |= rewrite_role_method_expr(callee, local_types, candidates);
+            changed |= rewrite_role_method_expr(arg, local_types, candidates);
+        }
+        ExprKind::Lambda { param, body, .. } => {
+            let previous = runtime_function_param(&expr.ty)
+                .map(|param_ty| local_types.insert(path_from_name(param), param_ty));
+            changed |= rewrite_role_method_expr(body, local_types, candidates);
+            restore_local_type(local_types, path_from_name(param), previous);
+        }
+        ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. }
+        | ExprKind::Select { base: body, .. }
+        | ExprKind::Thunk { expr: body, .. } => {
+            changed |= rewrite_role_method_expr(body, local_types, candidates);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            changed |= rewrite_role_method_expr(cond, local_types, candidates);
+            changed |= rewrite_role_method_expr(then_branch, local_types, candidates);
+            changed |= rewrite_role_method_expr(else_branch, local_types, candidates);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                changed |= rewrite_role_method_expr(item, local_types, candidates);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                changed |= rewrite_role_method_expr(&mut field.value, local_types, candidates);
+            }
+            if let Some(spread) = spread {
+                changed |= rewrite_role_method_record_spread(spread, local_types, candidates);
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                changed |= rewrite_role_method_expr(value, local_types, candidates);
+            }
+        }
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            changed |= rewrite_role_method_expr(scrutinee, local_types, candidates);
+            for arm in arms {
+                let mut arm_locals = local_types.clone();
+                collect_pattern_local_types(&arm.pattern, &mut arm_locals);
+                if let Some(guard) = &mut arm.guard {
+                    changed |= rewrite_role_method_expr(guard, &mut arm_locals, candidates);
+                }
+                changed |= rewrite_role_method_expr(&mut arm.body, &mut arm_locals, candidates);
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            let mut scoped_locals = local_types.clone();
+            for stmt in stmts {
+                changed |= rewrite_role_method_stmt(stmt, &mut scoped_locals, candidates);
+                collect_stmt_local_types(stmt, &mut scoped_locals);
+            }
+            if let Some(tail) = tail {
+                changed |= rewrite_role_method_expr(tail, &mut scoped_locals, candidates);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            changed |= rewrite_role_method_expr(body, local_types, candidates);
+            for arm in arms {
+                let mut arm_locals = local_types.clone();
+                collect_pattern_local_types(&arm.payload, &mut arm_locals);
+                if let Some(resume) = &arm.resume {
+                    arm_locals.insert(path_from_name(&resume.name), resume.ty.clone());
+                }
+                if let Some(guard) = &mut arm.guard {
+                    changed |= rewrite_role_method_expr(guard, &mut arm_locals, candidates);
+                }
+                changed |= rewrite_role_method_expr(&mut arm.body, &mut arm_locals, candidates);
+            }
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+    if let Some((path, callee_type)) = resolve_role_method_apply(expr, local_types, candidates) {
+        replace_apply_spine_binding(expr, &path, &callee_type);
+        changed = true;
+    }
+    changed
+}
+
+fn restore_local_type(
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+    path: typed_ir::Path,
+    previous: Option<Option<RuntimeType>>,
+) {
+    match previous {
+        Some(Some(ty)) => {
+            local_types.insert(path, ty);
+        }
+        Some(None) => {
+            local_types.remove(&path);
+        }
+        None => {}
+    }
+}
+
+fn rewrite_role_method_record_spread(
+    spread: &mut yulang_runtime_ir::RecordSpreadExpr,
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+    candidates: &[RoleMethodCandidate],
+) -> bool {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
+            rewrite_role_method_expr(expr, local_types, candidates)
+        }
+    }
+}
+
+fn rewrite_role_method_stmt(
+    stmt: &mut yulang_runtime_ir::Stmt,
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+    candidates: &[RoleMethodCandidate],
+) -> bool {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { pattern: _, value } => {
+            rewrite_role_method_expr(value, local_types, candidates)
+        }
+        yulang_runtime_ir::Stmt::Expr(expr)
+        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
+            rewrite_role_method_expr(expr, local_types, candidates)
+        }
+    }
+}
+
+fn resolve_role_method_apply(
+    expr: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    candidates: &[RoleMethodCandidate],
+) -> Option<(typed_ir::Path, RuntimeType)> {
+    let spine = ApplySpine::new(expr)?;
+    let (role, member) = role_method_parts(spine.binding)?;
+    let receiver = spine.steps.first()?;
+    let receiver_types = role_receiver_types(receiver, local_types);
+    let mut best = None;
+    for candidate in candidates
+        .iter()
+        .filter(|candidate| candidate.role == role && candidate.member == member)
+    {
+        let Some(score) = role_method_candidate_score(candidate, &receiver_types) else {
+            continue;
+        };
+        if best
+            .as_ref()
+            .is_none_or(|(best_score, _): &(usize, &RoleMethodCandidate)| score > *best_score)
+        {
+            best = Some((score, candidate));
+        }
+    }
+    best.map(|(_, candidate)| (candidate.value.clone(), candidate.callee_type.clone()))
+}
+
+fn role_method_parts(path: &typed_ir::Path) -> Option<(typed_ir::Path, typed_ir::Name)> {
+    let (member, role) = path.segments.split_last()?;
+    if role.is_empty() {
+        return None;
+    }
+    Some((typed_ir::Path::new(role.to_vec()), member.clone()))
+}
+
+fn role_receiver_types(
+    receiver: &ApplyStep<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Vec<typed_ir::Type> {
+    let mut out = Vec::new();
+    push_unique_type(&mut out, receiver.arg_type(local_types));
+    push_role_receiver_expr_types(&mut out, receiver.arg, local_types);
+    out
+}
+
+fn push_role_receiver_expr_types(
+    out: &mut Vec<typed_ir::Type>,
+    expr: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) {
+    push_unique_type(
+        out,
+        runtime_type_to_core(expr_lower_type(expr, local_types)),
+    );
+    match &expr.kind {
+        ExprKind::BindHere { expr } => {
+            if let RuntimeType::Thunk { value, .. } = &expr.ty {
+                push_unique_type(out, runtime_type_to_core((**value).clone()));
+            }
+            push_role_receiver_expr_types(out, expr, local_types);
+        }
+        ExprKind::Coerce { expr, to, .. } => {
+            push_unique_type(out, to.clone());
+            push_role_receiver_expr_types(out, expr, local_types);
+        }
+        _ => {}
+    }
+}
+
+fn push_unique_type(out: &mut Vec<typed_ir::Type>, ty: typed_ir::Type) {
+    if !out.iter().any(|existing| existing == &ty) {
+        out.push(ty);
+    }
+}
+
+fn role_method_candidate_score(
+    candidate: &RoleMethodCandidate,
+    receiver_types: &[typed_ir::Type],
+) -> Option<usize> {
+    let receiver_bounds = candidate.inputs.first()?;
+    receiver_types
+        .iter()
+        .filter_map(|receiver_ty| type_bounds_match_score(receiver_bounds, receiver_ty))
+        .max()
+}
+
+fn type_bounds_match_score(
+    bounds: &typed_ir::TypeBounds,
+    actual: &typed_ir::Type,
+) -> Option<usize> {
+    let mut score = 0;
+    if let Some(lower) = bounds.lower.as_deref() {
+        let lower_score = core_subtype_match_score(lower, actual)?;
+        score += lower_score;
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        let upper_score = core_subtype_match_score(actual, upper)?;
+        score += upper_score;
+    }
+    Some(score)
+}
+
+fn core_subtype_match_score(sub: &typed_ir::Type, sup: &typed_ir::Type) -> Option<usize> {
+    if sub == sup {
+        return Some(8);
+    }
+    match (sub, sup) {
+        (typed_ir::Type::Never, _) | (_, typed_ir::Type::Any) => Some(1),
+        (typed_ir::Type::Var(_), _) | (_, typed_ir::Type::Var(_)) => Some(2),
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if path == actual_path && args.len() == actual_args.len() => args
+            .iter()
+            .zip(actual_args)
+            .map(|(left, right)| type_arg_match_score(left, right))
+            .try_fold(4, |acc, score| score.map(|score| acc + score)),
+        (
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            typed_ir::Type::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+        ) => Some(
+            core_subtype_match_score(actual_param, param)?
+                + core_subtype_match_score(param_effect, actual_param_effect)?
+                + core_subtype_match_score(ret_effect, actual_ret_effect)?
+                + core_subtype_match_score(ret, actual_ret)?,
+        ),
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            items
+                .iter()
+                .zip(actual_items)
+                .map(|(left, right)| core_subtype_match_score(left, right))
+                .try_fold(4, |acc, score| score.map(|score| acc + score))
+        }
+        _ => None,
+    }
+}
+
+fn type_arg_match_score(left: &typed_ir::TypeArg, right: &typed_ir::TypeArg) -> Option<usize> {
+    match (left, right) {
+        (typed_ir::TypeArg::Type(left), typed_ir::TypeArg::Type(right)) => {
+            core_subtype_match_score(left, right)
+        }
+        (typed_ir::TypeArg::Bounds(left), typed_ir::TypeArg::Bounds(right)) => {
+            let lower = match (left.lower.as_deref(), right.lower.as_deref()) {
+                (Some(left), Some(right)) => core_subtype_match_score(left, right)?,
+                (None, None) => 1,
+                _ => return None,
+            };
+            let upper = match (left.upper.as_deref(), right.upper.as_deref()) {
+                (Some(left), Some(right)) => core_subtype_match_score(left, right)?,
+                (None, None) => 1,
+                _ => return None,
+            };
+            Some(lower + upper)
+        }
+        _ => None,
+    }
+}
+
 fn rewrite_root_expr(
     expr: &mut Expr,
     solutions: &[&RootGraphSolution],
@@ -1279,18 +1712,35 @@ fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) ->
             evidence: materialize_join_evidence(evidence, substitutions),
             handler: materialize_handle_effect(handler, substitutions),
         },
-        ExprKind::BindHere { expr } => ExprKind::BindHere {
-            expr: Box::new(materialize_expr(*expr, substitutions)),
-        },
+        ExprKind::BindHere { expr } => {
+            let expr = materialize_expr(*expr, substitutions);
+            if !matches!(expr.ty, RuntimeType::Thunk { .. }) {
+                return expr;
+            }
+            ExprKind::BindHere {
+                expr: Box::new(expr),
+            }
+        }
         ExprKind::Thunk {
             effect,
             value,
             expr,
-        } => ExprKind::Thunk {
-            effect: materialize_core_type(effect, substitutions),
-            value: materialize_runtime_type(value, substitutions),
-            expr: Box::new(materialize_expr(*expr, substitutions)),
-        },
+        } => {
+            let effect = materialize_core_type(effect, substitutions);
+            let value = materialize_runtime_type(value, substitutions);
+            let kind = ExprKind::Thunk {
+                effect: effect.clone(),
+                value: value.clone(),
+                expr: Box::new(materialize_expr(*expr, substitutions)),
+            };
+            return Expr::typed(
+                kind,
+                RuntimeType::Thunk {
+                    effect,
+                    value: Box::new(value),
+                },
+            );
+        }
         ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
             id,
             body: Box::new(materialize_expr(*body, substitutions)),
@@ -2165,7 +2615,7 @@ mod tests {
     #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
     fn prewarmed_std_finalize_runs_ref_scalar_assignment() {
-        let results = finalized_values_from_prewarmed_std_cache(
+        let results = finalized_int_values_from_prewarmed_std_cache(
             r#"{
     my $x = 10
     &x = 11
@@ -2174,12 +2624,7 @@ mod tests {
 "#,
         );
 
-        assert_eq!(
-            results,
-            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
-                "11".into()
-            ))]
-        );
+        assert_eq!(results, vec!["11".to_string()]);
     }
 
     #[test]
@@ -2201,7 +2646,7 @@ mod tests {
     #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
     fn prewarmed_std_finalize_runs_ref_assignment_inside_nested_block() {
-        let results = finalized_values_from_prewarmed_std_cache(
+        let results = finalized_int_values_from_prewarmed_std_cache(
             r#"{
     my $x = 0
     {
@@ -2212,39 +2657,74 @@ mod tests {
 "#,
         );
 
-        assert_eq!(
-            results,
-            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
-                "9".into()
-            ))]
-        );
+        assert_eq!(results, vec!["9".to_string()]);
     }
 
-    fn finalized_values_from_prewarmed_std_cache(src: &str) -> Vec<yulang_vm::VmResult> {
-        let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(src);
-        let output = finalize_module(cached.module).unwrap();
-        assert!(
-            output
-                .module
-                .bindings
-                .iter()
-                .all(|binding| binding.type_params.is_empty())
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_runs_ref_assignment_inside_nested_for_loops() {
+        let results = finalized_int_values_from_prewarmed_std_cache(
+            r#"{
+    my $total = 0
+    for x in 1..3:
+        for y in 1..2:
+            &total = $total + x + y
+    $total
+}
+"#,
         );
-        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
-        vm.eval_roots().unwrap()
+
+        assert_eq!(results, vec!["21".to_string()]);
+    }
+
+    fn finalized_int_values_from_prewarmed_std_cache(src: &str) -> Vec<String> {
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&src);
+            let output = finalize_module(cached.module).unwrap();
+            assert!(
+                output
+                    .module
+                    .bindings
+                    .iter()
+                    .all(|binding| binding.type_params.is_empty())
+            );
+            let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+            vm.eval_roots()
+                .unwrap()
+                .into_iter()
+                .map(|result| match result {
+                    yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(value)) => value.to_string(),
+                    yulang_vm::VmResult::Request(request) => {
+                        let continuation = format!("{:?}", request.continuation);
+                        panic!(
+                            "expected int VM result, got request {:?}, blocked {:?}, handle_frames={}, bind_frames={}",
+                            request.effect,
+                            request.blocked_id,
+                            continuation.matches("Handle {").count(),
+                            continuation.matches("BindHere").count(),
+                        )
+                    }
+                    other => panic!("expected int VM result, got {other:?}"),
+                })
+                .collect()
+        })
     }
 
     fn assert_prewarmed_std_ref_source_finalizes_to_vm_input(src: &str) {
-        let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(src);
-        let output = finalize_module(cached.module).unwrap();
-        assert!(
-            output
-                .module
-                .bindings
-                .iter()
-                .all(|binding| binding.type_params.is_empty())
-        );
-        yulang_vm::compile_vm_module(output.module).unwrap();
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&src);
+            let output = finalize_module(cached.module).unwrap();
+            assert!(
+                output
+                    .module
+                    .bindings
+                    .iter()
+                    .all(|binding| binding.type_params.is_empty())
+            );
+            yulang_vm::compile_vm_module(output.module).unwrap();
+        });
     }
 
     fn id_call(arg: Expr) -> Expr {
