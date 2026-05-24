@@ -2,6 +2,21 @@ use std::path::{Path, PathBuf};
 use std::{fs, process::Command};
 
 #[test]
+fn runtime_finalize_runs_range_each_sum_with_cold_std_cache() {
+    let fixture = RuntimeFinalizeCliFixture::new("runtime-finalize-cold-range-each");
+    fixture.write_temp_source(
+        "range_each.yu",
+        "use std::undet::*\n((1..3).each + (1..3).each).list\n",
+    );
+
+    let stdout = fixture.run_file_stdout(
+        "cold range each",
+        &fixture.temp_source_path("range_each.yu"),
+    );
+    assert_eq!(stdout, "[0] [2, 3, 4, 3, 4, 5, 4, 5, 6]\n");
+}
+
+#[test]
 fn runtime_finalize_runs_examples_and_playground_samples_with_shared_std_cache() {
     let fixture = RuntimeFinalizeCliFixture::new("runtime-finalize-smoke");
     fixture.write_temp_source("warmup.yu", "1 + 2\n");
@@ -81,6 +96,10 @@ impl RuntimeFinalizeCliFixture {
     }
 
     fn run_file(&self, name: &str, source_path: &Path) {
+        self.run_file_stdout(name, source_path);
+    }
+
+    fn run_file_stdout(&self, name: &str, source_path: &Path) -> String {
         let output = Command::new(env!("CARGO_BIN_EXE_yulang"))
             .env("YULANG_RUNTIME_FINALIZE", "1")
             .env("YULANG_CACHE_DIR", &self.cache_root)
@@ -97,6 +116,7 @@ impl RuntimeFinalizeCliFixture {
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
+        String::from_utf8(output.stdout).expect("yulang stdout should be UTF-8")
     }
 }
 

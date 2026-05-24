@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -1311,6 +1311,7 @@ fn collect_root_expr_graphs(
             RootGraphRoot::Expr(*index),
             expr,
             &bindings,
+            &module.role_impls,
             &HashMap::new(),
             cast_order,
             solutions,
@@ -1340,6 +1341,7 @@ fn collect_binding_body_graphs(
             RootGraphRoot::Binding(alias.clone()),
             &binding.body,
             &bindings,
+            &module.role_impls,
             &binding_local_types(binding),
             cast_order,
             solutions,
@@ -1384,6 +1386,7 @@ fn collect_expr_graphs(
     owner: RootGraphRoot,
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
@@ -1392,12 +1395,21 @@ fn collect_expr_graphs(
         owner.clone(),
         expr,
         bindings,
+        role_impls,
         local_types,
         cast_order,
         solutions.len(),
     )?;
     if !found.is_empty() {
-        collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, cast_order, solutions)?;
+        collect_apply_spine_arg_graphs(
+            owner,
+            expr,
+            bindings,
+            role_impls,
+            local_types,
+            cast_order,
+            solutions,
+        )?;
         solutions.extend(found);
         return Ok(());
     }
@@ -1418,25 +1430,48 @@ fn collect_expr_graphs(
             if let Some(param_ty) = runtime_function_param(&expr.ty) {
                 scoped_locals.insert(path_from_name(param), param_ty);
             }
-            collect_expr_graphs(owner, body, bindings, &scoped_locals, cast_order, solutions)
+            collect_expr_graphs(
+                owner,
+                body,
+                bindings,
+                role_impls,
+                &scoped_locals,
+                cast_order,
+                solutions,
+            )
         }
         ExprKind::BindHere { expr: body }
         | ExprKind::LocalPushId { body, .. }
         | ExprKind::AddId { thunk: body, .. }
         | ExprKind::Coerce { expr: body, .. }
-        | ExprKind::Pack { expr: body, .. } => {
-            collect_expr_graphs(owner, body, bindings, local_types, cast_order, solutions)
-        }
+        | ExprKind::Pack { expr: body, .. } => collect_expr_graphs(
+            owner,
+            body,
+            bindings,
+            role_impls,
+            local_types,
+            cast_order,
+            solutions,
+        ),
         ExprKind::Apply { callee, arg, .. } => {
             collect_expr_graphs(
                 owner.clone(),
                 callee,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
             )?;
-            collect_expr_graphs(owner, arg, bindings, local_types, cast_order, solutions)
+            collect_expr_graphs(
+                owner,
+                arg,
+                bindings,
+                role_impls,
+                local_types,
+                cast_order,
+                solutions,
+            )
         }
         ExprKind::If {
             cond,
@@ -1448,6 +1483,7 @@ fn collect_expr_graphs(
                 owner.clone(),
                 cond,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
@@ -1456,6 +1492,7 @@ fn collect_expr_graphs(
                 owner.clone(),
                 then_branch,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
@@ -1464,6 +1501,7 @@ fn collect_expr_graphs(
                 owner,
                 else_branch,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
@@ -1475,6 +1513,7 @@ fn collect_expr_graphs(
                     owner.clone(),
                     item,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -1488,6 +1527,7 @@ fn collect_expr_graphs(
                     owner.clone(),
                     &field.value,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -1498,6 +1538,7 @@ fn collect_expr_graphs(
                     owner,
                     spread,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -1507,13 +1548,27 @@ fn collect_expr_graphs(
         }
         ExprKind::Variant { value, .. } => {
             if let Some(value) = value {
-                collect_expr_graphs(owner, value, bindings, local_types, cast_order, solutions)?;
+                collect_expr_graphs(
+                    owner,
+                    value,
+                    bindings,
+                    role_impls,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
-        ExprKind::Select { base, .. } | ExprKind::Thunk { expr: base, .. } => {
-            collect_expr_graphs(owner, base, bindings, local_types, cast_order, solutions)
-        }
+        ExprKind::Select { base, .. } | ExprKind::Thunk { expr: base, .. } => collect_expr_graphs(
+            owner,
+            base,
+            bindings,
+            role_impls,
+            local_types,
+            cast_order,
+            solutions,
+        ),
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
@@ -1521,6 +1576,7 @@ fn collect_expr_graphs(
                 owner.clone(),
                 scrutinee,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
@@ -1533,6 +1589,7 @@ fn collect_expr_graphs(
                         owner.clone(),
                         guard,
                         bindings,
+                        role_impls,
                         &arm_locals,
                         cast_order,
                         solutions,
@@ -1542,6 +1599,7 @@ fn collect_expr_graphs(
                     owner.clone(),
                     &arm.body,
                     bindings,
+                    role_impls,
                     &arm_locals,
                     cast_order,
                     solutions,
@@ -1556,6 +1614,7 @@ fn collect_expr_graphs(
                     owner.clone(),
                     stmt,
                     bindings,
+                    role_impls,
                     &scoped_locals,
                     cast_order,
                     solutions,
@@ -1563,7 +1622,15 @@ fn collect_expr_graphs(
                 collect_stmt_local_types(stmt, &mut scoped_locals);
             }
             if let Some(tail) = tail {
-                collect_expr_graphs(owner, tail, bindings, &scoped_locals, cast_order, solutions)?;
+                collect_expr_graphs(
+                    owner,
+                    tail,
+                    bindings,
+                    role_impls,
+                    &scoped_locals,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -1572,6 +1639,7 @@ fn collect_expr_graphs(
                 owner.clone(),
                 body,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
@@ -1587,6 +1655,7 @@ fn collect_expr_graphs(
                         owner.clone(),
                         guard,
                         bindings,
+                        role_impls,
                         &arm_locals,
                         cast_order,
                         solutions,
@@ -1596,6 +1665,7 @@ fn collect_expr_graphs(
                     owner.clone(),
                     &arm.body,
                     bindings,
+                    role_impls,
                     &arm_locals,
                     cast_order,
                     solutions,
@@ -1611,6 +1681,7 @@ fn collect_apply_spine_arg_graphs(
     owner: RootGraphRoot,
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
@@ -1622,11 +1693,20 @@ fn collect_apply_spine_arg_graphs(
         owner.clone(),
         callee,
         bindings,
+        role_impls,
         local_types,
         cast_order,
         solutions,
     )?;
-    collect_expr_graphs(owner, arg, bindings, local_types, cast_order, solutions)
+    collect_expr_graphs(
+        owner,
+        arg,
+        bindings,
+        role_impls,
+        local_types,
+        cast_order,
+        solutions,
+    )
 }
 
 fn solve_bare_polymorphic_var(
@@ -1657,6 +1737,7 @@ fn solve_simple_apply(
     owner: RootGraphRoot,
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     alias_index: usize,
@@ -1727,7 +1808,15 @@ fn solve_simple_apply(
     }
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     graph.default_unbound_lower(apply_effect_vars, typed_ir::Type::Never)?;
-    let graph = graph.solve();
+    let solved = graph.clone().solve();
+    let graph = if role_required_binding
+        && !solved.is_complete()
+        && close_role_associated_types(&mut graph, binding, &principal, &solved, role_impls)?
+    {
+        graph.solve()
+    } else {
+        solved
+    };
     if !graph.is_complete() {
         if role_required_apply_waiting_for_arguments(binding, &spine, local_types) {
             return Ok(solutions);
@@ -1795,6 +1884,416 @@ fn role_required_apply_waiting_for_arguments(
             .steps
             .iter()
             .any(|step| !core_type_is_closed(&step.arg_type(local_types)))
+}
+
+fn close_role_associated_types(
+    graph: &mut TypeGraph,
+    binding: &Binding,
+    principal: &crate::PrincipalInstance,
+    solution: &crate::GraphSolution,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> FinalizeResult<bool> {
+    let mut changed = false;
+    let principal_renames = principal_rename_substitutions(principal);
+    let solution_substitutions = solution.substitutions();
+    for requirement in &binding.scheme.requirements {
+        // Role method defaults expose associated slots through the requirement,
+        // not through the apply spine. Close those slots from the selected impl
+        // before deciding that a graph is genuinely incomplete.
+        let Some(inputs) = solved_role_requirement_inputs(
+            requirement,
+            &principal_renames,
+            &solution_substitutions,
+        ) else {
+            continue;
+        };
+        for arg in &requirement.args {
+            let typed_ir::RoleRequirementArg::Associated { name, bounds } = arg else {
+                continue;
+            };
+            let Some(projected) =
+                resolve_associated_requirement_from_impls(requirement, name, &inputs, role_impls)
+            else {
+                continue;
+            };
+            let target = materialize_type_bounds(bounds.clone(), &principal_renames);
+            let Some(target) = type_from_bounds(&target) else {
+                continue;
+            };
+            graph.constrain_subtype(projected.clone(), target.clone())?;
+            graph.constrain_subtype(target, projected)?;
+            changed = true;
+        }
+    }
+    Ok(changed)
+}
+
+fn principal_rename_substitutions(
+    principal: &crate::PrincipalInstance,
+) -> Vec<typed_ir::TypeSubstitution> {
+    principal
+        .type_params
+        .iter()
+        .map(|param| typed_ir::TypeSubstitution {
+            var: param.original.clone(),
+            ty: typed_ir::Type::Var(param.fresh.clone()),
+        })
+        .collect()
+}
+
+fn solved_role_requirement_inputs(
+    requirement: &typed_ir::RoleRequirement,
+    principal_renames: &[typed_ir::TypeSubstitution],
+    solution_substitutions: &[typed_ir::TypeSubstitution],
+) -> Option<Vec<typed_ir::Type>> {
+    let mut inputs = Vec::new();
+    for arg in &requirement.args {
+        let typed_ir::RoleRequirementArg::Input(bounds) = arg else {
+            continue;
+        };
+        let bounds = materialize_type_bounds(bounds.clone(), principal_renames);
+        let bounds = materialize_type_bounds(bounds, solution_substitutions);
+        let ty = type_from_bounds(&bounds)?;
+        if !core_type_is_closed(&ty) {
+            return None;
+        }
+        inputs.push(ty);
+    }
+    Some(inputs)
+}
+
+fn resolve_associated_requirement_from_impls(
+    requirement: &typed_ir::RoleRequirement,
+    name: &typed_ir::Name,
+    inputs: &[typed_ir::Type],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Option<typed_ir::Type> {
+    let mut resolved = None;
+    for role_impl in role_impls.iter().filter(|role_impl| {
+        role_impl.role == requirement.role && role_impl.inputs.len() == inputs.len()
+    }) {
+        let Some(associated) = role_impl
+            .associated_types
+            .iter()
+            .find(|associated| associated.name == *name)
+        else {
+            continue;
+        };
+        let Some(candidate) =
+            project_role_impl_associated_type(&role_impl.inputs, inputs, &associated.value)
+        else {
+            continue;
+        };
+        match &resolved {
+            Some(existing) if existing != &candidate => return None,
+            Some(_) => {}
+            None => resolved = Some(candidate),
+        }
+    }
+    resolved
+}
+
+fn project_role_impl_associated_type(
+    impl_inputs: &[typed_ir::TypeBounds],
+    actual_inputs: &[typed_ir::Type],
+    associated: &typed_ir::TypeBounds,
+) -> Option<typed_ir::Type> {
+    let mut impl_vars = BTreeSet::new();
+    let templates = impl_inputs
+        .iter()
+        .map(|bounds| {
+            let template = type_from_bounds(bounds)?;
+            collect_type_vars(&template, &mut impl_vars);
+            Some(template)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    collect_type_bounds_vars(associated, &mut impl_vars);
+    let mut substitutions = BTreeMap::new();
+    for (template, actual) in templates.iter().zip(actual_inputs) {
+        infer_type_substitutions(template, actual, &impl_vars, &mut substitutions);
+    }
+    let substitution_list = substitution_map_to_list(&substitutions);
+    if templates
+        .iter()
+        .zip(actual_inputs)
+        .any(|(template, actual)| {
+            materialize_core_type(template.clone(), &substitution_list) != *actual
+        })
+    {
+        return None;
+    }
+    type_from_bounds(&materialize_type_bounds(
+        associated.clone(),
+        &substitution_list,
+    ))
+}
+
+fn collect_type_bounds_vars(bounds: &typed_ir::TypeBounds, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    if let Some(lower) = bounds.lower.as_deref() {
+        collect_type_vars(lower, vars);
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        collect_type_vars(upper, vars);
+    }
+}
+
+fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+        typed_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_vars(param, vars);
+            collect_type_vars(param_effect, vars);
+            collect_type_vars(ret_effect, vars);
+            collect_type_vars(ret, vars);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_type_vars(&field.value, vars);
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_type_vars(tail, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_type_vars(item, vars);
+            }
+            collect_type_vars(tail, vars);
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            let inserted = vars.insert(var.clone());
+            collect_type_vars(body, vars);
+            if inserted {
+                vars.remove(var);
+            }
+        }
+    }
+}
+
+fn collect_type_arg_vars(arg: &typed_ir::TypeArg, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => collect_type_bounds_vars(bounds, vars),
+    }
+}
+
+fn infer_type_substitutions(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    infer_type_substitutions_inner(template, actual, params, substitutions, 64);
+}
+
+fn infer_type_substitutions_inner(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    depth: usize,
+) {
+    if depth == 0 {
+        return;
+    }
+    match (template, actual) {
+        (typed_ir::Type::Var(var), actual) if params.contains(var) => {
+            substitutions
+                .entry(var.clone())
+                .or_insert_with(|| actual.clone());
+        }
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if path == actual_path && args.len() == actual_args.len() => {
+            for (template_arg, actual_arg) in args.iter().zip(actual_args) {
+                infer_type_arg_substitutions(
+                    template_arg,
+                    actual_arg,
+                    params,
+                    substitutions,
+                    depth - 1,
+                );
+            }
+        }
+        (
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            typed_ir::Type::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+        ) => {
+            infer_type_substitutions_inner(param, actual_param, params, substitutions, depth - 1);
+            infer_type_substitutions_inner(
+                param_effect,
+                actual_param_effect,
+                params,
+                substitutions,
+                depth - 1,
+            );
+            infer_type_substitutions_inner(
+                ret_effect,
+                actual_ret_effect,
+                params,
+                substitutions,
+                depth - 1,
+            );
+            infer_type_substitutions_inner(ret, actual_ret, params, substitutions, depth - 1);
+        }
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                infer_type_substitutions_inner(item, actual_item, params, substitutions, depth - 1);
+            }
+        }
+        (typed_ir::Type::Record(record), typed_ir::Type::Record(actual_record)) => {
+            for field in &record.fields {
+                if let Some(actual_field) = actual_record
+                    .fields
+                    .iter()
+                    .find(|actual| actual.name == field.name)
+                {
+                    infer_type_substitutions_inner(
+                        &field.value,
+                        &actual_field.value,
+                        params,
+                        substitutions,
+                        depth - 1,
+                    );
+                }
+            }
+        }
+        (typed_ir::Type::Variant(variant), typed_ir::Type::Variant(actual_variant)) => {
+            for case in &variant.cases {
+                let Some(actual_case) = actual_variant
+                    .cases
+                    .iter()
+                    .find(|actual| actual.name == case.name)
+                else {
+                    continue;
+                };
+                if case.payloads.len() != actual_case.payloads.len() {
+                    continue;
+                }
+                for (payload, actual_payload) in case.payloads.iter().zip(&actual_case.payloads) {
+                    infer_type_substitutions_inner(
+                        payload,
+                        actual_payload,
+                        params,
+                        substitutions,
+                        depth - 1,
+                    );
+                }
+            }
+        }
+        (
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
+                items: actual_items,
+                tail: actual_tail,
+            },
+        ) if items.len() == actual_items.len() => {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                infer_type_substitutions_inner(item, actual_item, params, substitutions, depth - 1);
+            }
+            infer_type_substitutions_inner(tail, actual_tail, params, substitutions, depth - 1);
+        }
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
+            for item in items {
+                infer_type_substitutions_inner(item, actual, params, substitutions, depth - 1);
+            }
+        }
+        (typed_ir::Type::Recursive { body, .. }, actual) => {
+            infer_type_substitutions_inner(body, actual, params, substitutions, depth - 1);
+        }
+        (template, typed_ir::Type::Recursive { body, .. }) => {
+            infer_type_substitutions_inner(template, body, params, substitutions, depth - 1);
+        }
+        _ => {}
+    }
+}
+
+fn infer_type_arg_substitutions(
+    template: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    depth: usize,
+) {
+    match (template, actual) {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
+            infer_type_substitutions_inner(template, actual, params, substitutions, depth);
+        }
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
+            infer_type_bounds_substitutions(template, actual, params, substitutions, depth);
+        }
+        _ => {}
+    }
+}
+
+fn infer_type_bounds_substitutions(
+    template: &typed_ir::TypeBounds,
+    actual: &typed_ir::TypeBounds,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    depth: usize,
+) {
+    if let (Some(template), Some(actual)) = (template.lower.as_deref(), actual.lower.as_deref()) {
+        infer_type_substitutions_inner(template, actual, params, substitutions, depth);
+    }
+    if let (Some(template), Some(actual)) = (template.upper.as_deref(), actual.upper.as_deref()) {
+        infer_type_substitutions_inner(template, actual, params, substitutions, depth);
+    }
+}
+
+fn substitution_map_to_list(
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Vec<typed_ir::TypeSubstitution> {
+    substitutions
+        .iter()
+        .map(|(var, ty)| typed_ir::TypeSubstitution {
+            var: var.clone(),
+            ty: ty.clone(),
+        })
+        .collect()
 }
 
 fn solve_spine_value_args(
@@ -2169,15 +2668,22 @@ fn collect_record_spread_graphs(
     owner: RootGraphRoot,
     spread: &yulang_runtime_ir::RecordSpreadExpr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr)
-        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
-            collect_expr_graphs(owner, expr, bindings, local_types, cast_order, solutions)
-        }
+        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => collect_expr_graphs(
+            owner,
+            expr,
+            bindings,
+            role_impls,
+            local_types,
+            cast_order,
+            solutions,
+        ),
     }
 }
 
@@ -2185,6 +2691,7 @@ fn collect_stmt_graphs(
     owner: RootGraphRoot,
     stmt: &yulang_runtime_ir::Stmt,
     bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
@@ -2195,16 +2702,31 @@ fn collect_stmt_graphs(
                 owner.clone(),
                 pattern,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
             )?;
-            collect_expr_graphs(owner, value, bindings, local_types, cast_order, solutions)
+            collect_expr_graphs(
+                owner,
+                value,
+                bindings,
+                role_impls,
+                local_types,
+                cast_order,
+                solutions,
+            )
         }
         yulang_runtime_ir::Stmt::Expr(expr)
-        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
-            collect_expr_graphs(owner, expr, bindings, local_types, cast_order, solutions)
-        }
+        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => collect_expr_graphs(
+            owner,
+            expr,
+            bindings,
+            role_impls,
+            local_types,
+            cast_order,
+            solutions,
+        ),
     }
 }
 
@@ -2212,6 +2734,7 @@ fn collect_pattern_graphs(
     owner: RootGraphRoot,
     pattern: &yulang_runtime_ir::Pattern,
     bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
@@ -2225,6 +2748,7 @@ fn collect_pattern_graphs(
                     owner.clone(),
                     item,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -2243,6 +2767,7 @@ fn collect_pattern_graphs(
                     owner.clone(),
                     item,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -2253,6 +2778,7 @@ fn collect_pattern_graphs(
                     owner.clone(),
                     spread,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -2263,6 +2789,7 @@ fn collect_pattern_graphs(
                     owner.clone(),
                     item,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -2276,6 +2803,7 @@ fn collect_pattern_graphs(
                     owner.clone(),
                     &field.pattern,
                     bindings,
+                    role_impls,
                     local_types,
                     cast_order,
                     solutions,
@@ -2285,6 +2813,7 @@ fn collect_pattern_graphs(
                         owner.clone(),
                         default,
                         bindings,
+                        role_impls,
                         local_types,
                         cast_order,
                         solutions,
@@ -2299,6 +2828,7 @@ fn collect_pattern_graphs(
                             owner,
                             pattern,
                             bindings,
+                            role_impls,
                             local_types,
                             cast_order,
                             solutions,
@@ -2310,7 +2840,15 @@ fn collect_pattern_graphs(
         }
         Pattern::Variant { value, .. } => {
             if let Some(value) = value {
-                collect_pattern_graphs(owner, value, bindings, local_types, cast_order, solutions)?;
+                collect_pattern_graphs(
+                    owner,
+                    value,
+                    bindings,
+                    role_impls,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -2319,15 +2857,30 @@ fn collect_pattern_graphs(
                 owner.clone(),
                 left,
                 bindings,
+                role_impls,
                 local_types,
                 cast_order,
                 solutions,
             )?;
-            collect_pattern_graphs(owner, right, bindings, local_types, cast_order, solutions)
+            collect_pattern_graphs(
+                owner,
+                right,
+                bindings,
+                role_impls,
+                local_types,
+                cast_order,
+                solutions,
+            )
         }
-        Pattern::As { pattern, .. } => {
-            collect_pattern_graphs(owner, pattern, bindings, local_types, cast_order, solutions)
-        }
+        Pattern::As { pattern, .. } => collect_pattern_graphs(
+            owner,
+            pattern,
+            bindings,
+            role_impls,
+            local_types,
+            cast_order,
+            solutions,
+        ),
         Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => Ok(()),
     }
 }
@@ -5326,6 +5879,29 @@ sub:
     }
 
     #[test]
+    fn cold_std_finalize_runs_range_each_sum_without_prewarmed_cache() {
+        let source = playground_source("((1..3).each + (1..3).each).list\n");
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_cold_std_dependency_cache_large_stack(
+                &source,
+                "cold-range-each",
+            );
+            let output = finalize_module(cached.module)
+                .unwrap_or_else(|error| panic!("cold range each finalize failed: {error:?}"));
+            let vm = yulang_vm::compile_vm_module(output.module)
+                .unwrap_or_else(|error| panic!("cold range each VM compile failed: {error:?}"));
+            let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
+                .unwrap_or_else(|error| panic!("cold range each VM eval failed: {error:?}"));
+            let actual = host_output
+                .results
+                .iter()
+                .map(format_vm_result)
+                .collect::<Vec<_>>();
+            assert_eq!(actual, ["[2, 3, 4, 3, 4, 5, 4, 5, 6]"]);
+        });
+    }
+
+    #[test]
     fn cached_std_finalize_runs_playground_state_and_host_examples() {
         for case in [
             PlaygroundCase {
@@ -6254,6 +6830,39 @@ sub:
                 &cache_paths,
             )
             .expect("lower std runtime IR with dependency cache fallback")
+        })
+    }
+
+    fn runtime_module_from_source_with_cold_std_dependency_cache_large_stack(
+        src: &str,
+        cache_name: &str,
+    ) -> yulang_compile::CachedRuntimeIrModule {
+        let src = src.to_string();
+        let cache_name = cache_name.to_string();
+        run_with_large_stack(move || {
+            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+            let cache_root = artifact_cache_root(&cache_name);
+            let _ = std::fs::remove_dir_all(&cache_root);
+            let cache_paths =
+                yulang_compile::YulangCachePaths::with_user_cache_root(&repo_root, &cache_root);
+            let std_root = yulang_sources::resolve_or_install_std_root(None, None)
+                .expect("resolve installed std root")
+                .expect("installed std root should be available");
+            let options = yulang_compile::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            };
+            let cached =
+                yulang_compile::runtime_ir_module_from_virtual_source_with_dependency_cache(
+                    &src,
+                    None,
+                    options,
+                    &cache_paths,
+                )
+                .expect("lower std runtime IR with cold dependency cache");
+            let _ = std::fs::remove_dir_all(&cache_root);
+            cached
         })
     }
 
