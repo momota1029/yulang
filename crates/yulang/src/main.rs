@@ -1291,6 +1291,14 @@ fn run_infer_views(
             collect_duration += full_collect;
         }
     }
+    let mut cache_key_tables_built = false;
+    if use_cache_key_collection && prepared_cache.bundle.is_some() {
+        let table_start = startup_profile.start();
+        source_set.build_syntax_tables();
+        collect_duration += StartupProfile::elapsed(table_start);
+        startup_profile.record_source_set(&source_set, collect_duration);
+        cache_key_tables_built = true;
+    }
     startup_profile.record_source_set(&source_set, collect_duration);
     let cached_files = prepared_cache
         .bundle
@@ -1301,7 +1309,11 @@ fn run_infer_views(
     let invalid_token_start = startup_profile.start();
     let mut has_invalid_tokens = source_set_has_invalid_tokens(&source_set, &cached_files);
     startup_profile.invalid_token_scan = StartupProfile::elapsed(invalid_token_start);
-    if has_invalid_tokens && use_cache_key_collection && prepared_cache.bundle.is_some() {
+    if has_invalid_tokens
+        && use_cache_key_collection
+        && prepared_cache.bundle.is_some()
+        && !cache_key_tables_built
+    {
         let table_start = startup_profile.start();
         source_set.build_syntax_tables();
         collect_duration += StartupProfile::elapsed(table_start);
