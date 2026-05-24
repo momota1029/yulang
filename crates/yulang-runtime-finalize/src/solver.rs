@@ -44,6 +44,7 @@ pub fn finalize_module_with_cache(
     }
     prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
     normalize_materialized_module(&mut module);
+    fill_local_var_types(&mut module);
     Ok(FinalizeOutput {
         module,
         report: FinalizeReport {
@@ -64,6 +65,285 @@ fn normalize_materialized_module(module: &mut Module) {
     }
     for expr in &mut module.root_exprs {
         materialize_expr_in_place(expr, &substitutions);
+    }
+}
+
+/// Scope-aware post-pass that fills `Unknown` `Var.ty` slots whose binding
+/// type is recoverable from the enclosing Lambda/Pattern/Handle arm.
+///
+/// The lowering pipeline sometimes records a local `Var` reference with
+/// `.ty = Unknown` even when the surrounding binder carries a concrete type
+/// after monomorphization. We do not have a Var-table at materialize time,
+/// so we walk the finalized module here with a flat name -> RuntimeType
+/// scope (hygiene guarantees no shadowing collisions) and patch
+/// `Var.ty == Unknown` references.
+fn fill_local_var_types(module: &mut Module) {
+    let bindings: HashMap<typed_ir::Path, RuntimeType> = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.body.ty.clone()))
+        .collect();
+    for binding in &mut module.bindings {
+        let mut scope = HashMap::new();
+        fill_local_var_types_in(&mut binding.body, &mut scope, &bindings);
+    }
+    for expr in &mut module.root_exprs {
+        let mut scope = HashMap::new();
+        fill_local_var_types_in(expr, &mut scope, &bindings);
+    }
+}
+
+fn fill_local_var_types_in(
+    expr: &mut Expr,
+    scope: &mut HashMap<typed_ir::Path, RuntimeType>,
+    bindings: &HashMap<typed_ir::Path, RuntimeType>,
+) {
+    match &mut expr.kind {
+        ExprKind::Var(path) => {
+            if runtime_type_has_unknown(&expr.ty)
+                && let Some(known) = scope
+                    .get(path)
+                    .or_else(|| bindings.get(path))
+                    .filter(|known| !runtime_type_has_unknown(known))
+            {
+                expr.ty = known.clone();
+            }
+        }
+        ExprKind::Lambda { param, body, .. } => {
+            let param_path = path_from_name(param);
+            let param_ty = if let RuntimeType::Fun { param, .. } = &expr.ty {
+                Some((**param).clone())
+            } else {
+                None
+            };
+            let prev = scope.remove(&param_path);
+            if let Some(pty) = param_ty {
+                scope.insert(param_path.clone(), pty);
+            }
+            fill_local_var_types_in(body, scope, bindings);
+            scope.remove(&param_path);
+            if let Some(p) = prev {
+                scope.insert(param_path, p);
+            }
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            fill_local_var_types_in(callee, scope, bindings);
+            fill_local_var_types_in(arg, scope, bindings);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            fill_local_var_types_in(cond, scope, bindings);
+            fill_local_var_types_in(then_branch, scope, bindings);
+            fill_local_var_types_in(else_branch, scope, bindings);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                fill_local_var_types_in(item, scope, bindings);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                fill_local_var_types_in(&mut field.value, scope, bindings);
+            }
+            if let Some(spread) = spread {
+                let e = match spread {
+                    yulang_runtime_ir::RecordSpreadExpr::Head(e)
+                    | yulang_runtime_ir::RecordSpreadExpr::Tail(e) => e,
+                };
+                fill_local_var_types_in(e, scope, bindings);
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                fill_local_var_types_in(value, scope, bindings);
+            }
+        }
+        ExprKind::Select { base, .. } => fill_local_var_types_in(base, scope, bindings),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            fill_local_var_types_in(scrutinee, scope, bindings);
+            for arm in arms {
+                let added = collect_pattern_scope_bindings(&arm.pattern, scope);
+                if let Some(guard) = &mut arm.guard {
+                    fill_local_var_types_in(guard, scope, bindings);
+                }
+                fill_local_var_types_in(&mut arm.body, scope, bindings);
+                for path in added {
+                    scope.remove(&path);
+                }
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            let mut added = Vec::new();
+            for stmt in stmts.iter_mut() {
+                match stmt {
+                    yulang_runtime_ir::Stmt::Let { pattern, value } => {
+                        fill_local_var_types_in(value, scope, bindings);
+                        added.extend(collect_pattern_scope_bindings(pattern, scope));
+                    }
+                    yulang_runtime_ir::Stmt::Expr(e) => {
+                        fill_local_var_types_in(e, scope, bindings);
+                    }
+                    yulang_runtime_ir::Stmt::Module { body, .. } => {
+                        fill_local_var_types_in(body, scope, bindings);
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                fill_local_var_types_in(tail, scope, bindings);
+            }
+            for path in added {
+                scope.remove(&path);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            fill_local_var_types_in(body, scope, bindings);
+            for arm in arms {
+                let mut added = collect_pattern_scope_bindings(&arm.payload, scope);
+                if let Some(resume) = &arm.resume {
+                    let resume_path = path_from_name(&resume.name);
+                    if !runtime_type_has_unknown(&resume.ty) {
+                        scope.insert(resume_path.clone(), resume.ty.clone());
+                        added.push(resume_path);
+                    }
+                }
+                if let Some(guard) = &mut arm.guard {
+                    fill_local_var_types_in(guard, scope, bindings);
+                }
+                fill_local_var_types_in(&mut arm.body, scope, bindings);
+                for path in added {
+                    scope.remove(&path);
+                }
+            }
+        }
+        ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. }
+        | ExprKind::Thunk { expr: body, .. } => {
+            fill_local_var_types_in(body, scope, bindings);
+        }
+        ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+}
+
+fn collect_pattern_scope_bindings(
+    pattern: &yulang_runtime_ir::Pattern,
+    scope: &mut HashMap<typed_ir::Path, RuntimeType>,
+) -> Vec<typed_ir::Path> {
+    use yulang_runtime_ir::Pattern;
+    let mut added = Vec::new();
+    match pattern {
+        Pattern::Bind { name, ty } => {
+            if !runtime_type_has_unknown(ty) {
+                let path = path_from_name(name);
+                scope.insert(path.clone(), ty.clone());
+                added.push(path);
+            }
+        }
+        Pattern::As { pattern, name, ty } => {
+            if !runtime_type_has_unknown(ty) {
+                let path = path_from_name(name);
+                scope.insert(path.clone(), ty.clone());
+                added.push(path);
+            }
+            added.extend(collect_pattern_scope_bindings(pattern, scope));
+        }
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                added.extend(collect_pattern_scope_bindings(item, scope));
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix.iter().chain(suffix.iter()) {
+                added.extend(collect_pattern_scope_bindings(item, scope));
+            }
+            if let Some(spread) = spread {
+                added.extend(collect_pattern_scope_bindings(spread, scope));
+            }
+        }
+        Pattern::Record { fields, .. } => {
+            for field in fields {
+                added.extend(collect_pattern_scope_bindings(&field.pattern, scope));
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                added.extend(collect_pattern_scope_bindings(value, scope));
+            }
+        }
+        Pattern::Or { left, .. } => {
+            added.extend(collect_pattern_scope_bindings(left, scope));
+        }
+        Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
+    }
+    added
+}
+
+fn runtime_type_has_unknown(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => true,
+        RuntimeType::Core(ty) => core_type_has_unknown(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_has_unknown(param) || runtime_type_has_unknown(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_has_unknown(effect) || runtime_type_has_unknown(value)
+        }
+    }
+}
+
+fn core_type_has_unknown(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Var(_) | typed_ir::Type::Never | typed_ir::Type::Any => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(t) => core_type_has_unknown(t),
+            typed_ir::TypeArg::Bounds(b) => {
+                b.lower.as_deref().is_some_and(core_type_has_unknown)
+                    || b.upper.as_deref().is_some_and(core_type_has_unknown)
+            }
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_has_unknown(param)
+                || core_type_has_unknown(param_effect)
+                || core_type_has_unknown(ret_effect)
+                || core_type_has_unknown(ret)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_type_has_unknown),
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_has_unknown) || core_type_has_unknown(tail)
+        }
+        typed_ir::Type::Record(record) => {
+            record.fields.iter().any(|f| core_type_has_unknown(&f.value))
+        }
+        typed_ir::Type::Variant(variant) => variant
+            .cases
+            .iter()
+            .any(|c| c.payloads.iter().any(core_type_has_unknown)),
+        typed_ir::Type::Recursive { body, .. } => core_type_has_unknown(body),
     }
 }
 
