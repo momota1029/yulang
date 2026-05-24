@@ -106,6 +106,7 @@ struct CliOptions {
     infer: bool,
     core_ir: bool,
     runtime_finalize_ir: bool,
+    finalized_ir: bool,
     runtime_ir: bool,
     hygiene_ir: bool,
     run_interpreter: bool,
@@ -328,6 +329,9 @@ struct DumpArgs {
     /// Print runtime IR before runtime-finalize and legacy monomorphization
     #[arg(long)]
     runtime_finalize_ir: bool,
+    /// Print runtime IR after runtime-finalize (the new solver)
+    #[arg(long)]
+    finalized_ir: bool,
     /// Print strict typed runtime IR lowered from principal core-ir
     #[arg(long)]
     runtime_ir: bool,
@@ -378,6 +382,7 @@ fn parse_args() -> CliOptions {
         infer: false,
         core_ir: false,
         runtime_finalize_ir: false,
+        finalized_ir: false,
         runtime_ir: false,
         hygiene_ir: false,
         run_interpreter: false,
@@ -448,18 +453,20 @@ fn parse_args() -> CliOptions {
             path,
             core_ir,
             runtime_finalize_ir,
+            finalized_ir,
             runtime_ir,
             hygiene_ir,
         }) => {
-            if !core_ir && !runtime_finalize_ir && !runtime_ir && !hygiene_ir {
+            if !core_ir && !runtime_finalize_ir && !finalized_ir && !runtime_ir && !hygiene_ir {
                 eprintln!(
-                    "yulang dump: specify at least one of --core-ir, --runtime-finalize-ir, --runtime-ir, --hygiene-ir"
+                    "yulang dump: specify at least one of --core-ir, --runtime-finalize-ir, --finalized-ir, --runtime-ir, --hygiene-ir"
                 );
                 process::exit(2);
             }
             opts.path = path;
             opts.core_ir = core_ir;
             opts.runtime_finalize_ir = runtime_finalize_ir;
+            opts.finalized_ir = finalized_ir;
             opts.runtime_ir = runtime_ir;
             opts.hygiene_ir = hygiene_ir;
         }
@@ -1093,6 +1100,7 @@ impl CliOptions {
     fn requests_runtime_pipeline(&self) -> bool {
         self.core_ir
             || self.runtime_finalize_ir
+            || self.finalized_ir
             || self.runtime_ir
             || self.hygiene_ir
             || self.run_interpreter
@@ -1469,8 +1477,30 @@ fn run_infer_views(
                 print_runtime_finalize_phase_timings(&lowered.profile);
             }
         }
-        if options.runtime_ir {
+        if options.finalized_ir {
             if options.infer || options.core_ir || options.runtime_finalize_ir {
+                println!();
+            }
+            println!("finalized-ir:");
+            let lowered = lower_runtime_finalize_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            match yulang_runtime_finalize::finalize_module(lowered.module) {
+                Ok(output) => print_runtime_module(&output.module, options.verbose_ir),
+                Err(err) => {
+                    eprintln!("runtime-finalize error: {err:?}");
+                    process::exit(1);
+                }
+            }
+        }
+        if options.runtime_ir {
+            if options.infer
+                || options.core_ir
+                || options.runtime_finalize_ir
+                || options.finalized_ir
+            {
                 println!();
             }
             println!("runtime-ir:");
@@ -1485,7 +1515,11 @@ fn run_infer_views(
             }
         }
         if options.hygiene_ir {
-            if options.infer || options.core_ir || options.runtime_finalize_ir || options.runtime_ir
+            if options.infer
+                || options.core_ir
+                || options.runtime_finalize_ir
+                || options.finalized_ir
+                || options.runtime_ir
             {
                 println!();
             }
@@ -1504,6 +1538,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
             {
@@ -1559,6 +1594,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1597,6 +1633,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1703,6 +1740,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1726,6 +1764,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1751,6 +1790,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1776,6 +1816,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1801,6 +1842,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1827,6 +1869,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1853,6 +1896,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1879,6 +1923,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1906,6 +1951,7 @@ fn run_infer_views(
             if options.infer
                 || options.core_ir
                 || options.runtime_finalize_ir
+                || options.finalized_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -4711,6 +4757,7 @@ fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
         && !options.infer_phase_timings
         && !options.core_ir
         && !options.runtime_finalize_ir
+        && !options.finalized_ir
         && !options.runtime_ir
         && !options.hygiene_ir
         && !options.run_interpreter
@@ -7663,6 +7710,7 @@ mod tests {
             infer: true,
             core_ir: false,
             runtime_finalize_ir: false,
+            finalized_ir: false,
             runtime_ir: false,
             hygiene_ir: false,
             run_interpreter: false,
