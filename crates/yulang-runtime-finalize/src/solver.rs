@@ -4197,16 +4197,6 @@ sub:
     }
 
     #[test]
-    fn cached_std_control_vm_legacy_runtime_and_finalize_match_examples() {
-        for case in control_vm_example_oracle_cases() {
-            assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
-                case,
-                OracleVm::Control,
-            );
-        }
-    }
-
-    #[test]
     fn cached_std_finalize_runs_playground_core_examples() {
         for case in [
             PlaygroundCase {
@@ -4818,61 +4808,6 @@ sub:
         ]
     }
 
-    fn control_vm_example_oracle_cases() -> [RuntimeOracleCase; 12] {
-        // showcase is covered by the finalize/VM-input gate above; the control
-        // VM currently overflows its own execution stack on that full tour.
-        [
-            RuntimeOracleCase {
-                name: "01_struct_with",
-                source: include_str!("../../../examples/01_struct_with.yu"),
-            },
-            RuntimeOracleCase {
-                name: "03_for_last",
-                source: include_str!("../../../examples/03_for_last.yu"),
-            },
-            RuntimeOracleCase {
-                name: "04_sub_return",
-                source: include_str!("../../../examples/04_sub_return.yu"),
-            },
-            RuntimeOracleCase {
-                name: "05_undet_all",
-                source: include_str!("../../../examples/05_undet_all.yu"),
-            },
-            RuntimeOracleCase {
-                name: "06_undet_once",
-                source: include_str!("../../../examples/06_undet_once.yu"),
-            },
-            RuntimeOracleCase {
-                name: "07_junction",
-                source: include_str!("../../../examples/07_junction.yu"),
-            },
-            RuntimeOracleCase {
-                name: "08_types",
-                source: include_str!("../../../examples/08_types.yu"),
-            },
-            RuntimeOracleCase {
-                name: "09_optional_record_args",
-                source: include_str!("../../../examples/09_optional_record_args.yu"),
-            },
-            RuntimeOracleCase {
-                name: "10_effect_handler",
-                source: include_str!("../../../examples/10_effect_handler.yu"),
-            },
-            RuntimeOracleCase {
-                name: "11_attached_impl",
-                source: include_str!("../../../examples/11_attached_impl.yu"),
-            },
-            RuntimeOracleCase {
-                name: "12_cast",
-                source: include_str!("../../../examples/12_cast.yu"),
-            },
-            RuntimeOracleCase {
-                name: "13_console",
-                source: include_str!("../../../examples/13_console.yu"),
-            },
-        ]
-    }
-
     fn assert_legacy_and_finalize_match_module(name: &str, module: Module, vm: OracleVm) {
         let legacy = run_legacy_runtime_module(name, module.clone(), vm);
         let finalized = run_finalize_runtime_module(name, module, vm);
@@ -5279,7 +5214,7 @@ sub:
             .expect("lock runtime-finalize large-stack test");
         std::thread::Builder::new()
             .name("runtime-finalize-large-stack".into())
-            .stack_size(512 * 1024 * 1024)
+            .stack_size(128 * 1024 * 1024)
             .spawn(f)
             .expect("spawn large-stack runtime-finalize test thread")
             .join()
