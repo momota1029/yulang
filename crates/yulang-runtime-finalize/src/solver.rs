@@ -1099,7 +1099,10 @@ fn solve_simple_apply(
     let principal = graph.instantiate_principal(binding);
     graph.collect_runtime_bounds(
         &principal.principal_type,
-        &crate::RuntimeBounds::exact(spine.callee.ty.clone()),
+        &crate::RuntimeBounds {
+            lower: Some(apply_callee_lower_bound(spine.callee.ty.clone())),
+            upper: Some(spine.callee.ty.clone()),
+        },
     )?;
     collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
     let mut current = principal.principal_type.clone();
@@ -1278,6 +1281,64 @@ fn collect_spine_substitution(
         return Ok(());
     };
     graph.constrain_subtype(ty.clone(), typed_ir::Type::Var(param.fresh.clone()))
+}
+
+fn apply_callee_lower_bound(ty: RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Fun { param, ret } => RuntimeType::Fun {
+            // A polymorphic callee occurrence can carry `Any` in parameter
+            // slots before the apply spine has supplied its real arguments.
+            // That Top is not an instantiation lower bound; the argument and
+            // evidence constraints below provide the actual lower bound.
+            param: Box::new(unconstrain_top_param_runtime_bound(*param)),
+            ret: Box::new(apply_callee_lower_bound(*ret)),
+        },
+        RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
+            effect,
+            value: Box::new(apply_callee_lower_bound(*value)),
+        },
+        RuntimeType::Core(ty) => RuntimeType::Core(apply_callee_lower_core_bound(ty)),
+        ty => ty,
+    }
+}
+
+fn unconstrain_top_param_runtime_bound(ty: RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Core(ty) => RuntimeType::Core(unconstrain_top_param_core_bound(ty)),
+        RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
+            effect,
+            value: Box::new(unconstrain_top_param_runtime_bound(*value)),
+        },
+        RuntimeType::Fun { .. } => apply_callee_lower_bound(ty),
+        RuntimeType::Unknown => RuntimeType::Unknown,
+    }
+}
+
+fn apply_callee_lower_core_bound(ty: typed_ir::Type) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(unconstrain_top_param_core_bound(*param)),
+            param_effect,
+            ret_effect,
+            ret: Box::new(apply_callee_lower_core_bound(*ret)),
+        },
+        ty => ty,
+    }
+}
+
+fn unconstrain_top_param_core_bound(ty: typed_ir::Type) -> typed_ir::Type {
+    if matches!(ty, typed_ir::Type::Any) {
+        typed_ir::Type::Unknown
+    } else if matches!(ty, typed_ir::Type::Fun { .. }) {
+        apply_callee_lower_core_bound(ty)
+    } else {
+        ty
+    }
 }
 
 struct ApplySpine<'a> {
@@ -3385,6 +3446,41 @@ mod tests {
             output.module.root_exprs[0].ty,
             RuntimeType::Core(int.clone())
         );
+    }
+
+    #[test]
+    fn root_apply_top_callee_param_annotation_does_not_force_top_solution() {
+        let int = int_type();
+        let module = Module {
+            path: path("test"),
+            bindings: vec![id_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(path("id")),
+                        RuntimeType::Fun {
+                            param: Box::new(RuntimeType::Core(typed_ir::Type::Any)),
+                            ret: Box::new(RuntimeType::Core(int.clone())),
+                        },
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                        RuntimeType::Core(int.clone()),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Core(int.clone()),
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_module(module).unwrap();
+        let solution = &output.report.root_graph_solutions[0];
+
+        assert_eq!(solution.binding, path("id"));
+        assert_eq!(solution.graph.substitutions()[0].ty, int);
     }
 
     #[test]
