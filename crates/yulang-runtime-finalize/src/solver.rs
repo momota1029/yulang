@@ -3884,11 +3884,10 @@ f 3
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_runtime_ir_cache_can_enter_runtime_finalize() {
+    fn cached_std_runtime_ir_cache_can_enter_runtime_finalize() {
         let cache_start = std::time::Instant::now();
         let cached =
-            runtime_module_from_source_with_prewarmed_std_cache_large_stack("\"hello\".println\n");
+            runtime_module_from_source_with_std_dependency_cache_large_stack("\"hello\".println\n");
         let cache_read = cache_start.elapsed();
 
         assert!(cached.dependency_cache_hit);
@@ -3898,7 +3897,7 @@ f 3
         let output = finalize_module(cached.module).unwrap();
         let finalize = finalize_start.elapsed();
         eprintln!(
-            "prewarmed std runtime-ir finalize profile: cache_read={:?} finalize={:?}",
+            "cached std runtime-ir finalize profile: cache_read={:?} finalize={:?}",
             cache_read, finalize
         );
 
@@ -3906,9 +3905,8 @@ f 3
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_runs_ref_scalar_assignment() {
-        let results = finalized_int_values_from_prewarmed_std_cache(
+    fn cached_std_finalize_runs_ref_scalar_assignment() {
+        let results = finalized_int_values_from_std_dependency_cache(
             r#"{
     my $x = 10
     &x = 11
@@ -3921,9 +3919,8 @@ f 3
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_compiles_ref_assignment_from_ref_read() {
-        assert_prewarmed_std_ref_source_finalizes_to_vm_input(
+    fn cached_std_finalize_compiles_ref_assignment_from_ref_read() {
+        assert_std_dependency_cache_ref_source_finalizes_to_vm_input(
             r#"{
     my $x = 13
     my $y = 0
@@ -3966,8 +3963,7 @@ f 3
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_legacy_runtime_and_finalize_match_playground_core_examples() {
+    fn cached_std_legacy_runtime_and_finalize_match_playground_core_examples() {
         for case in [
             RuntimeOracleCase {
                 name: "prelude operators",
@@ -3993,13 +3989,12 @@ f 3
 "#,
             },
         ] {
-            assert_legacy_and_finalize_match_with_prewarmed_std_cache(case);
+            assert_legacy_and_finalize_match_with_std_dependency_cache(case);
         }
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_legacy_runtime_and_finalize_match_playground_state_examples() {
+    fn cached_std_legacy_runtime_and_finalize_match_playground_state_examples() {
         for case in [
             RuntimeOracleCase {
                 name: "ref list assignment",
@@ -4036,14 +4031,13 @@ sub:
 "#,
             },
         ] {
-            assert_legacy_and_finalize_match_with_prewarmed_std_cache(case);
+            assert_legacy_and_finalize_match_with_std_dependency_cache(case);
         }
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_legacy_runtime_and_finalize_match_playground_tour() {
-        assert_legacy_and_finalize_match_with_prewarmed_std_cache(RuntimeOracleCase {
+    fn cached_std_legacy_runtime_and_finalize_match_playground_tour() {
+        assert_legacy_and_finalize_match_with_std_dependency_cache(RuntimeOracleCase {
             name: "playground tour",
             source: playground_tour_source(),
         });
@@ -4075,8 +4069,7 @@ f 3
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_control_vm_legacy_runtime_and_finalize_match_playground_examples() {
+    fn cached_std_control_vm_legacy_runtime_and_finalize_match_playground_examples() {
         for case in [
             RuntimeOracleCase {
                 name: "prelude operators",
@@ -4114,7 +4107,7 @@ sub:
 "#,
             },
         ] {
-            assert_legacy_and_finalize_match_with_prewarmed_std_cache_on_vm(
+            assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
                 case,
                 OracleVm::Control,
             );
@@ -4122,8 +4115,7 @@ sub:
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_runs_playground_core_examples() {
+    fn cached_std_finalize_runs_playground_core_examples() {
         for case in [
             PlaygroundCase {
                 name: "undet list",
@@ -4185,8 +4177,7 @@ sub:
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_runs_playground_state_and_host_examples() {
+    fn cached_std_finalize_runs_playground_state_and_host_examples() {
         for case in [
             PlaygroundCase {
                 name: "ref list assignment",
@@ -4234,8 +4225,7 @@ sub:
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_runs_playground_tour() {
+    fn cached_std_finalize_runs_playground_tour() {
         assert_playground_case_finalizes(PlaygroundCase {
             name: "playground tour",
             source: playground_tour_source(),
@@ -4257,7 +4247,7 @@ sub:
 "#
         .to_string();
         run_with_large_stack(move || {
-            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&src);
+            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&src);
             let output = finalize_module(cached.module).unwrap();
             let mut stats = TypeCoverageStats::default();
             for binding in &output.module.bindings {
@@ -4561,9 +4551,8 @@ sub:
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_runs_ref_assignment_inside_nested_block() {
-        let results = finalized_int_values_from_prewarmed_std_cache(
+    fn cached_std_finalize_runs_ref_assignment_inside_nested_block() {
+        let results = finalized_int_values_from_std_dependency_cache(
             r#"{
     my $x = 0
     {
@@ -4578,9 +4567,8 @@ sub:
     }
 
     #[test]
-    #[ignore = "requires a prewarmed project compiled dependency cache"]
-    fn prewarmed_std_finalize_runs_ref_assignment_inside_nested_for_loops() {
-        let results = finalized_int_values_from_prewarmed_std_cache(
+    fn cached_std_finalize_runs_ref_assignment_inside_nested_for_loops() {
+        let results = finalized_int_values_from_std_dependency_cache(
             r#"{
     my $total = 0
     for x in 1..3:
@@ -4594,10 +4582,10 @@ sub:
         assert_eq!(results, vec!["21".to_string()]);
     }
 
-    fn finalized_int_values_from_prewarmed_std_cache(src: &str) -> Vec<String> {
+    fn finalized_int_values_from_std_dependency_cache(src: &str) -> Vec<String> {
         let src = src.to_string();
         run_with_large_stack(move || {
-            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&src);
+            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&src);
             let output = finalize_module(cached.module).unwrap();
             assert!(
                 output
@@ -4628,10 +4616,10 @@ sub:
         })
     }
 
-    fn assert_prewarmed_std_ref_source_finalizes_to_vm_input(src: &str) {
+    fn assert_std_dependency_cache_ref_source_finalizes_to_vm_input(src: &str) {
         let src = src.to_string();
         run_with_large_stack(move || {
-            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&src);
+            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&src);
             let output = finalize_module(cached.module).unwrap();
             assert!(
                 output
@@ -4670,17 +4658,17 @@ sub:
         assert_legacy_and_finalize_match_module(case.name, module, vm);
     }
 
-    fn assert_legacy_and_finalize_match_with_prewarmed_std_cache(case: RuntimeOracleCase) {
-        assert_legacy_and_finalize_match_with_prewarmed_std_cache_on_vm(case, OracleVm::Tree);
+    fn assert_legacy_and_finalize_match_with_std_dependency_cache(case: RuntimeOracleCase) {
+        assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(case, OracleVm::Tree);
     }
 
-    fn assert_legacy_and_finalize_match_with_prewarmed_std_cache_on_vm(
+    fn assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
         case: RuntimeOracleCase,
         vm: OracleVm,
     ) {
         let source = playground_source(case.source);
         run_with_large_stack(move || {
-            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&source);
+            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&source);
             assert_legacy_and_finalize_match_module(case.name, cached.module, vm);
         });
     }
@@ -4771,7 +4759,7 @@ sub:
     fn assert_playground_case_finalizes(case: PlaygroundCase) {
         let source = playground_source(case.source);
         run_with_large_stack(move || {
-            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&source);
+            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&source);
             let output = finalize_module(cached.module)
                 .unwrap_or_else(|error| panic!("{} finalize failed: {error:?}", case.name));
             let vm = yulang_vm::compile_vm_module(output.module)
@@ -5021,7 +5009,7 @@ sub:
         yulang_runtime::lower_core_program(program).unwrap()
     }
 
-    fn runtime_module_from_source_with_prewarmed_std_cache_large_stack(
+    fn runtime_module_from_source_with_std_dependency_cache_large_stack(
         src: &str,
     ) -> yulang_compile::CachedRuntimeIrModule {
         let src = src.to_string();
@@ -5036,6 +5024,28 @@ sub:
                 implicit_prelude: true,
                 search_paths: Vec::new(),
             };
+            let _guard = std_runtime_ir_cache_lock()
+                .lock()
+                .expect("lock std runtime IR dependency cache");
+
+            if let Ok(cached) =
+                yulang_compile::runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
+                    &src,
+                    None,
+                    options.clone(),
+                    &cache_paths,
+                )
+            {
+                return cached;
+            }
+
+            yulang_compile::runtime_ir_module_from_virtual_source_with_dependency_cache(
+                &src,
+                None,
+                options.clone(),
+                &cache_paths,
+            )
+            .expect("warm std compiled dependency cache");
 
             yulang_compile::runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
                 &src,
@@ -5043,8 +5053,13 @@ sub:
                 options,
                 &cache_paths,
             )
-            .expect("read prewarmed std compiled dependency cache")
+            .expect("read warmed std compiled dependency cache")
         })
+    }
+
+    fn std_runtime_ir_cache_lock() -> &'static std::sync::Mutex<()> {
+        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
     }
 
     fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
