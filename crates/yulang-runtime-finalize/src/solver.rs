@@ -44,6 +44,12 @@ pub fn finalize_module_with_cache(
     }
     prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
     normalize_materialized_module(&mut module);
+    // Fill local Var types first (using enclosing-binder scope), so the apply
+    // evidence pass sees concrete arg/callee types when reconciling.
+    fill_local_var_types(&mut module);
+    fill_apply_evidence_types(&mut module);
+    // Run scope walk again — apply reconciliation may have concretized
+    // pattern/handler types that earlier scope walk skipped.
     fill_local_var_types(&mut module);
     Ok(FinalizeOutput {
         module,
@@ -65,6 +71,396 @@ fn normalize_materialized_module(module: &mut Module) {
     }
     for expr in &mut module.root_exprs {
         materialize_expr_in_place(expr, &substitutions);
+    }
+}
+
+/// Post-pass that fills `Unknown` slots in `Apply{ callee: EffectOp(..) }`
+/// nodes (and the EffectOp callee itself) using the apply's evidence.
+///
+/// At lowering time the runtime IR records each EffectOp's `.ty` with the
+/// operation's signature template, but the operation's payload type variable
+/// is sometimes left as `Unknown` instead of as a `Type::Var` that the
+/// finalize substitutions could resolve. The Apply's `ApplyEvidence` carries
+/// the inferred callee bounds (with type variables that map cleanly to the
+/// surrounding binding's substitutions), so we can recover the full
+/// operation signature here.
+fn fill_apply_evidence_types(module: &mut Module) {
+    for binding in &mut module.bindings {
+        fill_apply_evidence_in(&mut binding.body);
+    }
+    for expr in &mut module.root_exprs {
+        fill_apply_evidence_in(expr);
+    }
+}
+
+fn fill_apply_evidence_in(expr: &mut Expr) {
+    // Two-direction propagation:
+    // 1. Reconcile this node with whatever we know from the outside (the
+    //    apply.ty may have been pushed down by an enclosing context).
+    // 2. Recurse into children so they pull what they can from the now-better
+    //    sibling slots and propagate concrete types up from the leaves.
+    // 3. Reconcile again so the parent picks up anything the children
+    //    concretized that the first pass couldn't see.
+    reconcile_node(expr);
+    match &mut expr.kind {
+        ExprKind::Apply { callee, arg, .. } => {
+            fill_apply_evidence_in(callee);
+            fill_apply_evidence_in(arg);
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. }
+        | ExprKind::Thunk { expr: body, .. } => fill_apply_evidence_in(body),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            fill_apply_evidence_in(cond);
+            fill_apply_evidence_in(then_branch);
+            fill_apply_evidence_in(else_branch);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                fill_apply_evidence_in(item);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                fill_apply_evidence_in(&mut field.value);
+            }
+            if let Some(spread) = spread {
+                let e = match spread {
+                    yulang_runtime_ir::RecordSpreadExpr::Head(e)
+                    | yulang_runtime_ir::RecordSpreadExpr::Tail(e) => e,
+                };
+                fill_apply_evidence_in(e);
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                fill_apply_evidence_in(value);
+            }
+        }
+        ExprKind::Select { base, .. } => fill_apply_evidence_in(base),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            fill_apply_evidence_in(scrutinee);
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    fill_apply_evidence_in(guard);
+                }
+                fill_apply_evidence_in(&mut arm.body);
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                match stmt {
+                    yulang_runtime_ir::Stmt::Let { value, .. } => fill_apply_evidence_in(value),
+                    yulang_runtime_ir::Stmt::Expr(e) => fill_apply_evidence_in(e),
+                    yulang_runtime_ir::Stmt::Module { body, .. } => fill_apply_evidence_in(body),
+                }
+            }
+            if let Some(tail) = tail {
+                fill_apply_evidence_in(tail);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            fill_apply_evidence_in(body);
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    fill_apply_evidence_in(guard);
+                }
+                fill_apply_evidence_in(&mut arm.body);
+            }
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+
+    reconcile_node(expr);
+}
+
+fn reconcile_node(expr: &mut Expr) {
+    match &mut expr.kind {
+        ExprKind::Apply { callee, arg, .. } => {
+            reconcile_apply_triple(&mut callee.ty, &mut arg.ty, &mut expr.ty);
+        }
+        ExprKind::BindHere { expr: body } => {
+            // BindHere forces a Thunk[E, T] and produces T. Pull T up when the
+            // body's Thunk value is concrete.
+            if runtime_type_has_unknown(&expr.ty)
+                && let RuntimeType::Thunk { value, .. } = &body.ty
+                && !runtime_type_has_unknown(value)
+            {
+                expr.ty = (**value).clone();
+            }
+            // Conversely, if the bind's outer ty is known but the body's
+            // Thunk value is Unknown, push the outer type down into the body.
+            if !runtime_type_has_unknown(&expr.ty)
+                && let RuntimeType::Thunk { effect, value } = &body.ty
+                && runtime_type_has_unknown(value)
+            {
+                let merged = merge_partial_runtime_type(value, &expr.ty).unwrap_or_else(|| expr.ty.clone());
+                body.ty = RuntimeType::Thunk {
+                    effect: effect.clone(),
+                    value: Box::new(merged),
+                };
+            }
+        }
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr: body,
+        } => {
+            // Thunk wraps body into Thunk[effect, value]. Cross-fill value
+            // from the body's .ty.
+            if runtime_type_has_unknown(value) && !runtime_type_has_unknown(&body.ty) {
+                *value = body.ty.clone();
+            }
+            // Update the Thunk expr's own .ty to match.
+            if runtime_type_has_unknown(&expr.ty) {
+                expr.ty = RuntimeType::Thunk {
+                    effect: effect.clone(),
+                    value: Box::new(value.clone()),
+                };
+            }
+        }
+        ExprKind::Lambda { body, .. } => {
+            // Pull the body's type into the lambda's ret slot if the lambda
+            // ty is Fun and its ret is Unknown.
+            if let RuntimeType::Fun { ret, .. } = &mut expr.ty
+                && runtime_type_has_unknown(ret)
+                && !runtime_type_has_unknown(&body.ty)
+            {
+                **ret = body.ty.clone();
+            }
+        }
+        ExprKind::Block { tail, .. } => {
+            if let Some(tail) = tail
+                && runtime_type_has_unknown(&expr.ty)
+                && !runtime_type_has_unknown(&tail.ty)
+            {
+                expr.ty = tail.ty.clone();
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Cross-fill the three known type slots of an `Apply` node:
+/// `callee : Fun{ param, ret }`, `arg : param`, `apply.ty : ret`.
+///
+/// Each slot may carry partial `Unknown` after materialization (especially for
+/// `EffectOp` callees, whose stored signature template often leaves the
+/// payload type variable as `Unknown` instead of as a substitutable
+/// `Type::Var`). When two of the three sides are concrete, the third can be
+/// derived deterministically. We repeat the propagation until nothing
+/// changes, so partial information on either side gets pulled across.
+fn reconcile_apply_triple(
+    callee_ty: &mut RuntimeType,
+    arg_ty: &mut RuntimeType,
+    apply_ty: &mut RuntimeType,
+) {
+    loop {
+        let mut changed = false;
+
+        if let Some((param, ret)) = runtime_fun_split(callee_ty) {
+            if runtime_type_has_unknown(arg_ty) && !runtime_type_has_unknown(&param) {
+                *arg_ty = param.clone();
+                changed = true;
+            }
+            if runtime_type_has_unknown(apply_ty) && !runtime_type_has_unknown(&ret) {
+                *apply_ty = ret.clone();
+                changed = true;
+            }
+        }
+
+        if runtime_type_has_unknown(callee_ty)
+            && !runtime_type_has_unknown(arg_ty)
+            && !runtime_type_has_unknown(apply_ty)
+        {
+            let new_callee = RuntimeType::Fun {
+                param: Box::new(arg_ty.clone()),
+                ret: Box::new(apply_ty.clone()),
+            };
+            if !runtime_types_equivalent(callee_ty, &new_callee) {
+                *callee_ty = new_callee;
+                changed = true;
+            }
+        }
+
+        if let Some((param, ret)) = runtime_fun_split(callee_ty) {
+            let merged_param = merge_partial_runtime_type(&param, arg_ty);
+            if let Some(merged) = merged_param {
+                if !runtime_types_equivalent(arg_ty, &merged) {
+                    *arg_ty = merged.clone();
+                    changed = true;
+                }
+                if !runtime_types_equivalent(&param, &merged) {
+                    rewrite_fun_param(callee_ty, merged);
+                    changed = true;
+                }
+            }
+            let merged_ret = merge_partial_runtime_type(&ret, apply_ty);
+            if let Some(merged) = merged_ret {
+                if !runtime_types_equivalent(apply_ty, &merged) {
+                    *apply_ty = merged.clone();
+                    changed = true;
+                }
+                if !runtime_types_equivalent(&ret, &merged) {
+                    rewrite_fun_ret(callee_ty, merged);
+                    changed = true;
+                }
+            }
+        }
+
+        if !changed {
+            break;
+        }
+    }
+}
+
+fn runtime_fun_split(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
+    match ty {
+        RuntimeType::Fun { param, ret } => Some(((**param).clone(), (**ret).clone())),
+        _ => None,
+    }
+}
+
+fn rewrite_fun_param(ty: &mut RuntimeType, new_param: RuntimeType) {
+    if let RuntimeType::Fun { param, .. } = ty {
+        *param = Box::new(new_param);
+    }
+}
+
+fn rewrite_fun_ret(ty: &mut RuntimeType, new_ret: RuntimeType) {
+    if let RuntimeType::Fun { ret, .. } = ty {
+        *ret = Box::new(new_ret);
+    }
+}
+
+fn runtime_types_equivalent(left: &RuntimeType, right: &RuntimeType) -> bool {
+    left == right
+}
+
+/// Merge two runtime-type views of the same logical type, preferring the
+/// concrete-ist of the two at each tree position. Returns `None` if the
+/// shapes diverge in a way we can't bridge.
+fn merge_partial_runtime_type(a: &RuntimeType, b: &RuntimeType) -> Option<RuntimeType> {
+    match (a, b) {
+        (RuntimeType::Unknown, _) => Some(b.clone()),
+        (_, RuntimeType::Unknown) => Some(a.clone()),
+        (RuntimeType::Core(ax), RuntimeType::Core(bx)) => Some(RuntimeType::Core(
+            merge_partial_core_type(ax, bx)?,
+        )),
+        (
+            RuntimeType::Fun {
+                param: ap,
+                ret: ar,
+            },
+            RuntimeType::Fun {
+                param: bp,
+                ret: br,
+            },
+        ) => Some(RuntimeType::Fun {
+            param: Box::new(merge_partial_runtime_type(ap, bp)?),
+            ret: Box::new(merge_partial_runtime_type(ar, br)?),
+        }),
+        (
+            RuntimeType::Thunk {
+                effect: ae,
+                value: av,
+            },
+            RuntimeType::Thunk {
+                effect: be,
+                value: bv,
+            },
+        ) => Some(RuntimeType::Thunk {
+            effect: merge_partial_core_type(ae, be)?,
+            value: Box::new(merge_partial_runtime_type(av, bv)?),
+        }),
+        // Bridging Core <-> Fun / Thunk: if one side is Core(typed_ir::Fun)
+        // and the other is RuntimeType::Fun, prefer the Fun form (Thunk-aware)
+        // when it carries strictly more structure.
+        (RuntimeType::Fun { .. }, RuntimeType::Core(typed_ir::Type::Fun { .. })) => Some(a.clone()),
+        (RuntimeType::Core(typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => Some(b.clone()),
+        (RuntimeType::Thunk { .. }, RuntimeType::Core(_)) => Some(a.clone()),
+        (RuntimeType::Core(_), RuntimeType::Thunk { .. }) => Some(b.clone()),
+        _ => None,
+    }
+}
+
+fn merge_partial_core_type(
+    a: &typed_ir::Type,
+    b: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    match (a, b) {
+        (typed_ir::Type::Unknown, _) => Some(b.clone()),
+        (_, typed_ir::Type::Unknown) => Some(a.clone()),
+        (left, right) if left == right => Some(left.clone()),
+        _ => None,
+    }
+}
+
+fn runtime_type_has_unknown(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => true,
+        RuntimeType::Core(ty) => core_type_has_unknown(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_has_unknown(param) || runtime_type_has_unknown(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_has_unknown(effect) || runtime_type_has_unknown(value)
+        }
+    }
+}
+
+fn core_type_has_unknown(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Var(_) | typed_ir::Type::Never | typed_ir::Type::Any => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(t) => core_type_has_unknown(t),
+            typed_ir::TypeArg::Bounds(b) => {
+                b.lower.as_deref().is_some_and(core_type_has_unknown)
+                    || b.upper.as_deref().is_some_and(core_type_has_unknown)
+            }
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_has_unknown(param)
+                || core_type_has_unknown(param_effect)
+                || core_type_has_unknown(ret_effect)
+                || core_type_has_unknown(ret)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_type_has_unknown),
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_has_unknown) || core_type_has_unknown(tail)
+        }
+        typed_ir::Type::Record(record) => {
+            record.fields.iter().any(|f| core_type_has_unknown(&f.value))
+        }
+        typed_ir::Type::Variant(variant) => variant
+            .cases
+            .iter()
+            .any(|c| c.payloads.iter().any(core_type_has_unknown)),
+        typed_ir::Type::Recursive { body, .. } => core_type_has_unknown(body),
     }
 }
 
@@ -293,58 +689,6 @@ fn collect_pattern_scope_bindings(
         Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
     }
     added
-}
-
-fn runtime_type_has_unknown(ty: &RuntimeType) -> bool {
-    match ty {
-        RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_has_unknown(ty),
-        RuntimeType::Fun { param, ret } => {
-            runtime_type_has_unknown(param) || runtime_type_has_unknown(ret)
-        }
-        RuntimeType::Thunk { effect, value } => {
-            core_type_has_unknown(effect) || runtime_type_has_unknown(value)
-        }
-    }
-}
-
-fn core_type_has_unknown(ty: &typed_ir::Type) -> bool {
-    match ty {
-        typed_ir::Type::Unknown => true,
-        typed_ir::Type::Var(_) | typed_ir::Type::Never | typed_ir::Type::Any => false,
-        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
-            typed_ir::TypeArg::Type(t) => core_type_has_unknown(t),
-            typed_ir::TypeArg::Bounds(b) => {
-                b.lower.as_deref().is_some_and(core_type_has_unknown)
-                    || b.upper.as_deref().is_some_and(core_type_has_unknown)
-            }
-        }),
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => {
-            core_type_has_unknown(param)
-                || core_type_has_unknown(param_effect)
-                || core_type_has_unknown(ret_effect)
-                || core_type_has_unknown(ret)
-        }
-        typed_ir::Type::Tuple(items)
-        | typed_ir::Type::Union(items)
-        | typed_ir::Type::Inter(items) => items.iter().any(core_type_has_unknown),
-        typed_ir::Type::Row { items, tail } => {
-            items.iter().any(core_type_has_unknown) || core_type_has_unknown(tail)
-        }
-        typed_ir::Type::Record(record) => {
-            record.fields.iter().any(|f| core_type_has_unknown(&f.value))
-        }
-        typed_ir::Type::Variant(variant) => variant
-            .cases
-            .iter()
-            .any(|c| c.payloads.iter().any(core_type_has_unknown)),
-        typed_ir::Type::Recursive { body, .. } => core_type_has_unknown(body),
-    }
 }
 
 pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
