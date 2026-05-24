@@ -112,7 +112,9 @@ pub fn runtime_ir_module_from_virtual_source_with_dependency_cache(
     )?;
     let cache = yulang_infer::CompiledUnitArtifactCache::from_paths(cache_paths);
     let manifests = cacheable_dependency_manifests(&source_set);
-    let cached_bundle = read_dependency_bundle_from_cache(&cache, &manifests).ok();
+    let cached_bundle =
+        read_dependency_bundle_from_cache(&cache, &manifests, DependencyBundleReadMode::Persist)
+            .ok();
 
     if let Some(bundle) = cached_bundle {
         return runtime_ir_module_from_cached_dependency_bundle(source_set, manifests, bundle);
@@ -147,7 +149,8 @@ pub fn runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
         return Err(SourceRuntimeError::DependencyCacheMiss);
     }
     let cache = yulang_infer::CompiledUnitArtifactCache::from_paths(cache_paths);
-    let bundle = read_dependency_bundle_from_cache(&cache, &manifests)?;
+    let bundle =
+        read_dependency_bundle_from_cache(&cache, &manifests, DependencyBundleReadMode::ReadOnly)?;
     runtime_ir_module_from_cached_dependency_bundle(source_set, manifests, bundle)
 }
 
@@ -218,6 +221,7 @@ fn cacheable_dependency_manifests(
 fn read_dependency_bundle_from_cache(
     cache: &yulang_infer::CompiledUnitArtifactCache,
     manifests: &[yulang_sources::CompiledUnitManifest],
+    mode: DependencyBundleReadMode,
 ) -> SourceRuntimeResult<yulang_infer::CompiledUnitArtifactBundle> {
     if manifests.is_empty() {
         return Err(SourceRuntimeError::DependencyCacheMiss);
@@ -241,8 +245,16 @@ fn read_dependency_bundle_from_cache(
         .filter_map(|(unit_idx, artifact)| selected_units.contains(&unit_idx).then_some(artifact))
         .collect::<Vec<_>>();
     let bundle = yulang_infer::build_compiled_unit_artifact_bundle(&artifacts)?;
-    let _ = cache.write_bundle(&bundle);
+    if matches!(mode, DependencyBundleReadMode::Persist) {
+        let _ = cache.write_bundle(&bundle);
+    }
     Ok(bundle)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DependencyBundleReadMode {
+    Persist,
+    ReadOnly,
 }
 
 fn dependency_closed_cached_units<'a>(
@@ -396,6 +408,58 @@ mod tests {
         assert!(cached.dependency_cache_hit);
         assert!(!cached.dependency_manifests.is_empty());
         assert_eq!(cached.module.root_exprs.len(), 1);
+    }
+
+    #[test]
+    fn virtual_source_runtime_ir_read_only_cache_does_not_persist_rebuilt_bundle() {
+        let repo_root = temp_cache_root("read-only-compiled-dependency-no-write");
+        let std_root = repo_root.join("std");
+        std::fs::create_dir_all(&std_root).unwrap();
+        std::fs::write(std_root.join("prelude.yu"), "pub id x = x\n").unwrap();
+        let cache_root = repo_root.join("cache");
+        let cache_paths = YulangCachePaths::with_user_cache_root(&repo_root, cache_root);
+        let options = SourceOptions {
+            std_root: Some(std_root),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+
+        let warmed = runtime_ir_module_from_virtual_source_with_dependency_cache(
+            "id 1\n",
+            Some(repo_root.clone()),
+            options.clone(),
+            &cache_paths,
+        )
+        .expect("warm runtime ir cache");
+        let source_set = yulang_sources::collect_virtual_source_files_for_cache_key_with_options(
+            "id 1\n",
+            Some(repo_root.clone()),
+            options.clone(),
+        )
+        .expect("collect source set for cache key");
+        let manifests = cacheable_dependency_manifests(&source_set);
+        let cache = yulang_infer::CompiledUnitArtifactCache::from_paths(&cache_paths);
+        let bundle_key =
+            yulang_infer::artifact_cache::CompiledUnitArtifactBundleCacheKey::from_manifests(
+                &manifests,
+            )
+            .expect("bundle key");
+        let bundle_path = cache.bundle_artifact_path(&bundle_key);
+        std::fs::remove_file(&bundle_path).expect("remove warmed bundle artifact");
+
+        let cached = runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
+            "id 1\n",
+            Some(repo_root.clone()),
+            options,
+            &cache_paths,
+        )
+        .expect("read warmed runtime ir cache from unit artifacts");
+        let bundle_was_rewritten = bundle_path.exists();
+        let _ = std::fs::remove_dir_all(repo_root);
+
+        assert!(!warmed.dependency_cache_hit);
+        assert!(cached.dependency_cache_hit);
+        assert!(!bundle_was_rewritten);
     }
 
     #[test]
