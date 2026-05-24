@@ -43,6 +43,7 @@ pub fn finalize_module_with_cache(
         }
     }
     prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
+    prune_unbound_binding_roots(&mut module);
     monomorphize_phantom_nullary_variant_bindings(&mut module);
     normalize_materialized_module(&mut module);
     // Fill local Var types first (using enclosing-binder scope), so the apply
@@ -2380,6 +2381,7 @@ fn rewrite_simple_apply(
     }
     replace_apply_spine_binding(expr, &solution.alias, &solution.callee_type);
     materialize_expr_in_place(expr, &solution.type_substitutions);
+    clear_apply_spine_instantiations(expr, &solution.binding);
     refresh_apply_spine_runtime_types(expr, solution.callee_type.clone());
     expr.ty = solution.result_type.clone();
     *cursor += 1;
@@ -2437,6 +2439,23 @@ fn replace_apply_spine_binding(expr: &mut Expr, alias: &typed_ir::Path, callee_t
             expr.ty = callee_type.clone();
         }
         _ => {}
+    }
+}
+
+fn clear_apply_spine_instantiations(expr: &mut Expr, binding: &typed_ir::Path) {
+    if let ExprKind::Apply {
+        callee,
+        instantiation,
+        ..
+    } = &mut expr.kind
+    {
+        if instantiation
+            .as_ref()
+            .is_some_and(|instantiation| instantiation.target == *binding)
+        {
+            *instantiation = None;
+        }
+        clear_apply_spine_instantiations(callee, binding);
     }
 }
 
@@ -2542,6 +2561,18 @@ fn prune_specialized_polymorphic_bindings(module: &mut Module, solutions: &[Root
     module.bindings.retain(|binding| {
         binding.type_params.is_empty()
             || (reachable.contains(&binding.name) && !specialized.contains(&binding.name))
+    });
+}
+
+fn prune_unbound_binding_roots(module: &mut Module) {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    module.roots.retain(|root| match root {
+        Root::Binding(path) => bindings.contains(path),
+        Root::Expr(_) => true,
     });
 }
 
@@ -4663,6 +4694,7 @@ sub:
     fn run_legacy_runtime_module(name: &str, module: Module, vm: OracleVm) -> RuntimeOracleOutput {
         let module = yulang_runtime::monomorphize_module(module)
             .unwrap_or_else(|error| panic!("{name} legacy monomorphize failed: {error}"));
+        assert_mainline_runtime_output_valid(name, "legacy", &module);
         run_vm_module(name, "legacy", module, vm)
     }
 
@@ -4673,7 +4705,20 @@ sub:
     ) -> RuntimeOracleOutput {
         let output = finalize_module(module)
             .unwrap_or_else(|error| panic!("{name} finalize failed: {error:?}"));
+        assert_mainline_runtime_output_valid(name, "finalize", &output.module);
         run_vm_module(name, "finalize", output.module, vm)
+    }
+
+    fn assert_mainline_runtime_output_valid(name: &str, runtime: &str, module: &Module) {
+        yulang_runtime::check_runtime_invariants(
+            module,
+            yulang_runtime::RuntimeStage::Monomorphized,
+        )
+        .unwrap_or_else(|error| {
+            panic!("{name} {runtime} monomorphized runtime invariant failed: {error}")
+        });
+        yulang_runtime::validate_module(module)
+            .unwrap_or_else(|error| panic!("{name} {runtime} runtime validation failed: {error}"));
     }
 
     fn run_vm_module(

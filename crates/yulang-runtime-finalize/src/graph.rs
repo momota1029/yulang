@@ -695,7 +695,7 @@ pub fn materialize_core_type(
     ty: typed_ir::Type,
     substitutions: &[typed_ir::TypeSubstitution],
 ) -> typed_ir::Type {
-    materialize_type(ty, substitutions)
+    normalize_bound_form(&materialize_type(ty, substitutions))
 }
 
 pub fn materialize_runtime_type(
@@ -704,13 +704,15 @@ pub fn materialize_runtime_type(
 ) -> RuntimeType {
     match ty {
         RuntimeType::Unknown => RuntimeType::Unknown,
-        RuntimeType::Core(ty) => runtime_type_from_core_value(materialize_type(ty, substitutions)),
+        RuntimeType::Core(ty) => {
+            runtime_type_from_core_value(normalize_bound_form(&materialize_type(ty, substitutions)))
+        }
         RuntimeType::Fun { param, ret } => RuntimeType::Fun {
             param: Box::new(materialize_runtime_type(*param, substitutions)),
             ret: Box::new(materialize_runtime_type(*ret, substitutions)),
         },
         RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
-            effect: materialize_type(effect, substitutions),
+            effect: normalize_bound_form(&materialize_type(effect, substitutions)),
             value: Box::new(materialize_runtime_type(*value, substitutions)),
         },
     }
@@ -1276,12 +1278,31 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 .map(|item| normalize_bound_form_inner(item, false))
                 .collect(),
         ),
-        typed_ir::Type::Union(items) => typed_ir::Type::Union(
-            items
+        typed_ir::Type::Union(items) => {
+            let mut normalized = Vec::new();
+            for item in items
                 .iter()
                 .map(|item| normalize_bound_form_inner(item, false))
-                .collect(),
-        ),
+            {
+                if matches!(item, typed_ir::Type::Any) {
+                    return typed_ir::Type::Any;
+                }
+                if matches!(item, typed_ir::Type::Never) {
+                    continue;
+                }
+                if !normalized
+                    .iter()
+                    .any(|existing| bounds_are_equivalent(existing, &item))
+                {
+                    normalized.push(item);
+                }
+            }
+            match normalized.len() {
+                0 => typed_ir::Type::Never,
+                1 => normalized.pop().unwrap(),
+                _ => typed_ir::Type::Union(normalized),
+            }
+        }
         typed_ir::Type::Inter(items) => {
             let mut normalized = Vec::new();
             for item in items
@@ -2214,6 +2235,16 @@ mod tests {
 
         assert_eq!(solution.solution_for(&var), Some(&int_type()));
         assert!(solution.is_complete());
+    }
+
+    #[test]
+    fn materialized_union_drops_bottom_and_singleton() {
+        let ty = materialize_core_type(
+            typed_ir::Type::Union(vec![typed_ir::Type::Never, int_type()]),
+            &[],
+        );
+
+        assert_eq!(ty, int_type());
     }
 
     #[test]
