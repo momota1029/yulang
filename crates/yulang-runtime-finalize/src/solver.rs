@@ -6,7 +6,9 @@ use yulang_typed_ir as typed_ir;
 use crate::{
     CachedFinalizeInstance, FinalizeDiagnostic, FinalizeInstanceCache, FinalizeInstanceKey,
     FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
-    materialize_core_type, materialize_runtime_type, output::RootGraphRoot,
+    graph::{runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
+    materialize_core_type, materialize_runtime_type,
+    output::RootGraphRoot,
 };
 
 pub fn finalize_module(module: Module) -> FinalizeResult<FinalizeOutput> {
@@ -455,7 +457,10 @@ fn solved_callee_runtime_type(
     principal: &crate::PrincipalInstance,
     graph: &crate::GraphSolution,
 ) -> RuntimeType {
-    let materialized = materialize_runtime_type(binding.body.ty.clone(), &graph.substitutions());
+    let materialized = materialize_runtime_type(
+        binding.body.ty.clone(),
+        &principal.original_substitutions(graph),
+    );
     if runtime_type_is_closed(&materialized) {
         materialized
     } else {
@@ -508,7 +513,8 @@ fn solve_value_arg(
             binding: binding.name.clone(),
         });
     }
-    let callee_type = RuntimeType::Core(graph.materialize_core(principal.principal_type.clone()));
+    let callee_type =
+        runtime_type_from_core_value(graph.materialize_core(principal.principal_type.clone()));
     let type_substitutions = principal.original_substitutions(&graph);
     Ok(RootGraphSolution {
         root: owner,
@@ -949,8 +955,19 @@ fn binding_local_types(binding: &Binding) -> HashMap<typed_ir::Path, RuntimeType
     let ExprKind::Lambda { param, .. } = &binding.body.kind else {
         return local_types;
     };
-    if let Some((param_ty, _)) = function_parts(&binding.scheme.body) {
-        local_types.insert(path_from_name(param), RuntimeType::Core(param_ty.clone()));
+    if let typed_ir::Type::Fun {
+        param: param_ty,
+        param_effect,
+        ..
+    } = &binding.scheme.body
+    {
+        local_types.insert(
+            path_from_name(param),
+            runtime_type_from_core_value_and_effect(
+                param_ty.as_ref().clone(),
+                param_effect.as_ref().clone(),
+            ),
+        );
     }
     local_types
 }
@@ -970,49 +987,6 @@ fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path, RuntimeTyp
 
 fn runtime_type_to_core(ty: RuntimeType) -> typed_ir::Type {
     runtime_type_to_effected_core(ty).value
-}
-
-fn runtime_type_from_core_value(ty: typed_ir::Type) -> RuntimeType {
-    match ty {
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => RuntimeType::Fun {
-            param: Box::new(runtime_type_from_core_value_and_effect(*param, *param_effect)),
-            ret: Box::new(runtime_type_from_core_value_and_effect(*ret, *ret_effect)),
-        },
-        ty => RuntimeType::Core(ty),
-    }
-}
-
-fn runtime_type_from_core_value_and_effect(
-    value: typed_ir::Type,
-    effect: typed_ir::Type,
-) -> RuntimeType {
-    let value = runtime_type_from_core_value(value);
-    if should_thunk_effect(&effect) {
-        RuntimeType::Thunk {
-            effect,
-            value: Box::new(value),
-        }
-    } else {
-        value
-    }
-}
-
-fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
-    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown | typed_ir::Type::Any)
-}
-
-fn effect_is_empty(effect: &typed_ir::Type) -> bool {
-    match effect {
-        typed_ir::Type::Never => true,
-        typed_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),
-        typed_ir::Type::Recursive { body, .. } => effect_is_empty(body),
-        _ => false,
-    }
 }
 
 struct EffectedCoreType {
@@ -1207,7 +1181,7 @@ fn role_method_candidates(module: &Module) -> Vec<RoleMethodCandidate> {
                     member: member.name.clone(),
                     value: member.value.clone(),
                     inputs: role_impl.inputs.clone(),
-                    callee_type: RuntimeType::Core(binding.scheme.body.clone()),
+                    callee_type: runtime_type_from_core_value(binding.scheme.body.clone()),
                 })
             })
         })
@@ -1988,7 +1962,7 @@ fn materialize_expr_with_expected(
         } => {
             let evidence = materialize_join_evidence(evidence, substitutions);
             let result = expected_core_type(expected).unwrap_or(evidence.result);
-            let expected_result = RuntimeType::Core(result.clone());
+            let expected_result = runtime_type_from_core_value(result.clone());
             let kind = ExprKind::Handle {
                 body: Box::new(materialize_expr(*body, substitutions)),
                 arms: arms
@@ -2077,14 +2051,14 @@ fn materialize_expr_with_expected(
         ExprKind::Coerce { from, to, expr } => {
             let to = expected_core_type(expected)
                 .unwrap_or_else(|| materialize_core_type(to, substitutions));
-            let expected = RuntimeType::Core(to.clone());
+            let expected = runtime_type_from_core_value(to.clone());
             let expr = materialize_expr_with_expected(*expr, substitutions, Some(&expected));
             let materialized_from = materialize_core_type(from, substitutions);
             let from = match &expr.ty {
                 RuntimeType::Unknown => materialized_from,
                 _ => runtime_type_to_core(expr.ty.clone()),
             };
-            if matches!(expr.ty, RuntimeType::Core(_)) && from == to {
+            if from == to && runtime_type_to_core(expr.ty.clone()) == to {
                 return expr;
             }
             let kind = ExprKind::Coerce {
@@ -2092,7 +2066,7 @@ fn materialize_expr_with_expected(
                 to: to.clone(),
                 expr: Box::new(expr),
             };
-            return Expr::typed(kind, RuntimeType::Core(to));
+            return Expr::typed(kind, runtime_type_from_core_value(to));
         }
         ExprKind::Pack { var, expr } => ExprKind::Pack {
             var,
@@ -2452,13 +2426,6 @@ fn alias_path(original: &typed_ir::Path, index: usize) -> typed_ir::Path {
     let mut segments = original.segments.clone();
     segments.push(typed_ir::Name(format!("mono{index}")));
     typed_ir::Path::new(segments)
-}
-
-fn function_parts(ty: &typed_ir::Type) -> Option<(&typed_ir::Type, &typed_ir::Type)> {
-    let typed_ir::Type::Fun { param, ret, .. } = ty else {
-        return None;
-    };
-    Some((param, ret))
 }
 
 fn runtime_type_is_closed(ty: &RuntimeType) -> bool {

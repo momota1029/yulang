@@ -679,7 +679,7 @@ pub fn materialize_runtime_type(
 ) -> RuntimeType {
     match ty {
         RuntimeType::Unknown => RuntimeType::Unknown,
-        RuntimeType::Core(ty) => RuntimeType::Core(materialize_type(ty, substitutions)),
+        RuntimeType::Core(ty) => runtime_type_from_core_value(materialize_type(ty, substitutions)),
         RuntimeType::Fun { param, ret } => RuntimeType::Fun {
             param: Box::new(materialize_runtime_type(*param, substitutions)),
             ret: Box::new(materialize_runtime_type(*ret, substitutions)),
@@ -688,6 +688,53 @@ pub fn materialize_runtime_type(
             effect: materialize_type(effect, substitutions),
             value: Box::new(materialize_runtime_type(*value, substitutions)),
         },
+    }
+}
+
+/// Convert a fully materialized typed_ir value type into a VM-shaped runtime
+/// type. Functions become `RuntimeType::Fun` with each side wrapped in
+/// `Thunk` when its effect row is non-empty, so the VM's `expects_thunk_arg`
+/// check sees the right shape on every callee position.
+pub(crate) fn runtime_type_from_core_value(ty: typed_ir::Type) -> RuntimeType {
+    match ty {
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => RuntimeType::Fun {
+            param: Box::new(runtime_type_from_core_value_and_effect(*param, *param_effect)),
+            ret: Box::new(runtime_type_from_core_value_and_effect(*ret, *ret_effect)),
+        },
+        ty => RuntimeType::Core(ty),
+    }
+}
+
+pub(crate) fn runtime_type_from_core_value_and_effect(
+    value: typed_ir::Type,
+    effect: typed_ir::Type,
+) -> RuntimeType {
+    let value = runtime_type_from_core_value(value);
+    if should_thunk_effect(&effect) {
+        RuntimeType::Thunk {
+            effect,
+            value: Box::new(value),
+        }
+    } else {
+        value
+    }
+}
+
+pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
+    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown | typed_ir::Type::Any)
+}
+
+pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {
+    match effect {
+        typed_ir::Type::Never => true,
+        typed_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),
+        typed_ir::Type::Recursive { body, .. } => effect_is_empty(body),
+        _ => false,
     }
 }
 
