@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use yulang_runtime_ir::{Binding, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -10,9 +10,17 @@ pub struct TypeGraph {
     next_fresh: usize,
     slots: BTreeMap<typed_ir::TypeVar, TypeVarBounds>,
     constraints: Vec<SubtypeConstraint>,
+    cast_order: TypeCastOrder,
 }
 
 impl TypeGraph {
+    pub fn with_cast_order(cast_order: TypeCastOrder) -> Self {
+        Self {
+            cast_order,
+            ..Self::default()
+        }
+    }
+
     pub fn instantiate_principal(&mut self, binding: &Binding) -> PrincipalInstance {
         let mut renames = BTreeMap::new();
         for param in &binding.type_params {
@@ -90,7 +98,7 @@ impl TypeGraph {
                 continue;
             };
             if slot.lower.is_none() && slot.upper.is_none() {
-                slot.push_lower(var, lower.clone())?;
+                slot.push_lower(var, lower.clone(), &self.cast_order)?;
             }
         }
         self.propagate_constraints()
@@ -269,6 +277,23 @@ impl TypeGraph {
         lower: typed_ir::Type,
         upper: typed_ir::Type,
     ) -> FinalizeResult<bool> {
+        self.apply_subtype_constraint_inner(lower, upper, &mut Vec::new())
+    }
+
+    fn apply_subtype_constraint_inner(
+        &mut self,
+        lower: typed_ir::Type,
+        upper: typed_ir::Type,
+        seen: &mut Vec<SubtypeConstraint>,
+    ) -> FinalizeResult<bool> {
+        let constraint = SubtypeConstraint {
+            lower: lower.clone(),
+            upper: upper.clone(),
+        };
+        if seen.contains(&constraint) {
+            return Ok(false);
+        }
+        seen.push(constraint);
         if lower == upper || matches!(upper, typed_ir::Type::Any) {
             return Ok(false);
         }
@@ -281,8 +306,9 @@ impl TypeGraph {
                     .get(&lower)
                     .and_then(|slot| slot.lower.as_ref())
                     .cloned()
+                    .filter(|bound| !self.lower_bound_chain_reaches(bound, &lower))
                 {
-                    changed |= self.apply_subtype_constraint(bound, upper.clone())?;
+                    changed |= self.apply_subtype_constraint_inner(bound, upper.clone(), seen)?;
                 }
                 changed |= self.record(lower, upper, BoundSide::Upper)?;
                 Ok(changed)
@@ -295,8 +321,9 @@ impl TypeGraph {
                     .get(&upper)
                     .and_then(|slot| slot.upper.as_ref())
                     .cloned()
+                    .filter(|bound| !self.upper_bound_chain_reaches(bound, &upper))
                 {
-                    changed |= self.apply_subtype_constraint(lower.clone(), bound)?;
+                    changed |= self.apply_subtype_constraint_inner(lower.clone(), bound, seen)?;
                 }
                 changed |= self.record(upper, lower, BoundSide::Lower)?;
                 Ok(changed)
@@ -316,11 +343,18 @@ impl TypeGraph {
                 },
             ) => {
                 let mut changed = false;
-                changed |= self.apply_subtype_constraint(*upper_param, *lower_param)?;
-                changed |=
-                    self.apply_subtype_constraint(*lower_param_effect, *upper_param_effect)?;
-                changed |= self.apply_subtype_constraint(*lower_ret_effect, *upper_ret_effect)?;
-                changed |= self.apply_subtype_constraint(*lower_ret, *upper_ret)?;
+                changed |= self.apply_subtype_constraint_inner(*upper_param, *lower_param, seen)?;
+                changed |= self.apply_subtype_constraint_inner(
+                    *lower_param_effect,
+                    *upper_param_effect,
+                    seen,
+                )?;
+                changed |= self.apply_subtype_constraint_inner(
+                    *lower_ret_effect,
+                    *upper_ret_effect,
+                    seen,
+                )?;
+                changed |= self.apply_subtype_constraint_inner(*lower_ret, *upper_ret, seen)?;
                 Ok(changed)
             }
             (
@@ -335,7 +369,7 @@ impl TypeGraph {
             ) if lower_path == upper_path && lower_args.len() == upper_args.len() => {
                 let mut changed = false;
                 for (lower, upper) in lower_args.into_iter().zip(upper_args) {
-                    changed |= self.constrain_type_arg(lower, upper)?;
+                    changed |= self.constrain_type_arg(lower, upper, seen)?;
                 }
                 Ok(changed)
             }
@@ -344,21 +378,21 @@ impl TypeGraph {
             {
                 let mut changed = false;
                 for (lower, upper) in lower.into_iter().zip(upper) {
-                    changed |= self.apply_subtype_constraint(lower, upper)?;
+                    changed |= self.apply_subtype_constraint_inner(lower, upper, seen)?;
                 }
                 Ok(changed)
             }
             (typed_ir::Type::Union(items), upper) => {
                 let mut changed = false;
                 for item in items {
-                    changed |= self.apply_subtype_constraint(item, upper.clone())?;
+                    changed |= self.apply_subtype_constraint_inner(item, upper.clone(), seen)?;
                 }
                 Ok(changed)
             }
             (lower, typed_ir::Type::Inter(items)) => {
                 let mut changed = false;
                 for item in items {
-                    changed |= self.apply_subtype_constraint(lower.clone(), item)?;
+                    changed |= self.apply_subtype_constraint_inner(lower.clone(), item, seen)?;
                 }
                 Ok(changed)
             }
@@ -371,9 +405,9 @@ impl TypeGraph {
                     items: upper_items,
                     tail: upper_tail,
                 },
-            ) => self.constrain_row(lower_items, *lower_tail, upper_items, *upper_tail),
+            ) => self.constrain_row(lower_items, *lower_tail, upper_items, *upper_tail, seen),
             (typed_ir::Type::Variant(lower), typed_ir::Type::Variant(upper)) => {
-                self.constrain_variant(lower, upper)
+                self.constrain_variant(lower, upper, seen)
             }
             _ => Ok(false),
         }
@@ -383,18 +417,19 @@ impl TypeGraph {
         &mut self,
         lower: typed_ir::TypeArg,
         upper: typed_ir::TypeArg,
+        seen: &mut Vec<SubtypeConstraint>,
     ) -> FinalizeResult<bool> {
         match (lower, upper) {
             (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Type(upper)) => {
-                self.apply_subtype_constraint(lower, upper)
+                self.apply_subtype_constraint_inner(lower, upper, seen)
             }
             (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Bounds(upper)) => {
                 let mut changed = false;
                 if let (Some(lower), Some(upper)) = (lower.lower, upper.lower) {
-                    changed |= self.apply_subtype_constraint(*lower, *upper)?;
+                    changed |= self.apply_subtype_constraint_inner(*lower, *upper, seen)?;
                 }
                 if let (Some(lower), Some(upper)) = (lower.upper, upper.upper) {
-                    changed |= self.apply_subtype_constraint(*lower, *upper)?;
+                    changed |= self.apply_subtype_constraint_inner(*lower, *upper, seen)?;
                 }
                 Ok(changed)
             }
@@ -496,6 +531,7 @@ impl TypeGraph {
         lower_tail: typed_ir::Type,
         upper_items: Vec<typed_ir::Type>,
         upper_tail: typed_ir::Type,
+        seen: &mut Vec<SubtypeConstraint>,
     ) -> FinalizeResult<bool> {
         let RowResidual {
             matched,
@@ -507,11 +543,11 @@ impl TypeGraph {
         }
         let mut changed = false;
         for (lower, upper) in matched {
-            changed |= self.apply_subtype_constraint(lower.clone(), upper.clone())?;
+            changed |= self.apply_subtype_constraint_inner(lower.clone(), upper.clone(), seen)?;
         }
         let lower_residual = effect_row_from_items_and_tail(unmatched_left, lower_tail);
         let upper_residual = effect_row_from_items_and_tail(unmatched_right, upper_tail);
-        changed |= self.apply_subtype_constraint(lower_residual, upper_residual)?;
+        changed |= self.apply_subtype_constraint_inner(lower_residual, upper_residual, seen)?;
         Ok(changed)
     }
 
@@ -545,6 +581,7 @@ impl TypeGraph {
         &mut self,
         lower: typed_ir::VariantType,
         upper: typed_ir::VariantType,
+        seen: &mut Vec<SubtypeConstraint>,
     ) -> FinalizeResult<bool> {
         let mut changed = false;
         for lower_case in &lower.cases {
@@ -555,7 +592,8 @@ impl TypeGraph {
                 continue;
             }
             for (lower, upper) in lower_case.payloads.iter().zip(&upper_case.payloads) {
-                changed |= self.apply_subtype_constraint(lower.clone(), upper.clone())?;
+                changed |=
+                    self.apply_subtype_constraint_inner(lower.clone(), upper.clone(), seen)?;
             }
         }
         if lower.tail.is_none() {
@@ -564,10 +602,16 @@ impl TypeGraph {
                     continue;
                 }
                 for payload in &upper_case.payloads {
-                    changed |=
-                        self.apply_subtype_constraint(typed_ir::Type::Never, payload.clone())?;
-                    changed |=
-                        self.apply_subtype_constraint(payload.clone(), typed_ir::Type::Never)?;
+                    changed |= self.apply_subtype_constraint_inner(
+                        typed_ir::Type::Never,
+                        payload.clone(),
+                        seen,
+                    )?;
+                    changed |= self.apply_subtype_constraint_inner(
+                        payload.clone(),
+                        typed_ir::Type::Never,
+                        seen,
+                    )?;
                 }
             }
         }
@@ -598,12 +642,148 @@ impl TypeGraph {
         {
             return Ok(false);
         }
+        if let typed_ir::Type::Var(other) = &ty {
+            let cyclic = match side {
+                BoundSide::Lower => self.var_lower_bound_chain_reaches(other, &var),
+                BoundSide::Upper => self.var_upper_bound_chain_reaches(other, &var),
+            };
+            if cyclic {
+                return Ok(false);
+            }
+        }
         let slot = self.slots.entry(var.clone()).or_default();
         match side {
-            BoundSide::Lower => slot.push_lower(var, ty),
-            BoundSide::Upper => slot.push_upper(var, ty),
+            BoundSide::Lower => slot.push_lower(var, ty, &self.cast_order),
+            BoundSide::Upper => slot.push_upper(var, ty, &self.cast_order),
         }
     }
+
+    fn lower_bound_chain_reaches(&self, ty: &typed_ir::Type, target: &typed_ir::TypeVar) -> bool {
+        let typed_ir::Type::Var(var) = ty else {
+            return false;
+        };
+        self.var_lower_bound_chain_reaches(var, target)
+    }
+
+    fn upper_bound_chain_reaches(&self, ty: &typed_ir::Type, target: &typed_ir::TypeVar) -> bool {
+        let typed_ir::Type::Var(var) = ty else {
+            return false;
+        };
+        self.var_upper_bound_chain_reaches(var, target)
+    }
+
+    fn var_lower_bound_chain_reaches(
+        &self,
+        start: &typed_ir::TypeVar,
+        target: &typed_ir::TypeVar,
+    ) -> bool {
+        self.var_bound_chain_reaches(start, target, BoundSide::Lower)
+    }
+
+    fn var_upper_bound_chain_reaches(
+        &self,
+        start: &typed_ir::TypeVar,
+        target: &typed_ir::TypeVar,
+    ) -> bool {
+        self.var_bound_chain_reaches(start, target, BoundSide::Upper)
+    }
+
+    fn var_bound_chain_reaches(
+        &self,
+        start: &typed_ir::TypeVar,
+        target: &typed_ir::TypeVar,
+        side: BoundSide,
+    ) -> bool {
+        let mut current = start;
+        let mut seen = Vec::new();
+        loop {
+            if current == target {
+                return true;
+            }
+            if seen.iter().any(|seen| seen == current) {
+                return false;
+            }
+            seen.push(current.clone());
+            let Some(typed_ir::Type::Var(next)) =
+                self.slots.get(current).and_then(|slot| match side {
+                    BoundSide::Lower => slot.lower.as_ref(),
+                    BoundSide::Upper => slot.upper.as_ref(),
+                })
+            else {
+                return false;
+            };
+            current = next;
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct TypeCastOrder {
+    edges: Vec<TypeCastEdge>,
+}
+
+impl TypeCastOrder {
+    pub fn from_edges(edges: Vec<(typed_ir::Type, typed_ir::Type)>) -> Self {
+        Self {
+            edges: edges
+                .into_iter()
+                .map(|(from, to)| TypeCastEdge { from, to })
+                .collect(),
+        }
+    }
+
+    fn join_lower(&self, left: &typed_ir::Type, right: &typed_ir::Type) -> Option<typed_ir::Type> {
+        let left_to_right = self.can_cast(left, right);
+        let right_to_left = self.can_cast(right, left);
+        match (left_to_right, right_to_left) {
+            (true, false) => Some(right.clone()),
+            (false, true) => Some(left.clone()),
+            _ => None,
+        }
+    }
+
+    fn meet_upper(&self, left: &typed_ir::Type, right: &typed_ir::Type) -> Option<typed_ir::Type> {
+        let left_to_right = self.can_cast(left, right);
+        let right_to_left = self.can_cast(right, left);
+        match (left_to_right, right_to_left) {
+            (true, false) => Some(left.clone()),
+            (false, true) => Some(right.clone()),
+            _ => None,
+        }
+    }
+
+    fn can_cast(&self, from: &typed_ir::Type, to: &typed_ir::Type) -> bool {
+        if lightweight_bounds_equivalent(from, to) {
+            return true;
+        }
+        let mut seen = Vec::new();
+        let mut queue = VecDeque::from([from.clone()]);
+        while let Some(current) = queue.pop_front() {
+            if seen
+                .iter()
+                .any(|seen| lightweight_bounds_equivalent(seen, &current))
+            {
+                continue;
+            }
+            seen.push(current.clone());
+            for edge in &self.edges {
+                if !lightweight_bounds_equivalent(&edge.from, &current) {
+                    continue;
+                }
+                if lightweight_bounds_equivalent(&edge.to, to) {
+                    return true;
+                }
+                queue.push_back(edge.to.clone());
+            }
+        }
+        false
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TypeCastEdge {
+    from: typed_ir::Type,
+    to: typed_ir::Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -708,12 +888,22 @@ impl TypeVarBounds {
         self.lower.as_ref().or(self.upper.as_ref())
     }
 
-    fn push_lower(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<bool> {
-        push_bound(&mut self.lower, var, ty, BoundSide::Lower)
+    fn push_lower(
+        &mut self,
+        var: typed_ir::TypeVar,
+        ty: typed_ir::Type,
+        cast_order: &TypeCastOrder,
+    ) -> FinalizeResult<bool> {
+        push_bound(&mut self.lower, var, ty, BoundSide::Lower, cast_order)
     }
 
-    fn push_upper(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<bool> {
-        push_bound(&mut self.upper, var, ty, BoundSide::Upper)
+    fn push_upper(
+        &mut self,
+        var: typed_ir::TypeVar,
+        ty: typed_ir::Type,
+        cast_order: &TypeCastOrder,
+    ) -> FinalizeResult<bool> {
+        push_bound(&mut self.upper, var, ty, BoundSide::Upper, cast_order)
     }
 }
 
@@ -1077,6 +1267,7 @@ fn push_bound(
     var: typed_ir::TypeVar,
     ty: typed_ir::Type,
     side: BoundSide,
+    cast_order: &TypeCastOrder,
 ) -> FinalizeResult<bool> {
     if let Some(previous) = slot {
         if bounds_are_equivalent(previous, &ty) {
@@ -1090,6 +1281,13 @@ fn push_bound(
             return Ok(true);
         }
         if let Some(merged) = merge_row_bounds(previous, &ty, side) {
+            if bounds_are_equivalent(previous, &merged) {
+                return Ok(false);
+            }
+            *previous = merged;
+            return Ok(true);
+        }
+        if let Some(merged) = merge_ordered_bounds(previous, &ty, side, cast_order) {
             if bounds_are_equivalent(previous, &merged) {
                 return Ok(false);
             }
@@ -1120,6 +1318,42 @@ fn push_bound(
     }
     *slot = Some(ty);
     Ok(true)
+}
+
+fn merge_ordered_bounds(
+    previous: &typed_ir::Type,
+    ty: &typed_ir::Type,
+    side: BoundSide,
+    cast_order: &TypeCastOrder,
+) -> Option<typed_ir::Type> {
+    match side {
+        BoundSide::Lower if union_supertype_contains(previous, ty) => Some(previous.clone()),
+        BoundSide::Lower if union_supertype_contains(ty, previous) => Some(ty.clone()),
+        BoundSide::Lower => cast_order.join_lower(previous, ty),
+        BoundSide::Upper if bound_subtype(previous, ty) => Some(previous.clone()),
+        BoundSide::Upper if bound_subtype(ty, previous) => Some(ty.clone()),
+        BoundSide::Upper => cast_order.meet_upper(previous, ty),
+    }
+}
+
+fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
+    lightweight_bounds_equivalent(sub, sup)
+        || matches!(sub, typed_ir::Type::Never)
+        || matches!(sup, typed_ir::Type::Any)
+        || union_supertype_contains(sup, sub)
+}
+
+fn union_supertype_contains(sup: &typed_ir::Type, sub: &typed_ir::Type) -> bool {
+    let typed_ir::Type::Union(items) = sup else {
+        return false;
+    };
+    items
+        .iter()
+        .any(|item| lightweight_bounds_equivalent(sub, item))
+}
+
+fn lightweight_bounds_equivalent(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    left == right || core_type_is_unit_value(left) && core_type_is_unit_value(right)
 }
 
 fn merge_unknown_bounds(previous: &typed_ir::Type, ty: &typed_ir::Type) -> Option<typed_ir::Type> {
@@ -1307,9 +1541,24 @@ fn type_arg_contains_var(arg: &typed_ir::TypeArg) -> bool {
 
 fn bounds_are_equivalent(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
     left == right
+        || core_type_is_unit_value(left) && core_type_is_unit_value(right)
         || closed_singleton_row_item(left).is_some_and(|item| item == right)
         || closed_singleton_row_item(right).is_some_and(|item| item == left)
         || normalize_bound_form(left) == normalize_bound_form(right)
+}
+
+fn core_type_is_unit_value(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Tuple(items) => items.is_empty(),
+        typed_ir::Type::Named { path, args } => {
+            args.is_empty()
+                && path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.0 == "unit")
+        }
+        _ => false,
+    }
 }
 
 fn normalize_bound_form(ty: &typed_ir::Type) -> typed_ir::Type {
@@ -2097,6 +2346,139 @@ mod tests {
     }
 
     #[test]
+    fn graph_joins_subtype_lower_bound_into_union_supertype() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("effect".into());
+        let last = closed_row(&["last"]);
+        let sub = closed_row(&["sub"]);
+        let either = typed_ir::Type::Union(vec![sub, last.clone()]);
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(last)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(either.clone())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&either)
+        );
+    }
+
+    #[test]
+    fn graph_keeps_existing_union_supertype_lower_bound() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("effect".into());
+        let last = closed_row(&["last"]);
+        let sub = closed_row(&["sub"]);
+        let either = typed_ir::Type::Union(vec![sub, last.clone()]);
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(either.clone())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(last)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&either)
+        );
+    }
+
+    #[test]
+    fn graph_treats_named_unit_and_empty_tuple_bounds_as_equivalent() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("unitish".into());
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(unit_type())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(typed_ir::Type::Tuple(Vec::new()))),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&unit_type())
+        );
+    }
+
+    #[test]
+    fn graph_joins_lower_bounds_using_cast_order() {
+        let small = effect_type("small");
+        let middle = effect_type("middle");
+        let large = effect_type("large");
+        let cast_order = TypeCastOrder::from_edges(vec![
+            (small.clone(), middle),
+            (effect_type("middle"), large.clone()),
+        ]);
+        let mut graph = TypeGraph::with_cast_order(cast_order);
+        let var = typed_ir::TypeVar("value".into());
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(small)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(large.clone())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&large)
+        );
+    }
+
+    #[test]
     fn lower_solution_wins_over_upper_solution() {
         let mut graph = TypeGraph::default();
         let var = typed_ir::TypeVar("a".into());
@@ -2204,6 +2586,34 @@ mod tests {
         assert_eq!(
             graph.slot(&var).and_then(TypeVarBounds::solution_ref),
             Some(&first)
+        );
+    }
+
+    #[test]
+    fn indirect_var_lower_bound_cycle_is_not_chased_forever() {
+        let mut graph = TypeGraph::default();
+        let a = typed_ir::TypeVar("a".into());
+        let b = typed_ir::TypeVar("b".into());
+
+        graph
+            .collect_runtime_lower(
+                &typed_ir::Type::Var(a.clone()),
+                &RuntimeType::Core(typed_ir::Type::Var(b.clone())),
+            )
+            .unwrap();
+        graph
+            .collect_runtime_lower(
+                &typed_ir::Type::Var(b.clone()),
+                &RuntimeType::Core(typed_ir::Type::Var(a.clone())),
+            )
+            .unwrap();
+        graph
+            .constrain_subtype(typed_ir::Type::Var(a.clone()), int_type())
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&a).and_then(TypeVarBounds::solution_ref),
+            Some(&typed_ir::Type::Var(b))
         );
     }
 
@@ -2600,6 +3010,13 @@ mod tests {
         }
     }
 
+    fn unit_type() -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["unit"]),
+            args: Vec::new(),
+        }
+    }
+
     fn any_type() -> typed_ir::Type {
         typed_ir::Type::Any
     }
@@ -2650,6 +3067,13 @@ mod tests {
         typed_ir::Type::Named {
             path: path(&[name]),
             args: Vec::new(),
+        }
+    }
+
+    fn closed_row(items: &[&str]) -> typed_ir::Type {
+        typed_ir::Type::Row {
+            items: items.iter().map(|item| effect_type(item)).collect(),
+            tail: Box::new(typed_ir::Type::Never),
         }
     }
 

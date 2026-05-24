@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -7,7 +7,7 @@ use crate::{
     CachedFinalizeInstance, FinalizeDiagnostic, FinalizeInstanceCache, FinalizeInstanceKey,
     FinalizeMonomorphizeError, FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput,
     RootGraphSolution, TypeGraph,
-    graph::{runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
+    graph::{TypeCastOrder, runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
     materialize_core_type, materialize_runtime_type,
     output::RootGraphRoot,
 };
@@ -39,7 +39,9 @@ pub fn finalize_module_with_cache(
     cache: &mut FinalizeInstanceCache,
 ) -> FinalizeResult<FinalizeOutput> {
     let root_graph_inputs = collect_root_graph_inputs(&module);
-    let mut root_graph_solutions = solve_root_graphs(&module)?;
+    rewrite_root_role_method_calls(&mut module);
+    let cast_order = type_cast_order(&module.role_impls);
+    let mut root_graph_solutions = solve_root_graphs(&module, &cast_order)?;
     let mut scanned_binding_bodies = HashSet::new();
     let mut applied_solution_count = 0;
     loop {
@@ -52,10 +54,15 @@ pub fn finalize_module_with_cache(
         let role_rewrites = rewrite_role_method_calls(&mut module);
 
         let solution_count = root_graph_solutions.len();
-        collect_root_expr_graphs(&module, &mut root_graph_solutions)?;
+        collect_root_expr_graphs(&module, &cast_order, &mut root_graph_solutions)?;
         let scan_targets =
             next_binding_body_scan_targets(&module, &emitted, &mut scanned_binding_bodies);
-        collect_binding_body_graphs(&module, &scan_targets, &mut root_graph_solutions)?;
+        collect_binding_body_graphs(
+            &module,
+            &scan_targets,
+            &cast_order,
+            &mut root_graph_solutions,
+        )?;
         if emitted.is_empty()
             && scan_targets.is_empty()
             && !role_rewrites
@@ -68,6 +75,7 @@ pub fn finalize_module_with_cache(
     prune_unbound_binding_roots(&mut module);
     monomorphize_phantom_nullary_variant_bindings(&mut module);
     normalize_materialized_module(&mut module);
+    normalize_semantic_cast_coercions(&mut module);
     // Fill local Var types first (using enclosing-binder scope), so the apply
     // evidence pass sees concrete arg/callee types when reconciling.
     fill_local_var_types(&mut module);
@@ -96,6 +104,454 @@ fn normalize_materialized_module(module: &mut Module) {
     for expr in &mut module.root_exprs {
         materialize_expr_in_place(expr, &substitutions);
     }
+}
+
+fn normalize_semantic_cast_coercions(module: &mut Module) {
+    let role_impls = module.role_impls.clone();
+    for binding in &mut module.bindings {
+        binding.body = normalize_semantic_cast_expr(binding.body.clone(), &role_impls);
+    }
+    for expr in &mut module.root_exprs {
+        *expr = normalize_semantic_cast_expr(expr.clone(), &role_impls);
+    }
+}
+
+fn normalize_semantic_cast_expr(expr: Expr, role_impls: &[typed_ir::RoleImplGraphNode]) -> Expr {
+    let ty = expr.ty.clone();
+    let kind = match expr.kind {
+        ExprKind::Var(path) => ExprKind::Var(path),
+        ExprKind::EffectOp(path) => ExprKind::EffectOp(path),
+        ExprKind::PrimitiveOp(op) => ExprKind::PrimitiveOp(op),
+        ExprKind::Lit(lit) => ExprKind::Lit(lit),
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body: Box::new(normalize_semantic_cast_expr(*body, role_impls)),
+        },
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+        } => ExprKind::Apply {
+            callee: Box::new(normalize_semantic_cast_expr(*callee, role_impls)),
+            arg: Box::new(normalize_semantic_cast_expr(*arg, role_impls)),
+            evidence,
+            instantiation,
+        },
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .into_iter()
+                .map(|item| normalize_semantic_cast_expr(item, role_impls))
+                .collect(),
+        ),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            evidence,
+        } => ExprKind::If {
+            cond: Box::new(normalize_semantic_cast_expr(*cond, role_impls)),
+            then_branch: Box::new(normalize_semantic_cast_expr(*then_branch, role_impls)),
+            else_branch: Box::new(normalize_semantic_cast_expr(*else_branch, role_impls)),
+            evidence,
+        },
+        ExprKind::Record { fields, spread } => ExprKind::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| yulang_runtime_ir::RecordExprField {
+                    name: field.name,
+                    value: normalize_semantic_cast_expr(field.value, role_impls),
+                })
+                .collect(),
+            spread: spread.map(|spread| normalize_semantic_cast_record_spread(spread, role_impls)),
+        },
+        ExprKind::Variant { tag, value } => ExprKind::Variant {
+            tag,
+            value: value.map(|value| Box::new(normalize_semantic_cast_expr(*value, role_impls))),
+        },
+        ExprKind::Select { base, field } => ExprKind::Select {
+            base: Box::new(normalize_semantic_cast_expr(*base, role_impls)),
+            field,
+        },
+        ExprKind::Match {
+            scrutinee,
+            arms,
+            evidence,
+        } => ExprKind::Match {
+            scrutinee: Box::new(normalize_semantic_cast_expr(*scrutinee, role_impls)),
+            arms: arms
+                .into_iter()
+                .map(|arm| normalize_semantic_cast_match_arm(arm, role_impls))
+                .collect(),
+            evidence,
+        },
+        ExprKind::Block { stmts, tail } => ExprKind::Block {
+            stmts: stmts
+                .into_iter()
+                .map(|stmt| normalize_semantic_cast_stmt(stmt, role_impls))
+                .collect(),
+            tail: tail.map(|tail| Box::new(normalize_semantic_cast_expr(*tail, role_impls))),
+        },
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => ExprKind::Handle {
+            body: Box::new(normalize_semantic_cast_expr(*body, role_impls)),
+            arms: arms
+                .into_iter()
+                .map(|arm| normalize_semantic_cast_handle_arm(arm, role_impls))
+                .collect(),
+            evidence,
+            handler,
+        },
+        ExprKind::BindHere { expr } => ExprKind::BindHere {
+            expr: Box::new(normalize_semantic_cast_expr(*expr, role_impls)),
+        },
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => ExprKind::Thunk {
+            effect,
+            value,
+            expr: Box::new(normalize_semantic_cast_expr(*expr, role_impls)),
+        },
+        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
+            id,
+            body: Box::new(normalize_semantic_cast_expr(*body, role_impls)),
+        },
+        ExprKind::PeekId => ExprKind::PeekId,
+        ExprKind::FindId { id } => ExprKind::FindId { id },
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk: Box::new(normalize_semantic_cast_expr(*thunk, role_impls)),
+        },
+        ExprKind::Coerce { from, to, expr } => {
+            let expr = normalize_semantic_cast_expr(*expr, role_impls);
+            let actual = precise_coerce_actual_type(&expr, &from);
+            if actual == to {
+                return expr;
+            }
+            if let Some(steps) = semantic_cast_path(role_impls, &actual, &to) {
+                return apply_semantic_cast_path(expr, steps);
+            }
+            ExprKind::Coerce {
+                from: actual,
+                to,
+                expr: Box::new(expr),
+            }
+        }
+        ExprKind::Pack { var, expr } => ExprKind::Pack {
+            var,
+            expr: Box::new(normalize_semantic_cast_expr(*expr, role_impls)),
+        },
+    };
+    Expr::typed(kind, ty)
+}
+
+fn normalize_semantic_cast_stmt(
+    stmt: yulang_runtime_ir::Stmt,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> yulang_runtime_ir::Stmt {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
+            pattern: normalize_semantic_cast_pattern(pattern, role_impls),
+            value: normalize_semantic_cast_expr(value, role_impls),
+        },
+        yulang_runtime_ir::Stmt::Expr(expr) => {
+            yulang_runtime_ir::Stmt::Expr(normalize_semantic_cast_expr(expr, role_impls))
+        }
+        yulang_runtime_ir::Stmt::Module { def, body } => yulang_runtime_ir::Stmt::Module {
+            def,
+            body: normalize_semantic_cast_expr(body, role_impls),
+        },
+    }
+}
+
+fn normalize_semantic_cast_match_arm(
+    arm: yulang_runtime_ir::MatchArm,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> yulang_runtime_ir::MatchArm {
+    yulang_runtime_ir::MatchArm {
+        pattern: normalize_semantic_cast_pattern(arm.pattern, role_impls),
+        guard: arm
+            .guard
+            .map(|guard| normalize_semantic_cast_expr(guard, role_impls)),
+        body: normalize_semantic_cast_expr(arm.body, role_impls),
+    }
+}
+
+fn normalize_semantic_cast_handle_arm(
+    arm: yulang_runtime_ir::HandleArm,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> yulang_runtime_ir::HandleArm {
+    yulang_runtime_ir::HandleArm {
+        effect: arm.effect,
+        payload: normalize_semantic_cast_pattern(arm.payload, role_impls),
+        resume: arm.resume,
+        guard: arm
+            .guard
+            .map(|guard| normalize_semantic_cast_expr(guard, role_impls)),
+        body: normalize_semantic_cast_expr(arm.body, role_impls),
+    }
+}
+
+fn normalize_semantic_cast_pattern(
+    pattern: yulang_runtime_ir::Pattern,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> yulang_runtime_ir::Pattern {
+    use yulang_runtime_ir::Pattern;
+
+    match pattern {
+        Pattern::Tuple { items, ty } => Pattern::Tuple {
+            items: items
+                .into_iter()
+                .map(|item| normalize_semantic_cast_pattern(item, role_impls))
+                .collect(),
+            ty,
+        },
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ty,
+        } => Pattern::List {
+            prefix: prefix
+                .into_iter()
+                .map(|item| normalize_semantic_cast_pattern(item, role_impls))
+                .collect(),
+            spread: spread
+                .map(|spread| Box::new(normalize_semantic_cast_pattern(*spread, role_impls))),
+            suffix: suffix
+                .into_iter()
+                .map(|item| normalize_semantic_cast_pattern(item, role_impls))
+                .collect(),
+            ty,
+        },
+        Pattern::Record { fields, spread, ty } => Pattern::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| yulang_runtime_ir::RecordPatternField {
+                    name: field.name,
+                    pattern: normalize_semantic_cast_pattern(field.pattern, role_impls),
+                    default: field
+                        .default
+                        .map(|expr| normalize_semantic_cast_expr(expr, role_impls)),
+                })
+                .collect(),
+            spread: spread
+                .map(|spread| normalize_semantic_cast_record_pattern_spread(spread, role_impls)),
+            ty,
+        },
+        Pattern::Variant { tag, value, ty } => Pattern::Variant {
+            tag,
+            value: value.map(|value| Box::new(normalize_semantic_cast_pattern(*value, role_impls))),
+            ty,
+        },
+        Pattern::Or { left, right, ty } => Pattern::Or {
+            left: Box::new(normalize_semantic_cast_pattern(*left, role_impls)),
+            right: Box::new(normalize_semantic_cast_pattern(*right, role_impls)),
+            ty,
+        },
+        Pattern::As { pattern, name, ty } => Pattern::As {
+            pattern: Box::new(normalize_semantic_cast_pattern(*pattern, role_impls)),
+            name,
+            ty,
+        },
+        Pattern::Wildcard { ty } => Pattern::Wildcard { ty },
+        Pattern::Bind { name, ty } => Pattern::Bind { name, ty },
+        Pattern::Lit { lit, ty } => Pattern::Lit { lit, ty },
+    }
+}
+
+fn normalize_semantic_cast_record_spread(
+    spread: yulang_runtime_ir::RecordSpreadExpr,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> yulang_runtime_ir::RecordSpreadExpr {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
+            yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(normalize_semantic_cast_expr(
+                *expr, role_impls,
+            )))
+        }
+        yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
+            yulang_runtime_ir::RecordSpreadExpr::Tail(Box::new(normalize_semantic_cast_expr(
+                *expr, role_impls,
+            )))
+        }
+    }
+}
+
+fn normalize_semantic_cast_record_pattern_spread(
+    spread: yulang_runtime_ir::RecordSpreadPattern,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> yulang_runtime_ir::RecordSpreadPattern {
+    match spread {
+        yulang_runtime_ir::RecordSpreadPattern::Head(pattern) => {
+            yulang_runtime_ir::RecordSpreadPattern::Head(Box::new(normalize_semantic_cast_pattern(
+                *pattern, role_impls,
+            )))
+        }
+        yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+            yulang_runtime_ir::RecordSpreadPattern::Tail(Box::new(normalize_semantic_cast_pattern(
+                *pattern, role_impls,
+            )))
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SemanticCastStep {
+    method: typed_ir::Path,
+    from: typed_ir::Type,
+    to: typed_ir::Type,
+}
+
+fn apply_semantic_cast_path(expr: Expr, steps: Vec<SemanticCastStep>) -> Expr {
+    steps.into_iter().fold(expr, |value, step| {
+        let callee_ty = RuntimeType::fun(
+            RuntimeType::core(step.from.clone()),
+            RuntimeType::core(step.to.clone()),
+        );
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(ExprKind::Var(step.method), callee_ty)),
+                arg: Box::new(value),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::core(step.to),
+        )
+    })
+}
+
+fn semantic_cast_path(
+    role_impls: &[typed_ir::RoleImplGraphNode],
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
+) -> Option<Vec<SemanticCastStep>> {
+    if !semantic_cast_target_needs_apply(expected)
+        || primitive_runtime_coercion_covers(actual, expected)
+        || semantic_cast_endpoint_is_open(actual)
+        || semantic_cast_endpoint_is_open(expected)
+        || same_core_type(actual, expected)
+    {
+        return None;
+    }
+    let edges = semantic_cast_edges(role_impls);
+    let mut seen = Vec::new();
+    let mut queue = VecDeque::from([(actual.clone(), Vec::new())]);
+    while let Some((current, path)) = queue.pop_front() {
+        if seen.iter().any(|seen| same_core_type(seen, &current)) {
+            continue;
+        }
+        seen.push(current.clone());
+        for edge in &edges {
+            if !same_core_type(&edge.from, &current) {
+                continue;
+            }
+            let mut next_path = path.clone();
+            next_path.push(edge.clone());
+            if same_core_type(&edge.to, expected) {
+                return Some(next_path);
+            }
+            queue.push_back((edge.to.clone(), next_path));
+        }
+    }
+    None
+}
+
+fn semantic_cast_edges(role_impls: &[typed_ir::RoleImplGraphNode]) -> Vec<SemanticCastStep> {
+    role_impls
+        .iter()
+        .filter(|role_impl| {
+            role_impl
+                .role
+                .segments
+                .last()
+                .is_some_and(|name| name.0 == "Cast")
+        })
+        .filter_map(|role_impl| {
+            let from = role_impl.inputs.first().and_then(type_from_bounds)?;
+            let to = role_impl
+                .associated_types
+                .iter()
+                .find(|associated| associated.name.0 == "to")
+                .and_then(|associated| type_from_bounds(&associated.value))?;
+            let method = role_impl
+                .members
+                .iter()
+                .find(|member| member.name.0 == "cast")
+                .map(|member| member.value.clone())?;
+            Some(SemanticCastStep { method, from, to })
+        })
+        .collect()
+}
+
+fn type_cast_order(role_impls: &[typed_ir::RoleImplGraphNode]) -> TypeCastOrder {
+    TypeCastOrder::from_edges(
+        semantic_cast_edges(role_impls)
+            .into_iter()
+            .map(|step| (step.from, step.to))
+            .collect(),
+    )
+}
+
+fn precise_coerce_actual_type(expr: &Expr, fallback: &typed_ir::Type) -> typed_ir::Type {
+    let actual = runtime_type_to_core(expr.ty.clone());
+    if semantic_cast_endpoint_is_open(&actual) {
+        fallback.clone()
+    } else {
+        actual
+    }
+}
+
+fn semantic_cast_endpoint_is_open(ty: &typed_ir::Type) -> bool {
+    matches!(
+        ty,
+        typed_ir::Type::Any | typed_ir::Type::Unknown | typed_ir::Type::Var(_)
+    ) || !core_type_is_closed(ty)
+}
+
+fn semantic_cast_target_needs_apply(ty: &typed_ir::Type) -> bool {
+    is_bare_named_type(ty, "float")
+}
+
+fn primitive_runtime_coercion_covers(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {
+    is_bare_named_type(actual, "int") && is_bare_named_type(expected, "float")
+}
+
+fn is_bare_named_type(ty: &typed_ir::Type, name: &str) -> bool {
+    matches!(
+        ty,
+        typed_ir::Type::Named { path, args }
+            if args.is_empty()
+                && path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.0 == name)
+    )
+}
+
+fn same_core_type(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    core_subtype_match_score(left, right).is_some()
+        && core_subtype_match_score(right, left).is_some()
 }
 
 fn monomorphize_phantom_nullary_variant_bindings(module: &mut Module) {
@@ -824,14 +1280,18 @@ pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
         .collect()
 }
 
-pub fn solve_root_graphs(module: &Module) -> FinalizeResult<Vec<RootGraphSolution>> {
+pub fn solve_root_graphs(
+    module: &Module,
+    cast_order: &TypeCastOrder,
+) -> FinalizeResult<Vec<RootGraphSolution>> {
     let mut solutions = Vec::new();
-    collect_root_expr_graphs(module, &mut solutions)?;
+    collect_root_expr_graphs(module, cast_order, &mut solutions)?;
     Ok(solutions)
 }
 
 fn collect_root_expr_graphs(
     module: &Module,
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     let bindings = module
@@ -852,6 +1312,7 @@ fn collect_root_expr_graphs(
             expr,
             &bindings,
             &HashMap::new(),
+            cast_order,
             solutions,
         )?;
     }
@@ -861,6 +1322,7 @@ fn collect_root_expr_graphs(
 fn collect_binding_body_graphs(
     module: &Module,
     aliases: &[typed_ir::Path],
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     let bindings = module
@@ -879,6 +1341,7 @@ fn collect_binding_body_graphs(
             &binding.body,
             &bindings,
             &binding_local_types(binding),
+            cast_order,
             solutions,
         )?;
     }
@@ -922,17 +1385,30 @@ fn collect_expr_graphs(
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
-    let found = solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?;
+    let found = solve_simple_apply(
+        owner.clone(),
+        expr,
+        bindings,
+        local_types,
+        cast_order,
+        solutions.len(),
+    )?;
     if !found.is_empty() {
-        collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, solutions)?;
+        collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, cast_order, solutions)?;
         solutions.extend(found);
         return Ok(());
     }
-    if let Some(solution) =
-        solve_bare_polymorphic_var(owner.clone(), expr, bindings, local_types, solutions.len())?
-    {
+    if let Some(solution) = solve_bare_polymorphic_var(
+        owner.clone(),
+        expr,
+        bindings,
+        local_types,
+        cast_order,
+        solutions.len(),
+    )? {
         solutions.push(solution);
         return Ok(());
     }
@@ -942,18 +1418,25 @@ fn collect_expr_graphs(
             if let Some(param_ty) = runtime_function_param(&expr.ty) {
                 scoped_locals.insert(path_from_name(param), param_ty);
             }
-            collect_expr_graphs(owner, body, bindings, &scoped_locals, solutions)
+            collect_expr_graphs(owner, body, bindings, &scoped_locals, cast_order, solutions)
         }
         ExprKind::BindHere { expr: body }
         | ExprKind::LocalPushId { body, .. }
         | ExprKind::AddId { thunk: body, .. }
         | ExprKind::Coerce { expr: body, .. }
         | ExprKind::Pack { expr: body, .. } => {
-            collect_expr_graphs(owner, body, bindings, local_types, solutions)
+            collect_expr_graphs(owner, body, bindings, local_types, cast_order, solutions)
         }
         ExprKind::Apply { callee, arg, .. } => {
-            collect_expr_graphs(owner.clone(), callee, bindings, local_types, solutions)?;
-            collect_expr_graphs(owner, arg, bindings, local_types, solutions)
+            collect_expr_graphs(
+                owner.clone(),
+                callee,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
+            collect_expr_graphs(owner, arg, bindings, local_types, cast_order, solutions)
         }
         ExprKind::If {
             cond,
@@ -961,13 +1444,41 @@ fn collect_expr_graphs(
             else_branch,
             ..
         } => {
-            collect_expr_graphs(owner.clone(), cond, bindings, local_types, solutions)?;
-            collect_expr_graphs(owner.clone(), then_branch, bindings, local_types, solutions)?;
-            collect_expr_graphs(owner, else_branch, bindings, local_types, solutions)
+            collect_expr_graphs(
+                owner.clone(),
+                cond,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
+            collect_expr_graphs(
+                owner.clone(),
+                then_branch,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
+            collect_expr_graphs(
+                owner,
+                else_branch,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )
         }
         ExprKind::Tuple(items) => {
             for item in items {
-                collect_expr_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+                collect_expr_graphs(
+                    owner.clone(),
+                    item,
+                    bindings,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -978,50 +1489,93 @@ fn collect_expr_graphs(
                     &field.value,
                     bindings,
                     local_types,
+                    cast_order,
                     solutions,
                 )?;
             }
             if let Some(spread) = spread {
-                collect_record_spread_graphs(owner, spread, bindings, local_types, solutions)?;
+                collect_record_spread_graphs(
+                    owner,
+                    spread,
+                    bindings,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
         ExprKind::Variant { value, .. } => {
             if let Some(value) = value {
-                collect_expr_graphs(owner, value, bindings, local_types, solutions)?;
+                collect_expr_graphs(owner, value, bindings, local_types, cast_order, solutions)?;
             }
             Ok(())
         }
         ExprKind::Select { base, .. } | ExprKind::Thunk { expr: base, .. } => {
-            collect_expr_graphs(owner, base, bindings, local_types, solutions)
+            collect_expr_graphs(owner, base, bindings, local_types, cast_order, solutions)
         }
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            collect_expr_graphs(owner.clone(), scrutinee, bindings, local_types, solutions)?;
+            collect_expr_graphs(
+                owner.clone(),
+                scrutinee,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
             for arm in arms {
                 let mut arm_locals = local_types.clone();
                 collect_pattern_local_types(&arm.pattern, &mut arm_locals);
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
+                    collect_expr_graphs(
+                        owner.clone(),
+                        guard,
+                        bindings,
+                        &arm_locals,
+                        cast_order,
+                        solutions,
+                    )?;
                 }
-                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
+                collect_expr_graphs(
+                    owner.clone(),
+                    &arm.body,
+                    bindings,
+                    &arm_locals,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
         ExprKind::Block { stmts, tail } => {
             let mut scoped_locals = local_types.clone();
             for stmt in stmts {
-                collect_stmt_graphs(owner.clone(), stmt, bindings, &scoped_locals, solutions)?;
+                collect_stmt_graphs(
+                    owner.clone(),
+                    stmt,
+                    bindings,
+                    &scoped_locals,
+                    cast_order,
+                    solutions,
+                )?;
                 collect_stmt_local_types(stmt, &mut scoped_locals);
             }
             if let Some(tail) = tail {
-                collect_expr_graphs(owner, tail, bindings, &scoped_locals, solutions)?;
+                collect_expr_graphs(owner, tail, bindings, &scoped_locals, cast_order, solutions)?;
             }
             Ok(())
         }
         ExprKind::Handle { body, arms, .. } => {
-            collect_expr_graphs(owner.clone(), body, bindings, local_types, solutions)?;
+            collect_expr_graphs(
+                owner.clone(),
+                body,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
             for arm in arms {
                 let mut arm_locals = local_types.clone();
                 collect_pattern_local_types(&arm.payload, &mut arm_locals);
@@ -1029,9 +1583,23 @@ fn collect_expr_graphs(
                     arm_locals.insert(path_from_name(&resume.name), resume.ty.clone());
                 }
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
+                    collect_expr_graphs(
+                        owner.clone(),
+                        guard,
+                        bindings,
+                        &arm_locals,
+                        cast_order,
+                        solutions,
+                    )?;
                 }
-                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
+                collect_expr_graphs(
+                    owner.clone(),
+                    &arm.body,
+                    bindings,
+                    &arm_locals,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -1044,13 +1612,21 @@ fn collect_apply_spine_arg_graphs(
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     let ExprKind::Apply { callee, arg, .. } = &expr.kind else {
         return Ok(());
     };
-    collect_apply_spine_arg_graphs(owner.clone(), callee, bindings, local_types, solutions)?;
-    collect_expr_graphs(owner, arg, bindings, local_types, solutions)
+    collect_apply_spine_arg_graphs(
+        owner.clone(),
+        callee,
+        bindings,
+        local_types,
+        cast_order,
+        solutions,
+    )?;
+    collect_expr_graphs(owner, arg, bindings, local_types, cast_order, solutions)
 }
 
 fn solve_bare_polymorphic_var(
@@ -1058,6 +1634,7 @@ fn solve_bare_polymorphic_var(
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     alias_index: usize,
 ) -> FinalizeResult<Option<RootGraphSolution>> {
     let ExprKind::Var(path) = &expr.kind else {
@@ -1073,7 +1650,7 @@ fn solve_bare_polymorphic_var(
     if !core_type_is_closed(&expected) {
         return Ok(None);
     }
-    solve_value_arg(owner, binding, expected, alias_index).map(Some)
+    solve_value_arg(owner, binding, expected, cast_order, alias_index).map(Some)
 }
 
 fn solve_simple_apply(
@@ -1081,6 +1658,7 @@ fn solve_simple_apply(
     expr: &Expr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     alias_index: usize,
 ) -> FinalizeResult<Vec<RootGraphSolution>> {
     let Some(spine) = ApplySpine::new(expr) else {
@@ -1093,27 +1671,48 @@ fn solve_simple_apply(
     if binding.type_params.is_empty() {
         return Ok(Vec::new());
     }
-    let mut solutions =
-        solve_spine_value_args(owner.clone(), &spine, bindings, local_types, alias_index)?;
-    let mut graph = TypeGraph::default();
-    let principal = graph.instantiate_principal(binding);
-    graph.collect_runtime_bounds(
-        &principal.principal_type,
-        &crate::RuntimeBounds {
-            lower: Some(apply_callee_lower_bound(spine.callee.ty.clone())),
-            upper: Some(spine.callee.ty.clone()),
-        },
+    let mut solutions = solve_spine_value_args(
+        owner.clone(),
+        &spine,
+        bindings,
+        local_types,
+        cast_order,
+        alias_index,
     )?;
-    collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
+    let mut graph = TypeGraph::with_cast_order(cast_order.clone());
+    let principal = graph.instantiate_principal(binding);
+    let role_required_binding = !binding.scheme.requirements.is_empty();
+    if !role_required_binding {
+        graph.collect_runtime_bounds(
+            &principal.principal_type,
+            &crate::RuntimeBounds {
+                lower: Some(apply_callee_lower_bound(spine.callee.ty.clone())),
+                upper: Some(spine.callee.ty.clone()),
+            },
+        )?;
+    }
+    if !role_required_binding {
+        collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
+    }
     let mut current = principal.principal_type.clone();
+    let mut current_template = principal.principal_type.clone();
     let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
-        let result = graph.fresh_hole("apply");
-        let result_effect = graph.fresh_hole("apply_effect");
+        let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
+        let template_return = role_required_binding
+            .then(|| function_return_template_parts(&current_template))
+            .flatten();
+        let result = template_return
+            .as_ref()
+            .map(|(result, _)| result.clone())
+            .unwrap_or_else(|| graph.fresh_hole("apply"));
+        let result_effect = template_return
+            .as_ref()
+            .map(|(_, effect)| effect.clone())
+            .unwrap_or_else(|| graph.fresh_hole("apply_effect"));
         if let typed_ir::Type::Var(var) = &result_effect {
             apply_effect_vars.insert(var.clone());
         }
-        let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
         let expected = typed_ir::Type::Fun {
             param: Box::new(arg_type),
             param_effect: Box::new(arg_effect),
@@ -1123,6 +1722,8 @@ fn solve_simple_apply(
         graph.constrain_subtype(current, expected)?;
         step.constrain_result_bounds(&mut graph, result.clone(), result_effect, local_types)?;
         current = result;
+        current_template =
+            function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
     }
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     graph.default_unbound_lower(apply_effect_vars, typed_ir::Type::Never)?;
@@ -1136,7 +1737,11 @@ fn solve_simple_apply(
         });
     }
     let callee_type = solved_callee_runtime_type(binding, &principal, &graph);
-    let result_type = solved_expr_result_type(&expr.ty, &graph, current);
+    let result_type = if role_required_binding {
+        runtime_type_from_core_value(graph.materialize_core(current))
+    } else {
+        solved_expr_result_type(&expr.ty, &graph, current)
+    };
     let type_substitutions = principal.original_substitutions(&graph);
     solutions.push(RootGraphSolution {
         root: owner,
@@ -1197,6 +1802,7 @@ fn solve_spine_value_args(
     spine: &ApplySpine<'_>,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     alias_index: usize,
 ) -> FinalizeResult<Vec<RootGraphSolution>> {
     let mut solutions = Vec::new();
@@ -1214,6 +1820,7 @@ fn solve_spine_value_args(
             owner.clone(),
             binding,
             step.arg_type(local_types),
+            cast_order,
             alias_index + solutions.len(),
         )?;
         solutions.push(solution);
@@ -1225,9 +1832,10 @@ fn solve_value_arg(
     owner: RootGraphRoot,
     binding: &Binding,
     expected_type: typed_ir::Type,
+    cast_order: &TypeCastOrder,
     alias_index: usize,
 ) -> FinalizeResult<RootGraphSolution> {
-    let mut graph = TypeGraph::default();
+    let mut graph = TypeGraph::with_cast_order(cast_order.clone());
     let principal = graph.instantiate_principal(binding);
     graph.constrain_subtype(principal.principal_type.clone(), expected_type)?;
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
@@ -1281,6 +1889,23 @@ fn collect_spine_substitution(
         return Ok(());
     };
     graph.constrain_subtype(ty.clone(), typed_ir::Type::Var(param.fresh.clone()))
+}
+
+fn function_return_template(ty: typed_ir::Type) -> Option<typed_ir::Type> {
+    let typed_ir::Type::Fun { ret, .. } = ty else {
+        return None;
+    };
+    Some(*ret)
+}
+
+fn function_return_template_parts(ty: &typed_ir::Type) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let typed_ir::Type::Fun {
+        ret_effect, ret, ..
+    } = ty
+    else {
+        return None;
+    };
+    Some((ret.as_ref().clone(), ret_effect.as_ref().clone()))
 }
 
 fn apply_callee_lower_bound(ty: RuntimeType) -> RuntimeType {
@@ -1404,7 +2029,8 @@ impl ApplyStep<'_> {
         if let Some(evidence) = self.evidence {
             constrain_apply_result_effect_bounds(graph, result_effect.clone(), evidence)?;
         }
-        match expr_lower_type(self.apply, local_types) {
+        let apply_ty = expr_lower_type(self.apply, local_types);
+        match apply_ty {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { effect, value } => {
                 if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
@@ -1527,6 +2153,10 @@ fn apply_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> 
         .or_else(|| type_from_bounds(&evidence.arg))
 }
 
+fn apply_observed_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    type_from_bounds(&evidence.arg)
+}
+
 fn type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
     bounds
         .lower
@@ -1540,12 +2170,13 @@ fn collect_record_spread_graphs(
     spread: &yulang_runtime_ir::RecordSpreadExpr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr)
         | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
-            collect_expr_graphs(owner, expr, bindings, local_types, solutions)
+            collect_expr_graphs(owner, expr, bindings, local_types, cast_order, solutions)
         }
     }
 }
@@ -1555,16 +2186,24 @@ fn collect_stmt_graphs(
     stmt: &yulang_runtime_ir::Stmt,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     match stmt {
         yulang_runtime_ir::Stmt::Let { pattern, value } => {
-            collect_pattern_graphs(owner.clone(), pattern, bindings, local_types, solutions)?;
-            collect_expr_graphs(owner, value, bindings, local_types, solutions)
+            collect_pattern_graphs(
+                owner.clone(),
+                pattern,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
+            collect_expr_graphs(owner, value, bindings, local_types, cast_order, solutions)
         }
         yulang_runtime_ir::Stmt::Expr(expr)
         | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
-            collect_expr_graphs(owner, expr, bindings, local_types, solutions)
+            collect_expr_graphs(owner, expr, bindings, local_types, cast_order, solutions)
         }
     }
 }
@@ -1574,6 +2213,7 @@ fn collect_pattern_graphs(
     pattern: &yulang_runtime_ir::Pattern,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     use yulang_runtime_ir::Pattern;
@@ -1581,7 +2221,14 @@ fn collect_pattern_graphs(
     match pattern {
         Pattern::Tuple { items, .. } => {
             for item in items {
-                collect_pattern_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+                collect_pattern_graphs(
+                    owner.clone(),
+                    item,
+                    bindings,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -1592,13 +2239,34 @@ fn collect_pattern_graphs(
             ..
         } => {
             for item in prefix {
-                collect_pattern_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+                collect_pattern_graphs(
+                    owner.clone(),
+                    item,
+                    bindings,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             if let Some(spread) = spread {
-                collect_pattern_graphs(owner.clone(), spread, bindings, local_types, solutions)?;
+                collect_pattern_graphs(
+                    owner.clone(),
+                    spread,
+                    bindings,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             for item in suffix {
-                collect_pattern_graphs(owner.clone(), item, bindings, local_types, solutions)?;
+                collect_pattern_graphs(
+                    owner.clone(),
+                    item,
+                    bindings,
+                    local_types,
+                    cast_order,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -1609,17 +2277,32 @@ fn collect_pattern_graphs(
                     &field.pattern,
                     bindings,
                     local_types,
+                    cast_order,
                     solutions,
                 )?;
                 if let Some(default) = &field.default {
-                    collect_expr_graphs(owner.clone(), default, bindings, local_types, solutions)?;
+                    collect_expr_graphs(
+                        owner.clone(),
+                        default,
+                        bindings,
+                        local_types,
+                        cast_order,
+                        solutions,
+                    )?;
                 }
             }
             if let Some(spread) = spread {
                 match spread {
                     yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
                     | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
-                        collect_pattern_graphs(owner, pattern, bindings, local_types, solutions)?;
+                        collect_pattern_graphs(
+                            owner,
+                            pattern,
+                            bindings,
+                            local_types,
+                            cast_order,
+                            solutions,
+                        )?;
                     }
                 }
             }
@@ -1627,16 +2310,23 @@ fn collect_pattern_graphs(
         }
         Pattern::Variant { value, .. } => {
             if let Some(value) = value {
-                collect_pattern_graphs(owner, value, bindings, local_types, solutions)?;
+                collect_pattern_graphs(owner, value, bindings, local_types, cast_order, solutions)?;
             }
             Ok(())
         }
         Pattern::Or { left, right, .. } => {
-            collect_pattern_graphs(owner.clone(), left, bindings, local_types, solutions)?;
-            collect_pattern_graphs(owner, right, bindings, local_types, solutions)
+            collect_pattern_graphs(
+                owner.clone(),
+                left,
+                bindings,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
+            collect_pattern_graphs(owner, right, bindings, local_types, cast_order, solutions)
         }
         Pattern::As { pattern, .. } => {
-            collect_pattern_graphs(owner, pattern, bindings, local_types, solutions)
+            collect_pattern_graphs(owner, pattern, bindings, local_types, cast_order, solutions)
         }
         Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => Ok(()),
     }
@@ -1917,6 +2607,18 @@ fn rewrite_role_method_calls(module: &mut Module) -> bool {
     changed
 }
 
+fn rewrite_root_role_method_calls(module: &mut Module) -> bool {
+    let candidates = role_method_candidates(module);
+    if candidates.is_empty() {
+        return false;
+    }
+    let mut changed = false;
+    for expr in &mut module.root_exprs {
+        changed |= rewrite_role_method_expr(expr, &mut HashMap::new(), &candidates);
+    }
+    changed
+}
+
 #[derive(Clone)]
 struct RoleMethodCandidate {
     role: typed_ir::Path,
@@ -1932,22 +2634,31 @@ fn role_method_candidates(module: &Module) -> Vec<RoleMethodCandidate> {
         .iter()
         .map(|binding| (binding.name.clone(), binding))
         .collect::<HashMap<_, _>>();
-    module
-        .role_impls
-        .iter()
-        .flat_map(|role_impl| {
-            role_impl.members.iter().filter_map(|member| {
-                let binding = bindings.get(&member.value)?;
-                Some(RoleMethodCandidate {
-                    role: role_impl.role.clone(),
-                    member: member.name.clone(),
-                    value: member.value.clone(),
-                    inputs: role_impl.inputs.clone(),
-                    callee_type: runtime_type_from_core_value(binding.scheme.body.clone()),
-                })
-            })
-        })
-        .collect()
+    let mut seen = HashSet::new();
+    let mut candidates = Vec::new();
+    for role_impl in &module.role_impls {
+        for member in &role_impl.members {
+            let key = (
+                role_impl.role.clone(),
+                member.name.clone(),
+                member.value.clone(),
+            );
+            if !seen.insert(key) {
+                continue;
+            }
+            let Some(binding) = bindings.get(&member.value) else {
+                continue;
+            };
+            candidates.push(RoleMethodCandidate {
+                role: role_impl.role.clone(),
+                member: member.name.clone(),
+                value: member.value.clone(),
+                inputs: role_impl.inputs.clone(),
+                callee_type: runtime_type_from_core_value(binding.scheme.body.clone()),
+            });
+        }
+    }
+    candidates
 }
 
 fn rewrite_role_method_expr(
@@ -2121,19 +2832,33 @@ fn resolve_role_method_spine(
     let receiver = spine.steps.first()?;
     let receiver_types = role_receiver_types(receiver, local_types);
     let mut best = None;
+    let mut ambiguous = false;
     for candidate in candidates
         .iter()
         .filter(|candidate| candidate.role == role && candidate.member == member)
     {
-        let Some(score) = role_method_candidate_score(candidate, &receiver_types) else {
+        let Some(score) =
+            role_method_candidate_score(candidate, &receiver_types, spine, local_types)
+        else {
             continue;
         };
-        if best
-            .as_ref()
-            .is_none_or(|(best_score, _): &(usize, &RoleMethodCandidate)| score > *best_score)
-        {
-            best = Some((score, candidate));
+        match best {
+            None => {
+                best = Some((score, candidate));
+                ambiguous = false;
+            }
+            Some((best_score, _)) if score > best_score => {
+                best = Some((score, candidate));
+                ambiguous = false;
+            }
+            Some((best_score, _)) if score == best_score => {
+                ambiguous = true;
+            }
+            Some(_) => {}
         }
+    }
+    if ambiguous {
+        return None;
     }
     best.map(|(_, candidate)| (candidate.value.clone(), candidate.callee_type.clone()))
 }
@@ -2152,7 +2877,9 @@ fn resolve_impl_method_spine(
         .iter()
         .filter(|candidate| candidate.member == *member)
     {
-        let Some(score) = role_method_candidate_score(candidate, &receiver_types) else {
+        let Some(score) =
+            role_method_candidate_score(candidate, &receiver_types, spine, local_types)
+        else {
             continue;
         };
         match best {
@@ -2204,6 +2931,9 @@ fn role_receiver_types(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
 ) -> Vec<typed_ir::Type> {
     let mut out = Vec::new();
+    if let Some(ty) = receiver.evidence.and_then(apply_observed_arg_type) {
+        push_unique_type(&mut out, ty);
+    }
     push_unique_type(&mut out, receiver.arg_type(local_types));
     push_role_receiver_expr_types(&mut out, receiver.arg, local_types);
     out
@@ -2242,12 +2972,56 @@ fn push_unique_type(out: &mut Vec<typed_ir::Type>, ty: typed_ir::Type) {
 fn role_method_candidate_score(
     candidate: &RoleMethodCandidate,
     receiver_types: &[typed_ir::Type],
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
 ) -> Option<usize> {
     let receiver_bounds = candidate.inputs.first()?;
-    receiver_types
+    let receiver_score = receiver_types
         .iter()
         .filter_map(|receiver_ty| type_bounds_match_score(receiver_bounds, receiver_ty))
-        .max()
+        .max()?;
+    let spine_score = role_method_spine_score(&candidate.callee_type, spine, local_types);
+    Some(receiver_score + spine_score)
+}
+
+fn role_method_spine_score(
+    callee_type: &RuntimeType,
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> usize {
+    let mut current = runtime_type_to_core(callee_type.clone());
+    let mut score = 0;
+    for step in &spine.steps {
+        let typed_ir::Type::Fun { param, ret, .. } = current else {
+            break;
+        };
+        let arg_type = step.arg_type(local_types);
+        score += soft_core_match_score(&param, &arg_type);
+        if let Some(evidence) = step.evidence {
+            score += soft_type_bounds_match_score(&evidence.arg, &param);
+            if let Some(expected) = &evidence.expected_arg {
+                score += soft_type_bounds_match_score(expected, &param);
+            }
+            score += soft_type_bounds_match_score(&evidence.result, &ret);
+        }
+        current = *ret;
+    }
+    score
+}
+
+fn soft_type_bounds_match_score(bounds: &typed_ir::TypeBounds, actual: &typed_ir::Type) -> usize {
+    let mut score = 0;
+    if let Some(lower) = bounds.lower.as_deref() {
+        score += soft_core_match_score(lower, actual);
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        score += soft_core_match_score(actual, upper);
+    }
+    score
+}
+
+fn soft_core_match_score(left: &typed_ir::Type, right: &typed_ir::Type) -> usize {
+    core_subtype_match_score(left, right).unwrap_or(0)
 }
 
 fn type_bounds_match_score(
@@ -2273,6 +3047,15 @@ fn core_subtype_match_score(sub: &typed_ir::Type, sup: &typed_ir::Type) -> Optio
     match (sub, sup) {
         (typed_ir::Type::Never, _) | (_, typed_ir::Type::Any) => Some(1),
         (typed_ir::Type::Var(_), _) | (_, typed_ir::Type::Var(_)) => Some(2),
+        (typed_ir::Type::Union(items), sup) => items
+            .iter()
+            .map(|item| core_subtype_match_score(item, sup))
+            .try_fold(1, |acc, score| score.map(|score| acc + score)),
+        (sub, typed_ir::Type::Union(items)) => items
+            .iter()
+            .filter_map(|item| core_subtype_match_score(sub, item))
+            .max()
+            .map(|score| score + 1),
         (
             typed_ir::Type::Named { path, args },
             typed_ir::Type::Named {
@@ -2739,12 +3522,23 @@ fn materialize_expr_with_expected(
             arg,
             evidence,
             instantiation,
-        } => ExprKind::Apply {
-            callee: Box::new(materialize_expr(*callee, substitutions)),
-            arg: Box::new(materialize_expr(*arg, substitutions)),
-            evidence,
-            instantiation,
-        },
+        } => {
+            let evidence =
+                evidence.map(|evidence| materialize_apply_evidence(evidence, substitutions));
+            let callee = materialize_expr(*callee, substitutions);
+            let expected_arg = materialized_runtime_callee_arg(&callee.ty)
+                .or_else(|| evidence.as_ref().and_then(materialized_apply_expected_arg));
+            ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(materialize_apply_arg(
+                    *arg,
+                    substitutions,
+                    expected_arg.as_ref(),
+                )),
+                evidence,
+                instantiation,
+            }
+        }
         ExprKind::Tuple(items) => ExprKind::Tuple(
             items
                 .into_iter()
@@ -3088,6 +3882,165 @@ fn materialize_join_evidence(
     yulang_runtime_ir::JoinEvidence {
         result: materialize_core_type(evidence.result, substitutions),
     }
+}
+
+fn materialize_apply_evidence(
+    evidence: typed_ir::ApplyEvidence,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> typed_ir::ApplyEvidence {
+    typed_ir::ApplyEvidence {
+        callee_source_edge: evidence.callee_source_edge,
+        arg_source_edge: evidence.arg_source_edge,
+        callee: materialize_type_bounds(evidence.callee, substitutions),
+        expected_callee: evidence
+            .expected_callee
+            .map(|bounds| materialize_type_bounds(bounds, substitutions)),
+        arg: materialize_type_bounds(evidence.arg, substitutions),
+        expected_arg: evidence
+            .expected_arg
+            .map(|bounds| materialize_type_bounds(bounds, substitutions)),
+        result: materialize_type_bounds(evidence.result, substitutions),
+        principal_callee: evidence
+            .principal_callee
+            .map(|ty| materialize_core_type(ty, substitutions)),
+        substitutions: evidence
+            .substitutions
+            .into_iter()
+            .map(|subst| typed_ir::TypeSubstitution {
+                var: subst.var,
+                ty: materialize_core_type(subst.ty, substitutions),
+            })
+            .collect(),
+        substitution_candidates: evidence
+            .substitution_candidates
+            .into_iter()
+            .map(|candidate| typed_ir::PrincipalSubstitutionCandidate {
+                var: candidate.var,
+                relation: candidate.relation,
+                ty: materialize_core_type(candidate.ty, substitutions),
+                source_edge: candidate.source_edge,
+                path: candidate.path,
+            })
+            .collect(),
+        role_method: evidence.role_method,
+        principal_elaboration: evidence
+            .principal_elaboration
+            .map(|plan| materialize_principal_elaboration_plan(plan, substitutions)),
+    }
+}
+
+fn materialize_principal_elaboration_plan(
+    plan: typed_ir::PrincipalElaborationPlan,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> typed_ir::PrincipalElaborationPlan {
+    typed_ir::PrincipalElaborationPlan {
+        target: plan.target,
+        principal_callee: materialize_core_type(plan.principal_callee, substitutions),
+        substitutions: plan
+            .substitutions
+            .into_iter()
+            .map(|subst| typed_ir::TypeSubstitution {
+                var: subst.var,
+                ty: materialize_core_type(subst.ty, substitutions),
+            })
+            .collect(),
+        args: plan
+            .args
+            .into_iter()
+            .map(|arg| typed_ir::PrincipalElaborationArg {
+                index: arg.index,
+                intrinsic: materialize_type_bounds(arg.intrinsic, substitutions),
+                contextual: arg
+                    .contextual
+                    .map(|bounds| materialize_type_bounds(bounds, substitutions)),
+                expected_runtime: arg
+                    .expected_runtime
+                    .map(|ty| materialize_core_type(ty, substitutions)),
+                source_edge: arg.source_edge,
+            })
+            .collect(),
+        result: typed_ir::PrincipalElaborationResult {
+            intrinsic: materialize_type_bounds(plan.result.intrinsic, substitutions),
+            contextual: plan
+                .result
+                .contextual
+                .map(|bounds| materialize_type_bounds(bounds, substitutions)),
+            expected_runtime: plan
+                .result
+                .expected_runtime
+                .map(|ty| materialize_core_type(ty, substitutions)),
+        },
+        adapters: plan
+            .adapters
+            .into_iter()
+            .map(|adapter| typed_ir::PrincipalAdapterHole {
+                kind: adapter.kind,
+                source_edge: adapter.source_edge,
+                actual: materialize_core_type(adapter.actual, substitutions),
+                expected: materialize_core_type(adapter.expected, substitutions),
+            })
+            .collect(),
+        complete: plan.complete,
+        incomplete_reasons: plan.incomplete_reasons,
+    }
+}
+
+fn materialize_type_bounds(
+    bounds: typed_ir::TypeBounds,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> typed_ir::TypeBounds {
+    typed_ir::TypeBounds {
+        lower: bounds
+            .lower
+            .map(|ty| Box::new(materialize_core_type(*ty, substitutions))),
+        upper: bounds
+            .upper
+            .map(|ty| Box::new(materialize_core_type(*ty, substitutions))),
+    }
+}
+
+fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    evidence
+        .expected_arg
+        .as_ref()
+        .and_then(type_from_bounds)
+        .filter(should_materialize_apply_arg_coerce_to)
+}
+
+fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<typed_ir::Type> {
+    let arg = match ty {
+        RuntimeType::Fun { param, .. } => runtime_type_to_core(param.as_ref().clone()),
+        RuntimeType::Core(typed_ir::Type::Fun { param, .. }) => param.as_ref().clone(),
+        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => return None,
+    };
+    should_materialize_apply_arg_coerce_to(&arg).then_some(arg)
+}
+
+fn should_materialize_apply_arg_coerce_to(ty: &typed_ir::Type) -> bool {
+    core_type_is_closed(ty) && !matches!(ty, typed_ir::Type::Any | typed_ir::Type::Never)
+}
+
+fn materialize_apply_arg(
+    arg: Expr,
+    substitutions: &[typed_ir::TypeSubstitution],
+    expected: Option<&typed_ir::Type>,
+) -> Expr {
+    let arg = materialize_expr(arg, substitutions);
+    let Some(expected) = expected else {
+        return arg;
+    };
+    let actual = runtime_type_to_core(arg.ty.clone());
+    if actual == *expected || matches!(actual, typed_ir::Type::Unknown) {
+        return arg;
+    }
+    Expr::typed(
+        ExprKind::Coerce {
+            from: actual,
+            to: expected.clone(),
+            expr: Box::new(arg),
+        },
+        runtime_type_from_core_value(expected.clone()),
+    )
 }
 
 fn materialize_handle_effect(
@@ -3528,7 +4481,7 @@ mod tests {
             role_impls: Vec::new(),
         };
 
-        let solutions = solve_root_graphs(&module).unwrap();
+        let solutions = solve_root_graphs(&module, &TypeCastOrder::default()).unwrap();
 
         assert_eq!(solutions.len(), 1);
         let substitutions = &solutions[0].type_substitutions;
