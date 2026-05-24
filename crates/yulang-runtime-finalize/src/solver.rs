@@ -3906,6 +3906,119 @@ f 3
     }
 
     #[test]
+    fn legacy_runtime_and_finalize_match_small_sources_without_std() {
+        for case in [
+            RuntimeOracleCase {
+                name: "identity",
+                source: "my id x = x\nid 1\n",
+            },
+            RuntimeOracleCase {
+                name: "lexical block",
+                source: r#"my f x = {
+    my y = x
+    y
+}
+f 3
+"#,
+            },
+            RuntimeOracleCase {
+                name: "first argument",
+                source: "my first x y = x\nfirst 1 true\n",
+            },
+            RuntimeOracleCase {
+                name: "tuple payload",
+                source: "my pair x y = (x, y)\npair 1 true\n",
+            },
+        ] {
+            assert_legacy_and_finalize_match_without_std(case);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_legacy_runtime_and_finalize_match_playground_core_examples() {
+        for case in [
+            RuntimeOracleCase {
+                name: "prelude operators",
+                source: r#"1 + 2
+2 * 3
+1 == 1
+1 < 2
+2 <= 2
+"#,
+            },
+            RuntimeOracleCase {
+                name: "undet list",
+                source: r#"(each [1, 2, 3] + each [4, 5, 6]).list
+"#,
+            },
+            RuntimeOracleCase {
+                name: "undet once range",
+                source: r#"{
+    my a = each 1..
+    guard: a == 3
+    a
+}.once
+"#,
+            },
+        ] {
+            assert_legacy_and_finalize_match_with_prewarmed_std_cache(case);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_legacy_runtime_and_finalize_match_playground_state_examples() {
+        for case in [
+            RuntimeOracleCase {
+                name: "ref list assignment",
+                source: r#"{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
+"#,
+            },
+            RuntimeOracleCase {
+                name: "console output",
+                source: r#"println "hello"
+1 + 2
+"#,
+            },
+            RuntimeOracleCase {
+                name: "callback hygiene",
+                source: r#"// Callback effects are hygienic:
+// a callback's return is not captured by g's local sub.
+
+use std::*
+use std::flow::*
+
+our g h = sub:
+    for i in 0..3:
+        h i
+    return 1
+
+sub:
+    my b = g \i -> if i == 0: return i
+    println b.show
+    2
+"#,
+            },
+        ] {
+            assert_legacy_and_finalize_match_with_prewarmed_std_cache(case);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_legacy_runtime_and_finalize_match_playground_tour() {
+        assert_legacy_and_finalize_match_with_prewarmed_std_cache(RuntimeOracleCase {
+            name: "playground tour",
+            source: playground_tour_source(),
+        });
+    }
+
+    #[test]
     #[ignore = "requires a prewarmed project compiled dependency cache"]
     fn prewarmed_std_finalize_runs_playground_core_examples() {
         for case in [
@@ -4426,6 +4539,59 @@ sub:
             );
             yulang_vm::compile_vm_module(output.module).unwrap();
         });
+    }
+
+    struct RuntimeOracleCase {
+        name: &'static str,
+        source: &'static str,
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct RuntimeOracleOutput {
+        stdout: String,
+        results: Vec<String>,
+    }
+
+    fn assert_legacy_and_finalize_match_without_std(case: RuntimeOracleCase) {
+        let module = runtime_module_from_source_without_std(case.source);
+        assert_legacy_and_finalize_match_module(case.name, module);
+    }
+
+    fn assert_legacy_and_finalize_match_with_prewarmed_std_cache(case: RuntimeOracleCase) {
+        let source = playground_source(case.source);
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&source);
+            assert_legacy_and_finalize_match_module(case.name, cached.module);
+        });
+    }
+
+    fn assert_legacy_and_finalize_match_module(name: &str, module: Module) {
+        let legacy = run_legacy_runtime_module(name, module.clone());
+        let finalized = run_finalize_runtime_module(name, module);
+        assert_eq!(finalized, legacy, "{name}");
+    }
+
+    fn run_legacy_runtime_module(name: &str, module: Module) -> RuntimeOracleOutput {
+        let module = yulang_runtime::monomorphize_module(module)
+            .unwrap_or_else(|error| panic!("{name} legacy monomorphize failed: {error}"));
+        run_vm_module(name, "legacy", module)
+    }
+
+    fn run_finalize_runtime_module(name: &str, module: Module) -> RuntimeOracleOutput {
+        let output = finalize_module(module)
+            .unwrap_or_else(|error| panic!("{name} finalize failed: {error:?}"));
+        run_vm_module(name, "finalize", output.module)
+    }
+
+    fn run_vm_module(name: &str, runtime: &str, module: Module) -> RuntimeOracleOutput {
+        let vm = yulang_vm::compile_vm_module(module)
+            .unwrap_or_else(|error| panic!("{name} {runtime} VM compile failed: {error:?}"));
+        let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
+            .unwrap_or_else(|error| panic!("{name} {runtime} VM eval failed: {error:?}"));
+        RuntimeOracleOutput {
+            stdout: host_output.stdout,
+            results: host_output.results.iter().map(format_vm_result).collect(),
+        }
     }
 
     struct PlaygroundCase {
