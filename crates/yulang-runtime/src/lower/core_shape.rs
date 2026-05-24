@@ -797,6 +797,7 @@ mod tests {
             },
             graph: typed_ir::CoreGraphView::default(),
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let table = collect_core_shape_table(&program);
@@ -824,6 +825,7 @@ mod tests {
             },
             graph: typed_ir::CoreGraphView::default(),
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         }
     }
 

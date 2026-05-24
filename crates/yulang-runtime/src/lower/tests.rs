@@ -23,6 +23,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -55,6 +56,7 @@ mod tests {
                 ..typed_ir::CoreGraphView::default()
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -112,6 +114,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
         let lowerer = Lowerer {
             env: HashMap::new(),
@@ -119,6 +122,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &program.graph,
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: principal_module_type_vars(&program.program),
             expected_edges_by_id: HashMap::new(),
@@ -324,6 +328,7 @@ mod tests {
                 role_path.clone(),
                 typed_ir::RuntimeSymbolKind::RoleMethod,
             )]),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
@@ -398,6 +403,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -428,6 +434,7 @@ mod tests {
             },
             graph: typed_ir::CoreGraphView::default(),
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         assert!(matches!(
@@ -491,6 +498,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -559,6 +567,7 @@ mod tests {
             },
             graph: typed_ir::CoreGraphView::default(),
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -625,6 +634,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -742,6 +752,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -795,6 +806,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -837,6 +849,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -882,6 +895,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1004,6 +1018,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1059,6 +1074,7 @@ mod tests {
                 derived_expected_edges: Vec::new(),
                 handler_matches: Vec::new(),
             },
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1124,6 +1140,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1202,6 +1219,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1255,6 +1273,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1311,6 +1330,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1362,6 +1382,7 @@ mod tests {
             },
             graph: typed_ir::CoreGraphView::default(),
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1518,6 +1539,7 @@ mod tests {
                 primitive_types: Vec::new(),
             },
             evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1546,6 +1568,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
@@ -1609,6 +1632,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
@@ -1703,6 +1727,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: principal_evidence
@@ -1807,6 +1832,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: principal_evidence
@@ -1941,6 +1967,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &graph,
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
@@ -2005,6 +2032,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &graph,
             runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
