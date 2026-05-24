@@ -1736,16 +1736,15 @@ fn binding_local_types(binding: &Binding) -> HashMap<typed_ir::Path, RuntimeType
 }
 
 fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path, RuntimeType>) -> RuntimeType {
+    if let ExprKind::Var(path) = &expr.kind
+        && let Some(ty) = local_types.get(path)
+    {
+        return ty.clone();
+    }
     if !matches!(expr.ty, RuntimeType::Unknown) {
         return expr.ty.clone();
     }
-    let ExprKind::Var(path) = &expr.kind else {
-        return RuntimeType::Unknown;
-    };
-    local_types
-        .get(path)
-        .cloned()
-        .unwrap_or(RuntimeType::Unknown)
+    RuntimeType::Unknown
 }
 
 fn runtime_type_to_core(ty: RuntimeType) -> typed_ir::Type {
@@ -3481,6 +3480,26 @@ mod tests {
 
         assert_eq!(solution.binding, path("id"));
         assert_eq!(solution.graph.substitutions()[0].ty, int);
+    }
+
+    #[test]
+    fn local_scope_type_overrides_stale_var_annotation_in_apply_arg() {
+        let int = int_type();
+        let original = typed_ir::TypeVar("a".into());
+        let stale = RuntimeType::Core(typed_ir::Type::Named {
+            path: path("list"),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(original))],
+        });
+        let concrete = RuntimeType::Core(typed_ir::Type::Named {
+            path: path("list"),
+            args: vec![typed_ir::TypeArg::Type(int.clone())],
+        });
+        let local_path = path("xs");
+        let mut local_types = HashMap::new();
+        local_types.insert(local_path.clone(), concrete.clone());
+        let expr = Expr::typed(ExprKind::Var(local_path), stale);
+
+        assert_eq!(expr_lower_type(&expr, &local_types), concrete);
     }
 
     #[test]

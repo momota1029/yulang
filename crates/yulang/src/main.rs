@@ -8126,6 +8126,7 @@ mod tests {
                 roots: Vec::new(),
             },
             graph: typed_ir::CoreGraphView::default(),
+            effect_operations: Vec::new(),
             evidence: typed_ir::PrincipalEvidence {
                 expected_edges: vec![typed_ir::ExpectedEdgeEvidence {
                     id: 7,
