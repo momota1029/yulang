@@ -3991,6 +3991,27 @@ f 3
                 stdout: "hello\n",
                 results: &["()", "3"],
             },
+            PlaygroundCase {
+                name: "callback hygiene",
+                source: r#"// Callback effects are hygienic:
+// a callback's return is not captured by g's local sub.
+
+use std::*
+use std::flow::*
+
+our g h = sub:
+    for i in 0..3:
+        h i
+    return 1
+
+sub:
+    my b = g \i -> if i == 0: return i
+    println b.show
+    2
+"#,
+                stdout: "",
+                results: &["0"],
+            },
         ] {
             assert_playground_case_finalizes(case);
         }
