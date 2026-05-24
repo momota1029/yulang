@@ -9,6 +9,7 @@ use crate::{FinalizeDiagnostic, FinalizeResult};
 pub struct TypeGraph {
     next_fresh: usize,
     slots: BTreeMap<typed_ir::TypeVar, TypeVarBounds>,
+    constraints: Vec<SubtypeConstraint>,
 }
 
 impl TypeGraph {
@@ -40,7 +41,7 @@ impl TypeGraph {
         if let Some(upper) = &bounds.upper {
             self.collect_runtime(template, upper, BoundSide::Upper)?;
         }
-        Ok(())
+        self.propagate_constraints()
     }
 
     pub fn collect_runtime_lower(
@@ -48,7 +49,8 @@ impl TypeGraph {
         template: &typed_ir::Type,
         lower: &RuntimeType,
     ) -> FinalizeResult<()> {
-        self.collect_runtime(template, lower, BoundSide::Lower)
+        self.collect_runtime(template, lower, BoundSide::Lower)?;
+        self.propagate_constraints()
     }
 
     pub fn collect_runtime_upper(
@@ -56,7 +58,8 @@ impl TypeGraph {
         template: &typed_ir::Type,
         upper: &RuntimeType,
     ) -> FinalizeResult<()> {
-        self.collect_runtime(template, upper, BoundSide::Upper)
+        self.collect_runtime(template, upper, BoundSide::Upper)?;
+        self.propagate_constraints()
     }
 
     pub fn fresh_hole(&mut self, prefix: &str) -> typed_ir::Type {
@@ -70,7 +73,11 @@ impl TypeGraph {
         lower: typed_ir::Type,
         upper: typed_ir::Type,
     ) -> FinalizeResult<()> {
-        self.constrain_core(lower, upper)
+        let constraint = SubtypeConstraint { lower, upper };
+        if !self.constraints.contains(&constraint) {
+            self.constraints.push(constraint);
+        }
+        self.propagate_constraints()
     }
 
     pub fn default_unbound_lower(
@@ -86,7 +93,7 @@ impl TypeGraph {
                 slot.push_lower(var, lower.clone())?;
             }
         }
-        Ok(())
+        self.propagate_constraints()
     }
 
     pub fn solve(self) -> GraphSolution {
@@ -158,7 +165,7 @@ impl TypeGraph {
         side: BoundSide,
     ) -> FinalizeResult<()> {
         match template {
-            typed_ir::Type::Var(var) => self.record(var.clone(), actual.clone(), side),
+            typed_ir::Type::Var(var) => self.record(var.clone(), actual.clone(), side).map(|_| ()),
             typed_ir::Type::Named { path, args } => {
                 let typed_ir::Type::Named {
                     path: actual_path,
@@ -240,28 +247,43 @@ impl TypeGraph {
         }
     }
 
-    fn constrain_core(
+    fn propagate_constraints(&mut self) -> FinalizeResult<()> {
+        loop {
+            let mut changed = false;
+            for constraint in self.constraints.clone() {
+                changed |= self.apply_subtype_constraint(constraint.lower, constraint.upper)?;
+            }
+            if !changed {
+                return Ok(());
+            }
+        }
+    }
+
+    fn apply_subtype_constraint(
         &mut self,
         lower: typed_ir::Type,
         upper: typed_ir::Type,
-    ) -> FinalizeResult<()> {
+    ) -> FinalizeResult<bool> {
         if lower == upper || matches!(upper, typed_ir::Type::Any) {
-            return Ok(());
+            return Ok(false);
         }
         match (lower, upper) {
-            (typed_ir::Type::Unknown, _) | (_, typed_ir::Type::Unknown) => Ok(()),
+            (typed_ir::Type::Unknown, _) | (_, typed_ir::Type::Unknown) => Ok(false),
             (typed_ir::Type::Var(lower), upper) => {
+                let mut changed = false;
                 if let Some(bound) = self
                     .slots
                     .get(&lower)
                     .and_then(|slot| slot.lower.as_ref())
                     .cloned()
                 {
-                    self.constrain_core(bound, upper.clone())?;
+                    changed |= self.apply_subtype_constraint(bound, upper.clone())?;
                 }
-                self.record(lower, upper, BoundSide::Upper)
+                changed |= self.record(lower, upper, BoundSide::Upper)?;
+                Ok(changed)
             }
             (lower, typed_ir::Type::Var(upper)) => {
+                let mut changed = false;
                 let lower = self.known_lower_or_self(lower);
                 if let Some(bound) = self
                     .slots
@@ -269,9 +291,10 @@ impl TypeGraph {
                     .and_then(|slot| slot.upper.as_ref())
                     .cloned()
                 {
-                    self.constrain_core(lower.clone(), bound)?;
+                    changed |= self.apply_subtype_constraint(lower.clone(), bound)?;
                 }
-                self.record(upper, lower, BoundSide::Lower)
+                changed |= self.record(upper, lower, BoundSide::Lower)?;
+                Ok(changed)
             }
             (
                 typed_ir::Type::Fun {
@@ -287,10 +310,13 @@ impl TypeGraph {
                     ret: upper_ret,
                 },
             ) => {
-                self.constrain_core(*upper_param, *lower_param)?;
-                self.constrain_core(*lower_param_effect, *upper_param_effect)?;
-                self.constrain_core(*lower_ret_effect, *upper_ret_effect)?;
-                self.constrain_core(*lower_ret, *upper_ret)
+                let mut changed = false;
+                changed |= self.apply_subtype_constraint(*upper_param, *lower_param)?;
+                changed |=
+                    self.apply_subtype_constraint(*lower_param_effect, *upper_param_effect)?;
+                changed |= self.apply_subtype_constraint(*lower_ret_effect, *upper_ret_effect)?;
+                changed |= self.apply_subtype_constraint(*lower_ret, *upper_ret)?;
+                Ok(changed)
             }
             (
                 typed_ir::Type::Named {
@@ -302,18 +328,20 @@ impl TypeGraph {
                     args: upper_args,
                 },
             ) if lower_path == upper_path && lower_args.len() == upper_args.len() => {
+                let mut changed = false;
                 for (lower, upper) in lower_args.into_iter().zip(upper_args) {
-                    self.constrain_type_arg(lower, upper)?;
+                    changed |= self.constrain_type_arg(lower, upper)?;
                 }
-                Ok(())
+                Ok(changed)
             }
             (typed_ir::Type::Tuple(lower), typed_ir::Type::Tuple(upper))
                 if lower.len() == upper.len() =>
             {
+                let mut changed = false;
                 for (lower, upper) in lower.into_iter().zip(upper) {
-                    self.constrain_core(lower, upper)?;
+                    changed |= self.apply_subtype_constraint(lower, upper)?;
                 }
-                Ok(())
+                Ok(changed)
             }
             (
                 typed_ir::Type::Row {
@@ -325,7 +353,7 @@ impl TypeGraph {
                     tail: upper_tail,
                 },
             ) => self.constrain_row(lower_items, *lower_tail, upper_items, *upper_tail),
-            _ => Ok(()),
+            _ => Ok(false),
         }
     }
 
@@ -333,21 +361,22 @@ impl TypeGraph {
         &mut self,
         lower: typed_ir::TypeArg,
         upper: typed_ir::TypeArg,
-    ) -> FinalizeResult<()> {
+    ) -> FinalizeResult<bool> {
         match (lower, upper) {
             (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Type(upper)) => {
-                self.constrain_core(lower, upper)
+                self.apply_subtype_constraint(lower, upper)
             }
             (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Bounds(upper)) => {
+                let mut changed = false;
                 if let (Some(lower), Some(upper)) = (lower.lower, upper.lower) {
-                    self.constrain_core(*lower, *upper)?;
+                    changed |= self.apply_subtype_constraint(*lower, *upper)?;
                 }
                 if let (Some(lower), Some(upper)) = (lower.upper, upper.upper) {
-                    self.constrain_core(*lower, *upper)?;
+                    changed |= self.apply_subtype_constraint(*lower, *upper)?;
                 }
-                Ok(())
+                Ok(changed)
             }
-            _ => Ok(()),
+            _ => Ok(false),
         }
     }
 
@@ -445,21 +474,23 @@ impl TypeGraph {
         lower_tail: typed_ir::Type,
         upper_items: Vec<typed_ir::Type>,
         upper_tail: typed_ir::Type,
-    ) -> FinalizeResult<()> {
+    ) -> FinalizeResult<bool> {
         let RowResidual {
             matched,
             unmatched_left,
             unmatched_right,
         } = split_row_items(&lower_items, &upper_items);
         if matched.is_empty() && !lower_items.is_empty() && !upper_items.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
+        let mut changed = false;
         for (lower, upper) in matched {
-            self.constrain_core(lower.clone(), upper.clone())?;
+            changed |= self.apply_subtype_constraint(lower.clone(), upper.clone())?;
         }
         let lower_residual = effect_row_from_items_and_tail(unmatched_left, lower_tail);
         let upper_residual = effect_row_from_items_and_tail(unmatched_right, upper_tail);
-        self.constrain_core(lower_residual, upper_residual)
+        changed |= self.apply_subtype_constraint(lower_residual, upper_residual)?;
+        Ok(changed)
     }
 
     fn record(
@@ -467,13 +498,13 @@ impl TypeGraph {
         var: typed_ir::TypeVar,
         mut ty: typed_ir::Type,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> FinalizeResult<bool> {
         ty = match side {
             BoundSide::Lower => self.known_lower_or_self(ty),
             BoundSide::Upper => self.known_upper_or_self(ty),
         };
         if matches!(ty, typed_ir::Type::Unknown) || is_vacuous_bound(&ty, side) {
-            return Ok(());
+            return Ok(false);
         }
         let slot = self.slots.entry(var.clone()).or_default();
         match side {
@@ -481,6 +512,12 @@ impl TypeGraph {
             BoundSide::Upper => slot.push_upper(var, ty),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SubtypeConstraint {
+    lower: typed_ir::Type,
+    upper: typed_ir::Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -579,11 +616,11 @@ impl TypeVarBounds {
         self.lower.as_ref().or(self.upper.as_ref())
     }
 
-    fn push_lower(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<()> {
+    fn push_lower(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<bool> {
         push_bound(&mut self.lower, var, ty)
     }
 
-    fn push_upper(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<()> {
+    fn push_upper(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<bool> {
         push_bound(&mut self.upper, var, ty)
     }
 }
@@ -693,23 +730,26 @@ fn push_bound(
     slot: &mut Option<typed_ir::Type>,
     var: typed_ir::TypeVar,
     ty: typed_ir::Type,
-) -> FinalizeResult<()> {
+) -> FinalizeResult<bool> {
     if let Some(previous) = slot {
         if bounds_are_equivalent(previous, &ty) {
-            return Ok(());
+            return Ok(false);
         }
         if matches!(
             (&*previous, &ty),
             (typed_ir::Type::Var(_), typed_ir::Type::Var(_))
         ) {
-            return Ok(());
+            return Ok(false);
         }
         if matches!(ty, typed_ir::Type::Var(_)) && !matches!(previous, typed_ir::Type::Var(_)) {
-            return Ok(());
+            return Ok(false);
         }
         if matches!(previous, typed_ir::Type::Var(_)) && !matches!(ty, typed_ir::Type::Var(_)) {
             *previous = ty;
-            return Ok(());
+            return Ok(true);
+        }
+        if type_contains_var(previous) || type_contains_var(&ty) {
+            return Ok(false);
         }
         return Err(FinalizeDiagnostic::ConflictingBounds {
             var,
@@ -718,13 +758,274 @@ fn push_bound(
         });
     }
     *slot = Some(ty);
-    Ok(())
+    Ok(true)
+}
+
+fn type_contains_var(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Var(_) => true,
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_var(param)
+                || type_contains_var(param_effect)
+                || type_contains_var(ret_effect)
+                || type_contains_var(ret)
+        }
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_var),
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(type_contains_var),
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(type_contains_var) || type_contains_var(tail)
+        }
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_contains_var(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_contains_var(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(type_contains_var))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| type_contains_var(tail))
+        }
+        typed_ir::Type::Recursive { body, .. } => type_contains_var(body),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+    }
+}
+
+fn type_arg_contains_var(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_contains_var(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| type_contains_var(ty))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| type_contains_var(ty))
+        }
+    }
 }
 
 fn bounds_are_equivalent(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
     left == right
         || closed_singleton_row_item(left).is_some_and(|item| item == right)
         || closed_singleton_row_item(right).is_some_and(|item| item == left)
+        || normalize_bound_form(left) == normalize_bound_form(right)
+}
+
+fn normalize_bound_form(ty: &typed_ir::Type) -> typed_ir::Type {
+    normalize_bound_form_inner(ty, false)
+}
+
+fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
+            path: path.clone(),
+            args: if effect_atom && args.iter().any(type_arg_contains_unknown) {
+                Vec::new()
+            } else {
+                args.iter()
+                    .map(|arg| normalize_bound_arg_form(arg, effect_atom))
+                    .collect()
+            },
+        },
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(normalize_bound_form_inner(param, false)),
+            param_effect: Box::new(normalize_bound_form_inner(param_effect, false)),
+            ret_effect: Box::new(normalize_bound_form_inner(ret_effect, false)),
+            ret: Box::new(normalize_bound_form_inner(ret, false)),
+        },
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| normalize_bound_form_inner(item, false))
+                .collect(),
+        ),
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
+            items
+                .iter()
+                .map(|item| normalize_bound_form_inner(item, false))
+                .collect(),
+        ),
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
+            items
+                .iter()
+                .map(|item| normalize_bound_form_inner(item, false))
+                .collect(),
+        ),
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
+            items: items
+                .iter()
+                .map(|item| normalize_bound_form_inner(item, true))
+                .collect(),
+            tail: Box::new(normalize_bound_form_inner(tail, false)),
+        },
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| typed_ir::RecordField {
+                    name: field.name.clone(),
+                    value: normalize_bound_form_inner(&field.value, false),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.as_ref().map(|spread| match spread {
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(normalize_bound_form_inner(ty, false)))
+                }
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(normalize_bound_form_inner(ty, false)))
+                }
+            }),
+        }),
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| typed_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case
+                        .payloads
+                        .iter()
+                        .map(|payload| normalize_bound_form_inner(payload, false))
+                        .collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .as_ref()
+                .map(|tail| Box::new(normalize_bound_form_inner(tail, false))),
+        }),
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(normalize_bound_form_inner(body, effect_atom)),
+        },
+        typed_ir::Type::Var(_)
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => ty.clone(),
+    }
+}
+
+fn normalize_bound_arg_form(arg: &typed_ir::TypeArg, effect_atom: bool) -> typed_ir::TypeArg {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => {
+            typed_ir::TypeArg::Type(normalize_bound_form_inner(ty, effect_atom))
+        }
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = bounds
+                .lower
+                .as_deref()
+                .filter(|lower| !matches!(lower, typed_ir::Type::Never))
+            {
+                return typed_ir::TypeArg::Type(normalize_bound_form_inner(lower, effect_atom));
+            }
+            if let Some(upper) = bounds
+                .upper
+                .as_deref()
+                .filter(|upper| !matches!(upper, typed_ir::Type::Any))
+            {
+                return typed_ir::TypeArg::Type(normalize_bound_form_inner(upper, effect_atom));
+            }
+            typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: bounds
+                    .lower
+                    .as_ref()
+                    .map(|lower| Box::new(normalize_bound_form_inner(lower, effect_atom))),
+                upper: bounds
+                    .upper
+                    .as_ref()
+                    .map(|upper| Box::new(normalize_bound_form_inner(upper, effect_atom))),
+            })
+        }
+    }
+}
+
+fn type_arg_contains_unknown(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_contains_unknown(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| type_contains_unknown(ty))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| type_contains_unknown(ty))
+        }
+    }
+}
+
+fn type_contains_unknown(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_unknown(param)
+                || type_contains_unknown(param_effect)
+                || type_contains_unknown(ret_effect)
+                || type_contains_unknown(ret)
+        }
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown),
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(type_contains_unknown),
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(type_contains_unknown) || type_contains_unknown(tail)
+        }
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_contains_unknown(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_contains_unknown(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(type_contains_unknown))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| type_contains_unknown(tail))
+        }
+        typed_ir::Type::Recursive { body, .. } => type_contains_unknown(body),
+        typed_ir::Type::Var(_) | typed_ir::Type::Never | typed_ir::Type::Any => false,
+    }
 }
 
 fn closed_singleton_row_item(ty: &typed_ir::Type) -> Option<&typed_ir::Type> {
@@ -1429,6 +1730,33 @@ mod tests {
         assert_eq!(solution.solution_for(&b_var), Some(&bool_type()));
         assert_eq!(solution.materialize_core(r1), int_type());
         assert!(solution.is_complete());
+    }
+
+    #[test]
+    fn subtype_constraints_propagate_after_later_bounds_arrive() {
+        let mut graph = TypeGraph::default();
+        let a_var = typed_ir::TypeVar("a".into());
+        let b_var = typed_ir::TypeVar("b".into());
+        graph.slots.entry(a_var.clone()).or_default();
+        graph.slots.entry(b_var.clone()).or_default();
+
+        graph
+            .constrain_subtype(
+                typed_ir::Type::Var(a_var.clone()),
+                typed_ir::Type::Var(b_var.clone()),
+            )
+            .unwrap();
+        graph
+            .collect_runtime_lower(
+                &typed_ir::Type::Var(a_var.clone()),
+                &RuntimeType::Core(int_type()),
+            )
+            .unwrap();
+
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&a_var), Some(&int_type()));
+        assert_eq!(solution.solution_for(&b_var), Some(&int_type()));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeType};
 use yulang_typed_ir as typed_ir;
@@ -174,7 +174,13 @@ fn collect_expr_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
-    let found = solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?;
+    let found = solve_simple_apply(
+        owner.clone(),
+        expr,
+        bindings,
+        local_types,
+        solutions.len(),
+    )?;
     if !found.is_empty() {
         collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, solutions)?;
         solutions.extend(found);
@@ -212,7 +218,13 @@ fn collect_expr_graphs(
             ..
         } => {
             collect_expr_graphs(owner.clone(), cond, bindings, local_types, solutions)?;
-            collect_expr_graphs(owner.clone(), then_branch, bindings, local_types, solutions)?;
+            collect_expr_graphs(
+                owner.clone(),
+                then_branch,
+                bindings,
+                local_types,
+                solutions,
+            )?;
             collect_expr_graphs(owner, else_branch, bindings, local_types, solutions)
         }
         ExprKind::Tuple(items) => {
@@ -248,14 +260,32 @@ fn collect_expr_graphs(
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            collect_expr_graphs(owner.clone(), scrutinee, bindings, local_types, solutions)?;
+            collect_expr_graphs(
+                owner.clone(),
+                scrutinee,
+                bindings,
+                local_types,
+                solutions,
+            )?;
             for arm in arms {
                 let mut arm_locals = local_types.clone();
                 collect_pattern_local_types(&arm.pattern, &mut arm_locals);
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
+                    collect_expr_graphs(
+                        owner.clone(),
+                        guard,
+                        bindings,
+                        &arm_locals,
+                        solutions,
+                    )?;
                 }
-                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
+                collect_expr_graphs(
+                    owner.clone(),
+                    &arm.body,
+                    bindings,
+                    &arm_locals,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -279,9 +309,21 @@ fn collect_expr_graphs(
                     arm_locals.insert(path_from_name(&resume.name), resume.ty.clone());
                 }
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
+                    collect_expr_graphs(
+                        owner.clone(),
+                        guard,
+                        bindings,
+                        &arm_locals,
+                        solutions,
+                    )?;
                 }
-                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
+                collect_expr_graphs(
+                    owner.clone(),
+                    &arm.body,
+                    bindings,
+                    &arm_locals,
+                    solutions,
+                )?;
             }
             Ok(())
         }
@@ -353,26 +395,33 @@ fn solve_simple_apply(
     )?;
     collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
     let mut current = principal.principal_type.clone();
+    let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
         let result = graph.fresh_hole("apply");
+        let result_effect = graph.fresh_hole("apply_effect");
+        if let typed_ir::Type::Var(var) = &result_effect {
+            apply_effect_vars.insert(var.clone());
+        }
         let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
         let expected = typed_ir::Type::Fun {
             param: Box::new(arg_type),
             param_effect: Box::new(arg_effect),
-            ret_effect: Box::new(typed_ir::Type::Unknown),
+            ret_effect: Box::new(result_effect.clone()),
             ret: Box::new(result.clone()),
         };
         graph.constrain_subtype(current, expected)?;
+        step.constrain_result_bounds(&mut graph, result.clone(), result_effect, local_types)?;
         current = result;
     }
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
+    graph.default_unbound_lower(apply_effect_vars, typed_ir::Type::Never)?;
     let graph = graph.solve();
     if !graph.is_complete() {
         return Err(FinalizeDiagnostic::IncompleteGraph {
             binding: binding_path.clone(),
         });
     }
-    let callee_type = RuntimeType::Core(graph.materialize_core(principal.principal_type.clone()));
+    let callee_type = solved_callee_runtime_type(binding, &principal, &graph);
     let result_type = solved_expr_result_type(&expr.ty, &graph, current);
     let type_substitutions = principal.original_substitutions(&graph);
     solutions.push(RootGraphSolution {
@@ -397,7 +446,20 @@ fn solved_expr_result_type(
     if runtime_type_is_closed(&materialized) {
         materialized
     } else {
-        RuntimeType::Core(graph.materialize_core(result))
+        runtime_type_from_core_value(graph.materialize_core(result))
+    }
+}
+
+fn solved_callee_runtime_type(
+    binding: &Binding,
+    principal: &crate::PrincipalInstance,
+    graph: &crate::GraphSolution,
+) -> RuntimeType {
+    let materialized = materialize_runtime_type(binding.body.ty.clone(), &graph.substitutions());
+    if runtime_type_is_closed(&materialized) {
+        materialized
+    } else {
+        runtime_type_from_core_value(graph.materialize_core(principal.principal_type.clone()))
     }
 }
 
@@ -513,6 +575,7 @@ struct ApplySpine<'a> {
 }
 
 struct ApplyStep<'a> {
+    apply: &'a Expr,
     arg: &'a Expr,
     evidence: Option<&'a typed_ir::ApplyEvidence>,
     instantiation: Option<&'a yulang_runtime_ir::TypeInstantiation>,
@@ -552,6 +615,98 @@ impl ApplyStep<'_> {
         let fallback = self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty);
         (fallback, typed_ir::Type::Never)
     }
+
+    fn constrain_result_bounds(
+        &self,
+        graph: &mut TypeGraph,
+        result: typed_ir::Type,
+        result_effect: typed_ir::Type,
+        local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> FinalizeResult<()> {
+        let evidence_value_bound = self
+            .evidence
+            .map(|evidence| constrain_core_type_bounds(graph, result.clone(), &evidence.result))
+            .transpose()?
+            .unwrap_or(false);
+        if let Some(evidence) = self.evidence {
+            constrain_apply_result_effect_bounds(graph, result_effect.clone(), evidence)?;
+        }
+        match expr_lower_type(self.apply, local_types) {
+            RuntimeType::Unknown => Ok(()),
+            RuntimeType::Thunk { effect, value } => {
+                graph.constrain_subtype(result, runtime_type_to_core(*value))?;
+                if matches!(effect, typed_ir::Type::Never | typed_ir::Type::Unknown) {
+                    Ok(())
+                } else {
+                    graph.constrain_subtype(result_effect, effect)
+                }
+            }
+            ty if evidence_value_bound && runtime_type_value_is_function(&ty) => Ok(()),
+            ty => graph.constrain_subtype(result, runtime_type_to_core(ty)),
+        }
+    }
+}
+
+fn constrain_core_type_bounds(
+    graph: &mut TypeGraph,
+    ty: typed_ir::Type,
+    bounds: &typed_ir::TypeBounds,
+) -> FinalizeResult<bool> {
+    let mut constrained = false;
+    if let Some(lower) = bounds.lower.as_deref() {
+        graph.constrain_subtype(lower.clone(), ty.clone())?;
+        constrained = true;
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        graph.constrain_subtype(ty.clone(), upper.clone())?;
+        constrained = true;
+    }
+    Ok(constrained)
+}
+
+fn constrain_apply_result_effect_bounds(
+    graph: &mut TypeGraph,
+    effect: typed_ir::Type,
+    evidence: &typed_ir::ApplyEvidence,
+) -> FinalizeResult<bool> {
+    let mut constrained = false;
+    if let Some(expected) = &evidence.expected_callee {
+        constrained |= constrain_function_ret_effect_bounds(graph, effect.clone(), expected)?;
+    }
+    constrained |= constrain_function_ret_effect_bounds(graph, effect, &evidence.callee)?;
+    Ok(constrained)
+}
+
+fn constrain_function_ret_effect_bounds(
+    graph: &mut TypeGraph,
+    effect: typed_ir::Type,
+    bounds: &typed_ir::TypeBounds,
+) -> FinalizeResult<bool> {
+    let mut constrained = false;
+    if let Some(lower) = bounds.lower.as_deref().and_then(function_ret_effect) {
+        graph.constrain_subtype(lower.clone(), effect.clone())?;
+        constrained = true;
+    }
+    if let Some(upper) = bounds.upper.as_deref().and_then(function_ret_effect) {
+        graph.constrain_subtype(effect, upper.clone())?;
+        constrained = true;
+    }
+    Ok(constrained)
+}
+
+fn function_ret_effect(ty: &typed_ir::Type) -> Option<&typed_ir::Type> {
+    let typed_ir::Type::Fun { ret_effect, .. } = ty else {
+        return None;
+    };
+    Some(ret_effect)
+}
+
+fn runtime_type_value_is_function(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. }) => true,
+        RuntimeType::Thunk { value, .. } => runtime_type_value_is_function(value),
+        RuntimeType::Unknown | RuntimeType::Core(_) => false,
+    }
 }
 
 impl<'a> ApplySpine<'a> {
@@ -567,6 +722,7 @@ impl<'a> ApplySpine<'a> {
         } = &current.kind
         {
             steps.push(ApplyStep {
+                apply: current,
                 arg: arg.as_ref(),
                 evidence: evidence.as_ref(),
                 instantiation: instantiation.as_ref(),
@@ -681,7 +837,13 @@ fn collect_pattern_graphs(
                     solutions,
                 )?;
                 if let Some(default) = &field.default {
-                    collect_expr_graphs(owner.clone(), default, bindings, local_types, solutions)?;
+                    collect_expr_graphs(
+                        owner.clone(),
+                        default,
+                        bindings,
+                        local_types,
+                        solutions,
+                    )?;
                 }
             }
             if let Some(spread) = spread {
@@ -808,6 +970,49 @@ fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path, RuntimeTyp
 
 fn runtime_type_to_core(ty: RuntimeType) -> typed_ir::Type {
     runtime_type_to_effected_core(ty).value
+}
+
+fn runtime_type_from_core_value(ty: typed_ir::Type) -> RuntimeType {
+    match ty {
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => RuntimeType::Fun {
+            param: Box::new(runtime_type_from_core_value_and_effect(*param, *param_effect)),
+            ret: Box::new(runtime_type_from_core_value_and_effect(*ret, *ret_effect)),
+        },
+        ty => RuntimeType::Core(ty),
+    }
+}
+
+fn runtime_type_from_core_value_and_effect(
+    value: typed_ir::Type,
+    effect: typed_ir::Type,
+) -> RuntimeType {
+    let value = runtime_type_from_core_value(value);
+    if should_thunk_effect(&effect) {
+        RuntimeType::Thunk {
+            effect,
+            value: Box::new(value),
+        }
+    } else {
+        value
+    }
+}
+
+fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
+    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown | typed_ir::Type::Any)
+}
+
+fn effect_is_empty(effect: &typed_ir::Type) -> bool {
+    match effect {
+        typed_ir::Type::Never => true,
+        typed_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),
+        typed_ir::Type::Recursive { body, .. } => effect_is_empty(body),
+        _ => false,
+    }
 }
 
 struct EffectedCoreType {
@@ -1481,9 +1686,42 @@ fn rewrite_simple_apply(
     }
     replace_apply_spine_binding(expr, &solution.alias, &solution.callee_type);
     materialize_expr_in_place(expr, &solution.type_substitutions);
+    refresh_apply_spine_runtime_types(expr, solution.callee_type.clone());
     expr.ty = solution.result_type.clone();
     *cursor += 1;
     Ok(true)
+}
+
+fn refresh_apply_spine_runtime_types(expr: &mut Expr, callee_type: RuntimeType) -> RuntimeType {
+    match &mut expr.kind {
+        ExprKind::Apply { callee, .. } => {
+            let callee_type = refresh_apply_spine_runtime_types(callee, callee_type);
+            if let Some(ret) = runtime_function_ret(&callee_type) {
+                expr.ty = ret.clone();
+                ret
+            } else {
+                expr.ty.clone()
+            }
+        }
+        ExprKind::Var(_) => {
+            expr.ty = callee_type.clone();
+            callee_type
+        }
+        _ => expr.ty.clone(),
+    }
+}
+
+fn runtime_function_ret(ty: &RuntimeType) -> Option<RuntimeType> {
+    match ty {
+        RuntimeType::Fun { ret, .. } => Some((**ret).clone()),
+        RuntimeType::Core(typed_ir::Type::Fun {
+            ret_effect, ret, ..
+        }) => Some(runtime_type_from_core_value_and_effect(
+            ret.as_ref().clone(),
+            ret_effect.as_ref().clone(),
+        )),
+        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => None,
+    }
 }
 
 fn apply_spine_binding(expr: &Expr) -> Option<&typed_ir::Path> {
@@ -2387,6 +2625,45 @@ mod tests {
     }
 
     #[test]
+    fn root_apply_result_type_bounds_open_return_var() {
+        let int = int_type();
+        let bool_ty = bool_type();
+        let module = Module {
+            path: path("test"),
+            bindings: vec![poly_return_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(path("poly_return")),
+                        RuntimeType::Unknown,
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                        RuntimeType::Core(int.clone()),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::Core(bool_ty.clone()),
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let solutions = solve_root_graphs(&module).unwrap();
+
+        assert_eq!(solutions.len(), 1);
+        let substitutions = &solutions[0].type_substitutions;
+        assert!(substitutions.iter().any(|substitution| {
+            substitution.var == typed_ir::TypeVar("a".into()) && substitution.ty == int
+        }));
+        assert!(substitutions.iter().any(|substitution| {
+            substitution.var == typed_ir::TypeVar("b".into()) && substitution.ty == bool_ty
+        }));
+        assert!(solutions[0].graph.is_complete());
+    }
+
+    #[test]
     fn finalize_instance_cache_surface_reuses_materialized_binding() {
         let mut cache = FinalizeInstanceCache::default();
         let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
@@ -3072,6 +3349,23 @@ f 3
                 },
                 RuntimeType::Unknown,
             ),
+        }
+    }
+
+    fn poly_return_binding() -> Binding {
+        Binding {
+            name: path("poly_return"),
+            type_params: vec![typed_ir::TypeVar("a".into()), typed_ir::TypeVar("b".into())],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: typed_ir::Type::Fun {
+                    param: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(typed_ir::Type::Never),
+                    ret: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("b".into()))),
+                },
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
         }
     }
 
