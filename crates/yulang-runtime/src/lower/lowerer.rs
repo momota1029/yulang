@@ -94,10 +94,42 @@ impl Lowerer<'_> {
                     .or_else(|| self.env.get(&path).cloned())
                     .or_else(|| self.env.get(&resolved_path).cloned())
                     .or_else(|| match runtime_symbol_kind {
-                        Some(
-                            typed_ir::RuntimeSymbolKind::EffectOperation
-                            | typed_ir::RuntimeSymbolKind::RoleMethod,
-                        ) => expected.cloned().or_else(|| Some(RuntimeType::unknown())),
+                        Some(typed_ir::RuntimeSymbolKind::EffectOperation) => {
+                            // The operation's exported signature template (from
+                            // `effect_op_signatures`) carries a proper
+                            // `Type::Var(..)` payload, but it does NOT carry
+                            // the effect row (the effect is contributed by the
+                            // call site, not the op declaration). `expected` —
+                            // when present — usually has the effect baked in
+                            // but may leave the payload as `Unknown`. Merge
+                            // them so we keep effect info from `expected` and
+                            // payload vars from the signature; whichever is
+                            // present.
+                            //
+                            // Note: the type vars in the signature template are
+                            // the *operation's* hygienic vars, which are not
+                            // generally the same identifiers as the surrounding
+                            // binding's principal vars. Mono substitutions at
+                            // finalize time therefore won't always resolve them
+                            // — that's a known limitation tracked separately.
+                            let sig = self
+                                .effect_op_signatures
+                                .get(&resolved_path)
+                                .or_else(|| self.effect_op_signatures.get(&path));
+                            let sig_ty = sig
+                                .map(|scheme| RuntimeType::core(scheme.body.clone()));
+                            match (expected.cloned(), sig_ty) {
+                                (Some(exp), Some(sig)) => {
+                                    Some(merge_effect_op_runtime_type(&exp, &sig))
+                                }
+                                (Some(exp), None) => Some(exp),
+                                (None, Some(sig)) => Some(sig),
+                                (None, None) => Some(RuntimeType::unknown()),
+                            }
+                        }
+                        Some(typed_ir::RuntimeSymbolKind::RoleMethod) => {
+                            expected.cloned().or_else(|| Some(RuntimeType::unknown()))
+                        }
                         Some(typed_ir::RuntimeSymbolKind::Value) | None => None,
                     });
                 let is_bound = local_ty.is_some() || self.env.contains_key(&resolved_path);
@@ -120,12 +152,23 @@ impl Lowerer<'_> {
                     }
                     RuntimeError::UnboundVariable { path: path.clone() }
                 })?;
+                let is_effect_op =
+                    runtime_symbol_kind == Some(typed_ir::RuntimeSymbolKind::EffectOperation);
                 let ty = if reject_non_runtime_hir_type(&ty, TypeSource::Local).is_err() {
-                    project_runtime_hir_runtime_type_with_vars(ty, &self.principal_vars)
+                    if is_effect_op {
+                        // Don't strip the operation's signature Vars to Unknown
+                        // here — they need to survive to runtime-finalize so
+                        // monomorphization substitutions can resolve them.
+                        ty
+                    } else {
+                        project_runtime_hir_runtime_type_with_vars(ty, &self.principal_vars)
+                    }
                 } else {
                     ty
                 };
-                reject_non_runtime_hir_type(&ty, TypeSource::Local)?;
+                if !is_effect_op {
+                    reject_non_runtime_hir_type(&ty, TypeSource::Local)?;
+                }
                 let kind =
                     if runtime_symbol_kind == Some(typed_ir::RuntimeSymbolKind::EffectOperation) {
                         ExprKind::EffectOp(resolved_path)
@@ -2755,6 +2798,92 @@ impl Lowerer<'_> {
                     .find(|member| member.name.0 == "cast")
                     .map(|member| member.value.clone())
             })
+    }
+}
+
+/// Merge an `expected` runtime type (from apply context) with the operation's
+/// exported `sig` runtime type. `expected` typically carries the effect row
+/// from the calling context but may have `Unknown` in payload positions; `sig`
+/// carries `Type::Var(..)` payloads but lacks effect info. Walk both in
+/// parallel and prefer the more concrete leaf at each position.
+fn merge_effect_op_runtime_type(expected: &RuntimeType, sig: &RuntimeType) -> RuntimeType {
+    match (expected, sig) {
+        (RuntimeType::Unknown, other) | (other, RuntimeType::Unknown) => other.clone(),
+        (
+            RuntimeType::Fun {
+                param: a_p,
+                ret: a_r,
+            },
+            RuntimeType::Fun {
+                param: b_p,
+                ret: b_r,
+            },
+        ) => RuntimeType::fun(
+            merge_effect_op_runtime_type(a_p, b_p),
+            merge_effect_op_runtime_type(a_r, b_r),
+        ),
+        (
+            RuntimeType::Thunk {
+                effect: a_e,
+                value: a_v,
+            },
+            RuntimeType::Thunk {
+                effect: b_e,
+                value: b_v,
+            },
+        ) => RuntimeType::thunk(
+            merge_effect_op_core(a_e, b_e),
+            merge_effect_op_runtime_type(a_v, b_v),
+        ),
+        (RuntimeType::Thunk { effect, value }, sig) => RuntimeType::thunk(
+            effect.clone(),
+            merge_effect_op_runtime_type(value, sig),
+        ),
+        (expected, RuntimeType::Thunk { value, .. }) => {
+            merge_effect_op_runtime_type(expected, value)
+        }
+        (RuntimeType::Core(a), RuntimeType::Core(b)) => {
+            RuntimeType::core(merge_effect_op_core(a, b))
+        }
+        // Mixed Core/Fun: prefer the Fun form (it has richer structure).
+        (RuntimeType::Fun { .. }, RuntimeType::Core(_)) => expected.clone(),
+        (RuntimeType::Core(_), RuntimeType::Fun { .. }) => sig.clone(),
+    }
+}
+
+fn merge_effect_op_core(expected: &typed_ir::Type, sig: &typed_ir::Type) -> typed_ir::Type {
+    match (expected, sig) {
+        (typed_ir::Type::Unknown, other) | (other, typed_ir::Type::Unknown) => other.clone(),
+        (typed_ir::Type::Var(_), other) => other.clone(),
+        (other, typed_ir::Type::Var(v)) if !matches!(other, typed_ir::Type::Unknown) => {
+            // Sig's Var is the operation's payload type variable; if expected
+            // already has something more concrete (not Unknown), keep it.
+            if matches!(other, typed_ir::Type::Var(_)) {
+                typed_ir::Type::Var(v.clone())
+            } else {
+                other.clone()
+            }
+        }
+        (
+            typed_ir::Type::Fun {
+                param: a_p,
+                param_effect: a_pe,
+                ret_effect: a_re,
+                ret: a_r,
+            },
+            typed_ir::Type::Fun {
+                param: b_p,
+                param_effect: b_pe,
+                ret_effect: b_re,
+                ret: b_r,
+            },
+        ) => typed_ir::Type::Fun {
+            param: Box::new(merge_effect_op_core(a_p, b_p)),
+            param_effect: Box::new(merge_effect_op_core(a_pe, b_pe)),
+            ret_effect: Box::new(merge_effect_op_core(a_re, b_re)),
+            ret: Box::new(merge_effect_op_core(a_r, b_r)),
+        },
+        _ => expected.clone(),
     }
 }
 

@@ -219,7 +219,13 @@ pub struct DerivedExpectedEvidenceProfile {
 pub fn lower_core_program(program: typed_ir::CoreProgram) -> RuntimeResult<Module> {
     let graph = program.graph;
     let evidence = program.evidence;
-    lower_principal_module_with_graph_and_evidence(program.program, &graph, &evidence)
+    let effect_operations = program.effect_operations;
+    lower_principal_module_with_graph_evidence_and_effects(
+        program.program,
+        &graph,
+        &evidence,
+        &effect_operations,
+    )
 }
 
 pub fn lower_core_program_profiled(
@@ -228,10 +234,12 @@ pub fn lower_core_program_profiled(
     let core_shape = profile_core_program(&program);
     let graph = program.graph;
     let evidence = program.evidence;
-    lower_principal_module_with_graph_and_evidence_profiled(
+    let effect_operations = program.effect_operations;
+    lower_principal_module_with_graph_evidence_and_effects_profiled(
         program.program,
         &graph,
         &evidence,
+        &effect_operations,
         core_shape,
     )
 }
@@ -245,37 +253,48 @@ pub fn lower_principal_module_with_graph(
     graph: &typed_ir::CoreGraphView,
 ) -> RuntimeResult<Module> {
     let evidence = typed_ir::PrincipalEvidence::default();
-    lower_principal_module_with_graph_and_evidence(module, graph, &evidence)
+    lower_principal_module_with_graph_evidence_and_effects(module, graph, &evidence, &[])
 }
 
-fn lower_principal_module_with_graph_and_evidence(
+fn lower_principal_module_with_graph_evidence_and_effects(
     module: typed_ir::PrincipalModule,
     graph: &typed_ir::CoreGraphView,
     evidence: &typed_ir::PrincipalEvidence,
+    effect_operations: &[typed_ir::EffectOperationDecl],
 ) -> RuntimeResult<Module> {
     lower_principal_module_with_graph_and_evidence_inner(
         module,
         graph,
         evidence,
+        effect_operations,
         CoreShapeProfile::default(),
         false,
     )
     .map(|output| output.module)
 }
 
-fn lower_principal_module_with_graph_and_evidence_profiled(
+fn lower_principal_module_with_graph_evidence_and_effects_profiled(
     module: typed_ir::PrincipalModule,
     graph: &typed_ir::CoreGraphView,
     evidence: &typed_ir::PrincipalEvidence,
+    effect_operations: &[typed_ir::EffectOperationDecl],
     core_shape: CoreShapeProfile,
 ) -> RuntimeResult<RuntimeLowerOutput> {
-    lower_principal_module_with_graph_and_evidence_inner(module, graph, evidence, core_shape, true)
+    lower_principal_module_with_graph_and_evidence_inner(
+        module,
+        graph,
+        evidence,
+        effect_operations,
+        core_shape,
+        true,
+    )
 }
 
 fn lower_principal_module_with_graph_and_evidence_inner(
     module: typed_ir::PrincipalModule,
     graph: &typed_ir::CoreGraphView,
     evidence: &typed_ir::PrincipalEvidence,
+    effect_operations: &[typed_ir::EffectOperationDecl],
     core_shape: CoreShapeProfile,
     collect_profile: bool,
 ) -> RuntimeResult<RuntimeLowerOutput> {
@@ -323,6 +342,10 @@ fn lower_principal_module_with_graph_and_evidence_inner(
         .iter()
         .map(|edge| (edge.id, edge))
         .collect();
+    let effect_op_signatures = effect_operations
+        .iter()
+        .map(|decl| (decl.path.clone(), decl.scheme.clone()))
+        .collect::<HashMap<_, _>>();
     let mut lowerer = Lowerer {
         env,
         binding_infos,
@@ -333,6 +356,7 @@ fn lower_principal_module_with_graph_and_evidence_inner(
             .iter()
             .map(|symbol| (symbol.path.clone(), symbol.kind))
             .collect(),
+        effect_op_signatures,
         primitive_paths: RuntimePrimitivePathTable::from_graph(graph),
         principal_vars,
         expected_edges_by_id,
@@ -742,6 +766,13 @@ struct Lowerer<'a> {
     aliases: HashMap<typed_ir::Path, typed_ir::Path>,
     graph: &'a typed_ir::CoreGraphView,
     runtime_symbols: HashMap<typed_ir::Path, typed_ir::RuntimeSymbolKind>,
+    /// Operation path -> signature scheme exported by `infer`. Used as a
+    /// fallback when an `EffectOp` Var has no surrounding `expected` type, so
+    /// that the `.ty` we record is the operation's actual signature template
+    /// (with `Type::Var(..)` for the act's type parameters) instead of
+    /// `RuntimeType::Unknown`. Monomorphizing substitutions downstream then
+    /// resolve those vars to concrete types.
+    effect_op_signatures: HashMap<typed_ir::Path, typed_ir::Scheme>,
     primitive_paths: RuntimePrimitivePathTable,
     principal_vars: BTreeSet<typed_ir::TypeVar>,
     expected_edges_by_id: HashMap<u32, &'a typed_ir::ExpectedEdgeEvidence>,

@@ -3504,6 +3504,7 @@ fn clone_reachable_dependency_program(
             primitive_types: dependencies.graph.primitive_types.clone(),
         },
         evidence: dependencies.evidence.clone(),
+        effect_operations: dependencies.effect_operations.clone(),
     }
 }
 
@@ -4001,7 +4002,22 @@ fn merge_core_program_into(
         .evidence
         .derived_expected_edges
         .extend(source.evidence.derived_expected_edges);
+    merge_effect_operation_decls(&mut target.effect_operations, source.effect_operations);
     Ok(())
+}
+
+fn merge_effect_operation_decls(
+    target: &mut Vec<typed_ir::EffectOperationDecl>,
+    source: Vec<typed_ir::EffectOperationDecl>,
+) {
+    let existing: HashSet<typed_ir::Path> =
+        target.iter().map(|decl| decl.path.clone()).collect();
+    for decl in source {
+        if !existing.contains(&decl.path) {
+            target.push(decl);
+        }
+    }
+    target.sort_by(|lhs, rhs| lhs.path.segments.cmp(&rhs.path.segments));
 }
 
 fn merge_enum_variant_graph_nodes(

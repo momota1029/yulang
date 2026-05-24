@@ -173,6 +173,7 @@ pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
             t0.elapsed().as_secs_f64() * 1000.0
         );
     }
+    let effect_operations = export_effect_operations(state);
     typed_ir::CoreProgram {
         program: typed_ir::PrincipalModule {
             path: typed_ir::Path::default(),
@@ -199,7 +200,43 @@ pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
                 .map(export_handler_match_evidence)
                 .collect(),
         },
+        effect_operations,
     }
+}
+
+/// Build `EffectOperationDecl` entries for every operation declared via an
+/// `act` block. The scheme exported here is the operation's full signature
+/// with the act's type parameters preserved as `Type::Var(..)`, so any
+/// monomorphizing context downstream only needs to substitute the binding's
+/// own type vars to fully resolve the operation type.
+fn export_effect_operations(state: &LowerState) -> Vec<typed_ir::EffectOperationDecl> {
+    let canonical_paths = state.ctx.canonical_value_paths();
+    let all_binding_paths = state.ctx.collect_all_binding_paths();
+    let mut decls: Vec<typed_ir::EffectOperationDecl> = Vec::new();
+    let mut seen: HashSet<typed_ir::Path> = HashSet::new();
+    for def in state.effect_op_args.keys().copied() {
+        let Some(path) = canonical_paths.get(&def).cloned().or_else(|| {
+            all_binding_paths
+                .iter()
+                .find_map(|(path, current)| (*current == def).then(|| path.clone()))
+        }) else {
+            continue;
+        };
+        let Some(frozen) = state.infer.frozen_scheme_of(def) else {
+            continue;
+        };
+        let exported_path = export_path(&path);
+        if !seen.insert(exported_path.clone()) {
+            continue;
+        }
+        let scheme = export_frozen_scheme(&state.infer, &frozen);
+        decls.push(typed_ir::EffectOperationDecl {
+            path: exported_path,
+            scheme,
+        });
+    }
+    decls.sort_by(|lhs, rhs| lhs.path.segments.cmp(&rhs.path.segments));
+    decls
 }
 
 fn export_debug_principal_evidence_enabled() -> bool {
@@ -477,6 +514,7 @@ pub fn export_core_program_for_binding_paths(
     };
     let handler_matches = collect_handler_match_evidence(state);
 
+    let effect_operations = export_effect_operations(state);
     typed_ir::CoreProgram {
         program: typed_ir::PrincipalModule {
             path: typed_ir::Path::default(),
@@ -503,6 +541,7 @@ pub fn export_core_program_for_binding_paths(
                 .map(export_handler_match_evidence)
                 .collect(),
         },
+        effect_operations,
     }
 }
 

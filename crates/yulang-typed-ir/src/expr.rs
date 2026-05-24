@@ -16,6 +16,29 @@ pub struct CoreProgram {
     pub program: PrincipalModule,
     pub graph: CoreGraphView,
     pub evidence: PrincipalEvidence,
+    /// Effect operations (declared inside `act` decls) keyed by their
+    /// canonical operation path (e.g. `std::var::var::get`). Each entry's
+    /// `scheme.body` is the operation's full signature with the act's
+    /// type parameters present as `Type::Var(..)`, so monomorphizing a use
+    /// site only requires substituting the type vars that the surrounding
+    /// binding already substitutes.
+    ///
+    /// Used by runtime lowering to populate `EffectOp.ty` with a concrete
+    /// signature template instead of `Unknown`, and by `runtime-finalize`'s
+    /// materialization to resolve those vars to concrete types after
+    /// monomorphization.
+    #[serde(default)]
+    pub effect_operations: Vec<EffectOperationDecl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EffectOperationDecl {
+    /// Canonical operation path (e.g. `std::var::var::get`).
+    pub path: crate::names::Path,
+    /// The operation's type scheme. `scheme.body` is the operation's
+    /// curried function type, with the act's type parameters as
+    /// `Type::Var(..)`.
+    pub scheme: crate::types::Scheme,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
