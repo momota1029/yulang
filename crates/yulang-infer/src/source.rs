@@ -1762,7 +1762,7 @@ fn lower_source_set_from_cached_state(
         .next()
         .map(|file| file.source.clone())
         .unwrap_or_default();
-    if uncached_sources_may_copy_cached_act(source_set, cached_files) {
+    if uncached_sources_may_need_cached_act_templates(source_set, cached_files) {
         seed_cached_source_act_templates(source_set, cached_files, &mut state, &mut profile);
     }
     for (file_idx, file) in source_set.files.iter().enumerate() {
@@ -1785,7 +1785,7 @@ fn lower_source_set_from_cached_state(
     }
 }
 
-fn uncached_sources_may_copy_cached_act(
+fn uncached_sources_may_need_cached_act_templates(
     source_set: &SourceSet,
     cached_files: &HashSet<usize>,
 ) -> bool {
@@ -1794,11 +1794,19 @@ fn uncached_sources_may_copy_cached_act(
         .iter()
         .enumerate()
         .filter(|(file_idx, _)| !cached_files.contains(file_idx))
-        .any(|(_, file)| source_may_contain_act_copy(&file.source))
+        .any(|(_, file)| source_may_need_cached_act_template(&file.source))
+}
+
+fn source_may_need_cached_act_template(source: &str) -> bool {
+    source_may_contain_act_copy(source) || source_may_contain_synthetic_act_trigger(source)
 }
 
 fn source_may_contain_act_copy(source: &str) -> bool {
     source.lines().any(line_may_contain_act_copy)
+}
+
+fn source_may_contain_synthetic_act_trigger(source: &str) -> bool {
+    source.contains('$') || source.contains('\'')
 }
 
 fn line_may_contain_act_copy(line: &str) -> bool {

@@ -326,6 +326,17 @@ impl TypeGraph {
             .unwrap_or(ty)
     }
 
+    fn known_upper_or_self(&self, ty: typed_ir::Type) -> typed_ir::Type {
+        let typed_ir::Type::Var(var) = &ty else {
+            return ty;
+        };
+        self.slots
+            .get(var)
+            .and_then(|slot| slot.upper.as_ref())
+            .cloned()
+            .unwrap_or(ty)
+    }
+
     fn collect_type_arg(
         &mut self,
         template: &typed_ir::TypeArg,
@@ -369,9 +380,13 @@ impl TypeGraph {
     fn record(
         &mut self,
         var: typed_ir::TypeVar,
-        ty: typed_ir::Type,
+        mut ty: typed_ir::Type,
         side: BoundSide,
     ) -> FinalizeResult<()> {
+        ty = match side {
+            BoundSide::Lower => self.known_lower_or_self(ty),
+            BoundSide::Upper => self.known_upper_or_self(ty),
+        };
         if matches!(ty, typed_ir::Type::Unknown) || is_vacuous_bound(&ty, side) {
             return Ok(());
         }
@@ -548,6 +563,13 @@ fn push_bound(
 ) -> FinalizeResult<()> {
     if let Some(previous) = slot {
         if previous == &ty {
+            return Ok(());
+        }
+        if matches!(ty, typed_ir::Type::Var(_)) && !matches!(previous, typed_ir::Type::Var(_)) {
+            return Ok(());
+        }
+        if matches!(previous, typed_ir::Type::Var(_)) && !matches!(ty, typed_ir::Type::Var(_)) {
+            *previous = ty;
             return Ok(());
         }
         return Err(FinalizeDiagnostic::ConflictingBounds {

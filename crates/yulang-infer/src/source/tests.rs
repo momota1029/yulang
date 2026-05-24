@@ -2420,7 +2420,7 @@ fn compiled_unit_semantic_bundle_import_skips_cached_dependency_scc_without_runt
 }
 
 #[test]
-fn cached_source_act_template_seed_is_only_needed_for_act_copy_sources() {
+fn cached_source_act_template_seed_is_needed_for_act_copy_and_synthetic_act_sources() {
     assert!(!source_may_contain_act_copy("my x = 1\nx\n"));
     assert!(!source_may_contain_act_copy("my fact = 1\n"));
     assert!(!source_may_contain_act_copy(
@@ -2428,6 +2428,11 @@ fn cached_source_act_template_seed_is_only_needed_for_act_copy_sources() {
     ));
     assert!(source_may_contain_act_copy("my act next = last\n"));
     assert!(source_may_contain_act_copy("my act\tnext = last\n"));
+    assert!(!source_may_need_cached_act_template("my x = 1\nx\n"));
+    assert!(source_may_need_cached_act_template("my $x = 1\n$x\n"));
+    assert!(source_may_need_cached_act_template(
+        "for 'outer x in xs:\n  x\n"
+    ));
 }
 
 #[test]

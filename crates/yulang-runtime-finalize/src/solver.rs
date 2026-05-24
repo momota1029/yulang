@@ -123,6 +123,12 @@ fn collect_expr_graphs(
     let found = solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?;
     if !found.is_empty() {
         solutions.extend(found);
+        return collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, solutions);
+    }
+    if let Some(solution) =
+        solve_bare_polymorphic_var(owner.clone(), expr, bindings, local_types, solutions.len())?
+    {
+        solutions.push(solution);
         return Ok(());
     }
     match &expr.kind {
@@ -189,34 +195,80 @@ fn collect_expr_graphs(
         } => {
             collect_expr_graphs(owner.clone(), scrutinee, bindings, local_types, solutions)?;
             for arm in arms {
+                let mut arm_locals = local_types.clone();
+                collect_pattern_local_types(&arm.pattern, &mut arm_locals);
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(owner.clone(), guard, bindings, local_types, solutions)?;
+                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
                 }
-                collect_expr_graphs(owner.clone(), &arm.body, bindings, local_types, solutions)?;
+                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
             }
             Ok(())
         }
         ExprKind::Block { stmts, tail } => {
+            let mut scoped_locals = local_types.clone();
             for stmt in stmts {
-                collect_stmt_graphs(owner.clone(), stmt, bindings, local_types, solutions)?;
+                collect_stmt_graphs(owner.clone(), stmt, bindings, &scoped_locals, solutions)?;
+                collect_stmt_local_types(stmt, &mut scoped_locals);
             }
             if let Some(tail) = tail {
-                collect_expr_graphs(owner, tail, bindings, local_types, solutions)?;
+                collect_expr_graphs(owner, tail, bindings, &scoped_locals, solutions)?;
             }
             Ok(())
         }
         ExprKind::Handle { body, arms, .. } => {
             collect_expr_graphs(owner.clone(), body, bindings, local_types, solutions)?;
             for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(owner.clone(), guard, bindings, local_types, solutions)?;
+                let mut arm_locals = local_types.clone();
+                collect_pattern_local_types(&arm.payload, &mut arm_locals);
+                if let Some(resume) = &arm.resume {
+                    arm_locals.insert(path_from_name(&resume.name), resume.ty.clone());
                 }
-                collect_expr_graphs(owner.clone(), &arm.body, bindings, local_types, solutions)?;
+                if let Some(guard) = &arm.guard {
+                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
+                }
+                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
             }
             Ok(())
         }
         _ => Ok(()),
     }
+}
+
+fn collect_apply_spine_arg_graphs(
+    owner: RootGraphRoot,
+    expr: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
+    let ExprKind::Apply { callee, arg, .. } = &expr.kind else {
+        return Ok(());
+    };
+    collect_apply_spine_arg_graphs(owner.clone(), callee, bindings, local_types, solutions)?;
+    collect_expr_graphs(owner, arg, bindings, local_types, solutions)
+}
+
+fn solve_bare_polymorphic_var(
+    owner: RootGraphRoot,
+    expr: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    alias_index: usize,
+) -> FinalizeResult<Option<RootGraphSolution>> {
+    let ExprKind::Var(path) = &expr.kind else {
+        return Ok(None);
+    };
+    let Some(binding) = bindings.get(path) else {
+        return Ok(None);
+    };
+    if binding.type_params.is_empty() {
+        return Ok(None);
+    }
+    let expected = runtime_type_to_core(expr_lower_type(expr, local_types));
+    if !core_type_is_closed(&expected) {
+        return Ok(None);
+    }
+    solve_value_arg(owner, binding, expected, alias_index).map(Some)
 }
 
 fn solve_simple_apply(
@@ -231,9 +283,7 @@ fn solve_simple_apply(
     };
     let binding_path = spine.binding;
     let Some(binding) = bindings.get(binding_path) else {
-        return Err(FinalizeDiagnostic::MissingBinding {
-            binding: binding_path.clone(),
-        });
+        return Ok(Vec::new());
     };
     if binding.type_params.is_empty() {
         return Ok(Vec::new());
@@ -242,6 +292,10 @@ fn solve_simple_apply(
         solve_spine_value_args(owner.clone(), &spine, bindings, local_types, alias_index)?;
     let mut graph = TypeGraph::default();
     let principal = graph.instantiate_principal(binding);
+    graph.collect_runtime_bounds(
+        &principal.principal_type,
+        &crate::RuntimeBounds::exact(spine.callee.ty.clone()),
+    )?;
     collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
     let mut current = principal.principal_type.clone();
     for step in &spine.steps {
@@ -356,7 +410,7 @@ fn collect_spine_substitutions(
 ) -> FinalizeResult<()> {
     for step in steps {
         if let Some(evidence) = step.evidence {
-            for substitution in &evidence.substitutions {
+            for substitution in evidence_complete_substitutions(evidence) {
                 collect_spine_substitution(graph, principal, &substitution.var, &substitution.ty)?;
             }
         }
@@ -367,6 +421,16 @@ fn collect_spine_substitutions(
         }
     }
     Ok(())
+}
+
+fn evidence_complete_substitutions(
+    evidence: &typed_ir::ApplyEvidence,
+) -> &[typed_ir::TypeSubstitution] {
+    match &evidence.principal_elaboration {
+        Some(plan) if !plan.complete => &[],
+        Some(plan) => &plan.substitutions,
+        None => &evidence.substitutions,
+    }
 }
 
 fn collect_spine_substitution(
@@ -387,6 +451,7 @@ fn collect_spine_substitution(
 
 struct ApplySpine<'a> {
     binding: &'a typed_ir::Path,
+    callee: &'a Expr,
     steps: Vec<ApplyStep<'a>>,
 }
 
@@ -432,7 +497,11 @@ impl<'a> ApplySpine<'a> {
         let ExprKind::Var(binding) = &current.kind else {
             return None;
         };
-        Some(Self { binding, steps })
+        Some(Self {
+            binding,
+            callee: current,
+            steps,
+        })
     }
 }
 
@@ -556,6 +625,77 @@ fn collect_pattern_graphs(
             collect_pattern_graphs(owner, pattern, bindings, local_types, solutions)
         }
         Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => Ok(()),
+    }
+}
+
+fn collect_stmt_local_types(
+    stmt: &yulang_runtime_ir::Stmt,
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+) {
+    let yulang_runtime_ir::Stmt::Let { pattern, .. } = stmt else {
+        return;
+    };
+    collect_pattern_local_types(pattern, local_types);
+}
+
+fn collect_pattern_local_types(
+    pattern: &yulang_runtime_ir::Pattern,
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+) {
+    use yulang_runtime_ir::Pattern;
+
+    match pattern {
+        Pattern::Bind { name, ty } => {
+            local_types.insert(path_from_name(name), ty.clone());
+        }
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_local_types(item, local_types);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_local_types(item, local_types);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_local_types(spread, local_types);
+            }
+            for item in suffix {
+                collect_pattern_local_types(item, local_types);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                collect_pattern_local_types(&field.pattern, local_types);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_local_types(pattern, local_types);
+                    }
+                }
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_local_types(value, local_types);
+            }
+        }
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_local_types(left, local_types);
+            collect_pattern_local_types(right, local_types);
+        }
+        Pattern::As { pattern, name, ty } => {
+            collect_pattern_local_types(pattern, local_types);
+            local_types.insert(path_from_name(name), ty.clone());
+        }
+        Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
     }
 }
 
@@ -981,28 +1121,38 @@ fn prune_specialized_polymorphic_bindings(module: &mut Module, solutions: &[Root
         .iter()
         .map(|solution| solution.binding.clone())
         .collect::<HashSet<_>>();
-    if specialized.is_empty() {
-        return;
-    }
-    let referenced = referenced_paths(module);
+    let reachable = reachable_paths(module);
     module.bindings.retain(|binding| {
         binding.type_params.is_empty()
-            || !specialized.contains(&binding.name)
-            || referenced.contains(&binding.name)
+            || (reachable.contains(&binding.name) && !specialized.contains(&binding.name))
     });
 }
 
-fn referenced_paths(module: &Module) -> HashSet<typed_ir::Path> {
-    let mut paths = HashSet::new();
+fn reachable_paths(module: &Module) -> HashSet<typed_ir::Path> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = HashSet::new();
+    let mut pending = Vec::new();
     for expr in &module.root_exprs {
-        collect_expr_paths(expr, &mut paths);
+        collect_expr_paths(expr, &mut pending);
     }
-    for binding in &module.bindings {
-        if binding.type_params.is_empty() {
-            collect_expr_paths(&binding.body, &mut paths);
+    for root in &module.roots {
+        if let Root::Binding(path) = root {
+            pending.push(path.clone());
         }
     }
-    paths
+    while let Some(path) = pending.pop() {
+        if !reachable.insert(path.clone()) {
+            continue;
+        }
+        if let Some(binding) = bindings.get(&path) {
+            collect_expr_paths(&binding.body, &mut pending);
+        }
+    }
+    reachable
 }
 
 fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) -> Expr {
@@ -1316,10 +1466,10 @@ fn materialize_handle_effect(
     }
 }
 
-fn collect_expr_paths(expr: &Expr, paths: &mut HashSet<typed_ir::Path>) {
+fn collect_expr_paths(expr: &Expr, paths: &mut Vec<typed_ir::Path>) {
     match &expr.kind {
         ExprKind::Var(path) | ExprKind::EffectOp(path) => {
-            paths.insert(path.clone());
+            paths.push(path.clone());
         }
         ExprKind::Lambda { body, .. }
         | ExprKind::BindHere { expr: body }
@@ -1398,7 +1548,7 @@ fn collect_expr_paths(expr: &Expr, paths: &mut HashSet<typed_ir::Path>) {
 
 fn collect_record_spread_expr_paths(
     spread: &yulang_runtime_ir::RecordSpreadExpr,
-    paths: &mut HashSet<typed_ir::Path>,
+    paths: &mut Vec<typed_ir::Path>,
 ) {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr)
@@ -1406,7 +1556,7 @@ fn collect_record_spread_expr_paths(
     }
 }
 
-fn collect_stmt_paths(stmt: &yulang_runtime_ir::Stmt, paths: &mut HashSet<typed_ir::Path>) {
+fn collect_stmt_paths(stmt: &yulang_runtime_ir::Stmt, paths: &mut Vec<typed_ir::Path>) {
     match stmt {
         yulang_runtime_ir::Stmt::Let { pattern, value } => {
             collect_pattern_paths(pattern, paths);
@@ -1419,10 +1569,7 @@ fn collect_stmt_paths(stmt: &yulang_runtime_ir::Stmt, paths: &mut HashSet<typed_
     }
 }
 
-fn collect_pattern_paths(
-    pattern: &yulang_runtime_ir::Pattern,
-    paths: &mut HashSet<typed_ir::Path>,
-) {
+fn collect_pattern_paths(pattern: &yulang_runtime_ir::Pattern, paths: &mut Vec<typed_ir::Path>) {
     use yulang_runtime_ir::Pattern;
 
     match pattern {
@@ -1986,6 +2133,67 @@ mod tests {
         );
 
         assert_eq!(output.module.root_exprs.len(), 1);
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_compiles_ref_scalar_assignment() {
+        assert_prewarmed_std_ref_source_finalizes_to_vm_input(
+            r#"{
+    my $x = 10
+    my $y = 20
+
+    &x = 11
+    &y = 21
+
+    ($x, $y)
+}
+"#,
+        );
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_compiles_ref_assignment_from_ref_read() {
+        assert_prewarmed_std_ref_source_finalizes_to_vm_input(
+            r#"{
+    my $x = 13
+    my $y = 0
+
+    &y = $x
+
+    $y
+}
+"#,
+        );
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_compiles_ref_assignment_inside_nested_block() {
+        assert_prewarmed_std_ref_source_finalizes_to_vm_input(
+            r#"{
+    my $x = 0
+    {
+        &x = 9
+    }
+    $x
+}
+"#,
+        );
+    }
+
+    fn assert_prewarmed_std_ref_source_finalizes_to_vm_input(src: &str) {
+        let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(src);
+        let output = finalize_module(cached.module).unwrap();
+        assert!(
+            output
+                .module
+                .bindings
+                .iter()
+                .all(|binding| binding.type_params.is_empty())
+        );
+        yulang_vm::compile_vm_module(output.module).unwrap();
     }
 
     fn id_call(arg: Expr) -> Expr {
