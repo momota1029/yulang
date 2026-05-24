@@ -5150,11 +5150,12 @@ sub:
         let src = src.to_string();
         run_with_large_stack(move || {
             let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            // Keep std dependency-cache coverage without trusting artifacts from
-            // a developer's long-lived cache across solver/runtime changes.
+            // Compiled dependency artifacts carry format/source hashes, so a
+            // stable test root can reuse valid std cache across cargo runs
+            // while read errors still fall back to warming this same cache.
             let cache_paths = yulang_compile::YulangCachePaths::with_user_cache_root(
                 &repo_root,
-                artifact_cache_root("std-runtime-ir"),
+                persistent_artifact_cache_root(&repo_root, "std-runtime-ir"),
             );
             let std_root = yulang_sources::resolve_or_install_std_root(None, None)
                 .expect("resolve installed std root")
@@ -5214,7 +5215,7 @@ sub:
             .expect("lock runtime-finalize large-stack test");
         std::thread::Builder::new()
             .name("runtime-finalize-large-stack".into())
-            .stack_size(128 * 1024 * 1024)
+            .stack_size(512 * 1024 * 1024)
             .spawn(f)
             .expect("spawn large-stack runtime-finalize test thread")
             .join()
@@ -5231,6 +5232,13 @@ sub:
             "yulang-finalize-cache-{name}-{}",
             std::process::id()
         ))
+    }
+
+    fn persistent_artifact_cache_root(
+        repo_root: &std::path::Path,
+        name: &str,
+    ) -> std::path::PathBuf {
+        repo_root.join("target/yulang/test-cache").join(name)
     }
 
     fn compiled_manifest(unit_index: usize, hash: u64) -> CompiledUnitManifest {
