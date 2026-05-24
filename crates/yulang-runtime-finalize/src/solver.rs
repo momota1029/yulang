@@ -807,16 +807,41 @@ fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path, RuntimeTyp
 }
 
 fn runtime_type_to_core(ty: RuntimeType) -> typed_ir::Type {
+    runtime_type_to_effected_core(ty).value
+}
+
+struct EffectedCoreType {
+    value: typed_ir::Type,
+    effect: typed_ir::Type,
+}
+
+fn runtime_type_to_effected_core(ty: RuntimeType) -> EffectedCoreType {
     match ty {
-        RuntimeType::Unknown => typed_ir::Type::Unknown,
-        RuntimeType::Core(ty) => ty,
-        RuntimeType::Fun { param, ret } => typed_ir::Type::Fun {
-            param: Box::new(runtime_type_to_core(*param)),
-            param_effect: Box::new(typed_ir::Type::Never),
-            ret_effect: Box::new(typed_ir::Type::Unknown),
-            ret: Box::new(runtime_type_to_core(*ret)),
+        RuntimeType::Unknown => EffectedCoreType {
+            value: typed_ir::Type::Unknown,
+            effect: typed_ir::Type::Unknown,
         },
-        RuntimeType::Thunk { value, .. } => runtime_type_to_core(*value),
+        RuntimeType::Core(ty) => EffectedCoreType {
+            value: ty,
+            effect: typed_ir::Type::Never,
+        },
+        RuntimeType::Fun { param, ret } => {
+            let param = runtime_type_to_effected_core(*param);
+            let ret = runtime_type_to_effected_core(*ret);
+            EffectedCoreType {
+                value: typed_ir::Type::Fun {
+                    param: Box::new(param.value),
+                    param_effect: Box::new(param.effect),
+                    ret_effect: Box::new(ret.effect),
+                    ret: Box::new(ret.value),
+                },
+                effect: typed_ir::Type::Never,
+            }
+        }
+        RuntimeType::Thunk { effect, value } => {
+            let value = runtime_type_to_core(*value);
+            EffectedCoreType { value, effect }
+        }
     }
 }
 
@@ -1616,6 +1641,14 @@ fn reachable_paths(module: &Module) -> HashSet<typed_ir::Path> {
 }
 
 fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) -> Expr {
+    materialize_expr_with_expected(expr, substitutions, None)
+}
+
+fn materialize_expr_with_expected(
+    expr: Expr,
+    substitutions: &[typed_ir::TypeSubstitution],
+    expected: Option<&RuntimeType>,
+) -> Expr {
     let ty = materialize_runtime_type(expr.ty, substitutions);
     let kind = match expr.kind {
         ExprKind::Var(path) => ExprKind::Var(path),
@@ -1696,7 +1729,13 @@ fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) ->
                 .into_iter()
                 .map(|stmt| materialize_stmt(stmt, substitutions))
                 .collect();
-            let tail = tail.map(|tail| Box::new(materialize_expr(*tail, substitutions)));
+            let tail = tail.map(|tail| {
+                Box::new(materialize_expr_with_expected(
+                    *tail,
+                    substitutions,
+                    expected,
+                ))
+            });
             let block_ty = tail
                 .as_ref()
                 .map(|tail| tail.ty.clone())
@@ -1708,35 +1747,59 @@ fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) ->
             arms,
             evidence,
             handler,
-        } => ExprKind::Handle {
-            body: Box::new(materialize_expr(*body, substitutions)),
-            arms: arms
-                .into_iter()
-                .map(|arm| materialize_handle_arm(arm, substitutions))
-                .collect(),
-            evidence: materialize_join_evidence(evidence, substitutions),
-            handler: materialize_handle_effect(handler, substitutions),
-        },
+        } => {
+            let evidence = materialize_join_evidence(evidence, substitutions);
+            let result = expected_core_type(expected).unwrap_or(evidence.result);
+            let expected_result = RuntimeType::Core(result.clone());
+            let kind = ExprKind::Handle {
+                body: Box::new(materialize_expr(*body, substitutions)),
+                arms: arms
+                    .into_iter()
+                    .map(|arm| materialize_handle_arm(arm, substitutions, &expected_result))
+                    .collect(),
+                handler: materialize_handle_effect(handler, substitutions),
+                evidence: yulang_runtime_ir::JoinEvidence {
+                    result: result.clone(),
+                },
+            };
+            return Expr::typed(kind, expected_result);
+        }
         ExprKind::BindHere { expr } => {
-            let expr = materialize_expr(*expr, substitutions);
-            if !matches!(expr.ty, RuntimeType::Thunk { .. }) {
+            let expr = materialize_expr_with_expected(*expr, substitutions, expected);
+            let RuntimeType::Thunk { value, .. } = &expr.ty else {
                 return expr;
-            }
-            ExprKind::BindHere {
+            };
+            let value = (**value).clone();
+            let kind = ExprKind::BindHere {
                 expr: Box::new(expr),
-            }
+            };
+            return Expr::typed(kind, value);
         }
         ExprKind::Thunk {
             effect,
             value,
             expr,
         } => {
-            let effect = materialize_core_type(effect, substitutions);
-            let value = materialize_runtime_type(value, substitutions);
+            let (effect, expected_value) = match expected {
+                Some(RuntimeType::Thunk { effect, value }) => {
+                    (effect.clone(), Some((**value).clone()))
+                }
+                Some(expected) => (
+                    materialize_core_type(effect, substitutions),
+                    Some(expected.clone()),
+                ),
+                None => (materialize_core_type(effect, substitutions), None),
+            };
+            let value =
+                expected_value.unwrap_or_else(|| materialize_runtime_type(value, substitutions));
             let kind = ExprKind::Thunk {
                 effect: effect.clone(),
                 value: value.clone(),
-                expr: Box::new(materialize_expr(*expr, substitutions)),
+                expr: Box::new(materialize_expr_with_expected(
+                    *expr,
+                    substitutions,
+                    Some(&value),
+                )),
             };
             return Expr::typed(
                 kind,
@@ -1746,10 +1809,15 @@ fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) ->
                 },
             );
         }
-        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
-            id,
-            body: Box::new(materialize_expr(*body, substitutions)),
-        },
+        ExprKind::LocalPushId { id, body } => {
+            let body = materialize_expr_with_expected(*body, substitutions, expected);
+            let ty = body.ty.clone();
+            let kind = ExprKind::LocalPushId {
+                id,
+                body: Box::new(body),
+            };
+            return Expr::typed(kind, ty);
+        }
         ExprKind::PeekId => ExprKind::PeekId,
         ExprKind::FindId { id } => ExprKind::FindId { id },
         ExprKind::AddId {
@@ -1757,17 +1825,37 @@ fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) ->
             allowed,
             active,
             thunk,
-        } => ExprKind::AddId {
-            id,
-            allowed: materialize_core_type(allowed, substitutions),
-            active,
-            thunk: Box::new(materialize_expr(*thunk, substitutions)),
-        },
-        ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
-            from: materialize_core_type(from, substitutions),
-            to: materialize_core_type(to, substitutions),
-            expr: Box::new(materialize_expr(*expr, substitutions)),
-        },
+        } => {
+            let thunk = materialize_expr_with_expected(*thunk, substitutions, expected);
+            let ty = thunk.ty.clone();
+            let kind = ExprKind::AddId {
+                id,
+                allowed: materialize_core_type(allowed, substitutions),
+                active,
+                thunk: Box::new(thunk),
+            };
+            return Expr::typed(kind, ty);
+        }
+        ExprKind::Coerce { from, to, expr } => {
+            let to = expected_core_type(expected)
+                .unwrap_or_else(|| materialize_core_type(to, substitutions));
+            let expected = RuntimeType::Core(to.clone());
+            let expr = materialize_expr_with_expected(*expr, substitutions, Some(&expected));
+            let materialized_from = materialize_core_type(from, substitutions);
+            let from = match &expr.ty {
+                RuntimeType::Unknown => materialized_from,
+                _ => runtime_type_to_core(expr.ty.clone()),
+            };
+            if matches!(expr.ty, RuntimeType::Core(_)) && from == to {
+                return expr;
+            }
+            let kind = ExprKind::Coerce {
+                from,
+                to: to.clone(),
+                expr: Box::new(expr),
+            };
+            return Expr::typed(kind, RuntimeType::Core(to));
+        }
         ExprKind::Pack { var, expr } => ExprKind::Pack {
             var,
             expr: Box::new(materialize_expr(*expr, substitutions)),
@@ -1909,6 +1997,7 @@ fn materialize_match_arm(
 fn materialize_handle_arm(
     arm: yulang_runtime_ir::HandleArm,
     substitutions: &[typed_ir::TypeSubstitution],
+    expected: &RuntimeType,
 ) -> yulang_runtime_ir::HandleArm {
     yulang_runtime_ir::HandleArm {
         effect: arm.effect,
@@ -1920,7 +2009,7 @@ fn materialize_handle_arm(
         guard: arm
             .guard
             .map(|guard| materialize_expr(guard, substitutions)),
-        body: materialize_expr(arm.body, substitutions),
+        body: materialize_expr_with_expected(arm.body, substitutions, Some(expected)),
     }
 }
 
@@ -1945,6 +2034,14 @@ fn materialize_handle_effect(
         residual_after: handler
             .residual_after
             .map(|ty| materialize_core_type(ty, substitutions)),
+    }
+}
+
+fn expected_core_type(expected: Option<&RuntimeType>) -> Option<typed_ir::Type> {
+    match expected {
+        Some(RuntimeType::Unknown) | None => None,
+        Some(RuntimeType::Core(ty)) => Some(ty.clone()),
+        Some(expected) => Some(runtime_type_to_core(expected.clone())),
     }
 }
 
@@ -2707,6 +2804,88 @@ f 3
         };
 
         assert_eq!(expr.ty, thunk);
+    }
+
+    #[test]
+    fn runtime_function_projection_preserves_thunk_effect_slots() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let bool_ty = typed_ir::Type::Named {
+            path: path("bool"),
+            args: Vec::new(),
+        };
+        let arg_effect = typed_ir::Type::Named {
+            path: path("arg_effect"),
+            args: Vec::new(),
+        };
+        let ret_effect = typed_ir::Type::Named {
+            path: path("ret_effect"),
+            args: Vec::new(),
+        };
+
+        let projected = runtime_type_to_core(RuntimeType::Fun {
+            param: Box::new(RuntimeType::Thunk {
+                effect: arg_effect.clone(),
+                value: Box::new(RuntimeType::Core(int.clone())),
+            }),
+            ret: Box::new(RuntimeType::Thunk {
+                effect: ret_effect.clone(),
+                value: Box::new(RuntimeType::Core(bool_ty.clone())),
+            }),
+        });
+
+        assert_eq!(
+            projected,
+            typed_ir::Type::Fun {
+                param: Box::new(int),
+                param_effect: Box::new(arg_effect),
+                ret_effect: Box::new(ret_effect),
+                ret: Box::new(bool_ty),
+            }
+        );
+    }
+
+    #[test]
+    fn materialize_handle_type_from_materialized_evidence() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let stale_unit = RuntimeType::Core(unit_type());
+        let handle = Expr::typed(
+            ExprKind::Handle {
+                body: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    stale_unit.clone(),
+                )),
+                arms: Vec::new(),
+                evidence: yulang_runtime_ir::JoinEvidence {
+                    result: typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                },
+                handler: yulang_runtime_ir::HandleEffect {
+                    consumes: Vec::new(),
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            stale_unit,
+        );
+
+        let materialized = materialize_expr(
+            handle,
+            &[typed_ir::TypeSubstitution {
+                var: typed_ir::TypeVar("a".into()),
+                ty: int.clone(),
+            }],
+        );
+
+        assert_eq!(materialized.ty, RuntimeType::Core(int.clone()));
+        let ExprKind::Handle { evidence, .. } = materialized.kind else {
+            panic!("expected handle expression");
+        };
+        assert_eq!(evidence.result, int);
     }
 
     #[test]

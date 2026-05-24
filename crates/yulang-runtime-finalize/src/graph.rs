@@ -126,14 +126,25 @@ impl TypeGraph {
             RuntimeType::Fun { param, ret } => {
                 let typed_ir::Type::Fun {
                     param: template_param,
+                    param_effect: template_param_effect,
+                    ret_effect: template_ret_effect,
                     ret: template_ret,
-                    ..
                 } = template
                 else {
                     return Ok(());
                 };
-                self.collect_runtime(template_param, param, side)?;
-                self.collect_runtime(template_ret, ret, side)
+                let RuntimeEffectedType {
+                    value: actual_param,
+                    effect: actual_param_effect,
+                } = split_runtime_effected_type(param);
+                let RuntimeEffectedType {
+                    value: actual_ret,
+                    effect: actual_ret_effect,
+                } = split_runtime_effected_type(ret);
+                self.collect_runtime(template_param, actual_param, side)?;
+                self.collect_runtime_effect(template_param_effect, actual_param_effect, side)?;
+                self.collect_runtime_effect(template_ret_effect, actual_ret_effect, side)?;
+                self.collect_runtime(template_ret, actual_ret, side)
             }
             RuntimeType::Thunk { value, .. } => self.collect_runtime(template, value, side),
             RuntimeType::Unknown => Ok(()),
@@ -164,16 +175,24 @@ impl TypeGraph {
                 }
                 Ok(())
             }
-            typed_ir::Type::Fun { param, ret, .. } => {
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => {
                 let typed_ir::Type::Fun {
                     param: actual_param,
+                    param_effect: actual_param_effect,
+                    ret_effect: actual_ret_effect,
                     ret: actual_ret,
-                    ..
                 } = actual
                 else {
                     return Ok(());
                 };
                 self.collect_core(param, actual_param, side)?;
+                self.collect_core(param_effect, actual_param_effect, side)?;
+                self.collect_core(ret_effect, actual_ret_effect, side)?;
                 self.collect_core(ret, actual_ret, side)
             }
             typed_ir::Type::Tuple(items) => {
@@ -206,6 +225,18 @@ impl TypeGraph {
             | typed_ir::Type::Record(_)
             | typed_ir::Type::Variant(_)
             | typed_ir::Type::Recursive { .. } => Ok(()),
+        }
+    }
+
+    fn collect_runtime_effect(
+        &mut self,
+        template: &typed_ir::Type,
+        actual: RuntimeEffectRef<'_>,
+        side: BoundSide,
+    ) -> FinalizeResult<()> {
+        match actual {
+            RuntimeEffectRef::Known(actual) => self.collect_core(template, actual, side),
+            RuntimeEffectRef::Pure | RuntimeEffectRef::Unknown => Ok(()),
         }
     }
 
@@ -629,13 +660,42 @@ enum BoundSide {
     Upper,
 }
 
+struct RuntimeEffectedType<'a> {
+    value: &'a RuntimeType,
+    effect: RuntimeEffectRef<'a>,
+}
+
+#[derive(Clone, Copy)]
+enum RuntimeEffectRef<'a> {
+    Known(&'a typed_ir::Type),
+    Pure,
+    Unknown,
+}
+
+fn split_runtime_effected_type(ty: &RuntimeType) -> RuntimeEffectedType<'_> {
+    match ty {
+        RuntimeType::Thunk { effect, value } => RuntimeEffectedType {
+            value,
+            effect: RuntimeEffectRef::Known(effect),
+        },
+        RuntimeType::Unknown => RuntimeEffectedType {
+            value: ty,
+            effect: RuntimeEffectRef::Unknown,
+        },
+        RuntimeType::Core(_) | RuntimeType::Fun { .. } => RuntimeEffectedType {
+            value: ty,
+            effect: RuntimeEffectRef::Pure,
+        },
+    }
+}
+
 fn push_bound(
     slot: &mut Option<typed_ir::Type>,
     var: typed_ir::TypeVar,
     ty: typed_ir::Type,
 ) -> FinalizeResult<()> {
     if let Some(previous) = slot {
-        if previous == &ty {
+        if bounds_are_equivalent(previous, &ty) {
             return Ok(());
         }
         if matches!(
@@ -659,6 +719,23 @@ fn push_bound(
     }
     *slot = Some(ty);
     Ok(())
+}
+
+fn bounds_are_equivalent(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    left == right
+        || closed_singleton_row_item(left).is_some_and(|item| item == right)
+        || closed_singleton_row_item(right).is_some_and(|item| item == left)
+}
+
+fn closed_singleton_row_item(ty: &typed_ir::Type) -> Option<&typed_ir::Type> {
+    let typed_ir::Type::Row { items, tail } = ty else {
+        return None;
+    };
+    if items.len() == 1 && matches!(tail.as_ref(), typed_ir::Type::Never) {
+        items.first()
+    } else {
+        None
+    }
 }
 
 fn is_vacuous_bound(ty: &typed_ir::Type, side: BoundSide) -> bool {
@@ -1355,6 +1432,85 @@ mod tests {
     }
 
     #[test]
+    fn runtime_function_thunks_feed_function_effect_slots() {
+        let mut graph = TypeGraph::default();
+        let a_var = typed_ir::TypeVar("a".into());
+        let b_var = typed_ir::TypeVar("b".into());
+        let param_effect_var = typed_ir::TypeVar("pe".into());
+        let ret_effect_var = typed_ir::TypeVar("re".into());
+        let template = fun_type_with_effects(
+            typed_ir::Type::Var(a_var.clone()),
+            typed_ir::Type::Var(param_effect_var.clone()),
+            typed_ir::Type::Var(ret_effect_var.clone()),
+            typed_ir::Type::Var(b_var.clone()),
+        );
+
+        graph
+            .collect_runtime_bounds(
+                &template,
+                &RuntimeBounds::exact(RuntimeType::Fun {
+                    param: Box::new(RuntimeType::Thunk {
+                        effect: effect_type("arg"),
+                        value: Box::new(RuntimeType::Core(int_type())),
+                    }),
+                    ret: Box::new(RuntimeType::Thunk {
+                        effect: effect_type("ret"),
+                        value: Box::new(RuntimeType::Core(bool_type())),
+                    }),
+                }),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&a_var), Some(&int_type()));
+        assert_eq!(solution.solution_for(&b_var), Some(&bool_type()));
+        assert_eq!(
+            solution.solution_for(&param_effect_var),
+            Some(&effect_type("arg"))
+        );
+        assert_eq!(
+            solution.solution_for(&ret_effect_var),
+            Some(&effect_type("ret"))
+        );
+        assert!(solution.is_complete());
+    }
+
+    #[test]
+    fn singleton_closed_effect_row_bound_matches_its_atom() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let atom = effect_type("io");
+        let row = typed_ir::Type::Row {
+            items: vec![atom.clone()],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Core(row.clone())),
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Core(atom)),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&row)
+        );
+    }
+
+    #[test]
     fn graph_solution_reports_open_type_vars() {
         let mut graph = TypeGraph::default();
         graph.instantiate_principal(&id_binding());
@@ -1410,11 +1566,27 @@ mod tests {
     }
 
     fn fun_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        fun_type_with_effects(param, typed_ir::Type::Never, typed_ir::Type::Never, ret)
+    }
+
+    fn fun_type_with_effects(
+        param: typed_ir::Type,
+        param_effect: typed_ir::Type,
+        ret_effect: typed_ir::Type,
+        ret: typed_ir::Type,
+    ) -> typed_ir::Type {
         typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(typed_ir::Type::Never),
-            ret_effect: Box::new(typed_ir::Type::Never),
+            param_effect: Box::new(param_effect),
+            ret_effect: Box::new(ret_effect),
             ret: Box::new(ret),
+        }
+    }
+
+    fn effect_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&[name]),
+            args: Vec::new(),
         }
     }
 
