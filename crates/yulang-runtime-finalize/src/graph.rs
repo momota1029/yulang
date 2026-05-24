@@ -224,13 +224,18 @@ impl TypeGraph {
                 };
                 self.collect_row(items, tail, actual_items, actual_tail, side)
             }
+            typed_ir::Type::Variant(template) => {
+                let typed_ir::Type::Variant(actual) = actual else {
+                    return Ok(());
+                };
+                self.collect_variant(template, actual, side)
+            }
             typed_ir::Type::Unknown
             | typed_ir::Type::Never
             | typed_ir::Type::Any
             | typed_ir::Type::Union(_)
             | typed_ir::Type::Inter(_)
             | typed_ir::Type::Record(_)
-            | typed_ir::Type::Variant(_)
             | typed_ir::Type::Recursive { .. } => Ok(()),
         }
     }
@@ -367,6 +372,9 @@ impl TypeGraph {
                     tail: upper_tail,
                 },
             ) => self.constrain_row(lower_items, *lower_tail, upper_items, *upper_tail),
+            (typed_ir::Type::Variant(lower), typed_ir::Type::Variant(upper)) => {
+                self.constrain_variant(lower, upper)
+            }
             _ => Ok(false),
         }
     }
@@ -504,6 +512,65 @@ impl TypeGraph {
         let lower_residual = effect_row_from_items_and_tail(unmatched_left, lower_tail);
         let upper_residual = effect_row_from_items_and_tail(unmatched_right, upper_tail);
         changed |= self.apply_subtype_constraint(lower_residual, upper_residual)?;
+        Ok(changed)
+    }
+
+    fn collect_variant(
+        &mut self,
+        template: &typed_ir::VariantType,
+        actual: &typed_ir::VariantType,
+        side: BoundSide,
+    ) -> FinalizeResult<()> {
+        for template_case in &template.cases {
+            let Some(actual_case) = find_variant_case(actual, &template_case.name) else {
+                if actual.tail.is_none() && side == BoundSide::Lower {
+                    for payload in &template_case.payloads {
+                        self.collect_core(payload, &typed_ir::Type::Never, BoundSide::Lower)?;
+                        self.collect_core(payload, &typed_ir::Type::Never, BoundSide::Upper)?;
+                    }
+                }
+                continue;
+            };
+            if template_case.payloads.len() != actual_case.payloads.len() {
+                continue;
+            }
+            for (template, actual) in template_case.payloads.iter().zip(&actual_case.payloads) {
+                self.collect_core(template, actual, side)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn constrain_variant(
+        &mut self,
+        lower: typed_ir::VariantType,
+        upper: typed_ir::VariantType,
+    ) -> FinalizeResult<bool> {
+        let mut changed = false;
+        for lower_case in &lower.cases {
+            let Some(upper_case) = find_variant_case(&upper, &lower_case.name) else {
+                continue;
+            };
+            if lower_case.payloads.len() != upper_case.payloads.len() {
+                continue;
+            }
+            for (lower, upper) in lower_case.payloads.iter().zip(&upper_case.payloads) {
+                changed |= self.apply_subtype_constraint(lower.clone(), upper.clone())?;
+            }
+        }
+        if lower.tail.is_none() {
+            for upper_case in &upper.cases {
+                if find_variant_case(&lower, &upper_case.name).is_some() {
+                    continue;
+                }
+                for payload in &upper_case.payloads {
+                    changed |=
+                        self.apply_subtype_constraint(typed_ir::Type::Never, payload.clone())?;
+                    changed |=
+                        self.apply_subtype_constraint(payload.clone(), typed_ir::Type::Never)?;
+                }
+            }
+        }
         Ok(changed)
     }
 
@@ -1677,6 +1744,13 @@ fn split_row_items<'a>(
     }
 }
 
+fn find_variant_case<'a>(
+    variant: &'a typed_ir::VariantType,
+    name: &typed_ir::Name,
+) -> Option<&'a typed_ir::VariantCase> {
+    variant.cases.iter().find(|case| &case.name == name)
+}
+
 fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
     match (left, right) {
         (
@@ -2238,6 +2312,34 @@ mod tests {
     }
 
     #[test]
+    fn variant_subtype_solves_present_payloads_and_bottoms_absent_upper_payloads() {
+        let mut graph = TypeGraph::default();
+        let ok_var = typed_ir::TypeVar("ok".into());
+        let err_var = typed_ir::TypeVar("err".into());
+        graph.slots.entry(ok_var.clone()).or_default();
+        graph.slots.entry(err_var.clone()).or_default();
+
+        graph
+            .constrain_subtype(
+                variant_type(&[("ok", vec![int_type()])]),
+                variant_type(&[
+                    ("ok", vec![typed_ir::Type::Var(ok_var.clone())]),
+                    ("err", vec![typed_ir::Type::Var(err_var.clone())]),
+                    ("pending", Vec::new()),
+                ]),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&ok_var), Some(&int_type()));
+        assert_eq!(
+            solution.solution_for(&err_var),
+            Some(&typed_ir::Type::Never)
+        );
+        assert!(solution.is_complete());
+    }
+
+    #[test]
     fn materialized_union_drops_bottom_and_singleton() {
         let ty = materialize_core_type(
             typed_ir::Type::Union(vec![typed_ir::Type::Never, int_type()]),
@@ -2511,6 +2613,19 @@ mod tests {
 
     fn never_type() -> typed_ir::Type {
         typed_ir::Type::Never
+    }
+
+    fn variant_type(cases: &[(&str, Vec<typed_ir::Type>)]) -> typed_ir::Type {
+        typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: cases
+                .iter()
+                .map(|(name, payloads)| typed_ir::VariantCase {
+                    name: typed_ir::Name((*name).to_string()),
+                    payloads: payloads.clone(),
+                })
+                .collect(),
+            tail: None,
+        })
     }
 
     fn fun_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {

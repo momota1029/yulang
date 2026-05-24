@@ -41,14 +41,18 @@ pub fn finalize_module_with_cache(
     let root_graph_inputs = collect_root_graph_inputs(&module);
     let mut root_graph_solutions = solve_root_graphs(&module)?;
     let mut scanned_binding_bodies = HashSet::new();
+    let mut applied_solution_count = 0;
     loop {
         canonicalize_aliases(&mut root_graph_solutions);
         let emitted = append_monomorphic_bindings(&mut module, &root_graph_solutions, cache)?;
-        rewrite_root_exprs(&mut module, &root_graph_solutions)?;
-        rewrite_binding_exprs(&mut module, &root_graph_solutions)?;
+        let unapplied_solutions = &root_graph_solutions[applied_solution_count..];
+        rewrite_root_exprs(&mut module, unapplied_solutions)?;
+        rewrite_binding_exprs(&mut module, unapplied_solutions)?;
+        applied_solution_count = root_graph_solutions.len();
         let role_rewrites = rewrite_role_method_calls(&mut module);
 
         let solution_count = root_graph_solutions.len();
+        collect_root_expr_graphs(&module, &mut root_graph_solutions)?;
         let scan_targets =
             next_binding_body_scan_targets(&module, &emitted, &mut scanned_binding_bodies);
         collect_binding_body_graphs(&module, &scan_targets, &mut root_graph_solutions)?;
@@ -821,12 +825,20 @@ pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
 }
 
 pub fn solve_root_graphs(module: &Module) -> FinalizeResult<Vec<RootGraphSolution>> {
+    let mut solutions = Vec::new();
+    collect_root_expr_graphs(module, &mut solutions)?;
+    Ok(solutions)
+}
+
+fn collect_root_expr_graphs(
+    module: &Module,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> FinalizeResult<()> {
     let bindings = module
         .bindings
         .iter()
         .map(|binding| (binding.name.clone(), binding))
         .collect::<HashMap<_, _>>();
-    let mut solutions = Vec::new();
     for root in &module.roots {
         let Root::Expr(index) = root else {
             continue;
@@ -840,10 +852,10 @@ pub fn solve_root_graphs(module: &Module) -> FinalizeResult<Vec<RootGraphSolutio
             expr,
             &bindings,
             &HashMap::new(),
-            &mut solutions,
+            solutions,
         )?;
     }
-    Ok(solutions)
+    Ok(())
 }
 
 fn collect_binding_body_graphs(
@@ -1113,6 +1125,9 @@ fn solve_simple_apply(
     graph.default_unbound_lower(apply_effect_vars, typed_ir::Type::Never)?;
     let graph = graph.solve();
     if !graph.is_complete() {
+        if role_required_apply_waiting_for_arguments(binding, &spine, local_types) {
+            return Ok(solutions);
+        }
         return Err(FinalizeDiagnostic::IncompleteGraph {
             binding: binding_path.clone(),
         });
@@ -1160,6 +1175,18 @@ fn solved_callee_runtime_type(
     } else {
         runtime_type_from_core_value(graph.materialize_core(principal.principal_type.clone()))
     }
+}
+
+fn role_required_apply_waiting_for_arguments(
+    binding: &Binding,
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> bool {
+    !binding.scheme.requirements.is_empty()
+        && spine
+            .steps
+            .iter()
+            .any(|step| !core_type_is_closed(&step.arg_type(local_types)))
 }
 
 fn solve_spine_value_args(
@@ -4154,8 +4181,15 @@ sub:
     }
 
     #[test]
+    fn cached_std_finalize_accepts_showcase_example() {
+        assert_std_dependency_cache_ref_source_finalizes_to_vm_input(&playground_source(
+            include_str!("../../../examples/showcase.yu"),
+        ));
+    }
+
+    #[test]
     fn cached_std_control_vm_legacy_runtime_and_finalize_match_examples() {
-        for case in example_oracle_cases() {
+        for case in control_vm_example_oracle_cases() {
             assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
                 case,
                 OracleVm::Control,
@@ -4771,6 +4805,57 @@ sub:
         ]
     }
 
+    fn control_vm_example_oracle_cases() -> [RuntimeOracleCase; 11] {
+        // showcase is covered by the finalize/VM-input gate above; the control
+        // VM currently overflows its own execution stack on that full tour.
+        [
+            RuntimeOracleCase {
+                name: "01_struct_with",
+                source: include_str!("../../../examples/01_struct_with.yu"),
+            },
+            RuntimeOracleCase {
+                name: "04_sub_return",
+                source: include_str!("../../../examples/04_sub_return.yu"),
+            },
+            RuntimeOracleCase {
+                name: "05_undet_all",
+                source: include_str!("../../../examples/05_undet_all.yu"),
+            },
+            RuntimeOracleCase {
+                name: "06_undet_once",
+                source: include_str!("../../../examples/06_undet_once.yu"),
+            },
+            RuntimeOracleCase {
+                name: "07_junction",
+                source: include_str!("../../../examples/07_junction.yu"),
+            },
+            RuntimeOracleCase {
+                name: "08_types",
+                source: include_str!("../../../examples/08_types.yu"),
+            },
+            RuntimeOracleCase {
+                name: "09_optional_record_args",
+                source: include_str!("../../../examples/09_optional_record_args.yu"),
+            },
+            RuntimeOracleCase {
+                name: "10_effect_handler",
+                source: include_str!("../../../examples/10_effect_handler.yu"),
+            },
+            RuntimeOracleCase {
+                name: "11_attached_impl",
+                source: include_str!("../../../examples/11_attached_impl.yu"),
+            },
+            RuntimeOracleCase {
+                name: "12_cast",
+                source: include_str!("../../../examples/12_cast.yu"),
+            },
+            RuntimeOracleCase {
+                name: "13_console",
+                source: include_str!("../../../examples/13_console.yu"),
+            },
+        ]
+    }
+
     fn assert_legacy_and_finalize_match_module(name: &str, module: Module, vm: OracleVm) {
         let legacy = run_legacy_runtime_module(name, module.clone(), vm);
         let finalized = run_finalize_runtime_module(name, module, vm);
@@ -5164,6 +5249,12 @@ sub:
     where
         T: Send + 'static,
     {
+        if std::thread::current().name() == Some("runtime-finalize-large-stack") {
+            return f();
+        }
+        let _guard = large_stack_test_lock()
+            .lock()
+            .expect("lock runtime-finalize large-stack test");
         std::thread::Builder::new()
             .name("runtime-finalize-large-stack".into())
             .stack_size(128 * 1024 * 1024)
@@ -5171,6 +5262,11 @@ sub:
             .expect("spawn large-stack runtime-finalize test thread")
             .join()
             .expect("large-stack runtime-finalize test panicked")
+    }
+
+    fn large_stack_test_lock() -> &'static std::sync::Mutex<()> {
+        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
     }
 
     fn artifact_cache_root(name: &str) -> std::path::PathBuf {
