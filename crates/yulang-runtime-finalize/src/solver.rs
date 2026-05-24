@@ -7,6 +7,7 @@ use crate::{
     CachedFinalizeInstance, FinalizeDiagnostic, FinalizeInstanceCache, FinalizeInstanceKey,
     FinalizeMonomorphizeError, FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput,
     RootGraphSolution, TypeGraph,
+    graph::should_thunk_effect,
     graph::{TypeCastOrder, runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
     materialize_core_type, materialize_runtime_type,
     output::RootGraphRoot,
@@ -1749,9 +1750,6 @@ fn solve_simple_apply(
     let Some(binding) = bindings.get(binding_path) else {
         return Ok(Vec::new());
     };
-    if binding.type_params.is_empty() {
-        return Ok(Vec::new());
-    }
     let mut solutions = solve_spine_value_args(
         owner.clone(),
         &spine,
@@ -1760,6 +1758,20 @@ fn solve_simple_apply(
         cast_order,
         alias_index,
     )?;
+    if binding.type_params.is_empty() {
+        if let Some(solution) = solve_monomorphic_contextual_apply(
+            owner,
+            expr,
+            binding_path,
+            binding,
+            &spine,
+            local_types,
+            alias_index + solutions.len(),
+        ) {
+            solutions.push(solution);
+        }
+        return Ok(solutions);
+    }
     let mut graph = TypeGraph::with_cast_order(cast_order.clone());
     let principal = graph.instantiate_principal(binding);
     let role_required_binding = !binding.scheme.requirements.is_empty();
@@ -1777,16 +1789,22 @@ fn solve_simple_apply(
     }
     let mut current = principal.principal_type.clone();
     let mut current_template = principal.principal_type.clone();
+    let mut apply_value_vars = BTreeSet::new();
     let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
         let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
         let template_return = role_required_binding
             .then(|| function_return_template_parts(&current_template))
             .flatten();
-        let result = template_return
-            .as_ref()
-            .map(|(result, _)| result.clone())
-            .unwrap_or_else(|| graph.fresh_hole("apply"));
+        let result = if let Some((result, _)) = &template_return {
+            result.clone()
+        } else {
+            let result = graph.fresh_hole("apply");
+            if let typed_ir::Type::Var(var) = &result {
+                apply_value_vars.insert(var.clone());
+            }
+            result
+        };
         let result_effect = template_return
             .as_ref()
             .map(|(_, effect)| effect.clone())
@@ -1806,6 +1824,8 @@ fn solve_simple_apply(
         current_template =
             function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
     }
+    default_spine_evidence_substitutions(&mut graph, &principal, &spine.steps)?;
+    graph.default_unbound_lower(apply_value_vars, typed_ir::Type::Unknown)?;
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     graph.default_unbound_lower(apply_effect_vars, typed_ir::Type::Never)?;
     let solved = graph.clone().solve();
@@ -1825,12 +1845,15 @@ fn solve_simple_apply(
             binding: binding_path.clone(),
         });
     }
-    let callee_type = solved_callee_runtime_type(binding, &principal, &graph);
     let result_type = if role_required_binding {
         runtime_type_from_core_value(graph.materialize_core(current))
     } else {
         solved_expr_result_type(&expr.ty, &graph, current)
     };
+    let callee_type = solved_callee_runtime_type(binding, &principal, &graph);
+    let callee_type = restore_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
+    let callee_type =
+        refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
     let type_substitutions = principal.original_substitutions(&graph);
     solutions.push(RootGraphSolution {
         root: owner,
@@ -1843,6 +1866,148 @@ fn solve_simple_apply(
         type_substitutions,
     });
     Ok(solutions)
+}
+
+fn solve_monomorphic_contextual_apply(
+    owner: RootGraphRoot,
+    expr: &Expr,
+    binding_path: &typed_ir::Path,
+    binding: &Binding,
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    alias_index: usize,
+) -> Option<RootGraphSolution> {
+    if !binding_handles_first_param(binding) {
+        return None;
+    }
+    let base_callee_type = binding.body.ty.clone();
+    let callee_type =
+        restore_apply_spine_arg_effects(base_callee_type.clone(), &spine.steps, local_types);
+    if callee_type == base_callee_type || !runtime_type_is_closed(&callee_type) {
+        return None;
+    }
+    let result_type = expr_lower_type(expr, local_types);
+    let result_type = if runtime_type_is_closed(&result_type) {
+        result_type
+    } else {
+        runtime_spine_return(&callee_type, spine.steps.len())?
+    };
+    let callee_type =
+        refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
+    Some(RootGraphSolution {
+        root: owner,
+        occurrence: alias_index,
+        binding: binding_path.clone(),
+        alias: alias_path(binding_path, alias_index),
+        callee_type,
+        result_type,
+        graph: crate::GraphSolution {
+            type_vars: Vec::new(),
+        },
+        type_substitutions: Vec::new(),
+    })
+}
+
+fn binding_handles_first_param(binding: &Binding) -> bool {
+    let ExprKind::Lambda { param, body, .. } = &binding.body.kind else {
+        return false;
+    };
+    let param_path = path_from_name(param);
+    expr_handles_path(body, &param_path)
+}
+
+fn expr_handles_path(expr: &Expr, path: &typed_ir::Path) -> bool {
+    match &expr.kind {
+        ExprKind::Handle { body, arms, .. } => {
+            expr_references_path(body, path)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| expr_handles_path(guard, path))
+                        || expr_handles_path(&arm.body, path)
+                })
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. }
+        | ExprKind::Thunk { expr: body, .. } => expr_handles_path(body, path),
+        ExprKind::Apply { callee, arg, .. } => {
+            expr_handles_path(callee, path) || expr_handles_path(arg, path)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_handles_path(cond, path)
+                || expr_handles_path(then_branch, path)
+                || expr_handles_path(else_branch, path)
+        }
+        ExprKind::Tuple(items) => items.iter().any(|item| expr_handles_path(item, path)),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| expr_handles_path(&field.value, path))
+                || spread
+                    .as_ref()
+                    .is_some_and(|spread| record_spread_expr_handles_path(spread, path))
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_ref()
+            .is_some_and(|value| expr_handles_path(value, path)),
+        ExprKind::Select { base, .. } => expr_handles_path(base, path),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            expr_handles_path(scrutinee, path)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| expr_handles_path(guard, path))
+                        || expr_handles_path(&arm.body, path)
+                })
+        }
+        ExprKind::Block { stmts, tail } => {
+            stmts.iter().any(|stmt| stmt_handles_path(stmt, path))
+                || tail
+                    .as_ref()
+                    .is_some_and(|tail| expr_handles_path(tail, path))
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => false,
+    }
+}
+
+fn expr_references_path(expr: &Expr, path: &typed_ir::Path) -> bool {
+    let mut paths = Vec::new();
+    collect_expr_paths(expr, &mut paths);
+    paths.iter().any(|candidate| candidate == path)
+}
+
+fn record_spread_expr_handles_path(
+    spread: &yulang_runtime_ir::RecordSpreadExpr,
+    path: &typed_ir::Path,
+) -> bool {
+    match spread {
+        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => expr_handles_path(expr, path),
+    }
+}
+
+fn stmt_handles_path(stmt: &yulang_runtime_ir::Stmt, path: &typed_ir::Path) -> bool {
+    match stmt {
+        yulang_runtime_ir::Stmt::Let { value, .. }
+        | yulang_runtime_ir::Stmt::Expr(value)
+        | yulang_runtime_ir::Stmt::Module { body: value, .. } => expr_handles_path(value, path),
+    }
 }
 
 fn solved_expr_result_type(
@@ -1863,14 +2028,214 @@ fn solved_callee_runtime_type(
     principal: &crate::PrincipalInstance,
     graph: &crate::GraphSolution,
 ) -> RuntimeType {
+    let principal_runtime =
+        runtime_type_from_core_value(graph.materialize_core(principal.principal_type.clone()));
     let materialized = materialize_runtime_type(
         binding.body.ty.clone(),
         &principal.original_substitutions(graph),
     );
     if runtime_type_is_closed(&materialized) {
-        materialized
+        restore_runtime_effect_boundaries(materialized, &principal_runtime)
     } else {
-        runtime_type_from_core_value(graph.materialize_core(principal.principal_type.clone()))
+        principal_runtime
+    }
+}
+
+fn restore_runtime_effect_boundaries(base: RuntimeType, principal: &RuntimeType) -> RuntimeType {
+    match (base, principal) {
+        (
+            RuntimeType::Fun { param, ret },
+            RuntimeType::Fun {
+                param: principal_param,
+                ret: principal_ret,
+            },
+        ) => RuntimeType::Fun {
+            param: Box::new(restore_runtime_effect_boundaries(*param, principal_param)),
+            ret: Box::new(restore_runtime_effect_boundaries(*ret, principal_ret)),
+        },
+        (
+            RuntimeType::Thunk { effect, value },
+            RuntimeType::Thunk {
+                effect: principal_effect,
+                value: principal_value,
+            },
+        ) => RuntimeType::Thunk {
+            effect: if should_thunk_effect(principal_effect) {
+                principal_effect.clone()
+            } else {
+                effect
+            },
+            value: Box::new(restore_runtime_effect_boundaries(*value, principal_value)),
+        },
+        (
+            base,
+            RuntimeType::Thunk {
+                effect,
+                value: principal_value,
+            },
+        ) if should_thunk_effect(effect)
+            && runtime_effect_boundary_value_matches(&base, principal_value) =>
+        {
+            RuntimeType::Thunk {
+                effect: effect.clone(),
+                value: Box::new(restore_runtime_effect_boundaries(base, principal_value)),
+            }
+        }
+        (base, _) => base,
+    }
+}
+
+fn runtime_effect_boundary_value_matches(base: &RuntimeType, principal: &RuntimeType) -> bool {
+    if base == principal {
+        return true;
+    }
+    let base = runtime_type_to_core(base.clone());
+    let principal = runtime_type_to_core(principal.clone());
+    core_subtype_match_score(&base, &principal).is_some()
+        || core_subtype_match_score(&principal, &base).is_some()
+}
+
+fn restore_apply_spine_arg_effects(
+    callee: RuntimeType,
+    steps: &[ApplyStep<'_>],
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> RuntimeType {
+    let Some((step, rest)) = steps.split_first() else {
+        return callee;
+    };
+    let RuntimeType::Fun { param, ret } = callee else {
+        return callee;
+    };
+    let (arg_value, arg_effect) = step.arg_type_and_effect(local_types);
+    let param = restore_apply_arg_effect(*param, arg_value, arg_effect);
+    RuntimeType::Fun {
+        param: Box::new(param),
+        ret: Box::new(restore_apply_spine_arg_effects(*ret, rest, local_types)),
+    }
+}
+
+fn restore_apply_arg_effect(
+    param: RuntimeType,
+    arg_value: typed_ir::Type,
+    arg_effect: typed_ir::Type,
+) -> RuntimeType {
+    if !should_thunk_effect(&arg_effect) || matches!(param, RuntimeType::Thunk { .. }) {
+        return param;
+    }
+    let param_value = runtime_type_to_core(param.clone());
+    if core_subtype_match_score(&arg_value, &param_value).is_none()
+        && core_subtype_match_score(&param_value, &arg_value).is_none()
+    {
+        return param;
+    }
+    RuntimeType::Thunk {
+        effect: arg_effect,
+        value: Box::new(param),
+    }
+}
+
+fn runtime_spine_return(callee: &RuntimeType, arity: usize) -> Option<RuntimeType> {
+    if arity == 0 {
+        return Some(callee.clone());
+    }
+    let RuntimeType::Fun { ret, .. } = callee else {
+        return None;
+    };
+    runtime_spine_return(ret, arity - 1)
+}
+
+fn refine_runtime_spine_return(
+    callee: RuntimeType,
+    arity: usize,
+    result_type: RuntimeType,
+) -> RuntimeType {
+    if arity == 0 {
+        return callee;
+    }
+    let RuntimeType::Fun { param, ret } = callee else {
+        return callee;
+    };
+    let ret = if arity == 1 {
+        if runtime_return_needs_result_refinement(&ret) {
+            result_type
+        } else {
+            *ret
+        }
+    } else {
+        refine_runtime_spine_return(*ret, arity - 1, result_type)
+    };
+    RuntimeType::Fun {
+        param,
+        ret: Box::new(ret),
+    }
+}
+
+fn runtime_return_needs_result_refinement(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => true,
+        RuntimeType::Core(ty) => core_type_contains_non_runtime_choice(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_return_needs_result_refinement(param)
+                || runtime_return_needs_result_refinement(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_contains_non_runtime_choice(effect)
+                || runtime_return_needs_result_refinement(value)
+        }
+    }
+}
+
+fn core_type_contains_non_runtime_choice(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => true,
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(ty) => core_type_contains_non_runtime_choice(ty),
+            typed_ir::TypeArg::Bounds(bounds) => {
+                bounds
+                    .lower
+                    .as_deref()
+                    .is_some_and(core_type_contains_non_runtime_choice)
+                    || bounds
+                        .upper
+                        .as_deref()
+                        .is_some_and(core_type_contains_non_runtime_choice)
+            }
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_contains_non_runtime_choice(param)
+                || core_type_contains_non_runtime_choice(param_effect)
+                || core_type_contains_non_runtime_choice(ret_effect)
+                || core_type_contains_non_runtime_choice(ret)
+        }
+        typed_ir::Type::Tuple(items) => items.iter().any(core_type_contains_non_runtime_choice),
+        typed_ir::Type::Record(record) => record
+            .fields
+            .iter()
+            .any(|field| core_type_contains_non_runtime_choice(&field.value)),
+        typed_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(core_type_contains_non_runtime_choice)
+            }) || variant
+                .tail
+                .as_deref()
+                .is_some_and(core_type_contains_non_runtime_choice)
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_contains_non_runtime_choice)
+                || core_type_contains_non_runtime_choice(tail)
+        }
+        typed_ir::Type::Recursive { body, .. } => core_type_contains_non_runtime_choice(body),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => false,
     }
 }
 
@@ -2390,6 +2755,49 @@ fn collect_spine_substitution(
     graph.constrain_subtype(ty.clone(), typed_ir::Type::Var(param.fresh.clone()))
 }
 
+fn default_spine_evidence_substitutions(
+    graph: &mut TypeGraph,
+    principal: &crate::PrincipalInstance,
+    steps: &[ApplyStep<'_>],
+) -> FinalizeResult<()> {
+    for step in steps {
+        let Some(evidence) = step.evidence else {
+            continue;
+        };
+        for substitution in &evidence.substitutions {
+            default_spine_evidence_substitution(
+                graph,
+                principal,
+                &substitution.var,
+                &substitution.ty,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn default_spine_evidence_substitution(
+    graph: &mut TypeGraph,
+    principal: &crate::PrincipalInstance,
+    var: &typed_ir::TypeVar,
+    ty: &typed_ir::Type,
+) -> FinalizeResult<()> {
+    let Some(param) = principal
+        .type_params
+        .iter()
+        .find(|param| param.original == *var)
+    else {
+        return Ok(());
+    };
+    let is_unbound = graph
+        .slot(&param.fresh)
+        .is_some_and(|slot| slot.lower.is_none() && slot.upper.is_none());
+    if is_unbound {
+        graph.constrain_subtype(ty.clone(), typed_ir::Type::Var(param.fresh.clone()))?;
+    }
+    Ok(())
+}
+
 fn function_return_template(ty: typed_ir::Type) -> Option<typed_ir::Type> {
     let typed_ir::Type::Fun { ret, .. } = ty else {
         return None;
@@ -2487,8 +2895,16 @@ impl ApplyStep<'_> {
         &self,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
     ) -> (typed_ir::Type, typed_ir::Type) {
+        if let Some((value, effect)) = bind_here_arg_type_and_effect(self.arg, local_types) {
+            return (value, effect);
+        }
         let runtime_ty = expr_lower_type(self.arg, local_types);
         if let RuntimeType::Thunk { effect, value } = &runtime_ty {
+            if runtime_type_is_never_value(value)
+                && let Some(arg_type) = effect_carrier_value_hint(effect)
+            {
+                return (arg_type, typed_ir::Type::Never);
+            }
             let value_is_closed = runtime_type_is_closed(value);
             let arg_type = if value_is_closed {
                 runtime_type_to_core((**value).clone())
@@ -2533,8 +2949,16 @@ impl ApplyStep<'_> {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { effect, value } => {
                 if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
-                    graph.constrain_subtype(result, runtime_type_to_core(*value))?;
+                    graph.constrain_subtype(result, runtime_type_to_core((*value).clone()))?;
                 }
+                let evidence_returns_never = self
+                    .evidence
+                    .is_some_and(apply_evidence_returns_never_value);
+                let effect = if evidence_returns_never || runtime_type_is_never_value(&value) {
+                    effect_carrier_value_hint(&effect).unwrap_or(effect)
+                } else {
+                    effect
+                };
                 if matches!(effect, typed_ir::Type::Never | typed_ir::Type::Unknown) {
                     Ok(())
                 } else {
@@ -2544,6 +2968,49 @@ impl ApplyStep<'_> {
             ty if evidence_value_bound && runtime_type_value_is_function(&ty) => Ok(()),
             ty => graph.constrain_subtype(result, runtime_type_to_core(ty)),
         }
+    }
+}
+
+fn bind_here_arg_type_and_effect(
+    arg: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let ExprKind::BindHere { expr } = &arg.kind else {
+        return None;
+    };
+    expr_value_and_effect(expr, local_types)
+}
+
+fn expr_value_and_effect(
+    expr: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    if let RuntimeType::Thunk { effect, value } = expr_lower_type(expr, local_types) {
+        let value = runtime_type_to_core(*value);
+        let effect = closed_or_empty_effect(effect);
+        return Some((value, effect));
+    }
+    let ExprKind::Apply { evidence, .. } = &expr.kind else {
+        return None;
+    };
+    let evidence = evidence.as_ref()?;
+    let value = type_from_bounds(&evidence.result)
+        .filter(core_type_is_closed)
+        .or_else(|| {
+            let value = runtime_type_to_core(expr_lower_type(expr, local_types));
+            core_type_is_closed(&value).then_some(value)
+        })?;
+    let effect = apply_evidence_return_effect(evidence)
+        .map(closed_or_empty_effect)
+        .unwrap_or(typed_ir::Type::Never);
+    Some((value, effect))
+}
+
+fn closed_or_empty_effect(effect: typed_ir::Type) -> typed_ir::Type {
+    if core_type_is_closed(&effect) {
+        effect
+    } else {
+        typed_ir::Type::Never
     }
 }
 
@@ -2601,11 +3068,63 @@ fn function_ret_effect(ty: &typed_ir::Type) -> Option<&typed_ir::Type> {
     Some(ret_effect)
 }
 
+fn apply_evidence_return_effect(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    apply_evidence_return_value(evidence).and_then(|ty| match ty {
+        typed_ir::Type::Fun { ret_effect, .. } => Some(*ret_effect),
+        _ => None,
+    })
+}
+
+fn apply_evidence_returns_never_value(evidence: &typed_ir::ApplyEvidence) -> bool {
+    apply_evidence_return_value(evidence).is_some_and(|ty| match ty {
+        typed_ir::Type::Fun { ret, .. } => matches!(*ret, typed_ir::Type::Never),
+        _ => false,
+    })
+}
+
+fn apply_evidence_return_value(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    evidence
+        .expected_callee
+        .as_ref()
+        .and_then(type_from_bounds)
+        .or_else(|| type_from_bounds(&evidence.callee))
+}
+
 fn runtime_type_value_is_function(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. }) => true,
         RuntimeType::Thunk { value, .. } => runtime_type_value_is_function(value),
         RuntimeType::Unknown | RuntimeType::Core(_) => false,
+    }
+}
+
+fn runtime_type_is_never_value(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Core(typed_ir::Type::Never) => true,
+        RuntimeType::Thunk { value, .. } => runtime_type_is_never_value(value),
+        RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Core(_) => false,
+    }
+}
+
+fn effect_carrier_value_hint(effect: &typed_ir::Type) -> Option<typed_ir::Type> {
+    match effect {
+        typed_ir::Type::Named { path, .. } => Some(typed_ir::Type::Named {
+            path: path.clone(),
+            args: Vec::new(),
+        }),
+        typed_ir::Type::Row { items, .. } => items.iter().find_map(effect_carrier_value_hint),
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            items.iter().find_map(effect_carrier_value_hint)
+        }
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record(_)
+        | typed_ir::Type::Variant(_)
+        | typed_ir::Type::Recursive { .. } => None,
     }
 }
 
@@ -3082,14 +3601,16 @@ fn append_monomorphic_bindings(
                     binding: solution.binding.clone(),
                 }
             })?;
+            let scheme_body = runtime_type_to_core(solution.callee_type.clone());
             let scheme = typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: materialize_core_type(
-                    binding.scheme.body.clone(),
-                    &solution.type_substitutions,
-                ),
+                body: scheme_body,
             };
-            let body = materialize_expr(binding.body.clone(), &solution.type_substitutions);
+            let body = materialize_expr_with_expected(
+                binding.body.clone(),
+                &solution.type_substitutions,
+                Some(&solution.callee_type),
+            );
             cache.insert(CachedFinalizeInstance {
                 key,
                 scheme: scheme.clone(),
@@ -4064,12 +4585,19 @@ fn materialize_expr_with_expected(
             param_effect_annotation,
             param_function_allowed_effects,
             body,
-        } => ExprKind::Lambda {
-            param,
-            param_effect_annotation,
-            param_function_allowed_effects,
-            body: Box::new(materialize_expr(*body, substitutions)),
-        },
+        } => {
+            let kind = ExprKind::Lambda {
+                param,
+                param_effect_annotation,
+                param_function_allowed_effects,
+                body: Box::new(materialize_expr(*body, substitutions)),
+            };
+            let ty = expected
+                .filter(|expected| matches!(expected, RuntimeType::Fun { .. }))
+                .cloned()
+                .unwrap_or(ty);
+            return Expr::typed(kind, ty);
+        }
         ExprKind::Apply {
             callee,
             arg,
@@ -4552,38 +5080,67 @@ fn materialize_type_bounds(
     }
 }
 
-fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option<RuntimeType> {
     evidence
         .expected_arg
         .as_ref()
         .and_then(type_from_bounds)
-        .filter(should_materialize_apply_arg_coerce_to)
+        .map(runtime_type_from_core_value)
+        .filter(should_materialize_runtime_apply_arg_to)
 }
 
-fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<typed_ir::Type> {
+fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<RuntimeType> {
     let arg = match ty {
-        RuntimeType::Fun { param, .. } => runtime_type_to_core(param.as_ref().clone()),
-        RuntimeType::Core(typed_ir::Type::Fun { param, .. }) => param.as_ref().clone(),
+        RuntimeType::Fun { param, .. } => param.as_ref().clone(),
+        RuntimeType::Core(typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ..
+        }) => runtime_type_from_core_value_and_effect(
+            param.as_ref().clone(),
+            param_effect.as_ref().clone(),
+        ),
         RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => return None,
     };
-    should_materialize_apply_arg_coerce_to(&arg).then_some(arg)
+    should_materialize_runtime_apply_arg_to(&arg).then_some(arg)
 }
 
-fn should_materialize_apply_arg_coerce_to(ty: &typed_ir::Type) -> bool {
+fn should_materialize_runtime_apply_arg_to(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Core(ty) => should_materialize_core_apply_arg_to(ty),
+        RuntimeType::Thunk { effect, value } => {
+            should_thunk_effect(effect)
+                && runtime_type_is_closed(value)
+                && should_materialize_core_apply_arg_to(&runtime_type_to_core(
+                    value.as_ref().clone(),
+                ))
+        }
+        RuntimeType::Fun { .. } => runtime_type_is_closed(ty),
+        RuntimeType::Unknown => false,
+    }
+}
+
+fn should_materialize_core_apply_arg_to(ty: &typed_ir::Type) -> bool {
     core_type_is_closed(ty) && !matches!(ty, typed_ir::Type::Any | typed_ir::Type::Never)
 }
 
 fn materialize_apply_arg(
     arg: Expr,
     substitutions: &[typed_ir::TypeSubstitution],
-    expected: Option<&typed_ir::Type>,
+    expected: Option<&RuntimeType>,
 ) -> Expr {
-    let arg = materialize_expr(arg, substitutions);
+    let arg = materialize_expr_with_expected(arg, substitutions, expected);
     let Some(expected) = expected else {
         return arg;
     };
+    if let RuntimeType::Thunk { effect, value } = expected {
+        return materialize_thunk_apply_arg(arg, effect, value);
+    }
+    let Some(expected) = expected_core_type(Some(expected)) else {
+        return arg;
+    };
     let actual = runtime_type_to_core(arg.ty.clone());
-    if actual == *expected || matches!(actual, typed_ir::Type::Unknown) {
+    if actual == expected || matches!(actual, typed_ir::Type::Unknown) {
         return arg;
     }
     Expr::typed(
@@ -4592,7 +5149,38 @@ fn materialize_apply_arg(
             to: expected.clone(),
             expr: Box::new(arg),
         },
-        runtime_type_from_core_value(expected.clone()),
+        runtime_type_from_core_value(expected),
+    )
+}
+
+fn materialize_thunk_apply_arg(arg: Expr, effect: &typed_ir::Type, value: &RuntimeType) -> Expr {
+    let expected_core = runtime_type_to_core(value.clone());
+    let actual_core = runtime_type_to_core(arg.ty.clone());
+    if matches!(arg.ty, RuntimeType::Thunk { .. }) {
+        return arg;
+    }
+    let expr = if actual_core == expected_core || matches!(actual_core, typed_ir::Type::Unknown) {
+        arg
+    } else {
+        Expr::typed(
+            ExprKind::Coerce {
+                from: actual_core,
+                to: expected_core,
+                expr: Box::new(arg),
+            },
+            value.clone(),
+        )
+    };
+    Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value: value.clone(),
+            expr: Box::new(expr),
+        },
+        RuntimeType::Thunk {
+            effect: effect.clone(),
+            value: Box::new(value.clone()),
+        },
     )
 }
 
@@ -4781,6 +5369,7 @@ fn solution_instance_key(solution: &RootGraphSolution) -> FinalizeInstanceKey {
     FinalizeInstanceKey {
         binding: solution.binding.clone(),
         substitutions: solution.type_substitutions.clone(),
+        callee_type: solution.callee_type.clone(),
     }
 }
 
@@ -5960,6 +6549,109 @@ sub:
     }
 
     #[test]
+    fn std_no_cache_finalize_runs_reported_graph_unification_regressions() {
+        for case in [
+            PlaygroundCase {
+                name: "handler function preserves effectful argument boundary",
+                source: r#"act log:
+    pub put: str -> ()
+
+my collect_logs comp = catch comp:
+    log::put _, k -> k ()
+    v -> v
+
+collect_logs: log::put "a"
+"#,
+                stdout: "",
+                results: &["()"],
+            },
+            PlaygroundCase {
+                name: "handler function with state preserves effectful argument boundary",
+                source: r#"act log:
+    pub put: str -> ()
+
+my collect_logs comp =
+    my $count = 0
+    catch comp:
+        log::put _, k ->
+            &count = $count + 1
+            k ()
+        v -> v
+    $count
+
+collect_logs: log::put "a"
+"#,
+                stdout: "",
+                results: &["1"],
+            },
+            PlaygroundCase {
+                name: "record pattern field receiver feeds role method",
+                source: r#"my f { port: p } = p.show
+f { port: 8080 }
+"#,
+                stdout: "",
+                results: &["\"8080\""],
+            },
+            PlaygroundCase {
+                name: "record default field receiver feeds role method",
+                source: r#"my f { port = 80 } = port.show
+f {}
+"#,
+                stdout: "",
+                results: &["\"80\""],
+            },
+            PlaygroundCase {
+                name: "list index raw preserves callback function element",
+                source: r#"use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    my hs = [h]
+    ((std::list::index_raw hs) 0)()
+    return 1
+
+sub:
+    my b = g f
+    2
+"#,
+                stdout: "",
+                results: &["0"],
+            },
+            PlaygroundCase {
+                name: "error wrap fail flow keeps carrier and payload apart",
+                source: r#"error fs_err:
+    not_found str
+
+my read_or_throw(p: str): [fs_err] str =
+    fail fs_err::not_found p
+
+my safe_read(p: str): result str fs_err = fs_err::wrap:
+    read_or_throw p
+
+safe_read "missing"
+"#,
+                stdout: "",
+                results: &["err not_found \"missing\""],
+            },
+            PlaygroundCase {
+                name: "inline conditional wrap keeps error carrier and payload apart",
+                source: r#"error fail_err:
+    bad str
+
+fail_err::wrap:
+    if true: fail fail_err::bad "x"
+    else: 1
+"#,
+                stdout: "",
+                results: &["err bad \"x\""],
+            },
+        ] {
+            assert_std_source_no_cache_finalizes_to_results(case);
+        }
+    }
+
+    #[test]
     #[ignore = "diagnostic: report typed/untyped expression coverage"]
     fn rina_finalize_type_coverage_report() {
         let src = r#"{
@@ -6536,9 +7228,14 @@ sub:
 
     fn assert_playground_case_finalizes(case: PlaygroundCase) {
         let source = playground_source(case.source);
+        assert_std_source_finalizes_to_results_owned(case.name, source, case.stdout, case.results);
+    }
+
+    fn assert_std_source_no_cache_finalizes_to_results(case: PlaygroundCase) {
+        let source = case.source.to_string();
         run_with_large_stack(move || {
-            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&source);
-            let output = finalize_module(cached.module)
+            let module = runtime_module_from_source_with_std_no_cache(&source);
+            let output = finalize_module(module)
                 .unwrap_or_else(|error| panic!("{} finalize failed: {error:?}", case.name));
             let vm = yulang_vm::compile_vm_module(output.module)
                 .unwrap_or_else(|error| panic!("{} VM compile failed: {error:?}", case.name));
@@ -6551,6 +7248,30 @@ sub:
                 .collect::<Vec<_>>();
             assert_eq!(host_output.stdout, case.stdout, "{} stdout", case.name);
             assert_eq!(actual, case.results, "{} roots", case.name);
+        });
+    }
+
+    fn assert_std_source_finalizes_to_results_owned(
+        name: &'static str,
+        source: String,
+        stdout: &'static str,
+        results: &'static [&'static str],
+    ) {
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&source);
+            let output = finalize_module(cached.module)
+                .unwrap_or_else(|error| panic!("{name} finalize failed: {error:?}"));
+            let vm = yulang_vm::compile_vm_module(output.module)
+                .unwrap_or_else(|error| panic!("{name} VM compile failed: {error:?}"));
+            let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
+                .unwrap_or_else(|error| panic!("{name} VM eval failed: {error:?}"));
+            let actual = host_output
+                .results
+                .iter()
+                .map(format_vm_result)
+                .collect::<Vec<_>>();
+            assert_eq!(host_output.stdout, stdout, "{name} stdout");
+            assert_eq!(actual, results, "{name} roots");
         });
     }
 
@@ -6779,6 +7500,24 @@ sub:
             yulang_infer::SourceOptions {
                 std_root: None,
                 implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = yulang_infer::export_core_program(&mut lowered.state);
+        yulang_runtime::lower_core_program(program).unwrap()
+    }
+
+    fn runtime_module_from_source_with_std_no_cache(src: &str) -> Module {
+        let std_root = yulang_sources::resolve_or_install_std_root(None, None)
+            .expect("resolve installed std root")
+            .expect("installed std root should be available");
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            src,
+            None,
+            yulang_infer::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
                 search_paths: Vec::new(),
             },
         )

@@ -238,12 +238,17 @@ impl TypeGraph {
                 };
                 self.collect_variant(template, actual, side)
             }
+            typed_ir::Type::Record(template) => {
+                let typed_ir::Type::Record(actual) = actual else {
+                    return Ok(());
+                };
+                self.collect_record(template, actual, side)
+            }
             typed_ir::Type::Unknown
             | typed_ir::Type::Never
             | typed_ir::Type::Any
             | typed_ir::Type::Union(_)
             | typed_ir::Type::Inter(_)
-            | typed_ir::Type::Record(_)
             | typed_ir::Type::Recursive { .. } => Ok(()),
         }
     }
@@ -408,6 +413,9 @@ impl TypeGraph {
             ) => self.constrain_row(lower_items, *lower_tail, upper_items, *upper_tail, seen),
             (typed_ir::Type::Variant(lower), typed_ir::Type::Variant(upper)) => {
                 self.constrain_variant(lower, upper, seen)
+            }
+            (typed_ir::Type::Record(lower), typed_ir::Type::Record(upper)) => {
+                self.constrain_record(lower, upper, seen)
             }
             _ => Ok(false),
         }
@@ -577,6 +585,25 @@ impl TypeGraph {
         Ok(())
     }
 
+    fn collect_record(
+        &mut self,
+        template: &typed_ir::RecordType,
+        actual: &typed_ir::RecordType,
+        side: BoundSide,
+    ) -> FinalizeResult<()> {
+        for template_field in &template.fields {
+            let Some(actual_field) = actual
+                .fields
+                .iter()
+                .find(|actual| actual.name == template_field.name)
+            else {
+                continue;
+            };
+            self.collect_core(&template_field.value, &actual_field.value, side)?;
+        }
+        Ok(())
+    }
+
     fn constrain_variant(
         &mut self,
         lower: typed_ir::VariantType,
@@ -614,6 +641,30 @@ impl TypeGraph {
                     )?;
                 }
             }
+        }
+        Ok(changed)
+    }
+
+    fn constrain_record(
+        &mut self,
+        lower: typed_ir::RecordType,
+        upper: typed_ir::RecordType,
+        seen: &mut Vec<SubtypeConstraint>,
+    ) -> FinalizeResult<bool> {
+        let mut changed = false;
+        for lower_field in &lower.fields {
+            let Some(upper_field) = upper
+                .fields
+                .iter()
+                .find(|upper| upper.name == lower_field.name)
+            else {
+                continue;
+            };
+            changed |= self.apply_subtype_constraint_inner(
+                lower_field.value.clone(),
+                upper_field.value.clone(),
+                seen,
+            )?;
         }
         Ok(changed)
     }
@@ -2750,6 +2801,24 @@ mod tests {
     }
 
     #[test]
+    fn record_subtype_solves_field_type_variables() {
+        let mut graph = TypeGraph::default();
+        let port_var = typed_ir::TypeVar("port".into());
+        graph.slots.entry(port_var.clone()).or_default();
+
+        graph
+            .constrain_subtype(
+                record_type(&[("port", typed_ir::Type::Var(port_var.clone()))]),
+                record_type(&[("port", int_type())]),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&port_var), Some(&int_type()));
+        assert!(solution.is_complete());
+    }
+
+    #[test]
     fn materialized_union_drops_bottom_and_singleton() {
         let ty = materialize_core_type(
             typed_ir::Type::Union(vec![typed_ir::Type::Never, int_type()]),
@@ -3042,6 +3111,20 @@ mod tests {
                 })
                 .collect(),
             tail: None,
+        })
+    }
+
+    fn record_type(fields: &[(&str, typed_ir::Type)]) -> typed_ir::Type {
+        typed_ir::Type::Record(typed_ir::RecordType {
+            fields: fields
+                .iter()
+                .map(|(name, value)| typed_ir::RecordField {
+                    name: typed_ir::Name((*name).to_string()),
+                    value: value.clone(),
+                    optional: false,
+                })
+                .collect(),
+            spread: None,
         })
     }
 

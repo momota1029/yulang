@@ -11,7 +11,7 @@ use yulang_runtime_ir::{Binding, Expr, ExprKind, Type as RuntimeType};
 use yulang_sources::{CompiledUnitManifest, YulangCachePaths};
 use yulang_typed_ir as typed_ir;
 
-pub const FINALIZE_INSTANCE_CACHE_FORMAT_VERSION: u32 = 1;
+pub const FINALIZE_INSTANCE_CACHE_FORMAT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinalizeInstanceArtifactCache {
@@ -281,6 +281,7 @@ impl Default for FinalizeInstanceCacheSurface {
 pub struct FinalizeInstanceKey {
     pub binding: typed_ir::Path,
     pub substitutions: Vec<typed_ir::TypeSubstitution>,
+    pub callee_type: RuntimeType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -453,7 +454,7 @@ mod tests {
             .expect("write finalize instance cache");
         assert!(
             path.components()
-                .any(|component| component.as_os_str() == "runtime-finalize-v1")
+                .any(|component| component.as_os_str() == "runtime-finalize-v2")
         );
 
         let restored = cache
@@ -489,6 +490,7 @@ mod tests {
                     var: typed_ir::TypeVar("a".into()),
                     ty: int.clone(),
                 }],
+                callee_type: RuntimeType::Core(int.clone()),
             },
             scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
