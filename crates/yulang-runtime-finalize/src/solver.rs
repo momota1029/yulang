@@ -1691,13 +1691,18 @@ fn materialize_expr(expr: Expr, substitutions: &[typed_ir::TypeSubstitution]) ->
                 .collect(),
             evidence: materialize_join_evidence(evidence, substitutions),
         },
-        ExprKind::Block { stmts, tail } => ExprKind::Block {
-            stmts: stmts
+        ExprKind::Block { stmts, tail } => {
+            let stmts = stmts
                 .into_iter()
                 .map(|stmt| materialize_stmt(stmt, substitutions))
-                .collect(),
-            tail: tail.map(|tail| Box::new(materialize_expr(*tail, substitutions))),
-        },
+                .collect();
+            let tail = tail.map(|tail| Box::new(materialize_expr(*tail, substitutions)));
+            let block_ty = tail
+                .as_ref()
+                .map(|tail| tail.ty.clone())
+                .unwrap_or_else(|| RuntimeType::Core(unit_type()));
+            return Expr::typed(ExprKind::Block { stmts, tail }, block_ty);
+        }
         ExprKind::Handle {
             body,
             arms,
@@ -2131,6 +2136,13 @@ fn runtime_type_is_closed(ty: &RuntimeType) -> bool {
         RuntimeType::Thunk { effect, value } => {
             core_type_is_closed(effect) && runtime_type_is_closed(value)
         }
+    }
+}
+
+fn unit_type() -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name("unit".to_string())),
+        args: Vec::new(),
     }
 }
 
@@ -2605,6 +2617,48 @@ mod tests {
                 "1.0".into()
             ))]
         );
+    }
+
+    #[test]
+    fn materialize_block_type_from_tail_before_deciding_bind_here() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let thunk = RuntimeType::Thunk {
+            effect: typed_ir::Type::Never,
+            value: Box::new(RuntimeType::Core(int.clone())),
+        };
+        let stale_block = Expr::typed(
+            ExprKind::Block {
+                stmts: Vec::new(),
+                tail: Some(Box::new(Expr::typed(
+                    ExprKind::Thunk {
+                        effect: typed_ir::Type::Never,
+                        value: RuntimeType::Core(int.clone()),
+                        expr: Box::new(Expr::typed(
+                            ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                            RuntimeType::Core(int.clone()),
+                        )),
+                    },
+                    thunk.clone(),
+                ))),
+            },
+            RuntimeType::Core(int.clone()),
+        );
+        let bind_here = Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(stale_block),
+            },
+            RuntimeType::Core(int),
+        );
+
+        let materialized = materialize_expr(bind_here, &[]);
+        let ExprKind::BindHere { expr } = materialized.kind else {
+            panic!("bind_here should be kept when the materialized block tail is a thunk");
+        };
+
+        assert_eq!(expr.ty, thunk);
     }
 
     #[test]
