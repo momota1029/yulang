@@ -105,6 +105,7 @@ struct CliOptions {
     parse_mode: Option<ParserMode>,
     infer: bool,
     core_ir: bool,
+    runtime_finalize_ir: bool,
     runtime_ir: bool,
     hygiene_ir: bool,
     run_interpreter: bool,
@@ -324,6 +325,9 @@ struct DumpArgs {
     /// Print principal core-ir exported from yulang-infer
     #[arg(long)]
     core_ir: bool,
+    /// Print runtime IR before runtime-finalize and legacy monomorphization
+    #[arg(long)]
+    runtime_finalize_ir: bool,
     /// Print strict typed runtime IR lowered from principal core-ir
     #[arg(long)]
     runtime_ir: bool,
@@ -373,6 +377,7 @@ fn parse_args() -> CliOptions {
         parse_mode: None,
         infer: false,
         core_ir: false,
+        runtime_finalize_ir: false,
         runtime_ir: false,
         hygiene_ir: false,
         run_interpreter: false,
@@ -442,17 +447,19 @@ fn parse_args() -> CliOptions {
         Cmd::Dump(DumpArgs {
             path,
             core_ir,
+            runtime_finalize_ir,
             runtime_ir,
             hygiene_ir,
         }) => {
-            if !core_ir && !runtime_ir && !hygiene_ir {
+            if !core_ir && !runtime_finalize_ir && !runtime_ir && !hygiene_ir {
                 eprintln!(
-                    "yulang dump: specify at least one of --core-ir, --runtime-ir, --hygiene-ir"
+                    "yulang dump: specify at least one of --core-ir, --runtime-finalize-ir, --runtime-ir, --hygiene-ir"
                 );
                 process::exit(2);
             }
             opts.path = path;
             opts.core_ir = core_ir;
+            opts.runtime_finalize_ir = runtime_finalize_ir;
             opts.runtime_ir = runtime_ir;
             opts.hygiene_ir = hygiene_ir;
         }
@@ -1085,6 +1092,7 @@ impl CliOptions {
 
     fn requests_runtime_pipeline(&self) -> bool {
         self.core_ir
+            || self.runtime_finalize_ir
             || self.runtime_ir
             || self.hygiene_ir
             || self.run_interpreter
@@ -1446,8 +1454,23 @@ fn run_infer_views(
                 options.verbose_ir,
             );
         }
-        if options.runtime_ir {
+        if options.runtime_finalize_ir {
             if options.infer || options.core_ir {
+                println!();
+            }
+            println!("runtime-finalize-ir:");
+            let lowered = lower_runtime_finalize_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            print_runtime_module(&lowered.module, options.verbose_ir);
+            if options.runtime_phase_timings {
+                print_runtime_finalize_phase_timings(&lowered.profile);
+            }
+        }
+        if options.runtime_ir {
+            if options.infer || options.core_ir || options.runtime_finalize_ir {
                 println!();
             }
             println!("runtime-ir:");
@@ -1462,7 +1485,8 @@ fn run_infer_views(
             }
         }
         if options.hygiene_ir {
-            if options.infer || options.core_ir || options.runtime_ir {
+            if options.infer || options.core_ir || options.runtime_finalize_ir || options.runtime_ir
+            {
                 println!();
             }
             println!("hygiene-ir:");
@@ -1477,7 +1501,12 @@ fn run_infer_views(
             }
         }
         if options.run_interpreter {
-            if options.infer || options.core_ir || options.runtime_ir || options.hygiene_ir {
+            if options.infer
+                || options.core_ir
+                || options.runtime_finalize_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+            {
                 println!();
             }
             let lowered = lower_runtime_module_or_exit(
@@ -1529,6 +1558,7 @@ fn run_infer_views(
         if options.native_compare_i64 {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1566,6 +1596,7 @@ fn run_infer_views(
         if options.control_vm {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1671,6 +1702,7 @@ fn run_infer_views(
         if options.native_abi_lanes {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1693,6 +1725,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_object {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1717,6 +1750,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_exe {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1741,6 +1775,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_value_exe {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1765,6 +1800,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_run {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1790,6 +1826,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_run_exe {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1815,6 +1852,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_run_value_exe {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1840,6 +1878,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_run_cps_repr_exe {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1866,6 +1905,7 @@ fn run_infer_views(
         if let Some(path) = &options.native_run_mmtk_cps_repr_exe {
             if options.infer
                 || options.core_ir
+                || options.runtime_finalize_ir
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_interpreter
@@ -1913,12 +1953,61 @@ struct RuntimeLowerOutput {
     profile: RuntimePhaseProfile,
 }
 
+struct RuntimeFinalizeLowerOutput {
+    module: runtime::Module,
+    profile: RuntimeFinalizePhaseProfile,
+}
+
 #[derive(Default)]
 struct RuntimePhaseProfile {
     lower: Duration,
     lower_profile: runtime::RuntimeLowerProfile,
     monomorphize: Duration,
     monomorphize_profile: runtime::MonomorphizeProfile,
+}
+
+#[derive(Default)]
+struct RuntimeFinalizePhaseProfile {
+    lower: Duration,
+    lower_profile: runtime::RuntimeLowerProfile,
+}
+
+fn lower_runtime_finalize_module_or_exit(
+    program: &typed_ir::CoreProgram,
+    print_timings: bool,
+    source: &str,
+) -> RuntimeFinalizeLowerOutput {
+    let lower_start = Instant::now();
+    let (module, lower_profile) = if print_timings {
+        match runtime::lower_core_program_profiled(program.clone()) {
+            Ok(output) => (output.module, output.profile),
+            Err(err) => {
+                eprintln!("error: {err}");
+                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                    eprint!("{frame}");
+                }
+                process::exit(1);
+            }
+        }
+    } else {
+        match runtime::lower_core_program(program.clone()) {
+            Ok(module) => (module, runtime::RuntimeLowerProfile::default()),
+            Err(err) => {
+                eprintln!("error: {err}");
+                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                    eprint!("{frame}");
+                }
+                process::exit(1);
+            }
+        }
+    };
+    RuntimeFinalizeLowerOutput {
+        module,
+        profile: RuntimeFinalizePhaseProfile {
+            lower: lower_start.elapsed(),
+            lower_profile,
+        },
+    }
 }
 
 fn lower_runtime_module_or_exit(
@@ -3137,6 +3226,28 @@ fn format_native_abi_repr(repr: &yulang_native::NativeAbiRepr) -> String {
         yulang_native::NativeAbiRepr::ClosurePtr => "ptr:closure".to_string(),
         yulang_native::NativeAbiRepr::Unknown => "unknown".to_string(),
     }
+}
+
+fn print_runtime_finalize_phase_timings(profile: &RuntimeFinalizePhaseProfile) {
+    eprintln!("runtime-finalize phase timings:");
+    eprintln!("    runtime_lower: {}", format_duration(profile.lower));
+    let core_shape = &profile.lower_profile.core_shape;
+    eprintln!(
+        "    core_shape: exprs={}, applies={}, apply_complete={}, apply_partial={}, apply_missing_evidence={}, apply_missing_context={}, apply_missing_principal={}, apply_with_principal={}, apply_with_substitutions={}, apply_with_substitution_candidates={}, apply_with_principal_elaboration={}, apply_principal_elaboration_complete={}, apply_principal_elaboration_incomplete={}",
+        core_shape.exprs,
+        core_shape.applies,
+        core_shape.apply_complete,
+        core_shape.apply_partial,
+        core_shape.apply_missing_evidence,
+        core_shape.apply_missing_context,
+        core_shape.apply_missing_principal,
+        core_shape.apply_with_principal,
+        core_shape.apply_with_substitutions,
+        core_shape.apply_with_substitution_candidates,
+        core_shape.apply_with_principal_elaboration,
+        core_shape.apply_principal_elaboration_complete,
+        core_shape.apply_principal_elaboration_incomplete,
+    );
 }
 
 fn print_runtime_phase_timings(
@@ -4599,6 +4710,7 @@ fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
         && !options.infer
         && !options.infer_phase_timings
         && !options.core_ir
+        && !options.runtime_finalize_ir
         && !options.runtime_ir
         && !options.hygiene_ir
         && !options.run_interpreter
@@ -7550,6 +7662,7 @@ mod tests {
             parse_mode: None,
             infer: true,
             core_ir: false,
+            runtime_finalize_ir: false,
             runtime_ir: false,
             hygiene_ir: false,
             run_interpreter: false,
@@ -7659,6 +7772,17 @@ mod tests {
         options.show_cst = true;
 
         assert!(!options.requests_semantic_pipeline());
+    }
+
+    #[test]
+    fn runtime_finalize_ir_requests_runtime_pipeline() {
+        let mut options = test_cli_options();
+        options.infer = false;
+        options.runtime_finalize_ir = true;
+
+        assert!(options.requests_runtime_pipeline());
+        assert!(options.requests_semantic_pipeline());
+        assert!(!can_use_yuir_source_cache(&options));
     }
 
     #[test]
