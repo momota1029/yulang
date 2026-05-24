@@ -343,6 +343,20 @@ impl TypeGraph {
                 }
                 Ok(changed)
             }
+            (typed_ir::Type::Union(items), upper) => {
+                let mut changed = false;
+                for item in items {
+                    changed |= self.apply_subtype_constraint(item, upper.clone())?;
+                }
+                Ok(changed)
+            }
+            (lower, typed_ir::Type::Inter(items)) => {
+                let mut changed = false;
+                for item in items {
+                    changed |= self.apply_subtype_constraint(lower.clone(), item)?;
+                }
+                Ok(changed)
+            }
             (
                 typed_ir::Type::Row {
                     items: lower_items,
@@ -503,6 +517,7 @@ impl TypeGraph {
             BoundSide::Lower => self.known_lower_or_self(ty),
             BoundSide::Upper => self.known_upper_or_self(ty),
         };
+        ty = normalize_bound_form(&ty);
         if matches!(ty, typed_ir::Type::Unknown) || is_vacuous_bound(&ty, side) {
             return Ok(false);
         }
@@ -713,7 +728,10 @@ pub(crate) fn runtime_type_from_core_value(ty: typed_ir::Type) -> RuntimeType {
             ret_effect,
             ret,
         } => RuntimeType::Fun {
-            param: Box::new(runtime_type_from_core_value_and_effect(*param, *param_effect)),
+            param: Box::new(runtime_type_from_core_value_and_effect(
+                *param,
+                *param_effect,
+            )),
             ret: Box::new(runtime_type_from_core_value_and_effect(*ret, *ret_effect)),
         },
         ty => RuntimeType::Core(ty),
@@ -946,14 +964,43 @@ fn rows_equivalent(
 }
 
 fn push_unique_effect_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
-    if items.iter().any(|existing| effect_items_match(existing, &item)) {
+    if let typed_ir::Type::Row {
+        items: row_items,
+        tail,
+    } = item
+    {
+        if matches!(tail.as_ref(), typed_ir::Type::Never) {
+            for item in row_items {
+                push_unique_effect_item(items, item);
+            }
+            return;
+        }
+        let item = typed_ir::Type::Row {
+            items: row_items,
+            tail,
+        };
+        push_unique_non_row_effect_item(items, item);
+        return;
+    }
+    push_unique_non_row_effect_item(items, item);
+}
+
+fn push_unique_non_row_effect_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
+    if matches!(item, typed_ir::Type::Never) {
+        return;
+    }
+    if items
+        .iter()
+        .any(|existing| effect_items_match(existing, &item))
+    {
         return;
     }
     items.push(item);
 }
 
 fn effect_items_match(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
-    left == right || normalize_bound_form_inner(left, true) == normalize_bound_form_inner(right, true)
+    left == right
+        || normalize_bound_form_inner(left, true) == normalize_bound_form_inner(right, true)
 }
 
 fn push_bound(
@@ -965,6 +1012,13 @@ fn push_bound(
     if let Some(previous) = slot {
         if bounds_are_equivalent(previous, &ty) {
             return Ok(false);
+        }
+        if let Some(merged) = merge_unknown_bounds(previous, &ty) {
+            if bounds_are_equivalent(previous, &merged) {
+                return Ok(false);
+            }
+            *previous = merged;
+            return Ok(true);
         }
         if let Some(merged) = merge_row_bounds(previous, &ty, side) {
             if bounds_are_equivalent(previous, &merged) {
@@ -997,6 +1051,126 @@ fn push_bound(
     }
     *slot = Some(ty);
     Ok(true)
+}
+
+fn merge_unknown_bounds(previous: &typed_ir::Type, ty: &typed_ir::Type) -> Option<typed_ir::Type> {
+    if !type_contains_unknown(previous) && !type_contains_unknown(ty) {
+        return None;
+    }
+    merge_unknown_bounds_inner(previous, ty)
+}
+
+fn merge_unknown_bounds_inner(
+    previous: &typed_ir::Type,
+    ty: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    match (previous, ty) {
+        (typed_ir::Type::Unknown, _) => Some(ty.clone()),
+        (_, typed_ir::Type::Unknown) => Some(previous.clone()),
+        (
+            typed_ir::Type::Named {
+                path: previous_path,
+                args: previous_args,
+            },
+            typed_ir::Type::Named { path, args },
+        ) if previous_path == path && previous_args.len() == args.len() => {
+            Some(typed_ir::Type::Named {
+                path: path.clone(),
+                args: previous_args
+                    .iter()
+                    .zip(args)
+                    .map(|(previous, arg)| merge_unknown_type_arg_bounds(previous, arg))
+                    .collect::<Option<Vec<_>>>()?,
+            })
+        }
+        (
+            typed_ir::Type::Fun {
+                param: previous_param,
+                param_effect: previous_param_effect,
+                ret_effect: previous_ret_effect,
+                ret: previous_ret,
+            },
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+        ) => Some(typed_ir::Type::Fun {
+            param: Box::new(merge_unknown_bounds_inner(previous_param, param)?),
+            param_effect: Box::new(merge_unknown_bounds_inner(
+                previous_param_effect,
+                param_effect,
+            )?),
+            ret_effect: Box::new(merge_unknown_bounds_inner(previous_ret_effect, ret_effect)?),
+            ret: Box::new(merge_unknown_bounds_inner(previous_ret, ret)?),
+        }),
+        (typed_ir::Type::Tuple(previous), typed_ir::Type::Tuple(items))
+            if previous.len() == items.len() =>
+        {
+            Some(typed_ir::Type::Tuple(
+                previous
+                    .iter()
+                    .zip(items)
+                    .map(|(previous, item)| merge_unknown_bounds_inner(previous, item))
+                    .collect::<Option<Vec<_>>>()?,
+            ))
+        }
+        (
+            typed_ir::Type::Row {
+                items: previous_items,
+                tail: previous_tail,
+            },
+            typed_ir::Type::Row { items, tail },
+        ) if previous_items.len() == items.len() => Some(typed_ir::Type::Row {
+            items: previous_items
+                .iter()
+                .zip(items)
+                .map(|(previous, item)| merge_unknown_bounds_inner(previous, item))
+                .collect::<Option<Vec<_>>>()?,
+            tail: Box::new(merge_unknown_bounds_inner(previous_tail, tail)?),
+        }),
+        _ if previous == ty => Some(previous.clone()),
+        _ => None,
+    }
+}
+
+fn merge_unknown_type_arg_bounds(
+    previous: &typed_ir::TypeArg,
+    arg: &typed_ir::TypeArg,
+) -> Option<typed_ir::TypeArg> {
+    match (previous, arg) {
+        (typed_ir::TypeArg::Type(previous), typed_ir::TypeArg::Type(arg)) => Some(
+            typed_ir::TypeArg::Type(merge_unknown_bounds_inner(previous, arg)?),
+        ),
+        (typed_ir::TypeArg::Bounds(previous), typed_ir::TypeArg::Bounds(arg)) => {
+            Some(typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: merge_optional_unknown_bound(
+                    previous.lower.as_deref(),
+                    arg.lower.as_deref(),
+                )?,
+                upper: merge_optional_unknown_bound(
+                    previous.upper.as_deref(),
+                    arg.upper.as_deref(),
+                )?,
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn merge_optional_unknown_bound(
+    previous: Option<&typed_ir::Type>,
+    ty: Option<&typed_ir::Type>,
+) -> Option<Option<Box<typed_ir::Type>>> {
+    match (previous, ty) {
+        (Some(previous), Some(ty)) => {
+            Some(Some(Box::new(merge_unknown_bounds_inner(previous, ty)?)))
+        }
+        (Some(previous), None) => Some(Some(Box::new(previous.clone()))),
+        (None, Some(ty)) => Some(Some(Box::new(ty.clone()))),
+        (None, None) => Some(None),
+    }
 }
 
 fn type_contains_var(ty: &typed_ir::Type) -> bool {
@@ -1108,19 +1282,46 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 .map(|item| normalize_bound_form_inner(item, false))
                 .collect(),
         ),
-        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
-            items
+        typed_ir::Type::Inter(items) => {
+            let mut normalized = Vec::new();
+            for item in items
                 .iter()
                 .map(|item| normalize_bound_form_inner(item, false))
-                .collect(),
-        ),
-        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
-            items: items
+            {
+                if matches!(item, typed_ir::Type::Any) {
+                    continue;
+                }
+                if !normalized
+                    .iter()
+                    .any(|existing| bounds_are_equivalent(existing, &item))
+                {
+                    normalized.push(item);
+                }
+            }
+            match normalized.len() {
+                0 => typed_ir::Type::Any,
+                1 => normalized.pop().unwrap(),
+                _ => typed_ir::Type::Inter(normalized),
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            let mut normalized_items = Vec::new();
+            for item in items
                 .iter()
                 .map(|item| normalize_bound_form_inner(item, true))
-                .collect(),
-            tail: Box::new(normalize_bound_form_inner(tail, false)),
-        },
+            {
+                push_unique_effect_item(&mut normalized_items, item);
+            }
+            let tail = normalize_bound_form_inner(tail, false);
+            if normalized_items.is_empty() {
+                tail
+            } else {
+                typed_ir::Type::Row {
+                    items: normalized_items,
+                    tail: Box::new(tail),
+                }
+            }
+        }
         typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: record
                 .fields
@@ -1998,6 +2199,24 @@ mod tests {
     }
 
     #[test]
+    fn union_lower_constraint_propagates_upper_bound_to_items() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("a".into());
+        graph.slots.entry(var.clone()).or_default();
+
+        graph
+            .constrain_subtype(
+                typed_ir::Type::Union(vec![typed_ir::Type::Var(var.clone()), int_type()]),
+                int_type(),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&var), Some(&int_type()));
+        assert!(solution.is_complete());
+    }
+
+    #[test]
     fn runtime_function_thunks_feed_function_effect_slots() {
         let mut graph = TypeGraph::default();
         let a_var = typed_ir::TypeVar("a".into());
@@ -2073,6 +2292,138 @@ mod tests {
         assert_eq!(
             graph.slot(&var).and_then(TypeVarBounds::solution_ref),
             Some(&row)
+        );
+    }
+
+    #[test]
+    fn empty_effect_row_bound_matches_its_tail() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let open_top_row = typed_ir::Type::Row {
+            items: Vec::new(),
+            tail: Box::new(typed_ir::Type::Any),
+        };
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(typed_ir::Type::Any)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(open_top_row)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&typed_ir::Type::Any)
+        );
+    }
+
+    #[test]
+    fn never_effect_row_item_is_empty() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let never_item_row = typed_ir::Type::Row {
+            items: vec![typed_ir::Type::Never],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(typed_ir::Type::Never)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(never_item_row)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(graph.slot(&var).and_then(TypeVarBounds::solution_ref), None);
+    }
+
+    #[test]
+    fn intersection_bound_drops_top_and_duplicate_rows() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let row = typed_ir::Type::Row {
+            items: vec![effect_type("ref_update")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let noisy = typed_ir::Type::Inter(vec![typed_ir::Type::Any, row.clone(), row.clone()]);
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(row.clone())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(noisy)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&row)
+        );
+    }
+
+    #[test]
+    fn closed_effect_row_item_flattens_into_outer_row() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let nested = typed_ir::Type::Row {
+            items: vec![typed_ir::Type::Row {
+                items: vec![effect_type("junction")],
+                tail: Box::new(typed_ir::Type::Never),
+            }],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let expected = typed_ir::Type::Row {
+            items: vec![effect_type("junction")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Core(nested)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(TypeVarBounds::solution_ref),
+            Some(&expected)
         );
     }
 

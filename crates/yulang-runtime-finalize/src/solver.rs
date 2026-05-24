@@ -43,6 +43,7 @@ pub fn finalize_module_with_cache(
         }
     }
     prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
+    monomorphize_phantom_nullary_variant_bindings(&mut module);
     normalize_materialized_module(&mut module);
     // Fill local Var types first (using enclosing-binder scope), so the apply
     // evidence pass sees concrete arg/callee types when reconciling.
@@ -71,6 +72,106 @@ fn normalize_materialized_module(module: &mut Module) {
     }
     for expr in &mut module.root_exprs {
         materialize_expr_in_place(expr, &substitutions);
+    }
+}
+
+fn monomorphize_phantom_nullary_variant_bindings(module: &mut Module) {
+    for binding in &mut module.bindings {
+        if binding.type_params.is_empty() || !is_phantom_nullary_variant_binding(binding) {
+            continue;
+        }
+        let substitutions = binding
+            .type_params
+            .iter()
+            .map(|var| typed_ir::TypeSubstitution {
+                var: var.clone(),
+                ty: typed_ir::Type::Never,
+            })
+            .collect::<Vec<_>>();
+        binding.scheme.body = materialize_core_type(binding.scheme.body.clone(), &substitutions);
+        materialize_expr_in_place(&mut binding.body, &substitutions);
+        binding.type_params.clear();
+    }
+}
+
+fn is_phantom_nullary_variant_binding(binding: &Binding) -> bool {
+    let ExprKind::Coerce { from, to, expr } = &binding.body.kind else {
+        return false;
+    };
+    if !type_mentions_any_var(to, &binding.type_params) {
+        return false;
+    }
+    let typed_ir::Type::Variant(variant) = from else {
+        return false;
+    };
+    if !variant.cases.iter().all(|case| case.payloads.is_empty()) {
+        return false;
+    }
+    let ExprKind::Variant { value: None, .. } = &expr.kind else {
+        return false;
+    };
+    true
+}
+
+fn type_mentions_any_var(ty: &typed_ir::Type, vars: &[typed_ir::TypeVar]) -> bool {
+    match ty {
+        typed_ir::Type::Var(var) => vars.iter().any(|candidate| candidate == var),
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(ty) => type_mentions_any_var(ty, vars),
+            typed_ir::TypeArg::Bounds(bounds) => {
+                bounds
+                    .lower
+                    .as_deref()
+                    .is_some_and(|ty| type_mentions_any_var(ty, vars))
+                    || bounds
+                        .upper
+                        .as_deref()
+                        .is_some_and(|ty| type_mentions_any_var(ty, vars))
+            }
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_mentions_any_var(param, vars)
+                || type_mentions_any_var(param_effect, vars)
+                || type_mentions_any_var(ret_effect, vars)
+                || type_mentions_any_var(ret, vars)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            items.iter().any(|item| type_mentions_any_var(item, vars))
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(|item| type_mentions_any_var(item, vars))
+                || type_mentions_any_var(tail, vars)
+        }
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_mentions_any_var(&field.value, vars))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_mentions_any_var(ty, vars)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|ty| type_mentions_any_var(ty, vars))
+            }) || variant
+                .tail
+                .as_deref()
+                .is_some_and(|tail| type_mentions_any_var(tail, vars))
+        }
+        typed_ir::Type::Recursive { body, .. } => type_mentions_any_var(body, vars),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
     }
 }
 
@@ -210,7 +311,8 @@ fn reconcile_node(expr: &mut Expr) {
                 && let RuntimeType::Thunk { effect, value } = &body.ty
                 && runtime_type_has_unknown(value)
             {
-                let merged = merge_partial_runtime_type(value, &expr.ty).unwrap_or_else(|| expr.ty.clone());
+                let merged =
+                    merge_partial_runtime_type(value, &expr.ty).unwrap_or_else(|| expr.ty.clone());
                 body.ty = RuntimeType::Thunk {
                     effect: effect.clone(),
                     value: Box::new(merged),
@@ -360,22 +462,15 @@ fn merge_partial_runtime_type(a: &RuntimeType, b: &RuntimeType) -> Option<Runtim
     match (a, b) {
         (RuntimeType::Unknown, _) => Some(b.clone()),
         (_, RuntimeType::Unknown) => Some(a.clone()),
-        (RuntimeType::Core(ax), RuntimeType::Core(bx)) => Some(RuntimeType::Core(
-            merge_partial_core_type(ax, bx)?,
-        )),
-        (
-            RuntimeType::Fun {
-                param: ap,
-                ret: ar,
-            },
-            RuntimeType::Fun {
-                param: bp,
-                ret: br,
-            },
-        ) => Some(RuntimeType::Fun {
-            param: Box::new(merge_partial_runtime_type(ap, bp)?),
-            ret: Box::new(merge_partial_runtime_type(ar, br)?),
-        }),
+        (RuntimeType::Core(ax), RuntimeType::Core(bx)) => {
+            Some(RuntimeType::Core(merge_partial_core_type(ax, bx)?))
+        }
+        (RuntimeType::Fun { param: ap, ret: ar }, RuntimeType::Fun { param: bp, ret: br }) => {
+            Some(RuntimeType::Fun {
+                param: Box::new(merge_partial_runtime_type(ap, bp)?),
+                ret: Box::new(merge_partial_runtime_type(ar, br)?),
+            })
+        }
         (
             RuntimeType::Thunk {
                 effect: ae,
@@ -400,10 +495,7 @@ fn merge_partial_runtime_type(a: &RuntimeType, b: &RuntimeType) -> Option<Runtim
     }
 }
 
-fn merge_partial_core_type(
-    a: &typed_ir::Type,
-    b: &typed_ir::Type,
-) -> Option<typed_ir::Type> {
+fn merge_partial_core_type(a: &typed_ir::Type, b: &typed_ir::Type) -> Option<typed_ir::Type> {
     match (a, b) {
         (typed_ir::Type::Unknown, _) => Some(b.clone()),
         (_, typed_ir::Type::Unknown) => Some(a.clone()),
@@ -453,9 +545,10 @@ fn core_type_has_unknown(ty: &typed_ir::Type) -> bool {
         typed_ir::Type::Row { items, tail } => {
             items.iter().any(core_type_has_unknown) || core_type_has_unknown(tail)
         }
-        typed_ir::Type::Record(record) => {
-            record.fields.iter().any(|f| core_type_has_unknown(&f.value))
-        }
+        typed_ir::Type::Record(record) => record
+            .fields
+            .iter()
+            .any(|f| core_type_has_unknown(&f.value)),
         typed_ir::Type::Variant(variant) => variant
             .cases
             .iter()
@@ -800,13 +893,7 @@ fn collect_expr_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
-    let found = solve_simple_apply(
-        owner.clone(),
-        expr,
-        bindings,
-        local_types,
-        solutions.len(),
-    )?;
+    let found = solve_simple_apply(owner.clone(), expr, bindings, local_types, solutions.len())?;
     if !found.is_empty() {
         collect_apply_spine_arg_graphs(owner, expr, bindings, local_types, solutions)?;
         solutions.extend(found);
@@ -844,13 +931,7 @@ fn collect_expr_graphs(
             ..
         } => {
             collect_expr_graphs(owner.clone(), cond, bindings, local_types, solutions)?;
-            collect_expr_graphs(
-                owner.clone(),
-                then_branch,
-                bindings,
-                local_types,
-                solutions,
-            )?;
+            collect_expr_graphs(owner.clone(), then_branch, bindings, local_types, solutions)?;
             collect_expr_graphs(owner, else_branch, bindings, local_types, solutions)
         }
         ExprKind::Tuple(items) => {
@@ -886,32 +967,14 @@ fn collect_expr_graphs(
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            collect_expr_graphs(
-                owner.clone(),
-                scrutinee,
-                bindings,
-                local_types,
-                solutions,
-            )?;
+            collect_expr_graphs(owner.clone(), scrutinee, bindings, local_types, solutions)?;
             for arm in arms {
                 let mut arm_locals = local_types.clone();
                 collect_pattern_local_types(&arm.pattern, &mut arm_locals);
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(
-                        owner.clone(),
-                        guard,
-                        bindings,
-                        &arm_locals,
-                        solutions,
-                    )?;
+                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
                 }
-                collect_expr_graphs(
-                    owner.clone(),
-                    &arm.body,
-                    bindings,
-                    &arm_locals,
-                    solutions,
-                )?;
+                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
             }
             Ok(())
         }
@@ -935,21 +998,9 @@ fn collect_expr_graphs(
                     arm_locals.insert(path_from_name(&resume.name), resume.ty.clone());
                 }
                 if let Some(guard) = &arm.guard {
-                    collect_expr_graphs(
-                        owner.clone(),
-                        guard,
-                        bindings,
-                        &arm_locals,
-                        solutions,
-                    )?;
+                    collect_expr_graphs(owner.clone(), guard, bindings, &arm_locals, solutions)?;
                 }
-                collect_expr_graphs(
-                    owner.clone(),
-                    &arm.body,
-                    bindings,
-                    &arm_locals,
-                    solutions,
-                )?;
+                collect_expr_graphs(owner.clone(), &arm.body, bindings, &arm_locals, solutions)?;
             }
             Ok(())
         }
@@ -1158,11 +1209,6 @@ fn collect_spine_substitutions(
     steps: &[ApplyStep<'_>],
 ) -> FinalizeResult<()> {
     for step in steps {
-        if let Some(evidence) = step.evidence {
-            for substitution in evidence_complete_substitutions(evidence) {
-                collect_spine_substitution(graph, principal, &substitution.var, &substitution.ty)?;
-            }
-        }
         if let Some(instantiation) = step.instantiation {
             for substitution in &instantiation.args {
                 collect_spine_substitution(graph, principal, &substitution.var, &substitution.ty)?;
@@ -1170,16 +1216,6 @@ fn collect_spine_substitutions(
         }
     }
     Ok(())
-}
-
-fn evidence_complete_substitutions(
-    evidence: &typed_ir::ApplyEvidence,
-) -> &[typed_ir::TypeSubstitution] {
-    match &evidence.principal_elaboration {
-        Some(plan) if !plan.complete => &[],
-        Some(plan) => &plan.substitutions,
-        None => &evidence.substitutions,
-    }
 }
 
 fn collect_spine_substitution(
@@ -1264,7 +1300,9 @@ impl ApplyStep<'_> {
         match expr_lower_type(self.apply, local_types) {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { effect, value } => {
-                graph.constrain_subtype(result, runtime_type_to_core(*value))?;
+                if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
+                    graph.constrain_subtype(result, runtime_type_to_core(*value))?;
+                }
                 if matches!(effect, typed_ir::Type::Never | typed_ir::Type::Unknown) {
                     Ok(())
                 } else {
@@ -1467,13 +1505,7 @@ fn collect_pattern_graphs(
                     solutions,
                 )?;
                 if let Some(default) = &field.default {
-                    collect_expr_graphs(
-                        owner.clone(),
-                        default,
-                        bindings,
-                        local_types,
-                        solutions,
-                    )?;
+                    collect_expr_graphs(owner.clone(), default, bindings, local_types, solutions)?;
                 }
             }
             if let Some(spread) = spread {
@@ -1968,6 +2000,17 @@ fn resolve_role_method_apply(
     candidates: &[RoleMethodCandidate],
 ) -> Option<(typed_ir::Path, RuntimeType)> {
     let spine = ApplySpine::new(expr)?;
+    if let Some(resolution) = resolve_role_method_spine(&spine, local_types, candidates) {
+        return Some(resolution);
+    }
+    resolve_impl_method_spine(&spine, local_types, candidates)
+}
+
+fn resolve_role_method_spine(
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    candidates: &[RoleMethodCandidate],
+) -> Option<(typed_ir::Path, RuntimeType)> {
     let (role, member) = role_method_parts(spine.binding)?;
     let receiver = spine.steps.first()?;
     let receiver_types = role_receiver_types(receiver, local_types);
@@ -1989,12 +2032,65 @@ fn resolve_role_method_apply(
     best.map(|(_, candidate)| (candidate.value.clone(), candidate.callee_type.clone()))
 }
 
+fn resolve_impl_method_spine(
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    candidates: &[RoleMethodCandidate],
+) -> Option<(typed_ir::Path, RuntimeType)> {
+    let member = impl_method_member(spine.binding)?;
+    let receiver = spine.steps.first()?;
+    let receiver_types = role_receiver_types(receiver, local_types);
+    let mut best = None;
+    let mut ambiguous = false;
+    for candidate in candidates
+        .iter()
+        .filter(|candidate| candidate.member == *member)
+    {
+        let Some(score) = role_method_candidate_score(candidate, &receiver_types) else {
+            continue;
+        };
+        match best {
+            None => {
+                best = Some((score, candidate));
+                ambiguous = false;
+            }
+            Some((best_score, _)) if score > best_score => {
+                best = Some((score, candidate));
+                ambiguous = false;
+            }
+            Some((best_score, _)) if score == best_score => {
+                ambiguous = true;
+            }
+            Some(_) => {}
+        }
+    }
+    if ambiguous {
+        return None;
+    }
+    let (_, candidate) = best?;
+    if candidate.value == *spine.binding {
+        return None;
+    }
+    Some((candidate.value.clone(), candidate.callee_type.clone()))
+}
+
 fn role_method_parts(path: &typed_ir::Path) -> Option<(typed_ir::Path, typed_ir::Name)> {
     let (member, role) = path.segments.split_last()?;
     if role.is_empty() {
         return None;
     }
     Some((typed_ir::Path::new(role.to_vec()), member.clone()))
+}
+
+fn impl_method_member(path: &typed_ir::Path) -> Option<&typed_ir::Name> {
+    if !path
+        .segments
+        .iter()
+        .any(|segment| segment.0.starts_with("&impl#"))
+    {
+        return None;
+    }
+    path.segments.last()
 }
 
 fn role_receiver_types(
@@ -3810,6 +3906,108 @@ f 3
     }
 
     #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_runs_playground_core_examples() {
+        for case in [
+            PlaygroundCase {
+                name: "undet list",
+                source: r#"(each [1, 2, 3] + each [4, 5, 6]).list
+"#,
+                stdout: "",
+                results: &["[5, 6, 7, 6, 7, 8, 7, 8, 9]"],
+            },
+            PlaygroundCase {
+                name: "undet once range",
+                source: r#"{
+    my a = each 1..
+    guard: a == 3
+    a
+}.once
+"#,
+                stdout: "",
+                results: &["just 3"],
+            },
+            PlaygroundCase {
+                name: "undet pythagorean",
+                source: r#"({
+    my a = each 1..
+    my b = each 1..
+    my c = each 1..
+
+    guard: a <= b
+    guard: b <= c
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+}).once
+"#,
+                stdout: "",
+                results: &["just (3, 4, 5)"],
+            },
+            PlaygroundCase {
+                name: "prelude operators",
+                source: r#"1 + 2
+2 * 3
+1 == 1
+1 < 2
+2 <= 2
+"#,
+                stdout: "",
+                results: &["3", "6", "true", "true", "true"],
+            },
+            PlaygroundCase {
+                name: "multiple roots",
+                source: r#"1 + 2
+3 + 4
+"#,
+                stdout: "",
+                results: &["3", "7"],
+            },
+        ] {
+            assert_playground_case_finalizes(case);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_runs_playground_state_and_host_examples() {
+        for case in [
+            PlaygroundCase {
+                name: "ref list assignment",
+                source: r#"{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
+"#,
+                stdout: "",
+                results: &["[2, 6, 4]"],
+            },
+            PlaygroundCase {
+                name: "console output",
+                source: r#"println "hello"
+1 + 2
+"#,
+                stdout: "hello\n",
+                results: &["()", "3"],
+            },
+        ] {
+            assert_playground_case_finalizes(case);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a prewarmed project compiled dependency cache"]
+    fn prewarmed_std_finalize_runs_playground_tour() {
+        assert_playground_case_finalizes(PlaygroundCase {
+            name: "playground tour",
+            source: playground_tour_source(),
+            stdout: "",
+            results: &["7", "[2, 6, 4]", "5", "just 18"],
+        });
+    }
+
+    #[test]
     #[ignore = "diagnostic: report typed/untyped expression coverage"]
     fn rina_finalize_type_coverage_report() {
         let src = r#"{
@@ -3846,7 +4044,7 @@ f 3
             }
             eprintln!("by owner missing concrete:");
             let mut owner_entries: Vec<_> = stats.by_owner_unconcrete.iter().collect();
-            owner_entries.sort_by_key(|(o, _)| o.clone());
+            owner_entries.sort_by_key(|(o, _)| *o);
             for (owner, count) in owner_entries {
                 eprintln!("  {owner}: {count}");
             }
@@ -3931,12 +4129,8 @@ f 3
             typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
                 typed_ir::TypeArg::Type(t) => core_type_contains_unknown(t),
                 typed_ir::TypeArg::Bounds(b) => {
-                    b.lower
-                        .as_deref()
-                        .is_some_and(core_type_contains_unknown)
-                        || b.upper
-                            .as_deref()
-                            .is_some_and(core_type_contains_unknown)
+                    b.lower.as_deref().is_some_and(core_type_contains_unknown)
+                        || b.upper.as_deref().is_some_and(core_type_contains_unknown)
                 }
             }),
             typed_ir::Type::Fun {
@@ -4211,6 +4405,146 @@ f 3
             );
             yulang_vm::compile_vm_module(output.module).unwrap();
         });
+    }
+
+    struct PlaygroundCase {
+        name: &'static str,
+        source: &'static str,
+        stdout: &'static str,
+        results: &'static [&'static str],
+    }
+
+    fn assert_playground_case_finalizes(case: PlaygroundCase) {
+        let source = playground_source(case.source);
+        run_with_large_stack(move || {
+            let cached = runtime_module_from_source_with_prewarmed_std_cache_large_stack(&source);
+            let output = finalize_module(cached.module)
+                .unwrap_or_else(|error| panic!("{} finalize failed: {error:?}", case.name));
+            let vm = yulang_vm::compile_vm_module(output.module)
+                .unwrap_or_else(|error| panic!("{} VM compile failed: {error:?}", case.name));
+            let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
+                .unwrap_or_else(|error| panic!("{} VM eval failed: {error:?}", case.name));
+            let actual = host_output
+                .results
+                .iter()
+                .map(format_vm_result)
+                .collect::<Vec<_>>();
+            assert_eq!(host_output.stdout, case.stdout, "{} stdout", case.name);
+            assert_eq!(actual, case.results, "{} roots", case.name);
+        });
+    }
+
+    fn playground_source(source: &str) -> String {
+        format!("use std::undet::*\n{source}")
+    }
+
+    fn playground_tour_source() -> &'static str {
+        r#"// A compact tour of Yulang's current shape.
+
+use std::undet::*
+
+struct point { x: int, y: int } with:
+    our p.norm2: int = p.x * p.x + p.y * p.y
+
+my inflate({base = 1, extra = base + 1}) = base + extra
+
+inflate { base: 3 }
+
+{
+    my $xs = [
+        2
+        3
+        4
+    ]
+    &xs[1] = 6
+    $xs
+}
+
+sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0
+
+({
+    my y = if all [1, 2, 3] < any [2, 3, 4]:
+        each [3, 4, 5]
+    else:
+        2
+
+    point { x: 3, y: y } .norm2
+}).once
+"#
+    }
+
+    fn format_vm_result(result: &yulang_vm::VmResult) -> String {
+        match result {
+            yulang_vm::VmResult::Value(value) => format_vm_value(value),
+            yulang_vm::VmResult::Request(request) => format!("<request {:?}>", request.effect),
+        }
+    }
+
+    fn format_vm_value(value: &yulang_vm::VmValue) -> String {
+        match value {
+            yulang_vm::VmValue::Int(value) | yulang_vm::VmValue::Float(value) => value.clone(),
+            yulang_vm::VmValue::String(value) => format!("{:?}", value.to_flat_string()),
+            yulang_vm::VmValue::Bool(value) => value.to_string(),
+            yulang_vm::VmValue::Unit => "()".to_string(),
+            yulang_vm::VmValue::List(items) => {
+                let mut out = String::from("[");
+                format_vm_list_items(&mut out, items);
+                out.push(']');
+                out
+            }
+            yulang_vm::VmValue::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|value| format_vm_value(value))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({items})")
+            }
+            yulang_vm::VmValue::Record(fields) => {
+                let fields = fields
+                    .iter()
+                    .map(|(name, value)| format!("{}: {}", name.0, format_vm_value(value)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{{{fields}}}")
+            }
+            yulang_vm::VmValue::Variant { tag, value } => match value {
+                Some(value) => format!("{} {}", tag.0, format_vm_value(value)),
+                None => tag.0.clone(),
+            },
+            yulang_vm::VmValue::Bytes(value) => format!("<bytes len={}>", value.len()),
+            yulang_vm::VmValue::Path(value) => format!("{:?}", value.display().to_string()),
+            yulang_vm::VmValue::FileHandle(_) => "<file>".to_string(),
+            yulang_vm::VmValue::EffectOp(path) => format!("<effect-op {path:?}>"),
+            yulang_vm::VmValue::PrimitiveOp(_) => "<primitive>".to_string(),
+            yulang_vm::VmValue::Resume(_) => "<resume>".to_string(),
+            yulang_vm::VmValue::Closure(_) => "<closure>".to_string(),
+            yulang_vm::VmValue::Thunk(_) => "<thunk>".to_string(),
+            yulang_vm::VmValue::EffectId(id) => format!("<effect-id {id}>"),
+        }
+    }
+
+    fn format_vm_list_items(
+        out: &mut String,
+        items: &yulang_vm::runtime::list_tree::ListTree<std::rc::Rc<yulang_vm::VmValue>>,
+    ) {
+        match items {
+            yulang_vm::runtime::list_tree::ListTree::Empty => {}
+            yulang_vm::runtime::list_tree::ListTree::Leaf(value) => {
+                out.push_str(&format_vm_value(value));
+            }
+            yulang_vm::runtime::list_tree::ListTree::Node(node) => {
+                format_vm_list_items(out, &node.left);
+                if !node.left.is_empty() && !node.right.is_empty() {
+                    out.push_str(", ");
+                }
+                format_vm_list_items(out, &node.right);
+            }
+        }
     }
 
     fn id_call(arg: Expr) -> Expr {
