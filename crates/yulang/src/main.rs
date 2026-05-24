@@ -2087,7 +2087,15 @@ fn lower_runtime_module_or_exit(
     };
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
-    let (module, monomorphize_profile) = if print_timings {
+    let (module, monomorphize_profile) = if runtime_finalize_mainline_enabled() {
+        match yulang_runtime_finalize::finalize_monomorphize_module(module) {
+            Ok(module) => (module, runtime::MonomorphizeProfile::default()),
+            Err(err) => {
+                eprintln!("error: {err}");
+                process::exit(1);
+            }
+        }
+    } else if print_timings {
         match runtime::monomorphize_module_profiled(module) {
             Ok(output) => output,
             Err(err) => {
@@ -2112,6 +2120,10 @@ fn lower_runtime_module_or_exit(
         monomorphize_profile,
     };
     RuntimeLowerOutput { module, profile }
+}
+
+fn runtime_finalize_mainline_enabled() -> bool {
+    env::var_os("YULANG_RUNTIME_FINALIZE").is_some()
 }
 
 fn print_native_abi_lanes_or_exit(module: &runtime::Module) {

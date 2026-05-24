@@ -5,7 +5,8 @@ use yulang_typed_ir as typed_ir;
 
 use crate::{
     CachedFinalizeInstance, FinalizeDiagnostic, FinalizeInstanceCache, FinalizeInstanceKey,
-    FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
+    FinalizeMonomorphizeError, FinalizeOutput, FinalizeReport, FinalizeResult, RootGraphInput,
+    RootGraphSolution, TypeGraph,
     graph::{runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
     materialize_core_type, materialize_runtime_type,
     output::RootGraphRoot,
@@ -14,6 +15,23 @@ use crate::{
 pub fn finalize_module(module: Module) -> FinalizeResult<FinalizeOutput> {
     let mut cache = FinalizeInstanceCache::default();
     finalize_module_with_cache(module, &mut cache)
+}
+
+pub fn finalize_monomorphize_module(module: Module) -> Result<Module, FinalizeMonomorphizeError> {
+    Ok(finalize_monomorphize_module_with_report(module)?.module)
+}
+
+pub fn finalize_monomorphize_module_with_report(
+    module: Module,
+) -> Result<FinalizeOutput, FinalizeMonomorphizeError> {
+    let output = finalize_module(module)?;
+    validate_monomorphized_output(&output.module)?;
+    Ok(output)
+}
+
+fn validate_monomorphized_output(module: &Module) -> Result<(), yulang_runtime::RuntimeError> {
+    yulang_runtime::check_runtime_invariants(module, yulang_runtime::RuntimeStage::Monomorphized)?;
+    yulang_runtime::validate_module(module)
 }
 
 pub fn finalize_module_with_cache(
@@ -3594,6 +3612,20 @@ mod tests {
     }
 
     #[test]
+    fn finalize_monomorphize_module_returns_valid_mainline_output() {
+        let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
+
+        let module = finalize_monomorphize_module(module).unwrap();
+
+        yulang_runtime::check_runtime_invariants(
+            &module,
+            yulang_runtime::RuntimeStage::Monomorphized,
+        )
+        .unwrap();
+        yulang_runtime::validate_module(&module).unwrap();
+    }
+
+    #[test]
     fn finalized_source_solves_polymorphic_call_inside_monomorphic_body() {
         let module = runtime_module_from_source_without_std("my id x = x\nmy f y = id y\nf 1\n");
 
@@ -4107,6 +4139,23 @@ sub:
 "#,
             },
         ] {
+            assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
+                case,
+                OracleVm::Control,
+            );
+        }
+    }
+
+    #[test]
+    fn cached_std_legacy_runtime_and_finalize_match_examples() {
+        for case in example_oracle_cases() {
+            assert_legacy_and_finalize_match_with_std_dependency_cache(case);
+        }
+    }
+
+    #[test]
+    fn cached_std_control_vm_legacy_runtime_and_finalize_match_examples() {
+        for case in example_oracle_cases() {
             assert_legacy_and_finalize_match_with_std_dependency_cache_on_vm(
                 case,
                 OracleVm::Control,
@@ -4671,6 +4720,55 @@ sub:
             let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&source);
             assert_legacy_and_finalize_match_module(case.name, cached.module, vm);
         });
+    }
+
+    fn example_oracle_cases() -> [RuntimeOracleCase; 11] {
+        [
+            RuntimeOracleCase {
+                name: "01_struct_with",
+                source: include_str!("../../../examples/01_struct_with.yu"),
+            },
+            RuntimeOracleCase {
+                name: "04_sub_return",
+                source: include_str!("../../../examples/04_sub_return.yu"),
+            },
+            RuntimeOracleCase {
+                name: "05_undet_all",
+                source: include_str!("../../../examples/05_undet_all.yu"),
+            },
+            RuntimeOracleCase {
+                name: "06_undet_once",
+                source: include_str!("../../../examples/06_undet_once.yu"),
+            },
+            RuntimeOracleCase {
+                name: "07_junction",
+                source: include_str!("../../../examples/07_junction.yu"),
+            },
+            RuntimeOracleCase {
+                name: "08_types",
+                source: include_str!("../../../examples/08_types.yu"),
+            },
+            RuntimeOracleCase {
+                name: "09_optional_record_args",
+                source: include_str!("../../../examples/09_optional_record_args.yu"),
+            },
+            RuntimeOracleCase {
+                name: "10_effect_handler",
+                source: include_str!("../../../examples/10_effect_handler.yu"),
+            },
+            RuntimeOracleCase {
+                name: "11_attached_impl",
+                source: include_str!("../../../examples/11_attached_impl.yu"),
+            },
+            RuntimeOracleCase {
+                name: "12_cast",
+                source: include_str!("../../../examples/12_cast.yu"),
+            },
+            RuntimeOracleCase {
+                name: "13_console",
+                source: include_str!("../../../examples/13_console.yu"),
+            },
+        ]
     }
 
     fn assert_legacy_and_finalize_match_module(name: &str, module: Module, vm: OracleVm) {

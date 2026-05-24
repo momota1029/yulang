@@ -20,7 +20,7 @@ pub use cache::{
     FinalizeInstanceCachePolicy, FinalizeInstanceCacheProfile, FinalizeInstanceCacheSurface,
     FinalizeInstanceKey,
 };
-pub use diagnostic::{FinalizeDiagnostic, FinalizeResult};
+pub use diagnostic::{FinalizeDiagnostic, FinalizeMonomorphizeError, FinalizeResult};
 pub use graph::ResolvedTypeVar;
 pub use graph::{
     GraphSolution, PrincipalInstance, PrincipalTypeParam, RuntimeBounds, TypeGraph, TypeVarBounds,
@@ -29,4 +29,7 @@ pub use graph::{
 pub use output::{
     FinalizeOutput, FinalizeReport, RootGraphInput, RootGraphRoot, RootGraphSolution,
 };
-pub use solver::{collect_root_graph_inputs, finalize_module, finalize_module_with_cache};
+pub use solver::{
+    collect_root_graph_inputs, finalize_module, finalize_module_with_cache,
+    finalize_monomorphize_module, finalize_monomorphize_module_with_report,
+};

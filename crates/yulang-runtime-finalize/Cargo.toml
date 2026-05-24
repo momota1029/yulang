@@ -12,11 +12,11 @@ publish = false
 postcard = { version = "1", features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }
 yulang-runtime-ir = { path = "../yulang-runtime-ir" }
+yulang-runtime = { path = "../yulang-runtime" }
 yulang-sources = { version = "0.1.3", path = "../yulang-sources" }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
 
 [dev-dependencies]
 yulang-compile = { path = "../yulang-compile" }
 yulang-infer = { path = "../yulang-infer" }
-yulang-runtime = { path = "../yulang-runtime" }
 yulang-vm = { path = "../yulang-vm" }
