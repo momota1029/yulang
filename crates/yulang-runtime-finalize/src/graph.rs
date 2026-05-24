@@ -506,6 +506,16 @@ impl TypeGraph {
         if matches!(ty, typed_ir::Type::Unknown) || is_vacuous_bound(&ty, side) {
             return Ok(false);
         }
+        // Reject self-bounds: chasing `known_*_or_self` can resolve a Var to a
+        // chain that lands back on `var`. Recording `Var(var)` as a bound on
+        // `var` creates a self-loop in the slot graph, and the next constraint
+        // that walks `slot[var].upper` (or `.lower`) recurses forever and
+        // overflows the stack.
+        if let typed_ir::Type::Var(other) = &ty
+            && *other == var
+        {
+            return Ok(false);
+        }
         let slot = self.slots.entry(var.clone()).or_default();
         match side {
             BoundSide::Lower => slot.push_lower(var, ty),
@@ -617,11 +627,11 @@ impl TypeVarBounds {
     }
 
     fn push_lower(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<bool> {
-        push_bound(&mut self.lower, var, ty)
+        push_bound(&mut self.lower, var, ty, BoundSide::Lower)
     }
 
     fn push_upper(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) -> FinalizeResult<bool> {
-        push_bound(&mut self.upper, var, ty)
+        push_bound(&mut self.upper, var, ty, BoundSide::Upper)
     }
 }
 
@@ -773,14 +783,195 @@ fn split_runtime_effected_type(ty: &RuntimeType) -> RuntimeEffectedType<'_> {
     }
 }
 
+/// Effect-row lattice merge for type-var bounds.
+///
+/// Both inputs must be closed-tail row-shaped types (Row with Never tail, or
+/// `Never`, or a single effect Named — which is treated as a one-item row).
+/// `Lower` bounds get item **union** (a var observed with two lower bounds
+/// must allow at least both rows' items). `Upper` bounds get item
+/// **intersection** (a var bounded above by two rows can use at most what
+/// both rows allow).
+///
+/// Returns `None` when the types are not row-shaped, when either tail is
+/// open (a `Var` or other unsolved tail), or when intersection on an upper
+/// would yield an empty row that disagrees with prior structure.
+///
+/// We intentionally do not flatten `Inter` tails or recurse through unbounded
+/// row-of-row structures — that was the stack-overflow path in the previous
+/// experimental layer.
+fn merge_row_bounds(
+    previous: &typed_ir::Type,
+    ty: &typed_ir::Type,
+    side: BoundSide,
+) -> Option<typed_ir::Type> {
+    // Require at least one side to be a genuine row-shaped type (Row / Never)
+    // so we don't accidentally treat two value-type Named bounds as a row
+    // union just because the bare Named could *look* like a one-item row.
+    if !is_row_shaped(previous) && !is_row_shaped(ty) {
+        return None;
+    }
+    let (mut prev_items, prev_tail) = flatten_closed_row_or_atom(previous)?;
+    let (ty_items, ty_tail) = flatten_closed_row_or_atom(ty)?;
+    if !matches!(prev_tail, typed_ir::Type::Never) || !matches!(ty_tail, typed_ir::Type::Never) {
+        return None;
+    }
+    let merged_items = match side {
+        BoundSide::Lower => {
+            for item in ty_items {
+                push_unique_effect_item(&mut prev_items, item);
+            }
+            prev_items
+        }
+        BoundSide::Upper => {
+            let mut out = Vec::new();
+            for item in &prev_items {
+                if ty_items.iter().any(|other| effect_items_match(item, other)) {
+                    push_unique_effect_item(&mut out, item.clone());
+                }
+            }
+            out
+        }
+    };
+    Some(typed_ir::Type::Row {
+        items: merged_items,
+        tail: Box::new(typed_ir::Type::Never),
+    })
+}
+
+fn is_row_shaped(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Row { .. } | typed_ir::Type::Never)
+}
+
+/// Like `flatten_closed_row` but additionally promotes a bare `Type::Named`
+/// to a singleton row. Only safe to call from `merge_row_bounds`, which
+/// gates the promotion behind the requirement that *at least one* of the
+/// two bounds being merged is genuinely row-shaped — otherwise we would
+/// risk treating a pair of value-type Named bounds as rows.
+fn flatten_closed_row_or_atom(
+    ty: &typed_ir::Type,
+) -> Option<(Vec<typed_ir::Type>, typed_ir::Type)> {
+    match ty {
+        typed_ir::Type::Named { .. } => Some((vec![ty.clone()], typed_ir::Type::Never)),
+        _ => flatten_closed_row(ty),
+    }
+}
+
+/// Flatten a row-shaped type into `(items, tail)`. Descends through nested
+/// `Row` tails linearly. Also collapses an `Inter` tail when every branch
+/// flattens to the same `(items, tail)`, which is the degenerate case the
+/// constraint solver leaves behind when an intersection target turns out to
+/// be redundant. Returns `None` for genuinely open tails (`Var`, `Any`,
+/// non-degenerate `Inter`).
+///
+/// IMPORTANT: only `Type::Row` and `Type::Never` are recognized as rows here.
+/// A bare `Type::Named` is *not* treated as a degenerate one-item row,
+/// because the same shape is also used in value position (e.g.
+/// `std::var::ref<..>`) and treating those as rows would let `push_bound`
+/// silently fold value types into row unions and explode the constraint
+/// loop.
+fn flatten_closed_row(ty: &typed_ir::Type) -> Option<(Vec<typed_ir::Type>, typed_ir::Type)> {
+    match ty {
+        typed_ir::Type::Never => Some((Vec::new(), typed_ir::Type::Never)),
+        typed_ir::Type::Row { items, tail } => {
+            let mut out: Vec<typed_ir::Type> = Vec::new();
+            for item in items {
+                push_unique_effect_item(&mut out, item.clone());
+            }
+            let mut current_tail: typed_ir::Type = (**tail).clone();
+            let mut depth = 0usize;
+            loop {
+                if depth >= 64 {
+                    return None;
+                }
+                depth += 1;
+                match current_tail {
+                    typed_ir::Type::Row {
+                        items: tail_items,
+                        tail: next_tail,
+                    } => {
+                        for item in tail_items {
+                            push_unique_effect_item(&mut out, item);
+                        }
+                        current_tail = *next_tail;
+                    }
+                    typed_ir::Type::Inter(branches) => {
+                        let collapsed = collapse_equivalent_inter(&branches)?;
+                        current_tail = collapsed;
+                    }
+                    typed_ir::Type::Never => return Some((out, typed_ir::Type::Never)),
+                    other => return Some((out, other)),
+                }
+            }
+        }
+        _ => None,
+    }
+}
+
+/// If every branch of an `Inter` flattens to the same closed row, return
+/// that single row. Otherwise return `None`. This catches the redundant
+/// `Inter([Row[..], Row[..]])` shapes that fall out of subtype propagation
+/// without committing us to a full intersection lattice.
+fn collapse_equivalent_inter(branches: &[typed_ir::Type]) -> Option<typed_ir::Type> {
+    let (first, rest) = branches.split_first()?;
+    let (first_items, first_tail) = flatten_closed_row(first)?;
+    for branch in rest {
+        let (branch_items, branch_tail) = flatten_closed_row(branch)?;
+        if !rows_equivalent(&first_items, &first_tail, &branch_items, &branch_tail) {
+            return None;
+        }
+    }
+    Some(typed_ir::Type::Row {
+        items: first_items,
+        tail: Box::new(first_tail),
+    })
+}
+
+fn rows_equivalent(
+    a_items: &[typed_ir::Type],
+    a_tail: &typed_ir::Type,
+    b_items: &[typed_ir::Type],
+    b_tail: &typed_ir::Type,
+) -> bool {
+    if a_items.len() != b_items.len() {
+        return false;
+    }
+    if !a_items
+        .iter()
+        .all(|item| b_items.iter().any(|other| effect_items_match(item, other)))
+    {
+        return false;
+    }
+    a_tail == b_tail
+        || normalize_bound_form_inner(a_tail, true) == normalize_bound_form_inner(b_tail, true)
+}
+
+fn push_unique_effect_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
+    if items.iter().any(|existing| effect_items_match(existing, &item)) {
+        return;
+    }
+    items.push(item);
+}
+
+fn effect_items_match(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    left == right || normalize_bound_form_inner(left, true) == normalize_bound_form_inner(right, true)
+}
+
 fn push_bound(
     slot: &mut Option<typed_ir::Type>,
     var: typed_ir::TypeVar,
     ty: typed_ir::Type,
+    side: BoundSide,
 ) -> FinalizeResult<bool> {
     if let Some(previous) = slot {
         if bounds_are_equivalent(previous, &ty) {
             return Ok(false);
+        }
+        if let Some(merged) = merge_row_bounds(previous, &ty, side) {
+            if bounds_are_equivalent(previous, &merged) {
+                return Ok(false);
+            }
+            *previous = merged;
+            return Ok(true);
         }
         if matches!(
             (&*previous, &ty),
