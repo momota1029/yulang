@@ -2620,6 +2620,54 @@ mod tests {
     }
 
     #[test]
+    fn finalized_source_runs_nested_lexical_block() {
+        let module = runtime_module_from_source_without_std(
+            r#"{
+    my x = 1
+    {
+        my y = 2
+        y
+    }
+}
+"#,
+        );
+
+        let output = finalize_module(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "2".into()
+            ))]
+        );
+    }
+
+    #[test]
+    fn finalized_source_runs_polymorphic_body_with_lexical_block() {
+        let module = runtime_module_from_source_without_std(
+            r#"my f x = {
+    my y = x
+    y
+}
+f 3
+"#,
+        );
+
+        let output = finalize_module(module).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
+        let results = vm.eval_roots().unwrap();
+
+        assert_eq!(
+            results,
+            vec![yulang_vm::VmResult::Value(yulang_vm::VmValue::Int(
+                "3".into()
+            ))]
+        );
+    }
+
+    #[test]
     fn materialize_block_type_from_tail_before_deciding_bind_here() {
         let int = typed_ir::Type::Named {
             path: path("int"),
