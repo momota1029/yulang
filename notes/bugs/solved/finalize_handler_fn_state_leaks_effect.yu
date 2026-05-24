@@ -1,0 +1,78 @@
+-- 解消 (2026-05-25 夜, commit 26f50fe "Fix finalize graph edge regressions"
+-- 周辺): legacy / finalize とも `[0] 1` で揃うようになった。
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): handler-as-function に state binding
+-- (`my $...`) を絡めて、handler arm 内で `&...= $... + ...` 形で update
+-- する形だと、handler arm が立たず effect が外まで漏れる。
+--
+-- [`solved/finalize_handler_fn_unannotated_arg_leaks_effect.yu`] (annotation
+-- 無しの最短形) は 2026-05-25 に解消したが、state binding を絡めた集約形
+-- は同じ修正で通っていない。
+--
+-- 期待:
+--   handler arm が `log::put _, k -> &count = $count + 1; k ()` で op を
+--   捕まえて、value arm `v -> v` まで進む。最後に body の `$count` が読まれて
+--   `[0] 1` が出るのが正解。legacy は `[0] 1`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] 1
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     [0] request log::put "a" blocked=None
+--
+--   finalize 側は handler 全体が「state effect 行を持つ computation」で、
+--   呼び出された `log::put "a"` がそこに合流しないまま外まで通り抜けてしまう。
+--
+-- 切り分け:
+--
+--   ## state なし
+--   my collect_logs comp = catch comp:
+--       log::put _, k -> k ()
+--       v -> v
+--   → 両モードとも `[0] ()` (solved 済み)
+--
+--   ## state binding + update + body read
+--   my collect_logs comp =
+--       my $count = 0
+--       catch comp:
+--           log::put _, k ->
+--               &count = $count + 1
+--               k ()
+--           v -> v
+--       $count
+--   → finalize で effect が漏れる
+--
+--   ## state binding + update のみ (body は state を読まない)
+--   → legacy 側でも `expected [log; ..never], got [&count#...; ..never]`
+--     になる (catch 全体の row に `&count` 行が混入)。これは別問題。
+--
+--   ## annotation 付き (`comp: [log] 'a`)
+--   → 両モードとも `[0] 1`。annotation で row を固定すると通る。
+--
+-- 関連:
+--   元 snippet [`solved/handler_fn_missing_join_evidence.yu`] が同じ shape
+--   (state binding + list append + body read)。こちらも legacy では `[0] ["a"]`
+--   が出るが finalize では effect が漏れる。
+--
+-- 影響:
+--   - handler を「state を持ちながら集約する関数」として書く基本形が
+--     finalize で動かない。annotation を `(comp: [log] 'a): 'a` まで足せば
+--     通るが、computation row の書き方を学ぶ前にこのパターンに当たる。
+--   - 「コンパイル時に怒られる」ではなく「runtime で effect が漏れる」
+--     形なので、原因に辿り着くまで時間がかかる。
+
+act log:
+    pub put: str -> ()
+
+my collect_logs comp =
+    my $count = 0
+    catch comp:
+        log::put _, k ->
+            &count = $count + 1
+            k ()
+        v -> v
+    $count
+
+collect_logs: log::put "a"

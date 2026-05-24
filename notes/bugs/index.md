@@ -103,6 +103,85 @@ commit `230e028` で全て解決した。snippet は `solved/` へ退避。
 diagnostic 出力（`crates/yulang-infer/src/diagnostic.rs` の format 経路）にも
 当てたい、というのは別タスクとして残っている。
 
+## 現在の未解決（2026-05-25 / YULANG_RUNTIME_FINALIZE=1 グラフ単一化）
+
+新ランタイム `crates/yulang-runtime-finalize/` をデフォルト経路に通すと
+(`YULANG_RUNTIME_FINALIZE=1`)、legacy `crates/yulang-runtime/` の
+monomorphize では通る式が落ちる、もしくは出力が変わる snippet が出る。
+`examples/` + `notes/bugs/` + `notes/bugs/solved/` の 80 件を両モードで
+sweep して見つけたもの。
+
+確認方法:
+
+```bash
+target/debug/yulang run --no-cache --print-roots notes/bugs/<file>.yu
+YULANG_RUNTIME_FINALIZE=1 target/debug/yulang run --no-cache --print-roots notes/bugs/<file>.yu
+```
+
+### 残っている 1 件 (2026-05-25 夜 update)
+
+commit `26f50fe Fix finalize graph edge regressions` 周辺で、前 round の
+残り 3 件 (handler-state / default-empty-call / inline-wrap-conditional)
+は **--no-cache の cold 経路で** すべて通るようになった。代わりに、同じ
+commit を境に別系統の regression が 1 件表面化した。
+
+| snippet | 症状 |
+|---|---|
+| [`finalize_state_in_for_scope_fold_not_dispatched.yu`](finalize_state_in_for_scope_fold_not_dispatched.yu) | `my $n = 0` のような state binding と `for ... in ...:` を同じ scope に置くだけで、for の `std::fold::Fold::fold` role dispatch に失敗し、`request std::fold::Fold::fold [...] blocked=None` が外まで漏れる。state なし for / state なしブロックはどちらも通る。元 snippet [`solved/wrap_inside_for_body_leaks_fail.yu`] も同根 (for body 内 update が application type mismatch に化けて出る)。 |
+
+### 解消済み (2026-05-25 夜, commit `26f50fe Fix finalize graph edge regressions` 周辺)
+
+前 round で残った 3 件はすべて --no-cache の cold 経路で legacy と揃った:
+
+| 元 snippet | 状態 |
+|---|---|
+| [`solved/finalize_handler_fn_state_leaks_effect.yu`](solved/finalize_handler_fn_state_leaks_effect.yu) | state binding + handler arm が finalize でも `[0] 1` |
+| [`solved/finalize_record_default_field_show_empty_call.yu`](solved/finalize_record_default_field_show_empty_call.yu) | `f {}` で default 経由 + `.show` が finalize でも `[0] "80"` |
+| [`solved/finalize_inline_wrap_conditional_fail_conflicting_bounds.yu`](solved/finalize_inline_wrap_conditional_fail_conflicting_bounds.yu) | inline `E::wrap: if cond: fail ... else: ...` が finalize でも `[0] err bad "x"` (cold 経路) |
+
+同じ commit で、元の solved/ snippet のうち以下も追加で通るように:
+
+- `solved/handler_fn_missing_join_evidence.yu` → `[0] ["a"]`
+- `solved/record_alias_default_mix.yu` → `[0] ("x:8080", "localhost:22", "localhost:80")`
+
+### 解消済み (2026-05-25 昼, commit `b92326e Close role associated types in runtime finalize` 周辺)
+
+| 元 snippet | 状態 |
+|---|---|
+| [`solved/finalize_handler_fn_unannotated_arg_leaks_effect.yu`](solved/finalize_handler_fn_unannotated_arg_leaks_effect.yu) | handler-as-function (no state, no annot) が finalize でも `[0] ()` |
+| [`solved/finalize_record_pattern_field_role_method_incomplete_graph.yu`](solved/finalize_record_pattern_field_role_method_incomplete_graph.yu) | `f { port: 8080 }` 経由で field 型が確定する形が finalize でも `[0] "8080"` |
+| [`solved/finalize_callback_list_index_raw_incomplete_graph.yu`](solved/finalize_callback_list_index_raw_incomplete_graph.yu) | callback を list に入れて index_raw する形が finalize でも `[0] 0` |
+| [`solved/finalize_error_wrap_fail_breaks.yu`](solved/finalize_error_wrap_fail_breaks.yu) | helper を annotate して `wrap` する形が finalize でも `[0] err not_found "missing"` |
+
+同じ commit で、元の solved/ snippet のうち以下も追加で通るように:
+
+- `solved/callback_list_index_raw_type_stuck.yu` → `[0] 0`
+- `solved/native_error_wrap_basic_flow.yu` → `[0] ok ...` / `[1] err ...`
+- `solved/wrap_does_not_traverse_from_chain.yu` → `[0] "err: not_found"`
+- `solved/pattern_binding_vs_variant.yu` → `[0] "err"`
+
+### サブ観察
+
+- `solved/var_effect_leak_with_wildcards.yu` は `--no-cache` でも finalize
+  側で **非決定的** に `ConflictingBounds` (`apply_effect#5`, `&entries#...` と
+  `log str` row の衝突) を出す (連続 5 run で 2/5 が失敗、3/5 が通る)。
+  fresh TypeVar ID 配置か hash-map iteration order 依存と思われる。snippet
+  化はせず観察のみ残す。
+- 上で解消した `solved/finalize_inline_wrap_conditional_fail_conflicting_bounds.yu`
+  は warm cache 経路 (`YULANG_CACHE_DIR=...` で finalize 側だけ複数回温め
+  た場合) では同じ `ConflictingBounds` が再出する場合がある。`--no-cache`
+  cold 経路では通るので、これはランタイム単一化ではなくキャッシュ側の汚染。
+  下の「2026-05-21 / キャッシュ汚染」と同枠。
+
+メモ:
+- 残り 1 件 (state + for) は「state binding を declare しただけで for body
+  の effect row が `&n` 行で広がり、Fold role の receiver 型解決経路が
+  狂う」と読める。`reference/control-flow.md` の最初の例で踏むので影響大。
+  `examples/03_for_last.yu` (state なし for) は通るので、Fold dispatch
+  そのものは生きている。state binding の存在が `for body : [&n; e] _` の
+  level lifting 後に Fold の `[Fold::fold; e]` row との subtype edge を
+  立てそびれている可能性。
+
 ## 現在の未解決（2026-05-21 / キャッシュ汚染）
 
 `each` + role method `+` の式が、キャッシュ有無で出力がブレる。

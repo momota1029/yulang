@@ -1,0 +1,55 @@
+-- 解消 (2026-05-25, commit b92326e "Close role associated types in runtime
+-- finalize" 周辺): legacy / finalize とも `[0] ()` で揃うようになった。
+-- ただし state binding (`my $entries = []`) を絡めた state 集約版は引き続き
+-- effect が漏れる ([`../finalize_handler_fn_state_leaks_effect.yu`] を参照)。
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): `my f comp = catch comp: ...` 形の
+-- handler-as-function を annotation なしで書くと、handler arm が立たず
+-- 内側 computation の effect がそのまま外まで漏れる。
+--
+-- 期待 (web/docs/reference/effects.md, "Handlers are shallow"):
+--   `catch action: op _, k -> k () + v -> v` で handler arm を書いた関数を
+--   `f: log::put "a"` で呼べば、handler が op を捕まえて value arm の `v`
+--   ＝ `()` を返す。
+--
+--   solved/handler_fn_missing_join_evidence.yu の解決事例 (annotation 付き
+--   `(comp: [log] 'a): 'a` 形) と同じ結果 `[0] ()` が出るのが正解。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] ()
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     [0] request log::put "a" blocked=None
+--
+--   finalize 側だけ handler arm が解決できておらず、`log::put "a"` の effect
+--   が外まで unhandled として漏れる。同じ snippet を annotation 付き
+--   (`my collect_logs(comp: [log] 'a): 'a = catch comp: ...`) に書き直すと
+--   両モードとも `[0] ()` で揃う。
+--
+-- 切り分け:
+--   1. inline `catch (log::put "a"): log::put _, k -> k () + v -> v`
+--      → 両モードとも `[0] ()`。bare catch は OK。
+--   2. handler を関数化して、引数を `comp: [log] 'a` などで annotate
+--      → 両モードとも `[0] ()`。annotation が無いときだけ壊れる。
+--   3. solved/handler_fn_missing_join_evidence.yu の元 snippet
+--      (`my $entries = []` を絡めた state 集約版) でも同じ症状。
+--
+-- 影響:
+--   - reference/effects.md の handler 関数化レシピが、annotation 抜きの
+--     最短形だと finalize で動かない。
+--   - 「handler を切り出す」のは effect handler の基本パターン。annotation
+--     必須になると、初学者が `[log] 'a` のような computation 型を書けない
+--     段階で詰む。
+--   - エラーが「コンパイル時に怒られる」ではなく「runtime で effect が漏れる」
+--     形なので、原因に辿り着くまでに時間がかかる。
+
+act log:
+    pub put: str -> ()
+
+my collect_logs comp = catch comp:
+    log::put _, k -> k ()
+    v -> v
+
+collect_logs: log::put "a"

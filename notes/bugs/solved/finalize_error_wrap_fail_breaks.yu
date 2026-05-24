@@ -1,0 +1,78 @@
+-- 解消 (2026-05-25, commit b92326e "Close role associated types in runtime
+-- finalize" 周辺): helper 経由の `safe_read` 形は両モードとも
+-- `[0] err not_found "missing"` で揃うようになった。
+--
+-- ただし inline `E::wrap: if cond: fail E::variant ... else: <fallback>` 形は
+-- まだ `ConflictingBounds` で落ちる
+-- ([`../finalize_inline_wrap_conditional_fail_conflicting_bounds.yu`] を参照)。
+-- 同じ row entry の `fs_err` が `args: []` と `args: [str]` で衝突する例は
+-- そちらに移動した。
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): `error E:` + `fail E::variant ...` +
+-- `E::wrap` の基本 flow が finalize で全部詰まる。`fail` の generic 引数を
+-- finalize の graph が確定できない。
+--
+-- 期待 (web/docs/reference/errors.md より):
+--   error fs_err: not_found str
+--   my f(p: str): [fs_err] str = fail fs_err::not_found p
+--   fs_err::wrap: f "missing"
+--   → `err not_found "missing"`
+--
+--   solved/native_error_wrap_basic_flow.yu の解決事例と同じ結果が出るのが
+--   正解。legacy では `[0] err not_found "missing"`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] err not_found "missing"
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     error: runtime-finalize failed:
+--       IncompleteGraph {
+--         binding: Path { segments: [Name("std"), Name("prelude"), Name("#op:prefix:fail")] }
+--       }
+--
+--   `fail` の型変数を、`fs_err::not_found p` の戻り (= `[fs_err::not_found#effect] _`)
+--   から推せていない。helper 関数 `f` に `[fs_err] str` の annotation が
+--   付いていても解決しない。
+--
+-- inline 形 (`fs_err::wrap: fail fs_err::not_found "x"`) を試すと別の症状:
+--
+--   legacy:
+--     error: cannot infer all runtime types needed for `std::prelude::#op:prefix:fail`.
+--   finalize:
+--     error: runtime-finalize failed:
+--       ConflictingBounds {
+--         var: TypeVar("t12358#1"),
+--         previous: Row { items: [Named { path: Path { segments: [Name("fs_err")] }, args: [] }],
+--                         tail: Any },
+--         next:     Row { items: [Named { path: Path { segments: [Name("fs_err")] },
+--                                         args: [Type(Named { path: Path { segments:
+--                                                [Name("std"), Name("str"), Name("str")] },
+--                                                args: [] })] }],
+--                         tail: Never }
+--       }
+--
+--   row entry の同じ `fs_err` が `args: []` と `args: [str]` で衝突している。
+--   `fs_err` は `error fs_err: not_found str` で nullary な error 型なので
+--   type args は空のはず。row 上で error 型と effect operation type を取り
+--   違えている疑い。
+--
+-- 影響:
+--   - reference/errors.md / reference/idioms.md が推奨する基本パターン
+--     (`fail E::variant payload` + `E::wrap` で値化) が finalize で動かない。
+--   - solved/ にある同種の snippet 4 件 (`native_error_wrap_basic_flow.yu`,
+--     `wrap_does_not_traverse_from_chain.yu`, `wrap_inside_for_body_leaks_fail.yu`,
+--     `pattern_binding_vs_variant.yu`) も同じ症状で finalize 側だけ落ちる。
+--     全部に共通するのは「`error` 宣言 + `fail` + `wrap`」のコンボ。
+
+error fs_err:
+    not_found str
+
+my read_or_throw(p: str): [fs_err] str =
+    fail fs_err::not_found p
+
+my safe_read(p: str): result str fs_err = fs_err::wrap:
+    read_or_throw p
+
+safe_read "missing"

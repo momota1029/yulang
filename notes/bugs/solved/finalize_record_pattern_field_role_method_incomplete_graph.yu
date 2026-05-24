@@ -1,0 +1,57 @@
+-- 解消 (2026-05-25, commit b92326e "Close role associated types in runtime
+-- finalize" 周辺): call site が `f { port: 8080 }` のように int を渡す形は
+-- 両モードとも `[0] "8080"` で揃うようになった。
+--
+-- ただし call site が空 record (`f {}`) で default 値経由になる場合は
+-- まだ落ちる ([`../finalize_record_default_field_show_empty_call.yu`] を参照)。
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): record-pattern で受けた field に role
+-- method (`.show` 等) を呼ぶと、call site が int を渡しても finalize の
+-- graph が完成せず `IncompleteGraph { binding: Path { segments: [Name("f")] } }`
+-- で死ぬ。
+--
+-- 期待:
+--   `my f { port: p } = p.show` は `{ port: int } -> str` の関数として
+--   素直に定着するはず。call site `f { port: 8080 }` の int が record
+--   field 経由で `p` に流れ、`p.show` (Display::show on int) が選ばれる。
+--   legacy では `[0] "8080"`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] "8080"
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     error: runtime-finalize failed:
+--       IncompleteGraph { binding: Path { segments: [Name("f")] } }
+--
+-- 切り分け:
+--
+--   my f { port: p } = p + 1           → 両モードとも 8081  ✓
+--   my f { port: p } = p.show          → finalize で IncompleteGraph
+--   my f(p: int)     = p.show          → 両モードとも "8080"  ✓
+--   my f { port = 80 } = port + 1      → 両モードとも 8081  ✓
+--   my f { port = 80 } = port.show     → finalize で IncompleteGraph
+--   my f { host: h, port: p } = (h, p) → 両モードとも ("x", 8080) ✓
+--   my f { host: h, port: p } = h + ":" + p.show
+--                                      → finalize で IncompleteGraph
+--
+--   トリガーは「record pattern で受けた binding の型が field 経由でしか
+--   絞られない」+「その binding に role method を呼ぶ」の組み合わせ。
+--   call site が `{ port: 8080 }` のように int を与えていても、graph が
+--   record field の型を p (= role receiver) まで運べていない。
+--
+-- 関連:
+--   solved/record_alias_default_mix.yu (default 値 + .show が混ざる版) も
+--   同じ系統。default の有無に関係なく、record pattern field を receiver
+--   にした role method dispatch が finalize で全部詰まる。
+--
+-- 影響:
+--   - reference/patterns.md の「record パターンで一気に取り出して使う」
+--     書き方が、Display::show / Eq::eq / Ord::cmp など role method を経由
+--     する瞬間に finalize で止まる。
+--   - 同じ意味の `my f(p: { port: int }) = p.port.show` のように field
+--     access を後置に分けると両モードとも通る (確認済み)。
+
+my f { port: p } = p.show
+f { port: 8080 }

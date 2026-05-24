@@ -1,0 +1,74 @@
+-- 解消 (2026-05-25 夜, commit 26f50fe "Fix finalize graph edge regressions"
+-- 周辺): legacy / finalize とも `[0] err bad "x"` で揃うようになった
+-- (--no-cache の cold 経路で確認)。なお warm cache 経路では別の
+-- `ConflictingBounds` が観測される場合がある (キャッシュ汚染側の問題)。
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): `E::wrap: if cond: fail E::variant ... else: <fallback>`
+-- 形 (条件付きで fail を起こす inline wrap) が、finalize で同じ error 型を
+-- 持つ row entry の args が `[]` と `[str]` で衝突して `ConflictingBounds`
+-- で落ちる。
+--
+-- [`solved/finalize_error_wrap_fail_breaks.yu`] (helper を annotate する
+-- 形) は 2026-05-25 に解消したが、inline かつ条件分岐で fail を起こす形は
+-- 同じ修正で通っていない。
+--
+-- 期待:
+--   `fail_err::wrap: if true: fail fail_err::bad "x" else: 1` は、then 側が
+--   `fail_err::bad "x"` で fail を起こすので、wrap が捕まえて `err bad "x"`。
+--   legacy では `[0] err bad "x"`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] err bad "x"
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     error: runtime-finalize failed:
+--       ConflictingBounds {
+--         var: TypeVar("t12358#1"),
+--         previous: Row { items: [Named { path: Path { segments: [Name("fail_err")] }, args: [] }],
+--                         tail: Any },
+--         next:     Row { items: [Named { path: Path { segments: [Name("fail_err")] },
+--                                         args: [Type(Named { path: Path { segments:
+--                                                [Name("std"), Name("str"), Name("str")] },
+--                                                args: [] })] }],
+--                         tail: Never }
+--       }
+--
+--   row entry の同じ `fail_err` が `args: []` と `args: [str]` で衝突して
+--   いる。`fail_err` は `error fail_err: bad str` で nullary な error 型
+--   なので type args は空のはず (`args: []` が正)。`args: [str]` の方は
+--   variant の payload 型を error 型の type arg と取り違えた疑い。
+--
+-- 切り分け:
+--
+--   fail_err::wrap: fail fail_err::bad "x"
+--   → 両モードとも `cannot infer all runtime types needed for fail` で落ちる
+--     (legacy にも残る既知の inference 限界)。
+--
+--   fail_err::wrap: if true: fail fail_err::bad "x" else: 1
+--   → legacy `[0] err bad "x"`、finalize `ConflictingBounds`
+--
+--   ## 元 snippet [`solved/wrap_inside_for_body_leaks_fail.yu`]
+--   `for x in [...]:` body 内に同じ inline wrap+if+fail を置くと同じく
+--   `ConflictingBounds` で落ちる。for body は trigger ではなく、inline
+--   wrap+if+fail のシェイプそのものがトリガー。
+--
+-- 関連:
+--   solved/ の error 系 snippet `wrap_does_not_traverse_from_chain.yu` /
+--   `wrap_inside_for_body_leaks_fail.yu` も同じ row args 衝突の症状を
+--   持つ。
+--
+-- 影響:
+--   - reference/errors.md の「`wrap` で条件付き失敗をその場で値化する」
+--     コード片が finalize で動かない。
+--   - error 型の type args と variant payload の取り違えが row レベルで
+--     起きているなら、cast/role/error 関連の monomorphize 全般に影響する
+--     可能性がある。
+
+error fail_err:
+    bad str
+
+fail_err::wrap:
+    if true: fail fail_err::bad "x"
+    else: 1

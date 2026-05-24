@@ -1,0 +1,72 @@
+-- bug (YULANG_RUNTIME_FINALIZE=1): 同じ scope に `my $...` の state
+-- binding と `for ... in ...:` を並べると、for の `Fold::fold` role
+-- dispatch に失敗し、`std::fold::Fold::fold` request が外まで漏れる。
+--
+-- state を一切 触らない for (例: `examples/03_for_last.yu`) は通るので、
+-- for 単独 / state 単独 はどちらも問題ない。state binding の存在が、
+-- for body 周辺の effect row に `&n` を混ぜ込み、Fold role の receiver
+-- 型解決を狂わせている疑い。
+--
+-- 期待:
+--   `my $n = 0; for _ in [1]: 1; $n` は `$n` の値 (= 0) を返すだけのコード。
+--   legacy では `[0] 0`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] 0
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     [0] request std::fold::Fold::fold [1] blocked=None
+--
+--   `for _ in [1]: 1` の Fold dispatch が立たず、list `[1]` を渡された
+--   `Fold::fold` operation がそのまま外まで unhandled で抜ける。
+--
+-- 切り分け:
+--
+--   ## state なし for (examples/03_for_last.yu の形)
+--   for x in 0..:
+--       if x == 5: last
+--       else: ()
+--   5
+--   → 両モードとも `[0] 5` ✓
+--
+--   ## state あり for なし (examples/02_refs.yu の形)
+--   {
+--       my $x = 10
+--       &x = $x + 1
+--       $x
+--   }
+--   → 両モードとも `[0] 11` ✓
+--
+--   ## state + for 並置 (最小再現)
+--   {
+--       my $n = 0
+--       for _ in [1]:
+--           1
+--       $n
+--   }
+--   → legacy `[0] 0`, finalize `[0] request std::fold::Fold::fold [1] blocked=None`
+--
+--   for を上に置いて state を後に書いても、case を後置にしても、block を
+--   外しても同じく漏れる。state binding が同じ scope に居るだけで、その
+--   scope 内のあらゆる for が Fold dispatch に失敗する。
+--
+-- 関連:
+--   元 snippet [`solved/wrap_inside_for_body_leaks_fail.yu`] が同じ症状で
+--   finalize で落ちる (`expected int, got ()`)。あちらは for body 内で
+--   `&hits = $hits + n` の update をしていて、その shape のせいでエラー
+--   メッセージが application type mismatch に変わるだけで、根本原因は
+--   同じ「state binding がある scope で for の Fold dispatch が立たない」。
+--
+-- 影響:
+--   - 「mutable な累算器を持ちながら list を for で回す」基本パターンが
+--     finalize で詰まる。list, range, undet など Fold 経由のイテレーション
+--     全部に effect する可能性。
+--   - state を意図的に避けて純粋な `fold` 経由に書き換えれば回避できる
+--     が、reference/control-flow.md は `for` を最初に紹介している。
+
+{
+    my $n = 0
+    for _ in [1]:
+        1
+    $n
+}

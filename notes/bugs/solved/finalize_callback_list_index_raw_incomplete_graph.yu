@@ -1,0 +1,57 @@
+-- 解消 (2026-05-25, commit b92326e "Close role associated types in runtime
+-- finalize" 周辺): legacy / finalize とも `[0] 0` で一致するようになった。
+--
+-- 確認:
+--   target/debug/yulang run --no-cache --print-roots \
+--     notes/bugs/solved/finalize_callback_list_index_raw_incomplete_graph.yu
+--   YULANG_RUNTIME_FINALIZE=1 target/debug/yulang run --no-cache --print-roots \
+--     notes/bugs/solved/finalize_callback_list_index_raw_incomplete_graph.yu
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): list に入れた function value を
+-- `std::list::index_raw` で取り出して即座に call すると、index_raw の
+-- element 型が graph で確定せず `IncompleteGraph` で死ぬ。
+--
+-- 期待:
+--   solved/callback_list_index_raw_type_stuck.yu の解決事例どおり、
+--   `h` が `f` に bind され、`return 0` が内側 `sub:` を抜けて全体の値が
+--   `0` になる。legacy では `[0] 0`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] 0
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     error: runtime-finalize failed:
+--       IncompleteGraph {
+--         binding: Path { segments: [Name("std"), Name("list"), Name("index_raw")] }
+--       }
+--
+--   `index_raw` の generic element 型 'a を、list literal `[h]` の要素型
+--   (= `() -> [sub] never` 風 callable) から推せていない。
+--
+-- 切り分け:
+--
+--   my hs = [h]; (std::list::index_raw hs) 0       ← list 経由なら IncompleteGraph
+--   h                                              ← 直接呼ぶなら通る
+--
+--   list element が generic function value のとき、graph 上で element 型を
+--   list literal の要素から index_raw の 'a に流す経路が立っていない。
+--
+-- 影響:
+--   - 「callback を list に入れて回す」基本パターンが finalize で詰まる。
+--   - 自分で `index_raw` を呼ばなくても、`each` や fold の lowered shape に
+--     同じ形が現れる可能性があるので、波及範囲が見えにくい。
+
+use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    my hs = [h]
+    ((std::list::index_raw hs) 0)()
+    return 1
+
+sub:
+    my b = g f
+    2

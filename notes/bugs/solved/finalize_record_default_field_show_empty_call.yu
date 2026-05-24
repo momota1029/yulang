@@ -1,0 +1,50 @@
+-- 解消 (2026-05-25 夜, commit 26f50fe "Fix finalize graph edge regressions"
+-- 周辺): legacy / finalize とも `[0] "80"` で揃うようになった。
+--
+-- ---- 以下は元の bug 記述 ----
+--
+-- bug (YULANG_RUNTIME_FINALIZE=1): record pattern の default 値で受けた
+-- field を `.show` (role method) の receiver にし、call site が空 record
+-- `f {}` で全 field を default に任せると `IncompleteGraph` で死ぬ。
+--
+-- [`solved/finalize_record_pattern_field_role_method_incomplete_graph.yu`]
+-- (call site が int を渡す形) は 2026-05-25 に解消したが、call site が
+-- 空 record で default を経由する場合は同じ修正で通っていない。
+--
+-- 期待:
+--   `my f { port = 80 } = port.show` は `{ port?: int } -> str` の関数
+--   として定着し、`f {}` は `port = 80` が default として効くので `"80"`。
+--   legacy では `[0] "80"`。
+--
+-- 実際:
+--   legacy   (`yulang run --no-cache --print-roots`):
+--     [0] "80"
+--   finalize (`YULANG_RUNTIME_FINALIZE=1 yulang run --no-cache --print-roots`):
+--     error: runtime-finalize failed:
+--       IncompleteGraph { binding: Path { segments: [Name("f")] } }
+--
+-- 切り分け:
+--
+--   my f { port = 80 } = port + 1     →  両モードとも 81  ✓ (.show なしなら通る)
+--   my f { port = 80 } = port.show
+--   f { port: 8080 }                  →  両モードとも "8080" ✓ (call site が int を渡せば通る)
+--   my f { port = 80 } = port.show
+--   f {}                              →  finalize で IncompleteGraph
+--
+--   call site が default 値経由のみで field 型を決めるとき、その default の
+--   `int` を role receiver まで運べていない。default 式の型が role method
+--   selection の lower bound として graph に入っていない感触。
+--
+-- 関連:
+--   solved/record_alias_default_mix.yu の元 snippet (`f {}` を含むタプル
+--   `(f { host: "x", port: 8080 }, f { port: 22 }, f {})`) も同じ症状で、
+--   `f {}` 呼び出しがあるとき全体が落ちる。
+--
+-- 影響:
+--   - 「全 field に default を持つ record 引数」の関数で、default 値を
+--     role method 経由で使う pattern (`port.show`, `port.eq 80` 等) が
+--     finalize で詰まる。これは設定オブジェクト的な API でよくある形。
+--   - 同じ意味の `my f { port: p = 80 } = p.show` でも同じ。
+
+my f { port = 80 } = port.show
+f {}
