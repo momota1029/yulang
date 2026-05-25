@@ -1,16 +1,15 @@
-//! Runtime lowering, validation, and monomorphization for Yulang.
+//! Runtime lowering and validation for Yulang.
 //!
 //! This crate accepts the principal types and local evidence produced by the
-//! infer pipeline, then builds and finalizes a runtime tree where every
+//! infer pipeline, then lowers the program to a runtime tree where every
 //! expression has an execution-facing type witness. The runtime IR data
 //! structures themselves live in `yulang-runtime-ir` and are re-exported here
-//! for compatibility.
+//! for compatibility. Monomorphization lives in `yulang-monomorphize`.
 
 pub mod diagnostic;
 pub mod hygiene;
 pub mod invariant;
 pub mod lower;
-pub mod monomorphize;
 pub mod refine;
 mod runtime_intrinsic;
 mod runtime_type;
@@ -62,15 +61,6 @@ pub use lower::{
     RuntimeAdapterEvent, RuntimeAdapterEventKind, RuntimeAdapterProfile, RuntimeApplyAdapterPhase,
     RuntimeLowerOutput, RuntimeLowerProfile, lower_core_program, lower_core_program_profiled,
     lower_principal_module,
-};
-pub use monomorphize::{
-    DemandEvidenceProfile, DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile,
-    MonomorphizeProgress, SubstitutionSpecializeInferenceCount,
-    SubstitutionSpecializeMissingVarCount, SubstitutionSpecializeProfile,
-    SubstitutionSpecializeRewriteContextCount, SubstitutionSpecializeRewriteExprKindTiming,
-    SubstitutionSpecializeRewritePhaseTiming, SubstitutionSpecializeSkipCount,
-    SubstitutionSpecializeTargetInferences, SubstitutionSpecializeTargetRewrites,
-    SubstitutionSpecializeTargetSkips, monomorphize_module, monomorphize_module_profiled,
 };
 pub use refine::refine_module_types;
 pub use runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
