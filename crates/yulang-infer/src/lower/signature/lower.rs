@@ -468,15 +468,17 @@ fn lower_sig_row_pos(
         .iter()
         .filter_map(|item| lower_sig_effect_atom(state, item, vars).map(Pos::Atom))
         .collect::<Vec<_>>();
-    let tail = row
-        .tail
-        .as_ref()
-        .map(|var| {
-            let tv = sig_var(state, vars, var);
-            state.infer.mark_through(tv);
-            Pos::Var(tv)
-        })
-        .unwrap_or(Pos::Bot);
+    let tail = if let Some(var) = row.tail.as_ref() {
+        let tv = sig_var(state, vars, var);
+        state.infer.mark_through(tv);
+        Pos::Var(tv)
+    } else if let Some(implicit) = implicit_row_tail_sig_var(row) {
+        let tv = sig_var(state, vars, &implicit);
+        state.infer.mark_through(tv);
+        Pos::Var(tv)
+    } else {
+        Pos::Bot
+    };
     state.pos_row(items, tail)
 }
 
@@ -503,22 +505,31 @@ fn lower_sig_row_neg(
         .iter()
         .filter_map(|item| lower_sig_effect_atom(state, item, vars).map(Neg::Atom))
         .collect::<Vec<_>>();
-    let tail = row
-        .tail
-        .as_ref()
-        .map(|var| {
-            let tv = sig_var(state, vars, var);
-            state.infer.mark_through(tv);
-            Neg::Var(tv)
-        })
-        .unwrap_or_else(|| {
-            state
-                .infer
-                .arena
-                .get_neg(state.infer.arena.empty_neg_row)
-                .clone()
-        });
+    let tail = if let Some(var) = row.tail.as_ref() {
+        let tv = sig_var(state, vars, var);
+        state.infer.mark_through(tv);
+        Neg::Var(tv)
+    } else if let Some(implicit) = implicit_row_tail_sig_var(row) {
+        let tv = sig_var(state, vars, &implicit);
+        state.infer.mark_through(tv);
+        Neg::Var(tv)
+    } else {
+        state
+            .infer
+            .arena
+            .get_neg(state.infer.arena.empty_neg_row)
+            .clone()
+    };
     state.neg_row(items, tail)
+}
+
+fn implicit_row_tail_sig_var(row: &SigRow) -> Option<SigVar> {
+    let first = row.items.first()?;
+    let span = first.span();
+    Some(SigVar {
+        name: format!("__row_tail_{}_{}", u32::from(span.start()), u32::from(span.end())),
+        span,
+    })
 }
 
 fn single_in_scope_ident_item(row: &SigRow, vars: &HashMap<String, TypeVar>) -> Option<TypeVar> {

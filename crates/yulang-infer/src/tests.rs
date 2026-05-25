@@ -470,6 +470,32 @@ fn recursive_self_call_principal_keeps_pure_arg_effect() {
 }
 
 #[test]
+fn handler_continuation_in_queue_principal_avoids_top_in_effect_row() {
+    let mut state = parse_and_lower(
+        "type list 'a\n\
+         pub cons(x: 'a, xs: list 'a): list 'a = xs\n\
+         \n\
+         my act eff:\n\
+         \x20   our op: () -> bool\n\
+         \x20   our handle(x: [eff] 'a, queue: list (bool -> [eff] 'a)) = catch x:\n\
+         \x20       op(), k -> cons(k, queue)\n\
+         \x20       value -> queue\n\
+         \n\
+         eff::handle",
+    );
+    let program = export_core_program(&mut state);
+    let principal_callees = apply_principal_callees_in_module(&program.program);
+    assert!(
+        !principal_callees.is_empty(),
+        "expected handler apply principal evidence"
+    );
+    assert!(
+        principal_callees.iter().all(|ty| !type_contains_any(ty)),
+        "handler principal evidence should not carry Any/top in nested function effect rows: {principal_callees:?}",
+    );
+}
+
+#[test]
 fn core_program_carries_expected_edge_evidence_table() {
     let mut state = parse_and_lower("my id(x: int) = x\nid 1");
     let application_edge_ids = state

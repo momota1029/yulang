@@ -2199,7 +2199,7 @@ mod tests {
             .find(|(name, _)| name == "f")
             .expect("f should be rendered");
 
-        assert_eq!(c.1, "{go: unit -> [outer; [; ⊤]] ⊤} -> outer::label");
+        assert_eq!(c.1, "{go: unit -> [outer; ⊤] ⊤} -> outer::label");
         assert_eq!(f.1, "outer::label -> unit -> [outer] ⊥");
     }
 
@@ -2224,7 +2224,7 @@ mod tests {
 
         assert_eq!(
             c.1,
-            "{last: unit -> [label_loop; [; ⊤]] ⊤, next: unit -> [label_loop; [; ⊤]] ⊤, redo: unit -> [label_loop; [; ⊤]] ⊤} -> label_loop::label"
+            "{last: unit -> [label_loop; ⊤] ⊤, next: unit -> [label_loop; ⊤] ⊤, redo: unit -> [label_loop; ⊤] ⊤} -> label_loop::label"
         );
         assert_eq!(m.1, "unit -> label_loop::label");
     }
