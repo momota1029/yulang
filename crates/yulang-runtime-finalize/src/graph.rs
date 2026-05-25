@@ -1693,14 +1693,24 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
             }
         }
         typed_ir::Type::Row { items, tail } => {
+            // Flatten nested rows that share a `Never` tail so that
+            // `Row<[next], Row<[last]; Never>>` collapses to the flat
+            // `Row<[next, last]; Never>` form before we normalize items.
+            let (raw_items, raw_tail) = match flatten_closed_row(ty) {
+                Some(flat) => flat,
+                None => (items.clone(), (**tail).clone()),
+            };
             let mut normalized_items = Vec::new();
-            for item in items
-                .iter()
-                .map(|item| normalize_bound_form_inner(item, true))
+            for item in raw_items
+                .into_iter()
+                .map(|item| normalize_bound_form_inner(&item, true))
             {
                 push_unique_effect_item(&mut normalized_items, item);
             }
-            let tail = normalize_bound_form_inner(tail, false);
+            // Effect rows are unordered sets; canonicalize item order so
+            // `[next, last]` and `[last, next]` compare equal across bound merges.
+            normalized_items.sort_by_key(|item| format!("{item:?}"));
+            let tail = normalize_bound_form_inner(&raw_tail, false);
             if normalized_items.is_empty() {
                 tail
             } else {
