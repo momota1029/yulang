@@ -145,7 +145,7 @@ artifact 生成や backend の debug には `yulang native` も使えます。in
 代表的な Rust test suite を走らせる例です。
 
 ```bash
-cargo test -p yulang-runtime -p yulang-infer --lib
+cargo test -p yulang-monomorphize -p yulang-infer --lib
 ```
 
 playground を手元で build します。
@@ -173,8 +173,12 @@ YU
 - `crates/yulang-sources`: source set、realm、compilation unit、syntax artifact。
 - `crates/yulang-typed-ir`: typed intermediate representation と principal-type evidence。
 - `crates/yulang-infer`: 型推論と principal type export。
-- `crates/yulang-runtime`: runtime IR、monomorphization、interpreter。
-- `crates/yulang-native`: native backend。
+- `crates/yulang-runtime-ir`: runtime IR data structures と `RuntimeType` 定義。
+- `crates/yulang-runtime-types`: runtime type 表現と type-system helpers。
+- `crates/yulang-runtime-refine`: refine / validate / invariant / hygiene pass。
+- `crates/yulang-runtime-lower`: core IR → runtime IR の lower pass。
+- `crates/yulang-monomorphize`: type graph 解決と monomorphize pass。
+- `crates/yulang-vm`: VM compile と evaluation。
 - `crates/yulang-wasm`: playground から使う WebAssembly API。
 - `examples`: 現在の実装で動く example。
 - `lib/std`: Yulang で書かれた標準ライブラリ。

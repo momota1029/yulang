@@ -60,7 +60,12 @@ The repository is a Rust workspace. The main crates are:
 |-------|---------|
 | `yulang-parser` | concrete syntax and operator parsing |
 | `yulang-infer` | lowering, names, type inference, and core export |
-| `yulang-runtime` | runtime lowering, monomorphization, VM compilation, VM evaluation |
+| `yulang-runtime-ir` | runtime IR data structures and `RuntimeType` |
+| `yulang-runtime-types` | runtime type representation and type-system helpers |
+| `yulang-runtime-refine` | refine / validate / invariant / hygiene passes |
+| `yulang-runtime-lower` | core IR → runtime IR lowering |
+| `yulang-monomorphize` | type graph resolution and monomorphization |
+| `yulang-vm` | VM compilation and evaluation |
 | `yulang-wasm` | browser-facing wasm API used by the playground |
 
 ## Web build
