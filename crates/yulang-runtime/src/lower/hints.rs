@@ -27,8 +27,8 @@ pub(super) fn choose_local_type_hint(
     expected: Option<RuntimeType>,
 ) -> Option<RuntimeType> {
     match (stored, expected) {
-        (Some(stored @ RuntimeType::Core(typed_ir::Type::Never)), _) => Some(stored),
-        (Some(RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_))), Some(expected)) => {
+        (Some(stored @ RuntimeType::Value(typed_ir::Type::Never)), _) => Some(stored),
+        (Some(RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))), Some(expected)) => {
             Some(expected)
         }
         (Some(stored), Some(expected)) if hir_type_compatible(&expected, &stored) => {
@@ -80,7 +80,7 @@ pub(super) fn choose_apply_arg_type(
 
 fn argument_evidence_widens_past_param(evidence: &RuntimeType, param: &RuntimeType) -> bool {
     match (evidence, param) {
-        (RuntimeType::Core(evidence), RuntimeType::Core(param)) => {
+        (RuntimeType::Value(evidence), RuntimeType::Value(param)) => {
             needs_runtime_coercion(evidence, param)
         }
         _ => false,
@@ -92,7 +92,7 @@ pub(super) fn expected_arg_evidence_runtime_usable(ty: &RuntimeType) -> bool {
         && !hir_type_is_hole(ty)
         && !matches!(
             ty,
-            RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Never | typed_ir::Type::Var(_))
+            RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Never | typed_ir::Type::Var(_))
         )
 }
 
@@ -119,10 +119,10 @@ pub(super) fn choose_expected_hir_type(
     expected: Option<RuntimeType>,
 ) -> Option<RuntimeType> {
     match (&ty, expected) {
-        (RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_)), Some(expected)) => {
+        (RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_)), Some(expected)) => {
             Some(expected)
         }
-        (RuntimeType::Core(actual), Some(RuntimeType::Core(expected)))
+        (RuntimeType::Value(actual), Some(RuntimeType::Value(expected)))
             if needs_runtime_coercion(&expected, actual) =>
         {
             Some(ty)
@@ -216,14 +216,14 @@ fn apply_result_includes_expected(expected: &RuntimeType, actual: &RuntimeType) 
 
 pub(super) fn hir_type_compatible(expected: &RuntimeType, actual: &RuntimeType) -> bool {
     match (expected, actual) {
-        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+        (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
             core_types_compatible(expected, actual)
         }
-        (RuntimeType::Core(expected), actual @ RuntimeType::Fun { .. })
-        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Core(expected)) => {
+        (RuntimeType::Value(expected), actual @ RuntimeType::Fun { .. })
+        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Value(expected)) => {
             core_types_compatible(expected, &diagnostic_core_type(actual))
         }
-        (RuntimeType::Core(expected), RuntimeType::Thunk { value, .. }) => {
+        (RuntimeType::Value(expected), RuntimeType::Thunk { value, .. }) => {
             core_types_compatible(expected, &diagnostic_core_type(value))
         }
         (

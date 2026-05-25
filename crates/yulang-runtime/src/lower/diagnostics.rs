@@ -19,7 +19,7 @@ pub(super) fn reject_non_runtime_hir_type(
 ) -> RuntimeResult<()> {
     match ty {
         RuntimeType::Unknown => Ok(()),
-        RuntimeType::Core(ty) => reject_non_runtime_type(ty, source),
+        RuntimeType::Value(ty) => reject_non_runtime_type(ty, source),
         RuntimeType::Fun { param, ret } => {
             reject_non_runtime_hir_type(param, source)?;
             reject_non_runtime_hir_type(ret, source)

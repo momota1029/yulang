@@ -55,7 +55,7 @@ pub(crate) fn core_type_is_never(ty: &typed_ir::Type) -> bool {
 pub(crate) fn runtime_type_is_inference_hole(ty: &RuntimeType) -> bool {
     matches!(
         ty,
-        RuntimeType::Unknown | RuntimeType::Core(typed_ir::Type::Unknown | typed_ir::Type::Var(_))
+        RuntimeType::Unknown | RuntimeType::Value(typed_ir::Type::Unknown | typed_ir::Type::Var(_))
     )
 }
 
@@ -70,7 +70,7 @@ pub(crate) fn runtime_type_is_imprecise_runtime_slot(ty: &RuntimeType) -> bool {
     matches!(
         ty,
         RuntimeType::Unknown
-            | RuntimeType::Core(
+            | RuntimeType::Value(
                 typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
             )
     )
@@ -91,7 +91,7 @@ pub(crate) fn runtime_projection_fallback_type() -> typed_ir::Type {
 pub(crate) fn runtime_type_contains_unknown(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_contains_unknown(ty),
+        RuntimeType::Value(ty) => core_type_contains_unknown(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_type_contains_unknown(param) || runtime_type_contains_unknown(ret)
         }

@@ -26,10 +26,10 @@ pub(super) fn force_core_value_expr_profiled(
 ) -> (Expr, typed_ir::Type) {
     let (expr, ty) = force_value_expr_profiled(expr, profile);
     let ty = runtime_core_type(&ty);
-    let expr = if matches!(expr.ty, RuntimeType::Core(_)) {
+    let expr = if matches!(expr.ty, RuntimeType::Value(_)) {
         expr
     } else {
-        Expr::typed(expr.kind, RuntimeType::core(ty.clone()))
+        Expr::typed(expr.kind, RuntimeType::value(ty.clone()))
     };
     (expr, ty)
 }

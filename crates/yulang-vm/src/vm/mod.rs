@@ -10,7 +10,7 @@ use yulang_runtime_ir::{
     FinalizedExprKind as ExprKind, FinalizedHandleArm as HandleArm, FinalizedMatchArm as MatchArm,
     FinalizedModule as Module, FinalizedPattern as Pattern,
     FinalizedRecordExprField as RecordExprField, FinalizedRecordSpreadExpr as RecordSpreadExpr,
-    FinalizedStmt as Stmt, FinalizedType as Type,
+    FinalizedStmt as Stmt, RuntimeType as Type,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -77,12 +77,6 @@ pub trait IntoVmModule {
 impl IntoVmModule for Module {
     fn into_vm_module(self) -> Module {
         self
-    }
-}
-
-impl IntoVmModule for yulang_runtime::Module {
-    fn into_vm_module(self) -> Module {
-        lift_legacy_runtime_module(self)
     }
 }
 
@@ -373,7 +367,7 @@ fn lift_legacy_runtime_record_spread_pattern(
 fn lift_legacy_runtime_type(ty: yulang_runtime::Type) -> Type {
     match ty {
         yulang_runtime::Type::Unknown => Type::Unknown,
-        yulang_runtime::Type::Core(ty) => lift_core_type(ty),
+        yulang_runtime::Type::Value(ty) => lift_core_type(ty),
         yulang_runtime::Type::Fun { param, ret } => Type::fun(
             lift_legacy_runtime_type(*param),
             lift_legacy_runtime_type(*ret),

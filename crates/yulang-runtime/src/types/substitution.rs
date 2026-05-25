@@ -704,7 +704,7 @@ pub(crate) fn substitute_hir_type(
 ) -> RuntimeType {
     match ty {
         RuntimeType::Unknown => RuntimeType::unknown(),
-        RuntimeType::Core(ty) => RuntimeType::core(substitute_type(ty, substitutions)),
+        RuntimeType::Value(ty) => RuntimeType::value(substitute_type(ty, substitutions)),
         RuntimeType::Fun { param, ret } => RuntimeType::fun(
             substitute_hir_type(param, substitutions),
             substitute_hir_type(ret, substitutions),

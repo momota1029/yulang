@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn shows_local_push_and_add_id_scope() {
-        let int = RuntimeType::core(named_type("int"));
+        let int = RuntimeType::value(named_type("int"));
         let effect = row("io");
         let thunk = Expr::typed(
             ExprKind::Thunk {
@@ -251,7 +251,7 @@ mod tests {
                     int,
                 )),
             },
-            RuntimeType::thunk(effect.clone(), RuntimeType::core(named_type("int"))),
+            RuntimeType::thunk(effect.clone(), RuntimeType::value(named_type("int"))),
         );
         let expr = Expr::typed(
             ExprKind::LocalPushId {
@@ -263,10 +263,10 @@ mod tests {
                         active: false,
                         thunk: Box::new(thunk),
                     },
-                    RuntimeType::thunk(row("io"), RuntimeType::core(named_type("int"))),
+                    RuntimeType::thunk(row("io"), RuntimeType::value(named_type("int"))),
                 )),
             },
-            RuntimeType::thunk(row("io"), RuntimeType::core(named_type("int"))),
+            RuntimeType::thunk(row("io"), RuntimeType::value(named_type("int"))),
         );
 
         let text = format_hygiene_expr(&expr);
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn shows_handler_effect_summary_and_find_id() {
-        let unit = RuntimeType::core(named_type("unit"));
+        let unit = RuntimeType::value(named_type("unit"));
         let effect_path = typed_ir::Path::from_name(typed_ir::Name("io".to_string()));
         let expr = Expr::typed(
             ExprKind::Handle {
@@ -286,7 +286,7 @@ mod tests {
                     ExprKind::FindId {
                         id: EffectIdRef::Var(EffectIdVar(1)),
                     },
-                    RuntimeType::core(named_type("__effect_id")),
+                    RuntimeType::value(named_type("__effect_id")),
                 )),
                 arms: Vec::new(),
                 evidence: crate::ir::JoinEvidence {

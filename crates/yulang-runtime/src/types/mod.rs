@@ -159,12 +159,12 @@ mod tests {
         let RuntimeType::Fun { param, ret } = projected else {
             panic!("expected function");
         };
-        assert_eq!(*ret, RuntimeType::core(typed_ir::Type::Var(value.clone())));
+        assert_eq!(*ret, RuntimeType::value(typed_ir::Type::Var(value.clone())));
         assert_eq!(
             *param,
             RuntimeType::thunk(
                 typed_ir::Type::Var(effect),
-                RuntimeType::core(typed_ir::Type::Var(value))
+                RuntimeType::value(typed_ir::Type::Var(value))
             )
         );
     }

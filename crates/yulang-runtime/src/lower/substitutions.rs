@@ -266,7 +266,7 @@ fn infer_hir_type_substitutions_with_options(
     options: HirSubstitutionOptions,
 ) {
     match (template, actual) {
-        (RuntimeType::Fun { .. }, RuntimeType::Core(core @ typed_ir::Type::Fun { .. })) => {
+        (RuntimeType::Fun { .. }, RuntimeType::Value(core @ typed_ir::Type::Fun { .. })) => {
             let actual = project_runtime_hir_type_with_vars(core, params);
             infer_hir_type_substitutions_with_options(
                 template,
@@ -276,7 +276,7 @@ fn infer_hir_type_substitutions_with_options(
                 options,
             );
         }
-        (RuntimeType::Core(core @ typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
+        (RuntimeType::Value(core @ typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
             let template = project_runtime_hir_type_with_vars(core, params);
             infer_hir_type_substitutions_with_options(
                 &template,
@@ -286,7 +286,7 @@ fn infer_hir_type_substitutions_with_options(
                 options,
             );
         }
-        (RuntimeType::Core(template), RuntimeType::Core(actual)) => {
+        (RuntimeType::Value(template), RuntimeType::Value(actual)) => {
             infer_runtime_type_substitutions(template, actual, params, substitutions, options);
         }
         (
@@ -372,7 +372,7 @@ fn infer_hir_type_substitutions_with_options(
 fn runtime_hir_is_function_like(ty: &RuntimeType) -> bool {
     matches!(
         ty,
-        RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. })
+        RuntimeType::Fun { .. } | RuntimeType::Value(typed_ir::Type::Fun { .. })
     )
 }
 
@@ -557,7 +557,7 @@ pub(super) fn principal_runtime_type_params(
 fn collect_hir_value_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
         RuntimeType::Unknown => {}
-        RuntimeType::Core(ty) => collect_core_value_type_vars(ty, vars),
+        RuntimeType::Value(ty) => collect_core_value_type_vars(ty, vars),
         RuntimeType::Fun { param, ret } => {
             collect_hir_value_type_vars(param, vars);
             collect_hir_value_type_vars(ret, vars);
@@ -782,8 +782,8 @@ pub(super) fn refine_anonymous_hir_type(
     actual: &RuntimeType,
 ) -> RuntimeType {
     match (expected, actual) {
-        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
-            RuntimeType::core(refine_anonymous_type(expected, actual))
+        (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
+            RuntimeType::value(refine_anonymous_type(expected, actual))
         }
         (
             RuntimeType::Fun {

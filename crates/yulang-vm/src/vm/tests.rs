@@ -6,7 +6,7 @@ mod tests {
     use yulang_infer::{SourceOptions, lower_virtual_source_with_options};
     use yulang_runtime::{RuntimeError, RuntimeResult};
     use yulang_runtime_ir::{
-        FinalizedBinding as Binding, FinalizedModule as Module, FinalizedType as RuntimeType,
+        FinalizedBinding as Binding, FinalizedModule as Module, RuntimeType as RuntimeType,
     };
 
     #[derive(Debug, Clone, PartialEq, Eq)]

@@ -43,7 +43,7 @@ pub(crate) fn is_nullary_constructor_path_for_type(
     path: &typed_ir::Path,
     ty: &RuntimeType,
 ) -> bool {
-    let RuntimeType::Core(typed_ir::Type::Named {
+    let RuntimeType::Value(typed_ir::Type::Named {
         path: type_path, ..
     }) = ty
     else {
@@ -60,7 +60,7 @@ pub(crate) fn is_nullary_constructor_path_for_type(
 pub(crate) fn hir_type_has_vars(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => false,
-        RuntimeType::Core(ty) => core_type_has_vars(ty),
+        RuntimeType::Value(ty) => core_type_has_vars(ty),
         RuntimeType::Fun { param, ret } => hir_type_has_vars(param) || hir_type_has_vars(ret),
         RuntimeType::Thunk { effect, value } => {
             core_type_has_vars(effect) || hir_type_has_vars(value)
@@ -334,7 +334,7 @@ pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<t
 pub(crate) fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
         RuntimeType::Unknown => {}
-        RuntimeType::Core(ty) => collect_type_vars(ty, vars),
+        RuntimeType::Value(ty) => collect_type_vars(ty, vars),
         RuntimeType::Fun { param, ret } => {
             collect_hir_type_vars(param, vars);
             collect_hir_type_vars(ret, vars);

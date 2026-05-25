@@ -273,40 +273,39 @@ fn clone_expr_without_apply_spine_recursion<T: Clone>(expr: &Expr<T>) -> Expr<T>
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum FinalizedType {
+pub enum RuntimeType {
     Unknown,
     Value(typed_ir::Type),
     Fun {
-        param: Box<FinalizedType>,
-        ret: Box<FinalizedType>,
+        param: Box<RuntimeType>,
+        ret: Box<RuntimeType>,
     },
     Thunk {
         effect: typed_ir::Type,
-        value: Box<FinalizedType>,
+        value: Box<RuntimeType>,
     },
 }
 
-impl FinalizedType {
+impl RuntimeType {
     pub fn unknown() -> Self {
         Self::Unknown
     }
 
     pub fn value(ty: typed_ir::Type) -> Self {
-        debug_assert!(
-            !matches!(ty, typed_ir::Type::Fun { .. }),
-            "FinalizedType::Value must not wrap Fun; use FinalizedType::Fun instead"
-        );
+        // NOTE: this can momentarily wrap a `typed_ir::Type::Fun` during the
+        // lower stage (before monomorphize splits it into a Fun arm). The
+        // monomorphize pass is responsible for normalizing those cases.
         Self::Value(ty)
     }
 
-    pub fn fun(param: FinalizedType, ret: FinalizedType) -> Self {
+    pub fn fun(param: RuntimeType, ret: RuntimeType) -> Self {
         Self::Fun {
             param: Box::new(param),
             ret: Box::new(ret),
         }
     }
 
-    pub fn thunk(effect: typed_ir::Type, value: FinalizedType) -> Self {
+    pub fn thunk(effect: typed_ir::Type, value: RuntimeType) -> Self {
         Self::Thunk {
             effect,
             value: Box::new(value),
@@ -315,23 +314,29 @@ impl FinalizedType {
 
     pub fn as_value(&self) -> Option<&typed_ir::Type> {
         match self {
-            FinalizedType::Value(ty) => Some(ty),
-            FinalizedType::Unknown | FinalizedType::Fun { .. } | FinalizedType::Thunk { .. } => {
+            RuntimeType::Value(ty) => Some(ty),
+            RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => {
                 None
             }
         }
     }
 }
 
-impl Clone for FinalizedType {
+impl From<typed_ir::Type> for RuntimeType {
+    fn from(ty: typed_ir::Type) -> Self {
+        RuntimeType::Value(ty)
+    }
+}
+
+impl Clone for RuntimeType {
     fn clone(&self) -> Self {
         clone_finalized_type_without_fun_spine_recursion(self)
     }
 }
 
-fn clone_finalized_type_without_fun_spine_recursion(ty: &FinalizedType) -> FinalizedType {
+fn clone_finalized_type_without_fun_spine_recursion(ty: &RuntimeType) -> RuntimeType {
     enum Frame<'a> {
-        Fun { param: &'a FinalizedType },
+        Fun { param: &'a RuntimeType },
         Thunk { effect: &'a typed_ir::Type },
     }
 
@@ -339,30 +344,30 @@ fn clone_finalized_type_without_fun_spine_recursion(ty: &FinalizedType) -> Final
     let mut frames = Vec::new();
     loop {
         match current {
-            FinalizedType::Fun { param, ret } => {
+            RuntimeType::Fun { param, ret } => {
                 frames.push(Frame::Fun { param });
                 current = ret;
             }
-            FinalizedType::Thunk { effect, value } => {
+            RuntimeType::Thunk { effect, value } => {
                 frames.push(Frame::Thunk { effect });
                 current = value;
             }
-            FinalizedType::Unknown => {
-                let mut cloned = FinalizedType::Unknown;
+            RuntimeType::Unknown => {
+                let mut cloned = RuntimeType::Unknown;
                 for frame in frames.into_iter().rev() {
                     cloned = match frame {
-                        Frame::Fun { param } => FinalizedType::fun(param.clone(), cloned),
-                        Frame::Thunk { effect } => FinalizedType::thunk(effect.clone(), cloned),
+                        Frame::Fun { param } => RuntimeType::fun(param.clone(), cloned),
+                        Frame::Thunk { effect } => RuntimeType::thunk(effect.clone(), cloned),
                     };
                 }
                 return cloned;
             }
-            FinalizedType::Value(core) => {
-                let mut cloned = FinalizedType::Value(core.clone());
+            RuntimeType::Value(core) => {
+                let mut cloned = RuntimeType::Value(core.clone());
                 for frame in frames.into_iter().rev() {
                     cloned = match frame {
-                        Frame::Fun { param } => FinalizedType::fun(param.clone(), cloned),
-                        Frame::Thunk { effect } => FinalizedType::thunk(effect.clone(), cloned),
+                        Frame::Fun { param } => RuntimeType::fun(param.clone(), cloned),
+                        Frame::Thunk { effect } => RuntimeType::thunk(effect.clone(), cloned),
                     };
                 }
                 return cloned;
@@ -608,19 +613,19 @@ pub type LoweredMatchArm = MatchArm<typed_ir::Type>;
 pub type LoweredHandleArm = HandleArm<typed_ir::Type>;
 pub type LoweredResumeBinding = ResumeBinding<typed_ir::Type>;
 
-pub type FinalizedExpr = Expr<FinalizedType>;
-pub type FinalizedExprKind = ExprKind<FinalizedType>;
-pub type FinalizedModule = Module<FinalizedType>;
-pub type FinalizedBinding = Binding<FinalizedType>;
-pub type FinalizedStmt = Stmt<FinalizedType>;
-pub type FinalizedPattern = Pattern<FinalizedType>;
-pub type FinalizedRecordExprField = RecordExprField<FinalizedType>;
-pub type FinalizedRecordSpreadExpr = RecordSpreadExpr<FinalizedType>;
-pub type FinalizedRecordPatternField = RecordPatternField<FinalizedType>;
-pub type FinalizedRecordSpreadPattern = RecordSpreadPattern<FinalizedType>;
-pub type FinalizedMatchArm = MatchArm<FinalizedType>;
-pub type FinalizedHandleArm = HandleArm<FinalizedType>;
-pub type FinalizedResumeBinding = ResumeBinding<FinalizedType>;
+pub type FinalizedExpr = Expr<RuntimeType>;
+pub type FinalizedExprKind = ExprKind<RuntimeType>;
+pub type FinalizedModule = Module<RuntimeType>;
+pub type FinalizedBinding = Binding<RuntimeType>;
+pub type FinalizedStmt = Stmt<RuntimeType>;
+pub type FinalizedPattern = Pattern<RuntimeType>;
+pub type FinalizedRecordExprField = RecordExprField<RuntimeType>;
+pub type FinalizedRecordSpreadExpr = RecordSpreadExpr<RuntimeType>;
+pub type FinalizedRecordPatternField = RecordPatternField<RuntimeType>;
+pub type FinalizedRecordSpreadPattern = RecordSpreadPattern<RuntimeType>;
+pub type FinalizedMatchArm = MatchArm<RuntimeType>;
+pub type FinalizedHandleArm = HandleArm<RuntimeType>;
+pub type FinalizedResumeBinding = ResumeBinding<RuntimeType>;
 
 #[cfg(test)]
 mod tests {
@@ -629,22 +634,22 @@ mod tests {
     #[test]
     fn clones_deep_runtime_adapter_spine_without_recursing() {
         let mut expr =
-            FinalizedExpr::typed(ExprKind::Lit(typed_ir::Lit::Unit), FinalizedType::unknown());
+            FinalizedExpr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::unknown());
         for index in 0..20_000 {
             expr = match index % 3 {
                 0 => FinalizedExpr::typed(
                     ExprKind::BindHere {
                         expr: Box::new(expr),
                     },
-                    FinalizedType::unknown(),
+                    RuntimeType::unknown(),
                 ),
                 1 => FinalizedExpr::typed(
                     ExprKind::Thunk {
                         effect: typed_ir::Type::Unknown,
-                        value: FinalizedType::unknown(),
+                        value: RuntimeType::unknown(),
                         expr: Box::new(expr),
                     },
-                    FinalizedType::unknown(),
+                    RuntimeType::unknown(),
                 ),
                 _ => FinalizedExpr::typed(
                     ExprKind::Coerce {
@@ -652,14 +657,14 @@ mod tests {
                         to: typed_ir::Type::Any,
                         expr: Box::new(expr),
                     },
-                    FinalizedType::unknown(),
+                    RuntimeType::unknown(),
                 ),
             };
         }
 
         let cloned = expr.clone();
 
-        assert_eq!(cloned.ty, FinalizedType::unknown());
+        assert_eq!(cloned.ty, RuntimeType::unknown());
         std::mem::forget(expr);
         std::mem::forget(cloned);
     }

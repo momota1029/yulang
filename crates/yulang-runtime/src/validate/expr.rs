@@ -81,7 +81,7 @@ pub(super) fn validate_expr(
                         }
                     }
                 }
-                RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => {
+                RuntimeType::Value(typed_ir::Type::Fun { param, ret, .. }) => {
                     if let Err(error) = require_same_type(
                         param,
                         hir_value_core_type(&arg.ty).as_ref(),
@@ -95,7 +95,7 @@ pub(super) fn validate_expr(
                         TypeSource::ApplyEvidence,
                     )?;
                 }
-                RuntimeType::Core(typed_ir::Type::Var(_) | typed_ir::Type::Any) => {
+                RuntimeType::Value(typed_ir::Type::Var(_) | typed_ir::Type::Any) => {
                     if let Some(evidence) = evidence {
                         if let Some(arg_ty) =
                             choose_bounds_type(&evidence.arg, BoundsChoice::ValidationEvidence)
@@ -120,7 +120,7 @@ pub(super) fn validate_expr(
                 RuntimeType::Thunk { value, .. }
                     if matches!(
                         value.as_ref(),
-                        RuntimeType::Core(typed_ir::Type::Var(_) | typed_ir::Type::Any)
+                        RuntimeType::Value(typed_ir::Type::Var(_) | typed_ir::Type::Any)
                     ) =>
                 {
                     if let Some(evidence) = evidence {
@@ -291,7 +291,7 @@ pub(super) fn validate_expr(
         ExprKind::PeekId => {
             require_same_hir_type(
                 &expr.ty,
-                &RuntimeType::core(effect_id_type()),
+                &RuntimeType::value(effect_id_type()),
                 TypeSource::Expected,
             )?;
         }
@@ -495,7 +495,7 @@ pub(super) fn validate_resume_binding(
             hir_value_core_type(ret).as_ref(),
             TypeSource::Expected,
         ),
-        RuntimeType::Core(typed_ir::Type::Fun { ret, .. }) => {
+        RuntimeType::Value(typed_ir::Type::Fun { ret, .. }) => {
             require_same_type(body_ty, ret, TypeSource::Expected)
         }
         other => Err(RuntimeError::NonFunctionCallee {
@@ -508,9 +508,9 @@ pub(super) fn validate_lambda_type(ty: &RuntimeType) -> RuntimeResult<(RuntimeTy
     match ty {
         RuntimeType::Fun { param, ret } => Ok((param.as_ref().clone(), ret.as_ref().clone())),
         RuntimeType::Thunk { value, .. } => validate_lambda_type(value),
-        RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => Ok((
-            RuntimeType::core(param.as_ref().clone()),
-            RuntimeType::core(ret.as_ref().clone()),
+        RuntimeType::Value(typed_ir::Type::Fun { param, ret, .. }) => Ok((
+            RuntimeType::value(param.as_ref().clone()),
+            RuntimeType::value(ret.as_ref().clone()),
         )),
         other => Err(RuntimeError::NonFunctionCallee {
             ty: diagnostic_core_type(other),

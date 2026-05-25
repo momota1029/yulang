@@ -69,7 +69,7 @@ impl Lowerer<'_> {
         let ty = self
             .root_expr_type(index, &expr)
             .ok_or(RuntimeError::MissingRootType { index })?;
-        let ty = RuntimeType::core(ty);
+        let ty = RuntimeType::value(ty);
         self.lower_expr(expr, Some(&ty), &mut HashMap::new(), TypeSource::RootGraph)
     }
 
@@ -117,7 +117,7 @@ impl Lowerer<'_> {
                                 .get(&resolved_path)
                                 .or_else(|| self.effect_op_signatures.get(&path));
                             let sig_ty = sig
-                                .map(|scheme| RuntimeType::core(scheme.body.clone()));
+                                .map(|scheme| RuntimeType::value(scheme.body.clone()));
                             match (expected.cloned(), sig_ty) {
                                 (Some(exp), Some(sig)) => {
                                     Some(merge_effect_op_runtime_type(&exp, &sig))
@@ -262,10 +262,10 @@ impl Lowerer<'_> {
                         ((**param).clone(), Some(ret.as_ref()))
                     }
                     Some(RuntimeType::Unknown)
-                    | Some(RuntimeType::Core(typed_ir::Type::Never))
+                    | Some(RuntimeType::Value(typed_ir::Type::Never))
                     | None => (RuntimeType::unknown(), None),
-                    Some(RuntimeType::Core(typed_ir::Type::Any)) => {
-                        (RuntimeType::core(typed_ir::Type::Any), None)
+                    Some(RuntimeType::Value(typed_ir::Type::Any)) => {
+                        (RuntimeType::value(typed_ir::Type::Any), None)
                     }
                     Some(other) => {
                         return Err(RuntimeError::NonFunctionCallee {
@@ -370,11 +370,11 @@ impl Lowerer<'_> {
                 let evidence_arg = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.arg))
-                    .map(RuntimeType::core);
+                    .map(RuntimeType::value);
                 let evidence_arg_lower = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_argument_runtime_type(&evidence.arg))
-                    .map(RuntimeType::core);
+                    .map(RuntimeType::value);
                 let evidence_expected_arg = self
                     .expected_arg_evidence_runtime_type(
                         evidence
@@ -392,7 +392,7 @@ impl Lowerer<'_> {
                                     .and_then(|evidence| {
                                         self.visible_apply_evidence_arg_type(evidence)
                                     })
-                                    .map(RuntimeType::core)
+                                    .map(RuntimeType::value)
                                     .filter(expected_arg_evidence_runtime_usable)
                             })
                             .flatten()
@@ -403,7 +403,7 @@ impl Lowerer<'_> {
                         self.visible_apply_evidence_result_type(evidence)
                             .or_else(|| self.tir_evidence_runtime_type(&evidence.result))
                     })
-                    .map(RuntimeType::core);
+                    .map(RuntimeType::value);
                 let has_evidence_result = evidence_result.is_some();
                 let callee_local_hint = match callee_expr.as_ref() {
                     Some(typed_ir::Expr::Var(path)) => locals.get(path).cloned(),
@@ -441,7 +441,7 @@ impl Lowerer<'_> {
                     callee_is_polymorphic_binding
                         && self.use_principal_elaboration
                         && expected_arg_evidence_runtime_usable(hint)
-                        && matches!(hint, RuntimeType::Core(typed_ir::Type::Variant(_)))
+                        && matches!(hint, RuntimeType::Value(typed_ir::Type::Variant(_)))
                         && callee_stored_hint
                             .as_ref()
                             .and_then(|ty| function_parts(ty).ok())
@@ -475,7 +475,7 @@ impl Lowerer<'_> {
                 {
                     let callee_expected =
                         callee_hint.as_ref().and_then(|callee_ty| match callee_ty {
-                            RuntimeType::Core(typed_ir::Type::Var(_)) => None,
+                            RuntimeType::Value(typed_ir::Type::Var(_)) => None,
                             other if hir_type_contains_unknown(other) => None,
                             other => Some(other),
                         });
@@ -529,7 +529,7 @@ impl Lowerer<'_> {
                     .filter(|ty| {
                         is_concrete_visible_root_type(ty) && !contains_non_runtime_type(ty)
                     })
-                    .map(RuntimeType::core);
+                    .map(RuntimeType::value);
                 let result_ty = choose_apply_result_type(
                     evidence_result,
                     ret_hint,
@@ -537,7 +537,7 @@ impl Lowerer<'_> {
                 )
                 .and_then(|ty| choose_expected_hir_type(ty, expected.cloned()))
                 .or_else(|| expected.cloned())
-                .unwrap_or_else(|| RuntimeType::core(self.fresh_type_var("apply_result")));
+                .unwrap_or_else(|| RuntimeType::value(self.fresh_type_var("apply_result")));
                 let result_ty = match (expected, structural_result_hint.as_ref()) {
                     (Some(expected), Some(structural))
                         if !hir_type_compatible(expected, &result_ty)
@@ -598,7 +598,7 @@ impl Lowerer<'_> {
                                     .and_then(|evidence| {
                                         self.visible_apply_evidence_arg_type(evidence)
                                     })
-                                    .map(RuntimeType::core)
+                                    .map(RuntimeType::value)
                                     .filter(expected_arg_evidence_runtime_usable)
                             })
                     })
@@ -617,7 +617,7 @@ impl Lowerer<'_> {
                     {
                         expected_callee_param_hint
                     }
-                    (Some(RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_))), _) => {
+                    (Some(RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))), _) => {
                         expected_callee_param_hint
                     }
                     (Some(param_hint), _)
@@ -693,7 +693,7 @@ impl Lowerer<'_> {
                             None => callee_stored_hint.clone().or_else(|| {
                                 Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
                             }),
-                            Some(RuntimeType::Core(
+                            Some(RuntimeType::Value(
                                 typed_ir::Type::Any | typed_ir::Type::Var(_),
                             )) => Some(erased_fun_type(arg_ty.clone(), result_ty.clone())),
                             Some(other) if hir_type_contains_unknown(other) => None,
@@ -795,7 +795,7 @@ impl Lowerer<'_> {
                 if matches!(
                     callee.ty,
                     RuntimeType::Unknown
-                        | RuntimeType::Core(
+                        | RuntimeType::Value(
                             typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_),
                         )
                 ) {
@@ -969,7 +969,7 @@ impl Lowerer<'_> {
                         (ret.clone(), false)
                     }
                     RuntimeType::Unknown
-                    | RuntimeType::Core(
+                    | RuntimeType::Value(
                         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_),
                     ) => (result_ty, true),
                     ret if expected.is_some_and(|expected| {
@@ -1050,10 +1050,10 @@ impl Lowerer<'_> {
                 evidence,
             } => {
                 let result_ty = self.join_result_type(evidence.as_ref(), expected, "if")?;
-                let result_hir_ty = RuntimeType::core(result_ty.clone());
+                let result_hir_ty = RuntimeType::value(result_ty.clone());
                 let cond = self.lower_expr(
                     *cond,
-                    Some(&RuntimeType::core(self.primitive_paths.bool_type())),
+                    Some(&RuntimeType::value(self.primitive_paths.bool_type())),
                     locals,
                     TypeSource::Expected,
                 )?;
@@ -1092,7 +1092,7 @@ impl Lowerer<'_> {
                 )
             }
             typed_ir::Expr::Tuple(items) => {
-                let expected_items = match expected.and_then(RuntimeType::as_core) {
+                let expected_items = match expected.and_then(RuntimeType::as_value) {
                     Some(typed_ir::Type::Tuple(items)) => Some(items.as_slice()),
                     Some(_) => None,
                     None => None,
@@ -1104,7 +1104,7 @@ impl Lowerer<'_> {
                         let expected_item = expected_items
                             .and_then(|items| items.get(index))
                             .cloned()
-                            .map(RuntimeType::core);
+                            .map(RuntimeType::value);
                         self.lower_expr(item, expected_item.as_ref(), locals, TypeSource::Expected)
                             .map(|expr| {
                                 force_core_value_expr_profiled(
@@ -1135,10 +1135,10 @@ impl Lowerer<'_> {
                     .into_iter()
                     .map(|field| {
                         let expected = record_field_expected(
-                            expected.and_then(RuntimeType::as_core),
+                            expected.and_then(RuntimeType::as_value),
                             &field.name,
                         )
-                        .map(RuntimeType::core);
+                        .map(RuntimeType::value);
                         Ok(RecordExprField {
                             name: field.name,
                             value: {
@@ -1182,9 +1182,9 @@ impl Lowerer<'_> {
                 value,
                 source: _,
             } => {
-                let expected_core = expected.and_then(RuntimeType::as_core);
+                let expected_core = expected.and_then(RuntimeType::as_value);
                 let expected_payload =
-                    variant_payload_expected(self, expected_core, &tag).map(RuntimeType::core);
+                    variant_payload_expected(self, expected_core, &tag).map(RuntimeType::value);
                 let value = value
                     .map(|value| {
                         self.lower_expr(
@@ -1201,7 +1201,7 @@ impl Lowerer<'_> {
                     })
                     .transpose()?;
                 let ty = expected
-                    .and_then(RuntimeType::as_core)
+                    .and_then(RuntimeType::as_value)
                     .cloned()
                     .unwrap_or_else(|| {
                         typed_ir::Type::Variant(typed_ir::VariantType {
@@ -1259,7 +1259,7 @@ impl Lowerer<'_> {
                 evidence,
             } => {
                 let result_ty = self.join_result_type(evidence.as_ref(), expected, "match")?;
-                let result_hir_ty = RuntimeType::core(result_ty.clone());
+                let result_hir_ty = RuntimeType::value(result_ty.clone());
                 let scrutinee = self.lower_expr(*scrutinee, None, locals, TypeSource::Expected)?;
                 let (scrutinee, scrutinee_ty) =
                     force_core_value_expr_profiled(scrutinee, &mut self.runtime_adapter_profile);
@@ -1274,7 +1274,7 @@ impl Lowerer<'_> {
                             .map(|guard| {
                                 self.lower_expr(
                                     guard,
-                                    Some(&RuntimeType::core(self.primitive_paths.bool_type())),
+                                    Some(&RuntimeType::value(self.primitive_paths.bool_type())),
                                     &mut arm_locals,
                                     TypeSource::Expected,
                                 )
@@ -1330,7 +1330,7 @@ impl Lowerer<'_> {
                 });
                 let stmt_expected = expected.and_then(|ty| match ty {
                     RuntimeType::Thunk { .. } => {
-                        Some(RuntimeType::core(self.primitive_paths.unit_type()))
+                        Some(RuntimeType::value(self.primitive_paths.unit_type()))
                     }
                     _ => None,
                 });
@@ -1359,7 +1359,7 @@ impl Lowerer<'_> {
                 let ty = tail
                     .as_ref()
                     .map(|tail| tail.ty.clone())
-                    .unwrap_or_else(|| RuntimeType::core(self.primitive_paths.unit_type()));
+                    .unwrap_or_else(|| RuntimeType::value(self.primitive_paths.unit_type()));
                 propagate_refined_locals(locals, &block_locals);
                 let expr = Expr {
                     ty,
@@ -1415,7 +1415,7 @@ impl Lowerer<'_> {
                 .then(|| {
                     self.handler_consumes_from_core_arms(&arms, &result_ty, None)
                         .map(|effect| {
-                            RuntimeType::thunk(effect, RuntimeType::core(result_ty.clone()))
+                            RuntimeType::thunk(effect, RuntimeType::value(result_ty.clone()))
                         })
                 })
                 .flatten();
@@ -1476,23 +1476,23 @@ impl Lowerer<'_> {
                 let evidence_actual = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.actual))
-                    .map(RuntimeType::core);
+                    .map(RuntimeType::value);
                 let evidence_expected = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.expected))
-                    .map(RuntimeType::core);
+                    .map(RuntimeType::value);
                 let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
                 let (expr, from) =
                     force_core_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
                 let evidence_from = evidence_actual
                     .as_ref()
                     .filter(|ty| !hir_type_has_type_vars(ty))
-                    .and_then(RuntimeType::as_core)
+                    .and_then(RuntimeType::as_value)
                     .cloned();
                 let ty = expected
                     .cloned()
                     .or_else(|| evidence_expected.filter(|ty| !hir_type_has_type_vars(ty)))
-                    .unwrap_or_else(|| RuntimeType::core(from.clone()));
+                    .unwrap_or_else(|| RuntimeType::value(from.clone()));
                 let value_ty = value_hir_type(&ty).clone();
                 let to = runtime_core_type(&value_ty);
                 let from = if self.implicit_cast_method_path(&from, &to).is_some() {
@@ -1503,8 +1503,8 @@ impl Lowerer<'_> {
                 if let Some(cast) = self.implicit_cast_method_path(&from, &to) {
                     let callee_ty = self.env.get(&cast).cloned().unwrap_or_else(|| {
                         RuntimeType::fun(
-                            RuntimeType::core(from.clone()),
-                            RuntimeType::core(to.clone()),
+                            RuntimeType::value(from.clone()),
+                            RuntimeType::value(to.clone()),
                         )
                     });
                     let callee = Expr::typed(ExprKind::Var(cast), callee_ty);
@@ -1515,7 +1515,7 @@ impl Lowerer<'_> {
                             evidence: None,
                             instantiation: None,
                         },
-                        RuntimeType::core(to),
+                        RuntimeType::value(to),
                     );
                     return finalize_effectful_expr_profiled(
                         expr,
@@ -1704,9 +1704,9 @@ impl Lowerer<'_> {
             let ret = body_effect
                 .filter(|effect| should_thunk_effect(effect))
                 .cloned()
-                .map(|effect| RuntimeType::thunk(effect, RuntimeType::core(body_ty.clone())))
-                .unwrap_or_else(|| RuntimeType::core(body_ty.clone()));
-            erased_fun_type(RuntimeType::core(param_ty), ret)
+                .map(|effect| RuntimeType::thunk(effect, RuntimeType::value(body_ty.clone())))
+                .unwrap_or_else(|| RuntimeType::value(body_ty.clone()));
+            erased_fun_type(RuntimeType::value(param_ty), ret)
         });
         if let Some(resume) = &arm.resume {
             arm_locals.insert(
@@ -1719,7 +1719,7 @@ impl Lowerer<'_> {
             .map(|guard| {
                 self.lower_expr(
                     guard,
-                    Some(&RuntimeType::core(self.primitive_paths.bool_type())),
+                    Some(&RuntimeType::value(self.primitive_paths.bool_type())),
                     &mut arm_locals,
                     TypeSource::Expected,
                 )
@@ -1727,7 +1727,7 @@ impl Lowerer<'_> {
             .transpose()?;
         let body = self.lower_expr(
             arm.body,
-            Some(&RuntimeType::core(result_ty.clone())),
+            Some(&RuntimeType::value(result_ty.clone())),
             &mut arm_locals,
             TypeSource::JoinEvidence,
         )?;
@@ -1957,7 +1957,7 @@ impl Lowerer<'_> {
         let scheme_ty = project_runtime_type_with_vars(&binding.scheme.body, &self.principal_vars);
         match self.binding_graph_type(&binding.name) {
             Some(graph_ty) if should_use_graph_binding_type(&scheme_ty, &graph_ty) => {
-                RuntimeType::core(graph_ty)
+                RuntimeType::value(graph_ty)
             }
             _ => project_runtime_hir_type_with_vars(&binding.scheme.body, &self.principal_vars),
         }
@@ -2020,7 +2020,7 @@ impl Lowerer<'_> {
         self.expected_arg_evidence_profile.present += 1;
         let Some(ty) = self
             .tir_argument_runtime_type(bounds)
-            .map(RuntimeType::core)
+            .map(RuntimeType::value)
         else {
             self.expected_arg_evidence_profile.ignored_not_convertible += 1;
             return None;
@@ -2491,7 +2491,7 @@ impl Lowerer<'_> {
                 );
                 (callee, parts, Some(effect.clone()))
             }
-            RuntimeType::Fun { .. } | RuntimeType::Unknown | RuntimeType::Core(_) => return None,
+            RuntimeType::Fun { .. } | RuntimeType::Unknown | RuntimeType::Value(_) => return None,
         };
         let arg_name = typed_ir::Name(format!("local_boundary_arg_{}", self.next_effect_id_var));
         let arg_path = typed_ir::Path::from_name(arg_name.clone());
@@ -2564,7 +2564,7 @@ impl Lowerer<'_> {
 
     pub(super) fn normalize_expected_hir_type(&self, ty: RuntimeType) -> RuntimeType {
         match ty {
-            RuntimeType::Core(core @ typed_ir::Type::Fun { .. }) => {
+            RuntimeType::Value(core @ typed_ir::Type::Fun { .. }) => {
                 project_runtime_hir_type_with_vars(&core, &self.principal_vars)
             }
             RuntimeType::Fun { param, ret } => RuntimeType::fun(
@@ -2600,7 +2600,7 @@ impl Lowerer<'_> {
         });
         concrete_evidence_ty
             .or_else(|| match expected.map(value_hir_type) {
-                Some(RuntimeType::Core(ty)) => Some(ty.clone()),
+                Some(RuntimeType::Value(ty)) => Some(ty.clone()),
                 Some(RuntimeType::Thunk { value, .. }) => Some(runtime_core_type(value)),
                 Some(RuntimeType::Unknown) => Some(typed_ir::Type::Unknown),
                 Some(RuntimeType::Fun { .. }) | None => None,
@@ -2703,11 +2703,11 @@ impl Lowerer<'_> {
             return Ok(expr);
         }
         let expected_core = match value_hir_type(expected) {
-            RuntimeType::Core(ty) => Some(ty.clone()),
+            RuntimeType::Value(ty) => Some(ty.clone()),
             _ => None,
         };
         let actual_core = match value_hir_type(&expr.ty) {
-            RuntimeType::Core(ty) => Some(ty.clone()),
+            RuntimeType::Value(ty) => Some(ty.clone()),
             _ => None,
         };
         if let (Some(actual_core), Some(expected_core)) = (actual_core, expected_core) {
@@ -2715,8 +2715,8 @@ impl Lowerer<'_> {
                 let (arg, _) = force_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
                 let callee_ty = self.env.get(&cast).cloned().unwrap_or_else(|| {
                     RuntimeType::fun(
-                        RuntimeType::core(actual_core.clone()),
-                        RuntimeType::core(expected_core.clone()),
+                        RuntimeType::value(actual_core.clone()),
+                        RuntimeType::value(expected_core.clone()),
                     )
                 });
                 let callee = Expr::typed(ExprKind::Var(cast), callee_ty);
@@ -2842,12 +2842,12 @@ fn merge_effect_op_runtime_type(expected: &RuntimeType, sig: &RuntimeType) -> Ru
         (expected, RuntimeType::Thunk { value, .. }) => {
             merge_effect_op_runtime_type(expected, value)
         }
-        (RuntimeType::Core(a), RuntimeType::Core(b)) => {
-            RuntimeType::core(merge_effect_op_core(a, b))
+        (RuntimeType::Value(a), RuntimeType::Value(b)) => {
+            RuntimeType::value(merge_effect_op_core(a, b))
         }
         // Mixed Core/Fun: prefer the Fun form (it has richer structure).
-        (RuntimeType::Fun { .. }, RuntimeType::Core(_)) => expected.clone(),
-        (RuntimeType::Core(_), RuntimeType::Fun { .. }) => sig.clone(),
+        (RuntimeType::Fun { .. }, RuntimeType::Value(_)) => expected.clone(),
+        (RuntimeType::Value(_), RuntimeType::Fun { .. }) => sig.clone(),
     }
 }
 
@@ -2893,7 +2893,7 @@ fn project_runtime_hir_runtime_type_with_vars(
 ) -> RuntimeType {
     match ty {
         RuntimeType::Unknown => RuntimeType::Unknown,
-        RuntimeType::Core(core) => project_runtime_hir_type_with_vars(&core, allowed_vars),
+        RuntimeType::Value(core) => project_runtime_hir_type_with_vars(&core, allowed_vars),
         RuntimeType::Fun { param, ret } => RuntimeType::fun(
             project_runtime_hir_runtime_type_with_vars(*param, allowed_vars),
             project_runtime_hir_runtime_type_with_vars(*ret, allowed_vars),
@@ -3029,7 +3029,7 @@ fn prepare_effect_operation_arg(
     match (expected, &arg.ty) {
         (
             RuntimeType::Unknown
-            | RuntimeType::Core(
+            | RuntimeType::Value(
                 typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_),
             ),
             RuntimeType::Thunk { .. },
@@ -3113,17 +3113,17 @@ fn choose_final_apply_param(
 }
 
 fn should_use_variant_arg_hint(param: &RuntimeType, hint: &RuntimeType) -> bool {
-    let RuntimeType::Core(typed_ir::Type::Variant(hint_variant)) = hint else {
+    let RuntimeType::Value(typed_ir::Type::Variant(hint_variant)) = hint else {
         return false;
     };
     if !expected_arg_evidence_runtime_usable(hint) {
         return false;
     }
     match param {
-        RuntimeType::Core(typed_ir::Type::Variant(param_variant)) => {
+        RuntimeType::Value(typed_ir::Type::Variant(param_variant)) => {
             !variant_hint_drops_cases(param_variant, hint_variant)
         }
-        RuntimeType::Core(typed_ir::Type::Inter(items)) => items.iter().any(|item| {
+        RuntimeType::Value(typed_ir::Type::Inter(items)) => items.iter().any(|item| {
             matches!(item, typed_ir::Type::Variant(_))
                 && (core_types_compatible(item, &diagnostic_core_type(hint))
                     || core_types_compatible(&diagnostic_core_type(hint), item))
@@ -3228,7 +3228,7 @@ fn should_refine_local_from_argument_expected(
 fn runtime_type_contains_value_choice(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => false,
-        RuntimeType::Core(ty) => core_type_contains_value_choice(ty),
+        RuntimeType::Value(ty) => core_type_contains_value_choice(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_type_contains_value_choice(param) || runtime_type_contains_value_choice(ret)
         }
@@ -3309,13 +3309,13 @@ fn is_runtime_irrelevant_value_substitution(ty: &typed_ir::Type) -> bool {
 }
 
 fn runtime_type_is_irrelevant_unit_value(ty: &RuntimeType) -> bool {
-    matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
+    matches!(ty, RuntimeType::Value(typed_ir::Type::Tuple(items)) if items.is_empty())
 }
 
 fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_contains_unknown(ty),
+        RuntimeType::Value(ty) => core_type_contains_unknown(ty),
         RuntimeType::Fun { param, ret } => {
             hir_type_contains_unknown(param) || hir_type_contains_unknown(ret)
         }
@@ -3472,9 +3472,9 @@ fn restore_local_param_boundary(
 
 fn apply_callee_expected(expected: Option<&RuntimeType>) -> bool {
     match expected {
-        Some(RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. })) => true,
+        Some(RuntimeType::Fun { .. } | RuntimeType::Value(typed_ir::Type::Fun { .. })) => true,
         Some(RuntimeType::Thunk { value, .. }) => apply_callee_expected(Some(value)),
-        Some(RuntimeType::Unknown | RuntimeType::Core(_)) | None => false,
+        Some(RuntimeType::Unknown | RuntimeType::Value(_)) | None => false,
     }
 }
 
@@ -3499,15 +3499,15 @@ fn function_return_can_cross_handler_boundary(ret: &RuntimeType) -> bool {
             should_thunk_effect(effect) || function_return_can_cross_handler_boundary(value)
         }
         RuntimeType::Fun { ret, .. } => function_return_can_cross_handler_boundary(ret),
-        RuntimeType::Core(typed_ir::Type::Fun {
+        RuntimeType::Value(typed_ir::Type::Fun {
             ret, ret_effect, ..
         }) => {
             should_thunk_effect(ret_effect)
-                || function_return_can_cross_handler_boundary(&RuntimeType::core(
+                || function_return_can_cross_handler_boundary(&RuntimeType::value(
                     ret.as_ref().clone(),
                 ))
         }
-        RuntimeType::Unknown | RuntimeType::Core(_) => false,
+        RuntimeType::Unknown | RuntimeType::Value(_) => false,
     }
 }
 

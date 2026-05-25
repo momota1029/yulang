@@ -308,8 +308,8 @@ fn local_expr_type(
 
 fn runtime_type_value_core(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
-        RuntimeType::Core(ty) if !core_type_contains_unknown(ty) => Some(ty.clone()),
+        RuntimeType::Value(ty) if !core_type_contains_unknown(ty) => Some(ty.clone()),
         RuntimeType::Thunk { value, .. } => runtime_type_value_core(value),
-        RuntimeType::Fun { .. } | RuntimeType::Unknown | RuntimeType::Core(_) => None,
+        RuntimeType::Fun { .. } | RuntimeType::Unknown | RuntimeType::Value(_) => None,
     }
 }

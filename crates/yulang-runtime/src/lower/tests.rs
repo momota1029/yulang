@@ -147,11 +147,11 @@ mod tests {
         let value_var = typed_ir::TypeVar("value".to_string());
         let expected = RuntimeType::thunk(
             named_type("undet"),
-            RuntimeType::core(typed_ir::Type::Var(value_var)),
+            RuntimeType::value(typed_ir::Type::Var(value_var)),
         );
         let expr = Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-            RuntimeType::core(named_type("int")),
+            RuntimeType::value(named_type("int")),
         );
 
         let mut profile = RuntimeAdapterProfile::default();
@@ -167,10 +167,10 @@ mod tests {
 
     #[test]
     pub(super) fn runtime_adapter_profile_counts_value_to_thunk_wrap() {
-        let expected = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
+        let expected = RuntimeType::thunk(empty_row(), RuntimeType::value(named_type("int")));
         let expr = Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-            RuntimeType::core(named_type("int")),
+            RuntimeType::value(named_type("int")),
         );
         let mut profile = RuntimeAdapterProfile::default();
 
@@ -186,15 +186,15 @@ mod tests {
 
     #[test]
     pub(super) fn runtime_adapter_profile_counts_thunk_to_value_bind_here() {
-        let expected = RuntimeType::core(named_type("int"));
-        let thunk_ty = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
+        let expected = RuntimeType::value(named_type("int"));
+        let thunk_ty = RuntimeType::thunk(empty_row(), RuntimeType::value(named_type("int")));
         let expr = Expr::typed(
             ExprKind::Thunk {
                 effect: empty_row(),
-                value: RuntimeType::core(named_type("int")),
+                value: RuntimeType::value(named_type("int")),
                 expr: Box::new(Expr::typed(
                     ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-                    RuntimeType::core(named_type("int")),
+                    RuntimeType::value(named_type("int")),
                 )),
             },
             thunk_ty,
@@ -213,15 +213,15 @@ mod tests {
 
     #[test]
     pub(super) fn runtime_adapter_profile_counts_apply_phase_and_source_edge() {
-        let expected = RuntimeType::core(named_type("int"));
-        let thunk_ty = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
+        let expected = RuntimeType::value(named_type("int"));
+        let thunk_ty = RuntimeType::thunk(empty_row(), RuntimeType::value(named_type("int")));
         let expr = Expr::typed(
             ExprKind::Thunk {
                 effect: empty_row(),
-                value: RuntimeType::core(named_type("int")),
+                value: RuntimeType::value(named_type("int")),
                 expr: Box::new(Expr::typed(
                     ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-                    RuntimeType::core(named_type("int")),
+                    RuntimeType::value(named_type("int")),
                 )),
             },
             thunk_ty,
@@ -289,17 +289,17 @@ mod tests {
             typed_ir::Name("add".to_string()),
         ]);
         let int_ty = RuntimeType::fun(
-            RuntimeType::core(named_type("int")),
+            RuntimeType::value(named_type("int")),
             RuntimeType::fun(
-                RuntimeType::core(named_type("int")),
-                RuntimeType::core(named_type("int")),
+                RuntimeType::value(named_type("int")),
+                RuntimeType::value(named_type("int")),
             ),
         );
         let float_ty = RuntimeType::fun(
-            RuntimeType::core(named_type("float")),
+            RuntimeType::value(named_type("float")),
             RuntimeType::fun(
-                RuntimeType::core(named_type("float")),
-                RuntimeType::core(named_type("float")),
+                RuntimeType::value(named_type("float")),
+                RuntimeType::value(named_type("float")),
             ),
         );
         let mut lowerer = Lowerer {
@@ -346,12 +346,12 @@ mod tests {
         };
 
         let expected_ty = RuntimeType::fun(
-            RuntimeType::core(named_type("int")),
+            RuntimeType::value(named_type("int")),
             RuntimeType::fun(
-                RuntimeType::core(named_type("int")),
+                RuntimeType::value(named_type("int")),
                 RuntimeType::thunk(
                     typed_ir::Type::Var(typed_ir::TypeVar("effect".to_string())),
-                    RuntimeType::core(typed_ir::Type::Var(typed_ir::TypeVar("value".to_string()))),
+                    RuntimeType::value(typed_ir::Type::Var(typed_ir::TypeVar("value".to_string()))),
                 ),
             ),
         );
@@ -505,7 +505,7 @@ mod tests {
 
         assert_eq!(
             module.bindings[0].body.ty,
-            RuntimeType::fun(RuntimeType::core(record), RuntimeType::core(point))
+            RuntimeType::fun(RuntimeType::value(record), RuntimeType::value(point))
         );
     }
 
@@ -580,8 +580,8 @@ mod tests {
         assert_eq!(
             alias.body.ty,
             RuntimeType::fun(
-                RuntimeType::core(named_type("int")),
-                RuntimeType::core(named_type("range"))
+                RuntimeType::value(named_type("int")),
+                RuntimeType::value(named_type("range"))
             )
         );
         assert!(alias.type_params.is_empty());
@@ -767,8 +767,8 @@ mod tests {
         let RuntimeType::Fun { param, ret } = &resume.ty else {
             panic!("resume should be a function");
         };
-        assert_eq!(**param, RuntimeType::core(bool_type()));
-        assert_eq!(**ret, RuntimeType::core(bool_type()));
+        assert_eq!(**param, RuntimeType::value(bool_type()));
+        assert_eq!(**ret, RuntimeType::value(bool_type()));
     }
 
     #[test]
@@ -1409,7 +1409,7 @@ mod tests {
             items: vec![named_type("undet")],
             tail: Box::new(typed_ir::Type::Never),
         };
-        let value = RuntimeType::core(named_type("int"));
+        let value = RuntimeType::value(named_type("int"));
         let inner = Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
             value.clone(),
@@ -1446,7 +1446,7 @@ mod tests {
             items: vec![named_type("undet")],
             tail: Box::new(typed_ir::Type::Never),
         };
-        let value = RuntimeType::core(named_type("int"));
+        let value = RuntimeType::value(named_type("int"));
         let param_ty = RuntimeType::thunk(undet.clone(), value.clone());
 
         let protected = apply_param_allowed_effect(
@@ -1585,7 +1585,7 @@ mod tests {
             next_effect_id_var: 0,
         };
         let local = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
-        let mut locals = HashMap::from([(local.clone(), RuntimeType::core(typed_ir::Type::Any))]);
+        let mut locals = HashMap::from([(local.clone(), RuntimeType::value(typed_ir::Type::Any))]);
         let expr = typed_ir::Expr::Apply {
             callee: Box::new(typed_ir::Expr::Var(local)),
             arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
@@ -1611,7 +1611,7 @@ mod tests {
         let expr = lowerer
             .lower_expr(
                 expr,
-                Some(&RuntimeType::core(named_type("int"))),
+                Some(&RuntimeType::value(named_type("int"))),
                 &mut locals,
                 TypeSource::RootGraph,
             )
@@ -1651,8 +1651,8 @@ mod tests {
         let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
         let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
         let mut locals = HashMap::from([
-            (callee_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
-            (arg_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
+            (callee_path.clone(), RuntimeType::value(typed_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::value(typed_ir::Type::Any)),
         ]);
         let expr = typed_ir::Expr::Apply {
             callee: Box::new(typed_ir::Expr::Var(callee_path.clone())),
@@ -1679,7 +1679,7 @@ mod tests {
         let expr = lowerer
             .lower_expr(
                 expr,
-                Some(&RuntimeType::core(named_type("int"))),
+                Some(&RuntimeType::value(named_type("int"))),
                 &mut locals,
                 TypeSource::RootGraph,
             )
@@ -1691,7 +1691,7 @@ mod tests {
         assert_eq!(core_type(&arg.ty), &named_type("int"));
         assert_eq!(
             locals.get(&arg_path),
-            Some(&RuntimeType::core(named_type("int")))
+            Some(&RuntimeType::value(named_type("int")))
         );
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
@@ -1750,8 +1750,8 @@ mod tests {
         let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
         let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
         let mut locals = HashMap::from([
-            (callee_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
-            (arg_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
+            (callee_path.clone(), RuntimeType::value(typed_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::value(typed_ir::Type::Any)),
         ]);
         let expr = typed_ir::Expr::Apply {
             callee: Box::new(typed_ir::Expr::Var(callee_path)),
@@ -1778,7 +1778,7 @@ mod tests {
         let expr = lowerer
             .lower_expr(
                 expr,
-                Some(&RuntimeType::core(named_type("int"))),
+                Some(&RuntimeType::value(named_type("int"))),
                 &mut locals,
                 TypeSource::RootGraph,
             )
@@ -1790,7 +1790,7 @@ mod tests {
         assert_eq!(core_type(&arg.ty), &named_type("int"));
         assert_eq!(
             locals.get(&arg_path),
-            Some(&RuntimeType::core(named_type("int")))
+            Some(&RuntimeType::value(named_type("int")))
         );
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
@@ -1855,8 +1855,8 @@ mod tests {
         let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
         let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
         let mut locals = HashMap::from([
-            (callee_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
-            (arg_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
+            (callee_path.clone(), RuntimeType::value(typed_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::value(typed_ir::Type::Any)),
         ]);
         let expr = typed_ir::Expr::Apply {
             callee: Box::new(typed_ir::Expr::Var(callee_path)),
@@ -1883,7 +1883,7 @@ mod tests {
         let expr = lowerer
             .lower_expr(
                 expr,
-                Some(&RuntimeType::core(named_type("int"))),
+                Some(&RuntimeType::value(named_type("int"))),
                 &mut locals,
                 TypeSource::RootGraph,
             )
@@ -1892,10 +1892,10 @@ mod tests {
         let ExprKind::Apply { arg, .. } = &expr.kind else {
             panic!("missing apply");
         };
-        assert!(matches!(arg.ty, RuntimeType::Core(typed_ir::Type::Any)));
+        assert!(matches!(arg.ty, RuntimeType::Value(typed_ir::Type::Any)));
         assert_eq!(
             locals.get(&arg_path),
-            Some(&RuntimeType::Core(typed_ir::Type::Any))
+            Some(&RuntimeType::Value(typed_ir::Type::Any))
         );
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
@@ -1919,10 +1919,10 @@ mod tests {
         let each_path = typed_ir::Path::from_name(typed_ir::Name("each".to_string()));
         let list_int = list_type(named_type("int"));
         let each_ty = RuntimeType::fun(
-            RuntimeType::core(typed_ir::Type::Var(container.clone())),
+            RuntimeType::value(typed_ir::Type::Var(container.clone())),
             RuntimeType::thunk(
                 named_type("undet"),
-                RuntimeType::core(typed_ir::Type::Var(item.clone())),
+                RuntimeType::value(typed_ir::Type::Var(item.clone())),
             ),
         );
         let fold_role = typed_ir::Path::new(vec![
@@ -1984,7 +1984,7 @@ mod tests {
             next_effect_id_var: 0,
         };
         let xs = typed_ir::Path::from_name(typed_ir::Name("xs".to_string()));
-        let mut locals = HashMap::from([(xs.clone(), RuntimeType::core(list_int))]);
+        let mut locals = HashMap::from([(xs.clone(), RuntimeType::value(list_int))]);
         let expr = typed_ir::Expr::Apply {
             callee: Box::new(typed_ir::Expr::Var(each_path)),
             arg: Box::new(typed_ir::Expr::Var(xs)),
@@ -2016,11 +2016,11 @@ mod tests {
         let list_str = list_type(str_type);
         let constructor_path = path(&["std", "list", "list_view", "node"]);
         let constructor_ty = RuntimeType::fun(
-            RuntimeType::core(typed_ir::Type::Tuple(vec![
+            RuntimeType::value(typed_ir::Type::Tuple(vec![
                 list_item.clone(),
                 list_item.clone(),
             ])),
-            RuntimeType::core(typed_ir::Type::Named {
+            RuntimeType::value(typed_ir::Type::Named {
                 path: list_view_path,
                 args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(item))],
             }),
@@ -2063,11 +2063,11 @@ mod tests {
 
         assert_eq!(
             locals.get(&typed_ir::Path::from_name(left)),
-            Some(&RuntimeType::core(list_str.clone()))
+            Some(&RuntimeType::value(list_str.clone()))
         );
         assert_eq!(
             locals.get(&typed_ir::Path::from_name(right)),
-            Some(&RuntimeType::core(list_str))
+            Some(&RuntimeType::value(list_str))
         );
     }
 

@@ -5065,7 +5065,7 @@ fn format_runtime_typed_expr(expr: &runtime::Expr, verbose: bool) -> String {
 fn format_runtime_type(ty: &runtime::Type) -> String {
     match ty {
         runtime::Type::Unknown => "_".to_string(),
-        runtime::Type::Core(ty) => format_runtime_core_type_inner(ty, true),
+        runtime::Type::Value(ty) => format_runtime_core_type_inner(ty, true),
         runtime::Type::Fun { param, ret } => {
             format!(
                 "{} -> {}",
@@ -5187,7 +5187,7 @@ fn format_runtime_core_fun_side(ty: &typed_ir::Type) -> String {
 
 fn format_runtime_type_atom(ty: &runtime::Type) -> String {
     match ty {
-        runtime::Type::Core(typed_ir::Type::Fun { .. })
+        runtime::Type::Value(typed_ir::Type::Fun { .. })
         | runtime::Type::Fun { .. }
         | runtime::Type::Thunk { .. } => format!("({})", format_runtime_type(ty)),
         _ => format_runtime_type(ty),

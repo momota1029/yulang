@@ -133,7 +133,7 @@ pub(super) fn validate_hir_pattern(
             Ok(())
         }
         pattern => {
-            let Some(expected) = expected.as_core() else {
+            let Some(expected) = expected.as_value() else {
                 return Err(RuntimeError::UnsupportedPatternShape {
                     pattern: pattern_shape_name(pattern),
                     ty: diagnostic_core_type(expected),

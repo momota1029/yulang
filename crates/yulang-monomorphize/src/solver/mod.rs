@@ -65,12 +65,6 @@ impl IntoFinalizeRuntimeModule for Module {
     }
 }
 
-impl IntoFinalizeRuntimeModule for yulang_runtime::Module {
-    fn into_finalize_runtime_module(self) -> Module {
-        runtime_to_finalized_module(self)
-    }
-}
-
 pub fn finalize_module<M: IntoFinalizeRuntimeModule>(module: M) -> MonomorphizeResult<MonomorphizeOutput> {
     let mut cache = MonomorphizeInstanceCache::default();
     finalize_module_with_cache(module, &mut cache)
@@ -119,7 +113,7 @@ fn debug_expr_invariants(expr: &Expr, context: String) {
             ..
         } => {
             if !handler.consumes.is_empty()
-                && !matches!(body.ty, yulang_runtime_ir::FinalizedType::Thunk { .. })
+                && !matches!(body.ty, yulang_runtime_ir::RuntimeType::Thunk { .. })
             {
                 eprintln!(
                     "FINALIZE invariant: effectful handle body is not thunk at {context}: consumes={:?}, body_ty={:?}",
@@ -135,7 +129,7 @@ fn debug_expr_invariants(expr: &Expr, context: String) {
             }
         }
         ExprKind::AddId { thunk, .. } => {
-            if !matches!(thunk.ty, yulang_runtime_ir::FinalizedType::Thunk { .. }) {
+            if !matches!(thunk.ty, yulang_runtime_ir::RuntimeType::Thunk { .. }) {
                 eprintln!(
                     "FINALIZE invariant: add_id input is not thunk at {context}: thunk_ty={:?}",
                     thunk.ty
@@ -618,15 +612,15 @@ fn finalized_to_runtime_record_spread_pattern(
     }
 }
 
-fn finalized_to_runtime_type(ty: yulang_runtime_ir::FinalizedType) -> yulang_runtime::Type {
+fn finalized_to_runtime_type(ty: yulang_runtime_ir::RuntimeType) -> yulang_runtime::Type {
     match ty {
-        yulang_runtime_ir::FinalizedType::Unknown => yulang_runtime::Type::Unknown,
-        yulang_runtime_ir::FinalizedType::Value(ty) => yulang_runtime::Type::Core(ty),
-        yulang_runtime_ir::FinalizedType::Fun { param, ret } => yulang_runtime::Type::Fun {
+        yulang_runtime_ir::RuntimeType::Unknown => yulang_runtime::Type::Unknown,
+        yulang_runtime_ir::RuntimeType::Value(ty) => yulang_runtime::Type::Value(ty),
+        yulang_runtime_ir::RuntimeType::Fun { param, ret } => yulang_runtime::Type::Fun {
             param: Box::new(finalized_to_runtime_type(*param)),
             ret: Box::new(finalized_to_runtime_type(*ret)),
         },
-        yulang_runtime_ir::FinalizedType::Thunk { effect, value } => yulang_runtime::Type::Thunk {
+        yulang_runtime_ir::RuntimeType::Thunk { effect, value } => yulang_runtime::Type::Thunk {
             effect,
             value: Box::new(finalized_to_runtime_type(*value)),
         },
@@ -933,15 +927,15 @@ fn runtime_to_finalized_record_spread_pattern(
     }
 }
 
-fn runtime_to_finalized_type(ty: yulang_runtime::Type) -> yulang_runtime_ir::FinalizedType {
+fn runtime_to_finalized_type(ty: yulang_runtime::Type) -> yulang_runtime_ir::RuntimeType {
     match ty {
-        yulang_runtime::Type::Unknown => yulang_runtime_ir::FinalizedType::Unknown,
-        yulang_runtime::Type::Core(ty) => runtime_type_from_core_value(ty),
-        yulang_runtime::Type::Fun { param, ret } => yulang_runtime_ir::FinalizedType::Fun {
+        yulang_runtime::Type::Unknown => yulang_runtime_ir::RuntimeType::Unknown,
+        yulang_runtime::Type::Value(ty) => runtime_type_from_core_value(ty),
+        yulang_runtime::Type::Fun { param, ret } => yulang_runtime_ir::RuntimeType::Fun {
             param: Box::new(runtime_to_finalized_type(*param)),
             ret: Box::new(runtime_to_finalized_type(*ret)),
         },
-        yulang_runtime::Type::Thunk { effect, value } => yulang_runtime_ir::FinalizedType::Thunk {
+        yulang_runtime::Type::Thunk { effect, value } => yulang_runtime_ir::RuntimeType::Thunk {
             effect,
             value: Box::new(runtime_to_finalized_type(*value)),
         },
@@ -1212,7 +1206,7 @@ mod tests {
     };
     use yulang_runtime_ir::{
         FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-        FinalizedModule as Module, FinalizedType as RuntimeType, Root,
+        FinalizedModule as Module, RuntimeType as RuntimeType, Root,
     };
     use yulang_sources::{
         CompiledSourceFileIdentity, CompiledUnitDependency, CompiledUnitManifest,

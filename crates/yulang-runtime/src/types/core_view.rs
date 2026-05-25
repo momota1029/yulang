@@ -1,14 +1,14 @@
 use super::*;
 
 pub(crate) fn strict_core_type(ty: &RuntimeType) -> &typed_ir::Type {
-    ty.as_core()
+    ty.as_value()
         .expect("runtime IR expected a first-order core type")
 }
 
 pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
         RuntimeType::Unknown => typed_ir::Type::Unknown,
-        RuntimeType::Core(ty) => ty.clone(),
+        RuntimeType::Value(ty) => ty.clone(),
         RuntimeType::Fun { param, ret } => typed_ir::Type::Fun {
             param: Box::new(diagnostic_core_type(param)),
             param_effect: Box::new(typed_ir::Type::Never),
@@ -22,7 +22,7 @@ pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> typed_ir::Type {
 pub(crate) fn runtime_core_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
         RuntimeType::Unknown => typed_ir::Type::Unknown,
-        RuntimeType::Core(ty) => ty.clone(),
+        RuntimeType::Value(ty) => ty.clone(),
         RuntimeType::Fun { param, ret } => runtime_core_function_type(param, ret),
         RuntimeType::Thunk { value, .. } => runtime_core_type(value),
     }
@@ -53,8 +53,8 @@ mod tests {
     #[test]
     fn diagnostic_core_type_erases_thunk_effects() {
         let ty = RuntimeType::fun(
-            RuntimeType::thunk(named("io"), RuntimeType::core(named("int"))),
-            RuntimeType::thunk(named("undet"), RuntimeType::core(named("bool"))),
+            RuntimeType::thunk(named("io"), RuntimeType::value(named("int"))),
+            RuntimeType::thunk(named("undet"), RuntimeType::value(named("bool"))),
         );
 
         let typed_ir::Type::Fun {
@@ -76,8 +76,8 @@ mod tests {
     #[test]
     fn runtime_core_type_preserves_function_effect_slots() {
         let ty = RuntimeType::fun(
-            RuntimeType::thunk(named("io"), RuntimeType::core(named("int"))),
-            RuntimeType::thunk(named("undet"), RuntimeType::core(named("bool"))),
+            RuntimeType::thunk(named("io"), RuntimeType::value(named("int"))),
+            RuntimeType::thunk(named("undet"), RuntimeType::value(named("bool"))),
         );
 
         let typed_ir::Type::Fun {

@@ -9,7 +9,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    FinalizedType as RuntimeType,
+    RuntimeType as RuntimeType,
 };
 use yulang_sources::{CompiledUnitManifest, YulangCachePaths};
 use yulang_typed_ir as typed_ir;

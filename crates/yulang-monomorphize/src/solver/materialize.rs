@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 
 use yulang_runtime_ir::{
-    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedType as RuntimeType,
+    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType as RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 

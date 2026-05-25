@@ -93,9 +93,9 @@ impl TypeConstraints {
                 self.collect_expr(else_branch, Some(&expr.ty));
             }
             ExprKind::Tuple(items) => {
-                if let RuntimeType::Core(typed_ir::Type::Tuple(expected_items)) = &expr.ty {
+                if let RuntimeType::Value(typed_ir::Type::Tuple(expected_items)) = &expr.ty {
                     for (item, expected) in items.iter().zip(expected_items) {
-                        self.collect_expr(item, Some(&RuntimeType::core(expected.clone())));
+                        self.collect_expr(item, Some(&RuntimeType::value(expected.clone())));
                     }
                 } else {
                     for item in items {
@@ -226,7 +226,7 @@ impl TypeConstraints {
                     core_type(&expr.ty),
                     &typed_ir::TypeBounds::exact(to.clone()),
                 );
-                self.collect_expr(expr, Some(&RuntimeType::core(from.clone())));
+                self.collect_expr(expr, Some(&RuntimeType::value(from.clone())));
             }
             ExprKind::Pack { expr: inner, .. } => self.collect_expr(inner, Some(&expr.ty)),
         }
@@ -325,7 +325,7 @@ impl TypeConstraints {
 
     pub(super) fn unify_hir(&mut self, left: &RuntimeType, right: &RuntimeType) {
         match (self.resolve_hir(left), self.resolve_hir(right)) {
-            (RuntimeType::Core(left), RuntimeType::Core(right)) => self.unify_core(&left, &right),
+            (RuntimeType::Value(left), RuntimeType::Value(right)) => self.unify_core(&left, &right),
             (
                 RuntimeType::Fun { param, ret },
                 RuntimeType::Fun {
@@ -350,8 +350,8 @@ impl TypeConstraints {
             | (other, RuntimeType::Thunk { value, .. }) => {
                 self.unify_hir(&value, &other);
             }
-            (RuntimeType::Fun { .. }, RuntimeType::Core(typed_ir::Type::Fun { .. }))
-            | (RuntimeType::Core(typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
+            (RuntimeType::Fun { .. }, RuntimeType::Value(typed_ir::Type::Fun { .. }))
+            | (RuntimeType::Value(typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
                 let left = core_function_as_hir_type(&left);
                 let right = core_function_as_hir_type(&right);
                 self.unify_hir(&left, &right);

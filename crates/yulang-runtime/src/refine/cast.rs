@@ -7,7 +7,7 @@ impl RefineRewriter {
         };
         let expected = substitute_hir_type(expected, &self.substitutions);
         let (expected_core, actual_core) = match (&expected, &expr.ty) {
-            (RuntimeType::Core(expected_core), RuntimeType::Core(actual_core)) => {
+            (RuntimeType::Value(expected_core), RuntimeType::Value(actual_core)) => {
                 (expected_core.clone(), actual_core.clone())
             }
             _ => return expr,

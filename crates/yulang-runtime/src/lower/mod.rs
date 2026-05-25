@@ -761,7 +761,7 @@ fn lower_runtime_typed_handle_arm(arm: HandleArm) -> yulang_runtime_ir::LoweredH
 fn runtime_type_to_lowered_type(ty: RuntimeType) -> typed_ir::Type {
     match ty {
         RuntimeType::Unknown => typed_ir::Type::Unknown,
-        RuntimeType::Core(ty) => ty,
+        RuntimeType::Value(ty) => ty,
         RuntimeType::Fun { param, ret } => {
             let (param, param_effect) = runtime_type_to_effected_lowered_type(*param);
             let (ret, ret_effect) = runtime_type_to_effected_lowered_type(*ret);

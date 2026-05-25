@@ -14,14 +14,14 @@ pub(super) fn require_same_hir_type(
         return Ok(());
     }
     match (expected, actual) {
-        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+        (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
             require_same_type(expected, actual, source)
         }
-        (RuntimeType::Core(expected), actual @ RuntimeType::Fun { .. })
-        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Core(expected)) => {
+        (RuntimeType::Value(expected), actual @ RuntimeType::Fun { .. })
+        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Value(expected)) => {
             require_same_type(expected, &diagnostic_core_type(actual), source)
         }
-        (RuntimeType::Core(expected), RuntimeType::Thunk { value, .. }) => {
+        (RuntimeType::Value(expected), RuntimeType::Thunk { value, .. }) => {
             require_same_type(expected, &diagnostic_core_type(value), source)
         }
         (
@@ -106,14 +106,14 @@ fn apply_evidence_allows_residual_thunk_effect(
 
 fn hir_type_compatible(expected: &RuntimeType, actual: &RuntimeType) -> bool {
     match (expected, actual) {
-        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+        (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
             core_types_compatible(expected, actual)
         }
-        (RuntimeType::Core(expected), actual @ RuntimeType::Fun { .. })
-        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Core(expected)) => {
+        (RuntimeType::Value(expected), actual @ RuntimeType::Fun { .. })
+        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Value(expected)) => {
             core_types_compatible(expected, &diagnostic_core_type(actual))
         }
-        (RuntimeType::Core(expected), RuntimeType::Thunk { value, .. }) => {
+        (RuntimeType::Value(expected), RuntimeType::Thunk { value, .. }) => {
             core_types_compatible(expected, &diagnostic_core_type(value))
         }
         (
@@ -197,7 +197,7 @@ pub(super) fn validate_hir_type_no_any(
 ) -> RuntimeResult<()> {
     match ty {
         RuntimeType::Unknown => Ok(()),
-        RuntimeType::Core(ty) => validate_core_type_no_any(ty, source, type_arg_kinds),
+        RuntimeType::Value(ty) => validate_core_type_no_any(ty, source, type_arg_kinds),
         RuntimeType::Fun { param, ret } => {
             validate_hir_type_no_any(param, source, type_arg_kinds)?;
             validate_hir_type_no_any(ret, source, type_arg_kinds)
@@ -400,9 +400,9 @@ fn same_runtime_value_choice(
 pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, typed_ir::Type> {
     match ty {
         RuntimeType::Unknown => Cow::Owned(typed_ir::Type::Unknown),
-        RuntimeType::Core(ty) => Cow::Borrowed(ty),
+        RuntimeType::Value(ty) => Cow::Borrowed(ty),
         RuntimeType::Thunk { value, .. } => match value.as_ref() {
-            RuntimeType::Core(ty) => Cow::Borrowed(ty),
+            RuntimeType::Value(ty) => Cow::Borrowed(ty),
             other => Cow::Owned(runtime_core_type(other)),
         },
         RuntimeType::Fun { .. } => Cow::Owned(runtime_core_type(ty)),
@@ -411,11 +411,11 @@ pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, typed_ir::Type> {
 
 pub(super) fn is_constructor_path_for_type(path: &typed_ir::Path, ty: &RuntimeType) -> bool {
     match ty {
-        RuntimeType::Core(typed_ir::Type::Named {
+        RuntimeType::Value(typed_ir::Type::Named {
             path: type_path, ..
         }) => constructor_parent_matches(path, type_path),
         RuntimeType::Fun { ret, .. } => {
-            let RuntimeType::Core(typed_ir::Type::Named {
+            let RuntimeType::Value(typed_ir::Type::Named {
                 path: type_path, ..
             }) = ret.as_ref()
             else {
@@ -511,14 +511,14 @@ mod tests {
             tail: Box::new(typed_ir::Type::Never),
         };
         let inner = Expr::typed(ExprKind::Lit(typed_ir::Lit::Bool(true)), value_ty.clone());
-        let thunk_ty = Type::thunk(effect.clone(), Type::core(value_ty.clone()));
+        let thunk_ty = Type::thunk(effect.clone(), Type::value(value_ty.clone()));
         let module = Module {
             path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![Expr::typed(
                 ExprKind::Thunk {
                     effect,
-                    value: Type::core(value_ty),
+                    value: Type::value(value_ty),
                     expr: Box::new(inner),
                 },
                 thunk_ty,
@@ -541,14 +541,14 @@ mod tests {
             }),
         };
         let inner = Expr::typed(ExprKind::Lit(typed_ir::Lit::Bool(true)), value_ty.clone());
-        let thunk_ty = Type::thunk(effect.clone(), Type::core(value_ty.clone()));
+        let thunk_ty = Type::thunk(effect.clone(), Type::value(value_ty.clone()));
         let module = Module {
             path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![Expr::typed(
                 ExprKind::Thunk {
                     effect,
-                    value: Type::core(value_ty),
+                    value: Type::value(value_ty),
                     expr: Box::new(inner),
                 },
                 thunk_ty,
@@ -571,7 +571,7 @@ mod tests {
             }],
             spread: None,
         });
-        let pattern_ty = Type::core(typed_ir::Type::Record(typed_ir::RecordType {
+        let pattern_ty = Type::value(typed_ir::Type::Record(typed_ir::RecordType {
             fields: vec![
                 typed_ir::RecordField {
                     name: typed_ir::Name("base".to_string()),
@@ -598,7 +598,7 @@ mod tests {
                                     name: typed_ir::Name("base".to_string()),
                                     pattern: crate::ir::Pattern::Bind {
                                         name: typed_ir::Name("base".to_string()),
-                                        ty: Type::core(int.clone()),
+                                        ty: Type::value(int.clone()),
                                     },
                                     default: None,
                                 },
@@ -606,11 +606,11 @@ mod tests {
                                     name: typed_ir::Name("extra".to_string()),
                                     pattern: crate::ir::Pattern::Bind {
                                         name: typed_ir::Name("extra".to_string()),
-                                        ty: Type::core(int.clone()),
+                                        ty: Type::value(int.clone()),
                                     },
                                     default: Some(Expr::typed(
                                         ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-                                        Type::core(int.clone()),
+                                        Type::value(int.clone()),
                                     )),
                                 },
                             ],
@@ -623,22 +623,22 @@ mod tests {
                                     name: typed_ir::Name("base".to_string()),
                                     value: Expr::typed(
                                         ExprKind::Lit(typed_ir::Lit::Int("3".to_string())),
-                                        Type::core(int.clone()),
+                                        Type::value(int.clone()),
                                     ),
                                 }],
                                 spread: None,
                             },
-                            Type::core(value_ty),
+                            Type::value(value_ty),
                         ),
                     }],
                     tail: Some(Box::new(Expr::typed(
                         ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name(
                             "extra".to_string(),
                         ))),
-                        Type::core(int.clone()),
+                        Type::value(int.clone()),
                     ))),
                 },
-                Type::core(int),
+                Type::value(int),
             )],
             roots: vec![Root::Expr(0)],
             role_impls: Vec::new(),
@@ -652,7 +652,7 @@ mod tests {
         let int = named_type("int");
         let body = Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-            Type::core(int.clone()),
+            Type::value(int.clone()),
         );
         let module = Module {
             path: typed_ir::Path::default(),
@@ -663,13 +663,13 @@ mod tests {
                     arms: vec![HandleArm {
                         effect: typed_ir::Path::default(),
                         payload: crate::ir::Pattern::Wildcard {
-                            ty: Type::core(int.clone()),
+                            ty: Type::value(int.clone()),
                         },
                         resume: None,
                         guard: None,
                         body: Expr::typed(
                             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-                            Type::core(int.clone()),
+                            Type::value(int.clone()),
                         ),
                     }],
                     evidence: JoinEvidence {
@@ -681,7 +681,7 @@ mod tests {
                         residual_after: None,
                     },
                 },
-                Type::core(int.clone()),
+                Type::value(int.clone()),
             )],
             roots: vec![Root::Expr(0)],
             role_impls: Vec::new(),
@@ -696,7 +696,7 @@ mod tests {
         let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         let body = Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-            Type::core(int.clone()),
+            Type::value(int.clone()),
         );
         let module = Module {
             path: typed_ir::Path::default(),
@@ -707,13 +707,13 @@ mod tests {
                     arms: vec![HandleArm {
                         effect: effect.clone(),
                         payload: crate::ir::Pattern::Wildcard {
-                            ty: Type::core(int.clone()),
+                            ty: Type::value(int.clone()),
                         },
                         resume: None,
                         guard: None,
                         body: Expr::typed(
                             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
-                            Type::core(int.clone()),
+                            Type::value(int.clone()),
                         ),
                     }],
                     evidence: JoinEvidence {
@@ -725,7 +725,7 @@ mod tests {
                         residual_after: None,
                     },
                 },
-                Type::core(int.clone()),
+                Type::value(int.clone()),
             )],
             roots: vec![Root::Expr(0)],
             role_impls: Vec::new(),

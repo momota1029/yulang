@@ -14,7 +14,7 @@ use std::collections::VecDeque;
 
 use yulang_runtime_ir::{
     FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedModule as Module,
-    FinalizedType as RuntimeType,
+    RuntimeType as RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 

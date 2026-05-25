@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use yulang_runtime_ir::{FinalizedBinding as Binding, FinalizedType as RuntimeType};
+use yulang_runtime_ir::{FinalizedBinding as Binding, RuntimeType as RuntimeType};
 use yulang_typed_ir as typed_ir;
 
 use crate::{MonomorphizeDiagnostic, MonomorphizeResult};

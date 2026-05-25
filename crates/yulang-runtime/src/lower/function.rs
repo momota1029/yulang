@@ -12,7 +12,7 @@ pub(super) fn function_parts(ty: &RuntimeType) -> RuntimeResult<FunctionParts> {
             param: (**param).clone(),
             ret: (**ret).clone(),
         }),
-        RuntimeType::Core(core @ typed_ir::Type::Fun { .. }) => {
+        RuntimeType::Value(core @ typed_ir::Type::Fun { .. }) => {
             let ty = project_runtime_hir_type_with_vars(core, &BTreeSet::new());
             function_parts(&ty)
         }
@@ -132,7 +132,7 @@ fn named_variant_payload_from_constructor(
     args: &[typed_ir::TypeArg],
 ) -> Option<typed_ir::Type> {
     let (param, ret) = runtime_constructor_parts(constructor?)?;
-    let RuntimeType::Core(typed_ir::Type::Named {
+    let RuntimeType::Value(typed_ir::Type::Named {
         path: ret_path,
         args: ret_args,
     }) = &ret
@@ -142,7 +142,7 @@ fn named_variant_payload_from_constructor(
     if ret_path != path || ret_args.len() != args.len() {
         return None;
     }
-    let RuntimeType::Core(param) = param else {
+    let RuntimeType::Value(param) = param else {
         return None;
     };
     let substitutions = ret_args
@@ -180,9 +180,9 @@ fn variant_case_payload_value_type(payloads: &[typed_ir::Type]) -> Option<typed_
 pub(super) fn runtime_constructor_parts(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
     match ty {
         RuntimeType::Fun { param, ret } => Some((param.as_ref().clone(), ret.as_ref().clone())),
-        RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => Some((
-            RuntimeType::core((**param).clone()),
-            RuntimeType::core((**ret).clone()),
+        RuntimeType::Value(typed_ir::Type::Fun { param, ret, .. }) => Some((
+            RuntimeType::value((**param).clone()),
+            RuntimeType::value((**ret).clone()),
         )),
         _ => None,
     }
@@ -286,14 +286,14 @@ pub(super) fn require_same_hir_type(
         return Ok(());
     }
     match (expected, actual) {
-        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+        (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
             require_same_type(expected, actual, source)
         }
-        (RuntimeType::Core(expected), actual @ RuntimeType::Fun { .. })
-        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Core(expected)) => {
+        (RuntimeType::Value(expected), actual @ RuntimeType::Fun { .. })
+        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Value(expected)) => {
             require_same_type(expected, &diagnostic_core_type(actual), source)
         }
-        (RuntimeType::Core(expected), RuntimeType::Thunk { value, .. }) => {
+        (RuntimeType::Value(expected), RuntimeType::Thunk { value, .. }) => {
             require_same_type(expected, &diagnostic_core_type(value), source)
         }
         (

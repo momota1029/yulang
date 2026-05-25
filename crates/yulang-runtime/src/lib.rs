@@ -12,36 +12,37 @@ pub mod invariant;
 pub mod lower;
 pub mod refine;
 mod runtime_intrinsic;
-mod runtime_type;
 pub mod types;
 pub mod validate;
 
 pub mod ir {
-    pub use crate::runtime_type::Type;
+    // `Type` is the runtime-IR type stage: same shape as `FinalizedModule<RuntimeType>`,
+    // re-exported here so existing call sites can keep saying `runtime::Type`.
+    pub use yulang_runtime_ir::RuntimeType as Type;
     pub use yulang_runtime_ir::{
         EffectIdRef, EffectIdVar, FinalizedBinding, FinalizedExpr, FinalizedExprKind,
         FinalizedHandleArm, FinalizedMatchArm, FinalizedModule, FinalizedPattern,
         FinalizedRecordExprField, FinalizedRecordPatternField, FinalizedRecordSpreadExpr,
-        FinalizedRecordSpreadPattern, FinalizedResumeBinding, FinalizedStmt, FinalizedType,
+        FinalizedRecordSpreadPattern, FinalizedResumeBinding, FinalizedStmt, RuntimeType,
         HandleEffect, JoinEvidence, LoweredBinding, LoweredExpr, LoweredExprKind, LoweredHandleArm,
         LoweredMatchArm, LoweredModule, LoweredPattern, LoweredRecordExprField,
         LoweredRecordPatternField, LoweredRecordSpreadExpr, LoweredRecordSpreadPattern,
         LoweredResumeBinding, LoweredStmt, Root, TypeInstantiation, TypeSubstitution,
     };
 
-    pub type Module = yulang_runtime_ir::Module<Type>;
-    pub type Binding = yulang_runtime_ir::Binding<Type>;
-    pub type Expr = yulang_runtime_ir::Expr<Type>;
-    pub type ExprKind = yulang_runtime_ir::ExprKind<Type>;
-    pub type Stmt = yulang_runtime_ir::Stmt<Type>;
-    pub type Pattern = yulang_runtime_ir::Pattern<Type>;
-    pub type RecordExprField = yulang_runtime_ir::RecordExprField<Type>;
-    pub type RecordSpreadExpr = yulang_runtime_ir::RecordSpreadExpr<Type>;
-    pub type RecordPatternField = yulang_runtime_ir::RecordPatternField<Type>;
-    pub type RecordSpreadPattern = yulang_runtime_ir::RecordSpreadPattern<Type>;
-    pub type MatchArm = yulang_runtime_ir::MatchArm<Type>;
-    pub type HandleArm = yulang_runtime_ir::HandleArm<Type>;
-    pub type ResumeBinding = yulang_runtime_ir::ResumeBinding<Type>;
+    pub type Module = yulang_runtime_ir::Module<RuntimeType>;
+    pub type Binding = yulang_runtime_ir::Binding<RuntimeType>;
+    pub type Expr = yulang_runtime_ir::Expr<RuntimeType>;
+    pub type ExprKind = yulang_runtime_ir::ExprKind<RuntimeType>;
+    pub type Stmt = yulang_runtime_ir::Stmt<RuntimeType>;
+    pub type Pattern = yulang_runtime_ir::Pattern<RuntimeType>;
+    pub type RecordExprField = yulang_runtime_ir::RecordExprField<RuntimeType>;
+    pub type RecordSpreadExpr = yulang_runtime_ir::RecordSpreadExpr<RuntimeType>;
+    pub type RecordPatternField = yulang_runtime_ir::RecordPatternField<RuntimeType>;
+    pub type RecordSpreadPattern = yulang_runtime_ir::RecordSpreadPattern<RuntimeType>;
+    pub type MatchArm = yulang_runtime_ir::MatchArm<RuntimeType>;
+    pub type HandleArm = yulang_runtime_ir::HandleArm<RuntimeType>;
+    pub type ResumeBinding = yulang_runtime_ir::ResumeBinding<RuntimeType>;
 }
 
 pub use diagnostic::{RuntimeError, RuntimeResult, TypeSource};

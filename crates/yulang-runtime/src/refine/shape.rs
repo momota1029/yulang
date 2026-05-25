@@ -3,7 +3,7 @@ use super::*;
 pub(super) fn core_type(ty: &RuntimeType) -> &typed_ir::Type {
     match ty {
         RuntimeType::Unknown => &typed_ir::Type::Any,
-        RuntimeType::Core(ty) => ty,
+        RuntimeType::Value(ty) => ty,
         RuntimeType::Thunk { value, .. } => core_type(value),
         RuntimeType::Fun { .. } => &typed_ir::Type::Any,
     }
@@ -11,7 +11,7 @@ pub(super) fn core_type(ty: &RuntimeType) -> &typed_ir::Type {
 
 pub(super) fn core_function_as_hir_type(ty: &RuntimeType) -> RuntimeType {
     match ty {
-        RuntimeType::Core(typed_ir::Type::Fun {
+        RuntimeType::Value(typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -27,7 +27,7 @@ pub(super) fn core_function_as_hir_type(ty: &RuntimeType) -> RuntimeType {
 pub(super) fn function_result_type(ty: &RuntimeType) -> Option<RuntimeType> {
     match ty {
         RuntimeType::Fun { ret, .. } => Some(ret.as_ref().clone()),
-        RuntimeType::Core(typed_ir::Type::Fun {
+        RuntimeType::Value(typed_ir::Type::Fun {
             ret_effect, ret, ..
         }) => Some(effected_core_as_hir_type(ret, ret_effect)),
         _ => None,
@@ -37,7 +37,7 @@ pub(super) fn function_result_type(ty: &RuntimeType) -> Option<RuntimeType> {
 pub(super) fn function_param_type(ty: &RuntimeType) -> Option<RuntimeType> {
     match ty {
         RuntimeType::Fun { param, .. } => Some(param.as_ref().clone()),
-        RuntimeType::Core(typed_ir::Type::Fun {
+        RuntimeType::Value(typed_ir::Type::Fun {
             param,
             param_effect,
             ..
@@ -50,7 +50,7 @@ pub(super) fn effected_core_as_hir_type(
     value: &typed_ir::Type,
     effect: &typed_ir::Type,
 ) -> RuntimeType {
-    let value = RuntimeType::core(value.clone());
+    let value = RuntimeType::value(value.clone());
     let effect = project_runtime_effect(effect);
     if should_thunk_effect(&effect) {
         RuntimeType::thunk(effect, value)
@@ -61,7 +61,7 @@ pub(super) fn effected_core_as_hir_type(
 
 pub(super) fn hir_type_compatible(expected: &RuntimeType, actual: &RuntimeType) -> bool {
     match (expected, actual) {
-        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+        (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
             type_compatible(expected, actual)
         }
         (
@@ -230,7 +230,7 @@ fn merge_refined_effects(left: typed_ir::Type, right: typed_ir::Type) -> typed_i
 }
 
 pub(super) fn hir_type_is_core_never(ty: &RuntimeType) -> bool {
-    matches!(ty, RuntimeType::Core(typed_ir::Type::Never))
+    matches!(ty, RuntimeType::Value(typed_ir::Type::Never))
 }
 
 pub(super) fn core_type_vars(ty: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {
@@ -283,8 +283,8 @@ pub(super) fn pattern_type(pattern: &Pattern) -> Option<RuntimeType> {
 
 pub(super) fn tuple_item_type(ty: &RuntimeType, index: usize) -> Option<RuntimeType> {
     match ty {
-        RuntimeType::Core(typed_ir::Type::Tuple(items)) => {
-            items.get(index).cloned().map(RuntimeType::core)
+        RuntimeType::Value(typed_ir::Type::Tuple(items)) => {
+            items.get(index).cloned().map(RuntimeType::value)
         }
         _ => None,
     }
@@ -292,11 +292,11 @@ pub(super) fn tuple_item_type(ty: &RuntimeType, index: usize) -> Option<RuntimeT
 
 pub(super) fn record_field_type(ty: &RuntimeType, name: &typed_ir::Name) -> Option<RuntimeType> {
     match ty {
-        RuntimeType::Core(typed_ir::Type::Record(record)) => record
+        RuntimeType::Value(typed_ir::Type::Record(record)) => record
             .fields
             .iter()
             .find(|field| field.name == *name)
-            .map(|field| RuntimeType::core(field.value.clone())),
+            .map(|field| RuntimeType::value(field.value.clone())),
         _ => None,
     }
 }

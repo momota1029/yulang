@@ -135,7 +135,7 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
         return Ok(expr);
     }
     match expected {
-        RuntimeType::Unknown | RuntimeType::Core(typed_ir::Type::Unknown) => Ok(expr),
+        RuntimeType::Unknown | RuntimeType::Value(typed_ir::Type::Unknown) => Ok(expr),
         RuntimeType::Thunk { effect, value } => match &expr.ty {
             RuntimeType::Thunk { .. } => {
                 require_apply_arg_compatible(expected, &expr.ty, source)?;
@@ -185,7 +185,7 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
         },
         // A join is a semantic value boundary: even an open result slot must
         // force effectful branch arms here. Render/discard sinks wrap outside it.
-        RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_))
+        RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))
             if source != TypeSource::JoinEvidence
                 && matches!(expr.ty, RuntimeType::Thunk { .. }) =>
         {
@@ -260,7 +260,7 @@ fn apply_adapter_source(source: TypeSource) -> bool {
 fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_contains_unknown(ty),
+        RuntimeType::Value(ty) => core_type_contains_unknown(ty),
         RuntimeType::Fun { param, ret } => {
             hir_type_contains_unknown(param) || hir_type_contains_unknown(ret)
         }

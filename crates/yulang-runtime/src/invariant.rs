@@ -608,7 +608,7 @@ fn pattern_ty(pattern: &Pattern) -> &RuntimeType {
 fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_has_runtime_fallback_in_value_position(ty, false),
+        RuntimeType::Value(ty) => core_type_has_runtime_fallback_in_value_position(ty, false),
         RuntimeType::Fun { param, ret } => {
             runtime_type_has_runtime_fallback_in_value_position(param)
                 || runtime_type_has_runtime_fallback_in_value_position(ret)
@@ -622,7 +622,7 @@ fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool
 fn runtime_type_has_unresolved_hole(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_has_unresolved_hole(ty),
+        RuntimeType::Value(ty) => core_type_has_unresolved_hole(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_type_has_unresolved_hole(param) || runtime_type_has_unresolved_hole(ret)
         }
@@ -827,10 +827,10 @@ mod tests {
         let module = module_with_expr(Expr::typed(
             ExprKind::Thunk {
                 effect: named("io"),
-                value: RuntimeType::core(unit()),
+                value: RuntimeType::value(unit()),
                 expr: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
-            RuntimeType::thunk(named("other"), RuntimeType::core(unit())),
+            RuntimeType::thunk(named("other"), RuntimeType::value(unit())),
         ));
 
         let err = check_runtime_invariants(&module, RuntimeStage::Lowered).unwrap_err();
@@ -865,10 +865,10 @@ mod tests {
         let module = module_with_expr(Expr::typed(
             ExprKind::Thunk {
                 effect: named("io"),
-                value: RuntimeType::core(typed_ir::Type::Unknown),
+                value: RuntimeType::value(typed_ir::Type::Unknown),
                 expr: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
-            RuntimeType::thunk(named("io"), RuntimeType::core(typed_ir::Type::Unknown)),
+            RuntimeType::thunk(named("io"), RuntimeType::value(typed_ir::Type::Unknown)),
         ));
 
         let err = check_strict_runtime_value_types(&module, RuntimeStage::BeforeVm).unwrap_err();
@@ -939,7 +939,7 @@ mod tests {
                     unit(),
                 ))),
             },
-            RuntimeType::core(unit()),
+            RuntimeType::value(unit()),
         ));
 
         let err =
@@ -963,7 +963,7 @@ mod tests {
                 active: true,
                 thunk: Box::new(unit_thunk()),
             },
-            RuntimeType::thunk(typed_ir::Type::Never, RuntimeType::core(unit())),
+            RuntimeType::thunk(typed_ir::Type::Never, RuntimeType::value(unit())),
         ));
 
         let err =
@@ -991,7 +991,7 @@ mod tests {
                     residual_after: None,
                 },
             },
-            RuntimeType::core(unit()),
+            RuntimeType::value(unit()),
         ));
 
         let err =
@@ -1098,20 +1098,20 @@ mod tests {
             ExprKind::Apply {
                 callee: Box::new(Expr::typed(
                     ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name("f".to_string()))),
-                    RuntimeType::fun(RuntimeType::core(unit()), RuntimeType::core(unit())),
+                    RuntimeType::fun(RuntimeType::value(unit()), RuntimeType::value(unit())),
                 )),
                 arg: Box::new(unit_expr()),
                 evidence: Some(evidence),
                 instantiation: None,
             },
-            RuntimeType::core(unit()),
+            RuntimeType::value(unit()),
         )
     }
 
     fn unit_expr() -> Expr {
         Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Unit),
-            RuntimeType::core(unit()),
+            RuntimeType::value(unit()),
         )
     }
 
@@ -1119,10 +1119,10 @@ mod tests {
         Expr::typed(
             ExprKind::Thunk {
                 effect: typed_ir::Type::Never,
-                value: RuntimeType::core(unit()),
+                value: RuntimeType::value(unit()),
                 expr: Box::new(unit_expr()),
             },
-            RuntimeType::thunk(typed_ir::Type::Never, RuntimeType::core(unit())),
+            RuntimeType::thunk(typed_ir::Type::Never, RuntimeType::value(unit())),
         )
     }
 

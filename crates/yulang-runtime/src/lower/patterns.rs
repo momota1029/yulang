@@ -6,7 +6,7 @@ pub(super) fn lower_pattern(
     ty: &typed_ir::Type,
     locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<Pattern> {
-    lower_hir_pattern(lowerer, pattern, &RuntimeType::core(ty.clone()), locals)
+    lower_hir_pattern(lowerer, pattern, &RuntimeType::value(ty.clone()), locals)
 }
 
 pub(super) fn lower_hir_pattern(
@@ -39,7 +39,7 @@ pub(super) fn lower_hir_pattern(
             })
         }
         pattern => {
-            let Some(core_ty) = ty.as_core() else {
+            let Some(core_ty) = ty.as_value() else {
                 return Err(RuntimeError::UnsupportedPatternShape {
                     pattern: pattern_shape_name(&pattern),
                     ty: diagnostic_core_type(ty),
@@ -166,7 +166,7 @@ pub(super) fn lower_core_pattern(
                             force_value_expr_profiled(
                                 lowerer.lower_expr(
                                     default,
-                                    Some(&RuntimeType::core(field_ty.clone())),
+                                    Some(&RuntimeType::value(field_ty.clone())),
                                     locals,
                                     TypeSource::Expected,
                                 )?,
@@ -260,7 +260,7 @@ fn named_struct_record_type(
                     .filter(|(_, ret)| named_type_path(ret) == Some(path))
             })
         })?;
-    let RuntimeType::Core(typed_ir::Type::Named {
+    let RuntimeType::Value(typed_ir::Type::Named {
         path: ret_path,
         args: ret_args,
     }) = &ret
@@ -270,7 +270,7 @@ fn named_struct_record_type(
     if ret_path != path || ret_args.len() != args.len() {
         return None;
     }
-    let RuntimeType::Core(typed_ir::Type::Record(record)) = &param else {
+    let RuntimeType::Value(typed_ir::Type::Record(record)) = &param else {
         return None;
     };
     let substitutions = ret_args
@@ -287,7 +287,7 @@ fn named_struct_record_type(
 }
 
 fn named_type_path(ty: &RuntimeType) -> Option<&typed_ir::Path> {
-    let RuntimeType::Core(typed_ir::Type::Named { path, args: _ }) = ty else {
+    let RuntimeType::Value(typed_ir::Type::Named { path, args: _ }) = ty else {
         return None;
     };
     Some(path)

@@ -206,7 +206,7 @@ impl<'a> RuntimeTypeProjector<'a> {
         match ty {
             typed_ir::Type::Unknown => RuntimeType::unknown(),
             typed_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
-                RuntimeType::core(typed_ir::Type::Var(var.clone()))
+                RuntimeType::value(typed_ir::Type::Var(var.clone()))
             }
             typed_ir::Type::Var(_) => RuntimeType::unknown(),
             typed_ir::Type::Fun {
@@ -223,7 +223,7 @@ impl<'a> RuntimeTypeProjector<'a> {
                 .project_hir_choice(items)
                 .unwrap_or_else(RuntimeType::unknown),
             typed_ir::Type::Row { .. } => RuntimeType::unknown(),
-            other => RuntimeType::core(self.project(other)),
+            other => RuntimeType::value(self.project(other)),
         }
     }
 

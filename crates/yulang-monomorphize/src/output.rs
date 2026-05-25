@@ -1,4 +1,4 @@
-use yulang_runtime_ir::{FinalizedModule as Module, FinalizedType as RuntimeType};
+use yulang_runtime_ir::{FinalizedModule as Module, RuntimeType as RuntimeType};
 
 use crate::{MonomorphizeInstanceCacheProfile, GraphSolution};
 
