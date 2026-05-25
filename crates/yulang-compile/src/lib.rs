@@ -15,7 +15,7 @@ pub type SourceRuntimeResult<T> = Result<T, SourceRuntimeError>;
 pub enum SourceRuntimeError {
     SourceLoad(SourceLoadError),
     SurfaceDiagnostics(Vec<String>),
-    RuntimeLower(yulang_runtime::RuntimeError),
+    RuntimeLower(yulang_runtime_lower::RuntimeError),
     RuntimeFinalize(yulang_monomorphize::MonomorphizeError),
     RuntimeMerge(yulang_infer::CompiledRuntimeMergeError),
     DependencyCacheMiss,
@@ -55,8 +55,8 @@ impl From<SourceLoadError> for SourceRuntimeError {
     }
 }
 
-impl From<yulang_runtime::RuntimeError> for SourceRuntimeError {
-    fn from(error: yulang_runtime::RuntimeError) -> Self {
+impl From<yulang_runtime_lower::RuntimeError> for SourceRuntimeError {
+    fn from(error: yulang_runtime_lower::RuntimeError) -> Self {
         SourceRuntimeError::RuntimeLower(error)
     }
 }
@@ -102,7 +102,7 @@ pub fn runtime_module_from_lowered_sources(
         ));
     }
     let program = yulang_infer::export_core_program(&mut lowered.state);
-    let module = yulang_runtime::lower_core_program(program)?;
+    let module = yulang_runtime_lower::lower_core_program(program)?;
     yulang_monomorphize::monomorphize_module(module).map_err(SourceRuntimeError::from)
 }
 
@@ -211,7 +211,7 @@ fn runtime_ir_module_from_lowered_sources_with_runtime_dependencies(
     if let Some(runtime_dependencies) = runtime_dependencies {
         program = runtime_dependencies.merge_with_user_program(program)?;
     }
-    let module = yulang_runtime::lower_core_program(program)?;
+    let module = yulang_runtime_lower::lower_core_program(program)?;
     yulang_monomorphize::monomorphize_module(module).map_err(SourceRuntimeError::from)
 }
 

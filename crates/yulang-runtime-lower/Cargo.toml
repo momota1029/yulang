@@ -1,9 +1,9 @@
 [package]
-name = "yulang-runtime"
+name = "yulang-runtime-lower"
 version = "0.1.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Runtime lowering, validation, and monomorphization for Yulang"
+description = "Lower typed core IR to runtime IR for Yulang"
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 

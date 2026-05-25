@@ -18,7 +18,7 @@ use yulang_infer::{
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
-use yulang_runtime as runtime;
+use yulang_runtime_lower as runtime;
 use yulang_sources::{
     SourceOptions, collect_virtual_source_files_with_options, is_std_root,
     resolve_or_install_std_root,

@@ -13,7 +13,7 @@ postcard = { version = "1", features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 unicode-segmentation = "1.12"
-yulang-runtime = { version = "0.1.1", path = "../yulang-runtime" }
+yulang-runtime-lower = { version = "0.1.1", path = "../yulang-runtime-lower" }
 yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
 yulang-runtime-types = { version = "0.1.0", path = "../yulang-runtime-types" }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }

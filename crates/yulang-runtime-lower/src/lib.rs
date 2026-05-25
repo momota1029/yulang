@@ -11,8 +11,8 @@
 pub mod lower;
 
 // Re-exports so existing callers can keep saying
-// `yulang_runtime::types::...` / `yulang_runtime::diagnostic::...` /
-// `yulang_runtime::refine::...` etc.
+// `yulang_runtime_lower::types::...` / `yulang_runtime_lower::diagnostic::...` /
+// `yulang_runtime_lower::refine::...` etc.
 pub use yulang_runtime_types::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,
     MatchArm, Module, Pattern, RecordExprField, RecordPatternField, RecordSpreadExpr,

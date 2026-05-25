@@ -13,7 +13,7 @@ server = ["dep:tower-lsp", "dep:tokio", "dep:yulang-editor"]
 
 [dependencies]
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
-yulang-runtime = { version = "0.1.1", path = "../yulang-runtime" }
+yulang-runtime-lower = { version = "0.1.1", path = "../yulang-runtime-lower" }
 yulang-monomorphize = { version = "0.1.0", path = "../yulang-monomorphize" }
 yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
 yulang-vm = { version = "0.1.0", path = "../yulang-vm" }

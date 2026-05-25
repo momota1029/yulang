@@ -27,7 +27,7 @@ pub enum MonomorphizeDiagnostic {
 #[derive(Debug)]
 pub enum MonomorphizeError {
     Finalize(MonomorphizeDiagnostic),
-    Runtime(yulang_runtime::RuntimeError),
+    Runtime(yulang_runtime_lower::RuntimeError),
 }
 
 impl From<MonomorphizeDiagnostic> for MonomorphizeError {
@@ -36,8 +36,8 @@ impl From<MonomorphizeDiagnostic> for MonomorphizeError {
     }
 }
 
-impl From<yulang_runtime::RuntimeError> for MonomorphizeError {
-    fn from(error: yulang_runtime::RuntimeError) -> Self {
+impl From<yulang_runtime_lower::RuntimeError> for MonomorphizeError {
+    fn from(error: yulang_runtime_lower::RuntimeError) -> Self {
         Self::Runtime(error)
     }
 }

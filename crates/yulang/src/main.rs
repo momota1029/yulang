@@ -56,7 +56,7 @@ use yulang_parser::sink::{Event, EventSink, VecSink, YulangLanguage};
 use yulang_parser::stmt::parse_statement;
 use yulang_parser::typ::parse::parse_type;
 use yulang_parser::{parse_module_to_green, parse_module_to_green_with_ops};
-use yulang_runtime as runtime;
+use yulang_runtime_lower as runtime;
 use yulang_sources::{
     SourceCompilationUnitOrigin, SourceOrigin, collect_source_files_for_cache_key_with_options,
     collect_source_files_with_options, collect_virtual_source_files_for_cache_key_with_options,

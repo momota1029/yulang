@@ -2142,8 +2142,8 @@ dependencies = [
  "yulang-infer",
  "yulang-monomorphize",
  "yulang-parser",
- "yulang-runtime",
  "yulang-runtime-ir",
+ "yulang-runtime-lower",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",
@@ -2155,8 +2155,8 @@ version = "0.1.0"
 dependencies = [
  "yulang-infer",
  "yulang-monomorphize",
- "yulang-runtime",
  "yulang-runtime-ir",
+ "yulang-runtime-lower",
  "yulang-sources",
 ]
 
@@ -2199,8 +2199,8 @@ dependencies = [
  "serde",
  "yulang-compile",
  "yulang-infer",
- "yulang-runtime",
  "yulang-runtime-ir",
+ "yulang-runtime-lower",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",
@@ -2221,21 +2221,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "yulang-runtime"
+name = "yulang-runtime-ir"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "yulang-typed-ir",
+]
+
+[[package]]
+name = "yulang-runtime-lower"
 version = "0.1.1"
 dependencies = [
  "serde",
  "yulang-runtime-ir",
  "yulang-runtime-refine",
  "yulang-runtime-types",
- "yulang-typed-ir",
-]
-
-[[package]]
-name = "yulang-runtime-ir"
-version = "0.1.0"
-dependencies = [
- "serde",
  "yulang-typed-ir",
 ]
 
@@ -2287,8 +2287,8 @@ dependencies = [
  "unicode-segmentation",
  "yulang-compile",
  "yulang-infer",
- "yulang-runtime",
  "yulang-runtime-ir",
+ "yulang-runtime-lower",
  "yulang-runtime-types",
  "yulang-typed-ir",
 ]
@@ -2306,7 +2306,7 @@ dependencies = [
  "yulang-editor",
  "yulang-infer",
  "yulang-monomorphize",
- "yulang-runtime",
+ "yulang-runtime-lower",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",

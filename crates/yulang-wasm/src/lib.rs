@@ -11,7 +11,7 @@ use yulang_infer::{
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled,
     warm_std_source_cache,
 };
-use yulang_runtime as runtime;
+use yulang_runtime_lower as runtime;
 use yulang_vm as runtime_vm;
 
 pub use color::{ColorizeOutput, HighlightSpan};
