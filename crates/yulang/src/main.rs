@@ -1516,7 +1516,7 @@ fn run_infer_views(
                 println!();
             }
             println!("runtime-ir:");
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1536,7 +1536,7 @@ fn run_infer_views(
                 println!();
             }
             println!("hygiene-ir:");
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1621,7 +1621,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1765,7 +1765,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1790,7 +1790,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1816,7 +1816,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1842,7 +1842,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1868,7 +1868,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1895,7 +1895,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1922,7 +1922,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1950,7 +1950,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -1979,7 +1979,7 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
+            let lowered = lower_legacy_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
                 &diagnostic_source,
@@ -2007,6 +2007,11 @@ fn run_infer_views(
 }
 
 struct RuntimeLowerOutput {
+    module: yulang_runtime_ir::FinalizedModule,
+    profile: RuntimePhaseProfile,
+}
+
+struct LegacyRuntimeLowerOutput {
     module: runtime::Module,
     profile: RuntimePhaseProfile,
 }
@@ -2115,6 +2120,55 @@ fn lower_runtime_module_or_exit(
         monomorphize_profile,
     };
     RuntimeLowerOutput { module, profile }
+}
+
+fn lower_legacy_runtime_module_or_exit(
+    program: &typed_ir::CoreProgram,
+    print_timings: bool,
+    source: &str,
+) -> LegacyRuntimeLowerOutput {
+    let lower_start = Instant::now();
+    let (module, lower_profile) = if print_timings {
+        match runtime::lower_core_program_profiled(program.clone()) {
+            Ok(output) => (output.module, output.profile),
+            Err(err) => {
+                eprintln!("error: {err}");
+                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                    eprint!("{frame}");
+                }
+                process::exit(1);
+            }
+        }
+    } else {
+        match runtime::lower_core_program(program.clone()) {
+            Ok(module) => (module, runtime::RuntimeLowerProfile::default()),
+            Err(err) => {
+                eprintln!("error: {err}");
+                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                    eprint!("{frame}");
+                }
+                process::exit(1);
+            }
+        }
+    };
+    let lower = lower_start.elapsed();
+    let mono_start = Instant::now();
+    let (module, monomorphize_profile) =
+        match yulang_runtime_finalize::finalize_monomorphize_legacy_runtime_module(module) {
+            Ok(module) => (module, runtime::MonomorphizeProfile::default()),
+            Err(err) => {
+                eprintln!("error: {err}");
+                process::exit(1);
+            }
+        };
+    let monomorphize = mono_start.elapsed();
+    let profile = RuntimePhaseProfile {
+        lower,
+        lower_profile,
+        monomorphize,
+        monomorphize_profile,
+    };
+    LegacyRuntimeLowerOutput { module, profile }
 }
 
 fn print_native_abi_lanes_or_exit(module: &runtime::Module) {

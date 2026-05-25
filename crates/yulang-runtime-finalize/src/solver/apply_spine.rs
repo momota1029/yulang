@@ -936,6 +936,9 @@ impl ApplyStep<'_> {
         if let Some((value, effect)) = bind_here_arg_type_and_effect(self.arg, local_types) {
             return (value, effect);
         }
+        if let Some((value, effect)) = expr_value_and_effect(self.arg, local_types) {
+            return (value, effect);
+        }
         let runtime_ty = expr_lower_type(self.arg, local_types);
         if let RuntimeType::Thunk { effect, value } = &runtime_ty {
             if runtime_type_is_never_value(value)
@@ -1017,7 +1020,8 @@ fn bind_here_arg_type_and_effect(
     let ExprKind::BindHere { expr } = &arg.kind else {
         return None;
     };
-    expr_value_and_effect(expr, local_types)
+    let (value, _) = expr_value_and_effect(expr, local_types)?;
+    Some((value, typed_ir::Type::Never))
 }
 
 fn expr_value_and_effect(
@@ -1028,6 +1032,33 @@ fn expr_value_and_effect(
         let value = super::runtime_type_to_core(*value);
         let effect = closed_or_empty_effect(effect);
         return Some((value, effect));
+    }
+    match &expr.kind {
+        ExprKind::Thunk { effect, value, .. } => {
+            let value = super::runtime_type_to_core(value.clone());
+            let effect = closed_or_empty_effect(effect.clone());
+            return Some((value, effect));
+        }
+        ExprKind::Block {
+            tail: Some(tail), ..
+        } => {
+            if let Some((value, effect)) = expr_value_and_effect(tail, local_types) {
+                return Some((value, effect));
+            }
+        }
+        ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Pack { expr: body, .. } => {
+            if let Some((value, effect)) = expr_value_and_effect(body, local_types) {
+                return Some((value, effect));
+            }
+        }
+        ExprKind::Coerce { to, expr, .. } => {
+            if let Some((_, effect)) = expr_value_and_effect(expr, local_types) {
+                return Some((to.clone(), effect));
+            }
+        }
+        _ => {}
     }
     let ExprKind::Apply { evidence, .. } = &expr.kind else {
         return None;

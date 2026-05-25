@@ -77,7 +77,7 @@ impl<'m> VmInterpreter<'m> {
             ExprKind::Lambda { param, body, .. } => {
                 let (param_ty, ret) = match &expr.ty {
                     Type::Fun { param, ret } => (param.as_ref().clone(), ret.as_ref().clone()),
-                    _ => (Type::Core(typed_ir::Type::Any), body.ty.clone()),
+                    _ => (Type::Value(typed_ir::Type::Any), body.ty.clone()),
                 };
                 Ok(VmResult::Value(VmValue::Closure(Rc::new(VmClosure {
                     param: param.clone(),
@@ -159,7 +159,7 @@ impl<'m> VmInterpreter<'m> {
                 arms,
                 evidence,
                 ..
-            } => self.eval_handle(body, arms, &Type::core(evidence.result.clone()), env),
+            } => self.eval_handle(body, arms, &Type::value(evidence.result.clone()), env),
             ExprKind::BindHere { expr } => match self.eval_expr(expr, env)? {
                 VmResult::Value(value) => self.bind_here(value),
                 VmResult::Request(request) => {
@@ -461,10 +461,10 @@ impl<'m> VmInterpreter<'m> {
     pub(super) fn apply(&mut self, callee: VmValue, arg: VmValue) -> Result<VmResult, VmError> {
         match callee {
             VmValue::Closure(callee) => {
-                if closure_param_forces_thunk_arg(&callee.param_ty) {
-                    if let VmValue::Thunk(_) = arg {
-                        return self.force_apply_arg(VmValue::Closure(callee), arg);
-                    }
+                if closure_param_forces_thunk_arg(&callee.param_ty)
+                    && matches!(arg, VmValue::Thunk(_))
+                {
+                    return self.force_apply_arg(VmValue::Closure(callee), arg);
                 }
                 let mut env = callee.env.clone();
                 if let Some(self_name) = &callee.self_name {
@@ -1269,12 +1269,12 @@ fn push_thunk_boundary_frame(request: VmRequest, thunk: &VmThunk) -> VmRequest {
 fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
     !matches!(
         param_ty,
-        Type::Thunk { .. } | Type::Core(typed_ir::Type::Any)
+        Type::Thunk { .. } | Type::Value(typed_ir::Type::Any)
     )
 }
 
 fn tuple_type_forces_items(ty: &Type) -> bool {
-    matches!(ty, Type::Core(typed_ir::Type::Tuple(_)))
+    matches!(ty, Type::Value(typed_ir::Type::Tuple(_)))
 }
 
 fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {

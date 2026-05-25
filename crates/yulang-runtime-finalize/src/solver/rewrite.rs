@@ -81,6 +81,7 @@ pub(crate) fn append_monomorphic_bindings(
                 &solution.type_substitutions,
                 Some(&solution.callee_type),
             );
+            let body = materialize::refresh_local_expr_types(body);
             cache.insert(CachedFinalizeInstance {
                 key,
                 scheme: scheme.clone(),

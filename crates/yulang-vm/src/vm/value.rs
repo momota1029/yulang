@@ -81,8 +81,8 @@ pub(super) fn bind_pattern_with_defaults(
             }
             if let Some(spread) = spread {
                 let spread = match spread {
-                    yulang_runtime::ir::RecordSpreadPattern::Head(pattern)
-                    | yulang_runtime::ir::RecordSpreadPattern::Tail(pattern) => pattern,
+                    yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => pattern,
                 };
                 bind_pattern_with_defaults(spread, VmValue::Record(rest), env, eval_default)?;
             }
@@ -182,7 +182,7 @@ pub(super) fn wrap_value_for_type(value: VmValue, expected_ty: &Type) -> VmValue
 pub(super) fn expects_thunk_arg(ty: &Type) -> bool {
     match ty {
         Type::Fun { param, .. } => matches!(param.as_ref(), Type::Thunk { .. }),
-        Type::Unknown | Type::Core(_) | Type::Thunk { .. } => false,
+        Type::Unknown | Type::Value(_) | Type::Thunk { .. } => false,
     }
 }
 

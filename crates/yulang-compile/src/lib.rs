@@ -75,7 +75,7 @@ impl From<yulang_infer::CompiledRuntimeMergeError> for SourceRuntimeError {
 
 #[derive(Debug)]
 pub struct CachedRuntimeIrModule {
-    pub module: yulang_runtime::Module,
+    pub module: yulang_runtime_ir::FinalizedModule,
     pub dependency_cache_hit: bool,
     pub dependency_manifests: Vec<yulang_sources::CompiledUnitManifest>,
 }
@@ -84,14 +84,14 @@ pub fn runtime_module_from_virtual_source_with_options(
     source: &str,
     base_dir: Option<PathBuf>,
     options: SourceOptions,
-) -> SourceRuntimeResult<yulang_runtime::Module> {
+) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
     let mut lowered = yulang_infer::lower_virtual_source_with_options(source, base_dir, options)?;
     runtime_module_from_lowered_sources(&mut lowered)
 }
 
 pub fn runtime_module_from_lowered_sources(
     lowered: &mut yulang_infer::LoweredSources,
-) -> SourceRuntimeResult<yulang_runtime::Module> {
+) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
     let diagnostics = yulang_infer::collect_surface_diagnostics(&lowered.state);
     if !diagnostics.is_empty() {
         return Err(SourceRuntimeError::SurfaceDiagnostics(
@@ -163,7 +163,7 @@ pub fn runtime_ir_module_from_virtual_source_with_dependency_cache_read_only(
 
 pub fn runtime_ir_module_from_lowered_sources(
     lowered: &mut yulang_infer::LoweredSources,
-) -> SourceRuntimeResult<yulang_runtime::Module> {
+) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
     runtime_ir_module_from_lowered_sources_with_runtime_dependencies(lowered, None)
 }
 
@@ -197,7 +197,7 @@ fn runtime_ir_module_from_cached_dependency_bundle(
 fn runtime_ir_module_from_lowered_sources_with_runtime_dependencies(
     lowered: &mut yulang_infer::LoweredSources,
     runtime_dependencies: Option<&yulang_infer::CompiledRuntimeBundle>,
-) -> SourceRuntimeResult<yulang_runtime::Module> {
+) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
     let diagnostics = yulang_infer::collect_surface_diagnostics(&lowered.state);
     if !diagnostics.is_empty() {
         return Err(SourceRuntimeError::SurfaceDiagnostics(

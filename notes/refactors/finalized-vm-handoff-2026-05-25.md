@@ -1,0 +1,376 @@
+# Finalized VM handoff report (2026-05-25)
+
+## 状況
+
+`runtime_ir` の型 stage parameterization 後、旧 `yulang_runtime::Module`
+へ戻して VM に渡す互換 bridge を使うより、VM が
+`runtime_ir::FinalizedModule` を直接読む方針に切り替える試行をした。
+
+この方針自体は妥当そうだが、実行時の effect payload / thunk forcing /
+guard stack の契約に踏み込む必要が出た。ここから先は単なるリファクタの責務を
+超えていて、調査タスクとして切り出すのがよさそう。
+
+## ベースコミット
+
+直前にコミット済み：
+
+```text
+c9df78b runtime-ir: parameterize type stage
+```
+
+以降の変更は未コミット。
+
+## 未コミット変更の大枠
+
+- `yulang-vm` が `yulang_runtime_ir::FinalizedModule` /
+  `FinalizedType` を直接使うように変更中。
+- `compile_vm_module` / `compile_control_vm_module` は generic input
+  (`IntoVmModule`) を受ける形へ変更中。
+- legacy `yulang_runtime::Module` は VM 境界で `FinalizedModule` に lift
+  する暫定 helper を追加中。
+- `yulang-runtime-finalize::finalize_monomorphize_module` は
+  `FinalizedModule` を返す方向へ変更中。
+- legacy runtime module が必要な既存 native / debug 経路向けに
+  `finalize_monomorphize_legacy_runtime_module` を追加中。
+- `yulang-compile` は runtime module result を `FinalizedModule` に変更中。
+- `yulang` CLI は VM 経路を finalized module、native/debug legacy 経路を
+  legacy runtime module に分ける途中。
+- `yulang-vm` tests は finalized module 前提へ寄せる途中。
+
+## 直近で通ったもの
+
+途中時点で以下は通った。
+
+```sh
+cargo check -q --workspace
+cargo test -q -p yulang-runtime-finalize cached_std_control_vm_legacy_runtime_and_finalize_match_playground_examples
+```
+
+ただし、その後 `EffectOp` payload force の試行と VM tests 修正を入れたあと、
+広めの test で別の失敗が見えた。現状は必ず再確認が必要。
+
+## 直近の失敗
+
+### 1. control VM の ref list assignment
+
+コマンド：
+
+```sh
+cargo test -q -p yulang-runtime-finalize \
+  cached_std_control_vm_legacy_runtime_and_finalize_match_playground_examples
+```
+
+症状：
+
+```text
+ref list assignment finalize control VM eval failed: ExpectedList(Unit)
+```
+
+調査中に一時 debug を入れた結果、host export 直前に以下が見えた。
+
+```text
+thunk payload for Path { segments: [Name("&xs#481"), Name("set")] }
+```
+
+つまり `&xs#set` effect request の payload が thunk のまま外へ出ている。
+`export_value` は thunk / closure / resume を host value として出せず、
+`ExpectedList(Unit)` に落ちている。
+
+### 2. effect payload を単純 force すると別の ref case が壊れる
+
+試した変更：
+
+- `ControlValue::EffectOp(effect)` apply で、arg が thunk なら
+  `force_apply_arg(ControlValue::EffectOp(effect), arg)` する。
+- tree VM も同じ変更。
+
+結果：
+
+```sh
+cargo test -q -p yulang-runtime-finalize
+```
+
+最初の失敗：
+
+```text
+cached_std_finalize_runs_ref_assignment_inside_nested_block
+expected int VM result, got request Path { segments: [Name("&x#481"), Name("set")] },
+blocked None, handle_frames=1, bind_frames=5
+```
+
+これは payload thunk をその場で force するだけだと、payload 評価中に発生した
+request の blocker / guard stack / continuation の扱いが崩れる可能性を示す。
+単純な force は危険。
+
+### 3. `EffectOp` callee だけ delay しない案も不十分
+
+試した変更：
+
+- `Apply` compile 時に callee syntax が `ExprKind::EffectOp(_)` なら
+  `delay_arg=false`。
+- `continue_apply_arg` でも callee value が `EffectOp` なら delay しない。
+
+結果：
+
+`ref list assignment` はまだ `ExpectedList(Unit)` のまま。
+
+推測：
+
+- callee が syntactic `EffectOp` ではない経路がある。
+- あるいは effect operation の payload type が thunk として Finalized に残ること自体は
+  型として正しく、VM の request payload 正規化が必要。
+- ただし payload force を VM apply の局所でやると guard/blocker が壊れるので、
+  request emission / handler boundary / continuation frame の設計を見直す必要がある。
+
+## 小手先で触るべきでない場所
+
+以下は一見直せそうだが、安易に入れると別ケースを壊す。
+
+- `ControlValue::EffectOp` apply で thunk payload を即 force
+- `export_request` 直前で thunk payload を force
+- `Handle` result thunk wrapping を `expr.ty` だけで決める
+- finalized -> legacy runtime projection で handler body の thunk boundary を補修
+
+特に最後の projection 補修は、今回の refactor 方針と逆方向。
+VM が finalized type stage を直接読む方向で整理する方がよい。
+
+## Claude Code へのおすすめ調査順
+
+1. `yulang-vm` の effect request emission 契約を読む。
+   - tree VM: `crates/yulang-vm/src/vm/interpreter.rs`
+   - control VM: `crates/yulang-vm/src/vm/control.rs`
+   - 特に `continue_apply_arg`, `apply`, `bind_here`,
+     `ControlThunkBody::Emit`, `push_thunk_boundary_frame`,
+     `push_thunk_expr_frames`, `handle_request`。
+2. `EffectOp` の payload が thunk 型になる条件を Finalized IR dump で確認する。
+   - `std::var::ref_update` / local ref `&xs#set` まわり。
+   - 「payload type が thunk である」ことが型として正しいのか、
+     「VM emission 前には value へ force 済みであるべき」なのかを決める。
+3. payload を force するなら、単純な `force_apply_arg` ではなく、
+   request emission 用の continuation frame と blocker propagation を保つ形にする。
+4. tree VM と control VM の挙動を同時に合わせる。
+   片方だけ直すと oracle tests がずれる。
+5. `finalized_to_runtime_module` は最終的には削除候補。
+   ただし native/debug legacy 経路がまだ `yulang_runtime::Module` を要求するので、
+   そこをどう畳むかは別タスク。
+
+## 再現コマンド
+
+単体で一番小さい再現：
+
+```sh
+cargo test -q -p yulang-runtime-finalize \
+  cached_std_control_vm_legacy_runtime_and_finalize_match_playground_examples
+```
+
+広め：
+
+```sh
+cargo test -q -p yulang-runtime-finalize
+cargo test -q -p yulang-vm
+cargo check -q --workspace
+```
+
+`cargo test -q -p yulang-vm` は一時的に tests を finalized module へ寄せた影響で、
+大きい std case が stack overflow したことがある。large-stack helper 経由に
+戻すか、対象 test を分けて確認する必要がある。
+
+## 注意
+
+このレポート作成時点の working tree には、Finalized VM 直接化の途中差分がある。
+そのまま commit するにはまだ早い。Claude Code 側ではまず `git diff` を読み、
+採用する変更と捨てる変更を分けるのがよい。
+
+---
+
+## Claude Code セッション 1 の引き継ぎ（2026-05-25 続き）
+
+### このセッションでやったこと
+
+1. **症状の正体を確定**: `ExpectedList(Unit)` は host export
+   時に Thunk/Closure/Resume が出てきたときの汎用エラー（`vm/control.rs:2990`
+   付近）。本当の起こっていることは「effect request が
+   handler frame に届かずに root まで escape する」。
+
+2. **invariant check を一旦外した後の挙動を観察**:
+   ベースライン（c9df78b）では `effectful handler body must be a thunk` で
+   静的に弾かれていた。WIP で invariant check が消えた結果、ランタイムで
+   request が escape する形になっただけで、根本原因は同じ。
+
+3. **根本原因を特定**:
+   `&x#481::run::mono1` の binding が
+   `int -> int -> int` で生成されているのに、body は `x` を `add_id` 経由で
+   thunk として使う、というズレ。VM 側の `apply` が
+   `closure_param_forces_thunk_arg(Value(int)) == true` で thunk 引数を
+   eager に bind_here してしまい、handler が立つ前に request が出る。
+
+   solver の `arg_type_and_effect` で、Block 形の引数の場合に
+   `expr_lower_type` が `Value(int)` を返して effect 情報が落ちる。
+   これに引きずられて `finalized_apply_spine_arg_effects` が
+   param を Thunk に上げ損ねている。
+
+### 入れた修正（最小・暫定）
+
+- `crates/yulang-vm/src/vm/interpreter.rs` の `apply` で、Closure に対する
+  thunk arg を即 force するパスを停止（`closure_param_forces_thunk_arg`
+  の判定を `_ = ...` で握りつぶし）。AddId/Handle/BindHere は thunk を
+  期待するので、それらが必要に応じて force/wrap する方が筋がよい、という
+  整理。
+- `crates/yulang-vm/src/vm/control.rs` の `apply` でも同じく停止。
+- `crates/yulang-runtime-finalize/src/solver/materialize.rs` の Lambda
+  case で、expected の `ret` を body の materialize の expected に伝播。
+  これだけだと callee_type 側の inner param が直らないので根治ではない。
+
+### 検証結果
+
+`ref` 系の単独テストは個別に走らせれば PASS する。
+- `cached_std_finalize_runs_ref_scalar_assignment` ✓
+- `cached_std_finalize_runs_ref_assignment_inside_nested_block` ✓
+- `cached_std_control_vm_legacy_runtime_and_finalize_match_playground_examples` ✓
+  （control VM の本来の壊れ元。`ref list assignment` ケースも通った。）
+
+ただし `cargo test -q -p yulang-runtime-finalize` は依然 17 failed。
+これは large-stack helper（`run_with_large_stack`）の `Mutex` が
+**最初に panic したテストで poison** されて、それ以降の同 helper
+利用テストが全部 `PoisonError` で連鎖死しているように見えた。
+個別実行で通っているのは事実なので、まだ何かが panic していて poison
+の源を作っている可能性が高い。
+**次の人はまずこれを確認すること**: `cargo test -p yulang-runtime-finalize --
+--test-threads=1` で順次実行して最初の真の panic を特定する。
+
+### まだやってないこと
+
+1. **`yulang-vm` 単体テスト**: 走らせていない。closure thunk 強制 force を
+   切ったことで、別のテスト（`Type::Value(typed_ir::Type::Any)` を使う
+   経路、`tuple_type_forces_items` 経路など）が壊れていないか要確認。
+2. **`cargo test --workspace`**: 走らせていない。広め回帰テストが必須。
+3. **`finalized_to_runtime_module` 経由の legacy path**:
+   `yulang-runtime-finalize/src/solver/mod.rs:2795` 付近にあった
+   `assert_mainline_runtime_output_valid` が消されている。これは今後
+   どう扱うか別途決める必要あり（Codex 改修の方針継続なら削除のままで
+   いいが、レポートは「safe な変更とそうでない変更を分けて」と書いて
+   いた）。
+4. **本来の根治**: solver の `arg_type_and_effect` が Block の effect を
+   evidence から拾えるようにする。試しに
+   `apply_arg_evidence_effect`（callee evidence の `param_effect` を拾う
+   helper）を追加したが、outer apply の `expected_callee.upper` が
+   `param_effect: Unknown` で `closed` 判定を通らず効かないケースが
+   あった。`lower` 側を優先する／`Unknown` を「効果なし」とみなさず
+   evidence を信用する、あたりの設計判断が要る。
+   現状の commit 直前差分には残していないので、必要なら git stash や
+   この diff から再構築すること（`apply_spine.rs` への 30 行程度の追加）。
+5. **runtime IR の型を直す本筋**: mono1 が `int -> int -> int` で
+   生成されてしまうのは finalize 側の構造的問題。
+   `solved_callee_finalized_type` →
+   `finalized_apply_spine_arg_effects` の経路で
+   step.arg_type_and_effect が Never を返すのを直すのが本筋。
+   VM 側の force 停止は症状を覆い隠しているだけ。
+
+### 既知のリスク
+
+- `closure_param_forces_thunk_arg` を全停止したことで、本当に Value で
+  あるべき param に Thunk が誤って入ってきたケースをマスクしている
+  可能性がある。`apply_primitive` / `apply_apply` 側で必要に応じて
+  force しているはずだが、隙間があるなら通っていない演算で死ぬ。
+- materialize.rs の Lambda 修正は無害寄りだが、`expected` が
+  `Fun(int, Fun(int, Thunk))` のような形のときに body Lambda の outer ty
+  を上書きするので、別の `runtime_type_is_closed` 経路に影響している可能性
+  あり。広め回帰で要確認。
+
+### 触ったファイル一覧（このセッションの差分のみ）
+
+- `crates/yulang-vm/src/vm/interpreter.rs` (closure apply の force 停止)
+- `crates/yulang-vm/src/vm/control.rs` (同上)
+- `crates/yulang-runtime-finalize/src/solver/materialize.rs`
+  (Lambda の body materialize に expected.ret を伝播)
+
+Codex の WIP 差分はそのまま残してある。debug 用 eprintln は全部
+取り除いた（はず）。
+
+### おすすめ手順（次の人へ）
+
+1. `cargo test -p yulang-runtime-finalize -- --test-threads=1` で
+   poison 連鎖を解いて、本当に落ちているテストの一覧を取り直す。
+2. `cargo test -p yulang-vm` も同じく確認。
+3. もし新規 regression があるなら、`closure_param_forces_thunk_arg`
+   の全停止が原因の可能性が高いので、条件付き（`AddId` 系で使われる
+   param のみ force しない）に絞る。
+4. 余裕があれば本筋（solver の arg_effect 推定）に戻す。
+   evidence の `expected_callee` の `param_effect` を `closed` 判定を
+   緩めて拾うのが筋がよさそう。Inter/Unknown の扱いに注意。
+
+---
+
+## Codex セッション追記（2026-05-25 続き）
+
+### 確認できた原因
+
+「VM が payload thunk をどう force するか」以前に、finalize 側で
+`BindHere` の strictness が落ちていた。
+
+具体的には `&xs#set (bind_here (ref_update::update (bind_here (&xs#get ()))))`
+のように lowering では payload を strict にする形になっていたが、
+runtime-finalize の materialize が、内側の型が `Value(Unknown)` の時点で
+`BindHere` を消していた。その後の apply evidence 補完で内側 apply が
+`Thunk` と分かるため、結果として `EffectOp` の payload が thunk として
+request に乗り、handler を抜けた後に force されて `ref_update::update` が
+root まで escape していた。
+
+もう一つ、apply spine 制約で `BindHere` 引数の内側 effect を
+callee の `param_effect` に戻していた。`BindHere` は「呼び出し前にここで
+force する」構文なので、callee parameter は strict value として制約し、
+内側 effect は apply result 側に残すのが正しい。
+
+### 入れた修正
+
+- `apply_spine.rs`
+  - `BindHere` 引数は `(value, Never)` として callee param を制約する。
+  - 非 `BindHere` の Block / Thunk / AddId / Coerce などからは、
+    value/effect を構造的に拾う。
+- `materialize.rs`
+  - `BindHere` は body が `Value(Unknown)` の段階でも消さずに残す。
+  - `BindHere` の内側へ `Thunk` expected をそのまま押し込まない。
+  - Lambda body expected、Handle body/arm/consumes、local Var refresh は
+    既存 WIP のまま維持。
+- `solver/mod.rs`
+  - 旧 `runtime_to_lowered_*` bridge を削除し、legacy runtime からは
+    `FinalizedModule` へ直接 lift する経路だけにした。
+- `yulang-vm`
+  - 一時 `YULANG_VM_DEBUG_REQUEST` 出力は削除済み。
+
+### 通った確認
+
+```sh
+cargo check -q -p yulang-runtime-finalize
+cargo test -q -p yulang-runtime-finalize cached_std_finalize_runs_ref_scalar_assignment
+cargo test -q -p yulang-runtime-finalize cached_std_finalize_runs_ref_assignment_inside_nested_block
+cargo test -q -p yulang-runtime-finalize cached_std_finalize_runs_playground_state_and_host_examples
+cargo test -q -p yulang-runtime-finalize cached_std_control_vm_legacy_runtime_and_finalize_match_playground_examples
+cargo test -q -p yulang-runtime-finalize cached_std_legacy_runtime_and_finalize_match_playground_state_examples
+```
+
+`ref list assignment` は tree VM / control VM の両方で通った。
+
+### まだ残っている未解決
+
+- `cached_std_finalize_runs_playground_core_examples` は 60 秒超で止まる。
+  CLI で切り分けた限り、`undet once range`
+  (`{ my a = each 1..; guard: a == 3; a }.once`) が 20 秒 timeout。
+  `dump --finalized-ir` は 20 秒以内に終わるので、少なくとも finalize の
+  無限ループではなく VM eval 側。
+  tree VM (`run --interpreter`) は timeout、control VM (`run`) は stack overflow。
+- `cached_std_legacy_runtime_and_finalize_match_playground_core_examples` も同じ系で止まる。
+- `cargo test -q -p yulang-vm` は、いくつかの古い VM tests が落ちた後、
+  std 系で stack overflow abort する。
+  - `monomorphizes_std_undet_each_with_observed_value_type` は
+    legacy monomorphize の `__mono` binding 名を見ており、
+    finalized path へ寄せた今の module 形とは前提がずれている。
+  - `vm_distinguishes_same_path_error_constructor_and_operation` は
+    `fs_err::not_found#effect` request escape。
+  - `control_vm_runs_source_mixed_numeric_add_with_float_widening`,
+    `runtime_lowers_handler_wildcard_result_join_after_let_bind`,
+    `vm_handles_std_fs_err_fail_prefix` も単体再確認が必要。
+
+次に見るなら、`undet once range` の freeze は
+`BindHere` 修正とは別に、finalized path で `sub::return` / `undet::once`
+の handler boundary か request blocker が変わっている疑いが強い。

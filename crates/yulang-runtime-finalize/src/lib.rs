@@ -31,5 +31,6 @@ pub use output::{
 };
 pub use solver::{
     collect_root_graph_inputs, finalize_module, finalize_module_with_cache,
-    finalize_monomorphize_module, finalize_monomorphize_module_with_report,
+    finalize_monomorphize_legacy_runtime_module, finalize_monomorphize_module,
+    finalize_monomorphize_module_with_report,
 };

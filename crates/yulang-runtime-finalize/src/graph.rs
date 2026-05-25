@@ -1064,7 +1064,7 @@ pub(crate) fn runtime_type_from_core_value_and_effect(
 }
 
 pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
-    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown | typed_ir::Type::Any)
+    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown)
 }
 
 pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {

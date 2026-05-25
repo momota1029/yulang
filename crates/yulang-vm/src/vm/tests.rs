@@ -3,11 +3,10 @@ mod tests {
     use super::super::*;
     use std::path::PathBuf;
     use std::thread;
-    use yulang_infer::{SourceOptions, export_core_program, lower_virtual_source_with_options};
-    use yulang_runtime::ir::{Binding, Module, Type as RuntimeType};
-    use yulang_runtime::{
-        RuntimeError, RuntimeResult, lower_core_program, monomorphize_module,
-        monomorphize_module_profiled,
+    use yulang_infer::{SourceOptions, lower_virtual_source_with_options};
+    use yulang_runtime::{RuntimeError, RuntimeResult};
+    use yulang_runtime_ir::{
+        FinalizedBinding as Binding, FinalizedModule as Module, FinalizedType as RuntimeType,
     };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1634,35 +1633,8 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
             "this regression test must run without the legacy monomorphize override"
         );
 
-        let (_, profile) = runtime_module_with_std_profile(SHOWCASE_SOURCE);
-        let pass_names = profile
-            .passes
-            .iter()
-            .map(|pass| pass.name)
-            .collect::<Vec<_>>();
-        assert_eq!(pass_names.first(), Some(&"inline-polymorphic-wrappers"));
-        assert!(
-            !pass_names
-                .iter()
-                .any(|pass| matches!(*pass, "demand-specialize" | "refine-types"))
-        );
-        let [middle @ .., "semantic-cast-coercions", "prune-unreachable"] = &pass_names[1..] else {
-            panic!("principal pipeline should end with final cast normalization and prune");
-        };
-        assert!(!middle.is_empty());
-        assert_eq!(middle.len() % 4, 0);
-        for round in middle.chunks_exact(4) {
-            assert_eq!(
-                round,
-                [
-                    "principal-elaborate",
-                    "refresh-closed-schemes",
-                    "semantic-cast-coercions",
-                    "prune-unreachable"
-                ]
-            );
-        }
-        assert_eq!(profile.demand_queue_profile().attempted, 0);
+        let module = runtime_module_with_std(SHOWCASE_SOURCE);
+        compile_vm_module(module).expect("finalized runtime module compiles for the VM");
     }
 
     #[test]
@@ -3523,7 +3495,7 @@ box { width: 3, height: 4 }
                 &[arm],
                 &Env::new(),
                 &handler_stack,
-                &RuntimeType::core(named_type("int")),
+                &RuntimeType::value(named_type("int")),
             )
             .unwrap();
 
@@ -3549,7 +3521,7 @@ box { width: 3, height: 4 }
                 &[arm],
                 &Env::new(),
                 &handler_stack,
-                &RuntimeType::core(named_type("int")),
+                &RuntimeType::value(named_type("int")),
             )
             .unwrap();
 
@@ -3705,7 +3677,7 @@ box { width: 3, height: 4 }
         HandleArm {
             effect: effect_path(effect, op),
             payload: Pattern::Wildcard {
-                ty: RuntimeType::core(named_type("unit")),
+                ty: RuntimeType::value(named_type("unit")),
             },
             resume: None,
             guard: None,
@@ -3717,11 +3689,11 @@ box { width: 3, height: 4 }
         match value {
             VmValue::Int(value) => Expr::typed(
                 ExprKind::Lit(typed_ir::Lit::Int(value)),
-                RuntimeType::core(named_type("int")),
+                RuntimeType::value(named_type("int")),
             ),
             VmValue::Unit => Expr::typed(
                 ExprKind::Lit(typed_ir::Lit::Unit),
-                RuntimeType::core(named_type("unit")),
+                RuntimeType::value(named_type("unit")),
             ),
             other => panic!("unsupported test arm value: {other:?}"),
         }
@@ -3775,10 +3747,8 @@ box { width: 3, height: 4 }
     fn eval_source(src: &str) -> Vec<TestValue> {
         let mut lowered =
             lower_virtual_source_with_options(src, None, SourceOptions::default()).unwrap();
-        let program = export_core_program(&mut lowered.state);
-        let module = lower_core_program(program)
-            .and_then(monomorphize_module)
-            .expect("lowered runtime module");
+        let module = yulang_compile::runtime_module_from_lowered_sources(&mut lowered)
+            .expect("finalized runtime module");
         let module = compile_vm_module(module).expect("compiled runtime VM module");
         test_values(module.eval_roots().expect("vm results"))
     }
@@ -3861,15 +3831,8 @@ box { width: 3, height: 4 }
         run_with_large_stack(move || runtime_module_with_std_result_inner(&src))
     }
 
-    fn runtime_module_with_std_profile(
-        src: &str,
-    ) -> (Module, yulang_runtime::monomorphize::MonomorphizeProfile) {
-        let src = src.to_string();
-        run_with_large_stack(move || runtime_module_with_std_profile_inner(&src))
-    }
-
     fn runtime_module_with_std_inner(src: &str) -> Module {
-        runtime_module_with_std_profile_inner(src).0
+        runtime_module_with_std_result_inner(src).expect("finalized runtime module")
     }
 
     fn runtime_module_with_std_result_inner(src: &str) -> RuntimeResult<Module> {
@@ -3885,30 +3848,11 @@ box { width: 3, height: 4 }
             },
         )
         .unwrap();
-        let program = export_core_program(&mut lowered.state);
-        lower_core_program(program).and_then(monomorphize_module)
-    }
-
-    fn runtime_module_with_std_profile_inner(
-        src: &str,
-    ) -> (Module, yulang_runtime::monomorphize::MonomorphizeProfile) {
-        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let std_root = repo_root.join("lib/std");
-        let mut lowered = lower_virtual_source_with_options(
-            src,
-            Some(repo_root),
-            SourceOptions {
-                std_root: Some(std_root),
-                implicit_prelude: true,
-                search_paths: Vec::new(),
-            },
-        )
-        .unwrap();
-        let program = export_core_program(&mut lowered.state);
-        let module = lower_core_program(program).expect("lowered runtime module");
-        let (module, profile) =
-            monomorphize_module_profiled(module).expect("monomorphized runtime module");
-        (module, profile)
+        match yulang_compile::runtime_module_from_lowered_sources(&mut lowered) {
+            Ok(module) => Ok(module),
+            Err(yulang_compile::SourceRuntimeError::RuntimeLower(error)) => Err(error),
+            Err(error) => panic!("finalized runtime module failed: {error}"),
+        }
     }
 
     fn mono_binding_named(binding: &Binding, base: &str) -> bool {
@@ -3935,7 +3879,7 @@ box { width: 3, height: 4 }
             RuntimeType::Thunk {
                 value,
                 ..
-            } if matches!(value.as_ref(), RuntimeType::Core(typed_ir::Type::Never))
+            } if matches!(value.as_ref(), RuntimeType::Value(typed_ir::Type::Never))
         )
     }
 
@@ -3962,7 +3906,7 @@ box { width: 3, height: 4 }
     }
 
     fn is_int_hir_type(ty: &RuntimeType) -> bool {
-        matches!(ty, RuntimeType::Core(ty) if is_int_core_type(ty))
+        matches!(ty, RuntimeType::Value(ty) if is_int_core_type(ty))
     }
 
     fn returns_int_value(ty: &RuntimeType) -> bool {
@@ -3973,7 +3917,7 @@ box { width: 3, height: 4 }
     fn is_int_list_hir_type(ty: &RuntimeType) -> bool {
         matches!(
             ty,
-            RuntimeType::Core(typed_ir::Type::Named { path, args })
+            RuntimeType::Value(typed_ir::Type::Named { path, args })
                 if path.segments.last().is_some_and(|name| name.0 == "list")
                     && matches!(args.as_slice(), [typed_ir::TypeArg::Type(item)] if is_int_core_type(item))
         )

@@ -6,7 +6,6 @@
 //! missing thunk boundaries or unresolved polymorphism.
 
 use super::*;
-use yulang_runtime::binding_is_parametric_runtime_intrinsic;
 
 pub(super) fn erase_module(
     module: Module,
@@ -34,7 +33,7 @@ pub(super) fn erase_binding(
     binding: Binding,
     effects: &EffectPathResolver,
 ) -> Result<Binding, VmError> {
-    if !binding.type_params.is_empty() && !binding_is_parametric_runtime_intrinsic(&binding) {
+    if !binding.type_params.is_empty() && !binding_is_parametric_vm_intrinsic(&binding) {
         return Err(VmError::ResidualPolymorphicBinding {
             path: binding.name,
             vars: binding.type_params,
@@ -272,6 +271,30 @@ pub(super) fn erase_handle_arm(
     })
 }
 
+fn binding_is_parametric_vm_intrinsic(binding: &Binding) -> bool {
+    matches!(binding.body.kind, ExprKind::PrimitiveOp(_)) || binding_is_var_ref_constructor(binding)
+}
+
+fn binding_is_var_ref_constructor(binding: &Binding) -> bool {
+    let typed_ir::Type::Fun { ret, .. } = &binding.scheme.body else {
+        return false;
+    };
+    let typed_ir::Type::Named { path, .. } = ret.as_ref() else {
+        return false;
+    };
+    path_has_suffix(path, &["std", "var", "ref"]) || path_has_suffix(path, &["var", "ref"])
+}
+
+fn path_has_suffix(path: &typed_ir::Path, suffix: &[&str]) -> bool {
+    path.segments.len() >= suffix.len()
+        && path
+            .segments
+            .iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(segment, expected)| segment.0 == *expected)
+}
+
 pub(super) fn erase_record_spread_expr(
     spread: RecordSpreadExpr,
     effects: &EffectPathResolver,
@@ -289,7 +312,7 @@ pub(super) fn erase_record_spread_expr(
 pub(super) fn erase_type(ty: Type, effects: &EffectPathResolver) -> Type {
     match ty {
         Type::Unknown => Type::Unknown,
-        Type::Core(ty) => Type::Core(ty),
+        Type::Value(ty) => Type::Value(ty),
         Type::Fun { param, ret } => {
             Type::fun(erase_type(*param, effects), erase_type(*ret, effects))
         }

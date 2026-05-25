@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::io;
 use std::path::Path;
-use yulang_runtime::ir::RecordSpreadPattern;
+use yulang_runtime_ir::FinalizedRecordSpreadPattern as RecordSpreadPattern;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
 pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 10;
@@ -168,8 +168,8 @@ impl ControlVmModule {
     }
 }
 
-pub fn compile_control_vm_module(module: Module) -> Result<ControlVmModule, VmError> {
-    check_runtime_invariants(&module, RuntimeStage::BeforeVm).map_err(VmError::Runtime)?;
+pub fn compile_control_vm_module<M: IntoVmModule>(module: M) -> Result<ControlVmModule, VmError> {
+    let module = module.into_vm_module();
     let effects = EffectPathResolver::collect(&module);
     let module = erase_module(module, &effects)?;
     Ok(ControlVmModule {
@@ -715,7 +715,7 @@ impl ControlCompiler {
                 ControlExprKind::Handle {
                     body,
                     arms: self.push_handle_arms(arms),
-                    result_wraps_thunk: type_wraps_thunk(&Type::core(evidence.result)),
+                    result_wraps_thunk: type_wraps_thunk(&Type::value(evidence.result)),
                 }
             }
             ExprKind::BindHere { expr } => ControlExprKind::BindHere(self.expr(*expr)),
@@ -2742,7 +2742,7 @@ fn control_lambda_shape(lambda_ty: &Type, body_ty: &Type) -> (bool, bool) {
 fn control_param_forces_thunk_arg(param_ty: &Type) -> bool {
     !matches!(
         param_ty,
-        Type::Thunk { .. } | Type::Core(typed_ir::Type::Any)
+        Type::Thunk { .. } | Type::Value(typed_ir::Type::Any)
     )
 }
 

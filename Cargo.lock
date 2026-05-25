@@ -2144,6 +2144,7 @@ dependencies = [
  "yulang-parser",
  "yulang-runtime",
  "yulang-runtime-finalize",
+ "yulang-runtime-ir",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",
@@ -2156,6 +2157,7 @@ dependencies = [
  "yulang-infer",
  "yulang-runtime",
  "yulang-runtime-finalize",
+ "yulang-runtime-ir",
  "yulang-sources",
 ]
 
@@ -2274,8 +2276,10 @@ dependencies = [
  "serde",
  "serde_json",
  "unicode-segmentation",
+ "yulang-compile",
  "yulang-infer",
  "yulang-runtime",
+ "yulang-runtime-ir",
  "yulang-typed-ir",
 ]
 

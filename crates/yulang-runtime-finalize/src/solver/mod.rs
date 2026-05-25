@@ -49,58 +49,191 @@ use crate::{
     FinalizeResult, graph::runtime_type_from_core_value,
 };
 
-pub trait IntoLoweredRuntimeModule {
-    fn into_lowered_runtime_module(self) -> LoweredModule;
+pub trait IntoFinalizeRuntimeModule {
+    fn into_finalize_runtime_module(self) -> Module;
 }
 
-impl IntoLoweredRuntimeModule for LoweredModule {
-    fn into_lowered_runtime_module(self) -> LoweredModule {
+impl IntoFinalizeRuntimeModule for LoweredModule {
+    fn into_finalize_runtime_module(self) -> Module {
+        finalize_lowered_module(self)
+    }
+}
+
+impl IntoFinalizeRuntimeModule for Module {
+    fn into_finalize_runtime_module(self) -> Module {
         self
     }
 }
 
-impl IntoLoweredRuntimeModule for Module {
-    fn into_lowered_runtime_module(self) -> LoweredModule {
-        finalized_to_lowered_module(self)
+impl IntoFinalizeRuntimeModule for yulang_runtime::Module {
+    fn into_finalize_runtime_module(self) -> Module {
+        runtime_to_finalized_module(self)
     }
 }
 
-impl IntoLoweredRuntimeModule for yulang_runtime::Module {
-    fn into_lowered_runtime_module(self) -> LoweredModule {
-        runtime_to_lowered_module(self)
-    }
-}
-
-pub fn finalize_module<M: IntoLoweredRuntimeModule>(module: M) -> FinalizeResult<FinalizeOutput> {
+pub fn finalize_module<M: IntoFinalizeRuntimeModule>(module: M) -> FinalizeResult<FinalizeOutput> {
     let mut cache = FinalizeInstanceCache::default();
     finalize_module_with_cache(module, &mut cache)
 }
 
-pub fn finalize_monomorphize_module<M: IntoLoweredRuntimeModule>(
+pub fn finalize_monomorphize_module<M: IntoFinalizeRuntimeModule>(
+    module: M,
+) -> Result<Module, FinalizeMonomorphizeError> {
+    Ok(finalize_monomorphize_module_with_report(module.into_finalize_runtime_module())?.module)
+}
+
+pub fn finalize_monomorphize_legacy_runtime_module<M: IntoFinalizeRuntimeModule>(
     module: M,
 ) -> Result<yulang_runtime::Module, FinalizeMonomorphizeError> {
-    Ok(finalized_to_runtime_module(
-        finalize_monomorphize_module_with_report(module.into_lowered_runtime_module())?.module,
-    ))
+    Ok(finalized_to_runtime_module(finalize_monomorphize_module(
+        module,
+    )?))
 }
 
 pub fn finalize_monomorphize_module_with_report(
-    module: LoweredModule,
+    module: Module,
 ) -> Result<FinalizeOutput, FinalizeMonomorphizeError> {
     let output = finalize_module(module)?;
     let _ = validate_monomorphized_output(&output.module);
     Ok(output)
 }
 
-fn validate_monomorphized_output(_module: &Module) -> Result<(), ()> {
+fn validate_monomorphized_output(module: &Module) -> Result<(), ()> {
+    if std::env::var_os("YULANG_FINALIZE_DEBUG_INVARIANTS").is_some() {
+        for binding in &module.bindings {
+            debug_expr_invariants(&binding.body, format!("binding {:?}", binding.name));
+        }
+        for (index, expr) in module.root_exprs.iter().enumerate() {
+            debug_expr_invariants(expr, format!("root #{index}"));
+        }
+    }
     Ok(())
 }
 
-pub fn finalize_module_with_cache<M: IntoLoweredRuntimeModule>(
+fn debug_expr_invariants(expr: &Expr, context: String) {
+    match &expr.kind {
+        ExprKind::Handle {
+            body,
+            handler,
+            arms,
+            ..
+        } => {
+            if !handler.consumes.is_empty()
+                && !matches!(body.ty, yulang_runtime_ir::FinalizedType::Thunk { .. })
+            {
+                eprintln!(
+                    "FINALIZE invariant: effectful handle body is not thunk at {context}: consumes={:?}, body_ty={:?}",
+                    handler.consumes, body.ty
+                );
+            }
+            debug_expr_invariants(body, format!("{context}/handle.body"));
+            for (index, arm) in arms.iter().enumerate() {
+                debug_expr_invariants(&arm.body, format!("{context}/handle.arm[{index}].body"));
+                if let Some(guard) = &arm.guard {
+                    debug_expr_invariants(guard, format!("{context}/handle.arm[{index}].guard"));
+                }
+            }
+        }
+        ExprKind::AddId { thunk, .. } => {
+            if !matches!(thunk.ty, yulang_runtime_ir::FinalizedType::Thunk { .. }) {
+                eprintln!(
+                    "FINALIZE invariant: add_id input is not thunk at {context}: thunk_ty={:?}",
+                    thunk.ty
+                );
+            }
+            debug_expr_invariants(thunk, format!("{context}/add_id"));
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => {
+            debug_expr_invariants(body, context);
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            debug_expr_invariants(callee, format!("{context}/apply.callee"));
+            debug_expr_invariants(arg, format!("{context}/apply.arg"));
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            debug_expr_invariants(cond, format!("{context}/if.cond"));
+            debug_expr_invariants(then_branch, format!("{context}/if.then"));
+            debug_expr_invariants(else_branch, format!("{context}/if.else"));
+        }
+        ExprKind::Tuple(items) => {
+            for (index, item) in items.iter().enumerate() {
+                debug_expr_invariants(item, format!("{context}/tuple[{index}]"));
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                debug_expr_invariants(&field.value, format!("{context}/record.{}", field.name.0));
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+                    | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
+                        debug_expr_invariants(expr, format!("{context}/record.spread"));
+                    }
+                }
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                debug_expr_invariants(value, format!("{context}/variant"));
+            }
+        }
+        ExprKind::Select { base, .. } => {
+            debug_expr_invariants(base, format!("{context}/select.base"));
+        }
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            debug_expr_invariants(scrutinee, format!("{context}/match.scrutinee"));
+            for (index, arm) in arms.iter().enumerate() {
+                debug_expr_invariants(&arm.body, format!("{context}/match.arm[{index}].body"));
+                if let Some(guard) = &arm.guard {
+                    debug_expr_invariants(guard, format!("{context}/match.arm[{index}].guard"));
+                }
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            for (index, stmt) in stmts.iter().enumerate() {
+                match stmt {
+                    yulang_runtime_ir::FinalizedStmt::Let { value, .. } => {
+                        debug_expr_invariants(value, format!("{context}/stmt[{index}].let"));
+                    }
+                    yulang_runtime_ir::FinalizedStmt::Expr(expr)
+                    | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => {
+                        debug_expr_invariants(expr, format!("{context}/stmt[{index}]"));
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                debug_expr_invariants(tail, format!("{context}/tail"));
+            }
+        }
+        ExprKind::Thunk { expr, .. } => {
+            debug_expr_invariants(expr, format!("{context}/thunk"));
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+}
+
+pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
     module: M,
     cache: &mut FinalizeInstanceCache,
 ) -> FinalizeResult<FinalizeOutput> {
-    let mut module = finalize_lowered_module(module.into_lowered_runtime_module());
+    let mut module = module.into_finalize_runtime_module();
     let root_graph_inputs = collect_root_graph_inputs(&module);
     role::rewrite_root_role_method_calls(&mut module);
     let cast_order = cast::type_cast_order(&module.role_impls);
@@ -500,11 +633,7 @@ fn finalized_to_runtime_type(ty: yulang_runtime_ir::FinalizedType) -> yulang_run
     }
 }
 
-fn finalized_to_lowered_module(module: Module) -> LoweredModule {
-    runtime_to_lowered_module(finalized_to_runtime_module(module))
-}
-
-fn runtime_to_lowered_module(module: yulang_runtime::Module) -> LoweredModule {
+fn runtime_to_finalized_module(module: yulang_runtime::Module) -> Module {
     yulang_runtime_ir::Module {
         path: module.path,
         bindings: module
@@ -514,21 +643,21 @@ fn runtime_to_lowered_module(module: yulang_runtime::Module) -> LoweredModule {
                 name: binding.name,
                 type_params: binding.type_params,
                 scheme: binding.scheme,
-                body: runtime_to_lowered_expr(binding.body),
+                body: runtime_to_finalized_expr(binding.body),
             })
             .collect(),
         root_exprs: module
             .root_exprs
             .into_iter()
-            .map(runtime_to_lowered_expr)
+            .map(runtime_to_finalized_expr)
             .collect(),
         roots: module.roots,
         role_impls: module.role_impls,
     }
 }
 
-fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
-    let ty = runtime_to_lowered_type(expr.ty);
+fn runtime_to_finalized_expr(expr: yulang_runtime::Expr) -> Expr {
+    let ty = runtime_to_finalized_type(expr.ty);
     let kind = match expr.kind {
         yulang_runtime_ir::ExprKind::Var(path) => yulang_runtime_ir::ExprKind::Var(path),
         yulang_runtime_ir::ExprKind::EffectOp(path) => yulang_runtime_ir::ExprKind::EffectOp(path),
@@ -545,7 +674,7 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             param,
             param_effect_annotation,
             param_function_allowed_effects,
-            body: Box::new(runtime_to_lowered_expr(*body)),
+            body: Box::new(runtime_to_finalized_expr(*body)),
         },
         yulang_runtime_ir::ExprKind::Apply {
             callee,
@@ -553,8 +682,8 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             evidence,
             instantiation,
         } => yulang_runtime_ir::ExprKind::Apply {
-            callee: Box::new(runtime_to_lowered_expr(*callee)),
-            arg: Box::new(runtime_to_lowered_expr(*arg)),
+            callee: Box::new(runtime_to_finalized_expr(*callee)),
+            arg: Box::new(runtime_to_finalized_expr(*arg)),
             evidence,
             instantiation,
         },
@@ -564,13 +693,13 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             else_branch,
             evidence,
         } => yulang_runtime_ir::ExprKind::If {
-            cond: Box::new(runtime_to_lowered_expr(*cond)),
-            then_branch: Box::new(runtime_to_lowered_expr(*then_branch)),
-            else_branch: Box::new(runtime_to_lowered_expr(*else_branch)),
+            cond: Box::new(runtime_to_finalized_expr(*cond)),
+            then_branch: Box::new(runtime_to_finalized_expr(*then_branch)),
+            else_branch: Box::new(runtime_to_finalized_expr(*else_branch)),
             evidence,
         },
         yulang_runtime_ir::ExprKind::Tuple(items) => yulang_runtime_ir::ExprKind::Tuple(
-            items.into_iter().map(runtime_to_lowered_expr).collect(),
+            items.into_iter().map(runtime_to_finalized_expr).collect(),
         ),
         yulang_runtime_ir::ExprKind::Record { fields, spread } => {
             yulang_runtime_ir::ExprKind::Record {
@@ -578,21 +707,21 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
                     .into_iter()
                     .map(|field| yulang_runtime_ir::RecordExprField {
                         name: field.name,
-                        value: runtime_to_lowered_expr(field.value),
+                        value: runtime_to_finalized_expr(field.value),
                     })
                     .collect(),
-                spread: spread.map(runtime_to_lowered_record_spread_expr),
+                spread: spread.map(runtime_to_finalized_record_spread_expr),
             }
         }
         yulang_runtime_ir::ExprKind::Variant { tag, value } => {
             yulang_runtime_ir::ExprKind::Variant {
                 tag,
-                value: value.map(|value| Box::new(runtime_to_lowered_expr(*value))),
+                value: value.map(|value| Box::new(runtime_to_finalized_expr(*value))),
             }
         }
         yulang_runtime_ir::ExprKind::Select { base, field } => {
             yulang_runtime_ir::ExprKind::Select {
-                base: Box::new(runtime_to_lowered_expr(*base)),
+                base: Box::new(runtime_to_finalized_expr(*base)),
                 field,
             }
         }
@@ -601,20 +730,20 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             arms,
             evidence,
         } => yulang_runtime_ir::ExprKind::Match {
-            scrutinee: Box::new(runtime_to_lowered_expr(*scrutinee)),
+            scrutinee: Box::new(runtime_to_finalized_expr(*scrutinee)),
             arms: arms
                 .into_iter()
                 .map(|arm| yulang_runtime_ir::MatchArm {
-                    pattern: runtime_to_lowered_pattern(arm.pattern),
-                    guard: arm.guard.map(runtime_to_lowered_expr),
-                    body: runtime_to_lowered_expr(arm.body),
+                    pattern: runtime_to_finalized_pattern(arm.pattern),
+                    guard: arm.guard.map(runtime_to_finalized_expr),
+                    body: runtime_to_finalized_expr(arm.body),
                 })
                 .collect(),
             evidence,
         },
         yulang_runtime_ir::ExprKind::Block { stmts, tail } => yulang_runtime_ir::ExprKind::Block {
-            stmts: stmts.into_iter().map(runtime_to_lowered_stmt).collect(),
-            tail: tail.map(|tail| Box::new(runtime_to_lowered_expr(*tail))),
+            stmts: stmts.into_iter().map(runtime_to_finalized_stmt).collect(),
+            tail: tail.map(|tail| Box::new(runtime_to_finalized_expr(*tail))),
         },
         yulang_runtime_ir::ExprKind::Handle {
             body,
@@ -622,25 +751,25 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             evidence,
             handler,
         } => yulang_runtime_ir::ExprKind::Handle {
-            body: Box::new(runtime_to_lowered_expr(*body)),
+            body: Box::new(runtime_to_finalized_expr(*body)),
             arms: arms
                 .into_iter()
                 .map(|arm| yulang_runtime_ir::HandleArm {
                     effect: arm.effect,
-                    payload: runtime_to_lowered_pattern(arm.payload),
+                    payload: runtime_to_finalized_pattern(arm.payload),
                     resume: arm.resume.map(|resume| yulang_runtime_ir::ResumeBinding {
                         name: resume.name,
-                        ty: runtime_to_lowered_type(resume.ty),
+                        ty: runtime_to_finalized_type(resume.ty),
                     }),
-                    guard: arm.guard.map(runtime_to_lowered_expr),
-                    body: runtime_to_lowered_expr(arm.body),
+                    guard: arm.guard.map(runtime_to_finalized_expr),
+                    body: runtime_to_finalized_expr(arm.body),
                 })
                 .collect(),
             evidence,
             handler,
         },
         yulang_runtime_ir::ExprKind::BindHere { expr } => yulang_runtime_ir::ExprKind::BindHere {
-            expr: Box::new(runtime_to_lowered_expr(*expr)),
+            expr: Box::new(runtime_to_finalized_expr(*expr)),
         },
         yulang_runtime_ir::ExprKind::Thunk {
             effect,
@@ -648,13 +777,13 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             expr,
         } => yulang_runtime_ir::ExprKind::Thunk {
             effect,
-            value: runtime_to_lowered_type(value),
-            expr: Box::new(runtime_to_lowered_expr(*expr)),
+            value: runtime_to_finalized_type(value),
+            expr: Box::new(runtime_to_finalized_expr(*expr)),
         },
         yulang_runtime_ir::ExprKind::LocalPushId { id, body } => {
             yulang_runtime_ir::ExprKind::LocalPushId {
                 id,
-                body: Box::new(runtime_to_lowered_expr(*body)),
+                body: Box::new(runtime_to_finalized_expr(*body)),
             }
         }
         yulang_runtime_ir::ExprKind::PeekId => yulang_runtime_ir::ExprKind::PeekId,
@@ -668,55 +797,60 @@ fn runtime_to_lowered_expr(expr: yulang_runtime::Expr) -> LoweredExpr {
             id,
             allowed,
             active,
-            thunk: Box::new(runtime_to_lowered_expr(*thunk)),
+            thunk: Box::new(runtime_to_finalized_expr(*thunk)),
         },
         yulang_runtime_ir::ExprKind::Coerce { from, to, expr } => {
             yulang_runtime_ir::ExprKind::Coerce {
                 from,
                 to,
-                expr: Box::new(runtime_to_lowered_expr(*expr)),
+                expr: Box::new(runtime_to_finalized_expr(*expr)),
             }
         }
         yulang_runtime_ir::ExprKind::Pack { var, expr } => yulang_runtime_ir::ExprKind::Pack {
             var,
-            expr: Box::new(runtime_to_lowered_expr(*expr)),
+            expr: Box::new(runtime_to_finalized_expr(*expr)),
         },
     };
     yulang_runtime_ir::Expr::typed(kind, ty)
 }
 
-fn runtime_to_lowered_stmt(stmt: yulang_runtime::Stmt) -> LoweredStmt {
+fn runtime_to_finalized_stmt(stmt: yulang_runtime::Stmt) -> yulang_runtime_ir::FinalizedStmt {
     match stmt {
         yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
-            pattern: runtime_to_lowered_pattern(pattern),
-            value: runtime_to_lowered_expr(value),
+            pattern: runtime_to_finalized_pattern(pattern),
+            value: runtime_to_finalized_expr(value),
         },
         yulang_runtime_ir::Stmt::Expr(expr) => {
-            yulang_runtime_ir::Stmt::Expr(runtime_to_lowered_expr(expr))
+            yulang_runtime_ir::Stmt::Expr(runtime_to_finalized_expr(expr))
         }
         yulang_runtime_ir::Stmt::Module { def, body } => yulang_runtime_ir::Stmt::Module {
             def,
-            body: runtime_to_lowered_expr(body),
+            body: runtime_to_finalized_expr(body),
         },
     }
 }
 
-fn runtime_to_lowered_pattern(pattern: yulang_runtime::Pattern) -> LoweredPattern {
+fn runtime_to_finalized_pattern(
+    pattern: yulang_runtime::Pattern,
+) -> yulang_runtime_ir::FinalizedPattern {
     match pattern {
         yulang_runtime_ir::Pattern::Wildcard { ty } => yulang_runtime_ir::Pattern::Wildcard {
-            ty: runtime_to_lowered_type(ty),
+            ty: runtime_to_finalized_type(ty),
         },
         yulang_runtime_ir::Pattern::Bind { name, ty } => yulang_runtime_ir::Pattern::Bind {
             name,
-            ty: runtime_to_lowered_type(ty),
+            ty: runtime_to_finalized_type(ty),
         },
         yulang_runtime_ir::Pattern::Lit { lit, ty } => yulang_runtime_ir::Pattern::Lit {
             lit,
-            ty: runtime_to_lowered_type(ty),
+            ty: runtime_to_finalized_type(ty),
         },
         yulang_runtime_ir::Pattern::Tuple { items, ty } => yulang_runtime_ir::Pattern::Tuple {
-            items: items.into_iter().map(runtime_to_lowered_pattern).collect(),
-            ty: runtime_to_lowered_type(ty),
+            items: items
+                .into_iter()
+                .map(runtime_to_finalized_pattern)
+                .collect(),
+            ty: runtime_to_finalized_type(ty),
         },
         yulang_runtime_ir::Pattern::List {
             prefix,
@@ -724,10 +858,16 @@ fn runtime_to_lowered_pattern(pattern: yulang_runtime::Pattern) -> LoweredPatter
             suffix,
             ty,
         } => yulang_runtime_ir::Pattern::List {
-            prefix: prefix.into_iter().map(runtime_to_lowered_pattern).collect(),
-            spread: spread.map(|spread| Box::new(runtime_to_lowered_pattern(*spread))),
-            suffix: suffix.into_iter().map(runtime_to_lowered_pattern).collect(),
-            ty: runtime_to_lowered_type(ty),
+            prefix: prefix
+                .into_iter()
+                .map(runtime_to_finalized_pattern)
+                .collect(),
+            spread: spread.map(|spread| Box::new(runtime_to_finalized_pattern(*spread))),
+            suffix: suffix
+                .into_iter()
+                .map(runtime_to_finalized_pattern)
+                .collect(),
+            ty: runtime_to_finalized_type(ty),
         },
         yulang_runtime_ir::Pattern::Record { fields, spread, ty } => {
             yulang_runtime_ir::Pattern::Record {
@@ -735,86 +875,76 @@ fn runtime_to_lowered_pattern(pattern: yulang_runtime::Pattern) -> LoweredPatter
                     .into_iter()
                     .map(|field| yulang_runtime_ir::RecordPatternField {
                         name: field.name,
-                        pattern: runtime_to_lowered_pattern(field.pattern),
-                        default: field.default.map(runtime_to_lowered_expr),
+                        pattern: runtime_to_finalized_pattern(field.pattern),
+                        default: field.default.map(runtime_to_finalized_expr),
                     })
                     .collect(),
-                spread: spread.map(runtime_to_lowered_record_spread_pattern),
-                ty: runtime_to_lowered_type(ty),
+                spread: spread.map(runtime_to_finalized_record_spread_pattern),
+                ty: runtime_to_finalized_type(ty),
             }
         }
         yulang_runtime_ir::Pattern::Variant { tag, value, ty } => {
             yulang_runtime_ir::Pattern::Variant {
                 tag,
-                value: value.map(|value| Box::new(runtime_to_lowered_pattern(*value))),
-                ty: runtime_to_lowered_type(ty),
+                value: value.map(|value| Box::new(runtime_to_finalized_pattern(*value))),
+                ty: runtime_to_finalized_type(ty),
             }
         }
         yulang_runtime_ir::Pattern::Or { left, right, ty } => yulang_runtime_ir::Pattern::Or {
-            left: Box::new(runtime_to_lowered_pattern(*left)),
-            right: Box::new(runtime_to_lowered_pattern(*right)),
-            ty: runtime_to_lowered_type(ty),
+            left: Box::new(runtime_to_finalized_pattern(*left)),
+            right: Box::new(runtime_to_finalized_pattern(*right)),
+            ty: runtime_to_finalized_type(ty),
         },
         yulang_runtime_ir::Pattern::As { pattern, name, ty } => yulang_runtime_ir::Pattern::As {
-            pattern: Box::new(runtime_to_lowered_pattern(*pattern)),
+            pattern: Box::new(runtime_to_finalized_pattern(*pattern)),
             name,
-            ty: runtime_to_lowered_type(ty),
+            ty: runtime_to_finalized_type(ty),
         },
     }
 }
 
-fn runtime_to_lowered_record_spread_expr(
+fn runtime_to_finalized_record_spread_expr(
     spread: yulang_runtime::RecordSpreadExpr,
-) -> yulang_runtime_ir::LoweredRecordSpreadExpr {
+) -> yulang_runtime_ir::FinalizedRecordSpreadExpr {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
-            yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(runtime_to_lowered_expr(*expr)))
+            yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(runtime_to_finalized_expr(*expr)))
         }
         yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
-            yulang_runtime_ir::RecordSpreadExpr::Tail(Box::new(runtime_to_lowered_expr(*expr)))
+            yulang_runtime_ir::RecordSpreadExpr::Tail(Box::new(runtime_to_finalized_expr(*expr)))
         }
     }
 }
 
-fn runtime_to_lowered_record_spread_pattern(
+fn runtime_to_finalized_record_spread_pattern(
     spread: yulang_runtime::RecordSpreadPattern,
-) -> yulang_runtime_ir::LoweredRecordSpreadPattern {
+) -> yulang_runtime_ir::FinalizedRecordSpreadPattern {
     match spread {
         yulang_runtime_ir::RecordSpreadPattern::Head(pattern) => {
-            yulang_runtime_ir::RecordSpreadPattern::Head(Box::new(runtime_to_lowered_pattern(
+            yulang_runtime_ir::RecordSpreadPattern::Head(Box::new(runtime_to_finalized_pattern(
                 *pattern,
             )))
         }
         yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
-            yulang_runtime_ir::RecordSpreadPattern::Tail(Box::new(runtime_to_lowered_pattern(
+            yulang_runtime_ir::RecordSpreadPattern::Tail(Box::new(runtime_to_finalized_pattern(
                 *pattern,
             )))
         }
     }
 }
 
-fn runtime_to_lowered_type(ty: yulang_runtime::Type) -> typed_ir::Type {
+fn runtime_to_finalized_type(ty: yulang_runtime::Type) -> yulang_runtime_ir::FinalizedType {
     match ty {
-        yulang_runtime::Type::Unknown => typed_ir::Type::Unknown,
-        yulang_runtime::Type::Core(ty) => ty,
-        yulang_runtime::Type::Fun { param, ret } => {
-            let (param, param_effect) = runtime_to_effected_lowered_type(*param);
-            let (ret, ret_effect) = runtime_to_effected_lowered_type(*ret);
-            typed_ir::Type::Fun {
-                param: Box::new(param),
-                param_effect: Box::new(param_effect),
-                ret: Box::new(ret),
-                ret_effect: Box::new(ret_effect),
-            }
-        }
-        yulang_runtime::Type::Thunk { value, .. } => runtime_to_lowered_type(*value),
-    }
-}
-
-fn runtime_to_effected_lowered_type(ty: yulang_runtime::Type) -> (typed_ir::Type, typed_ir::Type) {
-    match ty {
-        yulang_runtime::Type::Thunk { effect, value } => (runtime_to_lowered_type(*value), effect),
-        other => (runtime_to_lowered_type(other), typed_ir::Type::Never),
+        yulang_runtime::Type::Unknown => yulang_runtime_ir::FinalizedType::Unknown,
+        yulang_runtime::Type::Core(ty) => runtime_type_from_core_value(ty),
+        yulang_runtime::Type::Fun { param, ret } => yulang_runtime_ir::FinalizedType::Fun {
+            param: Box::new(runtime_to_finalized_type(*param)),
+            ret: Box::new(runtime_to_finalized_type(*ret)),
+        },
+        yulang_runtime::Type::Thunk { effect, value } => yulang_runtime_ir::FinalizedType::Thunk {
+            effect,
+            value: Box::new(runtime_to_finalized_type(*value)),
+        },
     }
 }
 
@@ -1465,7 +1595,7 @@ mod tests {
         let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
 
         let output = finalize_module(module).unwrap();
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1481,13 +1611,7 @@ mod tests {
         let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
 
         let module = finalize_monomorphize_module(module).unwrap();
-
-        yulang_runtime::check_runtime_invariants(
-            &module,
-            yulang_runtime::RuntimeStage::Monomorphized,
-        )
-        .unwrap();
-        yulang_runtime::validate_module(&module).unwrap();
+        yulang_vm::compile_vm_module(module).unwrap();
     }
 
     #[test]
@@ -1511,7 +1635,7 @@ mod tests {
                 .all(|binding| binding.type_params.is_empty())
         );
 
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1543,7 +1667,7 @@ mod tests {
                 .all(|binding| binding.type_params.is_empty())
         );
 
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1561,7 +1685,7 @@ mod tests {
         );
 
         let output = finalize_module(module).unwrap();
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1579,7 +1703,7 @@ mod tests {
         );
 
         let output = finalize_module(module).unwrap();
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1597,7 +1721,7 @@ mod tests {
             runtime_module_from_source_without_std("my x = if true { 1 } else { 2.0 }\nx\n");
 
         let output = finalize_module(module).unwrap();
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1622,7 +1746,7 @@ mod tests {
         );
 
         let output = finalize_module(module).unwrap();
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -1645,7 +1769,7 @@ f 3
         );
 
         let output = finalize_module(module).unwrap();
-        let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+        let vm = yulang_vm::compile_vm_module(output.module).unwrap();
         let results = vm.eval_roots().unwrap();
 
         assert_eq!(
@@ -2105,7 +2229,7 @@ sub:
             );
             let output = finalize_module(cached.module)
                 .unwrap_or_else(|error| panic!("cold range each finalize failed: {error:?}"));
-            let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module))
+            let vm = yulang_vm::compile_vm_module(output.module)
                 .unwrap_or_else(|error| panic!("cold range each VM compile failed: {error:?}"));
             let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
                 .unwrap_or_else(|error| panic!("cold range each VM eval failed: {error:?}"));
@@ -2641,8 +2765,7 @@ fail_err::wrap:
                     .iter()
                     .all(|binding| binding.type_params.is_empty())
             );
-            let vm =
-                yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+            let vm = yulang_vm::compile_vm_module(output.module).unwrap();
             vm.eval_roots()
                 .unwrap()
                 .into_iter()
@@ -2676,7 +2799,7 @@ fail_err::wrap:
                     .iter()
                     .all(|binding| binding.type_params.is_empty())
             );
-            yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module)).unwrap();
+            yulang_vm::compile_vm_module(output.module).unwrap();
         });
     }
 
@@ -2776,7 +2899,7 @@ fail_err::wrap:
 
     fn assert_legacy_and_finalize_match_module<M>(name: &str, module: M, vm: OracleVm)
     where
-        M: IntoLoweredRuntimeModule + Clone,
+        M: IntoFinalizeRuntimeModule + Clone,
     {
         let legacy = run_legacy_runtime_module(name, module.clone(), vm);
         let finalized = run_finalize_runtime_module(name, module, vm);
@@ -2785,41 +2908,24 @@ fail_err::wrap:
 
     fn run_legacy_runtime_module<M>(name: &str, module: M, vm: OracleVm) -> RuntimeOracleOutput
     where
-        M: IntoLoweredRuntimeModule,
+        M: IntoFinalizeRuntimeModule,
     {
         run_finalize_runtime_module(name, module, vm)
     }
 
     fn run_finalize_runtime_module<M>(name: &str, module: M, vm: OracleVm) -> RuntimeOracleOutput
     where
-        M: IntoLoweredRuntimeModule,
+        M: IntoFinalizeRuntimeModule,
     {
         let module = finalize_monomorphize_module(module)
             .unwrap_or_else(|error| panic!("{name} finalize failed: {error}"));
-        assert_mainline_runtime_output_valid(name, "finalize", &module);
         run_vm_module(name, "finalize", module, vm)
-    }
-
-    fn assert_mainline_runtime_output_valid(
-        name: &str,
-        runtime: &str,
-        module: &yulang_runtime::Module,
-    ) {
-        yulang_runtime::check_runtime_invariants(
-            module,
-            yulang_runtime::RuntimeStage::Monomorphized,
-        )
-        .unwrap_or_else(|error| {
-            panic!("{name} {runtime} monomorphized runtime invariant failed: {error}")
-        });
-        yulang_runtime::validate_module(module)
-            .unwrap_or_else(|error| panic!("{name} {runtime} runtime validation failed: {error}"));
     }
 
     fn run_vm_module(
         name: &str,
         runtime: &str,
-        module: yulang_runtime::Module,
+        module: Module,
         vm: OracleVm,
     ) -> RuntimeOracleOutput {
         match vm {
@@ -2828,11 +2934,7 @@ fail_err::wrap:
         }
     }
 
-    fn run_tree_vm_module(
-        name: &str,
-        runtime: &str,
-        module: yulang_runtime::Module,
-    ) -> RuntimeOracleOutput {
+    fn run_tree_vm_module(name: &str, runtime: &str, module: Module) -> RuntimeOracleOutput {
         let module = yulang_vm::compile_vm_module(module)
             .unwrap_or_else(|error| panic!("{name} {runtime} VM compile failed: {error:?}"));
         let host_output = yulang_vm::eval_roots_with_basic_host(&module)
@@ -2843,11 +2945,7 @@ fail_err::wrap:
         }
     }
 
-    fn run_control_vm_module(
-        name: &str,
-        runtime: &str,
-        module: yulang_runtime::Module,
-    ) -> RuntimeOracleOutput {
+    fn run_control_vm_module(name: &str, runtime: &str, module: Module) -> RuntimeOracleOutput {
         let module = yulang_vm::compile_control_vm_module(module).unwrap_or_else(|error| {
             panic!("{name} {runtime} control VM compile failed: {error:?}")
         });
@@ -2882,7 +2980,7 @@ fail_err::wrap:
             let module = runtime_module_from_source_with_std_no_cache(&source);
             let output = finalize_module(module)
                 .unwrap_or_else(|error| panic!("{} finalize failed: {error:?}", case.name));
-            let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module))
+            let vm = yulang_vm::compile_vm_module(output.module)
                 .unwrap_or_else(|error| panic!("{} VM compile failed: {error:?}", case.name));
             let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
                 .unwrap_or_else(|error| panic!("{} VM eval failed: {error:?}", case.name));
@@ -2906,7 +3004,7 @@ fail_err::wrap:
             let cached = runtime_module_from_source_with_std_dependency_cache_large_stack(&source);
             let output = finalize_module(cached.module)
                 .unwrap_or_else(|error| panic!("{name} finalize failed: {error:?}"));
-            let vm = yulang_vm::compile_vm_module(finalized_to_runtime_module(output.module))
+            let vm = yulang_vm::compile_vm_module(output.module)
                 .unwrap_or_else(|error| panic!("{name} VM compile failed: {error:?}"));
             let host_output = yulang_vm::eval_roots_with_basic_host(&vm)
                 .unwrap_or_else(|error| panic!("{name} VM eval failed: {error:?}"));
