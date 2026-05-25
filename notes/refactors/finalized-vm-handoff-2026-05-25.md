@@ -637,25 +637,36 @@ cargo test  -q -p yulang-infer                                  # 406/406 PASS
    - CLI 経由でも `each (1..)` / pythagorean が tree VM・control VM 双方で
      `just 3` / `just (3, 4, 5)` を返すことを確認した。
 
-### `playground_tour` テストの pre-existing 不具合
+### `playground_tour` の `ConflictingBounds` も解消 (`bb8e7ff`)
 
-`cached_std_finalize_runs_playground_tour` および
-`cached_std_legacy_runtime_and_finalize_match_playground_*` 等は
-finalize で `ConflictingBounds` を投げる。エラーの中身:
+最初は pre-existing と思っていた以下のエラー:
 
 ```
 ConflictingBounds {
     var: apply_effect#2,
-    previous: Row<[loop::next, loop::last]; Never>,
+    previous: Row<[loop::next], Row<[loop::last]; Never>>,
     next:     Union<Row<[sub]; Never>, Row<[loop::last, loop::next]; Never>>,
 }
 ```
 
-`f1fa81f` / `fc522e5` を revert しても再現するので、私の修正とは無関係に
-ベースから残っていた問題。playground tour の中の
-`sub: for x in 0..: if x == 5: return x else: ()` が `loop::next/last` と
-`sub` の effect row を同じ apply に集約するところで、closed row `[next, last]`
-と open-shape の union が衝突している。次の人へのタスク。
+実態は順序違いと nest 違いだけだった。`graph.rs` の
+`normalize_bound_form_inner` が Row の items を dedup はするが順序を保持し、
+かつ Never tail の nested Row を flatten していなかったため、
+`Row<[next], Row<[last]; Never>>` と `Row<[last, next]; Never>` を別物として
+扱っていた。
+
+修正:
+- 正規化前に `flatten_closed_row` で nested Never tail を畳む。
+- dedup 後の items を debug key で sort してから返す。
+
+effect rows は集合なので順序非依存にする方が変換に対して頑健で、
+`push_bound` の equivalence チェックが望ましい結果を返すようになる。
+
+これで `cached_std_finalize_runs_playground_tour`,
+`cached_std_finalize_runs_playground_state_and_host_examples`,
+`cached_std_legacy_runtime_and_finalize_match_playground_*`,
+`cached_std_finalize_runs_ref_*` などが PASS する。
+小さい再現 `sub: for x in 0..3: if x == 1: return x else: () ; 0` も通る。
 
 ### 触ったファイル一覧
 
@@ -663,6 +674,7 @@ ConflictingBounds {
 - `crates/yulang-infer/src/simplify/compact.rs` (`merge_rows` で同 items を tail union)
 - `crates/yulang-infer/src/display/dump.rs` (テスト期待値を `[label_loop; ⊤]` 形式に更新)
 - `crates/yulang-infer/src/tests.rs` (`handler_continuation_in_queue_principal_avoids_top_in_effect_row` 追加)
+- `crates/yulang-runtime-finalize/src/graph.rs` (Row items の flatten + sort で順序非依存正規化)
 - `notes/refactors/finalized-vm-handoff-2026-05-25.md` (この記録)
 
 ### 通った確認
@@ -677,7 +689,12 @@ cargo test  -q -p yulang-runtime-finalize cached_std_legacy_runtime_and_finalize
 
 ### まだ残ってる課題
 
-- 上述の `playground_tour` 系 `ConflictingBounds` (pre-existing)
+- `cargo test -p yulang-runtime-finalize -- --test-threads=1` で 69 passed, 1 failed。
+  唯一残る `std_no_cache_finalize_runs_reported_graph_unification_regressions`
+  (test case "handler function preserves effectful argument boundary") は
+  baseline `4483322` でも fail することを確認済みの pre-existing 不具合。
+  `log::put` effect の handler が走らず request が root まで escape する。
+  別タスクで扱う。
 - `pick::loop` で `t599 & t604` のような変数 intersection が残る点。
   fn type で挟まれてる sandwich パターンだが、bounds の中身が完全一致ではない
   ため既存の `apply_exact_sandwich_removal` では落とせない。
