@@ -522,3 +522,87 @@ handler continuation `k` の effect row が、どこかで `Top` 側へ広がっ
 今回の infer 側 Any 混入調査の差分が混ざっている。安全に commit できる単位ではない。
 少なくとも `yulang-infer` 側の修正だけを切り出すなら、VM/finalize の WIP と分けて
 diff を確認する必要がある。
+
+---
+
+## Claude Code セッション 2 の引き継ぎ（2026-05-25 続き）
+
+### このセッションでやったこと
+
+1. **状態の復旧**: 前 Claude セッションが暴走して `git stash drop` で消した Codex セッション 2 の
+   作業を unreachable commit `e3699ba "On main: wip-codex-session-2"` から復元した。
+   `format.rs` / `freeze.rs` / `solver/materialize.rs` / `solver/postpass.rs` を `checkout` し、
+   `tests.rs` に付いていた `#[ignore]` を外して `a462048` にスナップショットコミット。
+
+2. **`std loading regression` の根治**: Codex セッション 2 が
+   「`freeze.rs` の `empty_neg_row` / `empty_pos_row` に書き換えると std 読み込みが回帰する」
+   と書いていた件を bisect して特定し、修正した。
+
+### 確認できた原因
+
+`freeze.rs` の `compact_fun_arg_effect_{neg,pos}_type` helper が、空 `arg_eff` を
+`arena.top` / `arena.bot` ではなく `arena.empty_neg_row` (= `Neg::Row([], top)`) や
+`arena.empty_pos_row` (= `Pos::Row([], bot)`) に置き換えていた。
+
+この置換が `solve/constrain/shape.rs` の
+`(Pos::Fun, Neg::Fun)` ケースで以下の分岐を踏ませる:
+
+```rust
+let arg_eff_pure = live_neg_is_empty_row(self, arg_eff_neg, ..);
+if arg_eff_pure {
+    self.constrain_step(arg_eff_pos, ret_eff_neg, ..);
+} else {
+    self.constrain_step(arg_eff_pos, arg_eff_neg, ..);
+}
+```
+
+`live_neg_is_empty_row` は `Neg::Row([], top)` だけ `true` を返し、`Neg::Top` には `false` を返す
+(`solve/constrain/util.rs:54`)。Codex 2 の freeze.rs 変更は frozen scheme の Pos::Fun.arg_eff を
+`Neg::Top` から `Neg::Row([], top)` に変えていたので、インスタンス化された Pos::Fun が Neg::Fun と
+合流する度に「pure shortcut」経路 (`arg_eff_pos <: ret_eff_neg`) を踏むようになり、
+std 規模で制約が爆発して stack overflow に至っていた。
+
+### 入れた修正
+
+- `crates/yulang-infer/src/scheme/freeze.rs`
+  - `compact_fun_arg_effect_neg_type` / `compact_fun_arg_effect_pos_type` helper を撤去。
+  - `compact_root_fun_pos_body` / `compact_pos_type` (Pos::Fun) / `compact_neg_type` (Neg::Fun)
+    の `arg_eff` を baseline と同じく `compact_neg_type` / `compact_pos_type` の直接呼び出しに戻した。
+- `crates/yulang-infer/src/display/format.rs` の `coalesce_root_fun_arg_effect_field` はそのまま残す。
+  この helper が `is_empty_compact` を見て `Type::Bot` を返すので、principal の display は
+  `freeze.rs` を baseline に戻しても `-⊥` のまま (Codex 2 の意図した結果) になる。
+
+### 通った確認
+
+```sh
+cargo check -q --workspace                                      # yulang-wasm 含めて通る
+cargo test  -q -p yulang-infer recursive_self_call_principal_keeps_pure_arg_effect
+cargo test  -q -p yulang-infer compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies
+cargo test  -q -p yulang-infer compiled_std_artifact_import_keeps_effectful_guard_constraints
+cargo test  -q -p yulang-vm    vm_runs_std_undet_each_and_once_from_prelude
+cargo test  -q -p yulang-infer                                  # 406/406 PASS
+```
+
+以前 stack overflow / `expected constructor` を起こしていた `compiled_std_*` 系と
+`vm_runs_std_undet_each_and_once_from_prelude` も同時に PASS するようになった。
+
+### まだ残っている未解決
+
+- `cached_std_finalize_runs_playground_core_examples` の 60+ 秒 hang は変わらず。
+  Codex 2 の handoff にも書かれている `undet once range`
+  (`{ my a = each 1..; guard: a == 3; a }.once`) の VM eval freeze で、
+  今回の `freeze.rs` 修正とは別系統。
+- `pick::loop` の `queue` 要素型に `bool -⊤ / [pick; t599]-> t597` の
+  `⊤` が nested function position に残るケースは未確認のまま。
+  Codex 2 が示した「`compact.rs` の `merge_funs` の `arg_eff` variance」
+  「`catch` handler continuation の effect row 生成」あたりがまだ残る本筋。
+
+### 触ったファイル一覧
+
+- `crates/yulang-infer/src/scheme/freeze.rs` (Codex 2 変更を撤回)
+
+### 教訓
+
+`live_neg_is_empty_row` のように、`Neg::Top` と `Neg::Row([], top)` を意味的に
+別物として扱うコードが下流にある状態で、freeze 側だけ表現を切り替えると
+制約解決の経路が変わる。今回は format.rs の display 側に集約するのが正解だった。

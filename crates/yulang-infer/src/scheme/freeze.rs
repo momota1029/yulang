@@ -774,34 +774,10 @@ fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> O
 
     Some(arena.alloc_pos(Pos::Fun {
         arg: compact_neg_type(arena, &arg, scheme, false),
-        arg_eff: compact_fun_arg_effect_neg_type(arena, &arg_eff, scheme),
+        arg_eff: compact_neg_type(arena, &arg_eff, scheme, false),
         ret_eff: compact_pos_type(arena, &ret_eff, scheme, false),
         ret: compact_pos_type(arena, &ret, scheme, false),
     }))
-}
-
-fn compact_fun_arg_effect_neg_type(
-    arena: &TypeArena,
-    ty: &CompactType,
-    scheme: &CompactTypeScheme,
-) -> NegId {
-    if is_empty_compact_type(ty) {
-        arena.empty_neg_row
-    } else {
-        compact_neg_type(arena, ty, scheme, false)
-    }
-}
-
-fn compact_fun_arg_effect_pos_type(
-    arena: &TypeArena,
-    ty: &CompactType,
-    scheme: &CompactTypeScheme,
-) -> PosId {
-    if is_empty_compact_type(ty) {
-        arena.empty_pos_row
-    } else {
-        compact_pos_type(arena, ty, scheme, false)
-    }
 }
 
 fn root_non_fun_parts_empty(ty: &CompactType, ignorable_root_vars: &HashSet<TypeVar>) -> bool {
@@ -1084,7 +1060,7 @@ pub(crate) fn compact_pos_type(
     {
         parts.push(arena.alloc_pos(Pos::Fun {
             arg: compact_neg_type(arena, arg, scheme, false),
-            arg_eff: compact_fun_arg_effect_neg_type(arena, arg_eff, scheme),
+            arg_eff: compact_neg_type(arena, arg_eff, scheme, false),
             ret_eff: compact_pos_type(arena, ret_eff, scheme, false),
             ret: compact_pos_type(arena, ret, scheme, false),
         }));
@@ -1215,7 +1191,7 @@ pub(crate) fn compact_neg_type(
     {
         parts.push(arena.alloc_neg(Neg::Fun {
             arg: compact_pos_type(arena, arg, scheme, false),
-            arg_eff: compact_fun_arg_effect_pos_type(arena, arg_eff, scheme),
+            arg_eff: compact_pos_type(arena, arg_eff, scheme, false),
             ret_eff: compact_neg_type(arena, ret_eff, scheme, false),
             ret: compact_neg_type(arena, ret, scheme, false),
         }));
