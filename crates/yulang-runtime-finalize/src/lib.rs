@@ -4,9 +4,6 @@
 //! type is first instantiated into that graph, then expression evidence is
 //! collected as lower/upper bounds.  Solving prefers lower bounds and returns a
 //! fully materializable monomorphic view of the graph.
-//!
-//! The previous implementation is archived under
-//! `archive/2026-05-23-pre-rewrite`.
 
 mod cache;
 mod diagnostic;
