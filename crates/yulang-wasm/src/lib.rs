@@ -1322,7 +1322,8 @@ sub:
                     .merge_with_user_program(user_program)
                     .expect("merged runtime program");
                 let module = runtime::lower_core_program(merged).expect("lowered runtime program");
-                let module = runtime::monomorphize_module(module).expect("monomorphized module");
+                let module =
+                    yulang_monomorphize::monomorphize_module(module).expect("monomorphized module");
                 let vm = runtime_vm::compile_vm_module(module).expect("compiled vm module");
                 let output = runtime_vm::eval_roots_with_basic_host(&vm).expect("vm output");
                 assert_eq!(output.results.len(), 1);
@@ -1357,7 +1358,8 @@ sub:
                 );
 
                 let module = runtime::lower_core_program(merged).expect("lowered runtime program");
-                let module = runtime::monomorphize_module(module).expect("monomorphized module");
+                let module =
+                    yulang_monomorphize::monomorphize_module(module).expect("monomorphized module");
                 let vm = runtime_vm::compile_vm_module(module).expect("compiled vm module");
                 let output = runtime_vm::eval_roots_with_basic_host(&vm).expect("vm output");
                 assert_eq!(output.results.len(), 1);
