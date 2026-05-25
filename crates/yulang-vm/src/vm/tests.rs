@@ -4,7 +4,7 @@ mod tests {
     use std::path::PathBuf;
     use std::thread;
     use yulang_infer::{SourceOptions, lower_virtual_source_with_options};
-    use yulang_runtime_lower::{RuntimeError, RuntimeResult};
+    use yulang_runtime_types::{RuntimeError, RuntimeResult};
     use yulang_runtime_ir::{
         FinalizedBinding as Binding, FinalizedModule as Module, RuntimeType as RuntimeType,
     };

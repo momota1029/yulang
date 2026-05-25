@@ -299,7 +299,10 @@ impl TypeGraph {
             return Ok(false);
         }
         seen.push(constraint);
-        if lower == upper || matches!(upper, typed_ir::Type::Any) {
+        if lower == upper
+            || matches!(upper, typed_ir::Type::Any)
+            || matches!(lower, typed_ir::Type::Any)
+        {
             return Ok(false);
         }
         match (lower, upper) {
