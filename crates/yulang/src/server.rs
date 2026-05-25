@@ -19,6 +19,7 @@ use yulang_infer::{
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 use yulang_runtime_lower as runtime;
+use yulang_runtime_types as runtime_types;
 use yulang_sources::{
     SourceOptions, collect_virtual_source_files_with_options, is_std_root,
     resolve_or_install_std_root,
@@ -247,9 +248,9 @@ fn runtime_error_to_lsp(
     diagnostic_source: &str,
     document_source: &str,
     evidence: &typed_ir::PrincipalEvidence,
-    error: &runtime::RuntimeError,
+    error: &runtime_types::RuntimeError,
 ) -> Option<Diagnostic> {
-    let runtime::RuntimeError::TypeMismatch {
+    let runtime_types::RuntimeError::TypeMismatch {
         expected,
         actual,
         context: Some(context),
@@ -297,14 +298,14 @@ fn runtime_error_to_lsp(
 }
 
 fn runtime_type_mismatch_primary_edge<'a>(
-    context: &runtime::diagnostic::TypeMismatchContext,
+    context: &runtime_types::diagnostic::TypeMismatchContext,
     evidence: &'a typed_ir::PrincipalEvidence,
 ) -> Option<&'a typed_ir::ExpectedEdgeEvidence> {
     match context.phase {
-        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyResult
-        | runtime::diagnostic::TypeMismatchPhase::Expected => {
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyResult
+        | runtime_types::diagnostic::TypeMismatchPhase::Expected => {
             context.arg_source_edge.or(context.callee_source_edge)
         }
     }
@@ -312,14 +313,14 @@ fn runtime_type_mismatch_primary_edge<'a>(
 }
 
 fn runtime_type_mismatch_actual_edge<'a>(
-    context: &runtime::diagnostic::TypeMismatchContext,
+    context: &runtime_types::diagnostic::TypeMismatchContext,
     evidence: &'a typed_ir::PrincipalEvidence,
 ) -> Option<&'a typed_ir::ExpectedEdgeEvidence> {
     match context.phase {
-        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyResult
-        | runtime::diagnostic::TypeMismatchPhase::Expected => {
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyResult
+        | runtime_types::diagnostic::TypeMismatchPhase::Expected => {
             context.arg_source_edge.or(context.callee_source_edge)
         }
     }
@@ -327,14 +328,14 @@ fn runtime_type_mismatch_actual_edge<'a>(
 }
 
 fn runtime_type_mismatch_expected_edge<'a>(
-    context: &runtime::diagnostic::TypeMismatchContext,
+    context: &runtime_types::diagnostic::TypeMismatchContext,
     evidence: &'a typed_ir::PrincipalEvidence,
 ) -> Option<&'a typed_ir::ExpectedEdgeEvidence> {
     match context.phase {
-        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.arg_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.callee_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyResult
-        | runtime::diagnostic::TypeMismatchPhase::Expected => {
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyCallee => context.arg_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyArgument => context.callee_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyResult
+        | runtime_types::diagnostic::TypeMismatchPhase::Expected => {
             context.callee_source_edge.or(context.arg_source_edge)
         }
     }
@@ -348,7 +349,7 @@ fn runtime_type_related_message(
 ) -> String {
     let mut message = format!(
         "{role} type here is `{}`",
-        runtime::diagnostic::display_type(ty)
+        runtime_types::diagnostic::display_type(ty)
     );
     if let Some(edge) = edge {
         message.push_str(" (");
@@ -2249,13 +2250,13 @@ mod tests {
             ],
             ..Default::default()
         };
-        let error = runtime::RuntimeError::TypeMismatch {
+        let error = runtime_types::RuntimeError::TypeMismatch {
             expected: int,
             actual: bool,
-            source: runtime::TypeSource::ApplyEvidence,
-            context: Some(runtime::diagnostic::TypeMismatchContext {
+            source: runtime_types::TypeSource::ApplyEvidence,
+            context: Some(runtime_types::diagnostic::TypeMismatchContext {
                 callee: None,
-                phase: runtime::diagnostic::TypeMismatchPhase::ApplyArgument,
+                phase: runtime_types::diagnostic::TypeMismatchPhase::ApplyArgument,
                 callee_source_edge: Some(1),
                 arg_source_edge: Some(2),
             }),

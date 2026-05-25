@@ -15,7 +15,7 @@ pub type SourceRuntimeResult<T> = Result<T, SourceRuntimeError>;
 pub enum SourceRuntimeError {
     SourceLoad(SourceLoadError),
     SurfaceDiagnostics(Vec<String>),
-    RuntimeLower(yulang_runtime_lower::RuntimeError),
+    RuntimeLower(yulang_runtime_types::RuntimeError),
     RuntimeFinalize(yulang_monomorphize::MonomorphizeError),
     RuntimeMerge(yulang_infer::CompiledRuntimeMergeError),
     DependencyCacheMiss,
@@ -55,8 +55,8 @@ impl From<SourceLoadError> for SourceRuntimeError {
     }
 }
 
-impl From<yulang_runtime_lower::RuntimeError> for SourceRuntimeError {
-    fn from(error: yulang_runtime_lower::RuntimeError) -> Self {
+impl From<yulang_runtime_types::RuntimeError> for SourceRuntimeError {
+    fn from(error: yulang_runtime_types::RuntimeError) -> Self {
         SourceRuntimeError::RuntimeLower(error)
     }
 }

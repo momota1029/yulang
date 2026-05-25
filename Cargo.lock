@@ -2144,6 +2144,8 @@ dependencies = [
  "yulang-parser",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
+ "yulang-runtime-refine",
+ "yulang-runtime-types",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",
@@ -2157,6 +2159,8 @@ dependencies = [
  "yulang-monomorphize",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
+ "yulang-runtime-refine",
+ "yulang-runtime-types",
  "yulang-sources",
 ]
 
@@ -2201,6 +2205,8 @@ dependencies = [
  "yulang-infer",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
+ "yulang-runtime-refine",
+ "yulang-runtime-types",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",
@@ -2289,6 +2295,7 @@ dependencies = [
  "yulang-infer",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
+ "yulang-runtime-refine",
  "yulang-runtime-types",
  "yulang-typed-ir",
 ]
@@ -2307,6 +2314,8 @@ dependencies = [
  "yulang-infer",
  "yulang-monomorphize",
  "yulang-runtime-lower",
+ "yulang-runtime-refine",
+ "yulang-runtime-types",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",

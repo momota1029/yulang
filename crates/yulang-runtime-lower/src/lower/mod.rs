@@ -10,18 +10,18 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_typed_ir as typed_ir;
 
-use crate::diagnostic::{
+use yulang_runtime_types::diagnostic::{
     RuntimeCalleeLabel, RuntimeError, RuntimeResult, TypeMismatchContext, TypeMismatchPhase,
     TypeSource,
 };
-use crate::invariant::{RuntimeStage, check_runtime_invariants};
-use crate::ir::{
+use yulang_runtime_refine::invariant::{RuntimeStage, check_runtime_invariants};
+use yulang_runtime_types::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,
     LoweredModule, MatchArm, Module, Pattern, RecordExprField, RecordPatternField,
     RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt, Type as RuntimeType,
     TypeInstantiation, TypeSubstitution,
 };
-use crate::types::{
+use yulang_runtime_types::types::{
     BoundsChoice, TypeChoice, choose_bounds_type, choose_core_type, choose_optional_core_type,
     close_type_substitution_map_recursively, collect_hir_type_vars, collect_type_vars,
     contains_non_runtime_effect_type, contains_non_runtime_type, core_type_has_vars,
@@ -37,7 +37,7 @@ use crate::types::{
     substitute_bounds, substitute_hir_type, substitute_type, thunk_effect, type_compatible,
     wildcard_effect_type,
 };
-use crate::validate::validate_module;
+use yulang_runtime_refine::validate::validate_module;
 
 mod core_shape;
 mod diagnostics;

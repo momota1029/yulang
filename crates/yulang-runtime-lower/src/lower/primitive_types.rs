@@ -79,7 +79,7 @@ impl RuntimePrimitivePathTable {
         expected: &typed_ir::Type,
         actual: &typed_ir::Type,
     ) -> bool {
-        crate::types::needs_runtime_coercion_with_order(&self.type_order, expected, actual)
+        yulang_runtime_types::types::needs_runtime_coercion_with_order(&self.type_order, expected, actual)
     }
 
     fn primitive_type_path(&self, family: PrimitiveTypeFamily) -> typed_ir::Path {

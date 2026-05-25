@@ -1,30 +1,14 @@
 //! Runtime lowering for Yulang.
 //!
-//! This crate accepts the principal types and local evidence produced by the
-//! infer pipeline, then lowers the program to a runtime tree where every
-//! expression has an execution-facing type witness. The runtime IR data
-//! structures themselves live in `yulang-runtime-ir`; type representation and
-//! type-system helpers live in `yulang-runtime-types`; refine / validate /
-//! invariant / hygiene live in `yulang-runtime-refine`; monomorphization
+//! The crate is intentionally narrow: it owns `lower_core_program` and its
+//! supporting machinery (profiles, adapter evidence, …). The runtime IR data
+//! structures live in `yulang-runtime-ir`, type representation and
+//! type-system helpers live in `yulang-runtime-types`, refine / validate /
+//! invariant / hygiene live in `yulang-runtime-refine`, and monomorphization
 //! lives in `yulang-monomorphize`.
 
 pub mod lower;
 
-// Re-exports so existing callers can keep saying
-// `yulang_runtime_lower::types::...` / `yulang_runtime_lower::diagnostic::...` /
-// `yulang_runtime_lower::refine::...` etc.
-pub use yulang_runtime_types::{
-    Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,
-    MatchArm, Module, Pattern, RecordExprField, RecordPatternField, RecordSpreadExpr,
-    RecordSpreadPattern, ResumeBinding, Root, RuntimeError, RuntimeResult, Stmt, Type,
-    TypeInstantiation, TypeSource, TypeSubstitution, binding_is_parametric_runtime_intrinsic,
-    diagnostic, ir, types,
-};
-pub use yulang_runtime_refine::{
-    RuntimeStage, check_runtime_invariants, check_strict_runtime_type_surfaces,
-    check_strict_runtime_value_types, format_hygiene_expr, format_hygiene_module, hygiene,
-    invariant, refine, refine_module_types, validate, validate_module,
-};
 pub use lower::{
     CoreShapeProfile, DerivedExpectedEvidenceProfile, ExpectedAdapterEvidenceProfile,
     ExpectedArgEvidenceProfile, ObservedAdapterEvidence, ObservedAdapterEvidenceKind,

@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use yulang_runtime_lower::RuntimeError;
+use yulang_runtime_types::RuntimeError;
 use yulang_runtime_types::types::effect_is_empty;
 use yulang_runtime_ir::{
     EffectIdRef, EffectIdVar, FinalizedBinding as Binding, FinalizedExpr as Expr,
@@ -87,7 +87,7 @@ pub fn compile_vm_module<M: IntoVmModule>(module: M) -> Result<VmModule, VmError
     Ok(VmModule { module })
 }
 
-fn lift_legacy_runtime_module(module: yulang_runtime_lower::Module) -> Module {
+fn lift_legacy_runtime_module(module: yulang_runtime_types::Module) -> Module {
     Module {
         path: module.path,
         bindings: module
@@ -110,7 +110,7 @@ fn lift_legacy_runtime_module(module: yulang_runtime_lower::Module) -> Module {
     }
 }
 
-fn lift_legacy_runtime_expr(expr: yulang_runtime_lower::Expr) -> Expr {
+fn lift_legacy_runtime_expr(expr: yulang_runtime_types::Expr) -> Expr {
     let ty = lift_legacy_runtime_type(expr.ty);
     let kind = match expr.kind {
         yulang_runtime_ir::ExprKind::Var(path) => ExprKind::Var(path),
@@ -256,7 +256,7 @@ fn lift_legacy_runtime_expr(expr: yulang_runtime_lower::Expr) -> Expr {
     Expr::typed(kind, ty)
 }
 
-fn lift_legacy_runtime_stmt(stmt: yulang_runtime_lower::Stmt) -> Stmt {
+fn lift_legacy_runtime_stmt(stmt: yulang_runtime_types::Stmt) -> Stmt {
     match stmt {
         yulang_runtime_ir::Stmt::Let { pattern, value } => Stmt::Let {
             pattern: lift_legacy_runtime_pattern(pattern),
@@ -270,7 +270,7 @@ fn lift_legacy_runtime_stmt(stmt: yulang_runtime_lower::Stmt) -> Stmt {
     }
 }
 
-fn lift_legacy_runtime_pattern(pattern: yulang_runtime_lower::Pattern) -> Pattern {
+fn lift_legacy_runtime_pattern(pattern: yulang_runtime_types::Pattern) -> Pattern {
     match pattern {
         yulang_runtime_ir::Pattern::Wildcard { ty } => Pattern::Wildcard {
             ty: lift_legacy_runtime_type(ty),
@@ -335,7 +335,7 @@ fn lift_legacy_runtime_pattern(pattern: yulang_runtime_lower::Pattern) -> Patter
 }
 
 fn lift_legacy_runtime_record_spread_expr(
-    spread: yulang_runtime_lower::RecordSpreadExpr,
+    spread: yulang_runtime_types::RecordSpreadExpr,
 ) -> RecordSpreadExpr {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
@@ -348,7 +348,7 @@ fn lift_legacy_runtime_record_spread_expr(
 }
 
 fn lift_legacy_runtime_record_spread_pattern(
-    spread: yulang_runtime_lower::RecordSpreadPattern,
+    spread: yulang_runtime_types::RecordSpreadPattern,
 ) -> yulang_runtime_ir::FinalizedRecordSpreadPattern {
     match spread {
         yulang_runtime_ir::RecordSpreadPattern::Head(pattern) => {
@@ -364,15 +364,15 @@ fn lift_legacy_runtime_record_spread_pattern(
     }
 }
 
-fn lift_legacy_runtime_type(ty: yulang_runtime_lower::Type) -> Type {
+fn lift_legacy_runtime_type(ty: yulang_runtime_types::Type) -> Type {
     match ty {
-        yulang_runtime_lower::Type::Unknown => Type::Unknown,
-        yulang_runtime_lower::Type::Value(ty) => lift_core_type(ty),
-        yulang_runtime_lower::Type::Fun { param, ret } => Type::fun(
+        yulang_runtime_types::Type::Unknown => Type::Unknown,
+        yulang_runtime_types::Type::Value(ty) => lift_core_type(ty),
+        yulang_runtime_types::Type::Fun { param, ret } => Type::fun(
             lift_legacy_runtime_type(*param),
             lift_legacy_runtime_type(*ret),
         ),
-        yulang_runtime_lower::Type::Thunk { effect, value } => {
+        yulang_runtime_types::Type::Thunk { effect, value } => {
             Type::thunk(effect, lift_legacy_runtime_type(*value))
         }
     }

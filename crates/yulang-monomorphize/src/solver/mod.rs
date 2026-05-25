@@ -78,7 +78,7 @@ pub fn monomorphize_module<M: IntoFinalizeRuntimeModule>(
 
 pub fn monomorphize_to_legacy_runtime_module<M: IntoFinalizeRuntimeModule>(
     module: M,
-) -> Result<yulang_runtime_lower::Module, MonomorphizeError> {
+) -> Result<yulang_runtime_types::Module, MonomorphizeError> {
     Ok(finalized_to_runtime_module(monomorphize_module(
         module,
     )?))
@@ -310,7 +310,7 @@ fn finalize_lowered_module(module: LoweredModule) -> Module {
     }
 }
 
-fn finalized_to_runtime_module(module: Module) -> yulang_runtime_lower::Module {
+fn finalized_to_runtime_module(module: Module) -> yulang_runtime_types::Module {
     yulang_runtime_ir::Module {
         path: module.path,
         bindings: module
@@ -333,7 +333,7 @@ fn finalized_to_runtime_module(module: Module) -> yulang_runtime_lower::Module {
     }
 }
 
-fn finalized_to_runtime_expr(expr: Expr) -> yulang_runtime_lower::Expr {
+fn finalized_to_runtime_expr(expr: Expr) -> yulang_runtime_types::Expr {
     let ty = finalized_to_runtime_type(expr.ty);
     let kind = match expr.kind {
         ExprKind::Var(path) => yulang_runtime_ir::ExprKind::Var(path),
@@ -439,9 +439,9 @@ fn finalized_to_runtime_expr(expr: Expr) -> yulang_runtime_lower::Expr {
         },
         ExprKind::BindHere { expr } => {
             let mut expr = finalized_to_runtime_expr(*expr);
-            if !matches!(expr.ty, yulang_runtime_lower::Type::Thunk { .. }) {
+            if !matches!(expr.ty, yulang_runtime_types::Type::Thunk { .. }) {
                 let value = expr.ty.clone();
-                expr.ty = yulang_runtime_lower::Type::thunk(typed_ir::Type::Unknown, value);
+                expr.ty = yulang_runtime_types::Type::thunk(typed_ir::Type::Unknown, value);
             }
             yulang_runtime_ir::ExprKind::BindHere {
                 expr: Box::new(expr),
@@ -460,7 +460,7 @@ fn finalized_to_runtime_expr(expr: Expr) -> yulang_runtime_lower::Expr {
             };
             return yulang_runtime_ir::Expr::typed(
                 kind,
-                yulang_runtime_lower::Type::thunk(effect, value),
+                yulang_runtime_types::Type::thunk(effect, value),
             );
         }
         ExprKind::LocalPushId { id, body } => yulang_runtime_ir::ExprKind::LocalPushId {
@@ -493,7 +493,7 @@ fn finalized_to_runtime_expr(expr: Expr) -> yulang_runtime_lower::Expr {
     yulang_runtime_ir::Expr::typed(kind, ty)
 }
 
-fn finalized_to_runtime_stmt(stmt: yulang_runtime_ir::FinalizedStmt) -> yulang_runtime_lower::Stmt {
+fn finalized_to_runtime_stmt(stmt: yulang_runtime_ir::FinalizedStmt) -> yulang_runtime_types::Stmt {
     match stmt {
         yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
             pattern: finalized_to_runtime_pattern(pattern),
@@ -511,7 +511,7 @@ fn finalized_to_runtime_stmt(stmt: yulang_runtime_ir::FinalizedStmt) -> yulang_r
 
 fn finalized_to_runtime_pattern(
     pattern: yulang_runtime_ir::FinalizedPattern,
-) -> yulang_runtime_lower::Pattern {
+) -> yulang_runtime_types::Pattern {
     match pattern {
         yulang_runtime_ir::Pattern::Wildcard { ty } => yulang_runtime_ir::Pattern::Wildcard {
             ty: finalized_to_runtime_type(ty),
@@ -584,7 +584,7 @@ fn finalized_to_runtime_pattern(
 
 fn finalized_to_runtime_record_spread_expr(
     spread: yulang_runtime_ir::FinalizedRecordSpreadExpr,
-) -> yulang_runtime_lower::RecordSpreadExpr {
+) -> yulang_runtime_types::RecordSpreadExpr {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
             yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(finalized_to_runtime_expr(*expr)))
@@ -597,7 +597,7 @@ fn finalized_to_runtime_record_spread_expr(
 
 fn finalized_to_runtime_record_spread_pattern(
     spread: yulang_runtime_ir::FinalizedRecordSpreadPattern,
-) -> yulang_runtime_lower::RecordSpreadPattern {
+) -> yulang_runtime_types::RecordSpreadPattern {
     match spread {
         yulang_runtime_ir::RecordSpreadPattern::Head(pattern) => {
             yulang_runtime_ir::RecordSpreadPattern::Head(Box::new(finalized_to_runtime_pattern(
@@ -612,22 +612,22 @@ fn finalized_to_runtime_record_spread_pattern(
     }
 }
 
-fn finalized_to_runtime_type(ty: yulang_runtime_ir::RuntimeType) -> yulang_runtime_lower::Type {
+fn finalized_to_runtime_type(ty: yulang_runtime_ir::RuntimeType) -> yulang_runtime_types::Type {
     match ty {
-        yulang_runtime_ir::RuntimeType::Unknown => yulang_runtime_lower::Type::Unknown,
-        yulang_runtime_ir::RuntimeType::Value(ty) => yulang_runtime_lower::Type::Value(ty),
-        yulang_runtime_ir::RuntimeType::Fun { param, ret } => yulang_runtime_lower::Type::Fun {
+        yulang_runtime_ir::RuntimeType::Unknown => yulang_runtime_types::Type::Unknown,
+        yulang_runtime_ir::RuntimeType::Value(ty) => yulang_runtime_types::Type::Value(ty),
+        yulang_runtime_ir::RuntimeType::Fun { param, ret } => yulang_runtime_types::Type::Fun {
             param: Box::new(finalized_to_runtime_type(*param)),
             ret: Box::new(finalized_to_runtime_type(*ret)),
         },
-        yulang_runtime_ir::RuntimeType::Thunk { effect, value } => yulang_runtime_lower::Type::Thunk {
+        yulang_runtime_ir::RuntimeType::Thunk { effect, value } => yulang_runtime_types::Type::Thunk {
             effect,
             value: Box::new(finalized_to_runtime_type(*value)),
         },
     }
 }
 
-fn runtime_to_finalized_module(module: yulang_runtime_lower::Module) -> Module {
+fn runtime_to_finalized_module(module: yulang_runtime_types::Module) -> Module {
     yulang_runtime_ir::Module {
         path: module.path,
         bindings: module
@@ -650,7 +650,7 @@ fn runtime_to_finalized_module(module: yulang_runtime_lower::Module) -> Module {
     }
 }
 
-fn runtime_to_finalized_expr(expr: yulang_runtime_lower::Expr) -> Expr {
+fn runtime_to_finalized_expr(expr: yulang_runtime_types::Expr) -> Expr {
     let ty = runtime_to_finalized_type(expr.ty);
     let kind = match expr.kind {
         yulang_runtime_ir::ExprKind::Var(path) => yulang_runtime_ir::ExprKind::Var(path),
@@ -808,7 +808,7 @@ fn runtime_to_finalized_expr(expr: yulang_runtime_lower::Expr) -> Expr {
     yulang_runtime_ir::Expr::typed(kind, ty)
 }
 
-fn runtime_to_finalized_stmt(stmt: yulang_runtime_lower::Stmt) -> yulang_runtime_ir::FinalizedStmt {
+fn runtime_to_finalized_stmt(stmt: yulang_runtime_types::Stmt) -> yulang_runtime_ir::FinalizedStmt {
     match stmt {
         yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
             pattern: runtime_to_finalized_pattern(pattern),
@@ -825,7 +825,7 @@ fn runtime_to_finalized_stmt(stmt: yulang_runtime_lower::Stmt) -> yulang_runtime
 }
 
 fn runtime_to_finalized_pattern(
-    pattern: yulang_runtime_lower::Pattern,
+    pattern: yulang_runtime_types::Pattern,
 ) -> yulang_runtime_ir::FinalizedPattern {
     match pattern {
         yulang_runtime_ir::Pattern::Wildcard { ty } => yulang_runtime_ir::Pattern::Wildcard {
@@ -898,7 +898,7 @@ fn runtime_to_finalized_pattern(
 }
 
 fn runtime_to_finalized_record_spread_expr(
-    spread: yulang_runtime_lower::RecordSpreadExpr,
+    spread: yulang_runtime_types::RecordSpreadExpr,
 ) -> yulang_runtime_ir::FinalizedRecordSpreadExpr {
     match spread {
         yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
@@ -911,7 +911,7 @@ fn runtime_to_finalized_record_spread_expr(
 }
 
 fn runtime_to_finalized_record_spread_pattern(
-    spread: yulang_runtime_lower::RecordSpreadPattern,
+    spread: yulang_runtime_types::RecordSpreadPattern,
 ) -> yulang_runtime_ir::FinalizedRecordSpreadPattern {
     match spread {
         yulang_runtime_ir::RecordSpreadPattern::Head(pattern) => {
@@ -927,15 +927,15 @@ fn runtime_to_finalized_record_spread_pattern(
     }
 }
 
-fn runtime_to_finalized_type(ty: yulang_runtime_lower::Type) -> yulang_runtime_ir::RuntimeType {
+fn runtime_to_finalized_type(ty: yulang_runtime_types::Type) -> yulang_runtime_ir::RuntimeType {
     match ty {
-        yulang_runtime_lower::Type::Unknown => yulang_runtime_ir::RuntimeType::Unknown,
-        yulang_runtime_lower::Type::Value(ty) => runtime_type_from_core_value(ty),
-        yulang_runtime_lower::Type::Fun { param, ret } => yulang_runtime_ir::RuntimeType::Fun {
+        yulang_runtime_types::Type::Unknown => yulang_runtime_ir::RuntimeType::Unknown,
+        yulang_runtime_types::Type::Value(ty) => runtime_type_from_core_value(ty),
+        yulang_runtime_types::Type::Fun { param, ret } => yulang_runtime_ir::RuntimeType::Fun {
             param: Box::new(runtime_to_finalized_type(*param)),
             ret: Box::new(runtime_to_finalized_type(*ret)),
         },
-        yulang_runtime_lower::Type::Thunk { effect, value } => yulang_runtime_ir::RuntimeType::Thunk {
+        yulang_runtime_types::Type::Thunk { effect, value } => yulang_runtime_ir::RuntimeType::Thunk {
             effect,
             value: Box::new(runtime_to_finalized_type(*value)),
         },

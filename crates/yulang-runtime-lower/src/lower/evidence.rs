@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::core_type_contains_unknown;
+use yulang_runtime_types::types::core_type_contains_unknown;
 
 pub(super) fn infer_handle_payload_type(
     primitive_paths: &RuntimePrimitivePathTable,

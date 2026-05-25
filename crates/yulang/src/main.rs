@@ -57,6 +57,8 @@ use yulang_parser::stmt::parse_statement;
 use yulang_parser::typ::parse::parse_type;
 use yulang_parser::{parse_module_to_green, parse_module_to_green_with_ops};
 use yulang_runtime_lower as runtime;
+use yulang_runtime_refine as runtime_refine;
+use yulang_runtime_types as runtime_types;
 use yulang_sources::{
     SourceCompilationUnitOrigin, SourceOrigin, collect_source_files_for_cache_key_with_options,
     collect_source_files_with_options, collect_virtual_source_files_for_cache_key_with_options,
@@ -1510,7 +1512,7 @@ fn run_infer_views(
                 options.runtime_phase_timings,
                 &diagnostic_source,
             );
-            print!("{}", runtime::format_hygiene_module(&lowered.module));
+            print!("{}", runtime_refine::format_hygiene_module(&lowered.module));
             if options.runtime_phase_timings {
                 print_runtime_phase_timings(&lowered.profile, None, None);
             }
@@ -1692,12 +1694,12 @@ struct RuntimeLowerOutput {
 }
 
 struct LegacyRuntimeLowerOutput {
-    module: runtime::Module,
+    module: runtime_types::Module,
     profile: RuntimePhaseProfile,
 }
 
 struct RuntimeFinalizeLowerOutput {
-    module: runtime::ir::LoweredModule,
+    module: runtime_types::ir::LoweredModule,
     profile: RuntimeFinalizePhaseProfile,
 }
 
@@ -4270,7 +4272,7 @@ fn print_core_ir_binding(binding: &typed_ir::PrincipalBinding) {
     println!("    = {}", format_core_expr(&binding.body));
 }
 
-fn print_runtime_module(module: &runtime::Module, verbose: bool) {
+fn print_runtime_module(module: &runtime_types::Module, verbose: bool) {
     if !module.bindings.is_empty() {
         println!("bindings:");
         for binding in &module.bindings {
@@ -4285,7 +4287,7 @@ fn print_runtime_module(module: &runtime::Module, verbose: bool) {
     }
 }
 
-fn print_runtime_binding(binding: &runtime::Binding, verbose: bool) {
+fn print_runtime_binding(binding: &runtime_types::Binding, verbose: bool) {
     println!("  {}", format_core_path(&binding.name));
     if verbose {
         println!("    principal: {}", format_core_scheme(&binding.scheme));
@@ -5054,7 +5056,7 @@ fn format_coerce_evidence(evidence: &typed_ir::CoerceEvidence) -> String {
     text
 }
 
-fn format_runtime_typed_expr(expr: &runtime::Expr, verbose: bool) -> String {
+fn format_runtime_typed_expr(expr: &runtime_types::Expr, verbose: bool) -> String {
     format!(
         "{} : {}",
         format_runtime_expr(expr, verbose),
@@ -5062,18 +5064,18 @@ fn format_runtime_typed_expr(expr: &runtime::Expr, verbose: bool) -> String {
     )
 }
 
-fn format_runtime_type(ty: &runtime::Type) -> String {
+fn format_runtime_type(ty: &runtime_types::Type) -> String {
     match ty {
-        runtime::Type::Unknown => "_".to_string(),
-        runtime::Type::Value(ty) => format_runtime_core_type_inner(ty, true),
-        runtime::Type::Fun { param, ret } => {
+        runtime_types::Type::Unknown => "_".to_string(),
+        runtime_types::Type::Value(ty) => format_runtime_core_type_inner(ty, true),
+        runtime_types::Type::Fun { param, ret } => {
             format!(
                 "{} -> {}",
                 format_runtime_type_atom(param),
                 format_runtime_type(ret)
             )
         }
-        runtime::Type::Thunk { effect, value } => {
+        runtime_types::Type::Thunk { effect, value } => {
             format!(
                 "Thunk[{}, {}]",
                 format_core_type(effect),
@@ -5185,25 +5187,25 @@ fn format_runtime_core_fun_side(ty: &typed_ir::Type) -> String {
     }
 }
 
-fn format_runtime_type_atom(ty: &runtime::Type) -> String {
+fn format_runtime_type_atom(ty: &runtime_types::Type) -> String {
     match ty {
-        runtime::Type::Value(typed_ir::Type::Fun { .. })
-        | runtime::Type::Fun { .. }
-        | runtime::Type::Thunk { .. } => format!("({})", format_runtime_type(ty)),
+        runtime_types::Type::Value(typed_ir::Type::Fun { .. })
+        | runtime_types::Type::Fun { .. }
+        | runtime_types::Type::Thunk { .. } => format!("({})", format_runtime_type(ty)),
         _ => format_runtime_type(ty),
     }
 }
 
-fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
+fn format_runtime_expr(expr: &runtime_types::Expr, verbose: bool) -> String {
     match &expr.kind {
-        runtime::ExprKind::Var(path) => format_core_path(path),
-        runtime::ExprKind::EffectOp(path) => format!("<effect-op {}>", format_core_path(path)),
-        runtime::ExprKind::PrimitiveOp(op) => format!("<primitive {}>", format_primitive_op(*op)),
-        runtime::ExprKind::Lit(lit) => format_core_lit(lit),
-        runtime::ExprKind::Lambda { param, body, .. } => {
+        runtime_types::ExprKind::Var(path) => format_core_path(path),
+        runtime_types::ExprKind::EffectOp(path) => format!("<effect-op {}>", format_core_path(path)),
+        runtime_types::ExprKind::PrimitiveOp(op) => format!("<primitive {}>", format_primitive_op(*op)),
+        runtime_types::ExprKind::Lit(lit) => format_core_lit(lit),
+        runtime_types::ExprKind::Lambda { param, body, .. } => {
             format!("fun {} -> {}", param.0, format_runtime_expr(body, verbose))
         }
-        runtime::ExprKind::Apply {
+        runtime_types::ExprKind::Apply {
             callee,
             arg,
             evidence,
@@ -5225,7 +5227,7 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
             }
             text
         }
-        runtime::ExprKind::If {
+        runtime_types::ExprKind::If {
             cond,
             then_branch,
             else_branch,
@@ -5244,7 +5246,7 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
             }
             text
         }
-        runtime::ExprKind::Tuple(items) => {
+        runtime_types::ExprKind::Tuple(items) => {
             let items = items
                 .iter()
                 .map(|item| format_runtime_expr(item, verbose))
@@ -5252,7 +5254,7 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
                 .join(", ");
             format!("({items})")
         }
-        runtime::ExprKind::Record { fields, spread } => {
+        runtime_types::ExprKind::Record { fields, spread } => {
             let mut items = fields
                 .iter()
                 .map(|field| {
@@ -5268,14 +5270,14 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
             }
             format!("{{{}}}", items.join(", "))
         }
-        runtime::ExprKind::Variant { tag, value } => match value {
+        runtime_types::ExprKind::Variant { tag, value } => match value {
             Some(value) => format!(":{} {}", tag.0, format_runtime_expr_atom(value, verbose)),
             None => format!(":{}", tag.0),
         },
-        runtime::ExprKind::Select { base, field } => {
+        runtime_types::ExprKind::Select { base, field } => {
             format!("{}.{}", format_runtime_expr_atom(base, verbose), field.0)
         }
-        runtime::ExprKind::Match {
+        runtime_types::ExprKind::Match {
             scrutinee,
             arms,
             evidence,
@@ -5291,7 +5293,7 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
             }
             text
         }
-        runtime::ExprKind::Block { stmts, tail } => {
+        runtime_types::ExprKind::Block { stmts, tail } => {
             let mut parts = stmts
                 .iter()
                 .map(|stmt| format_runtime_stmt(stmt, verbose))
@@ -5301,7 +5303,7 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
             }
             format!("do {{ {} }}", parts.join("; "))
         }
-        runtime::ExprKind::Handle {
+        runtime_types::ExprKind::Handle {
             body,
             arms,
             evidence,
@@ -5319,10 +5321,10 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
             }
             text
         }
-        runtime::ExprKind::BindHere { expr } => {
+        runtime_types::ExprKind::BindHere { expr } => {
             format!("bind_here {}", format_runtime_expr_atom(expr, verbose))
         }
-        runtime::ExprKind::Thunk {
+        runtime_types::ExprKind::Thunk {
             effect,
             value,
             expr,
@@ -5334,18 +5336,18 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
                 format_runtime_expr_atom(expr, verbose)
             )
         }
-        runtime::ExprKind::LocalPushId { id, body } => {
+        runtime_types::ExprKind::LocalPushId { id, body } => {
             format!(
                 "local_push_id {} {}",
                 format_runtime_effect_id_var(*id),
                 format_runtime_expr_atom(body, verbose)
             )
         }
-        runtime::ExprKind::PeekId => "peek_id".to_string(),
-        runtime::ExprKind::FindId { id } => {
+        runtime_types::ExprKind::PeekId => "peek_id".to_string(),
+        runtime_types::ExprKind::FindId { id } => {
             format!("find_id {}", format_runtime_effect_id_ref(*id))
         }
-        runtime::ExprKind::AddId {
+        runtime_types::ExprKind::AddId {
             id, allowed, thunk, ..
         } => {
             format!(
@@ -5355,7 +5357,7 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
                 format_runtime_expr_atom(thunk, verbose)
             )
         }
-        runtime::ExprKind::Coerce { from, to, expr } => {
+        runtime_types::ExprKind::Coerce { from, to, expr } => {
             format!(
                 "coerce[{} => {}] {}",
                 format_core_type(from),
@@ -5363,49 +5365,49 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
                 format_runtime_expr_atom(expr, verbose)
             )
         }
-        runtime::ExprKind::Pack { var, expr } => {
+        runtime_types::ExprKind::Pack { var, expr } => {
             format!("pack {} in {}", var.0, format_runtime_expr(expr, verbose))
         }
     }
 }
 
-fn format_runtime_expr_atom(expr: &runtime::Expr, verbose: bool) -> String {
+fn format_runtime_expr_atom(expr: &runtime_types::Expr, verbose: bool) -> String {
     match &expr.kind {
-        runtime::ExprKind::Var(_)
-        | runtime::ExprKind::EffectOp(_)
-        | runtime::ExprKind::PrimitiveOp(_)
-        | runtime::ExprKind::Lit(_)
-        | runtime::ExprKind::PeekId
-        | runtime::ExprKind::Select { .. }
-        | runtime::ExprKind::Record { .. }
-        | runtime::ExprKind::Variant { .. } => format_runtime_expr(expr, verbose),
+        runtime_types::ExprKind::Var(_)
+        | runtime_types::ExprKind::EffectOp(_)
+        | runtime_types::ExprKind::PrimitiveOp(_)
+        | runtime_types::ExprKind::Lit(_)
+        | runtime_types::ExprKind::PeekId
+        | runtime_types::ExprKind::Select { .. }
+        | runtime_types::ExprKind::Record { .. }
+        | runtime_types::ExprKind::Variant { .. } => format_runtime_expr(expr, verbose),
         _ => format!("({})", format_runtime_expr(expr, verbose)),
     }
 }
 
-fn format_runtime_effect_id_ref(id: runtime::EffectIdRef) -> String {
+fn format_runtime_effect_id_ref(id: runtime_types::EffectIdRef) -> String {
     match id {
-        runtime::EffectIdRef::Var(var) => format_runtime_effect_id_var(var),
-        runtime::EffectIdRef::Peek => "peek".to_string(),
+        runtime_types::EffectIdRef::Var(var) => format_runtime_effect_id_var(var),
+        runtime_types::EffectIdRef::Peek => "peek".to_string(),
     }
 }
 
-fn format_runtime_effect_id_var(id: runtime::EffectIdVar) -> String {
+fn format_runtime_effect_id_var(id: runtime_types::EffectIdVar) -> String {
     format!("ae{}", id.0)
 }
 
-fn format_runtime_record_spread_expr(spread: &runtime::RecordSpreadExpr, verbose: bool) -> String {
+fn format_runtime_record_spread_expr(spread: &runtime_types::RecordSpreadExpr, verbose: bool) -> String {
     match spread {
-        runtime::RecordSpreadExpr::Head(expr) => {
+        runtime_types::RecordSpreadExpr::Head(expr) => {
             format!("..{}", format_runtime_expr(expr, verbose))
         }
-        runtime::RecordSpreadExpr::Tail(expr) => {
+        runtime_types::RecordSpreadExpr::Tail(expr) => {
             format!("{}..", format_runtime_expr(expr, verbose))
         }
     }
 }
 
-fn format_runtime_type_instantiation(instantiation: &runtime::TypeInstantiation) -> String {
+fn format_runtime_type_instantiation(instantiation: &runtime_types::TypeInstantiation) -> String {
     let args = instantiation
         .args
         .iter()
@@ -5419,7 +5421,7 @@ fn format_runtime_type_instantiation(instantiation: &runtime::TypeInstantiation)
     )
 }
 
-fn format_runtime_match_arm(arm: &runtime::MatchArm, verbose: bool) -> String {
+fn format_runtime_match_arm(arm: &runtime_types::MatchArm, verbose: bool) -> String {
     let guard = arm
         .guard
         .as_ref()
@@ -5433,7 +5435,7 @@ fn format_runtime_match_arm(arm: &runtime::MatchArm, verbose: bool) -> String {
     )
 }
 
-fn format_runtime_handle_arm(arm: &runtime::HandleArm, verbose: bool) -> String {
+fn format_runtime_handle_arm(arm: &runtime_types::HandleArm, verbose: bool) -> String {
     let resume = arm
         .resume
         .as_ref()
@@ -5460,7 +5462,7 @@ fn format_runtime_handle_arm(arm: &runtime::HandleArm, verbose: bool) -> String 
     )
 }
 
-fn format_runtime_handle_effect(effect: &runtime::HandleEffect) -> String {
+fn format_runtime_handle_effect(effect: &runtime_types::HandleEffect) -> String {
     let consumes = effect
         .consumes
         .iter()
@@ -5480,17 +5482,17 @@ fn format_runtime_handle_effect(effect: &runtime::HandleEffect) -> String {
     format!("handle[consumes=[{consumes}]{}{}]", before, after)
 }
 
-fn format_runtime_stmt(stmt: &runtime::Stmt, verbose: bool) -> String {
+fn format_runtime_stmt(stmt: &runtime_types::Stmt, verbose: bool) -> String {
     match stmt {
-        runtime::Stmt::Let { pattern, value } => {
+        runtime_types::Stmt::Let { pattern, value } => {
             format!(
                 "let {} = {}",
                 format_runtime_pattern(pattern),
                 format_runtime_expr(value, verbose)
             )
         }
-        runtime::Stmt::Expr(expr) => format_runtime_expr(expr, verbose),
-        runtime::Stmt::Module { def, body } => {
+        runtime_types::Stmt::Expr(expr) => format_runtime_expr(expr, verbose),
+        runtime_types::Stmt::Module { def, body } => {
             format!(
                 "module {} = {}",
                 format_core_path(def),
@@ -5500,12 +5502,12 @@ fn format_runtime_stmt(stmt: &runtime::Stmt, verbose: bool) -> String {
     }
 }
 
-fn format_runtime_pattern(pattern: &runtime::Pattern) -> String {
+fn format_runtime_pattern(pattern: &runtime_types::Pattern) -> String {
     match pattern {
-        runtime::Pattern::Wildcard { .. } => "_".to_string(),
-        runtime::Pattern::Bind { name, .. } => name.0.clone(),
-        runtime::Pattern::Lit { lit, .. } => format_core_lit(lit),
-        runtime::Pattern::Tuple { items, .. } => {
+        runtime_types::Pattern::Wildcard { .. } => "_".to_string(),
+        runtime_types::Pattern::Bind { name, .. } => name.0.clone(),
+        runtime_types::Pattern::Lit { lit, .. } => format_core_lit(lit),
+        runtime_types::Pattern::Tuple { items, .. } => {
             let items = items
                 .iter()
                 .map(format_runtime_pattern)
@@ -5513,7 +5515,7 @@ fn format_runtime_pattern(pattern: &runtime::Pattern) -> String {
                 .join(", ");
             format!("({items})")
         }
-        runtime::Pattern::List {
+        runtime_types::Pattern::List {
             prefix,
             spread,
             suffix,
@@ -5529,12 +5531,12 @@ fn format_runtime_pattern(pattern: &runtime::Pattern) -> String {
             items.extend(suffix.iter().map(format_runtime_pattern));
             format!("[{}]", items.join(", "))
         }
-        runtime::Pattern::Record { fields, spread, .. } => {
+        runtime_types::Pattern::Record { fields, spread, .. } => {
             let mut items = fields
                 .iter()
                 .map(|field| match &field.default {
                     Some(default)
-                        if matches!(&field.pattern, runtime::Pattern::Bind { name, .. } if name == &field.name) =>
+                        if matches!(&field.pattern, runtime_types::Pattern::Bind { name, .. } if name == &field.name) =>
                     {
                         format!("{} = {}", field.name.0, format_runtime_expr(default, false))
                     }
@@ -5552,29 +5554,29 @@ fn format_runtime_pattern(pattern: &runtime::Pattern) -> String {
             }
             format!("{{{}}}", items.join(", "))
         }
-        runtime::Pattern::Variant { tag, value, .. } => match value {
+        runtime_types::Pattern::Variant { tag, value, .. } => match value {
             Some(value) => format!(":{} {}", tag.0, format_runtime_pattern(value)),
             None => format!(":{}", tag.0),
         },
-        runtime::Pattern::Or { left, right, .. } => {
+        runtime_types::Pattern::Or { left, right, .. } => {
             format!(
                 "{} | {}",
                 format_runtime_pattern(left),
                 format_runtime_pattern(right)
             )
         }
-        runtime::Pattern::As { pattern, name, .. } => {
+        runtime_types::Pattern::As { pattern, name, .. } => {
             format!("{} as {}", format_runtime_pattern(pattern), name.0)
         }
     }
 }
 
-fn format_runtime_record_spread_pattern(spread: &runtime::RecordSpreadPattern) -> String {
+fn format_runtime_record_spread_pattern(spread: &runtime_types::RecordSpreadPattern) -> String {
     match spread {
-        runtime::RecordSpreadPattern::Head(pattern) => {
+        runtime_types::RecordSpreadPattern::Head(pattern) => {
             format!("..{}", format_runtime_pattern(pattern))
         }
-        runtime::RecordSpreadPattern::Tail(pattern) => {
+        runtime_types::RecordSpreadPattern::Tail(pattern) => {
             format!("{}..", format_runtime_pattern(pattern))
         }
     }
@@ -5978,7 +5980,7 @@ fn line_col(source: &str, offset: usize) -> (usize, usize) {
 }
 
 fn runtime_error_source_frame(
-    error: &runtime::RuntimeError,
+    error: &runtime_types::RuntimeError,
     program: &typed_ir::CoreProgram,
     source: &str,
 ) -> Option<String> {
@@ -5987,10 +5989,10 @@ fn runtime_error_source_frame(
 }
 
 fn runtime_error_source_range(
-    error: &runtime::RuntimeError,
+    error: &runtime_types::RuntimeError,
     evidence: &typed_ir::PrincipalEvidence,
 ) -> Option<typed_ir::SourceRange> {
-    let runtime::RuntimeError::TypeMismatch {
+    let runtime_types::RuntimeError::TypeMismatch {
         context: Some(context),
         ..
     } = error
@@ -5998,12 +6000,12 @@ fn runtime_error_source_range(
         return None;
     };
     let first_edge = match context.phase {
-        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
-        runtime::diagnostic::TypeMismatchPhase::ApplyResult => {
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
+        runtime_types::diagnostic::TypeMismatchPhase::ApplyResult => {
             context.arg_source_edge.or(context.callee_source_edge)
         }
-        runtime::diagnostic::TypeMismatchPhase::Expected => {
+        runtime_types::diagnostic::TypeMismatchPhase::Expected => {
             context.arg_source_edge.or(context.callee_source_edge)
         }
     };
@@ -6385,13 +6387,13 @@ mod tests {
                 handler_matches: Vec::new(),
             },
         };
-        let error = runtime::RuntimeError::TypeMismatch {
+        let error = runtime_types::RuntimeError::TypeMismatch {
             expected: core_type("int"),
             actual: core_type("bool"),
-            source: runtime::TypeSource::ApplyArgumentEvidence,
-            context: Some(runtime::diagnostic::TypeMismatchContext {
+            source: runtime_types::TypeSource::ApplyArgumentEvidence,
+            context: Some(runtime_types::diagnostic::TypeMismatchContext {
                 callee: None,
-                phase: runtime::diagnostic::TypeMismatchPhase::ApplyArgument,
+                phase: runtime_types::diagnostic::TypeMismatchPhase::ApplyArgument,
                 callee_source_edge: None,
                 arg_source_edge: Some(7),
             }),
