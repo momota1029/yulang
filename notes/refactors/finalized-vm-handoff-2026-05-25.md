@@ -606,3 +606,80 @@ cargo test  -q -p yulang-infer                                  # 406/406 PASS
 `live_neg_is_empty_row` のように、`Neg::Top` と `Neg::Row([], top)` を意味的に
 別物として扱うコードが下流にある状態で、freeze 側だけ表現を切り替えると
 制約解決の経路が変わる。今回は format.rs の display 側に集約するのが正解だった。
+
+---
+
+## Claude Code セッション 3 の引き継ぎ（2026-05-25 続き）
+
+### このセッションでやったこと
+
+1. **`pick::loop` の `⊤` 残留問題を解決** (`f1fa81f`, `fc522e5`)
+   - `lower_sig_row_neg` で no-tail の row が `empty_neg_row` (= `Neg::Row([], top)`)
+     を使っていたため、関数 annotation の upper bound だけが Top tail に開いて
+     しまい、handler continuation の effect が外側関数の effect row と切断される。
+   - `lower_effect_ann` がやってる「implicit な `_` tail variable を入れる」
+     アプローチを sig lowering にも移植。Pos/Neg 両方が同じ vars map 経由で
+     共有 TV を引くようにした (`implicit_row_tail_sig_var`)。
+   - さらに `merge_rows` で items が一致する row 同士を tail union で merge
+     するようにして、`[eff; 'e] | [eff; 'f]` → `[eff; 'e | 'f]` の正規化を有効化。
+   - 結果: `pick::loop` の principal が
+     `t597 -[pick; t599 & t604] / []-> list<... bool -⊥ / [pick; t604]-> t597>` に。
+     nested function の effect row から `⊤` が完全消去。
+
+2. **`undet once range` の VM hang は **stale cache** が原因だった**
+   - Codex 2 の handoff が指摘していた
+     `cached_std_finalize_runs_playground_core_examples` の 60+ 秒 hang は、
+     上記の sig row tail 修正と row merge 修正が反映されていない古い
+     `target/yulang/test-cache/std-runtime-ir` を読んでいたため。
+   - cache を消して走らせると 35秒 (cold) / 7秒 (warm) で 5 ケース全 PASS:
+     `undet list`, `undet once range`, `undet pythagorean`, `prelude operators`,
+     `multiple roots`。
+   - CLI 経由でも `each (1..)` / pythagorean が tree VM・control VM 双方で
+     `just 3` / `just (3, 4, 5)` を返すことを確認した。
+
+### `playground_tour` テストの pre-existing 不具合
+
+`cached_std_finalize_runs_playground_tour` および
+`cached_std_legacy_runtime_and_finalize_match_playground_*` 等は
+finalize で `ConflictingBounds` を投げる。エラーの中身:
+
+```
+ConflictingBounds {
+    var: apply_effect#2,
+    previous: Row<[loop::next, loop::last]; Never>,
+    next:     Union<Row<[sub]; Never>, Row<[loop::last, loop::next]; Never>>,
+}
+```
+
+`f1fa81f` / `fc522e5` を revert しても再現するので、私の修正とは無関係に
+ベースから残っていた問題。playground tour の中の
+`sub: for x in 0..: if x == 5: return x else: ()` が `loop::next/last` と
+`sub` の effect row を同じ apply に集約するところで、closed row `[next, last]`
+と open-shape の union が衝突している。次の人へのタスク。
+
+### 触ったファイル一覧
+
+- `crates/yulang-infer/src/lower/signature/lower.rs` (implicit row tail SigVar)
+- `crates/yulang-infer/src/simplify/compact.rs` (`merge_rows` で同 items を tail union)
+- `crates/yulang-infer/src/display/dump.rs` (テスト期待値を `[label_loop; ⊤]` 形式に更新)
+- `crates/yulang-infer/src/tests.rs` (`handler_continuation_in_queue_principal_avoids_top_in_effect_row` 追加)
+- `notes/refactors/finalized-vm-handoff-2026-05-25.md` (この記録)
+
+### 通った確認
+
+```sh
+cargo test  -q -p yulang-infer                                # 407/407 PASS
+cargo check -q -p yulang-wasm                                  # std loading 通る
+cargo test  -q -p yulang-vm vm_runs_std_undet_each_and_once_from_prelude
+cargo test  -q -p yulang-runtime-finalize cached_std_finalize_runs_playground_core_examples
+cargo test  -q -p yulang-runtime-finalize cached_std_legacy_runtime_and_finalize_match_playground_core_examples
+```
+
+### まだ残ってる課題
+
+- 上述の `playground_tour` 系 `ConflictingBounds` (pre-existing)
+- `pick::loop` で `t599 & t604` のような変数 intersection が残る点。
+  fn type で挟まれてる sandwich パターンだが、bounds の中身が完全一致ではない
+  ため既存の `apply_exact_sandwich_removal` では落とせない。
+  「invariant 型変数」扱いになるので無理に潰すと不健全になる可能性があり、
+  当面はこのまま残す方針 (ユーザ判断)。
