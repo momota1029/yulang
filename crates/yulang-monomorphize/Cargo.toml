@@ -1,9 +1,9 @@
 [package]
-name = "yulang-runtime-finalize"
+name = "yulang-monomorphize"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Runtime type finalization and monomorphization planning for Yulang"
+description = "Monomorphization (type graph finalization) pass for Yulang"
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 publish = false

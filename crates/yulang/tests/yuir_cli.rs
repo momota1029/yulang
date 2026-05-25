@@ -86,7 +86,7 @@ fn run_uses_basic_host_output_without_status_line() {
 #[test]
 fn run_can_use_runtime_finalize_mainline_path() {
     let source_path = std::env::temp_dir().join(format!(
-        "yulang-runtime-finalize-cli-{}-{}.yu",
+        "yulang-monomorphize-cli-{}-{}.yu",
         std::process::id(),
         unique_suffix()
     ));
@@ -114,11 +114,11 @@ fn run_can_use_runtime_finalize_mainline_path() {
 fn run_can_use_runtime_finalize_mainline_path_with_std() {
     let suffix = unique_suffix();
     let cache_root = std::env::temp_dir().join(format!(
-        "yulang-runtime-finalize-cli-cache-{}-{suffix}",
+        "yulang-monomorphize-cli-cache-{}-{suffix}",
         std::process::id()
     ));
     let source_path = std::env::temp_dir().join(format!(
-        "yulang-runtime-finalize-cli-std-{}-{suffix}.yu",
+        "yulang-monomorphize-cli-std-{}-{suffix}.yu",
         std::process::id()
     ));
     let std_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib/std");

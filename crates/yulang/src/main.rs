@@ -1468,7 +1468,7 @@ fn run_infer_views(
                 options.runtime_phase_timings,
                 &diagnostic_source,
             );
-            match yulang_runtime_finalize::finalize_module(lowered.module) {
+            match yulang_monomorphize::finalize_module(lowered.module) {
                 Ok(output) => println!("{:#?}", output.module),
                 Err(err) => {
                     eprintln!("runtime-finalize error: {err:?}");
@@ -1785,7 +1785,7 @@ fn lower_runtime_module_or_exit(
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
     let (module, monomorphize_profile) =
-        match yulang_runtime_finalize::finalize_monomorphize_module(module) {
+        match yulang_monomorphize::finalize_monomorphize_module(module) {
             Ok(module) => (module, runtime::MonomorphizeProfile::default()),
             Err(err) => {
                 eprintln!("error: {err}");
@@ -1834,7 +1834,7 @@ fn lower_legacy_runtime_module_or_exit(
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
     let (module, monomorphize_profile) =
-        match yulang_runtime_finalize::finalize_monomorphize_legacy_runtime_module(module) {
+        match yulang_monomorphize::finalize_monomorphize_legacy_runtime_module(module) {
             Ok(module) => (module, runtime::MonomorphizeProfile::default()),
             Err(err) => {
                 eprintln!("error: {err}");

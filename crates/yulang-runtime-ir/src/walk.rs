@@ -12,7 +12,7 @@ use crate::{Expr, ExprKind, Pattern, RecordSpreadExpr, RecordSpreadPattern, Stmt
 ///
 /// Match/Handle arm patterns are intentionally not traversed: their record
 /// defaults are not reachable in well-formed runtime IR. This matches the
-/// behavior of every existing visitor in `yulang-runtime-finalize`.
+/// behavior of every existing visitor in `yulang-monomorphize`.
 pub fn walk_children<T, F: FnMut(&Expr<T>)>(expr: &Expr<T>, mut f: F) {
     walk_children_impl(expr, &mut f);
 }

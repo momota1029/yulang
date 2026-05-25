@@ -2140,9 +2140,9 @@ dependencies = [
  "unicode-ident",
  "yulang-editor",
  "yulang-infer",
+ "yulang-monomorphize",
  "yulang-parser",
  "yulang-runtime",
- "yulang-runtime-finalize",
  "yulang-runtime-ir",
  "yulang-sources",
  "yulang-typed-ir",
@@ -2154,8 +2154,8 @@ name = "yulang-compile"
 version = "0.1.0"
 dependencies = [
  "yulang-infer",
+ "yulang-monomorphize",
  "yulang-runtime",
- "yulang-runtime-finalize",
  "yulang-runtime-ir",
  "yulang-sources",
 ]
@@ -2192,6 +2192,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang-monomorphize"
+version = "0.1.0"
+dependencies = [
+ "postcard",
+ "serde",
+ "yulang-compile",
+ "yulang-infer",
+ "yulang-runtime",
+ "yulang-runtime-ir",
+ "yulang-sources",
+ "yulang-typed-ir",
+ "yulang-vm",
+]
+
+[[package]]
 name = "yulang-parser"
 version = "0.1.2"
 dependencies = [
@@ -2212,21 +2227,6 @@ dependencies = [
  "serde",
  "yulang-runtime-ir",
  "yulang-typed-ir",
-]
-
-[[package]]
-name = "yulang-runtime-finalize"
-version = "0.1.0"
-dependencies = [
- "postcard",
- "serde",
- "yulang-compile",
- "yulang-infer",
- "yulang-runtime",
- "yulang-runtime-ir",
- "yulang-sources",
- "yulang-typed-ir",
- "yulang-vm",
 ]
 
 [[package]]
@@ -2285,8 +2285,8 @@ dependencies = [
  "wasm-bindgen",
  "yulang-editor",
  "yulang-infer",
+ "yulang-monomorphize",
  "yulang-runtime",
- "yulang-runtime-finalize",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",

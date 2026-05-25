@@ -6,7 +6,7 @@ members = [
   "crates/yulang-sources",
   "crates/yulang-typed-ir",
   "crates/yulang-runtime-ir",
-  "crates/yulang-runtime-finalize",
+  "crates/yulang-monomorphize",
   "crates/yulang-runtime",
   "crates/yulang-vm",
   "crates/yulang-compile",
