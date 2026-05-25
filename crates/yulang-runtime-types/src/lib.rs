@@ -6,7 +6,10 @@
 //! effect-row utilities used by the lower and refine passes.
 
 pub mod diagnostic;
+mod runtime_intrinsic;
 pub mod types;
+
+pub use runtime_intrinsic::binding_is_parametric_runtime_intrinsic;
 
 pub mod ir {
     pub use yulang_runtime_ir::RuntimeType as Type;

@@ -2,12 +2,12 @@ use std::collections::BTreeSet;
 
 use yulang_typed_ir as typed_ir;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::ir::{
+use yulang_runtime_types::diagnostic::{RuntimeError, RuntimeResult};
+use yulang_runtime_types::ir::{
     Expr, ExprKind, HandleEffect, JoinEvidence, MatchArm, Module, Pattern, RecordExprField,
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, Stmt, Type as RuntimeType,
 };
-use crate::types::{core_type_is_runtime_projection_fallback, type_compatible};
+use yulang_runtime_types::types::{core_type_is_runtime_projection_fallback, type_compatible};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeStage {
@@ -480,7 +480,7 @@ impl InvariantChecker {
 
     fn type_instantiation(
         &mut self,
-        instantiation: &crate::ir::TypeInstantiation,
+        instantiation: &yulang_runtime_types::ir::TypeInstantiation,
         context: String,
     ) -> RuntimeResult<()> {
         for (index, substitution) in instantiation.args.iter().enumerate() {
@@ -785,7 +785,7 @@ fn core_type_has_runtime_fallback_in_value_position(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{Binding, EffectIdRef, Root};
+    use yulang_runtime_types::ir::{Binding, EffectIdRef, Root};
 
     #[test]
     fn accepts_add_id_that_does_not_wrap_thunk_as_noop() {

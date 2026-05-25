@@ -1,7 +1,7 @@
 use yulang_typed_ir as typed_ir;
 
-use crate::ir::{EffectIdRef, EffectIdVar, Expr, ExprKind, HandleEffect, Module, Stmt};
-use crate::types::{effect_path, effect_paths};
+use yulang_runtime_types::ir::{EffectIdRef, EffectIdVar, Expr, ExprKind, HandleEffect, Module, Stmt};
+use yulang_runtime_types::types::{effect_path, effect_paths};
 
 pub fn format_hygiene_module(module: &Module) -> String {
     let mut out = String::new();
@@ -107,8 +107,8 @@ fn format_hygiene_expr_into(expr: &Expr, indent: usize, out: &mut String) {
             }
             if let Some(spread) = spread {
                 match spread {
-                    crate::ir::RecordSpreadExpr::Head(expr)
-                    | crate::ir::RecordSpreadExpr::Tail(expr) => {
+                    yulang_runtime_types::ir::RecordSpreadExpr::Head(expr)
+                    | yulang_runtime_types::ir::RecordSpreadExpr::Tail(expr) => {
                         format_hygiene_expr_into(expr, indent + 1, out);
                     }
                 }
@@ -222,7 +222,7 @@ fn format_path(path: &typed_ir::Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{Expr, ExprKind, Type as RuntimeType};
+    use yulang_runtime_types::ir::{Expr, ExprKind, Type as RuntimeType};
 
     fn named_type(name: &str) -> typed_ir::Type {
         typed_ir::Type::Named {
@@ -289,7 +289,7 @@ mod tests {
                     RuntimeType::value(named_type("__effect_id")),
                 )),
                 arms: Vec::new(),
-                evidence: crate::ir::JoinEvidence {
+                evidence: yulang_runtime_types::ir::JoinEvidence {
                     result: named_type("unit"),
                 },
                 handler: HandleEffect {

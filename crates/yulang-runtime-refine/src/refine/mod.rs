@@ -9,13 +9,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_typed_ir as typed_ir;
 
-use crate::diagnostic::RuntimeResult;
-use crate::ir::{
+use yulang_runtime_types::diagnostic::RuntimeResult;
+use yulang_runtime_types::ir::{
     Binding, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern, RecordExprField,
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Stmt,
     Type as RuntimeType,
 };
-use crate::types::{
+use yulang_runtime_types::types::{
     TypeChoice, choose_core_type, collect_hir_type_vars, collect_type_vars, effect_is_empty,
     effect_paths, effect_paths_match, effect_row, hir_type_has_vars,
     is_nullary_constructor_path_for_type, needs_runtime_coercion, project_runtime_bounds,

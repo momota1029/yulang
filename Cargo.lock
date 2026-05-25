@@ -2226,6 +2226,7 @@ version = "0.1.1"
 dependencies = [
  "serde",
  "yulang-runtime-ir",
+ "yulang-runtime-refine",
  "yulang-runtime-types",
  "yulang-typed-ir",
 ]
@@ -2235,6 +2236,15 @@ name = "yulang-runtime-ir"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "yulang-typed-ir",
+]
+
+[[package]]
+name = "yulang-runtime-refine"
+version = "0.1.0"
+dependencies = [
+ "yulang-runtime-ir",
+ "yulang-runtime-types",
  "yulang-typed-ir",
 ]
 

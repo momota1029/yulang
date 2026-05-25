@@ -501,7 +501,7 @@ pub(super) fn effect_id_type() -> typed_ir::Type {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, Module, Root, Type};
+    use yulang_runtime_types::ir::{Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, Module, Root, Type};
 
     #[test]
     fn thunk_type_allows_effect_row() {
@@ -591,20 +591,20 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![Expr::typed(
                 ExprKind::Block {
-                    stmts: vec![crate::ir::Stmt::Let {
-                        pattern: crate::ir::Pattern::Record {
+                    stmts: vec![yulang_runtime_types::ir::Stmt::Let {
+                        pattern: yulang_runtime_types::ir::Pattern::Record {
                             fields: vec![
-                                crate::ir::RecordPatternField {
+                                yulang_runtime_types::ir::RecordPatternField {
                                     name: typed_ir::Name("base".to_string()),
-                                    pattern: crate::ir::Pattern::Bind {
+                                    pattern: yulang_runtime_types::ir::Pattern::Bind {
                                         name: typed_ir::Name("base".to_string()),
                                         ty: Type::value(int.clone()),
                                     },
                                     default: None,
                                 },
-                                crate::ir::RecordPatternField {
+                                yulang_runtime_types::ir::RecordPatternField {
                                     name: typed_ir::Name("extra".to_string()),
-                                    pattern: crate::ir::Pattern::Bind {
+                                    pattern: yulang_runtime_types::ir::Pattern::Bind {
                                         name: typed_ir::Name("extra".to_string()),
                                         ty: Type::value(int.clone()),
                                     },
@@ -619,7 +619,7 @@ mod tests {
                         },
                         value: Expr::typed(
                             ExprKind::Record {
-                                fields: vec![crate::ir::RecordExprField {
+                                fields: vec![yulang_runtime_types::ir::RecordExprField {
                                     name: typed_ir::Name("base".to_string()),
                                     value: Expr::typed(
                                         ExprKind::Lit(typed_ir::Lit::Int("3".to_string())),
@@ -662,7 +662,7 @@ mod tests {
                     body: Box::new(body),
                     arms: vec![HandleArm {
                         effect: typed_ir::Path::default(),
-                        payload: crate::ir::Pattern::Wildcard {
+                        payload: yulang_runtime_types::ir::Pattern::Wildcard {
                             ty: Type::value(int.clone()),
                         },
                         resume: None,
@@ -706,7 +706,7 @@ mod tests {
                     body: Box::new(body),
                     arms: vec![HandleArm {
                         effect: effect.clone(),
-                        payload: crate::ir::Pattern::Wildcard {
+                        payload: yulang_runtime_types::ir::Pattern::Wildcard {
                             ty: Type::value(int.clone()),
                         },
                         resume: None,
