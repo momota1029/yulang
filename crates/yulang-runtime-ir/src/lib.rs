@@ -7,6 +7,8 @@
 use serde::{Deserialize, Serialize};
 use yulang_typed_ir as typed_ir;
 
+pub mod walk;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Module {
     pub path: typed_ir::Path,
