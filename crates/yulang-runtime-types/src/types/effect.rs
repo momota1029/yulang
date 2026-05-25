@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
+pub fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
     !effect_is_empty(effect) && !core_type_is_unknown(effect) && !core_type_is_top(effect)
 }
 
@@ -13,7 +13,7 @@ pub fn effect_is_empty(effect: &typed_ir::Type) -> bool {
     }
 }
 
-pub(crate) fn type_is_effect_like(ty: &typed_ir::Type) -> bool {
+pub fn type_is_effect_like(ty: &typed_ir::Type) -> bool {
     match ty {
         typed_ir::Type::Row { .. } => true,
         typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
@@ -24,7 +24,7 @@ pub(crate) fn type_is_effect_like(ty: &typed_ir::Type) -> bool {
     }
 }
 
-pub(crate) fn effect_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
+pub fn effect_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     if core_type_contains_unknown(expected) || core_type_contains_unknown(actual) {
         return true;
     }
@@ -56,13 +56,13 @@ pub(crate) fn effect_compatible(expected: &typed_ir::Type, actual: &typed_ir::Ty
     })
 }
 
-pub(crate) fn effect_paths(effect: &typed_ir::Type) -> Vec<typed_ir::Path> {
+pub fn effect_paths(effect: &typed_ir::Type) -> Vec<typed_ir::Path> {
     let mut paths = Vec::new();
     collect_effect_paths(effect, &mut paths);
     paths
 }
 
-pub(crate) fn collect_effect_paths(effect: &typed_ir::Type, paths: &mut Vec<typed_ir::Path>) {
+pub fn collect_effect_paths(effect: &typed_ir::Type, paths: &mut Vec<typed_ir::Path>) {
     match effect {
         typed_ir::Type::Row { items, tail } => {
             for item in items {
@@ -89,14 +89,14 @@ pub(crate) fn collect_effect_paths(effect: &typed_ir::Type, paths: &mut Vec<type
     }
 }
 
-pub(crate) fn effect_path(ty: &typed_ir::Type) -> Option<typed_ir::Path> {
+pub fn effect_path(ty: &typed_ir::Type) -> Option<typed_ir::Path> {
     match ty {
         typed_ir::Type::Named { path, .. } => Some(path.clone()),
         _ => None,
     }
 }
 
-pub(crate) fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
+pub fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
     left == right
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
@@ -129,7 +129,7 @@ fn effect_has_open_var(effect: &typed_ir::Type) -> bool {
     }
 }
 
-pub(crate) fn effect_row(items: Vec<typed_ir::Type>, tail: typed_ir::Type) -> typed_ir::Type {
+pub fn effect_row(items: Vec<typed_ir::Type>, tail: typed_ir::Type) -> typed_ir::Type {
     if items.is_empty() {
         return tail;
     }
@@ -139,6 +139,6 @@ pub(crate) fn effect_row(items: Vec<typed_ir::Type>, tail: typed_ir::Type) -> ty
     }
 }
 
-pub(crate) fn effect_row_from_items(items: Vec<typed_ir::Type>) -> typed_ir::Type {
+pub fn effect_row_from_items(items: Vec<typed_ir::Type>) -> typed_ir::Type {
     effect_row(items, typed_ir::Type::Never)
 }

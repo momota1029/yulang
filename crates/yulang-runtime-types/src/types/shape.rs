@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) fn core_types_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
+pub fn core_types_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     if type_compatible(expected, actual) || (effect_is_empty(expected) && effect_is_empty(actual)) {
         return true;
     }
@@ -24,7 +24,7 @@ pub(crate) fn core_types_compatible(expected: &typed_ir::Type, actual: &typed_ir
     }
 }
 
-pub(crate) fn is_qualified_runtime_path(path: &typed_ir::Path) -> bool {
+pub fn is_qualified_runtime_path(path: &typed_ir::Path) -> bool {
     path.segments.len() > 1
         || path
             .segments
@@ -32,14 +32,14 @@ pub(crate) fn is_qualified_runtime_path(path: &typed_ir::Path) -> bool {
             .is_some_and(|segment| segment.0.contains("::"))
 }
 
-pub(crate) fn thunk_effect(ty: &RuntimeType) -> Option<typed_ir::Type> {
+pub fn thunk_effect(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
         _ => None,
     }
 }
 
-pub(crate) fn is_nullary_constructor_path_for_type(
+pub fn is_nullary_constructor_path_for_type(
     path: &typed_ir::Path,
     ty: &RuntimeType,
 ) -> bool {
@@ -57,7 +57,7 @@ pub(crate) fn is_nullary_constructor_path_for_type(
             .all(|(left, right)| left == right)
 }
 
-pub(crate) fn hir_type_has_vars(ty: &RuntimeType) -> bool {
+pub fn hir_type_has_vars(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => false,
         RuntimeType::Value(ty) => core_type_has_vars(ty),
@@ -68,13 +68,13 @@ pub(crate) fn hir_type_has_vars(ty: &RuntimeType) -> bool {
     }
 }
 
-pub(crate) fn core_type_has_vars(ty: &typed_ir::Type) -> bool {
+pub fn core_type_has_vars(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     !vars.is_empty()
 }
 
-pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+pub fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_hir_type_vars(&expr.ty, vars);
     match &expr.kind {
         ExprKind::Lambda { body, .. } => collect_expr_type_vars(body, vars),
@@ -255,7 +255,7 @@ fn collect_handle_effect_type_vars(
     }
 }
 
-pub(crate) fn collect_stmt_type_vars(stmt: &Stmt, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+pub fn collect_stmt_type_vars(stmt: &Stmt, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match stmt {
         Stmt::Let { pattern, value } => {
             collect_pattern_type_vars(pattern, vars);
@@ -265,7 +265,7 @@ pub(crate) fn collect_stmt_type_vars(stmt: &Stmt, vars: &mut BTreeSet<typed_ir::
     }
 }
 
-pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+pub fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match pattern {
         Pattern::Wildcard { ty }
         | Pattern::Bind { ty, .. }
@@ -331,7 +331,7 @@ pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<t
     }
 }
 
-pub(crate) fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+pub fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
         RuntimeType::Unknown => {}
         RuntimeType::Value(ty) => collect_type_vars(ty, vars),

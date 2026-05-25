@@ -1,10 +1,10 @@
 use super::*;
 
-pub(crate) fn type_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
+pub fn type_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     type_compatible_with_order(&typed_ir::PrimitiveTypeOrder::standard(), expected, actual)
 }
 
-pub(crate) fn type_compatible_with_order(
+pub fn type_compatible_with_order(
     primitive_order: &typed_ir::PrimitiveTypeOrder,
     expected: &typed_ir::Type,
     actual: &typed_ir::Type,
@@ -12,11 +12,11 @@ pub(crate) fn type_compatible_with_order(
     type_compatible_inner_with_order(primitive_order, expected, actual, 128)
 }
 
-pub(crate) fn needs_runtime_coercion(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
+pub fn needs_runtime_coercion(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     needs_runtime_coercion_with_order(&typed_ir::PrimitiveTypeOrder::standard(), expected, actual)
 }
 
-pub(crate) fn needs_runtime_coercion_with_order(
+pub fn needs_runtime_coercion_with_order(
     primitive_order: &typed_ir::PrimitiveTypeOrder,
     expected: &typed_ir::Type,
     actual: &typed_ir::Type,

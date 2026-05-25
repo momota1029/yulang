@@ -10,4 +10,5 @@ readme = "../../README.md"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 yulang-runtime-ir = { path = "../yulang-runtime-ir" }
+yulang-runtime-types = { path = "../yulang-runtime-types" }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }

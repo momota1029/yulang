@@ -1,11 +1,11 @@
 use super::*;
 
-pub(crate) fn strict_core_type(ty: &RuntimeType) -> &typed_ir::Type {
+pub fn strict_core_type(ty: &RuntimeType) -> &typed_ir::Type {
     ty.as_value()
         .expect("runtime IR expected a first-order core type")
 }
 
-pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> typed_ir::Type {
+pub fn diagnostic_core_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
         RuntimeType::Unknown => typed_ir::Type::Unknown,
         RuntimeType::Value(ty) => ty.clone(),
@@ -19,7 +19,7 @@ pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> typed_ir::Type {
     }
 }
 
-pub(crate) fn runtime_core_type(ty: &RuntimeType) -> typed_ir::Type {
+pub fn runtime_core_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
         RuntimeType::Unknown => typed_ir::Type::Unknown,
         RuntimeType::Value(ty) => ty.clone(),

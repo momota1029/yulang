@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use yulang_runtime::RuntimeError;
-use yulang_runtime::types::effect_is_empty;
+use yulang_runtime_types::types::effect_is_empty;
 use yulang_runtime_ir::{
     EffectIdRef, EffectIdVar, FinalizedBinding as Binding, FinalizedExpr as Expr,
     FinalizedExprKind as ExprKind, FinalizedHandleArm as HandleArm, FinalizedMatchArm as MatchArm,

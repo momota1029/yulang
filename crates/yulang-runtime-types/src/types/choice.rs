@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BoundsChoice {
+pub enum BoundsChoice {
     RuntimeValue,
     VisiblePrincipal,
     TirEvidence,
@@ -10,13 +10,13 @@ pub(crate) enum BoundsChoice {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TypeChoice {
+pub enum TypeChoice {
     RuntimeValue,
     VisiblePrincipal,
     Substitution,
 }
 
-pub(crate) fn choose_bounds_type(
+pub fn choose_bounds_type(
     bounds: &typed_ir::TypeBounds,
     choice: BoundsChoice,
 ) -> Option<typed_ir::Type> {
@@ -27,7 +27,7 @@ pub(crate) fn choose_bounds_type(
     )
 }
 
-pub(crate) fn choose_bounds_pair(
+pub fn choose_bounds_pair(
     lower: Option<typed_ir::Type>,
     upper: Option<typed_ir::Type>,
     choice: BoundsChoice,
@@ -41,7 +41,7 @@ pub(crate) fn choose_bounds_pair(
     }
 }
 
-pub(crate) fn choose_core_type(
+pub fn choose_core_type(
     left: typed_ir::Type,
     right: typed_ir::Type,
     choice: TypeChoice,
@@ -53,7 +53,7 @@ pub(crate) fn choose_core_type(
     }
 }
 
-pub(crate) fn choose_optional_core_type(
+pub fn choose_optional_core_type(
     left: Option<typed_ir::Type>,
     right: Option<typed_ir::Type>,
     choice: TypeChoice,
@@ -65,7 +65,7 @@ pub(crate) fn choose_optional_core_type(
     }
 }
 
-pub(crate) fn choose_core_type_candidate(
+pub fn choose_core_type_candidate(
     current: Option<typed_ir::Type>,
     candidate: typed_ir::Type,
     choice: TypeChoice,
@@ -76,11 +76,11 @@ pub(crate) fn choose_core_type_candidate(
     }
 }
 
-pub(crate) fn core_type_is_hole(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_hole(ty: &typed_ir::Type) -> bool {
     core_type_is_inference_hole(ty)
 }
 
-pub(crate) fn hir_type_is_hole(ty: &RuntimeType) -> bool {
+pub fn hir_type_is_hole(ty: &RuntimeType) -> bool {
     runtime_type_is_inference_hole(ty)
 }
 
@@ -133,7 +133,7 @@ fn type_hole_count(ty: &typed_ir::Type) -> usize {
     }
 }
 
-pub(crate) fn type_imprecision_count(ty: &typed_ir::Type) -> usize {
+pub fn type_imprecision_count(ty: &typed_ir::Type) -> usize {
     match ty {
         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_) => 1,
         typed_ir::Type::Named { args, .. } => args.iter().map(type_arg_imprecision_count).sum(),
@@ -184,7 +184,7 @@ pub(crate) fn type_imprecision_count(ty: &typed_ir::Type) -> usize {
     }
 }
 
-pub(crate) fn hir_type_imprecision_count(ty: &RuntimeType) -> usize {
+pub fn hir_type_imprecision_count(ty: &RuntimeType) -> usize {
     match ty {
         RuntimeType::Unknown => 1,
         RuntimeType::Value(ty) => type_imprecision_count(ty),
@@ -197,7 +197,7 @@ pub(crate) fn hir_type_imprecision_count(ty: &RuntimeType) -> usize {
     }
 }
 
-pub(crate) fn type_choice_rank(ty: &typed_ir::Type, choice: TypeChoice) -> u8 {
+pub fn type_choice_rank(ty: &typed_ir::Type, choice: TypeChoice) -> u8 {
     match ty {
         typed_ir::Type::Fun { .. } => 8,
         typed_ir::Type::Tuple(_) | typed_ir::Type::Record(_) | typed_ir::Type::Variant(_) => 7,

@@ -5,29 +5,29 @@ pub(super) fn project_runtime_type(ty: &typed_ir::Type) -> typed_ir::Type {
     RuntimeTypeProjector::new(&BTreeSet::new()).project(ty)
 }
 
-pub(crate) fn project_runtime_effect(ty: &typed_ir::Type) -> typed_ir::Type {
+pub fn project_runtime_effect(ty: &typed_ir::Type) -> typed_ir::Type {
     RuntimeTypeProjector::new(&BTreeSet::new()).project_effect(ty)
 }
 
-pub(crate) fn project_runtime_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
+pub fn project_runtime_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
     RuntimeTypeProjector::new(&BTreeSet::new()).project_bounds(bounds)
 }
 
-pub(crate) fn project_runtime_type_with_vars(
+pub fn project_runtime_type_with_vars(
     ty: &typed_ir::Type,
     allowed_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> typed_ir::Type {
     RuntimeTypeProjector::new(allowed_vars).project(ty)
 }
 
-pub(crate) fn project_runtime_hint_type_with_vars(
+pub fn project_runtime_hint_type_with_vars(
     ty: &typed_ir::Type,
     allowed_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> typed_ir::Type {
     RuntimeTypeProjector::new(allowed_vars).project_hint(ty)
 }
 
-pub(crate) fn project_runtime_hir_type_with_vars(
+pub fn project_runtime_hir_type_with_vars(
     ty: &typed_ir::Type,
     allowed_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> RuntimeType {

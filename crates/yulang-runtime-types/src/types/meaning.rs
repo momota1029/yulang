@@ -7,14 +7,14 @@ use super::*;
 /// `Unknown` is an internal evidence/projection hole. It must not be accepted
 /// as a completed principal substitution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CoreTypeMeaning {
+pub enum CoreTypeMeaning {
     Unknown,
     Top,
     InferenceVar,
     Other,
 }
 
-pub(crate) fn core_type_meaning(ty: &typed_ir::Type) -> CoreTypeMeaning {
+pub fn core_type_meaning(ty: &typed_ir::Type) -> CoreTypeMeaning {
     match ty {
         typed_ir::Type::Unknown => CoreTypeMeaning::Unknown,
         typed_ir::Type::Any => CoreTypeMeaning::Top,
@@ -23,26 +23,26 @@ pub(crate) fn core_type_meaning(ty: &typed_ir::Type) -> CoreTypeMeaning {
     }
 }
 
-pub(crate) fn core_type_is_inference_hole(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_inference_hole(ty: &typed_ir::Type) -> bool {
     matches!(
         core_type_meaning(ty),
         CoreTypeMeaning::Unknown | CoreTypeMeaning::InferenceVar
     )
 }
 
-pub(crate) fn core_type_is_unknown(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_unknown(ty: &typed_ir::Type) -> bool {
     matches!(core_type_meaning(ty), CoreTypeMeaning::Unknown)
 }
 
-pub(crate) fn core_type_is_top(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_top(ty: &typed_ir::Type) -> bool {
     matches!(core_type_meaning(ty), CoreTypeMeaning::Top)
 }
 
-pub(crate) fn core_type_is_inference_var(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_inference_var(ty: &typed_ir::Type) -> bool {
     matches!(core_type_meaning(ty), CoreTypeMeaning::InferenceVar)
 }
 
-pub(crate) fn core_type_is_never(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_never(ty: &typed_ir::Type) -> bool {
     matches!(ty, typed_ir::Type::Never)
         || matches!(
             ty,
@@ -52,21 +52,21 @@ pub(crate) fn core_type_is_never(ty: &typed_ir::Type) -> bool {
         )
 }
 
-pub(crate) fn runtime_type_is_inference_hole(ty: &RuntimeType) -> bool {
+pub fn runtime_type_is_inference_hole(ty: &RuntimeType) -> bool {
     matches!(
         ty,
         RuntimeType::Unknown | RuntimeType::Value(typed_ir::Type::Unknown | typed_ir::Type::Var(_))
     )
 }
 
-pub(crate) fn core_type_is_imprecise_runtime_slot(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_imprecise_runtime_slot(ty: &typed_ir::Type) -> bool {
     matches!(
         core_type_meaning(ty),
         CoreTypeMeaning::Unknown | CoreTypeMeaning::Top | CoreTypeMeaning::InferenceVar
     )
 }
 
-pub(crate) fn runtime_type_is_imprecise_runtime_slot(ty: &RuntimeType) -> bool {
+pub fn runtime_type_is_imprecise_runtime_slot(ty: &RuntimeType) -> bool {
     matches!(
         ty,
         RuntimeType::Unknown
@@ -76,19 +76,19 @@ pub(crate) fn runtime_type_is_imprecise_runtime_slot(ty: &RuntimeType) -> bool {
     )
 }
 
-pub(crate) fn core_type_is_runtime_projection_fallback(ty: &typed_ir::Type) -> bool {
+pub fn core_type_is_runtime_projection_fallback(ty: &typed_ir::Type) -> bool {
     matches!(core_type_meaning(ty), CoreTypeMeaning::Unknown)
 }
 
-pub(crate) fn wildcard_effect_type() -> typed_ir::Type {
+pub fn wildcard_effect_type() -> typed_ir::Type {
     typed_ir::Type::Any
 }
 
-pub(crate) fn runtime_projection_fallback_type() -> typed_ir::Type {
+pub fn runtime_projection_fallback_type() -> typed_ir::Type {
     typed_ir::Type::Unknown
 }
 
-pub(crate) fn runtime_type_contains_unknown(ty: &RuntimeType) -> bool {
+pub fn runtime_type_contains_unknown(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
         RuntimeType::Value(ty) => core_type_contains_unknown(ty),
@@ -101,7 +101,7 @@ pub(crate) fn runtime_type_contains_unknown(ty: &RuntimeType) -> bool {
     }
 }
 
-pub(crate) fn core_type_contains_unknown(ty: &typed_ir::Type) -> bool {
+pub fn core_type_contains_unknown(ty: &typed_ir::Type) -> bool {
     match ty {
         typed_ir::Type::Unknown => true,
         typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => false,
@@ -148,7 +148,7 @@ pub(crate) fn core_type_contains_unknown(ty: &typed_ir::Type) -> bool {
     }
 }
 
-pub(crate) fn core_type_contains_top(ty: &typed_ir::Type) -> bool {
+pub fn core_type_contains_top(ty: &typed_ir::Type) -> bool {
     match ty {
         typed_ir::Type::Any => true,
         typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Var(_) => false,

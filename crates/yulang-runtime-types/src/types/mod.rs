@@ -17,16 +17,16 @@ mod runtime;
 mod shape;
 mod substitution;
 
-pub(crate) use choice::*;
-pub(crate) use compat::*;
-pub(crate) use core_view::*;
+pub use choice::*;
+pub use compat::*;
+pub use core_view::*;
 pub use effect::effect_is_empty;
-pub(crate) use effect::*;
-pub(crate) use meaning::*;
-pub(crate) use project::*;
-pub(crate) use runtime::*;
-pub(crate) use shape::*;
-pub(crate) use substitution::*;
+pub use effect::*;
+pub use meaning::*;
+pub use project::*;
+pub use runtime::*;
+pub use shape::*;
+pub use substitution::*;
 
 #[cfg(test)]
 mod tests {

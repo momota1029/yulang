@@ -69,7 +69,7 @@ impl std::ops::DerefMut for Subst {
     }
 }
 
-pub(crate) fn infer_type_substitutions(
+pub fn infer_type_substitutions(
     template: &typed_ir::Type,
     actual: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -85,7 +85,7 @@ pub(crate) fn infer_type_substitutions(
     );
 }
 
-pub(crate) fn infer_type_substitutions_prefer_non_never(
+pub fn infer_type_substitutions_prefer_non_never(
     template: &typed_ir::Type,
     actual: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -101,7 +101,7 @@ pub(crate) fn infer_type_substitutions_prefer_non_never(
     );
 }
 
-pub(crate) fn infer_type_substitutions_prefer_non_never_skip_empty_effects(
+pub fn infer_type_substitutions_prefer_non_never_skip_empty_effects(
     template: &typed_ir::Type,
     actual: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -117,14 +117,14 @@ pub(crate) fn infer_type_substitutions_prefer_non_never_skip_empty_effects(
     );
 }
 
-pub(crate) fn substitute_type(
+pub fn substitute_type(
     ty: &typed_ir::Type,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::Type {
     substitute_type_inner(ty, substitutions, &mut BTreeSet::new(), &BTreeSet::new())
 }
 
-pub(crate) fn close_type_substitution_map_recursively(
+pub fn close_type_substitution_map_recursively(
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> usize {
     let vars = substitutions.keys().cloned().collect::<Vec<_>>();
@@ -148,7 +148,7 @@ pub(crate) fn close_type_substitution_map_recursively(
     changed
 }
 
-pub(crate) fn retain_acyclic_type_substitutions(
+pub fn retain_acyclic_type_substitutions(
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> usize {
     let vars = substitutions.keys().cloned().collect::<Vec<_>>();
@@ -698,7 +698,7 @@ fn rename_bound_type_arg_var(
     }
 }
 
-pub(crate) fn substitute_hir_type(
+pub fn substitute_hir_type(
     ty: &RuntimeType,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> RuntimeType {
@@ -716,7 +716,7 @@ pub(crate) fn substitute_hir_type(
     }
 }
 
-pub(crate) fn substitute_scheme(
+pub fn substitute_scheme(
     scheme: typed_ir::Scheme,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::Scheme {
@@ -730,7 +730,7 @@ pub(crate) fn substitute_scheme(
     }
 }
 
-pub(crate) fn substitute_role_requirement(
+pub fn substitute_role_requirement(
     requirement: typed_ir::RoleRequirement,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::RoleRequirement {
@@ -754,7 +754,7 @@ pub(crate) fn substitute_role_requirement(
     }
 }
 
-pub(crate) fn substitute_apply_evidence(
+pub fn substitute_apply_evidence(
     evidence: typed_ir::ApplyEvidence,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::ApplyEvidence {
@@ -904,14 +904,14 @@ fn substitute_principal_elaboration_plan_slots(
     }
 }
 
-pub(crate) fn normalize_principal_elaboration_plan(
+pub fn normalize_principal_elaboration_plan(
     plan: typed_ir::PrincipalElaborationPlan,
     substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
 ) -> typed_ir::PrincipalElaborationPlan {
     normalize_principal_elaboration_plan_with_requirements(plan, substitution_candidates, &[])
 }
 
-pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
+pub fn normalize_principal_elaboration_plan_with_requirements(
     plan: typed_ir::PrincipalElaborationPlan,
     substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
     requirements: &[typed_ir::RoleRequirement],
@@ -924,7 +924,7 @@ pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
     )
 }
 
-pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
+pub fn normalize_principal_elaboration_plan_with_role_impls(
     plan: typed_ir::PrincipalElaborationPlan,
     substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
     requirements: &[typed_ir::RoleRequirement],
@@ -1657,7 +1657,7 @@ fn principal_plan_slot_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bo
         && !type_has_vars(ty)
 }
 
-pub(crate) fn insert_exact_projected_substitution(
+pub fn insert_exact_projected_substitution(
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     var: typed_ir::TypeVar,
@@ -2503,7 +2503,7 @@ fn unique_candidate_type<'a>(
     choice.map_or(CandidateTypeChoice::None, CandidateTypeChoice::One)
 }
 
-pub(crate) fn project_closed_substitutions_from_type(
+pub fn project_closed_substitutions_from_type(
     template: &typed_ir::Type,
     actual: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -2765,7 +2765,7 @@ fn projection_choice_item_matches_actual(
     }
 }
 
-pub(crate) fn project_closed_substitutions_from_type_bounds(
+pub fn project_closed_substitutions_from_type_bounds(
     template: &typed_ir::Type,
     actual: &typed_ir::TypeBounds,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -3273,7 +3273,7 @@ fn principal_plan_function_slot_usable(ty: &typed_ir::Type, allow_never: bool) -
         && (allow_never || !core_type_is_never(current))
 }
 
-pub(crate) fn substitute_join_evidence(
+pub fn substitute_join_evidence(
     evidence: JoinEvidence,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> JoinEvidence {
@@ -3282,7 +3282,7 @@ pub(crate) fn substitute_join_evidence(
     }
 }
 
-pub(crate) fn substitute_bounds(
+pub fn substitute_bounds(
     bounds: typed_ir::TypeBounds,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::TypeBounds {
@@ -3602,7 +3602,7 @@ pub(super) fn infer_effect_row_substitutions(
     );
 }
 
-pub(crate) fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+pub fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
     match (left, right) {
         (
             typed_ir::Type::Named { path, .. },

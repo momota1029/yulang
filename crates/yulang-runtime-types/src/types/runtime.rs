@@ -1,25 +1,25 @@
 use super::*;
 
-pub(crate) fn contains_non_runtime_type(ty: &typed_ir::Type) -> bool {
+pub fn contains_non_runtime_type(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     contains_non_runtime_type_with_vars(ty, &vars)
 }
 
-pub(crate) fn contains_non_runtime_effect_type(ty: &typed_ir::Type) -> bool {
+pub fn contains_non_runtime_effect_type(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     contains_non_runtime_type_inner(ty, true, &vars)
 }
 
-pub(crate) fn contains_non_runtime_type_with_vars(
+pub fn contains_non_runtime_type_with_vars(
     ty: &typed_ir::Type,
     allowed_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> bool {
     contains_non_runtime_type_inner(ty, false, allowed_vars)
 }
 
-pub(crate) fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+pub fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_type_vars_inner(ty, vars, &BTreeSet::new());
 }
 
