@@ -2140,7 +2140,6 @@ dependencies = [
  "unicode-ident",
  "yulang-editor",
  "yulang-infer",
- "yulang-native",
  "yulang-parser",
  "yulang-runtime",
  "yulang-runtime-finalize",
@@ -2190,15 +2189,6 @@ name = "yulang-ls"
 version = "0.1.2"
 dependencies = [
  "yulang",
-]
-
-[[package]]
-name = "yulang-native"
-version = "0.1.1"
-dependencies = [
- "yulang-runtime",
- "yulang-typed-ir",
- "yulang-vm",
 ]
 
 [[package]]

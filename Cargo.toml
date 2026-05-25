@@ -10,7 +10,6 @@ members = [
   "crates/yulang-runtime",
   "crates/yulang-vm",
   "crates/yulang-compile",
-  "crates/yulang-native",
   "crates/yulang-editor",
   "crates/yulang-wasm",
   "crates/yulang-infer",
