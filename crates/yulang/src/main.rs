@@ -1706,7 +1706,6 @@ struct RuntimePhaseProfile {
     lower: Duration,
     lower_profile: runtime::RuntimeLowerProfile,
     monomorphize: Duration,
-    monomorphize_profile: runtime::MonomorphizeProfile,
 }
 
 #[derive(Default)]
@@ -1784,20 +1783,18 @@ fn lower_runtime_module_or_exit(
     };
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
-    let (module, monomorphize_profile) =
-        match yulang_monomorphize::monomorphize_module(module) {
-            Ok(module) => (module, runtime::MonomorphizeProfile::default()),
-            Err(err) => {
-                eprintln!("error: {err}");
-                process::exit(1);
-            }
-        };
+    let module = match yulang_monomorphize::monomorphize_module(module) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("error: {err}");
+            process::exit(1);
+        }
+    };
     let monomorphize = mono_start.elapsed();
     let profile = RuntimePhaseProfile {
         lower,
         lower_profile,
         monomorphize,
-        monomorphize_profile,
     };
     RuntimeLowerOutput { module, profile }
 }
@@ -1833,20 +1830,18 @@ fn lower_legacy_runtime_module_or_exit(
     };
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
-    let (module, monomorphize_profile) =
-        match yulang_monomorphize::monomorphize_to_legacy_runtime_module(module) {
-            Ok(module) => (module, runtime::MonomorphizeProfile::default()),
-            Err(err) => {
-                eprintln!("error: {err}");
-                process::exit(1);
-            }
-        };
+    let module = match yulang_monomorphize::monomorphize_to_legacy_runtime_module(module) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("error: {err}");
+            process::exit(1);
+        }
+    };
     let monomorphize = mono_start.elapsed();
     let profile = RuntimePhaseProfile {
         lower,
         lower_profile,
         monomorphize,
-        monomorphize_profile,
     };
     LegacyRuntimeLowerOutput { module, profile }
 }
@@ -1988,12 +1983,6 @@ fn print_runtime_phase_timings(
         "    monomorphize: {}",
         format_duration(profile.monomorphize)
     );
-    eprintln!(
-        "    mono_passes: {}, effective_passes: {}, specializations: {}",
-        profile.monomorphize_profile.pass_count(),
-        profile.monomorphize_profile.effective_pass_count(),
-        profile.monomorphize_profile.added_specializations()
-    );
     let core_shape = &profile.lower_profile.core_shape;
     eprintln!(
         "    core_shape: exprs={}, applies={}, apply_complete={}, apply_partial={}, apply_missing_evidence={}, apply_missing_context={}, apply_missing_principal={}, apply_with_principal={}, apply_with_substitutions={}, apply_with_substitution_candidates={}, apply_with_principal_elaboration={}, apply_principal_elaboration_complete={}, apply_principal_elaboration_incomplete={}",
@@ -2091,70 +2080,6 @@ fn print_runtime_phase_timings(
         derived_evidence.contravariant,
         derived_evidence.invariant,
     );
-    let demand_queue = profile.monomorphize_profile.demand_queue_profile();
-    eprintln!(
-        "    demand_queue: attempted={}, pushed={}, pushed_open={}, pushed_closed={}, skipped_duplicate={}, skipped_covered_by_closed={}",
-        demand_queue.attempted,
-        demand_queue.pushed,
-        demand_queue.pushed_open,
-        demand_queue.pushed_closed,
-        demand_queue.skipped_duplicate,
-        demand_queue.skipped_covered_by_closed,
-    );
-    let demand_evidence = &profile.monomorphize_profile.demand_evidence;
-    eprintln!(
-        "    demand_evidence: apply_arg_calls={}, expected_arg_disabled={}, expected_arg_present={}, expected_arg_converted={}, expected_arg_used={}, expected_arg_changed_signature={}, expected_arg_same_signature={}, expected_arg_rejected_open={}, apply_callee_calls={}, expected_callee_disabled={}, expected_callee_present={}, expected_callee_converted={}, expected_callee_used={}, expected_callee_changed_param_signature={}, expected_callee_same_param_signature={}, expected_callee_rejected_open={}, expected_callee_rejected_non_function={}",
-        demand_evidence.apply_arg_signature_calls,
-        demand_evidence.expected_arg_hint_disabled,
-        demand_evidence.expected_arg_hint_present,
-        demand_evidence.expected_arg_hint_converted,
-        demand_evidence.expected_arg_hint_used,
-        demand_evidence.expected_arg_hint_changed_signature,
-        demand_evidence.expected_arg_hint_same_signature,
-        demand_evidence.expected_arg_hint_rejected_open,
-        demand_evidence.apply_callee_signature_calls,
-        demand_evidence.expected_callee_hint_disabled,
-        demand_evidence.expected_callee_hint_present,
-        demand_evidence.expected_callee_hint_converted,
-        demand_evidence.expected_callee_hint_used,
-        demand_evidence.expected_callee_hint_changed_param_signature,
-        demand_evidence.expected_callee_hint_same_param_signature,
-        demand_evidence.expected_callee_hint_rejected_open,
-        demand_evidence.expected_callee_hint_rejected_non_function,
-    );
-    eprintln!("    monomorphize_passes:");
-    for pass in &profile.monomorphize_profile.passes {
-        let added_paths = pass
-            .added_binding_paths
-            .iter()
-            .map(format_core_path)
-            .collect::<Vec<_>>()
-            .join(", ");
-        eprintln!(
-            "        {}: duration={}, bindings {}->{}, roots {}->{}, changed_bindings={}, changed_roots={}, added_specializations={}, queue_attempted={}, queue_pushed={}, added=[{}]",
-            pass.name,
-            format_duration(pass.duration),
-            pass.bindings_before,
-            pass.bindings_after,
-            pass.roots_before,
-            pass.roots_after,
-            pass.progress.changed_bindings,
-            pass.progress.changed_roots,
-            pass.progress.added_specializations,
-            pass.demand_queue.attempted,
-            pass.demand_queue.pushed,
-            added_paths,
-        );
-        for specialization in &pass.added_specializations {
-            eprintln!(
-                "            specialization {} <= {} :: {:?}",
-                format_core_path(&specialization.path),
-                format_core_path(&specialization.target),
-                specialization.solved,
-            );
-        }
-        print_principal_elaborate_profile(pass);
-    }
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));
     }
@@ -2163,221 +2088,6 @@ fn print_runtime_phase_timings(
     }
 }
 
-fn print_principal_elaborate_profile(profile: &runtime::MonomorphizePassProfile) {
-    let subst = &profile.principal_elaborate;
-    if subst.stats.is_empty()
-        && subst.timings.is_empty()
-        && subst.target_skips.is_empty()
-        && subst.target_rewrites.is_empty()
-    {
-        return;
-    }
-    let mut stats = subst.stats.iter().collect::<Vec<_>>();
-    stats.sort_by(|(left_key, left_count), (right_key, right_count)| {
-        right_count
-            .cmp(left_count)
-            .then_with(|| left_key.cmp(right_key))
-    });
-    let stats = stats
-        .into_iter()
-        .take(16)
-        .map(|(key, count)| format!("{key}={count}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    eprintln!("            principal_elaborate: {stats}");
-    if !subst.timings.is_empty() {
-        let mut timings = subst.timings.iter().collect::<Vec<_>>();
-        timings.sort_by(|(left_key, left_duration), (right_key, right_duration)| {
-            right_duration
-                .cmp(left_duration)
-                .then_with(|| left_key.cmp(right_key))
-        });
-        let timings = timings
-            .into_iter()
-            .take(12)
-            .map(|(key, duration)| format!("{key}={}", format_duration(*duration)))
-            .collect::<Vec<_>>()
-            .join(", ");
-        eprintln!("                timings: {timings}");
-    }
-    let surviving_actionable_skips = subst
-        .target_skips
-        .iter()
-        .filter(|target| target.actionable && target.survives_final_prune == Some(true))
-        .count();
-    let surviving_benign_skips = subst
-        .target_skips
-        .iter()
-        .filter(|target| !target.actionable && target.survives_final_prune == Some(true))
-        .count();
-    if surviving_actionable_skips > 0 || surviving_benign_skips > 0 {
-        eprintln!(
-            "                skip_reachability surviving_actionable_targets={} surviving_benign_targets={}",
-            surviving_actionable_skips, surviving_benign_skips
-        );
-    }
-    for target in subst.target_skips.iter().take(12) {
-        let total = target
-            .reasons
-            .iter()
-            .map(|reason| reason.count)
-            .sum::<usize>();
-        let reasons = target
-            .reasons
-            .iter()
-            .map(|reason| format!("{}={}", reason.reason, reason.count))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let missing_vars = target
-            .missing_vars
-            .iter()
-            .take(8)
-            .map(|var| format!("{}={}", var.var.0, var.count))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let no_complete_causes = target
-            .no_complete_causes
-            .iter()
-            .map(|cause| format!("{}={}", cause.reason, cause.count))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let survives_final_prune = match target.survives_final_prune {
-            Some(true) => "yes",
-            Some(false) => "no",
-            None => "unknown",
-        };
-        eprintln!(
-            "                skip_target {} total={} survives_final_prune={} actionable={} reasons=[{}] missing_vars=[{}] no_complete_causes=[{}]",
-            format_core_path(&target.target),
-            total,
-            survives_final_prune,
-            if target.actionable { "yes" } else { "no" },
-            reasons,
-            missing_vars,
-            no_complete_causes,
-        );
-    }
-    for target in subst.target_rewrites.iter().take(12) {
-        let contexts = target
-            .contexts
-            .iter()
-            .take(6)
-            .map(|context| format!("{}={}", context.context, context.count))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let phases = target
-            .phases
-            .iter()
-            .take(4)
-            .map(|phase| format!("{}={}", phase.phase, format_duration(phase.duration)))
-            .collect::<Vec<_>>()
-            .join(", ");
-        eprintln!(
-            "                rewrite_target {} visits={} rewrites={} cached_incomplete={} incomplete={} max_depth={} contexts=[{}] phases=[{}]",
-            format_core_path(&target.target),
-            target.total_apply_visits,
-            target.rewrites,
-            target.cached_incomplete,
-            target.incomplete,
-            target.max_specialization_depth,
-            contexts,
-            phases,
-        );
-    }
-    let mut phase_targets = subst
-        .target_rewrites
-        .iter()
-        .filter(|target| !target.phases.is_empty())
-        .map(|target| {
-            let total = target
-                .phases
-                .iter()
-                .map(|phase| phase.duration)
-                .sum::<Duration>();
-            (target, total)
-        })
-        .collect::<Vec<_>>();
-    phase_targets.sort_by(|(left, left_total), (right, right_total)| {
-        right_total
-            .cmp(left_total)
-            .then_with(|| format_core_path(&left.target).cmp(&format_core_path(&right.target)))
-    });
-    for (target, total) in phase_targets.into_iter().take(12) {
-        let phases = target
-            .phases
-            .iter()
-            .take(4)
-            .map(|phase| format!("{}={}", phase.phase, format_duration(phase.duration)))
-            .collect::<Vec<_>>()
-            .join(", ");
-        eprintln!(
-            "                rewrite_phase_target {} total={} rewrites={} phases=[{}]",
-            format_core_path(&target.target),
-            format_duration(total),
-            target.rewrites,
-            phases,
-        );
-    }
-    let mut expr_kind_targets = subst
-        .target_rewrites
-        .iter()
-        .filter(|target| !target.expr_kinds.is_empty())
-        .map(|target| {
-            let total = target
-                .expr_kinds
-                .iter()
-                .map(|kind| kind.duration)
-                .sum::<Duration>();
-            (target, total)
-        })
-        .collect::<Vec<_>>();
-    expr_kind_targets.sort_by(|(left, left_total), (right, right_total)| {
-        right_total
-            .cmp(left_total)
-            .then_with(|| format_core_path(&left.target).cmp(&format_core_path(&right.target)))
-    });
-    for (target, total) in expr_kind_targets.into_iter().take(12) {
-        let kinds = target
-            .expr_kinds
-            .iter()
-            .take(8)
-            .map(|kind| {
-                format!(
-                    "{}={}({})",
-                    kind.kind,
-                    format_duration(kind.duration),
-                    kind.count
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        eprintln!(
-            "                rewrite_expr_kind_target {} total={} kinds=[{}]",
-            format_core_path(&target.target),
-            format_duration(total),
-            kinds,
-        );
-    }
-    for target in subst.target_inferences.iter().take(12) {
-        let total = target
-            .sources
-            .iter()
-            .map(|source| source.count)
-            .sum::<usize>();
-        let sources = target
-            .sources
-            .iter()
-            .map(|source| format!("{}={}", source.source, source.count))
-            .collect::<Vec<_>>()
-            .join(", ");
-        eprintln!(
-            "                infer_target {} total={} sources=[{}]",
-            format_core_path(&target.target),
-            total,
-            sources,
-        );
-    }
-}
 
 fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile) {
     if adapters.events.is_empty() {
@@ -6723,35 +6433,6 @@ mod tests {
             infer_missing_record_field_message(&pos, "width"),
             "record field `width` may be missing, but a required field was expected",
         );
-    }
-
-    // TODO: pre-existing test using legacy runtime::monomorphize_module_profiled
-    // with stale Type-stage parameterization. baseline 4483322 has the same compile
-    // error — disabled with cfg(any()) so the test binary still builds.
-    #[cfg(any())]
-    #[test]
-    fn top_level_projected_var_assignment_runs() {
-        run_with_large_stack(|| {
-            let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = yulang_infer::lower_virtual_source_with_options(
-                "my $xs = [2, 3, 4]\n&xs[1] = 6\n$xs\n",
-                Some(repo_root),
-                SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("lowered source");
-            let program = export_core_program(&mut lowered.state);
-            let module = runtime::lower_core_program(program).expect("lowered runtime IR");
-            let (module, _) = runtime::monomorphize_module_profiled(module).expect("monomorphized");
-            let vm = runtime_vm::compile_vm_module(module).expect("compiled VM module");
-            let results = vm.eval_roots().expect("evaluated roots");
-            assert_eq!(results.len(), 1);
-            assert_eq!(format_runtime_vm_result(&results[0]), "[2, 6, 4]");
-        });
     }
 
     #[test]
