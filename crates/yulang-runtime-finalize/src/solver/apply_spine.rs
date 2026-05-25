@@ -16,7 +16,6 @@
 //!     spine's value arguments (`collect_spine_substitutions`,
 //!     `default_spine_evidence_substitutions`)
 //!   - exposes predicates the rest of the pipeline needs:
-//!     `expr_handles_path`, `binding_handles_first_param`,
 //!     `apply_evidence_return_value`, `apply_evidence_returns_never_value`.
 //!
 //! The `ApplySpine` / `ApplyStep` types are the shared representation for the
@@ -24,7 +23,10 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
+    FinalizedModule as Module, FinalizedType as RuntimeType, Root,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::{
@@ -623,8 +625,9 @@ pub(crate) fn solve_simple_apply(
     } else {
         solved_expr_result_type(&expr.ty, &graph, current)
     };
-    let callee_type = solved_callee_runtime_type(binding, &principal, &graph);
-    let callee_type = super::restore_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
+    let callee_type = solved_callee_finalized_type(binding, &principal, &graph);
+    let callee_type =
+        super::finalized_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
     let callee_type =
         super::refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
     let type_substitutions = principal.original_substitutions(&graph);
@@ -650,65 +653,16 @@ pub(crate) fn solve_monomorphic_contextual_apply(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     alias_index: usize,
 ) -> Option<RootGraphSolution> {
-    if !binding_handles_first_param(binding) {
-        return None;
-    }
-    let base_callee_type = binding.body.ty.clone();
-    let callee_type =
-        super::restore_apply_spine_arg_effects(base_callee_type.clone(), &spine.steps, local_types);
-    if callee_type == base_callee_type || !super::runtime_type_is_closed(&callee_type) {
-        return None;
-    }
-    let result_type = expr_lower_type(expr, local_types);
-    let result_type = if super::runtime_type_is_closed(&result_type) {
-        result_type
-    } else {
-        super::runtime_spine_return(&callee_type, spine.steps.len())?
-    };
-    let callee_type =
-        super::refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
-    Some(RootGraphSolution {
-        root: owner,
-        occurrence: alias_index,
-        binding: binding_path.clone(),
-        alias: rewrite::alias_path(binding_path, alias_index),
-        callee_type,
-        result_type,
-        graph: crate::GraphSolution {
-            type_vars: Vec::new(),
-        },
-        type_substitutions: Vec::new(),
-    })
-}
-
-fn binding_handles_first_param(binding: &Binding) -> bool {
-    let ExprKind::Lambda { param, body, .. } = &binding.body.kind else {
-        return false;
-    };
-    let param_path = super::path_from_name(param);
-    expr_handles_path(body, &param_path)
-}
-
-fn expr_handles_path(expr: &Expr, path: &typed_ir::Path) -> bool {
-    if let ExprKind::Handle { body, arms, .. } = &expr.kind {
-        return expr_references_path(body, path)
-            || arms.iter().any(|arm| {
-                arm.guard
-                    .as_ref()
-                    .is_some_and(|guard| expr_handles_path(guard, path))
-                    || expr_handles_path(&arm.body, path)
-            });
-    }
-    yulang_runtime_ir::walk::walk_children_any(expr, |child| expr_handles_path(child, path))
-}
-
-fn expr_references_path(expr: &Expr, path: &typed_ir::Path) -> bool {
-    if let ExprKind::Var(p) | ExprKind::EffectOp(p) = &expr.kind {
-        if p == path {
-            return true;
-        }
-    }
-    yulang_runtime_ir::walk::walk_children_any(expr, |child| expr_references_path(child, path))
+    let _ = (
+        owner,
+        expr,
+        binding_path,
+        binding,
+        spine,
+        local_types,
+        alias_index,
+    );
+    None
 }
 
 fn solved_expr_result_type(
@@ -724,7 +678,7 @@ fn solved_expr_result_type(
     }
 }
 
-fn solved_callee_runtime_type(
+fn solved_callee_finalized_type(
     binding: &Binding,
     principal: &crate::PrincipalInstance,
     graph: &crate::GraphSolution,
@@ -736,7 +690,7 @@ fn solved_callee_runtime_type(
         &principal.original_substitutions(graph),
     );
     if super::runtime_type_is_closed(&materialized) {
-        super::restore_runtime_effect_boundaries(materialized, &principal_runtime)
+        super::finalized_effect_boundaries_from_principal(materialized, &principal_runtime)
     } else {
         principal_runtime
     }
@@ -910,14 +864,14 @@ fn apply_callee_lower_bound(ty: RuntimeType) -> RuntimeType {
             effect,
             value: Box::new(apply_callee_lower_bound(*value)),
         },
-        RuntimeType::Core(ty) => RuntimeType::Core(apply_callee_lower_core_bound(ty)),
+        RuntimeType::Value(ty) => RuntimeType::Value(apply_callee_lower_core_bound(ty)),
         ty => ty,
     }
 }
 
 fn unconstrain_top_param_runtime_bound(ty: RuntimeType) -> RuntimeType {
     match ty {
-        RuntimeType::Core(ty) => RuntimeType::Core(unconstrain_top_param_core_bound(ty)),
+        RuntimeType::Value(ty) => RuntimeType::Value(unconstrain_top_param_core_bound(ty)),
         RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
             effect,
             value: Box::new(unconstrain_top_param_runtime_bound(*value)),
@@ -968,7 +922,10 @@ pub(crate) struct ApplyStep<'a> {
 }
 
 impl ApplyStep<'_> {
-    pub(crate) fn arg_type(&self, local_types: &HashMap<typed_ir::Path, RuntimeType>) -> typed_ir::Type {
+    pub(crate) fn arg_type(
+        &self,
+        local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> typed_ir::Type {
         self.arg_type_and_effect(local_types).0
     }
 
@@ -1030,7 +987,8 @@ impl ApplyStep<'_> {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { effect, value } => {
                 if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
-                    graph.constrain_subtype(result, super::runtime_type_to_core((*value).clone()))?;
+                    graph
+                        .constrain_subtype(result, super::runtime_type_to_core((*value).clone()))?;
                 }
                 let evidence_returns_never = self
                     .evidence
@@ -1173,17 +1131,17 @@ fn apply_evidence_return_value(evidence: &typed_ir::ApplyEvidence) -> Option<typ
 
 fn runtime_type_value_is_function(ty: &RuntimeType) -> bool {
     match ty {
-        RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. }) => true,
+        RuntimeType::Fun { .. } | RuntimeType::Value(typed_ir::Type::Fun { .. }) => true,
         RuntimeType::Thunk { value, .. } => runtime_type_value_is_function(value),
-        RuntimeType::Unknown | RuntimeType::Core(_) => false,
+        RuntimeType::Unknown | RuntimeType::Value(_) => false,
     }
 }
 
 fn runtime_type_is_never_value(ty: &RuntimeType) -> bool {
     match ty {
-        RuntimeType::Core(typed_ir::Type::Never) => true,
+        RuntimeType::Value(typed_ir::Type::Never) => true,
         RuntimeType::Thunk { value, .. } => runtime_type_is_never_value(value),
-        RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Core(_) => false,
+        RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Value(_) => false,
     }
 }
 
@@ -1252,7 +1210,9 @@ fn apply_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> 
         .or_else(|| type_from_bounds(&evidence.arg))
 }
 
-pub(crate) fn apply_observed_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+pub(crate) fn apply_observed_arg_type(
+    evidence: &typed_ir::ApplyEvidence,
+) -> Option<typed_ir::Type> {
     type_from_bounds(&evidence.arg)
 }
 
@@ -1266,7 +1226,7 @@ pub(crate) fn type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir
 
 fn collect_record_spread_graphs(
     owner: RootGraphRoot,
-    spread: &yulang_runtime_ir::RecordSpreadExpr,
+    spread: &yulang_runtime_ir::FinalizedRecordSpreadExpr,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
@@ -1274,8 +1234,8 @@ fn collect_record_spread_graphs(
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     match spread {
-        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
-        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => collect_expr_graphs(
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => collect_expr_graphs(
             owner,
             expr,
             bindings,
@@ -1289,7 +1249,7 @@ fn collect_record_spread_graphs(
 
 fn collect_stmt_graphs(
     owner: RootGraphRoot,
-    stmt: &yulang_runtime_ir::Stmt,
+    stmt: &yulang_runtime_ir::FinalizedStmt,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
@@ -1297,7 +1257,7 @@ fn collect_stmt_graphs(
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
     match stmt {
-        yulang_runtime_ir::Stmt::Let { pattern, value } => {
+        yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
             collect_pattern_graphs(
                 owner.clone(),
                 pattern,
@@ -1317,8 +1277,8 @@ fn collect_stmt_graphs(
                 solutions,
             )
         }
-        yulang_runtime_ir::Stmt::Expr(expr)
-        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => collect_expr_graphs(
+        yulang_runtime_ir::FinalizedStmt::Expr(expr)
+        | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => collect_expr_graphs(
             owner,
             expr,
             bindings,
@@ -1332,14 +1292,14 @@ fn collect_stmt_graphs(
 
 fn collect_pattern_graphs(
     owner: RootGraphRoot,
-    pattern: &yulang_runtime_ir::Pattern,
+    pattern: &yulang_runtime_ir::FinalizedPattern,
     bindings: &HashMap<typed_ir::Path, &Binding>,
     role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> FinalizeResult<()> {
-    use yulang_runtime_ir::Pattern;
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
 
     match pattern {
         Pattern::Tuple { items, .. } => {
@@ -1422,8 +1382,8 @@ fn collect_pattern_graphs(
             }
             if let Some(spread) = spread {
                 match spread {
-                    yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
-                    | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+                    yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => {
                         collect_pattern_graphs(
                             owner,
                             pattern,
@@ -1486,10 +1446,10 @@ fn collect_pattern_graphs(
 }
 
 pub(crate) fn collect_stmt_local_types(
-    stmt: &yulang_runtime_ir::Stmt,
+    stmt: &yulang_runtime_ir::FinalizedStmt,
     local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) {
-    let yulang_runtime_ir::Stmt::Let { pattern, value } = stmt else {
+    let yulang_runtime_ir::FinalizedStmt::Let { pattern, value } = stmt else {
         return;
     };
     let scrutinee_ty = expr_lower_type(value, local_types);
@@ -1497,11 +1457,11 @@ pub(crate) fn collect_stmt_local_types(
 }
 
 pub(crate) fn collect_pattern_local_types(
-    pattern: &yulang_runtime_ir::Pattern,
+    pattern: &yulang_runtime_ir::FinalizedPattern,
     scrutinee_ty: Option<&RuntimeType>,
     local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) {
-    use yulang_runtime_ir::Pattern;
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
 
     match pattern {
         Pattern::Bind { name, ty } => {
@@ -1536,8 +1496,8 @@ pub(crate) fn collect_pattern_local_types(
             }
             if let Some(spread) = spread {
                 match spread {
-                    yulang_runtime_ir::RecordSpreadPattern::Head(pattern)
-                    | yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
+                    yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => {
                         collect_pattern_local_types(pattern, None, local_types);
                     }
                 }
@@ -1582,12 +1542,12 @@ fn tuple_component_runtime_types(
         .filter(|t| !super::runtime_type_has_unknown(t))
         .cloned();
     let chosen = preferred.unwrap_or_else(|| pattern_ty.clone());
-    if let RuntimeType::Core(typed_ir::Type::Tuple(items)) = &chosen
+    if let RuntimeType::Value(typed_ir::Type::Tuple(items)) = &chosen
         && items.len() == arity
     {
         return items
             .iter()
-            .map(|t| Some(RuntimeType::Core(t.clone())))
+            .map(|t| Some(RuntimeType::Value(t.clone())))
             .collect();
     }
     vec![None; arity]
@@ -1615,7 +1575,10 @@ pub(crate) fn binding_local_types(binding: &Binding) -> HashMap<typed_ir::Path, 
     local_types
 }
 
-pub(crate) fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path, RuntimeType>) -> RuntimeType {
+pub(crate) fn expr_lower_type(
+    expr: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> RuntimeType {
     if let ExprKind::Var(path) = &expr.kind
         && let Some(ty) = local_types.get(path)
     {
@@ -1626,4 +1589,3 @@ pub(crate) fn expr_lower_type(expr: &Expr, local_types: &HashMap<typed_ir::Path,
     }
     RuntimeType::Unknown
 }
-

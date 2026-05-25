@@ -2155,6 +2155,7 @@ version = "0.1.0"
 dependencies = [
  "yulang-infer",
  "yulang-runtime",
+ "yulang-runtime-finalize",
  "yulang-sources",
 ]
 
@@ -2291,6 +2292,7 @@ dependencies = [
  "yulang-editor",
  "yulang-infer",
  "yulang-runtime",
+ "yulang-runtime-finalize",
  "yulang-sources",
  "yulang-typed-ir",
  "yulang-vm",

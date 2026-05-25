@@ -16,6 +16,7 @@ pub enum SourceRuntimeError {
     SourceLoad(SourceLoadError),
     SurfaceDiagnostics(Vec<String>),
     RuntimeLower(yulang_runtime::RuntimeError),
+    RuntimeFinalize(yulang_runtime_finalize::FinalizeMonomorphizeError),
     RuntimeMerge(yulang_infer::CompiledRuntimeMergeError),
     DependencyCacheMiss,
     DependencyCacheRead(yulang_infer::CompiledUnitArtifactCacheError),
@@ -29,6 +30,7 @@ impl fmt::Display for SourceRuntimeError {
                 write!(f, "{}", messages.join("\n"))
             }
             SourceRuntimeError::RuntimeLower(error) => write!(f, "{error}"),
+            SourceRuntimeError::RuntimeFinalize(error) => write!(f, "{error}"),
             SourceRuntimeError::RuntimeMerge(error) => {
                 write!(
                     f,
@@ -56,6 +58,12 @@ impl From<SourceLoadError> for SourceRuntimeError {
 impl From<yulang_runtime::RuntimeError> for SourceRuntimeError {
     fn from(error: yulang_runtime::RuntimeError) -> Self {
         SourceRuntimeError::RuntimeLower(error)
+    }
+}
+
+impl From<yulang_runtime_finalize::FinalizeMonomorphizeError> for SourceRuntimeError {
+    fn from(error: yulang_runtime_finalize::FinalizeMonomorphizeError) -> Self {
+        SourceRuntimeError::RuntimeFinalize(error)
     }
 }
 
@@ -94,9 +102,8 @@ pub fn runtime_module_from_lowered_sources(
         ));
     }
     let program = yulang_infer::export_core_program(&mut lowered.state);
-    yulang_runtime::lower_core_program(program)
-        .and_then(yulang_runtime::monomorphize_module)
-        .map_err(SourceRuntimeError::from)
+    let module = yulang_runtime::lower_core_program(program)?;
+    yulang_runtime_finalize::finalize_monomorphize_module(module).map_err(SourceRuntimeError::from)
 }
 
 pub fn runtime_ir_module_from_virtual_source_with_dependency_cache(
@@ -204,7 +211,8 @@ fn runtime_ir_module_from_lowered_sources_with_runtime_dependencies(
     if let Some(runtime_dependencies) = runtime_dependencies {
         program = runtime_dependencies.merge_with_user_program(program)?;
     }
-    yulang_runtime::lower_core_program(program).map_err(SourceRuntimeError::from)
+    let module = yulang_runtime::lower_core_program(program)?;
+    yulang_runtime_finalize::finalize_monomorphize_module(module).map_err(SourceRuntimeError::from)
 }
 
 fn cacheable_dependency_manifests(

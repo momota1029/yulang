@@ -14,7 +14,9 @@
 //! Type-level materialization (`materialize_core_type`, `materialize_runtime_type`)
 //! lives in `graph.rs`; this module is the expression-level counterpart.
 
-use yulang_runtime_ir::{Expr, ExprKind, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedType as RuntimeType,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::{
@@ -98,7 +100,7 @@ pub(crate) fn materialize_expr_with_expected(
         ExprKind::Record { fields, spread } => ExprKind::Record {
             fields: fields
                 .into_iter()
-                .map(|field| yulang_runtime_ir::RecordExprField {
+                .map(|field| yulang_runtime_ir::FinalizedRecordExprField {
                     name: field.name,
                     value: materialize_expr(field.value, substitutions),
                 })
@@ -140,7 +142,7 @@ pub(crate) fn materialize_expr_with_expected(
             let block_ty = tail
                 .as_ref()
                 .map(|tail| tail.ty.clone())
-                .unwrap_or_else(|| RuntimeType::Core(super::unit_type()));
+                .unwrap_or_else(|| RuntimeType::Value(super::unit_type()));
             return Expr::typed(ExprKind::Block { stmts, tail }, block_ty);
         }
         ExprKind::Handle {
@@ -273,29 +275,33 @@ pub(crate) fn materialize_expr_in_place(
 }
 
 fn materialize_stmt(
-    stmt: yulang_runtime_ir::Stmt,
+    stmt: yulang_runtime_ir::FinalizedStmt,
     substitutions: &[typed_ir::TypeSubstitution],
-) -> yulang_runtime_ir::Stmt {
+) -> yulang_runtime_ir::FinalizedStmt {
     match stmt {
-        yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
-            pattern: materialize_pattern(pattern, substitutions),
-            value: materialize_expr(value, substitutions),
-        },
-        yulang_runtime_ir::Stmt::Expr(expr) => {
-            yulang_runtime_ir::Stmt::Expr(materialize_expr(expr, substitutions))
+        yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
+            yulang_runtime_ir::FinalizedStmt::Let {
+                pattern: materialize_pattern(pattern, substitutions),
+                value: materialize_expr(value, substitutions),
+            }
         }
-        yulang_runtime_ir::Stmt::Module { def, body } => yulang_runtime_ir::Stmt::Module {
-            def,
-            body: materialize_expr(body, substitutions),
-        },
+        yulang_runtime_ir::FinalizedStmt::Expr(expr) => {
+            yulang_runtime_ir::FinalizedStmt::Expr(materialize_expr(expr, substitutions))
+        }
+        yulang_runtime_ir::FinalizedStmt::Module { def, body } => {
+            yulang_runtime_ir::FinalizedStmt::Module {
+                def,
+                body: materialize_expr(body, substitutions),
+            }
+        }
     }
 }
 
 fn materialize_pattern(
-    pattern: yulang_runtime_ir::Pattern,
+    pattern: yulang_runtime_ir::FinalizedPattern,
     substitutions: &[typed_ir::TypeSubstitution],
-) -> yulang_runtime_ir::Pattern {
-    use yulang_runtime_ir::Pattern;
+) -> yulang_runtime_ir::FinalizedPattern {
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
 
     match pattern {
         Pattern::Wildcard { ty } => Pattern::Wildcard {
@@ -336,7 +342,7 @@ fn materialize_pattern(
         Pattern::Record { fields, spread, ty } => Pattern::Record {
             fields: fields
                 .into_iter()
-                .map(|field| yulang_runtime_ir::RecordPatternField {
+                .map(|field| yulang_runtime_ir::FinalizedRecordPatternField {
                     name: field.name,
                     pattern: materialize_pattern(field.pattern, substitutions),
                     default: field
@@ -366,18 +372,18 @@ fn materialize_pattern(
 }
 
 fn materialize_record_spread_expr(
-    spread: yulang_runtime_ir::RecordSpreadExpr,
+    spread: yulang_runtime_ir::FinalizedRecordSpreadExpr,
     substitutions: &[typed_ir::TypeSubstitution],
-) -> yulang_runtime_ir::RecordSpreadExpr {
+) -> yulang_runtime_ir::FinalizedRecordSpreadExpr {
     match spread {
-        yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
-            yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(materialize_expr(
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr) => {
+            yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(Box::new(materialize_expr(
                 *expr,
                 substitutions,
             )))
         }
-        yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
-            yulang_runtime_ir::RecordSpreadExpr::Tail(Box::new(materialize_expr(
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
+            yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(Box::new(materialize_expr(
                 *expr,
                 substitutions,
             )))
@@ -386,10 +392,10 @@ fn materialize_record_spread_expr(
 }
 
 fn materialize_match_arm(
-    arm: yulang_runtime_ir::MatchArm,
+    arm: yulang_runtime_ir::FinalizedMatchArm,
     substitutions: &[typed_ir::TypeSubstitution],
-) -> yulang_runtime_ir::MatchArm {
-    yulang_runtime_ir::MatchArm {
+) -> yulang_runtime_ir::FinalizedMatchArm {
+    yulang_runtime_ir::FinalizedMatchArm {
         pattern: materialize_pattern(arm.pattern, substitutions),
         guard: arm
             .guard
@@ -399,17 +405,19 @@ fn materialize_match_arm(
 }
 
 fn materialize_handle_arm(
-    arm: yulang_runtime_ir::HandleArm,
+    arm: yulang_runtime_ir::FinalizedHandleArm,
     substitutions: &[typed_ir::TypeSubstitution],
     expected: &RuntimeType,
-) -> yulang_runtime_ir::HandleArm {
-    yulang_runtime_ir::HandleArm {
+) -> yulang_runtime_ir::FinalizedHandleArm {
+    yulang_runtime_ir::FinalizedHandleArm {
         effect: arm.effect,
         payload: materialize_pattern(arm.payload, substitutions),
-        resume: arm.resume.map(|resume| yulang_runtime_ir::ResumeBinding {
-            name: resume.name,
-            ty: materialize_runtime_type(resume.ty, substitutions),
-        }),
+        resume: arm
+            .resume
+            .map(|resume| yulang_runtime_ir::FinalizedResumeBinding {
+                name: resume.name,
+                ty: materialize_runtime_type(resume.ty, substitutions),
+            }),
         guard: arm
             .guard
             .map(|guard| materialize_expr(guard, substitutions)),
@@ -553,7 +561,7 @@ fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option
 fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<RuntimeType> {
     let arg = match ty {
         RuntimeType::Fun { param, .. } => param.as_ref().clone(),
-        RuntimeType::Core(typed_ir::Type::Fun {
+        RuntimeType::Value(typed_ir::Type::Fun {
             param,
             param_effect,
             ..
@@ -561,14 +569,14 @@ fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<RuntimeType> {
             param.as_ref().clone(),
             param_effect.as_ref().clone(),
         ),
-        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => return None,
+        RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => return None,
     };
     should_materialize_runtime_apply_arg_to(&arg).then_some(arg)
 }
 
 fn should_materialize_runtime_apply_arg_to(ty: &RuntimeType) -> bool {
     match ty {
-        RuntimeType::Core(ty) => should_materialize_core_apply_arg_to(ty),
+        RuntimeType::Value(ty) => should_materialize_core_apply_arg_to(ty),
         RuntimeType::Thunk { effect, value } => {
             should_thunk_effect(effect)
                 && super::runtime_type_is_closed(value)
@@ -663,7 +671,7 @@ fn materialize_handle_effect(
 fn expected_core_type(expected: Option<&RuntimeType>) -> Option<typed_ir::Type> {
     match expected {
         Some(RuntimeType::Unknown) | None => None,
-        Some(RuntimeType::Core(ty)) => Some(ty.clone()),
+        Some(RuntimeType::Value(ty)) => Some(ty.clone()),
         Some(expected) => Some(super::runtime_type_to_core(expected.clone())),
     }
 }

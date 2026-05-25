@@ -15,7 +15,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
+    FinalizedModule as Module, FinalizedType as RuntimeType,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::{
@@ -232,13 +235,13 @@ fn refresh_apply_spine_runtime_types(expr: &mut Expr, callee_type: RuntimeType) 
 fn runtime_function_ret(ty: &RuntimeType) -> Option<RuntimeType> {
     match ty {
         RuntimeType::Fun { ret, .. } => Some((**ret).clone()),
-        RuntimeType::Core(typed_ir::Type::Fun {
+        RuntimeType::Value(typed_ir::Type::Fun {
             ret_effect, ret, ..
         }) => Some(runtime_type_from_core_value_and_effect(
             ret.as_ref().clone(),
             ret_effect.as_ref().clone(),
         )),
-        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Thunk { .. } => None,
+        RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => None,
     }
 }
 

@@ -12,7 +12,10 @@
 
 use std::collections::VecDeque;
 
-use yulang_runtime_ir::{Expr, ExprKind, Module, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedModule as Module,
+    FinalizedType as RuntimeType,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::graph::TypeCastOrder;
@@ -76,7 +79,7 @@ fn normalize_semantic_cast_expr(expr: Expr, role_impls: &[typed_ir::RoleImplGrap
         ExprKind::Record { fields, spread } => ExprKind::Record {
             fields: fields
                 .into_iter()
-                .map(|field| yulang_runtime_ir::RecordExprField {
+                .map(|field| yulang_runtime_ir::FinalizedRecordExprField {
                     name: field.name,
                     value: normalize_semantic_cast_expr(field.value, role_impls),
                 })
@@ -177,29 +180,33 @@ fn normalize_semantic_cast_expr(expr: Expr, role_impls: &[typed_ir::RoleImplGrap
 }
 
 fn normalize_semantic_cast_stmt(
-    stmt: yulang_runtime_ir::Stmt,
+    stmt: yulang_runtime_ir::FinalizedStmt,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> yulang_runtime_ir::Stmt {
+) -> yulang_runtime_ir::FinalizedStmt {
     match stmt {
-        yulang_runtime_ir::Stmt::Let { pattern, value } => yulang_runtime_ir::Stmt::Let {
-            pattern: normalize_semantic_cast_pattern(pattern, role_impls),
-            value: normalize_semantic_cast_expr(value, role_impls),
-        },
-        yulang_runtime_ir::Stmt::Expr(expr) => {
-            yulang_runtime_ir::Stmt::Expr(normalize_semantic_cast_expr(expr, role_impls))
+        yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
+            yulang_runtime_ir::FinalizedStmt::Let {
+                pattern: normalize_semantic_cast_pattern(pattern, role_impls),
+                value: normalize_semantic_cast_expr(value, role_impls),
+            }
         }
-        yulang_runtime_ir::Stmt::Module { def, body } => yulang_runtime_ir::Stmt::Module {
-            def,
-            body: normalize_semantic_cast_expr(body, role_impls),
-        },
+        yulang_runtime_ir::FinalizedStmt::Expr(expr) => {
+            yulang_runtime_ir::FinalizedStmt::Expr(normalize_semantic_cast_expr(expr, role_impls))
+        }
+        yulang_runtime_ir::FinalizedStmt::Module { def, body } => {
+            yulang_runtime_ir::FinalizedStmt::Module {
+                def,
+                body: normalize_semantic_cast_expr(body, role_impls),
+            }
+        }
     }
 }
 
 fn normalize_semantic_cast_match_arm(
-    arm: yulang_runtime_ir::MatchArm,
+    arm: yulang_runtime_ir::FinalizedMatchArm,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> yulang_runtime_ir::MatchArm {
-    yulang_runtime_ir::MatchArm {
+) -> yulang_runtime_ir::FinalizedMatchArm {
+    yulang_runtime_ir::FinalizedMatchArm {
         pattern: normalize_semantic_cast_pattern(arm.pattern, role_impls),
         guard: arm
             .guard
@@ -209,10 +216,10 @@ fn normalize_semantic_cast_match_arm(
 }
 
 fn normalize_semantic_cast_handle_arm(
-    arm: yulang_runtime_ir::HandleArm,
+    arm: yulang_runtime_ir::FinalizedHandleArm,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> yulang_runtime_ir::HandleArm {
-    yulang_runtime_ir::HandleArm {
+) -> yulang_runtime_ir::FinalizedHandleArm {
+    yulang_runtime_ir::FinalizedHandleArm {
         effect: arm.effect,
         payload: normalize_semantic_cast_pattern(arm.payload, role_impls),
         resume: arm.resume,
@@ -224,10 +231,10 @@ fn normalize_semantic_cast_handle_arm(
 }
 
 fn normalize_semantic_cast_pattern(
-    pattern: yulang_runtime_ir::Pattern,
+    pattern: yulang_runtime_ir::FinalizedPattern,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> yulang_runtime_ir::Pattern {
-    use yulang_runtime_ir::Pattern;
+) -> yulang_runtime_ir::FinalizedPattern {
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
 
     match pattern {
         Pattern::Tuple { items, ty } => Pattern::Tuple {
@@ -258,7 +265,7 @@ fn normalize_semantic_cast_pattern(
         Pattern::Record { fields, spread, ty } => Pattern::Record {
             fields: fields
                 .into_iter()
-                .map(|field| yulang_runtime_ir::RecordPatternField {
+                .map(|field| yulang_runtime_ir::FinalizedRecordPatternField {
                     name: field.name,
                     pattern: normalize_semantic_cast_pattern(field.pattern, role_impls),
                     default: field
@@ -292,37 +299,37 @@ fn normalize_semantic_cast_pattern(
 }
 
 fn normalize_semantic_cast_record_spread(
-    spread: yulang_runtime_ir::RecordSpreadExpr,
+    spread: yulang_runtime_ir::FinalizedRecordSpreadExpr,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> yulang_runtime_ir::RecordSpreadExpr {
+) -> yulang_runtime_ir::FinalizedRecordSpreadExpr {
     match spread {
-        yulang_runtime_ir::RecordSpreadExpr::Head(expr) => {
-            yulang_runtime_ir::RecordSpreadExpr::Head(Box::new(normalize_semantic_cast_expr(
-                *expr, role_impls,
-            )))
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr) => {
+            yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(Box::new(
+                normalize_semantic_cast_expr(*expr, role_impls),
+            ))
         }
-        yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
-            yulang_runtime_ir::RecordSpreadExpr::Tail(Box::new(normalize_semantic_cast_expr(
-                *expr, role_impls,
-            )))
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
+            yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(Box::new(
+                normalize_semantic_cast_expr(*expr, role_impls),
+            ))
         }
     }
 }
 
 fn normalize_semantic_cast_record_pattern_spread(
-    spread: yulang_runtime_ir::RecordSpreadPattern,
+    spread: yulang_runtime_ir::FinalizedRecordSpreadPattern,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> yulang_runtime_ir::RecordSpreadPattern {
+) -> yulang_runtime_ir::FinalizedRecordSpreadPattern {
     match spread {
-        yulang_runtime_ir::RecordSpreadPattern::Head(pattern) => {
-            yulang_runtime_ir::RecordSpreadPattern::Head(Box::new(normalize_semantic_cast_pattern(
-                *pattern, role_impls,
-            )))
+        yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern) => {
+            yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(Box::new(
+                normalize_semantic_cast_pattern(*pattern, role_impls),
+            ))
         }
-        yulang_runtime_ir::RecordSpreadPattern::Tail(pattern) => {
-            yulang_runtime_ir::RecordSpreadPattern::Tail(Box::new(normalize_semantic_cast_pattern(
-                *pattern, role_impls,
-            )))
+        yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => {
+            yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(Box::new(
+                normalize_semantic_cast_pattern(*pattern, role_impls),
+            ))
         }
     }
 }
@@ -337,8 +344,8 @@ struct SemanticCastStep {
 fn apply_semantic_cast_path(expr: Expr, steps: Vec<SemanticCastStep>) -> Expr {
     steps.into_iter().fold(expr, |value, step| {
         let callee_ty = RuntimeType::fun(
-            RuntimeType::core(step.from.clone()),
-            RuntimeType::core(step.to.clone()),
+            RuntimeType::value(step.from.clone()),
+            RuntimeType::value(step.to.clone()),
         );
         Expr::typed(
             ExprKind::Apply {
@@ -347,7 +354,7 @@ fn apply_semantic_cast_path(expr: Expr, steps: Vec<SemanticCastStep>) -> Expr {
                 evidence: None,
                 instantiation: None,
             },
-            RuntimeType::core(step.to),
+            RuntimeType::value(step.to),
         )
     })
 }
@@ -399,7 +406,10 @@ fn semantic_cast_edges(role_impls: &[typed_ir::RoleImplGraphNode]) -> Vec<Semant
                 .is_some_and(|name| name.0 == "Cast")
         })
         .filter_map(|role_impl| {
-            let from = role_impl.inputs.first().and_then(super::apply_spine::type_from_bounds)?;
+            let from = role_impl
+                .inputs
+                .first()
+                .and_then(super::apply_spine::type_from_bounds)?;
             let to = role_impl
                 .associated_types
                 .iter()

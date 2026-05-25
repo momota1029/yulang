@@ -10,30 +10,30 @@ use yulang_typed_ir as typed_ir;
 pub mod walk;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Module {
+pub struct Module<T> {
     pub path: typed_ir::Path,
-    pub bindings: Vec<Binding>,
-    pub root_exprs: Vec<Expr>,
+    pub bindings: Vec<Binding<T>>,
+    pub root_exprs: Vec<Expr<T>>,
     pub roots: Vec<Root>,
     pub role_impls: Vec<typed_ir::RoleImplGraphNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Binding {
+pub struct Binding<T> {
     pub name: typed_ir::Path,
     pub type_params: Vec<typed_ir::TypeVar>,
     pub scheme: typed_ir::Scheme,
-    pub body: Expr,
+    pub body: Expr<T>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Expr {
-    pub ty: Type,
-    pub kind: ExprKind,
+pub struct Expr<T> {
+    pub ty: T,
+    pub kind: ExprKind<T>,
 }
 
-impl Expr {
-    pub fn typed(kind: ExprKind, ty: impl Into<Type>) -> Self {
+impl<T> Expr<T> {
+    pub fn typed(kind: ExprKind<T>, ty: impl Into<T>) -> Self {
         Self {
             ty: ty.into(),
             kind,
@@ -41,53 +41,53 @@ impl Expr {
     }
 }
 
-impl Clone for Expr {
+impl<T: Clone> Clone for Expr<T> {
     fn clone(&self) -> Self {
         clone_expr_without_apply_spine_recursion(self)
     }
 }
 
-fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
-    enum Frame<'a> {
+fn clone_expr_without_apply_spine_recursion<T: Clone>(expr: &Expr<T>) -> Expr<T> {
+    enum Frame<'a, T> {
         Apply {
-            ty: &'a Type,
-            arg: &'a Expr,
+            ty: &'a T,
+            arg: &'a Expr<T>,
             evidence: &'a Option<typed_ir::ApplyEvidence>,
             instantiation: &'a Option<TypeInstantiation>,
         },
         Select {
-            ty: &'a Type,
+            ty: &'a T,
             field: &'a typed_ir::Name,
         },
         Variant {
-            ty: &'a Type,
+            ty: &'a T,
             tag: &'a typed_ir::Name,
         },
         BindHere {
-            ty: &'a Type,
+            ty: &'a T,
         },
         Thunk {
-            ty: &'a Type,
+            ty: &'a T,
             effect: &'a typed_ir::Type,
-            value: &'a Type,
+            value: &'a T,
         },
         LocalPushId {
-            ty: &'a Type,
+            ty: &'a T,
             id: EffectIdVar,
         },
         AddId {
-            ty: &'a Type,
+            ty: &'a T,
             id: EffectIdRef,
             allowed: &'a typed_ir::Type,
             active: bool,
         },
         Coerce {
-            ty: &'a Type,
+            ty: &'a T,
             from: &'a typed_ir::Type,
             to: &'a typed_ir::Type,
         },
         Pack {
-            ty: &'a Type,
+            ty: &'a T,
             var: &'a typed_ir::TypeVar,
         },
     }
@@ -273,59 +273,65 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Type {
+pub enum FinalizedType {
     Unknown,
-    Core(typed_ir::Type),
+    Value(typed_ir::Type),
     Fun {
-        param: Box<Type>,
-        ret: Box<Type>,
+        param: Box<FinalizedType>,
+        ret: Box<FinalizedType>,
     },
     Thunk {
         effect: typed_ir::Type,
-        value: Box<Type>,
+        value: Box<FinalizedType>,
     },
 }
 
-impl Type {
+impl FinalizedType {
     pub fn unknown() -> Self {
         Self::Unknown
     }
 
-    pub fn core(ty: typed_ir::Type) -> Self {
-        Self::Core(ty)
+    pub fn value(ty: typed_ir::Type) -> Self {
+        debug_assert!(
+            !matches!(ty, typed_ir::Type::Fun { .. }),
+            "FinalizedType::Value must not wrap Fun; use FinalizedType::Fun instead"
+        );
+        Self::Value(ty)
     }
 
-    pub fn fun(param: Type, ret: Type) -> Self {
+    pub fn fun(param: FinalizedType, ret: FinalizedType) -> Self {
         Self::Fun {
             param: Box::new(param),
             ret: Box::new(ret),
         }
     }
 
-    pub fn thunk(effect: typed_ir::Type, value: Type) -> Self {
+    pub fn thunk(effect: typed_ir::Type, value: FinalizedType) -> Self {
         Self::Thunk {
             effect,
             value: Box::new(value),
         }
     }
 
-    pub fn as_core(&self) -> Option<&typed_ir::Type> {
+    pub fn as_value(&self) -> Option<&typed_ir::Type> {
         match self {
-            Type::Core(ty) => Some(ty),
-            Type::Unknown | Type::Fun { .. } | Type::Thunk { .. } => None,
+            FinalizedType::Value(ty) => Some(ty),
+            FinalizedType::Unknown | FinalizedType::Fun { .. } | FinalizedType::Thunk { .. } => {
+                None
+            }
         }
     }
 }
 
-impl Clone for Type {
+impl Clone for FinalizedType {
     fn clone(&self) -> Self {
-        clone_type_without_fun_spine_recursion(self)
+        clone_finalized_type_without_fun_spine_recursion(self)
     }
 }
 
-fn clone_type_without_fun_spine_recursion(ty: &Type) -> Type {
+fn clone_finalized_type_without_fun_spine_recursion(ty: &FinalizedType) -> FinalizedType {
     enum Frame<'a> {
-        Fun { param: &'a Type },
+        Fun { param: &'a FinalizedType },
         Thunk { effect: &'a typed_ir::Type },
     }
 
@@ -333,41 +339,35 @@ fn clone_type_without_fun_spine_recursion(ty: &Type) -> Type {
     let mut frames = Vec::new();
     loop {
         match current {
-            Type::Fun { param, ret } => {
+            FinalizedType::Fun { param, ret } => {
                 frames.push(Frame::Fun { param });
                 current = ret;
             }
-            Type::Thunk { effect, value } => {
+            FinalizedType::Thunk { effect, value } => {
                 frames.push(Frame::Thunk { effect });
                 current = value;
             }
-            Type::Unknown => {
-                let mut cloned = Type::Unknown;
+            FinalizedType::Unknown => {
+                let mut cloned = FinalizedType::Unknown;
                 for frame in frames.into_iter().rev() {
                     cloned = match frame {
-                        Frame::Fun { param } => Type::fun(param.clone(), cloned),
-                        Frame::Thunk { effect } => Type::thunk(effect.clone(), cloned),
+                        Frame::Fun { param } => FinalizedType::fun(param.clone(), cloned),
+                        Frame::Thunk { effect } => FinalizedType::thunk(effect.clone(), cloned),
                     };
                 }
                 return cloned;
             }
-            Type::Core(core) => {
-                let mut cloned = Type::Core(core.clone());
+            FinalizedType::Value(core) => {
+                let mut cloned = FinalizedType::Value(core.clone());
                 for frame in frames.into_iter().rev() {
                     cloned = match frame {
-                        Frame::Fun { param } => Type::fun(param.clone(), cloned),
-                        Frame::Thunk { effect } => Type::thunk(effect.clone(), cloned),
+                        Frame::Fun { param } => FinalizedType::fun(param.clone(), cloned),
+                        Frame::Thunk { effect } => FinalizedType::thunk(effect.clone(), cloned),
                     };
                 }
                 return cloned;
             }
         }
-    }
-}
-
-impl From<typed_ir::Type> for Type {
-    fn from(ty: typed_ir::Type) -> Self {
-        Type::Core(ty)
     }
 }
 
@@ -381,7 +381,7 @@ pub enum EffectIdRef {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ExprKind {
+pub enum ExprKind<T> {
     Var(typed_ir::Path),
     EffectOp(typed_ir::Path),
     PrimitiveOp(typed_ir::PrimitiveOp),
@@ -390,59 +390,59 @@ pub enum ExprKind {
         param: typed_ir::Name,
         param_effect_annotation: Option<typed_ir::ParamEffectAnnotation>,
         param_function_allowed_effects: Option<typed_ir::FunctionSigAllowedEffects>,
-        body: Box<Expr>,
+        body: Box<Expr<T>>,
     },
     Apply {
-        callee: Box<Expr>,
-        arg: Box<Expr>,
+        callee: Box<Expr<T>>,
+        arg: Box<Expr<T>>,
         evidence: Option<typed_ir::ApplyEvidence>,
         instantiation: Option<TypeInstantiation>,
     },
     If {
-        cond: Box<Expr>,
-        then_branch: Box<Expr>,
-        else_branch: Box<Expr>,
+        cond: Box<Expr<T>>,
+        then_branch: Box<Expr<T>>,
+        else_branch: Box<Expr<T>>,
         evidence: Option<JoinEvidence>,
     },
-    Tuple(Vec<Expr>),
+    Tuple(Vec<Expr<T>>),
     Record {
-        fields: Vec<RecordExprField>,
-        spread: Option<RecordSpreadExpr>,
+        fields: Vec<RecordExprField<T>>,
+        spread: Option<RecordSpreadExpr<T>>,
     },
     Variant {
         tag: typed_ir::Name,
-        value: Option<Box<Expr>>,
+        value: Option<Box<Expr<T>>>,
     },
     Select {
-        base: Box<Expr>,
+        base: Box<Expr<T>>,
         field: typed_ir::Name,
     },
     Match {
-        scrutinee: Box<Expr>,
-        arms: Vec<MatchArm>,
+        scrutinee: Box<Expr<T>>,
+        arms: Vec<MatchArm<T>>,
         evidence: JoinEvidence,
     },
     Block {
-        stmts: Vec<Stmt>,
-        tail: Option<Box<Expr>>,
+        stmts: Vec<Stmt<T>>,
+        tail: Option<Box<Expr<T>>>,
     },
     Handle {
-        body: Box<Expr>,
-        arms: Vec<HandleArm>,
+        body: Box<Expr<T>>,
+        arms: Vec<HandleArm<T>>,
         evidence: JoinEvidence,
         handler: HandleEffect,
     },
     BindHere {
-        expr: Box<Expr>,
+        expr: Box<Expr<T>>,
     },
     Thunk {
         effect: typed_ir::Type,
-        value: Type,
-        expr: Box<Expr>,
+        value: T,
+        expr: Box<Expr<T>>,
     },
     LocalPushId {
         id: EffectIdVar,
-        body: Box<Expr>,
+        body: Box<Expr<T>>,
     },
     PeekId,
     FindId {
@@ -452,16 +452,16 @@ pub enum ExprKind {
         id: EffectIdRef,
         allowed: typed_ir::Type,
         active: bool,
-        thunk: Box<Expr>,
+        thunk: Box<Expr<T>>,
     },
     Coerce {
         from: typed_ir::Type,
         to: typed_ir::Type,
-        expr: Box<Expr>,
+        expr: Box<Expr<T>>,
     },
     Pack {
         var: typed_ir::TypeVar,
-        expr: Box<Expr>,
+        expr: Box<Expr<T>>,
     },
 }
 
@@ -483,102 +483,102 @@ pub struct TypeSubstitution {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Stmt {
-    Let { pattern: Pattern, value: Expr },
-    Expr(Expr),
-    Module { def: typed_ir::Path, body: Expr },
+pub enum Stmt<T> {
+    Let { pattern: Pattern<T>, value: Expr<T> },
+    Expr(Expr<T>),
+    Module { def: typed_ir::Path, body: Expr<T> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Pattern {
+pub enum Pattern<T> {
     Wildcard {
-        ty: Type,
+        ty: T,
     },
     Bind {
         name: typed_ir::Name,
-        ty: Type,
+        ty: T,
     },
     Lit {
         lit: typed_ir::Lit,
-        ty: Type,
+        ty: T,
     },
     Tuple {
-        items: Vec<Pattern>,
-        ty: Type,
+        items: Vec<Pattern<T>>,
+        ty: T,
     },
     List {
-        prefix: Vec<Pattern>,
-        spread: Option<Box<Pattern>>,
-        suffix: Vec<Pattern>,
-        ty: Type,
+        prefix: Vec<Pattern<T>>,
+        spread: Option<Box<Pattern<T>>>,
+        suffix: Vec<Pattern<T>>,
+        ty: T,
     },
     Record {
-        fields: Vec<RecordPatternField>,
-        spread: Option<RecordSpreadPattern>,
-        ty: Type,
+        fields: Vec<RecordPatternField<T>>,
+        spread: Option<RecordSpreadPattern<T>>,
+        ty: T,
     },
     Variant {
         tag: typed_ir::Name,
-        value: Option<Box<Pattern>>,
-        ty: Type,
+        value: Option<Box<Pattern<T>>>,
+        ty: T,
     },
     Or {
-        left: Box<Pattern>,
-        right: Box<Pattern>,
-        ty: Type,
+        left: Box<Pattern<T>>,
+        right: Box<Pattern<T>>,
+        ty: T,
     },
     As {
-        pattern: Box<Pattern>,
+        pattern: Box<Pattern<T>>,
         name: typed_ir::Name,
-        ty: Type,
+        ty: T,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RecordExprField {
+pub struct RecordExprField<T> {
     pub name: typed_ir::Name,
-    pub value: Expr,
+    pub value: Expr<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RecordSpreadExpr {
-    Head(Box<Expr>),
-    Tail(Box<Expr>),
+pub enum RecordSpreadExpr<T> {
+    Head(Box<Expr<T>>),
+    Tail(Box<Expr<T>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RecordPatternField {
+pub struct RecordPatternField<T> {
     pub name: typed_ir::Name,
-    pub pattern: Pattern,
-    pub default: Option<Expr>,
+    pub pattern: Pattern<T>,
+    pub default: Option<Expr<T>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RecordSpreadPattern {
-    Head(Box<Pattern>),
-    Tail(Box<Pattern>),
+pub enum RecordSpreadPattern<T> {
+    Head(Box<Pattern<T>>),
+    Tail(Box<Pattern<T>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MatchArm {
-    pub pattern: Pattern,
-    pub guard: Option<Expr>,
-    pub body: Expr,
+pub struct MatchArm<T> {
+    pub pattern: Pattern<T>,
+    pub guard: Option<Expr<T>>,
+    pub body: Expr<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HandleArm {
+pub struct HandleArm<T> {
     pub effect: typed_ir::Path,
-    pub payload: Pattern,
-    pub resume: Option<ResumeBinding>,
-    pub guard: Option<Expr>,
-    pub body: Expr,
+    pub payload: Pattern<T>,
+    pub resume: Option<ResumeBinding<T>>,
+    pub guard: Option<Expr<T>>,
+    pub body: Expr<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ResumeBinding {
+pub struct ResumeBinding<T> {
     pub name: typed_ir::Name,
-    pub ty: Type,
+    pub ty: T,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -594,43 +594,72 @@ pub enum Root {
     Expr(usize),
 }
 
+pub type LoweredExpr = Expr<typed_ir::Type>;
+pub type LoweredExprKind = ExprKind<typed_ir::Type>;
+pub type LoweredModule = Module<typed_ir::Type>;
+pub type LoweredBinding = Binding<typed_ir::Type>;
+pub type LoweredStmt = Stmt<typed_ir::Type>;
+pub type LoweredPattern = Pattern<typed_ir::Type>;
+pub type LoweredRecordExprField = RecordExprField<typed_ir::Type>;
+pub type LoweredRecordSpreadExpr = RecordSpreadExpr<typed_ir::Type>;
+pub type LoweredRecordPatternField = RecordPatternField<typed_ir::Type>;
+pub type LoweredRecordSpreadPattern = RecordSpreadPattern<typed_ir::Type>;
+pub type LoweredMatchArm = MatchArm<typed_ir::Type>;
+pub type LoweredHandleArm = HandleArm<typed_ir::Type>;
+pub type LoweredResumeBinding = ResumeBinding<typed_ir::Type>;
+
+pub type FinalizedExpr = Expr<FinalizedType>;
+pub type FinalizedExprKind = ExprKind<FinalizedType>;
+pub type FinalizedModule = Module<FinalizedType>;
+pub type FinalizedBinding = Binding<FinalizedType>;
+pub type FinalizedStmt = Stmt<FinalizedType>;
+pub type FinalizedPattern = Pattern<FinalizedType>;
+pub type FinalizedRecordExprField = RecordExprField<FinalizedType>;
+pub type FinalizedRecordSpreadExpr = RecordSpreadExpr<FinalizedType>;
+pub type FinalizedRecordPatternField = RecordPatternField<FinalizedType>;
+pub type FinalizedRecordSpreadPattern = RecordSpreadPattern<FinalizedType>;
+pub type FinalizedMatchArm = MatchArm<FinalizedType>;
+pub type FinalizedHandleArm = HandleArm<FinalizedType>;
+pub type FinalizedResumeBinding = ResumeBinding<FinalizedType>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn clones_deep_runtime_adapter_spine_without_recursing() {
-        let mut expr = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), Type::unknown());
+        let mut expr =
+            FinalizedExpr::typed(ExprKind::Lit(typed_ir::Lit::Unit), FinalizedType::unknown());
         for index in 0..20_000 {
             expr = match index % 3 {
-                0 => Expr::typed(
+                0 => FinalizedExpr::typed(
                     ExprKind::BindHere {
                         expr: Box::new(expr),
                     },
-                    Type::unknown(),
+                    FinalizedType::unknown(),
                 ),
-                1 => Expr::typed(
+                1 => FinalizedExpr::typed(
                     ExprKind::Thunk {
                         effect: typed_ir::Type::Unknown,
-                        value: Type::unknown(),
+                        value: FinalizedType::unknown(),
                         expr: Box::new(expr),
                     },
-                    Type::unknown(),
+                    FinalizedType::unknown(),
                 ),
-                _ => Expr::typed(
+                _ => FinalizedExpr::typed(
                     ExprKind::Coerce {
                         from: typed_ir::Type::Unknown,
                         to: typed_ir::Type::Any,
                         expr: Box::new(expr),
                     },
-                    Type::unknown(),
+                    FinalizedType::unknown(),
                 ),
             };
         }
 
         let cloned = expr.clone();
 
-        assert_eq!(cloned.ty, Type::unknown());
+        assert_eq!(cloned.ty, FinalizedType::unknown());
         std::mem::forget(expr);
         std::mem::forget(cloned);
     }

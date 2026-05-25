@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use yulang_runtime_ir::{Binding, Type as RuntimeType};
+use yulang_runtime_ir::{FinalizedBinding as Binding, FinalizedType as RuntimeType};
 use yulang_typed_ir as typed_ir;
 
 use crate::{FinalizeDiagnostic, FinalizeResult};
@@ -137,7 +137,7 @@ impl TypeGraph {
         side: BoundSide,
     ) -> FinalizeResult<()> {
         match actual {
-            RuntimeType::Core(actual) => self.collect_core(template, actual, side),
+            RuntimeType::Value(actual) => self.collect_core(template, actual, side),
             RuntimeType::Fun { param, ret } => {
                 let typed_ir::Type::Fun {
                     param: template_param,
@@ -1012,7 +1012,7 @@ pub fn materialize_runtime_type(
 ) -> RuntimeType {
     match ty {
         RuntimeType::Unknown => RuntimeType::Unknown,
-        RuntimeType::Core(ty) => {
+        RuntimeType::Value(ty) => {
             runtime_type_from_core_value(normalize_bound_form(&materialize_type(ty, substitutions)))
         }
         RuntimeType::Fun { param, ret } => RuntimeType::Fun {
@@ -1044,7 +1044,7 @@ pub(crate) fn runtime_type_from_core_value(ty: typed_ir::Type) -> RuntimeType {
             )),
             ret: Box::new(runtime_type_from_core_value_and_effect(*ret, *ret_effect)),
         },
-        ty => RuntimeType::Core(ty),
+        ty => RuntimeType::Value(ty),
     }
 }
 
@@ -1104,7 +1104,7 @@ fn split_runtime_effected_type(ty: &RuntimeType) -> RuntimeEffectedType<'_> {
             value: ty,
             effect: RuntimeEffectRef::Unknown,
         },
-        RuntimeType::Core(_) | RuntimeType::Fun { .. } => RuntimeEffectedType {
+        RuntimeType::Value(_) | RuntimeType::Fun { .. } => RuntimeEffectedType {
             value: ty,
             effect: RuntimeEffectRef::Pure,
         },
@@ -2381,7 +2381,7 @@ mod tests {
         };
 
         graph
-            .collect_runtime_lower(param, &RuntimeType::Core(int_type()))
+            .collect_runtime_lower(param, &RuntimeType::Value(int_type()))
             .unwrap();
         let solution = graph.solve();
 
@@ -2408,7 +2408,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(last)),
+                    lower: Some(RuntimeType::Value(last)),
                     upper: None,
                 },
             )
@@ -2417,7 +2417,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(either.clone())),
+                    lower: Some(RuntimeType::Value(either.clone())),
                     upper: None,
                 },
             )
@@ -2441,7 +2441,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(either.clone())),
+                    lower: Some(RuntimeType::Value(either.clone())),
                     upper: None,
                 },
             )
@@ -2450,7 +2450,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(last)),
+                    lower: Some(RuntimeType::Value(last)),
                     upper: None,
                 },
             )
@@ -2471,7 +2471,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(unit_type())),
+                    lower: Some(RuntimeType::Value(unit_type())),
                     upper: None,
                 },
             )
@@ -2480,7 +2480,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(typed_ir::Type::Tuple(Vec::new()))),
+                    lower: Some(RuntimeType::Value(typed_ir::Type::Tuple(Vec::new()))),
                     upper: None,
                 },
             )
@@ -2508,7 +2508,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(small)),
+                    lower: Some(RuntimeType::Value(small)),
                     upper: None,
                 },
             )
@@ -2517,7 +2517,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(large.clone())),
+                    lower: Some(RuntimeType::Value(large.clone())),
                     upper: None,
                 },
             )
@@ -2538,8 +2538,8 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(int_type())),
-                    upper: Some(RuntimeType::Core(number_type())),
+                    lower: Some(RuntimeType::Value(int_type())),
+                    upper: Some(RuntimeType::Value(number_type())),
                 },
             )
             .unwrap();
@@ -2563,8 +2563,8 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(any_type())),
-                    upper: Some(RuntimeType::Core(never_type())),
+                    lower: Some(RuntimeType::Value(any_type())),
+                    upper: Some(RuntimeType::Value(never_type())),
                 },
             )
             .unwrap();
@@ -2584,8 +2584,8 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(never_type())),
-                    upper: Some(RuntimeType::Core(any_type())),
+                    lower: Some(RuntimeType::Value(never_type())),
+                    upper: Some(RuntimeType::Value(any_type())),
                 },
             )
             .unwrap();
@@ -2596,8 +2596,8 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(int_type())),
-                    upper: Some(RuntimeType::Core(any_type())),
+                    lower: Some(RuntimeType::Value(int_type())),
+                    upper: Some(RuntimeType::Value(any_type())),
                 },
             )
             .unwrap();
@@ -2619,7 +2619,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(first.clone())),
+                    lower: Some(RuntimeType::Value(first.clone())),
                     upper: None,
                 },
             )
@@ -2628,7 +2628,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(second)),
+                    lower: Some(RuntimeType::Value(second)),
                     upper: None,
                 },
             )
@@ -2649,13 +2649,13 @@ mod tests {
         graph
             .collect_runtime_lower(
                 &typed_ir::Type::Var(a.clone()),
-                &RuntimeType::Core(typed_ir::Type::Var(b.clone())),
+                &RuntimeType::Value(typed_ir::Type::Var(b.clone())),
             )
             .unwrap();
         graph
             .collect_runtime_lower(
                 &typed_ir::Type::Var(b.clone()),
-                &RuntimeType::Core(typed_ir::Type::Var(a.clone())),
+                &RuntimeType::Value(typed_ir::Type::Var(a.clone())),
             )
             .unwrap();
         graph
@@ -2677,8 +2677,8 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(int_type())),
-                    upper: Some(RuntimeType::Core(number_type())),
+                    lower: Some(RuntimeType::Value(int_type())),
+                    upper: Some(RuntimeType::Value(number_type())),
                 },
             )
             .unwrap();
@@ -2744,7 +2744,7 @@ mod tests {
         graph
             .collect_runtime_lower(
                 &typed_ir::Type::Var(a_var.clone()),
-                &RuntimeType::Core(int_type()),
+                &RuntimeType::Value(int_type()),
             )
             .unwrap();
 
@@ -2848,11 +2848,11 @@ mod tests {
                 &RuntimeBounds::exact(RuntimeType::Fun {
                     param: Box::new(RuntimeType::Thunk {
                         effect: effect_type("arg"),
-                        value: Box::new(RuntimeType::Core(int_type())),
+                        value: Box::new(RuntimeType::Value(int_type())),
                     }),
                     ret: Box::new(RuntimeType::Thunk {
                         effect: effect_type("ret"),
-                        value: Box::new(RuntimeType::Core(bool_type())),
+                        value: Box::new(RuntimeType::Value(bool_type())),
                     }),
                 }),
             )
@@ -2887,7 +2887,7 @@ mod tests {
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
                     lower: None,
-                    upper: Some(RuntimeType::Core(row.clone())),
+                    upper: Some(RuntimeType::Value(row.clone())),
                 },
             )
             .unwrap();
@@ -2896,7 +2896,7 @@ mod tests {
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
                     lower: None,
-                    upper: Some(RuntimeType::Core(atom)),
+                    upper: Some(RuntimeType::Value(atom)),
                 },
             )
             .unwrap();
@@ -2920,7 +2920,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(typed_ir::Type::Any)),
+                    lower: Some(RuntimeType::Value(typed_ir::Type::Any)),
                     upper: None,
                 },
             )
@@ -2929,7 +2929,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(open_top_row)),
+                    lower: Some(RuntimeType::Value(open_top_row)),
                     upper: None,
                 },
             )
@@ -2954,7 +2954,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(typed_ir::Type::Never)),
+                    lower: Some(RuntimeType::Value(typed_ir::Type::Never)),
                     upper: None,
                 },
             )
@@ -2963,7 +2963,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(never_item_row)),
+                    lower: Some(RuntimeType::Value(never_item_row)),
                     upper: None,
                 },
             )
@@ -2986,7 +2986,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(row.clone())),
+                    lower: Some(RuntimeType::Value(row.clone())),
                     upper: None,
                 },
             )
@@ -2995,7 +2995,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(noisy)),
+                    lower: Some(RuntimeType::Value(noisy)),
                     upper: None,
                 },
             )
@@ -3027,7 +3027,7 @@ mod tests {
             .collect_runtime_bounds(
                 &typed_ir::Type::Var(var.clone()),
                 &RuntimeBounds {
-                    lower: Some(RuntimeType::Core(nested)),
+                    lower: Some(RuntimeType::Value(nested)),
                     upper: None,
                 },
             )

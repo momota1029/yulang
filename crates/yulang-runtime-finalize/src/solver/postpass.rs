@@ -19,20 +19,18 @@
 //! across all solver submodules: `runtime_type_has_unknown`,
 //! `runtime_type_is_closed`, `core_type_is_closed`, `runtime_fun_split`,
 //! `merge_partial_runtime_type`, `narrow_runtime_type_in_place`,
-//! `restore_runtime_effect_boundaries`, `refine_runtime_spine_return`, and
-//! various effect/never/function probes used by both apply-spine resolution
-//! and apply-evidence reconciliation.
+//! `refine_runtime_spine_return`, and various effect/never/function probes
+//! used by both apply-spine resolution and apply-evidence reconciliation.
 
 use std::collections::{HashMap, HashSet};
 
-use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Root, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
+    FinalizedModule as Module, FinalizedType as RuntimeType, Root,
+};
 use yulang_typed_ir as typed_ir;
 
-use crate::{
-    RootGraphSolution,
-    graph::should_thunk_effect,
-    materialize_core_type,
-};
+use crate::{RootGraphSolution, graph::should_thunk_effect, materialize_core_type};
 
 use super::{apply_spine::ApplyStep, materialize, role};
 
@@ -352,8 +350,8 @@ fn merge_partial_runtime_type(a: &RuntimeType, b: &RuntimeType) -> Option<Runtim
     match (a, b) {
         (RuntimeType::Unknown, _) => Some(b.clone()),
         (_, RuntimeType::Unknown) => Some(a.clone()),
-        (RuntimeType::Core(ax), RuntimeType::Core(bx)) => {
-            Some(RuntimeType::Core(merge_partial_core_type(ax, bx)?))
+        (RuntimeType::Value(ax), RuntimeType::Value(bx)) => {
+            Some(RuntimeType::Value(merge_partial_core_type(ax, bx)?))
         }
         (RuntimeType::Fun { param: ap, ret: ar }, RuntimeType::Fun { param: bp, ret: br }) => {
             Some(RuntimeType::Fun {
@@ -377,10 +375,14 @@ fn merge_partial_runtime_type(a: &RuntimeType, b: &RuntimeType) -> Option<Runtim
         // Bridging Core <-> Fun / Thunk: if one side is Core(typed_ir::Fun)
         // and the other is RuntimeType::Fun, prefer the Fun form (Thunk-aware)
         // when it carries strictly more structure.
-        (RuntimeType::Fun { .. }, RuntimeType::Core(typed_ir::Type::Fun { .. })) => Some(a.clone()),
-        (RuntimeType::Core(typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => Some(b.clone()),
-        (RuntimeType::Thunk { .. }, RuntimeType::Core(_)) => Some(a.clone()),
-        (RuntimeType::Core(_), RuntimeType::Thunk { .. }) => Some(b.clone()),
+        (RuntimeType::Fun { .. }, RuntimeType::Value(typed_ir::Type::Fun { .. })) => {
+            Some(a.clone())
+        }
+        (RuntimeType::Value(typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
+            Some(b.clone())
+        }
+        (RuntimeType::Thunk { .. }, RuntimeType::Value(_)) => Some(a.clone()),
+        (RuntimeType::Value(_), RuntimeType::Thunk { .. }) => Some(b.clone()),
         _ => None,
     }
 }
@@ -397,7 +399,7 @@ fn merge_partial_core_type(a: &typed_ir::Type, b: &typed_ir::Type) -> Option<typ
 pub(crate) fn runtime_type_has_unknown(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_has_unknown(ty),
+        RuntimeType::Value(ty) => core_type_has_unknown(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_type_has_unknown(param) || runtime_type_has_unknown(ret)
         }
@@ -530,8 +532,8 @@ fn fill_local_var_types_in(
             }
             if let Some(spread) = spread {
                 let e = match spread {
-                    yulang_runtime_ir::RecordSpreadExpr::Head(e)
-                    | yulang_runtime_ir::RecordSpreadExpr::Tail(e) => e,
+                    yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(e)
+                    | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(e) => e,
                 };
                 fill_local_var_types_in(e, scope, bindings);
             }
@@ -561,14 +563,14 @@ fn fill_local_var_types_in(
             let mut added = Vec::new();
             for stmt in stmts.iter_mut() {
                 match stmt {
-                    yulang_runtime_ir::Stmt::Let { pattern, value } => {
+                    yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
                         fill_local_var_types_in(value, scope, bindings);
                         added.extend(collect_pattern_scope_bindings(pattern, scope));
                     }
-                    yulang_runtime_ir::Stmt::Expr(e) => {
+                    yulang_runtime_ir::FinalizedStmt::Expr(e) => {
                         fill_local_var_types_in(e, scope, bindings);
                     }
-                    yulang_runtime_ir::Stmt::Module { body, .. } => {
+                    yulang_runtime_ir::FinalizedStmt::Module { body, .. } => {
                         fill_local_var_types_in(body, scope, bindings);
                     }
                 }
@@ -617,10 +619,10 @@ fn fill_local_var_types_in(
 }
 
 fn collect_pattern_scope_bindings(
-    pattern: &yulang_runtime_ir::Pattern,
+    pattern: &yulang_runtime_ir::FinalizedPattern,
     scope: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> Vec<typed_ir::Path> {
-    use yulang_runtime_ir::Pattern;
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
     let mut added = Vec::new();
     match pattern {
         Pattern::Bind { name, ty } => {
@@ -674,7 +676,10 @@ fn collect_pattern_scope_bindings(
     added
 }
 
-pub(crate) fn restore_runtime_effect_boundaries(base: RuntimeType, principal: &RuntimeType) -> RuntimeType {
+pub(crate) fn finalized_effect_boundaries_from_principal(
+    base: RuntimeType,
+    principal: &RuntimeType,
+) -> RuntimeType {
     match (base, principal) {
         (
             RuntimeType::Fun { param, ret },
@@ -683,8 +688,14 @@ pub(crate) fn restore_runtime_effect_boundaries(base: RuntimeType, principal: &R
                 ret: principal_ret,
             },
         ) => RuntimeType::Fun {
-            param: Box::new(restore_runtime_effect_boundaries(*param, principal_param)),
-            ret: Box::new(restore_runtime_effect_boundaries(*ret, principal_ret)),
+            param: Box::new(finalized_effect_boundaries_from_principal(
+                *param,
+                principal_param,
+            )),
+            ret: Box::new(finalized_effect_boundaries_from_principal(
+                *ret,
+                principal_ret,
+            )),
         },
         (
             RuntimeType::Thunk { effect, value },
@@ -698,7 +709,10 @@ pub(crate) fn restore_runtime_effect_boundaries(base: RuntimeType, principal: &R
             } else {
                 effect
             },
-            value: Box::new(restore_runtime_effect_boundaries(*value, principal_value)),
+            value: Box::new(finalized_effect_boundaries_from_principal(
+                *value,
+                principal_value,
+            )),
         },
         (
             base,
@@ -707,18 +721,21 @@ pub(crate) fn restore_runtime_effect_boundaries(base: RuntimeType, principal: &R
                 value: principal_value,
             },
         ) if should_thunk_effect(effect)
-            && runtime_effect_boundary_value_matches(&base, principal_value) =>
+            && finalized_effect_boundary_value_matches(&base, principal_value) =>
         {
             RuntimeType::Thunk {
                 effect: effect.clone(),
-                value: Box::new(restore_runtime_effect_boundaries(base, principal_value)),
+                value: Box::new(finalized_effect_boundaries_from_principal(
+                    base,
+                    principal_value,
+                )),
             }
         }
         (base, _) => base,
     }
 }
 
-fn runtime_effect_boundary_value_matches(base: &RuntimeType, principal: &RuntimeType) -> bool {
+fn finalized_effect_boundary_value_matches(base: &RuntimeType, principal: &RuntimeType) -> bool {
     if base == principal {
         return true;
     }
@@ -728,7 +745,7 @@ fn runtime_effect_boundary_value_matches(base: &RuntimeType, principal: &Runtime
         || role::core_subtype_match_score(&principal, &base).is_some()
 }
 
-pub(crate) fn restore_apply_spine_arg_effects(
+pub(crate) fn finalized_apply_spine_arg_effects(
     callee: RuntimeType,
     steps: &[ApplyStep<'_>],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
@@ -740,14 +757,14 @@ pub(crate) fn restore_apply_spine_arg_effects(
         return callee;
     };
     let (arg_value, arg_effect) = step.arg_type_and_effect(local_types);
-    let param = restore_apply_arg_effect(*param, arg_value, arg_effect);
+    let param = finalized_apply_arg_effect(*param, arg_value, arg_effect);
     RuntimeType::Fun {
         param: Box::new(param),
-        ret: Box::new(restore_apply_spine_arg_effects(*ret, rest, local_types)),
+        ret: Box::new(finalized_apply_spine_arg_effects(*ret, rest, local_types)),
     }
 }
 
-fn restore_apply_arg_effect(
+fn finalized_apply_arg_effect(
     param: RuntimeType,
     arg_value: typed_ir::Type,
     arg_effect: typed_ir::Type,
@@ -765,16 +782,6 @@ fn restore_apply_arg_effect(
         effect: arg_effect,
         value: Box::new(param),
     }
-}
-
-pub(crate) fn runtime_spine_return(callee: &RuntimeType, arity: usize) -> Option<RuntimeType> {
-    if arity == 0 {
-        return Some(callee.clone());
-    }
-    let RuntimeType::Fun { ret, .. } = callee else {
-        return None;
-    };
-    runtime_spine_return(ret, arity - 1)
 }
 
 pub(crate) fn refine_runtime_spine_return(
@@ -806,7 +813,7 @@ pub(crate) fn refine_runtime_spine_return(
 fn runtime_return_needs_result_refinement(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => true,
-        RuntimeType::Core(ty) => core_type_contains_non_runtime_choice(ty),
+        RuntimeType::Value(ty) => core_type_contains_non_runtime_choice(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_return_needs_result_refinement(param)
                 || runtime_return_needs_result_refinement(ret)
@@ -872,7 +879,6 @@ fn core_type_contains_non_runtime_choice(ty: &typed_ir::Type) -> bool {
     }
 }
 
-
 pub(crate) fn runtime_type_to_core(ty: RuntimeType) -> typed_ir::Type {
     runtime_type_to_effected_core(ty).value
 }
@@ -888,7 +894,7 @@ fn runtime_type_to_effected_core(ty: RuntimeType) -> EffectedCoreType {
             value: typed_ir::Type::Unknown,
             effect: typed_ir::Type::Unknown,
         },
-        RuntimeType::Core(ty) => EffectedCoreType {
+        RuntimeType::Value(ty) => EffectedCoreType {
             value: ty,
             effect: typed_ir::Type::Never,
         },
@@ -923,7 +929,6 @@ pub(crate) fn path_from_name(name: &typed_ir::Name) -> typed_ir::Path {
     typed_ir::Path::from_name(name.clone())
 }
 
-
 /// Replace `Unknown` components of `target` with the more concrete `source`.
 /// Preserves any structure `target` already has when `source` doesn't refine it.
 pub(crate) fn narrow_runtime_type_in_place(target: &mut RuntimeType, source: &RuntimeType) {
@@ -954,7 +959,7 @@ pub(crate) fn narrow_runtime_type_in_place(target: &mut RuntimeType, source: &Ru
             }
             narrow_runtime_type_in_place(tv, sv);
         }
-        (RuntimeType::Core(t), RuntimeType::Core(s)) => {
+        (RuntimeType::Value(t), RuntimeType::Value(s)) => {
             narrow_core_type_in_place(t, s);
         }
         _ => {}
@@ -1016,7 +1021,10 @@ fn narrow_core_type_in_place(target: &mut typed_ir::Type, source: &typed_ir::Typ
     }
 }
 
-pub(crate) fn prune_specialized_polymorphic_bindings(module: &mut Module, solutions: &[RootGraphSolution]) {
+pub(crate) fn prune_specialized_polymorphic_bindings(
+    module: &mut Module,
+    solutions: &[RootGraphSolution],
+) {
     let specialized = solutions
         .iter()
         .map(|solution| solution.binding.clone())
@@ -1077,7 +1085,7 @@ fn collect_expr_paths(expr: &Expr, paths: &mut Vec<typed_ir::Path>) {
 pub(crate) fn runtime_type_is_closed(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Unknown => false,
-        RuntimeType::Core(ty) => core_type_is_closed(ty),
+        RuntimeType::Value(ty) => core_type_is_closed(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_type_is_closed(param) && runtime_type_is_closed(ret)
         }

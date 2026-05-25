@@ -376,7 +376,7 @@ fn compile_and_run_with_embedded_std(
     };
     let runtime_lower_ms = elapsed_ms(runtime_lower_start);
     let monomorphize_start = now_ms();
-    let module = match runtime::monomorphize_module(module) {
+    let module = match yulang_runtime_finalize::finalize_monomorphize_module(module) {
         Ok(module) => module,
         Err(error) if use_embedded_std && compiled_std_runtime.is_some() => {
             return compile_and_run_with_embedded_std(

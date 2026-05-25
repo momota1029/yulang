@@ -13,11 +13,11 @@ use crate::{Expr, ExprKind, Pattern, RecordSpreadExpr, RecordSpreadPattern, Stmt
 /// Match/Handle arm patterns are intentionally not traversed: their record
 /// defaults are not reachable in well-formed runtime IR. This matches the
 /// behavior of every existing visitor in `yulang-runtime-finalize`.
-pub fn walk_children<F: FnMut(&Expr)>(expr: &Expr, mut f: F) {
+pub fn walk_children<T, F: FnMut(&Expr<T>)>(expr: &Expr<T>, mut f: F) {
     walk_children_impl(expr, &mut f);
 }
 
-fn walk_children_impl<F: FnMut(&Expr)>(expr: &Expr, f: &mut F) {
+fn walk_children_impl<T, F: FnMut(&Expr<T>)>(expr: &Expr<T>, f: &mut F) {
     match &expr.kind {
         ExprKind::Var(_)
         | ExprKind::EffectOp(_)
@@ -101,11 +101,11 @@ fn walk_children_impl<F: FnMut(&Expr)>(expr: &Expr, f: &mut F) {
 /// Like `walk_children` but stops as soon as `f` returns `true` for any
 /// child, and returns `true` itself in that case. Use for short-circuiting
 /// predicates.
-pub fn walk_children_any<F: FnMut(&Expr) -> bool>(expr: &Expr, mut f: F) -> bool {
+pub fn walk_children_any<T, F: FnMut(&Expr<T>) -> bool>(expr: &Expr<T>, mut f: F) -> bool {
     walk_children_any_impl(expr, &mut f)
 }
 
-fn walk_children_any_impl<F: FnMut(&Expr) -> bool>(expr: &Expr, f: &mut F) -> bool {
+fn walk_children_any_impl<T, F: FnMut(&Expr<T>) -> bool>(expr: &Expr<T>, f: &mut F) -> bool {
     match &expr.kind {
         ExprKind::Var(_)
         | ExprKind::EffectOp(_)
@@ -134,21 +134,19 @@ fn walk_children_any_impl<F: FnMut(&Expr) -> bool>(expr: &Expr, f: &mut F) -> bo
             scrutinee, arms, ..
         } => {
             f(scrutinee)
-                || arms.iter().any(|arm| {
-                    arm.guard.as_ref().is_some_and(|guard| f(guard)) || f(&arm.body)
-                })
+                || arms
+                    .iter()
+                    .any(|arm| arm.guard.as_ref().is_some_and(|guard| f(guard)) || f(&arm.body))
         }
         ExprKind::Block { stmts, tail } => {
-            stmts
-                .iter()
-                .any(|stmt| walk_stmt_exprs_any_impl(stmt, f))
+            stmts.iter().any(|stmt| walk_stmt_exprs_any_impl(stmt, f))
                 || tail.as_ref().is_some_and(|tail| f(tail))
         }
         ExprKind::Handle { body, arms, .. } => {
             f(body)
-                || arms.iter().any(|arm| {
-                    arm.guard.as_ref().is_some_and(|guard| f(guard)) || f(&arm.body)
-                })
+                || arms
+                    .iter()
+                    .any(|arm| arm.guard.as_ref().is_some_and(|guard| f(guard)) || f(&arm.body))
         }
         ExprKind::BindHere { expr }
         | ExprKind::Thunk { expr, .. }
@@ -159,17 +157,22 @@ fn walk_children_any_impl<F: FnMut(&Expr) -> bool>(expr: &Expr, f: &mut F) -> bo
     }
 }
 
-fn walk_stmt_exprs_any_impl<F: FnMut(&Expr) -> bool>(stmt: &Stmt, f: &mut F) -> bool {
+fn walk_stmt_exprs_any_impl<T, F: FnMut(&Expr<T>) -> bool>(stmt: &Stmt<T>, f: &mut F) -> bool {
     match stmt {
         Stmt::Let { pattern, value } => walk_pattern_exprs_any_impl(pattern, f) || f(value),
         Stmt::Expr(expr) | Stmt::Module { body: expr, .. } => f(expr),
     }
 }
 
-fn walk_pattern_exprs_any_impl<F: FnMut(&Expr) -> bool>(pattern: &Pattern, f: &mut F) -> bool {
+fn walk_pattern_exprs_any_impl<T, F: FnMut(&Expr<T>) -> bool>(
+    pattern: &Pattern<T>,
+    f: &mut F,
+) -> bool {
     match pattern {
         Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => false,
-        Pattern::Tuple { items, .. } => items.iter().any(|item| walk_pattern_exprs_any_impl(item, f)),
+        Pattern::Tuple { items, .. } => items
+            .iter()
+            .any(|item| walk_pattern_exprs_any_impl(item, f)),
         Pattern::List {
             prefix,
             spread,
@@ -206,15 +209,15 @@ fn walk_pattern_exprs_any_impl<F: FnMut(&Expr) -> bool>(pattern: &Pattern, f: &m
 
 /// Visit every immediate child `Expr` of `expr` for mutation, fallibly.
 /// Stops and propagates on the first `Err`.
-pub fn walk_children_try_mut<E, F: FnMut(&mut Expr) -> Result<(), E>>(
-    expr: &mut Expr,
+pub fn walk_children_try_mut<T, E, F: FnMut(&mut Expr<T>) -> Result<(), E>>(
+    expr: &mut Expr<T>,
     mut f: F,
 ) -> Result<(), E> {
     walk_children_try_mut_impl(expr, &mut f)
 }
 
-fn walk_children_try_mut_impl<E, F: FnMut(&mut Expr) -> Result<(), E>>(
-    expr: &mut Expr,
+fn walk_children_try_mut_impl<T, E, F: FnMut(&mut Expr<T>) -> Result<(), E>>(
+    expr: &mut Expr<T>,
     f: &mut F,
 ) -> Result<(), E> {
     match &mut expr.kind {
@@ -303,8 +306,8 @@ fn walk_children_try_mut_impl<E, F: FnMut(&mut Expr) -> Result<(), E>>(
     }
 }
 
-fn walk_stmt_exprs_try_mut_impl<E, F: FnMut(&mut Expr) -> Result<(), E>>(
-    stmt: &mut Stmt,
+fn walk_stmt_exprs_try_mut_impl<T, E, F: FnMut(&mut Expr<T>) -> Result<(), E>>(
+    stmt: &mut Stmt<T>,
     f: &mut F,
 ) -> Result<(), E> {
     match stmt {
@@ -316,8 +319,8 @@ fn walk_stmt_exprs_try_mut_impl<E, F: FnMut(&mut Expr) -> Result<(), E>>(
     }
 }
 
-fn walk_pattern_exprs_try_mut_impl<E, F: FnMut(&mut Expr) -> Result<(), E>>(
-    pattern: &mut Pattern,
+fn walk_pattern_exprs_try_mut_impl<T, E, F: FnMut(&mut Expr<T>) -> Result<(), E>>(
+    pattern: &mut Pattern<T>,
     f: &mut F,
 ) -> Result<(), E> {
     match pattern {
@@ -373,7 +376,7 @@ fn walk_pattern_exprs_try_mut_impl<E, F: FnMut(&mut Expr) -> Result<(), E>>(
 }
 
 /// Visit every immediate child `Expr` of `expr` for mutation.
-pub fn walk_children_mut<F: FnMut(&mut Expr)>(expr: &mut Expr, mut f: F) {
+pub fn walk_children_mut<T, F: FnMut(&mut Expr<T>)>(expr: &mut Expr<T>, mut f: F) {
     let _: Result<(), std::convert::Infallible> = walk_children_try_mut(expr, |child| {
         f(child);
         Ok(())
@@ -382,11 +385,11 @@ pub fn walk_children_mut<F: FnMut(&mut Expr)>(expr: &mut Expr, mut f: F) {
 
 /// Visit every `Expr` directly carried by a `Stmt`. For `Stmt::Let`, this
 /// includes the value and any record-field default `Expr`s inside the pattern.
-pub fn walk_stmt_exprs<F: FnMut(&Expr)>(stmt: &Stmt, mut f: F) {
+pub fn walk_stmt_exprs<T, F: FnMut(&Expr<T>)>(stmt: &Stmt<T>, mut f: F) {
     walk_stmt_exprs_impl(stmt, &mut f);
 }
 
-fn walk_stmt_exprs_impl<F: FnMut(&Expr)>(stmt: &Stmt, f: &mut F) {
+fn walk_stmt_exprs_impl<T, F: FnMut(&Expr<T>)>(stmt: &Stmt<T>, f: &mut F) {
     match stmt {
         Stmt::Let { pattern, value } => {
             walk_pattern_exprs_impl(pattern, f);
@@ -398,11 +401,11 @@ fn walk_stmt_exprs_impl<F: FnMut(&Expr)>(stmt: &Stmt, f: &mut F) {
 
 /// Visit every `Expr` embedded in a `Pattern` (currently only record-field
 /// default values).
-pub fn walk_pattern_exprs<F: FnMut(&Expr)>(pattern: &Pattern, mut f: F) {
+pub fn walk_pattern_exprs<T, F: FnMut(&Expr<T>)>(pattern: &Pattern<T>, mut f: F) {
     walk_pattern_exprs_impl(pattern, &mut f);
 }
 
-fn walk_pattern_exprs_impl<F: FnMut(&Expr)>(pattern: &Pattern, f: &mut F) {
+fn walk_pattern_exprs_impl<T, F: FnMut(&Expr<T>)>(pattern: &Pattern<T>, f: &mut F) {
     match pattern {
         Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => {}
         Pattern::Tuple { items, .. } => {

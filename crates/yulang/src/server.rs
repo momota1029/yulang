@@ -145,7 +145,7 @@ fn diagnostics_for_lowered_source(
 
     let program = export_core_program(&mut lowered.state);
     let evidence = program.evidence.clone();
-    if let Err(error) = runtime::lower_core_program(program).and_then(runtime::monomorphize_module)
+    if let Err(error) = runtime::lower_core_program(program)
         && let Some(diagnostic) = runtime_error_to_lsp(
             uri,
             &lowered.diagnostic_source,

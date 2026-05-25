@@ -20,7 +20,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use yulang_runtime_ir::{Binding, Expr, ExprKind, Module, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
+    FinalizedModule as Module, FinalizedType as RuntimeType,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::{
@@ -625,7 +628,11 @@ fn rewrite_role_method_expr(
             changed |= rewrite_role_method_expr(body, local_types, candidates);
             for arm in arms {
                 let mut arm_locals = local_types.clone();
-                super::apply_spine::collect_pattern_local_types(&arm.payload, None, &mut arm_locals);
+                super::apply_spine::collect_pattern_local_types(
+                    &arm.payload,
+                    None,
+                    &mut arm_locals,
+                );
                 if let Some(resume) = &arm.resume {
                     arm_locals.insert(super::path_from_name(&resume.name), resume.ty.clone());
                 }
@@ -666,29 +673,29 @@ fn restore_local_type(
 }
 
 fn rewrite_role_method_record_spread(
-    spread: &mut yulang_runtime_ir::RecordSpreadExpr,
+    spread: &mut yulang_runtime_ir::FinalizedRecordSpreadExpr,
     local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
     candidates: &[RoleMethodCandidate],
 ) -> bool {
     match spread {
-        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
-        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => {
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
             rewrite_role_method_expr(expr, local_types, candidates)
         }
     }
 }
 
 fn rewrite_role_method_stmt(
-    stmt: &mut yulang_runtime_ir::Stmt,
+    stmt: &mut yulang_runtime_ir::FinalizedStmt,
     local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
     candidates: &[RoleMethodCandidate],
 ) -> bool {
     match stmt {
-        yulang_runtime_ir::Stmt::Let { pattern: _, value } => {
+        yulang_runtime_ir::FinalizedStmt::Let { pattern: _, value } => {
             rewrite_role_method_expr(value, local_types, candidates)
         }
-        yulang_runtime_ir::Stmt::Expr(expr)
-        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => {
+        yulang_runtime_ir::FinalizedStmt::Expr(expr)
+        | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => {
             rewrite_role_method_expr(expr, local_types, candidates)
         }
     }
@@ -814,7 +821,10 @@ fn role_receiver_types(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
 ) -> Vec<typed_ir::Type> {
     let mut out = Vec::new();
-    if let Some(ty) = receiver.evidence.and_then(super::apply_spine::apply_observed_arg_type) {
+    if let Some(ty) = receiver
+        .evidence
+        .and_then(super::apply_spine::apply_observed_arg_type)
+    {
         push_unique_type(&mut out, ty);
     }
     push_unique_type(&mut out, receiver.arg_type(local_types));

@@ -13,11 +13,36 @@ pub mod lower;
 pub mod monomorphize;
 pub mod refine;
 mod runtime_intrinsic;
+mod runtime_type;
 pub mod types;
 pub mod validate;
 
 pub mod ir {
-    pub use yulang_runtime_ir::*;
+    pub use crate::runtime_type::Type;
+    pub use yulang_runtime_ir::{
+        EffectIdRef, EffectIdVar, FinalizedBinding, FinalizedExpr, FinalizedExprKind,
+        FinalizedHandleArm, FinalizedMatchArm, FinalizedModule, FinalizedPattern,
+        FinalizedRecordExprField, FinalizedRecordPatternField, FinalizedRecordSpreadExpr,
+        FinalizedRecordSpreadPattern, FinalizedResumeBinding, FinalizedStmt, FinalizedType,
+        HandleEffect, JoinEvidence, LoweredBinding, LoweredExpr, LoweredExprKind, LoweredHandleArm,
+        LoweredMatchArm, LoweredModule, LoweredPattern, LoweredRecordExprField,
+        LoweredRecordPatternField, LoweredRecordSpreadExpr, LoweredRecordSpreadPattern,
+        LoweredResumeBinding, LoweredStmt, Root, TypeInstantiation, TypeSubstitution,
+    };
+
+    pub type Module = yulang_runtime_ir::Module<Type>;
+    pub type Binding = yulang_runtime_ir::Binding<Type>;
+    pub type Expr = yulang_runtime_ir::Expr<Type>;
+    pub type ExprKind = yulang_runtime_ir::ExprKind<Type>;
+    pub type Stmt = yulang_runtime_ir::Stmt<Type>;
+    pub type Pattern = yulang_runtime_ir::Pattern<Type>;
+    pub type RecordExprField = yulang_runtime_ir::RecordExprField<Type>;
+    pub type RecordSpreadExpr = yulang_runtime_ir::RecordSpreadExpr<Type>;
+    pub type RecordPatternField = yulang_runtime_ir::RecordPatternField<Type>;
+    pub type RecordSpreadPattern = yulang_runtime_ir::RecordSpreadPattern<Type>;
+    pub type MatchArm = yulang_runtime_ir::MatchArm<Type>;
+    pub type HandleArm = yulang_runtime_ir::HandleArm<Type>;
+    pub type ResumeBinding = yulang_runtime_ir::ResumeBinding<Type>;
 }
 
 pub use diagnostic::{RuntimeError, RuntimeResult, TypeSource};

@@ -1,4 +1,4 @@
-use yulang_runtime_ir::{Module, Type as RuntimeType};
+use yulang_runtime_ir::{FinalizedModule as Module, FinalizedType as RuntimeType};
 
 use crate::{FinalizeInstanceCacheProfile, GraphSolution};
 

@@ -7,7 +7,10 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use yulang_runtime_ir::{Binding, Expr, ExprKind, Type as RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
+    FinalizedType as RuntimeType,
+};
 use yulang_sources::{CompiledUnitManifest, YulangCachePaths};
 use yulang_typed_ir as typed_ir;
 
@@ -363,18 +366,18 @@ fn expr_node_count(expr: &Expr) -> usize {
     }
 }
 
-fn record_spread_expr_node_count(spread: &yulang_runtime_ir::RecordSpreadExpr) -> usize {
+fn record_spread_expr_node_count(spread: &yulang_runtime_ir::FinalizedRecordSpreadExpr) -> usize {
     match spread {
-        yulang_runtime_ir::RecordSpreadExpr::Head(expr)
-        | yulang_runtime_ir::RecordSpreadExpr::Tail(expr) => expr_node_count(expr),
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => expr_node_count(expr),
     }
 }
 
-fn stmt_node_count(stmt: &yulang_runtime_ir::Stmt) -> usize {
+fn stmt_node_count(stmt: &yulang_runtime_ir::FinalizedStmt) -> usize {
     match stmt {
-        yulang_runtime_ir::Stmt::Let { value, .. } => expr_node_count(value),
-        yulang_runtime_ir::Stmt::Expr(expr)
-        | yulang_runtime_ir::Stmt::Module { body: expr, .. } => expr_node_count(expr),
+        yulang_runtime_ir::FinalizedStmt::Let { value, .. } => expr_node_count(value),
+        yulang_runtime_ir::FinalizedStmt::Expr(expr)
+        | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => expr_node_count(expr),
     }
 }
 
@@ -490,7 +493,7 @@ mod tests {
                     var: typed_ir::TypeVar("a".into()),
                     ty: int.clone(),
                 }],
-                callee_type: RuntimeType::Core(int.clone()),
+                callee_type: RuntimeType::Value(int.clone()),
             },
             scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
@@ -498,10 +501,10 @@ mod tests {
             },
             body: Expr::typed(
                 ExprKind::Lit(typed_ir::Lit::Int("1".into())),
-                RuntimeType::Core(int.clone()),
+                RuntimeType::Value(int.clone()),
             ),
-            callee_type: RuntimeType::Core(int.clone()),
-            result_type: RuntimeType::Core(int),
+            callee_type: RuntimeType::Value(int.clone()),
+            result_type: RuntimeType::Value(int),
         }
     }
 
