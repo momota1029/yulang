@@ -701,8 +701,8 @@ fn list_len_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(int_ty),
     }
 }
@@ -719,8 +719,8 @@ fn list_empty_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(unit),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(list),
     }
 }
@@ -733,8 +733,8 @@ fn list_singleton_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(item),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(list),
     }
 }
@@ -751,12 +751,12 @@ fn list_index_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(int_ty),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(item),
         }),
     }
@@ -770,12 +770,12 @@ fn list_merge_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(list.clone()),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(list),
         }),
     }
@@ -793,16 +793,16 @@ fn list_index_range_raw_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(int_ty.clone()),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(typed_ir::Type::Fun {
                 param: Box::new(int_ty),
-                param_effect: Box::new(typed_ir::Type::Any),
-                ret_effect: Box::new(typed_ir::Type::Any),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
                 ret: Box::new(list),
             }),
         }),
@@ -821,12 +821,12 @@ fn list_index_range_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(range),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(list),
         }),
     }
@@ -844,16 +844,16 @@ fn list_splice_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(range),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(typed_ir::Type::Fun {
                 param: Box::new(list.clone()),
-                param_effect: Box::new(typed_ir::Type::Any),
-                ret_effect: Box::new(typed_ir::Type::Any),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
                 ret: Box::new(list),
             }),
         }),
@@ -872,20 +872,20 @@ fn list_splice_raw_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(int_ty.clone()),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(typed_ir::Type::Fun {
                 param: Box::new(int_ty),
-                param_effect: Box::new(typed_ir::Type::Any),
-                ret_effect: Box::new(typed_ir::Type::Any),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
                 ret: Box::new(typed_ir::Type::Fun {
                     param: Box::new(list.clone()),
-                    param_effect: Box::new(typed_ir::Type::Any),
-                    ret_effect: Box::new(typed_ir::Type::Any),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(typed_ir::Type::Never),
                     ret: Box::new(list),
                 }),
             }),
@@ -905,8 +905,8 @@ fn list_view_scheme_body() -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(list_view),
     }
 }

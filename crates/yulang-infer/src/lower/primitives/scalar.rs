@@ -404,8 +404,8 @@ pub(super) fn install_bytes_to_utf8_raw_primitive(
             requirements: Vec::new(),
             body: typed_ir::Type::Fun {
                 param: Box::new(named_runtime_type("bytes")),
-                param_effect: Box::new(typed_ir::Type::Any),
-                ret_effect: Box::new(typed_ir::Type::Any),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
                 ret: Box::new(typed_ir::Type::Tuple(vec![
                     named_runtime_type("str"),
                     named_runtime_type("int"),
@@ -759,12 +759,12 @@ fn binary_scheme_body(name: &str) -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(ty.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(ty.clone()),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ty),
         }),
     }
@@ -775,8 +775,8 @@ fn unary_scheme_body(param_name: &str, ret_name: &str) -> typed_ir::Type {
     let ret = named_runtime_type(ret_name);
     typed_ir::Type::Fun {
         param: Box::new(param),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(ret),
     }
 }
@@ -800,8 +800,8 @@ fn mixed_scheme_body(params: &[&str], ret_name: &str) -> typed_ir::Type {
         };
         typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ret),
         }
     })
@@ -818,12 +818,12 @@ fn binary_predicate_scheme_body(name: &str) -> typed_ir::Type {
     };
     typed_ir::Type::Fun {
         param: Box::new(ty.clone()),
-        param_effect: Box::new(typed_ir::Type::Any),
-        ret_effect: Box::new(typed_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Never),
+        ret_effect: Box::new(typed_ir::Type::Never),
         ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(ty),
-            param_effect: Box::new(typed_ir::Type::Any),
-            ret_effect: Box::new(typed_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(bool_ty),
         }),
     }
