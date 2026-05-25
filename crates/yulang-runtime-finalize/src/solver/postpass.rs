@@ -265,11 +265,11 @@ fn reconcile_apply_triple(
         let mut changed = false;
 
         if let Some((param, ret)) = runtime_fun_split(callee_ty) {
-            if runtime_type_has_unknown(arg_ty) && !runtime_type_has_unknown(&param) {
+            if !runtime_type_has_unknown(&param) && !runtime_types_equivalent(arg_ty, &param) {
                 *arg_ty = param.clone();
                 changed = true;
             }
-            if runtime_type_has_unknown(apply_ty) && !runtime_type_has_unknown(&ret) {
+            if !runtime_type_has_unknown(&ret) && !runtime_types_equivalent(apply_ty, &ret) {
                 *apply_ty = ret.clone();
                 changed = true;
             }
@@ -481,11 +481,11 @@ fn fill_local_var_types_in(
 ) {
     match &mut expr.kind {
         ExprKind::Var(path) => {
-            if runtime_type_has_unknown(&expr.ty)
-                && let Some(known) = scope
-                    .get(path)
-                    .or_else(|| bindings.get(path))
-                    .filter(|known| !runtime_type_has_unknown(known))
+            if let Some(known) = scope
+                .get(path)
+                .or_else(|| bindings.get(path))
+                .filter(|known| !runtime_type_has_unknown(known))
+                && !runtime_types_equivalent(&expr.ty, known)
             {
                 expr.ty = known.clone();
             }
@@ -714,6 +714,12 @@ pub(crate) fn finalized_effect_boundaries_from_principal(
                 principal_value,
             )),
         },
+        (RuntimeType::Thunk { value, .. }, principal)
+            if principal_can_drop_base_thunk(&principal)
+                && finalized_effect_boundary_value_matches(&value, &principal) =>
+        {
+            finalized_effect_boundaries_from_principal(*value, &principal)
+        }
         (
             base,
             RuntimeType::Thunk {
@@ -733,6 +739,13 @@ pub(crate) fn finalized_effect_boundaries_from_principal(
         }
         (base, _) => base,
     }
+}
+
+fn principal_can_drop_base_thunk(principal: &RuntimeType) -> bool {
+    !matches!(
+        principal,
+        RuntimeType::Unknown | RuntimeType::Value(typed_ir::Type::Any)
+    )
 }
 
 fn finalized_effect_boundary_value_matches(base: &RuntimeType, principal: &RuntimeType) -> bool {

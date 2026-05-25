@@ -80,7 +80,7 @@ pub(crate) fn materialize_expr_with_expected(
             let callee = materialize_expr(*callee, substitutions);
             let expected_arg = materialized_runtime_callee_arg(&callee.ty)
                 .or_else(|| evidence.as_ref().and_then(materialized_apply_expected_arg));
-            ExprKind::Apply {
+            let kind = ExprKind::Apply {
                 callee: Box::new(callee),
                 arg: Box::new(materialize_apply_arg(
                     *arg,
@@ -89,7 +89,9 @@ pub(crate) fn materialize_expr_with_expected(
                 )),
                 evidence,
                 instantiation,
-            }
+            };
+            let ty = materialized_apply_result_type(ty, &kind);
+            return Expr::typed(kind, ty);
         }
         ExprKind::Tuple(items) => ExprKind::Tuple(
             items
@@ -957,6 +959,41 @@ fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option
         .and_then(super::apply_spine::type_from_bounds)
         .map(runtime_type_from_core_value)
         .filter(should_materialize_runtime_apply_arg_to)
+}
+
+fn materialized_apply_result_type(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
+    let ExprKind::Apply {
+        evidence: Some(evidence),
+        ..
+    } = kind
+    else {
+        return fallback;
+    };
+    let Some(value) =
+        super::apply_spine::type_from_bounds(&evidence.result).filter(super::core_type_is_closed)
+    else {
+        return fallback;
+    };
+    let effect = materialized_apply_return_effect(evidence).unwrap_or(typed_ir::Type::Never);
+    runtime_type_from_core_value_and_effect(value, effect)
+}
+
+fn materialized_apply_return_effect(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    materialized_apply_return_callee(evidence).and_then(|ty| match ty {
+        typed_ir::Type::Fun { ret_effect, .. } => {
+            let effect = *ret_effect;
+            super::core_type_is_closed(&effect).then_some(effect)
+        }
+        _ => None,
+    })
+}
+
+fn materialized_apply_return_callee(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    evidence
+        .expected_callee
+        .as_ref()
+        .and_then(super::apply_spine::type_from_bounds)
+        .or_else(|| super::apply_spine::type_from_bounds(&evidence.callee))
 }
 
 fn materialize_handle_body(

@@ -3042,6 +3042,7 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                 derived_expected_edges: Vec::new(),
                 handler_matches: Vec::new(),
             },
+            effect_operations: Vec::new(),
         },
     }
 }
@@ -3129,6 +3130,7 @@ fn runtime_surface_with_record_default_apply_binding(name: &str) -> CompiledRunt
                 derived_expected_edges: Vec::new(),
                 handler_matches: Vec::new(),
             },
+            effect_operations: Vec::new(),
         },
     }
 }

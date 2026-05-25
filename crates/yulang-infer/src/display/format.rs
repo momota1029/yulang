@@ -414,11 +414,10 @@ fn coalesce_root_fun(
             &upper_fun.arg,
             false,
         )),
-        arg_eff: Box::new(coalesce_root_fun_field(
+        arg_eff: Box::new(coalesce_root_fun_arg_effect_field(
             ctx,
             &lower_fun.arg_eff,
             &upper_fun.arg_eff,
-            false,
         )),
         ret_eff: Box::new(coalesce_root_fun_effect_field(
             ctx,
@@ -433,6 +432,29 @@ fn coalesce_root_fun(
             true,
         )),
     })
+}
+
+fn coalesce_root_fun_arg_effect_field(
+    ctx: &mut CompactToTypeCtx<'_>,
+    lower: &CompactType,
+    upper: &CompactType,
+) -> Type {
+    let bounds = normalize_render_bounds(CompactBounds {
+        self_var: None,
+        lower: lower.clone(),
+        upper: upper.clone(),
+    });
+    let ty = common_compact_type(&bounds.lower, &bounds.upper)
+        .filter(|ty| !is_empty_compact(ty))
+        .unwrap_or(bounds.lower);
+
+    if is_empty_compact(&ty) || is_explicit_empty_row_compact(&ty) {
+        Type::Bot
+    } else if is_var_only_compact(&ty) {
+        Type::Var(*ty.vars.iter().next().unwrap())
+    } else {
+        ctx.coalesce_type(&ty, false)
+    }
 }
 
 fn coalesce_root_fun_effect_field(

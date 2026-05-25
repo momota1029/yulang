@@ -452,6 +452,24 @@ fn rewritten_role_method_apply_keeps_slot_evidence() {
 }
 
 #[test]
+fn recursive_self_call_principal_keeps_pure_arg_effect() {
+    let mut state = parse_and_lower(
+        "my loop(acc) =\n  if true:\n    loop(acc)\n  else:\n    acc\n\nloop",
+    );
+    let program = export_core_program(&mut state);
+    let principal_callees = apply_principal_callees_in_module(&program.program);
+
+    assert!(
+        !principal_callees.is_empty(),
+        "expected recursive self-call apply principal evidence"
+    );
+    assert!(
+        principal_callees.iter().all(|ty| !type_contains_any(ty)),
+        "recursive self-call principal evidence should not contain Any/top: {principal_callees:?}",
+    );
+}
+
+#[test]
 fn core_program_carries_expected_edge_evidence_table() {
     let mut state = parse_and_lower("my id(x: int) = x\nid 1");
     let application_edge_ids = state
@@ -1122,6 +1140,34 @@ fn collect_apply_evidence_source_expected_args(
     });
 }
 
+fn apply_principal_callees_in_module(
+    module: &yulang_typed_ir::PrincipalModule,
+) -> Vec<yulang_typed_ir::Type> {
+    let mut principal_callees = Vec::new();
+    for binding in &module.bindings {
+        collect_apply_principal_callees(&binding.body, &mut principal_callees);
+    }
+    for expr in &module.root_exprs {
+        collect_apply_principal_callees(expr, &mut principal_callees);
+    }
+    principal_callees
+}
+
+fn collect_apply_principal_callees(
+    expr: &yulang_typed_ir::Expr,
+    principal_callees: &mut Vec<yulang_typed_ir::Type>,
+) {
+    visit_core_expr(expr, &mut |expr| {
+        if let yulang_typed_ir::Expr::Apply { evidence, .. } = expr
+            && let Some(principal_callee) = evidence
+                .as_ref()
+                .and_then(|evidence| evidence.principal_callee.clone())
+        {
+            principal_callees.push(principal_callee);
+        }
+    });
+}
+
 fn coerce_evidence_source_edges_in_module(
     module: &yulang_typed_ir::PrincipalModule,
 ) -> std::collections::BTreeSet<u32> {
@@ -1391,6 +1437,66 @@ fn concrete_type(ty: &yulang_typed_ir::Type) -> bool {
             items.iter().all(concrete_type) && concrete_type(tail)
         }
         yulang_typed_ir::Type::Recursive { body, .. } => concrete_type(body),
+    }
+}
+
+fn type_contains_any(ty: &yulang_typed_ir::Type) -> bool {
+    match ty {
+        yulang_typed_ir::Type::Any => true,
+        yulang_typed_ir::Type::Unknown
+        | yulang_typed_ir::Type::Never
+        | yulang_typed_ir::Type::Var(_) => false,
+        yulang_typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_any),
+        yulang_typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_any(param)
+                || type_contains_any(param_effect)
+                || type_contains_any(ret_effect)
+                || type_contains_any(ret)
+        }
+        yulang_typed_ir::Type::Tuple(items)
+        | yulang_typed_ir::Type::Union(items)
+        | yulang_typed_ir::Type::Inter(items) => items.iter().any(type_contains_any),
+        yulang_typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_contains_any(&field.value))
+                || record.spread.as_ref().is_some_and(record_spread_contains_any)
+        }
+        yulang_typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(type_contains_any))
+                || variant.tail.as_deref().is_some_and(type_contains_any)
+        }
+        yulang_typed_ir::Type::Row { items, tail } => {
+            items.iter().any(type_contains_any) || type_contains_any(tail)
+        }
+        yulang_typed_ir::Type::Recursive { body, .. } => type_contains_any(body),
+    }
+}
+
+fn type_arg_contains_any(arg: &yulang_typed_ir::TypeArg) -> bool {
+    match arg {
+        yulang_typed_ir::TypeArg::Type(ty) => type_contains_any(ty),
+        yulang_typed_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(type_contains_any)
+                || bounds.upper.as_deref().is_some_and(type_contains_any)
+        }
+    }
+}
+
+fn record_spread_contains_any(spread: &yulang_typed_ir::RecordSpread) -> bool {
+    match spread {
+        yulang_typed_ir::RecordSpread::Head(ty) | yulang_typed_ir::RecordSpread::Tail(ty) => {
+            type_contains_any(ty)
+        }
     }
 }
 

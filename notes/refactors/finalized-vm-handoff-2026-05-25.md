@@ -374,3 +374,151 @@ cargo test -q -p yulang-runtime-finalize cached_std_legacy_runtime_and_finalize_
 次に見るなら、`undet once range` の freeze は
 `BindHere` 修正とは別に、finalized path で `sub::return` / `undet::once`
 の handler boundary か request blocker が変わっている疑いが強い。
+
+---
+
+## Codex セッション追記 2（2026-05-25 続き）
+
+### このセッションの焦点
+
+ユーザー指摘どおり、`effect == Any` を VM/finalize 下流で「広い effect」として
+扱うのではなく、そもそも `Any` / `⊤` がどこで混ざるかを調べた。
+
+結論として、少なくとも一部は `yulang-infer` の compact/freeze/export 経路で、
+function の `arg_eff` を effect row ではなく通常の型 slot と同じように扱っていた
+ことが原因だった。
+
+### 小さい再現
+
+以下のような再帰 self-call だけで、core IR の apply principal に `-⊤` が出ていた。
+
+```yu
+my loop(acc) =
+    if true:
+        loop(acc)
+    else:
+        acc
+
+loop
+```
+
+修正前:
+
+```text
+principal=t569 -⊤ / ⊥-> t569
+```
+
+修正後:
+
+```text
+principal=t569 -⊥ / ⊥-> t569
+```
+
+同様に `fold_like` 型の小さい再帰関数でも、binding principal 側の
+`-⊤` は `-⊥` に直った。
+
+### 入れた修正
+
+- `crates/yulang-infer/src/display/format.rs`
+  - root function の `arg_eff` を `coalesce_root_fun_field` ではなく、
+    effect slot 専用の `coalesce_root_fun_arg_effect_field` で coalesce するように変更。
+  - 空 compact effect を `Top` ではなく pure/empty effect として表示・export する意図。
+- `crates/yulang-infer/src/scheme/freeze.rs`
+  - `compact_root_fun_pos_body` の root `arg_eff` で、空 compact type を
+    `arena.top` ではなく `arena.empty_neg_row` に戻す helper を追加。
+  - 一般の `CompactFun` 復元でも `arg_eff` の空 compact を
+    `empty_neg_row` / `empty_pos_row` に戻す helper を使うように変更。
+- `crates/yulang-infer/src/tests.rs`
+  - `recursive_self_call_principal_keeps_pure_arg_effect` を追加。
+  - recursive self-call の apply principal に `Any` が混ざらないことを見る。
+- `crates/yulang-infer/src/source/tests.rs`
+  - 既存 test helper の `CoreProgram` literal に `effect_operations: Vec::new()` を追加。
+  - これは今回の本質ではなく、test compile を通すための既存 fixture 補修。
+
+### 通った確認
+
+```sh
+cargo test -q -p yulang-infer recursive_self_call_principal_keeps_pure_arg_effect
+cargo run -q -p yulang -- dump --core-ir --no-prelude --no-cache /tmp/yulang-loop-min.yu
+cargo run -q -p yulang -- dump --core-ir --no-prelude --no-cache /tmp/yulang-foldlike-min.yu
+```
+
+`loop` / `fold_like` の principal では `-⊤` が消えた。
+
+### まだ大丈夫ではない点
+
+`std` 系はまだ壊れている。特に次が残る。
+
+```sh
+cargo test -q -p yulang-vm vm_runs_std_undet_each_and_once_from_prelude -- --nocapture
+```
+
+結果:
+
+```text
+finalized runtime module failed: expected constructor
+expected function
+...
+called `Result::unwrap()` on an `Err` value: Any { .. }
+```
+
+また、次は stack overflow abort:
+
+```sh
+cargo test -q -p yulang-infer compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies -- --nocapture
+cargo test -q -p yulang-infer compiled_std_artifact_import_keeps_effectful_guard_constraints -- --nocapture
+```
+
+`RUST_MIN_STACK=268435456` でも落ちたので、単なる large stack 不足ではなさそう。
+
+### 追加で分かったこと
+
+`lib/std/parse.yu` 単体の check は、今回の修正後に以前見えていた
+`expected constructor` からは進んだが、今度は通常の依存不足エラーに加えて
+`parse_error` と `std::parse::parse_error` の nominal path mismatch が見える。
+
+```sh
+cargo run -q -p yulang -- check --no-prelude --no-cache lib/std/parse.yu
+```
+
+`pick::loop` の型にはまだ内側関数引数で `⊤` が残るケースがある。
+小さい再現:
+
+```yu
+type list 'a
+pub cons(x: 'a, xs: list 'a): list 'a = xs
+
+my act pick:
+    our branch: () -> bool
+    our loop(x: [pick] 'a, queue: list (bool -> [pick] 'a)) = catch x:
+        branch(), k -> loop(k true, cons(k, queue))
+        value -> queue
+
+pick::loop
+```
+
+この dump では、`queue` の要素型や apply evidence 周辺に
+`bool -⊤ / ... -> ...` がまだ現れる。
+root `arg_eff` だけでなく、nested function type の upper/lower merge や
+handler continuation `k` の effect row が、どこかで `Top` 側へ広がっている。
+
+### 次に見るべき場所
+
+1. `crates/yulang-infer/src/simplify/compact.rs`
+   - `merge_funs` の `arg_eff: merge_compact_types(!positive, ...)` が、
+     function parameter effect の variance として本当に正しいか確認する。
+   - 空 compact type が `Neg::Top` / `typed_ir::Any` へ戻る箇所がまだ残っていないか見る。
+2. `crates/yulang-infer/src/lower/expr/catch.rs`
+   - handler continuation `k` の型生成で `bool -> [pick] a` の upper 側 tail が
+     `⊤` になっていないか確認する。
+3. `crates/yulang-infer/src/export/apply_principal.rs`
+   - `principal_callee` や `substitution_candidates` へ `Any` を含む候補を
+     そのまま流していないか確認する。
+   - ただし、ここで握りつぶすのは下流補修なので、まずは compact/freeze/catch 側を疑う。
+
+### 注意
+
+この時点の working tree には、前セッションからの finalized VM 直接化 WIP と、
+今回の infer 側 Any 混入調査の差分が混ざっている。安全に commit できる単位ではない。
+少なくとも `yulang-infer` 側の修正だけを切り出すなら、VM/finalize の WIP と分けて
+diff を確認する必要がある。

@@ -1514,41 +1514,51 @@ impl<'m> ControlInterpreter<'m> {
     }
 
     fn bind_here(&mut self, value: ControlValue) -> Result<ControlResult, VmError> {
-        let ControlValue::Thunk(thunk) = value else {
-            return Ok(ControlResult::Value(value));
-        };
         let parent = self.guard_stack.clone();
-        self.guard_stack = thunk.guard_stack.clone();
-        let result = match &thunk.body {
-            ControlThunkBody::Value(value) => Ok(ControlResult::Value(value.clone())),
-            ControlThunkBody::Expr(expr) => match self.eval_expr(*expr, &thunk.env)? {
-                ControlResult::Value(ControlValue::Thunk(next)) => {
-                    match self.bind_here(ControlValue::Thunk(next))? {
-                        ControlResult::Request(request) => Ok(ControlResult::Request(
-                            push_thunk_boundary_frame(request, &thunk),
-                        )),
-                        other => Ok(other),
-                    }
+        let mut value = value;
+        let mut outer_thunks = Vec::new();
+        let result = loop {
+            let ControlValue::Thunk(thunk) = value else {
+                break Ok(ControlResult::Value(value));
+            };
+            self.guard_stack = thunk.guard_stack.clone();
+            match &thunk.body {
+                ControlThunkBody::Value(next) => {
+                    value = next.clone();
                 }
-                ControlResult::Request(request) => Ok(ControlResult::Request(
-                    push_thunk_expr_frames(request, &thunk),
-                )),
-                other => Ok(other),
-            },
-            ControlThunkBody::Emit { effect, payload } => {
-                Ok(ControlResult::Request(push_thunk_boundary_frame(
-                    ControlRequest {
-                        effect: *effect,
-                        payload: payload.clone(),
-                        continuation: ControlContinuation {
-                            frames: VecDeque::new(),
-                            guard_stack: self.guard_stack.clone(),
+                ControlThunkBody::Expr(expr) => match self.eval_expr(*expr, &thunk.env)? {
+                    ControlResult::Value(next @ ControlValue::Thunk(_)) => {
+                        outer_thunks.push(thunk.clone());
+                        value = next;
+                    }
+                    ControlResult::Request(request) => {
+                        let mut request = push_thunk_expr_frames(request, &thunk);
+                        for outer in outer_thunks.iter().rev() {
+                            request = push_thunk_boundary_frame(request, outer);
+                        }
+                        break Ok(ControlResult::Request(request));
+                    }
+                    other => break Ok(other),
+                },
+                ControlThunkBody::Emit { effect, payload } => {
+                    let mut request = push_thunk_boundary_frame(
+                        ControlRequest {
+                            effect: *effect,
+                            payload: payload.clone(),
+                            continuation: ControlContinuation {
+                                frames: VecDeque::new(),
+                                guard_stack: self.guard_stack.clone(),
+                            },
+                            blocked_id: None,
+                            blocked_ids: Vec::new(),
                         },
-                        blocked_id: None,
-                        blocked_ids: Vec::new(),
-                    },
-                    &thunk,
-                )))
+                        &thunk,
+                    );
+                    for outer in outer_thunks.iter().rev() {
+                        request = push_thunk_boundary_frame(request, outer);
+                    }
+                    break Ok(ControlResult::Request(request));
+                }
             }
         };
         self.guard_stack = parent;

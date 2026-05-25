@@ -249,7 +249,10 @@ pub(super) fn effect_operation_path_matches(
     handled: &typed_ir::Path,
     requested: &typed_ir::Path,
 ) -> bool {
-    handled == requested
+    if handled.segments.is_empty() || requested.segments.is_empty() {
+        return handled == requested;
+    }
+    effect_path_matches_allowed(handled, requested)
         || (handled.segments.len() == requested.segments.len()
             && handled.segments.len() > 1
             && handled.segments[..handled.segments.len() - 1]

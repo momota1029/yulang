@@ -364,48 +364,51 @@ impl<'m> VmInterpreter<'m> {
     }
 
     pub(super) fn bind_here(&mut self, value: VmValue) -> Result<VmResult, VmError> {
-        let VmValue::Thunk(thunk) = value else {
-            return Ok(VmResult::Value(value));
-        };
         let parent = self.guard_stack.clone();
-        self.guard_stack = thunk.guard_stack.clone();
-        match &thunk.body {
-            ThunkBody::Value(value) => {
-                self.guard_stack = parent;
-                Ok(VmResult::Value(value.clone()))
-            }
-            ThunkBody::Expr(expr) => {
-                let result = match self.eval_expr(expr, &thunk.env)? {
-                    VmResult::Value(VmValue::Thunk(next)) => {
-                        match self.bind_here(VmValue::Thunk(next))? {
-                            VmResult::Request(request) => Ok(VmResult::Request(
-                                push_thunk_boundary_frame(request, &thunk),
-                            )),
-                            other => Ok(other),
-                        }
+        let mut value = value;
+        let mut outer_thunks = Vec::new();
+        let result = loop {
+            let VmValue::Thunk(thunk) = value else {
+                break Ok(VmResult::Value(value));
+            };
+            self.guard_stack = thunk.guard_stack.clone();
+            match &thunk.body {
+                ThunkBody::Value(next) => {
+                    value = next.clone();
+                }
+                ThunkBody::Expr(expr) => match self.eval_expr(expr, &thunk.env)? {
+                    VmResult::Value(next @ VmValue::Thunk(_)) => {
+                        outer_thunks.push(thunk.clone());
+                        value = next;
                     }
                     VmResult::Request(request) => {
-                        Ok(VmResult::Request(push_thunk_expr_frames(request, &thunk)))
+                        let mut request = push_thunk_expr_frames(request, &thunk);
+                        for outer in outer_thunks.iter().rev() {
+                            request = push_thunk_boundary_frame(request, outer);
+                        }
+                        break Ok(VmResult::Request(request));
                     }
-                    other => Ok(other),
-                };
-                self.guard_stack = parent;
-                result
+                    other => break Ok(other),
+                },
+                ThunkBody::Emit { effect, payload } => {
+                    let mut request = push_thunk_boundary_frame(
+                        VmRequest {
+                            effect: effect.clone(),
+                            payload: payload.clone(),
+                            continuation: VmContinuation::new(self.guard_stack.clone()),
+                            blocked_id: None,
+                        },
+                        &thunk,
+                    );
+                    for outer in outer_thunks.iter().rev() {
+                        request = push_thunk_boundary_frame(request, outer);
+                    }
+                    break Ok(VmResult::Request(request));
+                }
             }
-            ThunkBody::Emit { effect, payload } => {
-                let request = VmRequest {
-                    effect: effect.clone(),
-                    payload: payload.clone(),
-                    continuation: VmContinuation::new(self.guard_stack.clone()),
-                    blocked_id: None,
-                };
-                let result = Ok(VmResult::Request(push_thunk_boundary_frame(
-                    request, &thunk,
-                )));
-                self.guard_stack = parent;
-                result
-            }
-        }
+        };
+        self.guard_stack = parent;
+        result
     }
 
     pub(super) fn continue_apply_arg(
@@ -1266,15 +1269,15 @@ fn push_thunk_boundary_frame(request: VmRequest, thunk: &VmThunk) -> VmRequest {
     )
 }
 
+fn tuple_type_forces_items(ty: &Type) -> bool {
+    matches!(ty, Type::Value(typed_ir::Type::Tuple(_)))
+}
+
 fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
     !matches!(
         param_ty,
         Type::Thunk { .. } | Type::Value(typed_ir::Type::Any)
     )
-}
-
-fn tuple_type_forces_items(ty: &Type) -> bool {
-    matches!(ty, Type::Value(typed_ir::Type::Tuple(_)))
 }
 
 fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {
