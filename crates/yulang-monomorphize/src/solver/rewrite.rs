@@ -22,8 +22,8 @@ use yulang_runtime_ir::{
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    CachedFinalizeInstance, FinalizeDiagnostic, FinalizeInstanceCache, FinalizeInstanceKey,
-    FinalizeResult, RootGraphSolution, graph::runtime_type_from_core_value_and_effect,
+    CachedMonomorphizeInstance, MonomorphizeDiagnostic, MonomorphizeInstanceCache, MonomorphizeInstanceKey,
+    MonomorphizeResult, RootGraphSolution, graph::runtime_type_from_core_value_and_effect,
     output::RootGraphRoot,
 };
 
@@ -46,8 +46,8 @@ pub(crate) fn canonicalize_aliases(solutions: &mut [RootGraphSolution]) {
 pub(crate) fn append_monomorphic_bindings(
     module: &mut Module,
     solutions: &[RootGraphSolution],
-    cache: &mut FinalizeInstanceCache,
-) -> FinalizeResult<Vec<typed_ir::Path>> {
+    cache: &mut MonomorphizeInstanceCache,
+) -> MonomorphizeResult<Vec<typed_ir::Path>> {
     let bindings = module
         .bindings
         .iter()
@@ -67,7 +67,7 @@ pub(crate) fn append_monomorphic_bindings(
                 return Ok(cached.binding_with_alias(solution.alias.clone()));
             }
             let binding = bindings.get(&solution.binding).ok_or_else(|| {
-                FinalizeDiagnostic::MissingBinding {
+                MonomorphizeDiagnostic::MissingBinding {
                     binding: solution.binding.clone(),
                 }
             })?;
@@ -82,7 +82,7 @@ pub(crate) fn append_monomorphic_bindings(
                 Some(&solution.callee_type),
             );
             let body = materialize::refresh_local_expr_types(body);
-            cache.insert(CachedFinalizeInstance {
+            cache.insert(CachedMonomorphizeInstance {
                 key,
                 scheme: scheme.clone(),
                 body: body.clone(),
@@ -96,7 +96,7 @@ pub(crate) fn append_monomorphic_bindings(
                 body,
             })
         })
-        .collect::<FinalizeResult<Vec<_>>>()?;
+        .collect::<MonomorphizeResult<Vec<_>>>()?;
     let aliases = emitted
         .iter()
         .map(|binding| binding.name.clone())
@@ -108,7 +108,7 @@ pub(crate) fn append_monomorphic_bindings(
 pub(crate) fn rewrite_root_exprs(
     module: &mut Module,
     solutions: &[RootGraphSolution],
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     for (root_index, expr) in module.root_exprs.iter_mut().enumerate() {
         let root_solutions = solutions
             .iter()
@@ -123,7 +123,7 @@ pub(crate) fn rewrite_root_exprs(
 pub(crate) fn rewrite_binding_exprs(
     module: &mut Module,
     solutions: &[RootGraphSolution],
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     for binding in &mut module.bindings {
         let binding_solutions = solutions
             .iter()
@@ -139,7 +139,7 @@ fn rewrite_root_expr(
     expr: &mut Expr,
     solutions: &[&RootGraphSolution],
     cursor: &mut usize,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     if rewrite_polymorphic_var(expr, solutions, cursor) {
         return Ok(());
     }
@@ -177,7 +177,7 @@ fn rewrite_apply_spine_args(
     expr: &mut Expr,
     solutions: &[&RootGraphSolution],
     cursor: &mut usize,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let ExprKind::Apply { callee, arg, .. } = &mut expr.kind else {
         return Ok(());
     };
@@ -189,7 +189,7 @@ fn rewrite_simple_apply(
     expr: &mut Expr,
     solutions: &[&RootGraphSolution],
     cursor: &mut usize,
-) -> FinalizeResult<bool> {
+) -> MonomorphizeResult<bool> {
     if !matches!(expr.kind, ExprKind::Apply { .. }) {
         return Ok(false);
     };
@@ -289,8 +289,8 @@ fn clear_apply_spine_instantiations(expr: &mut Expr, binding: &typed_ir::Path) {
     }
 }
 
-fn solution_instance_key(solution: &RootGraphSolution) -> FinalizeInstanceKey {
-    FinalizeInstanceKey {
+fn solution_instance_key(solution: &RootGraphSolution) -> MonomorphizeInstanceKey {
+    MonomorphizeInstanceKey {
         binding: solution.binding.clone(),
         substitutions: solution.type_substitutions.clone(),
         callee_type: solution.callee_type.clone(),

@@ -1,18 +1,18 @@
 use yulang_runtime_ir::{FinalizedModule as Module, FinalizedType as RuntimeType};
 
-use crate::{FinalizeInstanceCacheProfile, GraphSolution};
+use crate::{MonomorphizeInstanceCacheProfile, GraphSolution};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FinalizeOutput {
+pub struct MonomorphizeOutput {
     pub module: Module,
-    pub report: FinalizeReport,
+    pub report: MonomorphizeReport,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct FinalizeReport {
+pub struct MonomorphizeReport {
     pub root_graph_inputs: Vec<RootGraphInput>,
     pub root_graph_solutions: Vec<RootGraphSolution>,
-    pub cache_profile: FinalizeInstanceCacheProfile,
+    pub cache_profile: MonomorphizeInstanceCacheProfile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

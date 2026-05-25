@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use yulang_runtime_ir::{FinalizedBinding as Binding, FinalizedType as RuntimeType};
 use yulang_typed_ir as typed_ir;
 
-use crate::{FinalizeDiagnostic, FinalizeResult};
+use crate::{MonomorphizeDiagnostic, MonomorphizeResult};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TypeGraph {
@@ -42,7 +42,7 @@ impl TypeGraph {
         &mut self,
         template: &typed_ir::Type,
         bounds: &RuntimeBounds,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         if let Some(lower) = &bounds.lower {
             self.collect_runtime(template, lower, BoundSide::Lower)?;
         }
@@ -56,7 +56,7 @@ impl TypeGraph {
         &mut self,
         template: &typed_ir::Type,
         lower: &RuntimeType,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         self.collect_runtime(template, lower, BoundSide::Lower)?;
         self.propagate_constraints()
     }
@@ -65,7 +65,7 @@ impl TypeGraph {
         &mut self,
         template: &typed_ir::Type,
         upper: &RuntimeType,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         self.collect_runtime(template, upper, BoundSide::Upper)?;
         self.propagate_constraints()
     }
@@ -80,7 +80,7 @@ impl TypeGraph {
         &mut self,
         lower: typed_ir::Type,
         upper: typed_ir::Type,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         let constraint = SubtypeConstraint { lower, upper };
         if !self.constraints.contains(&constraint) {
             self.constraints.push(constraint);
@@ -92,7 +92,7 @@ impl TypeGraph {
         &mut self,
         vars: BTreeSet<typed_ir::TypeVar>,
         lower: typed_ir::Type,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         for var in vars {
             let Some(slot) = self.slots.get_mut(&var) else {
                 continue;
@@ -135,7 +135,7 @@ impl TypeGraph {
         template: &typed_ir::Type,
         actual: &RuntimeType,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         match actual {
             RuntimeType::Value(actual) => self.collect_core(template, actual, side),
             RuntimeType::Fun { param, ret } => {
@@ -171,7 +171,7 @@ impl TypeGraph {
         template: &typed_ir::Type,
         actual: &typed_ir::Type,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         match template {
             typed_ir::Type::Var(var) => self.record(var.clone(), actual.clone(), side).map(|_| ()),
             typed_ir::Type::Named { path, args } => {
@@ -258,14 +258,14 @@ impl TypeGraph {
         template: &typed_ir::Type,
         actual: RuntimeEffectRef<'_>,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         match actual {
             RuntimeEffectRef::Known(actual) => self.collect_core(template, actual, side),
             RuntimeEffectRef::Pure | RuntimeEffectRef::Unknown => Ok(()),
         }
     }
 
-    fn propagate_constraints(&mut self) -> FinalizeResult<()> {
+    fn propagate_constraints(&mut self) -> MonomorphizeResult<()> {
         loop {
             let mut changed = false;
             for constraint in self.constraints.clone() {
@@ -281,7 +281,7 @@ impl TypeGraph {
         &mut self,
         lower: typed_ir::Type,
         upper: typed_ir::Type,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         self.apply_subtype_constraint_inner(lower, upper, &mut Vec::new())
     }
 
@@ -290,7 +290,7 @@ impl TypeGraph {
         lower: typed_ir::Type,
         upper: typed_ir::Type,
         seen: &mut Vec<SubtypeConstraint>,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         let constraint = SubtypeConstraint {
             lower: lower.clone(),
             upper: upper.clone(),
@@ -426,7 +426,7 @@ impl TypeGraph {
         lower: typed_ir::TypeArg,
         upper: typed_ir::TypeArg,
         seen: &mut Vec<SubtypeConstraint>,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         match (lower, upper) {
             (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Type(upper)) => {
                 self.apply_subtype_constraint_inner(lower, upper, seen)
@@ -472,7 +472,7 @@ impl TypeGraph {
         template: &typed_ir::TypeArg,
         actual: &typed_ir::TypeArg,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         match (template, actual) {
             (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
                 self.collect_core(template, actual, side)
@@ -514,7 +514,7 @@ impl TypeGraph {
         actual_items: &[typed_ir::Type],
         actual_tail: &typed_ir::Type,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         let RowResidual {
             matched,
             unmatched_left,
@@ -540,7 +540,7 @@ impl TypeGraph {
         upper_items: Vec<typed_ir::Type>,
         upper_tail: typed_ir::Type,
         seen: &mut Vec<SubtypeConstraint>,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         let RowResidual {
             matched,
             unmatched_left,
@@ -564,7 +564,7 @@ impl TypeGraph {
         template: &typed_ir::VariantType,
         actual: &typed_ir::VariantType,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         for template_case in &template.cases {
             let Some(actual_case) = find_variant_case(actual, &template_case.name) else {
                 if actual.tail.is_none() && side == BoundSide::Lower {
@@ -590,7 +590,7 @@ impl TypeGraph {
         template: &typed_ir::RecordType,
         actual: &typed_ir::RecordType,
         side: BoundSide,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         for template_field in &template.fields {
             let Some(actual_field) = actual
                 .fields
@@ -609,7 +609,7 @@ impl TypeGraph {
         lower: typed_ir::VariantType,
         upper: typed_ir::VariantType,
         seen: &mut Vec<SubtypeConstraint>,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         let mut changed = false;
         for lower_case in &lower.cases {
             let Some(upper_case) = find_variant_case(&upper, &lower_case.name) else {
@@ -650,7 +650,7 @@ impl TypeGraph {
         lower: typed_ir::RecordType,
         upper: typed_ir::RecordType,
         seen: &mut Vec<SubtypeConstraint>,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         let mut changed = false;
         for lower_field in &lower.fields {
             let Some(upper_field) = upper
@@ -674,7 +674,7 @@ impl TypeGraph {
         var: typed_ir::TypeVar,
         mut ty: typed_ir::Type,
         side: BoundSide,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         ty = match side {
             BoundSide::Lower => self.known_lower_or_self(ty),
             BoundSide::Upper => self.known_upper_or_self(ty),
@@ -944,7 +944,7 @@ impl TypeVarBounds {
         var: typed_ir::TypeVar,
         ty: typed_ir::Type,
         cast_order: &TypeCastOrder,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         push_bound(&mut self.lower, var, ty, BoundSide::Lower, cast_order)
     }
 
@@ -953,7 +953,7 @@ impl TypeVarBounds {
         var: typed_ir::TypeVar,
         ty: typed_ir::Type,
         cast_order: &TypeCastOrder,
-    ) -> FinalizeResult<bool> {
+    ) -> MonomorphizeResult<bool> {
         push_bound(&mut self.upper, var, ty, BoundSide::Upper, cast_order)
     }
 }
@@ -1319,7 +1319,7 @@ fn push_bound(
     ty: typed_ir::Type,
     side: BoundSide,
     cast_order: &TypeCastOrder,
-) -> FinalizeResult<bool> {
+) -> MonomorphizeResult<bool> {
     if let Some(previous) = slot {
         if bounds_are_equivalent(previous, &ty) {
             return Ok(false);
@@ -1361,7 +1361,7 @@ fn push_bound(
         if type_contains_var(previous) || type_contains_var(&ty) {
             return Ok(false);
         }
-        return Err(FinalizeDiagnostic::ConflictingBounds {
+        return Err(MonomorphizeDiagnostic::ConflictingBounds {
             var,
             previous: previous.clone(),
             next: ty,

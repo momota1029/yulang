@@ -2,10 +2,10 @@ use std::fmt;
 
 use yulang_typed_ir as typed_ir;
 
-pub type FinalizeResult<T> = Result<T, FinalizeDiagnostic>;
+pub type MonomorphizeResult<T> = Result<T, MonomorphizeDiagnostic>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FinalizeDiagnostic {
+pub enum MonomorphizeDiagnostic {
     MissingBinding {
         binding: typed_ir::Path,
     },
@@ -25,24 +25,24 @@ pub enum FinalizeDiagnostic {
 }
 
 #[derive(Debug)]
-pub enum FinalizeMonomorphizeError {
-    Finalize(FinalizeDiagnostic),
+pub enum MonomorphizeError {
+    Finalize(MonomorphizeDiagnostic),
     Runtime(yulang_runtime::RuntimeError),
 }
 
-impl From<FinalizeDiagnostic> for FinalizeMonomorphizeError {
-    fn from(error: FinalizeDiagnostic) -> Self {
+impl From<MonomorphizeDiagnostic> for MonomorphizeError {
+    fn from(error: MonomorphizeDiagnostic) -> Self {
         Self::Finalize(error)
     }
 }
 
-impl From<yulang_runtime::RuntimeError> for FinalizeMonomorphizeError {
+impl From<yulang_runtime::RuntimeError> for MonomorphizeError {
     fn from(error: yulang_runtime::RuntimeError) -> Self {
         Self::Runtime(error)
     }
 }
 
-impl fmt::Display for FinalizeMonomorphizeError {
+impl fmt::Display for MonomorphizeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Finalize(error) => write!(f, "runtime-finalize failed: {error:?}"),
@@ -51,4 +51,4 @@ impl fmt::Display for FinalizeMonomorphizeError {
     }
 }
 
-impl std::error::Error for FinalizeMonomorphizeError {}
+impl std::error::Error for MonomorphizeError {}

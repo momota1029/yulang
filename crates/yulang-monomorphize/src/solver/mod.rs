@@ -45,8 +45,8 @@ use yulang_runtime_ir::{
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    FinalizeInstanceCache, FinalizeMonomorphizeError, FinalizeOutput, FinalizeReport,
-    FinalizeResult, graph::runtime_type_from_core_value,
+    MonomorphizeInstanceCache, MonomorphizeError, MonomorphizeOutput, MonomorphizeReport,
+    MonomorphizeResult, graph::runtime_type_from_core_value,
 };
 
 pub trait IntoFinalizeRuntimeModule {
@@ -71,28 +71,28 @@ impl IntoFinalizeRuntimeModule for yulang_runtime::Module {
     }
 }
 
-pub fn finalize_module<M: IntoFinalizeRuntimeModule>(module: M) -> FinalizeResult<FinalizeOutput> {
-    let mut cache = FinalizeInstanceCache::default();
+pub fn finalize_module<M: IntoFinalizeRuntimeModule>(module: M) -> MonomorphizeResult<MonomorphizeOutput> {
+    let mut cache = MonomorphizeInstanceCache::default();
     finalize_module_with_cache(module, &mut cache)
 }
 
-pub fn finalize_monomorphize_module<M: IntoFinalizeRuntimeModule>(
+pub fn monomorphize_module<M: IntoFinalizeRuntimeModule>(
     module: M,
-) -> Result<Module, FinalizeMonomorphizeError> {
-    Ok(finalize_monomorphize_module_with_report(module.into_finalize_runtime_module())?.module)
+) -> Result<Module, MonomorphizeError> {
+    Ok(monomorphize_module_with_report(module.into_finalize_runtime_module())?.module)
 }
 
-pub fn finalize_monomorphize_legacy_runtime_module<M: IntoFinalizeRuntimeModule>(
+pub fn monomorphize_to_legacy_runtime_module<M: IntoFinalizeRuntimeModule>(
     module: M,
-) -> Result<yulang_runtime::Module, FinalizeMonomorphizeError> {
-    Ok(finalized_to_runtime_module(finalize_monomorphize_module(
+) -> Result<yulang_runtime::Module, MonomorphizeError> {
+    Ok(finalized_to_runtime_module(monomorphize_module(
         module,
     )?))
 }
 
-pub fn finalize_monomorphize_module_with_report(
+pub fn monomorphize_module_with_report(
     module: Module,
-) -> Result<FinalizeOutput, FinalizeMonomorphizeError> {
+) -> Result<MonomorphizeOutput, MonomorphizeError> {
     let output = finalize_module(module)?;
     let _ = validate_monomorphized_output(&output.module);
     Ok(output)
@@ -231,8 +231,8 @@ fn debug_expr_invariants(expr: &Expr, context: String) {
 
 pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
     module: M,
-    cache: &mut FinalizeInstanceCache,
-) -> FinalizeResult<FinalizeOutput> {
+    cache: &mut MonomorphizeInstanceCache,
+) -> MonomorphizeResult<MonomorphizeOutput> {
     let mut module = module.into_finalize_runtime_module();
     let root_graph_inputs = collect_root_graph_inputs(&module);
     role::rewrite_root_role_method_calls(&mut module);
@@ -283,9 +283,9 @@ pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
     // Run scope walk again — apply reconciliation may have concretized
     // pattern/handler types that earlier scope walk skipped.
     postpass::fill_local_var_types(&mut module);
-    Ok(FinalizeOutput {
+    Ok(MonomorphizeOutput {
         module,
-        report: FinalizeReport {
+        report: MonomorphizeReport {
             root_graph_inputs,
             root_graph_solutions,
             cache_profile: cache.profile(),
@@ -1208,7 +1208,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        FinalizeInstanceArtifactCache, RootGraphInput, RootGraphRoot, graph::TypeCastOrder,
+        MonomorphizeInstanceArtifactCache, RootGraphInput, RootGraphRoot, graph::TypeCastOrder,
     };
     use yulang_runtime_ir::{
         FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
@@ -1396,7 +1396,7 @@ mod tests {
 
     #[test]
     fn finalize_instance_cache_surface_reuses_materialized_binding() {
-        let mut cache = FinalizeInstanceCache::default();
+        let mut cache = MonomorphizeInstanceCache::default();
         let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
 
         let first = finalize_module_with_cache(module.clone(), &mut cache).unwrap();
@@ -1408,7 +1408,7 @@ mod tests {
         assert_eq!(second.module.bindings[0].name, path(&["id", "mono0"]));
 
         let surface = cache.to_surface();
-        let mut restored = FinalizeInstanceCache::from_surface(surface);
+        let mut restored = MonomorphizeInstanceCache::from_surface(surface);
         let third = finalize_module_with_cache(module, &mut restored).unwrap();
         assert_eq!(third.report.cache_profile.hits, 1);
         assert_eq!(third.module.bindings[0].name, path(&["id", "mono0"]));
@@ -1416,7 +1416,7 @@ mod tests {
         let mut stale_surface = cache.to_surface();
         stale_surface.format_version += 1;
         assert!(
-            FinalizeInstanceCache::from_surface(stale_surface)
+            MonomorphizeInstanceCache::from_surface(stale_surface)
                 .to_surface()
                 .instances
                 .is_empty()
@@ -1427,11 +1427,11 @@ mod tests {
     fn finalize_instance_artifact_cache_rehydrates_solver_cache() {
         let root = artifact_cache_root("solver-rehydrate");
         let _ = std::fs::remove_dir_all(&root);
-        let artifact_cache = FinalizeInstanceArtifactCache::new(&root);
+        let artifact_cache = MonomorphizeInstanceArtifactCache::new(&root);
         let manifests = vec![compiled_manifest(0, 11), compiled_manifest(1, 29)];
         let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
 
-        let mut first_cache = FinalizeInstanceCache::default();
+        let mut first_cache = MonomorphizeInstanceCache::default();
         let first = finalize_module_with_cache(module.clone(), &mut first_cache).unwrap();
         assert_eq!(first.report.cache_profile.inserts, 1);
         artifact_cache
@@ -1610,7 +1610,7 @@ mod tests {
     fn finalize_monomorphize_module_returns_valid_mainline_output() {
         let module = runtime_module_from_source_without_std("my id x = x\nid 1\n");
 
-        let module = finalize_monomorphize_module(module).unwrap();
+        let module = monomorphize_module(module).unwrap();
         yulang_vm::compile_vm_module(module).unwrap();
     }
 
@@ -2932,7 +2932,7 @@ fail_err::wrap:
     where
         M: IntoFinalizeRuntimeModule,
     {
-        let module = finalize_monomorphize_module(module)
+        let module = monomorphize_module(module)
             .unwrap_or_else(|error| panic!("{name} finalize failed: {error}"));
         run_vm_module(name, "finalize", module, vm)
     }

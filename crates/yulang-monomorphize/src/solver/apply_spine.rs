@@ -30,7 +30,7 @@ use yulang_runtime_ir::{
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    FinalizeDiagnostic, FinalizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
+    MonomorphizeDiagnostic, MonomorphizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
     graph::{TypeCastOrder, runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
     materialize_runtime_type,
     output::RootGraphRoot,
@@ -58,7 +58,7 @@ pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
 pub fn solve_root_graphs(
     module: &Module,
     cast_order: &TypeCastOrder,
-) -> FinalizeResult<Vec<RootGraphSolution>> {
+) -> MonomorphizeResult<Vec<RootGraphSolution>> {
     let mut solutions = Vec::new();
     collect_root_expr_graphs(module, cast_order, &mut solutions)?;
     Ok(solutions)
@@ -68,7 +68,7 @@ pub(crate) fn collect_root_expr_graphs(
     module: &Module,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let bindings = module
         .bindings
         .iter()
@@ -81,7 +81,7 @@ pub(crate) fn collect_root_expr_graphs(
         let expr = module
             .root_exprs
             .get(*index)
-            .ok_or(FinalizeDiagnostic::UnsupportedRootShape)?;
+            .ok_or(MonomorphizeDiagnostic::UnsupportedRootShape)?;
         collect_expr_graphs(
             RootGraphRoot::Expr(*index),
             expr,
@@ -100,7 +100,7 @@ pub(crate) fn collect_binding_body_graphs(
     aliases: &[typed_ir::Path],
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let bindings = module
         .bindings
         .iter()
@@ -108,7 +108,7 @@ pub(crate) fn collect_binding_body_graphs(
         .collect::<HashMap<_, _>>();
     for alias in aliases {
         let Some(binding) = bindings.get(alias) else {
-            return Err(FinalizeDiagnostic::MissingBinding {
+            return Err(MonomorphizeDiagnostic::MissingBinding {
                 binding: alias.clone(),
             });
         };
@@ -165,7 +165,7 @@ pub(crate) fn collect_expr_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let found = solve_simple_apply(
         owner.clone(),
         expr,
@@ -461,7 +461,7 @@ pub(crate) fn collect_apply_spine_arg_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let ExprKind::Apply { callee, arg, .. } = &expr.kind else {
         return Ok(());
     };
@@ -492,7 +492,7 @@ pub(crate) fn solve_bare_polymorphic_var(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     alias_index: usize,
-) -> FinalizeResult<Option<RootGraphSolution>> {
+) -> MonomorphizeResult<Option<RootGraphSolution>> {
     let ExprKind::Var(path) = &expr.kind else {
         return Ok(None);
     };
@@ -517,7 +517,7 @@ pub(crate) fn solve_simple_apply(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     alias_index: usize,
-) -> FinalizeResult<Vec<RootGraphSolution>> {
+) -> MonomorphizeResult<Vec<RootGraphSolution>> {
     let Some(spine) = ApplySpine::new(expr) else {
         return Ok(Vec::new());
     };
@@ -616,7 +616,7 @@ pub(crate) fn solve_simple_apply(
         if role::role_required_apply_waiting_for_arguments(binding, &spine, local_types) {
             return Ok(solutions);
         }
-        return Err(FinalizeDiagnostic::IncompleteGraph {
+        return Err(MonomorphizeDiagnostic::IncompleteGraph {
             binding: binding_path.clone(),
         });
     }
@@ -703,7 +703,7 @@ fn solve_spine_value_args(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     alias_index: usize,
-) -> FinalizeResult<Vec<RootGraphSolution>> {
+) -> MonomorphizeResult<Vec<RootGraphSolution>> {
     let mut solutions = Vec::new();
     for step in &spine.steps {
         let ExprKind::Var(arg_binding_path) = &step.arg.kind else {
@@ -733,14 +733,14 @@ fn solve_value_arg(
     expected_type: typed_ir::Type,
     cast_order: &TypeCastOrder,
     alias_index: usize,
-) -> FinalizeResult<RootGraphSolution> {
+) -> MonomorphizeResult<RootGraphSolution> {
     let mut graph = TypeGraph::with_cast_order(cast_order.clone());
     let principal = graph.instantiate_principal(binding);
     graph.constrain_subtype(principal.principal_type.clone(), expected_type)?;
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     let graph = graph.solve();
     if !graph.is_complete() {
-        return Err(FinalizeDiagnostic::IncompleteGraph {
+        return Err(MonomorphizeDiagnostic::IncompleteGraph {
             binding: binding.name.clone(),
         });
     }
@@ -763,7 +763,7 @@ fn collect_spine_substitutions(
     graph: &mut TypeGraph,
     principal: &crate::PrincipalInstance,
     steps: &[ApplyStep<'_>],
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     for step in steps {
         if let Some(instantiation) = step.instantiation {
             for substitution in &instantiation.args {
@@ -779,7 +779,7 @@ fn collect_spine_substitution(
     principal: &crate::PrincipalInstance,
     var: &typed_ir::TypeVar,
     ty: &typed_ir::Type,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let Some(param) = principal
         .type_params
         .iter()
@@ -794,7 +794,7 @@ fn default_spine_evidence_substitutions(
     graph: &mut TypeGraph,
     principal: &crate::PrincipalInstance,
     steps: &[ApplyStep<'_>],
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     for step in steps {
         let Some(evidence) = step.evidence else {
             continue;
@@ -816,7 +816,7 @@ fn default_spine_evidence_substitution(
     principal: &crate::PrincipalInstance,
     var: &typed_ir::TypeVar,
     ty: &typed_ir::Type,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     let Some(param) = principal
         .type_params
         .iter()
@@ -976,7 +976,7 @@ impl ApplyStep<'_> {
         result: typed_ir::Type,
         result_effect: typed_ir::Type,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
-    ) -> FinalizeResult<()> {
+    ) -> MonomorphizeResult<()> {
         let evidence_value_bound = self
             .evidence
             .map(|evidence| constrain_core_type_bounds(graph, result.clone(), &evidence.result))
@@ -1088,7 +1088,7 @@ fn constrain_core_type_bounds(
     graph: &mut TypeGraph,
     ty: typed_ir::Type,
     bounds: &typed_ir::TypeBounds,
-) -> FinalizeResult<bool> {
+) -> MonomorphizeResult<bool> {
     let mut constrained = false;
     if let Some(lower) = bounds.lower.as_deref() {
         graph.constrain_subtype(lower.clone(), ty.clone())?;
@@ -1105,7 +1105,7 @@ fn constrain_apply_result_effect_bounds(
     graph: &mut TypeGraph,
     effect: typed_ir::Type,
     evidence: &typed_ir::ApplyEvidence,
-) -> FinalizeResult<bool> {
+) -> MonomorphizeResult<bool> {
     let mut constrained = false;
     if let Some(expected) = &evidence.expected_callee {
         constrained |= constrain_function_ret_effect_bounds(graph, effect.clone(), expected)?;
@@ -1118,7 +1118,7 @@ fn constrain_function_ret_effect_bounds(
     graph: &mut TypeGraph,
     effect: typed_ir::Type,
     bounds: &typed_ir::TypeBounds,
-) -> FinalizeResult<bool> {
+) -> MonomorphizeResult<bool> {
     let mut constrained = false;
     if let Some(lower) = bounds.lower.as_deref().and_then(function_ret_effect) {
         graph.constrain_subtype(lower.clone(), effect.clone())?;
@@ -1263,7 +1263,7 @@ fn collect_record_spread_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     match spread {
         yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
         | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => collect_expr_graphs(
@@ -1286,7 +1286,7 @@ fn collect_stmt_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     match stmt {
         yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
             collect_pattern_graphs(
@@ -1329,7 +1329,7 @@ fn collect_pattern_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> FinalizeResult<()> {
+) -> MonomorphizeResult<()> {
     use yulang_runtime_ir::FinalizedPattern as Pattern;
 
     match pattern {

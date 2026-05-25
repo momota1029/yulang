@@ -1785,7 +1785,7 @@ fn lower_runtime_module_or_exit(
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
     let (module, monomorphize_profile) =
-        match yulang_monomorphize::finalize_monomorphize_module(module) {
+        match yulang_monomorphize::monomorphize_module(module) {
             Ok(module) => (module, runtime::MonomorphizeProfile::default()),
             Err(err) => {
                 eprintln!("error: {err}");
@@ -1834,7 +1834,7 @@ fn lower_legacy_runtime_module_or_exit(
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
     let (module, monomorphize_profile) =
-        match yulang_monomorphize::finalize_monomorphize_legacy_runtime_module(module) {
+        match yulang_monomorphize::monomorphize_to_legacy_runtime_module(module) {
             Ok(module) => (module, runtime::MonomorphizeProfile::default()),
             Err(err) => {
                 eprintln!("error: {err}");

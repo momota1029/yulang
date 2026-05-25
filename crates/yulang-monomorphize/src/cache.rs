@@ -14,14 +14,14 @@ use yulang_runtime_ir::{
 use yulang_sources::{CompiledUnitManifest, YulangCachePaths};
 use yulang_typed_ir as typed_ir;
 
-pub const FINALIZE_INSTANCE_CACHE_FORMAT_VERSION: u32 = 2;
+pub const MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FinalizeInstanceArtifactCache {
+pub struct MonomorphizeInstanceArtifactCache {
     root: PathBuf,
 }
 
-impl FinalizeInstanceArtifactCache {
+impl MonomorphizeInstanceArtifactCache {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
@@ -33,23 +33,23 @@ impl FinalizeInstanceArtifactCache {
     pub fn read_for_manifests(
         &self,
         manifests: &[CompiledUnitManifest],
-    ) -> Result<FinalizeInstanceCacheSurface, FinalizeInstanceArtifactCacheError> {
-        let key = FinalizeInstanceArtifactCacheKey::from_manifests(manifests)?;
+    ) -> Result<MonomorphizeInstanceCacheSurface, MonomorphizeInstanceArtifactCacheError> {
+        let key = MonomorphizeInstanceArtifactCacheKey::from_manifests(manifests)?;
         let path = self.artifact_path(&key);
-        let bytes = fs::read(&path).map_err(|error| FinalizeInstanceArtifactCacheError::Io {
+        let bytes = fs::read(&path).map_err(|error| MonomorphizeInstanceArtifactCacheError::Io {
             path: path.clone(),
             error: io_error_string(error),
         })?;
         let surface =
-            postcard::from_bytes::<FinalizeInstanceCacheSurface>(&bytes).map_err(|error| {
-                FinalizeInstanceArtifactCacheError::Deserialize {
+            postcard::from_bytes::<MonomorphizeInstanceCacheSurface>(&bytes).map_err(|error| {
+                MonomorphizeInstanceArtifactCacheError::Deserialize {
                     path: path.clone(),
                     error: error.to_string(),
                 }
             })?;
-        if surface.format_version != FINALIZE_INSTANCE_CACHE_FORMAT_VERSION {
+        if surface.format_version != MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION {
             return Err(
-                FinalizeInstanceArtifactCacheError::UnsupportedFinalizeFormat {
+                MonomorphizeInstanceArtifactCacheError::UnsupportedFinalizeFormat {
                     format_version: surface.format_version,
                 },
             );
@@ -60,52 +60,52 @@ impl FinalizeInstanceArtifactCache {
     pub fn read_cache_for_manifests(
         &self,
         manifests: &[CompiledUnitManifest],
-    ) -> FinalizeInstanceCache {
+    ) -> MonomorphizeInstanceCache {
         self.read_for_manifests(manifests)
-            .map(FinalizeInstanceCache::from_surface)
+            .map(MonomorphizeInstanceCache::from_surface)
             .unwrap_or_default()
     }
 
     pub fn write_cache_for_manifests(
         &self,
         manifests: &[CompiledUnitManifest],
-        cache: &FinalizeInstanceCache,
-    ) -> Result<PathBuf, FinalizeInstanceArtifactCacheError> {
+        cache: &MonomorphizeInstanceCache,
+    ) -> Result<PathBuf, MonomorphizeInstanceArtifactCacheError> {
         self.write_for_manifests(manifests, &cache.to_surface())
     }
 
     pub fn write_for_manifests(
         &self,
         manifests: &[CompiledUnitManifest],
-        surface: &FinalizeInstanceCacheSurface,
-    ) -> Result<PathBuf, FinalizeInstanceArtifactCacheError> {
-        let key = FinalizeInstanceArtifactCacheKey::from_manifests(manifests)?;
+        surface: &MonomorphizeInstanceCacheSurface,
+    ) -> Result<PathBuf, MonomorphizeInstanceArtifactCacheError> {
+        let key = MonomorphizeInstanceArtifactCacheKey::from_manifests(manifests)?;
         let path = self.artifact_path(&key);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| FinalizeInstanceArtifactCacheError::Io {
+            fs::create_dir_all(parent).map_err(|error| MonomorphizeInstanceArtifactCacheError::Io {
                 path: parent.to_path_buf(),
                 error: io_error_string(error),
             })?;
         }
         let bytes = postcard::to_allocvec(surface).map_err(|error| {
-            FinalizeInstanceArtifactCacheError::Serialize {
+            MonomorphizeInstanceArtifactCacheError::Serialize {
                 error: error.to_string(),
             }
         })?;
-        fs::write(&path, bytes).map_err(|error| FinalizeInstanceArtifactCacheError::Io {
+        fs::write(&path, bytes).map_err(|error| MonomorphizeInstanceArtifactCacheError::Io {
             path: path.clone(),
             error: io_error_string(error),
         })?;
         Ok(path)
     }
 
-    fn artifact_path(&self, key: &FinalizeInstanceArtifactCacheKey) -> PathBuf {
+    fn artifact_path(&self, key: &MonomorphizeInstanceArtifactCacheKey) -> PathBuf {
         key.directory(&self.root).join(key.file_name())
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FinalizeInstanceArtifactCacheKey {
+pub struct MonomorphizeInstanceArtifactCacheKey {
     pub compiled_artifact_format_version: u32,
     pub parser_format_version: u32,
     pub finalize_format_version: u32,
@@ -113,24 +113,24 @@ pub struct FinalizeInstanceArtifactCacheKey {
     pub manifest_hash: u64,
 }
 
-impl FinalizeInstanceArtifactCacheKey {
+impl MonomorphizeInstanceArtifactCacheKey {
     pub fn from_manifests(
         manifests: &[CompiledUnitManifest],
-    ) -> Result<Self, FinalizeInstanceArtifactCacheError> {
+    ) -> Result<Self, MonomorphizeInstanceArtifactCacheError> {
         let Some(first) = manifests.first() else {
-            return Err(FinalizeInstanceArtifactCacheError::EmptyManifestSet);
+            return Err(MonomorphizeInstanceArtifactCacheError::EmptyManifestSet);
         };
         for manifest in manifests {
             if manifest.artifact_format_version != first.artifact_format_version
                 || manifest.parser_format_version != first.parser_format_version
             {
-                return Err(FinalizeInstanceArtifactCacheError::MixedCompiledFormats);
+                return Err(MonomorphizeInstanceArtifactCacheError::MixedCompiledFormats);
             }
         }
         Ok(Self {
             compiled_artifact_format_version: first.artifact_format_version,
             parser_format_version: first.parser_format_version,
-            finalize_format_version: FINALIZE_INSTANCE_CACHE_FORMAT_VERSION,
+            finalize_format_version: MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION,
             unit_count: manifests.len(),
             manifest_hash: hash_compiled_unit_manifests(manifests),
         })
@@ -154,7 +154,7 @@ impl FinalizeInstanceArtifactCacheKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FinalizeInstanceArtifactCacheError {
+pub enum MonomorphizeInstanceArtifactCacheError {
     EmptyManifestSet,
     MixedCompiledFormats,
     UnsupportedFinalizeFormat { format_version: u32 },
@@ -164,22 +164,22 @@ pub enum FinalizeInstanceArtifactCacheError {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct FinalizeInstanceCache {
-    entries: HashMap<FinalizeInstanceKey, CachedFinalizeInstance>,
-    policy: FinalizeInstanceCachePolicy,
-    profile: FinalizeInstanceCacheProfile,
+pub struct MonomorphizeInstanceCache {
+    entries: HashMap<MonomorphizeInstanceKey, CachedMonomorphizeInstance>,
+    policy: MonomorphizeInstanceCachePolicy,
+    profile: MonomorphizeInstanceCacheProfile,
 }
 
-impl FinalizeInstanceCache {
-    pub fn new(policy: FinalizeInstanceCachePolicy) -> Self {
+impl MonomorphizeInstanceCache {
+    pub fn new(policy: MonomorphizeInstanceCachePolicy) -> Self {
         Self {
             policy,
             ..Self::default()
         }
     }
 
-    pub fn from_surface(surface: FinalizeInstanceCacheSurface) -> Self {
-        if surface.format_version != FINALIZE_INSTANCE_CACHE_FORMAT_VERSION {
+    pub fn from_surface(surface: MonomorphizeInstanceCacheSurface) -> Self {
+        if surface.format_version != MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION {
             return Self::default();
         }
         let entries = surface
@@ -189,23 +189,23 @@ impl FinalizeInstanceCache {
             .collect();
         Self {
             entries,
-            policy: FinalizeInstanceCachePolicy::default(),
-            profile: FinalizeInstanceCacheProfile::default(),
+            policy: MonomorphizeInstanceCachePolicy::default(),
+            profile: MonomorphizeInstanceCacheProfile::default(),
         }
     }
 
-    pub fn to_surface(&self) -> FinalizeInstanceCacheSurface {
-        FinalizeInstanceCacheSurface {
-            format_version: FINALIZE_INSTANCE_CACHE_FORMAT_VERSION,
+    pub fn to_surface(&self) -> MonomorphizeInstanceCacheSurface {
+        MonomorphizeInstanceCacheSurface {
+            format_version: MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION,
             instances: self.entries.values().cloned().collect(),
         }
     }
 
-    pub fn profile(&self) -> FinalizeInstanceCacheProfile {
+    pub fn profile(&self) -> MonomorphizeInstanceCacheProfile {
         self.profile
     }
 
-    pub fn get(&mut self, key: &FinalizeInstanceKey) -> Option<&CachedFinalizeInstance> {
+    pub fn get(&mut self, key: &MonomorphizeInstanceKey) -> Option<&CachedMonomorphizeInstance> {
         let instance = self.entries.get(key);
         if instance.is_some() {
             self.profile.hits += 1;
@@ -215,7 +215,7 @@ impl FinalizeInstanceCache {
         instance
     }
 
-    pub fn insert(&mut self, instance: CachedFinalizeInstance) {
+    pub fn insert(&mut self, instance: CachedMonomorphizeInstance) {
         if self.entries.contains_key(&instance.key) {
             return;
         }
@@ -242,12 +242,12 @@ impl FinalizeInstanceCache {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FinalizeInstanceCachePolicy {
+pub struct MonomorphizeInstanceCachePolicy {
     pub max_entries: Option<usize>,
     pub max_body_nodes: Option<usize>,
 }
 
-impl Default for FinalizeInstanceCachePolicy {
+impl Default for MonomorphizeInstanceCachePolicy {
     fn default() -> Self {
         Self {
             max_entries: Some(4096),
@@ -257,7 +257,7 @@ impl Default for FinalizeInstanceCachePolicy {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FinalizeInstanceCacheProfile {
+pub struct MonomorphizeInstanceCacheProfile {
     pub hits: usize,
     pub misses: usize,
     pub inserts: usize,
@@ -266,37 +266,37 @@ pub struct FinalizeInstanceCacheProfile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FinalizeInstanceCacheSurface {
+pub struct MonomorphizeInstanceCacheSurface {
     pub format_version: u32,
-    pub instances: Vec<CachedFinalizeInstance>,
+    pub instances: Vec<CachedMonomorphizeInstance>,
 }
 
-impl Default for FinalizeInstanceCacheSurface {
+impl Default for MonomorphizeInstanceCacheSurface {
     fn default() -> Self {
         Self {
-            format_version: FINALIZE_INSTANCE_CACHE_FORMAT_VERSION,
+            format_version: MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION,
             instances: Vec::new(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FinalizeInstanceKey {
+pub struct MonomorphizeInstanceKey {
     pub binding: typed_ir::Path,
     pub substitutions: Vec<typed_ir::TypeSubstitution>,
     pub callee_type: RuntimeType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CachedFinalizeInstance {
-    pub key: FinalizeInstanceKey,
+pub struct CachedMonomorphizeInstance {
+    pub key: MonomorphizeInstanceKey,
     pub scheme: typed_ir::Scheme,
     pub body: Expr,
     pub callee_type: RuntimeType,
     pub result_type: RuntimeType,
 }
 
-impl CachedFinalizeInstance {
+impl CachedMonomorphizeInstance {
     pub fn binding_with_alias(&self, alias: typed_ir::Path) -> Binding {
         Binding {
             name: alias,
@@ -445,10 +445,10 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("yulang-finalize-cache-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let cache = FinalizeInstanceArtifactCache::new(&root);
+        let cache = MonomorphizeInstanceArtifactCache::new(&root);
         let manifests = vec![manifest(0, 11), manifest(1, 29)];
-        let surface = FinalizeInstanceCacheSurface {
-            format_version: FINALIZE_INSTANCE_CACHE_FORMAT_VERSION,
+        let surface = MonomorphizeInstanceCacheSurface {
+            format_version: MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION,
             instances: vec![cached_instance()],
         };
 
@@ -476,18 +476,18 @@ mod tests {
         manifests[1].artifact_format_version += 1;
 
         assert_eq!(
-            FinalizeInstanceArtifactCacheKey::from_manifests(&manifests),
-            Err(FinalizeInstanceArtifactCacheError::MixedCompiledFormats)
+            MonomorphizeInstanceArtifactCacheKey::from_manifests(&manifests),
+            Err(MonomorphizeInstanceArtifactCacheError::MixedCompiledFormats)
         );
     }
 
-    fn cached_instance() -> CachedFinalizeInstance {
+    fn cached_instance() -> CachedMonomorphizeInstance {
         let int = typed_ir::Type::Named {
             path: typed_ir::Path::from_name(typed_ir::Name("int".into())),
             args: Vec::new(),
         };
-        CachedFinalizeInstance {
-            key: FinalizeInstanceKey {
+        CachedMonomorphizeInstance {
+            key: MonomorphizeInstanceKey {
                 binding: typed_ir::Path::from_name(typed_ir::Name("id".into())),
                 substitutions: vec![typed_ir::TypeSubstitution {
                     var: typed_ir::TypeVar("a".into()),

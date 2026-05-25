@@ -27,7 +27,7 @@ use yulang_runtime_ir::{
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    FinalizeResult, TypeGraph, graph::runtime_type_from_core_value, materialize_core_type,
+    MonomorphizeResult, TypeGraph, graph::runtime_type_from_core_value, materialize_core_type,
 };
 
 use super::{
@@ -53,7 +53,7 @@ pub(crate) fn close_role_associated_types(
     principal: &crate::PrincipalInstance,
     solution: &crate::GraphSolution,
     role_impls: &[typed_ir::RoleImplGraphNode],
-) -> FinalizeResult<bool> {
+) -> MonomorphizeResult<bool> {
     let mut changed = false;
     let principal_renames = principal_rename_substitutions(principal);
     let solution_substitutions = solution.substitutions();

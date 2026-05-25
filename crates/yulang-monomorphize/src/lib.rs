@@ -12,22 +12,22 @@ mod output;
 mod solver;
 
 pub use cache::{
-    CachedFinalizeInstance, FINALIZE_INSTANCE_CACHE_FORMAT_VERSION, FinalizeInstanceArtifactCache,
-    FinalizeInstanceArtifactCacheError, FinalizeInstanceArtifactCacheKey, FinalizeInstanceCache,
-    FinalizeInstanceCachePolicy, FinalizeInstanceCacheProfile, FinalizeInstanceCacheSurface,
-    FinalizeInstanceKey,
+    CachedMonomorphizeInstance, MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION, MonomorphizeInstanceArtifactCache,
+    MonomorphizeInstanceArtifactCacheError, MonomorphizeInstanceArtifactCacheKey, MonomorphizeInstanceCache,
+    MonomorphizeInstanceCachePolicy, MonomorphizeInstanceCacheProfile, MonomorphizeInstanceCacheSurface,
+    MonomorphizeInstanceKey,
 };
-pub use diagnostic::{FinalizeDiagnostic, FinalizeMonomorphizeError, FinalizeResult};
+pub use diagnostic::{MonomorphizeDiagnostic, MonomorphizeError, MonomorphizeResult};
 pub use graph::ResolvedTypeVar;
 pub use graph::{
     GraphSolution, PrincipalInstance, PrincipalTypeParam, RuntimeBounds, TypeGraph, TypeVarBounds,
     materialize_core_type, materialize_runtime_type,
 };
 pub use output::{
-    FinalizeOutput, FinalizeReport, RootGraphInput, RootGraphRoot, RootGraphSolution,
+    MonomorphizeOutput, MonomorphizeReport, RootGraphInput, RootGraphRoot, RootGraphSolution,
 };
 pub use solver::{
     collect_root_graph_inputs, finalize_module, finalize_module_with_cache,
-    finalize_monomorphize_legacy_runtime_module, finalize_monomorphize_module,
-    finalize_monomorphize_module_with_report,
+    monomorphize_to_legacy_runtime_module, monomorphize_module,
+    monomorphize_module_with_report,
 };
