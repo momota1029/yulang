@@ -738,3 +738,81 @@ cargo test -q -p yulang-vm vm_runs_std_undet_each_and_once_from_prelude
   ため既存の `apply_exact_sandwich_removal` では落とせない。
   「invariant 型変数」扱いになるので無理に潰すと不健全になる可能性があり、
   当面はこのまま残す方針 (ユーザ判断)。
+
+---
+
+## Claude Code セッション 4 の追記（2026-05-25 続き）
+
+### Native backend / 旧 monomorphize の archive 化
+
+- `archive/yulang-native/` → `../yulang-archive/yulang-native-old/` に移動
+- `crates/yulang-native/` → `../yulang-archive/yulang-native/` に移動。
+  CLI 側 (`crates/yulang/src/main.rs`) からは `native_run_*` 系
+  CliOptions / dispatch / helper 関数 (約 1500 行) を撤去
+- `crates/yulang-runtime-finalize/archive/2026-05-23-pre-rewrite/`
+  (約 7300 行) を削除
+- `crates/yulang-runtime/src/monomorphize/` (約 50000 行の legacy
+  monomorphize pipeline) を `../yulang-archive/yulang-runtime-monomorphize/`
+  に移動。`yulang-wasm` の legacy 経路と `yulang/main.rs` の
+  print_runtime_phase_timings から `runtime::monomorphize_*` の
+  dead instrumentation も同時に撤去
+
+### Crate のリネームと分割
+
+`yulang-runtime-finalize → yulang-monomorphize` リネームに続けて、
+`yulang-runtime` を責務ごとに 4 つの crate に分割:
+
+```
+yulang-runtime-ir       — IR data structures + RuntimeType (旧 FinalizedType)
+yulang-runtime-types    — runtime type 表現 + 型 helper (substitute / project / compat / shape) + RuntimeError + binding_is_parametric_runtime_intrinsic
+yulang-runtime-refine   — refine / validate / invariant / hygiene
+yulang-runtime-lower    — core IR → runtime IR の lower pass のみ (旧 yulang-runtime のリネーム)
+yulang-monomorphize     — solver / graph (旧 yulang-runtime-finalize)
+```
+
+- `runtime::Type` と `FinalizedType` を統合 (完全二重定義だった) →
+  `yulang_runtime_ir::RuntimeType` に一本化、variant `Core` を `Value` に統一
+- `FinalizedMonomorphizeError` などの `Finalize*` 名前を
+  `Monomorphize*` に揃え、関数も `finalize_monomorphize_module` →
+  `monomorphize_module` に
+- yulang / yulang-wasm / yulang-compile / yulang-vm /
+  yulang-monomorphize の `Cargo.toml` を直接 4 crate に依存させ、
+  `yulang-runtime-lower` の facade re-export は撤去。consumer の
+  `runtime::X` 参照は `runtime_types::X` / `runtime_refine::X` /
+  `runtime::X` に振り分け (use alias を 3 つ立てる形)
+- duplicate trait impl だった
+  `IntoFinalizeRuntimeModule for yulang_runtime::Module` /
+  `IntoVmModule for yulang_runtime::Module` と
+  `lift_legacy_runtime_*` / `runtime_to_finalized_*` の identity
+  ブリッジ 614 行を撤去
+
+### 数字
+
+- 削除 / 移動行数: 約 60,000 行 (legacy monomorphize + native + facade)
+- 新規 crate: yulang-runtime-types, yulang-runtime-refine
+- リネーム: yulang-runtime-finalize → yulang-monomorphize,
+  yulang-runtime → yulang-runtime-lower
+
+### 確認した観点
+
+```sh
+cargo check  -q --workspace --exclude yulang-wasm
+cargo test   -q -p yulang                                       # 8 / 8
+cargo test   -q -p yulang-monomorphize --lib -- --test-threads=1 # 70 / 0 / 2 ignored
+cargo test   -q -p yulang-vm vm_runs_std_undet_each_and_once_from_prelude
+```
+
+`yulang-runtime-monomorphize` / `yulang-runtime-finalize` を呼ぶ
+箇所は全部置き換わったので、CLI / wasm / monomorphize tests は
+全て新しいパスを使う。残る pre-existing 失敗
+(`std_no_cache_finalize_runs_error_wrap_fail_flow_regressions` の
+`error wrap fail flow`, `playground_core_examples` 内の dead 系) は
+Codex セッション 2 の handoff にあるものと同じで、今回の整理とは
+無関係。
+
+### 次のセッションの宿題
+
+- `error wrap fail flow` の role 解決バグ (この handoff 上部を参照)
+- VM の pre-existing 失敗 (Codex 2 handoff 参照)
+- 必要なら yulang-runtime-types の `report` 未使用 field、
+  各 crate に残る historical な `runtime` alias 整理
