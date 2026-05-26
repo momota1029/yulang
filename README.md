@@ -67,19 +67,36 @@ export YULANG_STD=/path/to/yulang/lib/std
 ```yulang
 use std::undet::*
 
-struct point { x: int, y: int } with:
-    our p.norm2 = p.x * p.x + p.y * p.y
-
-if all [1, 2, 3] < any [2, 3, 4]:
-    point { x: 3, y: 4 } .norm2
-else:
-    0
+// nondeterministic search: every Pythagorean triple under 15
+{
+    my a = each 1..15
+    my b = each a..15
+    my c = each b..15
+    guard: a * a + b * b == c * c
+    (a, b, c)
+}.list  // => [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]
 ```
 
-The condition `all [1, 2, 3] < any [2, 3, 4]` is not special syntax.
-`all` and `any` are ordinary library functions that produce nondeterministic
-values. Lowering inserts `junction::junction` so the surrounding `if` receives
-a real `bool`.
+`each` returns a nondeterministic value, `guard:` prunes branches where the
+condition fails, and `.list` reifies the search into a concrete list. The
+block is an ordinary expression with the `undet` effect; nothing in this
+syntax is special-cased.
+
+The same shape lifts over comparisons:
+
+```yulang
+use std::undet::*
+
+// junction lifts a comparison over many choices at once
+if all [1, 2, 3] < any [3, 4, 5]:
+    "every left dominated"
+else:
+    "no"
+```
+
+`all` and `any` are library functions that produce nondeterministic values.
+Lowering inserts `junction::junction` so the surrounding `if` receives a real
+`bool` after every left/right pair has been considered.
 
 Mutable state, early return, loops, and effectful conditions use the same
 basic idea: familiar notation on the surface, typed effects and small library
