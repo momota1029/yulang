@@ -5,6 +5,7 @@ use crate::vm::{
     VmError, VmFileHandle, VmFileHandleState, VmModule, VmProfile, VmRequest, VmResult, VmValue,
 };
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 pub struct HostRunOutput {
@@ -38,6 +39,8 @@ pub fn eval_root_with_basic_host(
     stdout: &mut String,
 ) -> Result<(VmResult, VmProfile), VmError> {
     let mut host = BasicHost::new(stdout);
+    let mut pending_undet: VecDeque<VmRequest> = VecDeque::new();
+    let mut last_undet_value = None;
     let (mut result, mut vm_profile) = module.eval_root_expr_profiled(index)?;
     loop {
         match result {
@@ -46,10 +49,40 @@ pub fn eval_root_with_basic_host(
                 result = forced.0;
                 vm_profile.merge(forced.1);
             }
-            VmResult::Value(_) => {
-                return Ok((result, vm_profile));
+            VmResult::Value(value) => {
+                let Some(request) = pending_undet.pop_front() else {
+                    return Ok((VmResult::Value(value), vm_profile));
+                };
+                last_undet_value = Some(value);
+                let resumed = module.resume_request_profiled(request, VmValue::Bool(false))?;
+                result = resumed.0;
+                vm_profile.merge(resumed.1);
             }
             VmResult::Request(request) => {
+                match undet_operation(&request.effect) {
+                    Some(UndetOperation::Branch) => {
+                        pending_undet.push_back(request.clone());
+                        let resumed =
+                            module.resume_request_profiled(request, VmValue::Bool(true))?;
+                        result = resumed.0;
+                        vm_profile.merge(resumed.1);
+                        continue;
+                    }
+                    Some(UndetOperation::Reject) => {
+                        let Some(request) = pending_undet.pop_front() else {
+                            return Ok((
+                                VmResult::Value(last_undet_value.unwrap_or(VmValue::Unit)),
+                                vm_profile,
+                            ));
+                        };
+                        let resumed =
+                            module.resume_request_profiled(request, VmValue::Bool(false))?;
+                        result = resumed.0;
+                        vm_profile.merge(resumed.1);
+                        continue;
+                    }
+                    None => {}
+                }
                 let Some(value) = host.handle_request(&request) else {
                     return Ok((VmResult::Request(request), vm_profile));
                 };
@@ -58,6 +91,28 @@ pub fn eval_root_with_basic_host(
                 vm_profile.merge(resumed.1);
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UndetOperation {
+    Branch,
+    Reject,
+}
+
+pub(crate) fn undet_operation(path: &typed_ir::Path) -> Option<UndetOperation> {
+    let [std, undet_module, undet_act, operation] = path.segments.as_slice() else {
+        return None;
+    };
+
+    if !(std.0 == "std" && undet_module.0 == "undet" && undet_act.0 == "undet") {
+        return None;
+    }
+
+    match operation.0.as_str() {
+        "branch" => Some(UndetOperation::Branch),
+        "reject" => Some(UndetOperation::Reject),
+        _ => None,
     }
 }
 

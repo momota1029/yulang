@@ -82,16 +82,48 @@ impl ControlVmModule {
             .ok_or(VmError::MissingRootExpr(index))?;
         let mut interpreter = ControlInterpreter::new(&self.module);
         let mut host = crate::host::BasicHost::new(stdout);
+        let mut pending_undet: VecDeque<ControlRequest> = VecDeque::new();
+        let mut last_undet_value = None;
         let mut result = interpreter.eval_root_control_result(expr)?;
         loop {
             match result {
                 ControlResult::Value(value) => {
+                    if let Some(request) = pending_undet.pop_front() {
+                        last_undet_value = Some(value);
+                        let resumed =
+                            interpreter.resume(request.continuation, ControlValue::Bool(false))?;
+                        result = interpreter.normalize_root_result(resumed)?;
+                        continue;
+                    }
                     return Ok((
                         VmResult::Value(export_value(&value, Some(&self.module))?),
                         interpreter.profile(),
                     ));
                 }
                 ControlResult::Request(request) => {
+                    match interpreter.undet_request_operation(&request) {
+                        Some(crate::host::UndetOperation::Branch) => {
+                            pending_undet.push_back(request.clone());
+                            let resumed = interpreter
+                                .resume(request.continuation, ControlValue::Bool(true))?;
+                            result = interpreter.normalize_root_result(resumed)?;
+                            continue;
+                        }
+                        Some(crate::host::UndetOperation::Reject) => {
+                            let Some(request) = pending_undet.pop_front() else {
+                                let value = last_undet_value.unwrap_or(ControlValue::Unit);
+                                return Ok((
+                                    VmResult::Value(export_value(&value, Some(&self.module))?),
+                                    interpreter.profile(),
+                                ));
+                            };
+                            let resumed = interpreter
+                                .resume(request.continuation, ControlValue::Bool(false))?;
+                            result = interpreter.normalize_root_result(resumed)?;
+                            continue;
+                        }
+                        None => {}
+                    }
                     let exported = interpreter.export_request(&request)?;
                     let Some(value) = host.handle_request(&exported) else {
                         return Ok((VmResult::Request(exported), interpreter.profile()));
@@ -1190,6 +1222,13 @@ impl<'m> ControlInterpreter<'m> {
             },
             blocked_id: request.blocked_id,
         })
+    }
+
+    fn undet_request_operation(
+        &self,
+        request: &ControlRequest,
+    ) -> Option<crate::host::UndetOperation> {
+        crate::host::undet_operation(self.module.symbol_path(request.effect))
     }
 
     fn eval_expr(&mut self, expr: ExprId, env: &ControlEnv) -> Result<ControlResult, VmError> {

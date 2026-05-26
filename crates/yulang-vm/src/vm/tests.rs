@@ -1061,6 +1061,34 @@ println "hello"
     }
 
     #[test]
+    fn vm_host_auto_handles_undet_requests() {
+        let (results, stdout) = eval_source_with_std_host(
+            r#"{
+    my x = each [1, 2, 3]
+    x.say
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+        assert_eq!(stdout, "1\n2\n3\n");
+    }
+
+    #[test]
+    fn control_vm_host_auto_handles_undet_requests() {
+        let (results, stdout) = eval_control_source_with_std_host(
+            r#"{
+    my x = each [1, 2, 3]
+    x.say
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+        assert_eq!(stdout, "1\n2\n3\n");
+    }
+
+    #[test]
     fn vm_host_handles_fs_text_requests() {
         let path = temp_test_path("yulang-fs-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
@@ -1149,6 +1177,34 @@ read_text {source_path}
         );
         let (results, stdout) = eval_source_with_std_host(&source);
         let disk = std::fs::read_to_string(&path).expect("read edited file handle fixture");
+        let _ = std::fs::remove_file(&path);
+
+        assert!(stdout.is_empty());
+        assert_eq!(results, vec![TestValue::String("a\nB\nc".to_string())]);
+        assert_eq!(disk, "a\nB\nc");
+    }
+
+    #[test]
+    fn vm_host_auto_handles_undet_file_line_edits() {
+        let path = temp_test_path("yulang-undet-file-handle-lines");
+        std::fs::write(&path, "a\nb\nc").expect("write undet file handle fixture");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!(
+            r#"{{
+    my text: ref '[fs] str = open {source_path}
+    {{
+        my line: ref _ str = text.lines.each
+        if line.get() == "b\n":
+            line[std::range::full()] = "B\n"
+        else:
+            ()
+    }}
+    text.get()
+}}
+"#
+        );
+        let (results, stdout) = eval_source_with_std_host(&source);
+        let disk = std::fs::read_to_string(&path).expect("read undet file handle fixture");
         let _ = std::fs::remove_file(&path);
 
         assert!(stdout.is_empty());
