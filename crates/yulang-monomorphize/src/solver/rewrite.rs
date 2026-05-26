@@ -81,6 +81,10 @@ pub(crate) fn append_monomorphic_bindings(
                 &solution.type_substitutions,
                 Some(&solution.callee_type),
             );
+            let mut body = body;
+            // Self-targeting instantiations come from the generic body and are
+            // stale inside the emitted monomorphic alias.
+            clear_binding_instantiations(&mut body, &solution.binding);
             let body = materialize::refresh_local_expr_types(body);
             cache.insert(CachedMonomorphizeInstance {
                 key,
@@ -289,6 +293,19 @@ fn clear_apply_spine_instantiations(expr: &mut Expr, binding: &typed_ir::Path) {
     }
 }
 
+fn clear_binding_instantiations(expr: &mut Expr, binding: &typed_ir::Path) {
+    if let ExprKind::Apply { instantiation, .. } = &mut expr.kind
+        && instantiation
+            .as_ref()
+            .is_some_and(|instantiation| instantiation.target == *binding)
+    {
+        *instantiation = None;
+    }
+    yulang_runtime_ir::walk::walk_children_mut(expr, |child| {
+        clear_binding_instantiations(child, binding);
+    });
+}
+
 fn solution_instance_key(solution: &RootGraphSolution) -> MonomorphizeInstanceKey {
     MonomorphizeInstanceKey {
         binding: solution.binding.clone(),
@@ -301,4 +318,99 @@ pub(crate) fn alias_path(original: &typed_ir::Path, index: usize) -> typed_ir::P
     let mut segments = original.segments.clone();
     segments.push(typed_ir::Name(format!("mono{index}")));
     typed_ir::Path::new(segments)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use yulang_runtime_ir::{TypeInstantiation, TypeSubstitution};
+
+    #[test]
+    fn clear_binding_instantiations_removes_only_self_targeted_instantiations() {
+        let binding = path("dispatch");
+        let other = path("other");
+        let mut expr = apply(
+            apply(var("dispatch"), tuple(), Some(instantiation(other.clone()))),
+            apply(
+                var("dispatch"),
+                tuple(),
+                Some(instantiation(binding.clone())),
+            ),
+            Some(instantiation(binding.clone())),
+        );
+
+        clear_binding_instantiations(&mut expr, &binding);
+
+        let ExprKind::Apply {
+            callee,
+            arg,
+            instantiation,
+            ..
+        } = &expr.kind
+        else {
+            panic!("expected outer apply");
+        };
+        assert!(instantiation.is_none());
+
+        let ExprKind::Apply {
+            instantiation: other_instantiation,
+            ..
+        } = &callee.kind
+        else {
+            panic!("expected callee apply");
+        };
+        assert_eq!(
+            other_instantiation
+                .as_ref()
+                .map(|instantiation| &instantiation.target),
+            Some(&other)
+        );
+
+        let ExprKind::Apply {
+            instantiation: self_instantiation,
+            ..
+        } = &arg.kind
+        else {
+            panic!("expected arg apply");
+        };
+        assert!(self_instantiation.is_none());
+    }
+
+    fn apply(callee: Expr, arg: Expr, instantiation: Option<TypeInstantiation>) -> Expr {
+        Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg),
+                evidence: None,
+                instantiation,
+            },
+            RuntimeType::Unknown,
+        )
+    }
+
+    fn var(name: &str) -> Expr {
+        Expr::typed(ExprKind::Var(path(name)), RuntimeType::Unknown)
+    }
+
+    fn tuple() -> Expr {
+        Expr::typed(
+            ExprKind::Tuple(Vec::new()),
+            RuntimeType::Value(typed_ir::Type::Tuple(Vec::new())),
+        )
+    }
+
+    fn instantiation(target: typed_ir::Path) -> TypeInstantiation {
+        TypeInstantiation {
+            target,
+            args: vec![TypeSubstitution {
+                var: typed_ir::TypeVar("a".into()),
+                ty: typed_ir::Type::Any,
+            }],
+        }
+    }
+
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::new(vec![typed_ir::Name(name.into())])
+    }
 }

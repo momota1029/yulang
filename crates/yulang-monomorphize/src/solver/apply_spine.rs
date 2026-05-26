@@ -138,7 +138,12 @@ pub(crate) fn next_binding_body_scan_targets(
         .iter()
         .map(|binding| (binding.name.clone(), binding.type_params.is_empty()))
         .collect::<HashMap<_, _>>();
-    let reachable = super::reachable_paths(module);
+    // The scan order feeds alias occurrence numbers and cursor-based rewrites,
+    // so do not let HashSet iteration decide it.
+    let mut reachable = super::reachable_paths(module)
+        .into_iter()
+        .collect::<Vec<_>>();
+    reachable.sort_by(|left, right| left.segments.cmp(&right.segments));
     let mut targets = Vec::new();
     let mut pushed = HashSet::new();
     for path in emitted {
@@ -149,7 +154,7 @@ pub(crate) fn next_binding_body_scan_targets(
             targets.push(path.clone());
         }
     }
-    for path in reachable.iter() {
+    for path in &reachable {
         if !bindings.get(path).copied().unwrap_or(false) {
             continue;
         }

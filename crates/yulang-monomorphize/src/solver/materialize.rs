@@ -16,7 +16,10 @@
 
 use std::collections::HashMap;
 
-use yulang_runtime_ir::{FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType};
+use yulang_runtime_ir::{
+    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType, TypeInstantiation,
+    TypeSubstitution,
+};
 use yulang_typed_ir as typed_ir;
 
 use crate::{
@@ -73,6 +76,8 @@ pub(crate) fn materialize_expr_with_expected(
         } => {
             let evidence =
                 evidence.map(|evidence| materialize_apply_evidence(evidence, substitutions));
+            let instantiation = instantiation
+                .map(|instantiation| materialize_type_instantiation(instantiation, substitutions));
             let callee = materialize_expr(*callee, substitutions);
             let expected_arg = materialized_runtime_callee_arg(&callee.ty)
                 .or_else(|| evidence.as_ref().and_then(materialized_apply_expected_arg));
@@ -296,6 +301,23 @@ pub(crate) fn materialize_expr_with_expected(
         },
     };
     Expr::typed(kind, ty)
+}
+
+fn materialize_type_instantiation(
+    instantiation: TypeInstantiation,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> TypeInstantiation {
+    TypeInstantiation {
+        target: instantiation.target,
+        args: instantiation
+            .args
+            .into_iter()
+            .map(|arg| TypeSubstitution {
+                var: arg.var,
+                ty: materialize_core_type(arg.ty, substitutions),
+            })
+            .collect(),
+    }
 }
 
 pub(crate) fn materialize_expr_in_place(

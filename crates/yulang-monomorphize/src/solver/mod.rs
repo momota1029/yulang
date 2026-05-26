@@ -1939,6 +1939,55 @@ f 3
     }
 
     #[test]
+    fn materialize_apply_instantiation_args() {
+        let original = typed_ir::TypeVar("a".into());
+        let target = typed_ir::TypeVar("b".into());
+        let int = int_type();
+        let apply = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(ExprKind::Var(path("id")), RuntimeType::Unknown)),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Tuple(Vec::new()),
+                    RuntimeType::Unknown,
+                )),
+                evidence: None,
+                instantiation: Some(yulang_runtime_ir::TypeInstantiation {
+                    target: path("id"),
+                    args: vec![yulang_runtime_ir::TypeSubstitution {
+                        var: target.clone(),
+                        ty: typed_ir::Type::Var(original.clone()),
+                    }],
+                }),
+            },
+            RuntimeType::Value(typed_ir::Type::Var(original.clone())),
+        );
+
+        let materialized = materialize::materialize_expr(
+            apply,
+            &[typed_ir::TypeSubstitution {
+                var: original,
+                ty: int.clone(),
+            }],
+        );
+
+        let ExprKind::Apply {
+            instantiation: Some(instantiation),
+            ..
+        } = materialized.kind
+        else {
+            panic!("expected materialized apply instantiation");
+        };
+
+        assert_eq!(
+            instantiation.args,
+            vec![yulang_runtime_ir::TypeSubstitution {
+                var: target,
+                ty: int,
+            }]
+        );
+    }
+
+    #[test]
     fn materialize_thunk_keeps_own_value_under_non_thunk_expected() {
         let var = typed_ir::TypeVar("a".into());
         let unit = unit_type();
