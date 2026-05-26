@@ -2559,7 +2559,7 @@ fn split_handle_continuations(
     continuation: &ControlContinuation,
     id: u64,
 ) -> (ControlContinuation, ControlContinuation) {
-    let Some(index) = continuation.frames.iter().position(
+    let Some(index) = continuation.frames.iter().rposition(
         |frame| matches!(frame, ControlFrame::Handle { id: current, .. } if *current == id),
     ) else {
         return (
@@ -3082,6 +3082,48 @@ impl PartialEq for ControlValue {
             ) => left_tag == right_tag && left_value == right_value,
             (Self::Tuple(left), Self::Tuple(right)) => left == right,
             _ => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_handle_continuations_uses_innermost_duplicate_handler_id() {
+        let continuation = ControlContinuation {
+            frames: VecDeque::from(vec![
+                handle_frame(2),
+                handle_frame(5),
+                handle_frame(2),
+                ControlFrame::BindHere,
+            ]),
+            guard_stack: GuardStack::default(),
+        };
+
+        let (outer, inner) = split_handle_continuations(&continuation, 2);
+
+        assert_eq!(outer.frames.len(), 2);
+        assert!(matches!(
+            outer.frames.get(0),
+            Some(ControlFrame::Handle { id: 2, .. })
+        ));
+        assert!(matches!(
+            outer.frames.get(1),
+            Some(ControlFrame::Handle { id: 5, .. })
+        ));
+        assert_eq!(inner.frames.len(), 1);
+        assert!(matches!(inner.frames.front(), Some(ControlFrame::BindHere)));
+    }
+
+    fn handle_frame(id: u64) -> ControlFrame {
+        ControlFrame::Handle {
+            id,
+            arms: ControlHandleArmsId(0),
+            env: ControlEnv::new(),
+            guard_stack: GuardStack::default(),
+            result_wraps_thunk: false,
         }
     }
 }

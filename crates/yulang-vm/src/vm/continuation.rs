@@ -13,7 +13,7 @@ impl VmContinuation {
         if let Some(index) = self
             .frames
             .iter()
-            .position(|frame| matches!(frame, Frame::Handle { id: current, .. } if *current == id))
+            .rposition(|frame| matches!(frame, Frame::Handle { id: current, .. } if *current == id))
         {
             self.frames.drain(..=index);
         } else {
@@ -26,7 +26,7 @@ impl VmContinuation {
         if let Some(index) = self
             .frames
             .iter()
-            .position(|frame| matches!(frame, Frame::Handle { id: current, .. } if *current == id))
+            .rposition(|frame| matches!(frame, Frame::Handle { id: current, .. } if *current == id))
         {
             if let Frame::Handle { guard_stack, .. } = &self.frames[index] {
                 self.guard_stack = guard_stack.clone();

@@ -1562,12 +1562,28 @@ fn push_lower_union_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) 
 }
 
 fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
-    lightweight_bounds_equivalent(sub, sup)
+    if lightweight_bounds_equivalent(sub, sup)
         || matches!(sub, typed_ir::Type::Never)
         || matches!(sup, typed_ir::Type::Any)
         || function_bound_subtype(sub, sup)
         || row_bound_subtype(sub, sup)
         || union_supertype_contains(sup, sub)
+    {
+        return true;
+    }
+    match (sub, sup) {
+        (typed_ir::Type::Union(items), _) => items.iter().all(|item| bound_subtype(item, sup)),
+        (_, typed_ir::Type::Union(items)) => items.iter().any(|item| bound_subtype(sub, item)),
+        (typed_ir::Type::Inter(items), _) => items.iter().any(|item| bound_subtype(item, sup)),
+        (_, typed_ir::Type::Inter(items)) => items.iter().all(|item| bound_subtype(sub, item)),
+        (typed_ir::Type::Recursive { var, body }, _) if !type_body_mentions_var(body, var) => {
+            bound_subtype(&normalize_bound_form(body), sup)
+        }
+        (_, typed_ir::Type::Recursive { var, body }) if !type_body_mentions_var(body, var) => {
+            bound_subtype(sub, &normalize_bound_form(body))
+        }
+        _ => false,
+    }
 }
 
 fn function_bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
@@ -1612,7 +1628,9 @@ fn row_bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
         return false;
     };
     let residual = split_row_items(&sub_items, &sup_items);
-    residual.unmatched_left.is_empty() && row_tail_subtype(&sub_tail, &sup_tail)
+    let items_covered =
+        residual.unmatched_left.is_empty() || matches!(sup_tail, typed_ir::Type::Any);
+    items_covered && row_tail_subtype(&sub_tail, &sup_tail)
 }
 
 fn row_tail_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
@@ -1802,6 +1820,76 @@ fn type_arg_contains_var(arg: &typed_ir::TypeArg) -> bool {
                     .upper
                     .as_ref()
                     .is_some_and(|ty| type_contains_var(ty))
+        }
+    }
+}
+
+fn type_body_mentions_var(ty: &typed_ir::Type, target: &typed_ir::TypeVar) -> bool {
+    match ty {
+        typed_ir::Type::Var(var) => var == target,
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_body_mentions_var(param, target)
+                || type_body_mentions_var(param_effect, target)
+                || type_body_mentions_var(ret_effect, target)
+                || type_body_mentions_var(ret, target)
+        }
+        typed_ir::Type::Named { args, .. } => args
+            .iter()
+            .any(|arg| type_arg_body_mentions_var(arg, target)),
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items
+            .iter()
+            .any(|item| type_body_mentions_var(item, target)),
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| type_body_mentions_var(item, target))
+                || type_body_mentions_var(tail, target)
+        }
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_body_mentions_var(&field.value, target))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_body_mentions_var(ty, target)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|ty| type_body_mentions_var(ty, target))
+            }) || variant
+                .tail
+                .as_ref()
+                .is_some_and(|tail| type_body_mentions_var(tail, target))
+        }
+        typed_ir::Type::Recursive { body, .. } => type_body_mentions_var(body, target),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+    }
+}
+
+fn type_arg_body_mentions_var(arg: &typed_ir::TypeArg, target: &typed_ir::TypeVar) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_body_mentions_var(ty, target),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| type_body_mentions_var(ty, target))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| type_body_mentions_var(ty, target))
         }
     }
 }
@@ -3549,6 +3637,79 @@ mod tests {
         assert_eq!(
             graph.slot(&var).and_then(|bounds| bounds.upper.as_ref()),
             Some(&parse_only)
+        );
+    }
+
+    #[test]
+    fn closed_effect_row_subtypes_open_effect_row_intersection() {
+        let read = effect_type("read");
+        let write = effect_type("write");
+        let closed = typed_ir::Type::Row {
+            items: vec![read.clone(), write.clone()],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let read_open = typed_ir::Type::Row {
+            items: vec![read],
+            tail: Box::new(typed_ir::Type::Any),
+        };
+        let write_open = typed_ir::Type::Row {
+            items: vec![write],
+            tail: Box::new(typed_ir::Type::Any),
+        };
+        let open_intersection = typed_ir::Type::Inter(vec![read_open, write_open]);
+
+        assert!(bound_subtype(&closed, &open_intersection));
+    }
+
+    #[test]
+    fn upper_bound_prefers_closed_row_below_open_row_intersection() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let state = effect_type("&s");
+        let var_effect = effect_type("var");
+        let closed = typed_ir::Type::Row {
+            items: vec![state.clone(), var_effect.clone()],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let state_open = typed_ir::Type::Row {
+            items: vec![state],
+            tail: Box::new(typed_ir::Type::Any),
+        };
+        let var_open = typed_ir::Type::Row {
+            items: vec![var_effect],
+            tail: Box::new(typed_ir::Type::Any),
+        };
+        let recursive_open = typed_ir::Type::Recursive {
+            var: typed_ir::TypeVar("tail".into()),
+            body: Box::new(typed_ir::Type::Row {
+                items: Vec::new(),
+                tail: Box::new(typed_ir::Type::Any),
+            }),
+        };
+        let open_intersection = typed_ir::Type::Inter(vec![state_open, var_open, recursive_open]);
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(open_intersection)),
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(closed.clone())),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(|bounds| bounds.upper.as_ref()),
+            Some(&closed)
         );
     }
 

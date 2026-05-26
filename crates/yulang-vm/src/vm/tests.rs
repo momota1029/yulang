@@ -3567,6 +3567,38 @@ box { width: 3, height: 4 }
     }
 
     #[test]
+    fn continuation_splits_at_innermost_duplicate_handler_id() {
+        fn handle_frame(id: u64) -> Frame {
+            Frame::Handle {
+                id,
+                arms: vec![handle_value_arm("ref_update", "update", VmValue::Unit)],
+                env: Env::new(),
+                guard_stack: GuardStack::default(),
+                expected_ty: RuntimeType::value(named_type("unit")),
+            }
+        }
+
+        let continuation = VmContinuation {
+            frames: vec![
+                handle_frame(2),
+                handle_frame(5),
+                handle_frame(2),
+                Frame::BindHere,
+            ],
+            guard_stack: GuardStack::default(),
+            blocked_ids: Vec::new(),
+        };
+
+        let outside = continuation.clone().outside_handle(2);
+        let inside = continuation.inside_handle(2);
+
+        assert_eq!(outside.frames.len(), 2);
+        assert!(matches!(outside.frames[0], Frame::Handle { id: 2, .. }));
+        assert!(matches!(outside.frames[1], Frame::Handle { id: 5, .. }));
+        assert_eq!(inside.frames, vec![Frame::BindHere]);
+    }
+
+    #[test]
     fn cloned_continuation_keeps_persistent_guard_stack() {
         let module = empty_module();
         let mut vm = VmInterpreter::new(&module);
