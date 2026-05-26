@@ -274,6 +274,16 @@ fn int_binding_can_widen_to_float_annotation() {
 }
 
 #[test]
+fn string_binding_can_widen_to_path_annotation() {
+    let state = parse_and_lower(r#"my x: path = "data.txt""#);
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.is_empty(),
+        "str <: path annotation should be accepted, got {errors:?}",
+    );
+}
+
+#[test]
 fn parameter_type_annotation_records_expected_edge() {
     let state = parse_and_lower("my id(x: int) = x");
     let annotation_edges = state

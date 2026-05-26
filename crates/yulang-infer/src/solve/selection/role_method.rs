@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use crate::ids::{DefId, NegId, PosId, TypeVar};
+use crate::lower::builtin_types::can_runtime_coerce_primitive_type_paths;
 use crate::scheme::compact_pos_type;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
@@ -331,6 +332,9 @@ fn resolve_cast_method_from_concrete_args(
     {
         return CastMethodResolution::Unresolved;
     }
+    if runtime_primitive_coercion_cast_args(&args) {
+        return CastMethodResolution::Unresolved;
+    }
 
     let candidates = infer.role_impl_candidates_of(&info.role);
     let role_matches = candidates
@@ -386,6 +390,27 @@ fn resolve_cast_method_from_concrete_args(
             previews: role_candidate_previews(matches),
         },
     }
+}
+
+fn runtime_primitive_coercion_cast_args(args: &CastMethodArgs) -> bool {
+    let Some((source_index, target_index)) = args.source_index.zip(args.target_index) else {
+        return false;
+    };
+    let Some(source) = concrete_arg_for_index(&args.indices, &args.concrete_args, source_index)
+    else {
+        return false;
+    };
+    let Some(target) = concrete_arg_for_index(&args.indices, &args.concrete_args, target_index)
+    else {
+        return false;
+    };
+    let Some(source) = single_nominal_cast_path(source) else {
+        return false;
+    };
+    let Some(target) = single_nominal_cast_path(target) else {
+        return false;
+    };
+    can_runtime_coerce_primitive_type_paths(source, target)
 }
 
 struct CastMethodArgs {
@@ -547,6 +572,19 @@ fn same_nominal_cast_head(source: &CompactType, target: &CompactType) -> bool {
         (0, 1, 0, 1) => source.cons[0].path == target.cons[0].path,
         _ => false,
     }
+}
+
+fn single_nominal_cast_path(arg: &CompactType) -> Option<&crate::symbols::Path> {
+    if !is_nominal_cast_arg(arg) {
+        return None;
+    }
+    if arg.prims.len() == 1 && arg.cons.is_empty() {
+        return arg.prims.iter().next();
+    }
+    if arg.prims.is_empty() && arg.cons.len() == 1 && arg.cons[0].args.is_empty() {
+        return Some(&arg.cons[0].path);
+    }
+    None
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

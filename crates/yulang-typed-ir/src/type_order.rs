@@ -31,18 +31,17 @@ impl PrimitiveTypeOrder {
     pub fn can_widen_named_paths(&self, actual: &Path, expected: &Path) -> bool {
         actual == expected
             || self
-                .numeric_family_pair(actual, expected)
-                .is_some_and(|(actual, expected)| actual <= expected)
+                .family_pair(actual, expected)
+                .is_some_and(|(actual, expected)| actual.can_widen_to(expected))
     }
 
     pub fn join_named_paths(&self, left: &Path, right: &Path) -> Option<Path> {
         if left == right {
             return Some(left.clone());
         }
-        let (left, right) = self.numeric_family_pair(left, right)?;
-        self.path_by_family
-            .get(&PrimitiveTypeFamily::from_numeric_rank(left.max(right))?)
-            .cloned()
+        let (left_family, right_family) = self.family_pair(left, right)?;
+        let joined = left_family.join(right_family)?;
+        self.path_by_family.get(&joined).cloned()
     }
 
     pub fn join_types(&self, left: &Type, right: &Type) -> Option<Type> {
@@ -92,10 +91,14 @@ impl PrimitiveTypeOrder {
         self.family_by_path.insert(path.clone(), family);
     }
 
-    fn numeric_family_pair(&self, left: &Path, right: &Path) -> Option<(u8, u8)> {
+    fn family_pair(
+        &self,
+        left: &Path,
+        right: &Path,
+    ) -> Option<(PrimitiveTypeFamily, PrimitiveTypeFamily)> {
         Some((
-            self.family_by_path.get(left)?.numeric_rank()?,
-            self.family_by_path.get(right)?.numeric_rank()?,
+            *self.family_by_path.get(left)?,
+            *self.family_by_path.get(right)?,
         ))
     }
 }
@@ -107,6 +110,26 @@ impl Default for PrimitiveTypeOrder {
 }
 
 impl PrimitiveTypeFamily {
+    fn join(self, other: Self) -> Option<Self> {
+        if self.can_widen_to(other) {
+            return Some(other);
+        }
+        if other.can_widen_to(self) {
+            return Some(self);
+        }
+        let (left, right) = self.numeric_rank().zip(other.numeric_rank())?;
+        Self::from_numeric_rank(left.max(right))
+    }
+
+    fn can_widen_to(self, expected: Self) -> bool {
+        self == expected
+            || self
+                .numeric_rank()
+                .zip(expected.numeric_rank())
+                .is_some_and(|(actual, expected)| actual <= expected)
+            || matches!((self, expected), (Self::Str, Self::Path))
+    }
+
     fn numeric_rank(self) -> Option<u8> {
         match self {
             Self::Int => Some(0),
@@ -155,6 +178,14 @@ fn standard_primitive_type_nodes() -> Vec<PrimitiveTypeGraphNode> {
         PrimitiveTypeGraphNode {
             family: PrimitiveTypeFamily::Float,
             path: bare_path("float"),
+        },
+        PrimitiveTypeGraphNode {
+            family: PrimitiveTypeFamily::Str,
+            path: std_path("str", "str"),
+        },
+        PrimitiveTypeGraphNode {
+            family: PrimitiveTypeFamily::Path,
+            path: std_path("path", "path"),
         },
     ]
 }
@@ -215,6 +246,22 @@ mod tests {
             &frac,
             &Path::from_name(Name("float".to_string())),
         ));
+    }
+
+    #[test]
+    fn widens_str_to_path() {
+        assert!(can_widen_named_paths(
+            &path("std::str::str"),
+            &path("std::path::path"),
+        ));
+        assert!(!can_widen_named_paths(
+            &path("std::path::path"),
+            &path("std::str::str"),
+        ));
+        assert_eq!(
+            join_named_paths(&path("std::str::str"), &path("std::path::path")),
+            Some(path("std::path::path"))
+        );
     }
 
     #[test]

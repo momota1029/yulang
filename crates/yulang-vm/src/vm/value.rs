@@ -149,6 +149,11 @@ pub(super) fn cast_value(value: VmValue, expected: &typed_ir::Type) -> VmValue {
             });
         }
     }
+    if is_path_type(expected) {
+        if let VmValue::String(value) = value {
+            return VmValue::Path(Rc::new(PathBuf::from(value.to_flat_string())));
+        }
+    }
     value
 }
 

@@ -1,7 +1,7 @@
 use rustc_hash::FxHashSet;
 
 use super::util::{
-    find_record_field, is_builtin_numeric_widening, live_neg_var_is_empty_row, neg_id_direct_var,
+    find_record_field, is_builtin_primitive_widening, live_neg_var_is_empty_row, neg_id_direct_var,
     optionalized_neg_field, pos_id_direct_var, singleton_neg_record,
 };
 use super::{FrozenStepCache, Infer, StepCache};
@@ -276,7 +276,7 @@ impl Infer {
             (Pos::Con(p_path, p_args), Neg::Con(n_path, n_args))
                 if p_args.is_empty()
                     && n_args.is_empty()
-                    && is_builtin_numeric_widening(&p_path, &n_path) => {}
+                    && is_builtin_primitive_widening(&p_path, &n_path) => {}
 
             (Pos::Con(p_path, _), Neg::Con(n_path, _))
                 if !p_path.segments.is_empty()

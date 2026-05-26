@@ -339,6 +339,22 @@ mod tests {
     }
 
     #[test]
+    fn str_is_compatible_with_path_by_runtime_widening() {
+        assert!(type_compatible(
+            &named("std::path::path"),
+            &named("std::str::str"),
+        ));
+        assert!(needs_runtime_coercion(
+            &named("std::path::path"),
+            &named("std::str::str"),
+        ));
+        assert!(!needs_runtime_coercion(
+            &named("std::str::str"),
+            &named("std::path::path"),
+        ));
+    }
+
+    #[test]
     fn full_path_numeric_widening_requires_registered_primitive_order() {
         let order = typed_ir::PrimitiveTypeOrder::from_primitive_types(&[
             primitive_type_node(typed_ir::PrimitiveTypeFamily::Int, "std::int::int"),

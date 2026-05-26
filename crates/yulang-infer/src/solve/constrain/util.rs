@@ -2,15 +2,15 @@ use rustc_hash::FxHashSet;
 
 use super::Infer;
 use crate::ids::{NegId, PosId, TypeVar};
-use crate::lower::builtin_types::can_widen_primitive_numeric_type_paths;
+use crate::lower::builtin_types::can_widen_primitive_type_paths;
 use crate::symbols::Name;
 use crate::types::{Neg, Pos};
 
-pub(super) fn is_builtin_numeric_widening(
+pub(super) fn is_builtin_primitive_widening(
     actual: &crate::symbols::Path,
     expected: &crate::symbols::Path,
 ) -> bool {
-    actual == expected || can_widen_primitive_numeric_type_paths(actual, expected)
+    actual == expected || can_widen_primitive_type_paths(actual, expected)
 }
 
 pub(super) fn same_row_tail_var_nodes(pos: &Pos, neg: &Neg) -> bool {

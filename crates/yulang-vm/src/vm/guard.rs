@@ -275,6 +275,18 @@ pub(super) fn is_float_type(ty: &typed_ir::Type) -> bool {
     matches!(ty, typed_ir::Type::Named { path, args } if args.is_empty() && path == &standard_float_path())
 }
 
+pub(super) fn is_path_type(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Named { path, args } if args.is_empty() && path == &standard_path_path())
+}
+
 fn standard_float_path() -> typed_ir::Path {
     typed_ir::Path::from_name(typed_ir::Name("float".to_string()))
+}
+
+fn standard_path_path() -> typed_ir::Path {
+    typed_ir::Path::new(vec![
+        typed_ir::Name("std".to_string()),
+        typed_ir::Name("path".to_string()),
+        typed_ir::Name("path".to_string()),
+    ])
 }

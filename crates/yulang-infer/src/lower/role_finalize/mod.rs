@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ids::TypeVar;
 use crate::lower::builtin_types::{
-    join_primitive_numeric_type_paths, primitive_numeric_type_family,
+    join_primitive_type_paths, primitive_numeric_type_family, primitive_type_family,
 };
 use crate::simplify::compact::merge_compact_types;
 use crate::simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
@@ -67,9 +67,9 @@ fn boundary_join_concrete_bounds(lower: &CompactType, upper: &CompactType) -> Op
     if lower == upper {
         return Some(lower);
     }
-    let lower_path = single_numeric_path(&lower)?;
-    let upper_path = single_numeric_path(&upper)?;
-    let joined_path = join_primitive_numeric_type_paths(lower_path, upper_path)?;
+    let lower_path = single_primitive_path(&lower)?;
+    let upper_path = single_primitive_path(&upper)?;
+    let joined_path = join_primitive_type_paths(lower_path, upper_path)?;
     let mut joined = CompactType::default();
     joined.cons.push(crate::simplify::compact::CompactCon {
         path: joined_path,
@@ -306,10 +306,10 @@ fn join_local_named_paths(left: &Path, right: &Path) -> Option<Path> {
     if left == right {
         return Some(left.clone());
     }
-    join_primitive_numeric_type_paths(left, right)
+    join_primitive_type_paths(left, right)
 }
 
-fn single_numeric_path(ty: &CompactType) -> Option<&Path> {
+fn single_primitive_path(ty: &CompactType) -> Option<&Path> {
     if !ty.vars.is_empty()
         || !ty.funs.is_empty()
         || !ty.records.is_empty()
@@ -327,11 +327,9 @@ fn single_numeric_path(ty: &CompactType) -> Option<&Path> {
             .map(|con| &con.path),
     );
     let path = paths.next()?;
-    paths
-        .next()
-        .is_none()
-        .then_some(path)
-        .filter(|path| primitive_numeric_type_family(path).is_some())
+    paths.next().is_none().then_some(path).filter(|path| {
+        primitive_numeric_type_family(path).is_some() || primitive_type_family(path).is_some()
+    })
 }
 
 fn path_string(path: &Path) -> String {

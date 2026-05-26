@@ -450,6 +450,8 @@ fn semantic_cast_endpoint_is_open(ty: &typed_ir::Type) -> bool {
 
 fn primitive_runtime_coercion_covers(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {
     is_bare_named_type(actual, "int") && is_bare_named_type(expected, "float")
+        || is_std_named_type(actual, &["std", "str", "str"])
+            && is_std_named_type(expected, &["std", "path", "path"])
 }
 
 fn is_bare_named_type(ty: &typed_ir::Type, name: &str) -> bool {
@@ -461,6 +463,20 @@ fn is_bare_named_type(ty: &typed_ir::Type, name: &str) -> bool {
                     .segments
                     .last()
                     .is_some_and(|segment| segment.0 == name)
+    )
+}
+
+fn is_std_named_type(ty: &typed_ir::Type, segments: &[&str]) -> bool {
+    matches!(
+        ty,
+        typed_ir::Type::Named { path, args }
+            if args.is_empty()
+                && path.segments.len() == segments.len()
+                && path
+                    .segments
+                    .iter()
+                    .zip(segments)
+                    .all(|(left, right)| left.0 == *right)
     )
 }
 

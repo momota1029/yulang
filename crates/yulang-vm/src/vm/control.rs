@@ -2800,6 +2800,14 @@ fn control_cast_value(value: ControlValue, expected: &typed_ir::Type) -> Control
             value => value,
         };
     }
+    if is_path_type(expected) {
+        return match value {
+            ControlValue::String(value) => {
+                ControlValue::Path(Rc::new(PathBuf::from(value.to_flat_string())))
+            }
+            value => value,
+        };
+    }
     value
 }
 

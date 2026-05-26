@@ -1096,6 +1096,40 @@ my text = read_text path
     }
 
     #[test]
+    fn vm_coerces_string_to_path_for_path_primitives() {
+        let results = eval_source_with_std(r#"std::path::to_bytes "data.txt""#);
+
+        assert_eq!(results, vec![TestValue::Bytes(8)]);
+    }
+
+    #[test]
+    fn control_vm_coerces_string_to_path_for_path_primitives() {
+        let results = eval_control_source_with_std(r#"std::path::to_bytes "data.txt""#);
+
+        assert_eq!(results, vec![TestValue::Bytes(8)]);
+    }
+
+    #[test]
+    fn vm_host_accepts_string_paths_through_std_fs() {
+        let path = temp_test_path("yulang-fs-string-path");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!(
+            r#"write_text {source_path} "hello"
+read_text {source_path}
+"#
+        );
+
+        let (results, stdout) = eval_source_with_std_host(&source);
+        let _ = std::fs::remove_file(&path);
+
+        assert!(stdout.is_empty());
+        assert_eq!(
+            results,
+            vec![TestValue::Unit, TestValue::String("hello".to_string())]
+        );
+    }
+
+    #[test]
     fn vm_host_flushes_file_handle_string_edits() {
         let path = temp_test_path("yulang-file-handle-lines");
         std::fs::write(&path, "a\nb\nc").expect("write file handle fixture");

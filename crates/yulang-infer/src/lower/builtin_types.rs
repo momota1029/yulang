@@ -233,11 +233,41 @@ pub(crate) fn primitive_numeric_type_family(path: &Path) -> Option<PrimitiveNume
     }
 }
 
+pub(crate) fn primitive_type_family(path: &Path) -> Option<PrimitiveTypeFamily> {
+    let canonical = canonical_builtin_type_path(path).unwrap_or_else(|| path.clone());
+    match canonical.segments.as_slice() {
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "str" && name == "str" =>
+        {
+            Some(PrimitiveTypeFamily::Str)
+        }
+        [Name(std), Name(module), Name(name)]
+            if std == "std" && module == "path" && name == "path" =>
+        {
+            Some(PrimitiveTypeFamily::Path)
+        }
+        _ => None,
+    }
+}
+
 pub(crate) fn join_primitive_numeric_type_paths(left: &Path, right: &Path) -> Option<Path> {
     let left = primitive_numeric_type_family(left)?;
     let right = primitive_numeric_type_family(right)?;
     let family = PrimitiveNumericTypeFamily::from_rank(left.rank().max(right.rank()))?;
     Some(primitive_numeric_type_path(family))
+}
+
+pub(crate) fn join_primitive_type_paths(left: &Path, right: &Path) -> Option<Path> {
+    if let Some(joined) = join_primitive_numeric_type_paths(left, right) {
+        return Some(joined);
+    }
+    match (primitive_type_family(left)?, primitive_type_family(right)?) {
+        (PrimitiveTypeFamily::Str, PrimitiveTypeFamily::Path)
+        | (PrimitiveTypeFamily::Path, PrimitiveTypeFamily::Str) => {
+            Some(standard_source_type_path(PrimitiveTypeFamily::Path))
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn primitive_numeric_type_path(family: PrimitiveNumericTypeFamily) -> Path {
@@ -266,6 +296,42 @@ pub(crate) fn can_widen_primitive_numeric_type_paths(actual: &Path, expected: &P
         return false;
     };
     actual.rank() <= expected.rank()
+}
+
+pub(crate) fn can_widen_primitive_type_paths(actual: &Path, expected: &Path) -> bool {
+    can_widen_primitive_numeric_type_paths(actual, expected)
+        || matches!(
+            (
+                primitive_type_family(actual),
+                primitive_type_family(expected)
+            ),
+            (
+                Some(PrimitiveTypeFamily::Str),
+                Some(PrimitiveTypeFamily::Path)
+            )
+        )
+}
+
+pub(crate) fn can_runtime_coerce_primitive_type_paths(actual: &Path, expected: &Path) -> bool {
+    matches!(
+        (
+            primitive_numeric_type_family(actual),
+            primitive_numeric_type_family(expected)
+        ),
+        (
+            Some(PrimitiveNumericTypeFamily::Int),
+            Some(PrimitiveNumericTypeFamily::Float)
+        )
+    ) || matches!(
+        (
+            primitive_type_family(actual),
+            primitive_type_family(expected)
+        ),
+        (
+            Some(PrimitiveTypeFamily::Str),
+            Some(PrimitiveTypeFamily::Path)
+        )
+    )
 }
 
 pub(crate) fn primitive_runtime_value_path(family: PrimitiveValueFamily) -> typed_ir::Path {
