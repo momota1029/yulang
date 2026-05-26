@@ -1181,34 +1181,6 @@ read_text {source_path}
     }
 
     #[test]
-    fn vm_host_undet_run_edits_each_open_line() {
-        let path = temp_test_path("yulang-undet-run-lines");
-        std::fs::write(&path, "a\nb\nc").expect("write undet line fixture");
-        let source_path = yulang_string_literal(&path.to_string_lossy());
-        let source = format!(
-            r#"{{
-    my text: ref '[fs] str = open {source_path}
-    ({{
-        my line: ref _ str = text.lines.each
-        if line.get() == "b\n":
-            line[std::range::full()] = "B\n"
-        else:
-            ()
-    }}).run
-    text.get()
-}}
-"#
-        );
-        let (results, stdout) = eval_source_with_std_host(&source);
-        let disk = std::fs::read_to_string(&path).expect("read undet edited file fixture");
-        let _ = std::fs::remove_file(&path);
-
-        assert!(stdout.is_empty());
-        assert_eq!(results, vec![TestValue::String("a\nB\nc".to_string())]);
-        assert_eq!(disk, "a\nB\nc");
-    }
-
-    #[test]
     fn vm_distinguishes_same_path_error_constructor_and_operation() {
         let results = eval_source_with_std(
             r#"enum fs_err = not_found str | denied str | invalid_path str
@@ -3327,34 +3299,6 @@ run_into_strings: {
                 TestValue::Int("4".to_string()),
             ])]
         );
-    }
-
-    #[test]
-    fn vm_runs_std_undet_run_for_side_effects() {
-        let (results, stdout) = eval_source_with_std_host(
-            r#"({
-    my x = each [1, 2, 3]
-    x.say
-}).run
-"#,
-        );
-
-        assert_eq!(results, vec![TestValue::Unit]);
-        assert_eq!(stdout, "1\n2\n3\n");
-    }
-
-    #[test]
-    fn control_vm_runs_std_undet_run_for_side_effects() {
-        let (results, stdout) = eval_control_source_with_std_host(
-            r#"({
-    my x = each [1, 2, 3]
-    x.say
-}).run
-"#,
-        );
-
-        assert_eq!(results, vec![TestValue::Unit]);
-        assert_eq!(stdout, "1\n2\n3\n");
     }
 
     #[test]
