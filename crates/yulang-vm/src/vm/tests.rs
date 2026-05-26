@@ -2741,7 +2741,7 @@ sub:
             r#"act log:
     pub put: str -> ()
 
-my collect_logs comp =
+my collect_logs(comp: [_] _) =
     my $entries = []
     catch comp:
         log::put msg, k ->

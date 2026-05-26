@@ -19,7 +19,8 @@ use crate::types::{Neg, Pos};
 
 use super::control::{case_like_label_name, lower_arm_guard, lower_recursive_case_like};
 use super::{
-    collect_child_arms, lower_expr, neg_prim_type, prim_type, resolve_bound_def_expr, unit_expr,
+    collect_child_arms, lower_expr, neg_id_is_pure_row, neg_prim_type, pos_id_is_empty_row,
+    prim_type, resolve_bound_def_expr, unit_expr,
 };
 
 pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
@@ -346,11 +347,28 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
 }
 
 fn handler_captures_effect_path(state: &LowerState, comp: &TypedExpr, effect_path: &Path) -> bool {
+    if eff_tv_is_exact_pure_row(state, comp.eff) {
+        return false;
+    }
     match handler_body_boundary_keep(state, comp).unwrap_or(ShiftKeep::Surface) {
         ShiftKeep::None | ShiftKeep::CallBoundary => false,
         ShiftKeep::Surface => true,
         ShiftKeep::Set(paths) => paths.iter().any(|path| path == effect_path),
     }
+}
+
+fn eff_tv_is_exact_pure_row(state: &LowerState, tv: crate::ids::TypeVar) -> bool {
+    let mut seen = HashSet::new();
+    seen.insert(tv);
+    let lowers = state.infer.lower_refs_of(tv);
+    let uppers = state.infer.upper_refs_of(tv);
+    !lowers.is_empty()
+        && lowers
+            .iter()
+            .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen))
+        && uppers
+            .iter()
+            .all(|upper| neg_id_is_pure_row(state, *upper, &mut seen))
 }
 
 fn comp_is_direct_handled_effect_call(

@@ -1661,7 +1661,7 @@ mod tests {
             .iter()
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
-        assert_eq!(shallow_det.1, "α -> [undet] α");
+        assert_eq!(shallow_det.1, "α -> α");
     }
 
     #[test]
