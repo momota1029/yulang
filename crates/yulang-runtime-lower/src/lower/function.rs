@@ -193,7 +193,7 @@ pub(super) fn select_field_type(
     field: &typed_ir::Name,
 ) -> RuntimeResult<typed_ir::Type> {
     match ty {
-        typed_ir::Type::Any => Ok(typed_ir::Type::Any),
+        typed_ir::Type::Any => Ok(typed_ir::Type::Unknown),
         typed_ir::Type::Record(record) => record
             .fields
             .iter()

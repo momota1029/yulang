@@ -124,6 +124,9 @@ impl<'a> SigParser<'a> {
             self.consume_byte(b')');
             return Some(first);
         }
+        if self.peek()? == b'\'' && self.row_literal_starts_here() {
+            return self.parse_row_literal_type();
+        }
         if self.peek()? == b'\'' {
             self.i += 1;
             let name = self.parse_ident()?;
@@ -403,6 +406,15 @@ impl<'a> SigParser<'a> {
             span: self.range(start, self.i),
         })
     }
+
+    fn row_literal_starts_here(&mut self) -> bool {
+        let start = self.i;
+        self.i += 1;
+        self.skip_ws();
+        let is_row = self.peek() == Some(b'[');
+        self.i = start;
+        is_row
+    }
 }
 
 pub fn parse_sig_type_expr(type_expr: &SyntaxNode) -> Option<SigType> {
@@ -517,5 +529,32 @@ mod tests {
         assert_eq!(fields.len(), 1);
         assert_eq!(fields[0].name, Name("a".to_string()));
         assert!(fields[0].optional);
+    }
+
+    #[test]
+    fn sig_parser_parses_row_literal_as_type_argument() {
+        let mut parser = SigParser::new("ref '[fs] str", TextSize::from(0));
+        let sig = parser
+            .parse_type()
+            .expect("row literal type argument should parse");
+        assert!(parser.is_eof());
+
+        let SigType::Apply { path, args, .. } = sig else {
+            panic!("expected applied type");
+        };
+        assert_eq!(path.segments[0].0, "ref");
+        assert_eq!(args.len(), 2);
+        let SigType::Row { row, .. } = &args[0] else {
+            panic!("expected row literal argument");
+        };
+        assert_eq!(row.items.len(), 1);
+        let SigType::Prim { path, .. } = &row.items[0] else {
+            panic!("expected concrete effect item");
+        };
+        assert_eq!(path.segments[0].0, "fs");
+        let SigType::Prim { path, .. } = &args[1] else {
+            panic!("expected value argument");
+        };
+        assert_eq!(path.segments[0].0, "str");
     }
 }

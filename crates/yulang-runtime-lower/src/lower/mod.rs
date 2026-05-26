@@ -70,6 +70,11 @@ pub struct RuntimeLowerOutput {
     pub profile: RuntimeLowerProfile,
 }
 
+struct RuntimeTypedLowerOutput {
+    module: Module,
+    profile: RuntimeLowerProfile,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RuntimeLowerProfile {
     pub core_shape: CoreShapeProfile,
@@ -298,6 +303,46 @@ fn lower_principal_module_with_graph_and_evidence_inner(
     core_shape: CoreShapeProfile,
     collect_profile: bool,
 ) -> RuntimeResult<RuntimeLowerOutput> {
+    let output = lower_principal_module_to_runtime_typed_inner(
+        module,
+        graph,
+        evidence,
+        effect_operations,
+        core_shape,
+        collect_profile,
+    )?;
+    Ok(RuntimeLowerOutput {
+        module: lower_runtime_typed_module(output.module),
+        profile: output.profile,
+    })
+}
+
+#[cfg(test)]
+fn lower_core_program_runtime_typed_for_tests(
+    program: typed_ir::CoreProgram,
+) -> RuntimeResult<Module> {
+    let graph = program.graph;
+    let evidence = program.evidence;
+    let effect_operations = program.effect_operations;
+    lower_principal_module_to_runtime_typed_inner(
+        program.program,
+        &graph,
+        &evidence,
+        &effect_operations,
+        CoreShapeProfile::default(),
+        false,
+    )
+    .map(|output| output.module)
+}
+
+fn lower_principal_module_to_runtime_typed_inner(
+    module: typed_ir::PrincipalModule,
+    graph: &typed_ir::CoreGraphView,
+    evidence: &typed_ir::PrincipalEvidence,
+    effect_operations: &[typed_ir::EffectOperationDecl],
+    core_shape: CoreShapeProfile,
+    collect_profile: bool,
+) -> RuntimeResult<RuntimeTypedLowerOutput> {
     let principal_vars = principal_module_type_vars(&module);
     let mut binding_infos = module
         .bindings
@@ -450,14 +495,13 @@ fn lower_principal_module_with_graph_and_evidence_inner(
     };
     check_runtime_invariants(&module, RuntimeStage::Lowered)?;
     validate_module(&module)?;
-    let module = lower_runtime_typed_module(module);
     let mut runtime_adapters = lowerer.runtime_adapter_profile;
     if collect_profile {
         profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
         profile_runtime_adapter_derived_parent_matches(&mut runtime_adapters, evidence);
         collect_observed_adapter_evidence(&mut runtime_adapters, evidence);
     }
-    Ok(RuntimeLowerOutput {
+    Ok(RuntimeTypedLowerOutput {
         module,
         profile: RuntimeLowerProfile {
             core_shape,

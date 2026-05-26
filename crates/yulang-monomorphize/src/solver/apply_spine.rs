@@ -16,7 +16,7 @@
 //!     spine's value arguments (`collect_spine_substitutions`,
 //!     `default_spine_evidence_substitutions`)
 //!   - exposes predicates the rest of the pipeline needs:
-//!     `apply_evidence_return_value`, `apply_evidence_returns_never_value`.
+//!     `apply_evidence_return_value`.
 //!
 //! The `ApplySpine` / `ApplyStep` types are the shared representation for the
 //! `role` and `rewrite` modules — both consume spines once they are solved.
@@ -179,12 +179,14 @@ pub(crate) fn collect_expr_graphs(
         solutions.len(),
     )?;
     if !found.is_empty() {
+        let solved_callee_type = solved_apply_spine_callee_type(expr, &found);
         collect_apply_spine_arg_graphs(
             owner,
             expr,
             bindings,
             role_impls,
             local_types,
+            solved_callee_type.as_ref(),
             cast_order,
             solutions,
         )?;
@@ -389,7 +391,7 @@ pub(crate) fn collect_expr_graphs(
         ExprKind::Block { stmts, tail } => {
             let mut scoped_locals = local_types.clone();
             for stmt in stmts {
-                collect_stmt_graphs(
+                let scrutinee_ty = collect_stmt_graphs(
                     owner.clone(),
                     stmt,
                     bindings,
@@ -398,7 +400,11 @@ pub(crate) fn collect_expr_graphs(
                     cast_order,
                     solutions,
                 )?;
-                collect_stmt_local_types(stmt, &mut scoped_locals);
+                collect_stmt_local_types_with_scrutinee(
+                    stmt,
+                    scrutinee_ty.as_ref(),
+                    &mut scoped_locals,
+                );
             }
             if let Some(tail) = tail {
                 collect_expr_graphs(
@@ -462,21 +468,88 @@ pub(crate) fn collect_apply_spine_arg_graphs(
     bindings: &HashMap<typed_ir::Path, &Binding>,
     role_impls: &[typed_ir::RoleImplGraphNode],
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    solved_callee_type: Option<&RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
 ) -> MonomorphizeResult<()> {
+    collect_apply_spine_arg_graphs_with_callee_type(
+        owner,
+        expr,
+        bindings,
+        role_impls,
+        local_types,
+        solved_callee_type.cloned(),
+        cast_order,
+        solutions,
+    )
+    .map(|_| ())
+}
+
+fn collect_apply_spine_arg_graphs_with_callee_type(
+    owner: RootGraphRoot,
+    expr: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    callee_type: Option<RuntimeType>,
+    cast_order: &TypeCastOrder,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> MonomorphizeResult<Option<RuntimeType>> {
     let ExprKind::Apply { callee, arg, .. } = &expr.kind else {
-        return Ok(());
+        return Ok(callee_type);
     };
-    collect_apply_spine_arg_graphs(
+    let callee_type = collect_apply_spine_arg_graphs_with_callee_type(
         owner.clone(),
         callee,
         bindings,
         role_impls,
         local_types,
+        callee_type,
         cast_order,
         solutions,
     )?;
+    let expected_arg = callee_type.as_ref().and_then(runtime_callable_param);
+    collect_apply_arg_expr_graphs(
+        owner,
+        arg,
+        bindings,
+        role_impls,
+        local_types,
+        expected_arg.as_ref(),
+        cast_order,
+        solutions,
+    )?;
+    Ok(callee_type.as_ref().and_then(runtime_callable_ret))
+}
+
+fn collect_apply_arg_expr_graphs(
+    owner: RootGraphRoot,
+    arg: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    expected_arg: Option<&RuntimeType>,
+    cast_order: &TypeCastOrder,
+    solutions: &mut Vec<RootGraphSolution>,
+) -> MonomorphizeResult<()> {
+    if let (ExprKind::Lambda { param, body, .. }, Some(expected_arg)) = (&arg.kind, expected_arg)
+        && let Some(expected_param) = runtime_callable_param(expected_arg)
+    {
+        let local = super::path_from_name(param);
+        let mut param_ty = super::runtime_function_param(&arg.ty).unwrap_or(RuntimeType::Unknown);
+        super::narrow_runtime_type_in_place(&mut param_ty, &expected_param);
+        let mut scoped_locals = local_types.clone();
+        scoped_locals.insert(local, param_ty);
+        return collect_expr_graphs(
+            owner,
+            body,
+            bindings,
+            role_impls,
+            &scoped_locals,
+            cast_order,
+            solutions,
+        );
+    }
     collect_expr_graphs(
         owner,
         arg,
@@ -486,6 +559,46 @@ pub(crate) fn collect_apply_spine_arg_graphs(
         cast_order,
         solutions,
     )
+}
+
+fn solved_apply_spine_callee_type(
+    expr: &Expr,
+    solutions: &[RootGraphSolution],
+) -> Option<RuntimeType> {
+    let spine = ApplySpine::new(expr)?;
+    solutions
+        .iter()
+        .rev()
+        .find(|solution| solution.binding == *spine.binding)
+        .map(|solution| solution.callee_type.clone())
+}
+
+fn runtime_callable_param(ty: &RuntimeType) -> Option<RuntimeType> {
+    match ty {
+        RuntimeType::Fun { param, .. } => Some(param.as_ref().clone()),
+        RuntimeType::Value(typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ..
+        }) => Some(runtime_type_from_core_value_and_effect(
+            param.as_ref().clone(),
+            param_effect.as_ref().clone(),
+        )),
+        RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn runtime_callable_ret(ty: &RuntimeType) -> Option<RuntimeType> {
+    match ty {
+        RuntimeType::Fun { ret, .. } => Some(ret.as_ref().clone()),
+        RuntimeType::Value(typed_ir::Type::Fun {
+            ret_effect, ret, ..
+        }) => Some(runtime_type_from_core_value_and_effect(
+            ret.as_ref().clone(),
+            ret_effect.as_ref().clone(),
+        )),
+        RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => None,
+    }
 }
 
 pub(crate) fn solve_bare_polymorphic_var(
@@ -567,6 +680,7 @@ pub(crate) fn solve_simple_apply(
     }
     let mut current = principal.principal_type.clone();
     let mut current_template = principal.principal_type.clone();
+    let mut current_effect = typed_ir::Type::Never;
     let mut apply_value_vars = BTreeSet::new();
     let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
@@ -614,8 +728,18 @@ pub(crate) fn solve_simple_apply(
             graph.constrain_subtype(observed_arg_effect.clone(), result_effect.clone())?;
             graph.constrain_subtype(result_effect.clone(), observed_arg_effect)?;
         }
-        step.constrain_result_bounds(&mut graph, result.clone(), result_effect, local_types)?;
+        if !role_required_binding {
+            let protected_result_vars = bounded_type_vars(&graph, &result);
+            step.constrain_result_bounds(
+                &mut graph,
+                result.clone(),
+                result_effect.clone(),
+                local_types,
+                &protected_result_vars,
+            )?;
+        }
         current = result;
+        current_effect = result_effect;
         current_template =
             function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
     }
@@ -649,22 +773,32 @@ pub(crate) fn solve_simple_apply(
         if role::role_required_apply_waiting_for_arguments(binding, &spine, local_types) {
             return Ok(solutions);
         }
+        if std::env::var_os("YULANG_TRACE_INCOMPLETE").is_some()
+            && format!("{binding_path:?}").contains("var_ref")
+        {
+            eprintln!(
+                "TRACE incomplete binding={binding_path:?}\n  principal={:?}\n  all_vars=",
+                principal.principal_type
+            );
+            for var in graph.type_vars.iter() {
+                eprintln!(
+                    "    {:?} solution={:?} bounds={:?}",
+                    var.var, var.solution, var.bounds
+                );
+            }
+        }
         return Err(MonomorphizeDiagnostic::IncompleteGraph {
             binding: binding_path.clone(),
         });
     }
-    let result_type = if role_required_binding {
-        runtime_type_from_core_value(graph.materialize_core(current))
-    } else {
-        solved_expr_result_type(&expr.ty, &graph, current)
-    };
+    let result_type = solved_apply_result_type(&graph, current, current_effect);
     let callee_type = solved_callee_finalized_type(binding, &principal, &graph);
     let callee_type =
         super::finalized_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
     let callee_type =
         super::refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
     let type_substitutions = principal.original_substitutions(&graph);
-    solutions.push(RootGraphSolution {
+    let solution = RootGraphSolution {
         root: owner,
         occurrence: alias_index + solutions.len(),
         binding: binding_path.clone(),
@@ -673,7 +807,19 @@ pub(crate) fn solve_simple_apply(
         result_type,
         graph,
         type_substitutions,
-    });
+    };
+    if std::env::var_os("YULANG_TRACE_ROOT_SOLUTIONS").is_some() {
+        eprintln!(
+            "TRACE solution occurrence={} binding={:?} alias={:?}\n  callee={:?}\n  result={:?}\n  substitutions={:?}",
+            solution.occurrence,
+            solution.binding,
+            solution.alias,
+            solution.callee_type,
+            solution.result_type,
+            solution.type_substitutions
+        );
+    }
+    solutions.push(solution);
     Ok(solutions)
 }
 
@@ -698,17 +844,15 @@ pub(crate) fn solve_monomorphic_contextual_apply(
     None
 }
 
-fn solved_expr_result_type(
-    expr_ty: &RuntimeType,
+fn solved_apply_result_type(
     graph: &crate::GraphSolution,
     result: typed_ir::Type,
+    effect: typed_ir::Type,
 ) -> RuntimeType {
-    let materialized = materialize_runtime_type(expr_ty.clone(), &graph.substitutions());
-    if super::runtime_type_is_closed(&materialized) {
-        materialized
-    } else {
-        runtime_type_from_core_value(graph.materialize_core(result))
-    }
+    runtime_type_from_core_value_and_effect(
+        graph.materialize_core(result),
+        graph.materialize_core(effect),
+    )
 }
 
 fn informative_effect(effect: &typed_ir::Type) -> bool {
@@ -1097,10 +1241,14 @@ impl ApplyStep<'_> {
             return (value, effect);
         }
         let expr_ty = super::runtime_type_to_core(runtime_ty);
+        let evidence_arg = self.evidence.and_then(apply_arg_type);
         if super::core_type_is_closed(&expr_ty) {
-            return (expr_ty, typed_ir::Type::Never);
+            let arg_type = evidence_arg
+                .filter(|ty| evidence_arg_overrides_imprecise_runtime_value(ty, &expr_ty))
+                .unwrap_or(expr_ty);
+            return (arg_type, typed_ir::Type::Never);
         }
-        let fallback = self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty);
+        let fallback = evidence_arg.unwrap_or(expr_ty);
         (fallback, typed_ir::Type::Never)
     }
 
@@ -1108,41 +1256,50 @@ impl ApplyStep<'_> {
         &self,
         graph: &mut TypeGraph,
         result: typed_ir::Type,
-        result_effect: typed_ir::Type,
+        _result_effect: typed_ir::Type,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
+        protected_result_vars: &BTreeSet<typed_ir::TypeVar>,
     ) -> MonomorphizeResult<()> {
+        if std::env::var_os("YULANG_TRACE_RESULT_BOUNDS").is_some() {
+            eprintln!(
+                "TRACE constrain_result_bounds\n  result={result:?}\n  evidence={:?}\n  protected={protected_result_vars:?}",
+                self.evidence
+            );
+        }
         let evidence_value_bound = self
             .evidence
-            .map(|evidence| constrain_core_type_bounds(graph, result.clone(), &evidence.result))
+            .map(|evidence| {
+                constrain_observed_type_bounds(
+                    graph,
+                    &result,
+                    &evidence.result,
+                    protected_result_vars,
+                )
+            })
             .transpose()?
             .unwrap_or(false);
-        if let Some(evidence) = self.evidence {
-            constrain_apply_result_effect_bounds(graph, result_effect.clone(), evidence)?;
-        }
         let apply_ty = expr_lower_type(self.apply, local_types);
         match apply_ty {
             RuntimeType::Unknown => Ok(()),
-            RuntimeType::Thunk { effect, value } => {
+            RuntimeType::Thunk { value, .. } => {
                 if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
-                    graph
-                        .constrain_subtype(result, super::runtime_type_to_core((*value).clone()))?;
+                    constrain_observed_upper_bound(
+                        graph,
+                        &result,
+                        &super::runtime_type_to_core((*value).clone()),
+                        protected_result_vars,
+                    )?;
                 }
-                let evidence_returns_never = self
-                    .evidence
-                    .is_some_and(apply_evidence_returns_never_value);
-                let effect = if evidence_returns_never || runtime_type_is_never_value(&value) {
-                    effect_carrier_value_hint(&effect).unwrap_or(effect)
-                } else {
-                    effect
-                };
-                if matches!(effect, typed_ir::Type::Never | typed_ir::Type::Unknown) {
-                    Ok(())
-                } else {
-                    graph.constrain_subtype(result_effect, effect)
-                }
+                Ok(())
             }
             ty if evidence_value_bound && runtime_type_value_is_function(&ty) => Ok(()),
-            ty => graph.constrain_subtype(result, super::runtime_type_to_core(ty)),
+            ty => constrain_observed_upper_bound(
+                graph,
+                &result,
+                &super::runtime_type_to_core(ty),
+                protected_result_vars,
+            )
+            .map(|_| ()),
         }
     }
 }
@@ -1155,6 +1312,15 @@ fn evidence_arg_overrides_thunk_value(
         return false;
     }
     super::core_type_is_closed(evidence)
+}
+
+fn evidence_arg_overrides_imprecise_runtime_value(
+    evidence: &typed_ir::Type,
+    runtime_value: &typed_ir::Type,
+) -> bool {
+    matches!(runtime_value, typed_ir::Type::Any)
+        && informative_evidence_type(evidence)
+        && super::core_type_is_closed(evidence)
 }
 
 fn informative_evidence_type(ty: &typed_ir::Type) -> bool {
@@ -1238,71 +1404,278 @@ fn closed_or_empty_effect(effect: typed_ir::Type) -> typed_ir::Type {
     }
 }
 
-fn constrain_core_type_bounds(
+fn constrain_observed_type_bounds(
     graph: &mut TypeGraph,
-    ty: typed_ir::Type,
+    template: &typed_ir::Type,
     bounds: &typed_ir::TypeBounds,
+    protected_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> MonomorphizeResult<bool> {
     let mut constrained = false;
     if let Some(lower) = bounds.lower.as_deref() {
-        graph.constrain_subtype(lower.clone(), ty.clone())?;
-        constrained = true;
+        constrained |= constrain_observed_lower_bound(graph, template, lower, protected_vars)?;
     }
     if let Some(upper) = bounds.upper.as_deref() {
-        graph.constrain_subtype(ty.clone(), upper.clone())?;
-        constrained = true;
+        // Upper bounds carry call-site information that the principal has not
+        // observed yet (e.g. principal's open type-param vars must be specialized
+        // from the upper). Don't protect template vars that already have a
+        // lower bound, because adding an upper bound here is purely additive
+        // and is exactly how the call-site narrows those open variables.
+        let empty = BTreeSet::new();
+        constrained |= constrain_observed_upper_bound(graph, template, upper, &empty)?;
     }
     Ok(constrained)
 }
 
-fn constrain_apply_result_effect_bounds(
+fn constrain_observed_lower_bound(
     graph: &mut TypeGraph,
-    effect: typed_ir::Type,
-    evidence: &typed_ir::ApplyEvidence,
+    template: &typed_ir::Type,
+    observed: &typed_ir::Type,
+    protected_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> MonomorphizeResult<bool> {
-    let mut constrained = false;
-    if let Some(expected) = &evidence.expected_callee {
-        constrained |= constrain_function_ret_effect_bounds(graph, effect.clone(), expected)?;
-    }
-    constrained |= constrain_function_ret_effect_bounds(graph, effect, &evidence.callee)?;
-    Ok(constrained)
+    constrain_observed_bound(
+        graph,
+        template,
+        observed,
+        protected_vars,
+        ObservedBoundSide::Lower,
+    )
 }
 
-fn constrain_function_ret_effect_bounds(
+fn constrain_observed_upper_bound(
     graph: &mut TypeGraph,
-    effect: typed_ir::Type,
-    bounds: &typed_ir::TypeBounds,
+    template: &typed_ir::Type,
+    observed: &typed_ir::Type,
+    protected_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> MonomorphizeResult<bool> {
-    let mut constrained = false;
-    if let Some(lower) = bounds.lower.as_deref().and_then(function_ret_effect) {
-        graph.constrain_subtype(lower.clone(), effect.clone())?;
-        constrained = true;
-    }
-    if let Some(upper) = bounds.upper.as_deref().and_then(function_ret_effect) {
-        graph.constrain_subtype(effect, upper.clone())?;
-        constrained = true;
-    }
-    Ok(constrained)
+    constrain_observed_bound(
+        graph,
+        template,
+        observed,
+        protected_vars,
+        ObservedBoundSide::Upper,
+    )
 }
 
-fn function_ret_effect(ty: &typed_ir::Type) -> Option<&typed_ir::Type> {
-    let typed_ir::Type::Fun { ret_effect, .. } = ty else {
-        return None;
-    };
-    Some(ret_effect)
+enum ObservedBoundSide {
+    Lower,
+    Upper,
+}
+
+fn constrain_observed_bound(
+    graph: &mut TypeGraph,
+    template: &typed_ir::Type,
+    observed: &typed_ir::Type,
+    protected_vars: &BTreeSet<typed_ir::TypeVar>,
+    side: ObservedBoundSide,
+) -> MonomorphizeResult<bool> {
+    if matches!(observed, typed_ir::Type::Unknown) {
+        return Ok(false);
+    }
+    if !type_contains_any_var(template, protected_vars) {
+        match side {
+            ObservedBoundSide::Lower => {
+                graph.constrain_subtype(observed.clone(), template.clone())?
+            }
+            ObservedBoundSide::Upper => {
+                graph.constrain_subtype(template.clone(), observed.clone())?
+            }
+        }
+        return Ok(true);
+    }
+    match (template, observed) {
+        (typed_ir::Type::Var(var), _) if protected_vars.contains(var) => Ok(false),
+        (
+            typed_ir::Type::Named {
+                path: template_path,
+                args: template_args,
+            },
+            typed_ir::Type::Named {
+                path: observed_path,
+                args: observed_args,
+            },
+        ) if template_path == observed_path && template_args.len() == observed_args.len() => {
+            let mut constrained = false;
+            for (template_arg, observed_arg) in template_args.iter().zip(observed_args.iter()) {
+                constrained |= constrain_observed_type_arg_bound(
+                    graph,
+                    template_arg,
+                    observed_arg,
+                    protected_vars,
+                    &side,
+                )?;
+            }
+            Ok(constrained)
+        }
+        (typed_ir::Type::Tuple(template_items), typed_ir::Type::Tuple(observed_items))
+            if template_items.len() == observed_items.len() =>
+        {
+            let mut constrained = false;
+            for (template_item, observed_item) in template_items.iter().zip(observed_items.iter()) {
+                constrained |= constrain_observed_bound(
+                    graph,
+                    template_item,
+                    observed_item,
+                    protected_vars,
+                    side_ref(&side),
+                )?;
+            }
+            Ok(constrained)
+        }
+        (
+            typed_ir::Type::Row {
+                items: template_items,
+                tail: template_tail,
+            },
+            typed_ir::Type::Row {
+                items: observed_items,
+                tail: observed_tail,
+            },
+        ) if template_items.len() == observed_items.len() => {
+            let mut constrained = false;
+            for (template_item, observed_item) in template_items.iter().zip(observed_items.iter()) {
+                constrained |= constrain_observed_bound(
+                    graph,
+                    template_item,
+                    observed_item,
+                    protected_vars,
+                    side_ref(&side),
+                )?;
+            }
+            constrained |= constrain_observed_bound(
+                graph,
+                template_tail,
+                observed_tail,
+                protected_vars,
+                side,
+            )?;
+            Ok(constrained)
+        }
+        _ => Ok(false),
+    }
+}
+
+fn side_ref(side: &ObservedBoundSide) -> ObservedBoundSide {
+    match side {
+        ObservedBoundSide::Lower => ObservedBoundSide::Lower,
+        ObservedBoundSide::Upper => ObservedBoundSide::Upper,
+    }
+}
+
+fn constrain_observed_type_arg_bound(
+    graph: &mut TypeGraph,
+    template: &typed_ir::TypeArg,
+    observed: &typed_ir::TypeArg,
+    protected_vars: &BTreeSet<typed_ir::TypeVar>,
+    side: &ObservedBoundSide,
+) -> MonomorphizeResult<bool> {
+    match (template, observed) {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(observed)) => {
+            constrain_observed_bound(graph, template, observed, protected_vars, side_ref(side))
+        }
+        _ => Ok(false),
+    }
+}
+
+fn bounded_type_vars(graph: &TypeGraph, ty: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_type_vars(ty, &mut vars);
+    vars.into_iter()
+        .filter(|var| {
+            graph
+                .slot(var)
+                .is_some_and(|slot| slot.lower.is_some() || slot.upper.is_some())
+        })
+        .collect()
+}
+
+fn type_contains_any_var(ty: &typed_ir::Type, vars: &BTreeSet<typed_ir::TypeVar>) -> bool {
+    let mut found = BTreeSet::new();
+    collect_type_vars(ty, &mut found);
+    found.iter().any(|var| vars.contains(var))
+}
+
+fn collect_type_vars(ty: &typed_ir::Type, out: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Var(var) => {
+            out.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_vars(arg, out);
+            }
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_vars(param, out);
+            collect_type_vars(param_effect, out);
+            collect_type_vars(ret_effect, out);
+            collect_type_vars(ret, out);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_type_vars(item, out);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_type_vars(&field.value, out);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_type_vars(ty, out);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_vars(payload, out);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_type_vars(tail, out);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_type_vars(item, out);
+            }
+            collect_type_vars(tail, out);
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            out.insert(var.clone());
+            collect_type_vars(body, out);
+        }
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+    }
+}
+
+fn collect_type_arg_vars(arg: &typed_ir::TypeArg, out: &mut BTreeSet<typed_ir::TypeVar>) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_type_vars(ty, out),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = &bounds.lower {
+                collect_type_vars(lower, out);
+            }
+            if let Some(upper) = &bounds.upper {
+                collect_type_vars(upper, out);
+            }
+        }
+    }
 }
 
 fn apply_evidence_return_effect(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
     apply_evidence_return_value(evidence).and_then(|ty| match ty {
         typed_ir::Type::Fun { ret_effect, .. } => Some(*ret_effect),
         _ => None,
-    })
-}
-
-fn apply_evidence_returns_never_value(evidence: &typed_ir::ApplyEvidence) -> bool {
-    apply_evidence_return_value(evidence).is_some_and(|ty| match ty {
-        typed_ir::Type::Fun { ret, .. } => matches!(*ret, typed_ir::Type::Never),
-        _ => false,
     })
 }
 
@@ -1440,7 +1813,7 @@ fn collect_stmt_graphs(
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> MonomorphizeResult<()> {
+) -> MonomorphizeResult<Option<RuntimeType>> {
     match stmt {
         yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
             collect_pattern_graphs(
@@ -1452,6 +1825,7 @@ fn collect_stmt_graphs(
                 cast_order,
                 solutions,
             )?;
+            let value_solution_start = solutions.len();
             collect_expr_graphs(
                 owner,
                 value,
@@ -1460,19 +1834,57 @@ fn collect_stmt_graphs(
                 local_types,
                 cast_order,
                 solutions,
-            )
+            )?;
+            Ok(Some(collected_expr_result_type(
+                value,
+                &solutions[value_solution_start..],
+                local_types,
+            )))
         }
         yulang_runtime_ir::FinalizedStmt::Expr(expr)
-        | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => collect_expr_graphs(
-            owner,
-            expr,
-            bindings,
-            role_impls,
-            local_types,
-            cast_order,
-            solutions,
-        ),
+        | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => {
+            collect_expr_graphs(
+                owner,
+                expr,
+                bindings,
+                role_impls,
+                local_types,
+                cast_order,
+                solutions,
+            )?;
+            Ok(None)
+        }
     }
+}
+
+fn collected_expr_result_type(
+    expr: &Expr,
+    collected_solutions: &[RootGraphSolution],
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> RuntimeType {
+    solved_expr_result_type_from(collected_solutions, expr)
+        .unwrap_or_else(|| expr_lower_type(expr, local_types))
+}
+
+fn solved_expr_result_type_from(
+    solutions: &[RootGraphSolution],
+    expr: &Expr,
+) -> Option<RuntimeType> {
+    if let Some(spine) = ApplySpine::new(expr) {
+        return solutions
+            .iter()
+            .rev()
+            .find(|solution| solution.binding == *spine.binding)
+            .map(|solution| solution.result_type.clone());
+    }
+    let ExprKind::Var(path) = &expr.kind else {
+        return None;
+    };
+    solutions
+        .iter()
+        .rev()
+        .find(|solution| solution.binding == *path)
+        .map(|solution| solution.result_type.clone())
 }
 
 fn collect_pattern_graphs(
@@ -1634,11 +2046,31 @@ pub(crate) fn collect_stmt_local_types(
     stmt: &yulang_runtime_ir::FinalizedStmt,
     local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) {
+    collect_stmt_local_types_with_scrutinee(stmt, None, local_types);
+}
+
+fn collect_stmt_local_types_with_scrutinee(
+    stmt: &yulang_runtime_ir::FinalizedStmt,
+    scrutinee_ty: Option<&RuntimeType>,
+    local_types: &mut HashMap<typed_ir::Path, RuntimeType>,
+) {
     let yulang_runtime_ir::FinalizedStmt::Let { pattern, value } = stmt else {
         return;
     };
-    let scrutinee_ty = expr_lower_type(value, local_types);
-    collect_pattern_local_types(pattern, Some(&scrutinee_ty), local_types);
+    let fallback;
+    let scrutinee_ty = match scrutinee_ty {
+        Some(scrutinee_ty) => scrutinee_ty,
+        None => {
+            fallback = expr_lower_type(value, local_types);
+            &fallback
+        }
+    };
+    if std::env::var_os("YULANG_TRACE_ROOT_SOLUTIONS").is_some()
+        && format!("{pattern:?}").contains("__ref_set_ref")
+    {
+        eprintln!("TRACE let-local pattern={pattern:?}\n  scrutinee={scrutinee_ty:?}");
+    }
+    collect_pattern_local_types(pattern, Some(scrutinee_ty), local_types);
 }
 
 pub(crate) fn collect_pattern_local_types(
@@ -1707,13 +2139,13 @@ pub(crate) fn collect_pattern_local_types(
 }
 
 fn choose_pattern_ty(pattern_ty: &RuntimeType, scrutinee_ty: Option<&RuntimeType>) -> RuntimeType {
-    if !super::runtime_type_has_unknown(pattern_ty) {
-        return pattern_ty.clone();
-    }
     if let Some(scrut) = scrutinee_ty
         && !super::runtime_type_has_unknown(scrut)
     {
         return scrut.clone();
+    }
+    if !super::runtime_type_has_unknown(pattern_ty) {
+        return pattern_ty.clone();
     }
     pattern_ty.clone()
 }

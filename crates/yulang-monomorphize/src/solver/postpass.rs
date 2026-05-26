@@ -1106,10 +1106,11 @@ pub(crate) fn reachable_paths(module: &Module) -> HashSet<typed_ir::Path> {
         .iter()
         .map(|binding| (binding.name.clone(), binding))
         .collect::<HashMap<_, _>>();
+    let binding_paths = bindings.keys().cloned().collect::<HashSet<_>>();
     let mut reachable = HashSet::new();
     let mut pending = Vec::new();
     for expr in &module.root_exprs {
-        collect_expr_paths(expr, &mut pending);
+        collect_expr_paths(expr, &binding_paths, &mut HashSet::new(), &mut pending);
     }
     for root in &module.roots {
         if let Root::Binding(path) = root {
@@ -1121,17 +1122,285 @@ pub(crate) fn reachable_paths(module: &Module) -> HashSet<typed_ir::Path> {
             continue;
         }
         if let Some(binding) = bindings.get(&path) {
-            collect_expr_paths(&binding.body, &mut pending);
+            collect_expr_paths(
+                &binding.body,
+                &binding_paths,
+                &mut HashSet::new(),
+                &mut pending,
+            );
         }
     }
     reachable
 }
 
-fn collect_expr_paths(expr: &Expr, paths: &mut Vec<typed_ir::Path>) {
-    if let ExprKind::Var(path) | ExprKind::EffectOp(path) = &expr.kind {
-        paths.push(path.clone());
+fn collect_expr_paths(
+    expr: &Expr,
+    bindings: &HashSet<typed_ir::Path>,
+    locals: &mut HashSet<typed_ir::Path>,
+    paths: &mut Vec<typed_ir::Path>,
+) {
+    match &expr.kind {
+        ExprKind::Var(path) => {
+            if bindings.contains(path) && !locals.contains(path) {
+                paths.push(path.clone());
+            }
+        }
+        ExprKind::EffectOp(path) => {
+            if bindings.contains(path) {
+                paths.push(path.clone());
+            }
+        }
+        ExprKind::Lambda { param, body, .. } => {
+            with_local_path(locals, path_from_name(param), |locals| {
+                collect_expr_paths(body, bindings, locals, paths);
+            });
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            collect_expr_paths(callee, bindings, locals, paths);
+            collect_expr_paths(arg, bindings, locals, paths);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_paths(cond, bindings, locals, paths);
+            collect_expr_paths(then_branch, bindings, locals, paths);
+            collect_expr_paths(else_branch, bindings, locals, paths);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                collect_expr_paths(item, bindings, locals, paths);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_paths(&field.value, bindings, locals, paths);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+                    | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
+                        collect_expr_paths(expr, bindings, locals, paths);
+                    }
+                }
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_paths(value, bindings, locals, paths);
+            }
+        }
+        ExprKind::Select { base, .. } => collect_expr_paths(base, bindings, locals, paths),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_expr_paths(scrutinee, bindings, locals, paths);
+            for arm in arms {
+                collect_pattern_default_expr_paths(&arm.pattern, bindings, locals, paths);
+                with_pattern_locals(locals, &arm.pattern, |locals| {
+                    if let Some(guard) = &arm.guard {
+                        collect_expr_paths(guard, bindings, locals, paths);
+                    }
+                    collect_expr_paths(&arm.body, bindings, locals, paths);
+                });
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            let mut block_locals = locals.clone();
+            for stmt in stmts {
+                match stmt {
+                    yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
+                        collect_expr_paths(value, bindings, &mut block_locals, paths);
+                        collect_pattern_default_expr_paths(
+                            pattern,
+                            bindings,
+                            &mut block_locals,
+                            paths,
+                        );
+                        insert_pattern_local_paths(&mut block_locals, pattern);
+                    }
+                    yulang_runtime_ir::FinalizedStmt::Expr(expr)
+                    | yulang_runtime_ir::FinalizedStmt::Module { body: expr, .. } => {
+                        collect_expr_paths(expr, bindings, &mut block_locals, paths);
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                collect_expr_paths(tail, bindings, &mut block_locals, paths);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            collect_expr_paths(body, bindings, locals, paths);
+            for arm in arms {
+                collect_pattern_default_expr_paths(&arm.payload, bindings, locals, paths);
+                with_pattern_locals(locals, &arm.payload, |locals| {
+                    let resume = arm
+                        .resume
+                        .as_ref()
+                        .map(|resume| path_from_name(&resume.name));
+                    if let Some(resume) = resume {
+                        with_local_path(locals, resume, |locals| {
+                            if let Some(guard) = &arm.guard {
+                                collect_expr_paths(guard, bindings, locals, paths);
+                            }
+                            collect_expr_paths(&arm.body, bindings, locals, paths);
+                        });
+                    } else {
+                        if let Some(guard) = &arm.guard {
+                            collect_expr_paths(guard, bindings, locals, paths);
+                        }
+                        collect_expr_paths(&arm.body, bindings, locals, paths);
+                    }
+                });
+            }
+        }
+        ExprKind::BindHere { expr }
+        | ExprKind::LocalPushId { body: expr, .. }
+        | ExprKind::AddId { thunk: expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. }
+        | ExprKind::Thunk { expr, .. } => collect_expr_paths(expr, bindings, locals, paths),
+        ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
     }
-    yulang_runtime_ir::walk::walk_children(expr, |child| collect_expr_paths(child, paths));
+}
+
+fn with_local_path(
+    locals: &mut HashSet<typed_ir::Path>,
+    path: typed_ir::Path,
+    f: impl FnOnce(&mut HashSet<typed_ir::Path>),
+) {
+    let inserted = locals.insert(path.clone());
+    f(locals);
+    if inserted {
+        locals.remove(&path);
+    }
+}
+
+fn with_pattern_locals(
+    locals: &mut HashSet<typed_ir::Path>,
+    pattern: &yulang_runtime_ir::FinalizedPattern,
+    f: impl FnOnce(&mut HashSet<typed_ir::Path>),
+) {
+    let mut scoped = locals.clone();
+    insert_pattern_local_paths(&mut scoped, pattern);
+    f(&mut scoped);
+}
+
+fn insert_pattern_local_paths(
+    locals: &mut HashSet<typed_ir::Path>,
+    pattern: &yulang_runtime_ir::FinalizedPattern,
+) {
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
+    match pattern {
+        Pattern::Bind { name, .. } => {
+            locals.insert(path_from_name(name));
+        }
+        Pattern::As { pattern, name, .. } => {
+            locals.insert(path_from_name(name));
+            insert_pattern_local_paths(locals, pattern);
+        }
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                insert_pattern_local_paths(locals, item);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix.iter().chain(suffix.iter()) {
+                insert_pattern_local_paths(locals, item);
+            }
+            if let Some(spread) = spread {
+                insert_pattern_local_paths(locals, spread);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                insert_pattern_local_paths(locals, &field.pattern);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => {
+                        insert_pattern_local_paths(locals, pattern);
+                    }
+                }
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                insert_pattern_local_paths(locals, value);
+            }
+        }
+        Pattern::Or { left, .. } => insert_pattern_local_paths(locals, left),
+        Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
+    }
+}
+
+fn collect_pattern_default_expr_paths(
+    pattern: &yulang_runtime_ir::FinalizedPattern,
+    bindings: &HashSet<typed_ir::Path>,
+    locals: &mut HashSet<typed_ir::Path>,
+    paths: &mut Vec<typed_ir::Path>,
+) {
+    use yulang_runtime_ir::FinalizedPattern as Pattern;
+    match pattern {
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_default_expr_paths(item, bindings, locals, paths);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix.iter().chain(suffix.iter()) {
+                collect_pattern_default_expr_paths(item, bindings, locals, paths);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_default_expr_paths(spread, bindings, locals, paths);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                if let Some(default) = &field.default {
+                    collect_expr_paths(default, bindings, locals, paths);
+                }
+                collect_pattern_default_expr_paths(&field.pattern, bindings, locals, paths);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern)
+                    | yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_default_expr_paths(pattern, bindings, locals, paths);
+                    }
+                }
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_default_expr_paths(value, bindings, locals, paths);
+            }
+        }
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_default_expr_paths(left, bindings, locals, paths);
+            collect_pattern_default_expr_paths(right, bindings, locals, paths);
+        }
+        Pattern::As { pattern, .. } => {
+            collect_pattern_default_expr_paths(pattern, bindings, locals, paths);
+        }
+        Pattern::Bind { .. } | Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
+    }
 }
 
 pub(crate) fn runtime_type_is_closed(ty: &RuntimeType) -> bool {

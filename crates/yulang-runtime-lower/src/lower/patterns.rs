@@ -80,7 +80,7 @@ pub(super) fn lower_core_pattern(
             let item_tys = match ty {
                 typed_ir::Type::Tuple(item_tys) => item_tys.as_slice(),
                 typed_ir::Type::Any => {
-                    erased_items = vec![typed_ir::Type::Any; items.len()];
+                    erased_items = vec![typed_ir::Type::Unknown; items.len()];
                     erased_items.as_slice()
                 }
                 _ => {
@@ -112,7 +112,7 @@ pub(super) fn lower_core_pattern(
             suffix,
         } => {
             let item_ty = unary_runtime_container_item_type(ty)
-                .or_else(|| matches!(ty, typed_ir::Type::Any).then_some(typed_ir::Type::Any))
+                .or_else(|| matches!(ty, typed_ir::Type::Any).then_some(typed_ir::Type::Unknown))
                 .ok_or_else(|| RuntimeError::UnsupportedPatternShape {
                     pattern: "list",
                     ty: ty.clone(),
@@ -146,7 +146,7 @@ pub(super) fn lower_core_pattern(
                             .iter()
                             .find(|candidate| candidate.name == field.name)
                             .map(|candidate| candidate.value.clone()),
-                        typed_ir::Type::Any => Some(typed_ir::Type::Any),
+                        typed_ir::Type::Any => Some(typed_ir::Type::Unknown),
                         typed_ir::Type::Named { .. } => named_record.as_ref().and_then(|record| {
                             record
                                 .fields
@@ -193,7 +193,7 @@ pub(super) fn lower_core_pattern(
                     let field_ty = record_field_ty.unwrap_or_else(|| {
                         default
                             .as_ref()
-                            .map_or(typed_ir::Type::Any, |expr| core_type(&expr.ty).clone())
+                            .map_or(typed_ir::Type::Unknown, |expr| core_type(&expr.ty).clone())
                     });
                     Ok(RecordPatternField {
                         name: field.name,
@@ -215,7 +215,7 @@ pub(super) fn lower_core_pattern(
             let payload_ty = variant_payload_expected(lowerer, Some(ty), &tag);
             let value = value
                 .map(|value| {
-                    let erased_payload = typed_ir::Type::Any;
+                    let erased_payload = typed_ir::Type::Unknown;
                     let payload_ty = payload_ty.as_ref().unwrap_or(&erased_payload);
                     lower_pattern(lowerer, *value, payload_ty, locals).map(Box::new)
                 })

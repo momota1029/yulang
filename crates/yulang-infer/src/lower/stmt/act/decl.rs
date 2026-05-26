@@ -69,6 +69,12 @@ pub(crate) fn preregister_act_decl(state: &mut LowerState, node: &SyntaxNode) {
     {
         let state = &mut *state;
         state.insert_type_alias_with_visibility(
+            state.ctx.current_module,
+            header.name.clone(),
+            def,
+            Visibility::My,
+        );
+        state.insert_type_alias_with_visibility(
             alias_owner,
             header.name.clone(),
             def,

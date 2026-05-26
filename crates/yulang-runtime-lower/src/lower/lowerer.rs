@@ -262,10 +262,8 @@ impl Lowerer<'_> {
                     }
                     Some(RuntimeType::Unknown)
                     | Some(RuntimeType::Value(typed_ir::Type::Never))
+                    | Some(RuntimeType::Value(typed_ir::Type::Any))
                     | None => (RuntimeType::unknown(), None),
-                    Some(RuntimeType::Value(typed_ir::Type::Any)) => {
-                        (RuntimeType::value(typed_ir::Type::Any), None)
-                    }
                     Some(other) => {
                         return Err(RuntimeError::NonFunctionCallee {
                             ty: diagnostic_core_type(other),
@@ -1631,7 +1629,7 @@ impl Lowerer<'_> {
             .lambda_hint_type(body)
             .or_else(|| self.visible_expr_type(body))?;
         Some(typed_ir::Type::Fun {
-            param: Box::new(typed_ir::Type::Any),
+            param: Box::new(typed_ir::Type::Unknown),
             param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ret),

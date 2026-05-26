@@ -896,7 +896,7 @@ mod tests {
     };
     use yulang_runtime_ir::{
         FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-        FinalizedModule as Module, Root, RuntimeType,
+        FinalizedModule as Module, FinalizedPattern as Pattern, Root, RuntimeType,
     };
     use yulang_sources::{
         CompiledSourceFileIdentity, CompiledUnitDependency, CompiledUnitManifest,
@@ -938,6 +938,44 @@ mod tests {
         };
 
         assert_eq!(collect_root_graph_inputs(&module)[0].known_type, None);
+    }
+
+    #[test]
+    fn reachable_paths_ignore_block_local_shadowing_top_level_binding() {
+        let name = path("text");
+        let int = RuntimeType::Value(int_type());
+        let module = Module {
+            path: path("test"),
+            bindings: vec![Binding {
+                name: name.clone(),
+                type_params: vec![typed_ir::TypeVar("a".into())],
+                scheme: typed_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: typed_ir::Type::Var(typed_ir::TypeVar("a".into())),
+                },
+                body: Expr::typed(ExprKind::Var(path("source")), RuntimeType::Unknown),
+            }],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Block {
+                    stmts: vec![yulang_runtime_ir::FinalizedStmt::Let {
+                        pattern: Pattern::Bind {
+                            name: typed_ir::Name("text".into()),
+                            ty: int.clone(),
+                        },
+                        value: Expr::typed(ExprKind::Lit(typed_ir::Lit::Int("1".into())), int),
+                    }],
+                    tail: Some(Box::new(Expr::typed(
+                        ExprKind::Var(name.clone()),
+                        RuntimeType::Unknown,
+                    ))),
+                },
+                RuntimeType::Unknown,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        assert!(!reachable_paths(&module).contains(&name));
     }
 
     #[test]
@@ -1020,6 +1058,62 @@ mod tests {
     }
 
     #[test]
+    fn apply_arg_evidence_overrides_runtime_top_arg_for_principal_solution() {
+        let int = int_type();
+        let module = Module {
+            path: path("test"),
+            bindings: vec![id_binding()],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(ExprKind::Var(path("id")), RuntimeType::Unknown)),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Var(path("x")),
+                        RuntimeType::Value(typed_ir::Type::Any),
+                    )),
+                    evidence: Some(typed_ir::ApplyEvidence {
+                        callee_source_edge: None,
+                        arg_source_edge: Some(0),
+                        callee: typed_ir::TypeBounds::default(),
+                        expected_callee: None,
+                        arg: typed_ir::TypeBounds {
+                            lower: None,
+                            upper: Some(Box::new(int.clone())),
+                        },
+                        expected_arg: Some(typed_ir::TypeBounds {
+                            lower: None,
+                            upper: Some(Box::new(int.clone())),
+                        }),
+                        result: typed_ir::TypeBounds::exact(int.clone()),
+                        principal_callee: Some(typed_ir::Type::Fun {
+                            param: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                            param_effect: Box::new(typed_ir::Type::Never),
+                            ret_effect: Box::new(typed_ir::Type::Never),
+                            ret: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("a".into()))),
+                        }),
+                        substitutions: vec![typed_ir::TypeSubstitution {
+                            var: typed_ir::TypeVar("a".into()),
+                            ty: int.clone(),
+                        }],
+                        substitution_candidates: Vec::new(),
+                        role_method: false,
+                        principal_elaboration: None,
+                    }),
+                    instantiation: None,
+                },
+                RuntimeType::Value(int.clone()),
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let output = finalize_module(module).unwrap();
+        let solution = &output.report.root_graph_solutions[0];
+
+        assert_eq!(solution.binding, path("id"));
+        assert_eq!(solution.graph.substitutions()[0].ty, int);
+    }
+
+    #[test]
     fn local_scope_type_overrides_stale_var_annotation_in_apply_arg() {
         let int = int_type();
         let original = typed_ir::TypeVar("a".into());
@@ -1037,6 +1131,298 @@ mod tests {
         let expr = Expr::typed(ExprKind::Var(local_path), stale);
 
         assert_eq!(apply_spine::expr_lower_type(&expr, &local_types), concrete);
+    }
+
+    #[test]
+    fn apply_arg_graphs_use_solved_callee_param_for_lambda_body() {
+        let e = typed_ir::TypeVar("e".into());
+        let fs = named_core("Fs", Vec::new());
+        let text = named_core("Text", Vec::new());
+        let unit = unit_type();
+        let lines_fs = named_core("Lines", vec![fs.clone()]);
+        let lines_e = named_core("Lines", vec![typed_ir::Type::Var(e.clone())]);
+        let ref_fs_text = named_core("Ref", vec![fs.clone(), text.clone()]);
+        let ref_unknown_text = named_core("Ref", vec![typed_ir::Type::Unknown, text.clone()]);
+        let ref_e_text = named_core("Ref", vec![typed_ir::Type::Var(e.clone()), text.clone()]);
+        let use_ref = Binding {
+            name: path("use_ref"),
+            type_params: vec![e.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_fun(ref_e_text.clone(), typed_ir::Type::Never, unit.clone()),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        };
+        let for_each = Binding {
+            name: path("for_each"),
+            type_params: vec![e.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_fun(
+                    lines_e,
+                    typed_ir::Type::Never,
+                    core_fun(
+                        core_fun(ref_e_text, typed_ir::Type::Never, unit.clone()),
+                        typed_ir::Type::Never,
+                        unit.clone(),
+                    ),
+                ),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        };
+        let line = typed_ir::Name("line".into());
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Apply {
+                        callee: Box::new(Expr::typed(
+                            ExprKind::Var(path("for_each")),
+                            RuntimeType::Unknown,
+                        )),
+                        arg: Box::new(Expr::typed(
+                            ExprKind::Var(path("lines")),
+                            RuntimeType::Value(lines_fs),
+                        )),
+                        evidence: None,
+                        instantiation: None,
+                    },
+                    RuntimeType::Unknown,
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lambda {
+                        param: line.clone(),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(path("use_ref")),
+                                    RuntimeType::Unknown,
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Var(typed_ir::Path::from_name(line)),
+                                    RuntimeType::Value(ref_unknown_text.clone()),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::Value(unit.clone()),
+                        )),
+                    },
+                    RuntimeType::Fun {
+                        param: Box::new(RuntimeType::Value(ref_unknown_text)),
+                        ret: Box::new(RuntimeType::Value(unit.clone())),
+                    },
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Value(unit),
+        );
+        let module = Module {
+            path: path("test"),
+            bindings: vec![use_ref, for_each],
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let solutions = solve_root_graphs(&module, &TypeCastOrder::default()).unwrap();
+        eprintln!("{solutions:#?}");
+        let use_ref_solution = solutions
+            .iter()
+            .find(|solution| solution.binding == path("use_ref"))
+            .expect("lambda body apply should be solved");
+
+        assert!(
+            use_ref_solution
+                .type_substitutions
+                .iter()
+                .any(|subst| { subst.var == e && subst.ty == fs }),
+            "{use_ref_solution:#?}"
+        );
+        assert_eq!(
+            use_ref_solution.result_type,
+            RuntimeType::Value(unit_type())
+        );
+        assert_eq!(
+            use_ref_solution.callee_type,
+            RuntimeType::Fun {
+                param: Box::new(RuntimeType::Value(ref_fs_text)),
+                ret: Box::new(RuntimeType::Value(unit_type())),
+            }
+        );
+    }
+
+    #[test]
+    fn block_let_local_uses_collected_initializer_result_for_following_apply() {
+        let e = typed_ir::TypeVar("e".into());
+        let fs = named_core("Fs", Vec::new());
+        let loop_eff = named_core("Loop", Vec::new());
+        let text = named_core("Text", Vec::new());
+        let unit = unit_type();
+        let lines_fs = named_core("Lines", vec![fs.clone()]);
+        let lines_e = named_core("Lines", vec![typed_ir::Type::Var(e.clone())]);
+        let ref_fs_text = named_core("Ref", vec![fs.clone(), text.clone()]);
+        let ref_loop_text = named_core("Ref", vec![loop_eff, text.clone()]);
+        let ref_unknown_text = named_core("Ref", vec![typed_ir::Type::Unknown, text.clone()]);
+        let ref_e_text = named_core("Ref", vec![typed_ir::Type::Var(e.clone()), text.clone()]);
+        let project = Binding {
+            name: path("project"),
+            type_params: vec![e.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_fun(
+                    ref_e_text.clone(),
+                    typed_ir::Type::Never,
+                    core_fun(unit.clone(), typed_ir::Type::Never, ref_e_text.clone()),
+                ),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        };
+        let use_ref = Binding {
+            name: path("use_ref"),
+            type_params: vec![e.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_fun(ref_e_text.clone(), typed_ir::Type::Never, unit.clone()),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        };
+        let for_each = Binding {
+            name: path("for_each"),
+            type_params: vec![e.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_fun(
+                    lines_e,
+                    typed_ir::Type::Never,
+                    core_fun(
+                        core_fun(ref_e_text, typed_ir::Type::Never, unit.clone()),
+                        typed_ir::Type::Never,
+                        unit.clone(),
+                    ),
+                ),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        };
+        let line = typed_ir::Name("line".into());
+        let slice = typed_ir::Name("slice".into());
+        let line_path = typed_ir::Path::from_name(line.clone());
+        let slice_path = typed_ir::Path::from_name(slice.clone());
+        let project_line = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(path("project")),
+                    RuntimeType::Unknown,
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Var(line_path),
+                    RuntimeType::Value(ref_unknown_text.clone()),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Unknown,
+        );
+        let project_slice = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(project_line),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    RuntimeType::Value(unit.clone()),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Value(ref_loop_text),
+        );
+        let lambda_body = Expr::typed(
+            ExprKind::Block {
+                stmts: vec![yulang_runtime_ir::FinalizedStmt::Let {
+                    pattern: Pattern::Bind {
+                        name: slice,
+                        ty: RuntimeType::Unknown,
+                    },
+                    value: project_slice,
+                }],
+                tail: Some(Box::new(Expr::typed(
+                    ExprKind::Apply {
+                        callee: Box::new(Expr::typed(
+                            ExprKind::Var(path("use_ref")),
+                            RuntimeType::Unknown,
+                        )),
+                        arg: Box::new(Expr::typed(ExprKind::Var(slice_path), RuntimeType::Unknown)),
+                        evidence: None,
+                        instantiation: None,
+                    },
+                    RuntimeType::Value(unit.clone()),
+                ))),
+            },
+            RuntimeType::Value(unit.clone()),
+        );
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Apply {
+                        callee: Box::new(Expr::typed(
+                            ExprKind::Var(path("for_each")),
+                            RuntimeType::Unknown,
+                        )),
+                        arg: Box::new(Expr::typed(
+                            ExprKind::Var(path("lines")),
+                            RuntimeType::Value(lines_fs),
+                        )),
+                        evidence: None,
+                        instantiation: None,
+                    },
+                    RuntimeType::Unknown,
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lambda {
+                        param: line,
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(lambda_body),
+                    },
+                    RuntimeType::Fun {
+                        param: Box::new(RuntimeType::Value(ref_unknown_text)),
+                        ret: Box::new(RuntimeType::Value(unit.clone())),
+                    },
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Value(unit.clone()),
+        );
+        let module = Module {
+            path: path("test"),
+            bindings: vec![project, use_ref, for_each],
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        let solutions = solve_root_graphs(&module, &TypeCastOrder::default()).unwrap();
+        let use_ref_solution = solutions
+            .iter()
+            .find(|solution| solution.binding == path("use_ref"))
+            .expect("let-local use should be solved");
+
+        assert!(
+            use_ref_solution
+                .type_substitutions
+                .iter()
+                .any(|subst| { subst.var == e && subst.ty == fs }),
+            "{use_ref_solution:#?}"
+        );
+        assert_eq!(
+            use_ref_solution.callee_type,
+            RuntimeType::Fun {
+                param: Box::new(RuntimeType::Value(ref_fs_text)),
+                ret: Box::new(RuntimeType::Value(unit)),
+            }
+        );
     }
 
     #[test]
@@ -1550,6 +1936,282 @@ f 3
 
         assert!(matches!(arg.ty, RuntimeType::Thunk { .. }));
         assert!(matches!(arg.kind, ExprKind::Thunk { .. }));
+    }
+
+    #[test]
+    fn materialize_thunk_keeps_own_value_under_non_thunk_expected() {
+        let var = typed_ir::TypeVar("a".into());
+        let unit = unit_type();
+        let tuple = typed_ir::Type::Tuple(vec![unit.clone(), unit.clone()]);
+        let thunk = Expr::typed(
+            ExprKind::Thunk {
+                effect: typed_ir::Type::Never,
+                value: RuntimeType::Value(typed_ir::Type::Var(var.clone())),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Var(path("x")),
+                    RuntimeType::Value(typed_ir::Type::Var(var.clone())),
+                )),
+            },
+            RuntimeType::Thunk {
+                effect: typed_ir::Type::Never,
+                value: Box::new(RuntimeType::Value(typed_ir::Type::Var(var.clone()))),
+            },
+        );
+
+        let materialized = materialize::materialize_expr_with_expected(
+            thunk,
+            &[typed_ir::TypeSubstitution {
+                var,
+                ty: tuple.clone(),
+            }],
+            Some(&RuntimeType::Value(unit)),
+        );
+
+        let RuntimeType::Thunk { value, .. } = materialized.ty else {
+            panic!("expected thunk type");
+        };
+        assert_eq!(*value, RuntimeType::Value(tuple));
+    }
+
+    #[test]
+    fn refresh_local_expr_types_forces_select_base_after_param_thunk_specialization() {
+        let field = typed_ir::Name("raw".into());
+        let int = int_type();
+        let record = typed_ir::Type::Record(typed_ir::RecordType {
+            fields: vec![typed_ir::RecordField {
+                name: field.clone(),
+                value: int.clone(),
+                optional: false,
+            }],
+            spread: None,
+        });
+        let value_record = RuntimeType::Value(record);
+        let thunk_record = RuntimeType::Thunk {
+            effect: typed_ir::Type::Never,
+            value: Box::new(value_record.clone()),
+        };
+        let select = Expr::typed(
+            ExprKind::Select {
+                base: Box::new(Expr::typed(ExprKind::Var(path("x")), value_record.clone())),
+                field,
+            },
+            RuntimeType::Value(int.clone()),
+        );
+        let lambda = Expr::typed(
+            ExprKind::Lambda {
+                param: typed_ir::Name("x".into()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(select),
+            },
+            RuntimeType::Fun {
+                param: Box::new(thunk_record.clone()),
+                ret: Box::new(RuntimeType::Value(int)),
+            },
+        );
+
+        let refreshed = materialize::refresh_local_expr_types(lambda);
+        let ExprKind::Lambda { body, .. } = refreshed.kind else {
+            panic!("expected lambda");
+        };
+        let ExprKind::Select { base, .. } = body.kind else {
+            panic!("expected select body");
+        };
+        let ExprKind::BindHere { expr } = base.kind else {
+            panic!("expected select base to force the thunk parameter");
+        };
+
+        assert_eq!(base.ty, value_record);
+        assert_eq!(expr.ty, thunk_record);
+        let ExprKind::Var(var_path) = expr.kind else {
+            panic!("expected forced select base to keep the original variable");
+        };
+        assert_eq!(var_path, path("x"));
+    }
+
+    #[test]
+    fn refresh_local_expr_types_forces_coerce_operand_after_param_thunk_specialization() {
+        let int = int_type();
+        let value_int = RuntimeType::Value(int.clone());
+        let thunk_int = RuntimeType::Thunk {
+            effect: typed_ir::Type::Never,
+            value: Box::new(value_int.clone()),
+        };
+        let coerce = Expr::typed(
+            ExprKind::Coerce {
+                from: int.clone(),
+                to: int.clone(),
+                expr: Box::new(Expr::typed(ExprKind::Var(path("x")), value_int.clone())),
+            },
+            value_int.clone(),
+        );
+        let lambda = Expr::typed(
+            ExprKind::Lambda {
+                param: typed_ir::Name("x".into()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(coerce),
+            },
+            RuntimeType::Fun {
+                param: Box::new(thunk_int.clone()),
+                ret: Box::new(value_int.clone()),
+            },
+        );
+
+        let refreshed = materialize::refresh_local_expr_types(lambda);
+        let ExprKind::Lambda { body, .. } = refreshed.kind else {
+            panic!("expected lambda");
+        };
+        let ExprKind::Coerce { expr, .. } = body.kind else {
+            panic!("expected coerce body");
+        };
+        assert_eq!(expr.ty, value_int);
+        let ExprKind::BindHere { expr } = expr.kind else {
+            panic!("expected coerce operand to force the thunk parameter");
+        };
+
+        assert_eq!(expr.ty, thunk_int);
+        let ExprKind::Var(var_path) = expr.kind else {
+            panic!("expected forced coerce operand to keep the original variable");
+        };
+        assert_eq!(var_path, path("x"));
+    }
+
+    #[test]
+    fn materialize_apply_arg_prefers_closed_callee_param_over_stale_evidence() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let float = typed_ir::Type::Named {
+            path: path("float"),
+            args: Vec::new(),
+        };
+        let unit = unit_type();
+        let apply = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(path("f")),
+                    RuntimeType::Fun {
+                        param: Box::new(RuntimeType::Value(float.clone())),
+                        ret: Box::new(RuntimeType::Value(unit.clone())),
+                    },
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                    RuntimeType::Value(int.clone()),
+                )),
+                evidence: Some(typed_ir::ApplyEvidence {
+                    callee_source_edge: None,
+                    arg_source_edge: None,
+                    callee: typed_ir::TypeBounds::default(),
+                    expected_callee: None,
+                    arg: typed_ir::TypeBounds::exact(int.clone()),
+                    expected_arg: Some(typed_ir::TypeBounds::exact(int.clone())),
+                    result: typed_ir::TypeBounds::exact(unit.clone()),
+                    principal_callee: None,
+                    substitutions: Vec::new(),
+                    substitution_candidates: Vec::new(),
+                    role_method: false,
+                    principal_elaboration: None,
+                }),
+                instantiation: None,
+            },
+            RuntimeType::Value(unit),
+        );
+
+        let materialized = materialize::materialize_expr(apply, &[]);
+        let ExprKind::Apply { arg, .. } = materialized.kind else {
+            panic!("expected apply expression");
+        };
+        let ExprKind::Coerce { from, to, expr } = arg.kind else {
+            panic!("expected arg to be coerced to callee param");
+        };
+
+        assert_eq!(from, int);
+        assert_eq!(to, float);
+        assert!(matches!(expr.kind, ExprKind::Lit(typed_ir::Lit::Int(_))));
+    }
+
+    #[test]
+    fn materialize_apply_result_prefers_closed_callee_return_over_result_evidence() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let float = typed_ir::Type::Named {
+            path: path("float"),
+            args: Vec::new(),
+        };
+        let int_to_int = typed_ir::Type::Fun {
+            param: Box::new(int.clone()),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(int.clone()),
+        };
+        let stale_result = typed_ir::Type::Fun {
+            param: Box::new(float),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(int.clone()),
+        };
+        let inner = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(path("add")),
+                    RuntimeType::Fun {
+                        param: Box::new(RuntimeType::Value(int.clone())),
+                        ret: Box::new(RuntimeType::Value(int_to_int.clone())),
+                    },
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                    RuntimeType::Value(int.clone()),
+                )),
+                evidence: Some(typed_ir::ApplyEvidence {
+                    callee_source_edge: None,
+                    arg_source_edge: None,
+                    callee: typed_ir::TypeBounds::default(),
+                    expected_callee: None,
+                    arg: typed_ir::TypeBounds::exact(int.clone()),
+                    expected_arg: Some(typed_ir::TypeBounds::exact(int.clone())),
+                    result: typed_ir::TypeBounds::exact(stale_result),
+                    principal_callee: None,
+                    substitutions: Vec::new(),
+                    substitution_candidates: Vec::new(),
+                    role_method: false,
+                    principal_elaboration: None,
+                }),
+                instantiation: None,
+            },
+            RuntimeType::Unknown,
+        );
+        let outer = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(inner),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("2".into())),
+                    RuntimeType::Value(int.clone()),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Unknown,
+        );
+
+        let materialized = materialize::materialize_expr(outer, &[]);
+        let ExprKind::Apply { callee, arg, .. } = materialized.kind else {
+            panic!("expected outer apply");
+        };
+
+        assert_eq!(
+            callee.ty,
+            RuntimeType::Fun {
+                param: Box::new(RuntimeType::Value(int.clone())),
+                ret: Box::new(RuntimeType::Value(int)),
+            }
+        );
+        assert!(matches!(arg.kind, ExprKind::Lit(typed_ir::Lit::Int(_))));
     }
 
     #[test]
@@ -3070,6 +3732,26 @@ sub:
         typed_ir::Type::Named {
             path: path("Bool"),
             args: Vec::new(),
+        }
+    }
+
+    fn named_core(name: &str, args: Vec<typed_ir::Type>) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(name),
+            args: args.into_iter().map(typed_ir::TypeArg::Type).collect(),
+        }
+    }
+
+    fn core_fun(
+        param: typed_ir::Type,
+        ret_effect: typed_ir::Type,
+        ret: typed_ir::Type,
+    ) -> typed_ir::Type {
+        typed_ir::Type::Fun {
+            param: Box::new(param),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(ret_effect),
+            ret: Box::new(ret),
         }
     }
 

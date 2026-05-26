@@ -21,7 +21,7 @@ pub(super) fn validate_pattern(
             let item_tys = match expected {
                 typed_ir::Type::Tuple(item_tys) => item_tys.as_slice(),
                 typed_ir::Type::Any => {
-                    erased_items = vec![typed_ir::Type::Any; items.len()];
+                    erased_items = vec![typed_ir::Type::Unknown; items.len()];
                     erased_items.as_slice()
                 }
                 _ => {
@@ -42,9 +42,11 @@ pub(super) fn validate_pattern(
             ..
         } => {
             for item in prefix.iter().chain(suffix) {
+                let erased_item_ty;
                 let inferred_item_ty;
                 let item_ty = if matches!(expected, typed_ir::Type::Any) {
-                    &typed_ir::Type::Any
+                    erased_item_ty = typed_ir::Type::Unknown;
+                    &erased_item_ty
                 } else {
                     inferred_item_ty = hir_value_core_type(pattern_ty(item));
                     inferred_item_ty.as_ref()
@@ -75,7 +77,7 @@ pub(super) fn validate_pattern(
                         }
                     },
                     typed_ir::Type::Any => {
-                        erased_field_ty = typed_ir::Type::Any;
+                        erased_field_ty = typed_ir::Type::Unknown;
                         &erased_field_ty
                     }
                     typed_ir::Type::Named { .. } => core_type(pattern_ty(&field.pattern)),

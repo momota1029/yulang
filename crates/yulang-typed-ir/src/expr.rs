@@ -644,6 +644,7 @@ mod tests {
             },
             graph: CoreGraphView::default(),
             evidence: PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
         };
 
         let json = serde_json::to_string(&program).expect("serialize core program");

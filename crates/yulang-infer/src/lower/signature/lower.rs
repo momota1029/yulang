@@ -108,7 +108,7 @@ pub fn lower_pure_sig_pos_id(
         }
         SigType::Var(var) => state.infer.alloc_pos(Pos::Var(sig_var(state, vars, var))),
         SigType::Unit { .. } => state.infer.alloc_pos(prim_type("unit")),
-        SigType::Row { row, .. } => lower_sig_row_pos_id(state, row, vars),
+        SigType::Row { row, .. } => lower_closed_sig_row_pos_id(state, row, vars),
         SigType::EffectPrefixed { ret, .. } => lower_pure_sig_pos_id(state, ret, vars),
     }
 }
@@ -184,7 +184,7 @@ pub fn lower_pure_sig_neg_id(
         }
         SigType::Var(var) => state.infer.alloc_neg(Neg::Var(sig_var(state, vars, var))),
         SigType::Unit { .. } => state.infer.alloc_neg(neg_prim_type("unit")),
-        SigType::Row { row, .. } => lower_sig_row_neg_id(state, row, vars),
+        SigType::Row { row, .. } => lower_closed_sig_row_neg_id(state, row, vars),
         SigType::EffectPrefixed { ret, .. } => lower_pure_sig_neg_id(state, ret, vars),
     }
 }
@@ -371,7 +371,7 @@ fn lower_sig_type(
         }
         SigType::Var(var) => Pos::Var(sig_var(state, vars, var)),
         SigType::Unit { .. } => prim_type("unit"),
-        SigType::Row { row, .. } => lower_sig_row_pos(state, row, vars),
+        SigType::Row { row, .. } => lower_closed_sig_row_pos(state, row, vars),
         SigType::EffectPrefixed { ret, .. } => {
             lower_sig_type(state, ret, vars, effect_path, act_arg_tvs)
         }
@@ -449,7 +449,7 @@ fn lower_sig_neg_type(
         }
         SigType::Var(var) => Neg::Var(sig_var(state, vars, var)),
         SigType::Unit { .. } => neg_prim_type("unit"),
-        SigType::Row { row, .. } => lower_sig_row_neg(state, row, vars),
+        SigType::Row { row, .. } => lower_closed_sig_row_neg(state, row, vars),
         SigType::EffectPrefixed { ret, .. } => lower_sig_neg_type(state, ret, vars, act_arg_tvs),
     }
 }
@@ -480,6 +480,35 @@ fn lower_sig_row_pos(
         Pos::Bot
     };
     state.pos_row(items, tail)
+}
+
+fn lower_closed_sig_row_pos(
+    state: &mut LowerState,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) -> Pos {
+    let items = row
+        .items
+        .iter()
+        .filter_map(|item| lower_sig_effect_atom(state, item, vars).map(Pos::Atom))
+        .collect::<Vec<_>>();
+    let tail = if let Some(var) = row.tail.as_ref() {
+        let tv = sig_var(state, vars, var);
+        state.infer.mark_through(tv);
+        Pos::Var(tv)
+    } else {
+        Pos::Bot
+    };
+    state.pos_row(items, tail)
+}
+
+fn lower_closed_sig_row_pos_id(
+    state: &mut LowerState,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) -> PosId {
+    let row = lower_closed_sig_row_pos(state, row, vars);
+    state.infer.alloc_pos(row)
 }
 
 pub fn lower_sig_row_pos_id(
@@ -521,6 +550,39 @@ fn lower_sig_row_neg(
             .clone()
     };
     state.neg_row(items, tail)
+}
+
+fn lower_closed_sig_row_neg(
+    state: &mut LowerState,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) -> Neg {
+    let items = row
+        .items
+        .iter()
+        .filter_map(|item| lower_sig_effect_atom(state, item, vars).map(Neg::Atom))
+        .collect::<Vec<_>>();
+    let tail = if let Some(var) = row.tail.as_ref() {
+        let tv = sig_var(state, vars, var);
+        state.infer.mark_through(tv);
+        Neg::Var(tv)
+    } else {
+        state
+            .infer
+            .arena
+            .get_neg(state.infer.arena.empty_neg_row)
+            .clone()
+    };
+    state.neg_row(items, tail)
+}
+
+fn lower_closed_sig_row_neg_id(
+    state: &mut LowerState,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) -> NegId {
+    let row = lower_closed_sig_row_neg(state, row, vars);
+    state.infer.alloc_neg(row)
 }
 
 fn implicit_row_tail_sig_var(row: &SigRow) -> Option<SigVar> {
@@ -726,6 +788,40 @@ fn prim_type(name: &str) -> Pos {
         return Pos::Bot;
     }
     Pos::Con(builtin_source_type_path(name), vec![])
+}
+
+#[cfg(test)]
+mod tests {
+    use rowan::{TextRange, TextSize};
+
+    use super::*;
+
+    #[test]
+    fn row_literal_type_argument_without_tail_lowers_as_closed_row() {
+        let span = TextRange::new(TextSize::from(0), TextSize::from(2));
+        let sig = SigType::Row {
+            row: SigRow {
+                items: vec![SigType::Prim {
+                    path: Path {
+                        segments: vec![Name("fs".to_string())],
+                    },
+                    span,
+                }],
+                tail: None,
+            },
+            span,
+        };
+        let mut state = LowerState::new();
+        let mut vars = HashMap::new();
+
+        let row = lower_pure_sig_type(&mut state, &sig, &mut vars);
+
+        let Pos::Row(items, tail) = row else {
+            panic!("expected row type");
+        };
+        assert_eq!(items.len(), 1);
+        assert!(matches!(state.infer.arena.get_pos(tail), Pos::Bot));
+    }
 }
 
 fn neg_prim_type(name: &str) -> Neg {

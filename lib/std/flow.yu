@@ -71,7 +71,7 @@ pub act label_loop:
         our x.next = label::next(x)
         our x.redo = label::redo(x)
 
-    our for_in(xs: 'container, f: label -> 'item -> ['e; label_loop; loop] _) =
+    our for_in(xs: 'container, f: label -> 'item -> [label_loop, loop] _) =
         where 'container: std::fold::Fold 'item
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f control_label x:

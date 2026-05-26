@@ -449,7 +449,7 @@ pub(super) fn validate_handle_arm(
     let payload_ty = if arm.effect == typed_ir::Path::default() {
         body_ty.clone()
     } else {
-        typed_ir::Type::Any
+        hir_value_core_type(pattern_ty(&arm.payload)).into_owned()
     };
     validate_pattern(&arm.payload, &payload_ty, type_arg_kinds, &mut arm_locals)?;
     if let Some(resume) = &arm.resume {

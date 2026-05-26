@@ -2,10 +2,10 @@ use super::*;
 
 pub(super) fn core_type(ty: &RuntimeType) -> &typed_ir::Type {
     match ty {
-        RuntimeType::Unknown => &typed_ir::Type::Any,
+        RuntimeType::Unknown => &typed_ir::Type::Unknown,
         RuntimeType::Value(ty) => ty,
         RuntimeType::Thunk { value, .. } => core_type(value),
-        RuntimeType::Fun { .. } => &typed_ir::Type::Any,
+        RuntimeType::Fun { .. } => &typed_ir::Type::Unknown,
     }
 }
 

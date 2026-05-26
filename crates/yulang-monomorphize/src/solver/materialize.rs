@@ -74,10 +74,8 @@ pub(crate) fn materialize_expr_with_expected(
             let evidence =
                 evidence.map(|evidence| materialize_apply_evidence(evidence, substitutions));
             let callee = materialize_expr(*callee, substitutions);
-            let expected_arg = evidence
-                .as_ref()
-                .and_then(materialized_apply_expected_arg)
-                .or_else(|| materialized_runtime_callee_arg(&callee.ty));
+            let expected_arg = materialized_runtime_callee_arg(&callee.ty)
+                .or_else(|| evidence.as_ref().and_then(materialized_apply_expected_arg));
             let kind = ExprKind::Apply {
                 callee: Box::new(callee),
                 arg: Box::new(materialize_apply_arg(
@@ -136,7 +134,10 @@ pub(crate) fn materialize_expr_with_expected(
             value: value.map(|value| Box::new(materialize_expr(*value, substitutions))),
         },
         ExprKind::Select { base, field } => ExprKind::Select {
-            base: Box::new(materialize_expr(*base, substitutions)),
+            base: Box::new(force_core_value_expr(materialize_expr(
+                *base,
+                substitutions,
+            ))),
             field,
         },
         ExprKind::Match {
@@ -220,11 +221,7 @@ pub(crate) fn materialize_expr_with_expected(
                 Some(RuntimeType::Thunk { effect, value }) => {
                     (effect.clone(), Some((**value).clone()))
                 }
-                Some(expected) => (
-                    materialize_core_type(effect, substitutions),
-                    Some(expected.clone()),
-                ),
-                None => (materialize_core_type(effect, substitutions), None),
+                Some(_) | None => (materialize_core_type(effect, substitutions), None),
             };
             let value =
                 expected_value.unwrap_or_else(|| materialize_runtime_type(value, substitutions));
@@ -390,7 +387,7 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, Run
             value: value.map(|value| Box::new(refresh_expr_local_types(*value, locals))),
         },
         ExprKind::Select { base, field } => ExprKind::Select {
-            base: Box::new(refresh_expr_local_types(*base, locals)),
+            base: Box::new(refresh_core_value_expr_local_types(*base, locals)),
             field,
         },
         ExprKind::Match {
@@ -494,7 +491,7 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, Run
         ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
             from,
             to,
-            expr: Box::new(refresh_expr_local_types(*expr, locals)),
+            expr: Box::new(refresh_core_value_expr_local_types(*expr, locals)),
         },
         ExprKind::Pack { var, expr } => ExprKind::Pack {
             var,
@@ -532,14 +529,14 @@ fn refresh_record_spread_expr_local_types(
 ) -> yulang_runtime_ir::FinalizedRecordSpreadExpr {
     match spread {
         yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr) => {
-            yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(Box::new(refresh_expr_local_types(
-                *expr, locals,
-            )))
+            yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(Box::new(
+                refresh_core_value_expr_local_types(*expr, locals),
+            ))
         }
         yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
-            yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(Box::new(refresh_expr_local_types(
-                *expr, locals,
-            )))
+            yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(Box::new(
+                refresh_core_value_expr_local_types(*expr, locals),
+            ))
         }
     }
 }
@@ -612,13 +609,13 @@ fn refresh_pattern_local_types(
 }
 
 fn choose_pattern_ty(pattern_ty: &RuntimeType, scrutinee_ty: Option<&RuntimeType>) -> RuntimeType {
-    if !super::runtime_type_has_unknown(pattern_ty) {
-        return pattern_ty.clone();
-    }
     if let Some(scrutinee_ty) = scrutinee_ty
         && !super::runtime_type_has_unknown(scrutinee_ty)
     {
         return scrutinee_ty.clone();
+    }
+    if !super::runtime_type_has_unknown(pattern_ty) {
+        return pattern_ty.clone();
     }
     pattern_ty.clone()
 }
@@ -988,6 +985,11 @@ fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option
 }
 
 fn materialized_apply_result_type(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
+    if let ExprKind::Apply { callee, .. } = kind
+        && let Some(ret) = materialized_runtime_callee_ret(&callee.ty)
+    {
+        return ret;
+    }
     let ExprKind::Apply {
         evidence: Some(evidence),
         ..
@@ -1077,6 +1079,20 @@ fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<RuntimeType> {
     should_materialize_expected_runtime(&arg).then_some(arg)
 }
 
+fn materialized_runtime_callee_ret(ty: &RuntimeType) -> Option<RuntimeType> {
+    let ret = match ty {
+        RuntimeType::Fun { ret, .. } => ret.as_ref().clone(),
+        RuntimeType::Value(typed_ir::Type::Fun {
+            ret_effect, ret, ..
+        }) => runtime_type_from_core_value_and_effect(
+            ret.as_ref().clone(),
+            ret_effect.as_ref().clone(),
+        ),
+        RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => return None,
+    };
+    super::runtime_type_is_closed(&ret).then_some(ret)
+}
+
 fn should_materialize_expected_runtime(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Value(ty) => should_materialize_expected_core(ty),
@@ -1114,6 +1130,26 @@ fn materialize_expr_to_expected(
         return expr;
     };
     adapt_expr_to_expected_runtime(expr, expected)
+}
+
+fn refresh_core_value_expr_local_types(
+    expr: Expr,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
+) -> Expr {
+    force_core_value_expr(refresh_expr_local_types(expr, locals))
+}
+
+fn force_core_value_expr(expr: Expr) -> Expr {
+    let value = match &expr.ty {
+        RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
+        _ => return expr,
+    };
+    Expr::typed(
+        ExprKind::BindHere {
+            expr: Box::new(expr),
+        },
+        value,
+    )
 }
 
 fn literal_runtime_type(lit: &typed_ir::Lit) -> RuntimeType {

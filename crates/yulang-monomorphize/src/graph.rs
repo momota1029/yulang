@@ -307,6 +307,12 @@ impl TypeGraph {
             return Ok(false);
         }
         seen.push(constraint);
+        if std::env::var_os("YULANG_TRACE_SUBTYPE").is_some()
+            && (format!("{lower:?}").contains("t17753#0")
+                || format!("{upper:?}").contains("t17753#0"))
+        {
+            eprintln!("TRACE subtype\n  lower={lower:?}\n  upper={upper:?}");
+        }
         if lower == upper || matches!(upper, typed_ir::Type::Any) {
             return Ok(false);
         }
@@ -453,6 +459,35 @@ impl TypeGraph {
             (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Type(upper)) => {
                 self.apply_subtype_constraint_inner(lower, upper, seen)
             }
+            // `Type(t) <: Bounds(L, U)` means t is inside the call-site
+            // bounds: `L <: t` and `t <: U`. Both directions are needed because
+            // L and U may contain principal-side open variables that the
+            // call-site narrows via the bounds.
+            (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Bounds(upper)) => {
+                let mut changed = false;
+                if let Some(upper_lower) = upper.lower {
+                    changed |=
+                        self.apply_subtype_constraint_inner(*upper_lower, lower.clone(), seen)?;
+                }
+                if let Some(upper_upper) = upper.upper {
+                    changed |= self.apply_subtype_constraint_inner(lower, *upper_upper, seen)?;
+                }
+                Ok(changed)
+            }
+            // `Bounds(L, U) <: Type(t)` propagates both directions so that t
+            // captures the narrowing implied by L and U. This is necessary for
+            // open principal-side bounds to be specialized by the call site.
+            (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Type(upper)) => {
+                let mut changed = false;
+                if let Some(lower_lower) = lower.lower {
+                    changed |=
+                        self.apply_subtype_constraint_inner(*lower_lower, upper.clone(), seen)?;
+                }
+                if let Some(lower_upper) = lower.upper {
+                    changed |= self.apply_subtype_constraint_inner(upper, *lower_upper, seen)?;
+                }
+                Ok(changed)
+            }
             (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Bounds(upper)) => {
                 let mut changed = false;
                 if let (Some(lower), Some(upper)) = (lower.lower, upper.lower) {
@@ -463,7 +498,6 @@ impl TypeGraph {
                 }
                 Ok(changed)
             }
-            _ => Ok(false),
         }
     }
 
@@ -733,11 +767,19 @@ impl TypeGraph {
                 std::backtrace::Backtrace::force_capture()
             );
         }
+        let ty_for_trace = ty.clone();
         let slot = self.slots.entry(var.clone()).or_default();
         let changed = match side {
             BoundSide::Lower => slot.push_lower(var.clone(), ty, &self.cast_order),
             BoundSide::Upper => slot.push_upper(var.clone(), ty, &self.cast_order),
         }?;
+        if std::env::var_os("YULANG_TRACE_RECORD").is_some()
+            && format!("{var:?}").contains("t17753")
+        {
+            eprintln!(
+                "TRACE record var={var:?} side={side:?} ty={ty_for_trace:?} changed={changed} new_slot={slot:?}"
+            );
+        }
         reject_invalid_top_bottom_bounds(&var, slot)?;
         Ok(changed)
     }
@@ -1318,6 +1360,29 @@ fn collapse_equivalent_inter(branches: &[typed_ir::Type]) -> Option<typed_ir::Ty
     })
 }
 
+fn intersect_closed_rows(branches: &[typed_ir::Type]) -> Option<typed_ir::Type> {
+    let (first, rest) = branches.split_first()?;
+    let (mut items, mut tail) = flatten_closed_row(first)?;
+    for branch in rest {
+        let (branch_items, branch_tail) = flatten_closed_row(branch)?;
+        let mut intersection = Vec::new();
+        for item in &items {
+            if branch_items
+                .iter()
+                .any(|other| effect_items_match(item, other))
+            {
+                push_unique_effect_item(&mut intersection, item.clone());
+            }
+        }
+        items = intersection;
+        tail = merge_row_tails(&tail, &branch_tail, BoundSide::Upper)?;
+    }
+    Some(typed_ir::Type::Row {
+        items,
+        tail: Box::new(tail),
+    })
+}
+
 fn rows_equivalent(
     a_items: &[typed_ir::Type],
     a_tail: &typed_ir::Type,
@@ -1520,8 +1585,33 @@ fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
     lightweight_bounds_equivalent(sub, sup)
         || matches!(sub, typed_ir::Type::Never)
         || matches!(sup, typed_ir::Type::Any)
+        || function_bound_subtype(sub, sup)
         || row_bound_subtype(sub, sup)
         || union_supertype_contains(sup, sub)
+}
+
+fn function_bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
+    let (
+        typed_ir::Type::Fun {
+            param: sub_param,
+            param_effect: sub_param_effect,
+            ret_effect: sub_ret_effect,
+            ret: sub_ret,
+        },
+        typed_ir::Type::Fun {
+            param: sup_param,
+            param_effect: sup_param_effect,
+            ret_effect: sup_ret_effect,
+            ret: sup_ret,
+        },
+    ) = (sub, sup)
+    else {
+        return false;
+    };
+    bound_subtype(sup_param, sub_param)
+        && bound_subtype(sub_param_effect, sup_param_effect)
+        && bound_subtype(sub_ret_effect, sup_ret_effect)
+        && bound_subtype(sub_ret, sup_ret)
 }
 
 fn union_supertype_contains(sup: &typed_ir::Type, sub: &typed_ir::Type) -> bool {
@@ -1806,22 +1896,11 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 match item {
                     typed_ir::Type::Union(items) => {
                         for item in items {
-                            if !matches!(item, typed_ir::Type::Never)
-                                && !normalized
-                                    .iter()
-                                    .any(|existing| bounds_are_equivalent(existing, &item))
-                            {
-                                normalized.push(item);
-                            }
+                            push_normalized_union_item(&mut normalized, item);
                         }
                     }
                     item => {
-                        if !normalized
-                            .iter()
-                            .any(|existing| bounds_are_equivalent(existing, &item))
-                        {
-                            normalized.push(item);
-                        }
+                        push_normalized_union_item(&mut normalized, item);
                     }
                 }
             }
@@ -1840,27 +1919,22 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 if matches!(item, typed_ir::Type::Any) {
                     continue;
                 }
+                if matches!(item, typed_ir::Type::Never) {
+                    return typed_ir::Type::Never;
+                }
                 match item {
                     typed_ir::Type::Inter(items) => {
                         for item in items {
-                            if !matches!(item, typed_ir::Type::Any)
-                                && !normalized
-                                    .iter()
-                                    .any(|existing| bounds_are_equivalent(existing, &item))
-                            {
-                                normalized.push(item);
-                            }
+                            push_normalized_inter_item(&mut normalized, item);
                         }
                     }
                     item => {
-                        if !normalized
-                            .iter()
-                            .any(|existing| bounds_are_equivalent(existing, &item))
-                        {
-                            normalized.push(item);
-                        }
+                        push_normalized_inter_item(&mut normalized, item);
                     }
                 }
+            }
+            if let Some(row) = intersect_closed_rows(&normalized) {
+                return row;
             }
             match normalized.len() {
                 0 => typed_ir::Type::Any,
@@ -1975,6 +2049,81 @@ fn normalize_bound_arg_form(arg: &typed_ir::TypeArg, effect_atom: bool) -> typed
                     .map(|upper| Box::new(normalize_bound_form_inner(upper, effect_atom))),
             })
         }
+    }
+}
+
+fn push_normalized_union_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
+    if matches!(item, typed_ir::Type::Never) {
+        return;
+    }
+    if matches!(item, typed_ir::Type::Any) {
+        items.clear();
+        items.push(item);
+        return;
+    }
+    if items
+        .iter()
+        .any(|existing| absorption_subtype(&item, existing))
+    {
+        return;
+    }
+    items.retain(|existing| !absorption_subtype(existing, &item));
+    items.push(item);
+}
+
+fn push_normalized_inter_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
+    if matches!(item, typed_ir::Type::Any) {
+        return;
+    }
+    if matches!(item, typed_ir::Type::Never) {
+        items.clear();
+        items.push(item);
+        return;
+    }
+    if items
+        .iter()
+        .any(|existing| absorption_subtype(existing, &item))
+    {
+        return;
+    }
+    items.retain(|existing| !absorption_subtype(&item, existing));
+    items.push(item);
+}
+
+fn absorption_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
+    if lightweight_bounds_equivalent(sub, sup)
+        || closed_singleton_row_item(sub).is_some_and(|item| item == sup)
+        || closed_singleton_row_item(sup).is_some_and(|item| item == sub)
+        || matches!(sub, typed_ir::Type::Never)
+        || matches!(sup, typed_ir::Type::Any)
+    {
+        return true;
+    }
+    match (sub, sup) {
+        (typed_ir::Type::Union(items), _) => items.iter().all(|item| absorption_subtype(item, sup)),
+        (_, typed_ir::Type::Union(items)) => items.iter().any(|item| absorption_subtype(sub, item)),
+        (typed_ir::Type::Inter(items), _) => items.iter().any(|item| absorption_subtype(item, sup)),
+        (_, typed_ir::Type::Inter(items)) => items.iter().all(|item| absorption_subtype(sub, item)),
+        (
+            typed_ir::Type::Fun {
+                param: sub_param,
+                param_effect: sub_param_effect,
+                ret_effect: sub_ret_effect,
+                ret: sub_ret,
+            },
+            typed_ir::Type::Fun {
+                param: sup_param,
+                param_effect: sup_param_effect,
+                ret_effect: sup_ret_effect,
+                ret: sup_ret,
+            },
+        ) => {
+            absorption_subtype(sup_param, sub_param)
+                && absorption_subtype(sub_param_effect, sup_param_effect)
+                && absorption_subtype(sub_ret_effect, sup_ret_effect)
+                && absorption_subtype(sub_ret, sup_ret)
+        }
+        _ => row_bound_subtype(sub, sup),
     }
 }
 
@@ -3174,6 +3323,36 @@ mod tests {
     }
 
     #[test]
+    fn normalized_union_absorbs_intersection_subtype() {
+        let acc = typed_ir::Type::Var(typed_ir::TypeVar("acc".into()));
+        let branch = typed_ir::Type::Var(typed_ir::TypeVar("branch".into()));
+        let ty = materialize_core_type(
+            typed_ir::Type::Union(vec![
+                acc.clone(),
+                typed_ir::Type::Inter(vec![acc.clone(), branch]),
+            ]),
+            &[],
+        );
+
+        assert_eq!(ty, acc);
+    }
+
+    #[test]
+    fn normalized_intersection_absorbs_union_supertype() {
+        let acc = typed_ir::Type::Var(typed_ir::TypeVar("acc".into()));
+        let branch = typed_ir::Type::Var(typed_ir::TypeVar("branch".into()));
+        let ty = materialize_core_type(
+            typed_ir::Type::Inter(vec![
+                typed_ir::Type::Union(vec![unit_type(), acc.clone(), branch]),
+                acc.clone(),
+            ]),
+            &[],
+        );
+
+        assert_eq!(ty, acc);
+    }
+
+    #[test]
     fn runtime_function_thunks_feed_function_effect_slots() {
         let mut graph = TypeGraph::default();
         let a_var = typed_ir::TypeVar("a".into());
@@ -3353,6 +3532,47 @@ mod tests {
     }
 
     #[test]
+    fn closed_effect_row_intersection_keeps_common_items() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let parse = effect_type("parse");
+        let pick = effect_type("pick");
+        let parse_and_pick = typed_ir::Type::Row {
+            items: vec![parse.clone(), pick],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let parse_only = typed_ir::Type::Row {
+            items: vec![parse],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let intersection = typed_ir::Type::Inter(vec![parse_and_pick, parse_only.clone()]);
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(intersection)),
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(parse_only.clone())),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(|bounds| bounds.upper.as_ref()),
+            Some(&parse_only)
+        );
+    }
+
+    #[test]
     fn closed_effect_row_item_flattens_into_outer_row() {
         let mut graph = TypeGraph::default();
         let var = typed_ir::TypeVar("e".into());
@@ -3381,6 +3601,48 @@ mod tests {
         assert_eq!(
             graph.slot(&var).and_then(TypeVarBounds::solution_ref),
             Some(&expected)
+        );
+    }
+
+    #[test]
+    fn function_upper_bounds_merge_by_variance() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("f".into());
+        let precise = fun_type_with_effects(
+            bool_type(),
+            typed_ir::Type::Never,
+            closed_row(&["parse"]),
+            int_type(),
+        );
+        let broad = fun_type_with_effects(
+            bool_type(),
+            typed_ir::Type::Any,
+            typed_ir::Type::Any,
+            int_type(),
+        );
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(broad)),
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(precise.clone())),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(|bounds| bounds.upper.as_ref()),
+            Some(&precise)
         );
     }
 

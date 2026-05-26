@@ -47,7 +47,7 @@ fn infer_handle_payload_pattern_type(
                 .iter()
                 .map(|item| {
                     infer_handle_payload_pattern_type(primitive_paths, item, guard, body, result_ty)
-                        .unwrap_or(typed_ir::Type::Any)
+                        .unwrap_or(typed_ir::Type::Unknown)
                 })
                 .collect(),
         )),

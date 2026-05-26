@@ -453,9 +453,8 @@ fn rewritten_role_method_apply_keeps_slot_evidence() {
 
 #[test]
 fn recursive_self_call_principal_keeps_pure_arg_effect() {
-    let mut state = parse_and_lower(
-        "my loop(acc) =\n  if true:\n    loop(acc)\n  else:\n    acc\n\nloop",
-    );
+    let mut state =
+        parse_and_lower("my loop(acc) =\n  if true:\n    loop(acc)\n  else:\n    acc\n\nloop");
     let program = export_core_program(&mut state);
     let principal_callees = apply_principal_callees_in_module(&program.program);
 
@@ -492,6 +491,53 @@ fn handler_continuation_in_queue_principal_avoids_top_in_effect_row() {
     assert!(
         principal_callees.iter().all(|ty| !type_contains_any(ty)),
         "handler principal evidence should not carry Any/top in nested function effect rows: {principal_callees:?}",
+    );
+}
+
+#[test]
+fn module_act_body_self_effect_annotation_uses_canonical_act_path() {
+    let root = SyntaxNode::<YulangLanguage>::new_root(yulang_parser::parse_module_to_green(
+        "my act pick:\n  our once: () -> [pick] int\n",
+    ));
+    let mut state = LowerState::new();
+    lower_root_in_module(
+        &mut state,
+        &root,
+        symbols::Path {
+            segments: vec![
+                symbols::Name("std".to_string()),
+                symbols::Name("parse".to_string()),
+            ],
+        },
+    );
+    finish_lowering(&mut state);
+
+    let program = export_core_program(&mut state);
+    let once = program
+        .effect_operations
+        .iter()
+        .find(|operation| path_segments(&operation.path) == ["std", "parse", "pick", "once"])
+        .expect("effect operation should be exported with its canonical companion path");
+    let bare_pick = yulang_typed_ir::Path {
+        segments: vec![yulang_typed_ir::Name("pick".to_string())],
+    };
+    let canonical_pick = yulang_typed_ir::Path {
+        segments: vec![
+            yulang_typed_ir::Name("std".to_string()),
+            yulang_typed_ir::Name("parse".to_string()),
+            yulang_typed_ir::Name("pick".to_string()),
+        ],
+    };
+
+    assert!(
+        type_contains_named_path(&once.scheme.body, &canonical_pick),
+        "self effect annotation should resolve through the act's canonical path: {:?}",
+        once.scheme.body,
+    );
+    assert!(
+        !type_contains_named_path(&once.scheme.body, &bare_pick),
+        "self effect annotation should not leak the unresolved local spelling: {:?}",
+        once.scheme.body,
     );
 }
 
@@ -1262,6 +1308,13 @@ fn collect_coerce_evidence_source_edges(
     });
 }
 
+fn path_segments(path: &yulang_typed_ir::Path) -> Vec<&str> {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect()
+}
+
 fn visit_core_expr(expr: &yulang_typed_ir::Expr, visitor: &mut impl FnMut(&yulang_typed_ir::Expr)) {
     visitor(expr);
     match expr {
@@ -1347,6 +1400,94 @@ fn visit_core_expr(expr: &yulang_typed_ir::Expr, visitor: &mut impl FnMut(&yulan
         yulang_typed_ir::Expr::Var(_)
         | yulang_typed_ir::Expr::PrimitiveOp(_)
         | yulang_typed_ir::Expr::Lit(_) => {}
+    }
+}
+
+fn type_contains_named_path(ty: &yulang_typed_ir::Type, target: &yulang_typed_ir::Path) -> bool {
+    match ty {
+        yulang_typed_ir::Type::Named { path, args } => {
+            path == target
+                || args
+                    .iter()
+                    .any(|arg| type_arg_contains_named_path(arg, target))
+        }
+        yulang_typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_named_path(param, target)
+                || type_contains_named_path(param_effect, target)
+                || type_contains_named_path(ret_effect, target)
+                || type_contains_named_path(ret, target)
+        }
+        yulang_typed_ir::Type::Tuple(items)
+        | yulang_typed_ir::Type::Union(items)
+        | yulang_typed_ir::Type::Inter(items) => items
+            .iter()
+            .any(|item| type_contains_named_path(item, target)),
+        yulang_typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_contains_named_path(&field.value, target))
+                || record
+                    .spread
+                    .as_ref()
+                    .is_some_and(|spread| record_spread_contains_named_path(spread, target))
+        }
+        yulang_typed_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|payload| type_contains_named_path(payload, target))
+            }) || variant
+                .tail
+                .as_deref()
+                .is_some_and(|tail| type_contains_named_path(tail, target))
+        }
+        yulang_typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| type_contains_named_path(item, target))
+                || type_contains_named_path(tail, target)
+        }
+        yulang_typed_ir::Type::Recursive { body, .. } => type_contains_named_path(body, target),
+        yulang_typed_ir::Type::Unknown
+        | yulang_typed_ir::Type::Never
+        | yulang_typed_ir::Type::Any
+        | yulang_typed_ir::Type::Var(_) => false,
+    }
+}
+
+fn type_arg_contains_named_path(
+    arg: &yulang_typed_ir::TypeArg,
+    target: &yulang_typed_ir::Path,
+) -> bool {
+    match arg {
+        yulang_typed_ir::TypeArg::Type(ty) => type_contains_named_path(ty, target),
+        yulang_typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .is_some_and(|lower| type_contains_named_path(lower, target))
+                || bounds
+                    .upper
+                    .as_deref()
+                    .is_some_and(|upper| type_contains_named_path(upper, target))
+        }
+    }
+}
+
+fn record_spread_contains_named_path(
+    spread: &yulang_typed_ir::RecordSpread,
+    target: &yulang_typed_ir::Path,
+) -> bool {
+    match spread {
+        yulang_typed_ir::RecordSpread::Head(ty) | yulang_typed_ir::RecordSpread::Tail(ty) => {
+            type_contains_named_path(ty, target)
+        }
     }
 }
 
@@ -1534,7 +1675,10 @@ fn type_contains_any(ty: &yulang_typed_ir::Type) -> bool {
                 .fields
                 .iter()
                 .any(|field| type_contains_any(&field.value))
-                || record.spread.as_ref().is_some_and(record_spread_contains_any)
+                || record
+                    .spread
+                    .as_ref()
+                    .is_some_and(record_spread_contains_any)
         }
         yulang_typed_ir::Type::Variant(variant) => {
             variant

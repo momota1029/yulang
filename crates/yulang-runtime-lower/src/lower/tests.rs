@@ -2,6 +2,10 @@
 mod tests {
     use super::super::*;
 
+    fn lower_core_program(program: typed_ir::CoreProgram) -> RuntimeResult<Module> {
+        lower_core_program_runtime_typed_for_tests(program)
+    }
+
     #[test]
     pub(super) fn lower_literal_root_uses_graph_type() {
         let program = typed_ir::CoreProgram {
@@ -68,6 +72,33 @@ mod tests {
                 args: Vec::new(),
             }
         );
+    }
+
+    #[test]
+    pub(super) fn select_from_top_has_unknown_field_type() {
+        let field = typed_ir::Name("value".to_string());
+
+        assert_eq!(
+            select_field_type(&typed_ir::Type::Any, &field).expect("selected"),
+            typed_ir::Type::Unknown
+        );
+    }
+
+    #[test]
+    pub(super) fn inferred_handle_payload_tuple_holes_are_unknown() {
+        let payload = typed_ir::Pattern::Tuple(vec![typed_ir::Pattern::Wildcard]);
+        let body = typed_ir::Expr::Lit(typed_ir::Lit::Unit);
+
+        let ty = infer_handle_payload_type(
+            &RuntimePrimitivePathTable::standard(),
+            &payload,
+            None,
+            &body,
+            &unit_type(),
+        )
+        .expect("payload type");
+
+        assert_eq!(ty, typed_ir::Type::Tuple(vec![typed_ir::Type::Unknown]));
     }
 
     #[test]
