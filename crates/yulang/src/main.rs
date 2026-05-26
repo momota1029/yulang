@@ -37,7 +37,8 @@ use yulang_infer::{
     collect_expected_adapter_edge_evidence as collect_infer_expected_adapter_edge_evidence,
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
-    collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
+    collect_surface_diagnostics as collect_infer_surface_diagnostics,
+    collect_surface_type_errors as collect_infer_surface_type_errors, export_core_program,
     lower_source_set, lower_source_set_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile,
@@ -1323,7 +1324,7 @@ fn run_infer_views(
 
     let type_errors_start = pipeline_timings.start();
     let diagnostics_start = startup_profile.start();
-    let errors = state.infer.type_errors();
+    let errors = collect_infer_surface_type_errors(&state);
     pipeline_timings.type_errors = InferPipelineTimings::elapsed(type_errors_start);
     let surface_diagnostics_start = pipeline_timings.start();
     let surface_diagnostics = collect_infer_surface_diagnostics(&state);

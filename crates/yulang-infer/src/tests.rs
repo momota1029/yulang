@@ -858,6 +858,48 @@ my pick (b: bool) =\n    if b: id\n    else: 0\n",
 }
 
 #[test]
+fn surface_diagnostic_defers_constructor_mismatch_to_cast_boundary() {
+    let mut state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+struct user_id { raw: int }\n\
+cast(x: int): user_id = user_id { raw: x }\n\
+my read(x: user_id) = x.raw\n\
+read (if true: 1 else: user_id { raw: 0 })\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.kind == TypeErrorKind::ConstructorMismatch),
+        "deferred cast boundary should leave a raw solver mismatch before surface filtering, got {errors:?}",
+    );
+
+    let diagnostics = crate::surface_diagnostic::collect_surface_diagnostics(&state);
+    assert!(
+        diagnostics.is_empty(),
+        "surface diagnostics should defer constructor mismatch covered by a concrete cast boundary, got {diagnostics:?}",
+    );
+}
+
+#[test]
+fn surface_diagnostic_keeps_unresolved_deferred_cast_boundary() {
+    let mut state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+struct user_id { raw: int }\n\
+my read(x: user_id) = x.raw\n\
+read (if true: 1 else: user_id { raw: 0 })\n",
+    );
+    state.finalize_compact_results();
+
+    let diagnostics = crate::surface_diagnostic::collect_surface_diagnostics(&state);
+    assert!(
+        !diagnostics.is_empty(),
+        "surface diagnostics should keep an unresolved cast boundary fatal",
+    );
+}
+
+#[test]
 fn if_without_else_discards_branch_value() {
     let mut state = parse_and_lower("if true: 1\n");
     state.finalize_compact_results();

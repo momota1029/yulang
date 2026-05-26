@@ -92,7 +92,9 @@ pub use source::{
     lower_virtual_module_source_with_options, lower_virtual_source_with_options,
     lower_virtual_source_with_options_profiled, warm_std_source_cache,
 };
-pub use surface_diagnostic::{SurfaceDiagnostic, collect_surface_diagnostics};
+pub use surface_diagnostic::{
+    SurfaceDiagnostic, collect_surface_diagnostics, collect_surface_type_errors,
+};
 pub use symbols::{
     ModuleId, ModuleNode, ModuleTable, Name, Namespace, OperatorFixity, Path, Reexport, Visibility,
 };

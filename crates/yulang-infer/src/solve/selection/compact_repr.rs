@@ -1,4 +1,4 @@
-use crate::ids::TypeVar;
+use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::builtin_types::{
     join_primitive_numeric_type_paths, primitive_numeric_type_family,
 };
@@ -37,6 +37,24 @@ pub(super) fn concrete_tv_lower_join_repr(
     }
     normalize_builtin_numeric_compact_type(&mut out);
     (out != CompactType::default() && is_concrete_compact_type(&out, allow_boundary)).then_some(out)
+}
+
+pub(super) fn concrete_pos_repr(
+    infer: &Infer,
+    pos: PosId,
+    allow_boundary: bool,
+) -> Option<CompactType> {
+    let ty = crate::simplify::compact::compact_pos_expr(infer, pos);
+    concrete_or_boundary_compact_type(&ty, allow_boundary)
+}
+
+pub(super) fn concrete_neg_repr(
+    infer: &Infer,
+    neg: NegId,
+    allow_boundary: bool,
+) -> Option<CompactType> {
+    let ty = crate::simplify::compact::compact_neg_expr(infer, neg);
+    concrete_or_boundary_compact_type(&ty, allow_boundary)
 }
 
 pub(super) fn concrete_lower_bounds_repr(

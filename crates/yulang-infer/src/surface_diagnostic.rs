@@ -3,9 +3,11 @@ use std::collections::BTreeSet;
 use rowan::TextRange;
 
 use crate::diagnostic::{
-    ConstraintReason, ExpectedShape, TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind,
+    ConstraintReason, ExpectedEdge, ExpectedEdgeKind, ExpectedShape, TypeError, TypeErrorKind,
+    TypeOrigin, TypeOriginKind,
 };
 use crate::lower::{FileSpan, LowerState};
+use crate::solve::CastMethodResolution;
 use crate::symbols::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,11 +56,56 @@ pub fn collect_surface_diagnostics(state: &LowerState) -> Vec<SurfaceDiagnostic>
         }
     }
 
-    for error in state.infer.type_errors() {
+    for error in collect_surface_type_errors(state) {
         push_type_error(&mut diagnostics, &mut seen, state, &error);
     }
 
     diagnostics
+}
+
+pub fn collect_surface_type_errors(state: &LowerState) -> Vec<TypeError> {
+    state
+        .infer
+        .type_errors()
+        .into_iter()
+        .filter(|error| !should_defer_type_error_to_cast_boundary(state, error))
+        .collect()
+}
+
+fn should_defer_type_error_to_cast_boundary(state: &LowerState, error: &TypeError) -> bool {
+    if error.kind != TypeErrorKind::ConstructorMismatch {
+        return false;
+    }
+    state
+        .expected_edges
+        .iter()
+        .any(|edge| edge_matches_deferred_cast_boundary(state, edge, error))
+}
+
+fn edge_matches_deferred_cast_boundary(
+    state: &LowerState,
+    edge: &ExpectedEdge,
+    error: &TypeError,
+) -> bool {
+    edge.cause == error.cause
+        && expected_edge_can_defer_constructor_mismatch(edge.kind)
+        && matches!(
+            state
+                .infer
+                .resolve_cast_method_from_pos_neg(error.pos, error.neg),
+            CastMethodResolution::Concrete(_)
+        )
+}
+
+fn expected_edge_can_defer_constructor_mismatch(kind: ExpectedEdgeKind) -> bool {
+    matches!(
+        kind,
+        ExpectedEdgeKind::Annotation
+            | ExpectedEdgeKind::ApplicationArgument
+            | ExpectedEdgeKind::IfBranch
+            | ExpectedEdgeKind::MatchBranch
+            | ExpectedEdgeKind::CatchBranch
+    )
 }
 
 fn push_unique(
