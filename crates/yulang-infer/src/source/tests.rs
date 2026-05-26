@@ -5707,6 +5707,37 @@ fn default_fold_contains_uses_associated_item_type() {
 }
 
 #[test]
+fn default_fold_find_keeps_option_result_shape() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my found = [1, 2, 3, 4].find: \\x -> x > 3\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        lowered.state.finalize_compact_results();
+        assert!(
+            lowered.state.infer.type_errors().is_empty(),
+            "Fold.find should not constrain opt<item> to item, got {:?}",
+            lowered.state.infer.type_errors(),
+        );
+        let rendered = render_compact_results(&mut lowered.state);
+        let found = rendered_type(&rendered, "found");
+        assert!(
+            found.ends_with("std::opt::opt<int>"),
+            "Fold.find should keep its option result shape, got {}",
+            found,
+        );
+    });
+}
+
+#[test]
 fn header_lambda_does_not_move_prior_argument_effect_to_next_argument() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

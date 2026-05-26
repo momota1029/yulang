@@ -21,7 +21,7 @@
 //! The `ApplySpine` / `ApplyStep` types are the shared representation for the
 //! `role` and `rewrite` modules — both consume spines once they are solved.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
@@ -749,6 +749,7 @@ pub(crate) fn solve_simple_apply(
             function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
     }
     default_spine_evidence_substitutions(&mut graph, &principal, &spine.steps)?;
+    default_spine_evidence_candidate_bounds(&mut graph, &principal, &spine.steps)?;
     // These holes are introduced by this spine solver for intermediate or
     // discarded apply results. If no caller, evidence, or later apply step
     // observes their value, Bottom is the only closed choice that does not
@@ -1156,6 +1157,97 @@ fn default_spine_evidence_substitution(
     Ok(())
 }
 
+fn default_spine_evidence_candidate_bounds(
+    graph: &mut TypeGraph,
+    principal: &crate::PrincipalInstance,
+    steps: &[ApplyStep<'_>],
+) -> MonomorphizeResult<()> {
+    let mut choices =
+        BTreeMap::<(typed_ir::TypeVar, CandidateBoundSide), Vec<typed_ir::Type>>::new();
+    for step in steps {
+        let Some(evidence) = step.evidence else {
+            continue;
+        };
+        for candidate in &evidence.substitution_candidates {
+            if principal_candidate_is_callee_param_context(candidate)
+                || !candidate_type_usable(&candidate.ty)
+            {
+                continue;
+            }
+            let Some(param) = principal
+                .type_params
+                .iter()
+                .find(|param| param.original == candidate.var)
+            else {
+                continue;
+            };
+            let sides = candidate_bound_sides(candidate.relation);
+            for side in sides {
+                let entry = choices.entry((param.fresh.clone(), *side)).or_default();
+                if !entry.contains(&candidate.ty) {
+                    entry.push(candidate.ty.clone());
+                }
+            }
+        }
+    }
+    for ((var, side), candidates) in choices {
+        if candidates.len() != 1 {
+            continue;
+        }
+        let ty = candidates.into_iter().next().unwrap();
+        match side {
+            CandidateBoundSide::Lower => {
+                graph.constrain_subtype(ty, typed_ir::Type::Var(var))?;
+            }
+            CandidateBoundSide::Upper => {
+                graph.constrain_subtype(typed_ir::Type::Var(var), ty)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum CandidateBoundSide {
+    Lower,
+    Upper,
+}
+
+fn candidate_bound_sides(
+    relation: typed_ir::PrincipalCandidateRelation,
+) -> &'static [CandidateBoundSide] {
+    match relation {
+        typed_ir::PrincipalCandidateRelation::Lower => &[CandidateBoundSide::Lower],
+        typed_ir::PrincipalCandidateRelation::Upper => &[CandidateBoundSide::Upper],
+        typed_ir::PrincipalCandidateRelation::Exact => {
+            &[CandidateBoundSide::Lower, CandidateBoundSide::Upper]
+        }
+    }
+}
+
+fn principal_candidate_is_callee_param_context(
+    candidate: &typed_ir::PrincipalSubstitutionCandidate,
+) -> bool {
+    matches!(
+        candidate.path.as_slice(),
+        [
+            typed_ir::PrincipalSlotPathSegment::Callee,
+            typed_ir::PrincipalSlotPathSegment::FunctionParam,
+            ..
+        ]
+    )
+}
+
+fn candidate_type_usable(ty: &typed_ir::Type) -> bool {
+    !matches!(
+        ty,
+        typed_ir::Type::Unknown
+            | typed_ir::Type::Any
+            | typed_ir::Type::Never
+            | typed_ir::Type::Var(_)
+    ) && super::core_type_is_closed(ty)
+}
+
 fn function_return_template(ty: typed_ir::Type) -> Option<typed_ir::Type> {
     let typed_ir::Type::Fun { ret, .. } = ty else {
         return None;
@@ -1204,11 +1296,6 @@ impl ApplyStep<'_> {
         let runtime_ty = expr_lower_type(self.arg, local_types);
         if let RuntimeType::Thunk { effect, value } = &runtime_ty {
             let evidence_arg = self.evidence.and_then(apply_arg_type);
-            if runtime_type_is_never_value(value)
-                && let Some(arg_type) = effect_carrier_value_hint(effect)
-            {
-                return (arg_type, typed_ir::Type::Never);
-            }
             let value_is_closed = super::runtime_type_is_closed(value);
             let arg_type = if value_is_closed {
                 let runtime_value = super::runtime_type_to_core((**value).clone());
@@ -1251,40 +1338,32 @@ impl ApplyStep<'_> {
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
         protected_result_vars: &BTreeSet<typed_ir::TypeVar>,
     ) -> MonomorphizeResult<()> {
-        let evidence_value_bound = self
-            .evidence
-            .map(|evidence| {
-                constrain_observed_type_bounds(
-                    graph,
-                    &result,
-                    &evidence.result,
-                    protected_result_vars,
-                )
-            })
-            .transpose()?
-            .unwrap_or(false);
+        let evidence_value_bound = if let Some(evidence) = self.evidence {
+            constrain_observed_type_bounds(graph, &result, &evidence.result, protected_result_vars)?
+        } else {
+            false
+        };
         let apply_ty = expr_lower_type(self.apply, local_types);
         match apply_ty {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { value, .. } => {
+                let observed = super::runtime_type_to_core((*value).clone());
                 if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
                     constrain_observed_upper_bound(
                         graph,
                         &result,
-                        &super::runtime_type_to_core((*value).clone()),
+                        &observed,
                         protected_result_vars,
                     )?;
                 }
                 Ok(())
             }
             ty if evidence_value_bound && runtime_type_value_is_function(&ty) => Ok(()),
-            ty => constrain_observed_upper_bound(
-                graph,
-                &result,
-                &super::runtime_type_to_core(ty),
-                protected_result_vars,
-            )
-            .map(|_| ()),
+            ty => {
+                let observed = super::runtime_type_to_core(ty);
+                constrain_observed_upper_bound(graph, &result, &observed, protected_result_vars)?;
+                Ok(())
+            }
         }
     }
 }
@@ -1677,36 +1756,6 @@ fn runtime_type_value_is_function(ty: &RuntimeType) -> bool {
         RuntimeType::Fun { .. } | RuntimeType::Value(typed_ir::Type::Fun { .. }) => true,
         RuntimeType::Thunk { value, .. } => runtime_type_value_is_function(value),
         RuntimeType::Unknown | RuntimeType::Value(_) => false,
-    }
-}
-
-fn runtime_type_is_never_value(ty: &RuntimeType) -> bool {
-    match ty {
-        RuntimeType::Value(typed_ir::Type::Never) => true,
-        RuntimeType::Thunk { value, .. } => runtime_type_is_never_value(value),
-        RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Value(_) => false,
-    }
-}
-
-fn effect_carrier_value_hint(effect: &typed_ir::Type) -> Option<typed_ir::Type> {
-    match effect {
-        typed_ir::Type::Named { path, .. } => Some(typed_ir::Type::Named {
-            path: path.clone(),
-            args: Vec::new(),
-        }),
-        typed_ir::Type::Row { items, .. } => items.iter().find_map(effect_carrier_value_hint),
-        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
-            items.iter().find_map(effect_carrier_value_hint)
-        }
-        typed_ir::Type::Unknown
-        | typed_ir::Type::Never
-        | typed_ir::Type::Any
-        | typed_ir::Type::Var(_)
-        | typed_ir::Type::Fun { .. }
-        | typed_ir::Type::Tuple(_)
-        | typed_ir::Type::Record(_)
-        | typed_ir::Type::Variant(_)
-        | typed_ir::Type::Recursive { .. } => None,
     }
 }
 

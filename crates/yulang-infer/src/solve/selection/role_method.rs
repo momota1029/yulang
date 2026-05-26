@@ -440,6 +440,7 @@ pub(super) fn resolve_role_method_call(
                 .copied()
                 .or_else(|| info.has_default_body.then_some(info.def));
             let output = role_method_output_compact_type(
+                info,
                 candidate,
                 &arg_infos,
                 &input_indices,
@@ -652,16 +653,18 @@ fn compact_type_has_no_open_type_vars(ty: &CompactType) -> bool {
 }
 
 fn role_method_output_compact_type(
+    info: &RoleMethodInfo,
     candidate: &crate::solve::RoleImplCandidate,
     arg_infos: &[RoleArgInfo],
     input_indices: &[usize],
     concrete_inputs: &[CompactType],
 ) -> Option<CompactType> {
+    let output_name = info.output_name.as_deref()?;
     let subst = super::role_candidate_input_subst(candidate, input_indices, concrete_inputs)?;
     let output_index = arg_infos
         .iter()
         .enumerate()
-        .find_map(|(index, info)| (!info.is_input).then_some(index))?;
+        .find_map(|(index, info)| (!info.is_input && info.name == output_name).then_some(index))?;
     candidate
         .compact_args
         .get(output_index)

@@ -1794,6 +1794,8 @@ fn format_ret_row_inline(ty: &Type, namer: &mut VarNamer<'_>) -> Option<String> 
 }
 
 fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer<'_>) -> String {
+    let normalized = normalize_format_bounds(bounds.clone());
+    let bounds = &normalized;
     if let Some(rendered) = format_compact_bounds_with_center(bounds, namer) {
         return rendered;
     }
@@ -1830,6 +1832,8 @@ pub(crate) fn format_compact_role_constraint_arg_with_namer(
     arg: &CompactBounds,
     namer: &mut VarNamer<'_>,
 ) -> String {
+    let normalized = normalize_format_bounds(arg.clone());
+    let arg = &normalized;
     if let Some(rendered) = format_compact_bounds_with_center(arg, namer) {
         return rendered;
     }
@@ -1859,11 +1863,12 @@ fn format_compact_bounds_with_center(
 
     let lower_empty = is_empty_compact(&lower);
     let upper_empty = is_empty_compact(&upper);
-    let center = format_shared_center_vars(&shared, namer);
 
     if !lower_empty && !upper_empty && lower == upper && has_non_var_shape(&lower) {
         return Some(format_compact_type(&lower, namer, false));
     }
+
+    let center = format_shared_center_vars(&shared, namer);
 
     match (lower_empty, upper_empty) {
         (true, true) => Some(center),
@@ -2145,7 +2150,7 @@ fn format_compact_row(row: &CompactRow, namer: &mut VarNamer<'_>) -> String {
         .iter()
         .map(|item| format_compact_type(item, namer, false))
         .collect::<Vec<_>>();
-    if is_empty_compact(&row.tail) {
+    if is_empty_compact(&row.tail) || is_explicit_empty_row_compact(&row.tail) {
         format!("[{};]", items.join(", "))
     } else {
         let tail = format_compact_type(&row.tail, namer, false);
@@ -2174,7 +2179,7 @@ fn format_compact_row_inline(ty: &CompactType, namer: &mut VarNamer<'_>) -> Opti
                 .iter()
                 .map(|item| format_compact_type(item, namer, false))
                 .collect::<Vec<_>>();
-            if is_empty_compact(&row.tail) {
+            if is_empty_compact(&row.tail) || is_explicit_empty_row_compact(&row.tail) {
                 if items.is_empty() {
                     None
                 } else {
@@ -2190,6 +2195,58 @@ fn format_compact_row_inline(ty: &CompactType, namer: &mut VarNamer<'_>) -> Opti
             }
         }
         _ => Some(format_compact_type(ty, namer, false)),
+    }
+}
+
+fn normalize_format_bounds(mut bounds: CompactBounds) -> CompactBounds {
+    normalize_format_compact_type_in_place(&mut bounds.lower);
+    normalize_format_compact_type_in_place(&mut bounds.upper);
+    bounds
+}
+
+fn normalize_format_compact_type_in_place(ty: &mut CompactType) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            *arg = normalize_format_bounds(arg.clone());
+        }
+    }
+    for fun in &mut ty.funs {
+        normalize_format_compact_type_in_place(&mut fun.arg);
+        normalize_format_compact_type_in_place(&mut fun.arg_eff);
+        normalize_format_compact_type_in_place(&mut fun.ret_eff);
+        normalize_format_compact_type_in_place(&mut fun.ret);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            normalize_format_compact_type_in_place(&mut field.value);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            normalize_format_compact_type_in_place(&mut field.value);
+        }
+        normalize_format_compact_type_in_place(&mut spread.tail);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                normalize_format_compact_type_in_place(payload);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            normalize_format_compact_type_in_place(item);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            normalize_format_compact_type_in_place(item);
+        }
+        normalize_format_compact_type_in_place(&mut row.tail);
+        if is_explicit_empty_row_compact(&row.tail) {
+            row.tail = Box::new(CompactType::default());
+        }
     }
 }
 
@@ -2519,4 +2576,83 @@ fn path_string(path: &Path) -> String {
 
 fn display_name_segment(name: &str) -> &str {
     name
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use crate::ids::TypeVar;
+    use crate::simplify::compact::{CompactBounds, CompactCon, CompactRow, CompactType};
+    use crate::symbols::{Name, Path};
+
+    use super::{VarNamer, format_compact_bounds};
+
+    #[test]
+    fn compact_bounds_format_closes_nested_empty_row_tail() {
+        let effect_tail = TypeVar(10);
+        let value = TypeVar(11);
+        let item = CompactType {
+            cons: vec![CompactCon {
+                path: path(&["std", "var", "var"]),
+                args: vec![CompactBounds {
+                    self_var: None,
+                    lower: var_type(value),
+                    upper: var_type(value),
+                }],
+            }],
+            ..CompactType::default()
+        };
+        let closed_row = CompactType {
+            rows: vec![CompactRow {
+                items: vec![item.clone()],
+                tail: Box::new(CompactType::default()),
+            }],
+            ..CompactType::default()
+        };
+        let explicit_empty_row = CompactType {
+            rows: vec![CompactRow {
+                items: Vec::new(),
+                tail: Box::new(CompactType::default()),
+            }],
+            ..CompactType::default()
+        };
+        let open_to_empty_row = CompactType {
+            rows: vec![CompactRow {
+                items: vec![item],
+                tail: Box::new(explicit_empty_row),
+            }],
+            ..CompactType::default()
+        };
+        let bounds = CompactBounds {
+            self_var: None,
+            lower: merge_var_part(closed_row, effect_tail),
+            upper: merge_var_part(open_to_empty_row, effect_tail),
+        };
+
+        let rendered = format_compact_bounds(&bounds, &mut VarNamer::default());
+
+        assert_eq!(rendered, "[std::var::var<α>;]");
+    }
+
+    fn merge_var_part(mut ty: CompactType, tv: TypeVar) -> CompactType {
+        ty.vars.insert(tv);
+        ty
+    }
+
+    fn var_type(tv: TypeVar) -> CompactType {
+        CompactType {
+            vars: HashSet::from([tv]),
+            ..CompactType::default()
+        }
+    }
+
+    fn path(segments: &[&str]) -> Path {
+        Path {
+            segments: segments
+                .iter()
+                .map(|segment| Name((*segment).to_string()))
+                .collect(),
+        }
+    }
 }
