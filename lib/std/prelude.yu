@@ -40,6 +40,7 @@ pub use std::range::*
 pub use std::frac::{frac, new}
 pub use std::undet::each
 pub use std::undet::guard
+pub use std::undet::run
 pub use std::index::Index
 pub use std::var::*
 pub use std::junction::*

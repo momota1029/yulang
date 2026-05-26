@@ -25,6 +25,15 @@ pub act undet:
                 std::opt::opt::nil -> std::list::append res [v]
                 std::opt::opt::just (k, queue) -> loop(k false, queue, std::list::append res [v])
 
+    pub run(x: [_] _) = loop x [] with:
+        our loop(x: [_] _, queue) = catch x:
+            branch(), k -> loop(k true, std::list::append queue [k])
+            reject(), _ -> case std::list::uncons queue:
+                std::opt::opt::nil -> ()
+                std::opt::opt::just (k, queue) -> loop(k false, queue)
+            _ -> case std::list::uncons queue:
+                std::opt::opt::nil -> ()
+                std::opt::opt::just (k, queue) -> loop(k false, queue)
 
     // 何個も解が要らないときにつかう
     pub once(x: [_] _) = loop x [] with:
@@ -38,6 +47,7 @@ pub act undet:
 
     pub (x: [_] _).list = list x
     pub (x: [_] _).logic = logic x
+    pub (x: [_] _).run = run x
     pub (x: [_] _).once = once x
     pub (x: [_] _).guard f = guard: f x
 
