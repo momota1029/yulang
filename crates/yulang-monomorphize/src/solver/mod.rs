@@ -266,6 +266,7 @@ pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
         }
     }
     postpass::prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
+    postpass::prune_unreachable_bindings(&mut module);
     postpass::prune_unbound_binding_roots(&mut module);
     postpass::monomorphize_phantom_nullary_variant_bindings(&mut module);
     postpass::normalize_materialized_module(&mut module);

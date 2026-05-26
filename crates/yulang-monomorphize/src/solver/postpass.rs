@@ -1061,6 +1061,19 @@ pub(crate) fn prune_unbound_binding_roots(module: &mut Module) {
     });
 }
 
+/// Drop bindings that no `root_expr` or root binding can reach. After
+/// monomorphization the module otherwise retains every primitive stdlib
+/// binding even when the user program never touches it; the resulting
+/// 100+ entry `bindings` vector inflates the VM's expression/symbol tables
+/// and hurts cache behavior. role_impls entries already had their member
+/// dispatch sites rewritten to direct `Var` calls during monomorphize, so
+/// they are not seeds — anything still needed will be reached through
+/// the rewritten `Var` references.
+pub(crate) fn prune_unreachable_bindings(module: &mut Module) {
+    let reachable = reachable_paths(module);
+    module.bindings.retain(|binding| reachable.contains(&binding.name));
+}
+
 pub(crate) fn reachable_paths(module: &Module) -> HashSet<typed_ir::Path> {
     let bindings = module
         .bindings
