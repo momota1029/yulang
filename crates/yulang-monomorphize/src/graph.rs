@@ -307,12 +307,6 @@ impl TypeGraph {
             return Ok(false);
         }
         seen.push(constraint);
-        if std::env::var_os("YULANG_TRACE_SUBTYPE").is_some()
-            && (format!("{lower:?}").contains("t17753#0")
-                || format!("{upper:?}").contains("t17753#0"))
-        {
-            eprintln!("TRACE subtype\n  lower={lower:?}\n  upper={upper:?}");
-        }
         if lower == upper || matches!(upper, typed_ir::Type::Any) {
             return Ok(false);
         }
@@ -459,34 +453,28 @@ impl TypeGraph {
             (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Type(upper)) => {
                 self.apply_subtype_constraint_inner(lower, upper, seen)
             }
-            // `Type(t) <: Bounds(L, U)` means t is inside the call-site
-            // bounds: `L <: t` and `t <: U`. Both directions are needed because
-            // L and U may contain principal-side open variables that the
-            // call-site narrows via the bounds.
+            // `Type(t) <: Bounds(L, U)` is conservatively reduced to
+            // `t <: U`. The dual constraint `L <: t` is correct in theory but
+            // currently triggers spurious ConflictingBounds when L and U
+            // describe the same effect row at different precisions (closed
+            // Row vs Inter of open rows). Re-enable both directions once
+            // push_bound can merge those forms.
             (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Bounds(upper)) => {
-                let mut changed = false;
-                if let Some(upper_lower) = upper.lower {
-                    changed |=
-                        self.apply_subtype_constraint_inner(*upper_lower, lower.clone(), seen)?;
-                }
                 if let Some(upper_upper) = upper.upper {
-                    changed |= self.apply_subtype_constraint_inner(lower, *upper_upper, seen)?;
+                    self.apply_subtype_constraint_inner(lower, *upper_upper, seen)
+                } else {
+                    Ok(false)
                 }
-                Ok(changed)
             }
-            // `Bounds(L, U) <: Type(t)` propagates both directions so that t
-            // captures the narrowing implied by L and U. This is necessary for
-            // open principal-side bounds to be specialized by the call site.
+            // `Bounds(L, U) <: Type(t)` is conservatively reduced to
+            // `L <: t`. The dual direction is omitted for the same reason as
+            // the Type-vs-Bounds case above.
             (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Type(upper)) => {
-                let mut changed = false;
                 if let Some(lower_lower) = lower.lower {
-                    changed |=
-                        self.apply_subtype_constraint_inner(*lower_lower, upper.clone(), seen)?;
+                    self.apply_subtype_constraint_inner(*lower_lower, upper, seen)
+                } else {
+                    Ok(false)
                 }
-                if let Some(lower_upper) = lower.upper {
-                    changed |= self.apply_subtype_constraint_inner(upper, *lower_upper, seen)?;
-                }
-                Ok(changed)
             }
             (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Bounds(upper)) => {
                 let mut changed = false;
@@ -767,19 +755,11 @@ impl TypeGraph {
                 std::backtrace::Backtrace::force_capture()
             );
         }
-        let ty_for_trace = ty.clone();
         let slot = self.slots.entry(var.clone()).or_default();
         let changed = match side {
             BoundSide::Lower => slot.push_lower(var.clone(), ty, &self.cast_order),
             BoundSide::Upper => slot.push_upper(var.clone(), ty, &self.cast_order),
         }?;
-        if std::env::var_os("YULANG_TRACE_RECORD").is_some()
-            && format!("{var:?}").contains("t17753")
-        {
-            eprintln!(
-                "TRACE record var={var:?} side={side:?} ty={ty_for_trace:?} changed={changed} new_slot={slot:?}"
-            );
-        }
         reject_invalid_top_bottom_bounds(&var, slot)?;
         Ok(changed)
     }

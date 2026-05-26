@@ -773,20 +773,6 @@ pub(crate) fn solve_simple_apply(
         if role::role_required_apply_waiting_for_arguments(binding, &spine, local_types) {
             return Ok(solutions);
         }
-        if std::env::var_os("YULANG_TRACE_INCOMPLETE").is_some()
-            && format!("{binding_path:?}").contains("var_ref")
-        {
-            eprintln!(
-                "TRACE incomplete binding={binding_path:?}\n  principal={:?}\n  all_vars=",
-                principal.principal_type
-            );
-            for var in graph.type_vars.iter() {
-                eprintln!(
-                    "    {:?} solution={:?} bounds={:?}",
-                    var.var, var.solution, var.bounds
-                );
-            }
-        }
         return Err(MonomorphizeDiagnostic::IncompleteGraph {
             binding: binding_path.clone(),
         });
@@ -1260,12 +1246,6 @@ impl ApplyStep<'_> {
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
         protected_result_vars: &BTreeSet<typed_ir::TypeVar>,
     ) -> MonomorphizeResult<()> {
-        if std::env::var_os("YULANG_TRACE_RESULT_BOUNDS").is_some() {
-            eprintln!(
-                "TRACE constrain_result_bounds\n  result={result:?}\n  evidence={:?}\n  protected={protected_result_vars:?}",
-                self.evidence
-            );
-        }
         let evidence_value_bound = self
             .evidence
             .map(|evidence| {
