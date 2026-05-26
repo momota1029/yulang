@@ -23,6 +23,8 @@ yulang-sources = { path = "../yulang-sources" }
 yulang-infer = { path = "../yulang-infer" }
 yulang-typed-ir = { path = "../yulang-typed-ir" }
 yulang-editor = { path = "../yulang-editor" }
+yulang-parser = { path = "../yulang-parser" }
+rowan = "0.15"
 
 [build-dependencies]
 postcard = { version = "1", features = ["alloc"] }

@@ -11,6 +11,14 @@ pub struct ColorizeOutput {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+impl ColorizeOutput {
+    pub fn with_diagnostic(mut self, diagnostic: Diagnostic) -> Self {
+        self.ok = false;
+        self.diagnostics.push(diagnostic);
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HighlightSpan {
     pub start: usize,

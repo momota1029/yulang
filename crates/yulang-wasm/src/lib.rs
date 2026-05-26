@@ -11,6 +11,8 @@ use yulang_infer::{
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled,
     warm_std_source_cache,
 };
+use yulang_parser::lex::SyntaxKind;
+use yulang_parser::sink::YulangLanguage;
 use yulang_runtime_lower as runtime;
 use yulang_vm as runtime_vm;
 
@@ -29,19 +31,23 @@ pub fn run(source: &str) -> JsValue {
 #[wasm_bindgen]
 pub fn colorize(source: &str) -> JsValue {
     console_error_panic_hook::set_once();
+    to_js_value(&colorize_inner(source))
+}
+
+fn colorize_inner(source: &str) -> ColorizeOutput {
     let playground_source = playground_source(source);
     let source_set = std_sources::source_set(&playground_source);
     let op_table = source_set
         .entry_files()
         .next()
         .map(|file| file.op_table.clone());
+    if let Some(diagnostic) = invalid_source_diagnostic(&source_set, source.len()) {
+        return color::colorize_source_with_context(source, op_table, None)
+            .with_diagnostic(diagnostic);
+    }
     let lowered = lower_with_cache(&source_set);
     let highlights = color::resolved_highlights_from_lower_state(&lowered.lowered.state);
-    to_js_value(&color::colorize_source_with_context(
-        source,
-        op_table,
-        Some(&highlights),
-    ))
+    color::colorize_source_with_context(source, op_table, Some(&highlights))
 }
 
 #[wasm_bindgen]
@@ -294,6 +300,9 @@ fn compile_and_run_with_embedded_std(
     let source_set_start = now_ms();
     let source_set = std_sources::source_set(&source);
     let source_set_ms = elapsed_ms(source_set_start);
+    if let Some(diagnostic) = invalid_source_diagnostic(&source_set, raw_source.len()) {
+        return Err(diagnostic.message);
+    }
     let files = source_set.files.len();
     let entry_files = source_set.entry_files().count();
     let std_files = source_set.std_files().count();
@@ -635,7 +644,47 @@ fn bundle_has_std_module(bundle: &yulang_infer::CompiledUnitArtifactBundle) -> b
 }
 
 fn playground_source(source: &str) -> String {
-    format!("use std::undet::*\n{source}")
+    format!("{PLAYGROUND_SOURCE_PREFIX}{source}")
+}
+
+const PLAYGROUND_SOURCE_PREFIX: &str = "use std::undet::*\n";
+
+fn invalid_source_diagnostic(
+    source_set: &yulang_sources::SourceSet,
+    raw_source_len: usize,
+) -> Option<Diagnostic> {
+    source_set
+        .files
+        .iter()
+        .filter(|file| file.origin == yulang_sources::SourceOrigin::Entry)
+        .find_map(|file| {
+            let green =
+                yulang_parser::parse_module_to_green_with_ops(&file.source, file.op_table.clone());
+            let root = rowan::SyntaxNode::<YulangLanguage>::new_root(green);
+            let range = first_invalid_token_range(&root)?;
+            let start = usize::from(range.start())
+                .saturating_sub(file.source_prefix_len)
+                .saturating_sub(PLAYGROUND_SOURCE_PREFIX.len())
+                .min(raw_source_len);
+            let end = usize::from(range.end())
+                .saturating_sub(file.source_prefix_len)
+                .saturating_sub(PLAYGROUND_SOURCE_PREFIX.len())
+                .min(raw_source_len);
+            Some(Diagnostic {
+                severity: output::DiagnosticSeverity::Error,
+                message: "invalid syntax".to_string(),
+                start,
+                end: end.max(start),
+            })
+        })
+}
+
+fn first_invalid_token_range(node: &rowan::SyntaxNode<YulangLanguage>) -> Option<rowan::TextRange> {
+    if node.kind() == SyntaxKind::InvalidToken {
+        return Some(node.text_range());
+    }
+    node.children()
+        .find_map(|child| first_invalid_token_range(&child))
 }
 
 fn to_js_value<T: Serialize>(value: &T) -> JsValue {
@@ -1576,6 +1625,30 @@ first_over 40
             .unwrap()
             .join()
             .unwrap();
+    }
+
+    #[test]
+    fn reports_invalid_syntax_without_panicking() {
+        let output = std::panic::catch_unwind(|| run_inner("my x = {\n"))
+            .expect("invalid syntax should not panic");
+
+        assert!(!output.ok);
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].message, "invalid syntax");
+    }
+
+    #[test]
+    fn colorize_reports_invalid_syntax_without_lowering() {
+        let output = std::panic::catch_unwind(|| colorize_inner("my x = {\n"))
+            .expect("invalid syntax colorize should not panic");
+
+        assert!(!output.ok);
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].message, "invalid syntax");
+        assert!(
+            !output.spans.is_empty(),
+            "syntax highlighting should still return lexical spans"
+        );
     }
 
     #[test]
