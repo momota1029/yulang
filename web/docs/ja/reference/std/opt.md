@@ -32,7 +32,7 @@ case maybe_text:
 
 ```yulang
 // デフォルト値で埋める
-case fs::read_text path:
+case maybe_text:
     just text -> text
     nil       -> "(no file)"
 

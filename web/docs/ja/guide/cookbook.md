@@ -110,12 +110,9 @@ area {}
 ## 型付きエラーを投げて捕まえる
 
 ```yulang
-my read_text_or_throw path =
-    case fs::read_text path:
-        just text -> text
-        nil -> fail fs_err::not_found path
+my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
 
-catch read_text_or_throw "/tmp/data":
+catch fs::read_text path:
     fs_err::not_found p, _ -> "(missing) %{p}"
     value -> value
 ```
@@ -127,7 +124,8 @@ catch read_text_or_throw "/tmp/data":
 ## エラーを `result` 値に閉じる
 
 ```yulang
-my res = fs_err::wrap: read_text_or_throw "/tmp/data"
+my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
+my res = fs_err::wrap: fs::read_text path
 case res:
     result::ok text -> text
     result::err _ -> "(fallback)"
@@ -146,7 +144,7 @@ pub error io_err:
 
 my read_and_parse path =
     io_err::up:
-        my text = read_text_or_throw path
+        my text = fs::read_text path
         parse_json text
 ```
 

@@ -46,10 +46,7 @@ pub prefix(fail) = \e -> e.throw
 構築したエラー値を effect として送り出すときに使う。
 
 ```yulang
-my read_text_or_throw path =
-    case fs::read_text path:
-        opt::just text -> text
-        opt::nil -> fail fs_err::not_found path
+my read_text path = fs::read_text path
 ```
 
 推論型は概ね `path -> [fs; fs_err] str` の形になり、エラーが effect row に
@@ -60,7 +57,7 @@ my read_text_or_throw path =
 `catch` の effect arm は、operation 名を直接書いてエラーを捕まえる。
 
 ```yulang
-catch read_text_or_throw path:
+catch fs::read_text path:
     fs_err::not_found p, _ -> "(missing) " + p
     fs_err::denied p, _ -> "(denied) " + p
     value -> value
@@ -74,7 +71,7 @@ effect row の中で常に具体的な名前で見え、発火地点と捕捉地
 ## `wrap`：値に閉じる
 
 ```yulang
-my read_text_safe path = case fs_err::wrap: fs::read_text_or_throw path:
+my read_text_safe path = case fs_err::wrap: fs::read_text path:
     result::ok text -> text
     result::err err -> err.show
 ```
@@ -101,7 +98,7 @@ pub error io_err:
 ```yulang
 my read_and_parse path =
     io_err::up:
-        my text = fs::read_text_or_throw path   // [fs_err]
+        my text = fs::read_text path            // [fs_err]
         parse_json text                         // [parse_err]
     // block 全体の effect は [io_err]
 ```

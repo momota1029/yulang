@@ -1067,15 +1067,14 @@ println "hello"
         let source = format!(
             r#"my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
 my before = exists path
-my wrote = case write_text path "hello":
-    result::ok _ -> true
-    result::err _ -> false
+my wrote = {{
+    write_text path "hello"
+    true
+}}
 my after = exists path
 my file = is_file path
 my dir = is_dir path
-my text = case read_text path:
-    result::ok text -> text
-    result::err _ -> "missing"
+my text = read_text path
 (before, wrote, after, file, dir, text)
 "#
         );
@@ -1104,9 +1103,7 @@ my text = case read_text path:
         let source = format!(
             r#"{{
     my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
-    my text: ref '[fs] str = case open_text path:
-        result::ok text -> text
-        result::err e -> e.throw
+    my text: ref '[fs] str = open path
     for line: ref _ str in std::str::line_view text:
         if line.get() == "b\n":
             line[std::range::full()] = "B\n"
@@ -1123,6 +1120,30 @@ my text = case read_text path:
         assert!(stdout.is_empty());
         assert_eq!(results, vec![TestValue::String("a\nB\nc".to_string())]);
         assert_eq!(disk, "a\nB\nc");
+    }
+
+    #[test]
+    fn vm_host_open_in_uses_drop_flush() {
+        let path = temp_test_path("yulang-open-in-drop-flush");
+        std::fs::write(&path, "before").expect("write open_in fixture");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!(
+            r#"{{
+    my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
+    open_in path: \text -> {{
+        text[std::range::full()] = "after"
+        text.get()
+    }}
+}}
+"#
+        );
+        let (results, stdout) = eval_source_with_std_host(&source);
+        let disk = std::fs::read_to_string(&path).expect("read open_in fixture");
+        let _ = std::fs::remove_file(&path);
+
+        assert!(stdout.is_empty());
+        assert_eq!(results, vec![TestValue::String("after".to_string())]);
+        assert_eq!(disk, "after");
     }
 
     #[test]
@@ -1217,16 +1238,15 @@ catch fail fs_err::invalid_path path:
     }
 
     #[test]
-    fn vm_handles_std_read_text_not_found_via_result() {
+    fn vm_handles_std_read_text_not_found_via_fs_err() {
         let path = temp_test_path("yulang-missing-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
         let source = format!(
             r#"my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
-case read_text path:
-    result::ok _ -> "ok"
-    result::err (fs_err::not_found _) -> "missing"
-    result::err (fs_err::denied _) -> "denied"
-    result::err (fs_err::invalid_path _) -> "invalid"
+catch read_text path:
+    fs_err::not_found _, _ -> "missing"
+    fs_err::denied _, _ -> "denied"
+    fs_err::invalid_path _, _ -> "invalid"
 "#
         );
 
@@ -1242,7 +1262,7 @@ case read_text path:
         let source_path = yulang_string_literal(&path.to_string_lossy());
         let source = format!(
             "my path: path = std::path::of_bytes (std::str::to_bytes {source_path})\n\
-             read_text path\n"
+             fs_err::wrap: read_text path\n"
         );
 
         let (results, stdout) = eval_source_with_std_host(&source);

@@ -37,7 +37,7 @@ run_console:
     say answer
 
 fs_err::wrap:
-    read_text_or_throw path
+    read_text path
 ```
 
 `f x: body` reads "apply `f` to `x` and then to the colon body". This is the
@@ -162,7 +162,7 @@ plainly.
 ```yulang
 pub our_pipeline = read_text "data.txt" | parse | render
 
-pub our_pipeline_typed(path: str): [fs] str =
+pub our_pipeline_typed(path: path): [fs; fs_err] str =
     read_text path | parse | render
 ```
 

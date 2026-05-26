@@ -122,12 +122,9 @@ site. Defaults evaluate left-to-right and may reference earlier fields.
 ## Raise and catch a typed error
 
 ```yulang
-my read_text_or_throw path =
-    case fs::read_text path:
-        opt::just text -> text
-        opt::nil -> fail fs_err::not_found path
+my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
 
-catch read_text_or_throw "/tmp/data":
+catch fs::read_text path:
     fs_err::not_found p, _ -> "(missing) " + p
     value -> value
 ```
@@ -140,7 +137,9 @@ errors are always caught by their concrete name.
 ## Close an error effect into a `result`
 
 ```yulang
-case fs_err::wrap: read_text_or_throw "/tmp/data":
+my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
+
+case fs_err::wrap: fs::read_text path:
     result::ok text -> text
     result::err err -> err.show
 ```
@@ -160,7 +159,7 @@ pub error io_err:
 
 my read_and_parse path =
     io_err::up:
-        my text = read_text_or_throw path
+        my text = fs::read_text path
         parse_json text
 ```
 

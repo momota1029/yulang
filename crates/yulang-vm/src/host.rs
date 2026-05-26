@@ -47,7 +47,6 @@ pub fn eval_root_with_basic_host(
                 vm_profile.merge(forced.1);
             }
             VmResult::Value(_) => {
-                host.flush_dirty_files()?;
                 return Ok((result, vm_profile));
             }
             VmResult::Request(request) => {
@@ -64,15 +63,11 @@ pub fn eval_root_with_basic_host(
 
 pub(crate) struct BasicHost<'a> {
     stdout: &'a mut String,
-    file_handles: Vec<VmFileHandle>,
 }
 
 impl<'a> BasicHost<'a> {
     pub(crate) fn new(stdout: &'a mut String) -> Self {
-        Self {
-            stdout,
-            file_handles: Vec::new(),
-        }
+        Self { stdout }
     }
 
     pub(crate) fn handle_request(&mut self, request: &VmRequest) -> Option<VmValue> {
@@ -82,10 +77,6 @@ impl<'a> BasicHost<'a> {
             .or_else(|| handle_die_request(request))
             .or_else(|| handle_debug_request(request))
             .or_else(|| self.handle_fs_request(request))
-    }
-
-    pub(crate) fn flush_dirty_files(&mut self) -> Result<(), VmError> {
-        flush_dirty_files(&self.file_handles)
     }
 }
 
@@ -141,7 +132,6 @@ impl BasicHost<'_> {
                 Some(match fs::read_to_string(path.as_ref()) {
                     Ok(text) => {
                         let handle = host_file_handle(path, StringTree::from(text), false);
-                        self.file_handles.push(handle.clone());
                         host_file_open_result(0, handle)
                     }
                     Err(error) => host_file_open_result(
@@ -341,27 +331,13 @@ fn host_file_open_result(code: i64, handle: VmFileHandle) -> VmValue {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn flush_dirty_files(handles: &[VmFileHandle]) -> Result<(), VmError> {
-    for handle in handles {
-        let code = flush_file_handle(handle);
-        if code != 0 {
-            let path = handle.state.borrow().path.display().to_string();
-            return Err(VmError::HostIo(format!(
-                "failed to flush file_handle {path}: code {code}"
-            )));
-        }
-    }
-    Ok(())
-}
-
-#[cfg(target_arch = "wasm32")]
-fn flush_dirty_files(_handles: &[VmFileHandle]) -> Result<(), VmError> {
-    Ok(())
+fn flush_file_handle(handle: &VmFileHandle) -> i64 {
+    let mut state = handle.state.borrow_mut();
+    flush_file_handle_state(&mut state)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn flush_file_handle(handle: &VmFileHandle) -> i64 {
-    let mut state = handle.state.borrow_mut();
+fn flush_file_handle_state(state: &mut VmFileHandleState) -> i64 {
     if !state.dirty {
         return 0;
     }
@@ -379,6 +355,28 @@ fn flush_file_handle(handle: &VmFileHandle) -> i64 {
 fn flush_file_handle(_handle: &VmFileHandle) -> i64 {
     0
 }
+
+impl Drop for VmFileHandleState {
+    fn drop(&mut self) {
+        drop_file_handle_state(self);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn drop_file_handle_state(state: &mut VmFileHandleState) {
+    let code = flush_file_handle_state(state);
+    if code == 0 {
+        return;
+    }
+    eprintln!(
+        "failed to flush file_handle {} during drop: code {}",
+        state.path.display(),
+        code
+    );
+}
+
+#[cfg(target_arch = "wasm32")]
+fn drop_file_handle_state(_state: &mut VmFileHandleState) {}
 
 fn host_read_at_result(bytes: &[u8], range: &VmValue) -> VmValue {
     let Some((start, end)) = host_normalized_int_range(range, bytes.len()) else {

@@ -51,7 +51,7 @@ my doubled = (ok 21).map (\x -> x * 2)       // ok 42
 ## Relationship with `error E:` and `wrap`
 
 ```yulang
-case fs_err::wrap: read_text_or_throw path:
+case fs_err::wrap: fs::read_text path:
     ok text -> use text
     err e   -> e.show
 ```

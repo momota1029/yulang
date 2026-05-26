@@ -78,9 +78,8 @@ fs::exists "data.txt"
 ```
 
 The filesystem surface is intentionally minimal and not final. `read_text`
-returns `opt str`; the transitional `read_text_or_throw` maps `nil` to
-`fs_err::not_found`. Browser/wasm hosts may leave filesystem requests
-unresolved.
+returns `str` and raises `fs_err` through the effect row on host errors.
+Browser/wasm hosts may leave filesystem requests unresolved.
 
 ## Roles From The Prelude
 

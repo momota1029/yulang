@@ -86,7 +86,6 @@ impl ControlVmModule {
         loop {
             match result {
                 ControlResult::Value(value) => {
-                    host.flush_dirty_files()?;
                     return Ok((
                         VmResult::Value(export_value(&value, Some(&self.module))?),
                         interpreter.profile(),

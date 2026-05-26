@@ -48,10 +48,7 @@ pub prefix(fail) = \e -> e.throw
 Use it to surface a constructed error value into the effect row.
 
 ```yulang
-my read_text_or_throw path =
-    case fs::read_text path:
-        opt::just text -> text
-        opt::nil -> fail fs_err::not_found path
+my read_text path = fs::read_text path
 ```
 
 Inferred type: roughly `path -> [fs; fs_err] str`. The error is visible in the
@@ -62,7 +59,7 @@ effect row.
 `catch` arms handle errors by naming each operation directly.
 
 ```yulang
-catch read_text_or_throw path:
+catch fs::read_text path:
     fs_err::not_found p, _ -> "(missing) " + p
     fs_err::denied p, _ -> "(denied) " + p
     value -> value
@@ -77,7 +74,7 @@ handler of every error are visible from types alone.
 ## `wrap`: closing into a value
 
 ```yulang
-my read_text_safe path = case fs_err::wrap: fs::read_text_or_throw path:
+my read_text_safe path = case fs_err::wrap: fs::read_text path:
     result::ok text -> text
     result::err err -> err.show
 ```
@@ -104,7 +101,7 @@ This generates:
 ```yulang
 my read_and_parse path =
     io_err::up:
-        my text = fs::read_text_or_throw path   // [fs_err]
+        my text = fs::read_text path            // [fs_err]
         parse_json text                          // [parse_err]
     // the block as a whole has effect [io_err]
 ```

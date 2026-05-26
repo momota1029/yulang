@@ -1,6 +1,4 @@
-use std::opt::*
 use std::error::Throw
-use std::result::*
 use std::range::*
 use std::path::*
 use std::var::*
@@ -30,40 +28,28 @@ my err_from_code(path: path, code: int): fs_err =
         else:
             fs_err::invalid_path path
 
-pub read_at(path: path, r: range): result (str, range) fs_err =
+pub read_at(path: path, r: range): (str, range) =
     my (code, text, valid) = fs::read_at (path, r)
     if std::int::eq code 0:
-        result::ok (text, valid)
+        (text, valid)
     else:
-        result::err (err_from_code path code)
+        (err_from_code path code).throw
 
-pub write_at(path: path, r: range, text: str): result unit fs_err =
+pub write_at(path: path, r: range, text: str): unit =
     my code = fs::write_at (path, r, text)
     if std::int::eq code 0:
-        result::ok ()
+        ()
     else:
-        result::err (err_from_code path code)
+        (err_from_code path code).throw
 
-pub read_text(path: path): result str fs_err = case read_at path (std::range::full()):
-    result::ok (text, _) -> result::ok text
-    result::err e -> result::err e
+pub read_text(path: path): str =
+    my (text, _) = read_at path (std::range::full())
+    text
 
-pub write_text(path: path, text: str): result unit fs_err =
+pub write_text(path: path, text: str): unit =
     write_at path (std::range::full()) text
 
-pub open_text(path: path): result (ref '[fs] str) fs_err =
-    my (code, handle) = fs::open_text_raw path
-    if std::int::eq code 0:
-        my text = ref {
-            get: \() -> fs::file_get handle,
-            update_effect: \() ->
-                fs::file_set (handle, ref_update::update (fs::file_get handle))
-        }
-        result::ok text
-    else:
-        result::err (err_from_code path code)
-
-pub open_text_or_throw(path: path): ref '[fs] str =
+pub open_text(path: path): ref '[fs] str =
     my (code, handle) = fs::open_text_raw path
     if std::int::eq code 0:
         ref {
@@ -74,10 +60,8 @@ pub open_text_or_throw(path: path): ref '[fs] str =
     else:
         (err_from_code path code).throw
 
-pub open(path: path): ref '[fs] str = open_text_or_throw path
+pub open(path: path): ref '[fs] str = open_text path
 
-pub read_text_or_throw path = case read_text path:
-    result::ok text -> text
-    result::err e -> e.throw
+pub open_in(path: path, f) = f (open path)
 
 pub use std::fs::fs::*

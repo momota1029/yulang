@@ -66,7 +66,7 @@ fs::write_text ("data.txt", "text")
 fs::exists "data.txt"
 ```
 
-filesystem surface は意図的に最小限で、まだ最終形ではない。`read_text` は `opt str` を返す。移行用の `read_text_or_throw` は `nil` を `fs_err::not_found` へ写す。browser / wasm host では filesystem request が unresolved のまま残る場合がある。
+filesystem surface は意図的に最小限で、まだ最終形ではない。`read_text` は `str` を返し、host error は effect row の `fs_err` として投げる。browser / wasm host では filesystem request が unresolved のまま残る場合がある。
 
 ## Prelude の Role
 

@@ -32,7 +32,7 @@ arms (or a wildcard) for the inference to settle.
 
 ```yulang
 // Default value
-case fs::read_text path:
+case maybe_text:
     just text -> text
     nil       -> "(no file)"
 
