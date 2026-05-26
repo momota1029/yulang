@@ -9,10 +9,9 @@ operators, loops, early return, and references. The unusual part is that many
 features usually fixed in the core language are expressed through effects,
 handlers, roles, and standard-library code.
 
-Yulang is alpha-stage research software. The interpreter, playground, standard
-library, and language server are usable enough to try real examples, but syntax,
-type display, effect semantics, native lowering, and library APIs may still
-change.
+Yulang is alpha-stage research software. The VM, playground, standard library,
+and language server are usable enough to try real examples, but syntax, type
+display, effect semantics, runtime IR, and library APIs may still change.
 
 Japanese: [README.ja.md](README.ja.md)
 
@@ -29,7 +28,7 @@ cargo install yulang
 yulang install std
 ```
 
-Run a file with the interpreter:
+Run a file:
 
 ```bash
 yulang run examples/06_undet_once.yu
@@ -41,9 +40,10 @@ The smallest complete program prints a user-facing string with `say`:
 say "Hello, World"
 ```
 
-`run` executes the program and only prints output produced by the program
-itself, such as `say` / `println`. To inspect root expression values while
-experimenting, add `--print-roots`.
+`run` executes the program through the Yulang VM and only prints output
+produced by the program itself, such as `say` / `println`. To inspect root
+expression values while experimenting, add `--print-roots`. To run through the
+reference interpreter instead of the VM, pass `--interpreter`.
 
 Check a file and print inferred public types:
 
@@ -92,11 +92,7 @@ abstractions underneath.
 - [docs/language/overview.ja.md](docs/language/overview.ja.md):
   Japanese language overview.
 - [docs/status.md](docs/status.md):
-  support status across parser, inference, interpreter, and playground.
-- [docs/native-backend.md](docs/native-backend.md):
-  archived native backend support notes and historical limits.
-- [docs/native-experimental-release.md](docs/native-experimental-release.md):
-  release-gate notes for the archived opt-in native subset.
+  support status across parser, inference, VM, and playground.
 - [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):
   public reference for effect rows, handler hygiene, and hidden handler
   evidence.
@@ -140,29 +136,29 @@ worktree environment or in `~/.cargo/bin`, the extension starts
 The old `yulang-ls` binary is a deprecated stub that delegates to
 `yulang server`.
 
-## Archived Native Backend
+## Execution Backend
 
-The earlier Cranelift/MMTk native backend implementation has been archived
-under `archive/yulang-native`. The active workspace keeps only a small
-compatibility stub crate, and the CLI no longer exposes `yulang run --native`
-or `yulang native`.
+Yulang currently executes through a bytecode VM built on the runtime IR. An
+earlier Cranelift/MMTk native backend was explored but did not reach the
+performance bar set by the VM and has been retired; the CLI no longer exposes
+`yulang run --native` or `yulang native`.
 
-Historical implementation notes, benchmark logs, and optimizer design notes
-live outside the README:
+Background notes on the experiment and the optimizer plans that grew out of
+it still live in:
 
 - [docs/native-experimental-release.md](docs/native-experimental-release.md):
-  release-gate notes for the archived opt-in native subset.
+  release-gate notes for the retired opt-in native subset.
+- [docs/native-backend.md](docs/native-backend.md):
+  archived native backend support notes and historical limits.
 - [notes/design/cps-optimization-pass-plan.md](notes/design/cps-optimization-pass-plan.md):
   CPS optimizer and algebraic-effect rewrite plan.
-- [tasks/current.md](tasks/current.md):
-  active backend roadmap and detailed progress context.
 
 ## Development
 
 Run representative Rust test suites:
 
 ```bash
-cargo test -p yulang-runtime -p yulang-infer --lib
+cargo test -p yulang-infer -p yulang-monomorphize --lib
 ```
 
 Build the playground locally:
@@ -185,15 +181,20 @@ YU
 
 ## Repository Layout
 
-- `crates/yulang`: CLI.
+- `crates/yulang`: CLI and language-server entry point.
 - `crates/yulang-parser`: parser and syntax tree support.
 - `crates/yulang-sources`: source sets, realms, compilation units, and syntax artifacts.
 - `crates/yulang-typed-ir`: typed intermediate representation and principal-type evidence.
 - `crates/yulang-infer`: type inference and principal-type export.
 - `crates/yulang-runtime-ir`: execution-facing runtime IR data structures.
-- `crates/yulang-runtime`: runtime lowering, validation, and monomorphization.
-- `crates/yulang-vm`: VM execution, host requests, and control VM artifacts.
-- `archive/yulang-native`: archived native backend experiment.
+- `crates/yulang-runtime-types`: runtime type representation and type-system helpers.
+- `crates/yulang-runtime-refine`: refine, validate, invariant, and hygiene passes over runtime IR.
+- `crates/yulang-runtime-lower`: typed IR → runtime IR lowering.
+- `crates/yulang-monomorphize`: graph-based monomorphization and runtime finalization.
+- `crates/yulang-vm`: VM compilation and evaluation.
+- `crates/yulang-compile`: source-level compilation glue tying the frontend and runtime together.
+- `crates/yulang-editor`: editor and language-server support utilities (semantic tokens, etc.).
+- `crates/yulang-lsp`: deprecated `yulang-ls` stub that delegates to `yulang server`.
 - `crates/yulang-wasm`: WebAssembly API used by the playground.
 - `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.
@@ -204,10 +205,8 @@ YU
 ## Status
 
 Yulang is pre-release research software. Syntax, type output, runtime IR, the
-interpreter, and the standard library may change without compatibility
-promises. [docs/status.md](docs/status.md) describes the current support
-matrix; broader limitations are noted there and in
-[docs/status.md](docs/status.md).
+VM, and the standard library may change without compatibility promises.
+[docs/status.md](docs/status.md) describes the current support matrix.
 
 ## License
 
