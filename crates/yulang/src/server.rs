@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -12,17 +12,19 @@ use yulang_infer::simplify::compact::{
 };
 use yulang_infer::{
     DefId, FileSpan, LowerState, Name as InferName, Path as InferPath, TypeVar,
-    collect_compact_results_for_paths_in_scope, collect_surface_diagnostics, export_core_program,
-    format_coalesced_scheme_in_scope, lower_virtual_module_source_with_options,
-    lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
+    build_compiled_unit_artifact_bundle, build_compiled_unit_artifacts,
+    build_compiled_unit_semantic_artifact_bundle, collect_compact_results_for_paths_in_scope,
+    collect_surface_diagnostics, export_core_program, format_coalesced_scheme_in_scope,
+    lower_source_set, lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
+    surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 use yulang_runtime_lower as runtime;
 use yulang_runtime_types as runtime_types;
 use yulang_sources::{
-    SourceOptions, collect_virtual_source_files_with_options, is_std_root,
-    resolve_or_install_std_root,
+    SourceOptions, YulangCachePaths, collect_virtual_module_source_files_with_options,
+    collect_virtual_source_files_with_options, is_std_root, resolve_or_install_std_root,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -69,9 +71,12 @@ impl Backend {
         let uri_for_diagnostics = uri.clone();
         let diagnostics = tokio::task::spawn_blocking(move || {
             match lower_document_source_with_options(&path, &source, base_dir, options) {
-                Ok(lowered) => {
-                    diagnostics_for_lowered_source(&uri_for_diagnostics, &source, lowered)
-                }
+                Ok(document) => diagnostics_for_lowered_source(
+                    &uri_for_diagnostics,
+                    &source,
+                    document.lowered,
+                    document.runtime_dependencies.as_ref(),
+                ),
                 Err(e) => vec![Diagnostic {
                     range: Range::default(),
                     severity: Some(DiagnosticSeverity::ERROR),
@@ -89,16 +94,30 @@ impl Backend {
     }
 }
 
+struct LspLoweredDocument {
+    lowered: yulang_infer::LoweredSources,
+    runtime_dependencies: Option<yulang_infer::CompiledRuntimeBundle>,
+}
+
 fn lower_document_source_with_options(
     path: &std::path::Path,
     source: &str,
     base_dir: Option<PathBuf>,
     options: SourceOptions,
-) -> std::result::Result<yulang_infer::LoweredSources, yulang_infer::SourceLoadError> {
+) -> std::result::Result<LspLoweredDocument, yulang_infer::SourceLoadError> {
     if let Some(module_path) = std_module_path_for_document(path, options.std_root.as_deref()) {
-        return lower_virtual_module_source_with_options(source, base_dir, module_path, options);
+        let lowered = yulang_infer::lower_virtual_module_source_with_options(
+            source,
+            base_dir,
+            module_path,
+            options,
+        )?;
+        return Ok(LspLoweredDocument {
+            lowered,
+            runtime_dependencies: None,
+        });
     }
-    lower_virtual_source_with_options(source, base_dir, options)
+    lower_lsp_source_with_dependency_cache(source, base_dir, options, None)
 }
 
 fn std_module_path_for_document(
@@ -127,10 +146,201 @@ fn std_module_path_for_document(
     (segments.len() > 1).then_some(InferPath { segments })
 }
 
+fn lower_lsp_source_with_dependency_cache(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+    module_path: Option<InferPath>,
+) -> std::result::Result<LspLoweredDocument, yulang_infer::SourceLoadError> {
+    let cache_paths = YulangCachePaths::for_project(
+        base_dir
+            .as_deref()
+            .unwrap_or_else(|| std::path::Path::new(".")),
+    );
+    lower_lsp_source_with_dependency_cache_paths(
+        source,
+        base_dir,
+        options,
+        module_path,
+        &cache_paths,
+    )
+}
+
+fn lower_lsp_source_with_dependency_cache_paths(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+    module_path: Option<InferPath>,
+    cache_paths: &YulangCachePaths,
+) -> std::result::Result<LspLoweredDocument, yulang_infer::SourceLoadError> {
+    let source_set = collect_lsp_source_set(
+        source,
+        base_dir.clone(),
+        options.clone(),
+        module_path.clone(),
+    )?;
+    let cache = yulang_infer::CompiledUnitArtifactCache::from_paths(&cache_paths);
+    let manifests = cacheable_dependency_manifests(&source_set);
+
+    if let Some(bundle) = read_dependency_bundle_from_cache(&cache, &manifests) {
+        let mut lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+            &source_set,
+            &bundle,
+        );
+        lowered
+            .lowered
+            .lowered
+            .state
+            .finalize_compact_results_profiled();
+        return Ok(LspLoweredDocument {
+            lowered: lowered.lowered.lowered,
+            runtime_dependencies: Some(lowered.runtime),
+        });
+    }
+
+    let source_set = collect_lsp_source_set(source, base_dir, options, module_path)?;
+    let mut lowered = lower_source_set(&source_set);
+    lowered.state.finalize_compact_results_profiled();
+    write_dependency_unit_artifact_bundle(&source_set, &lowered.state, &cache);
+    Ok(LspLoweredDocument {
+        lowered,
+        runtime_dependencies: None,
+    })
+}
+
+fn collect_lsp_source_set(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+    module_path: Option<InferPath>,
+) -> std::result::Result<yulang_sources::SourceSet, yulang_infer::SourceLoadError> {
+    if let Some(module_path) = module_path {
+        return collect_virtual_module_source_files_with_options(
+            source,
+            base_dir,
+            typed_path_from_infer_path(module_path),
+            options,
+        );
+    }
+    collect_virtual_source_files_with_options(source, base_dir, options)
+}
+
+fn typed_path_from_infer_path(path: InferPath) -> typed_ir::Path {
+    typed_ir::Path {
+        segments: path
+            .segments
+            .into_iter()
+            .map(|name| typed_ir::Name(name.0))
+            .collect(),
+    }
+}
+
+fn cacheable_dependency_manifests(
+    source_set: &yulang_sources::SourceSet,
+) -> Vec<yulang_sources::CompiledUnitManifest> {
+    source_set
+        .compiled_unit_syntax_artifacts()
+        .into_iter()
+        .map(|artifact| artifact.manifest)
+        .filter(is_cacheable_dependency_manifest)
+        .collect()
+}
+
+fn read_dependency_bundle_from_cache(
+    cache: &yulang_infer::CompiledUnitArtifactCache,
+    manifests: &[yulang_sources::CompiledUnitManifest],
+) -> Option<yulang_infer::CompiledUnitArtifactBundle> {
+    if manifests.is_empty() {
+        return None;
+    }
+    if let Ok(bundle) = cache.read_bundle_for_manifests(manifests) {
+        return Some(bundle);
+    }
+
+    let mut artifacts_by_unit = BTreeMap::new();
+    for manifest in manifests {
+        if let Ok(artifact) = cache.read_for_manifest(manifest) {
+            artifacts_by_unit.insert(manifest.unit_index, artifact);
+        }
+    }
+    let selected_units = dependency_closed_cached_units(manifests, artifacts_by_unit.keys());
+    if selected_units.is_empty() {
+        return None;
+    }
+    let artifacts = artifacts_by_unit
+        .into_iter()
+        .filter_map(|(unit_idx, artifact)| selected_units.contains(&unit_idx).then_some(artifact))
+        .collect::<Vec<_>>();
+    let bundle = build_compiled_unit_artifact_bundle(&artifacts).ok()?;
+    let _ = cache.write_bundle(&bundle);
+    Some(bundle)
+}
+
+fn dependency_closed_cached_units<'a>(
+    manifests: &'a [yulang_sources::CompiledUnitManifest],
+    cached_units: impl Iterator<Item = &'a usize>,
+) -> BTreeSet<usize> {
+    let manifests_by_unit = manifests
+        .iter()
+        .map(|manifest| (manifest.unit_index, manifest))
+        .collect::<BTreeMap<_, _>>();
+    let mut selected = cached_units.copied().collect::<BTreeSet<_>>();
+    loop {
+        let before = selected.len();
+        let previous = selected.clone();
+        selected.retain(|unit_idx| {
+            let Some(manifest) = manifests_by_unit.get(unit_idx) else {
+                return false;
+            };
+            manifest
+                .dependencies
+                .iter()
+                .all(|dependency| previous.contains(&dependency.unit_index))
+        });
+        if selected.len() == before {
+            return selected;
+        }
+    }
+}
+
+fn is_cacheable_dependency_manifest(manifest: &yulang_sources::CompiledUnitManifest) -> bool {
+    manifest.origin != yulang_sources::SourceCompilationUnitOrigin::Entry
+        && manifest
+            .files
+            .iter()
+            .all(|file| file.origin != yulang_sources::SourceOrigin::Entry)
+}
+
+fn write_dependency_unit_artifact_bundle(
+    source_set: &yulang_sources::SourceSet,
+    state: &LowerState,
+    cache: &yulang_infer::CompiledUnitArtifactCache,
+) {
+    let artifacts = build_compiled_unit_artifacts(source_set, state)
+        .into_iter()
+        .filter(|artifact| is_cacheable_dependency_manifest(&artifact.manifest))
+        .collect::<Vec<_>>();
+    if artifacts.is_empty() {
+        return;
+    }
+    for artifact in &artifacts {
+        let _ = cache.write(artifact);
+    }
+    if let Ok(bundle) = build_compiled_unit_artifact_bundle(&artifacts) {
+        let _ = cache.write_bundle(&bundle);
+        let semantic_bundle = yulang_infer::CompiledUnitSemanticArtifactBundle::from(&bundle);
+        let _ = cache.write_semantic_bundle(&semantic_bundle);
+    } else {
+        let semantic_bundle = build_compiled_unit_semantic_artifact_bundle(&artifacts);
+        let _ = cache.write_semantic_bundle(&semantic_bundle);
+    }
+}
+
 fn diagnostics_for_lowered_source(
     uri: &Url,
     document_source: &str,
     mut lowered: yulang_infer::LoweredSources,
+    runtime_dependencies: Option<&yulang_infer::CompiledRuntimeBundle>,
 ) -> Vec<Diagnostic> {
     let surface = collect_surface_diagnostics(&lowered.state);
     let mut diagnostics = surface_to_lsp(
@@ -145,6 +355,21 @@ fn diagnostics_for_lowered_source(
     }
 
     let program = export_core_program(&mut lowered.state);
+    let program = if let Some(runtime_dependencies) = runtime_dependencies {
+        match runtime_dependencies.merge_with_user_program(program) {
+            Ok(merged) => merged,
+            Err(error) => {
+                return vec![Diagnostic {
+                    range: Range::default(),
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    message: format!("failed to merge cached runtime dependencies: {error:?}"),
+                    ..Default::default()
+                }];
+            }
+        }
+    } else {
+        program
+    };
     let evidence = program.evidence.clone();
     if let Err(error) = runtime::lower_core_program(program)
         && let Some(diagnostic) = runtime_error_to_lsp(
@@ -673,6 +898,10 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
     if let (Some(name), Some(ty)) = (state.def_name(def), state.def_hover_types.get(&def)) {
         return Some((name.0.clone(), ty.clone()));
     }
+    if !def_lives_in_entry_file(state, def) {
+        let target_defs = HashSet::from([def]);
+        state.finalize_compact_results_for_defs(&target_defs);
+    }
     state.finalize_compact_results();
     let paths = hover_paths_for_def(state, def);
     if let Some(result) = collect_compact_results_for_paths_in_scope(state, &paths, &state.ctx)
@@ -684,6 +913,16 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
     let name = state.def_name(def)?.0.clone();
     let scheme = compact_hover_scheme(state, def)?;
     Some((name, format_coalesced_scheme_in_scope(&scheme, &state.ctx)))
+}
+
+fn def_lives_in_entry_file(state: &LowerState, def: DefId) -> bool {
+    let Some(entry) = state.entry_file_id() else {
+        return false;
+    };
+    state
+        .def_spans
+        .get(&def)
+        .is_some_and(|span| span.file == entry)
 }
 
 fn hover_type_for_selection(
@@ -936,8 +1175,9 @@ fn hover_for_source(
     position: Position,
 ) -> Option<Hover> {
     let target = hover_target_at(source, position)?;
-    let mut lowered = lower_virtual_source_with_options(source, base_dir, options).ok()?;
-    let (rendered_name, ty) = hover_type_from_lower_state(&mut lowered.state, &target)?;
+    let mut document =
+        lower_lsp_source_with_dependency_cache(source, base_dir, options, None).ok()?;
+    let (rendered_name, ty) = hover_type_from_lower_state(&mut document.lowered.state, &target)?;
     let label = hover_label(&target.name, &rendered_name);
     Some(Hover {
         contents: HoverContents::Markup(MarkupContent {
@@ -956,10 +1196,11 @@ fn goto_definition_for_source(
     position: Position,
 ) -> Option<Location> {
     let target = hover_target_at(source, position)?;
-    let mut lowered = lower_virtual_source_with_options(source, base_dir, options).ok()?;
-    let def = resolve_target_def_id(&mut lowered.state, &target)?;
-    let file_span = lowered.state.def_spans.get(&def).copied()?;
-    locate_file_span(&lowered.state, file_span, &uri, source)
+    let mut document =
+        lower_lsp_source_with_dependency_cache(source, base_dir, options, None).ok()?;
+    let def = resolve_target_def_id(&mut document.lowered.state, &target)?;
+    let file_span = document.lowered.state.def_spans.get(&def).copied()?;
+    locate_file_span(&document.lowered.state, file_span, &uri, source)
 }
 
 fn locate_file_span(
@@ -999,38 +1240,53 @@ fn rename_for_source(
         return None;
     }
     let target = hover_target_at(entry_source, position)?;
-    let mut lowered = lower_virtual_source_with_options(entry_source, base_dir, options).ok()?;
-    let def = resolve_target_def_id(&mut lowered.state, &target)?;
+    let mut document =
+        lower_lsp_source_with_dependency_cache(entry_source, base_dir, options, None).ok()?;
+    let def = resolve_target_def_id(&mut document.lowered.state, &target)?;
 
     // operator は v1 では rename しない（fixity 区分が表示用ラベルから外れているため）。
-    if lowered.state.ctx.operator_fixity(def).is_some() {
+    if document.lowered.state.ctx.operator_fixity(def).is_some() {
         return None;
     }
 
     // var binding は `#x` (init) と `&x` (reference) で別 DefId を持つので、
     // 両方向の DefId 対応を辿って、rename のターゲットを 1 つのグループに統合する。
-    let canonical_def = lowered
+    let canonical_def = document
+        .lowered
         .state
         .var_ref_to_init
         .get(&def)
         .copied()
         .unwrap_or(def);
     let mut rename_group: Vec<DefId> = vec![canonical_def];
-    if let Some(ref_def) = lowered.state.var_init_to_ref.get(&canonical_def).copied() {
+    if let Some(ref_def) = document
+        .lowered
+        .state
+        .var_init_to_ref
+        .get(&canonical_def)
+        .copied()
+    {
         if ref_def != canonical_def {
             rename_group.push(ref_def);
         }
     }
 
-    let def_span = lowered.state.def_spans.get(&canonical_def).copied()?;
-    if !is_user_writable_file(&lowered.state, def_span.file) {
+    let def_span = document
+        .lowered
+        .state
+        .def_spans
+        .get(&canonical_def)
+        .copied()?;
+    if !is_user_writable_file(&document.lowered.state, def_span.file) {
         return None;
     }
 
     let mut spans: Vec<FileSpan> = Vec::new();
     spans.push(def_span);
-    for (span, candidate) in &lowered.state.value_use_spans {
-        if rename_group.contains(candidate) && is_user_writable_file(&lowered.state, span.file) {
+    for (span, candidate) in &document.lowered.state.value_use_spans {
+        if rename_group.contains(candidate)
+            && is_user_writable_file(&document.lowered.state, span.file)
+        {
             spans.push(*span);
         }
     }
@@ -1039,14 +1295,14 @@ fn rename_for_source(
 
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
     let mut file_sources: HashMap<yulang_infer::FileId, (Url, String, Vec<usize>)> = HashMap::new();
-    let entry_file_id = lowered.state.entry_file_id();
+    let entry_file_id = document.lowered.state.entry_file_id();
 
     for span in spans {
         if !file_sources.contains_key(&span.file) {
             let (uri, source) = if Some(span.file) == entry_file_id {
                 (entry_uri.clone(), entry_source.to_string())
             } else {
-                let info = lowered.state.file_info(span.file)?;
+                let info = document.lowered.state.file_info(span.file)?;
                 let uri = Url::from_file_path(&info.path).ok()?;
                 let source = std::fs::read_to_string(&info.path).ok()?;
                 (uri, source)
@@ -1448,10 +1704,14 @@ impl LanguageServer for Backend {
                                 .next()
                                 .map(|file| file.op_table.clone())
                         });
-                let highlights =
-                    lower_virtual_source_with_options(&source, lower_base_dir, lower_options)
-                        .ok()
-                        .map(|lowered| resolved_highlights_from_lower_state(&lowered.state));
+                let highlights = lower_lsp_source_with_dependency_cache(
+                    &source,
+                    lower_base_dir,
+                    lower_options,
+                    None,
+                )
+                .ok()
+                .map(|document| resolved_highlights_from_lower_state(&document.lowered.state));
                 semantic_tokens::compute_with_op_table_and_highlights(
                     &source,
                     op_table,
@@ -2303,7 +2563,7 @@ mod tests {
     fn surface_diagnostics_include_related_locations() {
         let source = "my value: int = true\nvalue\n";
         let uri = Url::parse("file:///diagnostics.yu").expect("test uri");
-        let lowered = lower_virtual_source_with_options(
+        let lowered = yulang_infer::lower_virtual_source_with_options(
             source,
             None,
             SourceOptions {
@@ -2359,6 +2619,7 @@ mod tests {
         )
         .expect("std document should lower");
         let entry = lowered
+            .lowered
             .state
             .files
             .iter()
@@ -2370,8 +2631,9 @@ mod tests {
             path.parent().expect("parent").join("<virtual-entry>")
         );
         assert_eq!(
-            lowered.state.ctx.module_path(
+            lowered.lowered.state.ctx.module_path(
                 lowered
+                    .lowered
                     .state
                     .ctx
                     .resolve_module_path(&InferPath {
@@ -2389,7 +2651,7 @@ mod tests {
                 ],
             }
         );
-        let diagnostics = collect_surface_diagnostics(&lowered.state);
+        let diagnostics = collect_surface_diagnostics(&lowered.lowered.state);
         assert!(
             diagnostics
                 .iter()
@@ -2399,10 +2661,113 @@ mod tests {
     }
 
     #[test]
+    fn lsp_lowering_writes_and_reuses_dependency_cache() {
+        let repo_root = temp_test_root("lsp-compiled-dependency-cache");
+        let std_root = repo_root.join("std");
+        std::fs::create_dir_all(&std_root).expect("std root dir");
+        std::fs::write(std_root.join("prelude.yu"), "pub id x = x\n").expect("std prelude");
+        let cache_paths =
+            YulangCachePaths::with_user_cache_root(&repo_root, repo_root.join("cache"));
+        let options = SourceOptions {
+            std_root: Some(std_root),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+
+        let first = lower_lsp_source_with_dependency_cache_paths(
+            "id 1\n",
+            Some(repo_root.clone()),
+            options.clone(),
+            None,
+            &cache_paths,
+        )
+        .expect("first LSP lower");
+        let second = lower_lsp_source_with_dependency_cache_paths(
+            "id 1\n",
+            Some(repo_root.clone()),
+            options,
+            None,
+            &cache_paths,
+        )
+        .expect("second LSP lower");
+        let _ = std::fs::remove_dir_all(repo_root);
+
+        assert!(first.runtime_dependencies.is_none());
+        assert!(second.runtime_dependencies.is_some());
+    }
+
+    #[test]
+    fn lsp_cached_hover_uses_finalized_compact_std_types() {
+        let repo_root = temp_test_root("lsp-cached-hover-compact-types");
+        let std_root = repo_root.join("std");
+        std::fs::create_dir_all(&std_root).expect("std root dir");
+        std::fs::write(
+            std_root.join("prelude.yu"),
+            concat!(
+                "pub each xs = xs\n",
+                "pub role Mul 'a:\n",
+                "    our a.mul: 'a -> 'a\n",
+                "impl Mul int:\n",
+                "    our x.mul y = x\n",
+                "pub infix (*) 6.0.0 6.0.1 = \\x -> \\y -> x.mul y\n",
+            ),
+        )
+        .expect("std prelude");
+        let cache_paths =
+            YulangCachePaths::with_user_cache_root(&repo_root, repo_root.join("cache"));
+        let options = SourceOptions {
+            std_root: Some(std_root),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+        let source = "my xs = each [1, 2, 3]\nmy n = 1 * 2\n";
+
+        let first = lower_lsp_source_with_dependency_cache_paths(
+            source,
+            Some(repo_root.clone()),
+            options.clone(),
+            None,
+            &cache_paths,
+        )
+        .expect("first LSP lower");
+        let mut second = lower_lsp_source_with_dependency_cache_paths(
+            source,
+            Some(repo_root.clone()),
+            options,
+            None,
+            &cache_paths,
+        )
+        .expect("second LSP lower");
+
+        let each = hover_target_at(source, position_of(source, "each").expect("each position"))
+            .expect("each hover target");
+        let star = hover_target_at(source, position_of(source, "*").expect("* position"))
+            .expect("* hover target");
+        let (_, each_ty) =
+            hover_type_from_lower_state(&mut second.lowered.state, &each).expect("each hover type");
+        let (_, star_ty) =
+            hover_type_from_lower_state(&mut second.lowered.state, &star).expect("* hover type");
+        let _ = std::fs::remove_dir_all(repo_root);
+
+        assert!(first.runtime_dependencies.is_none());
+        assert!(second.runtime_dependencies.is_some());
+        assert!(each_ty.contains("α -> α"), "{each_ty}");
+        assert!(
+            each_ty.len() < 120,
+            "cached each hover should stay compact, got {each_ty}"
+        );
+        assert!(star_ty.contains("->"), "{star_ty}");
+        assert!(
+            star_ty.len() < 200,
+            "cached * hover should stay compact, got {star_ty}"
+        );
+    }
+
+    #[test]
     fn diagnostics_include_non_function_application() {
         let source = "my a = 1 2\n";
         let uri = Url::parse("file:///diagnostics.yu").expect("test uri");
-        let lowered = lower_virtual_source_with_options(
+        let lowered = yulang_infer::lower_virtual_source_with_options(
             source,
             None,
             SourceOptions {
@@ -2412,7 +2777,7 @@ mod tests {
             },
         )
         .expect("lowered source");
-        let diagnostics = diagnostics_for_lowered_source(&uri, source, lowered);
+        let diagnostics = diagnostics_for_lowered_source(&uri, source, lowered, None);
         let diagnostic = diagnostics
             .iter()
             .find(|diagnostic| diagnostic.message == "expected function")
@@ -2464,6 +2829,14 @@ mod tests {
             path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
+    }
+
+    fn temp_test_root(prefix: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time after unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("{prefix}-{nanos}"))
     }
 
     #[test]
