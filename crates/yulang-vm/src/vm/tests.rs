@@ -4,10 +4,8 @@ mod tests {
     use std::path::PathBuf;
     use std::thread;
     use yulang_infer::{SourceOptions, lower_virtual_source_with_options};
+    use yulang_runtime_ir::{FinalizedBinding as Binding, FinalizedModule as Module, RuntimeType};
     use yulang_runtime_types::{RuntimeError, RuntimeResult};
-    use yulang_runtime_ir::{
-        FinalizedBinding as Binding, FinalizedModule as Module, RuntimeType as RuntimeType,
-    };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum TestValue {
@@ -25,6 +23,44 @@ mod tests {
             tag: String,
             value: Option<Box<TestValue>>,
         },
+    }
+
+    #[test]
+    fn _stack_frame_sizes() {
+        use yulang_runtime_ir::{
+            Expr as RExpr, ExprKind as RExprKind, HandleArm as RHandleArm, MatchArm as RMatchArm,
+            Stmt as RStmt,
+        };
+        eprintln!("RuntimeType: {}", std::mem::size_of::<RuntimeType>());
+        eprintln!(
+            "ExprKind<RuntimeType>: {}",
+            std::mem::size_of::<RExprKind<RuntimeType>>()
+        );
+        eprintln!(
+            "Expr<RuntimeType>: {}",
+            std::mem::size_of::<RExpr<RuntimeType>>()
+        );
+        eprintln!(
+            "Stmt<RuntimeType>: {}",
+            std::mem::size_of::<RStmt<RuntimeType>>()
+        );
+        eprintln!(
+            "HandleArm<RuntimeType>: {}",
+            std::mem::size_of::<RHandleArm<RuntimeType>>()
+        );
+        eprintln!(
+            "MatchArm<RuntimeType>: {}",
+            std::mem::size_of::<RMatchArm<RuntimeType>>()
+        );
+        eprintln!("VmError: {}", std::mem::size_of::<VmError>());
+        eprintln!(
+            "Result<ExprKind, VmError>: {}",
+            std::mem::size_of::<Result<RExprKind<RuntimeType>, VmError>>()
+        );
+        eprintln!(
+            "Result<Expr, VmError>: {}",
+            std::mem::size_of::<Result<RExpr<RuntimeType>, VmError>>()
+        );
     }
 
     const JUNCTION_SOURCE: &str = r#"if all [1, 2, 3] < any [2,3,4]:
@@ -1633,8 +1669,10 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
             "this regression test must run without the legacy monomorphize override"
         );
 
-        let module = runtime_module_with_std(SHOWCASE_SOURCE);
-        compile_vm_module(module).expect("finalized runtime module compiles for the VM");
+        run_with_large_stack(|| {
+            let module = runtime_module_with_std_inner(SHOWCASE_SOURCE);
+            compile_vm_module(module).expect("finalized runtime module compiles for the VM");
+        });
     }
 
     #[test]
@@ -3856,11 +3894,21 @@ box { width: 3, height: 4 }
     }
 
     fn mono_binding_named(binding: &Binding, base: &str) -> bool {
-        binding.name.segments.last().is_some_and(|name| {
-            name.0.strip_prefix(base).is_some_and(|suffix| {
-                suffix.starts_with("__mono") || suffix.starts_with("__ddmono")
-            })
-        })
+        let Some(name) = binding.name.segments.last() else {
+            return false;
+        };
+        if name.0.starts_with("mono") || name.0.starts_with("ddmono") {
+            return binding
+                .name
+                .segments
+                .iter()
+                .rev()
+                .nth(1)
+                .is_some_and(|name| name.0 == base);
+        }
+        name.0
+            .strip_prefix(base)
+            .is_some_and(|suffix| suffix.starts_with("__mono") || suffix.starts_with("__ddmono"))
     }
 
     fn function_returns_thunk_value_int(ty: &RuntimeType) -> bool {

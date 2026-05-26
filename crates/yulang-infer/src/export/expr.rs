@@ -827,6 +827,25 @@ impl<'a> ExprExporter<'a> {
                 principal_elaboration: None,
             }
         };
+        let trace_evidence = std::env::var_os("YULANG_TRACE_INFER_ANY_APPLY").is_some()
+            && format!("{evidence:?}").contains("Any")
+            && matches!(callee.kind, ExprKind::Var(_));
+        if trace_evidence {
+            let callee_path = match &callee.kind {
+                ExprKind::Var(def) => Some(self.path_for_def(*def)),
+                _ => None,
+            };
+            eprintln!(
+                "TRACE infer apply any callee_tv={:?} arg_tv={:?} expected_callee_tv={:?} expected_arg_tv={:?} result_tv={:?} callee_path={:?}\n  evidence={:?}",
+                callee.tv,
+                arg.tv,
+                expected_callee_tv,
+                expected_arg_tv,
+                result.tv,
+                callee_path,
+                evidence
+            );
+        }
         let principal_target = self.principal_callee_target(callee);
         if include_principal && export_apply_substitutions_enabled() {
             let t = ExprExportClock::now(self.profile.is_some());

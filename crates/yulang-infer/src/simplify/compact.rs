@@ -1089,10 +1089,7 @@ fn merge_rows(positive: bool, lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec
                 .chain(other.items.into_iter())
                 .collect();
             existing.items = merge_same_effect_items(positive, items);
-        } else if let Some(existing) = out
-            .iter_mut()
-            .find(|row| row.items == other.items)
-        {
+        } else if let Some(existing) = out.iter_mut().find(|row| row.items == other.items) {
             let merged_tail =
                 merge_compact_types(positive, (*existing.tail).clone(), (*other.tail).clone());
             existing.tail = Box::new(merged_tail);

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use yulang_runtime_ir::{FinalizedBinding as Binding, RuntimeType as RuntimeType};
+use yulang_runtime_ir::{FinalizedBinding as Binding, RuntimeType};
 use yulang_typed_ir as typed_ir;
 
 use crate::{MonomorphizeDiagnostic, MonomorphizeResult};
@@ -156,7 +156,10 @@ impl TypeGraph {
                     value: actual_ret,
                     effect: actual_ret_effect,
                 } = split_runtime_effected_type(ret);
-                self.collect_runtime(template_param, actual_param, side)?;
+                let param_side = side.flip();
+                if !(param_side == BoundSide::Lower && runtime_value_is_top(actual_param)) {
+                    self.collect_runtime(template_param, actual_param, param_side)?;
+                }
                 self.collect_runtime_effect(template_param_effect, actual_param_effect, side)?;
                 self.collect_runtime_effect(template_ret_effect, actual_ret_effect, side)?;
                 self.collect_runtime(template_ret, actual_ret, side)
@@ -205,7 +208,12 @@ impl TypeGraph {
                 else {
                     return Ok(());
                 };
-                self.collect_core(param, actual_param, side)?;
+                let param_side = side.flip();
+                if !(param_side == BoundSide::Lower
+                    && matches!(actual_param.as_ref(), typed_ir::Type::Any))
+                {
+                    self.collect_core(param, actual_param, param_side)?;
+                }
                 self.collect_core(param_effect, actual_param_effect, side)?;
                 self.collect_core(ret_effect, actual_ret_effect, side)?;
                 self.collect_core(ret, actual_ret, side)
@@ -299,10 +307,7 @@ impl TypeGraph {
             return Ok(false);
         }
         seen.push(constraint);
-        if lower == upper
-            || matches!(upper, typed_ir::Type::Any)
-            || matches!(lower, typed_ir::Type::Any)
-        {
+        if lower == upper || matches!(upper, typed_ir::Type::Any) {
             return Ok(false);
         }
         match (lower, upper) {
@@ -317,6 +322,20 @@ impl TypeGraph {
                     .filter(|bound| !self.lower_bound_chain_reaches(bound, &lower))
                 {
                     changed |= self.apply_subtype_constraint_inner(bound, upper.clone(), seen)?;
+                }
+                if let typed_ir::Type::Var(upper_var) = &upper
+                    && let Some(bound) = self
+                        .slots
+                        .get(upper_var)
+                        .and_then(|slot| slot.upper.as_ref())
+                        .cloned()
+                        .filter(|bound| !self.upper_bound_chain_reaches(bound, &lower))
+                {
+                    changed |= self.apply_subtype_constraint_inner(
+                        typed_ir::Type::Var(lower.clone()),
+                        bound,
+                        seen,
+                    )?;
                 }
                 changed |= self.record(lower, upper, BoundSide::Upper)?;
                 Ok(changed)
@@ -705,11 +724,22 @@ impl TypeGraph {
                 return Ok(false);
             }
         }
-        let slot = self.slots.entry(var.clone()).or_default();
-        match side {
-            BoundSide::Lower => slot.push_lower(var, ty, &self.cast_order),
-            BoundSide::Upper => slot.push_upper(var, ty, &self.cast_order),
+        if std::env::var_os("YULANG_TRACE_ANY_BOUNDS").is_some()
+            && side == BoundSide::Lower
+            && matches!(ty, typed_ir::Type::Any)
+        {
+            eprintln!(
+                "TRACE Any lower bound var={var:?}\n{}",
+                std::backtrace::Backtrace::force_capture()
+            );
         }
+        let slot = self.slots.entry(var.clone()).or_default();
+        let changed = match side {
+            BoundSide::Lower => slot.push_lower(var.clone(), ty, &self.cast_order),
+            BoundSide::Upper => slot.push_upper(var.clone(), ty, &self.cast_order),
+        }?;
+        reject_invalid_top_bottom_bounds(&var, slot)?;
+        Ok(changed)
     }
 
     fn lower_bound_chain_reaches(&self, ty: &typed_ir::Type, target: &typed_ir::TypeVar) -> bool {
@@ -1085,6 +1115,15 @@ enum BoundSide {
     Upper,
 }
 
+impl BoundSide {
+    fn flip(self) -> Self {
+        match self {
+            Self::Lower => Self::Upper,
+            Self::Upper => Self::Lower,
+        }
+    }
+}
+
 struct RuntimeEffectedType<'a> {
     value: &'a RuntimeType,
     effect: RuntimeEffectRef<'a>,
@@ -1095,6 +1134,10 @@ enum RuntimeEffectRef<'a> {
     Known(&'a typed_ir::Type),
     Pure,
     Unknown,
+}
+
+fn runtime_value_is_top(ty: &RuntimeType) -> bool {
+    matches!(ty, RuntimeType::Value(typed_ir::Type::Any))
 }
 
 fn split_runtime_effected_type(ty: &RuntimeType) -> RuntimeEffectedType<'_> {
@@ -1143,9 +1186,7 @@ fn merge_row_bounds(
     }
     let (mut prev_items, prev_tail) = flatten_closed_row_or_atom(previous)?;
     let (ty_items, ty_tail) = flatten_closed_row_or_atom(ty)?;
-    if !matches!(prev_tail, typed_ir::Type::Never) || !matches!(ty_tail, typed_ir::Type::Never) {
-        return None;
-    }
+    let merged_tail = merge_row_tails(&prev_tail, &ty_tail, side)?;
     let merged_items = match side {
         BoundSide::Lower => {
             for item in ty_items {
@@ -1165,8 +1206,28 @@ fn merge_row_bounds(
     };
     Some(typed_ir::Type::Row {
         items: merged_items,
-        tail: Box::new(typed_ir::Type::Never),
+        tail: Box::new(merged_tail),
     })
+}
+
+fn merge_row_tails(
+    previous: &typed_ir::Type,
+    ty: &typed_ir::Type,
+    side: BoundSide,
+) -> Option<typed_ir::Type> {
+    match (side, previous, ty) {
+        (_, typed_ir::Type::Never, typed_ir::Type::Never) => Some(typed_ir::Type::Never),
+        (_, typed_ir::Type::Any, typed_ir::Type::Any) => Some(typed_ir::Type::Any),
+        (BoundSide::Lower, typed_ir::Type::Any, typed_ir::Type::Never)
+        | (BoundSide::Lower, typed_ir::Type::Never, typed_ir::Type::Any) => {
+            Some(typed_ir::Type::Any)
+        }
+        (BoundSide::Upper, typed_ir::Type::Any, typed_ir::Type::Never)
+        | (BoundSide::Upper, typed_ir::Type::Never, typed_ir::Type::Any) => {
+            Some(typed_ir::Type::Never)
+        }
+        _ => None,
+    }
 }
 
 fn is_row_shaped(ty: &typed_ir::Type) -> bool {
@@ -1374,6 +1435,25 @@ fn push_bound(
     Ok(true)
 }
 
+fn reject_invalid_top_bottom_bounds(
+    var: &typed_ir::TypeVar,
+    bounds: &TypeVarBounds,
+) -> MonomorphizeResult<()> {
+    let (Some(lower), Some(upper)) = (&bounds.lower, &bounds.upper) else {
+        return Ok(());
+    };
+    if matches!(lower, typed_ir::Type::Any)
+        && !matches!(upper, typed_ir::Type::Any | typed_ir::Type::Never)
+    {
+        return Err(MonomorphizeDiagnostic::ConflictingBounds {
+            var: var.clone(),
+            previous: lower.clone(),
+            next: upper.clone(),
+        });
+    }
+    Ok(())
+}
+
 fn merge_ordered_bounds(
     previous: &typed_ir::Type,
     ty: &typed_ir::Type,
@@ -1381,19 +1461,66 @@ fn merge_ordered_bounds(
     cast_order: &TypeCastOrder,
 ) -> Option<typed_ir::Type> {
     match side {
+        BoundSide::Lower
+            if matches!(previous, typed_ir::Type::Any) || matches!(ty, typed_ir::Type::Any) =>
+        {
+            Some(typed_ir::Type::Any)
+        }
         BoundSide::Lower if union_supertype_contains(previous, ty) => Some(previous.clone()),
         BoundSide::Lower if union_supertype_contains(ty, previous) => Some(ty.clone()),
-        BoundSide::Lower => cast_order.join_lower(previous, ty),
+        BoundSide::Lower => {
+            merge_lower_union_bound(previous, ty).or_else(|| cast_order.join_lower(previous, ty))
+        }
+        BoundSide::Upper
+            if matches!(previous, typed_ir::Type::Never) || matches!(ty, typed_ir::Type::Never) =>
+        {
+            Some(typed_ir::Type::Never)
+        }
         BoundSide::Upper if bound_subtype(previous, ty) => Some(previous.clone()),
         BoundSide::Upper if bound_subtype(ty, previous) => Some(ty.clone()),
         BoundSide::Upper => cast_order.meet_upper(previous, ty),
     }
 }
 
+fn merge_lower_union_bound(
+    previous: &typed_ir::Type,
+    ty: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    if !matches!(previous, typed_ir::Type::Union(_)) && !matches!(ty, typed_ir::Type::Union(_)) {
+        return None;
+    }
+    let mut items = Vec::new();
+    append_lower_union_items(&mut items, previous);
+    append_lower_union_items(&mut items, ty);
+    Some(normalize_bound_form(&typed_ir::Type::Union(items)))
+}
+
+fn append_lower_union_items(items: &mut Vec<typed_ir::Type>, ty: &typed_ir::Type) {
+    match ty {
+        typed_ir::Type::Union(branches) => {
+            for branch in branches {
+                push_lower_union_item(items, branch.clone());
+            }
+        }
+        ty => push_lower_union_item(items, ty.clone()),
+    }
+}
+
+fn push_lower_union_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
+    if items
+        .iter()
+        .any(|existing| bounds_are_equivalent(existing, &item))
+    {
+        return;
+    }
+    items.push(item);
+}
+
 fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
     lightweight_bounds_equivalent(sub, sup)
         || matches!(sub, typed_ir::Type::Never)
         || matches!(sup, typed_ir::Type::Any)
+        || row_bound_subtype(sub, sup)
         || union_supertype_contains(sup, sub)
 }
 
@@ -1401,9 +1528,25 @@ fn union_supertype_contains(sup: &typed_ir::Type, sub: &typed_ir::Type) -> bool 
     let typed_ir::Type::Union(items) = sup else {
         return false;
     };
-    items
-        .iter()
-        .any(|item| lightweight_bounds_equivalent(sub, item))
+    items.iter().any(|item| {
+        !matches!(item, typed_ir::Type::Union(_))
+            && (lightweight_bounds_equivalent(sub, item) || bound_subtype(sub, item))
+    })
+}
+
+fn row_bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
+    let Some((sub_items, sub_tail)) = flatten_closed_row(sub) else {
+        return false;
+    };
+    let Some((sup_items, sup_tail)) = flatten_closed_row(sup) else {
+        return false;
+    };
+    let residual = split_row_items(&sub_items, &sup_items);
+    residual.unmatched_left.is_empty() && row_tail_subtype(&sub_tail, &sup_tail)
+}
+
+fn row_tail_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
+    sub == sup || matches!(sub, typed_ir::Type::Never) || matches!(sup, typed_ir::Type::Any)
 }
 
 fn lightweight_bounds_equivalent(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
@@ -1660,11 +1803,26 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 if matches!(item, typed_ir::Type::Never) {
                     continue;
                 }
-                if !normalized
-                    .iter()
-                    .any(|existing| bounds_are_equivalent(existing, &item))
-                {
-                    normalized.push(item);
+                match item {
+                    typed_ir::Type::Union(items) => {
+                        for item in items {
+                            if !matches!(item, typed_ir::Type::Never)
+                                && !normalized
+                                    .iter()
+                                    .any(|existing| bounds_are_equivalent(existing, &item))
+                            {
+                                normalized.push(item);
+                            }
+                        }
+                    }
+                    item => {
+                        if !normalized
+                            .iter()
+                            .any(|existing| bounds_are_equivalent(existing, &item))
+                        {
+                            normalized.push(item);
+                        }
+                    }
                 }
             }
             match normalized.len() {
@@ -1682,11 +1840,26 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 if matches!(item, typed_ir::Type::Any) {
                     continue;
                 }
-                if !normalized
-                    .iter()
-                    .any(|existing| bounds_are_equivalent(existing, &item))
-                {
-                    normalized.push(item);
+                match item {
+                    typed_ir::Type::Inter(items) => {
+                        for item in items {
+                            if !matches!(item, typed_ir::Type::Any)
+                                && !normalized
+                                    .iter()
+                                    .any(|existing| bounds_are_equivalent(existing, &item))
+                            {
+                                normalized.push(item);
+                            }
+                        }
+                    }
+                    item => {
+                        if !normalized
+                            .iter()
+                            .any(|existing| bounds_are_equivalent(existing, &item))
+                        {
+                            normalized.push(item);
+                        }
+                    }
                 }
             }
             match normalized.len() {
@@ -2241,53 +2414,74 @@ fn materialize_type(
     ty: typed_ir::Type,
     substitutions: &[typed_ir::TypeSubstitution],
 ) -> typed_ir::Type {
+    materialize_type_inner(ty, substitutions, &mut Vec::new())
+}
+
+fn materialize_type_inner(
+    ty: typed_ir::Type,
+    substitutions: &[typed_ir::TypeSubstitution],
+    seen: &mut Vec<typed_ir::TypeVar>,
+) -> typed_ir::Type {
     match ty {
-        typed_ir::Type::Var(var) => substitutions
-            .iter()
-            .find(|substitution| substitution.var == var)
-            .map(|substitution| substitution.ty.clone())
-            .unwrap_or(typed_ir::Type::Var(var)),
+        typed_ir::Type::Var(var) => {
+            if seen.contains(&var) {
+                return typed_ir::Type::Var(var);
+            }
+            let Some(substitution) = substitutions
+                .iter()
+                .find(|substitution| substitution.var == var)
+            else {
+                return typed_ir::Type::Var(var);
+            };
+            if matches!(&substitution.ty, typed_ir::Type::Var(next) if next == &var) {
+                return typed_ir::Type::Var(var);
+            }
+            seen.push(var);
+            let materialized = materialize_type_inner(substitution.ty.clone(), substitutions, seen);
+            seen.pop();
+            materialized
+        }
         typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
         } => typed_ir::Type::Fun {
-            param: Box::new(materialize_type(*param, substitutions)),
-            param_effect: Box::new(materialize_type(*param_effect, substitutions)),
-            ret_effect: Box::new(materialize_type(*ret_effect, substitutions)),
-            ret: Box::new(materialize_type(*ret, substitutions)),
+            param: Box::new(materialize_type_inner(*param, substitutions, seen)),
+            param_effect: Box::new(materialize_type_inner(*param_effect, substitutions, seen)),
+            ret_effect: Box::new(materialize_type_inner(*ret_effect, substitutions, seen)),
+            ret: Box::new(materialize_type_inner(*ret, substitutions, seen)),
         },
         typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .into_iter()
-                .map(|item| materialize_type(item, substitutions))
+                .map(|item| materialize_type_inner(item, substitutions, seen))
                 .collect(),
         ),
         typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path,
             args: args
                 .into_iter()
-                .map(|arg| materialize_type_arg(arg, substitutions))
+                .map(|arg| materialize_type_arg(arg, substitutions, seen))
                 .collect(),
         },
         typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items
                 .into_iter()
-                .map(|item| materialize_type(item, substitutions))
+                .map(|item| materialize_type_inner(item, substitutions, seen))
                 .collect(),
-            tail: Box::new(materialize_type(*tail, substitutions)),
+            tail: Box::new(materialize_type_inner(*tail, substitutions, seen)),
         },
         typed_ir::Type::Union(items) => typed_ir::Type::Union(
             items
                 .into_iter()
-                .map(|item| materialize_type(item, substitutions))
+                .map(|item| materialize_type_inner(item, substitutions, seen))
                 .collect(),
         ),
         typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
             items
                 .into_iter()
-                .map(|item| materialize_type(item, substitutions))
+                .map(|item| materialize_type_inner(item, substitutions, seen))
                 .collect(),
         ),
         typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
@@ -2296,13 +2490,13 @@ fn materialize_type(
                 .into_iter()
                 .map(|field| typed_ir::RecordField {
                     name: field.name,
-                    value: materialize_type(field.value, substitutions),
+                    value: materialize_type_inner(field.value, substitutions, seen),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record
                 .spread
-                .map(|spread| materialize_record_spread(spread, substitutions)),
+                .map(|spread| materialize_record_spread(spread, substitutions, seen)),
         }),
         typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: variant
@@ -2313,17 +2507,17 @@ fn materialize_type(
                     payloads: case
                         .payloads
                         .into_iter()
-                        .map(|payload| materialize_type(payload, substitutions))
+                        .map(|payload| materialize_type_inner(payload, substitutions, seen))
                         .collect(),
                 })
                 .collect(),
             tail: variant
                 .tail
-                .map(|tail| Box::new(materialize_type(*tail, substitutions))),
+                .map(|tail| Box::new(materialize_type_inner(*tail, substitutions, seen))),
         }),
         typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var,
-            body: Box::new(materialize_type(*body, substitutions)),
+            body: Box::new(materialize_type_inner(*body, substitutions, seen)),
         },
         ty => ty,
     }
@@ -2332,13 +2526,14 @@ fn materialize_type(
 fn materialize_record_spread(
     spread: typed_ir::RecordSpread,
     substitutions: &[typed_ir::TypeSubstitution],
+    seen: &mut Vec<typed_ir::TypeVar>,
 ) -> typed_ir::RecordSpread {
     match spread {
         typed_ir::RecordSpread::Head(ty) => {
-            typed_ir::RecordSpread::Head(Box::new(materialize_type(*ty, substitutions)))
+            typed_ir::RecordSpread::Head(Box::new(materialize_type_inner(*ty, substitutions, seen)))
         }
         typed_ir::RecordSpread::Tail(ty) => {
-            typed_ir::RecordSpread::Tail(Box::new(materialize_type(*ty, substitutions)))
+            typed_ir::RecordSpread::Tail(Box::new(materialize_type_inner(*ty, substitutions, seen)))
         }
     }
 }
@@ -2346,16 +2541,19 @@ fn materialize_record_spread(
 fn materialize_type_arg(
     arg: typed_ir::TypeArg,
     substitutions: &[typed_ir::TypeSubstitution],
+    seen: &mut Vec<typed_ir::TypeVar>,
 ) -> typed_ir::TypeArg {
     match arg {
-        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(materialize_type(ty, substitutions)),
+        typed_ir::TypeArg::Type(ty) => {
+            typed_ir::TypeArg::Type(materialize_type_inner(ty, substitutions, seen))
+        }
         typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
             lower: bounds
                 .lower
-                .map(|ty| Box::new(materialize_type(*ty, substitutions))),
+                .map(|ty| Box::new(materialize_type_inner(*ty, substitutions, seen))),
             upper: bounds
                 .upper
-                .map(|ty| Box::new(materialize_type(*ty, substitutions))),
+                .map(|ty| Box::new(materialize_type_inner(*ty, substitutions, seen))),
         }),
     }
 }
@@ -2407,6 +2605,140 @@ mod tests {
             }]
         );
         assert!(solution.is_complete());
+    }
+
+    #[test]
+    fn subtype_var_upper_chain_propagates_concrete_upper_bound() {
+        let mut graph = TypeGraph::default();
+        let value = typed_ir::TypeVar("value".into());
+        let result = typed_ir::TypeVar("result".into());
+
+        graph
+            .constrain_subtype(
+                typed_ir::Type::Var(value.clone()),
+                typed_ir::Type::Var(result.clone()),
+            )
+            .unwrap();
+        graph
+            .constrain_subtype(typed_ir::Type::Var(result), int_type())
+            .unwrap();
+
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&value), Some(&int_type()));
+    }
+
+    #[test]
+    fn subtype_function_result_upper_closes_effect_payload_var() {
+        let mut graph = TypeGraph::default();
+        let payload = typed_ir::TypeVar("payload".into());
+        let result = typed_ir::TypeVar("result".into());
+        let principal = fun_type_with_effects(
+            typed_ir::Type::Never,
+            effect_row(vec![
+                effect_type_arg("sub", typed_ir::Type::Var(payload.clone())),
+                effect_type("undet"),
+            ]),
+            effect_type("undet"),
+            typed_ir::Type::Var(payload.clone()),
+        );
+        let expected = fun_type_with_effects(
+            typed_ir::Type::Never,
+            closed_row(&["sub", "undet"]),
+            effect_type("undet"),
+            typed_ir::Type::Var(result.clone()),
+        );
+
+        graph.constrain_subtype(principal, expected).unwrap();
+        graph
+            .constrain_subtype(typed_ir::Type::Var(result.clone()), int_type())
+            .unwrap();
+
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&payload), Some(&int_type()));
+    }
+
+    #[test]
+    fn materialize_core_chases_substitution_chains_without_self_loop() {
+        let source = typed_ir::TypeVar("source".into());
+        let intermediate = typed_ir::TypeVar("intermediate".into());
+        let self_ref = typed_ir::TypeVar("self".into());
+        let substitutions = vec![
+            typed_ir::TypeSubstitution {
+                var: source.clone(),
+                ty: typed_ir::Type::Var(intermediate.clone()),
+            },
+            typed_ir::TypeSubstitution {
+                var: intermediate,
+                ty: int_type(),
+            },
+            typed_ir::TypeSubstitution {
+                var: self_ref.clone(),
+                ty: typed_ir::Type::Var(self_ref.clone()),
+            },
+        ];
+
+        assert_eq!(
+            materialize_core_type(typed_ir::Type::Var(source), &substitutions),
+            int_type()
+        );
+        assert_eq!(
+            materialize_core_type(typed_ir::Type::Var(self_ref.clone()), &substitutions),
+            typed_ir::Type::Var(self_ref)
+        );
+    }
+
+    #[test]
+    fn any_lower_bound_conflicts_with_concrete_upper_bound() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("a".into());
+
+        graph
+            .constrain_subtype(typed_ir::Type::Any, typed_ir::Type::Var(var.clone()))
+            .unwrap();
+        let error = graph
+            .constrain_subtype(typed_ir::Type::Var(var.clone()), int_type())
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            MonomorphizeDiagnostic::ConflictingBounds {
+                var: error_var,
+                previous: typed_ir::Type::Any,
+                next,
+            } if error_var == var && next == int_type()
+        ));
+    }
+
+    #[test]
+    fn function_runtime_lower_bound_flips_parameter_polarity() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("a".into());
+        let template = fun_type(typed_ir::Type::Var(var.clone()), unit_type());
+        let actual = fun_type(int_type(), unit_type());
+
+        graph
+            .collect_runtime_lower(&template, &RuntimeType::Value(actual))
+            .unwrap();
+
+        let bounds = graph.slot(&var).expect("parameter var should be tracked");
+        assert_eq!(bounds.lower, None);
+        assert_eq!(bounds.upper, Some(int_type()));
+    }
+
+    #[test]
+    fn function_runtime_lower_bound_does_not_turn_top_parameter_into_solution() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("a".into());
+        let template = fun_type(typed_ir::Type::Var(var.clone()), unit_type());
+        let actual = fun_type(typed_ir::Type::Any, unit_type());
+
+        graph
+            .collect_runtime_lower(&template, &RuntimeType::Value(actual))
+            .unwrap();
+
+        assert_eq!(graph.slot(&var).and_then(TypeVarBounds::solution_ref), None);
     }
 
     #[test]
@@ -3166,11 +3498,22 @@ mod tests {
         }
     }
 
-    fn closed_row(items: &[&str]) -> typed_ir::Type {
+    fn effect_type_arg(name: &str, arg: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&[name]),
+            args: vec![typed_ir::TypeArg::Type(arg)],
+        }
+    }
+
+    fn effect_row(items: Vec<typed_ir::Type>) -> typed_ir::Type {
         typed_ir::Type::Row {
-            items: items.iter().map(|item| effect_type(item)).collect(),
+            items,
             tail: Box::new(typed_ir::Type::Never),
         }
+    }
+
+    fn closed_row(items: &[&str]) -> typed_ir::Type {
+        effect_row(items.iter().map(|item| effect_type(item)).collect())
     }
 
     fn path(segments: &[&str]) -> typed_ir::Path {

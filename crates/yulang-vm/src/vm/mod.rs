@@ -3,8 +3,6 @@ use std::fmt;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use yulang_runtime_types::RuntimeError;
-use yulang_runtime_types::types::effect_is_empty;
 use yulang_runtime_ir::{
     EffectIdRef, EffectIdVar, FinalizedBinding as Binding, FinalizedExpr as Expr,
     FinalizedExprKind as ExprKind, FinalizedHandleArm as HandleArm, FinalizedMatchArm as MatchArm,
@@ -12,6 +10,8 @@ use yulang_runtime_ir::{
     FinalizedRecordExprField as RecordExprField, FinalizedRecordSpreadExpr as RecordSpreadExpr,
     FinalizedStmt as Stmt, RuntimeType as Type,
 };
+use yulang_runtime_types::RuntimeError;
+use yulang_runtime_types::types::effect_is_empty;
 use yulang_typed_ir as typed_ir;
 
 use crate::runtime::bytes_tree::BytesTree;
@@ -86,15 +86,6 @@ pub fn compile_vm_module<M: IntoVmModule>(module: M) -> Result<VmModule, VmError
     let module = erase_module(module, &effects)?;
     Ok(VmModule { module })
 }
-
-
-
-
-
-
-
-
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VmError {

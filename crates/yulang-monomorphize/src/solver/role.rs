@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    FinalizedModule as Module, RuntimeType as RuntimeType,
+    FinalizedModule as Module, RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -89,6 +89,47 @@ pub(crate) fn close_role_associated_types(
     Ok(changed)
 }
 
+pub(crate) fn close_role_inputs_from_associated_types(
+    graph: &mut TypeGraph,
+    binding: &Binding,
+    principal: &crate::PrincipalInstance,
+    solution: &crate::GraphSolution,
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> MonomorphizeResult<bool> {
+    let mut changed = false;
+    let principal_renames = principal_rename_substitutions(principal);
+    for requirement in &binding.scheme.requirements {
+        let Some(associated) =
+            solved_role_requirement_associated_types(requirement, &principal_renames, solution)
+        else {
+            continue;
+        };
+        let Some(inputs) =
+            resolve_inputs_from_associated_types(requirement, &associated, role_impls)
+        else {
+            continue;
+        };
+        let mut input_index = 0;
+        for arg in &requirement.args {
+            let typed_ir::RoleRequirementArg::Input(bounds) = arg else {
+                continue;
+            };
+            let Some(input) = inputs.get(input_index).cloned() else {
+                break;
+            };
+            input_index += 1;
+            let target = materialize::materialize_type_bounds(bounds.clone(), &principal_renames);
+            let Some(target) = super::apply_spine::type_from_bounds(&target) else {
+                continue;
+            };
+            graph.constrain_subtype(input.clone(), target.clone())?;
+            graph.constrain_subtype(target, input)?;
+            changed = true;
+        }
+    }
+    Ok(changed)
+}
+
 /// True if any var's solution contains Unknown — i.e. the solver gave us a
 /// shape (e.g. `Tuple([Unknown, Unknown])`) but didn't fill the components.
 /// Such "shape-only" solutions need the associated-type closure to refine.
@@ -132,6 +173,152 @@ fn solved_role_requirement_inputs(
         inputs.push(ty);
     }
     Some(inputs)
+}
+
+fn solved_role_requirement_associated_types(
+    requirement: &typed_ir::RoleRequirement,
+    principal_renames: &[typed_ir::TypeSubstitution],
+    solution: &crate::GraphSolution,
+) -> Option<Vec<(typed_ir::Name, typed_ir::Type)>> {
+    let mut associated = Vec::new();
+    let solution_substitutions = solution.substitutions();
+    for arg in &requirement.args {
+        let typed_ir::RoleRequirementArg::Associated { name, bounds } = arg else {
+            continue;
+        };
+        let bounds = materialize::materialize_type_bounds(bounds.clone(), principal_renames);
+        let ty = informative_type_from_bounds(&bounds, solution)?;
+        let ty = materialize_core_type(ty, &solution_substitutions);
+        if !super::core_type_is_closed(&ty) {
+            return None;
+        }
+        associated.push((name.clone(), ty));
+    }
+    (!associated.is_empty()).then_some(associated)
+}
+
+fn informative_type_from_bounds(
+    bounds: &typed_ir::TypeBounds,
+    solution: &crate::GraphSolution,
+) -> Option<typed_ir::Type> {
+    let lower = bounds
+        .lower
+        .as_deref()
+        .and_then(|ty| informative_type_from_bound(ty, solution));
+    let upper = bounds
+        .upper
+        .as_deref()
+        .and_then(|ty| informative_type_from_bound(ty, solution));
+    match (lower, upper) {
+        (Some(typed_ir::Type::Never), Some(upper)) => Some(upper),
+        (Some(lower), _) => Some(lower),
+        (None, Some(upper)) => Some(upper),
+        (None, None) => None,
+    }
+}
+
+fn informative_type_from_bound(
+    ty: &typed_ir::Type,
+    solution: &crate::GraphSolution,
+) -> Option<typed_ir::Type> {
+    let typed_ir::Type::Var(var) = ty else {
+        return Some(ty.clone());
+    };
+    let resolved = solution
+        .type_vars
+        .iter()
+        .find(|resolved| &resolved.var == var)?;
+    match (&resolved.bounds.lower, &resolved.bounds.upper) {
+        (Some(typed_ir::Type::Never), Some(upper)) => Some(upper.clone()),
+        (Some(lower), _) => Some(lower.clone()),
+        (None, Some(upper)) => Some(upper.clone()),
+        (None, None) => resolved.solution.clone(),
+    }
+}
+
+fn resolve_inputs_from_associated_types(
+    requirement: &typed_ir::RoleRequirement,
+    associated: &[(typed_ir::Name, typed_ir::Type)],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Option<Vec<typed_ir::Type>> {
+    let mut resolved = None;
+    for role_impl in role_impls.iter().filter(|role_impl| {
+        role_impl.role == requirement.role
+            && role_impl.inputs.len() == role_requirement_input_count(requirement)
+    }) {
+        let Some(candidate) = project_role_impl_inputs_from_associated(role_impl, associated)
+        else {
+            continue;
+        };
+        match &resolved {
+            Some(existing) if existing != &candidate => return None,
+            Some(_) => {}
+            None => resolved = Some(candidate),
+        }
+    }
+    resolved
+}
+
+fn role_requirement_input_count(requirement: &typed_ir::RoleRequirement) -> usize {
+    requirement
+        .args
+        .iter()
+        .filter(|arg| matches!(arg, typed_ir::RoleRequirementArg::Input(_)))
+        .count()
+}
+
+fn project_role_impl_inputs_from_associated(
+    role_impl: &typed_ir::RoleImplGraphNode,
+    associated: &[(typed_ir::Name, typed_ir::Type)],
+) -> Option<Vec<typed_ir::Type>> {
+    let mut impl_vars = BTreeSet::new();
+    for input in &role_impl.inputs {
+        collect_type_bounds_vars(input, &mut impl_vars);
+    }
+    for associated in &role_impl.associated_types {
+        collect_type_bounds_vars(&associated.value, &mut impl_vars);
+    }
+
+    let mut substitutions = BTreeMap::new();
+    for (name, actual) in associated {
+        let role_associated = role_impl
+            .associated_types
+            .iter()
+            .find(|candidate| candidate.name == *name)?;
+        let template = super::apply_spine::type_from_bounds(&role_associated.value)?;
+        infer_type_substitutions(&template, actual, &impl_vars, &mut substitutions);
+    }
+    let substitution_list = substitution_map_to_list(&substitutions);
+
+    for (name, actual) in associated {
+        let role_associated = role_impl
+            .associated_types
+            .iter()
+            .find(|candidate| candidate.name == *name)?;
+        let projected =
+            super::apply_spine::type_from_bounds(&materialize::materialize_type_bounds(
+                role_associated.value.clone(),
+                &substitution_list,
+            ))?;
+        if !types_match_for_role_selection(&projected, actual) {
+            return None;
+        }
+    }
+
+    role_impl
+        .inputs
+        .iter()
+        .map(|input| {
+            let input = materialize::materialize_type_bounds(input.clone(), &substitution_list);
+            let input = super::apply_spine::type_from_bounds(&input)?;
+            super::core_type_is_closed(&input).then_some(input)
+        })
+        .collect()
+}
+
+fn types_match_for_role_selection(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    core_subtype_match_score(left, right).is_some()
+        && core_subtype_match_score(right, left).is_some()
 }
 
 fn resolve_associated_requirement_from_impls(

@@ -224,6 +224,17 @@ impl Infer {
                 }
             }
             (Pos::Con(p_path, p_args), Neg::Con(n_path, n_args)) if p_path == n_path => {
+                if p_args.len() != n_args.len() {
+                    let materialized = materialize_frozen_pos(self, arena, pos, subst);
+                    self.report_type_error(
+                        materialized,
+                        neg,
+                        cause,
+                        origin_hint,
+                        TypeErrorKind::ConstructorMismatch,
+                    );
+                    return;
+                }
                 let variances = self.variances.get(&p_path).cloned().unwrap_or_else(|| {
                     vec![crate::types::Variance::Invariant; p_args.len().min(n_args.len())]
                 });

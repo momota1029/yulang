@@ -1471,7 +1471,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             match yulang_monomorphize::finalize_module(lowered.module) {
-                Ok(output) => println!("{:#?}", output.module),
+                Ok(output) => print_runtime_module(&output.module, options.verbose_ir),
                 Err(err) => {
                     eprintln!("runtime-finalize error: {err:?}");
                     process::exit(1);
@@ -1848,26 +1848,6 @@ fn lower_legacy_runtime_module_or_exit(
     LegacyRuntimeLowerOutput { module, profile }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 fn yuir_artifact_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
     match output {
         NativeOutput::Path(path) => PathBuf::from(path),
@@ -1907,17 +1887,6 @@ fn is_yuir_artifact_path(path: &str) -> bool {
         .is_some_and(|extension| extension.eq_ignore_ascii_case("yuir"))
 }
 
-
-
-
-
-
-
-
-
-
-
-
 fn ensure_parent_dir_or_exit(path: &Path, kind: &str) {
     let Some(parent) = path.parent() else {
         return;
@@ -1934,23 +1903,12 @@ fn ensure_parent_dir_or_exit(path: &Path, kind: &str) {
     }
 }
 
-
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
-
-
-
-
-
-
-
-
-
-
 
 fn print_runtime_finalize_phase_timings(profile: &RuntimeFinalizePhaseProfile) {
     eprintln!("runtime-finalize phase timings:");
@@ -2089,7 +2047,6 @@ fn print_runtime_phase_timings(
         eprintln!("    vm_eval: {}", format_duration(duration));
     }
 }
-
 
 fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile) {
     if adapters.events.is_empty() {
@@ -5199,8 +5156,12 @@ fn format_runtime_type_atom(ty: &runtime_types::Type) -> String {
 fn format_runtime_expr(expr: &runtime_types::Expr, verbose: bool) -> String {
     match &expr.kind {
         runtime_types::ExprKind::Var(path) => format_core_path(path),
-        runtime_types::ExprKind::EffectOp(path) => format!("<effect-op {}>", format_core_path(path)),
-        runtime_types::ExprKind::PrimitiveOp(op) => format!("<primitive {}>", format_primitive_op(*op)),
+        runtime_types::ExprKind::EffectOp(path) => {
+            format!("<effect-op {}>", format_core_path(path))
+        }
+        runtime_types::ExprKind::PrimitiveOp(op) => {
+            format!("<primitive {}>", format_primitive_op(*op))
+        }
         runtime_types::ExprKind::Lit(lit) => format_core_lit(lit),
         runtime_types::ExprKind::Lambda { param, body, .. } => {
             format!("fun {} -> {}", param.0, format_runtime_expr(body, verbose))
@@ -5396,7 +5357,10 @@ fn format_runtime_effect_id_var(id: runtime_types::EffectIdVar) -> String {
     format!("ae{}", id.0)
 }
 
-fn format_runtime_record_spread_expr(spread: &runtime_types::RecordSpreadExpr, verbose: bool) -> String {
+fn format_runtime_record_spread_expr(
+    spread: &runtime_types::RecordSpreadExpr,
+    verbose: bool,
+) -> String {
     match spread {
         runtime_types::RecordSpreadExpr::Head(expr) => {
             format!("..{}", format_runtime_expr(expr, verbose))
@@ -6342,7 +6306,6 @@ mod tests {
         assert!(source_set_has_invalid_tokens(&entry_invalid, &cached_files));
     }
 
-
     #[test]
     fn yuir_default_output_path_uses_target_yulang() {
         let artifact = yuir_artifact_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
@@ -6352,11 +6315,6 @@ mod tests {
         assert!(is_yuir_artifact_path("target/yulang/yuir/hello.YUIR"));
         assert!(!is_yuir_artifact_path("examples/hello.yu"));
     }
-
-
-
-
-
 
     #[test]
     fn runtime_error_source_frame_uses_apply_source_edge() {

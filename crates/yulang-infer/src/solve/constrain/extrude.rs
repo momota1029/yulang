@@ -1,6 +1,6 @@
 use super::Infer;
-use crate::ids::{NegId, PosId};
-use crate::types::{Neg, Pos};
+use crate::ids::{NegId, PosId, TypeVar};
+use crate::types::{EffectAtom, Neg, Pos};
 
 impl Infer {
     /// Pos 中の型変数のレベルを target_lvl 以下に in-place で下げ、同じ PosId を返す。
@@ -20,7 +20,8 @@ impl Infer {
 
     fn max_level_pos(&self, id: PosId) -> u32 {
         match self.arena.get_pos(id) {
-            Pos::Bot | Pos::Atom(_) => 0,
+            Pos::Bot => 0,
+            Pos::Atom(atom) => self.max_level_atom(&atom),
             Pos::Var(tv) | Pos::Raw(tv) => self.level_of(tv),
             Pos::Forall(_, body) => self.max_level_pos(body),
             Pos::Con(_, args) => args
@@ -78,7 +79,8 @@ impl Infer {
 
     fn max_level_neg(&self, id: NegId) -> u32 {
         match self.arena.get_neg(id) {
-            Neg::Top | Neg::Atom(_) => 0,
+            Neg::Top => 0,
+            Neg::Atom(atom) => self.max_level_atom(&atom),
             Neg::Var(tv) => self.level_of(tv),
             Neg::Forall(_, body) => self.max_level_neg(body),
             Neg::Con(_, args) => args
@@ -124,7 +126,8 @@ impl Infer {
 
     fn lower_levels_pos(&self, id: PosId, target_lvl: u32) {
         match self.arena.get_pos(id) {
-            Pos::Bot | Pos::Atom(_) | Pos::Forall(..) => {}
+            Pos::Bot | Pos::Forall(..) => {}
+            Pos::Atom(atom) => self.lower_levels_atom(&atom, target_lvl),
             Pos::Var(vs) | Pos::Raw(vs) => {
                 if self.level_of(vs) <= target_lvl {
                     return;
@@ -195,7 +198,8 @@ impl Infer {
 
     fn lower_levels_neg(&self, id: NegId, target_lvl: u32) {
         match self.arena.get_neg(id) {
-            Neg::Top | Neg::Atom(_) | Neg::Forall(..) => {}
+            Neg::Top | Neg::Forall(..) => {}
+            Neg::Atom(atom) => self.lower_levels_atom(&atom, target_lvl),
             Neg::Var(vs) => {
                 if self.level_of(vs) <= target_lvl {
                     return;
@@ -249,6 +253,41 @@ impl Infer {
                 self.lower_levels_neg(a, target_lvl);
                 self.lower_levels_neg(b, target_lvl);
             }
+        }
+    }
+
+    fn max_level_atom(&self, atom: &EffectAtom) -> u32 {
+        atom.args
+            .iter()
+            .map(|(pos, neg)| self.level_of(*pos).max(self.level_of(*neg)))
+            .max()
+            .unwrap_or(0)
+    }
+
+    fn lower_levels_atom(&self, atom: &EffectAtom, target_lvl: u32) {
+        for (pos, neg) in &atom.args {
+            self.lower_pos_var_level(*pos, target_lvl);
+            self.lower_neg_var_level(*neg, target_lvl);
+        }
+    }
+
+    fn lower_pos_var_level(&self, tv: TypeVar, target_lvl: u32) {
+        if self.level_of(tv) <= target_lvl {
+            return;
+        }
+        self.register_level(tv, target_lvl);
+        for lower in self.lower_refs_of(tv) {
+            self.lower_levels_pos(lower, target_lvl);
+        }
+    }
+
+    fn lower_neg_var_level(&self, tv: TypeVar, target_lvl: u32) {
+        if self.level_of(tv) <= target_lvl {
+            return;
+        }
+        self.register_level(tv, target_lvl);
+        for upper in self.upper_refs_of(tv) {
+            self.lower_levels_neg(upper, target_lvl);
         }
     }
 }

@@ -8,18 +8,15 @@
 //!   - evidence side-information (`materialize_apply_evidence`,
 //!     `materialize_principal_elaboration_plan`, `materialize_join_evidence`,
 //!     `materialize_type_bounds`)
-//!   - apply-argument shape adjustments (`materialize_apply_arg`,
-//!     `materialize_thunk_apply_arg`) that decide whether to wrap an arg as a
-//!     thunk based on the expected type at the call site.
+//!   - apply-argument shape adjustments (`materialize_apply_arg`) that adapt
+//!     value/thunk boundaries based on the expected type at the call site.
 //!
 //! Type-level materialization (`materialize_core_type`, `materialize_runtime_type`)
 //! lives in `graph.rs`; this module is the expression-level counterpart.
 
 use std::collections::HashMap;
 
-use yulang_runtime_ir::{
-    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType as RuntimeType,
-};
+use yulang_runtime_ir::{FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType};
 use yulang_typed_ir as typed_ir;
 
 use crate::{
@@ -42,7 +39,9 @@ pub(crate) fn materialize_expr_with_expected(
         ExprKind::Var(path) => ExprKind::Var(path),
         ExprKind::EffectOp(path) => ExprKind::EffectOp(path),
         ExprKind::PrimitiveOp(op) => ExprKind::PrimitiveOp(op),
-        ExprKind::Lit(lit) => ExprKind::Lit(lit),
+        ExprKind::Lit(lit) => {
+            return Expr::typed(ExprKind::Lit(lit.clone()), literal_runtime_type(&lit));
+        }
         ExprKind::Lambda {
             param,
             param_effect_annotation,
@@ -57,15 +56,12 @@ pub(crate) fn materialize_expr_with_expected(
                 RuntimeType::Fun { ret, .. } => Some((**ret).clone()),
                 _ => None,
             };
+            let body = materialize_expr_with_expected(*body, substitutions, body_expected.as_ref());
             let kind = ExprKind::Lambda {
                 param,
                 param_effect_annotation,
                 param_function_allowed_effects,
-                body: Box::new(materialize_expr_with_expected(
-                    *body,
-                    substitutions,
-                    body_expected.as_ref(),
-                )),
+                body: Box::new(body),
             };
             return Expr::typed(kind, outer_ty);
         }
@@ -78,8 +74,10 @@ pub(crate) fn materialize_expr_with_expected(
             let evidence =
                 evidence.map(|evidence| materialize_apply_evidence(evidence, substitutions));
             let callee = materialize_expr(*callee, substitutions);
-            let expected_arg = materialized_runtime_callee_arg(&callee.ty)
-                .or_else(|| evidence.as_ref().and_then(materialized_apply_expected_arg));
+            let expected_arg = evidence
+                .as_ref()
+                .and_then(materialized_apply_expected_arg)
+                .or_else(|| materialized_runtime_callee_arg(&callee.ty));
             let kind = ExprKind::Apply {
                 callee: Box::new(callee),
                 arg: Box::new(materialize_apply_arg(
@@ -104,12 +102,25 @@ pub(crate) fn materialize_expr_with_expected(
             then_branch,
             else_branch,
             evidence,
-        } => ExprKind::If {
-            cond: Box::new(materialize_expr(*cond, substitutions)),
-            then_branch: Box::new(materialize_expr(*then_branch, substitutions)),
-            else_branch: Box::new(materialize_expr(*else_branch, substitutions)),
-            evidence: evidence.map(|evidence| materialize_join_evidence(evidence, substitutions)),
-        },
+        } => {
+            let evidence =
+                evidence.map(|evidence| materialize_join_evidence(evidence, substitutions));
+            let branch_expected = materialized_join_expected(evidence.as_ref(), expected);
+            ExprKind::If {
+                cond: Box::new(materialize_expr(*cond, substitutions)),
+                then_branch: Box::new(materialize_expr_to_expected(
+                    *then_branch,
+                    substitutions,
+                    branch_expected.as_ref(),
+                )),
+                else_branch: Box::new(materialize_expr_to_expected(
+                    *else_branch,
+                    substitutions,
+                    branch_expected.as_ref(),
+                )),
+                evidence,
+            }
+        }
         ExprKind::Record { fields, spread } => ExprKind::Record {
             fields: fields
                 .into_iter()
@@ -264,8 +275,9 @@ pub(crate) fn materialize_expr_with_expected(
         ExprKind::Coerce { from, to, expr } => {
             let to = expected_core_type(expected)
                 .unwrap_or_else(|| materialize_core_type(to, substitutions));
-            let expected = runtime_type_from_core_value(to.clone());
-            let expr = materialize_expr_with_expected(*expr, substitutions, Some(&expected));
+            let expected_runtime = runtime_type_from_core_value(to.clone());
+            let expr = materialize_expr(*expr, substitutions);
+            let expr = adapt_expr_to_expected_runtime(expr, &expected_runtime);
             let materialized_from = materialize_core_type(from, substitutions);
             let from = match &expr.ty {
                 RuntimeType::Unknown => materialized_from,
@@ -837,6 +849,20 @@ fn materialize_join_evidence(
     }
 }
 
+fn materialized_join_expected(
+    evidence: Option<&yulang_runtime_ir::JoinEvidence>,
+    expected: Option<&RuntimeType>,
+) -> Option<RuntimeType> {
+    expected
+        .filter(|expected| should_materialize_expected_runtime(expected))
+        .cloned()
+        .or_else(|| {
+            evidence
+                .map(|evidence| runtime_type_from_core_value(evidence.result.clone()))
+                .filter(should_materialize_expected_runtime)
+        })
+}
+
 fn materialize_apply_evidence(
     evidence: typed_ir::ApplyEvidence,
     substitutions: &[typed_ir::TypeSubstitution],
@@ -958,7 +984,7 @@ fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option
         .as_ref()
         .and_then(super::apply_spine::type_from_bounds)
         .map(runtime_type_from_core_value)
-        .filter(should_materialize_runtime_apply_arg_to)
+        .filter(should_materialize_expected_runtime)
 }
 
 fn materialized_apply_result_type(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
@@ -1048,16 +1074,16 @@ fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<RuntimeType> {
         ),
         RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => return None,
     };
-    should_materialize_runtime_apply_arg_to(&arg).then_some(arg)
+    should_materialize_expected_runtime(&arg).then_some(arg)
 }
 
-fn should_materialize_runtime_apply_arg_to(ty: &RuntimeType) -> bool {
+fn should_materialize_expected_runtime(ty: &RuntimeType) -> bool {
     match ty {
-        RuntimeType::Value(ty) => should_materialize_core_apply_arg_to(ty),
+        RuntimeType::Value(ty) => should_materialize_expected_core(ty),
         RuntimeType::Thunk { effect, value } => {
             should_thunk_effect(effect)
                 && super::runtime_type_is_closed(value)
-                && should_materialize_core_apply_arg_to(&super::runtime_type_to_core(
+                && should_materialize_expected_core(&super::runtime_type_to_core(
                     value.as_ref().clone(),
                 ))
         }
@@ -1066,7 +1092,7 @@ fn should_materialize_runtime_apply_arg_to(ty: &RuntimeType) -> bool {
     }
 }
 
-fn should_materialize_core_apply_arg_to(ty: &typed_ir::Type) -> bool {
+fn should_materialize_expected_core(ty: &typed_ir::Type) -> bool {
     super::core_type_is_closed(ty) && !matches!(ty, typed_ir::Type::Any | typed_ir::Type::Never)
 }
 
@@ -1075,48 +1101,88 @@ fn materialize_apply_arg(
     substitutions: &[typed_ir::TypeSubstitution],
     expected: Option<&RuntimeType>,
 ) -> Expr {
-    let arg = materialize_expr_with_expected(arg, substitutions, expected);
+    materialize_expr_to_expected(arg, substitutions, expected)
+}
+
+fn materialize_expr_to_expected(
+    expr: Expr,
+    substitutions: &[typed_ir::TypeSubstitution],
+    expected: Option<&RuntimeType>,
+) -> Expr {
+    let expr = materialize_expr_with_expected(expr, substitutions, expected);
     let Some(expected) = expected else {
-        return arg;
+        return expr;
     };
+    adapt_expr_to_expected_runtime(expr, expected)
+}
+
+fn literal_runtime_type(lit: &typed_ir::Lit) -> RuntimeType {
+    RuntimeType::Value(typed_ir::Type::Named {
+        path: match lit {
+            typed_ir::Lit::Int(_) => primitive_path(&["int"]),
+            typed_ir::Lit::Float(_) => primitive_path(&["float"]),
+            typed_ir::Lit::String(_) => primitive_path(&["std", "str", "str"]),
+            typed_ir::Lit::Bool(_) => primitive_path(&["bool"]),
+            typed_ir::Lit::Unit => primitive_path(&["unit"]),
+        },
+        args: Vec::new(),
+    })
+}
+
+fn primitive_path(segments: &[&str]) -> typed_ir::Path {
+    typed_ir::Path::new(
+        segments
+            .iter()
+            .map(|segment| typed_ir::Name((*segment).to_string()))
+            .collect(),
+    )
+}
+
+fn adapt_expr_to_expected_runtime(expr: Expr, expected: &RuntimeType) -> Expr {
     if let RuntimeType::Thunk { effect, value } = expected {
-        return materialize_thunk_apply_arg(arg, effect, value);
+        return materialize_value_to_thunk(expr, effect, value);
     }
     let Some(expected) = expected_core_type(Some(expected)) else {
-        return arg;
+        return expr;
     };
-    let actual = super::runtime_type_to_core(arg.ty.clone());
+    materialize_thunk_to_value_or_coerce(expr, expected)
+}
+
+fn materialize_thunk_to_value_or_coerce(expr: Expr, expected: typed_ir::Type) -> Expr {
+    if matches!(expr.ty, RuntimeType::Thunk { .. }) {
+        return expr;
+    }
+    let actual = super::runtime_type_to_core(expr.ty.clone());
+    materialize_value_coerce(expr, actual, expected)
+}
+
+fn materialize_value_coerce(expr: Expr, actual: typed_ir::Type, expected: typed_ir::Type) -> Expr {
     if actual == expected || matches!(actual, typed_ir::Type::Unknown) {
-        return arg;
+        return expr;
+    }
+    if !super::core_type_is_closed(&actual) || !super::core_type_is_closed(&expected) {
+        return expr;
     }
     Expr::typed(
         ExprKind::Coerce {
             from: actual,
             to: expected.clone(),
-            expr: Box::new(arg),
+            expr: Box::new(expr),
         },
         runtime_type_from_core_value(expected),
     )
 }
 
-fn materialize_thunk_apply_arg(arg: Expr, effect: &typed_ir::Type, value: &RuntimeType) -> Expr {
-    let expected_core = super::runtime_type_to_core(value.clone());
-    let actual_core = super::runtime_type_to_core(arg.ty.clone());
+fn materialize_value_to_thunk(arg: Expr, effect: &typed_ir::Type, value: &RuntimeType) -> Expr {
     if matches!(arg.ty, RuntimeType::Thunk { .. }) {
         return arg;
     }
-    let expr = if actual_core == expected_core || matches!(actual_core, typed_ir::Type::Unknown) {
-        arg
-    } else {
-        Expr::typed(
-            ExprKind::Coerce {
-                from: actual_core,
-                to: expected_core,
-                expr: Box::new(arg),
-            },
-            value.clone(),
-        )
-    };
+    let expected = super::runtime_type_to_core(value.clone());
+    let actual = super::runtime_type_to_core(arg.ty.clone());
+    if !super::core_type_is_closed(&actual) || !super::core_type_is_closed(&expected) {
+        return arg;
+    }
+    let expr = materialize_value_coerce(arg, actual, expected);
     Expr::typed(
         ExprKind::Thunk {
             effect: effect.clone(),

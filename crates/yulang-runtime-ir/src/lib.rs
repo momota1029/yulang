@@ -315,9 +315,7 @@ impl RuntimeType {
     pub fn as_value(&self) -> Option<&typed_ir::Type> {
         match self {
             RuntimeType::Value(ty) => Some(ty),
-            RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => {
-                None
-            }
+            RuntimeType::Unknown | RuntimeType::Fun { .. } | RuntimeType::Thunk { .. } => None,
         }
     }
 }

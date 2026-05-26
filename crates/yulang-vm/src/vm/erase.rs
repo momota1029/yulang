@@ -11,19 +11,18 @@ pub(super) fn erase_module(
     module: Module,
     effects: &EffectPathResolver,
 ) -> Result<Module, VmError> {
-    let bindings = module
-        .bindings
-        .into_iter()
-        .map(|binding| erase_binding(binding, effects))
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut bindings = Vec::with_capacity(module.bindings.len());
+    for binding in module.bindings {
+        bindings.push(erase_binding(binding, effects)?);
+    }
+    let mut root_exprs = Vec::with_capacity(module.root_exprs.len());
+    for expr in module.root_exprs {
+        root_exprs.push(erase_expr(expr, effects)?);
+    }
     Ok(Module {
         path: module.path,
         bindings,
-        root_exprs: module
-            .root_exprs
-            .into_iter()
-            .map(|expr| erase_expr(expr, effects))
-            .collect::<Result<Vec<_>, _>>()?,
+        root_exprs,
         roots: module.roots,
         role_impls: module.role_impls,
     })
@@ -103,26 +102,30 @@ pub(super) fn erase_kind(
             else_branch: Box::new(erase_expr(*else_branch, effects)?),
             evidence,
         },
-        ExprKind::Tuple(items) => ExprKind::Tuple(
-            items
-                .into_iter()
-                .map(|expr| erase_expr(expr, effects))
-                .collect::<Result<Vec<_>, _>>()?,
-        ),
-        ExprKind::Record { fields, spread } => ExprKind::Record {
-            fields: fields
-                .into_iter()
-                .map(|field| {
-                    Ok(RecordExprField {
-                        name: field.name,
-                        value: erase_expr(field.value, effects)?,
-                    })
-                })
-                .collect::<Result<Vec<_>, VmError>>()?,
-            spread: spread
-                .map(|spread| erase_record_spread_expr(spread, effects))
-                .transpose()?,
-        },
+        ExprKind::Tuple(items) => {
+            let mut erased = Vec::with_capacity(items.len());
+            for expr in items {
+                erased.push(erase_expr(expr, effects)?);
+            }
+            ExprKind::Tuple(erased)
+        }
+        ExprKind::Record { fields, spread } => {
+            let mut erased_fields = Vec::with_capacity(fields.len());
+            for field in fields {
+                erased_fields.push(RecordExprField {
+                    name: field.name,
+                    value: erase_expr(field.value, effects)?,
+                });
+            }
+            let erased_spread = match spread {
+                Some(spread) => Some(erase_record_spread_expr(spread, effects)?),
+                None => None,
+            };
+            ExprKind::Record {
+                fields: erased_fields,
+                spread: erased_spread,
+            }
+        }
         ExprKind::Variant { tag, value } => ExprKind::Variant {
             tag,
             value: value
@@ -137,34 +140,43 @@ pub(super) fn erase_kind(
             scrutinee,
             arms,
             evidence,
-        } => ExprKind::Match {
-            scrutinee: Box::new(erase_expr(*scrutinee, effects)?),
-            arms: arms
-                .into_iter()
-                .map(|arm| erase_match_arm(arm, effects))
-                .collect::<Result<Vec<_>, _>>()?,
-            evidence,
-        },
-        ExprKind::Block { stmts, tail } => ExprKind::Block {
-            stmts: stmts
-                .into_iter()
-                .map(|stmt| erase_stmt(stmt, effects))
-                .collect::<Result<Vec<_>, _>>()?,
-            tail: tail
-                .map(|tail| erase_expr(*tail, effects).map(Box::new))
-                .transpose()?,
-        },
+        } => {
+            let scrutinee = Box::new(erase_expr(*scrutinee, effects)?);
+            let mut erased_arms = Vec::with_capacity(arms.len());
+            for arm in arms {
+                erased_arms.push(erase_match_arm(arm, effects)?);
+            }
+            ExprKind::Match {
+                scrutinee,
+                arms: erased_arms,
+                evidence,
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            let mut erased_stmts = Vec::with_capacity(stmts.len());
+            for stmt in stmts {
+                erased_stmts.push(erase_stmt(stmt, effects)?);
+            }
+            let erased_tail = match tail {
+                Some(tail) => Some(Box::new(erase_expr(*tail, effects)?)),
+                None => None,
+            };
+            ExprKind::Block {
+                stmts: erased_stmts,
+                tail: erased_tail,
+            }
+        }
         ExprKind::Handle {
             body,
             arms,
             evidence,
             mut handler,
         } => {
-            handler.consumes = handler
-                .consumes
-                .into_iter()
-                .map(|path| effects.resolve_namespace_path(path))
-                .collect();
+            let mut resolved_consumes = Vec::with_capacity(handler.consumes.len());
+            for path in handler.consumes {
+                resolved_consumes.push(effects.resolve_namespace_path(path));
+            }
+            handler.consumes = resolved_consumes;
             handler.residual_before = handler
                 .residual_before
                 .map(|ty| effects.resolve_effect_type(ty));
@@ -172,12 +184,14 @@ pub(super) fn erase_kind(
                 .residual_after
                 .map(|ty| effects.resolve_effect_type(ty));
             let consumes = handler.consumes.clone();
+            let body = Box::new(erase_expr(*body, effects)?);
+            let mut erased_arms = Vec::with_capacity(arms.len());
+            for arm in arms {
+                erased_arms.push(erase_handle_arm(arm, effects, &consumes)?);
+            }
             ExprKind::Handle {
-                body: Box::new(erase_expr(*body, effects)?),
-                arms: arms
-                    .into_iter()
-                    .map(|arm| erase_handle_arm(arm, effects, &consumes))
-                    .collect::<Result<Vec<_>, _>>()?,
+                body,
+                arms: erased_arms,
                 evidence,
                 handler,
             }

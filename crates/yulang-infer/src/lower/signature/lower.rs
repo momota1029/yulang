@@ -527,7 +527,11 @@ fn implicit_row_tail_sig_var(row: &SigRow) -> Option<SigVar> {
     let first = row.items.first()?;
     let span = first.span();
     Some(SigVar {
-        name: format!("__row_tail_{}_{}", u32::from(span.start()), u32::from(span.end())),
+        name: format!(
+            "__row_tail_{}_{}",
+            u32::from(span.start()),
+            u32::from(span.end())
+        ),
         span,
     })
 }

@@ -10,11 +10,12 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_typed_ir as typed_ir;
 
+use yulang_runtime_refine::invariant::{RuntimeStage, check_runtime_invariants};
+use yulang_runtime_refine::validate::validate_module;
 use yulang_runtime_types::diagnostic::{
     RuntimeCalleeLabel, RuntimeError, RuntimeResult, TypeMismatchContext, TypeMismatchPhase,
     TypeSource,
 };
-use yulang_runtime_refine::invariant::{RuntimeStage, check_runtime_invariants};
 use yulang_runtime_types::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,
     LoweredModule, MatchArm, Module, Pattern, RecordExprField, RecordPatternField,
@@ -37,7 +38,6 @@ use yulang_runtime_types::types::{
     substitute_bounds, substitute_hir_type, substitute_type, thunk_effect, type_compatible,
     wildcard_effect_type,
 };
-use yulang_runtime_refine::validate::validate_module;
 
 mod core_shape;
 mod diagnostics;

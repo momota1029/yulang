@@ -13,8 +13,7 @@
 use std::collections::VecDeque;
 
 use yulang_runtime_ir::{
-    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedModule as Module,
-    RuntimeType as RuntimeType,
+    FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedModule as Module, RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -364,8 +363,7 @@ fn semantic_cast_path(
     actual: &typed_ir::Type,
     expected: &typed_ir::Type,
 ) -> Option<Vec<SemanticCastStep>> {
-    if !semantic_cast_target_needs_apply(expected)
-        || primitive_runtime_coercion_covers(actual, expected)
+    if primitive_runtime_coercion_covers(actual, expected)
         || semantic_cast_endpoint_is_open(actual)
         || semantic_cast_endpoint_is_open(expected)
         || same_core_type(actual, expected)
@@ -448,10 +446,6 @@ fn semantic_cast_endpoint_is_open(ty: &typed_ir::Type) -> bool {
         ty,
         typed_ir::Type::Any | typed_ir::Type::Unknown | typed_ir::Type::Var(_)
     ) || !super::core_type_is_closed(ty)
-}
-
-fn semantic_cast_target_needs_apply(ty: &typed_ir::Type) -> bool {
-    is_bare_named_type(ty, "float")
 }
 
 fn primitive_runtime_coercion_covers(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {

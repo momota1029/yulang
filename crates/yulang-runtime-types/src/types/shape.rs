@@ -39,10 +39,7 @@ pub fn thunk_effect(ty: &RuntimeType) -> Option<typed_ir::Type> {
     }
 }
 
-pub fn is_nullary_constructor_path_for_type(
-    path: &typed_ir::Path,
-    ty: &RuntimeType,
-) -> bool {
+pub fn is_nullary_constructor_path_for_type(path: &typed_ir::Path, ty: &RuntimeType) -> bool {
     let RuntimeType::Value(typed_ir::Type::Named {
         path: type_path, ..
     }) = ty

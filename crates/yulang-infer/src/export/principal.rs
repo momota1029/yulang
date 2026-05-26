@@ -711,9 +711,7 @@ fn export_role_impl_graph_nodes(
         .map(|(def, path)| (def, export_path(&path)))
         .collect();
     for (path, def) in paths {
-        def_paths
-            .entry(*def)
-            .or_insert_with(|| export_path(path));
+        def_paths.entry(*def).or_insert_with(|| export_path(path));
     }
     for (path, def) in state.ctx.collect_all_binding_paths() {
         def_paths.entry(def).or_insert_with(|| export_path(&path));

@@ -45,7 +45,7 @@ use yulang_runtime_ir::{
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    MonomorphizeInstanceCache, MonomorphizeError, MonomorphizeOutput, MonomorphizeReport,
+    MonomorphizeError, MonomorphizeInstanceCache, MonomorphizeOutput, MonomorphizeReport,
     MonomorphizeResult, graph::runtime_type_from_core_value,
 };
 
@@ -65,7 +65,9 @@ impl IntoFinalizeRuntimeModule for Module {
     }
 }
 
-pub fn finalize_module<M: IntoFinalizeRuntimeModule>(module: M) -> MonomorphizeResult<MonomorphizeOutput> {
+pub fn finalize_module<M: IntoFinalizeRuntimeModule>(
+    module: M,
+) -> MonomorphizeResult<MonomorphizeOutput> {
     let mut cache = MonomorphizeInstanceCache::default();
     finalize_module_with_cache(module, &mut cache)
 }
@@ -79,9 +81,7 @@ pub fn monomorphize_module<M: IntoFinalizeRuntimeModule>(
 pub fn monomorphize_to_legacy_runtime_module<M: IntoFinalizeRuntimeModule>(
     module: M,
 ) -> Result<yulang_runtime_types::Module, MonomorphizeError> {
-    Ok(finalized_to_runtime_module(monomorphize_module(
-        module,
-    )?))
+    Ok(finalized_to_runtime_module(monomorphize_module(module)?))
 }
 
 pub fn monomorphize_module_with_report(
@@ -265,9 +265,6 @@ pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
             break;
         }
     }
-    postpass::prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
-    postpass::prune_unreachable_bindings(&mut module);
-    postpass::prune_unbound_binding_roots(&mut module);
     postpass::monomorphize_phantom_nullary_variant_bindings(&mut module);
     postpass::normalize_materialized_module(&mut module);
     cast::normalize_semantic_cast_coercions(&mut module);
@@ -278,6 +275,11 @@ pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
     // Run scope walk again — apply reconciliation may have concretized
     // pattern/handler types that earlier scope walk skipped.
     postpass::fill_local_var_types(&mut module);
+    postpass::normalize_materialized_module(&mut module);
+    cast::normalize_semantic_cast_coercions(&mut module);
+    postpass::prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
+    postpass::prune_unreachable_bindings(&mut module);
+    postpass::prune_unbound_binding_roots(&mut module);
     Ok(MonomorphizeOutput {
         module,
         report: MonomorphizeReport {
@@ -621,19 +623,14 @@ fn finalized_to_runtime_type(ty: yulang_runtime_ir::RuntimeType) -> yulang_runti
             param: Box::new(finalized_to_runtime_type(*param)),
             ret: Box::new(finalized_to_runtime_type(*ret)),
         },
-        yulang_runtime_ir::RuntimeType::Thunk { effect, value } => yulang_runtime_types::Type::Thunk {
-            effect,
-            value: Box::new(finalized_to_runtime_type(*value)),
-        },
+        yulang_runtime_ir::RuntimeType::Thunk { effect, value } => {
+            yulang_runtime_types::Type::Thunk {
+                effect,
+                value: Box::new(finalized_to_runtime_type(*value)),
+            }
+        }
     }
 }
-
-
-
-
-
-
-
 
 fn finalize_lowered_expr(expr: LoweredExpr) -> Expr {
     let ty = runtime_type_from_core_value(expr.ty);
@@ -899,7 +896,7 @@ mod tests {
     };
     use yulang_runtime_ir::{
         FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-        FinalizedModule as Module, RuntimeType as RuntimeType, Root,
+        FinalizedModule as Module, Root, RuntimeType,
     };
     use yulang_sources::{
         CompiledSourceFileIdentity, CompiledUnitDependency, CompiledUnitManifest,
@@ -1507,6 +1504,168 @@ f 3
         };
 
         assert_eq!(expr.ty, thunk);
+    }
+
+    #[test]
+    fn materialize_apply_arg_preserves_thunk_until_runtime_force() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let unit = unit_type();
+        let thunk_ty = RuntimeType::Thunk {
+            effect: typed_ir::Type::Never,
+            value: Box::new(RuntimeType::Value(int.clone())),
+        };
+        let apply = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(path("f")),
+                    RuntimeType::Fun {
+                        param: Box::new(RuntimeType::Value(int.clone())),
+                        ret: Box::new(RuntimeType::Value(unit.clone())),
+                    },
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Thunk {
+                        effect: typed_ir::Type::Never,
+                        value: RuntimeType::Value(int.clone()),
+                        expr: Box::new(Expr::typed(
+                            ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                            RuntimeType::Value(int),
+                        )),
+                    },
+                    thunk_ty.clone(),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Value(unit),
+        );
+
+        let materialized = materialize::materialize_expr(apply, &[]);
+        let ExprKind::Apply { arg, .. } = materialized.kind else {
+            panic!("expected apply expression");
+        };
+
+        assert!(matches!(arg.ty, RuntimeType::Thunk { .. }));
+        assert!(matches!(arg.kind, ExprKind::Thunk { .. }));
+    }
+
+    #[test]
+    fn materialize_if_branches_to_join_result() {
+        let result = typed_ir::TypeVar("result".into());
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let user_id = typed_ir::Type::Named {
+            path: path("user_id"),
+            args: Vec::new(),
+        };
+        let if_expr = Expr::typed(
+            ExprKind::If {
+                cond: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Bool(true)),
+                    RuntimeType::Unknown,
+                )),
+                then_branch: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                    RuntimeType::Value(int.clone()),
+                )),
+                else_branch: Box::new(Expr::typed(
+                    ExprKind::Var(path("fallback")),
+                    RuntimeType::Value(user_id.clone()),
+                )),
+                evidence: Some(yulang_runtime_ir::JoinEvidence {
+                    result: typed_ir::Type::Var(result.clone()),
+                }),
+            },
+            RuntimeType::Value(typed_ir::Type::Var(result.clone())),
+        );
+
+        let materialized = materialize::materialize_expr(
+            if_expr,
+            &[typed_ir::TypeSubstitution {
+                var: result,
+                ty: user_id.clone(),
+            }],
+        );
+
+        assert_eq!(materialized.ty, RuntimeType::Value(user_id.clone()));
+        let ExprKind::If {
+            then_branch,
+            else_branch,
+            evidence,
+            ..
+        } = materialized.kind
+        else {
+            panic!("expected if expression");
+        };
+        assert_eq!(evidence.expect("join evidence").result, user_id.clone());
+        assert_eq!(else_branch.ty, RuntimeType::Value(user_id.clone()));
+        let ExprKind::Coerce { from, to, expr } = then_branch.kind else {
+            panic!("expected then branch to be coerced to join result");
+        };
+        assert_eq!(from, int);
+        assert_eq!(to, user_id);
+        assert!(matches!(expr.kind, ExprKind::Lit(typed_ir::Lit::Int(_))));
+    }
+
+    #[test]
+    fn semantic_cast_normalization_expands_closed_coerce_to_cast_call() {
+        let int = typed_ir::Type::Named {
+            path: path("int"),
+            args: Vec::new(),
+        };
+        let user_id = typed_ir::Type::Named {
+            path: path("user_id"),
+            args: Vec::new(),
+        };
+        let method = path("cast_int_to_user_id");
+        let coerce = Expr::typed(
+            ExprKind::Coerce {
+                from: int.clone(),
+                to: user_id.clone(),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("1".into())),
+                    RuntimeType::Value(int.clone()),
+                )),
+            },
+            RuntimeType::Value(user_id.clone()),
+        );
+        let mut module = Module {
+            path: path("test"),
+            bindings: Vec::new(),
+            root_exprs: vec![coerce],
+            roots: vec![Root::Expr(0)],
+            role_impls: vec![typed_ir::RoleImplGraphNode {
+                role: path("Cast"),
+                inputs: vec![typed_ir::TypeBounds::exact(int.clone())],
+                associated_types: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("to".into()),
+                    value: typed_ir::TypeBounds::exact(user_id.clone()),
+                    optional: false,
+                }],
+                members: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("cast".into()),
+                    value: method.clone(),
+                    optional: false,
+                }],
+            }],
+        };
+
+        cast::normalize_semantic_cast_coercions(&mut module);
+
+        let ExprKind::Apply { callee, arg, .. } = &module.root_exprs[0].kind else {
+            panic!("expected semantic cast call");
+        };
+        assert!(matches!(arg.kind, ExprKind::Lit(typed_ir::Lit::Int(_))));
+        let ExprKind::Var(callee_path) = &callee.kind else {
+            panic!("expected cast method callee");
+        };
+        assert_eq!(callee_path, &method);
+        assert_eq!(module.root_exprs[0].ty, RuntimeType::Value(user_id));
     }
 
     #[test]

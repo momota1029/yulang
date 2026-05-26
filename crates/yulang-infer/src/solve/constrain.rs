@@ -206,7 +206,7 @@ mod tests {
     use crate::solve::Infer;
     use crate::symbols::{Name, Path};
     use crate::types::RecordField;
-    use crate::types::{Neg, Pos};
+    use crate::types::{EffectAtom, Neg, Pos};
 
     #[test]
     fn constructor_mismatch_reports_cause_and_origin() {
@@ -352,6 +352,93 @@ mod tests {
             Some(&TypeErrorKind::ExpectedShape {
                 expected: ExpectedShape::Constructor,
             }),
+        );
+    }
+
+    #[test]
+    fn constructor_arity_mismatch_reports_constructor_mismatch() {
+        let infer = Infer::new();
+        let pos = infer.alloc_pos(Pos::Con(
+            Path {
+                segments: vec![Name("box".to_string())],
+            },
+            vec![(
+                infer.alloc_pos(prim("int")),
+                infer.alloc_neg(neg_prim("int")),
+            )],
+        ));
+        let neg = infer.alloc_neg(Neg::Con(
+            Path {
+                segments: vec![Name("box".to_string())],
+            },
+            vec![],
+        ));
+
+        infer.constrain(pos, neg);
+
+        assert_eq!(
+            infer.type_errors().first().map(|e| &e.kind),
+            Some(&TypeErrorKind::ConstructorMismatch),
+        );
+    }
+
+    #[test]
+    fn extrude_lowers_effect_atom_argument_levels() {
+        let infer = Infer::new();
+        let pos_arg = fresh_type_var();
+        let neg_arg = fresh_type_var();
+        infer.register_level(pos_arg, 3);
+        infer.register_level(neg_arg, 3);
+        let atom = infer.alloc_pos(Pos::Atom(EffectAtom {
+            path: Path {
+                segments: vec![Name("io".to_string())],
+            },
+            args: vec![(pos_arg, neg_arg)],
+        }));
+
+        infer.extrude_pos(atom, 1);
+
+        assert_eq!(infer.level_of(pos_arg), 1);
+        assert_eq!(infer.level_of(neg_arg), 1);
+    }
+
+    #[test]
+    fn row_tail_receives_only_unmatched_negative_items() {
+        let infer = Infer::new();
+        let tail = fresh_type_var();
+        infer.register_level(tail, 0);
+        let effect = EffectAtom {
+            path: Path {
+                segments: vec![Name("io".to_string())],
+            },
+            args: Vec::new(),
+        };
+        let pos_item = infer.alloc_pos(Pos::Atom(effect.clone()));
+        let neg_item = infer.alloc_neg(Neg::Atom(effect));
+        let pos = infer.alloc_pos(Pos::Row(vec![pos_item], infer.alloc_pos(Pos::Var(tail))));
+        let neg = infer.alloc_neg(Neg::Row(vec![neg_item], infer.arena.empty_neg_row));
+
+        infer.constrain(pos, neg);
+
+        let uppers = infer.uppers_of(tail);
+        assert!(
+            uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, row_tail)
+                        if items.is_empty() && matches!(infer.arena.get_neg(*row_tail), Neg::Row(empty, _) if empty.is_empty())
+                )
+            }),
+            "tail should receive only unmatched row items, got {uppers:?}",
+        );
+        assert!(
+            !uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, _) if items.iter().any(|item| matches!(infer.arena.get_neg(*item), Neg::Atom(_)))
+                )
+            }),
+            "matched row item should not be required again from the tail, got {uppers:?}",
         );
     }
 

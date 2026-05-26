@@ -12,10 +12,11 @@ mod output;
 mod solver;
 
 pub use cache::{
-    CachedMonomorphizeInstance, MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION, MonomorphizeInstanceArtifactCache,
-    MonomorphizeInstanceArtifactCacheError, MonomorphizeInstanceArtifactCacheKey, MonomorphizeInstanceCache,
-    MonomorphizeInstanceCachePolicy, MonomorphizeInstanceCacheProfile, MonomorphizeInstanceCacheSurface,
-    MonomorphizeInstanceKey,
+    CachedMonomorphizeInstance, MONOMORPHIZE_INSTANCE_CACHE_FORMAT_VERSION,
+    MonomorphizeInstanceArtifactCache, MonomorphizeInstanceArtifactCacheError,
+    MonomorphizeInstanceArtifactCacheKey, MonomorphizeInstanceCache,
+    MonomorphizeInstanceCachePolicy, MonomorphizeInstanceCacheProfile,
+    MonomorphizeInstanceCacheSurface, MonomorphizeInstanceKey,
 };
 pub use diagnostic::{MonomorphizeDiagnostic, MonomorphizeError, MonomorphizeResult};
 pub use graph::ResolvedTypeVar;
@@ -27,7 +28,6 @@ pub use output::{
     MonomorphizeOutput, MonomorphizeReport, RootGraphInput, RootGraphRoot, RootGraphSolution,
 };
 pub use solver::{
-    collect_root_graph_inputs, finalize_module, finalize_module_with_cache,
-    monomorphize_to_legacy_runtime_module, monomorphize_module,
-    monomorphize_module_with_report,
+    collect_root_graph_inputs, finalize_module, finalize_module_with_cache, monomorphize_module,
+    monomorphize_module_with_report, monomorphize_to_legacy_runtime_module,
 };

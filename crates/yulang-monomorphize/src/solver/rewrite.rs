@@ -17,14 +17,14 @@ use std::collections::{HashMap, HashSet};
 
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    FinalizedModule as Module, RuntimeType as RuntimeType,
+    FinalizedModule as Module, RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 
 use crate::{
-    CachedMonomorphizeInstance, MonomorphizeDiagnostic, MonomorphizeInstanceCache, MonomorphizeInstanceKey,
-    MonomorphizeResult, RootGraphSolution, graph::runtime_type_from_core_value_and_effect,
-    output::RootGraphRoot,
+    CachedMonomorphizeInstance, MonomorphizeDiagnostic, MonomorphizeInstanceCache,
+    MonomorphizeInstanceKey, MonomorphizeResult, RootGraphSolution,
+    graph::runtime_type_from_core_value_and_effect, output::RootGraphRoot,
 };
 
 use super::materialize;

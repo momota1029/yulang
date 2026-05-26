@@ -9,12 +9,12 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_typed_ir as typed_ir;
 
+use yulang_runtime_types::binding_is_parametric_runtime_intrinsic;
 use yulang_runtime_types::diagnostic::{RuntimeError, RuntimeResult, TypeSource};
 use yulang_runtime_types::ir::{
     Binding, Expr, ExprKind, HandleArm, HandleEffect, MatchArm, Module, Pattern, RecordSpreadExpr,
     RecordSpreadPattern, ResumeBinding, Root, Stmt, Type as RuntimeType, TypeInstantiation,
 };
-use yulang_runtime_types::binding_is_parametric_runtime_intrinsic;
 use yulang_runtime_types::types::{
     BoundsChoice, choose_bounds_type, collect_type_vars, core_types_compatible,
     diagnostic_core_type, effect_compatible, is_qualified_runtime_path,

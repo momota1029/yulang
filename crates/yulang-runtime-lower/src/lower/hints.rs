@@ -28,9 +28,10 @@ pub(super) fn choose_local_type_hint(
 ) -> Option<RuntimeType> {
     match (stored, expected) {
         (Some(stored @ RuntimeType::Value(typed_ir::Type::Never)), _) => Some(stored),
-        (Some(RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))), Some(expected)) => {
-            Some(expected)
-        }
+        (
+            Some(RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))),
+            Some(expected),
+        ) => Some(expected),
         (Some(stored), Some(expected)) if hir_type_compatible(&expected, &stored) => {
             Some(more_informative_hir_type(&expected, &stored))
         }
@@ -92,7 +93,9 @@ pub(super) fn expected_arg_evidence_runtime_usable(ty: &RuntimeType) -> bool {
         && !hir_type_is_hole(ty)
         && !matches!(
             ty,
-            RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Never | typed_ir::Type::Var(_))
+            RuntimeType::Value(
+                typed_ir::Type::Any | typed_ir::Type::Never | typed_ir::Type::Var(_)
+            )
         )
 }
 

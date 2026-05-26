@@ -1,6 +1,6 @@
-use yulang_runtime_ir::{FinalizedModule as Module, RuntimeType as RuntimeType};
+use yulang_runtime_ir::{FinalizedModule as Module, RuntimeType};
 
-use crate::{MonomorphizeInstanceCacheProfile, GraphSolution};
+use crate::{GraphSolution, MonomorphizeInstanceCacheProfile};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonomorphizeOutput {

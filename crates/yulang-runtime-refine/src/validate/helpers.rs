@@ -501,7 +501,9 @@ pub(super) fn effect_id_type() -> typed_ir::Type {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use yulang_runtime_types::ir::{Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, Module, Root, Type};
+    use yulang_runtime_types::ir::{
+        Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, Module, Root, Type,
+    };
 
     #[test]
     fn thunk_type_allows_effect_row() {

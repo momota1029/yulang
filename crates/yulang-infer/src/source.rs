@@ -4010,8 +4010,7 @@ fn merge_effect_operation_decls(
     target: &mut Vec<typed_ir::EffectOperationDecl>,
     source: Vec<typed_ir::EffectOperationDecl>,
 ) {
-    let existing: HashSet<typed_ir::Path> =
-        target.iter().map(|decl| decl.path.clone()).collect();
+    let existing: HashSet<typed_ir::Path> = target.iter().map(|decl| decl.path.clone()).collect();
     for decl in source {
         if !existing.contains(&decl.path) {
             target.push(decl);

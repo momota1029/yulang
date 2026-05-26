@@ -26,7 +26,7 @@ use std::collections::{HashMap, HashSet};
 
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    FinalizedModule as Module, RuntimeType as RuntimeType, Root,
+    FinalizedModule as Module, Root, RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -455,9 +455,8 @@ pub(crate) fn core_type_has_unknown(ty: &typed_ir::Type) -> bool {
 /// The lowering pipeline sometimes records a local `Var` reference with
 /// `.ty = Unknown` even when the surrounding binder carries a concrete type
 /// after monomorphization. We do not have a Var-table at materialize time,
-/// so we walk the finalized module here with a flat name -> RuntimeType
-/// scope (hygiene guarantees no shadowing collisions) and patch
-/// `Var.ty == Unknown` references.
+/// so we walk the finalized module here with a scoped name -> RuntimeType
+/// table and patch `Var.ty == Unknown` references.
 pub(crate) fn fill_local_var_types(module: &mut Module) {
     let bindings: HashMap<typed_ir::Path, RuntimeType> = module
         .bindings
@@ -554,9 +553,7 @@ fn fill_local_var_types_in(
                     fill_local_var_types_in(guard, scope, bindings);
                 }
                 fill_local_var_types_in(&mut arm.body, scope, bindings);
-                for path in added {
-                    scope.remove(&path);
-                }
+                restore_pattern_scope_bindings(scope, added);
             }
         }
         ExprKind::Block { stmts, tail } => {
@@ -578,9 +575,7 @@ fn fill_local_var_types_in(
             if let Some(tail) = tail {
                 fill_local_var_types_in(tail, scope, bindings);
             }
-            for path in added {
-                scope.remove(&path);
-            }
+            restore_pattern_scope_bindings(scope, added);
         }
         ExprKind::Handle { body, arms, .. } => {
             fill_local_var_types_in(body, scope, bindings);
@@ -589,17 +584,18 @@ fn fill_local_var_types_in(
                 if let Some(resume) = &arm.resume {
                     let resume_path = path_from_name(&resume.name);
                     if !runtime_type_has_unknown(&resume.ty) {
-                        scope.insert(resume_path.clone(), resume.ty.clone());
-                        added.push(resume_path);
+                        added.push(push_scoped_type(
+                            scope,
+                            resume_path.clone(),
+                            resume.ty.clone(),
+                        ));
                     }
                 }
                 if let Some(guard) = &mut arm.guard {
                     fill_local_var_types_in(guard, scope, bindings);
                 }
                 fill_local_var_types_in(&mut arm.body, scope, bindings);
-                for path in added {
-                    scope.remove(&path);
-                }
+                restore_pattern_scope_bindings(scope, added);
             }
         }
         ExprKind::BindHere { expr: body }
@@ -618,25 +614,28 @@ fn fill_local_var_types_in(
     }
 }
 
+struct ScopedTypeBinding {
+    path: typed_ir::Path,
+    previous: Option<RuntimeType>,
+}
+
 fn collect_pattern_scope_bindings(
     pattern: &yulang_runtime_ir::FinalizedPattern,
     scope: &mut HashMap<typed_ir::Path, RuntimeType>,
-) -> Vec<typed_ir::Path> {
+) -> Vec<ScopedTypeBinding> {
     use yulang_runtime_ir::FinalizedPattern as Pattern;
     let mut added = Vec::new();
     match pattern {
         Pattern::Bind { name, ty } => {
             if !runtime_type_has_unknown(ty) {
                 let path = path_from_name(name);
-                scope.insert(path.clone(), ty.clone());
-                added.push(path);
+                added.push(push_scoped_type(scope, path, ty.clone()));
             }
         }
         Pattern::As { pattern, name, ty } => {
             if !runtime_type_has_unknown(ty) {
                 let path = path_from_name(name);
-                scope.insert(path.clone(), ty.clone());
-                added.push(path);
+                added.push(push_scoped_type(scope, path, ty.clone()));
             }
             added.extend(collect_pattern_scope_bindings(pattern, scope));
         }
@@ -674,6 +673,31 @@ fn collect_pattern_scope_bindings(
         Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
     }
     added
+}
+
+fn push_scoped_type(
+    scope: &mut HashMap<typed_ir::Path, RuntimeType>,
+    path: typed_ir::Path,
+    ty: RuntimeType,
+) -> ScopedTypeBinding {
+    let previous = scope.insert(path.clone(), ty);
+    ScopedTypeBinding { path, previous }
+}
+
+fn restore_pattern_scope_bindings(
+    scope: &mut HashMap<typed_ir::Path, RuntimeType>,
+    added: Vec<ScopedTypeBinding>,
+) {
+    for binding in added.into_iter().rev() {
+        match binding.previous {
+            Some(previous) => {
+                scope.insert(binding.path, previous);
+            }
+            None => {
+                scope.remove(&binding.path);
+            }
+        }
+    }
 }
 
 pub(crate) fn finalized_effect_boundaries_from_principal(
@@ -1071,7 +1095,9 @@ pub(crate) fn prune_unbound_binding_roots(module: &mut Module) {
 /// the rewritten `Var` references.
 pub(crate) fn prune_unreachable_bindings(module: &mut Module) {
     let reachable = reachable_paths(module);
-    module.bindings.retain(|binding| reachable.contains(&binding.name));
+    module
+        .bindings
+        .retain(|binding| reachable.contains(&binding.name));
 }
 
 pub(crate) fn reachable_paths(module: &Module) -> HashSet<typed_ir::Path> {

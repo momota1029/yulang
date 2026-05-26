@@ -25,13 +25,16 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    FinalizedModule as Module, RuntimeType as RuntimeType, Root,
+    FinalizedModule as Module, Root, RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 
 use crate::{
     MonomorphizeDiagnostic, MonomorphizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
-    graph::{TypeCastOrder, runtime_type_from_core_value, runtime_type_from_core_value_and_effect},
+    graph::{
+        RuntimeBounds, TypeCastOrder, runtime_type_from_core_value,
+        runtime_type_from_core_value_and_effect,
+    },
     materialize_runtime_type,
     output::RootGraphRoot,
 };
@@ -554,7 +557,7 @@ pub(crate) fn solve_simple_apply(
         graph.collect_runtime_bounds(
             &principal.principal_type,
             &crate::RuntimeBounds {
-                lower: Some(apply_callee_lower_bound(spine.callee.ty.clone())),
+                lower: Some(spine.callee.ty.clone()),
                 upper: Some(spine.callee.ty.clone()),
             },
         )?;
@@ -568,6 +571,8 @@ pub(crate) fn solve_simple_apply(
     let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
         let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
+        let arg_is_never = matches!(arg_type, typed_ir::Type::Never);
+        let observed_arg_effect = arg_effect.clone();
         let template_return = role_required_binding
             .then(|| function_return_template_parts(&current_template))
             .flatten();
@@ -593,22 +598,50 @@ pub(crate) fn solve_simple_apply(
             ret_effect: Box::new(result_effect.clone()),
             ret: Box::new(result.clone()),
         };
+        if std::env::var_os("YULANG_TRACE_APPLY_EFFECT").is_some()
+            && (format!("{current:?}").contains("Any")
+                || step
+                    .evidence
+                    .is_some_and(|evidence| format!("{evidence:?}").contains("Any")))
+        {
+            eprintln!(
+                "TRACE apply binding={binding_path:?}\n  principal={:?}\n  callee_ty={:?}\n  current={current:?}\n  expected={expected:?}\n  evidence={:?}",
+                principal.principal_type, spine.callee.ty, step.evidence
+            );
+        }
         graph.constrain_subtype(current, expected)?;
+        if role_required_binding && arg_is_never && informative_effect(&observed_arg_effect) {
+            graph.constrain_subtype(observed_arg_effect.clone(), result_effect.clone())?;
+            graph.constrain_subtype(result_effect.clone(), observed_arg_effect)?;
+        }
         step.constrain_result_bounds(&mut graph, result.clone(), result_effect, local_types)?;
         current = result;
         current_template =
             function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
     }
     default_spine_evidence_substitutions(&mut graph, &principal, &spine.steps)?;
-    graph.default_unbound_lower(apply_value_vars, typed_ir::Type::Unknown)?;
+    // These holes are introduced by this spine solver for intermediate or
+    // discarded apply results. If no caller, evidence, or later apply step
+    // observes their value, Bottom is the only closed choice that does not
+    // invent a runtime value shape.
+    graph.default_unbound_lower(apply_value_vars, typed_ir::Type::Never)?;
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     graph.default_unbound_lower(apply_effect_vars, typed_ir::Type::Never)?;
     let solved = graph.clone().solve();
     let graph = if role_required_binding
         && (!solved.is_complete() || role::solution_has_unknown_components(&solved))
-        && role::close_role_associated_types(&mut graph, binding, &principal, &solved, role_impls)?
     {
-        graph.solve()
+        let associated_changed = role::close_role_associated_types(
+            &mut graph, binding, &principal, &solved, role_impls,
+        )?;
+        let input_changed = role::close_role_inputs_from_associated_types(
+            &mut graph, binding, &principal, &solved, role_impls,
+        )?;
+        if associated_changed || input_changed {
+            graph.solve()
+        } else {
+            solved
+        }
     } else {
         solved
     };
@@ -678,6 +711,11 @@ fn solved_expr_result_type(
     }
 }
 
+fn informative_effect(effect: &typed_ir::Type) -> bool {
+    !matches!(effect, typed_ir::Type::Never | typed_ir::Type::Unknown)
+        && super::core_type_is_closed(effect)
+}
+
 fn solved_callee_finalized_type(
     binding: &Binding,
     principal: &crate::PrincipalInstance,
@@ -715,16 +753,162 @@ fn solve_spine_value_args(
         if binding.type_params.is_empty() {
             continue;
         }
-        let solution = solve_value_arg(
+        let expected_type = step.arg_type(local_types);
+        if !value_arg_expected_shape_matches(binding, &expected_type) {
+            continue;
+        }
+        let solution = match solve_value_arg(
             owner.clone(),
             binding,
-            step.arg_type(local_types),
+            expected_type,
             cast_order,
             alias_index + solutions.len(),
-        )?;
+        ) {
+            Ok(solution) => solution,
+            Err(MonomorphizeDiagnostic::IncompleteGraph {
+                binding: incomplete,
+            }) if incomplete == binding.name => {
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         solutions.push(solution);
     }
     Ok(solutions)
+}
+
+fn value_arg_expected_shape_matches(binding: &Binding, expected: &typed_ir::Type) -> bool {
+    if !type_shape_matches(&binding.scheme.body, expected, ShapePosition::Top) {
+        return false;
+    }
+    let body_shape = super::runtime_type_to_core(binding.body.ty.clone());
+    type_shape_matches(&body_shape, expected, ShapePosition::Top)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ShapePosition {
+    Top,
+    Nested,
+}
+
+fn type_shape_matches(
+    template: &typed_ir::Type,
+    expected: &typed_ir::Type,
+    position: ShapePosition,
+) -> bool {
+    match (template, expected) {
+        (typed_ir::Type::Unknown, _) | (_, typed_ir::Type::Unknown) => {
+            position == ShapePosition::Nested
+        }
+        (typed_ir::Type::Var(_), _) | (_, typed_ir::Type::Var(_)) => true,
+        (typed_ir::Type::Any, typed_ir::Type::Any)
+        | (typed_ir::Type::Never, typed_ir::Type::Never) => true,
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: expected_path,
+                args: expected_args,
+            },
+        ) => {
+            path == expected_path
+                && args.len() == expected_args.len()
+                && args
+                    .iter()
+                    .zip(expected_args)
+                    .all(|(arg, expected_arg)| type_arg_shape_matches(arg, expected_arg))
+        }
+        (
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            typed_ir::Type::Fun {
+                param: expected_param,
+                param_effect: expected_param_effect,
+                ret_effect: expected_ret_effect,
+                ret: expected_ret,
+            },
+        ) => {
+            type_shape_matches(param, expected_param, ShapePosition::Nested)
+                && type_shape_matches(param_effect, expected_param_effect, ShapePosition::Nested)
+                && type_shape_matches(ret_effect, expected_ret_effect, ShapePosition::Nested)
+                && type_shape_matches(ret, expected_ret, ShapePosition::Nested)
+        }
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(expected_items)) => {
+            items.len() == expected_items.len()
+                && items
+                    .iter()
+                    .zip(expected_items)
+                    .all(|(item, expected_item)| {
+                        type_shape_matches(item, expected_item, ShapePosition::Nested)
+                    })
+        }
+        (typed_ir::Type::Record(_), typed_ir::Type::Record(_)) => true,
+        (typed_ir::Type::Variant(_), typed_ir::Type::Variant(_)) => true,
+        (
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
+                items: expected_items,
+                tail: expected_tail,
+            },
+        ) => {
+            items.len() == expected_items.len()
+                && items
+                    .iter()
+                    .zip(expected_items)
+                    .all(|(item, expected_item)| {
+                        type_shape_matches(item, expected_item, ShapePosition::Nested)
+                    })
+                && type_shape_matches(tail, expected_tail, ShapePosition::Nested)
+        }
+        (typed_ir::Type::Union(items), expected) => items
+            .iter()
+            .any(|item| type_shape_matches(item, expected, position)),
+        (template, typed_ir::Type::Union(items)) => items
+            .iter()
+            .any(|item| type_shape_matches(template, item, position)),
+        (typed_ir::Type::Inter(items), expected) => items
+            .iter()
+            .any(|item| type_shape_matches(item, expected, position)),
+        (template, typed_ir::Type::Inter(items)) => items
+            .iter()
+            .any(|item| type_shape_matches(template, item, position)),
+        (typed_ir::Type::Recursive { body, .. }, expected) => {
+            type_shape_matches(body, expected, position)
+        }
+        (template, typed_ir::Type::Recursive { body, .. }) => {
+            type_shape_matches(template, body, position)
+        }
+        _ => false,
+    }
+}
+
+fn type_arg_shape_matches(template: &typed_ir::TypeArg, expected: &typed_ir::TypeArg) -> bool {
+    match (template, expected) {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(expected)) => {
+            type_shape_matches(template, expected, ShapePosition::Nested)
+        }
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(expected)) => {
+            bound_shape_matches(template.lower.as_deref(), expected.lower.as_deref())
+                && bound_shape_matches(template.upper.as_deref(), expected.upper.as_deref())
+        }
+        _ => false,
+    }
+}
+
+fn bound_shape_matches(
+    template: Option<&typed_ir::Type>,
+    expected: Option<&typed_ir::Type>,
+) -> bool {
+    match (template, expected) {
+        (Some(template), Some(expected)) => {
+            type_shape_matches(template, expected, ShapePosition::Nested)
+        }
+        (None, None) => true,
+        _ => false,
+    }
 }
 
 fn solve_value_arg(
@@ -736,6 +920,10 @@ fn solve_value_arg(
 ) -> MonomorphizeResult<RootGraphSolution> {
     let mut graph = TypeGraph::with_cast_order(cast_order.clone());
     let principal = graph.instantiate_principal(binding);
+    graph.collect_runtime_bounds(
+        &principal.principal_type,
+        &RuntimeBounds::exact(binding.body.ty.clone()),
+    )?;
     graph.constrain_subtype(principal.principal_type.clone(), expected_type)?;
     graph.default_unbound_lower(principal.effect_only_type_params(), typed_ir::Type::Never)?;
     let graph = graph.solve();
@@ -850,64 +1038,6 @@ fn function_return_template_parts(ty: &typed_ir::Type) -> Option<(typed_ir::Type
     Some((ret.as_ref().clone(), ret_effect.as_ref().clone()))
 }
 
-fn apply_callee_lower_bound(ty: RuntimeType) -> RuntimeType {
-    match ty {
-        RuntimeType::Fun { param, ret } => RuntimeType::Fun {
-            // A polymorphic callee occurrence can carry `Any` in parameter
-            // slots before the apply spine has supplied its real arguments.
-            // That Top is not an instantiation lower bound; the argument and
-            // evidence constraints below provide the actual lower bound.
-            param: Box::new(unconstrain_top_param_runtime_bound(*param)),
-            ret: Box::new(apply_callee_lower_bound(*ret)),
-        },
-        RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
-            effect,
-            value: Box::new(apply_callee_lower_bound(*value)),
-        },
-        RuntimeType::Value(ty) => RuntimeType::Value(apply_callee_lower_core_bound(ty)),
-        ty => ty,
-    }
-}
-
-fn unconstrain_top_param_runtime_bound(ty: RuntimeType) -> RuntimeType {
-    match ty {
-        RuntimeType::Value(ty) => RuntimeType::Value(unconstrain_top_param_core_bound(ty)),
-        RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
-            effect,
-            value: Box::new(unconstrain_top_param_runtime_bound(*value)),
-        },
-        RuntimeType::Fun { .. } => apply_callee_lower_bound(ty),
-        RuntimeType::Unknown => RuntimeType::Unknown,
-    }
-}
-
-fn apply_callee_lower_core_bound(ty: typed_ir::Type) -> typed_ir::Type {
-    match ty {
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => typed_ir::Type::Fun {
-            param: Box::new(unconstrain_top_param_core_bound(*param)),
-            param_effect,
-            ret_effect,
-            ret: Box::new(apply_callee_lower_core_bound(*ret)),
-        },
-        ty => ty,
-    }
-}
-
-fn unconstrain_top_param_core_bound(ty: typed_ir::Type) -> typed_ir::Type {
-    if matches!(ty, typed_ir::Type::Any) {
-        typed_ir::Type::Unknown
-    } else if matches!(ty, typed_ir::Type::Fun { .. }) {
-        apply_callee_lower_core_bound(ty)
-    } else {
-        ty
-    }
-}
-
 pub(crate) struct ApplySpine<'a> {
     pub(crate) binding: &'a typed_ir::Path,
     pub(crate) callee: &'a Expr,
@@ -936,11 +1066,9 @@ impl ApplyStep<'_> {
         if let Some((value, effect)) = bind_here_arg_type_and_effect(self.arg, local_types) {
             return (value, effect);
         }
-        if let Some((value, effect)) = expr_value_and_effect(self.arg, local_types) {
-            return (value, effect);
-        }
         let runtime_ty = expr_lower_type(self.arg, local_types);
         if let RuntimeType::Thunk { effect, value } = &runtime_ty {
+            let evidence_arg = self.evidence.and_then(apply_arg_type);
             if runtime_type_is_never_value(value)
                 && let Some(arg_type) = effect_carrier_value_hint(effect)
             {
@@ -948,10 +1076,13 @@ impl ApplyStep<'_> {
             }
             let value_is_closed = super::runtime_type_is_closed(value);
             let arg_type = if value_is_closed {
-                super::runtime_type_to_core((**value).clone())
+                let runtime_value = super::runtime_type_to_core((**value).clone());
+                evidence_arg
+                    .filter(|ty| evidence_arg_overrides_thunk_value(ty, &runtime_value))
+                    .unwrap_or(runtime_value)
             } else {
                 let expr_ty = super::runtime_type_to_core(runtime_ty.clone());
-                self.evidence.and_then(apply_arg_type).unwrap_or(expr_ty)
+                evidence_arg.unwrap_or(expr_ty)
             };
             let arg_effect = if super::core_type_is_closed(effect)
                 && (value_is_closed || !matches!(effect, typed_ir::Type::Any))
@@ -961,6 +1092,9 @@ impl ApplyStep<'_> {
                 typed_ir::Type::Never
             };
             return (arg_type, arg_effect);
+        }
+        if let Some((value, effect)) = expr_value_and_effect(self.arg, local_types) {
+            return (value, effect);
         }
         let expr_ty = super::runtime_type_to_core(runtime_ty);
         if super::core_type_is_closed(&expr_ty) {
@@ -1011,6 +1145,26 @@ impl ApplyStep<'_> {
             ty => graph.constrain_subtype(result, super::runtime_type_to_core(ty)),
         }
     }
+}
+
+fn evidence_arg_overrides_thunk_value(
+    evidence: &typed_ir::Type,
+    runtime_value: &typed_ir::Type,
+) -> bool {
+    if evidence == runtime_value || !informative_evidence_type(evidence) {
+        return false;
+    }
+    super::core_type_is_closed(evidence)
+}
+
+fn informative_evidence_type(ty: &typed_ir::Type) -> bool {
+    !matches!(
+        ty,
+        typed_ir::Type::Unknown
+            | typed_ir::Type::Var(_)
+            | typed_ir::Type::Any
+            | typed_ir::Type::Never
+    )
 }
 
 fn bind_here_arg_type_and_effect(

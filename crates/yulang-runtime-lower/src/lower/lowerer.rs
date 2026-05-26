@@ -116,8 +116,7 @@ impl Lowerer<'_> {
                                 .effect_op_signatures
                                 .get(&resolved_path)
                                 .or_else(|| self.effect_op_signatures.get(&path));
-                            let sig_ty = sig
-                                .map(|scheme| RuntimeType::value(scheme.body.clone()));
+                            let sig_ty = sig.map(|scheme| RuntimeType::value(scheme.body.clone()));
                             match (expected.cloned(), sig_ty) {
                                 (Some(exp), Some(sig)) => {
                                     Some(merge_effect_op_runtime_type(&exp, &sig))
@@ -2835,10 +2834,9 @@ fn merge_effect_op_runtime_type(expected: &RuntimeType, sig: &RuntimeType) -> Ru
             merge_effect_op_core(a_e, b_e),
             merge_effect_op_runtime_type(a_v, b_v),
         ),
-        (RuntimeType::Thunk { effect, value }, sig) => RuntimeType::thunk(
-            effect.clone(),
-            merge_effect_op_runtime_type(value, sig),
-        ),
+        (RuntimeType::Thunk { effect, value }, sig) => {
+            RuntimeType::thunk(effect.clone(), merge_effect_op_runtime_type(value, sig))
+        }
         (expected, RuntimeType::Thunk { value, .. }) => {
             merge_effect_op_runtime_type(expected, value)
         }

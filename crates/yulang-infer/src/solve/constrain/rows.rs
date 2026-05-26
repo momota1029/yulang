@@ -14,7 +14,6 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        let original_neg_items = neg_items.clone();
         let mut pos_diff = pos_items;
         let mut neg_unmatched: Vec<NegId> = Vec::new();
 
@@ -61,7 +60,7 @@ impl Infer {
                 self.constrain_step(var_pos, neg_tail, cause, cache);
             }
             _ => {
-                let neg_row = self.arena.alloc_neg(Neg::Row(original_neg_items, neg_tail));
+                let neg_row = self.arena.alloc_neg(Neg::Row(neg_unmatched, neg_tail));
                 self.constrain_step(pos_tail, neg_row, cause, cache);
             }
         }

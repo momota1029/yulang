@@ -8,8 +8,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use yulang_runtime_ir::{
-    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    RuntimeType as RuntimeType,
+    FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType,
 };
 use yulang_sources::{CompiledUnitManifest, YulangCachePaths};
 use yulang_typed_ir as typed_ir;
@@ -36,10 +35,11 @@ impl MonomorphizeInstanceArtifactCache {
     ) -> Result<MonomorphizeInstanceCacheSurface, MonomorphizeInstanceArtifactCacheError> {
         let key = MonomorphizeInstanceArtifactCacheKey::from_manifests(manifests)?;
         let path = self.artifact_path(&key);
-        let bytes = fs::read(&path).map_err(|error| MonomorphizeInstanceArtifactCacheError::Io {
-            path: path.clone(),
-            error: io_error_string(error),
-        })?;
+        let bytes =
+            fs::read(&path).map_err(|error| MonomorphizeInstanceArtifactCacheError::Io {
+                path: path.clone(),
+                error: io_error_string(error),
+            })?;
         let surface =
             postcard::from_bytes::<MonomorphizeInstanceCacheSurface>(&bytes).map_err(|error| {
                 MonomorphizeInstanceArtifactCacheError::Deserialize {
@@ -82,9 +82,11 @@ impl MonomorphizeInstanceArtifactCache {
         let key = MonomorphizeInstanceArtifactCacheKey::from_manifests(manifests)?;
         let path = self.artifact_path(&key);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| MonomorphizeInstanceArtifactCacheError::Io {
-                path: parent.to_path_buf(),
-                error: io_error_string(error),
+            fs::create_dir_all(parent).map_err(|error| {
+                MonomorphizeInstanceArtifactCacheError::Io {
+                    path: parent.to_path_buf(),
+                    error: io_error_string(error),
+                }
             })?;
         }
         let bytes = postcard::to_allocvec(surface).map_err(|error| {

@@ -1,6 +1,8 @@
 use yulang_typed_ir as typed_ir;
 
-use yulang_runtime_types::ir::{EffectIdRef, EffectIdVar, Expr, ExprKind, HandleEffect, Module, Stmt};
+use yulang_runtime_types::ir::{
+    EffectIdRef, EffectIdVar, Expr, ExprKind, HandleEffect, Module, Stmt,
+};
 use yulang_runtime_types::types::{effect_path, effect_paths};
 
 pub fn format_hygiene_module(module: &Module) -> String {

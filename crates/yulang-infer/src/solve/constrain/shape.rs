@@ -124,6 +124,16 @@ impl Infer {
                 }
             }
             (Pos::Con(p_path, p_args), Neg::Con(n_path, n_args)) if p_path == n_path => {
+                if p_args.len() != n_args.len() {
+                    self.report_type_error(
+                        pos,
+                        neg,
+                        cause,
+                        origin_hint,
+                        TypeErrorKind::ConstructorMismatch,
+                    );
+                    return;
+                }
                 let variances = self.variances.get(&p_path);
                 for (index, (pa, na)) in p_args
                     .iter()
