@@ -30,10 +30,10 @@ The columns trace a value through the pipeline:
 - **Interpreter** — runs on the interpreter (the semantic oracle for everything
   else).
 - **Playground** — exercised through the WebAssembly playground.
-- **Archived native** — the old Cranelift/MMTk backend implementation is kept
-  under `archive/yulang-native` for reference. The active workspace keeps only a
-  small compatibility stub crate, and native execution is no longer exposed by
-  the CLI.
+- **Archived native** — historical Cranelift/MMTk support from the old native
+  backend. The implementation was moved out of the active workspace to the
+  local archive described in [docs/native-backend.md](native-backend.md), and
+  native execution is no longer exposed by the CLI.
 - **Docs** — covered by the user-facing language overview.
 
 ## Feature support matrix
@@ -106,9 +106,9 @@ The columns trace a value through the pipeline:
 
 ## Known limitations
 
-- The old native backend implementation is archived under
-  `archive/yulang-native`. The active CLI does not expose native execution; the
-  interpreter/control VM path is the execution surface.
+- The old native backend implementation is archived outside the active
+  workspace. The active CLI does not expose native execution; the VM/control-VM
+  path is the execution surface.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
   and lands across the pipeline. The `from`-based aggregation path and the

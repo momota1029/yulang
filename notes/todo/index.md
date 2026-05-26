@@ -15,10 +15,10 @@
    - LSP の diagnostics、hover、related information、型表示を安定させる。
    - `.list` などの巨大型や内部 evidence が hover に漏れないようにする。
    - Zed dev extension から `yulang server` を使う導線を保つ。
-3. `native-backend.md`
-   - VM を oracle にしたまま native 対応範囲を増やす。
-   - value-lane / CPS repr / effectful control の差を小さくする。
-   - README の Native Backend Progress と実装状態を一致させる。
+3. `static-analysis-speed.md`
+   - playground / CLI の初回 latency と warmed latency を見える形にする。
+   - compiled-unit cache を std 専用特例ではなく source dependency surface として育てる。
+   - type surface audit と cache validation が hot path を壊さないようにする。
 
 この 3 本に効く作業だけを直近の `tasks/current.md` に移す。
 
@@ -27,27 +27,28 @@
 次は重要だが、公開直後の主戦場ではない。主戦場を進めるために必要になった時だけ戻す。
 
 - `testing.md`
-  - diagnostics / runtime / native compare の fixture 化。
+  - diagnostics / runtime / VM compare の fixture 化。
   - 公開 example を regression に写す。
-- `static-analysis-speed.md`
-  - playground latency、compiled-unit cache、phase timings。
-  - 診断や evidence を増やす時の hot path 防衛。
 - `language-surface.md`
   - `error` sugar、`result`、casts、optional records、references。
-  - 今は diagnostics / LS / native を詰めるために必要な範囲だけ扱う。
+  - 今は diagnostics / LS / runtime surface を詰めるために必要な範囲だけ扱う。
 - `host-filesystem.md`
   - host capability と filesystem API。
   - `error` と diagnostics の語彙が固まってから public contract を決める。
 - `parser-combinators.md`
   - parser combinator API。
   - error handling と parser diagnostics が安定するまで広げない。
+- `native-backend.md`
+  - 2026-05-25 に active workspace から外れた archived track。
+  - 将来の execution backend を再開する場合は、VM/runtime semantics と
+    type surface audit が落ち着いてから新しい track として切る。
 
 ## 近い優先順位
 
 1. LSP に出るエラーの range / related information / hover を実用水準にする。
 2. 型エラーの expected / actual それぞれに出自を持たせる。
 3. hover の型表示を public projection として安定させる。
-4. native の value-lane と CPS repr Cranelift の未対応差分を小さい VM compare で潰す。
+4. compiled-unit cache / control VM artifact の現状を docs と internal notes で揃える。
 5. 上の作業を支える fixture と README / docs を足す。
 
 ## 運用ルール

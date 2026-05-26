@@ -1,98 +1,48 @@
-# Native Backend TODO
+# Native Backend TODO Archive
 
-目的: 現在の VM を参照実装とデバッグ対象として残しながら、Yulang プログラムを
-CPS 風 lowering 経由で Cranelift にコンパイルする。
+この TODO は active queue ではない。Cranelift/MMTk native backend は 2026-05-25 に
+active workspace から外れ、current CLI からも `yulang run --native` / `yulang native` /
+`yulang run --mmtk` は消えた。
 
-## 公開後の優先
+現在の user-facing 実行面は VM:
 
-公開後は「native で全部動く」と言い切るより、VM と同じ結果になる範囲を小さく明示して広げる。
+```bash
+yulang run program.yu
+yulang run --print-roots program.yu
+```
 
-近い作業:
+## Archive References
 
-- README の `Native Backend Progress` と実装状態を常に合わせる。
-- `yulang native --kind run-value-exe` / `--kind value-exe` の成功範囲を regression にする。
-- value-lane Cranelift の未対応値を、小さい VM compare から順に埋める。
-- CPS repr Cranelift は effectful control の VM 差分を優先して潰す。
-- unsupported root は、panic ではなく構造化された native unsupported diagnostic にする。
-- native の object / executable output は `target/yulang` の cache layout から外れないようにする。
+- `docs/native-backend.md` — public-facing archive summary。
+- `docs/native-experimental-release.md` — 2026-05-18 の archived release-gate note。
+- `tasks/done/2026-05-14-native-backend-history.md` — archived backend の節目。
+- `notes/refactors/finalized-vm-handoff-2026-05-25.md` — active workspace から外した整理。
 
-今すぐ増やさないもの:
+## Future Restart Conditions
+
+将来 execution backend を再開する場合、この TODO をそのまま active に戻さない。
+次を満たしてから、新しい track として切り直す。
+
+- VM/runtime semantics が current oracle として安定している。
+- monomorphize / runtime type surface audit が strict に通る。
+- compiled-unit cache が std 専用特例ではなく dependency surface として説明できる。
+- user-facing diagnostics が internal monomorphize/runtime error を直接漏らさない。
+- backend が std path / fixture 名に依存せず、structured IR / evidence / constraint を見る。
+
+## Useful Leftover Ideas
+
+古い native work から残す価値がある知見:
+
+- VM を behavioral oracle にして、別 execution path は小さい compare で広げる。
+- control-heavy benchmark では runtime `Expr` clone と continuation/frame payload が支配的になりうる。
+- effect-aware CPS IR は handler / resumption / thunk boundary / local return を明示化するには有効。
+- optimized CPS から direct-style / SSA island を切り出す発想は、将来の backend でも使える。
+- compact `YValue` / object-header / trace-slot design は、VM 直下の runtime layout を見直す材料になる。
+
+## Do Not Carry Forward Blindly
 
 - native 専用の言語仕様。
 - VM と違う handler semantics。
 - 名前や std path 文字列に依存した lowering 特例。
-- runtime ABI が固まる前の広い最適化。
-
-## 目標の形
-
-```text
-Core / runtime IR
-  -> 明示的な control/effect 表現
-  -> CPS または CPS 風 continuation lowering
-  -> closure/environment 表現
-  -> Cranelift IR
-  -> native object / executable / JIT
-```
-
-## 最初の設計上の問い
-
-- どの IR 境界から CPS lowering に入るか。
-- 最初の control IR は direct-style ANF、CPS、小さな continuation graph のどれに近いか。
-- algebraic effects、resumptions、`bind_here` を continuation にどう対応させるか。
-- multi-shot continuation を最初の CPS IR からどう表すか。
-- Yulang の不変な値・closure・environment を使って、continuation / closure clone を
-  構造共有にするにはどの handle 表現がよいか。
-- closure / environment layout はどうするか。
-- runtime value representation をどうするか。
-  - ints
-  - floats
-  - bools
-  - unit
-  - strings
-  - lists
-  - records
-  - variants
-  - closures
-  - effect continuations
-- native code を source example と照らしてデバッグできるようにするには、
-  どの程度の metadata が必要か。
-
-設計参照:
-
-- `notes/design/native-backend-plan.md`
-- `notes/design/cps-effect-lowering-plan.md`
-
-## 最初の slice
-
-- `notes/design/native-backend-plan.md` を設計境界として保つ。
-- pure first-order subset を選ぶ。
-- primitive numeric/string operations をコンパイルする。
-- direct call をコンパイルする。
-- representation がすでに明確な場合だけ、simple records / variants をコンパイルする。
-- 同じ小さな example を VM と native backend の両方で動かす。
-
-## 後の slice
-
-- effect-aware CPS / continuation lowering
-- finite nondet / multi-shot resumption の early target
-- closures と captured environments
-- tail calls と continuation allocation policy
-- algebraic effect operations
-- handler / resumption representation
-- host request boundary
-- debug symbols または source-position metadata
-- CLI 実験用の JIT mode
-
-## 最初の slice でやらないこと
-
-- VM を消さない。
-- すべての runtime feature を一度にコンパイルしない。
-- representation boundary が明確になる前に最適化しない。
-- native backend design を playground 専用の挙動に依存させない。
-
-## Benchmark
-
-- 同じ example で VM と Cranelift を比較する benchmark path を追加する。
-- compile time と execution time を分けて出す。
-- startup latency 用の小さな benchmark と、generated code behavior 用の大きめの
-  example を両方残す。
+- runtime type surface が strict でない状態での広い codegen backend。
+- performance gate を満たさないまま user-facing backend として維持すること。

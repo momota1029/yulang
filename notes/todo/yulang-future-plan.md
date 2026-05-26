@@ -5,21 +5,20 @@ Yulangの核はもう強いよ。READMEでも「普通の制御機構を algebra
 
 ## まず一番おすすめ：機能ごとの「安定度表」を作る
 
-Yulangは、parserにはあるけど意味がまだ固まっていないもの、推論はできるけど runtime / native では限定的なもの、playgroundでは動くけど CLI/native では扱いが違うものがあるねぇ。overviewにも rule / mark syntax は parse できるが通常の式としての意味は未実装、と書かれているし、runtime lowering / monomorphization の制限にも触れている。
+Yulangは、parserにはあるけど意味がまだ固まっていないもの、推論はできるけど runtime では限定的なもの、playground と CLI で host capability の扱いが違うものがあるねぇ。overviewにも rule / mark syntax は parse できるが通常の式としての意味は未実装、と書かれているし、runtime lowering / monomorphization の制限にも触れている。
 
 ここを隠さず、むしろ表にするとよさそう。
 
 ```text
-Feature                Parse  Infer  VM Run  Playground  Native  Docs
-struct / enum          ✅     ✅     ✅      ✅          △       ✅
-roles / operators      ✅     ✅     ✅      ✅          △       △
-effects / handlers     ✅     ✅     ✅      ✅          △       △
-sub / return           ✅     ✅     ✅      ✅          △       ✅
-for / last / next      ✅     ✅     ✅      ✅          △       △
-references             ✅     ✅     ✅      ✅          △       △
-rule / mark expr       ✅     ?      ❌      ❌          ❌       ⚠️
-filesystem             ✅     △      △      ❌          △       ⚠️
-native backend         -      -      -       -          prototype ✅
+Feature                Parse  Infer  VM Run  Playground  Archived Native  Docs
+struct / enum          ✅     ✅     ✅      ✅          historical       ✅
+roles / operators      ✅     ✅     ✅      ✅          historical       △
+effects / handlers     ✅     ✅     ✅      ✅          historical       △
+sub / return           ✅     ✅     ✅      ✅          historical       ✅
+for / last / next      ✅     ✅     ✅      ✅          historical       △
+references             ✅     ✅     ✅      ✅          historical       △
+rule / mark expr       ✅     ?      ❌      ❌          ❌              ⚠️
+filesystem             ✅     △      △      ❌          ❌              ⚠️
 ```
 
 これは単なるREADME表でもいいけれど、できれば `docs/status.md` みたいな場所に置くのがよさそうだよ〜。
@@ -96,11 +95,11 @@ my $xs = [2, 3, 4]
 $xs
 ```
 
-これは地味だけど、Yulangみたいに parser / infer / runtime / wasm / native が分かれている言語では、かなり効くと思うよ〜。
+これは地味だけど、Yulangみたいに parser / infer / runtime / wasm が分かれている言語では、かなり効くと思うよ〜。
 
 ## READMEは少し短くして、「入口」と「現状」を分ける
 
-READMEは情報量が多くて、今の開発状況を追うには便利。でも初見の人には、native backend progress の長いチェックリストがやや重いかもしれないねぇ。READMEには repository layout、commands、native progress まで入っている。
+READMEは情報量が多くて、今の開発状況を追うには便利。でも初見の人には、archived native progress の長い記録がやや重いかもしれないねぇ。READMEには repository layout、commands、archive links まで入っている。
 
 おすすめはこんな分割。
 
@@ -114,26 +113,26 @@ README.md
 
 docs/status.md
   - Feature support matrix
-  - VM / native / wasm status
+  - VM / archived native / wasm status
   - Known limitations
 
 docs/native-backend.md
-  - native backend progress
-  - support table
-  - debug commands
+  - archived native backend summary
+  - historical release-gate subset
+  - links to deeper design notes
 
 docs/language/overview.ja.md
 docs/language/overview.md
   - 今の通り、ユーザー向け説明
 ```
 
-READMEの「Native Backend Progress」は、現状かなり価値のある記録だけれど、README本体からは少し外に逃がしたほうが、Yulangの第一印象が締まる気がするねぇ。
+READMEの「Native Backend Progress」は、今は `docs/native-backend.md` 側の archived note に逃がした状態として扱う。
 
 ## CLIは `clap` か小さい command 分割に寄せると楽そう
 
-`crates/yulang/src/main.rs` を見ると、CLI option が手書きでかなり増えているねぇ。`--infer`、`--core-ir`、`--runtime-ir`、`--hygiene-ir`、`--run`、native 系、profile 系、parse 系などが同じ `CliOptions` に入っている。
+`crates/yulang/src/main.rs` を見ると、CLI option が手書きでかなり増えているねぇ。`--infer`、`--core-ir`、`--runtime-ir`、`--hygiene-ir`、`--run`、profile 系、parse 系などが同じ `CliOptions` に入っている。
 
-今後さらに `--test`、diagnostics golden、package/cache、native debug が増えるなら、手書き parser はちょっと重くなりそう。
+今後さらに `--test`、diagnostics golden、package/cache、debug subcommands が増えるなら、手書き parser はちょっと重くなりそう。
 
 候補は2つ。
 
@@ -144,8 +143,8 @@ yulang run file.yu
 yulang infer file.yu
 yulang parse expr
 yulang debug core-ir file.yu
-yulang native run file.yu
-yulang native compare-i64 file.yu
+yulang debug control-vm file.yu
+yulang cache path
 ```
 
 ### 2. 今のままでも、内部だけ command enum にする
@@ -157,7 +156,8 @@ enum Command {
     CoreIr,
     RuntimeIr,
     Parse(ParserMode),
-    Native(NativeCommand),
+    Debug(DebugCommand),
+    Cache(CacheCommand),
     Test,
 }
 ```
@@ -181,40 +181,14 @@ enum Command {
 
 特に `fail` は、data constructor と effect operation の同名解決が絡むので、ここを曖昧にしたまま filesystem を広げると、後で直す面積が大きくなりそうだねぇ。
 
-## native backend は「対応状況の粒度」を落とすと見通しがよくなる
+## archived native backend は current roadmap から外す
 
-native backend はかなり頑張っていて、READMEにも value backend と CPS representation backend の状態が細かく書かれている。
-`tasks/current.md` も native backend の進捗が非常に詳細で、VMを oracle にして native 対応rootを増やす方針が見える。
-`native-backend.md` でも、VMを消さず、pure first-order subset から始め、VM/native の同一example比較を重視する方針がある。
+native backend は 2026-05-25 に active workspace から外れたので、このメモ内の
+native support 表や CLI 案は historical として扱う。今は VM を user-facing 実行面にし、
+control VM / compiled-unit cache / monomorphize strictness を current roadmap に置く方がよい。
 
-改善案としては、**進捗ログ** と **ユーザーが知りたい対応表** を分けるのがよさそう。
-
-たとえば：
-
-```text
-Native support, user-facing:
-
-Expression:
-  int/float/bool/unit/str literals     value backend ✅
-  list literals                        value backend ✅
-  tuple/record/variant                 value backend ✅
-  record spread                        ❌
-  pattern match                        ❌
-  closures                             CPS prototype △
-
-Effects:
-  small source-defined effects         CPS repr ✅
-  std::undet once over finite list      CPS repr ✅
-  general effectful thunks             ❌
-
-Output:
-  scalar executable                    ✅
-  value executable                     ✅
-  non-scalar CPS result printing        ❌
-```
-
-この表だけ見れば、今どこを試してよいか分かる。
-詳細な日々の進捗は `notes/progress` や `tasks/current.md` に置いておけばよさそうだよ〜。
+将来 execution backend を再開するなら、古い TODO をそのまま戻すのではなく、VM/runtime
+semantics と type surface audit が落ち着いた後に新しい track として切り直す。
 
 ## playground はかなり良いので、次は「共有」と「縮小再現」
 
@@ -227,7 +201,7 @@ wasm側も run / colorize / warm_std_cache / std artifact status など、デバ
 * examples を docs とテストから同じデータで生成
 * エラー時に「最小再現としてコピー」ボタン
 * timings を開発者向け折りたたみ表示
-* 「VMで動く」「nativeでは未対応」などの status badge
+* 「VMで動く」「playgroundではhost未対応」などの status badge
 
 このあたりが良さそう。
 
@@ -307,9 +281,9 @@ else:
 |  3 | Yulang-facing test fixtures | 機能追加が安心になる                                       |
 |  4 | error / fail / result の契約   | filesystem / parser combinator / host API の土台になる |
 |  5 | README短縮 + docs分離           | 初見の印象が締まる                                        |
-|  6 | CLI command整理               | native/debug/test が増えても壊れにくい                     |
+|  6 | CLI command整理               | debug/test/cache が増えても壊れにくい                       |
 |  7 | playground共有URL + repro導線   | 遊びやすさと開発効率が両方上がる                                 |
-|  8 | native support table        | 進捗のすごさが伝わりやすくなる                                  |
+|  8 | archived native summary     | 研究の蓄積を current user path と混ぜずに残せる                |
 
 ## ひとことで言うと
 
