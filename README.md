@@ -65,8 +65,6 @@ export YULANG_STD=/path/to/yulang/lib/std
 ## A First Look
 
 ```yulang
-use std::undet::*
-
 // nondeterministic search: every Pythagorean triple under 15
 {
     my a = each 1..15
@@ -85,8 +83,6 @@ syntax is special-cased.
 The same shape lifts over comparisons:
 
 ```yulang
-use std::undet::*
-
 // junction lifts a comparison over many choices at once
 if all [1, 2, 3] < any [3, 4, 5]:
     "every left dominated"
@@ -190,8 +186,6 @@ Run an inline Yulang program:
 
 ```bash
 yulang run --print-roots <<'YU'
-use std::undet::*
-
 (each [1, 2, 3] + each [4, 5, 6]).once
 YU
 ```
