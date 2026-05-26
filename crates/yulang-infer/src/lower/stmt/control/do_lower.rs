@@ -110,14 +110,30 @@ pub(crate) fn lower_expr_with_synthetic_owner_if_top_level(
     state: &mut LowerState,
     node: &SyntaxNode,
 ) -> TypedExpr {
-    if state.current_owner.is_some() || state.suppress_top_level_expr_owners() {
-        return crate::lower::expr::lower_expr(state, node);
+    lower_with_synthetic_owner_if_top_level(state, |state| {
+        crate::lower::expr::lower_expr(state, node)
+    })
+}
+
+pub(crate) fn lower_for_stmt_with_synthetic_owner_if_top_level(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+) -> TypedExpr {
+    lower_with_synthetic_owner_if_top_level(state, |state| super::lower_for_stmt(state, node))
+}
+
+fn lower_with_synthetic_owner_if_top_level(
+    state: &mut LowerState,
+    lower: impl FnOnce(&mut LowerState) -> TypedExpr,
+) -> TypedExpr {
+    if state.current_owner.is_some() {
+        return lower(state);
     }
 
     let owner = state.fresh_def();
     let owner_tv = state.fresh_tv();
     state.register_def_tv(owner, owner_tv);
-    let expr = state.with_owner(owner, |state| crate::lower::expr::lower_expr(state, node));
+    let expr = state.with_owner(owner, lower);
     state.infer.constrain(
         crate::types::Pos::Var(expr.tv),
         crate::types::Neg::Var(owner_tv),
@@ -127,7 +143,11 @@ pub(crate) fn lower_expr_with_synthetic_owner_if_top_level(
         crate::types::Neg::Var(expr.tv),
     );
     state.insert_principal_body(owner, expr.clone());
-    state.record_top_level_expr_owner(owner);
+    if state.suppress_top_level_expr_owners() {
+        state.record_internal_expr_owner(owner);
+    } else {
+        state.record_top_level_expr_owner(owner);
+    }
     expr
 }
 

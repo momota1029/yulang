@@ -28,5 +28,6 @@ pub type SyntaxNode = RowanNode<YulangLanguage>;
 pub use profile::{FinalizeCompactProfile, FinalizeCompactResults, LowerDetailProfile};
 pub use state::{FileId, FileInfo, FileSpan, LowerState};
 pub use state_types::{
-    ActiveRecursiveSelfInstance, EnumVariantPatternShape, FunctionSigEffectHint,
+    ActiveRecursiveSelfInstance, EnumVariantPatternPayload, EnumVariantPatternShape,
+    FunctionSigEffectHint,
 };

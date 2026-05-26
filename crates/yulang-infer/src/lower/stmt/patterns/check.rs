@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::profile::ProfileClock as Instant;
 
 use rowan::TextRange;
@@ -7,7 +9,8 @@ use crate::ast::expr::{PatKind, RecordPatField, RecordPatSpread, TypedPat};
 use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::builtin_types::builtin_source_type_path;
-use crate::lower::{LowerState, SyntaxNode};
+use crate::lower::{EnumVariantPatternPayload, LowerState, SyntaxNode};
+use crate::symbols::{Name, Path};
 use crate::types::RecordField;
 use crate::types::{Neg, Pos};
 
@@ -296,28 +299,345 @@ fn constrain_enum_variant_pattern_shape(
         return false;
     };
 
-    let scope = crate::lower::signature::fresh_type_scope(state, &shape.type_param_names);
-    let type_arg_tvs = crate::lower::signature::ordered_type_vars(&shape.type_param_names, &scope);
-    let enum_pos = state.pos_con(
-        shape.enum_path.clone(),
-        super::super::invariant_args(&type_arg_tvs),
-    );
-    let enum_neg = state.neg_con(shape.enum_path, super::super::invariant_args(&type_arg_tvs));
-    state.infer.constrain(enum_pos, Neg::Var(pat_tv));
-    state.infer.constrain(Pos::Var(pat_tv), enum_neg);
+    match shape.payload {
+        EnumVariantPatternPayload::Source {
+            type_param_names,
+            payload_sig,
+        } => {
+            let scope = crate::lower::signature::fresh_type_scope(state, &type_param_names);
+            let type_arg_tvs =
+                crate::lower::signature::ordered_type_vars(&type_param_names, &scope);
+            constrain_enum_variant_result_type(state, shape.enum_path, &type_arg_tvs, pat_tv);
 
-    if let (Some(payload_sig), Some(payload_tv)) = (shape.payload_sig, payload_tv) {
-        let mut pos_scope = scope.clone();
-        let mut neg_scope = scope;
-        let payload_pos =
-            crate::lower::signature::lower_pure_sig_type(state, &payload_sig, &mut pos_scope);
-        let payload_neg =
-            crate::lower::signature::lower_pure_sig_neg_type(state, &payload_sig, &mut neg_scope);
-        state.infer.constrain(payload_pos, Neg::Var(payload_tv));
-        state.infer.constrain(Pos::Var(payload_tv), payload_neg);
+            if let (Some(payload_sig), Some(payload_tv)) = (payload_sig, payload_tv) {
+                let mut pos_scope = scope.clone();
+                let mut neg_scope = scope;
+                let payload_pos = crate::lower::signature::lower_pure_sig_type(
+                    state,
+                    &payload_sig,
+                    &mut pos_scope,
+                );
+                let payload_neg = crate::lower::signature::lower_pure_sig_neg_type(
+                    state,
+                    &payload_sig,
+                    &mut neg_scope,
+                );
+                state.infer.constrain(payload_pos, Neg::Var(payload_tv));
+                state.infer.constrain(Pos::Var(payload_tv), payload_neg);
+            }
+        }
+        EnumVariantPatternPayload::Imported {
+            type_params,
+            payload,
+        } => {
+            let mut scope = HashMap::new();
+            let type_arg_tvs = type_params
+                .iter()
+                .map(|param| {
+                    *scope
+                        .entry(param.clone())
+                        .or_insert_with(|| state.fresh_tv())
+                })
+                .collect::<Vec<_>>();
+            constrain_enum_variant_result_type(state, shape.enum_path, &type_arg_tvs, pat_tv);
+
+            if let (Some(payload), Some(payload_tv)) = (payload, payload_tv) {
+                let payload_pos = imported_core_type_pos(state, &payload, &mut scope);
+                let payload_neg = imported_core_type_neg(state, &payload, &mut scope);
+                state.infer.constrain(payload_pos, Neg::Var(payload_tv));
+                state.infer.constrain(Pos::Var(payload_tv), payload_neg);
+            }
+        }
     }
 
     true
+}
+
+fn constrain_enum_variant_result_type(
+    state: &mut LowerState,
+    enum_path: Path,
+    type_arg_tvs: &[TypeVar],
+    pat_tv: TypeVar,
+) {
+    let enum_pos = state.pos_con(
+        enum_path.clone(),
+        super::super::invariant_args(type_arg_tvs),
+    );
+    let enum_neg = state.neg_con(enum_path, super::super::invariant_args(type_arg_tvs));
+    state.infer.constrain(enum_pos, Neg::Var(pat_tv));
+    state.infer.constrain(Pos::Var(pat_tv), enum_neg);
+}
+
+fn imported_core_type_var(
+    state: &LowerState,
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+    var: &yulang_typed_ir::TypeVar,
+) -> TypeVar {
+    *scope.entry(var.clone()).or_insert_with(|| state.fresh_tv())
+}
+
+fn imported_core_type_pos(
+    state: &LowerState,
+    ty: &yulang_typed_ir::Type,
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Pos {
+    match ty {
+        yulang_typed_ir::Type::Unknown => Pos::Var(state.fresh_tv()),
+        yulang_typed_ir::Type::Never => Pos::Bot,
+        yulang_typed_ir::Type::Any => Pos::Bot,
+        yulang_typed_ir::Type::Var(var) => Pos::Var(imported_core_type_var(state, scope, var)),
+        yulang_typed_ir::Type::Named { path, args } => state.pos_con(
+            source_path_from_core_path(path),
+            args.iter()
+                .map(|arg| imported_core_type_arg(state, arg, scope))
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => state.pos_fun(
+            imported_core_type_neg(state, param, scope),
+            imported_core_type_neg(state, param_effect, scope),
+            imported_core_type_pos(state, ret_effect, scope),
+            imported_core_type_pos(state, ret, scope),
+        ),
+        yulang_typed_ir::Type::Tuple(items) => state.pos_tuple(
+            items
+                .iter()
+                .map(|item| imported_core_type_pos(state, item, scope))
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Record(record) => imported_core_record_pos(state, record, scope),
+        yulang_typed_ir::Type::Variant(variant) => state.pos_variant(
+            variant
+                .cases
+                .iter()
+                .map(|case| {
+                    (
+                        Name(case.name.0.clone()),
+                        case.payloads
+                            .iter()
+                            .map(|payload| imported_core_type_pos(state, payload, scope))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Row { items, tail } => state.pos_row(
+            items
+                .iter()
+                .map(|item| imported_core_type_pos(state, item, scope))
+                .collect(),
+            imported_core_type_pos(state, tail, scope),
+        ),
+        yulang_typed_ir::Type::Union(items) => imported_core_type_pos_union(state, items, scope),
+        yulang_typed_ir::Type::Inter(items) => {
+            imported_core_type_pos_intersection(state, items, scope)
+        }
+        yulang_typed_ir::Type::Recursive { body, .. } => imported_core_type_pos(state, body, scope),
+    }
+}
+
+fn imported_core_type_neg(
+    state: &LowerState,
+    ty: &yulang_typed_ir::Type,
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Neg {
+    match ty {
+        yulang_typed_ir::Type::Unknown => Neg::Var(state.fresh_tv()),
+        yulang_typed_ir::Type::Never => Neg::Top,
+        yulang_typed_ir::Type::Any => Neg::Top,
+        yulang_typed_ir::Type::Var(var) => Neg::Var(imported_core_type_var(state, scope, var)),
+        yulang_typed_ir::Type::Named { path, args } => state.neg_con(
+            source_path_from_core_path(path),
+            args.iter()
+                .map(|arg| imported_core_type_arg(state, arg, scope))
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => state.neg_fun(
+            imported_core_type_pos(state, param, scope),
+            imported_core_type_pos(state, param_effect, scope),
+            imported_core_type_neg(state, ret_effect, scope),
+            imported_core_type_neg(state, ret, scope),
+        ),
+        yulang_typed_ir::Type::Tuple(items) => Neg::Tuple(
+            items
+                .iter()
+                .map(|item| {
+                    state
+                        .infer
+                        .alloc_neg(imported_core_type_neg(state, item, scope))
+                })
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Record(record) => state.neg_record(
+            record
+                .fields
+                .iter()
+                .map(|field| RecordField {
+                    name: Name(field.name.0.clone()),
+                    value: imported_core_type_neg(state, &field.value, scope),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Variant(variant) => Neg::PolyVariant(
+            variant
+                .cases
+                .iter()
+                .map(|case| {
+                    (
+                        Name(case.name.0.clone()),
+                        case.payloads
+                            .iter()
+                            .map(|payload| {
+                                state
+                                    .infer
+                                    .alloc_neg(imported_core_type_neg(state, payload, scope))
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        yulang_typed_ir::Type::Row { items, tail } => state.neg_row(
+            items
+                .iter()
+                .map(|item| imported_core_type_neg(state, item, scope))
+                .collect(),
+            imported_core_type_neg(state, tail, scope),
+        ),
+        yulang_typed_ir::Type::Union(items) => imported_core_type_neg_union(state, items, scope),
+        yulang_typed_ir::Type::Inter(items) => {
+            imported_core_type_neg_intersection(state, items, scope)
+        }
+        yulang_typed_ir::Type::Recursive { body, .. } => imported_core_type_neg(state, body, scope),
+    }
+}
+
+fn imported_core_type_arg(
+    state: &LowerState,
+    arg: &yulang_typed_ir::TypeArg,
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> (Pos, Neg) {
+    match arg {
+        yulang_typed_ir::TypeArg::Type(ty) => (
+            imported_core_type_pos(state, ty, scope),
+            imported_core_type_neg(state, ty, scope),
+        ),
+        yulang_typed_ir::TypeArg::Bounds(bounds) => (
+            bounds
+                .lower
+                .as_deref()
+                .map(|ty| imported_core_type_pos(state, ty, scope))
+                .unwrap_or(Pos::Bot),
+            bounds
+                .upper
+                .as_deref()
+                .map(|ty| imported_core_type_neg(state, ty, scope))
+                .unwrap_or(Neg::Top),
+        ),
+    }
+}
+
+fn imported_core_record_pos(
+    state: &LowerState,
+    record: &yulang_typed_ir::RecordType,
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Pos {
+    let fields = record
+        .fields
+        .iter()
+        .map(|field| RecordField {
+            name: Name(field.name.0.clone()),
+            value: imported_core_type_pos(state, &field.value, scope),
+            optional: field.optional,
+        })
+        .collect::<Vec<_>>();
+    match &record.spread {
+        None => state.pos_record(fields),
+        Some(yulang_typed_ir::RecordSpread::Tail(tail)) => {
+            state.pos_record_tail_spread(fields, imported_core_type_pos(state, tail, scope))
+        }
+        Some(yulang_typed_ir::RecordSpread::Head(tail)) => {
+            state.pos_record_head_spread(imported_core_type_pos(state, tail, scope), fields)
+        }
+    }
+}
+
+fn imported_core_type_pos_union(
+    state: &LowerState,
+    items: &[yulang_typed_ir::Type],
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Pos {
+    let mut iter = items.iter().map(|item| {
+        state
+            .infer
+            .alloc_pos(imported_core_type_pos(state, item, scope))
+    });
+    let Some(first) = iter.next() else {
+        return Pos::Bot;
+    };
+    iter.fold(state.infer.arena.get_pos(first).clone(), |acc, item| {
+        Pos::Union(state.infer.alloc_pos(acc), item)
+    })
+}
+
+fn imported_core_type_pos_intersection(
+    state: &LowerState,
+    items: &[yulang_typed_ir::Type],
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Pos {
+    items
+        .first()
+        .map(|item| imported_core_type_pos(state, item, scope))
+        .unwrap_or(Pos::Bot)
+}
+
+fn imported_core_type_neg_union(
+    state: &LowerState,
+    items: &[yulang_typed_ir::Type],
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Neg {
+    items
+        .first()
+        .map(|item| imported_core_type_neg(state, item, scope))
+        .unwrap_or(Neg::Top)
+}
+
+fn imported_core_type_neg_intersection(
+    state: &LowerState,
+    items: &[yulang_typed_ir::Type],
+    scope: &mut HashMap<yulang_typed_ir::TypeVar, TypeVar>,
+) -> Neg {
+    let mut iter = items.iter().map(|item| {
+        state
+            .infer
+            .alloc_neg(imported_core_type_neg(state, item, scope))
+    });
+    let Some(first) = iter.next() else {
+        return Neg::Top;
+    };
+    iter.fold(state.infer.arena.get_neg(first).clone(), |acc, item| {
+        Neg::Intersection(state.infer.alloc_neg(acc), item)
+    })
+}
+
+fn source_path_from_core_path(path: &yulang_typed_ir::Path) -> Path {
+    Path {
+        segments: path
+            .segments
+            .iter()
+            .map(|segment| Name(segment.0.clone()))
+            .collect(),
+    }
 }
 
 fn constrain_pat_literal_type(

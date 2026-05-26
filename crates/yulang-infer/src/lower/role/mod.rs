@@ -39,7 +39,7 @@ pub(super) use impls::{
     lower_cast_decl, lower_impl_decl, lower_synthetic_error_display, lower_synthetic_error_throw,
     lower_synthetic_error_up, lower_synthetic_error_wrap, lower_synthetic_variant_cast,
 };
-pub(super) use runtime::{export_runtime_path, export_runtime_sig_row, export_runtime_sig_type};
+pub(crate) use runtime::{export_runtime_path, export_runtime_sig_row, export_runtime_sig_type};
 
 use runtime::{runtime_export_role_method_scheme, runtime_export_scheme};
 use subst::substitute_role_sig_type;

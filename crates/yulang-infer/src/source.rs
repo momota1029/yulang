@@ -16,7 +16,7 @@ use yulang_sources::{
 use crate::ids::TypeVar;
 use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
-use crate::lower::{LowerDetailProfile, LowerState};
+use crate::lower::{EnumVariantPatternPayload, LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
 use crate::simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
 use crate::simplify::cooccur::CompactRoleConstraint;
@@ -154,6 +154,7 @@ pub struct CompiledTypedImport {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CompiledTypedImportRefs {
     pub schemes: Vec<Option<crate::ids::DefId>>,
+    pub enum_variants: Vec<Option<crate::ids::DefId>>,
     pub role_methods: Vec<Option<crate::ids::DefId>>,
     pub role_impl_members: Vec<Vec<Option<crate::ids::DefId>>>,
     pub effect_methods: Vec<Option<crate::ids::DefId>>,
@@ -167,6 +168,8 @@ pub struct CompiledTypedImportCoverage {
     pub namespace_types_resolved: usize,
     pub schemes_total: usize,
     pub schemes_resolved: usize,
+    pub enum_variants_total: usize,
+    pub enum_variants_resolved: usize,
     pub role_methods_total: usize,
     pub role_methods_resolved: usize,
     pub effect_methods_total: usize,
@@ -178,6 +181,7 @@ impl CompiledTypedImportCoverage {
         self.namespace_values_total == self.namespace_values_resolved
             && self.namespace_types_total == self.namespace_types_resolved
             && self.schemes_total == self.schemes_resolved
+            && self.enum_variants_total == self.enum_variants_resolved
             && self.role_methods_total == self.role_methods_resolved
             && self.effect_methods_total == self.effect_methods_resolved
     }
@@ -276,6 +280,7 @@ pub struct CompiledUnitSemanticArtifactBundle {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CompiledTypedSurface {
     pub schemes: Vec<StdInferSnapshotScheme>,
+    pub enum_variants: Vec<StdInferSnapshotEnumVariant>,
     pub roles: Vec<StdInferSnapshotRole>,
     pub role_methods: Vec<StdInferSnapshotRoleMethod>,
     pub role_impls: Vec<StdInferSnapshotRoleImpl>,
@@ -327,12 +332,14 @@ impl CompiledRuntimeBundle {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CompiledTypedValidation {
     pub schemes: usize,
+    pub enum_variants: usize,
     pub roles: usize,
     pub role_methods: usize,
     pub role_impls: usize,
     pub effects: usize,
     pub effect_methods: usize,
     pub missing_scheme_symbols: Vec<u32>,
+    pub missing_enum_variant_symbols: Vec<u32>,
     pub missing_role_method_symbols: Vec<u32>,
     pub missing_role_impl_member_symbols: Vec<u32>,
     pub missing_effect_method_symbols: Vec<u32>,
@@ -341,6 +348,7 @@ pub struct CompiledTypedValidation {
 impl CompiledTypedValidation {
     pub fn is_complete(&self) -> bool {
         self.missing_scheme_symbols.is_empty()
+            && self.missing_enum_variant_symbols.is_empty()
             && self.missing_role_method_symbols.is_empty()
             && self.missing_role_impl_member_symbols.is_empty()
             && self.missing_effect_method_symbols.is_empty()
@@ -413,7 +421,7 @@ pub struct StdInferSnapshot {
     data: StdInferSnapshotData,
 }
 
-pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 4;
+pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotManifest {
@@ -428,6 +436,7 @@ pub struct StdInferSnapshotData {
     pub values: Vec<StdInferSnapshotSymbol>,
     pub types: Vec<StdInferSnapshotSymbol>,
     pub schemes: Vec<StdInferSnapshotScheme>,
+    pub enum_variants: Vec<StdInferSnapshotEnumVariant>,
     pub roles: Vec<StdInferSnapshotRole>,
     pub role_methods: Vec<StdInferSnapshotRoleMethod>,
     pub role_impls: Vec<StdInferSnapshotRoleImpl>,
@@ -455,6 +464,7 @@ pub struct StdInferSnapshotImport {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdInferSnapshotImportRefs {
     pub schemes: Vec<Option<crate::ids::DefId>>,
+    pub enum_variants: Vec<Option<crate::ids::DefId>>,
     pub role_methods: Vec<Option<crate::ids::DefId>>,
     pub role_impl_members: Vec<Vec<Option<crate::ids::DefId>>>,
     pub effect_methods: Vec<Option<crate::ids::DefId>>,
@@ -471,6 +481,8 @@ pub struct StdInferSnapshotImportCoverage {
     pub types_resolved: usize,
     pub schemes_total: usize,
     pub schemes_resolved: usize,
+    pub enum_variants_total: usize,
+    pub enum_variants_resolved: usize,
     pub role_methods_total: usize,
     pub role_methods_resolved: usize,
     pub effect_methods_total: usize,
@@ -483,6 +495,7 @@ impl StdInferSnapshotImportCoverage {
             && self.values_total == self.values_resolved
             && self.types_total == self.types_resolved
             && self.schemes_total == self.schemes_resolved
+            && self.enum_variants_total == self.enum_variants_resolved
             && self.role_methods_total == self.role_methods_resolved
             && self.effect_methods_total == self.effect_methods_resolved
     }
@@ -593,6 +606,15 @@ pub struct StdInferSnapshotScheme {
     pub compact: Option<CompactTypeScheme>,
     #[serde(default)]
     pub role_constraints: Vec<CompactRoleConstraint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotEnumVariant {
+    pub symbol: u32,
+    pub enum_path: Vec<String>,
+    pub tag: String,
+    pub type_params: Vec<typed_ir::TypeVar>,
+    pub payload: Option<typed_ir::Type>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1428,11 +1450,59 @@ fn push_max_type_var(var: TypeVar, max: &mut Option<TypeVar>) {
     }
 }
 
+fn import_compiled_enum_variant_patterns(
+    typed: &CompiledTypedSurface,
+    refs: &CompiledTypedImportRefs,
+    state: &mut LowerState,
+) {
+    for (variant, def) in typed.enum_variants.iter().zip(&refs.enum_variants) {
+        let Some(def) = def else {
+            continue;
+        };
+        import_enum_variant_pattern_shape(state, *def, variant);
+    }
+}
+
+fn import_std_snapshot_enum_variant_patterns(
+    data: &StdInferSnapshotData,
+    refs: &StdInferSnapshotImportRefs,
+    state: &mut LowerState,
+) {
+    for (variant, def) in data.enum_variants.iter().zip(&refs.enum_variants) {
+        let Some(def) = def else {
+            continue;
+        };
+        import_enum_variant_pattern_shape(state, *def, variant);
+    }
+}
+
+fn import_enum_variant_pattern_shape(
+    state: &mut LowerState,
+    def: crate::ids::DefId,
+    variant: &StdInferSnapshotEnumVariant,
+) {
+    state
+        .enum_variant_tags
+        .insert(def, Name(variant.tag.clone()));
+    state.enum_variant_patterns.insert(
+        def,
+        crate::lower::EnumVariantPatternShape {
+            enum_path: path_from_snapshot_segments(&variant.enum_path),
+            payload: EnumVariantPatternPayload::Imported {
+                type_params: variant.type_params.clone(),
+                payload: variant.payload.clone(),
+            },
+        },
+    );
+}
+
 fn import_compiled_typed_lookup_tables(
     typed: &CompiledTypedSurface,
     refs: &CompiledTypedImportRefs,
     state: &mut LowerState,
 ) {
+    import_compiled_enum_variant_patterns(typed, refs, state);
+
     for role in &typed.roles {
         state.infer.register_role_arg_infos(
             path_from_snapshot_segments(&role.path),
@@ -1594,6 +1664,7 @@ pub fn build_compiled_typed_artifacts(
         .map(|(index, (_, def))| (*def, index as u32))
         .collect::<HashMap<_, _>>();
     let all_schemes = collect_std_snapshot_schemes(state, &all_value_ids);
+    let all_enum_variants = collect_std_snapshot_enum_variants(state, &all_value_ids);
     let all_role_methods = collect_std_snapshot_role_methods(state, &all_value_ids);
     let all_role_impls = collect_std_snapshot_role_impls(state, &all_value_ids);
     let all_effect_methods = collect_std_snapshot_effect_methods(state, &all_value_ids);
@@ -1612,6 +1683,7 @@ pub fn build_compiled_typed_artifacts(
                 &artifact.namespace,
                 &unit_value_ids,
                 &all_schemes,
+                &all_enum_variants,
                 &roles,
                 &all_role_methods,
                 &all_role_impls,
@@ -1643,6 +1715,7 @@ pub fn import_std_infer_snapshot_data(
     let types = import_std_snapshot_types(&state, &data.types);
     let refs = import_std_snapshot_refs(data, &values, &modules);
     import_std_snapshot_compact_schemes(data, &refs, &state);
+    import_std_snapshot_enum_variant_patterns(data, &refs, &mut state);
     let coverage = import_std_snapshot_coverage(&modules, &values, &types, &refs);
     let missing = StdInferSnapshotImportMissing {
         modules: missing_snapshot_paths(&data.modules, &modules, |module| {
@@ -2016,6 +2089,7 @@ impl StdInferSnapshotData {
         validate_snapshot_symbols("type", &self.types)?;
         validate_snapshot_modules(&self.modules, self.values.len(), self.types.len())?;
         validate_snapshot_schemes(&self.schemes, self.values.len())?;
+        validate_snapshot_enum_variants(&self.enum_variants, self.values.len())?;
         validate_snapshot_role_methods(&self.role_methods, self.values.len())?;
         validate_snapshot_role_impls(&self.role_impls, self.values.len())?;
         validate_snapshot_effect_methods(
@@ -2040,6 +2114,7 @@ impl StdInferSnapshotData {
             values,
             types,
             schemes: collect_std_snapshot_schemes(state, &value_ids),
+            enum_variants: collect_std_snapshot_enum_variants(state, &value_ids),
             roles: collect_std_snapshot_roles(state),
             role_methods: collect_std_snapshot_role_methods(state, &value_ids),
             role_impls: collect_std_snapshot_role_impls(state, &value_ids),
@@ -2090,6 +2165,9 @@ pub enum StdInferSnapshotDataError {
         child: u32,
     },
     MissingSchemeSymbol {
+        symbol: u32,
+    },
+    MissingEnumVariantSymbol {
         symbol: u32,
     },
     MissingRoleMethodSymbol {
@@ -2337,6 +2415,20 @@ fn validate_snapshot_schemes(
     Ok(())
 }
 
+fn validate_snapshot_enum_variants(
+    variants: &[StdInferSnapshotEnumVariant],
+    values_len: usize,
+) -> Result<(), StdInferSnapshotDataError> {
+    for variant in variants {
+        if variant.symbol as usize >= values_len {
+            return Err(StdInferSnapshotDataError::MissingEnumVariantSymbol {
+                symbol: variant.symbol,
+            });
+        }
+    }
+    Ok(())
+}
+
 fn validate_snapshot_role_methods(
     methods: &[StdInferSnapshotRoleMethod],
     values_len: usize,
@@ -2483,6 +2575,11 @@ fn import_std_snapshot_refs(
             .iter()
             .map(|scheme| values[scheme.symbol as usize])
             .collect(),
+        enum_variants: data
+            .enum_variants
+            .iter()
+            .map(|variant| values[variant.symbol as usize])
+            .collect(),
         role_methods: data
             .role_methods
             .iter()
@@ -2521,6 +2618,11 @@ fn import_compiled_typed_refs(
             .schemes
             .iter()
             .map(|scheme| values[scheme.symbol as usize])
+            .collect(),
+        enum_variants: typed
+            .enum_variants
+            .iter()
+            .map(|variant| values[variant.symbol as usize])
             .collect(),
         role_methods: typed
             .role_methods
@@ -2561,6 +2663,8 @@ fn import_std_snapshot_coverage(
         types_resolved: count_resolved(types),
         schemes_total: refs.schemes.len(),
         schemes_resolved: count_resolved(&refs.schemes),
+        enum_variants_total: refs.enum_variants.len(),
+        enum_variants_resolved: count_resolved(&refs.enum_variants),
         role_methods_total: refs.role_methods.len(),
         role_methods_resolved: count_resolved(&refs.role_methods),
         effect_methods_total: refs.effect_methods.len(),
@@ -2579,6 +2683,8 @@ fn import_compiled_typed_coverage(
         namespace_types_resolved: count_resolved(&namespace.types),
         schemes_total: refs.schemes.len(),
         schemes_resolved: count_resolved(&refs.schemes),
+        enum_variants_total: refs.enum_variants.len(),
+        enum_variants_resolved: count_resolved(&refs.enum_variants),
         role_methods_total: refs.role_methods.len(),
         role_methods_resolved: count_resolved(&refs.role_methods),
         effect_methods_total: refs.effect_methods.len(),
@@ -2710,6 +2816,55 @@ fn collect_std_snapshot_schemes(
         .collect::<Vec<_>>();
     schemes.sort_by(|lhs, rhs| lhs.symbol.cmp(&rhs.symbol));
     schemes
+}
+
+fn collect_std_snapshot_enum_variants(
+    state: &LowerState,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotEnumVariant> {
+    let mut variants = state
+        .enum_variant_patterns
+        .iter()
+        .filter_map(|(def, shape)| {
+            let symbol = *value_ids.get(def)?;
+            let tag = state.enum_variant_tags.get(def)?;
+            let (type_params, payload) = snapshot_enum_variant_payload(state, &shape.payload);
+            Some(StdInferSnapshotEnumVariant {
+                symbol,
+                enum_path: snapshot_path_segments(&shape.enum_path),
+                tag: tag.0.clone(),
+                type_params,
+                payload,
+            })
+        })
+        .collect::<Vec<_>>();
+    variants.sort_by(|lhs, rhs| lhs.symbol.cmp(&rhs.symbol));
+    variants
+}
+
+fn snapshot_enum_variant_payload(
+    state: &LowerState,
+    payload: &EnumVariantPatternPayload,
+) -> (Vec<typed_ir::TypeVar>, Option<typed_ir::Type>) {
+    match payload {
+        EnumVariantPatternPayload::Source {
+            type_param_names,
+            payload_sig,
+        } => (
+            type_param_names
+                .iter()
+                .cloned()
+                .map(typed_ir::TypeVar)
+                .collect(),
+            payload_sig
+                .as_ref()
+                .map(|sig| crate::lower::role::export_runtime_sig_type(state, sig)),
+        ),
+        EnumVariantPatternPayload::Imported {
+            type_params,
+            payload,
+        } => (type_params.clone(), payload.clone()),
+    }
 }
 
 fn snapshot_role_constraints_for_def(
@@ -4148,6 +4303,7 @@ fn compiled_typed_surface_for_namespace(
     namespace: &CompiledNamespaceSurface,
     unit_value_ids: &HashMap<u32, u32>,
     schemes: &[StdInferSnapshotScheme],
+    enum_variants: &[StdInferSnapshotEnumVariant],
     roles: &[StdInferSnapshotRole],
     role_methods: &[StdInferSnapshotRoleMethod],
     role_impls: &[StdInferSnapshotRoleImpl],
@@ -4169,6 +4325,19 @@ fn compiled_typed_surface_for_namespace(
                     rendered: scheme.rendered.clone(),
                     compact: scheme.compact.clone(),
                     role_constraints: scheme.role_constraints.clone(),
+                })
+            })
+            .collect(),
+        enum_variants: enum_variants
+            .iter()
+            .filter_map(|variant| {
+                let symbol = *unit_value_ids.get(&variant.symbol)?;
+                Some(StdInferSnapshotEnumVariant {
+                    symbol,
+                    enum_path: variant.enum_path.clone(),
+                    tag: variant.tag.clone(),
+                    type_params: variant.type_params.clone(),
+                    payload: variant.payload.clone(),
                 })
             })
             .collect(),
@@ -4256,6 +4425,7 @@ fn validate_compiled_typed_surface(
         .collect::<std::collections::HashSet<_>>();
     let mut validation = CompiledTypedValidation {
         schemes: typed.schemes.len(),
+        enum_variants: typed.enum_variants.len(),
         roles: typed.roles.len(),
         role_methods: typed.role_methods.len(),
         role_impls: typed.role_impls.len(),
@@ -4267,6 +4437,11 @@ fn validate_compiled_typed_surface(
     for scheme in &typed.schemes {
         if !value_ids.contains(&scheme.symbol) {
             validation.missing_scheme_symbols.push(scheme.symbol);
+        }
+    }
+    for variant in &typed.enum_variants {
+        if !value_ids.contains(&variant.symbol) {
+            validation.missing_enum_variant_symbols.push(variant.symbol);
         }
     }
     for method in &typed.role_methods {
@@ -4295,6 +4470,7 @@ fn validate_compiled_typed_surface(
 fn trusted_compiled_typed_validation(typed: &CompiledTypedSurface) -> CompiledTypedValidation {
     CompiledTypedValidation {
         schemes: typed.schemes.len(),
+        enum_variants: typed.enum_variants.len(),
         roles: typed.roles.len(),
         role_methods: typed.role_methods.len(),
         role_impls: typed.role_impls.len(),
@@ -4438,6 +4614,19 @@ fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> Compiled
                 scheme.symbol += value_offset;
                 scheme
             }));
+        typed
+            .enum_variants
+            .extend(
+                artifact
+                    .typed
+                    .enum_variants
+                    .iter()
+                    .cloned()
+                    .map(|mut variant| {
+                        variant.symbol += value_offset;
+                        variant
+                    }),
+            );
         typed.roles.extend(artifact.typed.roles.iter().cloned());
         typed.role_methods.extend(
             artifact
@@ -4481,6 +4670,9 @@ fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> Compiled
         value_offset += artifact.namespace.values.len() as u32;
     }
 
+    typed
+        .enum_variants
+        .sort_by(|lhs, rhs| lhs.symbol.cmp(&rhs.symbol));
     typed.roles.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
     typed.effects.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
     typed

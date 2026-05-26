@@ -890,6 +890,61 @@ fn resolves_unqualified_prelude_variant_pattern_from_source_loader() {
 }
 
 #[test]
+fn compiled_typed_import_preserves_unqualified_prelude_variant_pattern_shape() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let options = yulang_sources::SourceOptions {
+            std_root: Some(std_root),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+        let source = "case just 42:\n  just n -> n\n  _ -> 0\n";
+        let source_set =
+            collect_virtual_source_files_with_options(source, Some(repo_root), options).unwrap();
+        let lowered = lower_source_set(&source_set);
+        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+        let std_artifacts = artifacts
+            .into_iter()
+            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+            .collect::<Vec<_>>();
+        let bundle =
+            build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
+        assert!(
+            bundle.typed.enum_variants.iter().any(|variant| {
+                variant.tag == "just"
+                    && variant
+                        .enum_path
+                        .iter()
+                        .map(String::as_str)
+                        .eq(["std", "opt", "opt"])
+            }),
+            "compiled std bundle should preserve opt::just pattern shape"
+        );
+
+        let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+            &source_set,
+            &bundle,
+        )
+        .lowered
+        .lowered;
+        let program = crate::export_core_program(&mut imported.state);
+        let result = program
+            .program
+            .root_exprs
+            .first()
+            .expect("root expression should be exported");
+        let yulang_typed_ir::Expr::Match { arms, .. } = result else {
+            panic!("result should lower to a match expression");
+        };
+        let yulang_typed_ir::Pattern::Variant { tag, .. } = &arms[0].pattern else {
+            panic!("first arm should be a variant pattern");
+        };
+        assert_eq!(tag, &yulang_typed_ir::Name("just".to_string()));
+    });
+}
+
+#[test]
 fn exports_top_level_destructuring_bindings_as_principal_bodies() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

@@ -101,6 +101,8 @@ pub struct LowerState {
     pub top_level_blocks: Vec<(Path, crate::ast::expr::TypedBlock)>,
     /// top-level 式のために作った synthetic owner。
     pub top_level_expr_owners: Vec<DefId>,
+    /// root は増やさず、role output finalization だけに使う owner。
+    pub internal_expr_owners: Vec<DefId>,
     /// 型制約を張ったときの「実際の型が文脈型として使われる」軽い記録。
     /// runtime IR には影響させず、diagnostic / hover / 将来の elaboration evidence に使う。
     pub expected_edges: Vec<ExpectedEdge>,
@@ -215,6 +217,7 @@ impl LowerState {
             runtime_export_schemes: HashMap::new(),
             top_level_blocks: Vec::new(),
             top_level_expr_owners: Vec::new(),
+            internal_expr_owners: Vec::new(),
             expected_edges: Vec::new(),
             next_expected_edge_id: 0,
             expected_adapter_edges: Vec::new(),
@@ -880,6 +883,10 @@ impl LowerState {
 
     pub fn record_top_level_expr_owner(&mut self, owner: DefId) {
         self.top_level_expr_owners.push(owner);
+    }
+
+    pub fn record_internal_expr_owner(&mut self, owner: DefId) {
+        self.internal_expr_owners.push(owner);
     }
 
     pub fn register_def_eff_tv(&mut self, def: DefId, eff_tv: TypeVar) {

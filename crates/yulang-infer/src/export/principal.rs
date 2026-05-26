@@ -458,6 +458,7 @@ pub fn export_principal_module(state: &mut LowerState) -> typed_ir::PrincipalMod
     let paths = collect_user_observable_binding_paths(state);
     let mut target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
     target_defs.extend(state.top_level_expr_owners.iter().copied());
+    target_defs.extend(state.internal_expr_owners.iter().copied());
     state.finalize_compact_results_for_defs(&target_defs);
     state.refresh_selection_environment();
     let edge_evidence = build_edge_evidence_cache(state);
@@ -477,6 +478,7 @@ pub fn export_principal_bindings(state: &mut LowerState) -> Vec<typed_ir::Princi
     let paths = collect_user_observable_binding_paths(state);
     let mut target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
     target_defs.extend(state.top_level_expr_owners.iter().copied());
+    target_defs.extend(state.internal_expr_owners.iter().copied());
     state.finalize_compact_results_for_defs(&target_defs);
     state.refresh_selection_environment();
     let edge_evidence = build_edge_evidence_cache(state);
@@ -562,6 +564,7 @@ fn collect_export_target_defs_for_binding_paths(
             pending.push(*def);
         }
     }
+    target_defs.extend(state.internal_expr_owners.iter().copied());
     while let Some(def) = pending.pop() {
         let Some(body) = state.principal_bodies.get(&def) else {
             continue;
@@ -858,6 +861,7 @@ fn collect_export_target_defs(
         );
     }
     target_defs.extend(state.top_level_expr_owners.iter().copied());
+    target_defs.extend(state.internal_expr_owners.iter().copied());
     target_defs.extend(collect_hir_role_rewrite_support_defs(state));
 
     while let Some(def) = pending.pop() {

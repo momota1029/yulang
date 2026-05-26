@@ -232,7 +232,9 @@ fn lower_block_items(
             }
             SyntaxKind::ForStmt => {
                 flush_tail_into_stmt(stmts, tail);
-                tail.replace(Box::new(super::lower_for_stmt(state, &child)));
+                tail.replace(Box::new(
+                    super::lower_for_stmt_with_synthetic_owner_if_top_level(state, &child),
+                ));
             }
             SyntaxKind::Expr => {
                 flush_tail_into_stmt(stmts, tail);

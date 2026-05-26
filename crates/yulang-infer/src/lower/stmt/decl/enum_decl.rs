@@ -71,8 +71,10 @@ fn lower_enum_variant(
         ctor_def,
         crate::lower::EnumVariantPatternShape {
             enum_path: enum_path.clone(),
-            type_param_names: type_param_names.to_vec(),
-            payload_sig: enum_variant_payload_sig(variant_node),
+            payload: crate::lower::EnumVariantPatternPayload::Source {
+                type_param_names: type_param_names.to_vec(),
+                payload_sig: enum_variant_payload_sig(variant_node),
+            },
         },
     );
 

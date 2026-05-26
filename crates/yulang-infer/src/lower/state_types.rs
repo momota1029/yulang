@@ -12,8 +12,19 @@ pub enum FunctionSigEffectHint {
 #[derive(Debug, Clone)]
 pub struct EnumVariantPatternShape {
     pub enum_path: Path,
-    pub type_param_names: Vec<String>,
-    pub payload_sig: Option<crate::lower::signature::SigType>,
+    pub payload: EnumVariantPatternPayload,
+}
+
+#[derive(Debug, Clone)]
+pub enum EnumVariantPatternPayload {
+    Source {
+        type_param_names: Vec<String>,
+        payload_sig: Option<crate::lower::signature::SigType>,
+    },
+    Imported {
+        type_params: Vec<yulang_typed_ir::TypeVar>,
+        payload: Option<yulang_typed_ir::Type>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
