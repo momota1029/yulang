@@ -79,8 +79,6 @@ my read_from(expected: str, i: int): () =
                 else:
                     parse::fail (parse_error::expected (std::char::to_string expected[i], parse::position()))
             opt::nil -> parse::fail (parse_error::eof (parse::position()))
-    else:
-        ()
 
 pub token(expected: str): () = read_from expected 0
 pub read(expected: str): () = token expected

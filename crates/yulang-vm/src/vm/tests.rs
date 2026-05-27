@@ -106,28 +106,20 @@ catch ask 1:
     const FOR_LOOP_LAST_SOURCE: &str = r#"for x in [1, 2, 3]:
     if x == 2:
         last
-    else:
-        ()
 "#;
 
     const FOR_LOOP_LAST_RANGE_SOURCE: &str = r#"for x in 0..:
     if x == 5:
         last
-    else:
-        ()
 "#;
 
     const FOR_LOOP_LAST_MIXED_SOURCE: &str = r#"for x in [1, 2, 3]:
     if x == 2:
         last
-    else:
-        ()
 
 for x in 0..:
     if x == 5:
         last
-    else:
-        ()
 "#;
 
     const UNDET_EACH_LOGIC_SOURCE: &str = r#"use std::undet::*
@@ -1169,8 +1161,6 @@ read_text {source_path}
     for line: ref _ str in std::str::line_view text:
         if line.get() == "b\n":
             line[std::range::full()] = "B\n"
-        else:
-            ()
     text.get()
 }}
 "#
@@ -1196,8 +1186,6 @@ read_text {source_path}
         my line: ref _ str = text.lines.each
         if line.get() == "b\n":
             line[std::range::full()] = "B\n"
-        else:
-            ()
     }}
     text.get()
 }}
@@ -1875,8 +1863,6 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     for line: ref _ str in &s.lines:
         if line.get() == "b\n":
             line[std::range::full()] = "B\n"
-        else:
-            ()
     $s
 }
 "#,
@@ -3295,8 +3281,6 @@ run_into_strings: {
     for 'outer x in [1, 2, 3]:
         if x == 2:
             last 'outer
-        else:
-            ()
     return 7
     0
 "#,
