@@ -1944,6 +1944,56 @@ f 3
     }
 
     #[test]
+    fn materialize_add_id_preserves_thunk_operand_boundary() {
+        let int = int_type();
+        let unit = unit_type();
+        let flip = typed_ir::Type::Named {
+            path: path("flip"),
+            args: Vec::new(),
+        };
+        let thunk_ty = RuntimeType::Thunk {
+            effect: flip.clone(),
+            value: Box::new(RuntimeType::Value(int.clone())),
+        };
+        let apply = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(path("f")),
+                    RuntimeType::Fun {
+                        param: Box::new(RuntimeType::Value(unit.clone())),
+                        ret: Box::new(RuntimeType::Value(int.clone())),
+                    },
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    RuntimeType::Value(unit),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::Value(int.clone()),
+        );
+        let add_id = Expr::typed(
+            ExprKind::AddId {
+                id: yulang_runtime_ir::EffectIdRef::Peek,
+                allowed: flip,
+                active: true,
+                thunk: Box::new(apply),
+            },
+            RuntimeType::Value(int),
+        );
+
+        let materialized = materialize::materialize_expr(add_id, &[]);
+        let ExprKind::AddId { thunk, .. } = materialized.kind else {
+            panic!("expected add_id expression");
+        };
+
+        assert_eq!(materialized.ty, thunk_ty);
+        assert_eq!(thunk.ty, thunk_ty);
+        assert!(matches!(thunk.kind, ExprKind::Thunk { .. }));
+    }
+
+    #[test]
     fn materialize_apply_instantiation_args() {
         let original = typed_ir::TypeVar("a".into());
         let target = typed_ir::TypeVar("b".into());

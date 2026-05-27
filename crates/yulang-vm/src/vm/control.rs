@@ -684,9 +684,14 @@ impl ControlCompiler {
             ExprKind::EffectOp(path) => ControlExprKind::EffectOp(self.intern_path(path)),
             ExprKind::PrimitiveOp(op) => ControlExprKind::PrimitiveOp(op),
             ExprKind::Lit(lit) => ControlExprKind::Lit(self.push_lit(lit)),
-            ExprKind::Lambda { param, body, .. } => {
+            ExprKind::Lambda {
+                param,
+                param_effect_annotation,
+                body,
+                ..
+            } => {
                 let (param_forces_thunk_arg, result_wraps_thunk) =
-                    control_lambda_shape(&ty, &body.ty);
+                    control_lambda_shape(&ty, &body.ty, param_effect_annotation.as_ref());
                 let param = self.intern_local_name_path(&param);
                 ControlExprKind::Lambda {
                     param,
@@ -3214,10 +3219,14 @@ fn single_bind_local(pattern: &ControlPattern) -> Option<ControlLocalId> {
     }
 }
 
-fn control_lambda_shape(lambda_ty: &Type, body_ty: &Type) -> (bool, bool) {
+fn control_lambda_shape(
+    lambda_ty: &Type,
+    body_ty: &Type,
+    param_effect_annotation: Option<&typed_ir::ParamEffectAnnotation>,
+) -> (bool, bool) {
     match lambda_ty {
         Type::Fun { param, ret } => (
-            control_param_forces_thunk_arg(param),
+            param_effect_annotation.is_none() && control_param_forces_thunk_arg(param),
             type_wraps_thunk(ret.as_ref()),
         ),
         _ => (false, type_wraps_thunk(body_ty)),

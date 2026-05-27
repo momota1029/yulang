@@ -138,6 +138,20 @@ for x in 0..:
 }).once
 "#;
 
+    const USER_EFFECT_ALL_PATHS_SOURCE: &str = r#"act flip:
+    our coin: () -> bool
+
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c
+"#;
+
     const SHOWCASE_SOURCE: &str = r#"use std::undet::*
 
 struct point { x: int, y: int } with:
@@ -3576,6 +3590,20 @@ box { width: 3, height: 4 }
     }
 
     #[test]
+    fn vm_catches_user_effectful_thunk_argument_before_forcing() {
+        let results = eval_source_with_std(USER_EFFECT_ALL_PATHS_SOURCE);
+
+        assert_eq!(results, vec![all_paths_result()]);
+    }
+
+    #[test]
+    fn control_vm_catches_user_effectful_thunk_argument_before_forcing() {
+        let results = eval_control_source_with_std(USER_EFFECT_ALL_PATHS_SOURCE);
+
+        assert_eq!(results, vec![all_paths_result()]);
+    }
+
+    #[test]
     fn add_id_does_not_overwrite_live_stack_marker() {
         let stack = guard_stack(&[(0, 1), (1, 2)]);
         let thunk = blocked_thunk(2, effect_type("undet"));
@@ -3915,6 +3943,15 @@ box { width: 3, height: 4 }
             .expect("finalized runtime module");
         let module = compile_vm_module(module).expect("compiled runtime VM module");
         test_values(module.eval_roots().expect("vm results"))
+    }
+
+    fn all_paths_result() -> TestValue {
+        TestValue::List(
+            ["111", "11", "101", "1", "110", "10", "100", "0"]
+                .into_iter()
+                .map(|value| TestValue::Int(value.to_string()))
+                .collect(),
+        )
     }
 
     fn eval_source_with_std(src: &str) -> Vec<TestValue> {

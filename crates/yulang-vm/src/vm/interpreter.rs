@@ -74,14 +74,19 @@ impl<'m> VmInterpreter<'m> {
                 },
             )))),
             ExprKind::Lit(lit) => Ok(VmResult::Value(value_from_lit(lit))),
-            ExprKind::Lambda { param, body, .. } => {
+            ExprKind::Lambda {
+                param,
+                param_effect_annotation,
+                body,
+                ..
+            } => {
                 let (param_ty, ret) = match &expr.ty {
                     Type::Fun { param, ret } => (param.as_ref().clone(), ret.as_ref().clone()),
                     _ => (Type::Value(typed_ir::Type::Any), body.ty.clone()),
                 };
                 Ok(VmResult::Value(VmValue::Closure(Rc::new(VmClosure {
                     param: param.clone(),
-                    param_ty,
+                    param_ty: lambda_param_type(param_ty, param_effect_annotation.as_ref()),
                     body: (**body).clone(),
                     ret,
                     env: env.clone(),
@@ -1278,6 +1283,26 @@ fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
         param_ty,
         Type::Thunk { .. } | Type::Value(typed_ir::Type::Any)
     )
+}
+
+fn lambda_param_type(param_ty: Type, annotation: Option<&typed_ir::ParamEffectAnnotation>) -> Type {
+    let Some(annotation) = annotation else {
+        return param_ty;
+    };
+    Type::Thunk {
+        effect: param_effect_annotation_effect(annotation),
+        value: Box::new(param_ty),
+    }
+}
+
+fn param_effect_annotation_effect(annotation: &typed_ir::ParamEffectAnnotation) -> typed_ir::Type {
+    match annotation {
+        typed_ir::ParamEffectAnnotation::Wildcard => typed_ir::Type::Any,
+        typed_ir::ParamEffectAnnotation::Region(name) => typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(name.clone()),
+            args: Vec::new(),
+        },
+    }
 }
 
 fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {

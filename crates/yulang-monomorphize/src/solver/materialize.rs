@@ -55,6 +55,8 @@ pub(crate) fn materialize_expr_with_expected(
                 .filter(|expected| matches!(expected, RuntimeType::Fun { .. }))
                 .cloned()
                 .unwrap_or(ty);
+            let outer_ty =
+                materialize_lambda_param_effect(outer_ty, param_effect_annotation.as_ref());
             let body_expected = match &outer_ty {
                 RuntimeType::Fun { ret, .. } => Some((**ret).clone()),
                 _ => None,
@@ -264,11 +266,16 @@ pub(crate) fn materialize_expr_with_expected(
             active,
             thunk,
         } => {
-            let thunk = materialize_expr(*thunk, substitutions);
+            let allowed = materialize_core_type(allowed, substitutions);
+            let expected_thunk = add_id_expected_thunk(
+                materialize_runtime_type(thunk.ty.clone(), substitutions),
+                &allowed,
+            );
+            let thunk = materialize_expr_to_expected(*thunk, substitutions, Some(&expected_thunk));
             let ty = thunk.ty.clone();
             let kind = ExprKind::AddId {
                 id,
-                allowed: materialize_core_type(allowed, substitutions),
+                allowed,
                 active,
                 thunk: Box::new(thunk),
             };
@@ -998,12 +1005,14 @@ pub(crate) fn materialize_type_bounds(
 }
 
 fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option<RuntimeType> {
-    evidence
-        .expected_arg
-        .as_ref()
-        .and_then(super::apply_spine::type_from_bounds)
-        .map(runtime_type_from_core_value)
-        .filter(should_materialize_expected_runtime)
+    materialized_apply_expected_callee_arg(evidence).or_else(|| {
+        evidence
+            .expected_arg
+            .as_ref()
+            .and_then(super::apply_spine::type_from_bounds)
+            .map(runtime_type_from_core_value)
+            .filter(should_materialize_expected_runtime)
+    })
 }
 
 fn materialized_apply_result_type(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
@@ -1083,6 +1092,68 @@ fn materialize_handle_body(
             value: Box::new(value),
         },
     )
+}
+
+fn add_id_expected_thunk(ty: RuntimeType, allowed: &typed_ir::Type) -> RuntimeType {
+    match ty {
+        RuntimeType::Thunk { .. } => ty,
+        value => RuntimeType::Thunk {
+            effect: allowed.clone(),
+            value: Box::new(value),
+        },
+    }
+}
+
+fn materialize_lambda_param_effect(
+    ty: RuntimeType,
+    annotation: Option<&typed_ir::ParamEffectAnnotation>,
+) -> RuntimeType {
+    let Some(annotation) = annotation else {
+        return ty;
+    };
+    let RuntimeType::Fun { param, ret } = ty else {
+        return ty;
+    };
+    let param = match *param {
+        RuntimeType::Thunk { .. } => param,
+        value => Box::new(RuntimeType::Thunk {
+            effect: param_effect_annotation_effect(annotation),
+            value: Box::new(value),
+        }),
+    };
+    RuntimeType::Fun { param, ret }
+}
+
+fn materialized_apply_expected_callee_arg(
+    evidence: &typed_ir::ApplyEvidence,
+) -> Option<RuntimeType> {
+    evidence
+        .expected_callee
+        .as_ref()
+        .and_then(super::apply_spine::type_from_bounds)
+        .or_else(|| super::apply_spine::type_from_bounds(&evidence.callee))
+        .and_then(|ty| match ty {
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ..
+            } => Some(runtime_type_from_core_value_and_effect(
+                *param,
+                *param_effect,
+            )),
+            _ => None,
+        })
+        .filter(should_materialize_expected_runtime)
+}
+
+fn param_effect_annotation_effect(annotation: &typed_ir::ParamEffectAnnotation) -> typed_ir::Type {
+    match annotation {
+        typed_ir::ParamEffectAnnotation::Wildcard => typed_ir::Type::Any,
+        typed_ir::ParamEffectAnnotation::Region(name) => typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(name.clone()),
+            args: Vec::new(),
+        },
+    }
 }
 
 fn materialized_runtime_callee_arg(ty: &RuntimeType) -> Option<RuntimeType> {
