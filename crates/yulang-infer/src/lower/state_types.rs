@@ -78,10 +78,12 @@ pub enum CatchArmCheckKind {
     Value {
         pattern_span: Option<rowan::TextRange>,
         pattern_file_span: Option<crate::lower::state::FileSpan>,
+        pattern_covers_all: bool,
     },
     Effect {
         op_path: Path,
         effect_path: Option<Path>,
+        payload_covers_all: bool,
         effect_pattern_span: Option<rowan::TextRange>,
         effect_pattern_file_span: Option<crate::lower::state::FileSpan>,
         continuation_span: Option<rowan::TextRange>,

@@ -120,6 +120,8 @@ TODO:
 - effect arm は operation path と、解決後の effect path を保持する。
 - handler boundary 判定で runtime arm から外れる source arm も、`active` flag 付きで
   check site には残す。
+- unguarded な value wildcard/binding arm 後の value arm と、同じ effect operation の
+  unguarded payload-covering arm 後の effect arm は `pattern.unreachable_arm` として報告する。
 
 未着手:
 

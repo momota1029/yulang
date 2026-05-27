@@ -3272,6 +3272,7 @@ fn lower_records_catch_check_site() {
         CatchArmCheckKind::Effect {
             op_path,
             effect_path,
+            payload_covers_all,
             effect_pattern_span,
             effect_pattern_file_span,
             continuation_span,
@@ -3293,6 +3294,7 @@ fn lower_records_catch_check_site() {
                 })
                 .unwrap_or_default();
             assert_eq!(effect_segments, vec!["out"]);
+            assert!(*payload_covers_all);
             assert!(effect_pattern_span.is_some());
             assert!(effect_pattern_file_span.is_some());
             assert!(continuation_span.is_some());
@@ -3307,12 +3309,122 @@ fn lower_records_catch_check_site() {
         CatchArmCheckKind::Value {
             pattern_span,
             pattern_file_span,
+            pattern_covers_all,
         } => {
+            assert!(*pattern_covers_all);
             assert!(pattern_span.is_some());
             assert!(pattern_file_span.is_some());
         }
         other => panic!("second catch arm should be value arm, got {other:?}"),
     }
+}
+
+#[test]
+fn check_report_catch_reports_value_arm_after_covering_value_arm_unreachable() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "my handled = catch 1:\n",
+            "  value -> value\n",
+            "  _ -> 0\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.code == DiagnosticCode::UnreachablePattern
+                && diagnostic.message == "catch arm is unreachable"
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "value arm after covering value arm should be unreachable, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "previous value arm covers all normal completions"
+            && related.file_span.is_some()),
+        "catch value unreachable diagnostic should point at previous value arm, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_catch_reports_duplicate_effect_operation_unreachable() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "pub act out:\n",
+            "  pub say: str -> ()\n\n",
+            "my handled = catch out::say \"hi\":\n",
+            "  out::say msg, k -> ()\n",
+            "  out::say msg, k -> ()\n",
+        ),
+        None,
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.code == DiagnosticCode::UnreachablePattern
+                && diagnostic.message == "catch arm is unreachable"
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "duplicate catch effect operation should be unreachable, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "previous effect arm already handles this operation"
+            && related.file_span.is_some()),
+        "catch effect unreachable diagnostic should point at previous effect arm, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_catch_guarded_effect_arm_does_not_cover_following_arm() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "pub act out:\n",
+            "  pub say: str -> ()\n\n",
+            "my handled = catch out::say \"hi\":\n",
+            "  out::say msg, k if true -> ()\n",
+            "  out::say msg, k -> ()\n",
+        ),
+        None,
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    assert!(
+        !report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == DiagnosticCode::UnreachablePattern
+                && diagnostic.message == "catch arm is unreachable"
+        }),
+        "guarded catch arm should not cover following effect arm, got {:?}",
+        report.diagnostics,
+    );
 }
 
 #[test]

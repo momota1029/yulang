@@ -2,13 +2,16 @@ use std::collections::{HashMap, HashSet};
 
 use rowan::TextRange;
 
-use crate::lower::{CaseArmPattern, CaseCheckSite, FileSpan, LowerState};
+use crate::lower::{
+    CaseArmPattern, CaseCheckSite, CatchArmCheckKind, CatchArmCheckSite, CatchCheckSite, FileSpan,
+    LowerState,
+};
 use crate::symbols::{Name, Path};
 
 use super::report::CheckReportBuilder;
 use super::{DiagnosticCode, RelatedDiagnostic};
 
-pub(crate) fn push_case_exhaustiveness(builder: &mut CheckReportBuilder, state: &LowerState) {
+pub(crate) fn push_exhaustiveness(builder: &mut CheckReportBuilder, state: &LowerState) {
     for site in &state.case_check_sites {
         for diagnostic in unreachable_case_arm_diagnostics(state, site) {
             builder.push_with_file_span(
@@ -30,6 +33,18 @@ pub(crate) fn push_case_exhaustiveness(builder: &mut CheckReportBuilder, state: 
             site.file_span,
             diagnostic.related,
         );
+    }
+
+    for site in &state.catch_check_sites {
+        for diagnostic in unreachable_catch_arm_diagnostics(site) {
+            builder.push_with_file_span(
+                DiagnosticCode::UnreachablePattern,
+                diagnostic.message,
+                Some(diagnostic.span),
+                diagnostic.file_span,
+                diagnostic.related,
+            );
+        }
     }
 }
 
@@ -229,6 +244,101 @@ fn recorded_arm_span(arm: &crate::lower::CaseArmCheckSite) -> RecordedArmSpan {
     RecordedArmSpan {
         range: arm.span,
         file_span: arm.file_span,
+    }
+}
+
+fn recorded_catch_arm_span(arm: &CatchArmCheckSite) -> RecordedArmSpan {
+    RecordedArmSpan {
+        range: arm.span,
+        file_span: arm.file_span,
+    }
+}
+
+fn unreachable_catch_arm_diagnostics(site: &CatchCheckSite) -> Vec<UnreachableArmDiagnostic> {
+    let mut covered = PriorCatchCoverage::default();
+    let mut diagnostics = Vec::new();
+
+    for arm in &site.arms {
+        if let Some(reason) = covered.unreachable_reason(arm) {
+            diagnostics.push(UnreachableArmDiagnostic {
+                span: arm.span,
+                file_span: arm.file_span,
+                message: "catch arm is unreachable".to_string(),
+                related: reason.related(),
+            });
+        }
+        if arm.active && arm.guard_span.is_none() {
+            covered.record_unconditional_arm(arm);
+        }
+    }
+
+    diagnostics
+}
+
+#[derive(Default)]
+struct PriorCatchCoverage {
+    value_covers_all_span: Option<RecordedArmSpan>,
+    effect_ops: HashMap<Path, RecordedArmSpan>,
+}
+
+enum CatchUnreachableReason {
+    CoveredByValueArm { span: RecordedArmSpan },
+    CoveredByEffectArm { span: RecordedArmSpan },
+}
+
+impl PriorCatchCoverage {
+    fn unreachable_reason(&self, arm: &CatchArmCheckSite) -> Option<CatchUnreachableReason> {
+        if !arm.active {
+            return None;
+        }
+        match &arm.kind {
+            CatchArmCheckKind::Value { .. } => self
+                .value_covers_all_span
+                .map(|span| CatchUnreachableReason::CoveredByValueArm { span }),
+            CatchArmCheckKind::Effect { op_path, .. } => self
+                .effect_ops
+                .get(op_path)
+                .copied()
+                .map(|span| CatchUnreachableReason::CoveredByEffectArm { span }),
+        }
+    }
+
+    fn record_unconditional_arm(&mut self, arm: &CatchArmCheckSite) {
+        match &arm.kind {
+            CatchArmCheckKind::Value {
+                pattern_covers_all, ..
+            } if *pattern_covers_all => {
+                self.value_covers_all_span
+                    .get_or_insert(recorded_catch_arm_span(arm));
+            }
+            CatchArmCheckKind::Effect {
+                op_path,
+                payload_covers_all,
+                ..
+            } if *payload_covers_all => {
+                self.effect_ops
+                    .entry(op_path.clone())
+                    .or_insert(recorded_catch_arm_span(arm));
+            }
+            CatchArmCheckKind::Value { .. } | CatchArmCheckKind::Effect { .. } => {}
+        }
+    }
+}
+
+impl CatchUnreachableReason {
+    fn related(self) -> Vec<RelatedDiagnostic> {
+        match self {
+            CatchUnreachableReason::CoveredByValueArm { span } => vec![RelatedDiagnostic {
+                message: "previous value arm covers all normal completions".to_string(),
+                span: Some(span.range),
+                file_span: span.file_span,
+            }],
+            CatchUnreachableReason::CoveredByEffectArm { span } => vec![RelatedDiagnostic {
+                message: "previous effect arm already handles this operation".to_string(),
+                span: Some(span.range),
+                file_span: span.file_span,
+            }],
+        }
     }
 }
 

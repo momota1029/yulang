@@ -414,12 +414,13 @@ fn catch_arm_check_kind(
     pats: &[SyntaxNode],
     arm: &TypedCatchArm,
 ) -> CatchArmCheckKind {
-    if let CatchArmKind::Effect { op_path, .. } = &arm.kind {
+    if let CatchArmKind::Effect { op_path, pat, .. } = &arm.kind {
         let effect_pattern = &pats[0];
         let continuation = &pats[1];
         return CatchArmCheckKind::Effect {
             op_path: op_path.clone(),
             effect_path: None,
+            payload_covers_all: pattern_covers_all(pat),
             effect_pattern_span: Some(effect_pattern.text_range()),
             effect_pattern_file_span: state.current_source_span(effect_pattern.text_range()),
             continuation_span: Some(continuation.text_range()),
@@ -428,10 +429,15 @@ fn catch_arm_check_kind(
     }
 
     let pattern = pats.first();
+    let pattern_covers_all = match &arm.kind {
+        CatchArmKind::Value(pat, _) => pattern_covers_all(pat),
+        CatchArmKind::Effect { .. } => false,
+    };
     CatchArmCheckKind::Value {
         pattern_span: pattern.map(|pattern| pattern.text_range()),
         pattern_file_span: pattern
             .and_then(|pattern| state.current_source_span(pattern.text_range())),
+        pattern_covers_all,
     }
 }
 
@@ -442,6 +448,22 @@ fn record_catch_arm_effect_path(check: &mut CatchArmCheckSite, effect_path: Path
     } = &mut check.kind
     {
         *recorded = Some(effect_path);
+    }
+}
+
+fn pattern_covers_all(pat: &crate::ast::expr::TypedPat) -> bool {
+    use crate::ast::expr::PatKind;
+
+    match &pat.kind {
+        PatKind::Wild | PatKind::UnresolvedName(_) => true,
+        PatKind::As(inner, _) => pattern_covers_all(inner),
+        PatKind::Or(left, right) => pattern_covers_all(left) || pattern_covers_all(right),
+        PatKind::Tuple(items) => items.iter().all(pattern_covers_all),
+        PatKind::Lit(_)
+        | PatKind::Con(_, _)
+        | PatKind::List { .. }
+        | PatKind::Record { .. }
+        | PatKind::PolyVariant(_, _) => false,
     }
 }
 
