@@ -83,8 +83,9 @@ For local deployment into a directory:
 YULANG_DEPLOY_DIR=/path/to/site npm --prefix web run deploy:dir
 ```
 
-The generated site uses `/` as the playground and `/guide/` / `/reference/` as
-documentation paths.
+The generated site uses `/` as the playground, `/guide/` and `/reference/`
+for the English docs, and `/ja/guide/` and `/ja/reference/` for the Japanese
+docs.
 
 ## Current limitations
 

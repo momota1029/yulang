@@ -1,59 +1,62 @@
-# Introduction
-
-Yulang is an experimental, statically typed language with role-based
-polymorphism and algebraic effects. The implementation is still moving, so this
-documentation describes the current compiler and standard library rather than a
-frozen language specification.
-
-::: tip Playground
-You can try everything on this page in the <a href="/" target="_self">Playground</a>.
-:::
-
-## What makes Yulang different?
-
-Yulang has ordinary functions and user-defined operators, but several common
-features are expressed through the same mechanisms as user code:
-
-- Operators such as `+`, `return`, `last`, and `or` are exported from the
-  standard prelude rather than being parser-only builtins.
-- Interfaces are written as `role` declarations and implemented with `impl`.
-- Effects are declared with `act`, invoked as operations, and handled with
-  `catch`.
+# Yulang
 
 ```yulang
-act console:
-    our read: () -> int
-
-our ask() = console::read()
-
-our run_console(action: [console] 'a): 'a = catch action:
-    console::read(), k -> run_console(k 42)
-
-run_console:
-    ask()
+if all [1, 2, 3] < any [4, 5, 6]:
+    "found a pair"
+else:
+    "nothing"
 ```
 
-## Core concepts
+That `if` compares every element of one list against every element of another.
+There is no loop, no comprehension, no helper — `all` and `any` are first-class
+values, and the comparison lifts over them. The same machinery powers
+nondeterministic search:
 
-- **Programs are statement sequences.** Top-level expressions are evaluated and
-  shown by the CLI/playground. Blocks evaluate their statements and return the
-  final expression.
-- **Bindings use patterns.** `my f x = ...` is a binding whose left-hand side is
-  a name followed by argument patterns. `my (a, b) = pair` destructures.
-- **Mutable bindings are explicit.** `my $x = ...` introduces a mutable binding;
-  `$x` reads it; `&x = v` writes it.
-- **Roles are interfaces.** `role Add 'a:` declares methods for a type variable,
-  and `impl Add int:` implements them for `int`.
-- **Effects are tracked in types.** A value such as `x: [console] int` is an
-  effectful computation returning `int`; `catch` handles operations and removes
-  handled effects.
-- **Companions hold generated names.** `struct`, `enum`, `act`, `error`, and
-  `role` create companion modules for methods, variants, operations, or role
-  entries.
-- **Comments.** `//` is a line comment. `--` and `---` blocks are documentation comments.
+```yulang
+{
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+    guard: a * a + b * b == c * c
+    (a, b, c)
+} .once
+```
 
-## Next steps
+Three `each` bindings explore an infinite three-dimensional grid; `guard`
+prunes; `.once` runs the search and returns the first Pythagorean triple. The
+code reads top to bottom like an imperative script, but underneath it is
+branching and backtracking.
 
-- [Tour](./tour) — a guided walkthrough of the language features
-- [Cookbook](./cookbook) — task-oriented recipes for everyday tasks
+Yulang is built on this principle: **control flow is library code.**
+Mutation, nondeterminism, lifted comparison, early return, typed errors,
+custom backtracking — none of them are parser builtins. They are all ordinary
+functions sitting on top of an algebraic-effect machinery you can extend
+yourself. Surface code stays short and straight-line; the shape underneath
+can be anything you want.
+
+## In the box
+
+- **Algebraic effects with handlers.** `act` declares an operation, `catch op,
+  k -> ...` handles it. The handler receives the captured continuation `k`,
+  so resuming, retrying, and aborting are all just choices of what to do with
+  `k`.
+- **Roles instead of typeclasses.** `role Add 'a:` declares an interface,
+  `impl Add int:` provides it. Methods read as ordinary dot calls.
+- **Mutation that stays pure.** `my $x = 0`, read with `$x`, write with
+  `&x = v`. Compiles down to a handled `var` effect — the semantics stays
+  pure, the syntax stays familiar.
+- **Patterns everywhere bindings live.** `my (a, b) = pair`. Optional named
+  arguments fall out of record patterns: `my area {width = 1, height = 2} =
+  width * height`.
+- **A parens-light surface.** Bare application `f x y`, colon application
+  `f: ...`, layout blocks driven by `:` and indentation.
+
+::: tip Playground
+Every example on this page runs in the <a href="/" target="_self">Playground</a>.
+:::
+
+## Where to go next
+
+- [Tour](./tour) — a guided walkthrough of the language
+- [Cookbook](./cookbook) — task-oriented recipes
 - [Reference](/reference/) — syntax and feature details

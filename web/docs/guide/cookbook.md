@@ -252,6 +252,94 @@ function arguments.
 
 [Casts](../reference/casts)
 
+## Larger examples
+
+Combining the recipes above, you can already write small but real programs.
+Every one of these runs in the Playground as-is.
+
+### A tiny expression evaluator
+
+`enum` plus a recursive function is enough for a calculator:
+
+```yulang
+enum expr =
+    num int
+    | add (expr, expr)
+    | mul (expr, expr)
+
+my eval e =
+    case e:
+        expr::num n -> n
+        expr::add (a, b) -> eval a + eval b
+        expr::mul (a, b) -> eval a * eval b
+
+eval (expr::add (expr::num 2, expr::mul (expr::num 3, expr::num 4)))
+// → 14
+```
+
+Carrying a tuple as a variant payload (`add (expr, expr)`) is the
+straightforward way to express multi-argument constructors.
+
+### Filtering a list with recursion
+
+List spread patterns plus recursion give you a natural `filter`:
+
+```yulang
+my is_even n =
+    std::int::eq (std::int::sub n (std::int::mul (std::int::div n 2) 2)) 0
+
+my keep_evens xs =
+    case xs:
+        [] -> []
+        [x, ..rest] ->
+            my r = keep_evens rest
+            if is_even x:
+                [x] + r
+            else:
+                r
+
+keep_evens [1, 2, 3, 4, 5, 6, 7, 8]
+// → [2, 4, 6, 8]
+```
+
+### Aggregating in a loop
+
+A local `my $x = ...` is the natural way to thread a value through a loop:
+
+```yulang
+{
+    my $best = 0
+    for y in [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]:
+        if y > $best: &best = y
+    $best
+}
+// → 9
+```
+
+`$best` does not escape the block — the type system makes sure mutable state
+stays in the scope where it was introduced.
+
+### Nondeterministic search
+
+`each` plus `guard` lets you describe what you want and have the runtime
+find it:
+
+```yulang
+use std::undet::*
+
+{
+    my a = each 1..20
+    my b = each a..20
+    my c = each b..20
+    guard: a * a + b * b == c * c
+    (a, b, c)
+}.list
+// → [(3, 4, 5), (5, 12, 13), (6, 8, 10), (8, 15, 17), ...]
+```
+
+Swap `.list` for `.once` to stop after the first success. Passing each
+choice into the range of the next prunes the search early.
+
 ## See also
 
 - [Tour](./tour) — a walk through the same features in narrative form.

@@ -1,53 +1,76 @@
-# Language Reference
+# Reference
 
-This section documents Yulang's syntax and semantics in detail.
+This section documents Yulang's syntax and semantics in detail. The guide
+is where you go to learn the language; this is where you go to look
+something up.
 
-## Structure of a program
+## Program structure
 
-A Yulang program is a sequence of top-level statements. Statements include declarations (`my`, `our`, `pub`, `struct`, `act`, `role`, `impl`, `enum`, `error`, `cast`, `type`, `use`, `mod`) and bare expressions whose values are shown.
+A Yulang program is a sequence of top-level statements. Statements are
+declarations (`my`, `our`, `pub`, `struct`, `enum`, `act`, `role`, `impl`,
+`error`, `cast`, `type`, `use`, `mod`) and bare expressions whose values are
+shown by the CLI and playground.
 
 ## Visibility
 
 | Keyword | Meaning |
 |---------|---------|
 | `my`    | Private binding, local or top-level |
-| `our`   | Public, appears in the enclosing module's companion |
-| `pub`   | Exported binding; also shown in the type pane of the playground |
+| `our`   | Public — appears in the enclosing module's companion |
+| `pub`   | Exported binding; also shown in the playground's type pane |
 
 ## Comments
 
 ```yulang
-// This is a line comment.
+// Line comment.
 
-/* This is a block comment. */
+/* Block comment. */
 
--- This is a single-line doc comment (not a line comment).
+-- Single-line doc comment (not a line comment).
 
 ---
-This is a multi-line doc block.
-It can contain markdown and ```yulang fences.
+Multi-line doc block.
+May contain markdown and ```yulang fences.
 ---
 ```
 
-`//` is an ordinary line comment, and `/* ... */` is an ordinary block comment.
-`--` and `---` blocks are documentation comments — they may appear in syntax
-trees and tooling, so they are not interchangeable with `//`.
+`//` and `/* ... */` are ordinary comments. `--` and `---` blocks are
+documentation comments — they appear in syntax trees and tooling, so they
+are not interchangeable with `//`.
 
-## See also
+## By topic
 
-- [Values & Types](./types)
-- [Functions](./functions)
-- [Control Flow](./control-flow)
-- [Strings](./strings)
-- [Structs & Roles](./structs)
-- [Casts](./casts)
-- [Effects](./effects)
-- [Errors](./errors)
-- [Pattern Matching](./patterns)
-- [Application & Operators](./application)
-- [Syntax Style](./syntax-style)
-- [Operator Declarations](./operators)
-- [Modules](./modules)
-- [Idioms](./idioms)
-- [Type Inference Theory](./type-theory)
-- Standard Library: [Core](./std/core), [list](./std/list), [str](./std/str), [opt](./std/opt), [result](./std/result), [fs](./std/fs), [undet](./std/undet)
+**Surface syntax**
+
+- [Syntax Style](./syntax-style) — when and how to drop parentheses
+- [Application & Operators](./application) — how `f x`, `f(x)`, `f: x`, and `f.method` differ
+- [Operator Declarations](./operators) — `infix`, `prefix`, `suffix`, precedence
+
+**Values and types**
+
+- [Values & Types](./types) — the type universe
+- [Strings](./strings) — string layout, escapes, interpolation
+- [Patterns](./patterns) — every pattern form
+- [Structs & Roles](./structs) — `struct`, `with:`, `role`, `impl`
+- [Casts](./casts) — `cast(x: A): B`, where the compiler inserts them
+
+**Computation**
+
+- [Functions](./functions) — declarations, currying, named arguments
+- [Control Flow](./control-flow) — `for`, `sub:`, `case`, references
+- [Effects](./effects) — `act`, `catch`, handler shapes
+- [Errors](./errors) — `error`, `fail`, `from`, `up`, `wrap`
+
+**Style**
+
+- [Idioms](./idioms) — what idiomatic Yulang looks like
+
+**Theory**
+
+- [Type Inference Theory](./type-theory) — what the inferer is doing under the hood
+
+**Standard library**
+
+- [Core](./std/core), [list](./std/list), [str](./std/str)
+- [opt](./std/opt), [result](./std/result)
+- [fs](./std/fs), [undet](./std/undet)
