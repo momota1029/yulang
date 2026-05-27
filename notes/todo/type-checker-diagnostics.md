@@ -146,6 +146,8 @@ TODO:
 - source role declaration は lowering 中に span を記録する。
 - missing / unknown impl member の synthetic error は、role declaration を origin として
   保持し、`CheckReport.related` に出す。
+- impl member type mismatch は lowering 中の check site と `ImplMember` cause を
+  対応付け、role declaration と required role member declaration を related に出す。
 
 ## 完了条件
 

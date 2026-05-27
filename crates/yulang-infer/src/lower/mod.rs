@@ -30,5 +30,5 @@ pub use state::{FileId, FileInfo, FileSpan, LowerState};
 pub use state_types::{
     ActiveRecursiveSelfInstance, CaseArmCheckSite, CaseArmPattern, CaseCheckSite,
     CatchArmCheckKind, CatchArmCheckSite, CatchCheckSite, EnumVariantPatternPayload,
-    EnumVariantPatternShape, FunctionSigEffectHint,
+    EnumVariantPatternShape, FunctionSigEffectHint, RoleImplMemberCheckSite,
 };

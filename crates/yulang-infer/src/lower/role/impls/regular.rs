@@ -505,6 +505,12 @@ fn connect_impl_member_expected_type(
     let Some(required_sig) = required.sig.as_ref() else {
         return;
     };
+    if let Some(span) = span {
+        state.record_role_impl_member_check_site(
+            span,
+            required_member_origins(state, &required.role, required),
+        );
+    }
     let expected_sig = substitute_role_sig_type(required_sig, role_sig_bindings);
     let (expected_eff, expected_ret) = match &expected_sig {
         SigType::EffectPrefixed { eff, ret, .. } => (Some(eff.clone()), ret.as_ref().clone()),

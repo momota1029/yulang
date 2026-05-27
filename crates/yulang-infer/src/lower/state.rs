@@ -41,7 +41,7 @@ pub struct SourceSpan {
 
 use super::{
     ActiveRecursiveSelfInstance, CaseCheckSite, EnumVariantPatternShape, FunctionSigEffectHint,
-    LowerDetailProfile, SyntaxNode,
+    LowerDetailProfile, RoleImplMemberCheckSite, SyntaxNode,
 };
 
 /// lowering ワンパスで持ち回す全状態。
@@ -177,6 +177,8 @@ pub struct LowerState {
     pub case_check_sites: Vec<CaseCheckSite>,
     /// `catch` の網羅性検査用に、lowering 中に構造化して残す site。
     pub catch_check_sites: Vec<crate::lower::CatchCheckSite>,
+    /// role impl member の型検査を、Simple-sub の TypeError と結び直す site。
+    pub role_impl_member_check_sites: Vec<RoleImplMemberCheckSite>,
     /// 後解決された RefId のうち、frozen scheme の参照インスタンス化まで済ませたもの。
     instantiated_resolved_refs: HashSet<RefId>,
     force_local_bindings_depth: u32,
@@ -264,6 +266,7 @@ impl LowerState {
             enum_variants_by_enum_path: HashMap::new(),
             case_check_sites: Vec::new(),
             catch_check_sites: Vec::new(),
+            role_impl_member_check_sites: Vec::new(),
             instantiated_resolved_refs: HashSet::new(),
             force_local_bindings_depth: 0,
             suppress_top_level_expr_owners_depth: 0,
@@ -801,6 +804,15 @@ impl LowerState {
                 file_span: self.recorded_source_span(span),
             },
         );
+    }
+
+    pub fn record_role_impl_member_check_site(
+        &mut self,
+        span: rowan::TextRange,
+        origins: Vec<TypeOrigin>,
+    ) {
+        self.role_impl_member_check_sites
+            .push(RoleImplMemberCheckSite { span, origins });
     }
 
     /// 新しいファイルを登録して FileId を発行する。

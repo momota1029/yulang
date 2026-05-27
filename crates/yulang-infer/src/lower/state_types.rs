@@ -1,3 +1,4 @@
+use crate::diagnostic::TypeOrigin;
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::symbols::{Name, Path};
 
@@ -89,6 +90,12 @@ pub enum CatchArmCheckKind {
         continuation_span: Option<rowan::TextRange>,
         continuation_file_span: Option<crate::lower::state::FileSpan>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct RoleImplMemberCheckSite {
+    pub span: rowan::TextRange,
+    pub origins: Vec<TypeOrigin>,
 }
 
 #[derive(Debug, Clone, Copy)]

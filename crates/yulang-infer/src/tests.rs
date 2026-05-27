@@ -2271,6 +2271,38 @@ fn impl_body_checks_member_body_against_role_signature() {
         }),
         "impl member body should be checked against role signature, got {errors:?}",
     );
+
+    let report = check_lowered(&state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::TypeMismatch)
+        .unwrap_or_else(|| {
+            panic!(
+                "impl member mismatch should produce structured type mismatch, got {:?}",
+                report.diagnostics
+            )
+        });
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "impl member requirement is checked here"),
+        "impl member mismatch should preserve ImplMember cause, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "role is declared here" && related.span.is_some()),
+        "impl member mismatch should point at role declaration, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "required role member is declared here"
+            && related.span.is_some()),
+        "impl member mismatch should point at required role member declaration, got {diagnostic:?}",
+    );
 }
 
 #[test]

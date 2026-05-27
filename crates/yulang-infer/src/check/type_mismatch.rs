@@ -216,6 +216,7 @@ fn type_error_related(state: &LowerState, error: &TypeError) -> Vec<RelatedDiagn
     if let Some(message) = type_error_cause_message(error) {
         push_related(&mut related, message, error.cause.span, None);
     }
+    push_impl_member_check_site_related(state, error, &mut related);
     for origin in &error.origins {
         let Some(span) = origin.span else {
             continue;
@@ -228,6 +229,36 @@ fn type_error_related(state: &LowerState, error: &TypeError) -> Vec<RelatedDiagn
         );
     }
     related
+}
+
+fn push_impl_member_check_site_related(
+    state: &LowerState,
+    error: &TypeError,
+    related: &mut Vec<RelatedDiagnostic>,
+) {
+    if error.cause.reason != ConstraintReason::ImplMember {
+        return;
+    }
+    let Some(span) = error.cause.span else {
+        return;
+    };
+    for site in state
+        .role_impl_member_check_sites
+        .iter()
+        .filter(|site| site.span == span)
+    {
+        for origin in &site.origins {
+            let Some(origin_span) = origin.span else {
+                continue;
+            };
+            push_related(
+                related,
+                type_origin_message(origin),
+                Some(origin_span),
+                origin.file_span,
+            );
+        }
+    }
 }
 
 fn best_expected_edge_for_error<'a>(
