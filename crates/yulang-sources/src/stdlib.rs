@@ -3,7 +3,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-pub const YULANG_STDLIB_VERSION: &str = "0.1.0";
+pub const YULANG_STDLIB_VERSION: &str = "0.1.3";
 pub const YULANG_STD_ENV: &str = "YULANG_STD";
 pub const YULANG_LIB_DIR_ENV: &str = "YULANG_LIB_DIR";
 
@@ -185,7 +185,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let std = root.join("lib").join("yulang-0.1.0").join("std");
+        let std = root.join("lib").join("yulang-0.1.3").join("std");
         install_embedded_std(&std).unwrap();
 
         assert!(is_std_root(&std));

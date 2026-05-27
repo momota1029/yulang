@@ -52,7 +52,7 @@ yulang check examples/08_types.yu
 ```
 
 The standard library is normally installed to
-`~/.yulang/lib/yulang-0.1.0/std`. `yulang run`, `yulang check`, and
+`~/.yulang/lib/yulang-0.1.3/std`. `yulang run`, `yulang check`, and
 `yulang server` can also install the embedded standard library automatically
 on first use when neither `YULANG_STD` nor a nearby `lib/std` is available.
 
@@ -61,6 +61,10 @@ To use a different standard-library checkout:
 ```bash
 export YULANG_STD=/path/to/yulang/lib/std
 ```
+
+Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
+`~"..."` are experimental. They are useful for trying the direction of the
+language, but their public API and diagnostics are not a compatibility promise.
 
 ## A First Look
 
