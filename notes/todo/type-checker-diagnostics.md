@@ -112,9 +112,17 @@ TODO:
   `pattern.unreachable_arm` として報告する。
 - `case` と arm の primary / related span は `FileSpan` を保持する。
 
+2026-05-27 時点で `catch` は準備だけ完了:
+
+- lowering 時に `CatchCheckSite` / `CatchArmCheckSite` を登録する。
+- source arm の span / guard span / value pattern span / effect operation pattern span /
+  continuation span を `FileSpan` 付きで保持する。
+- effect arm は operation path と、解決後の effect path を保持する。
+- handler boundary 判定で runtime arm から外れる source arm も、`active` flag 付きで
+  check site には残す。
+
 未着手:
 
-- `catch` の check site。
 - open row / 複数 effect を含む catch coverage。
 - `Unknown` / `Never` を含む case coverage の明示的な保留 reason。
 

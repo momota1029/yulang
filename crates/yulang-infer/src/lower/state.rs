@@ -167,6 +167,8 @@ pub struct LowerState {
     pub enum_variants_by_enum_path: HashMap<Path, Vec<Name>>,
     /// `case` の網羅性検査用に、lowering 中に構造化して残す site。
     pub case_check_sites: Vec<CaseCheckSite>,
+    /// `catch` の網羅性検査用に、lowering 中に構造化して残す site。
+    pub catch_check_sites: Vec<crate::lower::CatchCheckSite>,
     /// 後解決された RefId のうち、frozen scheme の参照インスタンス化まで済ませたもの。
     instantiated_resolved_refs: HashSet<RefId>,
     force_local_bindings_depth: u32,
@@ -252,6 +254,7 @@ impl LowerState {
             enum_variant_patterns: HashMap::new(),
             enum_variants_by_enum_path: HashMap::new(),
             case_check_sites: Vec::new(),
+            catch_check_sites: Vec::new(),
             instantiated_resolved_refs: HashSet::new(),
             force_local_bindings_depth: 0,
             suppress_top_level_expr_owners_depth: 0,

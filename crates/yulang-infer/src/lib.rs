@@ -52,8 +52,9 @@ pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var}
 pub use lower::ctx::LowerCtx;
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
 pub use lower::{
-    CaseArmCheckSite, CaseArmPattern, CaseCheckSite, FileId, FileInfo, FileSpan,
-    FinalizeCompactProfile, FinalizeCompactResults, LowerDetailProfile, LowerState,
+    CaseArmCheckSite, CaseArmPattern, CaseCheckSite, CatchArmCheckKind, CatchArmCheckSite,
+    CatchCheckSite, FileId, FileInfo, FileSpan, FinalizeCompactProfile, FinalizeCompactResults,
+    LowerDetailProfile, LowerState,
 };
 pub use profile::with_profile_enabled;
 pub use ref_table::{RefTable, UnresolvedRef};

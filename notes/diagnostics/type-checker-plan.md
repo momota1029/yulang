@@ -242,6 +242,21 @@ checker の方針:
   `ResumeArgument` の expected edge へ接続する。
 - handler residual は diagnostics で説明し、runtime lowering で内部 trap として初めて見えないようにする。
 
+2026-05-27 実装状況:
+
+- `CatchCheckSite` は lowering 時に登録され、後段で CST を再走査しない。
+- site は body type/effect tv、result type/effect tv、source arm 一覧を保持する。
+- effect arm は operation path と解決後の effect path を持つ。
+- value/effect arm の source span、guard span、continuation span は `FileSpan` 付きで残す。
+- handler boundary 判定で runtime arm から外れる source arm も、`active` flag 付きで
+  check site には残す。
+
+未実装:
+
+- effect row の finite operation set からの missing operation 判定。
+- 1 つの body が複数 effect を同時に持つ場合の coverage 集約。
+- open row / `Unknown` / `Never` を含む場合の保留 reason。
+
 ## role / type class impl 検査
 
 Yulang の role / impl は type class 相当の診断対象として扱う。

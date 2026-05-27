@@ -29,5 +29,6 @@ pub use profile::{FinalizeCompactProfile, FinalizeCompactResults, LowerDetailPro
 pub use state::{FileId, FileInfo, FileSpan, LowerState};
 pub use state_types::{
     ActiveRecursiveSelfInstance, CaseArmCheckSite, CaseArmPattern, CaseCheckSite,
-    EnumVariantPatternPayload, EnumVariantPatternShape, FunctionSigEffectHint,
+    CatchArmCheckKind, CatchArmCheckSite, CatchCheckSite, EnumVariantPatternPayload,
+    EnumVariantPatternShape, FunctionSigEffectHint,
 };

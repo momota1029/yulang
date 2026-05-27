@@ -9,7 +9,7 @@ use crate::diagnostic::{
     ConstraintCause, ConstraintReason, ExpectedAdapterEdgeKind, ExpectedEdgeId, ExpectedEdgeKind,
 };
 use crate::lower::stmt::{bind_pattern_locals, connect_pat_shape_and_locals, lower_pat};
-use crate::lower::{LowerState, SyntaxNode};
+use crate::lower::{CatchArmCheckKind, CatchArmCheckSite, CatchCheckSite, LowerState, SyntaxNode};
 use crate::scheme::{
     collect_neg_free_vars, collect_pos_free_vars, subst_neg_id_map, subst_pos_id_map,
 };
@@ -86,26 +86,27 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         let tv = state.fresh_tv();
         let eff = state.fresh_tv();
 
-        let mut arms: Vec<TypedCatchArm> = node
-            .children()
-            .filter(|c| c.kind() == SyntaxKind::CatchBlock)
-            .flat_map(|b| collect_child_arms(&b, SyntaxKind::CatchArm))
-            .map(|arm| lower_catch_arm(state, &arm, (comp.tv, comp.eff)))
+        let mut lowered_arms: Vec<LoweredCatchArm> = catch_arm_nodes(node)
+            .into_iter()
+            .map(|arm_node| {
+                let arm = lower_catch_arm(state, &arm_node, (comp.tv, comp.eff));
+                let check = catch_arm_check_site(state, &arm_node, &arm);
+                LoweredCatchArm { arm, check }
+            })
             .collect();
 
         let mut saw_value_arm = false;
         let mut handled_ops = Vec::new();
         let mut handled_pos_ops = Vec::new();
         let mut handled_effect_paths = Vec::new();
-        let mut active_arms = Vec::new();
         let mut effect_arg_substs: HashMap<
             Path,
             HashMap<crate::ids::TypeVar, crate::ids::TypeVar>,
         > = HashMap::new();
-        for arm in &mut arms {
-            match &mut arm.kind {
+        for lowered in &mut lowered_arms {
+            match &mut lowered.arm.kind {
                 CatchArmKind::Value(pat, body) => {
-                    active_arms.push(true);
+                    lowered.check.active = true;
                     saw_value_arm = true;
                     let original_body = body.clone();
                     let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
@@ -140,7 +141,8 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
                         .unwrap_or_else(|| effect_scope_path(op_path));
                     let arm_is_active = handler_captures_effect_path(state, &comp, &effect_path);
-                    active_arms.push(arm_is_active);
+                    lowered.check.active = arm_is_active;
+                    record_catch_arm_effect_path(&mut lowered.check, effect_path.clone());
                     let op_use = op_def.and_then(|def| {
                         instantiate_effect_op_use(state, def, &effect_path, &mut effect_arg_substs)
                     });
@@ -246,11 +248,23 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 }
             }
         }
-        arms = arms
-            .into_iter()
-            .zip(active_arms)
-            .filter_map(|(arm, active)| active.then_some(arm))
+        let check_arms: Vec<CatchArmCheckSite> = lowered_arms
+            .iter()
+            .map(|lowered| lowered.check.clone())
             .collect();
+        let arms: Vec<TypedCatchArm> = lowered_arms
+            .into_iter()
+            .filter_map(|lowered| lowered.check.active.then_some(lowered.arm))
+            .collect();
+        state.catch_check_sites.push(CatchCheckSite {
+            span: node.text_range(),
+            file_span: state.current_source_span(node.text_range()),
+            body_tv: comp.tv,
+            body_eff_tv: comp.eff,
+            result_tv: tv,
+            result_eff_tv: eff,
+            arms: check_arms,
+        });
 
         if !saw_value_arm
             && !comp_is_direct_handled_effect_call(state, &comp, &handled_effect_paths)
@@ -344,6 +358,91 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
     })();
     state.lower_detail.lower_catch += start.elapsed();
     result
+}
+
+struct LoweredCatchArm {
+    arm: TypedCatchArm,
+    check: CatchArmCheckSite,
+}
+
+fn catch_arm_nodes(node: &SyntaxNode) -> Vec<SyntaxNode> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::CatchBlock)
+        .flat_map(|block| collect_child_arms(&block, SyntaxKind::CatchArm))
+        .collect()
+}
+
+fn catch_arm_check_site(
+    state: &LowerState,
+    node: &SyntaxNode,
+    arm: &TypedCatchArm,
+) -> CatchArmCheckSite {
+    let pats = catch_arm_pattern_nodes(node);
+    let guard_span = catch_arm_guard_span(node);
+    CatchArmCheckSite {
+        span: node.text_range(),
+        file_span: state.current_source_span(node.text_range()),
+        guard_span,
+        guard_file_span: guard_span.and_then(|span| state.current_source_span(span)),
+        active: false,
+        kind: catch_arm_check_kind(state, &pats, arm),
+    }
+}
+
+fn catch_arm_pattern_nodes(node: &SyntaxNode) -> Vec<SyntaxNode> {
+    node.children()
+        .filter(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Pattern
+                    | SyntaxKind::PatOr
+                    | SyntaxKind::PatAs
+                    | SyntaxKind::PatParenGroup
+            )
+        })
+        .collect()
+}
+
+fn catch_arm_guard_span(node: &SyntaxNode) -> Option<rowan::TextRange> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::CatchGuard)
+        .map(|guard| guard.text_range())
+}
+
+fn catch_arm_check_kind(
+    state: &LowerState,
+    pats: &[SyntaxNode],
+    arm: &TypedCatchArm,
+) -> CatchArmCheckKind {
+    if let CatchArmKind::Effect { op_path, .. } = &arm.kind {
+        let effect_pattern = &pats[0];
+        let continuation = &pats[1];
+        return CatchArmCheckKind::Effect {
+            op_path: op_path.clone(),
+            effect_path: None,
+            effect_pattern_span: Some(effect_pattern.text_range()),
+            effect_pattern_file_span: state.current_source_span(effect_pattern.text_range()),
+            continuation_span: Some(continuation.text_range()),
+            continuation_file_span: state.current_source_span(continuation.text_range()),
+        };
+    }
+
+    let pattern = pats.first();
+    CatchArmCheckKind::Value {
+        pattern_span: pattern.map(|pattern| pattern.text_range()),
+        pattern_file_span: pattern
+            .and_then(|pattern| state.current_source_span(pattern.text_range())),
+    }
+}
+
+fn record_catch_arm_effect_path(check: &mut CatchArmCheckSite, effect_path: Path) {
+    if let CatchArmCheckKind::Effect {
+        effect_path: recorded,
+        ..
+    } = &mut check.kind
+    {
+        *recorded = Some(effect_path);
+    }
 }
 
 fn handler_captures_effect_path(state: &LowerState, comp: &TypedExpr, effect_path: &Path) -> bool {

@@ -3238,6 +3238,84 @@ fn check_report_application_argument_context_uses_expected_edge() {
 }
 
 #[test]
+fn lower_records_catch_check_site() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "pub act out:\n",
+            "  pub say: str -> ()\n\n",
+            "my handled = catch out::say \"hi\":\n",
+            "  out::say msg, k -> ()\n",
+            "  value -> value\n",
+        ),
+        None,
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    )
+    .expect("source should lower");
+
+    let sites = &lowered.state.catch_check_sites;
+    assert_eq!(
+        sites.len(),
+        1,
+        "expected one catch check site, got {sites:?}"
+    );
+    let site = &sites[0];
+    assert!(site.file_span.is_some(), "catch site should keep file span");
+    assert_eq!(site.arms.len(), 2, "expected two catch arms, got {site:?}");
+
+    let effect_arm = &site.arms[0];
+    assert!(effect_arm.active, "direct effect arm should be active");
+    match &effect_arm.kind {
+        CatchArmCheckKind::Effect {
+            op_path,
+            effect_path,
+            effect_pattern_span,
+            effect_pattern_file_span,
+            continuation_span,
+            continuation_file_span,
+        } => {
+            let op_segments = op_path
+                .segments
+                .iter()
+                .map(|segment| segment.0.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(op_segments, vec!["out", "say"]);
+            let effect_segments = effect_path
+                .as_ref()
+                .map(|path| {
+                    path.segments
+                        .iter()
+                        .map(|segment| segment.0.as_str())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            assert_eq!(effect_segments, vec!["out"]);
+            assert!(effect_pattern_span.is_some());
+            assert!(effect_pattern_file_span.is_some());
+            assert!(continuation_span.is_some());
+            assert!(continuation_file_span.is_some());
+        }
+        other => panic!("first catch arm should be effect arm, got {other:?}"),
+    }
+
+    let value_arm = &site.arms[1];
+    assert!(value_arm.active, "value arm should be active");
+    match &value_arm.kind {
+        CatchArmCheckKind::Value {
+            pattern_span,
+            pattern_file_span,
+        } => {
+            assert!(pattern_span.is_some());
+            assert!(pattern_file_span.is_some());
+        }
+        other => panic!("second catch arm should be value arm, got {other:?}"),
+    }
+}
+
+#[test]
 fn check_report_case_reports_missing_enum_variant() {
     let lowered = lower_virtual_source_with_options(
         concat!(

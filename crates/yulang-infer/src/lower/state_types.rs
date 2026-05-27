@@ -52,6 +52,43 @@ pub enum CaseArmPattern {
     CoversAll,
 }
 
+#[derive(Debug, Clone)]
+pub struct CatchCheckSite {
+    pub span: rowan::TextRange,
+    pub file_span: Option<crate::lower::state::FileSpan>,
+    pub body_tv: TypeVar,
+    pub body_eff_tv: TypeVar,
+    pub result_tv: TypeVar,
+    pub result_eff_tv: TypeVar,
+    pub arms: Vec<CatchArmCheckSite>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CatchArmCheckSite {
+    pub span: rowan::TextRange,
+    pub file_span: Option<crate::lower::state::FileSpan>,
+    pub guard_span: Option<rowan::TextRange>,
+    pub guard_file_span: Option<crate::lower::state::FileSpan>,
+    pub active: bool,
+    pub kind: CatchArmCheckKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CatchArmCheckKind {
+    Value {
+        pattern_span: Option<rowan::TextRange>,
+        pattern_file_span: Option<crate::lower::state::FileSpan>,
+    },
+    Effect {
+        op_path: Path,
+        effect_path: Option<Path>,
+        effect_pattern_span: Option<rowan::TextRange>,
+        effect_pattern_file_span: Option<crate::lower::state::FileSpan>,
+        continuation_span: Option<rowan::TextRange>,
+        continuation_file_span: Option<crate::lower::state::FileSpan>,
+    },
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ActiveRecursiveSelfInstance {
     pub tv: TypeVar,
