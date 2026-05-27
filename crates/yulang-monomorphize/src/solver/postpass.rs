@@ -7,6 +7,9 @@
 //!     substitution to canonicalize already-materialized types.
 //!   - `monomorphize_phantom_nullary_variant_bindings` — special-case for
 //!     `Variant`-returning nullary lambdas whose type parameters are phantom.
+//!   - `inline_small_direct_calls` — beta-reduces direct calls to tiny
+//!     forwarding lambda bindings while preserving single evaluation of the
+//!     argument.
 //!   - `fill_local_var_types` / `fill_apply_evidence_types` — repair Unknown
 //!     slots that lowering left in `.ty` of expressions, by walking enclosing
 //!     scope (`fill_local_var_types_in`) and reconciling apply triples
@@ -26,7 +29,8 @@ use std::collections::{HashMap, HashSet};
 
 use yulang_runtime_ir::{
     FinalizedBinding as Binding, FinalizedExpr as Expr, FinalizedExprKind as ExprKind,
-    FinalizedModule as Module, Root, RuntimeType,
+    FinalizedModule as Module, FinalizedPattern as Pattern, FinalizedStmt as Stmt, Root,
+    RuntimeType,
 };
 use yulang_typed_ir as typed_ir;
 
@@ -83,6 +87,144 @@ fn is_phantom_nullary_variant_binding(binding: &Binding) -> bool {
         return false;
     };
     true
+}
+
+const SMALL_DIRECT_CALL_INLINE_NODE_LIMIT: usize = 10;
+
+pub(crate) fn inline_small_direct_calls(module: &mut Module) {
+    let candidates = small_direct_call_candidates(module);
+    if candidates.is_empty() {
+        return;
+    }
+    for binding in &mut module.bindings {
+        inline_small_direct_calls_in(&mut binding.body, &candidates);
+    }
+    for expr in &mut module.root_exprs {
+        inline_small_direct_calls_in(expr, &candidates);
+    }
+}
+
+#[derive(Clone)]
+struct InlineCandidate {
+    param: typed_ir::Name,
+    body: Expr,
+}
+
+fn small_direct_call_candidates(module: &Module) -> HashMap<typed_ir::Path, InlineCandidate> {
+    let binding_paths = module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    module
+        .bindings
+        .iter()
+        .filter_map(|binding| {
+            let ExprKind::Lambda { param, body, .. } = &binding.body.kind else {
+                return None;
+            };
+            let param_path = path_from_name(param);
+            if forwarding_wrapper_cost(body, &param_path)? > SMALL_DIRECT_CALL_INLINE_NODE_LIMIT {
+                return None;
+            }
+            let mut referenced = Vec::new();
+            collect_expr_paths(body, &binding_paths, &mut HashSet::new(), &mut referenced);
+            if referenced.iter().any(|path| path == &binding.name) {
+                return None;
+            }
+            Some((
+                binding.name.clone(),
+                InlineCandidate {
+                    param: param.clone(),
+                    body: (**body).clone(),
+                },
+            ))
+        })
+        .collect()
+}
+
+fn forwarding_wrapper_cost(expr: &Expr, param_path: &typed_ir::Path) -> Option<usize> {
+    match &expr.kind {
+        ExprKind::Apply { callee, arg, .. } => (matches!(&callee.kind, ExprKind::Var(_))
+            && expr_is_var_path(arg, param_path))
+        .then_some(1),
+        ExprKind::Block { stmts, tail } => {
+            if !stmts
+                .iter()
+                .all(|stmt| is_param_alias_let(stmt, param_path))
+            {
+                return None;
+            }
+            let tail = tail.as_deref()?;
+            Some(1 + stmts.len() + forwarding_wrapper_cost(tail, param_path)?)
+        }
+        _ => None,
+    }
+}
+
+fn is_param_alias_let(stmt: &Stmt, param_path: &typed_ir::Path) -> bool {
+    let Stmt::Let { pattern, value } = stmt else {
+        return false;
+    };
+    matches!(pattern, Pattern::Bind { .. }) && expr_is_var_path(value, param_path)
+}
+
+fn expr_is_var_path(expr: &Expr, expected: &typed_ir::Path) -> bool {
+    matches!(&expr.kind, ExprKind::Var(path) if path == expected)
+}
+
+fn inline_small_direct_calls_in(
+    expr: &mut Expr,
+    candidates: &HashMap<typed_ir::Path, InlineCandidate>,
+) {
+    yulang_runtime_ir::walk::walk_children_mut(expr, |child| {
+        inline_small_direct_calls_in(child, candidates);
+    });
+    let ExprKind::Apply {
+        callee,
+        arg,
+        instantiation,
+        ..
+    } = &mut expr.kind
+    else {
+        return;
+    };
+    let ExprKind::Var(path) = &callee.kind else {
+        return;
+    };
+    let Some(candidate) = candidates.get(path) else {
+        return;
+    };
+    let mut body = candidate.body.clone();
+    if let Some(instantiation) = instantiation
+        && instantiation.target == *path
+    {
+        let substitutions = instantiation
+            .args
+            .iter()
+            .map(|subst| typed_ir::TypeSubstitution {
+                var: subst.var.clone(),
+                ty: subst.ty.clone(),
+            })
+            .collect::<Vec<_>>();
+        materialize::materialize_expr_in_place(&mut body, &substitutions);
+    }
+    let param_ty = runtime_function_param(&callee.ty).unwrap_or_else(|| arg.ty.clone());
+    let result_ty = expr.ty.clone();
+    let arg = (**arg).clone();
+    *expr = Expr::typed(
+        ExprKind::Block {
+            stmts: vec![Stmt::Let {
+                pattern: Pattern::Bind {
+                    name: candidate.param.clone(),
+                    ty: param_ty,
+                },
+                value: arg,
+            }],
+            tail: Some(Box::new(body)),
+        },
+        result_ty,
+    );
 }
 
 fn type_mentions_any_var(ty: &typed_ir::Type, vars: &[typed_ir::TypeVar]) -> bool {

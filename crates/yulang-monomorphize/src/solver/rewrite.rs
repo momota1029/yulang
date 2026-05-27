@@ -51,56 +51,59 @@ pub(crate) fn append_monomorphic_bindings(
     let bindings = module
         .bindings
         .iter()
-        .map(|binding| (binding.name.clone(), binding.clone()))
+        .enumerate()
+        .map(|(index, binding)| (binding.name.clone(), index))
         .collect::<HashMap<_, _>>();
     let mut emitted_aliases = module
         .bindings
         .iter()
         .map(|binding| binding.name.clone())
         .collect::<HashSet<_>>();
-    let emitted = solutions
-        .iter()
-        .filter(|solution| emitted_aliases.insert(solution.alias.clone()))
-        .map(|solution| {
-            let key = solution_instance_key(solution);
-            if let Some(cached) = cache.get(&key) {
-                return Ok(cached.binding_with_alias(solution.alias.clone()));
-            }
-            let binding = bindings.get(&solution.binding).ok_or_else(|| {
-                MonomorphizeDiagnostic::MissingBinding {
-                    binding: solution.binding.clone(),
-                }
+    let mut emitted = Vec::new();
+    for solution in solutions {
+        if !emitted_aliases.insert(solution.alias.clone()) {
+            continue;
+        }
+        let key = solution_instance_key(solution);
+        if let Some(cached) = cache.get(&key) {
+            emitted.push(cached.binding_with_alias(solution.alias.clone()));
+            continue;
+        }
+        let binding = bindings
+            .get(&solution.binding)
+            .and_then(|index| module.bindings.get(*index))
+            .ok_or_else(|| MonomorphizeDiagnostic::MissingBinding {
+                binding: solution.binding.clone(),
             })?;
-            let scheme_body = super::runtime_type_to_core(solution.callee_type.clone());
-            let scheme = typed_ir::Scheme {
-                requirements: Vec::new(),
-                body: scheme_body,
-            };
-            let body = materialize::materialize_expr_with_expected(
-                binding.body.clone(),
-                &solution.type_substitutions,
-                Some(&solution.callee_type),
-            );
-            let mut body = body;
-            // Self-targeting instantiations come from the generic body and are
-            // stale inside the emitted monomorphic alias.
-            clear_binding_instantiations(&mut body, &solution.binding);
-            let body = materialize::refresh_local_expr_types(body);
-            cache.insert(CachedMonomorphizeInstance {
-                key,
-                scheme: scheme.clone(),
-                body: body.clone(),
-                callee_type: solution.callee_type.clone(),
-                result_type: solution.result_type.clone(),
-            });
-            Ok(Binding {
-                name: solution.alias.clone(),
-                type_params: Vec::new(),
-                scheme,
-                body,
-            })
-        })
-        .collect::<MonomorphizeResult<Vec<_>>>()?;
+        let scheme_body = super::runtime_type_to_core(solution.callee_type.clone());
+        let scheme = typed_ir::Scheme {
+            requirements: Vec::new(),
+            body: scheme_body,
+        };
+        let body = materialize::materialize_expr_with_expected(
+            binding.body.clone(),
+            &solution.type_substitutions,
+            Some(&solution.callee_type),
+        );
+        let mut body = body;
+        // Self-targeting instantiations come from the generic body and are
+        // stale inside the emitted monomorphic alias.
+        clear_binding_instantiations(&mut body, &solution.binding);
+        let body = materialize::refresh_local_expr_types(body);
+        cache.insert(CachedMonomorphizeInstance {
+            key,
+            scheme: scheme.clone(),
+            body: body.clone(),
+            callee_type: solution.callee_type.clone(),
+            result_type: solution.result_type.clone(),
+        });
+        emitted.push(Binding {
+            name: solution.alias.clone(),
+            type_params: Vec::new(),
+            scheme,
+            body,
+        });
+    }
     let aliases = emitted
         .iter()
         .map(|binding| binding.name.clone())
@@ -113,11 +116,20 @@ pub(crate) fn rewrite_root_exprs(
     module: &mut Module,
     solutions: &[RootGraphSolution],
 ) -> MonomorphizeResult<()> {
-    for (root_index, expr) in module.root_exprs.iter_mut().enumerate() {
-        let root_solutions = solutions
-            .iter()
-            .filter(|solution| solution.root == RootGraphRoot::Expr(root_index))
-            .collect::<Vec<_>>();
+    let mut solutions_by_root = HashMap::<usize, Vec<&RootGraphSolution>>::new();
+    for solution in solutions {
+        let RootGraphRoot::Expr(root_index) = solution.root else {
+            continue;
+        };
+        solutions_by_root
+            .entry(root_index)
+            .or_default()
+            .push(solution);
+    }
+    for (root_index, root_solutions) in solutions_by_root {
+        let Some(expr) = module.root_exprs.get_mut(root_index) else {
+            continue;
+        };
         let mut cursor = 0;
         rewrite_root_expr(expr, &root_solutions, &mut cursor)?;
     }
@@ -128,11 +140,20 @@ pub(crate) fn rewrite_binding_exprs(
     module: &mut Module,
     solutions: &[RootGraphSolution],
 ) -> MonomorphizeResult<()> {
+    let mut solutions_by_binding = HashMap::<typed_ir::Path, Vec<&RootGraphSolution>>::new();
+    for solution in solutions {
+        let RootGraphRoot::Binding(binding) = &solution.root else {
+            continue;
+        };
+        solutions_by_binding
+            .entry(binding.clone())
+            .or_default()
+            .push(solution);
+    }
     for binding in &mut module.bindings {
-        let binding_solutions = solutions
-            .iter()
-            .filter(|solution| solution.root == RootGraphRoot::Binding(binding.name.clone()))
-            .collect::<Vec<_>>();
+        let Some(binding_solutions) = solutions_by_binding.remove(&binding.name) else {
+            continue;
+        };
         let mut cursor = 0;
         rewrite_root_expr(&mut binding.body, &binding_solutions, &mut cursor)?;
     }

@@ -104,6 +104,18 @@ pub struct VmProfile {
     pub max_eval_depth: usize,
     pub continuation_steps: usize,
     pub max_continuation_frames: usize,
+    pub continuation_clones: usize,
+    pub continuation_clone_frames: usize,
+    pub continuation_splits: usize,
+    pub continuation_split_frames: usize,
+    pub continuation_prepends: usize,
+    pub continuation_prepend_frames: usize,
+    pub primitive_apps: usize,
+    pub list_merge_calls: usize,
+    pub list_view_raw_calls: usize,
+    pub string_concat_calls: usize,
+    pub string_concat_input_chars: usize,
+    pub string_to_string_calls: usize,
 }
 
 impl VmProfile {
@@ -114,6 +126,18 @@ impl VmProfile {
         self.max_continuation_frames = self
             .max_continuation_frames
             .max(other.max_continuation_frames);
+        self.continuation_clones += other.continuation_clones;
+        self.continuation_clone_frames += other.continuation_clone_frames;
+        self.continuation_splits += other.continuation_splits;
+        self.continuation_split_frames += other.continuation_split_frames;
+        self.continuation_prepends += other.continuation_prepends;
+        self.continuation_prepend_frames += other.continuation_prepend_frames;
+        self.primitive_apps += other.primitive_apps;
+        self.list_merge_calls += other.list_merge_calls;
+        self.list_view_raw_calls += other.list_view_raw_calls;
+        self.string_concat_calls += other.string_concat_calls;
+        self.string_concat_input_chars += other.string_concat_input_chars;
+        self.string_to_string_calls += other.string_to_string_calls;
     }
 }
 

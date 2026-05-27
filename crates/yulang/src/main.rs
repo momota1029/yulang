@@ -669,11 +669,23 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
         eprintln!("    yuir_load: {}", format_duration(load_duration));
         eprintln!("    vm_eval: {}", format_duration(eval_duration));
         eprintln!(
-            "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+            "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={} continuation_clones={} continuation_clone_frames={} continuation_splits={} continuation_split_frames={} continuation_prepends={} continuation_prepend_frames={} primitive_apps={} list_merge_calls={} list_view_raw_calls={} string_concat_calls={} string_concat_input_chars={} string_to_string_calls={}",
             profile.eval_expr_calls,
             profile.max_eval_depth,
             profile.continuation_steps,
-            profile.max_continuation_frames
+            profile.max_continuation_frames,
+            profile.continuation_clones,
+            profile.continuation_clone_frames,
+            profile.continuation_splits,
+            profile.continuation_split_frames,
+            profile.continuation_prepends,
+            profile.continuation_prepend_frames,
+            profile.primitive_apps,
+            profile.list_merge_calls,
+            profile.list_view_raw_calls,
+            profile.string_concat_calls,
+            profile.string_concat_input_chars,
+            profile.string_to_string_calls
         );
     }
     if options.print_roots {
@@ -746,11 +758,23 @@ fn run_cached_control_vm_module_or_exit(
         );
         eprintln!("    vm_eval: {}", format_duration(eval_duration));
         eprintln!(
-            "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+            "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={} continuation_clones={} continuation_clone_frames={} continuation_splits={} continuation_split_frames={} continuation_prepends={} continuation_prepend_frames={} primitive_apps={} list_merge_calls={} list_view_raw_calls={} string_concat_calls={} string_concat_input_chars={} string_to_string_calls={}",
             profile.eval_expr_calls,
             profile.max_eval_depth,
             profile.continuation_steps,
-            profile.max_continuation_frames
+            profile.max_continuation_frames,
+            profile.continuation_clones,
+            profile.continuation_clone_frames,
+            profile.continuation_splits,
+            profile.continuation_split_frames,
+            profile.continuation_prepends,
+            profile.continuation_prepend_frames,
+            profile.primitive_apps,
+            profile.list_merge_calls,
+            profile.list_view_raw_calls,
+            profile.string_concat_calls,
+            profile.string_concat_input_chars,
+            profile.string_to_string_calls
         );
     }
     if options.print_roots {
@@ -1668,11 +1692,23 @@ fn run_infer_views(
                     Some(eval_duration),
                 );
                 eprintln!(
-                    "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={}",
+                    "    vm_profile: eval_expr_calls={} max_eval_depth={} continuation_steps={} max_continuation_frames={} continuation_clones={} continuation_clone_frames={} continuation_splits={} continuation_split_frames={} continuation_prepends={} continuation_prepend_frames={} primitive_apps={} list_merge_calls={} list_view_raw_calls={} string_concat_calls={} string_concat_input_chars={} string_to_string_calls={}",
                     profile.eval_expr_calls,
                     profile.max_eval_depth,
                     profile.continuation_steps,
-                    profile.max_continuation_frames
+                    profile.max_continuation_frames,
+                    profile.continuation_clones,
+                    profile.continuation_clone_frames,
+                    profile.continuation_splits,
+                    profile.continuation_split_frames,
+                    profile.continuation_prepends,
+                    profile.continuation_prepend_frames,
+                    profile.primitive_apps,
+                    profile.list_merge_calls,
+                    profile.list_view_raw_calls,
+                    profile.string_concat_calls,
+                    profile.string_concat_input_chars,
+                    profile.string_to_string_calls
                 );
             }
             if options.print_roots {

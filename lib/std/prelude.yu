@@ -230,13 +230,7 @@ my show_list_items(xs: list 'a): str =
         std::list::list_view::node(left, right) ->
             my left_text = show_list_items left
             my right_text = show_list_items right
-            if left_text == "":
-                right_text
-            else:
-                if right_text == "":
-                    left_text
-                else:
-                    left_text + ", " + right_text
+            left_text + ", " + right_text
 
 impl Display (list 'a):
     where 'a: Display
@@ -302,13 +296,7 @@ my debug_list_items(xs: list 'a): str =
         std::list::list_view::node(left, right) ->
             my left_text = debug_list_items left
             my right_text = debug_list_items right
-            if left_text == "":
-                right_text
-            else:
-                if right_text == "":
-                    left_text
-                else:
-                    left_text + ", " + right_text
+            left_text + ", " + right_text
 
 impl Debug (list 'a):
     where 'a: Debug

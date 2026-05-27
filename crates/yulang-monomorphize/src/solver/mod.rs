@@ -277,6 +277,10 @@ pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
     postpass::fill_local_var_types(&mut module);
     postpass::normalize_materialized_module(&mut module);
     cast::normalize_semantic_cast_coercions(&mut module);
+    postpass::inline_small_direct_calls(&mut module);
+    postpass::fill_local_var_types(&mut module);
+    postpass::normalize_materialized_module(&mut module);
+    cast::normalize_semantic_cast_coercions(&mut module);
     postpass::prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
     postpass::prune_unreachable_bindings(&mut module);
     postpass::prune_unbound_binding_roots(&mut module);
@@ -1689,14 +1693,14 @@ mod tests {
         let module = runtime_module_from_source_without_std("my id x = x\nmy f y = id y\nf 1\n");
 
         let output = finalize_module(module).unwrap();
-        let aliases = output
-            .module
-            .bindings
+        let solved_aliases = output
+            .report
+            .root_graph_solutions
             .iter()
-            .map(|binding| binding.name.clone())
+            .map(|solution| solution.alias.clone())
             .collect::<Vec<_>>();
-        assert!(aliases.contains(&path(&["f", "mono0"])));
-        assert!(aliases.contains(&path(&["id", "mono1"])));
+        assert!(solved_aliases.contains(&path(&["f", "mono0"])));
+        assert!(solved_aliases.contains(&path(&["id", "mono1"])));
         assert!(
             output
                 .module

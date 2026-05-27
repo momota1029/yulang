@@ -8,7 +8,7 @@ use std::path::Path;
 use yulang_runtime_ir::FinalizedRecordSpreadPattern as RecordSpreadPattern;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 10;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 11;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -16,6 +16,9 @@ struct ExprId(usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct ControlSymbolId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct ControlLocalId(usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct ControlNameId(usize);
@@ -102,7 +105,8 @@ impl ControlVmModule {
                 ControlResult::Request(request) => {
                     match interpreter.undet_request_operation(&request) {
                         Some(crate::host::UndetOperation::Branch) => {
-                            pending_undet.push_back(request.continuation.clone());
+                            pending_undet
+                                .push_back(interpreter.clone_continuation(&request.continuation));
                             let resumed = interpreter
                                 .resume(request.continuation, ControlValue::Bool(true))?;
                             result = interpreter.normalize_root_result(resumed)?;
@@ -224,6 +228,7 @@ struct ControlModule {
     symbol_by_path: HashMap<typed_ir::Path, ControlSymbolId>,
     #[serde(skip, default)]
     binding_by_symbol: Vec<Option<usize>>,
+    local_by_symbol: Vec<Option<ControlLocalId>>,
     root_exprs: Vec<ExprId>,
 }
 
@@ -276,12 +281,8 @@ impl ControlModule {
         &self.records[id.0]
     }
 
-    fn symbol_for_name(&self, name: &typed_ir::Name) -> ControlSymbolId {
-        let path = typed_ir::Path::from_name(name.clone());
-        self.symbol_by_path
-            .get(&path)
-            .copied()
-            .expect("compiled control symbol")
+    fn local_for_symbol(&self, symbol: ControlSymbolId) -> Option<ControlLocalId> {
+        self.local_by_symbol.get(symbol.0).and_then(|local| *local)
     }
 }
 
@@ -314,7 +315,7 @@ enum ControlExprKind {
     PrimitiveOp(typed_ir::PrimitiveOp),
     Lit(ControlLitId),
     Lambda {
-        param: ControlSymbolId,
+        param: ControlLocalId,
         param_forces_thunk_arg: bool,
         body: ExprId,
         result_wraps_thunk: bool,
@@ -394,7 +395,7 @@ enum ControlRecordSpread {
 enum ControlPattern {
     Wildcard,
     Bind {
-        name: typed_ir::Name,
+        local: ControlLocalId,
     },
     Lit {
         lit: typed_ir::Lit,
@@ -421,7 +422,7 @@ enum ControlPattern {
     },
     As {
         pattern: Box<ControlPattern>,
-        name: typed_ir::Name,
+        local: ControlLocalId,
     },
 }
 
@@ -449,7 +450,7 @@ struct ControlMatchArm {
 struct ControlHandleArm {
     effect: ControlSymbolId,
     payload: ControlPattern,
-    resume: Option<ControlSymbolId>,
+    resume: Option<ControlLocalId>,
     guard: Option<ExprId>,
     body: ExprId,
 }
@@ -462,7 +463,7 @@ enum ControlStmt {
     },
     Expr(ExprId),
     Module {
-        def: ControlSymbolId,
+        def: ControlLocalId,
         body: ExprId,
     },
 }
@@ -486,6 +487,8 @@ struct ControlCompiler {
     blocks: Vec<ControlBlock>,
     records: Vec<ControlRecord>,
     exprs: Vec<ControlExpr>,
+    local_by_symbol: Vec<Option<ControlLocalId>>,
+    local_count: usize,
 }
 
 impl ControlCompiler {
@@ -503,6 +506,8 @@ impl ControlCompiler {
             blocks: Vec::new(),
             records: Vec::new(),
             exprs: Vec::new(),
+            local_by_symbol: Vec::new(),
+            local_count: 0,
         };
         let bindings = module
             .bindings
@@ -512,12 +517,12 @@ impl ControlCompiler {
                 body: compiler.expr(binding.body),
             })
             .collect::<Vec<_>>();
-        let binding_by_symbol = control_binding_index_by_symbol(&bindings, compiler.symbols.len());
         let root_exprs = module
             .root_exprs
             .into_iter()
             .map(|expr| compiler.expr(expr))
             .collect();
+        let binding_by_symbol = control_binding_index_by_symbol(&bindings, compiler.symbols.len());
         ControlModule {
             symbols: compiler.symbols,
             names: compiler.names,
@@ -532,6 +537,7 @@ impl ControlCompiler {
             bindings,
             symbol_by_path: compiler.symbol_by_path,
             binding_by_symbol,
+            local_by_symbol: compiler.local_by_symbol,
             root_exprs,
         }
     }
@@ -542,12 +548,24 @@ impl ControlCompiler {
         }
         let symbol = ControlSymbolId(self.symbols.len());
         self.symbols.push(path.clone());
+        self.local_by_symbol.push(None);
         self.symbol_by_path.insert(path, symbol);
         symbol
     }
 
-    fn intern_name_path(&mut self, name: &typed_ir::Name) -> ControlSymbolId {
-        self.intern_path(typed_ir::Path::from_name(name.clone()))
+    fn intern_local_path(&mut self, path: typed_ir::Path) -> ControlLocalId {
+        let symbol = self.intern_path(path);
+        if let Some(local) = self.local_by_symbol[symbol.0] {
+            return local;
+        }
+        let local = ControlLocalId(self.local_count);
+        self.local_count += 1;
+        self.local_by_symbol[symbol.0] = Some(local);
+        local
+    }
+
+    fn intern_local_name_path(&mut self, name: &typed_ir::Name) -> ControlLocalId {
+        self.intern_local_path(typed_ir::Path::from_name(name.clone()))
     }
 
     fn intern_name(&mut self, name: typed_ir::Name) -> ControlNameId {
@@ -606,8 +624,8 @@ impl ControlCompiler {
         match pattern {
             Pattern::Wildcard { .. } => ControlPattern::Wildcard,
             Pattern::Bind { name, .. } => {
-                self.intern_name_path(&name);
-                ControlPattern::Bind { name }
+                let local = self.intern_local_name_path(&name);
+                ControlPattern::Bind { local }
             }
             Pattern::Lit { lit, .. } => ControlPattern::Lit { lit },
             Pattern::Tuple { items, .. } => ControlPattern::Tuple {
@@ -650,10 +668,10 @@ impl ControlCompiler {
                 right: Box::new(self.pattern(*right)),
             },
             Pattern::As { pattern, name, .. } => {
-                self.intern_name_path(&name);
+                let local = self.intern_local_name_path(&name);
                 ControlPattern::As {
                     pattern: Box::new(self.pattern(*pattern)),
-                    name,
+                    local,
                 }
             }
         }
@@ -669,7 +687,7 @@ impl ControlCompiler {
             ExprKind::Lambda { param, body, .. } => {
                 let (param_forces_thunk_arg, result_wraps_thunk) =
                     control_lambda_shape(&ty, &body.ty);
-                let param = self.intern_name_path(&param);
+                let param = self.intern_local_name_path(&param);
                 ControlExprKind::Lambda {
                     param,
                     param_forces_thunk_arg,
@@ -737,7 +755,9 @@ impl ControlCompiler {
                     .map(|arm| ControlHandleArm {
                         effect: self.intern_path(arm.effect),
                         payload: self.pattern(arm.payload),
-                        resume: arm.resume.map(|resume| self.intern_name_path(&resume.name)),
+                        resume: arm
+                            .resume
+                            .map(|resume| self.intern_local_name_path(&resume.name)),
                         guard: arm.guard.map(|guard| self.expr(guard)),
                         body: self.expr(arm.body),
                     })
@@ -804,7 +824,7 @@ impl ControlCompiler {
             },
             Stmt::Expr(expr) => ControlStmt::Expr(self.expr(expr)),
             Stmt::Module { def, body } => ControlStmt::Module {
-                def: self.intern_path(def),
+                def: self.intern_local_path(def),
                 body: self.expr(body),
             },
         }
@@ -893,6 +913,15 @@ impl ControlInt {
         match self {
             Self::Small(value) => format!("{value}.0"),
             Self::Big(value) => format!("{value}.0"),
+        }
+    }
+
+    fn to_hex_string(&self, upper: bool) -> String {
+        match (self, upper) {
+            (Self::Small(value), false) => format!("{value:x}"),
+            (Self::Small(value), true) => format!("{value:X}"),
+            (Self::Big(value), false) => format!("{:x}", value.as_ref()),
+            (Self::Big(value), true) => format!("{:X}", value.as_ref()),
         }
     }
 
@@ -995,13 +1024,13 @@ struct ControlPrimitive {
 
 #[derive(Clone)]
 struct ControlClosure {
-    param: ControlSymbolId,
+    param: ControlLocalId,
     param_forces_thunk_arg: bool,
     body: ExprId,
     result_wraps_thunk: bool,
     env: ControlEnv,
     guard_stack: GuardStack,
-    self_name: Option<ControlSymbolId>,
+    self_name: Option<ControlLocalId>,
 }
 
 #[derive(Clone)]
@@ -1123,23 +1152,30 @@ enum ControlFrame {
 
 #[derive(Clone, Default)]
 struct ControlEnv {
-    slots: Rc<HashMap<ControlSymbolId, ControlValue>>,
+    slots: Rc<Vec<(ControlLocalId, ControlValue)>>,
 }
 
 impl ControlEnv {
     fn new() -> Self {
         Self {
-            slots: Rc::new(HashMap::new()),
+            slots: Rc::new(Vec::new()),
         }
     }
 
-    fn get(&self, symbol: ControlSymbolId) -> Option<&ControlValue> {
-        self.slots.get(&symbol)
+    fn get(&self, local: ControlLocalId) -> Option<&ControlValue> {
+        self.slots
+            .iter()
+            .rev()
+            .find_map(|(slot, value)| (*slot == local).then_some(value))
     }
 
-    fn insert(&mut self, symbol: ControlSymbolId, value: ControlValue) {
+    fn insert(&mut self, local: ControlLocalId, value: ControlValue) {
         let slots = Rc::make_mut(&mut self.slots);
-        slots.insert(symbol, value);
+        if let Some((_, existing)) = slots.iter_mut().rev().find(|(slot, _)| *slot == local) {
+            *existing = value;
+            return;
+        }
+        slots.push((local, value));
     }
 }
 
@@ -1164,6 +1200,12 @@ impl<'m> ControlInterpreter<'m> {
 
     fn profile(&self) -> VmProfile {
         self.profile
+    }
+
+    fn clone_continuation(&mut self, continuation: &ControlContinuation) -> ControlContinuation {
+        self.profile.continuation_clones += 1;
+        self.profile.continuation_clone_frames += continuation.frames.len();
+        continuation.clone()
     }
 
     fn expr(&self, id: ExprId) -> &ControlExpr {
@@ -1436,7 +1478,9 @@ impl<'m> ControlInterpreter<'m> {
         path: ControlSymbolId,
         env: &ControlEnv,
     ) -> Result<ControlResult, VmError> {
-        if let Some(value) = env.get(path) {
+        if let Some(local) = self.module.local_for_symbol(path)
+            && let Some(value) = env.get(local)
+        {
             return Ok(ControlResult::Value(value.clone()));
         }
         if let Some(index) = self
@@ -1674,7 +1718,10 @@ impl<'m> ControlInterpreter<'m> {
                 }
                 Ok(control_wrap_result(result, callee.result_wraps_thunk))
             }
-            ControlValue::Resume(resume) => self.resume(resume.continuation.clone(), arg),
+            ControlValue::Resume(resume) => {
+                let continuation = self.clone_continuation(&resume.continuation);
+                self.resume(continuation, arg)
+            }
             ControlValue::EffectOp(effect) => Ok(ControlResult::Value(ControlValue::Thunk(
                 ControlHeap::new(ControlThunk {
                     body: ControlThunkBody::Emit {
@@ -1728,10 +1775,36 @@ impl<'m> ControlInterpreter<'m> {
                 ControlHeap::new(primitive),
             )));
         }
+        self.record_primitive_profile(primitive.op, &primitive.args);
         Ok(ControlResult::Value(control_apply_primitive(
             primitive.op,
             &primitive.args,
         )?))
+    }
+
+    fn record_primitive_profile(&mut self, op: typed_ir::PrimitiveOp, args: &[ControlValue]) {
+        self.profile.primitive_apps += 1;
+        match op {
+            typed_ir::PrimitiveOp::ListMerge => self.profile.list_merge_calls += 1,
+            typed_ir::PrimitiveOp::ListViewRaw => self.profile.list_view_raw_calls += 1,
+            typed_ir::PrimitiveOp::StringConcat => {
+                self.profile.string_concat_calls += 1;
+                self.profile.string_concat_input_chars += args
+                    .iter()
+                    .filter_map(|arg| match arg {
+                        ControlValue::String(value) => Some(value.len()),
+                        _ => None,
+                    })
+                    .sum::<usize>();
+            }
+            typed_ir::PrimitiveOp::IntToString
+            | typed_ir::PrimitiveOp::IntToHex
+            | typed_ir::PrimitiveOp::IntToUpperHex
+            | typed_ir::PrimitiveOp::FloatToString
+            | typed_ir::PrimitiveOp::BoolToString
+            | typed_ir::PrimitiveOp::CharToString => self.profile.string_to_string_calls += 1,
+            _ => {}
+        }
     }
 
     fn eval_tuple(
@@ -1927,7 +2000,7 @@ impl<'m> ControlInterpreter<'m> {
                     ControlResult::Value(ControlValue::Thunk(thunk)) => {
                         match self.bind_here(ControlValue::Thunk(thunk))? {
                             ControlResult::Value(mut value) => {
-                                value = make_recursive_local_value(self.module, &pattern, value);
+                                value = make_recursive_local_value(&pattern, value);
                                 self.bind_pattern(&pattern, value, &mut env)?;
                             }
                             ControlResult::Request(request) => {
@@ -1943,7 +2016,7 @@ impl<'m> ControlInterpreter<'m> {
                         }
                     }
                     ControlResult::Value(mut value) => {
-                        value = make_recursive_local_value(self.module, &pattern, value);
+                        value = make_recursive_local_value(&pattern, value);
                         self.bind_pattern(&pattern, value, &mut env)?;
                     }
                     ControlResult::Request(request) => {
@@ -2111,6 +2184,8 @@ impl<'m> ControlInterpreter<'m> {
         let next_arm_index = arm_index + 1;
         let mut arm_env = env.clone();
         if let Some(guard) = arm.guard {
+            self.profile.continuation_splits += 1;
+            self.profile.continuation_split_frames += request.continuation.frames.len();
             let (outer, inner) = split_handle_continuations(&request.continuation, id);
             self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
             insert_control_resume(&mut arm_env, arm.resume, inner);
@@ -2153,6 +2228,8 @@ impl<'m> ControlInterpreter<'m> {
             continuation,
             ..
         } = request;
+        self.profile.continuation_splits += 1;
+        self.profile.continuation_split_frames += continuation.frames.len();
         let (outer, inner) = split_handle_continuations_owned(continuation, id);
         self.bind_pattern(&arm.payload, payload, &mut arm_env)?;
         insert_control_resume(&mut arm_env, arm.resume, inner);
@@ -2225,7 +2302,7 @@ impl<'m> ControlInterpreter<'m> {
             match self.apply_frame(frame, &mut continuation, value)? {
                 ControlResult::Value(next) => value = next,
                 ControlResult::Request(mut request) => {
-                    prepend_frames(&mut request.continuation, continuation.frames);
+                    self.prepend_frames(&mut request.continuation, continuation.frames);
                     break self.propagate_request(request);
                 }
             }
@@ -2348,10 +2425,21 @@ impl<'m> ControlInterpreter<'m> {
         match result {
             ControlResult::Value(value) => self.resume(continuation, value),
             ControlResult::Request(mut request) => {
-                prepend_frames(&mut request.continuation, continuation.frames);
+                self.prepend_frames(&mut request.continuation, continuation.frames);
                 self.propagate_request(request)
             }
         }
+    }
+
+    fn prepend_frames(
+        &mut self,
+        continuation: &mut ControlContinuation,
+        mut frames: VecDeque<ControlFrame>,
+    ) {
+        self.profile.continuation_prepends += 1;
+        self.profile.continuation_prepend_frames += frames.len();
+        frames.append(&mut continuation.frames);
+        continuation.frames = frames;
     }
 
     fn force_handle_result(
@@ -2420,8 +2508,12 @@ impl<'m> ControlInterpreter<'m> {
         else {
             return Ok(ControlResult::Request(request));
         };
-        if let ControlFrame::BlockedEffects { blocked, active } =
-            request.continuation.frames[index].clone()
+        if let ControlFrame::BlockedEffects { blocked, active } = request
+            .continuation
+            .frames
+            .get(index)
+            .expect("frame at propagated index")
+            .clone()
         {
             request.continuation.frames.remove(index);
             request = if active {
@@ -2437,7 +2529,12 @@ impl<'m> ControlInterpreter<'m> {
             env,
             guard_stack,
             result_wraps_thunk,
-        } = request.continuation.frames[index].clone()
+        } = request
+            .continuation
+            .frames
+            .get(index)
+            .expect("frame at propagated index")
+            .clone()
         else {
             unreachable!();
         };
@@ -2455,8 +2552,8 @@ impl<'m> ControlInterpreter<'m> {
     ) -> Result<(), VmError> {
         match pattern {
             ControlPattern::Wildcard => Ok(()),
-            ControlPattern::Bind { name } => {
-                env.insert(self.module.symbol_for_name(name), value);
+            ControlPattern::Bind { local } => {
+                env.insert(*local, value);
                 Ok(())
             }
             ControlPattern::Lit { lit } if value == control_value_from_lit(lit) => Ok(()),
@@ -2501,9 +2598,9 @@ impl<'m> ControlInterpreter<'m> {
                 *env = snapshot;
                 self.bind_pattern(right, value, env)
             }
-            ControlPattern::As { pattern, name } => {
+            ControlPattern::As { pattern, local } => {
                 self.bind_pattern(pattern, value.clone(), env)?;
-                env.insert(self.module.symbol_for_name(name), value);
+                env.insert(*local, value);
                 Ok(())
             }
             ControlPattern::Record { fields, spread } => {
@@ -2682,7 +2779,7 @@ fn split_handle_continuations_owned(
 
 fn insert_control_resume(
     env: &mut ControlEnv,
-    resume: Option<ControlSymbolId>,
+    resume: Option<ControlLocalId>,
     continuation: ControlContinuation,
 ) {
     if let Some(resume) = resume {
@@ -2696,11 +2793,6 @@ fn insert_control_resume(
 fn push_frame(mut request: ControlRequest, frame: ControlFrame) -> ControlRequest {
     request.continuation.frames.push_front(frame);
     request
-}
-
-fn prepend_frames(continuation: &mut ControlContinuation, mut frames: VecDeque<ControlFrame>) {
-    frames.append(&mut continuation.frames);
-    continuation.frames = frames;
 }
 
 fn push_thunk_expr_frames(request: ControlRequest, thunk: &ControlThunk) -> ControlRequest {
@@ -2797,26 +2889,22 @@ fn control_request_blocker_is_live(request: &ControlRequest, blocked: Option<u64
     })
 }
 
-fn make_recursive_local_value(
-    module: &ControlModule,
-    pattern: &ControlPattern,
-    value: ControlValue,
-) -> ControlValue {
-    let Some(name) = single_bind_name(pattern) else {
+fn make_recursive_local_value(pattern: &ControlPattern, value: ControlValue) -> ControlValue {
+    let Some(local) = single_bind_local(pattern) else {
         return value;
     };
     let ControlValue::Closure(closure) = value else {
         return value;
     };
     let mut closure = (*closure).clone();
-    closure.self_name = Some(module.symbol_for_name(&name));
+    closure.self_name = Some(local);
     ControlValue::Closure(ControlHeap::new(closure))
 }
 
-fn single_bind_name(pattern: &ControlPattern) -> Option<typed_ir::Name> {
+fn single_bind_local(pattern: &ControlPattern) -> Option<ControlLocalId> {
     match pattern {
-        ControlPattern::Bind { name } => Some(name.clone()),
-        ControlPattern::As { name, .. } => Some(name.clone()),
+        ControlPattern::Bind { local } => Some(*local),
+        ControlPattern::As { local, .. } => Some(*local),
         _ => None,
     }
 }
@@ -2942,6 +3030,31 @@ fn control_apply_primitive(
                 .cmp(control_int_value(&args[1])?)
                 .is_lt(),
         )),
+        typed_ir::PrimitiveOp::StringLen => Ok(ControlValue::Int(ControlInt::Small(
+            control_string_value(&args[0])?.len() as i64,
+        ))),
+        typed_ir::PrimitiveOp::StringConcat => Ok(ControlValue::String(StringTree::concat(
+            control_string_value(&args[0])?.clone(),
+            control_string_value(&args[1])?.clone(),
+        ))),
+        typed_ir::PrimitiveOp::IntToString => Ok(ControlValue::String(StringTree::from(
+            control_int_value(&args[0])?.to_vm_string(),
+        ))),
+        typed_ir::PrimitiveOp::IntToHex => Ok(ControlValue::String(StringTree::from(
+            control_int_value(&args[0])?.to_hex_string(false),
+        ))),
+        typed_ir::PrimitiveOp::IntToUpperHex => Ok(ControlValue::String(StringTree::from(
+            control_int_value(&args[0])?.to_hex_string(true),
+        ))),
+        typed_ir::PrimitiveOp::FloatToString => Ok(ControlValue::String(StringTree::from(
+            format_float_value(control_float_value(&args[0])?),
+        ))),
+        typed_ir::PrimitiveOp::BoolToString => Ok(ControlValue::String(StringTree::from(
+            control_bool_value(&args[0])?.to_string(),
+        ))),
+        typed_ir::PrimitiveOp::CharToString => Ok(ControlValue::String(StringTree::from(
+            control_grapheme_value(&args[0])?,
+        ))),
         typed_ir::PrimitiveOp::ListEmpty => Ok(ControlValue::List(ListTree::empty())),
         typed_ir::PrimitiveOp::ListSingleton => Ok(ControlValue::List(ListTree::singleton(
             Rc::new(args[0].clone()),
@@ -3028,10 +3141,33 @@ fn control_bool_value(value: &ControlValue) -> Result<bool, VmError> {
     }
 }
 
+fn control_float_value(value: &ControlValue) -> Result<f64, VmError> {
+    match value {
+        ControlValue::Float(value) => value
+            .parse()
+            .map_err(|_| VmError::ExpectedFloat(VmValue::Float(value.clone()))),
+        other => Err(VmError::ExpectedFloat(export_value_lossy(other, None))),
+    }
+}
+
 fn control_list_value(value: &ControlValue) -> Result<&ListTree<Rc<ControlValue>>, VmError> {
     match value {
         ControlValue::List(value) => Ok(value),
         other => Err(VmError::ExpectedList(export_value_lossy(other, None))),
+    }
+}
+
+fn control_string_value(value: &ControlValue) -> Result<&StringTree, VmError> {
+    match value {
+        ControlValue::String(value) => Ok(value),
+        other => Err(VmError::ExpectedString(export_value_lossy(other, None))),
+    }
+}
+
+fn control_grapheme_value(value: &ControlValue) -> Result<String, VmError> {
+    match value {
+        ControlValue::String(value) if value.len() == 1 => Ok(value.to_flat_string()),
+        other => Err(VmError::ExpectedChar(export_value_lossy(other, None))),
     }
 }
 

@@ -101,9 +101,9 @@ impl<T: Clone> ListTree<T> {
                 if left_height == right_height {
                     Self::black_node(left, right)
                 } else if left_height > right_height {
-                    Self::blacken(join_right(left, right, right_height))
+                    Self::blacken(join_right(left, left_height, right, right_height))
                 } else {
-                    Self::blacken(join_left(left, right, left_height))
+                    Self::blacken(join_left(left, left_height, right, right_height))
                 }
             }
         }
@@ -292,28 +292,40 @@ fn build_balanced<T: Clone>(mut items: Vec<ListTree<T>>) -> ListTree<T> {
     items.pop().unwrap_or(ListTree::Empty)
 }
 
-fn join_right<T: Clone>(left: ListTree<T>, right: ListTree<T>, right_height: usize) -> ListTree<T> {
+fn join_right<T: Clone>(
+    left: ListTree<T>,
+    left_height: usize,
+    right: ListTree<T>,
+    right_height: usize,
+) -> ListTree<T> {
     match left {
-        ListTree::Node(node) if node.right.black_height() > right_height => {
-            let joined = join_right(node.right.clone(), right, right_height);
-            balance(node.color, node.left.clone(), joined)
-        }
         ListTree::Node(node) => {
-            let joined = ListTree::red_node(node.right.clone(), right);
+            let child_height = left_height - usize::from(node.color == Color::Black);
+            let joined = if child_height > right_height {
+                join_right(node.right.clone(), child_height, right, right_height)
+            } else {
+                ListTree::red_node(node.right.clone(), right)
+            };
             balance(node.color, node.left.clone(), joined)
         }
         left => ListTree::red_node(left, right),
     }
 }
 
-fn join_left<T: Clone>(left: ListTree<T>, right: ListTree<T>, left_height: usize) -> ListTree<T> {
+fn join_left<T: Clone>(
+    left: ListTree<T>,
+    left_height: usize,
+    right: ListTree<T>,
+    right_height: usize,
+) -> ListTree<T> {
     match right {
-        ListTree::Node(node) if node.left.black_height() > left_height => {
-            let joined = join_left(left, node.left.clone(), left_height);
-            balance(node.color, joined, node.right.clone())
-        }
         ListTree::Node(node) => {
-            let joined = ListTree::red_node(left, node.left.clone());
+            let child_height = right_height - usize::from(node.color == Color::Black);
+            let joined = if child_height > left_height {
+                join_left(left, left_height, node.left.clone(), child_height)
+            } else {
+                ListTree::red_node(left, node.left.clone())
+            };
             balance(node.color, joined, node.right.clone())
         }
         right => ListTree::red_node(left, right),
