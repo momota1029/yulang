@@ -288,8 +288,17 @@ impl Infer {
         kind: crate::diagnostic::TypeErrorKind,
         label: impl Into<String>,
     ) {
+        self.report_synthetic_type_error_with_cause(kind, label, ConstraintCause::unknown());
+    }
+
+    pub fn report_synthetic_type_error_with_cause(
+        &self,
+        kind: crate::diagnostic::TypeErrorKind,
+        label: impl Into<String>,
+        cause: ConstraintCause,
+    ) {
         let error = TypeError {
-            cause: ConstraintCause::unknown(),
+            cause,
             kind,
             pos: self.alloc_pos(Pos::Bot),
             neg: self.alloc_neg(Neg::Top),

@@ -70,6 +70,7 @@ fn lower_impl_decl_with_receiver(
                     state,
                     &items,
                     impl_def,
+                    node.text_range(),
                     &role,
                     &role_infos,
                     &impl_scope,
@@ -182,6 +183,7 @@ fn lower_impl_body(
     state: &mut LowerState,
     items: &[SyntaxNode],
     impl_def: crate::ids::DefId,
+    impl_span: rowan::TextRange,
     role: &Path,
     role_infos: &[RoleArgInfo],
     impl_scope: &HashMap<String, TypeVar>,
@@ -250,23 +252,31 @@ fn lower_impl_body(
         .collect::<HashSet<_>>();
     for (info, _) in &impl_members {
         if !required_by_name.contains_key(&info.name) {
-            state.infer.report_synthetic_type_error(
+            state.infer.report_synthetic_type_error_with_cause(
                 TypeErrorKind::UnknownImplMember {
                     role: path_string(role),
                     member: info.name.0.clone(),
                 },
                 format!("impl {}", path_string(role)),
+                crate::diagnostic::ConstraintCause {
+                    span: Some(info.node.text_range()),
+                    reason: ConstraintReason::ImplMember,
+                },
             );
         }
     }
     for required in required_by_name.keys() {
         if !implemented_names.contains(required) {
-            state.infer.report_synthetic_type_error(
+            state.infer.report_synthetic_type_error_with_cause(
                 TypeErrorKind::MissingImplMember {
                     role: path_string(role),
                     member: required.0.clone(),
                 },
                 format!("impl {}", path_string(role)),
+                crate::diagnostic::ConstraintCause {
+                    span: Some(impl_span),
+                    reason: ConstraintReason::ImplMember,
+                },
             );
         }
     }

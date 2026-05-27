@@ -487,6 +487,7 @@ fn type_error_cause_message(error: &TypeError) -> Option<String> {
         ConstraintReason::Annotation => {
             Some("type annotation contributes this expectation".to_string())
         }
+        ConstraintReason::ImplMember => Some("impl member requirement is checked here".to_string()),
         _ => None,
     }
 }

@@ -2170,6 +2170,29 @@ fn impl_body_reports_missing_required_member() {
         )),
         "missing impl member should surface, got {errors:?}",
     );
+
+    let report = check_lowered(&state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::MissingImplMember)
+        .unwrap_or_else(|| {
+            panic!(
+                "missing impl member should produce structured diagnostic, got {:?}",
+                report.diagnostics
+            )
+        });
+    assert!(
+        diagnostic.primary.is_some(),
+        "missing impl member should point at the impl declaration, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "impl member requirement is checked here"),
+        "missing impl member should preserve ImplMember cause, got {diagnostic:?}",
+    );
 }
 
 #[test]
@@ -2187,6 +2210,29 @@ fn impl_body_reports_unknown_member() {
                 if role == "Score" && member == "other"
         )),
         "unknown impl member should surface, got {errors:?}",
+    );
+
+    let report = check_lowered(&state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::UnknownImplMember)
+        .unwrap_or_else(|| {
+            panic!(
+                "unknown impl member should produce structured diagnostic, got {:?}",
+                report.diagnostics
+            )
+        });
+    assert!(
+        diagnostic.primary.is_some(),
+        "unknown impl member should point at the member declaration, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "impl member requirement is checked here"),
+        "unknown impl member should preserve ImplMember cause, got {diagnostic:?}",
     );
 }
 
