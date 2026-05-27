@@ -62,23 +62,24 @@ Host errors are raised as `fs_err`, the same as `read_text`.
 
 ```yulang
 {
-    my file: ref '[fs] str = open "data.txt"
-    file.get()
+    my &fh = open "data.txt"
+    $fh
 }
 ```
 
-`open path` opens a text file as `ref '[fs] str`. The reference reads from the
-host-backed file buffer with `.get()`. Writes through the reference update the
-buffer and mark it dirty; the current host flushes a dirty file handle when the
-underlying handle state is dropped.
+`open path` opens a text file as a mutable string reference. Bind it with
+`my &fh = ...`; then `$fh` reads the current text and `&fh = text` replaces the
+buffer. Writes through the reference mark the buffer dirty; the current host
+flushes a dirty file handle when the underlying handle state is dropped.
 
-`open_in path f` is the local wrapper form:
+`open_in path do` is the local wrapper form:
 
 ```yulang
-open_in "data.txt": \file -> file.get()
+my &fh = open_in "data.txt" do
+    $fh
 ```
 
-Use it when the handle should stay scoped to one callback-shaped operation.
+Use it when the handle should stay scoped to the `do` block.
 
 ## Line views
 
@@ -86,9 +87,9 @@ String references expose `.lines`, which can be folded or used in `for`.
 
 ```yulang
 {
-    my file: ref '[fs] str = open "data.txt"
-    for line: ref _ str in file.lines:
-        line.get().say
+    my &fh = open "data.txt"
+    for &line in &fh.lines:
+        $line.say
 }
 ```
 
@@ -97,10 +98,10 @@ updates the file buffer:
 
 ```yulang
 {
-    my file: ref '[fs] str = open "data.txt"
-    for line: ref _ str in file.lines:
-        if line.get() == "old\n":
-            line[std::range::full()] = "new\n"
+    my &fh = open "data.txt"
+    for &line in &fh.lines:
+        if $line == "old\n":
+            &line[std::range::full()] = "new\n"
         else:
             ()
 }
