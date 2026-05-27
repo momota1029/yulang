@@ -18,6 +18,5 @@ yulang-sources = { version = "0.1.4", path = "../yulang-sources" }
 yulang-typed-ir = { version = "0.1.3", path = "../yulang-typed-ir" }
 
 [dev-dependencies]
-yulang-compile = { version = "0.1.0", path = "../yulang-compile" }
 yulang-infer = { version = "0.1.4", path = "../yulang-infer" }
 yulang-vm = { version = "0.1.0", path = "../yulang-vm" }

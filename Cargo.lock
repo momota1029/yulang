@@ -2201,7 +2201,6 @@ version = "0.1.0"
 dependencies = [
  "postcard",
  "serde",
- "yulang-compile",
  "yulang-infer",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
@@ -2291,7 +2290,6 @@ dependencies = [
  "serde",
  "serde_json",
  "unicode-segmentation",
- "yulang-compile",
  "yulang-infer",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
