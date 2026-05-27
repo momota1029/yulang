@@ -1033,6 +1033,34 @@ struct ControlClosure {
     self_name: Option<ControlLocalId>,
 }
 
+struct DirectKnownClosure {
+    param: ControlLocalId,
+    param_forces_thunk_arg: bool,
+    body: ExprId,
+    result_wraps_thunk: bool,
+    guard_stack: GuardStack,
+}
+
+impl DirectKnownClosure {
+    fn into_control_closure(self) -> ControlClosure {
+        ControlClosure {
+            param: self.param,
+            param_forces_thunk_arg: self.param_forces_thunk_arg,
+            body: self.body,
+            result_wraps_thunk: self.result_wraps_thunk,
+            env: ControlEnv::new(),
+            guard_stack: self.guard_stack,
+            self_name: None,
+        }
+    }
+}
+
+enum DirectKnownCallee {
+    Closure(DirectKnownClosure),
+    PrimitiveOp(typed_ir::PrimitiveOp),
+    EffectOp(ControlSymbolId),
+}
+
 #[derive(Clone)]
 struct ControlThunk {
     body: ControlThunkBody,
@@ -1319,19 +1347,29 @@ impl<'m> ControlInterpreter<'m> {
                 callee,
                 arg,
                 delay_arg,
-            } => match self.eval_expr(callee, env)? {
-                ControlResult::Value(callee) => {
-                    self.continue_apply_arg(callee, arg, env, delay_arg)
+            } => {
+                if !delay_arg
+                    && let Some((op, first_arg)) = self.direct_binary_primitive_apply(callee, env)
+                {
+                    return self.eval_direct_binary_primitive(op, first_arg, arg, env);
                 }
-                ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
-                    request,
-                    ControlFrame::ApplyCallee {
-                        arg,
-                        env: env.clone(),
-                        delay_arg,
-                    },
-                ))),
-            },
+                if let Some(callee) = self.direct_known_callee(callee, env) {
+                    return self.continue_direct_known_apply_arg(callee, arg, env, delay_arg);
+                }
+                match self.eval_expr(callee, env)? {
+                    ControlResult::Value(callee) => {
+                        self.continue_apply_arg(callee, arg, env, delay_arg)
+                    }
+                    ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                        request,
+                        ControlFrame::ApplyCallee {
+                            arg,
+                            env: env.clone(),
+                            delay_arg,
+                        },
+                    ))),
+                }
+            }
             ControlExprKind::If {
                 cond,
                 then_branch,
@@ -1496,6 +1534,95 @@ impl<'m> ControlInterpreter<'m> {
             return Ok(ControlResult::Value(ControlValue::EffectOp(path)));
         }
         Err(VmError::UnboundVariable(path_ref.clone()))
+    }
+
+    fn direct_known_callee(&self, callee: ExprId, env: &ControlEnv) -> Option<DirectKnownCallee> {
+        let path = match self.expr(callee).kind {
+            ControlExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => return None,
+            ControlExprKind::PrimitiveOp(op) => return Some(DirectKnownCallee::PrimitiveOp(op)),
+            ControlExprKind::EffectOp(effect) => return Some(DirectKnownCallee::EffectOp(effect)),
+            ControlExprKind::Var(path) => path,
+            _ => return None,
+        };
+        if let Some(local) = self.module.local_for_symbol(path)
+            && env.get(local).is_some()
+        {
+            return None;
+        }
+        let Some(binding_index) = self
+            .module
+            .binding_by_symbol
+            .get(path.0)
+            .and_then(|index| *index)
+        else {
+            let path_ref = self.module.symbol_path(path);
+            return (path_ref.segments.len() > 1).then_some(DirectKnownCallee::EffectOp(path));
+        };
+        let binding_body = self.module.bindings[binding_index].body;
+        match self.expr(binding_body).kind {
+            ControlExprKind::Lambda {
+                param,
+                param_forces_thunk_arg,
+                body,
+                result_wraps_thunk,
+            } => Some(DirectKnownCallee::Closure(DirectKnownClosure {
+                param,
+                param_forces_thunk_arg,
+                body,
+                result_wraps_thunk,
+                guard_stack: self.guard_stack.clone(),
+            })),
+            ControlExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => None,
+            ControlExprKind::PrimitiveOp(op) => Some(DirectKnownCallee::PrimitiveOp(op)),
+            ControlExprKind::EffectOp(effect) => Some(DirectKnownCallee::EffectOp(effect)),
+            _ => None,
+        }
+    }
+
+    fn direct_binary_primitive_apply(
+        &self,
+        callee: ExprId,
+        env: &ControlEnv,
+    ) -> Option<(typed_ir::PrimitiveOp, ExprId)> {
+        let ControlExprKind::Apply {
+            callee,
+            arg,
+            delay_arg: false,
+        } = self.expr(callee).kind
+        else {
+            return None;
+        };
+        let op = self.direct_known_primitive_op(callee, env)?;
+        (primitive_arity(op) == 2).then_some((op, arg))
+    }
+
+    fn direct_known_primitive_op(
+        &self,
+        callee: ExprId,
+        env: &ControlEnv,
+    ) -> Option<typed_ir::PrimitiveOp> {
+        let path = match self.expr(callee).kind {
+            ControlExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => return None,
+            ControlExprKind::PrimitiveOp(op) => return Some(op),
+            ControlExprKind::Var(path) => path,
+            _ => return None,
+        };
+        if let Some(local) = self.module.local_for_symbol(path)
+            && env.get(local).is_some()
+        {
+            return None;
+        }
+        let binding_index = self
+            .module
+            .binding_by_symbol
+            .get(path.0)
+            .and_then(|index| *index)?;
+        let binding_body = self.module.bindings[binding_index].body;
+        match self.expr(binding_body).kind {
+            ControlExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => None,
+            ControlExprKind::PrimitiveOp(op) => Some(op),
+            _ => None,
+        }
     }
 
     fn continue_if_result(
@@ -1673,6 +1800,138 @@ impl<'m> ControlInterpreter<'m> {
         }
     }
 
+    fn continue_direct_known_apply_arg(
+        &mut self,
+        callee: DirectKnownCallee,
+        arg: ExprId,
+        env: &ControlEnv,
+        delay_arg: bool,
+    ) -> Result<ControlResult, VmError> {
+        match callee {
+            DirectKnownCallee::Closure(callee) => {
+                self.profile.direct_known_closure_calls += 1;
+                self.continue_direct_apply_arg(callee, arg, env, delay_arg)
+            }
+            DirectKnownCallee::PrimitiveOp(op) => self.continue_apply_arg(
+                ControlValue::PrimitiveOp(ControlHeap::new(ControlPrimitive {
+                    op,
+                    args: Vec::new(),
+                })),
+                arg,
+                env,
+                delay_arg,
+            ),
+            DirectKnownCallee::EffectOp(effect) => {
+                self.continue_apply_arg(ControlValue::EffectOp(effect), arg, env, delay_arg)
+            }
+        }
+    }
+
+    fn eval_direct_binary_primitive(
+        &mut self,
+        op: typed_ir::PrimitiveOp,
+        first_arg: ExprId,
+        second_arg: ExprId,
+        env: &ControlEnv,
+    ) -> Result<ControlResult, VmError> {
+        self.profile.direct_binary_primitive_calls += 1;
+        let primitive = || {
+            ControlValue::PrimitiveOp(ControlHeap::new(ControlPrimitive {
+                op,
+                args: Vec::new(),
+            }))
+        };
+        let first = match self.eval_expr(first_arg, env)? {
+            ControlResult::Value(ControlValue::Thunk(thunk)) => {
+                return match self.apply(primitive(), ControlValue::Thunk(thunk))? {
+                    ControlResult::Value(callee) => {
+                        self.continue_apply_arg(callee, second_arg, env, false)
+                    }
+                    ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                        request,
+                        ControlFrame::ApplyCallee {
+                            arg: second_arg,
+                            env: env.clone(),
+                            delay_arg: false,
+                        },
+                    ))),
+                };
+            }
+            ControlResult::Value(value) => value,
+            ControlResult::Request(request) => {
+                let request = push_frame(
+                    request,
+                    ControlFrame::ApplyArg {
+                        callee: primitive(),
+                    },
+                );
+                return Ok(ControlResult::Request(push_frame(
+                    request,
+                    ControlFrame::ApplyCallee {
+                        arg: second_arg,
+                        env: env.clone(),
+                        delay_arg: false,
+                    },
+                )));
+            }
+        };
+        let second = match self.eval_expr(second_arg, env)? {
+            ControlResult::Value(ControlValue::Thunk(thunk)) => {
+                return self.apply(
+                    ControlValue::PrimitiveOp(ControlHeap::new(ControlPrimitive {
+                        op,
+                        args: vec![first],
+                    })),
+                    ControlValue::Thunk(thunk),
+                );
+            }
+            ControlResult::Value(value) => value,
+            ControlResult::Request(request) => {
+                return Ok(ControlResult::Request(push_frame(
+                    request,
+                    ControlFrame::ApplyArg {
+                        callee: ControlValue::PrimitiveOp(ControlHeap::new(ControlPrimitive {
+                            op,
+                            args: vec![first],
+                        })),
+                    },
+                )));
+            }
+        };
+        let args = [first, second];
+        self.record_primitive_profile(op, &args);
+        Ok(ControlResult::Value(control_apply_primitive(op, &args)?))
+    }
+
+    fn continue_direct_apply_arg(
+        &mut self,
+        callee: DirectKnownClosure,
+        arg: ExprId,
+        env: &ControlEnv,
+        delay_arg: bool,
+    ) -> Result<ControlResult, VmError> {
+        if delay_arg {
+            return self.apply_direct_closure(
+                callee,
+                ControlValue::Thunk(ControlHeap::new(ControlThunk {
+                    body: ControlThunkBody::Expr(arg),
+                    env: env.clone(),
+                    guard_stack: self.guard_stack.clone(),
+                    blocked: Vec::new(),
+                })),
+            );
+        }
+        match self.eval_expr(arg, env)? {
+            ControlResult::Value(arg) => self.apply_direct_closure(callee, arg),
+            ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
+                request,
+                ControlFrame::ApplyArg {
+                    callee: ControlValue::Closure(ControlHeap::new(callee.into_control_closure())),
+                },
+            ))),
+        }
+    }
+
     fn force_apply_callee(
         &mut self,
         callee: ControlValue,
@@ -1699,24 +1958,8 @@ impl<'m> ControlInterpreter<'m> {
                 if callee.param_forces_thunk_arg && matches!(arg, ControlValue::Thunk(_)) {
                     return self.force_apply_arg(ControlValue::Closure(callee), arg);
                 }
-                let mut env = callee.env.clone();
-                if let Some(self_name) = &callee.self_name {
-                    env.insert(*self_name, ControlValue::Closure(callee.clone()));
-                }
-                env.insert(callee.param, arg);
-                let parent_guard_stack = self.guard_stack.clone();
-                self.guard_stack = parent_guard_stack.overlay_newer(&callee.guard_stack);
-                let result = self.eval_expr(callee.body, &env)?;
-                self.guard_stack = parent_guard_stack.clone();
-                if let ControlResult::Request(request) = result {
-                    return Ok(ControlResult::Request(push_frame(
-                        request,
-                        ControlFrame::LocalPushId {
-                            parent: parent_guard_stack,
-                        },
-                    )));
-                }
-                Ok(control_wrap_result(result, callee.result_wraps_thunk))
+                let self_value = ControlValue::Closure(callee.clone());
+                self.apply_closure_body(&callee, Some(self_value), arg)
             }
             ControlValue::Resume(resume) => {
                 let continuation = self.clone_continuation(&resume.continuation);
@@ -1744,6 +1987,68 @@ impl<'m> ControlInterpreter<'m> {
                 Some(self.module),
             ))),
         }
+    }
+
+    fn apply_direct_closure(
+        &mut self,
+        callee: DirectKnownClosure,
+        arg: ControlValue,
+    ) -> Result<ControlResult, VmError> {
+        if callee.param_forces_thunk_arg && matches!(arg, ControlValue::Thunk(_)) {
+            return self.force_apply_arg(
+                ControlValue::Closure(ControlHeap::new(callee.into_control_closure())),
+                arg,
+            );
+        }
+        let mut env = ControlEnv::new();
+        env.insert(callee.param, arg);
+        self.eval_closure_body(
+            env,
+            &callee.guard_stack,
+            callee.body,
+            callee.result_wraps_thunk,
+        )
+    }
+
+    fn apply_closure_body(
+        &mut self,
+        callee: &ControlClosure,
+        self_value: Option<ControlValue>,
+        arg: ControlValue,
+    ) -> Result<ControlResult, VmError> {
+        let mut env = callee.env.clone();
+        if let (Some(self_name), Some(self_value)) = (callee.self_name, self_value) {
+            env.insert(self_name, self_value);
+        }
+        env.insert(callee.param, arg);
+        self.eval_closure_body(
+            env,
+            &callee.guard_stack,
+            callee.body,
+            callee.result_wraps_thunk,
+        )
+    }
+
+    fn eval_closure_body(
+        &mut self,
+        env: ControlEnv,
+        guard_stack: &GuardStack,
+        body: ExprId,
+        result_wraps_thunk: bool,
+    ) -> Result<ControlResult, VmError> {
+        let parent_guard_stack = self.guard_stack.clone();
+        self.guard_stack = parent_guard_stack.overlay_newer(guard_stack);
+        let result = self.eval_expr(body, &env)?;
+        self.guard_stack = parent_guard_stack.clone();
+        if let ControlResult::Request(request) = result {
+            return Ok(ControlResult::Request(push_frame(
+                request,
+                ControlFrame::LocalPushId {
+                    parent: parent_guard_stack,
+                },
+            )));
+        }
+        Ok(control_wrap_result(result, result_wraps_thunk))
     }
 
     fn force_apply_arg(

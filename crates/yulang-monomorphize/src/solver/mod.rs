@@ -281,6 +281,7 @@ pub fn finalize_module_with_cache<M: IntoFinalizeRuntimeModule>(
     postpass::fill_local_var_types(&mut module);
     postpass::normalize_materialized_module(&mut module);
     cast::normalize_semantic_cast_coercions(&mut module);
+    postpass::eliminate_immediate_thunk_forces(&mut module);
     postpass::prune_specialized_polymorphic_bindings(&mut module, &root_graph_solutions);
     postpass::prune_unreachable_bindings(&mut module);
     postpass::prune_unbound_binding_roots(&mut module);

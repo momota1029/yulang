@@ -10,6 +10,9 @@
 //!   - `inline_small_direct_calls` — beta-reduces direct calls to tiny
 //!     forwarding lambda bindings while preserving single evaluation of the
 //!     argument.
+//!   - `eliminate_immediate_thunk_forces` — removes direct
+//!     `BindHere(Thunk(body))` pairs after materialization has made the
+//!     thunk/value boundary explicit.
 //!   - `fill_local_var_types` / `fill_apply_evidence_types` — repair Unknown
 //!     slots that lowering left in `.ty` of expressions, by walking enclosing
 //!     scope (`fill_local_var_types_in`) and reconciling apply triples
@@ -225,6 +228,144 @@ fn inline_small_direct_calls_in(
         },
         result_ty,
     );
+}
+
+pub(crate) fn eliminate_immediate_thunk_forces(module: &mut Module) {
+    for binding in &mut module.bindings {
+        eliminate_immediate_thunk_forces_in(&mut binding.body);
+    }
+    for expr in &mut module.root_exprs {
+        eliminate_immediate_thunk_forces_in(expr);
+    }
+}
+
+fn eliminate_immediate_thunk_forces_in(expr: &mut Expr) {
+    yulang_runtime_ir::walk::walk_children_mut(expr, eliminate_immediate_thunk_forces_in);
+
+    let ExprKind::BindHere { expr: thunk } = &mut expr.kind else {
+        return;
+    };
+    let RuntimeType::Thunk { value, .. } = &thunk.ty else {
+        return;
+    };
+    let Some(result_ty) = merge_force_result_type(&expr.ty, value) else {
+        return;
+    };
+    let ExprKind::Thunk {
+        effect,
+        value: declared_value,
+        expr: body,
+    } = &mut thunk.kind
+    else {
+        return;
+    };
+    let Some(result_ty) = merge_force_result_type(&result_ty, declared_value) else {
+        return;
+    };
+    let Some(result_ty) = merge_force_result_type(&result_ty, &body.ty) else {
+        return;
+    };
+    if !effect_is_empty_row(effect) || !immediate_thunk_body_is_context_free(body) {
+        return;
+    }
+
+    let mut body = (**body).clone();
+    body.ty = result_ty;
+    *expr = body;
+}
+
+fn immediate_thunk_body_is_context_free(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Lit(_) => true,
+        ExprKind::Tuple(items) => items.iter().all(immediate_thunk_body_is_context_free),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .all(|field| immediate_thunk_body_is_context_free(&field.value))
+                && spread
+                    .as_ref()
+                    .is_none_or(immediate_thunk_record_spread_is_context_free)
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_deref()
+            .is_none_or(immediate_thunk_body_is_context_free),
+        ExprKind::Select { base, .. } | ExprKind::Coerce { expr: base, .. } => {
+            immediate_thunk_body_is_context_free(base)
+        }
+        ExprKind::Pack { expr, .. } => immediate_thunk_body_is_context_free(expr),
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lambda { .. }
+        | ExprKind::Apply { .. }
+        | ExprKind::If { .. }
+        | ExprKind::Match { .. }
+        | ExprKind::Block { .. }
+        | ExprKind::Handle { .. }
+        | ExprKind::BindHere { .. }
+        | ExprKind::Thunk { .. }
+        | ExprKind::LocalPushId { .. }
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. }
+        | ExprKind::AddId { .. } => false,
+    }
+}
+
+fn immediate_thunk_record_spread_is_context_free(
+    spread: &yulang_runtime_ir::FinalizedRecordSpreadExpr,
+) -> bool {
+    match spread {
+        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+        | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
+            immediate_thunk_body_is_context_free(expr)
+        }
+    }
+}
+
+fn effect_is_empty_row(effect: &typed_ir::Type) -> bool {
+    matches!(
+        effect,
+        typed_ir::Type::Row { items, tail }
+            if items.is_empty() && matches!(tail.as_ref(), typed_ir::Type::Never)
+    )
+}
+
+fn merge_force_result_type(left: &RuntimeType, right: &RuntimeType) -> Option<RuntimeType> {
+    match (left, right) {
+        (RuntimeType::Unknown, _) => Some(right.clone()),
+        (_, RuntimeType::Unknown) => Some(left.clone()),
+        (left, right) if runtime_types_equivalent(left, right) => Some(left.clone()),
+        (RuntimeType::Value(left), RuntimeType::Value(right)) => {
+            Some(RuntimeType::Value(merge_partial_core_type(left, right)?))
+        }
+        (
+            RuntimeType::Fun {
+                param: left_param,
+                ret: left_ret,
+            },
+            RuntimeType::Fun {
+                param: right_param,
+                ret: right_ret,
+            },
+        ) => Some(RuntimeType::Fun {
+            param: Box::new(merge_force_result_type(left_param, right_param)?),
+            ret: Box::new(merge_force_result_type(left_ret, right_ret)?),
+        }),
+        (
+            RuntimeType::Thunk {
+                effect: left_effect,
+                value: left_value,
+            },
+            RuntimeType::Thunk {
+                effect: right_effect,
+                value: right_value,
+            },
+        ) => Some(RuntimeType::Thunk {
+            effect: merge_partial_core_type(left_effect, right_effect)?,
+            value: Box::new(merge_force_result_type(left_value, right_value)?),
+        }),
+        _ => None,
+    }
 }
 
 fn type_mentions_any_var(ty: &typed_ir::Type, vars: &[typed_ir::TypeVar]) -> bool {
@@ -1614,5 +1755,150 @@ fn type_arg_is_closed(arg: &yulang_typed_ir::TypeArg) -> bool {
                     .as_ref()
                     .is_none_or(|ty| core_type_is_closed(ty))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eliminate_immediate_thunk_force_replaces_direct_bind_here_thunk_pair() {
+        let int = named_type("int");
+        let mut module = module_with_root(bind_here(thunk(
+            Expr::typed(ExprKind::Lit(typed_ir::Lit::Int("1".into())), int.clone()),
+            int.clone(),
+        )));
+
+        eliminate_immediate_thunk_forces(&mut module);
+
+        let root = &module.root_exprs[0];
+        assert_eq!(root.ty, int);
+        assert!(matches!(&root.kind, ExprKind::Lit(typed_ir::Lit::Int(value)) if value == "1"));
+    }
+
+    #[test]
+    fn eliminate_immediate_thunk_force_keeps_incompatible_body_type() {
+        let int = named_type("int");
+        let str_ty = named_type("str");
+        let mut module = module_with_root(bind_here(thunk(var("x", str_ty), int.clone())));
+
+        eliminate_immediate_thunk_forces(&mut module);
+
+        assert!(matches!(
+            module.root_exprs[0].kind,
+            ExprKind::BindHere { .. }
+        ));
+    }
+
+    #[test]
+    fn eliminate_immediate_thunk_force_does_not_cross_value_thunk_shapes() {
+        let int = named_type("int");
+        let inner_thunk = RuntimeType::Thunk {
+            effect: empty_row(),
+            value: Box::new(int.clone()),
+        };
+        let mut module = module_with_root(bind_here(thunk(var("x", inner_thunk), int.clone())));
+
+        eliminate_immediate_thunk_forces(&mut module);
+
+        assert!(matches!(
+            module.root_exprs[0].kind,
+            ExprKind::BindHere { .. }
+        ));
+    }
+
+    #[test]
+    fn eliminate_immediate_thunk_force_keeps_context_observing_body() {
+        let bool_ty = named_type("bool");
+        let mut module = module_with_root(bind_here(thunk(
+            Expr::typed(
+                ExprKind::FindId {
+                    id: yulang_runtime_ir::EffectIdRef::Peek,
+                },
+                bool_ty.clone(),
+            ),
+            bool_ty,
+        )));
+
+        eliminate_immediate_thunk_forces(&mut module);
+
+        assert!(matches!(
+            module.root_exprs[0].kind,
+            ExprKind::BindHere { .. }
+        ));
+    }
+
+    #[test]
+    fn eliminate_immediate_thunk_force_keeps_var_body() {
+        let int = named_type("int");
+        let mut module = module_with_root(bind_here(thunk(var("x", int.clone()), int)));
+
+        eliminate_immediate_thunk_forces(&mut module);
+
+        assert!(matches!(
+            module.root_exprs[0].kind,
+            ExprKind::BindHere { .. }
+        ));
+    }
+
+    fn module_with_root(expr: Expr) -> Module {
+        Module {
+            path: typed_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![expr],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        }
+    }
+
+    fn bind_here(expr: Expr) -> Expr {
+        let ty = match &expr.ty {
+            RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
+            _ => RuntimeType::Unknown,
+        };
+        Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(expr),
+            },
+            ty,
+        )
+    }
+
+    fn thunk(body: Expr, value: RuntimeType) -> Expr {
+        let effect = empty_row();
+        Expr::typed(
+            ExprKind::Thunk {
+                effect: effect.clone(),
+                value: value.clone(),
+                expr: Box::new(body),
+            },
+            RuntimeType::Thunk {
+                effect,
+                value: Box::new(value),
+            },
+        )
+    }
+
+    fn var(name: &str, ty: RuntimeType) -> Expr {
+        Expr::typed(ExprKind::Var(path_from_str(name)), ty)
+    }
+
+    fn named_type(name: &str) -> RuntimeType {
+        RuntimeType::Value(typed_ir::Type::Named {
+            path: path_from_str(name),
+            args: Vec::new(),
+        })
+    }
+
+    fn empty_row() -> typed_ir::Type {
+        typed_ir::Type::Row {
+            items: Vec::new(),
+            tail: Box::new(typed_ir::Type::Never),
+        }
+    }
+
+    fn path_from_str(name: &str) -> typed_ir::Path {
+        typed_ir::Path::new(vec![typed_ir::Name(name.into())])
     }
 }

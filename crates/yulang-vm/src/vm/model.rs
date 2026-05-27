@@ -101,6 +101,8 @@ pub struct VmContinuation {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct VmProfile {
     pub eval_expr_calls: usize,
+    pub direct_known_closure_calls: usize,
+    pub direct_binary_primitive_calls: usize,
     pub max_eval_depth: usize,
     pub continuation_steps: usize,
     pub max_continuation_frames: usize,
@@ -121,6 +123,8 @@ pub struct VmProfile {
 impl VmProfile {
     pub fn merge(&mut self, other: Self) {
         self.eval_expr_calls += other.eval_expr_calls;
+        self.direct_known_closure_calls += other.direct_known_closure_calls;
+        self.direct_binary_primitive_calls += other.direct_binary_primitive_calls;
         self.max_eval_depth = self.max_eval_depth.max(other.max_eval_depth);
         self.continuation_steps += other.continuation_steps;
         self.max_continuation_frames = self
