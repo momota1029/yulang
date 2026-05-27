@@ -17,6 +17,28 @@ fn runtime_finalize_runs_range_each_sum_with_cold_std_cache() {
 }
 
 #[test]
+fn runtime_finalize_runs_ref_string_index_assignment() {
+    let fixture = RuntimeFinalizeCliFixture::new("runtime-finalize-ref-string-index");
+    fixture.write_temp_source(
+        "ref_string_index.yu",
+        r#"{
+    my $s = "aあ🙂z"
+    my before = std::char::to_string $s[1]
+    &s[1] = "b"[0]
+    $s.println
+    before.println
+}
+"#,
+    );
+
+    let stdout = fixture.run_file_stdout(
+        "ref string index assignment",
+        &fixture.temp_source_path("ref_string_index.yu"),
+    );
+    assert_eq!(stdout, "ab🙂z\nあ\n[0] ()\n");
+}
+
+#[test]
 fn runtime_finalize_runs_examples_and_playground_samples_with_shared_std_cache() {
     let fixture = RuntimeFinalizeCliFixture::new("runtime-finalize-smoke");
     fixture.write_temp_source("warmup.yu", "1 + 2\n");

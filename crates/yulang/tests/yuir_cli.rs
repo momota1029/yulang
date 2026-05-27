@@ -84,6 +84,47 @@ fn run_uses_basic_host_output_without_status_line() {
 }
 
 #[test]
+fn run_updates_ref_string_index() {
+    let source_path = std::env::temp_dir().join(format!(
+        "yulang-ref-string-index-{}-{}.yu",
+        std::process::id(),
+        unique_suffix()
+    ));
+    let std_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib/std");
+    fs::write(
+        &source_path,
+        r#"{
+    my $s = "aあ🙂z"
+    my before = std::char::to_string $s[1]
+    &s[1] = "b"[0]
+    ($s, before)
+}
+"#,
+    )
+    .expect("write test source");
+
+    let source_output = Command::new(env!("CARGO_BIN_EXE_yulang"))
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&source_path)
+        .output()
+        .expect("run yulang source");
+    let _ = fs::remove_file(&source_path);
+    assert!(
+        source_output.status.success(),
+        "source run failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&source_output.stdout),
+        String::from_utf8_lossy(&source_output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&source_output.stdout),
+        "[0] (\"ab🙂z\", \"あ\")\n"
+    );
+}
+
+#[test]
 fn run_can_use_runtime_finalize_mainline_path() {
     let source_path = std::env::temp_dir().join(format!(
         "yulang-monomorphize-cli-{}-{}.yu",
