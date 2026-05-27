@@ -80,11 +80,16 @@ run_case() {
         cargo_args+=(--release)
     fi
     cargo_args+=(--)
-    cargo_args+=(--infer --infer-phase-timings)
+    cargo_args+=(--infer-phase-timings)
     if [[ "$run_vm" == "1" ]]; then
-        cargo_args+=(--run --runtime-phase-timings)
+        cargo_args+=(--runtime-phase-timings)
     fi
-    cargo_args+=(--profile-repeat "$repeat" "$case_path")
+    cargo_args+=(--profile-repeat "$repeat")
+    if [[ "$run_vm" == "1" ]]; then
+        cargo_args+=(run "$case_path")
+    else
+        cargo_args+=(check "$case_path")
+    fi
 
     if ! env RUSTC_WRAPPER="${RUSTC_WRAPPER:-}" RUST_MIN_STACK="${RUST_MIN_STACK:-67108864}" \
         /usr/bin/time -p -o "$time_file" cargo "${cargo_args[@]}" >"$out_file" 2>&1
@@ -216,8 +221,8 @@ print_usage() {
 usage: bench/static_analysis_bench.sh [--repeat N] [--debug] [--infer-only] [case.yu ...]
 
 Runs representative Yulang programs through:
-  cargo run -p yulang --release -- --infer --run \
-    --infer-phase-timings --runtime-phase-timings
+  cargo run -p yulang --release -- \
+    --infer-phase-timings --runtime-phase-timings run
 
 Use --infer-only for cases that are useful to typecheck but not safe to run.
 

@@ -1039,6 +1039,21 @@ pub fn build_compiled_unit_semantic_artifact_bundle(
     }
 }
 
+pub fn build_compiled_unit_semantic_artifact_bundle_from_typed_artifacts(
+    artifacts: &[CompiledUnitTypedArtifact],
+) -> CompiledUnitSemanticArtifactBundle {
+    CompiledUnitSemanticArtifactBundle {
+        manifests: artifacts
+            .iter()
+            .map(|artifact| artifact.manifest.clone())
+            .collect(),
+        namespace: merge_compiled_namespace_surfaces(
+            artifacts.iter().map(|artifact| &artifact.namespace),
+        ),
+        typed: merge_compiled_typed_artifact_surfaces(artifacts),
+    }
+}
+
 impl From<&CompiledUnitArtifactBundle> for CompiledUnitSemanticArtifactBundle {
     fn from(bundle: &CompiledUnitArtifactBundle) -> Self {
         Self {
@@ -4612,21 +4627,40 @@ fn merge_compiled_namespace_surfaces<'a>(
 }
 
 fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> CompiledTypedSurface {
+    merge_compiled_typed_surfaces_from_parts(
+        artifacts
+            .iter()
+            .map(|artifact| (&artifact.namespace, &artifact.typed)),
+    )
+}
+
+fn merge_compiled_typed_artifact_surfaces(
+    artifacts: &[CompiledUnitTypedArtifact],
+) -> CompiledTypedSurface {
+    merge_compiled_typed_surfaces_from_parts(
+        artifacts
+            .iter()
+            .map(|artifact| (&artifact.namespace, &artifact.typed)),
+    )
+}
+
+fn merge_compiled_typed_surfaces_from_parts<'a>(
+    artifacts: impl IntoIterator<Item = (&'a CompiledNamespaceSurface, &'a CompiledTypedSurface)>,
+) -> CompiledTypedSurface {
     let mut typed = CompiledTypedSurface::default();
     let mut value_offset = 0u32;
 
-    for artifact in artifacts {
+    for (namespace, artifact_typed) in artifacts {
         typed
             .schemes
-            .extend(artifact.typed.schemes.iter().cloned().map(|mut scheme| {
+            .extend(artifact_typed.schemes.iter().cloned().map(|mut scheme| {
                 scheme.symbol += value_offset;
                 scheme
             }));
         typed
             .enum_variants
             .extend(
-                artifact
-                    .typed
+                artifact_typed
                     .enum_variants
                     .iter()
                     .cloned()
@@ -4635,10 +4669,9 @@ fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> Compiled
                         variant
                     }),
             );
-        typed.roles.extend(artifact.typed.roles.iter().cloned());
+        typed.roles.extend(artifact_typed.roles.iter().cloned());
         typed.role_methods.extend(
-            artifact
-                .typed
+            artifact_typed
                 .role_methods
                 .iter()
                 .cloned()
@@ -4648,8 +4681,7 @@ fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> Compiled
                 }),
         );
         typed.role_impls.extend(
-            artifact
-                .typed
+            artifact_typed
                 .role_impls
                 .iter()
                 .cloned()
@@ -4660,12 +4692,11 @@ fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> Compiled
                     role_impl
                 }),
         );
-        typed.effects.extend(artifact.typed.effects.iter().cloned());
+        typed.effects.extend(artifact_typed.effects.iter().cloned());
         typed
             .effect_methods
             .extend(
-                artifact
-                    .typed
+                artifact_typed
                     .effect_methods
                     .iter()
                     .cloned()
@@ -4675,7 +4706,7 @@ fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> Compiled
                     }),
             );
 
-        value_offset += artifact.namespace.values.len() as u32;
+        value_offset += namespace.values.len() as u32;
     }
 
     typed

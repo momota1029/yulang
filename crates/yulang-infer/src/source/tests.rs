@@ -312,6 +312,36 @@ fn std_core_snapshot_data_round_trips_through_json() {
 }
 
 #[test]
+fn semantic_bundle_from_typed_artifacts_matches_full_artifacts() {
+    let source_set = collect_inline_source_files_with_options(
+        "use std::prelude::*\none",
+        [InlineSource {
+            path: PathBuf::from("<std>/prelude.yu"),
+            module_path: CorePath {
+                segments: vec![CoreName("std".to_string()), CoreName("prelude".to_string())],
+            },
+            origin: SourceOrigin::Std,
+            source: "pub my one = 1\n".to_string(),
+            meta: None,
+        }],
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+
+    let full_artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+    let typed_artifacts = build_compiled_typed_artifacts(&source_set, &lowered.state);
+
+    assert_eq!(
+        build_compiled_unit_semantic_artifact_bundle_from_typed_artifacts(&typed_artifacts),
+        build_compiled_unit_semantic_artifact_bundle(&full_artifacts)
+    );
+}
+
+#[test]
 fn std_snapshot_data_validation_rejects_bad_symbol_refs() {
     let source_set = collect_inline_source_files_with_options(
         "use std::prelude::*\none",

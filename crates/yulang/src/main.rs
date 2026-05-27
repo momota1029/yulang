@@ -30,8 +30,10 @@ use yulang_infer::{
     Pos as InferPos, ProfiledLoweredSources as InferProfiledLoweredSources,
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions, SourceSet,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
-    TypeErrorKind as InferTypeErrorKind, build_compiled_unit_artifact_bundle,
-    build_compiled_unit_artifacts, build_compiled_unit_semantic_artifact_bundle,
+    TypeErrorKind as InferTypeErrorKind, build_compiled_typed_artifacts,
+    build_compiled_unit_artifact_bundle, build_compiled_unit_artifacts,
+    build_compiled_unit_semantic_artifact_bundle,
+    build_compiled_unit_semantic_artifact_bundle_from_typed_artifacts,
     collect_compact_results as collect_infer_compact_results,
     collect_derived_expected_edge_evidence as collect_infer_derived_expected_edge_evidence,
     collect_expected_adapter_edge_evidence as collect_infer_expected_adapter_edge_evidence,
@@ -3139,6 +3141,7 @@ fn lower_infer_source_set_with_cache(
             source_set,
             &lowered.lowered.state,
             &cache,
+            options.requests_runtime_pipeline(),
             &mut pipeline_timings,
         );
     }
@@ -3446,31 +3449,46 @@ fn write_dependency_unit_artifact_bundle(
     source_set: &SourceSet,
     state: &InferLowerState,
     cache: &CompiledUnitArtifactCache,
+    needs_runtime_bundle: bool,
     timings: &mut InferPipelineTimings,
 ) {
     let build_start = timings.start();
-    let artifacts = build_compiled_unit_artifacts(source_set, state)
-        .into_iter()
-        .filter(|artifact| is_cacheable_dependency_manifest(&artifact.manifest))
-        .collect::<Vec<_>>();
-    let (bundle, semantic_bundle) = if artifacts.is_empty() {
-        (None, None)
+    let (artifacts, bundle, semantic_bundle) = if needs_runtime_bundle {
+        let artifacts = build_compiled_unit_artifacts(source_set, state)
+            .into_iter()
+            .filter(|artifact| is_cacheable_dependency_manifest(&artifact.manifest))
+            .collect::<Vec<_>>();
+        let (bundle, semantic_bundle) = if artifacts.is_empty() {
+            (None, None)
+        } else {
+            let bundle = build_compiled_unit_artifact_bundle(&artifacts).ok();
+            let semantic_bundle = bundle
+                .as_ref()
+                .map(CompiledUnitSemanticArtifactBundle::from)
+                .or_else(|| Some(build_compiled_unit_semantic_artifact_bundle(&artifacts)));
+            (bundle, semantic_bundle)
+        };
+        (Some(artifacts), bundle, semantic_bundle)
     } else {
-        let bundle = build_compiled_unit_artifact_bundle(&artifacts).ok();
-        let semantic_bundle = bundle
-            .as_ref()
-            .map(CompiledUnitSemanticArtifactBundle::from)
-            .or_else(|| Some(build_compiled_unit_semantic_artifact_bundle(&artifacts)));
-        (bundle, semantic_bundle)
+        let typed_artifacts = build_compiled_typed_artifacts(source_set, state)
+            .into_iter()
+            .filter(|artifact| is_cacheable_dependency_manifest(&artifact.manifest))
+            .collect::<Vec<_>>();
+        let semantic_bundle = (!typed_artifacts.is_empty()).then(|| {
+            build_compiled_unit_semantic_artifact_bundle_from_typed_artifacts(&typed_artifacts)
+        });
+        (None, None, semantic_bundle)
     };
     timings.std_artifact_build += InferPipelineTimings::elapsed(build_start);
-    for artifact in &artifacts {
-        let write_start = timings.start();
-        let _ = cache.write(artifact);
-        timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
-        if timings.enabled {
-            timings.std_artifact_writes += 1;
-            timings.incremental_cache_writes += 1;
+    if let Some(artifacts) = artifacts {
+        for artifact in &artifacts {
+            let write_start = timings.start();
+            let _ = cache.write(artifact);
+            timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
+            if timings.enabled {
+                timings.std_artifact_writes += 1;
+                timings.incremental_cache_writes += 1;
+            }
         }
     }
     if let Some(bundle) = bundle {
