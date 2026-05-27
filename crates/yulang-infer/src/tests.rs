@@ -3327,6 +3327,165 @@ fn check_report_case_guarded_variant_does_not_prove_coverage() {
 }
 
 #[test]
+fn check_report_case_reports_arm_after_wildcard_unreachable() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  _ -> 0\n",
+            "  local_opt::nil -> 1\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::UnreachablePattern)
+        .unwrap_or_else(|| {
+            panic!(
+                "arm after wildcard should be unreachable, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "previous arm covers all remaining inputs"),
+        "unreachable arm should point at wildcard coverage, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_case_reports_duplicate_enum_variant_unreachable() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  local_opt::nil -> 0\n",
+            "  local_opt::nil -> 1\n",
+            "  local_opt::just n -> n\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::UnreachablePattern)
+        .unwrap_or_else(|| {
+            panic!(
+                "duplicate enum arm should be unreachable, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "previous arm already covers this pattern"),
+        "duplicate enum diagnostic should point at previous variant arm, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_case_reports_wildcard_after_complete_enum_unreachable() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  local_opt::nil -> 0\n",
+            "  local_opt::just n -> n\n",
+            "  _ -> 1\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::UnreachablePattern)
+        .unwrap_or_else(|| {
+            panic!(
+                "wildcard after complete enum coverage should be unreachable, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.related.iter().any(|related| {
+            related.message == "previous arms already cover all variants of `local_opt`"
+        }),
+        "complete enum diagnostic should explain finite coverage, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_case_guarded_variant_does_not_make_following_arm_unreachable() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  local_opt::nil -> 0\n",
+            "  local_opt::just n if true -> n\n",
+            "  local_opt::just n -> n\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == DiagnosticCode::UnreachablePattern),
+        "guarded arm should not cover the following unguarded arm, got {:?}",
+        report.diagnostics,
+    );
+}
+
+#[test]
+fn check_report_case_payload_specific_variant_does_not_cover_whole_variant() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_bound = included int | excluded int\n",
+            "enum local_range = within local_bound local_bound\n",
+            "my picked value = case value:\n",
+            "  local_range::within(local_bound::included a, local_bound::included b) -> a\n",
+            "  local_range::within(local_bound::excluded a, local_bound::included b) -> a\n",
+            "  _ -> 0\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == DiagnosticCode::UnreachablePattern),
+        "payload-specific variant arms should not cover the whole variant, got {:?}",
+        report.diagnostics,
+    );
+}
+
+#[test]
 fn source_record_field_selection_final_fallback_introduces_record_requirement() {
     let lowered = lower_virtual_source_with_options(
         "my get_y p = p.y\nget_y {x: 3, y: 4}\n",

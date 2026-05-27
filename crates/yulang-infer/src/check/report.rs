@@ -36,6 +36,7 @@ pub enum DiagnosticCode {
     AmbiguousImplPrerequisite,
     AmbiguousEffectMethod,
     NonExhaustivePattern,
+    UnreachablePattern,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -89,6 +90,7 @@ impl DiagnosticCode {
             DiagnosticCode::AmbiguousImplPrerequisite => "role.impl.ambiguous_prerequisite",
             DiagnosticCode::AmbiguousEffectMethod => "effect.method.ambiguous",
             DiagnosticCode::NonExhaustivePattern => "pattern.non_exhaustive",
+            DiagnosticCode::UnreachablePattern => "pattern.unreachable_arm",
         }
     }
 }

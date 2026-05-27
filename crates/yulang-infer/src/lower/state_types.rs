@@ -42,7 +42,11 @@ pub struct CaseArmCheckSite {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CaseArmPattern {
-    EnumVariant { enum_path: Path, variant: Name },
+    EnumVariant {
+        enum_path: Path,
+        variant: Name,
+        payload_covers_all: bool,
+    },
     CoversAll,
 }
 

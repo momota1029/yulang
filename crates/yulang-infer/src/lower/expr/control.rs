@@ -369,7 +369,7 @@ fn collect_case_arm_patterns(state: &LowerState, pat: &TypedPat, out: &mut Vec<C
             collect_case_arm_patterns(state, left, out);
             collect_case_arm_patterns(state, right, out);
         }
-        PatKind::Con(ref_id, _) => {
+        PatKind::Con(ref_id, payload) => {
             let Some(resolved) = state.ctx.refs.resolved().get(ref_id) else {
                 return;
             };
@@ -382,6 +382,9 @@ fn collect_case_arm_patterns(state: &LowerState, pat: &TypedPat, out: &mut Vec<C
             out.push(CaseArmPattern::EnumVariant {
                 enum_path: shape.enum_path.clone(),
                 variant: variant.clone(),
+                payload_covers_all: payload
+                    .as_deref()
+                    .is_none_or(case_payload_pattern_covers_all),
             });
         }
         PatKind::Lit(_)
@@ -389,6 +392,22 @@ fn collect_case_arm_patterns(state: &LowerState, pat: &TypedPat, out: &mut Vec<C
         | PatKind::List { .. }
         | PatKind::Record { .. }
         | PatKind::PolyVariant(_, _) => {}
+    }
+}
+
+fn case_payload_pattern_covers_all(pat: &TypedPat) -> bool {
+    match &pat.kind {
+        PatKind::Wild | PatKind::UnresolvedName(_) => true,
+        PatKind::As(inner, _) => case_payload_pattern_covers_all(inner),
+        PatKind::Or(left, right) => {
+            case_payload_pattern_covers_all(left) || case_payload_pattern_covers_all(right)
+        }
+        PatKind::Tuple(items) => items.iter().all(case_payload_pattern_covers_all),
+        PatKind::Lit(_)
+        | PatKind::Con(_, _)
+        | PatKind::List { .. }
+        | PatKind::Record { .. }
+        | PatKind::PolyVariant(_, _) => false,
     }
 }
 
