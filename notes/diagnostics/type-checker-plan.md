@@ -305,6 +305,12 @@ checker の責務:
 - prerequisite が missing / ambiguous の場合、impl site と prerequisite declaration を related に出す。
 - default body がある member は、missing としない。ただし default body 自体の型不一致は別診断にする。
 
+2026-05-27 実装状況:
+
+- source role method は `def_span` を記録する。
+- missing required member の synthetic error は、required role member declaration を
+  origin として持ち、`CheckReport.related` に出す。
+
 テスト観点:
 
 - role / method の名前を変えても、解決先が同じなら同じ診断になる。

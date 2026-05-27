@@ -18,7 +18,9 @@ use super::{LowerState, SyntaxNode};
 use crate::ast::expr::{
     CatchArmKind, ExprKind, PatKind, TypedCatchArm, TypedExpr, TypedMatchArm, TypedPat,
 };
-use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind, TypeErrorKind};
+use crate::diagnostic::{
+    ConstraintCause, ConstraintReason, ExpectedEdgeKind, TypeErrorKind, TypeOrigin, TypeOriginKind,
+};
 use crate::ids::TypeVar;
 use crate::scheme::freeze_pos_scheme_with_non_generic;
 use crate::simplify::compact::{CompactBounds, compact_neg_expr, compact_pos_expr};

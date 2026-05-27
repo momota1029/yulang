@@ -141,6 +141,7 @@ fn lower_role_method_binding(
     let method_def = state.fresh_def();
     let method_tv = state.fresh_tv();
     state.register_def_tv(method_def, method_tv);
+    state.register_def_span(method_def, pattern.text_range());
     state.insert_value(state.ctx.current_module, method_name.clone(), method_def);
     let role_constraint = RoleConstraint {
         role: role_path.clone(),

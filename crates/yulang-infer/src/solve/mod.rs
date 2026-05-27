@@ -297,12 +297,25 @@ impl Infer {
         label: impl Into<String>,
         cause: ConstraintCause,
     ) {
+        self.report_synthetic_type_error_with_cause_and_origins(kind, label, cause, Vec::new());
+    }
+
+    pub fn report_synthetic_type_error_with_cause_and_origins(
+        &self,
+        kind: crate::diagnostic::TypeErrorKind,
+        label: impl Into<String>,
+        cause: ConstraintCause,
+        origins: Vec<TypeOrigin>,
+    ) {
+        let mut all_origins = Vec::with_capacity(origins.len() + 1);
+        all_origins.push(TypeOrigin::synthetic(label.into()));
+        all_origins.extend(origins);
         let error = TypeError {
             cause,
             kind,
             pos: self.alloc_pos(Pos::Bot),
             neg: self.alloc_neg(Neg::Top),
-            origins: vec![TypeOrigin::synthetic(label.into())],
+            origins: all_origins,
         };
         let mut errors = self.errors.borrow_mut();
         if errors

@@ -2193,6 +2193,12 @@ fn impl_body_reports_missing_required_member() {
             .any(|related| related.message == "impl member requirement is checked here"),
         "missing impl member should preserve ImplMember cause, got {diagnostic:?}",
     );
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "required role member is declared here"
+            && related.span.is_some()),
+        "missing impl member should point at required role member declaration, got {diagnostic:?}",
+    );
 }
 
 #[test]

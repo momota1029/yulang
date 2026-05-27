@@ -265,19 +265,22 @@ fn lower_impl_body(
             );
         }
     }
-    for required in required_by_name.keys() {
-        if !implemented_names.contains(required) {
-            state.infer.report_synthetic_type_error_with_cause(
-                TypeErrorKind::MissingImplMember {
-                    role: path_string(role),
-                    member: required.0.clone(),
-                },
-                format!("impl {}", path_string(role)),
-                crate::diagnostic::ConstraintCause {
-                    span: Some(impl_span),
-                    reason: ConstraintReason::ImplMember,
-                },
-            );
+    for (required_name, required_info) in &required_by_name {
+        if !implemented_names.contains(required_name) {
+            state
+                .infer
+                .report_synthetic_type_error_with_cause_and_origins(
+                    TypeErrorKind::MissingImplMember {
+                        role: path_string(role),
+                        member: required_name.0.clone(),
+                    },
+                    format!("impl {}", path_string(role)),
+                    crate::diagnostic::ConstraintCause {
+                        span: Some(impl_span),
+                        reason: ConstraintReason::ImplMember,
+                    },
+                    required_member_origins(state, required_info),
+                );
         }
     }
 
@@ -320,6 +323,30 @@ fn lower_impl_body(
     }
     state.ctx.pop_local();
     exported_member_defs
+}
+
+fn required_member_origins(state: &LowerState, required: &RoleMethodInfo) -> Vec<TypeOrigin> {
+    if let Some(span) = state.def_spans.get(&required.def) {
+        return vec![TypeOrigin {
+            span: Some(span.range),
+            file_span: Some(*span),
+            kind: TypeOriginKind::Synthetic,
+            label: Some("required role member is declared here".to_string()),
+        }];
+    }
+
+    required
+        .sig
+        .as_ref()
+        .map(|sig| {
+            vec![TypeOrigin {
+                span: Some(sig.span()),
+                file_span: None,
+                kind: TypeOriginKind::Synthetic,
+                label: Some("required role member is declared here".to_string()),
+            }]
+        })
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone)]

@@ -138,6 +138,12 @@ TODO:
 - member 型 mismatch は solver の `ImplMember` constraint と同じ経路に乗せる。
 - prerequisite missing / ambiguous は impl 本体の型不一致へ潰さない。
 
+2026-05-27 時点で一部完了:
+
+- source role method は `def_span` を記録する。
+- missing required member の synthetic error は、required role member declaration を
+  origin として保持し、`CheckReport.related` に出す。
+
 ## 完了条件
 
 - CLI、LSP、playground が同じ diagnostic code / range / related 情報を読める。
