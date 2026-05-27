@@ -276,6 +276,7 @@ fn lower_case_with_scrutinee(
             let guarded = guard.is_some();
             check_arms.push(CaseArmCheckSite {
                 span: arm.text_range(),
+                file_span: state.current_source_span(arm.text_range()),
                 guarded,
                 patterns: case_arm_patterns(state, &pat),
             });
@@ -338,6 +339,7 @@ fn lower_case_with_scrutinee(
         .collect();
     state.case_check_sites.push(CaseCheckSite {
         span: node.text_range(),
+        file_span: state.current_source_span(node.text_range()),
         arms: check_arms,
     });
 

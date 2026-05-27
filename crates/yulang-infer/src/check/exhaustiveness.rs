@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use rowan::TextRange;
 
-use crate::lower::{CaseArmPattern, CaseCheckSite, LowerState};
+use crate::lower::{CaseArmPattern, CaseCheckSite, FileSpan, LowerState};
 use crate::symbols::{Name, Path};
 
 use super::report::CheckReportBuilder;
@@ -11,10 +11,11 @@ use super::{DiagnosticCode, RelatedDiagnostic};
 pub(crate) fn push_case_exhaustiveness(builder: &mut CheckReportBuilder, state: &LowerState) {
     for site in &state.case_check_sites {
         for diagnostic in unreachable_case_arm_diagnostics(state, site) {
-            builder.push(
+            builder.push_with_file_span(
                 DiagnosticCode::UnreachablePattern,
                 diagnostic.message,
                 Some(diagnostic.span),
+                diagnostic.file_span,
                 diagnostic.related,
             );
         }
@@ -22,10 +23,11 @@ pub(crate) fn push_case_exhaustiveness(builder: &mut CheckReportBuilder, state: 
         let Some(diagnostic) = case_exhaustiveness_diagnostic(state, site) else {
             continue;
         };
-        builder.push(
+        builder.push_with_file_span(
             DiagnosticCode::NonExhaustivePattern,
             diagnostic.message,
             Some(site.span),
+            site.file_span,
             diagnostic.related,
         );
     }
@@ -33,6 +35,7 @@ pub(crate) fn push_case_exhaustiveness(builder: &mut CheckReportBuilder, state: 
 
 struct UnreachableArmDiagnostic {
     span: TextRange,
+    file_span: Option<FileSpan>,
     message: String,
     related: Vec<RelatedDiagnostic>,
 }
@@ -53,6 +56,7 @@ fn unreachable_case_arm_diagnostics(
         if let Some(reason) = covered.unreachable_reason(state, arm) {
             diagnostics.push(UnreachableArmDiagnostic {
                 span: arm.span,
+                file_span: arm.file_span,
                 message: "case arm is unreachable".to_string(),
                 related: reason.related(),
             });
@@ -67,21 +71,27 @@ fn unreachable_case_arm_diagnostics(
 
 #[derive(Default)]
 struct PriorCaseCoverage {
-    covers_all_span: Option<TextRange>,
-    enum_variants: HashMap<Path, HashMap<Name, TextRange>>,
+    covers_all_span: Option<RecordedArmSpan>,
+    enum_variants: HashMap<Path, HashMap<Name, RecordedArmSpan>>,
 }
 
 enum UnreachableReason {
     CoveredByWildcard {
-        span: TextRange,
+        span: RecordedArmSpan,
     },
     CoveredByEnumVariants {
-        spans: Vec<TextRange>,
+        spans: Vec<RecordedArmSpan>,
     },
     CoveredByCompleteEnum {
         enum_path: Path,
-        spans: Vec<TextRange>,
+        spans: Vec<RecordedArmSpan>,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RecordedArmSpan {
+    range: TextRange,
+    file_span: Option<FileSpan>,
 }
 
 impl PriorCaseCoverage {
@@ -121,7 +131,7 @@ impl PriorCaseCoverage {
         for pattern in &arm.patterns {
             match pattern {
                 CaseArmPattern::CoversAll => {
-                    self.covers_all_span.get_or_insert(arm.span);
+                    self.covers_all_span.get_or_insert(recorded_arm_span(arm));
                 }
                 CaseArmPattern::EnumVariant {
                     enum_path,
@@ -132,14 +142,14 @@ impl PriorCaseCoverage {
                         .entry(enum_path.clone())
                         .or_default()
                         .entry(variant.clone())
-                        .or_insert(arm.span);
+                        .or_insert(recorded_arm_span(arm));
                 }
                 CaseArmPattern::EnumVariant { .. } => {}
             }
         }
     }
 
-    fn covered_variant_span(&self, pattern: &CaseArmPattern) -> Option<TextRange> {
+    fn covered_variant_span(&self, pattern: &CaseArmPattern) -> Option<RecordedArmSpan> {
         let CaseArmPattern::EnumVariant {
             enum_path, variant, ..
         } = pattern
@@ -181,15 +191,15 @@ impl UnreachableReason {
         match self {
             UnreachableReason::CoveredByWildcard { span } => vec![RelatedDiagnostic {
                 message: "previous arm covers all remaining inputs".to_string(),
-                span: Some(span),
-                file_span: None,
+                span: Some(span.range),
+                file_span: span.file_span,
             }],
             UnreachableReason::CoveredByEnumVariants { spans } => spans
                 .into_iter()
                 .map(|span| RelatedDiagnostic {
                     message: "previous arm already covers this pattern".to_string(),
-                    span: Some(span),
-                    file_span: None,
+                    span: Some(span.range),
+                    file_span: span.file_span,
                 })
                 .collect(),
             UnreachableReason::CoveredByCompleteEnum { enum_path, spans } => {
@@ -197,8 +207,8 @@ impl UnreachableReason {
                     .into_iter()
                     .map(|span| RelatedDiagnostic {
                         message: "previous arm covers one variant of this enum".to_string(),
-                        span: Some(span),
-                        file_span: None,
+                        span: Some(span.range),
+                        file_span: span.file_span,
                     })
                     .collect::<Vec<_>>();
                 related.push(RelatedDiagnostic {
@@ -212,6 +222,13 @@ impl UnreachableReason {
                 related
             }
         }
+    }
+}
+
+fn recorded_arm_span(arm: &crate::lower::CaseArmCheckSite) -> RecordedArmSpan {
+    RecordedArmSpan {
+        range: arm.span,
+        file_span: arm.file_span,
     }
 }
 
@@ -249,6 +266,7 @@ struct EnumCaseCoverage {
 struct GuardedVariant {
     variant: Name,
     arm_span: TextRange,
+    file_span: Option<FileSpan>,
 }
 
 fn collect_enum_case_coverage(site: &CaseCheckSite) -> Option<EnumCaseCoverage> {
@@ -284,6 +302,7 @@ fn collect_enum_case_coverage(site: &CaseCheckSite) -> Option<EnumCaseCoverage> 
                 guarded.push(GuardedVariant {
                     variant: variant.clone(),
                     arm_span: arm.span,
+                    file_span: arm.file_span,
                 });
             } else if *payload_covers_all {
                 covered.insert(variant.clone());
@@ -318,7 +337,7 @@ fn guarded_variant_related(missing: &[Name], guarded: &[GuardedVariant]) -> Vec<
         .map(|guarded| RelatedDiagnostic {
             message: "guarded arm does not prove this variant is covered".to_string(),
             span: Some(guarded.arm_span),
-            file_span: None,
+            file_span: guarded.file_span,
         })
         .collect()
 }

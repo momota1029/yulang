@@ -30,12 +30,14 @@ pub enum EnumVariantPatternPayload {
 #[derive(Debug, Clone)]
 pub struct CaseCheckSite {
     pub span: rowan::TextRange,
+    pub file_span: Option<crate::lower::state::FileSpan>,
     pub arms: Vec<CaseArmCheckSite>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CaseArmCheckSite {
     pub span: rowan::TextRange,
+    pub file_span: Option<crate::lower::state::FileSpan>,
     pub guarded: bool,
     pub patterns: Vec<CaseArmPattern>,
 }

@@ -831,6 +831,10 @@ impl LowerState {
         })
     }
 
+    pub(crate) fn current_source_span(&self, span: rowan::TextRange) -> Option<FileSpan> {
+        self.recorded_source_span(span)
+    }
+
     pub fn register_lambda_local_defs(&mut self, param_def: DefId, local_defs: Vec<DefId>) {
         self.lambda_local_defs.insert(param_def, local_defs);
     }

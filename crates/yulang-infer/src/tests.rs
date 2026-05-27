@@ -3260,6 +3260,13 @@ fn check_report_case_reports_missing_enum_variant() {
         diagnostic.message.contains("`local_opt::just`"),
         "non-exhaustive diagnostic should name the missing variant, got {diagnostic:?}",
     );
+    assert!(
+        diagnostic
+            .primary
+            .as_ref()
+            .is_some_and(|primary| primary.file_span.is_some()),
+        "non-exhaustive diagnostic should keep a file span, got {diagnostic:?}",
+    );
 }
 
 #[test]
@@ -3358,6 +3365,16 @@ fn check_report_case_reports_arm_after_wildcard_unreachable() {
             .iter()
             .any(|related| related.message == "previous arm covers all remaining inputs"),
         "unreachable arm should point at wildcard coverage, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .primary
+            .as_ref()
+            .is_some_and(|primary| primary.file_span.is_some())
+            && diagnostic.related.iter().any(|related| related.message
+                == "previous arm covers all remaining inputs"
+                && related.file_span.is_some()),
+        "unreachable diagnostic should keep primary and related file spans, got {diagnostic:?}",
     );
 }
 

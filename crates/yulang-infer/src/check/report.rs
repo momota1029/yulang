@@ -107,7 +107,7 @@ impl DiagnosticSpan {
 #[derive(Debug, Default)]
 pub(crate) struct CheckReportBuilder {
     report: CheckReport,
-    seen: BTreeSet<(String, Option<u32>)>,
+    seen: BTreeSet<(String, Option<u32>, Option<u32>)>,
 }
 
 impl CheckReportBuilder {
@@ -118,13 +118,28 @@ impl CheckReportBuilder {
         span: Option<TextRange>,
         related: Vec<RelatedDiagnostic>,
     ) {
-        let key = (message.clone(), span.map(|span| u32::from(span.start())));
+        self.push_with_file_span(code, message, span, None, related);
+    }
+
+    pub(crate) fn push_with_file_span(
+        &mut self,
+        code: DiagnosticCode,
+        message: String,
+        span: Option<TextRange>,
+        file_span: Option<FileSpan>,
+        related: Vec<RelatedDiagnostic>,
+    ) {
+        let key = (
+            message.clone(),
+            span.map(|span| u32::from(span.start())),
+            file_span.map(|span| span.file.0),
+        );
         if self.seen.insert(key) {
             self.report.diagnostics.push(CheckDiagnostic {
                 code,
                 severity: DiagnosticSeverity::Error,
                 message,
-                primary: span.map(DiagnosticSpan::source),
+                primary: span.map(|range| DiagnosticSpan { range, file_span }),
                 related,
             });
         }
