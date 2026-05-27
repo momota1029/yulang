@@ -78,7 +78,6 @@ method signatures.
 sub:
     for x in 0..:
         if x == 5: return x
-        else: ()
     0
 ```
 

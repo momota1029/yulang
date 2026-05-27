@@ -66,7 +66,6 @@ for x in xs:
 sub:
     for x in xs:
         if x == target: return x
-        else: ()
     default
 ```
 

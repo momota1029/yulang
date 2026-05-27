@@ -124,6 +124,5 @@ The type of `run_console` removes the `console` effect from its argument. The ha
 sub:
     for x in 0..:
         if x == 5: return x
-        else: ()
     0
 ```

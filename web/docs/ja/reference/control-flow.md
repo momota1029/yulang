@@ -53,7 +53,6 @@ loop control は prelude から入る。
 ```yulang
 for x in 0..:
     if x == 10: last
-    else: ()
 ```
 
 `last`、`next`、`redo` は、現在の loop から抜ける、次の反復へ進む、反復をやり直すための操作である。
@@ -64,7 +63,6 @@ for x in 0..:
 for 'outer x in 0..:
     for y in 0..:
         if y == 3: last 'outer
-        else: ()
 ```
 
 labelled loop は label 値を body に渡す。`last 'outer`、`next 'outer`、`redo 'outer` は、その label の loop を対象にする。
@@ -75,7 +73,6 @@ labelled loop は label 値を body に渡す。`last 'outer`、`next 'outer`、
 sub:
     for x in 0..:
         if x == 5: return x
-        else: ()
     0
 ```
 

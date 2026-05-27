@@ -1,3 +1,5 @@
+// Define an effect with `act` and handle it with `catch`.
+
 pub act out:
     pub say: str -> ()
 

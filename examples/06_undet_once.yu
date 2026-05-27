@@ -2,7 +2,7 @@
 
 use std::undet::*
 
-{
+once:
     my a = each 1..
     my b = each 1..
     my c = each 1..
@@ -12,4 +12,3 @@ use std::undet::*
     guard: a * a + b * b == c * c
 
     (a, b, c)
-}.once

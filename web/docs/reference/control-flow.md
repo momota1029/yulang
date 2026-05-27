@@ -56,7 +56,6 @@ Loop control comes from the prelude:
 ```yulang
 for x in 0..:
     if x == 10: last
-    else: ()
 ```
 
 `last`, `next`, and `redo` break, skip, or restart the current iteration.
@@ -67,7 +66,6 @@ for x in 0..:
 for 'outer x in 0..:
     for y in 0..:
         if y == 3: last 'outer
-        else: ()
 ```
 
 Labelled loops pass a label value to the body. Prefix forms such as
@@ -79,7 +77,6 @@ Labelled loops pass a label value to the body. Prefix forms such as
 sub:
     for x in 0..:
         if x == 5: return x
-        else: ()
     0
 ```
 
