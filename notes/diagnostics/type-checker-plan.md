@@ -254,17 +254,13 @@ checker の方針:
   check site には残す。
 - unguarded な value wildcard/binding arm 後の value arm と、同じ effect operation の
   unguarded payload-covering arm 後の effect arm は `pattern.unreachable_arm` として報告する。
-- handled catch の型制約は、scrutinee effect を `β`、handler residual tail を `γ`、
-  catch result effect を `ρ` として `β <: [handled; γ]` を基本にする。
-  現行 compact が handled effect の型引数を落とさないよう、`[handled; γ] <: β`
-  の surface witness も同じ handler boundary で保持する。
-- continuation `k` の戻り effect は `β`。そのまま arm body から漏れる場合は branch の
-  effect cast 経由で `β <: ρ` が入る。
-- operation arm が effect family 全体を覆っていない場合も、取り切れない枝として
-  `β <: ρ` を入れる。これにより compact 表示では `[β&[handled;γ]] -> [β,γ]`
-  相当になり、共起分析で必要に応じて `β = γ` へ畳まれる。
-- complete な deep handler は `β` を result 側へ直接混ぜず、result は基本的に `γ`。
-  `γ <: ρ` として through tail を保持し、閉じた入力なら handler match が pure へ落とす。
+- shallow catch / partial effect family の型は暫定実装。破綻は避けているが、
+  期待している compact 表現にはまだ達していない。
+- 目標は、scrutinee effect を `β`、handler residual tail を `γ` として
+  `β <: [handled; γ]` を立て、catch result は基本 `γ`、continuation 起動の漏れや
+  branch 不足のときだけ `β` が result に混ざる形。
+- 現行実装には compact 表示や handled effect の型引数保持のための surface witness が残っている。
+  これは最終仕様として扱わず、次の整理対象にする。
 
 未実装:
 
