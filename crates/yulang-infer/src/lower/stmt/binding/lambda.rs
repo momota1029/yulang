@@ -4,6 +4,7 @@ use super::super::{direct_param_source_eff_tv, lambda_expr_eff_tv};
 use super::arg::{ArgPatInfo, configure_read_effect_from_ann};
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::lower::LowerState;
+use crate::lower::ann::LoweredEffAnn;
 use crate::types::{Neg, Pos};
 
 pub(crate) fn wrap_header_lambdas(
@@ -65,7 +66,7 @@ pub(crate) fn wrap_header_lambdas(
         }
         if matches!(
             arg_pat.ann.as_ref().and_then(|ann| ann.eff.as_ref()),
-            Some(super::super::LoweredEffAnn::Opaque)
+            Some(LoweredEffAnn::Opaque)
         ) {
             let source_eff = direct_param_source_eff_tv(&body, def).unwrap_or(body.eff);
             state
@@ -74,6 +75,14 @@ pub(crate) fn wrap_header_lambdas(
             state
                 .infer
                 .constrain(Pos::Var(arg_eff_tv), Neg::Var(source_eff));
+        }
+        if matches!(
+            arg_pat.ann.as_ref().and_then(|ann| ann.eff.as_ref()),
+            Some(LoweredEffAnn::Row { .. })
+        ) && direct_param_source_eff_tv(&body, def) == Some(body.eff)
+            && !body_is_direct_catch_of_param(&body, def)
+        {
+            state.register_lambda_param_preserve_arg_tail_var(def);
         }
         let ret_eff_tv = if matches!(body.kind, ExprKind::Lam(_, _)) {
             state.fresh_exact_pure_eff_tv()
@@ -106,4 +115,8 @@ pub(crate) fn wrap_header_lambdas(
     });
     state.lower_detail.wrap_header_lambdas += start.elapsed();
     result
+}
+
+fn body_is_direct_catch_of_param(body: &TypedExpr, def: crate::ids::DefId) -> bool {
+    matches!(&body.kind, ExprKind::Catch(comp, _) if matches!(&comp.kind, ExprKind::Var(comp_def) if *comp_def == def))
 }

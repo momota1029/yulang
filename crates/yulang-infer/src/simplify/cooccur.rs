@@ -16,6 +16,7 @@ use crate::types::RecordField;
 use super::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRow, CompactType,
     CompactTypeScheme, CompactVariant, merge_compact_bounds, merge_compact_types,
+    normalize_compact_scheme_rows,
 };
 use super::polar::apply_polar_variable_removal;
 use super::role_constraints::rewrite_role_constraints;
@@ -194,8 +195,10 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         };
 
         if rewritten_scheme == current_scheme && rewritten_constraints == current_constraints {
+            let mut scheme = rewritten_scheme;
+            normalize_compact_scheme_rows(&mut scheme);
             return CoalesceOutput {
-                scheme: rewritten_scheme,
+                scheme,
                 constraints: rewritten_constraints,
                 rounds,
             };

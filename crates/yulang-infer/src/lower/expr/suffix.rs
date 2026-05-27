@@ -2,7 +2,9 @@ use crate::profile::ProfileClock as Instant;
 
 use yulang_parser::lex::SyntaxKind;
 
-use crate::ast::expr::{ExprKind, PolyVariantOrigin, TypedExpr};
+use crate::ast::expr::{
+    CatchArmKind, ExprKind, PolyVariantOrigin, RecordSpread, TypedExpr, TypedStmt,
+};
 use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
@@ -380,6 +382,7 @@ fn push_deferred_selection(
 ) -> TypedExpr {
     let owner = state.current_owner;
     let recv_tv = acc.tv;
+    let recv_eff = selection_receiver_eff(state, &acc);
     if let Some(owner) = owner {
         state.infer.increment_pending_selection(owner);
     }
@@ -392,7 +395,7 @@ fn push_deferred_selection(
         .push(crate::solve::DeferredSelection {
             name: name.clone(),
             module: state.ctx.current_module,
-            recv_eff: acc.eff,
+            recv_eff,
             result_tv: tv,
             result_eff: eff,
             owner,
@@ -403,7 +406,7 @@ fn push_deferred_selection(
             structural_record_allowed,
         });
     if let Some(span) = source_span {
-        state.record_selection_span(span, recv_tv, acc.eff, tv, eff);
+        state.record_selection_span(span, recv_tv, recv_eff, tv, eff);
     }
     TypedExpr {
         tv,
@@ -412,5 +415,110 @@ fn push_deferred_selection(
             recv: Box::new(acc),
             name,
         },
+    }
+}
+
+fn selection_receiver_eff(state: &mut LowerState, recv: &TypedExpr) -> crate::ids::TypeVar {
+    let mut source_effs = Vec::new();
+    collect_receiver_source_effs(state, recv, &mut source_effs);
+    if source_effs.is_empty() {
+        return recv.eff;
+    }
+    let eff = state.fresh_tv();
+    state.infer.constrain(Pos::Var(recv.eff), Neg::Var(eff));
+    for source_eff in source_effs {
+        state.infer.constrain(Pos::Var(source_eff), Neg::Var(eff));
+    }
+    eff
+}
+
+fn collect_receiver_source_effs(
+    state: &LowerState,
+    expr: &TypedExpr,
+    out: &mut Vec<crate::ids::TypeVar>,
+) {
+    match &expr.kind {
+        ExprKind::Var(def) => {
+            if let Some(source_eff) = state.lambda_param_source_eff_tvs.get(def).copied()
+                && !out.contains(&source_eff)
+            {
+                out.push(source_eff);
+            }
+        }
+        ExprKind::BindHere(expr) | ExprKind::Coerce { expr, .. } => {
+            collect_receiver_source_effs(state, expr, out);
+        }
+        ExprKind::App { callee, arg, .. } => {
+            collect_receiver_source_effs(state, callee, out);
+            collect_receiver_source_effs(state, arg, out);
+        }
+        ExprKind::RefSet { reference, value } => {
+            collect_receiver_source_effs(state, reference, out);
+            collect_receiver_source_effs(state, value, out);
+        }
+        ExprKind::Tuple(items) | ExprKind::PolyVariant(_, items, _) => {
+            for item in items {
+                collect_receiver_source_effs(state, item, out);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for (_, field) in fields {
+                collect_receiver_source_effs(state, field, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                        collect_receiver_source_effs(state, expr, out);
+                    }
+                }
+            }
+        }
+        ExprKind::Select { recv, .. } => {
+            collect_receiver_source_effs(state, recv, out);
+        }
+        ExprKind::Match(scrutinee, arms) => {
+            collect_receiver_source_effs(state, scrutinee, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_receiver_source_effs(state, guard, out);
+                }
+                collect_receiver_source_effs(state, &arm.body, out);
+            }
+        }
+        ExprKind::Catch(comp, arms) => {
+            collect_receiver_source_effs(state, comp, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_receiver_source_effs(state, guard, out);
+                }
+                match &arm.kind {
+                    CatchArmKind::Value(_, body) | CatchArmKind::Effect { body, .. } => {
+                        collect_receiver_source_effs(state, body, out);
+                    }
+                }
+            }
+        }
+        ExprKind::Block(block) => {
+            for stmt in &block.stmts {
+                match stmt {
+                    TypedStmt::Let(_, expr) | TypedStmt::Expr(expr) => {
+                        collect_receiver_source_effs(state, expr, out);
+                    }
+                    TypedStmt::Module(_, block) => {
+                        if let Some(tail) = &block.tail {
+                            collect_receiver_source_effs(state, tail, out);
+                        }
+                    }
+                }
+            }
+            if let Some(tail) = &block.tail {
+                collect_receiver_source_effs(state, tail, out);
+            }
+        }
+        ExprKind::Lit(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Ref(_)
+        | ExprKind::Lam(_, _)
+        | ExprKind::PackForall(_, _) => {}
     }
 }

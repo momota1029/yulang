@@ -65,9 +65,6 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
         },
         ExprKind::RefSet { reference, value } => direct_param_source_eff_tv(reference, param_def)
             .or_else(|| direct_param_source_eff_tv(value, param_def)),
-        ExprKind::Catch(comp, _) if matches!(&comp.kind, ExprKind::Var(def) if *def == param_def) => {
-            Some(comp.eff)
-        }
         ExprKind::Catch(comp, arms) => direct_param_source_eff_tv(comp, param_def).or_else(|| {
             arms.iter().find_map(|arm| {
                 arm.guard

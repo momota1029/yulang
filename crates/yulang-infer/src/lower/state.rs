@@ -124,6 +124,13 @@ pub struct LowerState {
     /// DefId → 参照時に露出する latent effect slot。
     /// annotation 付き引数のように、変数参照が effect を運ぶ場合にだけ設定する。
     pub def_eff_tvs: HashMap<DefId, TypeVar>,
+    /// lambda/header parameter DefId → 引数スロットが要求する元の effect。
+    /// 通常の変数参照は `def_eff_tvs` を使うが、catch の scrutinee は
+    /// 注釈で明示された handled effect も見ないと差し引きができない。
+    pub lambda_param_source_eff_tvs: HashMap<DefId, TypeVar>,
+    /// residual が関数結果へ漏れる row 注釈つき lambda/header parameter。
+    /// compact 表現では、この場合だけ引数 effect の row tail を負位置の交差にも残す。
+    pub lambda_param_preserve_arg_tail_vars: HashSet<DefId>,
     /// `$x` 用の local ref DefId → 対応する synthetic act 名。
     pub var_ref_acts: HashMap<DefId, crate::symbols::Name>,
     /// var binding における `#x` (init) ↔ `&x` (reference) の DefId 対応。
@@ -241,6 +248,8 @@ impl LowerState {
             next_expected_adapter_edge_id: 0,
             type_var_scopes: Vec::new(),
             def_eff_tvs: HashMap::new(),
+            lambda_param_source_eff_tvs: HashMap::new(),
+            lambda_param_preserve_arg_tail_vars: HashSet::new(),
             var_ref_acts: HashMap::new(),
             var_init_to_ref: HashMap::new(),
             var_ref_to_init: HashMap::new(),
@@ -935,6 +944,14 @@ impl LowerState {
 
     pub fn register_def_eff_tv(&mut self, def: DefId, eff_tv: TypeVar) {
         self.def_eff_tvs.insert(def, eff_tv);
+    }
+
+    pub fn register_lambda_param_source_eff_tv(&mut self, def: DefId, eff_tv: TypeVar) {
+        self.lambda_param_source_eff_tvs.insert(def, eff_tv);
+    }
+
+    pub fn register_lambda_param_preserve_arg_tail_var(&mut self, def: DefId) {
+        self.lambda_param_preserve_arg_tail_vars.insert(def);
     }
 
     pub fn fresh_pure_eff_tv(&mut self) -> TypeVar {

@@ -11,7 +11,9 @@ use crate::scc::{
     share_type_vars_within_sccs_with_refs_by_owner,
 };
 use crate::scheme::compact_pos_type;
-use crate::simplify::compact::{CompactType, CompactTypeScheme};
+use crate::simplify::compact::{
+    CompactType, CompactTypeScheme, preserve_fun_arg_effect_row_tail_vars,
+};
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::types::Neg;
@@ -140,7 +142,13 @@ impl LowerState {
     }
 
     pub fn compact_scheme_of(&self, def: DefId) -> Option<CompactTypeScheme> {
-        self.infer.compact_schemes.borrow().get(&def).cloned()
+        let mut scheme = self.infer.compact_schemes.borrow().get(&def).cloned()?;
+        if self.def_owners.iter().any(|(param, owner)| {
+            *owner == def && self.lambda_param_preserve_arg_tail_vars.contains(param)
+        }) {
+            preserve_fun_arg_effect_row_tail_vars(&mut scheme);
+        }
+        Some(scheme)
     }
 
     fn resolve_concrete_role_constraints_for_defs(&mut self, defs: &[DefId]) {

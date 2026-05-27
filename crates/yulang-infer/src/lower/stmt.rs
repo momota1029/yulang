@@ -6,7 +6,7 @@
 //! - モジュールテーブル登録・DefId/TypeVar 発行・SCC 登録
 use yulang_parser::lex::SyntaxKind;
 
-use super::ann::{LoweredEffAnn, configure_arg_effect_from_ann};
+use super::ann::configure_arg_effect_from_ann;
 use super::{LowerState, SyntaxNode};
 use crate::ast::expr::TypedBlock;
 use crate::symbols::Path;

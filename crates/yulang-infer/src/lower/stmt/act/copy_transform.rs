@@ -209,6 +209,23 @@ fn transform_copied_expr_kind(
                     .lambda_param_function_allowed_effects
                     .insert(copied_def, allowed);
             }
+            if let Some(source_eff) = types.state.lambda_param_source_eff_tvs.get(def).copied() {
+                let copied_source_eff = types.copy_tv(source_eff);
+                types
+                    .state
+                    .lambda_param_source_eff_tvs
+                    .insert(copied_def, copied_source_eff);
+            }
+            if types
+                .state
+                .lambda_param_preserve_arg_tail_vars
+                .contains(def)
+            {
+                types
+                    .state
+                    .lambda_param_preserve_arg_tail_vars
+                    .insert(copied_def);
+            }
             let mut local_defs = vec![*def];
             local_defs.extend(source_local_defs);
             let previous = types.enter_local_defs(local_defs.as_slice());
@@ -697,6 +714,21 @@ impl<'a> CopiedTypeVars<'a> {
         if let Some(eff) = self.state.def_eff_tvs.get(&def).copied() {
             let copied_eff = self.copy_tv(eff);
             self.state.def_eff_tvs.insert(copied, copied_eff);
+        }
+        if let Some(source_eff) = self.state.lambda_param_source_eff_tvs.get(&def).copied() {
+            let copied_source_eff = self.copy_tv(source_eff);
+            self.state
+                .lambda_param_source_eff_tvs
+                .insert(copied, copied_source_eff);
+        }
+        if self
+            .state
+            .lambda_param_preserve_arg_tail_vars
+            .contains(&def)
+        {
+            self.state
+                .lambda_param_preserve_arg_tail_vars
+                .insert(copied);
         }
         if self.state.let_bound_defs.contains(&def) {
             self.state.let_bound_defs.insert(copied);

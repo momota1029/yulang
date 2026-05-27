@@ -624,8 +624,9 @@ fn lower_junction_condition(state: &mut LowerState, cond: TypedExpr) -> TypedExp
     let Some(def) = state.ctx.resolve_path_value(&junction_path) else {
         return cond;
     };
+    let residual_eff = cond.eff;
     let junction = resolve_bound_def_expr(state, def);
-    make_app_with_cause(
+    let handled = make_app_with_cause(
         state,
         junction,
         cond,
@@ -633,7 +634,11 @@ fn lower_junction_condition(state: &mut LowerState, cond: TypedExpr) -> TypedExp
             span: None,
             reason: ConstraintReason::IfCondition,
         },
-    )
+    );
+    state
+        .infer
+        .constrain(Pos::Var(residual_eff), Neg::Var(handled.eff));
+    handled
 }
 
 fn fresh_exact_bool_tv(state: &mut LowerState, cause: &ConstraintCause) -> TypeVar {

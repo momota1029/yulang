@@ -821,6 +821,136 @@ pub(crate) fn subst_lookup_small(subst: &[(TypeVar, TypeVar)], tv: TypeVar) -> T
         .unwrap_or(tv)
 }
 
+pub(crate) fn normalize_compact_scheme_rows(scheme: &mut CompactTypeScheme) {
+    normalize_compact_bounds_rows(&mut scheme.cty);
+    for bounds in scheme.rec_vars.values_mut() {
+        normalize_compact_bounds_rows(bounds);
+    }
+}
+
+pub(crate) fn preserve_fun_arg_effect_row_tail_vars(scheme: &mut CompactTypeScheme) {
+    preserve_fun_arg_effect_row_tail_vars_in_type(&mut scheme.cty.lower);
+    preserve_fun_arg_effect_row_tail_vars_in_type(&mut scheme.cty.upper);
+    for bounds in scheme.rec_vars.values_mut() {
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut bounds.lower);
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut bounds.upper);
+    }
+}
+
+fn normalize_compact_bounds_rows(bounds: &mut CompactBounds) {
+    normalize_compact_type_rows(&mut bounds.lower, true);
+    normalize_compact_type_rows(&mut bounds.upper, false);
+}
+
+fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            normalize_compact_bounds_rows(arg);
+        }
+    }
+    for fun in &mut ty.funs {
+        normalize_compact_type_rows(&mut fun.arg, !positive);
+        normalize_compact_type_rows(&mut fun.arg_eff, !positive);
+        normalize_compact_type_rows(&mut fun.ret_eff, positive);
+        normalize_compact_type_rows(&mut fun.ret, positive);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            normalize_compact_type_rows(&mut field.value, positive);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            normalize_compact_type_rows(&mut field.value, positive);
+        }
+        normalize_compact_type_rows(&mut spread.tail, positive);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                normalize_compact_type_rows(payload, positive);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            normalize_compact_type_rows(item, positive);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            normalize_compact_type_rows(item, positive);
+        }
+        normalize_compact_type_rows(&mut row.tail, positive);
+        let tail = std::mem::take(&mut *row.tail);
+        match into_single_row(tail) {
+            Ok(tail_row) => {
+                row.items.extend(tail_row.items);
+                row.tail = tail_row.tail;
+            }
+            Err(tail) => {
+                *row.tail = tail;
+            }
+        }
+        row.items = merge_same_effect_items(positive, std::mem::take(&mut row.items));
+    }
+}
+
+fn preserve_fun_arg_effect_row_tail_vars_in_type(ty: &mut CompactType) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            preserve_fun_arg_effect_row_tail_vars_in_type(&mut arg.lower);
+            preserve_fun_arg_effect_row_tail_vars_in_type(&mut arg.upper);
+        }
+    }
+    for fun in &mut ty.funs {
+        add_row_tail_vars_to_compact_type(&mut fun.arg_eff);
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.arg);
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.arg_eff);
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.ret_eff);
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.ret);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            preserve_fun_arg_effect_row_tail_vars_in_type(&mut field.value);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            preserve_fun_arg_effect_row_tail_vars_in_type(&mut field.value);
+        }
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut spread.tail);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                preserve_fun_arg_effect_row_tail_vars_in_type(payload);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            preserve_fun_arg_effect_row_tail_vars_in_type(item);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            preserve_fun_arg_effect_row_tail_vars_in_type(item);
+        }
+        preserve_fun_arg_effect_row_tail_vars_in_type(&mut row.tail);
+    }
+}
+
+fn add_row_tail_vars_to_compact_type(ty: &mut CompactType) {
+    let tail_vars = ty
+        .rows
+        .iter()
+        .filter_map(|row| compact_var_set(&row.tail))
+        .flatten()
+        .collect::<Vec<_>>();
+    ty.vars.extend(tail_vars);
+}
+
 pub(crate) fn single_substituted_compact_var(
     ty: &CompactType,
     subst: &[(TypeVar, TypeVar)],
@@ -929,14 +1059,79 @@ impl CompactType {
     }
 
     fn from_row_with_polarity(positive: bool, items: Vec<CompactType>, tail: CompactType) -> Self {
+        let (items, tail) = flatten_row_tail(positive, items, tail);
         Self {
             rows: vec![CompactRow {
-                items: merge_same_effect_items(positive, items),
+                items,
                 tail: Box::new(tail),
             }],
             ..Self::default()
         }
     }
+}
+
+fn flatten_row_tail(
+    positive: bool,
+    items: Vec<CompactType>,
+    tail: CompactType,
+) -> (Vec<CompactType>, CompactType) {
+    match into_single_row(tail) {
+        Ok(row) => {
+            let items = items.into_iter().chain(row.items).collect();
+            (merge_same_effect_items(positive, items), *row.tail)
+        }
+        Err(tail) => (merge_same_effect_items(positive, items), tail),
+    }
+}
+
+fn into_single_row(ty: CompactType) -> Result<CompactRow, CompactType> {
+    let CompactType {
+        vars,
+        prims,
+        cons,
+        funs,
+        records,
+        record_spreads,
+        variants,
+        tuples,
+        mut rows,
+    } = ty;
+    if vars.is_empty()
+        && prims.is_empty()
+        && cons.is_empty()
+        && funs.is_empty()
+        && records.is_empty()
+        && record_spreads.is_empty()
+        && variants.is_empty()
+        && tuples.is_empty()
+        && rows.len() == 1
+    {
+        Ok(rows.remove(0))
+    } else {
+        Err(CompactType {
+            vars,
+            prims,
+            cons,
+            funs,
+            records,
+            record_spreads,
+            variants,
+            tuples,
+            rows,
+        })
+    }
+}
+
+fn compact_var_set(ty: &CompactType) -> Option<std::collections::HashSet<TypeVar>> {
+    (ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty())
+    .then(|| ty.vars.clone())
 }
 
 fn merge_cons(positive: bool, lhs: Vec<CompactCon>, rhs: Vec<CompactCon>) -> Vec<CompactCon> {
@@ -1120,8 +1315,7 @@ fn merge_same_effect_items(positive: bool, items: Vec<CompactType>) -> Vec<Compa
 }
 
 fn single_effect_item_key(item: &CompactType) -> Option<(Path, usize)> {
-    if !item.vars.is_empty()
-        || !item.funs.is_empty()
+    if !item.funs.is_empty()
         || !item.records.is_empty()
         || !item.record_spreads.is_empty()
         || !item.variants.is_empty()

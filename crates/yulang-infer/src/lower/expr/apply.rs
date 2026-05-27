@@ -58,7 +58,7 @@ pub(crate) fn make_app_with_cause(
     let arg_eff_for_slot = if pure_argument_slot || anf_arg {
         state.fresh_exact_pure_eff_tv()
     } else {
-        arg.eff
+        argument_effect_for_slot(state, &arg)
     };
     let mut demanded_ret_eff = Neg::Var(call_eff);
     if let ExprKind::Var(def) = &func.kind {
@@ -198,6 +198,16 @@ pub(crate) fn make_app_with_cause(
     };
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn argument_effect_for_slot(state: &mut LowerState, arg: &TypedExpr) -> TypeVar {
+    let ExprKind::Var(def) = &arg.kind else {
+        return arg.eff;
+    };
+    let Some(source_eff) = state.lambda_param_source_eff_tvs.get(def).copied() else {
+        return arg.eff;
+    };
+    source_eff
 }
 
 fn report_extra_struct_literal_fields(state: &LowerState, func: &TypedExpr, arg: &TypedExpr) {

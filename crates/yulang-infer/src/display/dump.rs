@@ -1708,7 +1708,7 @@ mod tests {
             .expect("g should be rendered");
 
         assert_eq!(f.1, "α [β] -> [β] α");
-        assert_eq!(g.1, "α [io; β] -> [io; β] α");
+        assert_eq!(g.1, "α [β & [io; β]] -> [β] α");
     }
 
     #[test]
@@ -1815,7 +1815,7 @@ mod tests {
             .expect("k should be rendered");
 
         assert_eq!(h.1, "α [io; β] -> [io; β] α");
-        assert_eq!(k.1, "α [io; β] -> [io; β] α");
+        assert_eq!(k.1, "α [β & [io; β]] -> [β] α");
     }
 
     #[test]
@@ -1833,7 +1833,7 @@ mod tests {
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
 
-        assert_eq!(shallow_det.1, "α [undet; β] -> [undet; β] α");
+        assert_eq!(shallow_det.1, "α [β & [undet; β]] -> [β] α");
     }
 
     #[test]
@@ -1851,7 +1851,7 @@ mod tests {
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
 
-        assert_eq!(shallow_det.1, "α [undet; β] -> [undet; β] α");
+        assert_eq!(shallow_det.1, "α [β & [undet; β]] -> [β] α");
     }
 
     #[test]

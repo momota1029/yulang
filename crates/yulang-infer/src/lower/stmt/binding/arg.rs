@@ -7,7 +7,7 @@ use crate::ids::DefId;
 use crate::lower::ann::{LoweredEffAnn, LoweredPatAnn, fresh_arg_effect_tv, lower_pat_ann};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
-use crate::types::Neg;
+use crate::types::{Neg, Pos};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ArgPatInfo {
@@ -62,6 +62,12 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             let ann = lower_pat_ann(state, &param_pat);
             let hint = super::super::connect_pattern_sig_annotation(state, &param_pat, tv, None);
             let arg_eff_tv = fresh_arg_effect_tv(state, ann.as_ref());
+            if matches!(
+                ann.as_ref().and_then(|ann| ann.eff.as_ref()),
+                Some(LoweredEffAnn::Row { .. })
+            ) {
+                state.register_lambda_param_source_eff_tv(def, arg_eff_tv);
+            }
             let read_eff_tv = ann.as_ref().map(|ann| match ann.eff {
                 Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => state
                     .fresh_tv_with_origin(TypeOrigin {
@@ -167,9 +173,15 @@ pub(crate) fn configure_read_effect_from_ann(
         Some(LoweredEffAnn::Opaque) => {
             state.infer.mark_through(read_eff_tv);
         }
-        Some(LoweredEffAnn::Row { lower, .. }) => {
-            state.infer.constrain(lower, Neg::Var(read_eff_tv));
-        }
+        Some(LoweredEffAnn::Row { lower, upper, .. }) => match (lower, upper) {
+            (Pos::Row(_, lower_tail), Neg::Row(_, upper_tail)) => {
+                state.infer.constrain(lower_tail, Neg::Var(read_eff_tv));
+                state.infer.constrain(Pos::Var(read_eff_tv), upper_tail);
+            }
+            (lower, _) => {
+                state.infer.constrain(lower, Neg::Var(read_eff_tv));
+            }
+        },
         _ => {}
     }
 }

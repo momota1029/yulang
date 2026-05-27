@@ -85,13 +85,18 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
     let result = (|| {
         let tv = state.fresh_tv();
         let eff = state.fresh_tv();
+        let comp_handler_eff = catch_comp_handler_eff_tv(state, &comp);
 
         let mut lowered_arms: Vec<LoweredCatchArm> = catch_arm_nodes(node)
             .into_iter()
             .map(|arm_node| {
-                let arm = lower_catch_arm(state, &arm_node, (comp.tv, comp.eff));
-                let check = catch_arm_check_site(state, &arm_node, &arm);
-                LoweredCatchArm { arm, check }
+                let raw = lower_catch_arm(state, &arm_node, (comp.tv, comp.eff));
+                let check = catch_arm_check_site(state, &arm_node, &raw.arm);
+                LoweredCatchArm {
+                    arm: raw.arm,
+                    check,
+                    guard_eff: raw.guard_eff,
+                }
             })
             .collect();
 
@@ -105,6 +110,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             HashMap<crate::ids::TypeVar, crate::ids::TypeVar>,
         > = HashMap::new();
         for lowered in &mut lowered_arms {
+            let guard_eff = lowered.guard_eff;
             match &mut lowered.arm.kind {
                 CatchArmKind::Value(pat, body) => {
                     lowered.check.active = true;
@@ -129,6 +135,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         tv,
                         eff,
                     );
+                    if let Some(guard_eff) = guard_eff {
+                        state.infer.constrain(Pos::Var(guard_eff), Neg::Var(eff));
+                    }
                     state.infer.constrain(Pos::Var(comp.tv), Neg::Var(pat.tv));
                 }
                 CatchArmKind::Effect {
@@ -164,9 +173,13 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     };
                     let handled_op = Neg::Atom(handled_atom.clone());
                     if arm_is_active {
-                        constrain_existing_comp_effect_atoms(state, comp.eff, &handled_atom);
+                        constrain_existing_comp_effect_atoms(
+                            state,
+                            comp_handler_eff,
+                            &handled_atom,
+                        );
                         handled_ops.push(handled_op.clone());
-                        handled_pos_ops.push(Pos::Atom(handled_atom));
+                        handled_pos_ops.push(Pos::Atom(handled_atom.clone()));
                         handled_effect_paths.push(effect_path.clone());
                         let covers_operation =
                             catch_arm_fully_covers_effect_operation(&lowered.check);
@@ -237,6 +250,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     }
 
                     let original_body = body.clone();
+                    if arm_is_active && effect_tv_flows_to(state, comp.eff, original_body.eff) {
+                        record_comp_arg_tail_var_preserve(state, &comp);
+                    }
                     let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
                         original_body.clone(),
                         tv,
@@ -256,6 +272,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         tv,
                         eff,
                     );
+                    if let Some(guard_eff) = guard_eff {
+                        state.infer.constrain(Pos::Var(guard_eff), Neg::Var(eff));
+                    }
                 }
             }
         }
@@ -285,7 +304,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         }
 
         if !handled_ops.is_empty() {
-            record_handler_body_boundary_keep(state, &comp);
+            record_handler_body_boundary_keep(state, &comp, comp_handler_eff);
         }
 
         let complete_effect_paths =
@@ -293,6 +312,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         let has_incomplete_effect_path = handled_effect_paths
             .iter()
             .any(|path| !complete_effect_paths.contains(path));
+        if has_incomplete_effect_path {
+            record_comp_arg_tail_var_preserve(state, &comp);
+        }
 
         if handled_ops.is_empty() {
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
@@ -306,7 +328,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 .map(|op| state.infer.alloc_neg(op))
                 .collect();
             state.infer.record_handler_match(
-                comp.eff,
+                comp_handler_eff,
                 handled,
                 rest_eff,
                 ConstraintCause {
@@ -314,21 +336,32 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     reason: ConstraintReason::CatchBranch,
                 },
             );
-            let visible =
-                visible_handler_surface_ops(state, comp.eff, &handled_pos_ops, &handled_ops);
+            let visible = visible_handler_surface_ops(
+                state,
+                comp_handler_eff,
+                &handled_pos_ops,
+                &handled_ops,
+            );
             if !visible.neg.is_empty() {
                 state.infer.constrain(
                     state.pos_row(visible.pos, Pos::Var(rest_eff)),
-                    Neg::Var(comp.eff),
+                    Neg::Var(comp_handler_eff),
                 );
                 state.infer.constrain(
-                    Pos::Var(comp.eff),
+                    Pos::Var(comp_handler_eff),
                     state.neg_row(visible.neg, Neg::Var(rest_eff)),
                 );
             }
+            state.infer.constrain(
+                Pos::Var(comp.eff),
+                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
+            );
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
             if has_incomplete_effect_path {
                 state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
+                state
+                    .infer
+                    .constrain(Pos::Var(comp_handler_eff), Neg::Var(eff));
             }
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
@@ -340,7 +373,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 .map(|op| state.infer.alloc_neg(op))
                 .collect();
             state.infer.record_handler_match(
-                comp.eff,
+                comp_handler_eff,
                 handled,
                 rest_eff,
                 ConstraintCause {
@@ -348,21 +381,32 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     reason: ConstraintReason::CatchBranch,
                 },
             );
-            let visible =
-                visible_handler_surface_ops(state, comp.eff, &handled_pos_ops, &handled_ops);
+            let visible = visible_handler_surface_ops(
+                state,
+                comp_handler_eff,
+                &handled_pos_ops,
+                &handled_ops,
+            );
             if !visible.neg.is_empty() {
                 state.infer.constrain(
                     state.pos_row(visible.pos, Pos::Var(rest_eff)),
-                    Neg::Var(comp.eff),
+                    Neg::Var(comp_handler_eff),
                 );
                 state.infer.constrain(
-                    Pos::Var(comp.eff),
+                    Pos::Var(comp_handler_eff),
                     state.neg_row(visible.neg, Neg::Var(rest_eff)),
                 );
             }
+            state.infer.constrain(
+                Pos::Var(comp.eff),
+                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
+            );
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
             if has_incomplete_effect_path {
                 state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
+                state
+                    .infer
+                    .constrain(Pos::Var(comp_handler_eff), Neg::Var(eff));
             }
         }
 
@@ -379,6 +423,12 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
 struct LoweredCatchArm {
     arm: TypedCatchArm,
     check: CatchArmCheckSite,
+    guard_eff: Option<crate::ids::TypeVar>,
+}
+
+struct RawLoweredCatchArm {
+    arm: TypedCatchArm,
+    guard_eff: Option<crate::ids::TypeVar>,
 }
 
 fn catch_arm_nodes(node: &SyntaxNode) -> Vec<SyntaxNode> {
@@ -480,6 +530,85 @@ fn pattern_covers_all(pat: &crate::ast::expr::TypedPat) -> bool {
         | PatKind::List { .. }
         | PatKind::Record { .. }
         | PatKind::PolyVariant(_, _) => false,
+    }
+}
+
+fn catch_comp_handler_eff_tv(state: &LowerState, comp: &TypedExpr) -> crate::ids::TypeVar {
+    match &comp.kind {
+        ExprKind::Var(def) => state
+            .lambda_param_source_eff_tvs
+            .get(def)
+            .copied()
+            .unwrap_or(comp.eff),
+        _ => comp.eff,
+    }
+}
+
+fn record_comp_arg_tail_var_preserve(state: &mut LowerState, comp: &TypedExpr) {
+    let ExprKind::Var(def) = &comp.kind else {
+        return;
+    };
+    if state.lambda_param_source_eff_tvs.contains_key(def) {
+        state.register_lambda_param_preserve_arg_tail_var(*def);
+    }
+}
+
+fn effect_tv_flows_to(
+    state: &LowerState,
+    source: crate::ids::TypeVar,
+    target: crate::ids::TypeVar,
+) -> bool {
+    if source == target {
+        return true;
+    }
+    let mut seen_tvs = HashSet::new();
+    let mut seen_pos = HashSet::new();
+    effect_tv_flows_to_inner(state, source, target, &mut seen_tvs, &mut seen_pos)
+}
+
+fn effect_tv_flows_to_inner(
+    state: &LowerState,
+    source: crate::ids::TypeVar,
+    target: crate::ids::TypeVar,
+    seen_tvs: &mut HashSet<crate::ids::TypeVar>,
+    seen_pos: &mut HashSet<crate::ids::PosId>,
+) -> bool {
+    if source == target {
+        return true;
+    }
+    if !seen_tvs.insert(target) {
+        return false;
+    }
+    state
+        .infer
+        .lower_refs_of(target)
+        .into_iter()
+        .any(|lower| effect_pos_contains_tv(state, source, lower, seen_tvs, seen_pos))
+}
+
+fn effect_pos_contains_tv(
+    state: &LowerState,
+    source: crate::ids::TypeVar,
+    pos: crate::ids::PosId,
+    seen_tvs: &mut HashSet<crate::ids::TypeVar>,
+    seen_pos: &mut HashSet<crate::ids::PosId>,
+) -> bool {
+    if !seen_pos.insert(pos) {
+        return false;
+    }
+    match state.infer.arena.get_pos(pos) {
+        Pos::Var(tv) | Pos::Raw(tv) => {
+            source == tv || effect_tv_flows_to_inner(state, source, tv, seen_tvs, seen_pos)
+        }
+        Pos::Row(items, tail) => items
+            .into_iter()
+            .chain(std::iter::once(tail))
+            .any(|item| effect_pos_contains_tv(state, source, item, seen_tvs, seen_pos)),
+        Pos::Union(lhs, rhs) => {
+            effect_pos_contains_tv(state, source, lhs, seen_tvs, seen_pos)
+                || effect_pos_contains_tv(state, source, rhs, seen_tvs, seen_pos)
+        }
+        _ => false,
     }
 }
 
@@ -617,11 +746,15 @@ fn visible_handler_surface_ops(
     }
 }
 
-fn record_handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) {
+fn record_handler_body_boundary_keep(
+    state: &LowerState,
+    comp: &TypedExpr,
+    comp_eff: crate::ids::TypeVar,
+) {
     let Some(keep) = handler_body_boundary_keep(state, comp) else {
         return;
     };
-    state.infer.record_effect_boundary_keep(comp.eff, keep);
+    state.infer.record_effect_boundary_keep(comp_eff, keep);
 }
 
 fn handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) -> Option<ShiftKeep> {
@@ -1180,7 +1313,7 @@ fn lower_catch_arm(
     state: &mut LowerState,
     node: &SyntaxNode,
     _resume_result: (crate::ids::TypeVar, crate::ids::TypeVar),
-) -> crate::ast::expr::TypedCatchArm {
+) -> RawLoweredCatchArm {
     use crate::ast::expr::{PatKind, TypedPat};
     let start = Instant::now();
 
@@ -1200,6 +1333,7 @@ fn lower_catch_arm(
 
     state.ctx.push_local();
     let mut guard;
+    let mut guard_eff = None;
     let kind = if pats.len() >= 2 {
         let op_pat = pats[0].clone();
         let k_pat = pats[1].clone();
@@ -1241,12 +1375,14 @@ fn lower_catch_arm(
                 reason: ConstraintReason::CatchGuard,
             };
             let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
+            let expected_guard_eff = state.fresh_tv();
+            guard_eff = Some(expected_guard_eff);
             guard = Some(
                 state
                     .implicit_cast_boundary_with_effects(
                         guard_expr,
                         expected_bool_tv,
-                        body.eff,
+                        expected_guard_eff,
                         ExpectedEdgeKind::CatchGuard,
                         cause,
                         false,
@@ -1292,12 +1428,14 @@ fn lower_catch_arm(
                 reason: ConstraintReason::CatchGuard,
             };
             let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
+            let expected_guard_eff = state.fresh_tv();
+            guard_eff = Some(expected_guard_eff);
             guard = Some(
                 state
                     .implicit_cast_boundary_with_effects(
                         guard_expr,
                         expected_bool_tv,
-                        body.eff,
+                        expected_guard_eff,
                         ExpectedEdgeKind::CatchGuard,
                         cause,
                         false,
@@ -1310,7 +1448,10 @@ fn lower_catch_arm(
         CatchArmKind::Value(pat, body)
     };
     state.ctx.pop_local();
-    let result = TypedCatchArm { tv, guard, kind };
+    let result = RawLoweredCatchArm {
+        arm: TypedCatchArm { tv, guard, kind },
+        guard_eff,
+    };
     state.lower_detail.lower_catch_arm += start.elapsed();
     result
 }
