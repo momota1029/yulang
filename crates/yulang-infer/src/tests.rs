@@ -3077,6 +3077,45 @@ fn surface_type_mismatch_reports_expected_found_and_origins() {
 }
 
 #[test]
+fn check_report_adapter_preserves_surface_diagnostic_shape() {
+    let lowered = lower_virtual_source_with_options(
+        "my value: int = true\nvalue\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let surface = collect_surface_diagnostics(&lowered.state);
+    assert_eq!(report.diagnostics.len(), surface.len());
+
+    let check = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message == "expected int, found bool")
+        .unwrap_or_else(|| {
+            panic!(
+                "expected concrete type mismatch check diagnostic, got {:?}",
+                report.diagnostics
+            )
+        });
+    let surface = surface
+        .iter()
+        .find(|diagnostic| diagnostic.message == check.message)
+        .unwrap_or_else(|| {
+            panic!("expected surface diagnostic converted from check report, got {surface:?}")
+        });
+
+    assert_eq!(check.code, DiagnosticCode::TypeMismatch);
+    assert_eq!(check.severity, DiagnosticSeverity::Error);
+    assert_eq!(
+        surface.span,
+        check.primary.as_ref().map(|primary| primary.range)
+    );
+    assert_eq!(surface.related.len(), check.related.len());
+}
+
+#[test]
 fn source_record_field_selection_final_fallback_introduces_record_requirement() {
     let lowered = lower_virtual_source_with_options(
         "my get_y p = p.y\nget_y {x: 3, y: 4}\n",

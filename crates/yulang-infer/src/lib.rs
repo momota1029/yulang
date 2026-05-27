@@ -1,5 +1,6 @@
 pub mod artifact_cache;
 pub mod ast;
+pub mod check;
 pub mod diagnostic;
 pub mod display;
 pub mod export;
@@ -24,6 +25,10 @@ pub use artifact_cache::{
 };
 pub use ast::{
     ExprKind, Lit, TypedBlock, TypedCatchArm, TypedExpr, TypedMatchArm, TypedPat, TypedStmt,
+};
+pub use check::{
+    CheckDiagnostic, CheckReport, DiagnosticCode, DiagnosticSeverity, DiagnosticSpan,
+    RelatedDiagnostic, check_lowered, collect_check_type_errors,
 };
 pub use diagnostic::{
     ConstraintCause, ConstraintReason, ExpectedAdapterEdge, ExpectedAdapterEdgeId,
