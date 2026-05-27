@@ -269,31 +269,41 @@ impl LowerState {
                             Some(RoleCandidatePrerequisiteStatus::MissingImpl {
                                 role: prerequisite_role,
                                 args: prerequisite_args,
-                            }) => self.infer.report_synthetic_type_error(
-                                TypeErrorKind::MissingImplPrerequisite {
-                                    role,
-                                    args: rendered_args,
-                                    prerequisite_role,
-                                    prerequisite_args,
-                                },
-                                format!("def {}", def.0),
-                            ),
+                                origins,
+                            }) => self
+                                .infer
+                                .report_synthetic_type_error_with_cause_and_origins(
+                                    TypeErrorKind::MissingImplPrerequisite {
+                                        role,
+                                        args: rendered_args,
+                                        prerequisite_role,
+                                        prerequisite_args,
+                                    },
+                                    format!("def {}", def.0),
+                                    crate::diagnostic::ConstraintCause::unknown(),
+                                    origins,
+                                ),
                             Some(RoleCandidatePrerequisiteStatus::AmbiguousImpl {
                                 role: prerequisite_role,
                                 args: prerequisite_args,
                                 candidates,
                                 previews,
-                            }) => self.infer.report_synthetic_type_error(
-                                TypeErrorKind::AmbiguousImplPrerequisite {
-                                    role,
-                                    args: rendered_args,
-                                    prerequisite_role,
-                                    prerequisite_args,
-                                    candidates,
-                                    previews,
-                                },
-                                format!("def {}", def.0),
-                            ),
+                                origins,
+                            }) => self
+                                .infer
+                                .report_synthetic_type_error_with_cause_and_origins(
+                                    TypeErrorKind::AmbiguousImplPrerequisite {
+                                        role,
+                                        args: rendered_args,
+                                        prerequisite_role,
+                                        prerequisite_args,
+                                        candidates,
+                                        previews,
+                                    },
+                                    format!("def {}", def.0),
+                                    crate::diagnostic::ConstraintCause::unknown(),
+                                    origins,
+                                ),
                             _ => self.infer.report_synthetic_type_error(
                                 TypeErrorKind::MissingImpl {
                                     role,

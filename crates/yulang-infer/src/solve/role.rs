@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::diagnostic::TypeOrigin;
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::simplify::compact::CompactType;
 use crate::simplify::cooccur::CompactRoleConstraint;
@@ -56,4 +57,5 @@ pub struct RoleImplCandidate {
     pub compact_args: Vec<CompactType>,
     pub prerequisites: Vec<CompactRoleConstraint>,
     pub member_defs: HashMap<Name, DefId>,
+    pub origins: Vec<TypeOrigin>,
 }

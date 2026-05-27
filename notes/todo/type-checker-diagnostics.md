@@ -148,6 +148,8 @@ TODO:
   保持し、`CheckReport.related` に出す。
 - impl member type mismatch は lowering 中の check site と `ImplMember` cause を
   対応付け、role declaration と required role member declaration を related に出す。
+- missing / ambiguous prerequisite は、失敗した source impl candidate の宣言 span を
+  origin として保持し、`CheckReport.related` に出す。
 
 ## 完了条件
 

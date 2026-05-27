@@ -77,6 +77,7 @@ pub(crate) fn lower_synthetic_error_throw(
         compact_args,
         prerequisites,
         member_defs: HashMap::from([(throw_name, method_def)]),
+        origins: impl_candidate_origins(state, error_sig.span()),
     });
 }
 

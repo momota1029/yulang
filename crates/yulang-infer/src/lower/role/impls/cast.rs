@@ -93,6 +93,7 @@ pub(crate) fn lower_cast_decl(state: &mut LowerState, node: &SyntaxNode) {
         compact_args,
         prerequisites,
         member_defs: HashMap::from([(cast_name, method_def)]),
+        origins: impl_candidate_origins(state, node.text_range()),
     });
 }
 
@@ -163,6 +164,7 @@ pub(crate) fn lower_synthetic_variant_cast(
         compact_args,
         prerequisites,
         member_defs: HashMap::from([(cast_name, method_def)]),
+        origins: impl_candidate_origins(state, source_sig.span()),
     });
 }
 

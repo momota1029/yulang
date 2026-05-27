@@ -2152,6 +2152,24 @@ fn impl_body_where_filters_out_candidate_when_prerequisite_impl_is_missing() {
         )),
         "candidate with unsatisfied prerequisite should be filtered out, got {errors:?}",
     );
+
+    let report = check_lowered(&state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::MissingImplPrerequisite)
+        .unwrap_or_else(|| {
+            panic!(
+                "missing prerequisite should produce structured diagnostic, got {:?}",
+                report.diagnostics
+            )
+        });
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "impl candidate is declared here"
+            && related.span.is_some()),
+        "missing prerequisite should point at candidate impl declaration, got {diagnostic:?}",
+    );
 }
 
 #[test]

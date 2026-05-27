@@ -129,6 +129,7 @@ fn lower_impl_decl_with_receiver(
         compact_args,
         prerequisites,
         member_defs,
+        origins: impl_candidate_origins(state, node.text_range()),
     });
 }
 

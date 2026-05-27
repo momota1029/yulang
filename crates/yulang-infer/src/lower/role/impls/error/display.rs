@@ -70,6 +70,7 @@ pub(crate) fn lower_synthetic_error_display(
         compact_args,
         prerequisites,
         member_defs: HashMap::from([(show_name, method_def)]),
+        origins: impl_candidate_origins(state, error_sig.span()),
     });
 }
 

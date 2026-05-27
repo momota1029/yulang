@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::diagnostic::TypeOrigin;
 use crate::ids::TypeVar;
 use crate::lower::builtin_types::{
     join_primitive_type_paths, primitive_numeric_type_family, primitive_type_family,
@@ -594,12 +595,14 @@ enum RoleCandidatePrerequisiteStatus {
     MissingImpl {
         role: String,
         args: Vec<String>,
+        origins: Vec<TypeOrigin>,
     },
     AmbiguousImpl {
         role: String,
         args: Vec<String>,
         candidates: usize,
         previews: Vec<String>,
+        origins: Vec<TypeOrigin>,
     },
     Unresolved,
 }
@@ -709,6 +712,7 @@ fn role_candidate_prerequisite_status(
                         return RoleCandidatePrerequisiteStatus::MissingImpl {
                             role: path_string(&constraint.role),
                             args: rendered_args,
+                            origins: candidate.origins.clone(),
                         };
                     };
                     return match role_candidate_prerequisite_status(
@@ -717,23 +721,32 @@ fn role_candidate_prerequisite_status(
                         &local_subst,
                         stack,
                     ) {
-                        RoleCandidatePrerequisiteStatus::MissingImpl { role, args } => {
-                            RoleCandidatePrerequisiteStatus::MissingImpl { role, args }
-                        }
+                        RoleCandidatePrerequisiteStatus::MissingImpl {
+                            role,
+                            args,
+                            origins,
+                        } => RoleCandidatePrerequisiteStatus::MissingImpl {
+                            role,
+                            args,
+                            origins,
+                        },
                         RoleCandidatePrerequisiteStatus::AmbiguousImpl {
                             role,
                             args,
                             candidates,
                             previews,
+                            origins,
                         } => RoleCandidatePrerequisiteStatus::AmbiguousImpl {
                             role,
                             args,
                             candidates,
                             previews,
+                            origins,
                         },
                         _ => RoleCandidatePrerequisiteStatus::MissingImpl {
                             role: path_string(&constraint.role),
                             args: rendered_args,
+                            origins: candidate.origins.clone(),
                         },
                     };
                 }
@@ -741,6 +754,7 @@ fn role_candidate_prerequisite_status(
                     RoleCandidatePrerequisiteStatus::MissingImpl {
                         role: path_string(&constraint.role),
                         args: rendered_args,
+                        origins: candidate.origins.clone(),
                     }
                 } else {
                     RoleCandidatePrerequisiteStatus::AmbiguousImpl {
@@ -748,6 +762,7 @@ fn role_candidate_prerequisite_status(
                         args: rendered_args,
                         candidates: matches.len(),
                         previews: role_candidate_previews(matches),
+                        origins: candidate.origins.clone(),
                     }
                 };
             }

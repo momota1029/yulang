@@ -1561,6 +1561,7 @@ fn import_compiled_typed_lookup_tables(
                 compact_args: role_impl.compact_args.clone(),
                 prerequisites: role_impl.prerequisites.clone(),
                 member_defs,
+                origins: Vec::new(),
             });
     }
 

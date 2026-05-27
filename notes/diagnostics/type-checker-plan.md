@@ -315,6 +315,8 @@ checker の責務:
   持ち、`CheckReport.related` に出す。
 - impl member type mismatch は lowering 中の check site と `ImplMember` cause を
   対応付け、role declaration と required role member declaration を related に出す。
+- missing / ambiguous prerequisite は、失敗した source impl candidate の宣言 span を
+  origin として持ち、`CheckReport.related` に出す。
 
 テスト観点:
 

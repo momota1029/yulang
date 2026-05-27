@@ -136,6 +136,15 @@ fn canonical_role_path(state: &LowerState, path: &Path) -> Path {
     state.ctx.canonical_current_type_path(path)
 }
 
+fn impl_candidate_origins(state: &LowerState, span: rowan::TextRange) -> Vec<TypeOrigin> {
+    vec![TypeOrigin {
+        span: Some(span),
+        file_span: state.current_source_span(span),
+        kind: TypeOriginKind::Synthetic,
+        label: Some("impl candidate is declared here".to_string()),
+    }]
+}
+
 fn compact_impl_arg_pattern(
     state: &mut LowerState,
     sig: &SigType,
