@@ -3116,6 +3116,76 @@ fn check_report_adapter_preserves_surface_diagnostic_shape() {
 }
 
 #[test]
+fn check_report_type_mismatch_includes_expected_edge_context() {
+    let lowered = lower_virtual_source_with_options(
+        "my value: int = true\nvalue\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message == "expected int, found bool")
+        .unwrap_or_else(|| {
+            panic!(
+                "expected concrete type mismatch check diagnostic, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "type annotation compares expression actual type with annotation type"),
+        "type mismatch should report expected-edge context, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "expression actual type comes from here"),
+        "type mismatch should report actual edge origin, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "annotation type comes from here"),
+        "type mismatch should report expected edge origin, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_application_argument_context_uses_expected_edge() {
+    let lowered = lower_virtual_source_with_options(
+        "my take_int(x: int) = x\ntake_int true\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message == "expected int, found bool")
+        .unwrap_or_else(|| {
+            panic!(
+                "expected application argument type mismatch, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.related.iter().any(|related| related.message
+            == "function argument compares argument actual type with parameter type"),
+        "application mismatch should report application argument edge, got {diagnostic:?}",
+    );
+}
+
+#[test]
 fn source_record_field_selection_final_fallback_introduces_record_requirement() {
     let lowered = lower_virtual_source_with_options(
         "my get_y p = p.y\nget_y {x: 3, y: 4}\n",
