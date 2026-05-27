@@ -23,6 +23,18 @@
 - `my a = 1 2` のような最小失敗例で、primary range と related range を固定する。
 - playground の blank / missing diagnostic regression を小さい fixture で追う。
 
+## Detailed type checker
+
+Simple-sub、`case` / `catch`、role / impl conformance をまとめて扱う計画は
+次に置く。
+
+- TODO: `type-checker-diagnostics.md`
+- 設計: `../diagnostics/type-checker-plan.md`
+
+この作業では、推論器を別実装に置き換えず、solver / lowering が持つ構造化された
+型・制約・origin・expected edge・role fact を `CheckReport` へ集める。
+CLI / LSP / playground はその report を読む。
+
 ## Diagnostics
 
 ユーザー向け diagnostics は、compiler / runtime の内部実装詳細ではなく、

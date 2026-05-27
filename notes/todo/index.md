@@ -11,6 +11,8 @@
    - parser / type / runtime error の位置と原因を分かるようにする。
    - expected / actual の出自を source range と related information で出す。
    - playground / CLI / LSP が同じ診断情報を共有する。
+   - 詳細な型チェッカー計画は `type-checker-diagnostics.md` と
+     `../diagnostics/type-checker-plan.md` に置く。
 2. `language-server.md`
    - LSP の diagnostics、hover、related information、型表示を安定させる。
    - `.list` などの巨大型や内部 evidence が hover に漏れないようにする。
@@ -47,9 +49,10 @@
 
 1. LSP に出るエラーの range / related information / hover を実用水準にする。
 2. 型エラーの expected / actual それぞれに出自を持たせる。
-3. hover の型表示を public projection として安定させる。
-4. compiled-unit cache / control VM artifact の現状を docs と internal notes で揃える。
-5. 上の作業を支える fixture と README / docs を足す。
+3. Simple-sub / `case` / `catch` / role impl の診断を `CheckReport` として共有する。
+4. hover の型表示を public projection として安定させる。
+5. compiled-unit cache / control VM artifact の現状を docs と internal notes で揃える。
+6. 上の作業を支える fixture と README / docs を足す。
 
 ## 運用ルール
 
