@@ -1,5 +1,5 @@
 use crate::ids::{NegId, PosId, TypeVar};
-use crate::symbols::Path;
+use crate::symbols::{Name, Path};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FunctionSigEffectHint {
@@ -25,6 +25,25 @@ pub enum EnumVariantPatternPayload {
         type_params: Vec<yulang_typed_ir::TypeVar>,
         payload: Option<yulang_typed_ir::Type>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct CaseCheckSite {
+    pub span: rowan::TextRange,
+    pub arms: Vec<CaseArmCheckSite>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CaseArmCheckSite {
+    pub span: rowan::TextRange,
+    pub guarded: bool,
+    pub patterns: Vec<CaseArmPattern>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CaseArmPattern {
+    EnumVariant { enum_path: Path, variant: Name },
+    CoversAll,
 }
 
 #[derive(Debug, Clone, Copy)]

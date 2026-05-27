@@ -34,16 +34,22 @@ pub(crate) fn lower_enum_decl(state: &mut LowerState, node: &SyntaxNode) {
 
     let saved = state.ctx.enter_module(name);
     state.mark_companion_module(state.ctx.current_module);
+    let mut variant_names = Vec::new();
     for variant in super::super::child_nodes(node, SyntaxKind::EnumVariant) {
-        lower_enum_variant(
+        if let Some(variant_name) = lower_enum_variant(
             state,
             &variant,
             &enum_path,
             &type_param_names,
             &type_scope,
             &type_arg_tvs,
-        );
+        ) {
+            variant_names.push(variant_name);
+        }
     }
+    state
+        .enum_variants_by_enum_path
+        .insert(enum_path.clone(), variant_names);
     super::super::lower_type_with_bindings(state, node, &enum_path, &type_param_names);
     state.ctx.leave_module(saved);
 }
@@ -55,9 +61,9 @@ fn lower_enum_variant(
     type_param_names: &[String],
     type_scope: &HashMap<String, TypeVar>,
     type_arg_tvs: &[TypeVar],
-) {
+) -> Option<Name> {
     let Some(variant_name) = super::super::ident_name(variant_node) else {
-        return;
+        return None;
     };
 
     let ctor_def = state.fresh_def();
@@ -153,6 +159,8 @@ fn lower_enum_variant(
             );
         }
     }
+
+    Some(variant_name)
 }
 
 pub(crate) fn enum_variant_payload_sig(

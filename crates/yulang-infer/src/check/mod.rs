@@ -1,3 +1,4 @@
+mod exhaustiveness;
 mod report;
 mod type_mismatch;
 
@@ -10,6 +11,7 @@ pub use type_mismatch::collect_check_type_errors;
 use crate::lower::LowerState;
 use crate::symbols::Path;
 
+use exhaustiveness::push_case_exhaustiveness;
 use report::CheckReportBuilder;
 use type_mismatch::push_type_error;
 
@@ -51,6 +53,8 @@ pub fn check_lowered(state: &LowerState) -> CheckReport {
     for error in collect_check_type_errors(state) {
         push_type_error(&mut builder, state, &error);
     }
+
+    push_case_exhaustiveness(&mut builder, state);
 
     builder.finish()
 }

@@ -5,10 +5,11 @@ use super::{
     neg_id_is_pure_row, neg_prim_type, pos_id_is_empty_row, prim_type, resolve_bound_def_expr,
     unit_expr,
 };
-use crate::ast::expr::{ExprKind, TypedBlock, TypedExpr, TypedStmt};
+use crate::ast::expr::{ExprKind, PatKind, TypedBlock, TypedExpr, TypedPat, TypedStmt};
 use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::TypeVar;
 use crate::lower::stmt::{bind_pattern_locals, connect_pat_shape_and_locals};
+use crate::lower::{CaseArmCheckSite, CaseArmPattern, CaseCheckSite};
 use crate::symbols::{Name, Path};
 use crate::types::{Neg, Pos};
 
@@ -253,12 +254,9 @@ fn lower_case_with_scrutinee(
         .infer
         .constrain(Pos::Var(scrutinee.eff), Neg::Var(eff));
 
-    let arm_nodes: Vec<_> = node
-        .children()
-        .filter(|c| c.kind() == SyntaxKind::CaseBlock)
-        .flat_map(|b| collect_child_arms(&b, SyntaxKind::CaseArm))
-        .collect();
+    let arm_nodes = case_arm_nodes(node);
     let mut first_branch = true;
+    let mut check_arms = Vec::new();
     let arms: Vec<crate::ast::expr::TypedMatchArm> = arm_nodes
         .into_iter()
         .filter_map(|arm| {
@@ -275,6 +273,12 @@ fn lower_case_with_scrutinee(
             bind_pattern_locals(state, &pat_node);
             let pat = crate::lower::stmt::lower_pat(state, &pat_node);
             let mut guard = lower_arm_guard(state, &arm);
+            let guarded = guard.is_some();
+            check_arms.push(CaseArmCheckSite {
+                span: arm.text_range(),
+                guarded,
+                patterns: case_arm_patterns(state, &pat),
+            });
             if let Some(guard_expr) = guard.take() {
                 let cause = ConstraintCause {
                     span: Some(arm.text_range()),
@@ -332,11 +336,59 @@ fn lower_case_with_scrutinee(
             Some(crate::ast::expr::TypedMatchArm { pat, guard, body })
         })
         .collect();
+    state.case_check_sites.push(CaseCheckSite {
+        span: node.text_range(),
+        arms: check_arms,
+    });
 
     TypedExpr {
         tv,
         eff,
         kind: ExprKind::Match(Box::new(scrutinee), arms),
+    }
+}
+
+fn case_arm_nodes(node: &SyntaxNode) -> Vec<SyntaxNode> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::CaseBlock)
+        .flat_map(|block| collect_child_arms(&block, SyntaxKind::CaseArm))
+        .collect()
+}
+
+fn case_arm_patterns(state: &LowerState, pat: &TypedPat) -> Vec<CaseArmPattern> {
+    let mut out = Vec::new();
+    collect_case_arm_patterns(state, pat, &mut out);
+    out
+}
+
+fn collect_case_arm_patterns(state: &LowerState, pat: &TypedPat, out: &mut Vec<CaseArmPattern>) {
+    match &pat.kind {
+        PatKind::Wild | PatKind::UnresolvedName(_) => out.push(CaseArmPattern::CoversAll),
+        PatKind::As(inner, _) => collect_case_arm_patterns(state, inner, out),
+        PatKind::Or(left, right) => {
+            collect_case_arm_patterns(state, left, out);
+            collect_case_arm_patterns(state, right, out);
+        }
+        PatKind::Con(ref_id, _) => {
+            let Some(resolved) = state.ctx.refs.resolved().get(ref_id) else {
+                return;
+            };
+            let Some(shape) = state.enum_variant_patterns.get(&resolved.def_id) else {
+                return;
+            };
+            let Some(variant) = state.enum_variant_tags.get(&resolved.def_id) else {
+                return;
+            };
+            out.push(CaseArmPattern::EnumVariant {
+                enum_path: shape.enum_path.clone(),
+                variant: variant.clone(),
+            });
+        }
+        PatKind::Lit(_)
+        | PatKind::Tuple(_)
+        | PatKind::List { .. }
+        | PatKind::Record { .. }
+        | PatKind::PolyVariant(_, _) => {}
     }
 }
 

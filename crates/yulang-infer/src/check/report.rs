@@ -35,6 +35,7 @@ pub enum DiagnosticCode {
     MissingImplPrerequisite,
     AmbiguousImplPrerequisite,
     AmbiguousEffectMethod,
+    NonExhaustivePattern,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -87,6 +88,7 @@ impl DiagnosticCode {
             DiagnosticCode::MissingImplPrerequisite => "role.impl.missing_prerequisite",
             DiagnosticCode::AmbiguousImplPrerequisite => "role.impl.ambiguous_prerequisite",
             DiagnosticCode::AmbiguousEffectMethod => "effect.method.ambiguous",
+            DiagnosticCode::NonExhaustivePattern => "pattern.non_exhaustive",
         }
     }
 }

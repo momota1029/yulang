@@ -1481,13 +1481,20 @@ fn import_enum_variant_pattern_shape(
     def: crate::ids::DefId,
     variant: &StdInferSnapshotEnumVariant,
 ) {
-    state
-        .enum_variant_tags
-        .insert(def, Name(variant.tag.clone()));
+    let enum_path = path_from_snapshot_segments(&variant.enum_path);
+    let tag = Name(variant.tag.clone());
+    state.enum_variant_tags.insert(def, tag.clone());
+    let enum_variants = state
+        .enum_variants_by_enum_path
+        .entry(enum_path.clone())
+        .or_default();
+    if !enum_variants.contains(&tag) {
+        enum_variants.push(tag.clone());
+    }
     state.enum_variant_patterns.insert(
         def,
         crate::lower::EnumVariantPatternShape {
-            enum_path: path_from_snapshot_segments(&variant.enum_path),
+            enum_path,
             payload: EnumVariantPatternPayload::Imported {
                 type_params: variant.type_params.clone(),
                 payload: variant.payload.clone(),

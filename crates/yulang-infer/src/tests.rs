@@ -3232,6 +3232,101 @@ fn check_report_application_argument_context_uses_expected_edge() {
 }
 
 #[test]
+fn check_report_case_reports_missing_enum_variant() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  local_opt::nil -> 0\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::NonExhaustivePattern)
+        .unwrap_or_else(|| {
+            panic!(
+                "missing enum variant should produce non-exhaustive diagnostic, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.message.contains("`local_opt::just`"),
+        "non-exhaustive diagnostic should name the missing variant, got {diagnostic:?}",
+    );
+}
+
+#[test]
+fn check_report_case_wildcard_covers_enum_variants() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  local_opt::nil -> 0\n",
+            "  _ -> 1\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == DiagnosticCode::NonExhaustivePattern),
+        "wildcard arm should make enum case exhaustive, got {:?}",
+        report.diagnostics,
+    );
+}
+
+#[test]
+fn check_report_case_guarded_variant_does_not_prove_coverage() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum local_opt 'a = nil | just 'a\n",
+            "my picked value = case value:\n",
+            "  local_opt::nil -> 0\n",
+            "  local_opt::just n if true -> n\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == DiagnosticCode::NonExhaustivePattern)
+        .unwrap_or_else(|| {
+            panic!(
+                "guarded enum arm should still leave the variant missing, got {:?}",
+                report.diagnostics
+            )
+        });
+
+    assert!(
+        diagnostic.message.contains("`local_opt::just`"),
+        "guarded missing variant should be named, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "guarded arm does not prove this variant is covered"),
+        "guarded missing variant should point at the guarded arm, got {diagnostic:?}",
+    );
+}
+
+#[test]
 fn source_record_field_selection_final_fallback_introduces_record_requirement() {
     let lowered = lower_virtual_source_with_options(
         "my get_y p = p.y\nget_y {x: 3, y: 4}\n",

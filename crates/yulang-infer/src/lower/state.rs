@@ -34,7 +34,7 @@ pub struct FileSpan {
 }
 
 use super::{
-    ActiveRecursiveSelfInstance, EnumVariantPatternShape, FunctionSigEffectHint,
+    ActiveRecursiveSelfInstance, CaseCheckSite, EnumVariantPatternShape, FunctionSigEffectHint,
     LowerDetailProfile, SyntaxNode,
 };
 
@@ -163,6 +163,10 @@ pub struct LowerState {
     pub enum_variant_tags: HashMap<DefId, Name>,
     /// enum variant constructor DefId → pattern 用の nominal shape。
     pub enum_variant_patterns: HashMap<DefId, EnumVariantPatternShape>,
+    /// enum path → その enum が宣言した variant 一覧。
+    pub enum_variants_by_enum_path: HashMap<Path, Vec<Name>>,
+    /// `case` の網羅性検査用に、lowering 中に構造化して残す site。
+    pub case_check_sites: Vec<CaseCheckSite>,
     /// 後解決された RefId のうち、frozen scheme の参照インスタンス化まで済ませたもの。
     instantiated_resolved_refs: HashSet<RefId>,
     force_local_bindings_depth: u32,
@@ -246,6 +250,8 @@ impl LowerState {
             companion_modules: HashSet::new(),
             enum_variant_tags: HashMap::new(),
             enum_variant_patterns: HashMap::new(),
+            enum_variants_by_enum_path: HashMap::new(),
+            case_check_sites: Vec::new(),
             instantiated_resolved_refs: HashSet::new(),
             force_local_bindings_depth: 0,
             suppress_top_level_expr_owners_depth: 0,
