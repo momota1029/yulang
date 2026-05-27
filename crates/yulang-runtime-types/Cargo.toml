@@ -6,8 +6,7 @@ license = "MIT OR Apache-2.0"
 description = "Runtime type representation and type-system helpers for Yulang."
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
-publish = false
 
 [dependencies]
-yulang-typed-ir = { path = "../yulang-typed-ir" }
-yulang-runtime-ir = { path = "../yulang-runtime-ir" }
+yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
+yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }

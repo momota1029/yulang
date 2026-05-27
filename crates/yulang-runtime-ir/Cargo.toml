@@ -6,7 +6,6 @@ license = "MIT OR Apache-2.0"
 description = "Runtime IR data structures for Yulang"
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
-publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -6,19 +6,18 @@ license = "MIT OR Apache-2.0"
 description = "Monomorphization (type graph finalization) pass for Yulang"
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
-publish = false
 
 [dependencies]
 postcard = { version = "1", features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }
-yulang-runtime-ir = { path = "../yulang-runtime-ir" }
-yulang-runtime-refine = { path = "../yulang-runtime-refine" }
-yulang-runtime-types = { path = "../yulang-runtime-types" }
-yulang-runtime-lower = { path = "../yulang-runtime-lower" }
-yulang-sources = { version = "0.1.3", path = "../yulang-sources" }
+yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
+yulang-runtime-refine = { version = "0.1.0", path = "../yulang-runtime-refine" }
+yulang-runtime-types = { version = "0.1.0", path = "../yulang-runtime-types" }
+yulang-runtime-lower = { version = "0.1.1", path = "../yulang-runtime-lower" }
+yulang-sources = { version = "0.1.4", path = "../yulang-sources" }
 yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
 
 [dev-dependencies]
-yulang-compile = { path = "../yulang-compile" }
-yulang-infer = { path = "../yulang-infer" }
-yulang-vm = { path = "../yulang-vm" }
+yulang-compile = { version = "0.1.0", path = "../yulang-compile" }
+yulang-infer = { version = "0.1.3", path = "../yulang-infer" }
+yulang-vm = { version = "0.1.0", path = "../yulang-vm" }

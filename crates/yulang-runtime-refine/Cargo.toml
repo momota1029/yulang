@@ -6,9 +6,8 @@ license = "MIT OR Apache-2.0"
 description = "Runtime type refinement, validation, invariant checks, and hygiene printing for Yulang."
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
-publish = false
 
 [dependencies]
-yulang-runtime-ir = { path = "../yulang-runtime-ir" }
-yulang-runtime-types = { path = "../yulang-runtime-types" }
-yulang-typed-ir = { path = "../yulang-typed-ir" }
+yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
+yulang-runtime-types = { version = "0.1.0", path = "../yulang-runtime-types" }
+yulang-typed-ir = { version = "0.1.2", path = "../yulang-typed-ir" }
