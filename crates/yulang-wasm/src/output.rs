@@ -81,6 +81,16 @@ pub struct TypeResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct Diagnostic {
     pub severity: DiagnosticSeverity,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    pub message: String,
+    pub start: usize,
+    pub end: usize,
+    pub related: Vec<DiagnosticRelated>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DiagnosticRelated {
     pub message: String,
     pub start: usize,
     pub end: usize,
@@ -90,9 +100,11 @@ impl Diagnostic {
     pub fn error(message: impl Into<String>, source_len: usize) -> Self {
         Self {
             severity: DiagnosticSeverity::Error,
+            code: None,
             message: message.into(),
             start: 0,
             end: source_len,
+            related: Vec::new(),
         }
     }
 }

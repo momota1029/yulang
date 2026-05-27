@@ -121,7 +121,9 @@ related information を組み立てる。
 
 - `CheckReport` から `SurfaceDiagnostic` へ落とす adapter は、message / span /
   related に加えて code / severity / primary file span を保持する。
-- LSP は code を `diagnostic.code`、source を `yulang` として返す。
+- LSP は code を `diagnostic.code`、source を `yulang` として返し、
+  `SurfaceDiagnostic.related` を `relatedInformation` へ変換する。
+- playground / wasm は `code` と `related` を JSON payload として返す。
 - CLI は当面 `SurfaceDiagnostic` の message / span 表示を使い続ける。
 
 ## Simple-sub 詳細診断

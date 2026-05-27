@@ -4,10 +4,10 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
-    SourceLowerCache, build_compiled_unit_artifacts, build_std_core_snapshot_data,
-    build_std_infer_snapshot_data, collect_surface_diagnostics, export_core_program,
-    export_core_program_for_binding_paths, import_std_infer_snapshot_data, lower_source_set,
-    lower_source_set_with_std_cache_profiled,
+    SourceLowerCache, SurfaceDiagnostic, build_compiled_unit_artifacts,
+    build_std_core_snapshot_data, build_std_infer_snapshot_data, collect_surface_diagnostics,
+    export_core_program, export_core_program_for_binding_paths, import_std_infer_snapshot_data,
+    lower_source_set, lower_source_set_with_std_cache_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_and_cached_files_profiled,
     warm_std_source_cache,
 };
@@ -245,7 +245,7 @@ fn warm_std_cache_inner() -> WarmupOutput {
 fn run_inner(source: &str) -> RunOutput {
     match compile_and_run(source) {
         Ok(output) => compile_run_output(source, output),
-        Err(message) => compile_run_error(source, message),
+        Err(diagnostics) => compile_run_error(diagnostics),
     }
 }
 
@@ -260,15 +260,19 @@ fn compile_run_output(_source: &str, output: CompileRunOutput) -> RunOutput {
     }
 }
 
-fn compile_run_error(source: &str, message: String) -> RunOutput {
+fn compile_run_error(diagnostics: Vec<Diagnostic>) -> RunOutput {
     RunOutput {
         ok: false,
         results: Vec::new(),
         stdout: String::new(),
         types: Vec::new(),
         timings: None,
-        diagnostics: vec![Diagnostic::error(message, source.len())],
+        diagnostics,
     }
+}
+
+fn error_diagnostics(message: impl Into<String>, source_len: usize) -> Vec<Diagnostic> {
+    vec![Diagnostic::error(message, source_len)]
 }
 
 struct CompileRunOutput {
@@ -278,7 +282,7 @@ struct CompileRunOutput {
     timings: RunTimings,
 }
 
-fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
+fn compile_and_run(source: &str) -> Result<CompileRunOutput, Vec<Diagnostic>> {
     let use_compiled_std_surface =
         std::env::var_os("YULANG_WASM_DISABLE_COMPILED_STD_SURFACE").is_none();
     compile_and_run_with_embedded_std(
@@ -293,7 +297,7 @@ fn compile_and_run_with_embedded_std(
     source: &str,
     use_embedded_std: bool,
     forced_fallback_reason: Option<String>,
-) -> Result<CompileRunOutput, String> {
+) -> Result<CompileRunOutput, Vec<Diagnostic>> {
     let total_start = now_ms();
     let raw_source = source;
     let source = playground_source(raw_source);
@@ -301,7 +305,7 @@ fn compile_and_run_with_embedded_std(
     let source_set = std_sources::source_set(&source);
     let source_set_ms = elapsed_ms(source_set_start);
     if let Some(diagnostic) = invalid_source_diagnostic(&source_set, raw_source.len()) {
-        return Err(diagnostic.message);
+        return Err(vec![diagnostic]);
     }
     let files = source_set.files.len();
     let entry_files = source_set.entry_files().count();
@@ -341,11 +345,7 @@ fn compile_and_run_with_embedded_std(
     let surface_diagnostics = collect_surface_diagnostics(&lowered.state);
     let diagnostics_ms = elapsed_ms(diagnostics_start);
     if !surface_diagnostics.is_empty() {
-        let message = surface_diagnostics
-            .into_iter()
-            .map(|diagnostic| diagnostic.message)
-            .collect::<Vec<_>>()
-            .join("\n");
+        let message = surface_diagnostics_message(&surface_diagnostics);
         if use_embedded_std && compiled_std_runtime.is_some() {
             return compile_and_run_with_embedded_std(
                 raw_source,
@@ -353,7 +353,11 @@ fn compile_and_run_with_embedded_std(
                 Some(format!("embedded std artifact diagnostics: {message}")),
             );
         }
-        return Err(message);
+        return Err(surface_diagnostics_to_output(
+            &lowered.state,
+            raw_source.len(),
+            surface_diagnostics,
+        ));
     }
     let export_core_start = now_ms();
     let mut program = export_core_program(&mut lowered.state);
@@ -367,7 +371,12 @@ fn compile_and_run_with_embedded_std(
                     Some(format!("merge embedded std runtime surfaces: {error:?}")),
                 );
             }
-            Err(error) => return Err(format!("merge embedded std runtime surfaces: {error:?}")),
+            Err(error) => {
+                return Err(error_diagnostics(
+                    format!("merge embedded std runtime surfaces: {error:?}"),
+                    raw_source.len(),
+                ));
+            }
         };
     }
     let export_core_ms = elapsed_ms(export_core_start);
@@ -381,7 +390,7 @@ fn compile_and_run_with_embedded_std(
                 Some(format!("lower embedded std runtime program: {error}")),
             );
         }
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return Err(error_diagnostics(error.to_string(), raw_source.len())),
     };
     let runtime_lower_ms = elapsed_ms(runtime_lower_start);
     let monomorphize_start = now_ms();
@@ -396,7 +405,7 @@ fn compile_and_run_with_embedded_std(
                 )),
             );
         }
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return Err(error_diagnostics(error.to_string(), raw_source.len())),
     };
     let monomorphize_ms = elapsed_ms(monomorphize_start);
     let vm_compile_start = now_ms();
@@ -409,7 +418,7 @@ fn compile_and_run_with_embedded_std(
                 Some(format!("compile embedded std runtime program: {error}")),
             );
         }
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return Err(error_diagnostics(error.to_string(), raw_source.len())),
     };
     let vm_compile_ms = elapsed_ms(vm_compile_start);
     let vm_eval_start = now_ms();
@@ -487,8 +496,111 @@ fn compile_and_run_with_embedded_std(
                 Some(format!("eval embedded std runtime program: {error}")),
             )
         }
-        Err(error) => Err(error.to_string()),
+        Err(error) => Err(error_diagnostics(error.to_string(), raw_source.len())),
     }
+}
+
+fn surface_diagnostics_message(diagnostics: &[SurfaceDiagnostic]) -> String {
+    diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.clone())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn surface_diagnostics_to_output(
+    state: &yulang_infer::LowerState,
+    raw_source_len: usize,
+    diagnostics: Vec<SurfaceDiagnostic>,
+) -> Vec<Diagnostic> {
+    diagnostics
+        .into_iter()
+        .map(|diagnostic| surface_diagnostic_to_output(state, raw_source_len, diagnostic))
+        .collect()
+}
+
+fn surface_diagnostic_to_output(
+    state: &yulang_infer::LowerState,
+    raw_source_len: usize,
+    diagnostic: SurfaceDiagnostic,
+) -> Diagnostic {
+    let (start, end) = surface_offsets_in_playground_source(
+        state,
+        raw_source_len,
+        diagnostic.span,
+        diagnostic.file_span,
+    )
+    .unwrap_or((0, raw_source_len));
+    let related = diagnostic
+        .related
+        .into_iter()
+        .filter_map(|related| {
+            let (start, end) = surface_offsets_in_playground_source(
+                state,
+                raw_source_len,
+                related.span,
+                related.file_span,
+            )?;
+            Some(output::DiagnosticRelated {
+                message: related.message,
+                start,
+                end,
+            })
+        })
+        .collect();
+    Diagnostic {
+        severity: output::DiagnosticSeverity::Error,
+        code: Some(diagnostic.code.as_str().to_string()),
+        message: diagnostic.message,
+        start,
+        end,
+        related,
+    }
+}
+
+fn surface_offsets_in_playground_source(
+    state: &yulang_infer::LowerState,
+    raw_source_len: usize,
+    span: Option<rowan::TextRange>,
+    file_span: Option<yulang_infer::FileSpan>,
+) -> Option<(usize, usize)> {
+    if let Some(file_span) = file_span {
+        if Some(file_span.file) != state.entry_file_id() {
+            return None;
+        }
+        return Some(text_range_to_raw_offsets(
+            file_span.range,
+            PLAYGROUND_SOURCE_PREFIX.len(),
+            raw_source_len,
+        ));
+    }
+
+    let entry_prefix_len = state
+        .entry_file_id()
+        .and_then(|file| state.file_info(file))
+        .map(|info| info.source_prefix_len)
+        .unwrap_or_default();
+    span.map(|span| {
+        text_range_to_raw_offsets(
+            span,
+            entry_prefix_len + PLAYGROUND_SOURCE_PREFIX.len(),
+            raw_source_len,
+        )
+    })
+}
+
+fn text_range_to_raw_offsets(
+    range: rowan::TextRange,
+    prefix_len: usize,
+    raw_source_len: usize,
+) -> (usize, usize) {
+    let start = usize::from(range.start())
+        .saturating_sub(prefix_len)
+        .min(raw_source_len);
+    let end = usize::from(range.end())
+        .saturating_sub(prefix_len)
+        .min(raw_source_len);
+    (start, end.max(start))
 }
 
 fn eval_control_roots_with_basic_host(
@@ -672,9 +784,11 @@ fn invalid_source_diagnostic(
                 .min(raw_source_len);
             Some(Diagnostic {
                 severity: output::DiagnosticSeverity::Error,
+                code: None,
                 message: "invalid syntax".to_string(),
                 start,
                 end: end.max(start),
+                related: Vec::new(),
             })
         })
 }
@@ -1602,6 +1716,44 @@ first_over 40
                 assert!(message.contains("+"), "{message}");
                 assert!(!message.contains("failed to lower runtime IR"), "{message}");
                 assert!(!message.contains("Named {"), "{message}");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn reports_surface_diagnostic_code_and_related_information() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner("my value: int = true\nvalue\n");
+                assert!(!output.ok);
+                let diagnostic = output
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code.as_deref() == Some("type.mismatch"))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "expected type.mismatch diagnostic, got {:?}",
+                            output.diagnostics
+                        )
+                    });
+                assert!(
+                    diagnostic
+                        .related
+                        .iter()
+                        .any(|related| related.message == "literal `true` contributes this type"),
+                    "{diagnostic:?}"
+                );
+                assert!(
+                    diagnostic
+                        .related
+                        .iter()
+                        .any(|related| related.message
+                            == "type annotation contributes this expectation"),
+                    "{diagnostic:?}"
+                );
             })
             .unwrap()
             .join()

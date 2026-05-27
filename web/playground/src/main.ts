@@ -11,6 +11,14 @@ const wasmModuleReady: Promise<WebAssembly.Module> = WebAssembly.compileStreamin
 
 type Diagnostic = {
     severity: "error";
+    code?: string;
+    message: string;
+    start: number;
+    end: number;
+    related: DiagnosticRelated[];
+};
+
+type DiagnosticRelated = {
     message: string;
     start: number;
     end: number;
@@ -951,6 +959,7 @@ function workerErrorOutput(message: string): RunOutput {
                 message,
                 start: 0,
                 end: 0,
+                related: [],
             },
         ],
     };
@@ -1089,7 +1098,14 @@ function highlightSource(source: string, spans: HighlightSpan[]): string {
 }
 
 function formatDiagnostic(diagnostic: Diagnostic): string {
-    return `${diagnostic.severity}: ${diagnostic.message}`;
+    const code = diagnostic.code ? ` [${diagnostic.code}]` : "";
+    const related =
+        diagnostic.related.length === 0
+            ? ""
+            : diagnostic.related
+                  .map((item) => `\n  - ${item.message}`)
+                  .join("");
+    return `${diagnostic.severity}${code}: ${diagnostic.message}${related}`;
 }
 
 function resolveInitialLang(): Lang {

@@ -54,6 +54,8 @@ playground で同じ構造化診断として扱えるようにする。
   primary `file_span` を落とさない。
 - LSP diagnostics は `CheckReport` 由来の code を `diagnostic.code` に載せ、
   source を `yulang` として返す。
+- LSP diagnostics は `SurfaceDiagnostic.related` を `relatedInformation` として返す。
+- playground / wasm diagnostics は `code` と `related` を JSON payload に残す。
 
 ## 次の実装単位
 
