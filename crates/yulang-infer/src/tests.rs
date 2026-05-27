@@ -3154,9 +3154,15 @@ fn check_report_adapter_preserves_surface_diagnostic_shape() {
 
     assert_eq!(check.code, DiagnosticCode::TypeMismatch);
     assert_eq!(check.severity, DiagnosticSeverity::Error);
+    assert_eq!(surface.code, check.code);
+    assert_eq!(surface.severity, check.severity);
     assert_eq!(
         surface.span,
         check.primary.as_ref().map(|primary| primary.range)
+    );
+    assert_eq!(
+        surface.file_span,
+        check.primary.as_ref().and_then(|primary| primary.file_span)
     );
     assert_eq!(surface.related.len(), check.related.len());
 }

@@ -1,13 +1,19 @@
 use rowan::TextRange;
 
-use crate::check::{CheckDiagnostic, RelatedDiagnostic, check_lowered, collect_check_type_errors};
+use crate::check::{
+    CheckDiagnostic, DiagnosticCode, DiagnosticSeverity, RelatedDiagnostic, check_lowered,
+    collect_check_type_errors,
+};
 use crate::diagnostic::TypeError;
 use crate::lower::{FileSpan, LowerState};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SurfaceDiagnostic {
+    pub code: DiagnosticCode,
+    pub severity: DiagnosticSeverity,
     pub message: String,
     pub span: Option<TextRange>,
+    pub file_span: Option<FileSpan>,
     pub related: Vec<SurfaceRelatedDiagnostic>,
 }
 
@@ -31,9 +37,13 @@ pub fn collect_surface_type_errors(state: &LowerState) -> Vec<TypeError> {
 }
 
 fn surface_diagnostic_from_check(diagnostic: CheckDiagnostic) -> SurfaceDiagnostic {
+    let primary = diagnostic.primary;
     SurfaceDiagnostic {
+        code: diagnostic.code,
+        severity: diagnostic.severity,
         message: diagnostic.message,
-        span: diagnostic.primary.map(|span| span.range),
+        span: primary.map(|span| span.range),
+        file_span: primary.and_then(|span| span.file_span),
         related: diagnostic
             .related
             .into_iter()

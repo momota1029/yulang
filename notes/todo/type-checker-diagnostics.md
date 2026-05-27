@@ -45,6 +45,16 @@ playground で同じ構造化診断として扱えるようにする。
 
 この段階では型システム、solver、lowering の意味を変えない。
 
+2026-05-27 時点で完了:
+
+- `CheckReport` / `CheckDiagnostic` / `DiagnosticCode` / `DiagnosticSpan` /
+  `RelatedDiagnostic` を追加した。
+- `collect_surface_diagnostics` は `CheckReport` 経由になった。
+- `SurfaceDiagnostic` は互換 adapter として残しつつ、`code` / `severity` /
+  primary `file_span` を落とさない。
+- LSP diagnostics は `CheckReport` 由来の code を `diagnostic.code` に載せ、
+  source を `yulang` として返す。
+
 ## 次の実装単位
 
 `type.mismatch` を詳細化する。
@@ -54,6 +64,14 @@ playground で同じ構造化診断として扱えるようにする。
 - `ExpectedEdgeKind::Annotation` は annotation と expression の related を出す。
 - `ExpectedEdgeKind::IfBranch` は両 branch と expected join の related を出す。
 - cast boundary で defer した constructor mismatch と、fatal にするべき mismatch を分ける。
+
+2026-05-27 時点で一部完了:
+
+- `TypeError` を `CheckDiagnostic` へ変換する入口は入った。
+- `ExpectedEdgeKind::ApplicationArgument` / annotation 周辺の related 情報を
+  `CheckReport` へ載せる regression を追加した。
+- cast boundary で defer 可能な constructor mismatch は、既存の surface filtering を
+  `CheckReport` 経由でも維持している。
 
 確認する fixture:
 
@@ -84,6 +102,21 @@ TODO:
 - guard 付き arm は coverage に数えない。
 - wildcard / binding pattern 以降の arm は unreachable 候補にする。
 - `Unknown` を含む場合に「網羅済み」と誤判定しない。
+
+2026-05-27 時点で `case` は一部完了:
+
+- lowering 時に `CaseCheckSite` / `CaseArmCheckSite` を登録する。
+- enum declaration / compiled artifact surface から有限 variant 集合を引く。
+- unguarded enum variant arm だけを coverage に数え、guard 付き arm は related に回す。
+- wildcard / binding arm 以降、重複 enum variant、完全な enum coverage 後の arm を
+  `pattern.unreachable_arm` として報告する。
+- `case` と arm の primary / related span は `FileSpan` を保持する。
+
+未着手:
+
+- `catch` の check site。
+- open row / 複数 effect を含む catch coverage。
+- `Unknown` / `Never` を含む case coverage の明示的な保留 reason。
 
 ## role / impl 検査の準備
 

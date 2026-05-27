@@ -117,6 +117,13 @@ related information を組み立てる。
 
 番号付き code は public docs と test fixture が増えてから固定する。
 
+2026-05-27 実装状況:
+
+- `CheckReport` から `SurfaceDiagnostic` へ落とす adapter は、message / span /
+  related に加えて code / severity / primary file span を保持する。
+- LSP は code を `diagnostic.code`、source を `yulang` として返す。
+- CLI は当面 `SurfaceDiagnostic` の message / span 表示を使い続ける。
+
 ## Simple-sub 詳細診断
 
 既にある材料:
@@ -183,6 +190,17 @@ checker は solver 後に scrutinee の public shape を読む。
 - wildcard / binding pattern は、それ以降の未カバー集合を空にする。
 - scrutinee が `Unknown` を含む場合、網羅性 OK とはしない。未解決型の診断か保留 reason を出す。
 - `Never` scrutinee は reachable input がないため missing branch としない。
+
+2026-05-27 実装状況:
+
+- `CaseCheckSite` は lowering 時に登録され、後段で CST を再走査しない。
+- nominal enum の有限 variant 集合に対して `pattern.non_exhaustive` を報告する。
+- guard 付き arm は coverage に数えず、該当 missing variant の related に回す。
+- wildcard / binding arm、重複 enum variant、完全な enum coverage 後の arm に対して
+  `pattern.unreachable_arm` を報告する。
+- enum variant payload に具体 pattern がある arm は、その variant 全体を覆ったとは
+  みなさない。
+- `case` と arm の primary / related span は `FileSpan` を保持する。
 
 禁止:
 

@@ -11,8 +11,8 @@ use yulang_infer::simplify::compact::{
     compact_type_vars_in_order,
 };
 use yulang_infer::{
-    DefId, FileSpan, LowerState, Name as InferName, Path as InferPath, TypeVar,
-    build_compiled_unit_artifact_bundle, build_compiled_unit_artifacts,
+    DefId, DiagnosticSeverity as InferDiagnosticSeverity, FileSpan, LowerState, Name as InferName,
+    Path as InferPath, TypeVar, build_compiled_unit_artifact_bundle, build_compiled_unit_artifacts,
     build_compiled_unit_semantic_artifact_bundle, collect_compact_results_for_paths_in_scope,
     collect_surface_diagnostics, export_core_program, format_coalesced_scheme_in_scope,
     lower_source_set, lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
@@ -397,11 +397,7 @@ fn surface_to_lsp(
     diags
         .into_iter()
         .map(|d| {
-            let range = d
-                .span
-                .and_then(|span| shift_span_to_document(span, prefix_len))
-                .map(|span| byte_range_to_lsp(&line_starts, span))
-                .unwrap_or_default();
+            let range = surface_primary_range(state, &line_starts, prefix_len, d.span, d.file_span);
             let related_information = d
                 .related
                 .into_iter()
@@ -422,7 +418,9 @@ fn surface_to_lsp(
                 .collect::<Vec<_>>();
             Diagnostic {
                 range,
-                severity: Some(DiagnosticSeverity::ERROR),
+                severity: Some(surface_severity_to_lsp(d.severity)),
+                code: Some(NumberOrString::String(d.code.as_str().to_string())),
+                source: Some("yulang".to_string()),
                 message: d.message,
                 related_information: (!related_information.is_empty())
                     .then_some(related_information),
@@ -430,6 +428,32 @@ fn surface_to_lsp(
             }
         })
         .collect()
+}
+
+fn surface_primary_range(
+    state: &LowerState,
+    entry_line_starts: &[usize],
+    prefix_len: usize,
+    span: Option<rowan::TextRange>,
+    file_span: Option<FileSpan>,
+) -> Range {
+    if let Some(file_span) = file_span
+        && Some(file_span.file) == state.entry_file_id()
+    {
+        return byte_range_to_lsp(entry_line_starts, file_span.range);
+    }
+
+    span.and_then(|span| shift_span_to_document(span, prefix_len))
+        .map(|span| byte_range_to_lsp(entry_line_starts, span))
+        .unwrap_or_default()
+}
+
+fn surface_severity_to_lsp(severity: InferDiagnosticSeverity) -> DiagnosticSeverity {
+    match severity {
+        InferDiagnosticSeverity::Error => DiagnosticSeverity::ERROR,
+        InferDiagnosticSeverity::Warning => DiagnosticSeverity::WARNING,
+        InferDiagnosticSeverity::Info => DiagnosticSeverity::INFORMATION,
+    }
 }
 
 fn surface_related_location(
@@ -2585,6 +2609,12 @@ mod tests {
             .iter()
             .find(|diagnostic| diagnostic.message == "expected int, found bool")
             .unwrap_or_else(|| panic!("expected surface type mismatch diagnostic, got {lsp:?}"));
+        assert_eq!(
+            diagnostic.code.as_ref(),
+            Some(&NumberOrString::String("type.mismatch".to_string()))
+        );
+        assert_eq!(diagnostic.source.as_deref(), Some("yulang"));
+        assert_eq!(diagnostic.severity, Some(DiagnosticSeverity::ERROR));
         let related = diagnostic
             .related_information
             .as_ref()
