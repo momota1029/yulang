@@ -50,4 +50,4 @@ trees and tooling, so they are not interchangeable with `//`.
 - [Modules](./modules)
 - [Idioms](./idioms)
 - [Type Inference Theory](./type-theory)
-- Standard Library: [Core](./std/core), [list](./std/list), [str](./std/str), [opt](./std/opt), [result](./std/result), [undet](./std/undet)
+- Standard Library: [Core](./std/core), [list](./std/list), [str](./std/str), [opt](./std/opt), [result](./std/result), [fs](./std/fs), [undet](./std/undet)

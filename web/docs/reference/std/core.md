@@ -72,14 +72,18 @@ use the wrappers and role methods.
 ## `std::fs`
 
 ```yulang
-fs::read_text "data.txt"
-fs::write_text ("data.txt", "text")
-fs::exists "data.txt"
+read_text "data.txt"
+read_at "data.txt" (0..<1024)
+open "data.txt"
 ```
 
-The filesystem surface is intentionally minimal and not final. `read_text`
-returns `str` and raises `fs_err` through the effect row on host errors.
-Browser/wasm hosts may leave filesystem requests unresolved.
+The filesystem surface is text-oriented. `read_text` returns `str` and raises
+`fs_err` directly through the effect row on host errors. `read_at` reads a byte
+range and returns the UTF-8-valid text prefix with the valid range. `open`
+returns a host-backed text reference whose dirty buffer is flushed when the
+handle state is dropped.
+
+See [`std::fs`](./fs) for the full reading API.
 
 ## Roles From The Prelude
 

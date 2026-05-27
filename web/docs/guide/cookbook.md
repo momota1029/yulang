@@ -104,6 +104,25 @@ the effect system rather than escaping it.
 
 [Control Flow → References](../reference/control-flow)
 
+## Read a text file
+
+```yulang
+my text = read_text "data.txt"
+text.say
+```
+
+`str` widens to `path`, so a string literal is enough for ordinary paths.
+Filesystem errors are raised as `fs_err` in the effect row. Wrap them only
+when the caller needs a value-level `result`.
+
+```yulang
+case fs_err::wrap: read_text "data.txt":
+    result::ok text -> text
+    result::err _ -> ""
+```
+
+[std::fs](../reference/std/fs)
+
 ## Set up optional arguments
 
 ```yulang
@@ -125,7 +144,7 @@ site. Defaults evaluate left-to-right and may reference earlier fields.
 my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
 
 catch fs::read_text path:
-    fs_err::not_found p, _ -> "(missing) " + p
+    fs_err::not_found _, _ -> "(missing)"
     value -> value
 ```
 

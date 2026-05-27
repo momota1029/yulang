@@ -69,6 +69,6 @@ anonymous record の場合、`.field` は record field を取り出す。act ope
 | `std::undet` | `each`, `guard`, `.list`, `.once`, `.logic` |
 | `std::junction` | `all`, `any` |
 | `std::console` | `say`, `println`, `print`, host-handled `print_native` / `println_native` |
-| `std::fs` | 暫定 filesystem API |
+| `std::fs` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir` と `fs_err` |
 | `std::error` | `Throw` role |
 | `std::index` | `Index` role |

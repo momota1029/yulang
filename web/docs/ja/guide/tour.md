@@ -160,9 +160,9 @@ sub:
 
 ```yulang
 error fs_err:
-    not_found str
-    denied str
-    invalid_path str
+    not_found path
+    denied path
+    invalid_path path
 ```
 
 `fs_err::not_found "path"` は、文脈によって data constructor としても、throwing operation としても読めます。

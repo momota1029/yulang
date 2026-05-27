@@ -99,9 +99,9 @@ our run_console(action: [console] 'a): 'a = catch action:
 
 ```yulang
 error fs_err:
-    not_found str
-    denied str
-    invalid_path str
+    not_found path
+    denied path
+    invalid_path path
 ```
 
 各 variant は data constructor と effect operation の両方として使われる。値として必要な文脈では `fs_err` の値になり、effect として必要な文脈では `fs_err` effect を発火する operation になる。

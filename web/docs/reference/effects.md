@@ -119,9 +119,9 @@ companion helpers into a single declaration:
 
 ```yulang
 error fs_err:
-    not_found str
-    denied str
-    invalid_path str
+    not_found path
+    denied path
+    invalid_path path
 ```
 
 Each variant is both a constructor and a throwing effect operation. The

@@ -8,13 +8,13 @@
 pub error fs_err:
     not_found path
     denied path
-    invalid_path str
+    invalid_path path
 ```
 
 この一行で次のものがまとめて生成される。
 
 - `pub enum fs_err` — variant は `not_found path` / `denied path` /
-  `invalid_path str`。
+  `invalid_path path`。
 - `pub act fs_err` — variant と同名の operation を持ち、戻り値は `never`。
 - `impl Throw fs_err` — `type throws = '[fs_err]` と `our e.throw` を持ち、
   対応する operation を発火する。
@@ -58,8 +58,8 @@ my read_text path = fs::read_text path
 
 ```yulang
 catch fs::read_text path:
-    fs_err::not_found p, _ -> "(missing) " + p
-    fs_err::denied p, _ -> "(denied) " + p
+    fs_err::not_found _, _ -> "(missing)"
+    fs_err::denied _, _ -> "(denied)"
     value -> value
 ```
 

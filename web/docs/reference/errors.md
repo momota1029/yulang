@@ -8,13 +8,13 @@
 pub error fs_err:
     not_found path
     denied path
-    invalid_path str
+    invalid_path path
 ```
 
 This generates several pieces at once:
 
 - A `pub enum fs_err` whose variants are `not_found path`, `denied path`, and
-  `invalid_path str`.
+  `invalid_path path`.
 - A `pub act fs_err` whose operations share the variant names and return
   `never`.
 - An `impl Throw fs_err` with `type throws = '[fs_err]` and `our e.throw` that
@@ -60,8 +60,8 @@ effect row.
 
 ```yulang
 catch fs::read_text path:
-    fs_err::not_found p, _ -> "(missing) " + p
-    fs_err::denied p, _ -> "(denied) " + p
+    fs_err::not_found _, _ -> "(missing)"
+    fs_err::denied _, _ -> "(denied)"
     value -> value
 ```
 

@@ -93,6 +93,25 @@ sub:
 
 [制御構文 → 参照](../reference/control-flow)
 
+## text file を読む
+
+```yulang
+my text = read_text "data.txt"
+text.say
+```
+
+`str` は `path` に widen されるので、通常の path なら文字列リテラルをそのまま
+渡せる。filesystem error は effect row の `fs_err` として投げられる。呼び出し側
+に値としての `result` が必要な境界だけ `wrap` する。
+
+```yulang
+case fs_err::wrap: read_text "data.txt":
+    result::ok text -> text
+    result::err _ -> ""
+```
+
+[std::fs](../reference/std/fs)
+
 ## オプショナル引数を作る
 
 ```yulang
@@ -113,7 +132,7 @@ area {}
 my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
 
 catch fs::read_text path:
-    fs_err::not_found p, _ -> "(missing) %{p}"
+    fs_err::not_found _, _ -> "(missing)"
     value -> value
 ```
 

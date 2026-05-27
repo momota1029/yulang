@@ -61,12 +61,18 @@ console output は host-handled effect である。`say` / `.say` は `Display.s
 ## `std::fs`
 
 ```yulang
-fs::read_text "data.txt"
-fs::write_text ("data.txt", "text")
-fs::exists "data.txt"
+read_text "data.txt"
+read_at "data.txt" (0..<1024)
+open "data.txt"
 ```
 
-filesystem surface は意図的に最小限で、まだ最終形ではない。`read_text` は `str` を返し、host error は effect row の `fs_err` として投げる。browser / wasm host では filesystem request が unresolved のまま残る場合がある。
+filesystem surface は text 指向である。`read_text` は `str` を返し、host
+error は effect row の `fs_err` として直接投げる。`read_at` は byte range
+を読み、UTF-8 として valid な text prefix と valid range を返す。`open` は
+host-backed な text reference を返し、dirty な buffer は handle state の
+drop 時に flush される。
+
+読む API 全体は [`std::fs`](./fs) を参照。
 
 ## Prelude の Role
 

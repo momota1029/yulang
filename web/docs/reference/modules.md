@@ -63,6 +63,6 @@ Act operations themselves are normally reached by path, for example
 | `std::undet` | `each`, `guard`, `list`, `once`, `logic` |
 | `std::junction` | `all`, `any` for effectful comparisons |
 | `std::console` | `say`, `println`, `print`, plus host-handled `print_native` / `println_native` |
-| `std::fs` | `read_text`, `write_text`, `exists`, `is_file`, `is_dir`, plus `fs_err` errors |
+| `std::fs` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir`, plus `fs_err` errors |
 | `std::error` | `Throw` role |
 | `std::index` | `Index` role |
