@@ -1030,6 +1030,98 @@ fn catch_records_handler_adapter_edges() {
 }
 
 #[test]
+fn catch_continuation_returns_scrutinee_effect() {
+    let state = parse_and_lower(
+        "pub act out:\n  pub say: str -> ()\n\nmy handled(x: [out] ()) = catch x:\n  out::say msg, k -> k ()\n  value -> value\n",
+    );
+    let site = state
+        .catch_check_sites
+        .first()
+        .expect("catch should record check site");
+    let k_def = state
+        .continuation_defs
+        .iter()
+        .next()
+        .copied()
+        .expect("catch arm should introduce continuation");
+    let k_tv = state.def_tvs[&k_def];
+
+    let lower_returns_residual = state.infer.lowers_of(k_tv).iter().any(|lower| {
+        matches!(
+            lower,
+            Pos::Fun { ret_eff, .. }
+                if matches!(state.infer.arena.get_pos(*ret_eff), Pos::Var(tv) if tv == site.body_eff_tv)
+        )
+    });
+    let upper_returns_residual = state.infer.uppers_of(k_tv).iter().any(|upper| {
+        matches!(
+            upper,
+            Neg::Fun { ret_eff, .. }
+                if matches!(state.infer.arena.get_neg(*ret_eff), Neg::Var(tv) if tv == site.body_eff_tv)
+        )
+    });
+
+    assert!(
+        lower_returns_residual && upper_returns_residual,
+        "continuation should return scrutinee effect, site={site:?}, lowers={:?}, uppers={:?}",
+        state.infer.lowers_of(k_tv),
+        state.infer.uppers_of(k_tv),
+    );
+}
+
+#[test]
+fn catch_partial_effect_family_leaks_scrutinee_effect_to_result() {
+    let state = parse_and_lower(
+        "pub act choose:\n  pub branch: () -> bool\n  pub reject: () -> never\n\nmy handled(x: [choose] int) = catch x:\n  choose::branch(), k -> 0\n  value -> value\n",
+    );
+    let site = state
+        .catch_check_sites
+        .first()
+        .expect("catch should record check site");
+    assert!(
+        state.infer.uppers_of(site.body_eff_tv).iter().any(|upper| {
+            matches!(
+                upper,
+                Neg::Row(items, tail)
+                    if items.len() == 1
+                        && matches!(state.infer.arena.get_neg(*tail), Neg::Var(_))
+            )
+        }),
+        "catch should constrain scrutinee effect below handled operations plus a residual effect, site={site:?}, body uppers={:?}",
+        state.infer.uppers_of(site.body_eff_tv),
+    );
+
+    assert!(
+        state
+            .infer
+            .lowers_of(site.result_eff_tv)
+            .contains(&Pos::Var(site.body_eff_tv)),
+        "missing effect branches should leak the scrutinee effect into the catch result, site={site:?}, result lowers={:?}",
+        state.infer.lowers_of(site.result_eff_tv),
+    );
+}
+
+#[test]
+fn catch_complete_effect_family_does_not_leak_scrutinee_effect_by_itself() {
+    let state = parse_and_lower(
+        "pub act choose:\n  pub branch: () -> bool\n  pub reject: () -> never\n\nmy handled(x: [choose] int) = catch x:\n  choose::branch(), k -> 0\n  choose::reject(), k -> 0\n  value -> value\n",
+    );
+    let site = state
+        .catch_check_sites
+        .first()
+        .expect("catch should record check site");
+
+    assert!(
+        !state
+            .infer
+            .lowers_of(site.result_eff_tv)
+            .contains(&Pos::Var(site.body_eff_tv)),
+        "complete effect coverage should not leak the scrutinee effect without a shallow resume, site={site:?}, result lowers={:?}",
+        state.infer.lowers_of(site.result_eff_tv),
+    );
+}
+
+#[test]
 fn expected_edges_keep_solver_constraints() {
     let state = parse_and_lower("my id(x: int) = x\nmy f(b: bool) = if b { id 1 } else { id 2 }");
     assert!(

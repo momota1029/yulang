@@ -223,7 +223,7 @@ CatchCheckSite {
   body_span,
   arms: Vec<CatchArmSite>,
   result_tv,
-  residual_effect_tv,
+  result_effect_tv,
 }
 
 CatchArmSite {
@@ -254,11 +254,22 @@ checker の方針:
   check site には残す。
 - unguarded な value wildcard/binding arm 後の value arm と、同じ effect operation の
   unguarded payload-covering arm 後の effect arm は `pattern.unreachable_arm` として報告する。
+- handled catch の型制約は、scrutinee effect を `β`、handler residual tail を `γ`、
+  catch result effect を `ρ` として `β <: [handled; γ]` を基本にする。
+  現行 compact が handled effect の型引数を落とさないよう、`[handled; γ] <: β`
+  の surface witness も同じ handler boundary で保持する。
+- continuation `k` の戻り effect は `β`。そのまま arm body から漏れる場合は branch の
+  effect cast 経由で `β <: ρ` が入る。
+- operation arm が effect family 全体を覆っていない場合も、取り切れない枝として
+  `β <: ρ` を入れる。これにより compact 表示では `[β&[handled;γ]] -> [β,γ]`
+  相当になり、共起分析で必要に応じて `β = γ` へ畳まれる。
+- complete な deep handler は `β` を result 側へ直接混ぜず、result は基本的に `γ`。
+  `γ <: ρ` として through tail を保持し、閉じた入力なら handler match が pure へ落とす。
 
 未実装:
 
-- effect row の finite operation set からの missing operation 判定。
-- 1 つの body が複数 effect を同時に持つ場合の coverage 集約。
+- effect row の finite operation set からの user-facing missing operation diagnostic。
+- 1 つの body が複数 effect を同時に持つ場合の diagnostic coverage 集約。
 - open row / `Unknown` / `Never` を含む場合の保留 reason。
 
 ## role / type class impl 検査

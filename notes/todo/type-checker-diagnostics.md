@@ -96,7 +96,7 @@ lowering で登録する site の候補:
   - catch body span
   - handled operation ids
   - value arm / effect arm spans
-  - residual effect type var
+  - result effect type var
 
 TODO:
 
@@ -114,7 +114,7 @@ TODO:
   `pattern.unreachable_arm` として報告する。
 - `case` と arm の primary / related span は `FileSpan` を保持する。
 
-2026-05-27 時点で `catch` は準備だけ完了:
+2026-05-27 時点で `catch` は site / unreachable / shallow residual typing まで完了:
 
 - lowering 時に `CatchCheckSite` / `CatchArmCheckSite` を登録する。
 - source arm の span / guard span / value pattern span / effect operation pattern span /
@@ -124,10 +124,18 @@ TODO:
   check site には残す。
 - unguarded な value wildcard/binding arm 後の value arm と、同じ effect operation の
   unguarded payload-covering arm 後の effect arm は `pattern.unreachable_arm` として報告する。
+- handled catch は scrutinee effect `β`、handler residual tail `γ`、result effect `ρ` を分け、
+  `β <: [handled; γ]` を基本にする。現行 compact の surface witness として
+  `[handled; γ] <: β` も同じ handler boundary に保持する。
+- continuation `k` は `β` を返す。shallow に起動して arm body から漏れた場合と、
+  effect family の operation arm が足りない場合だけ `β <: ρ` を入れる。
+- complete な deep handler は result を基本 `γ <: ρ` に保ち、閉じた入力なら handler match で
+  pure へ落とす。
 
 未着手:
 
-- open row / 複数 effect を含む catch coverage。
+- missing operation を user-facing diagnostic にする catch coverage。
+- 複数 effect を含む catch coverage の diagnostic 集約。
 - `Unknown` / `Never` を含む case coverage の明示的な保留 reason。
 
 ## role / impl 検査の準備

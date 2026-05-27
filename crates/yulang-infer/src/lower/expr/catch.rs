@@ -99,6 +99,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         let mut handled_ops = Vec::new();
         let mut handled_pos_ops = Vec::new();
         let mut handled_effect_paths = Vec::new();
+        let mut covered_effect_ops: HashMap<Path, HashSet<crate::ids::DefId>> = HashMap::new();
         let mut effect_arg_substs: HashMap<
             Path,
             HashMap<crate::ids::TypeVar, crate::ids::TypeVar>,
@@ -167,6 +168,16 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         handled_ops.push(handled_op.clone());
                         handled_pos_ops.push(Pos::Atom(handled_atom));
                         handled_effect_paths.push(effect_path.clone());
+                        let covers_operation =
+                            catch_arm_fully_covers_effect_operation(&lowered.check);
+                        if let Some(op_def) = op_def
+                            && covers_operation
+                        {
+                            covered_effect_ops
+                                .entry(effect_path.clone())
+                                .or_default()
+                                .insert(op_def);
+                        }
                     }
 
                     let resume_tv = state.fresh_tv();
@@ -277,6 +288,12 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             record_handler_body_boundary_keep(state, &comp);
         }
 
+        let complete_effect_paths =
+            complete_handled_effect_paths(state, &handled_effect_paths, &covered_effect_ops);
+        let has_incomplete_effect_path = handled_effect_paths
+            .iter()
+            .any(|path| !complete_effect_paths.contains(path));
+
         if handled_ops.is_empty() {
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
         } else if saw_value_arm {
@@ -310,6 +327,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 );
             }
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
+            if has_incomplete_effect_path {
+                state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
+            }
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = state.fresh_tv();
@@ -340,13 +360,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     state.neg_row(visible.neg, Neg::Var(rest_eff)),
                 );
             }
-            for arm in &arms {
-                if let CatchArmKind::Effect { body, .. } = &arm.kind {
-                    state.infer.constrain(
-                        state.pos_row(vec![], Pos::Var(rest_eff)),
-                        Neg::Var(body.eff),
-                    );
-                }
+            state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
+            if has_incomplete_effect_path {
+                state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
             }
         }
 
@@ -514,6 +530,55 @@ fn direct_effect_call_path(state: &LowerState, expr: &TypedExpr) -> Option<Path>
         ExprKind::Var(def) => state.effect_op_effect_paths.get(def).cloned(),
         _ => None,
     }
+}
+
+fn complete_handled_effect_paths(
+    state: &LowerState,
+    handled_effect_paths: &[Path],
+    covered_effect_ops: &HashMap<Path, HashSet<crate::ids::DefId>>,
+) -> HashSet<Path> {
+    handled_effect_paths
+        .iter()
+        .filter(|effect_path| {
+            effect_path_is_completely_covered(state, effect_path, covered_effect_ops)
+        })
+        .cloned()
+        .collect()
+}
+
+fn effect_path_is_completely_covered(
+    state: &LowerState,
+    effect_path: &Path,
+    covered_effect_ops: &HashMap<Path, HashSet<crate::ids::DefId>>,
+) -> bool {
+    let Some(covered) = covered_effect_ops.get(effect_path) else {
+        return false;
+    };
+
+    let mut saw_declared_operation = false;
+    for (op_def, op_effect_path) in &state.effect_op_effect_paths {
+        if op_effect_path != effect_path {
+            continue;
+        }
+        saw_declared_operation = true;
+        if !covered.contains(op_def) {
+            return false;
+        }
+    }
+    saw_declared_operation
+}
+
+fn catch_arm_fully_covers_effect_operation(check: &CatchArmCheckSite) -> bool {
+    if check.guard_span.is_some() {
+        return false;
+    }
+    matches!(
+        &check.kind,
+        CatchArmCheckKind::Effect {
+            payload_covers_all: true,
+            ..
+        }
+    )
 }
 
 struct VisibleHandlerOps {
