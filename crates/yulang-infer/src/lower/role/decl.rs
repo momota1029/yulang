@@ -1,8 +1,10 @@
 use super::*;
 
 pub(crate) fn lower_role_decl(state: &mut LowerState, node: &SyntaxNode) {
-    let Some(name) = child_node(node, SyntaxKind::TypeExpr).and_then(|head| ident_name(&head))
-    else {
+    let Some(head) = child_node(node, SyntaxKind::TypeExpr) else {
+        return;
+    };
+    let Some(name) = ident_name(&head) else {
         return;
     };
     let mut role_path_segments = state.ctx.current_module_path().segments;
@@ -10,6 +12,7 @@ pub(crate) fn lower_role_decl(state: &mut LowerState, node: &SyntaxNode) {
     let role_path = Path {
         segments: role_path_segments,
     };
+    state.record_role_decl_span(role_path.clone(), head.text_range());
     let input_names = act_type_param_names(node);
     let assoc_names = collect_role_assoc_type_names(node);
     let role_arg_names = input_names

@@ -33,6 +33,12 @@ pub struct FileSpan {
     pub range: rowan::TextRange,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SourceSpan {
+    pub range: rowan::TextRange,
+    pub file_span: Option<FileSpan>,
+}
+
 use super::{
     ActiveRecursiveSelfInstance, CaseCheckSite, EnumVariantPatternShape, FunctionSigEffectHint,
     LowerDetailProfile, SyntaxNode,
@@ -68,6 +74,8 @@ pub struct LowerState {
     pub ref_spans: HashMap<RefId, FileSpan>,
     /// source 上の field / method selection span。
     pub selection_spans: Vec<SelectionSpan>,
+    /// role path → source 上の role declaration span。
+    pub role_decl_spans: HashMap<Path, SourceSpan>,
     /// lowering 中の各ファイル情報。FileId.0 がインデックス。
     pub files: Vec<FileInfo>,
     current_file_id: Option<FileId>,
@@ -206,6 +214,7 @@ impl LowerState {
             value_use_spans: Vec::new(),
             ref_spans: HashMap::new(),
             selection_spans: Vec::new(),
+            role_decl_spans: HashMap::new(),
             files: Vec::new(),
             current_file_id: None,
             source_span_offset: 0,
@@ -782,6 +791,16 @@ impl LowerState {
                 result_eff,
             });
         }
+    }
+
+    pub fn record_role_decl_span(&mut self, path: Path, span: rowan::TextRange) {
+        self.role_decl_spans.insert(
+            path,
+            SourceSpan {
+                range: span,
+                file_span: self.recorded_source_span(span),
+            },
+        );
     }
 
     /// 新しいファイルを登録して FileId を発行する。

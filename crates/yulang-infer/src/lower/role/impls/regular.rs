@@ -252,17 +252,20 @@ fn lower_impl_body(
         .collect::<HashSet<_>>();
     for (info, _) in &impl_members {
         if !required_by_name.contains_key(&info.name) {
-            state.infer.report_synthetic_type_error_with_cause(
-                TypeErrorKind::UnknownImplMember {
-                    role: path_string(role),
-                    member: info.name.0.clone(),
-                },
-                format!("impl {}", path_string(role)),
-                crate::diagnostic::ConstraintCause {
-                    span: Some(info.node.text_range()),
-                    reason: ConstraintReason::ImplMember,
-                },
-            );
+            state
+                .infer
+                .report_synthetic_type_error_with_cause_and_origins(
+                    TypeErrorKind::UnknownImplMember {
+                        role: path_string(role),
+                        member: info.name.0.clone(),
+                    },
+                    format!("impl {}", path_string(role)),
+                    crate::diagnostic::ConstraintCause {
+                        span: Some(info.node.text_range()),
+                        reason: ConstraintReason::ImplMember,
+                    },
+                    unknown_member_origins(state, role),
+                );
         }
     }
     for (required_name, required_info) in &required_by_name {
@@ -279,7 +282,7 @@ fn lower_impl_body(
                         span: Some(impl_span),
                         reason: ConstraintReason::ImplMember,
                     },
-                    required_member_origins(state, required_info),
+                    required_member_origins(state, role, required_info),
                 );
         }
     }
@@ -325,7 +328,31 @@ fn lower_impl_body(
     exported_member_defs
 }
 
-fn required_member_origins(state: &LowerState, required: &RoleMethodInfo) -> Vec<TypeOrigin> {
+fn unknown_member_origins(state: &LowerState, role: &Path) -> Vec<TypeOrigin> {
+    role_decl_origin(state, role).into_iter().collect()
+}
+
+fn required_member_origins(
+    state: &LowerState,
+    role: &Path,
+    required: &RoleMethodInfo,
+) -> Vec<TypeOrigin> {
+    let mut origins = unknown_member_origins(state, role);
+    origins.extend(required_member_decl_origins(state, required));
+    origins
+}
+
+fn role_decl_origin(state: &LowerState, role: &Path) -> Option<TypeOrigin> {
+    let span = state.role_decl_spans.get(role)?;
+    Some(TypeOrigin {
+        span: Some(span.range),
+        file_span: span.file_span,
+        kind: TypeOriginKind::Synthetic,
+        label: Some("role is declared here".to_string()),
+    })
+}
+
+fn required_member_decl_origins(state: &LowerState, required: &RoleMethodInfo) -> Vec<TypeOrigin> {
     if let Some(span) = state.def_spans.get(&required.def) {
         return vec![TypeOrigin {
             span: Some(span.range),

@@ -2199,6 +2199,13 @@ fn impl_body_reports_missing_required_member() {
             && related.span.is_some()),
         "missing impl member should point at required role member declaration, got {diagnostic:?}",
     );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "role is declared here" && related.span.is_some()),
+        "missing impl member should point at role declaration, got {diagnostic:?}",
+    );
 }
 
 #[test]
@@ -2239,6 +2246,13 @@ fn impl_body_reports_unknown_member() {
             .iter()
             .any(|related| related.message == "impl member requirement is checked here"),
         "unknown impl member should preserve ImplMember cause, got {diagnostic:?}",
+    );
+    assert!(
+        diagnostic
+            .related
+            .iter()
+            .any(|related| related.message == "role is declared here" && related.span.is_some()),
+        "unknown impl member should point at role declaration, got {diagnostic:?}",
     );
 }
 

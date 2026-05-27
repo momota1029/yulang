@@ -143,6 +143,9 @@ TODO:
 - source role method は `def_span` を記録する。
 - missing required member の synthetic error は、required role member declaration を
   origin として保持し、`CheckReport.related` に出す。
+- source role declaration は lowering 中に span を記録する。
+- missing / unknown impl member の synthetic error は、role declaration を origin として
+  保持し、`CheckReport.related` に出す。
 
 ## 完了条件
 
