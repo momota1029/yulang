@@ -72,14 +72,14 @@ host error は `read_text` と同じく `fs_err` として投げられる。
 参照経由で書くと buffer は dirty になり、現在の host は underlying handle
 state が drop されたときに dirty な file handle を flush する。
 
-`open_in path do` は local wrapper 形である。
+`open_in` はコールバックを要求する。[`do` 記法](../application#do-でコールバックを後置する)と合わせて次のように使う。
 
 ```yulang
 my &fh = open_in "data.txt" do
-    $fh
+$fh
 ```
 
-handle を `do` block の中に閉じ込めたいときに使う。
+handle のスコープをコールバックの内側に閉じ込めたいときに使う。
 
 ## line view
 
@@ -102,8 +102,6 @@ handle を `do` block の中に閉じ込めたいときに使う。
     for &line in &fh.lines:
         if $line == "old\n":
             &line[std::range::full()] = "new\n"
-        else:
-            ()
 }
 ```
 

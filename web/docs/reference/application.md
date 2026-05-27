@@ -269,6 +269,20 @@ my add = \x y -> x + y
 
 Lambdas extend as far to the right as possible (the body is a full expression).
 
+## `do` callback syntax
+
+`do` captures the rest of the block as a lambda and passes it as the last
+argument of the surrounding call. In a `my` binding, the left-hand pattern
+becomes the lambda's parameter:
+
+```yulang
+my &fh = open_in "data.txt" do
+$fh
+// ≡ open_in "data.txt" (\&fh -> $fh)
+```
+
+Use it when an API takes a callback and you want to write the body inline.
+
 ## Path separator `::`
 
 `a::b::c` is left-associative and binds the same as the other postfix forms:

@@ -111,3 +111,18 @@ sub: return value
 my y = f sub: 1   // (f sub): 1
 my z = f (sub: 1) // f (sub: 1)
 ```
+
+## `do` でコールバックを後置する
+
+`do` は、後続のブロックを lambda として包み、囲んでいる関数呼び出しの最後の
+引数として渡すためのマーカー。`my` binding の左辺 pattern は、その lambda の
+引数になる。
+
+```yulang
+my &fh = open_in "data.txt" do
+$fh
+// ≡ open_in "data.txt" (\&fh -> $fh)
+```
+
+API がコールバックを受け取るとき、その本体を呼び出しの直後にそのまま書きたい
+場合に使う。

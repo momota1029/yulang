@@ -72,14 +72,14 @@ Host errors are raised as `fs_err`, the same as `read_text`.
 buffer. Writes through the reference mark the buffer dirty; the current host
 flushes a dirty file handle when the underlying handle state is dropped.
 
-`open_in path do` is the local wrapper form:
+`open_in` takes a callback. With the [`do` notation](../application#do-callback-syntax), you write it like this:
 
 ```yulang
 my &fh = open_in "data.txt" do
-    $fh
+$fh
 ```
 
-Use it when the handle should stay scoped to the `do` block.
+Use it when the handle should stay scoped to the callback.
 
 ## Line views
 
@@ -102,8 +102,6 @@ updates the file buffer:
     for &line in &fh.lines:
         if $line == "old\n":
             &line[std::range::full()] = "new\n"
-        else:
-            ()
 }
 ```
 
