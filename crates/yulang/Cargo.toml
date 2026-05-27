@@ -19,7 +19,7 @@ yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
 yulang-runtime-refine = { version = "0.1.0", path = "../yulang-runtime-refine" }
 yulang-runtime-types = { version = "0.1.0", path = "../yulang-runtime-types" }
 yulang-vm = { version = "0.1.0", path = "../yulang-vm" }
-yulang-parser = { version = "0.1.2", path = "../yulang-parser" }
+yulang-parser = { version = "0.1.3", path = "../yulang-parser" }
 yulang-infer = { version = "0.1.4", path = "../yulang-infer" }
 yulang-sources = { version = "0.1.4", path = "../yulang-sources" }
 yulang-editor = { version = "0.1.2", path = "../yulang-editor", optional = true }
