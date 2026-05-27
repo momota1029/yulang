@@ -2,7 +2,7 @@ use super::*;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::io;
 use std::path::Path;
 use yulang_runtime_ir::FinalizedRecordSpreadPattern as RecordSpreadPattern;
@@ -82,7 +82,7 @@ impl ControlVmModule {
             .ok_or(VmError::MissingRootExpr(index))?;
         let mut interpreter = ControlInterpreter::new(&self.module);
         let mut host = crate::host::BasicHost::new(stdout);
-        let mut pending_undet: VecDeque<ControlRequest> = VecDeque::new();
+        let mut pending_undet: VecDeque<ControlContinuation> = VecDeque::new();
         let mut last_undet_value = None;
         let mut result = interpreter.eval_root_control_result(expr)?;
         loop {
@@ -90,8 +90,7 @@ impl ControlVmModule {
                 ControlResult::Value(value) => {
                     if let Some(request) = pending_undet.pop_front() {
                         last_undet_value = Some(value);
-                        let resumed =
-                            interpreter.resume(request.continuation, ControlValue::Bool(false))?;
+                        let resumed = interpreter.resume(request, ControlValue::Bool(false))?;
                         result = interpreter.normalize_root_result(resumed)?;
                         continue;
                     }
@@ -103,22 +102,22 @@ impl ControlVmModule {
                 ControlResult::Request(request) => {
                     match interpreter.undet_request_operation(&request) {
                         Some(crate::host::UndetOperation::Branch) => {
-                            pending_undet.push_back(request.clone());
+                            pending_undet.push_back(request.continuation.clone());
                             let resumed = interpreter
                                 .resume(request.continuation, ControlValue::Bool(true))?;
                             result = interpreter.normalize_root_result(resumed)?;
                             continue;
                         }
                         Some(crate::host::UndetOperation::Reject) => {
-                            let Some(request) = pending_undet.pop_front() else {
+                            let Some(continuation) = pending_undet.pop_front() else {
                                 let value = last_undet_value.unwrap_or(ControlValue::Unit);
                                 return Ok((
                                     VmResult::Value(export_value(&value, Some(&self.module))?),
                                     interpreter.profile(),
                                 ));
                             };
-                            let resumed = interpreter
-                                .resume(request.continuation, ControlValue::Bool(false))?;
+                            let resumed =
+                                interpreter.resume(continuation, ControlValue::Bool(false))?;
                             result = interpreter.normalize_root_result(resumed)?;
                             continue;
                         }
@@ -1124,26 +1123,23 @@ enum ControlFrame {
 
 #[derive(Clone, Default)]
 struct ControlEnv {
-    slots: Rc<Vec<Option<ControlValue>>>,
+    slots: Rc<HashMap<ControlSymbolId, ControlValue>>,
 }
 
 impl ControlEnv {
     fn new() -> Self {
         Self {
-            slots: Rc::new(Vec::new()),
+            slots: Rc::new(HashMap::new()),
         }
     }
 
     fn get(&self, symbol: ControlSymbolId) -> Option<&ControlValue> {
-        self.slots.get(symbol.0).and_then(Option::as_ref)
+        self.slots.get(&symbol)
     }
 
     fn insert(&mut self, symbol: ControlSymbolId, value: ControlValue) {
         let slots = Rc::make_mut(&mut self.slots);
-        if slots.len() <= symbol.0 {
-            slots.resize_with(symbol.0 + 1, || None);
-        }
-        slots[symbol.0] = Some(value);
+        slots.insert(symbol, value);
     }
 }
 
@@ -2113,9 +2109,9 @@ impl<'m> ControlInterpreter<'m> {
             return Ok(ControlResult::Request(request));
         };
         let next_arm_index = arm_index + 1;
-        let (outer, inner) = split_handle_continuations(&request.continuation, id);
         let mut arm_env = env.clone();
         if let Some(guard) = arm.guard {
+            let (outer, inner) = split_handle_continuations(&request.continuation, id);
             self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
             insert_control_resume(&mut arm_env, arm.resume, inner);
             let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
@@ -2152,7 +2148,13 @@ impl<'m> ControlInterpreter<'m> {
                 ))),
             };
         }
-        self.bind_pattern(&arm.payload, request.payload, &mut arm_env)?;
+        let ControlRequest {
+            payload,
+            continuation,
+            ..
+        } = request;
+        let (outer, inner) = split_handle_continuations_owned(continuation, id);
+        self.bind_pattern(&arm.payload, payload, &mut arm_env)?;
         insert_control_resume(&mut arm_env, arm.resume, inner);
         let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
         let result = self.eval_expr(arm.body, &arm_env);
@@ -2632,6 +2634,48 @@ fn split_handle_continuations(
                 .cloned()
                 .collect(),
             guard_stack: continuation.guard_stack.clone(),
+        },
+    )
+}
+
+fn split_handle_continuations_owned(
+    mut continuation: ControlContinuation,
+    id: u64,
+) -> (ControlContinuation, ControlContinuation) {
+    let Some(index) = continuation.frames.iter().rposition(
+        |frame| matches!(frame, ControlFrame::Handle { id: current, .. } if *current == id),
+    ) else {
+        return (
+            ControlContinuation {
+                frames: VecDeque::new(),
+                guard_stack: continuation.guard_stack.clone(),
+            },
+            ControlContinuation {
+                frames: VecDeque::new(),
+                guard_stack: continuation.guard_stack,
+            },
+        );
+    };
+
+    let inner_frames = continuation.frames.split_off(index + 1);
+    let handle_frame = continuation
+        .frames
+        .pop_back()
+        .expect("handle frame at split point");
+    let outer_guard_stack = if let ControlFrame::Handle { guard_stack, .. } = handle_frame {
+        guard_stack
+    } else {
+        continuation.guard_stack.clone()
+    };
+
+    (
+        ControlContinuation {
+            frames: continuation.frames,
+            guard_stack: outer_guard_stack,
+        },
+        ControlContinuation {
+            frames: inner_frames,
+            guard_stack: continuation.guard_stack,
         },
     )
 }

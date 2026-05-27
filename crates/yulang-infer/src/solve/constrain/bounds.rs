@@ -11,11 +11,15 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) -> bool {
+        let start = crate::profile::ProfileClock::now();
         let added = self.add_lower(target, pos);
         if added {
             self.update_through_after_lower(target, pos, cause, cache);
             self.solve_handler_matches_for(target, cause, cache);
         }
+        self.record_profile(start, |profile, elapsed| {
+            profile.add_lower_bound += elapsed;
+        });
         added
     }
 
@@ -26,6 +30,7 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) -> bool {
+        let start = crate::profile::ProfileClock::now();
         let added = self.add_upper(source, neg);
         if added {
             if let Neg::Var(target) = self.arena.get_neg(neg) {
@@ -33,6 +38,9 @@ impl Infer {
             }
             self.solve_handler_matches_for(source, cause, cache);
         }
+        self.record_profile(start, |profile, elapsed| {
+            profile.add_upper_bound += elapsed;
+        });
         added
     }
 

@@ -12,6 +12,10 @@ pub fn with_profile_enabled<T>(enabled: bool, f: impl FnOnce() -> T) -> T {
     result
 }
 
+pub(crate) fn profile_enabled() -> bool {
+    PROFILE_ENABLED.load(Ordering::Relaxed)
+}
+
 pub(crate) struct ProfileClock {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     instant: Option<Instant>,

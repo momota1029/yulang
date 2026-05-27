@@ -53,13 +53,18 @@ impl Infer {
         neg: N,
         cause: ConstraintCause,
     ) {
+        let start = crate::profile::ProfileClock::now();
         let pos = pos.into_pos_id(self);
         let neg = neg.into_neg_id(self);
         let mut cache = StepCache::default();
         self.constrain_step(pos, neg, &cause, &mut cache);
+        self.record_profile(start, |profile, elapsed| {
+            profile.constrain += elapsed;
+        });
     }
 
     pub fn constrain_instantiated_ref(&self, pos: PosId, target: TypeVar) {
+        let start = crate::profile::ProfileClock::now();
         let cause = ConstraintCause::unknown();
         let pos = self.extrude_pos(pos, self.level_of(target));
         let mut cache = StepCache::default();
@@ -71,6 +76,9 @@ impl Infer {
                 }
             }
         }
+        self.record_profile(start, |profile, elapsed| {
+            profile.constrain_instantiated_ref += elapsed;
+        });
     }
 
     pub fn constrain_instantiated_ref_instance(
@@ -78,6 +86,7 @@ impl Infer {
         instance: OwnedSchemeInstance,
         target: TypeVar,
     ) {
+        let start = crate::profile::ProfileClock::now();
         let cause = ConstraintCause::unknown();
         self.lower_levels_scheme_instance(&instance, self.level_of(target));
         if self.add_compact_lower_instance(target, instance.clone()) {
@@ -105,6 +114,9 @@ impl Infer {
                 }
             }
         }
+        self.record_profile(start, |profile, elapsed| {
+            profile.constrain_instantiated_ref_instance += elapsed;
+        });
     }
 
     fn constrain_step(

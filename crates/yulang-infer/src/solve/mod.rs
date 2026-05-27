@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::mem;
+use std::time::Duration;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
@@ -135,6 +136,21 @@ pub struct RefFieldProjection {
     pub constructor: DefId,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InferProfile {
+    pub constrain: Duration,
+    pub constrain_instantiated_ref: Duration,
+    pub constrain_instantiated_ref_instance: Duration,
+    pub add_lower_bound: Duration,
+    pub add_upper_bound: Duration,
+    pub add_compact_lower_instance: Duration,
+    pub add_role_constraint: Duration,
+    pub add_non_generic_var: Duration,
+    pub add_edge: Duration,
+    pub compact_role_constraints_of: Duration,
+    pub compact_lower_instances_of: Duration,
+}
+
 #[derive(Clone)]
 pub struct Infer {
     pub arena: TypeArena,
@@ -181,6 +197,7 @@ pub struct Infer {
     pub role_methods: HashMap<Name, RoleMethodInfo>,
     pub role_methods_by_role: RefCell<FxHashMap<Path, Vec<RoleMethodInfo>>>,
     pub extension_methods: HashMap<Name, Vec<ExtensionMethodInfo>>,
+    profile: RefCell<InferProfile>,
 }
 
 impl Infer {
@@ -230,7 +247,24 @@ impl Infer {
             role_methods: HashMap::new(),
             role_methods_by_role: RefCell::new(FxHashMap::default()),
             extension_methods: HashMap::new(),
+            profile: RefCell::new(InferProfile::default()),
         }
+    }
+
+    pub fn profile(&self) -> InferProfile {
+        self.profile.borrow().clone()
+    }
+
+    pub(crate) fn record_profile(
+        &self,
+        start: crate::profile::ProfileClock,
+        record: impl FnOnce(&mut InferProfile, Duration),
+    ) {
+        if !crate::profile::profile_enabled() {
+            return;
+        }
+        let elapsed = start.elapsed();
+        record(&mut self.profile.borrow_mut(), elapsed);
     }
 
     pub fn register_level(&self, tv: TypeVar, level: u32) {
@@ -302,11 +336,17 @@ impl Infer {
     }
 
     pub fn compact_role_constraints_of(&self, def: DefId) -> Vec<CompactRoleConstraint> {
-        self.compact_role_constraints
+        let start = crate::profile::ProfileClock::now();
+        let constraints = self
+            .compact_role_constraints
             .borrow()
             .get(&def)
             .cloned()
-            .unwrap_or_default()
+            .unwrap_or_default();
+        self.record_profile(start, |profile, elapsed| {
+            profile.compact_role_constraints_of += elapsed;
+        });
+        constraints
     }
 
     pub fn register_role_impl_candidate(&self, candidate: RoleImplCandidate) {
@@ -436,11 +476,15 @@ impl Infer {
     }
 
     pub fn add_role_constraint(&self, owner: DefId, constraint: RoleConstraint) {
+        let start = crate::profile::ProfileClock::now();
         let mut map = self.role_constraints.borrow_mut();
         let entry = map.entry(owner).or_default();
         if !entry.contains(&constraint) {
             entry.push(constraint);
         }
+        self.record_profile(start, |profile, elapsed| {
+            profile.add_role_constraint += elapsed;
+        });
     }
 
     pub fn role_constraints_of(&self, def: DefId) -> Vec<RoleConstraint> {
@@ -452,11 +496,15 @@ impl Infer {
     }
 
     pub fn add_non_generic_var(&self, owner: DefId, tv: TypeVar) {
+        let start = crate::profile::ProfileClock::now();
         self.non_generic_vars
             .borrow_mut()
             .entry(owner)
             .or_default()
             .insert(tv);
+        self.record_profile(start, |profile, elapsed| {
+            profile.add_non_generic_var += elapsed;
+        });
     }
 
     pub fn non_generic_vars_of(&self, owner: DefId) -> HashSet<TypeVar> {
@@ -490,18 +538,28 @@ impl Infer {
     }
 
     pub fn add_edge(&self, from: DefId, to: DefId) {
+        let start = crate::profile::ProfileClock::now();
         let from_idx = self.def_to_component.get(&from).copied();
         let to_idx = self.def_to_component.get(&to).copied();
         let (Some(from_idx), Some(to_idx)) = (from_idx, to_idx) else {
+            self.record_profile(start, |profile, elapsed| {
+                profile.add_edge += elapsed;
+            });
             return;
         };
         if from_idx == to_idx {
+            self.record_profile(start, |profile, elapsed| {
+                profile.add_edge += elapsed;
+            });
             return;
         }
         let edges = &self.component_edges;
         if !edges[from_idx].borrow().contains(&to_idx) {
             edges[from_idx].borrow_mut().push(to_idx);
         }
+        self.record_profile(start, |profile, elapsed| {
+            profile.add_edge += elapsed;
+        });
     }
 
     pub fn increment_pending_selection(&self, owner: DefId) {
@@ -534,10 +592,15 @@ impl Infer {
     }
 
     pub fn compact_lower_instances_of(&self, tv: TypeVar) -> SmallVec<[OwnedSchemeInstance; 2]> {
-        match self.compact_lower_instances.borrow().get(&tv) {
+        let start = crate::profile::ProfileClock::now();
+        let instances = match self.compact_lower_instances.borrow().get(&tv) {
             Some(v) => v.iter().cloned().collect(),
             None => SmallVec::new(),
-        }
+        };
+        self.record_profile(start, |profile, elapsed| {
+            profile.compact_lower_instances_of += elapsed;
+        });
+        instances
     }
 
     pub fn materialize_compact_lower_instance(&self, instance: &OwnedSchemeInstance) -> PosId {
@@ -616,16 +679,23 @@ impl Infer {
     }
 
     pub fn add_compact_lower_instance(&self, tv: TypeVar, instance: OwnedSchemeInstance) -> bool {
+        let start = crate::profile::ProfileClock::now();
         {
             let mut map = self.compact_lower_instances.borrow_mut();
             let entry = map.entry(tv).or_default();
             if entry.contains(&instance) {
+                self.record_profile(start, |profile, elapsed| {
+                    profile.add_compact_lower_instance += elapsed;
+                });
                 return false;
             }
             entry.push(instance);
         }
         self.resolve_deferred_selections_for(tv);
         self.resolve_deferred_selection_dependents_for(tv);
+        self.record_profile(start, |profile, elapsed| {
+            profile.add_compact_lower_instance += elapsed;
+        });
         true
     }
 

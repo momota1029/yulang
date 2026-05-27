@@ -56,8 +56,8 @@ pub use scc::*;
 pub use scheme::FrozenScheme;
 pub use simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
 pub use solve::{
-    DeferredSelection, ExtensionMethodInfo, Infer, RoleArgInfo, RoleConstraint, RoleConstraintArg,
-    RoleMethodInfo,
+    DeferredSelection, ExtensionMethodInfo, Infer, InferProfile, RoleArgInfo, RoleConstraint,
+    RoleConstraintArg, RoleMethodInfo,
 };
 pub use source::{
     CompiledRuntimeBundle, CompiledRuntimeMergeError, CompiledRuntimeSurface, CompiledUnitArtifact,

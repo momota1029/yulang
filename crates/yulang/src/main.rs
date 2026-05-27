@@ -26,8 +26,8 @@ use yulang_infer::{
     CompiledUnitArtifactCache, CompiledUnitImportProfile, CompiledUnitSemanticArtifactBundle,
     ExpectedEdge as InferExpectedEdge, ExpectedEdgeKind as InferExpectedEdgeKind,
     ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
-    LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
-    ProfiledLoweredSources as InferProfiledLoweredSources,
+    InferProfile, LowerState as InferLowerState, Neg as InferNeg, Path as InferPath,
+    Pos as InferPos, ProfiledLoweredSources as InferProfiledLoweredSources,
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions, SourceSet,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, build_compiled_unit_artifact_bundle,
@@ -617,13 +617,14 @@ impl StartupProfile {
     fn print_once(
         &mut self,
         lower: Option<&InferSourceLowerProfile>,
+        infer: Option<&InferProfile>,
         pipeline: Option<&InferPipelineTimings>,
     ) {
         if !self.enabled || self.printed {
             return;
         }
         self.printed = true;
-        print_startup_profile(self, lower, pipeline);
+        print_startup_profile(self, lower, infer, pipeline);
     }
 }
 
@@ -680,7 +681,7 @@ fn run_control_vm_load_or_exit(path: &str, options: &CliOptions) {
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
     }
-    startup_profile.print_once(None, None);
+    startup_profile.print_once(None, None, None);
 }
 
 fn run_cached_control_vm_module_or_exit(
@@ -710,7 +711,7 @@ fn run_cached_control_vm_module_or_exit(
         if !options.print_roots {
             println!("build: {}", path.display());
         }
-        startup_profile.print_once(None, None);
+        startup_profile.print_once(None, None, None);
         return;
     }
 
@@ -757,7 +758,7 @@ fn run_cached_control_vm_module_or_exit(
             println!("[{index}] {}", format_runtime_vm_result(result));
         }
     }
-    startup_profile.print_once(None, None);
+    startup_profile.print_once(None, None, None);
 }
 
 fn run(options: &CliOptions) {
@@ -816,7 +817,7 @@ fn run(options: &CliOptions) {
         if let Some(mode) = options.parse_mode {
             if emit_output {
                 run_parser_view(mode, &source);
-                startup_profile.print_once(None, None);
+                startup_profile.print_once(None, None, None);
             }
             continue;
         }
@@ -841,7 +842,7 @@ fn run(options: &CliOptions) {
             );
             continue;
         }
-        startup_profile.print_once(None, None);
+        startup_profile.print_once(None, None, None);
     }
 }
 
@@ -1620,6 +1621,7 @@ fn run_infer_views(
                 if options.infer_phase_timings {
                     print_infer_phase_timings(
                         &lower_profile,
+                        &state.infer.profile(),
                         &finalized.profile,
                         &pipeline_timings,
                         finalized.finalized_defs.len(),
@@ -1630,7 +1632,11 @@ fn run_infer_views(
                 if !options.print_roots {
                     println!("build: {}", path.display());
                 }
-                startup_profile.print_once(Some(&lower_profile), Some(&pipeline_timings));
+                startup_profile.print_once(
+                    Some(&lower_profile),
+                    Some(&state.infer.profile()),
+                    Some(&pipeline_timings),
+                );
                 return;
             }
             let eval_start = Instant::now();
@@ -1678,6 +1684,7 @@ fn run_infer_views(
         if options.infer_phase_timings {
             print_infer_phase_timings(
                 &lower_profile,
+                &state.infer.profile(),
                 &finalized.profile,
                 &pipeline_timings,
                 finalized.finalized_defs.len(),
@@ -1685,7 +1692,11 @@ fn run_infer_views(
                 quantified_counts.as_ref().expect("quantified counts"),
             );
         }
-        startup_profile.print_once(Some(&lower_profile), Some(&pipeline_timings));
+        startup_profile.print_once(
+            Some(&lower_profile),
+            Some(&state.infer.profile()),
+            Some(&pipeline_timings),
+        );
     }
 }
 
@@ -2242,6 +2253,7 @@ fn runtime_adapter_kind_name(kind: runtime::RuntimeAdapterEventKind) -> &'static
 
 fn print_infer_phase_timings(
     lower: &InferSourceLowerProfile,
+    infer: &InferProfile,
     finalize: &InferFinalizeCompactProfile,
     pipeline: &InferPipelineTimings,
     finalized_defs: usize,
@@ -2450,6 +2462,7 @@ fn print_infer_phase_timings(
         format_duration(lower.std_cache.clone),
         format_duration(lower.std_cache.build)
     );
+    print_infer_solver_profile("  ", infer);
     eprintln!(
         "    incremental_cache: candidates={} bundle_hits={} unit_hits={} selected={} writes={}",
         pipeline.incremental_cache_candidates,
@@ -2623,6 +2636,7 @@ fn print_infer_phase_timings(
 fn print_startup_profile(
     profile: &StartupProfile,
     lower: Option<&InferSourceLowerProfile>,
+    infer: Option<&InferProfile>,
     pipeline: Option<&InferPipelineTimings>,
 ) {
     eprintln!("startup profile:");
@@ -2715,6 +2729,9 @@ fn print_startup_profile(
             format_duration(lower.user.lower_roots),
         );
     }
+    if let Some(infer) = infer {
+        print_infer_solver_profile("    ", infer);
+    }
     eprintln!("    finalize: {}", format_duration(profile.infer_finalize));
     eprintln!("    diagnostics: {}", format_duration(profile.diagnostics));
     eprintln!("    render: {}", format_duration(profile.render));
@@ -2741,6 +2758,42 @@ fn print_startup_profile(
     eprintln!(
         "    yuir_artifact_write: {}",
         format_duration(profile.yuir_artifact_write)
+    );
+}
+
+fn print_infer_solver_profile(indent: &str, infer: &InferProfile) {
+    eprintln!("{indent}infer_solver:");
+    eprintln!("{indent}  constrain: {}", format_duration(infer.constrain));
+    eprintln!(
+        "{indent}  constrain_instantiated_ref: {}",
+        format_duration(infer.constrain_instantiated_ref)
+    );
+    eprintln!(
+        "{indent}  constrain_instantiated_ref_instance: {}",
+        format_duration(infer.constrain_instantiated_ref_instance)
+    );
+    eprintln!(
+        "{indent}  detail.add_lower_bound: {}",
+        format_duration(infer.add_lower_bound)
+    );
+    eprintln!(
+        "{indent}  detail.add_upper_bound: {}",
+        format_duration(infer.add_upper_bound)
+    );
+    eprintln!(
+        "{indent}  detail.add_compact_lower_instance: {}",
+        format_duration(infer.add_compact_lower_instance)
+    );
+    eprintln!(
+        "{indent}  bookkeeping: role_constraints={} non_generic_vars={} scc_edges={}",
+        format_duration(infer.add_role_constraint),
+        format_duration(infer.add_non_generic_var),
+        format_duration(infer.add_edge)
+    );
+    eprintln!(
+        "{indent}  queries: compact_role_constraints={} compact_lower_instances={}",
+        format_duration(infer.compact_role_constraints_of),
+        format_duration(infer.compact_lower_instances_of)
     );
 }
 
