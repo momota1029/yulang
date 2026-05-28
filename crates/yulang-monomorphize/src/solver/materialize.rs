@@ -52,8 +52,11 @@ pub(crate) fn materialize_expr_with_expected(
                 .filter(|expected| matches!(expected, RuntimeType::Fun { .. }))
                 .cloned()
                 .unwrap_or(ty);
-            let outer_ty =
-                materialize_lambda_param_effect(outer_ty, param_effect_annotation.as_ref());
+            let outer_ty = materialize_lambda_param_effect(
+                outer_ty,
+                param_effect_annotation.as_ref(),
+                param_function_allowed_effects.as_ref(),
+            );
             let body_expected = match &outer_ty {
                 RuntimeType::Fun { ret, .. } => Some((**ret).clone()),
                 _ => None,
@@ -767,8 +770,13 @@ fn add_id_expected_thunk(
 fn materialize_lambda_param_effect(
     ty: RuntimeType,
     annotation: Option<&typed_ir::ParamEffectAnnotation>,
+    function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
 ) -> RuntimeType {
-    let Some(annotation) = annotation else {
+    let effect = if let Some(allowed) = function_allowed_effects {
+        function_allowed_effect_type(allowed)
+    } else if let Some(annotation) = annotation {
+        param_effect_annotation_effect(annotation)
+    } else {
         return ty;
     };
     let RuntimeType::Fun { param, ret } = ty else {
@@ -777,11 +785,28 @@ fn materialize_lambda_param_effect(
     let param = match *param {
         RuntimeType::Thunk { .. } => param,
         value => Box::new(RuntimeType::Thunk {
-            effect: param_effect_annotation_effect(annotation),
+            effect,
             value: Box::new(value),
         }),
     };
     RuntimeType::Fun { param, ret }
+}
+
+fn function_allowed_effect_type(allowed: &typed_ir::FunctionSigAllowedEffects) -> typed_ir::Type {
+    match allowed {
+        typed_ir::FunctionSigAllowedEffects::Wildcard => typed_ir::Type::Any,
+        typed_ir::FunctionSigAllowedEffects::Effects(paths) => typed_ir::Type::Row {
+            items: paths
+                .iter()
+                .cloned()
+                .map(|path| typed_ir::Type::Named {
+                    path,
+                    args: Vec::new(),
+                })
+                .collect(),
+            tail: Box::new(typed_ir::Type::Never),
+        },
+    }
 }
 
 fn materialized_apply_expected_callee_arg(

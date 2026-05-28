@@ -3227,9 +3227,6 @@ sub:
                 implicit_prelude: true,
                 search_paths: Vec::new(),
             };
-            let _guard = std_runtime_ir_cache_lock()
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
 
             if let Ok(cached) =
                 yulang_runtime_pipeline::lowered_runtime_module_from_virtual_source_with_dependency_cache_read_only(
@@ -3285,11 +3282,6 @@ sub:
         })
     }
 
-    fn std_runtime_ir_cache_lock() -> &'static std::sync::Mutex<()> {
-        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
-        LOCK.get_or_init(|| std::sync::Mutex::new(()))
-    }
-
     fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
     where
         T: Send + 'static,
@@ -3297,9 +3289,6 @@ sub:
         if std::thread::current().name() == Some("runtime-finalize-large-stack") {
             return f();
         }
-        let _guard = large_stack_test_lock()
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::thread::Builder::new()
             .name("runtime-finalize-large-stack".into())
             .stack_size(512 * 1024 * 1024)
@@ -3307,11 +3296,6 @@ sub:
             .expect("spawn large-stack runtime-finalize test thread")
             .join()
             .expect("large-stack runtime-finalize test panicked")
-    }
-
-    fn large_stack_test_lock() -> &'static std::sync::Mutex<()> {
-        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
-        LOCK.get_or_init(|| std::sync::Mutex::new(()))
     }
 
     fn artifact_cache_root(name: &str) -> std::path::PathBuf {

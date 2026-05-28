@@ -5,6 +5,7 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path as FsPath, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rowan::{NodeOrToken, SyntaxNode};
@@ -330,7 +331,7 @@ fn collect_source_files_with_options_inner(
     ))
 }
 
-pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 29;
+pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 30;
 pub const COMPILED_UNIT_PARSER_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1568,7 +1569,12 @@ impl StdGraphCacheFile {
         let Ok(modified) = metadata.modified() else {
             return false;
         };
-        system_time_parts(modified) == Some((self.modified_secs, self.modified_nanos))
+        if system_time_parts(modified) != Some((self.modified_secs, self.modified_nanos)) {
+            return false;
+        }
+        fs::read(std_root.join(&self.relative_path))
+            .map(|source| stable_hash_bytes(&source) == self.source_hash)
+            .unwrap_or(false)
     }
 
     fn to_source_file(
@@ -1647,7 +1653,26 @@ fn write_std_graph_cache(std_root: &FsPath, files: &[SourceFile]) {
     let Ok(encoded) = serde_json::to_vec(&snapshot) else {
         return;
     };
-    let _ = fs::write(path, encoded);
+    let _ = write_cache_bytes_atomically(path, encoded);
+}
+
+fn write_cache_bytes_atomically(path: PathBuf, bytes: Vec<u8>) -> io::Result<()> {
+    static NEXT_TMP: AtomicU64 = AtomicU64::new(0);
+
+    let tmp_path = path.with_extension(format!(
+        "{}.tmp-{}-{}",
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .unwrap_or("cache"),
+        std::process::id(),
+        NEXT_TMP.fetch_add(1, AtomicOrdering::Relaxed)
+    ));
+    fs::write(&tmp_path, bytes)?;
+    if let Err(error) = fs::rename(&tmp_path, &path) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(error);
+    }
+    Ok(())
 }
 
 fn std_graph_cache_path(std_root: &FsPath) -> PathBuf {
@@ -5218,6 +5243,59 @@ version = "0.1.3"
             stable_hash_bytes("pub infix (%%) 50 51 = \\x -> \\y -> x\n".as_bytes())
         );
 
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn cache_key_source_collection_rejects_stale_std_graph_hash() {
+        let root = temp_root("std-graph-cache-stale-hash");
+        let _ = fs::remove_dir_all(&root);
+        let std_root = root.join("std");
+        fs::create_dir_all(&std_root).unwrap();
+        fs::write(root.join("main.yu"), "my y = 1 %% 2\n").unwrap();
+        let first_prelude = "pub infix (%%) 50 51 = \\x -> \\y -> x\n";
+        let second_prelude = "pub infix (%%) 50 51 = \\x -> \\y -> y\n";
+        fs::write(std_root.join("prelude.yu"), first_prelude).unwrap();
+        let options = SourceOptions {
+            std_root: Some(std_root.clone()),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+
+        collect_source_files_for_cache_key_with_options(root.join("main.yu"), options.clone())
+            .unwrap();
+        fs::write(std_root.join("prelude.yu"), second_prelude).unwrap();
+        let metadata = fs::metadata(std_root.join("prelude.yu")).unwrap();
+        let (modified_secs, modified_nanos) =
+            system_time_parts(metadata.modified().unwrap()).unwrap();
+        let cache_path = std_graph_cache_path(&std_root);
+        let mut snapshot = serde_json::from_str::<StdGraphCacheSnapshot>(
+            &fs::read_to_string(&cache_path).unwrap(),
+        )
+        .unwrap();
+        let cached_prelude = snapshot
+            .files
+            .iter_mut()
+            .find(|file| file.relative_path == PathBuf::from("prelude.yu"))
+            .unwrap();
+        cached_prelude.source_len = metadata.len();
+        cached_prelude.modified_secs = modified_secs;
+        cached_prelude.modified_nanos = modified_nanos;
+        fs::write(&cache_path, serde_json::to_vec(&snapshot).unwrap()).unwrap();
+
+        let second =
+            collect_source_files_for_cache_key_with_options(root.join("main.yu"), options).unwrap();
+        let std_file = second
+            .files
+            .iter()
+            .find(|file| file.origin == SourceOrigin::Std)
+            .expect("std file should be loaded after stale graph rejection");
+
+        assert_eq!(std_file.source, second_prelude);
+        assert_eq!(
+            std_file.source_identity_hash(),
+            stable_hash_bytes(second_prelude.as_bytes())
+        );
         let _ = fs::remove_dir_all(root);
     }
 

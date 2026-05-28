@@ -829,6 +829,10 @@ impl Lowerer<'_> {
                     &result_ty,
                 );
                 let mut final_fun_parts = function_parts(&callee.ty).unwrap_or(final_fun_parts);
+                let effect_operation_signature_param = match &callee.kind {
+                    ExprKind::EffectOp(path) => self.effect_operation_signature_param(path),
+                    _ => None,
+                };
                 let mut final_param = choose_final_apply_param(
                     &final_fun_parts.param,
                     selected_arg_hint.as_ref(),
@@ -845,6 +849,16 @@ impl Lowerer<'_> {
                     && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
                 {
                     final_param = actual_arg_ty.clone();
+                }
+                if matches!(callee.kind, ExprKind::EffectOp(_))
+                    && matches!(actual_arg_ty, RuntimeType::Thunk { .. })
+                    && let Some(signature_param) = effect_operation_signature_param.as_ref()
+                    && !matches!(signature_param, RuntimeType::Thunk { .. })
+                {
+                    final_param = signature_param.clone();
+                    final_fun_parts.param = final_param.clone();
+                    callee.ty =
+                        erased_fun_type(final_fun_parts.param.clone(), final_fun_parts.ret.clone());
                 }
                 if evidence
                     .as_ref()
@@ -1687,17 +1701,37 @@ impl Lowerer<'_> {
         locals: &HashMap<typed_ir::Path, RuntimeType>,
     ) -> RuntimeResult<HandleArm> {
         let mut arm_locals = locals.clone();
+        let resolved_effect =
+            self.resolve_handle_effect_operation_path_for_handle(&arm.effect, handled);
+        let signature_payload_ty = if arm.effect == typed_ir::Path::default() {
+            None
+        } else {
+            self.effect_operation_signature_param(&resolved_effect)
+                .map(|ty| runtime_core_type(value_hir_type(&ty)))
+                .filter(|ty| !matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any))
+        };
         let payload_ty = if arm.effect == typed_ir::Path::default() {
             body_ty.clone()
         } else {
-            infer_handle_payload_type(
-                &self.primitive_paths,
-                &arm.payload,
-                arm.guard.as_ref(),
-                &arm.body,
-                result_ty,
-            )
-            .unwrap_or(typed_ir::Type::Unknown)
+            signature_payload_ty.unwrap_or_else(|| {
+                self.infer_handle_payload_type_from_runtime_context(
+                    &arm.payload,
+                    arm.guard.as_ref(),
+                    &arm.body,
+                    result_ty,
+                    locals,
+                )
+                .or_else(|| {
+                    infer_handle_payload_type(
+                        &self.primitive_paths,
+                        &arm.payload,
+                        arm.guard.as_ref(),
+                        &arm.body,
+                        result_ty,
+                    )
+                })
+                .unwrap_or(typed_ir::Type::Unknown)
+            })
         };
         let payload = lower_pattern(self, arm.payload, &payload_ty, &mut arm_locals)?;
         let resume_ty = arm.resume.as_ref().map(|resume| {
@@ -1740,7 +1774,7 @@ impl Lowerer<'_> {
             TypeSource::JoinEvidence,
         )?;
         Ok(HandleArm {
-            effect: self.resolve_handle_effect_operation_path_for_handle(&arm.effect, handled),
+            effect: resolved_effect,
             payload,
             resume: arm.resume.map(|name| ResumeBinding {
                 name,
@@ -1749,6 +1783,315 @@ impl Lowerer<'_> {
             guard,
             body,
         })
+    }
+
+    fn infer_handle_payload_type_from_runtime_context(
+        &self,
+        pattern: &typed_ir::Pattern,
+        guard: Option<&typed_ir::Expr>,
+        body: &typed_ir::Expr,
+        result_ty: &typed_ir::Type,
+        locals: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> Option<typed_ir::Type> {
+        match pattern {
+            typed_ir::Pattern::Bind(name) => guard
+                .and_then(|guard| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        guard,
+                        &RuntimeType::value(self.primitive_paths.bool_type()),
+                        locals,
+                    )
+                })
+                .or_else(|| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        body,
+                        &RuntimeType::value(result_ty.clone()),
+                        locals,
+                    )
+                }),
+            typed_ir::Pattern::As { pattern, name } => guard
+                .and_then(|guard| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        guard,
+                        &RuntimeType::value(self.primitive_paths.bool_type()),
+                        locals,
+                    )
+                })
+                .or_else(|| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        body,
+                        &RuntimeType::value(result_ty.clone()),
+                        locals,
+                    )
+                })
+                .or_else(|| {
+                    self.infer_handle_payload_type_from_runtime_context(
+                        pattern, guard, body, result_ty, locals,
+                    )
+                }),
+            typed_ir::Pattern::Tuple(items) => Some(typed_ir::Type::Tuple(
+                items
+                    .iter()
+                    .map(|item| {
+                        self.infer_handle_payload_type_from_runtime_context(
+                            item, guard, body, result_ty, locals,
+                        )
+                        .unwrap_or(typed_ir::Type::Unknown)
+                    })
+                    .collect(),
+            )),
+            _ => None,
+        }
+    }
+
+    fn infer_local_expected_type_from_runtime_context(
+        &self,
+        name: &typed_ir::Name,
+        expr: &typed_ir::Expr,
+        expected: &RuntimeType,
+        locals: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> Option<typed_ir::Type> {
+        match expr {
+            typed_ir::Expr::Var(path) if path.segments.as_slice() == std::slice::from_ref(name) => {
+                Some(runtime_core_type(value_hir_type(expected)))
+            }
+            typed_ir::Expr::Apply {
+                callee,
+                arg,
+                evidence,
+            } => {
+                let arg_expected = self
+                    .runtime_expr_type_hint(callee, locals)
+                    .and_then(|ty| function_parts(&ty).ok().map(|parts| parts.param))
+                    .or_else(|| {
+                        evidence.as_ref().and_then(|evidence| {
+                            evidence
+                                .expected_arg
+                                .as_ref()
+                                .and_then(runtime_bounds_type)
+                                .or_else(|| runtime_bounds_type(&evidence.arg))
+                                .map(RuntimeType::value)
+                        })
+                    })
+                    .unwrap_or(RuntimeType::Unknown);
+                self.infer_local_expected_type_from_runtime_context(
+                    name,
+                    arg,
+                    &arg_expected,
+                    locals,
+                )
+                .or_else(|| {
+                    let callee_expected = erased_fun_type(arg_expected, expected.clone());
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        callee,
+                        &callee_expected,
+                        locals,
+                    )
+                })
+            }
+            typed_ir::Expr::Coerce { expr, .. }
+            | typed_ir::Expr::BindHere { expr }
+            | typed_ir::Expr::Pack { expr, .. } => {
+                self.infer_local_expected_type_from_runtime_context(name, expr, expected, locals)
+            }
+            typed_ir::Expr::Lambda { body, .. } => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    body,
+                    &RuntimeType::Unknown,
+                    locals,
+                ),
+            typed_ir::Expr::If {
+                cond,
+                then_branch,
+                else_branch,
+                ..
+            } => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    cond,
+                    &RuntimeType::value(self.primitive_paths.bool_type()),
+                    locals,
+                )
+                .or_else(|| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        then_branch,
+                        expected,
+                        locals,
+                    )
+                })
+                .or_else(|| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        else_branch,
+                        expected,
+                        locals,
+                    )
+                }),
+            typed_ir::Expr::Block { stmts, tail } => stmts
+                .iter()
+                .find_map(|stmt| {
+                    self.infer_local_expected_type_from_runtime_context_stmt(name, stmt, locals)
+                })
+                .or_else(|| {
+                    tail.as_deref().and_then(|tail| {
+                        self.infer_local_expected_type_from_runtime_context(
+                            name, tail, expected, locals,
+                        )
+                    })
+                }),
+            typed_ir::Expr::Match {
+                scrutinee, arms, ..
+            } => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    scrutinee,
+                    &RuntimeType::Unknown,
+                    locals,
+                )
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| {
+                                self.infer_local_expected_type_from_runtime_context(
+                                    name,
+                                    guard,
+                                    &RuntimeType::value(self.primitive_paths.bool_type()),
+                                    locals,
+                                )
+                            })
+                            .or_else(|| {
+                                self.infer_local_expected_type_from_runtime_context(
+                                    name, &arm.body, expected, locals,
+                                )
+                            })
+                    })
+                }),
+            typed_ir::Expr::Handle { body, arms, .. } => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    body,
+                    &RuntimeType::Unknown,
+                    locals,
+                )
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| {
+                                self.infer_local_expected_type_from_runtime_context(
+                                    name,
+                                    guard,
+                                    &RuntimeType::value(self.primitive_paths.bool_type()),
+                                    locals,
+                                )
+                            })
+                            .or_else(|| {
+                                self.infer_local_expected_type_from_runtime_context(
+                                    name, &arm.body, expected, locals,
+                                )
+                            })
+                    })
+                }),
+            typed_ir::Expr::Tuple(items) => items.iter().find_map(|item| {
+                self.infer_local_expected_type_from_runtime_context(
+                    name,
+                    item,
+                    &RuntimeType::Unknown,
+                    locals,
+                )
+            }),
+            typed_ir::Expr::Record { fields, spread } => fields
+                .iter()
+                .find_map(|field| {
+                    self.infer_local_expected_type_from_runtime_context(
+                        name,
+                        &field.value,
+                        &RuntimeType::Unknown,
+                        locals,
+                    )
+                })
+                .or_else(|| match spread {
+                    Some(typed_ir::RecordSpreadExpr::Head(expr))
+                    | Some(typed_ir::RecordSpreadExpr::Tail(expr)) => self
+                        .infer_local_expected_type_from_runtime_context(
+                            name,
+                            expr,
+                            &RuntimeType::Unknown,
+                            locals,
+                        ),
+                    None => None,
+                }),
+            typed_ir::Expr::Variant { value, .. } => value.as_deref().and_then(|value| {
+                self.infer_local_expected_type_from_runtime_context(
+                    name,
+                    value,
+                    &RuntimeType::Unknown,
+                    locals,
+                )
+            }),
+            typed_ir::Expr::Select { base, .. } => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    base,
+                    &RuntimeType::Unknown,
+                    locals,
+                ),
+            typed_ir::Expr::Var(_) | typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => {
+                None
+            }
+        }
+    }
+
+    fn infer_local_expected_type_from_runtime_context_stmt(
+        &self,
+        name: &typed_ir::Name,
+        stmt: &typed_ir::Stmt,
+        locals: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> Option<typed_ir::Type> {
+        match stmt {
+            typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    value,
+                    &RuntimeType::Unknown,
+                    locals,
+                ),
+            typed_ir::Stmt::Module { body, .. } => self
+                .infer_local_expected_type_from_runtime_context(
+                    name,
+                    body,
+                    &RuntimeType::Unknown,
+                    locals,
+                ),
+        }
+    }
+
+    fn runtime_expr_type_hint(
+        &self,
+        expr: &typed_ir::Expr,
+        locals: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> Option<RuntimeType> {
+        match expr {
+            typed_ir::Expr::Var(path) => locals.get(path).cloned().or_else(|| {
+                let resolved = self.resolve_alias_path(path);
+                self.env.get(&resolved).cloned()
+            }),
+            typed_ir::Expr::Apply { callee, .. } => self
+                .runtime_expr_type_hint(callee, locals)
+                .and_then(|ty| function_parts(&ty).ok().map(|parts| parts.ret)),
+            typed_ir::Expr::Coerce { expr, .. }
+            | typed_ir::Expr::BindHere { expr }
+            | typed_ir::Expr::Pack { expr, .. } => self.runtime_expr_type_hint(expr, locals),
+            _ => None,
+        }
     }
 
     fn resolve_handle_effect_operation_path_for_handle(
@@ -1773,13 +2116,21 @@ impl Lowerer<'_> {
                 .collect(),
         };
         for consumed in effect_paths(handled) {
-            let namespace_matches_consumed = namespace == consumed
+            let namespace_matches_consumed = namespace.segments.is_empty()
+                || namespace == consumed
                 || (namespace.segments.len() == 1
                     && consumed
                         .segments
                         .last()
                         .is_some_and(|name| Some(name) == namespace.segments.last()));
             if namespace_matches_consumed {
+                let mut candidate = consumed.clone();
+                candidate.segments.push(op.clone());
+                if self.runtime_symbol_kind(&candidate)
+                    == Some(typed_ir::RuntimeSymbolKind::EffectOperation)
+                {
+                    return candidate;
+                }
                 let mut candidate = consumed.clone();
                 candidate
                     .segments
@@ -2121,6 +2472,14 @@ impl Lowerer<'_> {
         let resolved_path = self.resolve_alias_path(path);
         self.runtime_symbol_kind(&resolved_path)
             == Some(typed_ir::RuntimeSymbolKind::EffectOperation)
+    }
+
+    fn effect_operation_signature_param(&self, path: &typed_ir::Path) -> Option<RuntimeType> {
+        let ty = self
+            .effect_op_signatures
+            .get(path)
+            .map(|scheme| project_runtime_hir_type_with_vars(&scheme.body, &self.principal_vars))?;
+        function_parts(&ty).ok().map(|parts| parts.param)
     }
 
     pub(super) fn visible_principal_bounds_type(

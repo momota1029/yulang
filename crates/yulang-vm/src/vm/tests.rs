@@ -152,6 +152,34 @@ all_paths:
     a + b + c
 "#;
 
+    const SOURCE_REF_STRING_RANGE_ASSIGNMENT_SOURCE: &str = r#"{
+    my $s = "aあ🙂z"
+    my removed = $s[range 1 3]
+    &s[range 1 3] = "bc"
+    ($s, removed)
+}
+"#;
+
+    const SELECTIVE_THUNK_EFFECT_VISIBILITY_SOURCE: &str = r#"act a:
+  our get: () -> int
+
+act b:
+  our get: () -> int
+
+my shallow(x: [a] int) = catch x:
+  a::get(), _ -> 1
+  b::get(), _ -> 2
+  value -> value
+
+my outer(x: [_] int) = catch x:
+  b::get(), _ -> 20
+
+(
+  shallow(a::get()),
+  outer(shallow(b::get()))
+)
+"#;
+
     const SHOWCASE_SOURCE: &str = r#"use std::undet::*
 
 struct point { x: int, y: int } with:
@@ -1850,23 +1878,7 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
 
     #[test]
     fn vm_runs_source_ref_string_range_assignment_example() {
-        let results = eval_source_with_std(
-            r#"{
-    my $s = "aあ🙂z"
-    my removed = $s[range 1 3]
-    &s[range 1 3] = "bc"
-    ($s, removed)
-}
-"#,
-        );
-
-        assert_eq!(
-            results,
-            vec![TestValue::Tuple(vec![
-                TestValue::String("abcz".to_string()),
-                TestValue::String("あ🙂".to_string()),
-            ])]
-        );
+        assert_source_ref_string_range_assignment(eval_source_with_std);
     }
 
     #[test]
@@ -2638,35 +2650,39 @@ shallow(\() -> undet::bool())
 
     #[test]
     fn vm_keeps_only_selectively_annotated_thunk_effect_visible_to_local_handler() {
-        let results = eval_source_with_std(
-            r#"act a:
-  our get: () -> int
+        assert_selective_thunk_effect_visibility(eval_source_with_std);
+    }
 
-act b:
-  our get: () -> int
+    #[test]
+    fn vm_std_pipeline_survives_parallel_ref_and_effect_runs() {
+        run_parallel_std_pipeline_regression(4, 2, |eval| {
+            assert_source_ref_string_range_assignment(eval);
+            assert_selective_thunk_effect_visibility(eval);
+        });
+    }
 
-my shallow(x: [a] int) = catch x:
-  a::get(), _ -> 1
-  b::get(), _ -> 2
-  value -> value
+    #[test]
+    fn vm_std_pipeline_survives_parallel_source_ref_runs() {
+        run_parallel_std_pipeline_regression(4, 2, |eval| {
+            assert_source_ref_string_range_assignment(eval);
+        });
+    }
 
-my outer(x: [_] int) = catch x:
-  b::get(), _ -> 20
+    #[test]
+    fn vm_std_pipeline_survives_parallel_selective_effect_runs() {
+        run_parallel_std_pipeline_regression(4, 2, |eval| {
+            assert_selective_thunk_effect_visibility(eval);
+        });
+    }
 
-(
-  shallow(a::get()),
-  outer(shallow(b::get()))
-)
-"#,
-        );
-
-        assert_eq!(
-            results,
-            vec![TestValue::Tuple(vec![
-                TestValue::Int("1".to_string()),
-                TestValue::Int("20".to_string()),
-            ])]
-        );
+    #[test]
+    fn vm_std_pipeline_survives_repeated_ref_and_effect_runs_on_one_thread() {
+        run_with_large_stack(|| {
+            for _ in 0..3 {
+                assert_source_ref_string_range_assignment(eval_source_with_std_inner);
+                assert_selective_thunk_effect_visibility(eval_source_with_std_inner);
+            }
+        });
     }
 
     #[test]
@@ -3717,7 +3733,10 @@ box { width: 3, height: 4 }
         assert_eq!(outside.frames.len(), 2);
         assert!(matches!(outside.frames[0], Frame::Handle { id: 2, .. }));
         assert!(matches!(outside.frames[1], Frame::Handle { id: 5, .. }));
-        assert_eq!(inside.frames, vec![Frame::BindHere]);
+        assert_eq!(inside.frames.len(), 3);
+        assert!(matches!(inside.frames[0], Frame::Handle { id: 2, .. }));
+        assert!(matches!(inside.frames[1], Frame::Handle { id: 5, .. }));
+        assert!(matches!(inside.frames[2], Frame::BindHere));
     }
 
     #[test]
@@ -3953,6 +3972,57 @@ box { width: 3, height: 4 }
         )
     }
 
+    fn assert_source_ref_string_range_assignment(eval: fn(&str) -> Vec<TestValue>) {
+        let results = eval(SOURCE_REF_STRING_RANGE_ASSIGNMENT_SOURCE);
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("abcz".to_string()),
+                TestValue::String("あ🙂".to_string()),
+            ])]
+        );
+    }
+
+    fn assert_selective_thunk_effect_visibility(eval: fn(&str) -> Vec<TestValue>) {
+        let results = eval(SELECTIVE_THUNK_EFFECT_VISIBILITY_SOURCE);
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("1".to_string()),
+                TestValue::Int("20".to_string()),
+            ])]
+        );
+    }
+
+    fn run_parallel_std_pipeline_regression(
+        threads: usize,
+        runs_per_thread: usize,
+        assertion: fn(fn(&str) -> Vec<TestValue>),
+    ) {
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(threads));
+        let handles = (0..threads)
+            .map(|index| {
+                let barrier = barrier.clone();
+                thread::Builder::new()
+                    .name(format!("vm-std-parallel-regression-{index}"))
+                    .stack_size(256 * 1024 * 1024)
+                    .spawn(move || {
+                        barrier.wait();
+                        for _ in 0..runs_per_thread {
+                            assertion(eval_source_with_std_inner);
+                        }
+                    })
+                    .expect("spawn parallel VM std regression worker")
+            })
+            .collect::<Vec<_>>();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
     fn eval_source_with_std(src: &str) -> Vec<TestValue> {
         let src = src.to_string();
         run_with_large_stack(move || eval_source_with_std_inner(&src))
@@ -3972,7 +4042,8 @@ box { width: 3, height: 4 }
     fn eval_source_with_std_inner(src: &str) -> Vec<TestValue> {
         let module = runtime_module_with_std_inner(src);
         let module = compile_vm_module(module).expect("compiled runtime VM module");
-        test_values(module.eval_roots().expect("vm results"))
+        let results = module.eval_roots().expect("vm results");
+        test_values(results)
     }
 
     fn eval_control_source_with_std(src: &str) -> Vec<TestValue> {
@@ -4038,19 +4109,16 @@ box { width: 3, height: 4 }
     fn runtime_module_with_std_result_inner(src: &str) -> RuntimeResult<Module> {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let std_root = repo_root.join("lib/std");
-        let mut lowered = {
-            let _guard = std_source_lower_lock().lock().unwrap();
-            lower_virtual_source_with_options(
-                src,
-                Some(repo_root),
-                SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .unwrap()
-        };
+        let mut lowered = lower_virtual_source_with_options(
+            src,
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
         match yulang_runtime_pipeline::lowered_runtime_module_from_lowered_sources(&mut lowered) {
             Ok(module) => match yulang_monomorphize::monomorphize_module(module) {
                 Ok(module) => Ok(module),
@@ -4059,11 +4127,6 @@ box { width: 3, height: 4 }
             Err(yulang_runtime_pipeline::RuntimePipelineError::RuntimeLower(error)) => Err(error),
             Err(error) => panic!("lowered runtime module failed: {error}"),
         }
-    }
-
-    fn std_source_lower_lock() -> &'static std::sync::Mutex<()> {
-        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
-        LOCK.get_or_init(|| std::sync::Mutex::new(()))
     }
 
     fn finalized_runtime_module_from_lowered_sources(
@@ -4197,9 +4260,54 @@ box { width: 3, height: 4 }
             .into_iter()
             .map(|result| match result {
                 VmResult::Value(value) => test_value(value),
-                VmResult::Request(request) => panic!("unexpected request: {:?}", request.effect),
+                VmResult::Request(request) => panic!(
+                    "unexpected request: {:?}, blocked_id={:?}, blocked_ids={:?}, continuation_guard_stack={:?}, frames={:?}",
+                    request.effect,
+                    request.blocked_id,
+                    request.continuation.blocked_ids,
+                    request.continuation.guard_stack,
+                    request
+                        .continuation
+                        .frames
+                        .iter()
+                        .map(frame_tag)
+                        .collect::<Vec<_>>()
+                ),
             })
             .collect()
+    }
+
+    fn frame_tag(frame: &Frame) -> String {
+        match frame {
+            Frame::BindHere => "BindHere".to_string(),
+            Frame::ApplyCallee { .. } => "ApplyCallee".to_string(),
+            Frame::ApplyArg { .. } => "ApplyArg".to_string(),
+            Frame::If { .. } => "If".to_string(),
+            Frame::Tuple { .. } => "Tuple".to_string(),
+            Frame::Select { .. } => "Select".to_string(),
+            Frame::Match { .. } => "Match".to_string(),
+            Frame::Variant { .. } => "Variant".to_string(),
+            Frame::BlockLet { .. } => "BlockLet".to_string(),
+            Frame::BlockExpr { .. } => "BlockExpr".to_string(),
+            Frame::Handle { arms, .. } => format!(
+                "Handle({})",
+                arms.iter()
+                    .map(|arm| format!("{:?}", arm.effect))
+                    .collect::<Vec<_>>()
+                    .join("|")
+            ),
+            Frame::HandleGuard { arms, .. } => format!(
+                "HandleGuard({})",
+                arms.iter()
+                    .map(|arm| format!("{:?}", arm.effect))
+                    .collect::<Vec<_>>()
+                    .join("|")
+            ),
+            Frame::LocalPushId { .. } => "LocalPushId".to_string(),
+            Frame::BlockedEffects { .. } => "BlockedEffects".to_string(),
+            Frame::Coerce { .. } => "Coerce".to_string(),
+            Frame::WrapThunkResult { .. } => "WrapThunkResult".to_string(),
+        }
     }
 
     fn test_value(value: VmValue) -> TestValue {

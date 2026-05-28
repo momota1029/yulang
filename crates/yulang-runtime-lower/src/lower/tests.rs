@@ -102,6 +102,44 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn inferred_handle_payload_uses_apply_argument_evidence() {
+        let payload_name = typed_ir::Name("payload".to_string());
+        let payload = typed_ir::Pattern::Bind(payload_name.clone());
+        let string_ty = named_type("str");
+        let body = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(typed_ir::Path::from_name(
+                typed_ir::Name("consume".to_string()),
+            ))),
+            arg: Box::new(typed_ir::Expr::Var(typed_ir::Path::from_name(payload_name))),
+            evidence: Some(typed_ir::ApplyEvidence {
+                callee_source_edge: None,
+                arg_source_edge: None,
+                callee: typed_ir::TypeBounds::exact(typed_ir::Type::Unknown),
+                expected_callee: None,
+                arg: typed_ir::TypeBounds::exact(string_ty.clone()),
+                expected_arg: Some(typed_ir::TypeBounds::exact(string_ty.clone())),
+                result: typed_ir::TypeBounds::exact(unit_type()),
+                principal_callee: None,
+                substitutions: Vec::new(),
+                substitution_candidates: Vec::new(),
+                role_method: false,
+                principal_elaboration: None,
+            }),
+        };
+
+        let ty = infer_handle_payload_type(
+            &RuntimePrimitivePathTable::standard(),
+            &payload,
+            None,
+            &body,
+            &unit_type(),
+        )
+        .expect("payload type");
+
+        assert_eq!(ty, string_ty);
+    }
+
+    #[test]
     pub(super) fn lower_root_erases_principal_vars_from_graph_bounds() {
         let principal_var = typed_ir::TypeVar("a".to_string());
         let id_path = typed_ir::Path::from_name(typed_ir::Name("id".to_string()));

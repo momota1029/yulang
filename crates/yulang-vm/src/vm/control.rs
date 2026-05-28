@@ -8,7 +8,7 @@ use std::path::Path;
 use yulang_runtime_ir::FinalizedRecordSpreadPattern as RecordSpreadPattern;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 11;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 12;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -317,6 +317,7 @@ enum ControlExprKind {
     Lambda {
         param: ControlLocalId,
         param_forces_thunk_arg: bool,
+        param_delays_thunk_arg: bool,
         body: ExprId,
         result_wraps_thunk: bool,
     },
@@ -687,15 +688,22 @@ impl ControlCompiler {
             ExprKind::Lambda {
                 param,
                 param_effect_annotation,
+                param_function_allowed_effects,
                 body,
                 ..
             } => {
-                let (param_forces_thunk_arg, result_wraps_thunk) =
-                    control_lambda_shape(&ty, &body.ty, param_effect_annotation.as_ref());
+                let (param_forces_thunk_arg, param_delays_thunk_arg, result_wraps_thunk) =
+                    control_lambda_shape(
+                        &ty,
+                        &body.ty,
+                        param_effect_annotation.as_ref(),
+                        param_function_allowed_effects.as_ref(),
+                    );
                 let param = self.intern_local_name_path(&param);
                 ControlExprKind::Lambda {
                     param,
                     param_forces_thunk_arg,
+                    param_delays_thunk_arg,
                     body: self.expr(*body),
                     result_wraps_thunk,
                 }
@@ -1031,6 +1039,7 @@ struct ControlPrimitive {
 struct ControlClosure {
     param: ControlLocalId,
     param_forces_thunk_arg: bool,
+    param_delays_thunk_arg: bool,
     body: ExprId,
     result_wraps_thunk: bool,
     env: ControlEnv,
@@ -1041,6 +1050,7 @@ struct ControlClosure {
 struct DirectKnownClosure {
     param: ControlLocalId,
     param_forces_thunk_arg: bool,
+    param_delays_thunk_arg: bool,
     body: ExprId,
     result_wraps_thunk: bool,
     guard_stack: GuardStack,
@@ -1051,6 +1061,7 @@ impl DirectKnownClosure {
         ControlClosure {
             param: self.param,
             param_forces_thunk_arg: self.param_forces_thunk_arg,
+            param_delays_thunk_arg: self.param_delays_thunk_arg,
             body: self.body,
             result_wraps_thunk: self.result_wraps_thunk,
             env: ControlEnv::new(),
@@ -1335,12 +1346,14 @@ impl<'m> ControlInterpreter<'m> {
             ControlExprKind::Lambda {
                 param,
                 param_forces_thunk_arg,
+                param_delays_thunk_arg,
                 body,
                 result_wraps_thunk,
             } => Ok(ControlResult::Value(ControlValue::Closure(
                 ControlHeap::new(ControlClosure {
                     param,
                     param_forces_thunk_arg,
+                    param_delays_thunk_arg,
                     body,
                     result_wraps_thunk,
                     env: env.clone(),
@@ -1568,11 +1581,13 @@ impl<'m> ControlInterpreter<'m> {
             ControlExprKind::Lambda {
                 param,
                 param_forces_thunk_arg,
+                param_delays_thunk_arg,
                 body,
                 result_wraps_thunk,
             } => Some(DirectKnownCallee::Closure(DirectKnownClosure {
                 param,
                 param_forces_thunk_arg,
+                param_delays_thunk_arg,
                 body,
                 result_wraps_thunk,
                 guard_stack: self.guard_stack.clone(),
@@ -1785,6 +1800,7 @@ impl<'m> ControlInterpreter<'m> {
         if matches!(callee, ControlValue::Thunk(_)) {
             return self.force_apply_callee(callee, arg, env.clone(), delay_arg);
         }
+        let delay_arg = delay_arg || control_callee_delays_thunk_arg(&callee);
         if delay_arg {
             return self.apply(
                 callee,
@@ -3223,13 +3239,20 @@ fn control_lambda_shape(
     lambda_ty: &Type,
     body_ty: &Type,
     param_effect_annotation: Option<&typed_ir::ParamEffectAnnotation>,
-) -> (bool, bool) {
+    param_function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
+) -> (bool, bool, bool) {
     match lambda_ty {
-        Type::Fun { param, ret } => (
-            param_effect_annotation.is_none() && control_param_forces_thunk_arg(param),
-            type_wraps_thunk(ret.as_ref()),
-        ),
-        _ => (false, type_wraps_thunk(body_ty)),
+        Type::Fun { param, ret } => {
+            let param_delays_thunk_arg = type_wraps_thunk(param.as_ref())
+                || param_effect_annotation.is_some()
+                || param_function_allowed_effects.is_some();
+            (
+                !param_delays_thunk_arg && control_param_forces_thunk_arg(param),
+                param_delays_thunk_arg,
+                type_wraps_thunk(ret.as_ref()),
+            )
+        }
+        _ => (false, false, type_wraps_thunk(body_ty)),
     }
 }
 
@@ -3237,6 +3260,13 @@ fn control_param_forces_thunk_arg(param_ty: &Type) -> bool {
     !matches!(
         param_ty,
         Type::Thunk { .. } | Type::Value(typed_ir::Type::Any)
+    )
+}
+
+fn control_callee_delays_thunk_arg(callee: &ControlValue) -> bool {
+    matches!(
+        callee,
+        ControlValue::Closure(closure) if closure.param_delays_thunk_arg
     )
 }
 

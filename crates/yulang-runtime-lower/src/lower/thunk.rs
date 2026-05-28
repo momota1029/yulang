@@ -20,9 +20,8 @@ pub(super) fn apply_param_allowed_effect(
     annotation: Option<&typed_ir::ParamEffectAnnotation>,
     function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
 ) -> RuntimeType {
-    if function_allowed_effects.is_none()
-        && let Some(allowed) = allowed_effect_for_param(annotation, None, &param_ty)
-            .map(|allowed| project_runtime_effect(&allowed))
+    if let Some(allowed) = allowed_effect_for_param(annotation, function_allowed_effects, &param_ty)
+        .map(|allowed| project_runtime_effect(&allowed))
     {
         return match param_ty {
             RuntimeType::Thunk { .. } => param_ty,

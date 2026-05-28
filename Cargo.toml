@@ -18,3 +18,9 @@ members = [
   "crates/yulang-infer",
   "crates/yulang-lsp",
 ]
+
+[profile.test.package.yulang-infer]
+opt-level = 1
+
+[profile.test.package.yulang-monomorphize]
+opt-level = 1

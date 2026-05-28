@@ -77,6 +77,7 @@ impl<'m> VmInterpreter<'m> {
             ExprKind::Lambda {
                 param,
                 param_effect_annotation,
+                param_function_allowed_effects,
                 body,
                 ..
             } => {
@@ -86,7 +87,11 @@ impl<'m> VmInterpreter<'m> {
                 };
                 Ok(VmResult::Value(VmValue::Closure(Rc::new(VmClosure {
                     param: param.clone(),
-                    param_ty: lambda_param_type(param_ty, param_effect_annotation.as_ref()),
+                    param_ty: lambda_param_type(
+                        param_ty,
+                        param_effect_annotation.as_ref(),
+                        param_function_allowed_effects.as_ref(),
+                    ),
                     body: (**body).clone(),
                     ret,
                     env: env.clone(),
@@ -426,6 +431,7 @@ impl<'m> VmInterpreter<'m> {
         if let VmValue::Thunk(_) = callee {
             return self.force_apply_callee(callee, arg.clone(), env.clone(), delay_arg);
         }
+        let delay_arg = delay_arg || callee_expects_thunk_arg(&callee);
         if delay_arg {
             return self.apply(
                 callee,
@@ -1285,13 +1291,50 @@ fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
     )
 }
 
-fn lambda_param_type(param_ty: Type, annotation: Option<&typed_ir::ParamEffectAnnotation>) -> Type {
+fn callee_expects_thunk_arg(callee: &VmValue) -> bool {
+    matches!(
+        callee,
+        VmValue::Closure(closure) if matches!(closure.param_ty, Type::Thunk { .. })
+    )
+}
+
+fn lambda_param_type(
+    param_ty: Type,
+    annotation: Option<&typed_ir::ParamEffectAnnotation>,
+    function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
+) -> Type {
+    if matches!(param_ty, Type::Thunk { .. }) {
+        return param_ty;
+    }
+    if let Some(allowed) = function_allowed_effects {
+        return Type::Thunk {
+            effect: function_allowed_effect_type(allowed),
+            value: Box::new(param_ty),
+        };
+    }
     let Some(annotation) = annotation else {
         return param_ty;
     };
     Type::Thunk {
         effect: param_effect_annotation_effect(annotation),
         value: Box::new(param_ty),
+    }
+}
+
+fn function_allowed_effect_type(allowed: &typed_ir::FunctionSigAllowedEffects) -> typed_ir::Type {
+    match allowed {
+        typed_ir::FunctionSigAllowedEffects::Wildcard => typed_ir::Type::Any,
+        typed_ir::FunctionSigAllowedEffects::Effects(paths) => typed_ir::Type::Row {
+            items: paths
+                .iter()
+                .cloned()
+                .map(|path| typed_ir::Type::Named {
+                    path,
+                    args: Vec::new(),
+                })
+                .collect(),
+            tail: Box::new(typed_ir::Type::Never),
+        },
     }
 }
 

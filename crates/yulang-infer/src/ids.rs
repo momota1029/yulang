@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,16 @@ thread_local! {
     static NEXT_DEF_ID: Cell<u32> = const { Cell::new(0) };
     static NEXT_REF_ID: Cell<u32> = const { Cell::new(0) };
     static NEXT_TYPE_VAR: Cell<u32> = const { Cell::new(0) };
+    static FRESH_ID_THREAD_BASE: Cell<Option<u32>> = const { Cell::new(None) };
+}
+
+static NEXT_FRESH_ID_SCOPE_BASE: AtomicU32 = AtomicU32::new(0);
+const FRESH_ID_SCOPE_BLOCK: u32 = 100_000;
+
+pub(crate) fn with_fresh_id_scope<T>(f: impl FnOnce() -> T) -> T {
+    let base = fresh_id_thread_base();
+    set_fresh_id_counters(base, base, 0);
+    f()
 }
 
 pub fn fresh_def_id() -> DefId {
@@ -42,13 +53,16 @@ pub fn fresh_frozen_type_var() -> TypeVar {
     TypeVar(fresh_u32(&NEXT_TYPE_VAR))
 }
 
+pub(crate) fn reserve_def_ids_through(max: DefId) {
+    reserve_counter_through(&NEXT_DEF_ID, max.0);
+}
+
+pub(crate) fn reserve_ref_ids_through(max: RefId) {
+    reserve_counter_through(&NEXT_REF_ID, max.0);
+}
+
 pub(crate) fn reserve_type_vars_through(max: TypeVar) {
-    let next = max.0.saturating_add(1);
-    NEXT_TYPE_VAR.with(|counter| {
-        if counter.get() < next {
-            counter.set(next);
-        }
-    });
+    reserve_counter_through(&NEXT_TYPE_VAR, max.0);
 }
 
 fn fresh_u32(counter: &'static std::thread::LocalKey<Cell<u32>>) -> u32 {
@@ -56,6 +70,32 @@ fn fresh_u32(counter: &'static std::thread::LocalKey<Cell<u32>>) -> u32 {
         let id = counter.get();
         counter.set(id.saturating_add(1));
         id
+    })
+}
+
+fn reserve_counter_through(counter: &'static std::thread::LocalKey<Cell<u32>>, max: u32) {
+    let next = max.saturating_add(1);
+    counter.with(|counter| {
+        if counter.get() < next {
+            counter.set(next);
+        }
+    });
+}
+
+fn set_fresh_id_counters(next_def_id: u32, next_ref_id: u32, next_type_var: u32) {
+    NEXT_DEF_ID.with(|counter| counter.set(next_def_id));
+    NEXT_REF_ID.with(|counter| counter.set(next_ref_id));
+    NEXT_TYPE_VAR.with(|counter| counter.set(next_type_var));
+}
+
+fn fresh_id_thread_base() -> u32 {
+    FRESH_ID_THREAD_BASE.with(|slot| {
+        if let Some(base) = slot.get() {
+            return base;
+        }
+        let base = NEXT_FRESH_ID_SCOPE_BASE.fetch_add(FRESH_ID_SCOPE_BLOCK, Ordering::Relaxed);
+        slot.set(Some(base));
+        base
     })
 }
 

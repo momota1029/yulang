@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use yulang_sources::{
@@ -154,11 +155,7 @@ impl CompiledUnitArtifactCache {
                 error: error.to_string(),
             }
         })?;
-        fs::write(&path, bytes).map_err(|error| CompiledUnitArtifactCacheError::Io {
-            path: path.clone(),
-            error: io_error_string(error),
-        })?;
-        Ok(path)
+        write_cache_bytes_atomically(path, bytes)
     }
 
     pub fn read(
@@ -213,11 +210,7 @@ impl CompiledUnitArtifactCache {
                 error: error.to_string(),
             }
         })?;
-        fs::write(&path, bytes).map_err(|error| CompiledUnitArtifactCacheError::Io {
-            path: path.clone(),
-            error: io_error_string(error),
-        })?;
-        Ok(path)
+        write_cache_bytes_atomically(path, bytes)
     }
 
     pub fn read_bundle(
@@ -315,11 +308,7 @@ impl CompiledUnitArtifactCache {
                 error: error.to_string(),
             }
         })?;
-        fs::write(&path, bytes).map_err(|error| CompiledUnitArtifactCacheError::Io {
-            path: path.clone(),
-            error: io_error_string(error),
-        })?;
-        Ok(path)
+        write_cache_bytes_atomically(path, bytes)
     }
 
     pub fn read_semantic_bundle_for_manifests_profiled(
@@ -438,6 +427,36 @@ fn validate_versions(
         });
     }
     Ok(())
+}
+
+fn write_cache_bytes_atomically(
+    path: PathBuf,
+    bytes: Vec<u8>,
+) -> Result<PathBuf, CompiledUnitArtifactCacheError> {
+    static NEXT_TMP: AtomicU64 = AtomicU64::new(0);
+
+    let tmp_path = path.with_extension(format!(
+        "{}.tmp-{}-{}",
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .unwrap_or("cache"),
+        std::process::id(),
+        NEXT_TMP.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::write(&tmp_path, bytes).map_err(|error| CompiledUnitArtifactCacheError::Io {
+        path: tmp_path.clone(),
+        error: io_error_string(error),
+    })?;
+    match fs::rename(&tmp_path, &path) {
+        Ok(()) => Ok(path),
+        Err(error) => {
+            let _ = fs::remove_file(&tmp_path);
+            Err(CompiledUnitArtifactCacheError::Io {
+                path,
+                error: io_error_string(error),
+            })
+        }
+    }
 }
 
 fn io_error_string(error: io::Error) -> String {
@@ -587,6 +606,36 @@ mod tests {
 
         let path = cache.write_bundle(&bundle).unwrap();
         assert_eq!(path, cache.bundle_artifact_path(&key));
+        let read = cache.read_bundle(&key).unwrap();
+
+        assert_eq!(read, bundle);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn concurrent_bundle_writes_leave_readable_artifact() {
+        let root = temp_root("compiled-unit-bundle-cache-concurrent-write");
+        let _ = fs::remove_dir_all(&root);
+        let cache = CompiledUnitArtifactCache::new(&root);
+        let bundle = test_bundle();
+        let key = CompiledUnitArtifactBundleCacheKey::from_manifests(&bundle.manifests).unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(8));
+
+        let handles = (0..8)
+            .map(|_| {
+                let cache = cache.clone();
+                let bundle = bundle.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    cache.write_bundle(&bundle).unwrap();
+                })
+            })
+            .collect::<Vec<_>>();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
         let read = cache.read_bundle(&key).unwrap();
 
         assert_eq!(read, bundle);

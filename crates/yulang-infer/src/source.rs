@@ -13,7 +13,7 @@ use yulang_sources::{
     collect_virtual_module_source_files_with_options, collect_virtual_source_files_with_options,
 };
 
-use crate::ids::TypeVar;
+use crate::ids::{DefId, RefId, TypeVar};
 use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{EnumVariantPatternPayload, LowerDetailProfile, LowerState};
@@ -1790,7 +1790,9 @@ fn lower_source_set_with_profile(
     source_set: &SourceSet,
     collect_profile: bool,
 ) -> ProfiledLoweredSources {
-    with_profile_enabled(collect_profile, || lower_source_set_inner(source_set))
+    crate::ids::with_fresh_id_scope(|| {
+        with_profile_enabled(collect_profile, || lower_source_set_inner(source_set))
+    })
 }
 
 fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
@@ -1853,6 +1855,7 @@ fn lower_source_set_from_cached_state(
     mut profile: SourceLowerProfile,
     cached_files: &HashSet<usize>,
 ) -> ProfiledLoweredSources {
+    reserve_fresh_ids_after_state(&state);
     let diagnostic_source = source_set
         .entry_files()
         .next()
@@ -1878,6 +1881,181 @@ fn lower_source_set_from_cached_state(
             diagnostic_source,
         },
         profile,
+    }
+}
+
+fn reserve_fresh_ids_after_state(state: &LowerState) {
+    if let Some(max) = max_state_def_id(state) {
+        crate::ids::reserve_def_ids_through(max);
+    }
+    if let Some(max) = max_state_ref_id(state) {
+        crate::ids::reserve_ref_ids_through(max);
+    }
+    if let Some(max) = max_state_type_var(state) {
+        crate::ids::reserve_type_vars_through(max);
+    }
+}
+
+fn max_state_def_id(state: &LowerState) -> Option<DefId> {
+    let mut max = None;
+    for def in state.def_tvs.keys().copied() {
+        push_max_def_id(def, &mut max);
+    }
+    for def in state
+        .ctx
+        .collect_all_binding_paths()
+        .into_iter()
+        .map(|(_, def)| def)
+    {
+        push_max_def_id(def, &mut max);
+    }
+    for def in state
+        .ctx
+        .collect_all_type_paths()
+        .into_iter()
+        .map(|(_, def)| def)
+    {
+        push_max_def_id(def, &mut max);
+    }
+    for def in state
+        .ctx
+        .refs
+        .resolved()
+        .values()
+        .map(|resolved| resolved.def_id)
+    {
+        push_max_def_id(def, &mut max);
+    }
+    for (_, unresolved) in state.ctx.refs.unresolved() {
+        if let Some(owner) = unresolved.owner {
+            push_max_def_id(owner, &mut max);
+        }
+    }
+    for def in state.infer.def_tvs.borrow().keys().copied() {
+        push_max_def_id(def, &mut max);
+    }
+    for def in state.infer.compact_schemes.borrow().keys().copied() {
+        push_max_def_id(def, &mut max);
+    }
+    for def in state.infer.role_constraints.borrow().keys().copied() {
+        push_max_def_id(def, &mut max);
+    }
+    for def in state.infer.non_generic_vars.borrow().keys().copied() {
+        push_max_def_id(def, &mut max);
+    }
+    for component in &state.infer.components {
+        for def in component.iter().copied() {
+            push_max_def_id(def, &mut max);
+        }
+    }
+    max
+}
+
+fn max_state_ref_id(state: &LowerState) -> Option<RefId> {
+    let mut max = None;
+    for ref_id in state.ctx.refs.resolved().keys().copied() {
+        push_max_ref_id(ref_id, &mut max);
+    }
+    for (ref_id, _) in state.ctx.refs.unresolved() {
+        push_max_ref_id(*ref_id, &mut max);
+    }
+    max
+}
+
+fn max_state_type_var(state: &LowerState) -> Option<TypeVar> {
+    let mut max = None;
+    for tv in state.def_tvs.values().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for resolved in state.ctx.refs.resolved().values() {
+        push_max_type_var(resolved.ref_tv, &mut max);
+    }
+    for (_, unresolved) in state.ctx.refs.unresolved() {
+        push_max_type_var(unresolved.ref_tv, &mut max);
+    }
+    for tv in state.infer.lower.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state.infer.upper.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for (tv, _) in state.infer.lower_members.borrow().iter().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for (tv, _) in state.infer.upper_members.borrow().iter().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state.infer.compact_lower_instances.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state.infer.through.borrow().iter().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for edge in state.infer.handler_matches.borrow().iter() {
+        push_max_type_var(edge.actual, &mut max);
+        push_max_type_var(edge.residual, &mut max);
+    }
+    for tv in state.infer.effect_boundary_keeps.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state.infer.levels.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state.infer.origins.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state.infer.def_tvs.borrow().values().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for vars in state.infer.non_generic_vars.borrow().values() {
+        for tv in vars.iter().copied() {
+            push_max_type_var(tv, &mut max);
+        }
+    }
+    for (tv, selections) in state.infer.deferred_selections.borrow().iter() {
+        push_max_type_var(*tv, &mut max);
+        for selection in selections {
+            push_max_type_var(selection.recv_eff, &mut max);
+            push_max_type_var(selection.result_tv, &mut max);
+            push_max_type_var(selection.result_eff, &mut max);
+        }
+    }
+    for (tv, dependents) in state.infer.selection_var_dependents.borrow().iter() {
+        push_max_type_var(*tv, &mut max);
+        for dependent in dependents.iter().copied() {
+            push_max_type_var(dependent, &mut max);
+        }
+    }
+    for call in state.infer.deferred_role_method_calls.borrow().iter() {
+        for tv in call.arg_tvs.iter().copied() {
+            push_max_type_var(tv, &mut max);
+        }
+        push_max_type_var(call.result_tv, &mut max);
+    }
+    for tv in state.infer.resolved_selections.borrow().keys().copied() {
+        push_max_type_var(tv, &mut max);
+    }
+    for tv in state
+        .infer
+        .resolved_ref_field_projections
+        .borrow()
+        .keys()
+        .copied()
+    {
+        push_max_type_var(tv, &mut max);
+    }
+    max
+}
+
+fn push_max_def_id(def: DefId, max: &mut Option<DefId>) {
+    if max.is_none_or(|current| def.0 > current.0) {
+        *max = Some(def);
+    }
+}
+
+fn push_max_ref_id(ref_id: RefId, max: &mut Option<RefId>) {
+    if max.is_none_or(|current| ref_id.0 > current.0) {
+        *max = Some(ref_id);
     }
 }
 

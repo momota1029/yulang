@@ -13,9 +13,9 @@ impl VmContinuation {
         if let Some(index) = self
             .frames
             .iter()
-            .rposition(|frame| matches!(frame, Frame::Handle { id: current, .. } if *current == id))
+            .rposition(|frame| frame_handle_id(frame) == Some(id))
         {
-            self.frames.drain(..=index);
+            self.frames.remove(index);
         } else {
             self.frames.clear();
         }
@@ -26,9 +26,9 @@ impl VmContinuation {
         if let Some(index) = self
             .frames
             .iter()
-            .rposition(|frame| matches!(frame, Frame::Handle { id: current, .. } if *current == id))
+            .rposition(|frame| frame_handle_id(frame) == Some(id))
         {
-            if let Frame::Handle { guard_stack, .. } = &self.frames[index] {
+            if let Some(guard_stack) = frame_handle_guard_stack(&self.frames[index]) {
                 self.guard_stack = guard_stack.clone();
             }
             self.frames.truncate(index);
@@ -36,5 +36,19 @@ impl VmContinuation {
             self.frames.clear();
         }
         self
+    }
+}
+
+fn frame_handle_id(frame: &Frame) -> Option<u64> {
+    match frame {
+        Frame::Handle { id, .. } => Some(*id),
+        _ => None,
+    }
+}
+
+fn frame_handle_guard_stack(frame: &Frame) -> Option<&GuardStack> {
+    match frame {
+        Frame::Handle { guard_stack, .. } => Some(guard_stack),
+        _ => None,
     }
 }

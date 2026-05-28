@@ -14,6 +14,7 @@ monomorphize / runtime lowering / diagnostics / static-analysis cache を小さ�
 
 直近の handoff:
 
+- `notes/progress/daily/2026-05-28-parallel-cache-flake-handoff.md`
 - `notes/progress/daily/2026-05-26-infer-monomorphize-handoff.md`
 - `notes/refactors/finalized-vm-handoff-2026-05-25.md`
 

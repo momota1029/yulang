@@ -73,6 +73,31 @@ pub(super) fn infer_local_expected_type(
         typed_ir::Expr::Var(path) if path.segments.as_slice() == std::slice::from_ref(name) => {
             Some(expected.clone())
         }
+        typed_ir::Expr::Apply {
+            callee,
+            arg,
+            evidence,
+        } => {
+            let arg_expected = evidence
+                .as_ref()
+                .and_then(|evidence| {
+                    evidence
+                        .expected_arg
+                        .as_ref()
+                        .and_then(runtime_bounds_type)
+                        .or_else(|| runtime_bounds_type(&evidence.arg))
+                })
+                .unwrap_or(typed_ir::Type::Unknown);
+            infer_local_expected_type(primitive_paths, name, arg, &arg_expected).or_else(|| {
+                let callee_expected = typed_ir::Type::Fun {
+                    param: Box::new(arg_expected),
+                    param_effect: Box::new(typed_ir::Type::Any),
+                    ret_effect: Box::new(typed_ir::Type::Any),
+                    ret: Box::new(expected.clone()),
+                };
+                infer_local_expected_type(primitive_paths, name, callee, &callee_expected)
+            })
+        }
         typed_ir::Expr::Coerce { expr, .. } | typed_ir::Expr::Pack { expr, .. } => {
             infer_local_expected_type(primitive_paths, name, expr, expected)
         }
@@ -97,9 +122,14 @@ pub(super) fn infer_local_expected_type(
                 })
                 .or_else(|| infer_local_expected_type(primitive_paths, name, &arm.body, expected))
         }),
-        typed_ir::Expr::Block { tail, .. } => tail
-            .as_deref()
-            .and_then(|tail| infer_local_expected_type(primitive_paths, name, tail, expected)),
+        typed_ir::Expr::Block { stmts, tail } => stmts
+            .iter()
+            .find_map(|stmt| infer_local_expected_type_from_stmt(primitive_paths, name, stmt))
+            .or_else(|| {
+                tail.as_deref().and_then(|tail| {
+                    infer_local_expected_type(primitive_paths, name, tail, expected)
+                })
+            }),
         typed_ir::Expr::Handle { arms, .. } => arms.iter().find_map(|arm| {
             arm.guard
                 .as_ref()
@@ -114,6 +144,21 @@ pub(super) fn infer_local_expected_type(
                 .or_else(|| infer_local_expected_type(primitive_paths, name, &arm.body, expected))
         }),
         _ => None,
+    }
+}
+
+fn infer_local_expected_type_from_stmt(
+    primitive_paths: &RuntimePrimitivePathTable,
+    name: &typed_ir::Name,
+    stmt: &typed_ir::Stmt,
+) -> Option<typed_ir::Type> {
+    match stmt {
+        typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
+            infer_local_expected_type(primitive_paths, name, value, &typed_ir::Type::Unknown)
+        }
+        typed_ir::Stmt::Module { body, .. } => {
+            infer_local_expected_type(primitive_paths, name, body, &typed_ir::Type::Unknown)
+        }
     }
 }
 

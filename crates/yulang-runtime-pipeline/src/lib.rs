@@ -290,6 +290,52 @@ mod tests {
     }
 
     #[test]
+    fn virtual_source_lowered_runtime_dependency_cache_warms_in_parallel() {
+        let repo_root = temp_cache_root("parallel-compiled-dependency-cache-root");
+        let std_root = repo_root.join("std");
+        std::fs::create_dir_all(&std_root).unwrap();
+        std::fs::write(std_root.join("prelude.yu"), "pub id x = x\n").unwrap();
+        let cache_root = repo_root.join("cache");
+        let cache_paths = YulangCachePaths::with_user_cache_root(&repo_root, cache_root);
+        let options = SourceOptions {
+            std_root: Some(std_root),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        };
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+
+        let handles = (0..4)
+            .map(|_| {
+                let repo_root = repo_root.clone();
+                let cache_paths = cache_paths.clone();
+                let options = options.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    lowered_runtime_module_from_virtual_source_with_dependency_cache(
+                        "id 1\n",
+                        Some(repo_root),
+                        options,
+                        &cache_paths,
+                    )
+                    .expect("parallel runtime lower with dependency cache")
+                })
+            })
+            .collect::<Vec<_>>();
+        let lowered = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>();
+        let _ = std::fs::remove_dir_all(repo_root);
+
+        assert!(
+            lowered
+                .iter()
+                .all(|module| module.module.root_exprs.len() == 1)
+        );
+    }
+
+    #[test]
     fn virtual_source_lowered_runtime_read_only_cache_does_not_persist_rebuilt_bundle() {
         let repo_root = temp_cache_root("read-only-compiled-dependency-no-write");
         let std_root = repo_root.join("std");
