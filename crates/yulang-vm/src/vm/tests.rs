@@ -3996,11 +3996,89 @@ box { width: 3, height: 4 }
         );
     }
 
+    thread_local! {
+        static LAST_MODULE_FOR_PANIC: std::cell::RefCell<Option<yulang_runtime_ir::FinalizedModule>> =
+            const { std::cell::RefCell::new(None) };
+    }
+
+    fn ensure_panic_dump_hook() {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            if std::env::var("YULANG_PANIC_DUMP").is_err()
+                && std::env::var("YULANG_TRACE_HANDLE").is_err()
+            {
+                return;
+            }
+            let default = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let tid = std::thread::current()
+                    .name()
+                    .unwrap_or("?")
+                    .to_string();
+                crate::vm::interpreter::HANDLE_TRACE_BUFFER.with(|cell| {
+                    let buffer = cell.borrow();
+                    if !buffer.is_empty() {
+                        eprintln!(
+                            "=== PANIC HANDLE TRACE [{tid}] ({} events) ===",
+                            buffer.len()
+                        );
+                        for line in buffer.iter() {
+                            eprintln!("[{tid}] {line}");
+                        }
+                        eprintln!("=== END HANDLE TRACE [{tid}] ===");
+                    }
+                });
+                if std::env::var("YULANG_PANIC_DUMP").is_ok() {
+                    LAST_MODULE_FOR_PANIC.with(|cell| {
+                        if let Some(m) = cell.borrow().as_ref() {
+                            eprintln!("=== PANIC MODULE DUMP [{tid}] ===");
+                            for binding in &m.bindings {
+                                let name_str = format!("{:?}", binding.name);
+                                if name_str.contains("&s#") {
+                                    eprintln!("[{tid}] --- binding body for {name_str} ---");
+                                    eprintln!("[{tid}] {:#?}", binding.body);
+                                    eprintln!("[{tid}] --- end body ---");
+                                }
+                            }
+                            eprintln!("=== END PANIC DUMP [{tid}] ===");
+                        }
+                    });
+                }
+                default(info);
+            }));
+        });
+    }
+
+    fn capture_module_for_panic(module: &VmModule) {
+        if std::env::var("YULANG_PANIC_DUMP").is_err()
+            && std::env::var("YULANG_TRACE_HANDLE").is_err()
+        {
+            return;
+        }
+        use yulang_runtime_ir::FinalizedModule;
+        let m = module.module();
+        let filtered_bindings: Vec<_> = m
+            .bindings
+            .iter()
+            .filter(|b| format!("{:?}", b.name).contains("&s#"))
+            .cloned()
+            .collect();
+        let saved = FinalizedModule {
+            path: m.path.clone(),
+            bindings: filtered_bindings,
+            root_exprs: Vec::new(),
+            roots: Vec::new(),
+            role_impls: Vec::new(),
+        };
+        LAST_MODULE_FOR_PANIC.with(|cell| *cell.borrow_mut() = Some(saved));
+    }
+
     fn run_parallel_std_pipeline_regression(
         threads: usize,
         runs_per_thread: usize,
         assertion: fn(fn(&str) -> Vec<TestValue>),
     ) {
+        ensure_panic_dump_hook();
         let barrier = std::sync::Arc::new(std::sync::Barrier::new(threads));
         let handles = (0..threads)
             .map(|index| {
@@ -4042,6 +4120,7 @@ box { width: 3, height: 4 }
     fn eval_source_with_std_inner(src: &str) -> Vec<TestValue> {
         let module = runtime_module_with_std_inner(src);
         let module = compile_vm_module(module).expect("compiled runtime VM module");
+        capture_module_for_panic(&module);
         let results = module.eval_roots().expect("vm results");
         test_values(results)
     }

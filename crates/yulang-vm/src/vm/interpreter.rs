@@ -101,8 +101,13 @@ impl<'m> VmInterpreter<'m> {
             }
             ExprKind::Apply { callee, arg, .. } => {
                 let delay_arg = expects_thunk_arg(&callee.ty);
+                trace_apply_eval_entry("apply_eval.entry", &callee.kind, &arg.kind, delay_arg);
+                trace_apply_callee_ty(&callee.kind, &callee.ty);
                 match self.eval_expr(callee, env)? {
-                    VmResult::Value(callee) => self.continue_apply_arg(callee, arg, env, delay_arg),
+                    VmResult::Value(callee) => {
+                        trace_apply_eval_callee_ready(&callee);
+                        self.continue_apply_arg(callee, arg, env, delay_arg)
+                    }
                     VmResult::Request(request) => Ok(VmResult::Request(push_frame(
                         request,
                         Frame::ApplyCallee {
@@ -254,13 +259,16 @@ impl<'m> VmInterpreter<'m> {
         env: &Env,
     ) -> Result<VmResult, VmError> {
         if let Some(value) = env.get(path) {
+            trace_eval_var("env_hit", path, &value);
             return Ok(VmResult::Value(value.clone()));
         }
         if let Some(index) = self.bindings.get(path).copied() {
+            trace_eval_var_binding("binding_lookup", path);
             let binding = &self.module.bindings[index];
             return self.eval_expr(&binding.body, &Env::new());
         }
         if path.segments.len() > 1 {
+            trace_eval_var_effect_op("effect_op", path);
             return Ok(VmResult::Value(VmValue::EffectOp(path.clone())));
         }
         Err(VmError::UnboundVariable(path.clone()))
@@ -374,6 +382,7 @@ impl<'m> VmInterpreter<'m> {
     }
 
     pub(super) fn bind_here(&mut self, value: VmValue) -> Result<VmResult, VmError> {
+        trace_bind_here_entry(&value);
         let parent = self.guard_stack.clone();
         let mut value = value;
         let mut outer_thunks = Vec::new();
@@ -473,6 +482,7 @@ impl<'m> VmInterpreter<'m> {
     }
 
     pub(super) fn apply(&mut self, callee: VmValue, arg: VmValue) -> Result<VmResult, VmError> {
+        trace_apply_entry(&callee, &arg);
         match callee {
             VmValue::Closure(callee) => {
                 if closure_param_forces_thunk_arg(&callee.param_ty)
@@ -856,6 +866,7 @@ impl<'m> VmInterpreter<'m> {
         match result {
             VmResult::Value(value) => self.handle_value(value, arms, env, expected_ty),
             VmResult::Request(request) => {
+                trace_handle_push("eval_handle.push", id, &request);
                 let request = push_frame(
                     request,
                     Frame::Handle {
@@ -902,6 +913,7 @@ impl<'m> VmInterpreter<'m> {
         expected_ty: &Type,
     ) -> Result<VmResult, VmError> {
         if request_is_blocked_by_stack(&request, handler_guard_stack) {
+            trace_handle_request_outcome("blocked_by_stack", id, &request.effect);
             return Ok(VmResult::Request(request));
         }
         let Some((arm_index, arm)) = arms
@@ -909,8 +921,14 @@ impl<'m> VmInterpreter<'m> {
             .enumerate()
             .find(|(_, arm)| effect_operation_path_matches(&arm.effect, &request.effect))
         else {
+            let arm_effects: Vec<String> = arms
+                .iter()
+                .map(|arm| format!("{:?}", arm.effect))
+                .collect();
+            trace_handle_request_arm_miss(id, &request.effect, &arm_effects);
             return Ok(VmResult::Request(request));
         };
+        trace_handle_request_outcome("matched", id, &request.effect);
         let remaining_arms = arms[arm_index + 1..].to_vec();
         let outer = request.continuation.clone().outside_handle(id);
         let mut arm_env = env.clone();
@@ -1076,6 +1094,7 @@ impl<'m> VmInterpreter<'m> {
             } => match value {
                 VmValue::Thunk(thunk) => {
                     let result = self.bind_here(VmValue::Thunk(thunk))?;
+                    trace_handle_repush("frame_handle_thunk.repush", id, &continuation);
                     continuation.frames.push(Frame::Handle {
                         id,
                         arms,
@@ -1161,6 +1180,7 @@ impl<'m> VmInterpreter<'m> {
         mut continuation: VmContinuation,
         expected_ty: &Type,
     ) -> Result<VmResult, VmError> {
+        trace_continue_handle_result(expected_ty, &result, &continuation);
         if matches!(expected_ty, Type::Thunk { .. }) {
             return self.continue_result(result, continuation);
         }
@@ -1188,9 +1208,11 @@ impl<'m> VmInterpreter<'m> {
     ) -> Result<VmResult, VmError> {
         let end = before.min(request.continuation.frames.len());
         let frames = request.continuation.frames.get(..end).unwrap_or(&[]);
+        trace_propagate_entry(&request.effect, before, frames);
         let Some(index) = frames.iter().rposition(|frame| {
             matches!(frame, Frame::Handle { .. } | Frame::BlockedEffects { .. })
         }) else {
+            trace_propagate_no_handler(&request.effect);
             return Ok(VmResult::Request(request));
         };
         if let Frame::BlockedEffects { blocked, active } = &frames[index] {
@@ -1278,6 +1300,346 @@ fn push_thunk_boundary_frame(request: VmRequest, thunk: &VmThunk) -> VmRequest {
             active: thunk.blocked.iter().any(|blocked| blocked.active),
         },
     )
+}
+
+thread_local! {
+    pub(super) static HANDLE_TRACE_BUFFER: std::cell::RefCell<Vec<String>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub(super) fn handle_trace_enabled() -> bool {
+    static CACHED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *CACHED.get_or_init(|| std::env::var("YULANG_TRACE_HANDLE").is_ok())
+}
+
+fn trace_handle_push(tag: &str, id: u64, request: &VmRequest) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let line = format!(
+        "HANDLE_TRACE {tag} id={id} effect={:?} frames_before_push={}",
+        request.effect,
+        request.continuation.frames.len()
+    );
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_eval_var(tag: &str, path: &typed_ir::Path, value: &VmValue) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let path_str = format!("{path:?}");
+    if !(path_str.contains("&s#") || path_str.contains("run") || path_str.contains("update")) {
+        return;
+    }
+    let value_tag = match value {
+        VmValue::Closure(c) => {
+            let body_tag = match &c.body.kind {
+                ExprKind::Lambda { .. } => "lambda",
+                ExprKind::LocalPushId { .. } => "local_push_id",
+                ExprKind::Handle { .. } => "handle",
+                ExprKind::BindHere { .. } => "bind_here",
+                ExprKind::Apply { .. } => "apply",
+                ExprKind::AddId { .. } => "add_id",
+                ExprKind::Thunk { .. } => "thunk_expr",
+                ExprKind::Coerce { .. } => "coerce",
+                _ => "other",
+            };
+            let self_name = c
+                .self_name
+                .as_ref()
+                .map(|p| format!("{p:?}"))
+                .unwrap_or_else(|| "<anon>".to_string());
+            format!(
+                "closure(self_name={self_name},body={body_tag},env_keys={})",
+                c.env.len()
+            )
+        }
+        VmValue::Thunk(t) => format!("thunk(blocked={})", t.blocked.len()),
+        VmValue::EffectOp(_) => "effect_op".to_string(),
+        VmValue::Resume(_) => "resume".to_string(),
+        VmValue::Unit => "unit".to_string(),
+        _ => "other".to_string(),
+    };
+    let line = format!("HANDLE_TRACE eval_var.{tag} path={path_str} value={value_tag}");
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_eval_var_binding(tag: &str, path: &typed_ir::Path) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let path_str = format!("{path:?}");
+    if !(path_str.contains("&s#") || path_str.contains("run") || path_str.contains("update")) {
+        return;
+    }
+    let line = format!("HANDLE_TRACE eval_var.{tag} path={path_str}");
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_apply_eval_entry(
+    tag: &str,
+    callee_kind: &ExprKind,
+    arg_kind: &ExprKind,
+    delay_arg: bool,
+) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let callee_tag = match callee_kind {
+        ExprKind::Var(p) => format!("Var({p:?})"),
+        ExprKind::EffectOp(p) => format!("EffectOp({p:?})"),
+        ExprKind::Apply { .. } => "Apply".to_string(),
+        ExprKind::Lambda { .. } => "Lambda".to_string(),
+        ExprKind::BindHere { .. } => "BindHere".to_string(),
+        ExprKind::Thunk { .. } => "Thunk".to_string(),
+        ExprKind::Coerce { .. } => "Coerce".to_string(),
+        ExprKind::AddId { .. } => "AddId".to_string(),
+        _ => "other".to_string(),
+    };
+    let arg_tag = match arg_kind {
+        ExprKind::Var(p) => format!("Var({p:?})"),
+        ExprKind::Thunk { .. } => "Thunk".to_string(),
+        ExprKind::Apply { .. } => "Apply".to_string(),
+        ExprKind::Lit(_) => "Lit".to_string(),
+        _ => "other".to_string(),
+    };
+    let line = format!(
+        "HANDLE_TRACE {tag} callee_kind={callee_tag} arg_kind={arg_tag} delay_arg={delay_arg}"
+    );
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_apply_callee_ty(callee_kind: &ExprKind, ty: &Type) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let is_set = matches!(callee_kind, ExprKind::EffectOp(p) if format!("{p:?}").contains("set"));
+    let is_run = matches!(callee_kind, ExprKind::Var(p) if format!("{p:?}").contains("run"));
+    let is_apply_chain = matches!(callee_kind, ExprKind::Apply { .. });
+    if !(is_set || is_run || is_apply_chain) {
+        return;
+    }
+    let line = format!("HANDLE_TRACE apply_eval.callee_ty kind=brief ty={ty:?}");
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_apply_eval_callee_ready(callee: &VmValue) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let callee_tag = match callee {
+        VmValue::Closure(c) => {
+            let name = c
+                .self_name
+                .as_ref()
+                .map(|p| format!("{p:?}"))
+                .unwrap_or_else(|| "<anon>".to_string());
+            let body_tag = match &c.body.kind {
+                ExprKind::Lambda { .. } => "lambda",
+                ExprKind::LocalPushId { .. } => "local_push_id",
+                ExprKind::Handle { .. } => "handle",
+                ExprKind::BindHere { .. } => "bind_here",
+                ExprKind::Apply { .. } => "apply",
+                _ => "other",
+            };
+            format!("closure(self_name={name},body={body_tag})")
+        }
+        VmValue::Thunk(_) => "thunk".to_string(),
+        VmValue::EffectOp(_) => "effect_op".to_string(),
+        VmValue::Resume(_) => "resume".to_string(),
+        VmValue::PrimitiveOp(_) => "primitive".to_string(),
+        _ => "other".to_string(),
+    };
+    let line = format!("HANDLE_TRACE apply_eval.callee_ready callee={callee_tag}");
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_eval_var_effect_op(tag: &str, path: &typed_ir::Path) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let path_str = format!("{path:?}");
+    if !(path_str.contains("set") || path_str.contains("get") || path_str.contains("update")) {
+        return;
+    }
+    let line = format!("HANDLE_TRACE eval_var.{tag} path={path_str}");
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_handle_repush(tag: &str, id: u64, continuation: &VmContinuation) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let line = format!(
+        "HANDLE_TRACE {tag} id={id} frames_before_push={}",
+        continuation.frames.len()
+    );
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_handle_request_outcome(tag: &str, id: u64, effect: &typed_ir::Path) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let line = format!("HANDLE_TRACE handle_request.{tag} id={id} effect={:?}", effect);
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_handle_request_arm_miss(id: u64, effect: &typed_ir::Path, arm_effects: &[String]) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let line = format!(
+        "HANDLE_TRACE handle_request.arm_miss id={id} effect={:?} arms={:?}",
+        effect, arm_effects
+    );
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_propagate_entry(effect: &typed_ir::Path, before: usize, frames: &[Frame]) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let handle_ids: Vec<u64> = frames
+        .iter()
+        .filter_map(|f| match f {
+            Frame::Handle { id, .. } => Some(*id),
+            _ => None,
+        })
+        .collect();
+    let blocked_count = frames
+        .iter()
+        .filter(|f| matches!(f, Frame::BlockedEffects { .. }))
+        .count();
+    let line = format!(
+        "HANDLE_TRACE propagate.entry effect={:?} before={} frames_len={} handle_ids={:?} blocked_count={}",
+        effect,
+        before,
+        frames.len(),
+        handle_ids,
+        blocked_count
+    );
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_propagate_no_handler(effect: &typed_ir::Path) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let line = format!("HANDLE_TRACE propagate.no_handler effect={:?}", effect);
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_bind_here_entry(value: &VmValue) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let tag = match value {
+        VmValue::Thunk(thunk) => {
+            let body_tag = match &thunk.body {
+                ThunkBody::Expr(_) => "thunk_expr",
+                ThunkBody::Value(_) => "thunk_value",
+                ThunkBody::Emit { effect, .. } => {
+                    let line = format!(
+                        "HANDLE_TRACE bind_here.entry value=thunk_emit effect={:?} blocked_count={}",
+                        effect,
+                        thunk.blocked.len()
+                    );
+                    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+                    return;
+                }
+            };
+            let line = format!(
+                "HANDLE_TRACE bind_here.entry value={} blocked_count={}",
+                body_tag,
+                thunk.blocked.len()
+            );
+            HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+            return;
+        }
+        VmValue::Closure(_) => "closure",
+        VmValue::Resume(_) => "resume",
+        VmValue::EffectOp(_) => "effect_op",
+        VmValue::Unit => "unit",
+        _ => "other",
+    };
+    let line = format!("HANDLE_TRACE bind_here.entry value={}", tag);
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_apply_entry(callee: &VmValue, arg: &VmValue) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let callee_tag = match callee {
+        VmValue::Closure(c) => {
+            let name = c
+                .self_name
+                .as_ref()
+                .map(|p| format!("{p:?}"))
+                .unwrap_or_else(|| "<anon>".to_string());
+            let short_name = if name.contains("&s#") || name.contains("run") || name.contains("update") || name.contains("loop") {
+                name
+            } else {
+                "<other_closure>".to_string()
+            };
+            format!("closure({short_name})")
+        }
+        VmValue::Resume(_) => "resume".to_string(),
+        VmValue::EffectOp(p) => format!("effect_op({p:?})"),
+        VmValue::Thunk(_) => "thunk".to_string(),
+        VmValue::PrimitiveOp(_) => "primitive".to_string(),
+        _ => "other".to_string(),
+    };
+    let arg_tag = match arg {
+        VmValue::Thunk(t) => format!("thunk(blocked={})", t.blocked.len()),
+        VmValue::Closure(_) => "closure".to_string(),
+        VmValue::Resume(_) => "resume".to_string(),
+        VmValue::EffectOp(_) => "effect_op".to_string(),
+        VmValue::Unit => "unit".to_string(),
+        VmValue::Int(_) => "int".to_string(),
+        _ => "other".to_string(),
+    };
+    let line = format!("HANDLE_TRACE apply.entry callee={} arg={}", callee_tag, arg_tag);
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
+}
+
+fn trace_continue_handle_result(
+    expected_ty: &Type,
+    result: &VmResult,
+    continuation: &VmContinuation,
+) {
+    if !handle_trace_enabled() {
+        return;
+    }
+    let expected_tag = match expected_ty {
+        Type::Thunk { .. } => "thunk",
+        Type::Value(_) => "value",
+        Type::Unknown => "unknown",
+        _ => "other",
+    };
+    let result_tag = match result {
+        VmResult::Value(VmValue::Thunk(_)) => "value_thunk",
+        VmResult::Value(_) => "value_other",
+        VmResult::Request(_) => "request",
+    };
+    let handle_ids: Vec<u64> = continuation
+        .frames
+        .iter()
+        .filter_map(|f| match f {
+            Frame::Handle { id, .. } => Some(*id),
+            _ => None,
+        })
+        .collect();
+    let line = format!(
+        "HANDLE_TRACE continue_handle_result expected={} result={} outer_frames_len={} outer_handle_ids={:?}",
+        expected_tag,
+        result_tag,
+        continuation.frames.len(),
+        handle_ids
+    );
+    HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
 }
 
 fn tuple_type_forces_items(ty: &Type) -> bool {
