@@ -1,3 +1,4 @@
+use super::trace::trace_handle_event;
 use super::*;
 
 impl VmContinuation {
@@ -41,19 +42,6 @@ impl VmContinuation {
         }
         self
     }
-}
-
-fn trace_handle_event(tag: &str, id: u64, frames: &[Frame]) {
-    if !super::interpreter::handle_trace_enabled() {
-        return;
-    }
-    let handle_ids: Vec<u64> = frames.iter().filter_map(|f| frame_handle_id(f)).collect();
-    let line = format!(
-        "HANDLE_TRACE {tag} target_id={id} frames_len={} handle_ids={:?}",
-        frames.len(),
-        handle_ids
-    );
-    super::interpreter::HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
 }
 
 fn frame_handle_id(frame: &Frame) -> Option<u64> {

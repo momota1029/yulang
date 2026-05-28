@@ -137,6 +137,7 @@ mod guard;
 mod interpreter;
 mod model;
 pub mod primitive;
+mod trace;
 mod value;
 
 use erase::*;

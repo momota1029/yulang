@@ -4048,7 +4048,7 @@ run "old": {
             let default = std::panic::take_hook();
             std::panic::set_hook(Box::new(move |info| {
                 let tid = std::thread::current().name().unwrap_or("?").to_string();
-                crate::vm::interpreter::HANDLE_TRACE_BUFFER.with(|cell| {
+                super::super::trace::HANDLE_TRACE_BUFFER.with(|cell| {
                     let buffer = cell.borrow();
                     if !buffer.is_empty() {
                         eprintln!(

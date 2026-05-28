@@ -2102,11 +2102,6 @@ fn collect_stmt_local_types_with_scrutinee(
             &fallback
         }
     };
-    if std::env::var_os("YULANG_TRACE_ROOT_SOLUTIONS").is_some()
-        && format!("{pattern:?}").contains("__ref_set_ref")
-    {
-        eprintln!("TRACE let-local pattern={pattern:?}\n  scrutinee={scrutinee_ty:?}");
-    }
     collect_pattern_local_types(pattern, Some(scrutinee_ty), local_types);
 }
 
