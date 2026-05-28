@@ -1882,6 +1882,11 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn control_vm_runs_source_ref_string_range_assignment_example() {
+        assert_source_ref_string_range_assignment(eval_control_source_with_std);
+    }
+
+    #[test]
     fn vm_runs_source_ref_string_lines_edit_example() {
         let results = eval_source_with_std(
             r#"{
@@ -2575,6 +2580,16 @@ catch out::say "hi":
             results,
             vec![TestValue::String("handled:hi".to_string()), TestValue::Unit,]
         );
+    }
+
+    #[test]
+    fn vm_redispatches_effectful_payload_after_forcing_it() {
+        assert_effectful_payload_redispatch(eval_source_with_std);
+    }
+
+    #[test]
+    fn control_vm_redispatches_effectful_payload_after_forcing_it() {
+        assert_effectful_payload_redispatch(eval_control_source_with_std);
     }
 
     #[test]
@@ -3996,6 +4011,27 @@ box { width: 3, height: 4 }
         );
     }
 
+    fn assert_effectful_payload_redispatch(eval: fn(&str) -> Vec<TestValue>) {
+        let results = eval(
+            r#"act state:
+  our get: () -> str
+  our set: str -> ()
+
+my run(v: str, x: [_] 'r): 'r = catch x:
+  state::get(), k -> run v: k v
+  state::set next, k -> run next: k()
+  value -> value
+
+run "old": {
+  state::set (state::get() + "!")
+  state::get()
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("old!".to_string())]);
+    }
+
     thread_local! {
         static LAST_MODULE_FOR_PANIC: std::cell::RefCell<Option<yulang_runtime_ir::FinalizedModule>> =
             const { std::cell::RefCell::new(None) };
@@ -4011,10 +4047,7 @@ box { width: 3, height: 4 }
             }
             let default = std::panic::take_hook();
             std::panic::set_hook(Box::new(move |info| {
-                let tid = std::thread::current()
-                    .name()
-                    .unwrap_or("?")
-                    .to_string();
+                let tid = std::thread::current().name().unwrap_or("?").to_string();
                 crate::vm::interpreter::HANDLE_TRACE_BUFFER.with(|cell| {
                     let buffer = cell.borrow();
                     if !buffer.is_empty() {
@@ -4382,6 +4415,7 @@ box { width: 3, height: 4 }
                     .collect::<Vec<_>>()
                     .join("|")
             ),
+            Frame::HandlePayload { request } => format!("HandlePayload({:?})", request.effect),
             Frame::LocalPushId { .. } => "LocalPushId".to_string(),
             Frame::BlockedEffects { .. } => "BlockedEffects".to_string(),
             Frame::Coerce { .. } => "Coerce".to_string(),

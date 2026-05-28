@@ -8,7 +8,7 @@ use std::path::Path;
 use yulang_runtime_ir::FinalizedRecordSpreadPattern as RecordSpreadPattern;
 
 const CONTROL_VM_ARTIFACT_MAGIC: &[u8; 8] = b"YLCVMIR\0";
-pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 12;
+pub const CONTROL_VM_ARTIFACT_VERSION: u32 = 13;
 const CONTROL_VM_ARTIFACT_HEADER_LEN: usize = CONTROL_VM_ARTIFACT_MAGIC.len() + 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -451,6 +451,7 @@ struct ControlMatchArm {
 struct ControlHandleArm {
     effect: ControlSymbolId,
     payload: ControlPattern,
+    payload_forces_thunk: bool,
     resume: Option<ControlLocalId>,
     guard: Option<ExprId>,
     body: ExprId,
@@ -765,14 +766,19 @@ impl ControlCompiler {
                 let body = self.expr(*body);
                 let arms = arms
                     .into_iter()
-                    .map(|arm| ControlHandleArm {
-                        effect: self.intern_path(arm.effect),
-                        payload: self.pattern(arm.payload),
-                        resume: arm
-                            .resume
-                            .map(|resume| self.intern_local_name_path(&resume.name)),
-                        guard: arm.guard.map(|guard| self.expr(guard)),
-                        body: self.expr(arm.body),
+                    .map(|arm| {
+                        let payload_forces_thunk =
+                            !matches!(pattern_ty(&arm.payload), Type::Thunk { .. });
+                        ControlHandleArm {
+                            effect: self.intern_path(arm.effect),
+                            payload: self.pattern(arm.payload),
+                            payload_forces_thunk,
+                            resume: arm
+                                .resume
+                                .map(|resume| self.intern_local_name_path(&resume.name)),
+                            guard: arm.guard.map(|guard| self.expr(guard)),
+                            body: self.expr(arm.body),
+                        }
                     })
                     .collect();
                 ControlExprKind::Handle {
@@ -1180,6 +1186,9 @@ enum ControlFrame {
         arm_env: ControlEnv,
         body: ExprId,
         result_wraps_thunk: bool,
+    },
+    HandlePayload {
+        request: ControlRequest,
     },
     LocalPushId {
         parent: GuardStack,
@@ -2507,7 +2516,41 @@ impl<'m> ControlInterpreter<'m> {
         else {
             return Ok(ControlResult::Request(request));
         };
+        let arm = arm.clone();
         let next_arm_index = arm_index + 1;
+        if arm.payload_forces_thunk {
+            if let ControlValue::Thunk(thunk) = request.payload.clone() {
+                let previous =
+                    std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+                let payload_result = self.bind_here(ControlValue::Thunk(thunk));
+                self.guard_stack = previous;
+                return match payload_result? {
+                    ControlResult::Value(payload) => {
+                        let mut request = request;
+                        request.payload = payload;
+                        self.handle_request(
+                            request,
+                            id,
+                            arms,
+                            arm_index,
+                            env,
+                            handler_guard_stack,
+                            result_wraps_thunk,
+                        )
+                    }
+                    ControlResult::Request(mut payload_request) => {
+                        let payload_scope_frames = request.continuation.frames.clone();
+                        payload_request =
+                            push_frame(payload_request, ControlFrame::HandlePayload { request });
+                        self.prepend_frames(
+                            &mut payload_request.continuation,
+                            payload_scope_frames,
+                        );
+                        self.propagate_request(payload_request)
+                    }
+                };
+            }
+        }
         let mut arm_env = env.clone();
         if let Some(guard) = arm.guard {
             self.profile.continuation_splits += 1;
@@ -2731,6 +2774,14 @@ impl<'m> ControlInterpreter<'m> {
                 body,
                 result_wraps_thunk,
             ),
+            ControlFrame::HandlePayload { mut request } => {
+                request.payload = value;
+                request.continuation = ControlContinuation {
+                    frames: VecDeque::new(),
+                    guard_stack: continuation.guard_stack.clone(),
+                };
+                Ok(ControlResult::Request(request))
+            }
             ControlFrame::LocalPushId { parent } => {
                 continuation.guard_stack = parent;
                 Ok(ControlResult::Value(value))
@@ -3272,6 +3323,20 @@ fn control_callee_delays_thunk_arg(callee: &ControlValue) -> bool {
 
 fn type_wraps_thunk(ty: &Type) -> bool {
     matches!(ty, Type::Thunk { .. })
+}
+
+fn pattern_ty(pattern: &Pattern) -> &Type {
+    match pattern {
+        Pattern::Wildcard { ty }
+        | Pattern::Bind { ty, .. }
+        | Pattern::Lit { ty, .. }
+        | Pattern::Tuple { ty, .. }
+        | Pattern::List { ty, .. }
+        | Pattern::Record { ty, .. }
+        | Pattern::Variant { ty, .. }
+        | Pattern::Or { ty, .. }
+        | Pattern::As { ty, .. } => ty,
+    }
 }
 
 fn control_wrap_result(result: ControlResult, result_wraps_thunk: bool) -> ControlResult {

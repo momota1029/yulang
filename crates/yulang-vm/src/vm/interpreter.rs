@@ -921,27 +921,86 @@ impl<'m> VmInterpreter<'m> {
             .enumerate()
             .find(|(_, arm)| effect_operation_path_matches(&arm.effect, &request.effect))
         else {
-            let arm_effects: Vec<String> = arms
-                .iter()
-                .map(|arm| format!("{:?}", arm.effect))
-                .collect();
+            let arm_effects: Vec<String> =
+                arms.iter().map(|arm| format!("{:?}", arm.effect)).collect();
             trace_handle_request_arm_miss(id, &request.effect, &arm_effects);
             return Ok(VmResult::Request(request));
         };
         trace_handle_request_outcome("matched", id, &request.effect);
         let remaining_arms = arms[arm_index + 1..].to_vec();
         let outer = request.continuation.clone().outside_handle(id);
+        let payload = request.payload.clone();
+        if handle_payload_forces_thunk(&arm.payload, &payload) {
+            let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+            let payload_result = self.bind_here(payload);
+            self.guard_stack = previous;
+            let resume = arm.resume.as_ref().map(|resume| resume.name.clone());
+            return match payload_result? {
+                VmResult::Value(payload) => self.continue_handle_payload(
+                    payload,
+                    request,
+                    outer,
+                    id,
+                    remaining_arms,
+                    env.clone(),
+                    handler_guard_stack.clone(),
+                    arm.payload.clone(),
+                    resume,
+                    arm.guard.clone(),
+                    arm.body.clone(),
+                    expected_ty.clone(),
+                ),
+                VmResult::Request(mut payload_request) => {
+                    let payload_scope_frames = request.continuation.frames.clone();
+                    payload_request = push_frame(payload_request, Frame::HandlePayload { request });
+                    prepend_frames(&mut payload_request.continuation, payload_scope_frames);
+                    self.propagate_request(payload_request)
+                }
+            };
+        }
+        self.continue_handle_payload(
+            payload,
+            request,
+            outer,
+            id,
+            remaining_arms,
+            env.clone(),
+            handler_guard_stack.clone(),
+            arm.payload.clone(),
+            arm.resume.as_ref().map(|resume| resume.name.clone()),
+            arm.guard.clone(),
+            arm.body.clone(),
+            expected_ty.clone(),
+        )
+    }
+
+    pub(super) fn continue_handle_payload(
+        &mut self,
+        payload: VmValue,
+        mut request: VmRequest,
+        outer: VmContinuation,
+        id: u64,
+        arms: Vec<HandleArm>,
+        env: Env,
+        handler_guard_stack: GuardStack,
+        payload_pattern: Pattern,
+        resume: Option<typed_ir::Name>,
+        guard: Option<Expr>,
+        body: Expr,
+        expected_ty: Type,
+    ) -> Result<VmResult, VmError> {
+        request.payload = payload.clone();
         let mut arm_env = env.clone();
-        self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
-        if let Some(resume) = &arm.resume {
+        self.bind_pattern(&payload_pattern, payload, &mut arm_env)?;
+        if let Some(resume) = resume {
             arm_env.insert(
-                typed_ir::Path::from_name(resume.name.clone()),
+                typed_ir::Path::from_name(resume),
                 VmValue::Resume(Rc::new(VmResume {
                     continuation: request.continuation.clone().inside_handle(id),
                 })),
             );
         }
-        if let Some(guard) = &arm.guard {
+        if let Some(guard) = &guard {
             let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
             let guard_result = self.eval_expr(guard, &arm_env);
             self.guard_stack = previous;
@@ -951,12 +1010,12 @@ impl<'m> VmInterpreter<'m> {
                     request,
                     outer,
                     id,
-                    remaining_arms,
-                    env.clone(),
-                    handler_guard_stack.clone(),
+                    arms,
+                    env,
+                    handler_guard_stack,
                     arm_env,
-                    arm.body.clone(),
-                    expected_ty.clone(),
+                    body,
+                    expected_ty,
                 ),
                 VmResult::Request(guard_request) => Ok(VmResult::Request(push_frame(
                     guard_request,
@@ -964,21 +1023,21 @@ impl<'m> VmInterpreter<'m> {
                         id,
                         request,
                         outer,
-                        handler_guard_stack: handler_guard_stack.clone(),
-                        arms: remaining_arms,
-                        env: env.clone(),
+                        handler_guard_stack,
+                        arms,
+                        env,
                         arm_env,
-                        body: arm.body.clone(),
-                        expected_ty: expected_ty.clone(),
+                        body,
+                        expected_ty,
                     },
                 ))),
             };
         }
         let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
-        let result = self.eval_expr(&arm.body, &arm_env);
+        let result = self.eval_expr(&body, &arm_env);
         self.guard_stack = previous;
         let result = result?;
-        self.continue_handle_result_for_type(result, outer, expected_ty)
+        self.continue_handle_result_for_type(result, outer, &expected_ty)
     }
 
     pub(super) fn continue_handle_guard(
@@ -1131,6 +1190,16 @@ impl<'m> VmInterpreter<'m> {
                 body,
                 expected_ty,
             ),
+            Frame::HandlePayload { mut request } => {
+                let blocked_ids = request.continuation.blocked_ids.clone();
+                request.payload = value;
+                request.continuation = VmContinuation {
+                    frames: Vec::new(),
+                    guard_stack: continuation.guard_stack.clone(),
+                    blocked_ids,
+                };
+                Ok(VmResult::Request(request))
+            }
             Frame::LocalPushId { parent } => {
                 continuation.guard_stack = parent;
                 Ok(VmResult::Value(value))
@@ -1377,12 +1446,7 @@ fn trace_eval_var_binding(tag: &str, path: &typed_ir::Path) {
     HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
 }
 
-fn trace_apply_eval_entry(
-    tag: &str,
-    callee_kind: &ExprKind,
-    arg_kind: &ExprKind,
-    delay_arg: bool,
-) {
+fn trace_apply_eval_entry(tag: &str, callee_kind: &ExprKind, arg_kind: &ExprKind, delay_arg: bool) {
     if !handle_trace_enabled() {
         return;
     }
@@ -1488,7 +1552,10 @@ fn trace_handle_request_outcome(tag: &str, id: u64, effect: &typed_ir::Path) {
     if !handle_trace_enabled() {
         return;
     }
-    let line = format!("HANDLE_TRACE handle_request.{tag} id={id} effect={:?}", effect);
+    let line = format!(
+        "HANDLE_TRACE handle_request.{tag} id={id} effect={:?}",
+        effect
+    );
     HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
 }
 
@@ -1585,7 +1652,11 @@ fn trace_apply_entry(callee: &VmValue, arg: &VmValue) {
                 .as_ref()
                 .map(|p| format!("{p:?}"))
                 .unwrap_or_else(|| "<anon>".to_string());
-            let short_name = if name.contains("&s#") || name.contains("run") || name.contains("update") || name.contains("loop") {
+            let short_name = if name.contains("&s#")
+                || name.contains("run")
+                || name.contains("update")
+                || name.contains("loop")
+            {
                 name
             } else {
                 "<other_closure>".to_string()
@@ -1607,7 +1678,10 @@ fn trace_apply_entry(callee: &VmValue, arg: &VmValue) {
         VmValue::Int(_) => "int".to_string(),
         _ => "other".to_string(),
     };
-    let line = format!("HANDLE_TRACE apply.entry callee={} arg={}", callee_tag, arg_tag);
+    let line = format!(
+        "HANDLE_TRACE apply.entry callee={} arg={}",
+        callee_tag, arg_tag
+    );
     HANDLE_TRACE_BUFFER.with(|cell| cell.borrow_mut().push(line));
 }
 
@@ -1657,6 +1731,24 @@ fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
         param_ty,
         Type::Thunk { .. } | Type::Value(typed_ir::Type::Any)
     )
+}
+
+fn handle_payload_forces_thunk(pattern: &Pattern, value: &VmValue) -> bool {
+    matches!(value, VmValue::Thunk(_)) && !matches!(pattern_ty(pattern), Type::Thunk { .. })
+}
+
+fn pattern_ty(pattern: &Pattern) -> &Type {
+    match pattern {
+        Pattern::Wildcard { ty }
+        | Pattern::Bind { ty, .. }
+        | Pattern::Lit { ty, .. }
+        | Pattern::Tuple { ty, .. }
+        | Pattern::List { ty, .. }
+        | Pattern::Record { ty, .. }
+        | Pattern::Variant { ty, .. }
+        | Pattern::Or { ty, .. }
+        | Pattern::As { ty, .. } => ty,
+    }
 }
 
 fn callee_expects_thunk_arg(callee: &VmValue) -> bool {

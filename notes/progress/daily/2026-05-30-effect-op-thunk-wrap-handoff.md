@@ -155,3 +155,43 @@ YULANG_TRACE_HANDLE=1 YULANG_PANIC_DUMP=1 cargo test -q -p yulang-vm \
 - [[project_state_purity]] — state は純粋継続スレッディング実装、Copying GC が直接効く根拠
 - [[project_runtime_finalize]] — runtime rewrite。本件で触っている `merge_effect_op_runtime_type` は旧 lowerer 系
 - [[project_runtime_ir_parameterization_plan]] — Type::Core の中途半端さの根治予定。本件の Thunk wrap も合わせて整理対象
+
+## 続きの結果 — payload force 後に元 request を再 dispatch
+
+実装結果:
+
+- (A) の effect op type normalization は rollback。
+  - `merge_effect_op_runtime_type` は effectful use-site の `Thunk` wrap を保持する形へ戻した。
+  - `lowered_to_finalized` の `EffectOp` 専用 `strip_effect_op_thunk_wrap` も削除。
+- (B) は「payload を force してそのまま arm body に入る」だと不十分。
+  - `set(update(get()))` の payload 内 `get` が old state handler に捕まり、その `get` の継続が **set operation ではなく set arm body** になってしまう。
+  - その結果、old state の `run` が set 後の継続を外側から包み、`"abcz"` ではなく `"aあ🙂z"` が返る flake になった。
+- 正しい形は、handler が `Thunk` payload を force し、force 中に `Request` が出た場合だけ `HandlePayload` frame を積むこと。
+  - `HandlePayload` は payload が値になった時点で arm body へ直接進まず、元の operation request に値 payload を入れて再 dispatch する。
+  - これで payload 内 effect の継続は「set arm body」ではなく「値 payload 付きの set request」になり、CBV の operation argument 評価に近い順序へ戻る。
+- tree VM と control VM の両方に同じ責務を入れた。
+  - control VM は `ControlHandleArm::payload_forces_thunk` を compile 時に持つ。
+  - serialized artifact shape が変わるため `CONTROL_VM_ARTIFACT_VERSION` は `13` に更新。
+
+追加した regression:
+
+- `vm_redispatches_effectful_payload_after_forcing_it`
+- `control_vm_redispatches_effectful_payload_after_forcing_it`
+- `control_vm_runs_source_ref_string_range_assignment_example`
+
+確認済み:
+
+```sh
+RUSTC_WRAPPER= cargo test -q -p yulang-vm redispatches_effectful_payload -- --nocapture
+RUSTC_WRAPPER= cargo test -q -p yulang-vm source_ref_string_range_assignment_example -- --nocapture
+RUSTC_WRAPPER= cargo test -q -p yulang-vm vm_std_pipeline_survives_repeated_ref_and_effect_runs_on_one_thread -- --nocapture
+for i in $(seq 1 10); do
+  RUSTC_WRAPPER= cargo test -q -p yulang-vm vm_std_pipeline_survives_parallel_source_ref_runs -- --nocapture \
+    > /tmp/yulang-final-parallel-source-ref-$i.log 2>&1 || exit 1
+done
+RUSTC_WRAPPER= cargo test -q -p yulang-runtime-lower inferred_handle_payload -- --nocapture
+RUSTC_WRAPPER= cargo test -q -p yulang-vm vm_keeps_for_callback_return_effect_hygienic_across_sub -- --nocapture
+RUSTC_WRAPPER= cargo test -q -p yulang-vm
+```
+
+`cargo test -q -p yulang-vm` は 235 tests 全通過。

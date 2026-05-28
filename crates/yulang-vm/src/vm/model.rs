@@ -234,6 +234,9 @@ pub(super) enum Frame {
         body: Expr,
         expected_ty: Type,
     },
+    HandlePayload {
+        request: VmRequest,
+    },
     LocalPushId {
         parent: GuardStack,
     },

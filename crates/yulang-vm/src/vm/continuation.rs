@@ -47,10 +47,7 @@ fn trace_handle_event(tag: &str, id: u64, frames: &[Frame]) {
     if !super::interpreter::handle_trace_enabled() {
         return;
     }
-    let handle_ids: Vec<u64> = frames
-        .iter()
-        .filter_map(|f| frame_handle_id(f))
-        .collect();
+    let handle_ids: Vec<u64> = frames.iter().filter_map(|f| frame_handle_id(f)).collect();
     let line = format!(
         "HANDLE_TRACE {tag} target_id={id} frames_len={} handle_ids={:?}",
         frames.len(),
