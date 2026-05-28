@@ -3176,6 +3176,14 @@ impl Lowerer<'_> {
 fn merge_effect_op_runtime_type(expected: &RuntimeType, sig: &RuntimeType) -> RuntimeType {
     match (expected, sig) {
         (RuntimeType::Unknown, other) | (other, RuntimeType::Unknown) => other.clone(),
+        // Strip Thunk wrap from either side. Effect op's declared signature is
+        // the canonical form (Fun(Value(t), Value(unit))); Thunk wrap is added
+        // at call sites for effectful positions but does NOT belong on the op
+        // itself — handlers receive payloads eagerly.
+        (RuntimeType::Thunk { value, .. }, sig) => merge_effect_op_runtime_type(value, sig),
+        (expected, RuntimeType::Thunk { value, .. }) => {
+            merge_effect_op_runtime_type(expected, value)
+        }
         (
             RuntimeType::Fun {
                 param: a_p,
@@ -3189,25 +3197,6 @@ fn merge_effect_op_runtime_type(expected: &RuntimeType, sig: &RuntimeType) -> Ru
             merge_effect_op_runtime_type(a_p, b_p),
             merge_effect_op_runtime_type(a_r, b_r),
         ),
-        (
-            RuntimeType::Thunk {
-                effect: a_e,
-                value: a_v,
-            },
-            RuntimeType::Thunk {
-                effect: b_e,
-                value: b_v,
-            },
-        ) => RuntimeType::thunk(
-            merge_effect_op_core(a_e, b_e),
-            merge_effect_op_runtime_type(a_v, b_v),
-        ),
-        (RuntimeType::Thunk { effect, value }, sig) => {
-            RuntimeType::thunk(effect.clone(), merge_effect_op_runtime_type(value, sig))
-        }
-        (expected, RuntimeType::Thunk { value, .. }) => {
-            merge_effect_op_runtime_type(expected, value)
-        }
         (RuntimeType::Value(a), RuntimeType::Value(b)) => {
             RuntimeType::value(merge_effect_op_core(a, b))
         }

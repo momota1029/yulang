@@ -7,10 +7,27 @@
 use yulang_runtime_ir::{
     FinalizedExpr as Expr, FinalizedExprKind as ExprKind, FinalizedModule as Module, LoweredExpr,
     LoweredExprKind, LoweredModule, LoweredPattern, LoweredRecordSpreadExpr,
-    LoweredRecordSpreadPattern, LoweredStmt,
+    LoweredRecordSpreadPattern, LoweredStmt, RuntimeType,
 };
 
 use crate::graph::runtime_type_from_core_value;
+
+/// Effect ops carry their declared signature `Fun(Value(t), Value(unit))` and
+/// the call-site effect row is tracked separately in evidence/payload, so we
+/// strip Thunk wraps from the op's own Expr.ty. Handlers receive payloads
+/// eagerly; wrapping the op's param/ret in Thunk would force every effect call
+/// through `force_apply_arg`, which can leak inner effects past the handler's
+/// continuation scope.
+fn strip_effect_op_thunk_wrap(ty: RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Thunk { value, .. } => strip_effect_op_thunk_wrap(*value),
+        RuntimeType::Fun { param, ret } => RuntimeType::Fun {
+            param: Box::new(strip_effect_op_thunk_wrap(*param)),
+            ret: Box::new(strip_effect_op_thunk_wrap(*ret)),
+        },
+        RuntimeType::Value(_) | RuntimeType::Unknown => ty,
+    }
+}
 
 pub(crate) fn from_lowered_module(module: LoweredModule) -> Module {
     yulang_runtime_ir::Module {
@@ -36,7 +53,12 @@ pub(crate) fn from_lowered_module(module: LoweredModule) -> Module {
 }
 
 fn from_lowered_expr(expr: LoweredExpr) -> Expr {
-    let ty = runtime_type_from_core_value(expr.ty);
+    let raw_ty = runtime_type_from_core_value(expr.ty);
+    let ty = if matches!(expr.kind, LoweredExprKind::EffectOp(_)) {
+        strip_effect_op_thunk_wrap(raw_ty)
+    } else {
+        raw_ty
+    };
     let kind = match expr.kind {
         LoweredExprKind::Var(path) => ExprKind::Var(path),
         LoweredExprKind::EffectOp(path) => ExprKind::EffectOp(path),

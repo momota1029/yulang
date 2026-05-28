@@ -1402,6 +1402,12 @@ fn trace_apply_eval_entry(
         ExprKind::Thunk { .. } => "Thunk".to_string(),
         ExprKind::Apply { .. } => "Apply".to_string(),
         ExprKind::Lit(_) => "Lit".to_string(),
+        ExprKind::Coerce { .. } => "Coerce".to_string(),
+        ExprKind::AddId { .. } => "AddId".to_string(),
+        ExprKind::BindHere { .. } => "BindHere".to_string(),
+        ExprKind::EffectOp(p) => format!("EffectOp({p:?})"),
+        ExprKind::LocalPushId { .. } => "LocalPushId".to_string(),
+        ExprKind::Pack { .. } => "Pack".to_string(),
         _ => "other".to_string(),
     };
     let line = format!(
