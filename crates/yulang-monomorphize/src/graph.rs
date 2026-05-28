@@ -2075,6 +2075,11 @@ fn normalize_bound_form_inner(ty: &typed_ir::Type, effect_atom: bool) -> typed_i
                 .as_ref()
                 .map(|tail| Box::new(normalize_bound_form_inner(tail, false))),
         }),
+        typed_ir::Type::Recursive { var, body }
+            if effect_atom && !type_body_mentions_var(body, var) =>
+        {
+            normalize_bound_form_inner(body, effect_atom)
+        }
         typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var: var.clone(),
             body: Box::new(normalize_bound_form_inner(body, effect_atom)),

@@ -2388,8 +2388,41 @@ fn print_infer_phase_timings(
         format_duration(lower.detail.resolve_path_expr)
     );
     eprintln!(
+        "        literal={} unit={} resolved_single={} resolved_path={} unresolved_single={} unresolved_path={}",
+        format_duration(lower.detail.resolve_path_expr_literal),
+        format_duration(lower.detail.resolve_path_expr_unit),
+        format_duration(lower.detail.resolve_path_expr_resolved_single),
+        format_duration(lower.detail.resolve_path_expr_resolved_path),
+        format_duration(lower.detail.resolve_path_expr_unresolved_single),
+        format_duration(lower.detail.resolve_path_expr_unresolved_path),
+    );
+    eprintln!(
+        "        bound_def={} self_recursive={} alias={} frozen={} on_demand_lambda={} let_bound={} direct={}",
+        format_duration(lower.detail.resolve_bound_def_expr),
+        format_duration(lower.detail.resolve_bound_def_self_recursive),
+        format_duration(lower.detail.resolve_bound_def_alias),
+        format_duration(lower.detail.resolve_bound_def_frozen),
+        format_duration(lower.detail.resolve_bound_def_on_demand_lambda),
+        format_duration(lower.detail.resolve_bound_def_let_bound),
+        format_duration(lower.detail.resolve_bound_def_direct),
+    );
+    eprintln!(
         "      detail.apply_suffix: {}",
         format_duration(lower.detail.apply_suffix)
+    );
+    eprintln!(
+        "        field={} apply_ml={} apply_c={} apply_colon={} assign={} infix={} type_ann={} prefix={} suffix={} index={} other={}",
+        format_duration(lower.detail.apply_suffix_field),
+        format_duration(lower.detail.apply_suffix_apply_ml),
+        format_duration(lower.detail.apply_suffix_apply_c),
+        format_duration(lower.detail.apply_suffix_apply_colon),
+        format_duration(lower.detail.apply_suffix_assign),
+        format_duration(lower.detail.apply_suffix_infix),
+        format_duration(lower.detail.apply_suffix_type_ann),
+        format_duration(lower.detail.apply_suffix_prefix),
+        format_duration(lower.detail.apply_suffix_suffix),
+        format_duration(lower.detail.apply_suffix_index),
+        format_duration(lower.detail.apply_suffix_other),
     );
     eprintln!(
         "      detail.lower_expr_atom: {}",

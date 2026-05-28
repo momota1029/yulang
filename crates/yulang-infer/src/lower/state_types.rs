@@ -32,6 +32,7 @@ pub enum EnumVariantPatternPayload {
 pub struct CaseCheckSite {
     pub span: rowan::TextRange,
     pub file_span: Option<crate::lower::state::FileSpan>,
+    pub scrutinee: Option<CaseArmPattern>,
     pub arms: Vec<CaseArmCheckSite>,
 }
 

@@ -64,7 +64,7 @@ run_case() {
 
     /usr/bin/time -p -o "$time_file" \
         cargo run -p yulang --release -- \
-        --infer --infer-phase-timings --profile-repeat "$repeat" "$case_path" \
+        --infer-phase-timings --profile-repeat "$repeat" check "$case_path" \
         >"$out_file" 2>&1
 
     local real finalize commit compact subst constrain

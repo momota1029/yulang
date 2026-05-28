@@ -289,6 +289,20 @@ pub(super) fn require_same_hir_type(
         (RuntimeType::Value(expected), RuntimeType::Value(actual)) => {
             require_same_type(expected, actual, source)
         }
+        (
+            RuntimeType::Value(expected @ typed_ir::Type::Fun { .. }),
+            actual @ RuntimeType::Fun { .. },
+        ) => {
+            let expected = project_runtime_hir_type_with_vars(expected, &BTreeSet::new());
+            require_same_hir_type(&expected, actual, source)
+        }
+        (
+            actual @ RuntimeType::Fun { .. },
+            RuntimeType::Value(expected @ typed_ir::Type::Fun { .. }),
+        ) => {
+            let expected = project_runtime_hir_type_with_vars(expected, &BTreeSet::new());
+            require_same_hir_type(actual, &expected, source)
+        }
         (RuntimeType::Value(expected), actual @ RuntimeType::Fun { .. })
         | (actual @ RuntimeType::Fun { .. }, RuntimeType::Value(expected)) => {
             require_same_type(expected, &diagnostic_core_type(actual), source)
@@ -322,6 +336,11 @@ pub(super) fn require_same_hir_type(
             if !effect_compatible(expected_effect, actual_effect)
                 && !effect_compatible(actual_effect, expected_effect)
             {
+                if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+                    eprintln!(
+                        "lower require_same_hir_type thunk effect {source:?}: {expected_effect:?} / {actual_effect:?}; values {expected_value:?} / {actual_value:?}"
+                    );
+                }
                 if apply_evidence_allows_residual_thunk_effect(source, expected_value, actual_value)
                 {
                     return Ok(());
@@ -372,6 +391,11 @@ pub(super) fn require_apply_arg_compatible(
             if !effect_compatible(expected_effect, actual_effect)
                 && !effect_compatible(actual_effect, expected_effect)
             {
+                if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+                    eprintln!(
+                        "lower require_apply_arg_compatible thunk effect {source:?}: {expected_effect:?} / {actual_effect:?}; values {expected_value:?} / {actual_value:?}"
+                    );
+                }
                 if apply_evidence_allows_residual_thunk_effect(source, expected_value, actual_value)
                 {
                     return Ok(());

@@ -3939,8 +3939,7 @@ box { width: 3, height: 4 }
     fn eval_source(src: &str) -> Vec<TestValue> {
         let mut lowered =
             lower_virtual_source_with_options(src, None, SourceOptions::default()).unwrap();
-        let module = yulang_compile::runtime_module_from_lowered_sources(&mut lowered)
-            .expect("finalized runtime module");
+        let module = finalized_runtime_module_from_lowered_sources(&mut lowered);
         let module = compile_vm_module(module).expect("compiled runtime VM module");
         test_values(module.eval_roots().expect("vm results"))
     }
@@ -4039,21 +4038,40 @@ box { width: 3, height: 4 }
     fn runtime_module_with_std_result_inner(src: &str) -> RuntimeResult<Module> {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let std_root = repo_root.join("lib/std");
-        let mut lowered = lower_virtual_source_with_options(
-            src,
-            Some(repo_root),
-            SourceOptions {
-                std_root: Some(std_root),
-                implicit_prelude: true,
-                search_paths: Vec::new(),
+        let mut lowered = {
+            let _guard = std_source_lower_lock().lock().unwrap();
+            lower_virtual_source_with_options(
+                src,
+                Some(repo_root),
+                SourceOptions {
+                    std_root: Some(std_root),
+                    implicit_prelude: true,
+                    search_paths: Vec::new(),
+                },
+            )
+            .unwrap()
+        };
+        match yulang_runtime_pipeline::lowered_runtime_module_from_lowered_sources(&mut lowered) {
+            Ok(module) => match yulang_monomorphize::monomorphize_module(module) {
+                Ok(module) => Ok(module),
+                Err(error) => panic!("finalized runtime module failed: {error}"),
             },
-        )
-        .unwrap();
-        match yulang_compile::runtime_module_from_lowered_sources(&mut lowered) {
-            Ok(module) => Ok(module),
-            Err(yulang_compile::SourceRuntimeError::RuntimeLower(error)) => Err(error),
-            Err(error) => panic!("finalized runtime module failed: {error}"),
+            Err(yulang_runtime_pipeline::RuntimePipelineError::RuntimeLower(error)) => Err(error),
+            Err(error) => panic!("lowered runtime module failed: {error}"),
         }
+    }
+
+    fn std_source_lower_lock() -> &'static std::sync::Mutex<()> {
+        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
+    }
+
+    fn finalized_runtime_module_from_lowered_sources(
+        lowered: &mut yulang_infer::LoweredSources,
+    ) -> Module {
+        let module = yulang_runtime_pipeline::lowered_runtime_module_from_lowered_sources(lowered)
+            .expect("lowered runtime module");
+        yulang_monomorphize::monomorphize_module(module).expect("finalized runtime module")
     }
 
     fn mono_binding_named(binding: &Binding, base: &str) -> bool {

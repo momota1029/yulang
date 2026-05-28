@@ -1,6 +1,6 @@
 [package]
 name = "yulang-sources"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Source-set collection, realms, compilation units, and syntax artifacts for Yulang"

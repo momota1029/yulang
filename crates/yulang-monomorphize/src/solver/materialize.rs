@@ -4,7 +4,6 @@
 //!   - `Expr` trees, with optional `expected` runtime type to thread Thunk
 //!     boundaries through (`materialize_expr_with_expected`)
 //!   - `Stmt` / `Pattern` / `RecordSpreadExpr` children
-//!   - local reference refresh after materialization (`refresh_local_expr_types`)
 //!   - evidence side-information (`materialize_apply_evidence`,
 //!     `materialize_principal_elaboration_plan`, `materialize_join_evidence`,
 //!     `materialize_type_bounds`)
@@ -13,8 +12,6 @@
 //!
 //! Type-level materialization (`materialize_core_type`, `materialize_runtime_type`)
 //! lives in `graph.rs`; this module is the expression-level counterpart.
-
-use std::collections::HashMap;
 
 use yulang_runtime_ir::{
     FinalizedExpr as Expr, FinalizedExprKind as ExprKind, RuntimeType, TypeInstantiation,
@@ -268,8 +265,10 @@ pub(crate) fn materialize_expr_with_expected(
         } => {
             let allowed = materialize_core_type(allowed, substitutions);
             let expected_thunk = add_id_expected_thunk(
+                &thunk,
                 materialize_runtime_type(thunk.ty.clone(), substitutions),
                 &allowed,
+                substitutions,
             );
             let thunk = materialize_expr_to_expected(*thunk, substitutions, Some(&expected_thunk));
             let ty = thunk.ty.clone();
@@ -332,363 +331,6 @@ pub(crate) fn materialize_expr_in_place(
     substitutions: &[typed_ir::TypeSubstitution],
 ) {
     *expr = materialize_expr(expr.clone(), substitutions);
-}
-
-pub(crate) fn refresh_local_expr_types(expr: Expr) -> Expr {
-    let mut locals = HashMap::new();
-    refresh_expr_local_types(expr, &mut locals)
-}
-
-fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, RuntimeType>) -> Expr {
-    let mut ty = expr.ty;
-    let kind = match expr.kind {
-        ExprKind::Var(path) => {
-            if let Some(local_ty) = locals.get(&path) {
-                ty = local_ty.clone();
-            }
-            ExprKind::Var(path)
-        }
-        ExprKind::EffectOp(path) => ExprKind::EffectOp(path),
-        ExprKind::PrimitiveOp(op) => ExprKind::PrimitiveOp(op),
-        ExprKind::Lit(lit) => ExprKind::Lit(lit),
-        ExprKind::Lambda {
-            param,
-            param_effect_annotation,
-            param_function_allowed_effects,
-            body,
-        } => {
-            let path = super::path_from_name(&param);
-            let previous = runtime_function_param(&ty).map(|param_ty| {
-                let previous = locals.insert(path.clone(), param_ty);
-                (path.clone(), previous)
-            });
-            let body = Box::new(refresh_expr_local_types(*body, locals));
-            if let Some((path, previous)) = previous {
-                restore_local(locals, path, previous);
-            }
-            ExprKind::Lambda {
-                param,
-                param_effect_annotation,
-                param_function_allowed_effects,
-                body,
-            }
-        }
-        ExprKind::Apply {
-            callee,
-            arg,
-            evidence,
-            instantiation,
-        } => ExprKind::Apply {
-            callee: Box::new(refresh_expr_local_types(*callee, locals)),
-            arg: Box::new(refresh_expr_local_types(*arg, locals)),
-            evidence,
-            instantiation,
-        },
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-            evidence,
-        } => ExprKind::If {
-            cond: Box::new(refresh_expr_local_types(*cond, locals)),
-            then_branch: Box::new(refresh_expr_local_types(*then_branch, locals)),
-            else_branch: Box::new(refresh_expr_local_types(*else_branch, locals)),
-            evidence,
-        },
-        ExprKind::Tuple(items) => ExprKind::Tuple(
-            items
-                .into_iter()
-                .map(|item| refresh_expr_local_types(item, locals))
-                .collect(),
-        ),
-        ExprKind::Record { fields, spread } => ExprKind::Record {
-            fields: fields
-                .into_iter()
-                .map(|field| yulang_runtime_ir::FinalizedRecordExprField {
-                    name: field.name,
-                    value: refresh_expr_local_types(field.value, locals),
-                })
-                .collect(),
-            spread: spread.map(|spread| refresh_record_spread_expr_local_types(spread, locals)),
-        },
-        ExprKind::Variant { tag, value } => ExprKind::Variant {
-            tag,
-            value: value.map(|value| Box::new(refresh_expr_local_types(*value, locals))),
-        },
-        ExprKind::Select { base, field } => ExprKind::Select {
-            base: Box::new(refresh_core_value_expr_local_types(*base, locals)),
-            field,
-        },
-        ExprKind::Match {
-            scrutinee,
-            arms,
-            evidence,
-        } => {
-            let scrutinee = refresh_expr_local_types(*scrutinee, locals);
-            let scrutinee_ty = scrutinee.ty.clone();
-            ExprKind::Match {
-                scrutinee: Box::new(scrutinee),
-                arms: arms
-                    .into_iter()
-                    .map(|arm| {
-                        let mut arm_locals = locals.clone();
-                        refresh_pattern_local_types(
-                            &arm.pattern,
-                            Some(&scrutinee_ty),
-                            &mut arm_locals,
-                        );
-                        yulang_runtime_ir::FinalizedMatchArm {
-                            pattern: arm.pattern,
-                            guard: arm
-                                .guard
-                                .map(|guard| refresh_expr_local_types(guard, &mut arm_locals)),
-                            body: refresh_expr_local_types(arm.body, &mut arm_locals),
-                        }
-                    })
-                    .collect(),
-                evidence,
-            }
-        }
-        ExprKind::Block { stmts, tail } => {
-            let saved = locals.clone();
-            let stmts = stmts
-                .into_iter()
-                .map(|stmt| refresh_stmt_local_types(stmt, locals))
-                .collect();
-            let tail = tail.map(|tail| Box::new(refresh_expr_local_types(*tail, locals)));
-            *locals = saved;
-            ExprKind::Block { stmts, tail }
-        }
-        ExprKind::Handle {
-            body,
-            arms,
-            evidence,
-            handler,
-        } => ExprKind::Handle {
-            body: Box::new(refresh_expr_local_types(*body, locals)),
-            arms: arms
-                .into_iter()
-                .map(|arm| {
-                    let mut arm_locals = locals.clone();
-                    refresh_pattern_local_types(&arm.payload, None, &mut arm_locals);
-                    if let Some(resume) = &arm.resume {
-                        arm_locals.insert(super::path_from_name(&resume.name), resume.ty.clone());
-                    }
-                    yulang_runtime_ir::FinalizedHandleArm {
-                        effect: arm.effect,
-                        payload: arm.payload,
-                        resume: arm.resume,
-                        guard: arm
-                            .guard
-                            .map(|guard| refresh_expr_local_types(guard, &mut arm_locals)),
-                        body: refresh_expr_local_types(arm.body, &mut arm_locals),
-                    }
-                })
-                .collect(),
-            evidence,
-            handler,
-        },
-        ExprKind::BindHere { expr } => ExprKind::BindHere {
-            expr: Box::new(refresh_expr_local_types(*expr, locals)),
-        },
-        ExprKind::Thunk {
-            effect,
-            value,
-            expr,
-        } => ExprKind::Thunk {
-            effect,
-            value,
-            expr: Box::new(refresh_expr_local_types(*expr, locals)),
-        },
-        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
-            id,
-            body: Box::new(refresh_expr_local_types(*body, locals)),
-        },
-        ExprKind::PeekId => ExprKind::PeekId,
-        ExprKind::FindId { id } => ExprKind::FindId { id },
-        ExprKind::AddId {
-            id,
-            allowed,
-            active,
-            thunk,
-        } => ExprKind::AddId {
-            id,
-            allowed,
-            active,
-            thunk: Box::new(refresh_expr_local_types(*thunk, locals)),
-        },
-        ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
-            from,
-            to,
-            expr: Box::new(refresh_core_value_expr_local_types(*expr, locals)),
-        },
-        ExprKind::Pack { var, expr } => ExprKind::Pack {
-            var,
-            expr: Box::new(refresh_expr_local_types(*expr, locals)),
-        },
-    };
-    Expr::typed(kind, ty)
-}
-
-fn refresh_stmt_local_types(
-    stmt: yulang_runtime_ir::FinalizedStmt,
-    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
-) -> yulang_runtime_ir::FinalizedStmt {
-    match stmt {
-        yulang_runtime_ir::FinalizedStmt::Let { pattern, value } => {
-            let value = refresh_expr_local_types(value, locals);
-            refresh_pattern_local_types(&pattern, Some(&value.ty), locals);
-            yulang_runtime_ir::FinalizedStmt::Let { pattern, value }
-        }
-        yulang_runtime_ir::FinalizedStmt::Expr(expr) => {
-            yulang_runtime_ir::FinalizedStmt::Expr(refresh_expr_local_types(expr, locals))
-        }
-        yulang_runtime_ir::FinalizedStmt::Module { def, body } => {
-            yulang_runtime_ir::FinalizedStmt::Module {
-                def,
-                body: refresh_expr_local_types(body, locals),
-            }
-        }
-    }
-}
-
-fn refresh_record_spread_expr_local_types(
-    spread: yulang_runtime_ir::FinalizedRecordSpreadExpr,
-    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
-) -> yulang_runtime_ir::FinalizedRecordSpreadExpr {
-    match spread {
-        yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr) => {
-            yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(Box::new(
-                refresh_core_value_expr_local_types(*expr, locals),
-            ))
-        }
-        yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
-            yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(Box::new(
-                refresh_core_value_expr_local_types(*expr, locals),
-            ))
-        }
-    }
-}
-
-fn refresh_pattern_local_types(
-    pattern: &yulang_runtime_ir::FinalizedPattern,
-    scrutinee_ty: Option<&RuntimeType>,
-    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
-) {
-    use yulang_runtime_ir::FinalizedPattern as Pattern;
-
-    match pattern {
-        Pattern::Bind { name, ty } => {
-            locals.insert(
-                super::path_from_name(name),
-                choose_pattern_ty(ty, scrutinee_ty),
-            );
-        }
-        Pattern::Tuple { items, ty } => {
-            let component_tys = tuple_component_runtime_types(scrutinee_ty, ty, items.len());
-            for (item, comp) in items.iter().zip(component_tys.iter()) {
-                refresh_pattern_local_types(item, comp.as_ref(), locals);
-            }
-        }
-        Pattern::List {
-            prefix,
-            spread,
-            suffix,
-            ..
-        } => {
-            for item in prefix {
-                refresh_pattern_local_types(item, None, locals);
-            }
-            if let Some(spread) = spread {
-                refresh_pattern_local_types(spread, None, locals);
-            }
-            for item in suffix {
-                refresh_pattern_local_types(item, None, locals);
-            }
-        }
-        Pattern::Record { fields, spread, .. } => {
-            for field in fields {
-                refresh_pattern_local_types(&field.pattern, None, locals);
-            }
-            if let Some(spread) = spread {
-                match spread {
-                    yulang_runtime_ir::FinalizedRecordSpreadPattern::Head(pattern)
-                    | yulang_runtime_ir::FinalizedRecordSpreadPattern::Tail(pattern) => {
-                        refresh_pattern_local_types(pattern, None, locals);
-                    }
-                }
-            }
-        }
-        Pattern::Variant { value, .. } => {
-            if let Some(value) = value {
-                refresh_pattern_local_types(value, None, locals);
-            }
-        }
-        Pattern::Or { left, right, .. } => {
-            refresh_pattern_local_types(left, scrutinee_ty, locals);
-            refresh_pattern_local_types(right, scrutinee_ty, locals);
-        }
-        Pattern::As { pattern, name, ty } => {
-            let chosen = choose_pattern_ty(ty, scrutinee_ty);
-            refresh_pattern_local_types(pattern, Some(&chosen), locals);
-            locals.insert(super::path_from_name(name), chosen);
-        }
-        Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
-    }
-}
-
-fn choose_pattern_ty(pattern_ty: &RuntimeType, scrutinee_ty: Option<&RuntimeType>) -> RuntimeType {
-    if let Some(scrutinee_ty) = scrutinee_ty
-        && !super::runtime_type_has_unknown(scrutinee_ty)
-    {
-        return scrutinee_ty.clone();
-    }
-    if !super::runtime_type_has_unknown(pattern_ty) {
-        return pattern_ty.clone();
-    }
-    pattern_ty.clone()
-}
-
-fn tuple_component_runtime_types(
-    scrutinee_ty: Option<&RuntimeType>,
-    pattern_ty: &RuntimeType,
-    arity: usize,
-) -> Vec<Option<RuntimeType>> {
-    let preferred = scrutinee_ty
-        .filter(|ty| !super::runtime_type_has_unknown(ty))
-        .cloned();
-    let chosen = preferred.unwrap_or_else(|| pattern_ty.clone());
-    if let RuntimeType::Value(typed_ir::Type::Tuple(items)) = &chosen
-        && items.len() == arity
-    {
-        return items
-            .iter()
-            .map(|item| Some(RuntimeType::Value(item.clone())))
-            .collect();
-    }
-    vec![None; arity]
-}
-
-fn runtime_function_param(ty: &RuntimeType) -> Option<RuntimeType> {
-    let RuntimeType::Fun { param, .. } = ty else {
-        return None;
-    };
-    Some((**param).clone())
-}
-
-fn restore_local(
-    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
-    path: typed_ir::Path,
-    previous: Option<RuntimeType>,
-) {
-    match previous {
-        Some(previous) => {
-            locals.insert(path, previous);
-        }
-        None => {
-            locals.remove(&path);
-        }
-    }
 }
 
 fn materialize_stmt(
@@ -1094,13 +736,31 @@ fn materialize_handle_body(
     )
 }
 
-fn add_id_expected_thunk(ty: RuntimeType, allowed: &typed_ir::Type) -> RuntimeType {
+fn add_id_expected_thunk(
+    expr: &Expr,
+    ty: RuntimeType,
+    allowed: &typed_ir::Type,
+    substitutions: &[typed_ir::TypeSubstitution],
+) -> RuntimeType {
     match ty {
         RuntimeType::Thunk { .. } => ty,
-        value => RuntimeType::Thunk {
-            effect: allowed.clone(),
-            value: Box::new(value),
-        },
+        value => {
+            let (effect, value) = match &expr.kind {
+                ExprKind::Thunk {
+                    effect,
+                    value: thunk_value,
+                    ..
+                } => (
+                    materialize_core_type(effect.clone(), substitutions),
+                    materialize_runtime_type(thunk_value.clone(), substitutions),
+                ),
+                _ => (allowed.clone(), value),
+            };
+            RuntimeType::Thunk {
+                effect,
+                value: Box::new(value),
+            }
+        }
     }
 }
 
@@ -1225,14 +885,7 @@ fn materialize_expr_to_expected(
     adapt_expr_to_expected_runtime(expr, expected)
 }
 
-fn refresh_core_value_expr_local_types(
-    expr: Expr,
-    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
-) -> Expr {
-    force_core_value_expr(refresh_expr_local_types(expr, locals))
-}
-
-fn force_core_value_expr(expr: Expr) -> Expr {
+pub(crate) fn force_core_value_expr(expr: Expr) -> Expr {
     let value = match &expr.ty {
         RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
         _ => return expr,

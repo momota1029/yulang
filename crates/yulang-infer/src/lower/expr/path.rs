@@ -44,7 +44,9 @@ pub(in crate::lower) fn resolve_path_expr_at(
                 eff,
                 kind: ExprKind::Lit(Lit::Bool(name == "true")),
             };
-            state.lower_detail.resolve_path_expr += start.elapsed();
+            let elapsed = start.elapsed();
+            state.lower_detail.resolve_path_expr += elapsed;
+            state.lower_detail.resolve_path_expr_literal += elapsed;
             return result;
         }
     }
@@ -57,22 +59,37 @@ pub(in crate::lower) fn resolve_path_expr_at(
             eff,
             kind: ExprKind::Lit(Lit::Unit),
         };
-        state.lower_detail.resolve_path_expr += start.elapsed();
+        let elapsed = start.elapsed();
+        state.lower_detail.resolve_path_expr += elapsed;
+        state.lower_detail.resolve_path_expr_unit += elapsed;
         return result;
     }
 
+    let single_segment = path.segments.len() == 1;
     match resolve_value_use(state, path) {
         ResolvedValueUse::Resolved(def) => {
             let result = resolve_bound_def_expr(state, def);
             if let Some(span) = span {
                 state.record_value_use_span(span, def);
             }
-            state.lower_detail.resolve_path_expr += start.elapsed();
+            let elapsed = start.elapsed();
+            state.lower_detail.resolve_path_expr += elapsed;
+            if single_segment {
+                state.lower_detail.resolve_path_expr_resolved_single += elapsed;
+            } else {
+                state.lower_detail.resolve_path_expr_resolved_path += elapsed;
+            }
             result
         }
         ResolvedValueUse::Unresolved(unresolved) => {
             let result = unresolved_value_use_expr(state, unresolved, span);
-            state.lower_detail.resolve_path_expr += start.elapsed();
+            let elapsed = start.elapsed();
+            state.lower_detail.resolve_path_expr += elapsed;
+            if single_segment {
+                state.lower_detail.resolve_path_expr_unresolved_single += elapsed;
+            } else {
+                state.lower_detail.resolve_path_expr_unresolved_path += elapsed;
+            }
             result
         }
     }
@@ -193,6 +210,7 @@ pub(super) fn resolve_operator_expr_with_span(
 }
 
 pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::DefId) -> TypedExpr {
+    let start = Instant::now();
     let debug_ref = debug_ref_enabled();
     if debug_ref {
         eprintln!(
@@ -230,6 +248,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             let ref_id = state.ctx.fresh_ref();
             state.ctx.refs.resolve(ref_id, def, tv, state.current_owner);
             state.mark_resolved_ref_instantiated(ref_id);
+            record_resolve_bound_def_expr(state, start, ResolveBoundDefKind::SelfRecursive);
             return TypedExpr {
                 tv,
                 eff,
@@ -238,6 +257,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
         }
     }
     if let Some(expr) = alias_same_owner_ref_expr(state, def) {
+        record_resolve_bound_def_expr(state, start, ResolveBoundDefKind::Alias);
         return expr;
     }
     let tv = state.fresh_tv();
@@ -251,12 +271,14 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             state.infer.add_non_generic_var(owner, tv);
         }
     }
+    let mut resolve_kind = ResolveBoundDefKind::Direct;
     if state.def_eff_tvs.contains_key(&def) {
         if let Some(&def_tv) = state.def_tvs.get(&def) {
             state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
             state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
         }
     } else if let Some(scheme) = state.infer.frozen_scheme_of(def) {
+        resolve_kind = ResolveBoundDefKind::Frozen;
         let subst =
             crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
         if debug_ref {
@@ -283,6 +305,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             && state.is_let_bound_def(def)
             && principal_body_is_lambda_value(state, def)
         {
+            resolve_kind = ResolveBoundDefKind::OnDemandLambda;
             if debug_ref {
                 eprintln!(
                     "  before refresh deferred={} role_constraints={:?}",
@@ -358,6 +381,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
                     );
             }
         } else if state.is_let_bound_def(def) && state.current_owner != Some(def) {
+            resolve_kind = ResolveBoundDefKind::LetBound;
             if let Some(owner) = state.current_owner {
                 state.infer.add_edge(owner, def);
                 state
@@ -377,10 +401,49 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
     let ref_id = state.ctx.fresh_ref();
     state.ctx.refs.resolve(ref_id, def, tv, state.current_owner);
     state.mark_resolved_ref_instantiated(ref_id);
+    record_resolve_bound_def_expr(state, start, resolve_kind);
     TypedExpr {
         tv,
         eff,
         kind: ExprKind::Var(def),
+    }
+}
+
+enum ResolveBoundDefKind {
+    SelfRecursive,
+    Alias,
+    Frozen,
+    OnDemandLambda,
+    LetBound,
+    Direct,
+}
+
+fn record_resolve_bound_def_expr(
+    state: &mut LowerState,
+    start: Instant,
+    kind: ResolveBoundDefKind,
+) {
+    let elapsed = start.elapsed();
+    state.lower_detail.resolve_bound_def_expr += elapsed;
+    match kind {
+        ResolveBoundDefKind::SelfRecursive => {
+            state.lower_detail.resolve_bound_def_self_recursive += elapsed;
+        }
+        ResolveBoundDefKind::Alias => {
+            state.lower_detail.resolve_bound_def_alias += elapsed;
+        }
+        ResolveBoundDefKind::Frozen => {
+            state.lower_detail.resolve_bound_def_frozen += elapsed;
+        }
+        ResolveBoundDefKind::OnDemandLambda => {
+            state.lower_detail.resolve_bound_def_on_demand_lambda += elapsed;
+        }
+        ResolveBoundDefKind::LetBound => {
+            state.lower_detail.resolve_bound_def_let_bound += elapsed;
+        }
+        ResolveBoundDefKind::Direct => {
+            state.lower_detail.resolve_bound_def_direct += elapsed;
+        }
     }
 }
 
@@ -390,13 +453,18 @@ fn debug_ref_enabled() -> bool {
 }
 
 fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
-    let has_role_constraints = !state.infer.role_constraints_of(def).is_empty();
+    let has_role_constraints = state.infer.has_role_constraints(def);
+    let def_owner = state.def_owner(def);
 
     if let Some(owner) = state.current_owner {
-        let same_owner = def == owner || state.def_owner(def) == Some(owner);
-        let lambda_value = principal_body_is_lambda_value(state, def);
-        let aliasable_same_owner = def == owner || !state.is_let_bound_def(def) || !lambda_value;
-        if same_owner && aliasable_same_owner && !(has_role_constraints && lambda_value) {
+        let same_owner = def == owner || def_owner == Some(owner);
+        if same_owner {
+            let is_let_bound = state.is_let_bound_def(def);
+            let lambda_value = is_let_bound && principal_body_is_lambda_value(state, def);
+            let aliasable_same_owner = def == owner || !is_let_bound || !lambda_value;
+            if !aliasable_same_owner || (has_role_constraints && lambda_value) {
+                return false;
+            }
             return match state.infer.frozen_scheme_of(def) {
                 Some(scheme) => scheme.quantified.is_empty(),
                 None => true,
@@ -410,7 +478,7 @@ fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
 
     let ownerless_frozen_mono = state.current_owner.is_none()
         && !state.is_continuation_def(def)
-        && state.def_owner(def).is_none()
+        && def_owner.is_none()
         && state
             .infer
             .frozen_scheme_of(def)

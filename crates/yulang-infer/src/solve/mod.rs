@@ -517,6 +517,13 @@ impl Infer {
             .unwrap_or_default()
     }
 
+    pub fn has_role_constraints(&self, def: DefId) -> bool {
+        self.role_constraints
+            .borrow()
+            .get(&def)
+            .is_some_and(|constraints| !constraints.is_empty())
+    }
+
     pub fn add_non_generic_var(&self, owner: DefId, tv: TypeVar) {
         let start = crate::profile::ProfileClock::now();
         self.non_generic_vars

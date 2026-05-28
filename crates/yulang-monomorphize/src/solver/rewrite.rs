@@ -89,7 +89,7 @@ pub(crate) fn append_monomorphic_bindings(
         // Self-targeting instantiations come from the generic body and are
         // stale inside the emitted monomorphic alias.
         clear_binding_instantiations(&mut body, &solution.binding);
-        let body = materialize::refresh_local_expr_types(body);
+        let body = super::local_types::refresh_local_expr_types(body);
         cache.insert(CachedMonomorphizeInstance {
             key,
             scheme: scheme.clone(),

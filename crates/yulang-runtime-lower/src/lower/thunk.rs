@@ -564,6 +564,59 @@ pub(super) fn attach_expr_effect(expr: Expr, effect: typed_ir::Type) -> Expr {
     }
 }
 
+pub(super) fn attach_expr_effect_with_explicit_thunk(expr: Expr, effect: typed_ir::Type) -> Expr {
+    match expr.ty.clone() {
+        RuntimeType::Thunk {
+            effect: existing,
+            value,
+        } => {
+            let effect = merge_attached_effect(effect, existing);
+            let value_ty = value.as_ref().clone();
+            let ty = RuntimeType::thunk(effect.clone(), value_ty.clone());
+            let kind = match expr.kind {
+                ExprKind::Thunk {
+                    value, expr: inner, ..
+                } => ExprKind::Thunk {
+                    effect,
+                    value,
+                    expr: inner,
+                },
+                other => {
+                    let inner_ty = expr.ty;
+                    let inner = Expr::typed(other, inner_ty);
+                    let forced = Expr::typed(
+                        ExprKind::BindHere {
+                            expr: Box::new(inner),
+                        },
+                        value_ty.clone(),
+                    );
+                    ExprKind::Thunk {
+                        effect,
+                        value: value_ty,
+                        expr: Box::new(forced),
+                    }
+                }
+            };
+            Expr { ty, kind }
+        }
+        value => Expr::typed(
+            ExprKind::Thunk {
+                effect: effect.clone(),
+                value: value.clone(),
+                expr: Box::new(expr),
+            },
+            RuntimeType::thunk(effect, value),
+        ),
+    }
+}
+
+fn merge_attached_effect(effect: typed_ir::Type, existing: typed_ir::Type) -> typed_ir::Type {
+    if matches!(effect, typed_ir::Type::Any) || matches!(existing, typed_ir::Type::Any) {
+        return typed_ir::Type::Any;
+    }
+    project_runtime_effect(&merge_effect_rows(effect, existing))
+}
+
 pub(super) fn add_id_to_created_thunks(expr: Expr) -> Expr {
     let ty = expr.ty;
     let kind = match expr.kind {

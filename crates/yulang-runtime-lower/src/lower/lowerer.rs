@@ -494,6 +494,9 @@ impl Lowerer<'_> {
                     callee = Some(lowered);
                 }
                 let ret_hint = fun_parts.as_ref().map(|parts| parts.ret.clone());
+                let ret_hint_needs_callback_boundary = ret_hint
+                    .as_ref()
+                    .is_some_and(local_callback_boundary_needs_wildcard_effect);
                 let boundary_stored_ret_hint = if callee_boundary_effect.is_some() {
                     callee_stored_hint
                         .as_ref()
@@ -502,6 +505,9 @@ impl Lowerer<'_> {
                 } else {
                     None
                 };
+                let boundary_stored_ret_needs_callback_boundary = boundary_stored_ret_hint
+                    .as_ref()
+                    .is_some_and(local_callback_boundary_needs_wildcard_effect);
                 let boundary_thunk_result_hint = if callee_boundary_effect.is_some() {
                     ret_hint
                         .as_ref()
@@ -762,6 +768,9 @@ impl Lowerer<'_> {
                                     .filter(|_| can_push)
                                     .filter(|ty| {
                                         runtime_type_can_be_pushed_as_lowering_expected(ty)
+                                            && lowering_expected_can_replace_selected_effects(
+                                                ty, &arg_ty,
+                                            )
                                     })
                                 {
                                     Some(lower_arg_ty)
@@ -959,6 +968,8 @@ impl Lowerer<'_> {
                     ExprKind::EffectOp(path) => Some((path.clone(), arg_value_core)),
                     _ => None,
                 };
+                let boundary_ret_needs_wildcard =
+                    ret_hint_needs_callback_boundary || boundary_stored_ret_needs_callback_boundary;
                 let (apply_ty, apply_ty_overrides_ret) = match &final_fun_parts.ret {
                     ret if preserve_boundary_thunk_result
                         && matches!(ret, RuntimeType::Thunk { .. }) =>
@@ -1012,13 +1023,13 @@ impl Lowerer<'_> {
                 }
                 if let Some((boundary_id, allowed)) = boundary_allowed {
                     if !matches!(apply.ty, RuntimeType::Thunk { .. }) {
-                        if let Some(effect) = boundary_ret_effect {
+                        if let Some(effect) = boundary_ret_effect.clone() {
                             apply = attach_expr_effect(apply, effect);
-                        } else if local_callback_boundary_needs_wildcard_effect(
-                            &final_fun_parts.ret,
-                        ) {
-                            apply = attach_expr_effect(apply, wildcard_effect_type());
                         }
+                    }
+                    if boundary_ret_effect.is_none() && boundary_ret_needs_wildcard {
+                        apply =
+                            attach_expr_effect_with_explicit_thunk(apply, wildcard_effect_type());
                     }
                     let Some(boundary_id) = boundary_id else {
                         apply = add_boundary_id_with_peek(apply, allowed);
@@ -3208,6 +3219,30 @@ fn widened_apply_arg_evidence_accepts_actual(
 
 fn runtime_type_can_be_pushed_as_lowering_expected(ty: &RuntimeType) -> bool {
     !runtime_type_contains_value_choice(ty)
+}
+
+fn lowering_expected_can_replace_selected_effects(
+    expected: &RuntimeType,
+    selected: &RuntimeType,
+) -> bool {
+    let Some(expected_effect) = runtime_function_return_effect(expected) else {
+        return true;
+    };
+    let Some(selected_effect) = runtime_function_return_effect(selected) else {
+        return true;
+    };
+    // Reject only strict narrowing. Disjoint residual effects still need to be
+    // pushed so callback bodies keep their own effect surface.
+    effect_compatible(&expected_effect, &selected_effect)
+        || !effect_compatible(&selected_effect, &expected_effect)
+}
+
+fn runtime_function_return_effect(ty: &RuntimeType) -> Option<typed_ir::Type> {
+    let parts = function_parts(ty).ok()?;
+    Some(match parts.ret {
+        RuntimeType::Thunk { effect, .. } => project_runtime_effect(&effect),
+        _ => typed_ir::Type::Never,
+    })
 }
 
 fn should_refine_local_from_argument_expected(

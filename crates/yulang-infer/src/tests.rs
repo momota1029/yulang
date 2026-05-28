@@ -3653,6 +3653,30 @@ fn check_report_case_wildcard_covers_enum_variants() {
 }
 
 #[test]
+fn check_report_case_constructor_scrutinee_limits_enum_coverage() {
+    let lowered = lower_virtual_source_with_options(
+        concat!(
+            "enum tree 'a = leaf | node 'a (tree 'a) (tree 'a)\n",
+            "my picked = case tree::node 1 tree::leaf tree::leaf:\n",
+            "  tree::node value left right -> value\n",
+        ),
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let report = check_lowered(&lowered.state);
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == DiagnosticCode::NonExhaustivePattern),
+        "constructor scrutinee should limit enum coverage, got {:?}",
+        report.diagnostics,
+    );
+}
+
+#[test]
 fn check_report_case_guarded_variant_does_not_prove_coverage() {
     let lowered = lower_virtual_source_with_options(
         concat!(

@@ -1,0 +1,15 @@
+[package]
+name = "yulang-runtime-pipeline"
+version = "0.1.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Source-to-lowered-runtime pipeline for Yulang."
+repository = "https://github.com/momota1029/yulang"
+readme = "../../README.md"
+
+[dependencies]
+yulang-infer = { version = "0.1.6", path = "../yulang-infer" }
+yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
+yulang-runtime-lower = { version = "0.1.2", path = "../yulang-runtime-lower" }
+yulang-runtime-types = { version = "0.1.0", path = "../yulang-runtime-types" }
+yulang-sources = { version = "0.1.5", path = "../yulang-sources" }

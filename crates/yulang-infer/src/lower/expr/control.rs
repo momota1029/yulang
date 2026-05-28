@@ -250,6 +250,7 @@ fn lower_case_with_scrutinee(
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
 
+    let scrutinee_pattern = scrutinee_case_pattern(state, &scrutinee);
     state
         .infer
         .constrain(Pos::Var(scrutinee.eff), Neg::Var(eff));
@@ -340,6 +341,7 @@ fn lower_case_with_scrutinee(
     state.case_check_sites.push(CaseCheckSite {
         span: node.text_range(),
         file_span: state.current_source_span(node.text_range()),
+        scrutinee: scrutinee_pattern,
         arms: check_arms,
     });
 
@@ -347,6 +349,31 @@ fn lower_case_with_scrutinee(
         tv,
         eff,
         kind: ExprKind::Match(Box::new(scrutinee), arms),
+    }
+}
+
+fn scrutinee_case_pattern(state: &LowerState, expr: &TypedExpr) -> Option<CaseArmPattern> {
+    let (head, _) = apply_spine_head_and_arg_count(expr);
+    let ExprKind::Var(def) = &head.kind else {
+        return None;
+    };
+    let shape = state.enum_variant_patterns.get(def)?;
+    let variant = state.enum_variant_tags.get(def)?;
+    Some(CaseArmPattern::EnumVariant {
+        enum_path: shape.enum_path.clone(),
+        variant: variant.clone(),
+        payload_covers_all: true,
+    })
+}
+
+fn apply_spine_head_and_arg_count(expr: &TypedExpr) -> (&TypedExpr, usize) {
+    match &expr.kind {
+        ExprKind::App { callee, .. } => {
+            let (head, count) = apply_spine_head_and_arg_count(callee);
+            (head, count + 1)
+        }
+        ExprKind::Coerce { expr, .. } => apply_spine_head_and_arg_count(expr),
+        _ => (expr, 0),
     }
 }
 

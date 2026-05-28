@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::mem;
 use std::time::Duration;
 
 use crate::profile::ProfileClock as Instant;
@@ -182,34 +183,17 @@ pub fn refs_by_owner(refs: &RefTable) -> HashMap<DefId, Vec<ResolvedRef>> {
     refs_by_owner
 }
 
-fn ready_components_in_set(infer: &Infer, relevant_components: &HashSet<usize>) -> Vec<usize> {
-    let mut ready = relevant_components
-        .iter()
-        .copied()
-        .filter(|&idx| *infer.component_pending_selections[idx].borrow() == 0)
-        .filter(|&idx| {
-            !infer.component_edges[idx]
-                .borrow()
-                .iter()
-                .any(|edge| relevant_components.contains(edge))
-        })
-        .collect::<Vec<_>>();
-    ready.sort_unstable();
-    ready
-}
-
 fn drain_ready_components_with_refs_by_def_profiled(
     infer: &Infer,
     refs_by_def: &HashMap<DefId, Vec<ResolvedRef>>,
-    mut relevant_components: HashSet<usize>,
+    relevant_components: HashSet<usize>,
     target_defs: &HashSet<DefId>,
     profile: &mut CommitReadyProfile,
 ) -> Vec<usize> {
+    let mut scheduler = ReadyComponentScheduler::new(infer, &relevant_components, profile);
     let mut committed_all = Vec::new();
     loop {
-        let ready_scan_start = Instant::now();
-        let ready = ready_components_in_set(infer, &relevant_components);
-        profile.ready_scan += ready_scan_start.elapsed();
+        let ready = scheduler.next_ready_components(infer, profile);
         if ready.is_empty() {
             break;
         }
@@ -217,14 +201,15 @@ fn drain_ready_components_with_refs_by_def_profiled(
             infer,
             refs_by_def,
             target_defs,
-            ready,
+            &ready,
             profile,
         );
         if committed.is_empty() {
             break;
         }
         let committed_set = committed.iter().copied().collect::<HashSet<_>>();
-        relevant_components.retain(|idx| !committed_set.contains(idx));
+        scheduler.requeue_uncommitted_ready(infer, &ready, &committed_set);
+        scheduler.remove_committed(infer, &committed, profile);
         committed_all.extend(committed);
         infer.flush_compact_lower_instances();
     }
@@ -235,13 +220,13 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
     infer: &Infer,
     refs_by_def: &HashMap<DefId, Vec<ResolvedRef>>,
     target_defs: &HashSet<DefId>,
-    ready: Vec<usize>,
+    ready: &[usize],
     profile: &mut CommitReadyProfile,
 ) -> Vec<usize> {
     let total_start = Instant::now();
     profile.ready_components += ready.len();
     let mut committed = Vec::new();
-    for &component_idx in &ready {
+    for &component_idx in ready {
         let defs = infer.components[component_idx]
             .iter()
             .copied()
@@ -400,19 +385,157 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
             committed.push(component_idx);
         }
     }
-    if !committed.is_empty() {
-        let prune_start = Instant::now();
-        let committed_set = committed.iter().copied().collect::<HashSet<_>>();
-        for edges in &infer.component_edges {
-            edges
-                .borrow_mut()
-                .retain(|edge| !committed_set.contains(edge));
-        }
-        profile.prune_edges += prune_start.elapsed();
-    }
     profile.committed_components += committed.len();
     profile.total += total_start.elapsed();
     committed
+}
+
+// Keeps SCC close incremental: commit removes sink components, so only their
+// predecessors can become newly ready.
+struct ReadyComponentScheduler {
+    active: Vec<bool>,
+    active_out_degree: Vec<usize>,
+    incoming: Vec<Vec<usize>>,
+    pending_sinks: HashSet<usize>,
+    ready: Vec<usize>,
+}
+
+impl ReadyComponentScheduler {
+    fn new(
+        infer: &Infer,
+        relevant_components: &HashSet<usize>,
+        profile: &mut CommitReadyProfile,
+    ) -> Self {
+        let ready_scan_start = Instant::now();
+        let component_count = infer.components.len();
+        let mut active = vec![false; component_count];
+        for &idx in relevant_components {
+            if idx < component_count {
+                active[idx] = true;
+            }
+        }
+
+        let mut active_out_degree = vec![0usize; component_count];
+        let mut incoming = vec![Vec::new(); component_count];
+        for (from, edges) in infer.component_edges.iter().enumerate() {
+            for edge in edges.borrow().iter().copied() {
+                if edge >= component_count {
+                    continue;
+                }
+                incoming[edge].push(from);
+                if active[from] && active[edge] {
+                    active_out_degree[from] += 1;
+                }
+            }
+        }
+
+        let mut scheduler = Self {
+            active,
+            active_out_degree,
+            incoming,
+            pending_sinks: HashSet::new(),
+            ready: Vec::new(),
+        };
+        for idx in 0..component_count {
+            if scheduler.active[idx] && scheduler.active_out_degree[idx] == 0 {
+                scheduler.queue_or_wait_for_pending(infer, idx);
+            }
+        }
+        scheduler.ready.sort_unstable();
+        profile.ready_scan += ready_scan_start.elapsed();
+        scheduler
+    }
+
+    fn next_ready_components(
+        &mut self,
+        infer: &Infer,
+        profile: &mut CommitReadyProfile,
+    ) -> Vec<usize> {
+        let ready_scan_start = Instant::now();
+        self.promote_pending_sinks(infer);
+        self.ready.sort_unstable();
+        profile.ready_scan += ready_scan_start.elapsed();
+        mem::take(&mut self.ready)
+    }
+
+    fn remove_committed(
+        &mut self,
+        infer: &Infer,
+        committed: &[usize],
+        profile: &mut CommitReadyProfile,
+    ) {
+        let prune_start = Instant::now();
+        for &idx in committed {
+            if idx >= self.active.len() || !self.active[idx] {
+                continue;
+            }
+            self.active[idx] = false;
+            self.pending_sinks.remove(&idx);
+            for pred in mem::take(&mut self.incoming[idx]) {
+                if pred >= infer.component_edges.len() {
+                    continue;
+                }
+                let removed = {
+                    let mut edges = infer.component_edges[pred].borrow_mut();
+                    let before = edges.len();
+                    edges.retain(|edge| *edge != idx);
+                    edges.len() != before
+                };
+                if removed && self.active.get(pred).copied().unwrap_or(false) {
+                    self.active_out_degree[pred] = self.active_out_degree[pred].saturating_sub(1);
+                    if self.active_out_degree[pred] == 0 {
+                        self.queue_or_wait_for_pending(infer, pred);
+                    }
+                }
+            }
+        }
+        profile.prune_edges += prune_start.elapsed();
+    }
+
+    fn requeue_uncommitted_ready(
+        &mut self,
+        infer: &Infer,
+        ready: &[usize],
+        committed: &HashSet<usize>,
+    ) {
+        for &idx in ready {
+            if !committed.contains(&idx)
+                && self.active.get(idx).copied().unwrap_or(false)
+                && self.active_out_degree[idx] == 0
+            {
+                self.queue_or_wait_for_pending(infer, idx);
+            }
+        }
+    }
+
+    fn promote_pending_sinks(&mut self, infer: &Infer) {
+        let ready = self
+            .pending_sinks
+            .iter()
+            .copied()
+            .filter(|&idx| self.pending_count(infer, idx) == 0)
+            .collect::<Vec<_>>();
+        for idx in ready {
+            self.pending_sinks.remove(&idx);
+            self.ready.push(idx);
+        }
+    }
+
+    fn queue_or_wait_for_pending(&mut self, infer: &Infer, idx: usize) {
+        if self.pending_count(infer, idx) == 0 {
+            self.ready.push(idx);
+        } else {
+            self.pending_sinks.insert(idx);
+        }
+    }
+
+    fn pending_count(&self, infer: &Infer, idx: usize) -> usize {
+        infer
+            .component_pending_selections
+            .get(idx)
+            .map(|pending| *pending.borrow())
+            .unwrap_or(0)
+    }
 }
 
 fn compact_role_constraints(infer: &Infer, def: DefId) -> Vec<CompactRoleConstraint> {

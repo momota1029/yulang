@@ -39,7 +39,10 @@ use crate::{
     output::RootGraphRoot,
 };
 
-use super::{rewrite, role};
+use super::{
+    pattern_types::{choose_pattern_ty, tuple_component_runtime_types},
+    rewrite, role,
+};
 
 pub fn collect_root_graph_inputs(module: &Module) -> Vec<RootGraphInput> {
     module
@@ -2170,38 +2173,6 @@ pub(crate) fn collect_pattern_local_types(
         }
         Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
     }
-}
-
-fn choose_pattern_ty(pattern_ty: &RuntimeType, scrutinee_ty: Option<&RuntimeType>) -> RuntimeType {
-    if let Some(scrut) = scrutinee_ty
-        && !super::runtime_type_has_unknown(scrut)
-    {
-        return scrut.clone();
-    }
-    if !super::runtime_type_has_unknown(pattern_ty) {
-        return pattern_ty.clone();
-    }
-    pattern_ty.clone()
-}
-
-fn tuple_component_runtime_types(
-    scrutinee_ty: Option<&RuntimeType>,
-    pattern_ty: &RuntimeType,
-    arity: usize,
-) -> Vec<Option<RuntimeType>> {
-    let preferred = scrutinee_ty
-        .filter(|t| !super::runtime_type_has_unknown(t))
-        .cloned();
-    let chosen = preferred.unwrap_or_else(|| pattern_ty.clone());
-    if let RuntimeType::Value(typed_ir::Type::Tuple(items)) = &chosen
-        && items.len() == arity
-    {
-        return items
-            .iter()
-            .map(|t| Some(RuntimeType::Value(t.clone())))
-            .collect();
-    }
-    vec![None; arity]
 }
 
 pub(crate) fn binding_local_types(binding: &Binding) -> HashMap<typed_ir::Path, RuntimeType> {

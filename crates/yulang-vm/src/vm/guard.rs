@@ -85,7 +85,7 @@ impl GuardStack {
 
     pub(super) fn contains(&self, id: u64) -> bool {
         self.0
-            .any_chunk_newest(|chunk| chunk.binary_search_by_key(&id, |entry| entry.id).is_ok())
+            .any_chunk_newest(|chunk| chunk.iter().any(|entry| entry.id == id))
     }
 
     pub(super) fn find_var(&self, var: EffectIdVar) -> Option<u64> {
@@ -109,6 +109,35 @@ impl GuardStack {
                 } else {
                     stack.push(entry)
                 }
+            })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn contains_finds_overlayed_older_guard_id() {
+        let parent = guard_stack(&[(0, 10), (1, 20), (2, 30)]);
+        let closure = guard_stack(&[(3, 5)]);
+
+        let stack = parent.overlay_newer(&closure);
+
+        assert!(stack.contains(5));
+        assert!(stack.contains(10));
+        assert!(stack.contains(20));
+        assert!(stack.contains(30));
+    }
+
+    fn guard_stack(entries: &[(usize, u64)]) -> GuardStack {
+        entries
+            .iter()
+            .fold(GuardStack::default(), |stack, (var, id)| {
+                stack.push(GuardEntry {
+                    var: EffectIdVar(*var),
+                    id: *id,
+                })
             })
     }
 }

@@ -43,7 +43,21 @@ pub(super) fn apply_suffix(
         SyntaxKind::Index => apply_index_suffix(state, acc, suffix),
         _ => acc,
     };
-    state.lower_detail.apply_suffix += start.elapsed();
+    let elapsed = start.elapsed();
+    state.lower_detail.apply_suffix += elapsed;
+    match suffix.kind() {
+        SyntaxKind::Field => state.lower_detail.apply_suffix_field += elapsed,
+        SyntaxKind::ApplyML => state.lower_detail.apply_suffix_apply_ml += elapsed,
+        SyntaxKind::ApplyC => state.lower_detail.apply_suffix_apply_c += elapsed,
+        SyntaxKind::ApplyColon => state.lower_detail.apply_suffix_apply_colon += elapsed,
+        SyntaxKind::Assign => state.lower_detail.apply_suffix_assign += elapsed,
+        SyntaxKind::InfixNode => state.lower_detail.apply_suffix_infix += elapsed,
+        SyntaxKind::TypeAnn => state.lower_detail.apply_suffix_type_ann += elapsed,
+        SyntaxKind::PrefixNode => state.lower_detail.apply_suffix_prefix += elapsed,
+        SyntaxKind::SuffixNode => state.lower_detail.apply_suffix_suffix += elapsed,
+        SyntaxKind::Index => state.lower_detail.apply_suffix_index += elapsed,
+        _ => state.lower_detail.apply_suffix_other += elapsed,
+    }
     result
 }
 

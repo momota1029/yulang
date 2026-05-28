@@ -347,7 +347,7 @@ fn case_exhaustiveness_diagnostic(
     site: &CaseCheckSite,
 ) -> Option<CaseExhaustivenessDiagnostic> {
     let coverage = collect_enum_case_coverage(site)?;
-    let declared = state.enum_variants_by_enum_path.get(&coverage.enum_path)?;
+    let declared = case_exhaustiveness_domain(state, site, &coverage)?;
     if declared.is_empty() {
         return None;
     }
@@ -365,6 +365,24 @@ fn case_exhaustiveness_diagnostic(
         message: missing_variants_message(&coverage.enum_path, &missing),
         related: guarded_variant_related(&missing, &coverage.guarded),
     })
+}
+
+fn case_exhaustiveness_domain(
+    state: &LowerState,
+    site: &CaseCheckSite,
+    coverage: &EnumCaseCoverage,
+) -> Option<Vec<Name>> {
+    if let Some(CaseArmPattern::EnumVariant {
+        enum_path, variant, ..
+    }) = &site.scrutinee
+        && enum_path == &coverage.enum_path
+    {
+        return Some(vec![variant.clone()]);
+    }
+    state
+        .enum_variants_by_enum_path
+        .get(&coverage.enum_path)
+        .cloned()
 }
 
 struct EnumCaseCoverage {
