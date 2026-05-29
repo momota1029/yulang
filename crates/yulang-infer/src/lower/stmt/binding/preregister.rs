@@ -42,13 +42,14 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
             state.register_def_owner(def, owner);
         }
         state.register_def_name(def, name.clone());
-        if let Some(sig) = binding_pattern_sig(pat_node.as_ref()?) {
+        if let Some(sig) = pat_node.as_ref().and_then(binding_pattern_sig) {
             super::register_sig_call_shape_hint(state, def, &sig);
         }
         state.register_def_span(
             def,
             binding_name_span(&header).unwrap_or(header.text_range()),
         );
+        let operator_name = name.clone();
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
             if super::super::header_operator_is_lazy(&header) {
@@ -70,7 +71,7 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
         if let Some(fixity) = operator_fixity {
             state.ctx.modules.insert_operator_value_with_visibility(
                 state.ctx.current_module,
-                super::super::header_value_name(&header)?,
+                operator_name,
                 fixity,
                 def,
                 if is_pub {
@@ -118,7 +119,7 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_tv(def, tv);
         state.mark_let_bound_def(def);
         state.register_def_name(def, name.clone());
-        if let Some(sig) = binding_pattern_sig(pat_node.as_ref()?) {
+        if let Some(sig) = pat_node.as_ref().and_then(binding_pattern_sig) {
             super::register_sig_call_shape_hint(state, def, &sig);
         }
         state.register_def_span(
