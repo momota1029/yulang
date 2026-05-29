@@ -129,15 +129,9 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) -> Option<PosId> {
-        if matches!(edge.keep, ShiftKeep::Set(_)) {
-            return None;
-        }
         let Pos::Row(items, tail) = self.arena.get_pos(lower) else {
             return None;
         };
-        if !edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot) {
-            return None;
-        }
         let mut kept = Vec::new();
         let mut removed_any = false;
         for item in items {
@@ -149,6 +143,11 @@ impl Infer {
             } else {
                 kept.push(item);
             }
+        }
+        if matches!(edge.keep, ShiftKeep::Set(_))
+            || (!edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot))
+        {
+            return None;
         }
         removed_any.then(|| {
             if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
@@ -324,6 +323,56 @@ mod tests {
         assert!(
             infer.lower_refs_of(residual).is_empty(),
             "default handler_match should not solve from open surface rows"
+        );
+    }
+
+    #[test]
+    fn handler_match_constrains_atom_args_from_open_rows() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let actual_pos = fresh_type_var();
+        let actual_neg = fresh_type_var();
+        let handled_pos = fresh_type_var();
+        let handled_neg = fresh_type_var();
+        let effect_path = path("parse");
+
+        infer.record_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(EffectAtom {
+                path: effect_path.clone(),
+                args: vec![(handled_pos, handled_neg)],
+            }))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(EffectAtom {
+                    path: effect_path,
+                    args: vec![(actual_pos, actual_neg)],
+                }))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(actual),
+        );
+
+        assert!(
+            infer.upper_refs_of(actual_pos).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(tv) if tv == handled_neg)
+            }),
+            "matched atom args should connect the source pos side to the handler neg side"
+        );
+        assert!(
+            infer.upper_refs_of(handled_pos).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(tv) if tv == actual_neg)
+            }),
+            "matched atom args should connect the handler pos side to the source neg side"
+        );
+        assert!(
+            infer.lower_refs_of(residual).is_empty(),
+            "open surface rows still keep residual subtraction pending by default"
         );
     }
 

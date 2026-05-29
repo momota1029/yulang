@@ -173,15 +173,37 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         );
         apply_exact_sandwich_removal(&all_vars, &exact_info, &protected_vars, &mut subst);
         apply_shadow_var_collapse(&all_vars, &analysis, &protected_vars, &mut subst);
-        apply_one_sided_exact_alias_collapse(&all_vars, &analysis, &protected_vars, &mut subst);
-
-        let representatives = lower_representatives_for_subst(
-            &current_scheme,
-            &current_constraints,
-            &rec_vars,
-            &subst,
+        let mut exact_alias_protected_vars = protected_vars.clone();
+        collect_function_input_vars_in_scheme(&current_scheme, &mut exact_alias_protected_vars);
+        apply_one_sided_exact_alias_collapse(
+            &all_vars,
+            &analysis,
+            &exact_alias_protected_vars,
+            &mut subst,
         );
-        let mut rewritten_scheme = if use_representatives {
+        let guarded_row_representatives =
+            guarded_row_recursion_representatives(&rec_vars, &protected_vars, &subst);
+        for &var in guarded_row_representatives.keys() {
+            subst.entry(var).or_insert(None);
+        }
+        let mut representatives = if use_representatives {
+            lower_representatives_for_subst(
+                &current_scheme,
+                &current_constraints,
+                &rec_vars,
+                &subst,
+            )
+        } else {
+            HashMap::new()
+        };
+        representatives.extend(
+            guarded_row_representatives
+                .iter()
+                .map(|(&tv, ty)| (tv, ty.clone())),
+        );
+        let use_representatives_now =
+            use_representatives || !guarded_row_representatives.is_empty();
+        let mut rewritten_scheme = if use_representatives_now {
             rewrite_scheme_with_representatives(
                 &current_scheme,
                 &rec_vars,
@@ -192,7 +214,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             rewrite_scheme(&current_scheme, &rec_vars, &subst)
         };
         expose_positive_row_residual_tails(&mut rewritten_scheme, &exposed_row_residual_vars);
-        let rewritten_constraints = if use_representatives {
+        let rewritten_constraints = if use_representatives_now {
             rewrite_constraints_with_representatives(
                 &rewritten_scheme,
                 &current_constraints,
@@ -257,6 +279,251 @@ fn protected_role_constraint_vars(
                 })
         })
         .collect()
+}
+
+fn guarded_row_recursion_representatives(
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    protected_vars: &HashSet<TypeVar>,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+) -> HashMap<TypeVar, CompactType> {
+    let mut out = HashMap::new();
+    let mut items = rec_vars.iter().collect::<Vec<_>>();
+    items.sort_by_key(|(tv, _)| tv.0);
+    for (&tv, bounds) in items {
+        if protected_vars.contains(&tv) || subst.contains_key(&tv) {
+            continue;
+        }
+        let mut rows = Vec::new();
+        collect_guarded_row_candidates(tv, &bounds.lower, &mut rows);
+        collect_guarded_row_candidates(tv, &bounds.upper, &mut rows);
+        if rows.is_empty() {
+            continue;
+        }
+        let Some(first_shape) = guarded_row_shape(&rows[0]) else {
+            continue;
+        };
+        if rows
+            .iter()
+            .any(|row| guarded_row_shape(row).as_ref() != Some(&first_shape))
+        {
+            continue;
+        }
+        rows.sort_by_key(|row| {
+            (
+                compact_type_mentions_var(&row.tail, tv),
+                row.tail.vars.is_empty(),
+            )
+        });
+        let row = rows.remove(0);
+        out.insert(
+            tv,
+            CompactType {
+                rows: vec![row],
+                ..CompactType::default()
+            },
+        );
+    }
+    out
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GuardedRowItemShape {
+    path: Path,
+    arity: usize,
+}
+
+fn guarded_row_shape(row: &CompactRow) -> Option<Vec<GuardedRowItemShape>> {
+    let mut shapes = row
+        .items
+        .iter()
+        .map(guarded_row_item_shape)
+        .collect::<Option<Vec<_>>>()?;
+    shapes
+        .sort_by(|lhs, rhs| guarded_row_item_shape_key(lhs).cmp(&guarded_row_item_shape_key(rhs)));
+    Some(shapes)
+}
+
+fn guarded_row_item_shape(item: &CompactType) -> Option<GuardedRowItemShape> {
+    if !item.vars.is_empty()
+        || !item.funs.is_empty()
+        || !item.records.is_empty()
+        || !item.record_spreads.is_empty()
+        || !item.variants.is_empty()
+        || !item.tuples.is_empty()
+        || !item.rows.is_empty()
+    {
+        return None;
+    }
+    if item.prims.len() == 1 && item.cons.is_empty() {
+        return item
+            .prims
+            .iter()
+            .next()
+            .cloned()
+            .map(|path| GuardedRowItemShape { path, arity: 0 });
+    }
+    if item.cons.len() == 1 && item.prims.is_empty() {
+        let con = &item.cons[0];
+        return Some(GuardedRowItemShape {
+            path: con.path.clone(),
+            arity: con.args.len(),
+        });
+    }
+    None
+}
+
+fn guarded_row_item_shape_key(shape: &GuardedRowItemShape) -> (String, usize) {
+    (
+        shape
+            .path
+            .segments
+            .iter()
+            .map(|segment| segment.0.as_str())
+            .collect::<Vec<_>>()
+            .join("::"),
+        shape.arity,
+    )
+}
+
+fn collect_guarded_row_candidates(tv: TypeVar, ty: &CompactType, out: &mut Vec<CompactRow>) {
+    for row in &ty.rows {
+        if !row.items.is_empty() && !compact_type_mentions_var(&row.tail, tv) {
+            out.push(row.clone());
+        }
+        for item in &row.items {
+            collect_guarded_row_candidates(tv, item, out);
+        }
+        collect_guarded_row_candidates(tv, &row.tail, out);
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_guarded_row_candidates(tv, &arg.lower, out);
+            collect_guarded_row_candidates(tv, &arg.upper, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_guarded_row_candidates(tv, &fun.arg, out);
+        collect_guarded_row_candidates(tv, &fun.arg_eff, out);
+        collect_guarded_row_candidates(tv, &fun.ret_eff, out);
+        collect_guarded_row_candidates(tv, &fun.ret, out);
+    }
+}
+
+fn compact_type_mentions_var(ty: &CompactType, tv: TypeVar) -> bool {
+    ty.vars.contains(&tv)
+        || ty.cons.iter().any(|con| {
+            con.args.iter().any(|arg| {
+                compact_type_mentions_var(&arg.lower, tv)
+                    || compact_type_mentions_var(&arg.upper, tv)
+            })
+        })
+        || ty.funs.iter().any(|fun| {
+            compact_type_mentions_var(&fun.arg, tv)
+                || compact_type_mentions_var(&fun.arg_eff, tv)
+                || compact_type_mentions_var(&fun.ret_eff, tv)
+                || compact_type_mentions_var(&fun.ret, tv)
+        })
+        || ty.records.iter().any(|record| {
+            record
+                .fields
+                .iter()
+                .any(|field| compact_type_mentions_var(&field.value, tv))
+        })
+        || ty.record_spreads.iter().any(|spread| {
+            spread
+                .fields
+                .iter()
+                .any(|field| compact_type_mentions_var(&field.value, tv))
+                || compact_type_mentions_var(&spread.tail, tv)
+        })
+        || ty.variants.iter().any(|variant| {
+            variant.items.iter().any(|(_, payloads)| {
+                payloads
+                    .iter()
+                    .any(|payload| compact_type_mentions_var(payload, tv))
+            })
+        })
+        || ty
+            .tuples
+            .iter()
+            .any(|tuple| tuple.iter().any(|item| compact_type_mentions_var(item, tv)))
+        || ty.rows.iter().any(|row| {
+            row.items
+                .iter()
+                .any(|item| compact_type_mentions_var(item, tv))
+                || compact_type_mentions_var(&row.tail, tv)
+        })
+}
+
+fn collect_function_input_vars_in_scheme(scheme: &CompactTypeScheme, out: &mut HashSet<TypeVar>) {
+    collect_function_input_vars_in_bounds(&scheme.cty, false, out);
+    for bounds in scheme.rec_vars.values() {
+        collect_function_input_vars_in_bounds(bounds, false, out);
+    }
+}
+
+fn collect_function_input_vars_in_bounds(
+    bounds: &CompactBounds,
+    inside_input: bool,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_function_input_vars_in_type(&bounds.lower, inside_input, false, out);
+    collect_function_input_vars_in_type(&bounds.upper, inside_input, false, out);
+}
+
+fn collect_function_input_vars_in_type(
+    ty: &CompactType,
+    inside_input: bool,
+    inside_effect_row_item: bool,
+    out: &mut HashSet<TypeVar>,
+) {
+    if inside_input && !inside_effect_row_item {
+        out.extend(ty.vars.iter().copied());
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_function_input_vars_in_bounds(
+                arg,
+                inside_input && !inside_effect_row_item,
+                out,
+            );
+        }
+    }
+    for fun in &ty.funs {
+        collect_function_input_vars_in_type(&fun.arg, true, false, out);
+        collect_function_input_vars_in_type(&fun.arg_eff, true, false, out);
+        collect_function_input_vars_in_type(&fun.ret_eff, inside_input, false, out);
+        collect_function_input_vars_in_type(&fun.ret, inside_input, false, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
+        }
+        collect_function_input_vars_in_type(&spread.tail, inside_input, false, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_function_input_vars_in_type(payload, inside_input, false, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_function_input_vars_in_type(item, inside_input, false, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_function_input_vars_in_type(item, inside_input, true, out);
+        }
+        collect_function_input_vars_in_type(&row.tail, inside_input, false, out);
+    }
 }
 
 fn protected_role_arg_var(
@@ -600,6 +867,33 @@ fn is_trivial_self_bounds(tv: TypeVar, bounds: &CompactBounds) -> bool {
         || (is_only_self_var(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
         || (is_empty_compact_type(&bounds.lower) && is_only_self_empty_row(&bounds.upper, tv))
         || (is_only_self_empty_row(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
+        || is_var_only_self_alias_bounds(tv, bounds)
+}
+
+fn is_var_only_self_alias_bounds(tv: TypeVar, bounds: &CompactBounds) -> bool {
+    let mut saw_self = false;
+    compact_type_is_var_only_self_alias(&bounds.lower, tv, &mut saw_self)
+        && compact_type_is_var_only_self_alias(&bounds.upper, tv, &mut saw_self)
+        && saw_self
+}
+
+fn compact_type_is_var_only_self_alias(ty: &CompactType, tv: TypeVar, saw_self: &mut bool) -> bool {
+    if !ty.prims.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+    {
+        return false;
+    }
+    if ty.vars.contains(&tv) {
+        *saw_self = true;
+    }
+    ty.rows.iter().all(|row| {
+        row.items.is_empty() && compact_type_is_var_only_self_alias(&row.tail, tv, saw_self)
+    })
 }
 
 fn is_only_self_var(ty: &CompactType, tv: TypeVar) -> bool {
@@ -1303,6 +1597,100 @@ mod tests {
         assert!(coalesced.cty.upper.vars.is_empty());
         assert_eq!(coalesced.cty.lower.funs.len(), 1);
         assert_eq!(coalesced.cty.upper.funs.len(), 1);
+    }
+
+    #[test]
+    fn coalesce_by_co_occurrence_removes_output_only_exact_alias() {
+        let a = fresh_type_var();
+        let unit = CompactType {
+            prims: HashSet::from([Path {
+                segments: vec![Name("unit".to_string())],
+            }]),
+            ..CompactType::default()
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType::default(),
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: merge_compact_types(
+                            true,
+                            CompactType {
+                                vars: HashSet::from([a]),
+                                ..CompactType::default()
+                            },
+                            unit.clone(),
+                        ),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType::default(),
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: CompactType {
+                            vars: HashSet::from([a]),
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+            },
+            rec_vars: Default::default(),
+        };
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let ret = &coalesced.cty.lower.funs[0].ret;
+        assert!(ret.vars.is_empty());
+        assert_eq!(ret.prims, unit.prims);
+    }
+
+    #[test]
+    fn coalesce_by_co_occurrence_keeps_input_var_in_output_union() {
+        let a = fresh_type_var();
+        let int = CompactType {
+            prims: HashSet::from([Path {
+                segments: vec![Name("int".to_string())],
+            }]),
+            ..CompactType::default()
+        };
+        let var = CompactType {
+            vars: HashSet::from([a]),
+            ..CompactType::default()
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: var.clone(),
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: merge_compact_types(true, var.clone(), int.clone()),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: var.clone(),
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: var.clone(),
+                    }],
+                    ..CompactType::default()
+                },
+            },
+            rec_vars: Default::default(),
+        };
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let ret = &coalesced.cty.lower.funs[0].ret;
+        assert!(ret.vars.contains(&a));
+        assert_eq!(ret.prims, int.prims);
     }
 
     #[test]

@@ -91,6 +91,8 @@ pub struct LowerState {
     /// 関数シグネチャ注釈が許可する effect allow-list。
     pub lambda_param_function_allowed_effects:
         HashMap<DefId, yulang_typed_ir::FunctionSigAllowedEffects>,
+    /// header/lambda parameter の effect annotation を接続済みの arg effect tv。
+    pub configured_arg_effect_tvs: HashSet<TypeVar>,
     /// top-level / observable binding の desugar 済み body。
     pub principal_bodies: HashMap<DefId, Arc<TypedExpr>>,
     /// lowering 中の self recursive binding が self-call で使う provisional scheme。
@@ -232,6 +234,7 @@ impl LowerState {
             lambda_param_effect_annotations: HashMap::new(),
             lambda_param_function_sig_hints: HashMap::new(),
             lambda_param_function_allowed_effects: HashMap::new(),
+            configured_arg_effect_tvs: HashSet::new(),
             principal_bodies: HashMap::new(),
             provisional_self_schemes: HashMap::new(),
             provisional_self_root_tvs: HashMap::new(),

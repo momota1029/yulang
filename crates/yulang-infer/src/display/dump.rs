@@ -468,7 +468,9 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
         Some(scope) => display_format::VarNamer::with_scope(scope),
         None => display_format::VarNamer::default(),
     };
-    let body_type = display_format::compact_scheme_to_type(scheme);
+    let mut scheme = scheme.clone();
+    display_format::materialize_effect_args(infer, &mut scheme);
+    let body_type = display_format::compact_scheme_to_type(&scheme);
     let body = display_format::format_type_with_namer(&body_type, &mut namer);
     let rendered_constraints = constraints
         .iter()
@@ -2094,6 +2096,24 @@ mod tests {
         assert_eq!(run.1, "α -> β [var<α>; γ] -> [γ] β");
         assert_eq!(get.1, "unit -> [var<α>] α");
         assert_eq!(set.1, "α -> [var<α>] unit");
+    }
+
+    #[test]
+    fn render_compact_results_handles_never_returning_recursive_effect_arm() {
+        let green = yulang_parser::parse_module_to_green(
+            "act parse 'item 'err:\n  our item: () -> 'item\n  our fail: 'err -> never\n\nmy run(x: [parse int str] int) = catch x:\n  parse::item(), k -> run(k 0)\n  parse::fail e, _ -> ()\n  _ -> ()\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+
+        let rendered = render_compact_results(&mut state);
+        let run = rendered
+            .iter()
+            .find(|(name, _)| name == "run")
+            .expect("run should be rendered");
+
+        assert_eq!(run.1, "int [parse<int, std::str::str>] -> unit");
     }
 
     #[test]

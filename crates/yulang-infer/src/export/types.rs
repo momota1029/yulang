@@ -4,7 +4,9 @@ use yulang_typed_ir as typed_ir;
 use yulang_typed_ir::normalize_union_members;
 
 use crate::FrozenScheme;
-use crate::display::format::{Type as DisplayType, compact_scheme_to_type, compact_side_to_type};
+use crate::display::format::{
+    Type as DisplayType, compact_scheme_to_type, compact_side_to_type, materialize_effect_args,
+};
 use crate::ids::TypeVar;
 use crate::simplify::compact::{
     CompactBounds, CompactType, CompactTypeScheme, merge_compact_bounds,
@@ -22,6 +24,12 @@ use super::names::{export_name, export_path};
 
 pub fn export_scheme_body(scheme: &CompactTypeScheme) -> typed_ir::Type {
     export_display_type(scheme, &compact_scheme_to_type(scheme))
+}
+
+pub fn export_scheme_body_with_infer(infer: &Infer, scheme: &CompactTypeScheme) -> typed_ir::Type {
+    let mut scheme = scheme.clone();
+    materialize_effect_args(infer, &mut scheme);
+    export_display_type(&scheme, &compact_scheme_to_type(&scheme))
 }
 
 pub fn export_scheme_body_type_vars(scheme: &CompactTypeScheme) -> BTreeSet<typed_ir::TypeVar> {
@@ -44,15 +52,15 @@ pub fn export_scheme(
     }
     typed_ir::Scheme {
         requirements,
-        body: export_scheme_body(scheme),
+        body: export_scheme_body_with_infer(infer, scheme),
     }
 }
 
-pub fn export_frozen_scheme(_infer: &Infer, scheme: &FrozenScheme) -> typed_ir::Scheme {
+pub fn export_frozen_scheme(infer: &Infer, scheme: &FrozenScheme) -> typed_ir::Scheme {
     let compact = &scheme.compact;
     typed_ir::Scheme {
         requirements: Vec::new(),
-        body: export_scheme_body(compact),
+        body: export_scheme_body_with_infer(infer, compact),
     }
 }
 

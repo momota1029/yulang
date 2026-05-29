@@ -1,11 +1,13 @@
 use std::collections::{HashMap, HashSet};
+use std::mem;
 
 use crate::ids::{TypeVar, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
-    CompactType, CompactTypeScheme, CompactVariant,
+    CompactType, CompactTypeScheme, CompactVariant, compact_type_var,
 };
+use crate::solve::Infer;
 use crate::symbols::{Name, Path};
 use crate::types::RecordField;
 
@@ -46,6 +48,175 @@ pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
         return simplify_root_type(fun);
     }
     simplify_root_type(ctx.coalesce_type(&root.lower, true))
+}
+
+pub fn materialize_effect_args(infer: &Infer, scheme: &mut CompactTypeScheme) {
+    let mut cache = HashMap::new();
+    materialize_effect_args_in_bounds(infer, &mut scheme.cty, &mut cache);
+    for bounds in scheme.rec_vars.values_mut() {
+        materialize_effect_args_in_bounds(infer, bounds, &mut cache);
+    }
+}
+
+fn materialize_effect_args_in_bounds(
+    infer: &Infer,
+    bounds: &mut CompactBounds,
+    cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+) {
+    materialize_effect_args_in_type(infer, &mut bounds.lower, cache);
+    materialize_effect_args_in_type(infer, &mut bounds.upper, cache);
+}
+
+fn materialize_effect_args_in_type(
+    infer: &Infer,
+    ty: &mut CompactType,
+    cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            materialize_effect_args_in_bounds(infer, arg, cache);
+        }
+    }
+    for fun in &mut ty.funs {
+        materialize_effect_args_in_type(infer, &mut fun.arg, cache);
+        materialize_effect_args_in_type(infer, &mut fun.arg_eff, cache);
+        materialize_effect_args_in_type(infer, &mut fun.ret_eff, cache);
+        materialize_effect_args_in_type(infer, &mut fun.ret, cache);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            materialize_effect_args_in_type(infer, &mut field.value, cache);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            materialize_effect_args_in_type(infer, &mut field.value, cache);
+        }
+        materialize_effect_args_in_type(infer, &mut spread.tail, cache);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                materialize_effect_args_in_type(infer, payload, cache);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            materialize_effect_args_in_type(infer, item, cache);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            materialize_effect_item_args(infer, item, cache);
+        }
+        materialize_effect_args_in_type(infer, &mut row.tail, cache);
+    }
+}
+
+fn materialize_effect_item_args(
+    infer: &Infer,
+    item: &mut CompactType,
+    cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+) {
+    if !item.vars.is_empty()
+        || !item.prims.is_empty()
+        || item.cons.len() != 1
+        || !item.funs.is_empty()
+        || !item.records.is_empty()
+        || !item.record_spreads.is_empty()
+        || !item.variants.is_empty()
+        || !item.tuples.is_empty()
+        || !item.rows.is_empty()
+    {
+        materialize_effect_args_in_type(infer, item, cache);
+        return;
+    }
+    let con = &mut item.cons[0];
+    for arg in &mut con.args {
+        let lower_tv = single_compact_var(&arg.lower);
+        let upper_tv = single_compact_var(&arg.upper);
+        let Some((lower_tv, upper_tv)) = lower_tv.zip(upper_tv) else {
+            materialize_effect_args_in_bounds(infer, arg, cache);
+            continue;
+        };
+        let lower = materialize_effect_arg_side(infer, lower_tv, true, cache);
+        let upper = materialize_effect_arg_side(infer, upper_tv, false, cache);
+        match (lower, upper) {
+            (Some(lower), Some(upper)) if lower == upper => {
+                arg.lower = lower;
+                arg.upper = upper;
+            }
+            _ => materialize_effect_args_in_bounds(infer, arg, cache),
+        }
+    }
+}
+
+fn materialize_effect_arg_side(
+    infer: &Infer,
+    tv: TypeVar,
+    positive: bool,
+    cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+) -> Option<CompactType> {
+    let key = (tv, positive);
+    if let Some(cached) = cache.get(&key) {
+        return cached.clone();
+    }
+    cache.insert(key, None);
+    let scheme = compact_type_var(infer, tv);
+    let ty = if positive {
+        scheme.cty.lower
+    } else {
+        scheme.cty.upper
+    };
+    let projected = compact_type_data_effect_arg_projection(ty);
+    cache.insert(key, projected.clone());
+    projected
+}
+
+fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
+    if ty.vars.len() == 1
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        ty.vars.iter().next().copied()
+    } else {
+        None
+    }
+}
+
+fn compact_type_data_effect_arg_projection(mut ty: CompactType) -> Option<CompactType> {
+    if !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.rows.is_empty()
+    {
+        return None;
+    }
+    let has_data_shape = !ty.prims.is_empty() || !ty.cons.is_empty() || !ty.tuples.is_empty();
+    if !has_data_shape {
+        return None;
+    }
+    ty.vars.clear();
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            arg.lower = compact_type_data_effect_arg_projection(mem::take(&mut arg.lower))?;
+            arg.upper = compact_type_data_effect_arg_projection(mem::take(&mut arg.upper))?;
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            *item = compact_type_data_effect_arg_projection(mem::take(item))?;
+        }
+    }
+    Some(ty)
 }
 
 pub fn compact_side_to_type(
@@ -187,6 +358,7 @@ fn shortest_unique_type_path(ctx: &LowerCtx, full_path: &Path) -> String {
 struct CompactToTypeCtx<'a> {
     scheme: &'a CompactTypeScheme,
     lower_witnesses: HashMap<TypeVar, CompactType>,
+    input_vars: HashSet<TypeVar>,
     in_process_vars: HashMap<(TypeVar, bool), TypeVar>,
     recursive_var_hits: HashSet<(TypeVar, bool)>,
     in_process_types: HashMap<(String, bool), TypeVar>,
@@ -198,6 +370,7 @@ impl<'a> CompactToTypeCtx<'a> {
         Self {
             scheme,
             lower_witnesses: collect_lower_witnesses(scheme),
+            input_vars: collect_function_input_vars(scheme),
             in_process_vars: HashMap::new(),
             recursive_var_hits: HashSet::new(),
             in_process_types: HashMap::new(),
@@ -257,7 +430,7 @@ impl<'a> CompactToTypeCtx<'a> {
     fn coalesce_type_body(&mut self, ty: &CompactType, positive: bool) -> Type {
         let mut parts = Vec::new();
         let ty = if positive {
-            ty.clone()
+            self.drop_witnessed_positive_vars(ty)
         } else {
             self.drop_witnessed_negative_vars(ty)
         };
@@ -353,6 +526,19 @@ impl<'a> CompactToTypeCtx<'a> {
         });
         ty
     }
+
+    fn drop_witnessed_positive_vars(&self, ty: &CompactType) -> CompactType {
+        let mut ty = ty.clone();
+        let original = ty.clone();
+        ty.vars.retain(|tv| {
+            self.input_vars.contains(tv)
+                || self
+                    .lower_witnesses
+                    .get(tv)
+                    .is_none_or(|witness| !compact_type_contains_witness(&original, witness))
+        });
+        ty
+    }
 }
 
 impl CompactToTypeCtx<'_> {
@@ -439,11 +625,12 @@ fn coalesce_root_fun_arg_effect_field(
     lower: &CompactType,
     upper: &CompactType,
 ) -> Type {
-    let bounds = normalize_render_bounds(CompactBounds {
+    let mut bounds = normalize_render_bounds(CompactBounds {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
     });
+    strip_generated_local_effects_from_compact_effect_bounds(&mut bounds);
     let ty = common_compact_type(&bounds.lower, &bounds.upper)
         .filter(|ty| !is_empty_compact(ty))
         .unwrap_or(bounds.lower);
@@ -514,6 +701,7 @@ fn coalesce_root_fun_field(
                 !is_empty_compact(common)
                     && !has_non_var_shape_outside_common(&bounds.lower, common)
             })
+            .map(|common| drop_non_input_vars_when_concrete(common, &ctx.input_vars))
             .unwrap_or(bounds.lower)
     } else {
         common_compact_type(&bounds.lower, &bounds.upper)
@@ -526,6 +714,16 @@ fn coalesce_root_fun_field(
     } else {
         ctx.coalesce_type(&ty, positive)
     }
+}
+
+fn drop_non_input_vars_when_concrete(
+    mut ty: CompactType,
+    input_vars: &HashSet<TypeVar>,
+) -> CompactType {
+    if has_non_var_shape(&ty) {
+        ty.vars.retain(|var| input_vars.contains(var));
+    }
+    ty
 }
 
 fn simplify_type(ty: Type) -> Type {
@@ -1134,6 +1332,53 @@ fn compact_type_contains_generated_local_effect(ty: &CompactType) -> bool {
     })
 }
 
+fn strip_generated_local_effects_from_compact_effect_bounds(bounds: &mut CompactBounds) {
+    let mut tainted = HashSet::new();
+    collect_compact_type_generated_local_effect_tail_vars(&bounds.lower, &mut tainted);
+    collect_compact_type_generated_local_effect_tail_vars(&bounds.upper, &mut tainted);
+    strip_generated_local_effects_from_compact_effect_type(&mut bounds.lower, &tainted);
+    strip_generated_local_effects_from_compact_effect_type(&mut bounds.upper, &tainted);
+}
+
+fn strip_generated_local_effects_from_compact_effect_type(
+    ty: &mut CompactType,
+    tainted: &HashSet<TypeVar>,
+) {
+    ty.vars.retain(|var| !tainted.contains(var));
+    ty.cons
+        .retain(|con| !is_generated_local_effect_path(&con.path));
+    for fun in &mut ty.funs {
+        strip_generated_local_effects_from_compact_effect_type(&mut fun.arg_eff, tainted);
+        strip_generated_local_effects_from_compact_effect_type(&mut fun.ret_eff, tainted);
+    }
+    for row in &mut ty.rows {
+        row.items
+            .retain(|item| !is_generated_local_effect_compact_item(item));
+        for item in &mut row.items {
+            strip_generated_local_effects_from_compact_effect_type(item, tainted);
+        }
+        strip_generated_local_effects_from_compact_effect_type(&mut row.tail, tainted);
+    }
+    ty.rows
+        .retain(|row| !row.items.is_empty() || !is_empty_compact(&row.tail));
+}
+
+fn is_generated_local_effect_compact_item(item: &CompactType) -> bool {
+    item.vars.is_empty()
+        && item.prims.is_empty()
+        && item.cons.len() == 1
+        && item
+            .cons
+            .first()
+            .is_some_and(|con| is_generated_local_effect_path(&con.path))
+        && item.funs.is_empty()
+        && item.records.is_empty()
+        && item.record_spreads.is_empty()
+        && item.variants.is_empty()
+        && item.tuples.is_empty()
+        && item.rows.is_empty()
+}
+
 fn is_generated_local_effect_path(path: &Path) -> bool {
     path.segments
         .first()
@@ -1248,6 +1493,79 @@ fn type_contains_var(ty: &Type, var: TypeVar) -> bool {
 fn compact_bounds_contains_var(bounds: &CompactBounds, var: TypeVar) -> bool {
     compact_type_contains_var_for_render(&bounds.lower, var)
         || compact_type_contains_var_for_render(&bounds.upper, var)
+}
+
+fn collect_function_input_vars(scheme: &CompactTypeScheme) -> HashSet<TypeVar> {
+    let mut out = HashSet::new();
+    collect_function_input_vars_in_bounds(&scheme.cty, false, &mut out);
+    for bounds in scheme.rec_vars.values() {
+        collect_function_input_vars_in_bounds(bounds, false, &mut out);
+    }
+    out
+}
+
+fn collect_function_input_vars_in_bounds(
+    bounds: &CompactBounds,
+    inside_input: bool,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_function_input_vars_in_type(&bounds.lower, inside_input, false, out);
+    collect_function_input_vars_in_type(&bounds.upper, inside_input, false, out);
+}
+
+fn collect_function_input_vars_in_type(
+    ty: &CompactType,
+    inside_input: bool,
+    inside_effect_row_item: bool,
+    out: &mut HashSet<TypeVar>,
+) {
+    if inside_input && !inside_effect_row_item {
+        out.extend(ty.vars.iter().copied());
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_function_input_vars_in_bounds(
+                arg,
+                inside_input && !inside_effect_row_item,
+                out,
+            );
+        }
+    }
+    for fun in &ty.funs {
+        collect_function_input_vars_in_type(&fun.arg, true, false, out);
+        collect_function_input_vars_in_type(&fun.arg_eff, true, false, out);
+        collect_function_input_vars_in_type(&fun.ret_eff, inside_input, false, out);
+        collect_function_input_vars_in_type(&fun.ret, inside_input, false, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
+        }
+        collect_function_input_vars_in_type(&spread.tail, inside_input, false, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_function_input_vars_in_type(payload, inside_input, false, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_function_input_vars_in_type(item, inside_input, false, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_function_input_vars_in_type(item, inside_input, true, out);
+        }
+        collect_function_input_vars_in_type(&row.tail, inside_input, false, out);
+    }
 }
 
 fn collect_lower_witnesses(scheme: &CompactTypeScheme) -> HashMap<TypeVar, CompactType> {
@@ -1482,6 +1800,12 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
     }
 
     flat = merge_variant_parts(flat, positive);
+    if !positive
+        && flat.len() > 1
+        && let Some(row) = merge_negative_row_intersection(&flat)
+    {
+        flat = vec![row];
+    }
 
     match flat.len() {
         0 => {
@@ -1500,6 +1824,41 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
             }
         }
     }
+}
+
+fn merge_negative_row_intersection(parts: &[Type]) -> Option<Type> {
+    let mut items = Vec::new();
+    let mut tail_parts = Vec::new();
+    let mut saw_row = false;
+
+    for part in parts {
+        match part {
+            Type::Row(row_items, tail) => {
+                saw_row = true;
+                for item in row_items {
+                    if !items.contains(item) {
+                        items.push(item.clone());
+                    }
+                }
+                if !matches!(tail.as_ref(), Type::Top) {
+                    tail_parts.push((**tail).clone());
+                }
+            }
+            Type::Var(_) => tail_parts.push(part.clone()),
+            _ => return None,
+        }
+    }
+
+    if !saw_row || items.is_empty() {
+        return None;
+    }
+
+    let tail = if tail_parts.is_empty() {
+        Type::Top
+    } else {
+        combine_types(tail_parts, false)
+    };
+    Some(Type::Row(items, Box::new(tail)))
 }
 
 fn merge_variant_parts(parts: Vec<Type>, positive: bool) -> Vec<Type> {
@@ -2443,12 +2802,7 @@ fn common_compact_type(lhs: &CompactType, rhs: &CompactType) -> Option<CompactTy
     Some(CompactType {
         vars: lhs.vars.intersection(&rhs.vars).copied().collect(),
         prims: lhs.prims.intersection(&rhs.prims).cloned().collect(),
-        cons: lhs
-            .cons
-            .iter()
-            .filter(|item| rhs.cons.contains(item))
-            .cloned()
-            .collect(),
+        cons: common_compact_cons(&lhs.cons, &rhs.cons),
         funs: lhs
             .funs
             .iter()
@@ -2488,6 +2842,49 @@ fn common_compact_type(lhs: &CompactType, rhs: &CompactType) -> Option<CompactTy
     })
 }
 
+fn common_compact_cons(lhs: &[CompactCon], rhs: &[CompactCon]) -> Vec<CompactCon> {
+    let mut out = Vec::new();
+    for lhs_con in lhs {
+        for rhs_con in rhs {
+            if lhs_con.path != rhs_con.path || lhs_con.args.len() != rhs_con.args.len() {
+                continue;
+            }
+            let args = lhs_con
+                .args
+                .iter()
+                .zip(&rhs_con.args)
+                .map(|(lhs_arg, rhs_arg)| common_compact_bounds(lhs_arg, rhs_arg))
+                .collect::<Vec<_>>();
+            if args.iter().all(compact_bounds_has_surface) {
+                let con = CompactCon {
+                    path: lhs_con.path.clone(),
+                    args,
+                };
+                if !out.contains(&con) {
+                    out.push(con);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn common_compact_bounds(lhs: &CompactBounds, rhs: &CompactBounds) -> CompactBounds {
+    CompactBounds {
+        self_var: (lhs.self_var == rhs.self_var)
+            .then_some(lhs.self_var)
+            .flatten(),
+        lower: common_compact_type(&lhs.lower, &rhs.lower).unwrap_or_default(),
+        upper: common_compact_type(&lhs.upper, &rhs.upper).unwrap_or_default(),
+    }
+}
+
+fn compact_bounds_has_surface(bounds: &CompactBounds) -> bool {
+    bounds.self_var.is_some()
+        || !is_empty_compact(&bounds.lower)
+        || !is_empty_compact(&bounds.upper)
+}
+
 fn is_empty_compact(ty: &CompactType) -> bool {
     ty.vars.is_empty()
         && ty.prims.is_empty()
@@ -2513,7 +2910,12 @@ fn has_non_var_shape(ty: &CompactType) -> bool {
 
 fn has_non_var_shape_outside_common(ty: &CompactType, common: &CompactType) -> bool {
     ty.prims.iter().any(|item| !common.prims.contains(item))
-        || ty.cons.iter().any(|item| !common.cons.contains(item))
+        || ty.cons.iter().any(|item| {
+            !common
+                .cons
+                .iter()
+                .any(|common| compact_con_covers(common, item))
+        })
         || ty.funs.iter().any(|item| !common.funs.contains(item))
         || ty.records.iter().any(|item| !common.records.contains(item))
         || ty
@@ -2526,6 +2928,49 @@ fn has_non_var_shape_outside_common(ty: &CompactType, common: &CompactType) -> b
             .any(|item| !common.variants.contains(item))
         || ty.tuples.iter().any(|item| !common.tuples.contains(item))
         || ty.rows.iter().any(|item| !common.rows.contains(item))
+}
+
+fn compact_con_covers(common: &CompactCon, item: &CompactCon) -> bool {
+    common.path == item.path
+        && common.args.len() == item.args.len()
+        && common
+            .args
+            .iter()
+            .zip(&item.args)
+            .all(|(common, item)| compact_bounds_cover(common, item))
+}
+
+fn compact_bounds_cover(common: &CompactBounds, item: &CompactBounds) -> bool {
+    compact_type_covers(&common.lower, &item.lower)
+        && compact_type_covers(&common.upper, &item.upper)
+}
+
+fn compact_type_covers(common: &CompactType, item: &CompactType) -> bool {
+    common.vars.is_subset(&item.vars)
+        && common.prims.is_subset(&item.prims)
+        && common.cons.iter().all(|common_con| {
+            item.cons
+                .iter()
+                .any(|item_con| compact_con_covers(common_con, item_con))
+        })
+        && common.funs.iter().all(|fun| item.funs.contains(fun))
+        && common
+            .records
+            .iter()
+            .all(|record| item.records.contains(record))
+        && common
+            .record_spreads
+            .iter()
+            .all(|spread| item.record_spreads.contains(spread))
+        && common
+            .variants
+            .iter()
+            .all(|variant| item.variants.contains(variant))
+        && common
+            .tuples
+            .iter()
+            .all(|tuple| item.tuples.contains(tuple))
+        && common.rows.iter().all(|row| item.rows.contains(row))
 }
 
 fn is_explicit_empty_row_compact(ty: &CompactType) -> bool {
@@ -2583,10 +3028,13 @@ mod tests {
     use std::collections::HashSet;
 
     use crate::ids::TypeVar;
-    use crate::simplify::compact::{CompactBounds, CompactCon, CompactRow, CompactType};
+    use crate::simplify::compact::{
+        CompactBounds, CompactCon, CompactFun, CompactRow, CompactType, CompactTypeScheme,
+        merge_compact_types,
+    };
     use crate::symbols::{Name, Path};
 
-    use super::{VarNamer, format_compact_bounds};
+    use super::{VarNamer, format_coalesced_scheme, format_compact_bounds};
 
     #[test]
     fn compact_bounds_format_closes_nested_empty_row_tail() {
@@ -2635,6 +3083,71 @@ mod tests {
         assert_eq!(rendered, "[std::var::var<α>;]");
     }
 
+    #[test]
+    fn coalesced_scheme_keeps_surface_effect_when_local_effect_is_stripped() {
+        let value = TypeVar(1);
+        let tail = TypeVar(2);
+        let ret_alias = TypeVar(3);
+        let err_alias = TypeVar(4);
+        let parse_item = con_type(
+            &["parse"],
+            vec![
+                same_bounds(prim_type("int")),
+                same_bounds(prim_type("str_error")),
+            ],
+        );
+        let cut_item = con_type(&["&cut#test"], vec![same_bounds(prim_type("bool"))]);
+        let lower_arg_eff = merge_var_part(
+            row_type(vec![parse_item.clone(), cut_item], CompactType::default()),
+            tail,
+        );
+        let upper_arg_eff =
+            merge_var_part(row_type(vec![parse_item], CompactType::default()), tail);
+        let lower_ret = merge_var_part(
+            con_type(
+                &["result"],
+                vec![
+                    same_bounds(var_type(value)),
+                    CompactBounds {
+                        self_var: None,
+                        lower: merge_compact_types(
+                            true,
+                            var_type(err_alias),
+                            prim_type("str_error"),
+                        ),
+                        upper: prim_type("str_error"),
+                    },
+                ],
+            ),
+            ret_alias,
+        );
+        let upper_ret = merge_var_part(
+            con_type(
+                &["result"],
+                vec![
+                    same_bounds(var_type(value)),
+                    same_bounds(prim_type("str_error")),
+                ],
+            ),
+            ret_alias,
+        );
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: fun_type(var_type(value), lower_arg_eff, lower_ret),
+                upper: fun_type(var_type(value), upper_arg_eff, upper_ret),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let rendered = format_coalesced_scheme(&scheme);
+
+        assert_eq!(
+            rendered,
+            "α [parse<int, str_error>; β] -> result<α, str_error>"
+        );
+    }
+
     fn merge_var_part(mut ty: CompactType, tv: TypeVar) -> CompactType {
         ty.vars.insert(tv);
         ty
@@ -2643,6 +3156,53 @@ mod tests {
     fn var_type(tv: TypeVar) -> CompactType {
         CompactType {
             vars: HashSet::from([tv]),
+            ..CompactType::default()
+        }
+    }
+
+    fn prim_type(name: &str) -> CompactType {
+        CompactType {
+            prims: HashSet::from([path(&[name])]),
+            ..CompactType::default()
+        }
+    }
+
+    fn con_type(path_segments: &[&str], args: Vec<CompactBounds>) -> CompactType {
+        CompactType {
+            cons: vec![CompactCon {
+                path: path(path_segments),
+                args,
+            }],
+            ..CompactType::default()
+        }
+    }
+
+    fn same_bounds(ty: CompactType) -> CompactBounds {
+        CompactBounds {
+            self_var: None,
+            lower: ty.clone(),
+            upper: ty,
+        }
+    }
+
+    fn row_type(items: Vec<CompactType>, tail: CompactType) -> CompactType {
+        CompactType {
+            rows: vec![CompactRow {
+                items,
+                tail: Box::new(tail),
+            }],
+            ..CompactType::default()
+        }
+    }
+
+    fn fun_type(arg: CompactType, arg_eff: CompactType, ret: CompactType) -> CompactType {
+        CompactType {
+            funs: vec![CompactFun {
+                arg,
+                arg_eff,
+                ret_eff: CompactType::default(),
+                ret,
+            }],
             ..CompactType::default()
         }
     }

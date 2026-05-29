@@ -6,8 +6,8 @@ use crate::symbols::Path;
 use super::group::{GroupCoOccurrences, indistinguishable_group_replacements};
 use super::{
     AlongItem, CoOccurrences, CompactBounds, CompactRoleConstraint, CompactType, CompactTypeScheme,
-    ExactInfo, ExactKeyKind, has_matching_polar_signature, is_effectively_recursive,
-    merge_compact_bounds, merge_compact_types, rewrite_bounds,
+    ExactInfo, has_matching_polar_signature, is_effectively_recursive, merge_compact_bounds,
+    merge_compact_types, rewrite_bounds,
 };
 
 pub(super) fn apply_group_co_occurrence_substitutions(
@@ -351,7 +351,13 @@ fn row_residual_key_and_args(
     }
     let mut entries = Vec::new();
     for item in items {
+        if is_generated_local_effect_item(item) {
+            continue;
+        }
         entries.push(row_item_shape_and_args(item, subst)?);
+    }
+    if entries.is_empty() {
+        return None;
     }
     entries.sort_by(|(lhs, _), (rhs, _)| {
         row_item_shape_sort_key(lhs).cmp(&row_item_shape_sort_key(rhs))
@@ -363,6 +369,28 @@ fn row_residual_key_and_args(
         arg_vars.extend(args);
     }
     Some((RowResidualKey(shapes), arg_vars))
+}
+
+fn is_generated_local_effect_item(item: &CompactType) -> bool {
+    item.vars.is_empty()
+        && item.prims.is_empty()
+        && item.cons.len() == 1
+        && item
+            .cons
+            .first()
+            .is_some_and(|con| is_generated_local_effect_path(&con.path))
+        && item.funs.is_empty()
+        && item.records.is_empty()
+        && item.record_spreads.is_empty()
+        && item.variants.is_empty()
+        && item.tuples.is_empty()
+        && item.rows.is_empty()
+}
+
+fn is_generated_local_effect_path(path: &Path) -> bool {
+    path.segments
+        .first()
+        .is_some_and(|segment| segment.0.starts_with('&'))
 }
 
 fn row_item_shape_sort_key(shape: &RowItemShape) -> (String, usize) {
@@ -634,11 +662,9 @@ fn is_one_sided_exact_alias(
     plain_side == &HashSet::from([AlongItem::Var(var)])
         && exact_side.len() == 2
         && exact_side.contains(&AlongItem::Var(var))
-        && exact_side.iter().any(|item| {
-            matches!(
-                item, AlongItem::Exact(exact) if exact.kind == ExactKeyKind::Fun
-            )
-        })
+        && exact_side
+            .iter()
+            .any(|item| matches!(item, AlongItem::Exact(_)))
 }
 
 fn collect_group_replacements(

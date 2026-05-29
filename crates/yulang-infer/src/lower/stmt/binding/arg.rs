@@ -68,18 +68,16 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             ) {
                 state.register_lambda_param_source_eff_tv(def, arg_eff_tv);
             }
-            let read_eff_tv = ann.as_ref().map(|ann| match ann.eff {
-                Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => state
-                    .fresh_tv_with_origin(TypeOrigin {
+            let read_eff_tv = ann.as_ref().and_then(|ann| match ann.eff {
+                Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => {
+                    Some(state.fresh_tv_with_origin(TypeOrigin {
                         span: Some(ann.span),
                         file_span: None,
                         kind: TypeOriginKind::Annotation,
                         label: Some("argument read effect".to_string()),
-                    }),
-                None => match hint {
-                    Some(crate::lower::FunctionSigEffectHint::Pure) | None => arg_eff_tv,
-                    Some(_) => state.fresh_exact_pure_eff_tv(),
-                },
+                    }))
+                }
+                None => None,
             });
             state.register_def_tv(def, tv);
             state.register_def_span(

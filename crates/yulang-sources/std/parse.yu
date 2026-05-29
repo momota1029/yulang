@@ -44,16 +44,16 @@ pub struct str_error {
             str_error { line: l, column: c, unexpected: nil, expected: [label], message: [] }
         our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: [label], message: e.message }
 
-/*
-pub run_str(input, line: int, column: int, parse: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
+pub run_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
     my $cut = false
-    catch parse:
-        parse::item, k if input.is_empty -> err(str_error::unexpected nil (line, column))
+    catch parser:
+        parse::item, k if input.len == 0 -> err(ParseError::unexpected(nil, (line, column)))
         parse::item, k ->
-            my (item, input) = (input[0], input[0<..])
+            my item = std::str::index_raw input 0
+            my rest = std::str::index_range input (0<..)
             case item.to_string:
-                "\r" | "\r\n" | "\n" -> run_str input line+1 1 k(item)
-                _ -> run_str input line column+1 k(item)
+                "\r" | "\r\n" | "\n" -> run_str rest line+1 1 k(item)
+                _ -> run_str rest line column+1 k(item)
         parse::fail e, _ -> err e
         parse::pos(), k -> run_str input line column k((line, column))
         parse::cut(), k ->
@@ -61,9 +61,8 @@ pub run_str(input, line: int, column: int, parse: [parse char str_error (int, in
             run_str input line column k()
         parse::is_cut(), k -> run_str input line column k($cut)
         parse::snapshot(), k -> run_str input line column k((input, line, column))
-        parse::restore (input, line, column), k -> run_str input line column k()
+        parse::restore (saved_input, saved_line, saved_column), k -> run_str saved_input saved_line saved_column k()
         v -> ok v
-*/
 
 pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] 'a =
     my snap = parse::snapshot()
@@ -79,7 +78,7 @@ pub satisfy(p: 'item -> bool)(): [parse 'item 'err 'pos 'snap] 'item =
 
 my token_from(expected: str, i: int)(): [parse char 'err 'pos 'snap] unit =
     if i < expected.len:
-        my _ = satisfy(\p-> p == expected[i])()
+        my _ = satisfy(\p-> p == std::str::index_raw expected i)()
         token_from(expected, i + 1)()
 
 pub token(expected: str)(): [parse char 'err 'pos 'snap] unit =

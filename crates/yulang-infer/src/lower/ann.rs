@@ -74,6 +74,11 @@ pub fn configure_arg_effect_from_ann(
     arg_eff_tv: crate::ids::TypeVar,
     ann: Option<&LoweredPatAnn>,
 ) {
+    if ann.as_ref().and_then(|ann| ann.eff.as_ref()).is_some()
+        && !state.configured_arg_effect_tvs.insert(arg_eff_tv)
+    {
+        return;
+    }
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
         Some(LoweredEffAnn::Row { lower, upper, .. }) => {

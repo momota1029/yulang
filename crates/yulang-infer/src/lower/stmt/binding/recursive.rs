@@ -18,7 +18,7 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     let Some(&owner_tv) = state.def_tvs.get(&owner) else {
         return;
     };
-    let non_generic_roots = arg_pats
+    let mut non_generic_roots = arg_pats
         .iter()
         .flat_map(|arg_pat| {
             std::iter::once(arg_pat.tv)
@@ -32,10 +32,19 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     {
         state.infer.add_non_generic_var(owner, tv);
     }
-
+    for arg_pat in arg_pats {
+        super::super::configure_arg_effect_from_ann(
+            state,
+            arg_pat.arg_eff_tv,
+            arg_pat.ann.as_ref(),
+        );
+    }
     let body_ret_tv = state.fresh_tv();
+    let body_ret_eff_tv = state.fresh_tv();
+    non_generic_roots.insert(body_ret_tv);
+    non_generic_roots.insert(body_ret_eff_tv);
     let mut ret_tv = body_ret_tv;
-    let mut ret_eff = state.fresh_tv();
+    let mut ret_eff = body_ret_eff_tv;
     for arg_pat in arg_pats.iter().rev() {
         let fun_tv = state.fresh_tv();
         state.infer.constrain(
@@ -58,7 +67,7 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
             state,
             header,
             body_ret_tv,
-            Some(ret_eff),
+            Some(body_ret_eff_tv),
         );
     }
     state.provisional_self_root_tvs.insert(owner, ret_tv);
