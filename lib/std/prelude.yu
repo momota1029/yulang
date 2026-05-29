@@ -71,6 +71,9 @@ pub role Div 'a:
 pub role Len 'a:
     our a.len: int
 
+pub role IsEmpty 'a:
+    our a.is_empty: bool
+
 pub role Display 'a:
     our a.show: str
     our a.say = std::out::out::write: a.show + "\n"
@@ -350,6 +353,15 @@ impl Len str:
 
 impl Len (list 'a):
     our xs.len = std::list::len xs
+
+impl IsEmpty str:
+    our s.is_empty = std::int::eq(std::str::len s, 0)
+
+impl IsEmpty (list 'a):
+    our xs.is_empty = std::int::eq(std::list::len xs, 0)
+
+impl IsEmpty bytes:
+    our b.is_empty = std::int::eq(std::bytes::len b, 0)
 
 pub len x = x.len
 

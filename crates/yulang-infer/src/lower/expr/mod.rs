@@ -65,7 +65,7 @@ use literal::{lower_number_token, lower_string_lit};
 use operator::{infix_op_ref, prefix_op_ref, suffix_op_ref};
 pub(crate) use path::resolve_bound_def_expr;
 use path::resolve_operator_expr_with_span;
-pub(super) use path::{resolve_path_expr, resolve_path_expr_at};
+pub(super) use path::{resolve_path_callee_expr_at, resolve_path_expr, resolve_path_expr_at};
 use prim::{neg_prim_type, prim_type};
 use record::lower_record_literal;
 use rule::{lower_rule_expr, lower_rule_lit};

@@ -65,6 +65,10 @@ pub struct LowerState {
     pub def_names: HashMap<DefId, crate::symbols::Name>,
     /// source 上に明示された型注釈から得た hover 用の型表示。
     pub def_hover_types: HashMap<DefId, String>,
+    /// 明示型注釈や preregister 済み body から分かる、値としての callable shape。
+    /// body lowering 中でまだ制約が伝播していない shadowing 判定に使う。
+    pub callable_value_defs: HashSet<DefId>,
+    pub non_callable_value_defs: HashSet<DefId>,
     /// source 上の定義名 span。LSP hover など、lowering 済みの名前解決結果を
     /// source 位置へ戻すために使う。
     pub def_spans: HashMap<DefId, FileSpan>,
@@ -221,6 +225,8 @@ impl LowerState {
             def_owners: HashMap::new(),
             def_names: HashMap::new(),
             def_hover_types: HashMap::new(),
+            callable_value_defs: HashSet::new(),
+            non_callable_value_defs: HashSet::new(),
             def_spans: HashMap::new(),
             value_use_spans: Vec::new(),
             ref_spans: HashMap::new(),
@@ -769,6 +775,24 @@ impl LowerState {
 
     pub fn register_def_hover_type(&mut self, def: DefId, ty: String) {
         self.def_hover_types.insert(def, ty);
+    }
+
+    pub fn register_callable_value_def(&mut self, def: DefId) {
+        self.non_callable_value_defs.remove(&def);
+        self.callable_value_defs.insert(def);
+    }
+
+    pub fn register_non_callable_value_def(&mut self, def: DefId) {
+        self.callable_value_defs.remove(&def);
+        self.non_callable_value_defs.insert(def);
+    }
+
+    pub fn is_callable_value_def(&self, def: DefId) -> bool {
+        self.callable_value_defs.contains(&def)
+    }
+
+    pub fn is_non_callable_value_def(&self, def: DefId) -> bool {
+        self.non_callable_value_defs.contains(&def)
     }
 
     pub fn register_def_span(&mut self, def: DefId, span: rowan::TextRange) {

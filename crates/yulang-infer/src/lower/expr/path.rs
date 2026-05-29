@@ -26,6 +26,23 @@ pub(in crate::lower) fn resolve_path_expr_at(
     segs: Vec<Name>,
     span: Option<rowan::TextRange>,
 ) -> TypedExpr {
+    resolve_path_expr_at_use_site(state, segs, span, ValueUseSite::Value)
+}
+
+pub(in crate::lower) fn resolve_path_callee_expr_at(
+    state: &mut LowerState,
+    segs: Vec<Name>,
+    span: Option<rowan::TextRange>,
+) -> TypedExpr {
+    resolve_path_expr_at_use_site(state, segs, span, ValueUseSite::Callee)
+}
+
+fn resolve_path_expr_at_use_site(
+    state: &mut LowerState,
+    segs: Vec<Name>,
+    span: Option<rowan::TextRange>,
+    use_site: ValueUseSite,
+) -> TypedExpr {
     let start = Instant::now();
     let path = Path { segments: segs };
 
@@ -66,7 +83,7 @@ pub(in crate::lower) fn resolve_path_expr_at(
     }
 
     let single_segment = path.segments.len() == 1;
-    match resolve_value_use(state, path) {
+    match resolve_value_use(state, path, use_site) {
         ResolvedValueUse::Resolved(def) => {
             let result = resolve_bound_def_expr(state, def);
             if let Some(span) = span {
@@ -95,6 +112,12 @@ pub(in crate::lower) fn resolve_path_expr_at(
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ValueUseSite {
+    Value,
+    Callee,
+}
+
 enum ResolvedValueUse {
     Resolved(DefId),
     Unresolved(UnresolvedValueUse),
@@ -107,11 +130,16 @@ struct UnresolvedValueUse {
     owner: Option<DefId>,
 }
 
-fn resolve_value_use(state: &LowerState, path: Path) -> ResolvedValueUse {
-    let def = if path.segments.len() == 1 {
-        state.ctx.resolve_value(&path.segments[0])
-    } else {
-        state.ctx.resolve_path_value(&path)
+fn resolve_value_use(state: &LowerState, path: Path, use_site: ValueUseSite) -> ResolvedValueUse {
+    let def = match use_site {
+        ValueUseSite::Value => {
+            if path.segments.len() == 1 {
+                state.ctx.resolve_value(&path.segments[0])
+            } else {
+                state.ctx.resolve_path_value(&path)
+            }
+        }
+        ValueUseSite::Callee => resolve_callee_value_use(state, &path),
     };
 
     if let Some(def) = def {
@@ -124,6 +152,131 @@ fn resolve_value_use(state: &LowerState, path: Path) -> ResolvedValueUse {
         use_paths: state.ctx.current_use_paths(),
         owner: state.current_owner,
     })
+}
+
+fn resolve_callee_value_use(state: &LowerState, path: &Path) -> Option<DefId> {
+    let candidates = if path.segments.len() == 1 {
+        state.ctx.resolve_value_candidates(&path.segments[0])
+    } else {
+        state.ctx.resolve_path_value_candidates(path)
+    };
+    if candidates.len() <= 1 {
+        return candidates.into_iter().next();
+    }
+
+    let mut first = None;
+    let mut earlier_are_non_callable = true;
+    for def in candidates {
+        first.get_or_insert(def);
+        match value_call_shape(state, def) {
+            ValueCallShape::Callable if earlier_are_non_callable => return Some(def),
+            ValueCallShape::Callable | ValueCallShape::Unknown => earlier_are_non_callable = false,
+            ValueCallShape::NonCallable => {}
+        }
+    }
+    first
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ValueCallShape {
+    Callable,
+    NonCallable,
+    Unknown,
+}
+
+fn value_call_shape(state: &LowerState, def: DefId) -> ValueCallShape {
+    if state.is_callable_value_def(def) {
+        return ValueCallShape::Callable;
+    }
+    if state.is_non_callable_value_def(def) {
+        return ValueCallShape::NonCallable;
+    }
+
+    if let Some(body) = state.principal_bodies.get(&def) {
+        if expr_is_lambda_value(body) || matches!(body.kind, ExprKind::PrimitiveOp(_)) {
+            return ValueCallShape::Callable;
+        }
+    }
+
+    let Some(&tv) = state.def_tvs.get(&def) else {
+        return frozen_value_call_shape(state, def);
+    };
+
+    let lowers = state.infer.lowers_of(tv);
+    let uppers = state.infer.uppers_of(tv);
+    if lowers.iter().any(pos_is_fun) || uppers.iter().any(neg_is_fun) {
+        return ValueCallShape::Callable;
+    }
+    if !lowers.is_empty()
+        && !uppers.is_empty()
+        && lowers.iter().all(pos_is_known_non_fun)
+        && uppers.iter().all(neg_is_known_non_fun)
+    {
+        return ValueCallShape::NonCallable;
+    }
+    frozen_value_call_shape(state, def)
+}
+
+fn frozen_value_call_shape(state: &LowerState, def: DefId) -> ValueCallShape {
+    if let Some(scheme) = state.infer.frozen_scheme_of(def) {
+        if compact_type_has_fun(&scheme.compact.cty.lower)
+            || compact_type_has_fun(&scheme.compact.cty.upper)
+        {
+            return ValueCallShape::Callable;
+        }
+    }
+    ValueCallShape::Unknown
+}
+
+fn expr_is_lambda_value(expr: &TypedExpr) -> bool {
+    let mut current = expr;
+    loop {
+        match &current.kind {
+            ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {
+                current = expr;
+            }
+            ExprKind::Lam(_, _) => return true,
+            _ => return false,
+        }
+    }
+}
+
+fn compact_type_has_fun(ty: &crate::simplify::compact::CompactType) -> bool {
+    !ty.funs.is_empty()
+}
+
+fn pos_is_fun(pos: &Pos) -> bool {
+    matches!(pos, Pos::Fun { .. })
+}
+
+fn neg_is_fun(neg: &Neg) -> bool {
+    matches!(neg, Neg::Fun { .. })
+}
+
+fn pos_is_known_non_fun(pos: &Pos) -> bool {
+    matches!(
+        pos,
+        Pos::Con(_, _)
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_)
+            | Pos::Row(_, _)
+            | Pos::Atom(_)
+    )
+}
+
+fn neg_is_known_non_fun(neg: &Neg) -> bool {
+    matches!(
+        neg,
+        Neg::Con(_, _)
+            | Neg::Record(_)
+            | Neg::PolyVariant(_)
+            | Neg::Tuple(_)
+            | Neg::Row(_, _)
+            | Neg::Atom(_)
+    )
 }
 
 fn unresolved_value_use_expr(

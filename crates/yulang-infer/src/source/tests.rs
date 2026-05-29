@@ -3479,6 +3479,39 @@ fn rejects_extra_field_in_struct_literal() {
 }
 
 #[test]
+fn application_callee_can_use_callable_candidate_shadowed_by_non_callable_local() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "use std::result::*\n\npub shadow_err(err: str): result int str =\n    err err\n\npub shadow_local(): result int int =\n    my err: int = 1\n    err err\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+
+        assert!(
+            lowered.state.infer.type_errors().is_empty(),
+            "shadowed constructor call should type-check, got {:?}",
+            lowered.state.infer.type_errors()
+        );
+        assert_eq!(
+            rendered_type(&rendered, "shadow_err"),
+            "std::str::str -> std::result::result<int, std::str::str>"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "shadow_local"),
+            "unit -> std::result::result<int, int>"
+        );
+    });
+}
+
+#[test]
 fn ref_methods_shadow_synthetic_ref_field_projection() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

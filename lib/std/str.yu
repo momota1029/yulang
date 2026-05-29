@@ -58,12 +58,15 @@ impl Fold (ref_lines 'e):
 type str with:
     our s.splice r insert = std::str::splice s r insert
     our s.len = std::str::len s
+    our s.is_empty = std::str::is_empty s
     our s.lines: lines = str_line_view s
     our &s.lines = line_view &s
     our s.print = std::out::print s
     our s.println = std::out::println s
     our s.eprint = std::out::eprint s
     our s.eprintln = std::out::eprintln s
+
+pub is_empty(s: str): bool = std::int::eq(std::str::len s, 0)
 
 impl Index str int:
     type value = char

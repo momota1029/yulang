@@ -43,6 +43,34 @@ pub(crate) fn connect_binding_type_annotation(
     connect_annotated_target(state, body_tv, ann_tv, cause);
 }
 
+pub(crate) fn register_sig_call_shape_hint(
+    state: &mut LowerState,
+    def: crate::ids::DefId,
+    sig: &crate::lower::signature::SigType,
+) {
+    match sig_type_callable_shape(sig) {
+        Some(true) => state.register_callable_value_def(def),
+        Some(false) => state.register_non_callable_value_def(def),
+        None => {}
+    }
+}
+
+pub(crate) fn sig_type_callable_shape(sig: &crate::lower::signature::SigType) -> Option<bool> {
+    match sig {
+        crate::lower::signature::SigType::Fun { .. } => Some(true),
+        crate::lower::signature::SigType::Var(_) => None,
+        crate::lower::signature::SigType::Prim { .. }
+        | crate::lower::signature::SigType::Apply { .. }
+        | crate::lower::signature::SigType::Unit { .. }
+        | crate::lower::signature::SigType::Tuple { .. }
+        | crate::lower::signature::SigType::Record { .. }
+        | crate::lower::signature::SigType::RecordTailSpread { .. }
+        | crate::lower::signature::SigType::RecordHeadSpread { .. }
+        | crate::lower::signature::SigType::Row { .. }
+        | crate::lower::signature::SigType::EffectPrefixed { .. } => Some(false),
+    }
+}
+
 fn connect_binding_return_effect_annotation(
     state: &mut LowerState,
     eff: &crate::lower::signature::SigRow,

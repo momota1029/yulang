@@ -10,7 +10,7 @@ mod sig;
 
 pub(crate) use annotation::{
     apply_binding_type_annotation_cast, connect_binding_body_effect_annotation,
-    connect_pattern_sig_annotation,
+    connect_pattern_sig_annotation, register_sig_call_shape_hint,
 };
 pub(crate) use arg::{ArgPatInfo, HeaderArg, collect_header_args, make_arg_pat_info};
 pub(crate) use body::lower_binding_body;

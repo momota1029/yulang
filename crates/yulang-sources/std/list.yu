@@ -12,6 +12,7 @@ type list 'a with:
     our xs.map f = std::list::map xs f
     our xs.filter pred = std::list::filter xs pred
     our xs.splice r ys = std::list::splice xs r ys
+    our xs.is_empty = std::list::is_empty xs
     our xs.first = std::list::first xs
     our xs.last = std::list::last xs
     our xs.rev = std::list::rev xs

@@ -11,8 +11,8 @@ use crate::symbols::{Name, OperatorFixity, Path};
 
 use super::{
     apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_poly_variant_expr,
-    lower_var_read_expr_with_span, lower_yada_yada_expr, make_app_with_cause, resolve_path_expr,
-    resolve_path_expr_at, unit_expr,
+    lower_var_read_expr_with_span, lower_yada_yada_expr, make_app_with_cause,
+    resolve_path_callee_expr_at, resolve_path_expr, resolve_path_expr_at, unit_expr,
 };
 
 // ── chain lowering ────────────────────────────────────────────────────────────
@@ -152,14 +152,27 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             }
         }
 
+        let path_is_callee = matches!(
+            items.peek(),
+            Some(Node(n))
+                if matches!(
+                    n.kind(),
+                    SyntaxKind::ApplyML | SyntaxKind::ApplyC | SyntaxKind::ApplyColon
+                )
+        );
+
         let mut acc = if head_expr.is_none() && path_segs.len() == 1 && path_segs[0].0 == "sub" {
             if let Some(expr) = lower_sub_syntax(state, &mut items) {
                 expr
+            } else if path_is_callee {
+                resolve_path_callee_expr_at(state, path_segs, path_tail_span)
             } else {
                 resolve_path_expr_at(state, path_segs, path_tail_span)
             }
         } else if let Some(expr) = head_expr {
             expr
+        } else if path_is_callee {
+            resolve_path_callee_expr_at(state, path_segs, path_tail_span)
         } else {
             resolve_path_expr_at(state, path_segs, path_tail_span)
         };

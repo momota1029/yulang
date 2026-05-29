@@ -42,6 +42,9 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
             state.register_def_owner(def, owner);
         }
         state.register_def_name(def, name.clone());
+        if let Some(sig) = binding_pattern_sig(pat_node.as_ref()?) {
+            super::register_sig_call_shape_hint(state, def, &sig);
+        }
         state.register_def_span(
             def,
             binding_name_span(&header).unwrap_or(header.text_range()),
@@ -115,6 +118,9 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_tv(def, tv);
         state.mark_let_bound_def(def);
         state.register_def_name(def, name.clone());
+        if let Some(sig) = binding_pattern_sig(pat_node.as_ref()?) {
+            super::register_sig_call_shape_hint(state, def, &sig);
+        }
         state.register_def_span(
             def,
             binding_name_span(&header).unwrap_or(header.text_range()),
@@ -138,6 +144,14 @@ pub(crate) fn preregister_binding_as_module_value(
 
     preregister_pat_names_as_module_values(state, pat_node.as_ref()?);
     None
+}
+
+fn binding_pattern_sig(node: &SyntaxNode) -> Option<crate::lower::signature::SigType> {
+    let ann = crate::lower::ann::pat_type_ann_node(node)?;
+    let type_expr = ann
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeExpr)?;
+    crate::lower::signature::parse_sig_type_expr(&type_expr)
 }
 
 fn preregister_dotted_method(

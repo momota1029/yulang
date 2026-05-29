@@ -87,6 +87,9 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             if let Some(hover_ty) = hover_type_from_pattern_annotation(&param_pat) {
                 state.register_def_hover_type(def, hover_ty);
             }
+            if let Some(sig) = pattern_annotation_sig(&param_pat) {
+                super::register_sig_call_shape_hint(state, def, &sig);
+            }
             if let Some(read_eff_tv) = read_eff_tv {
                 state.register_def_eff_tv(def, read_eff_tv);
                 if let Some(ann) = ann.as_ref().filter(|ann| !ann.non_generic_tvs.is_empty()) {
@@ -200,6 +203,14 @@ fn header_arg_direct_binding_name(param_pat: &SyntaxNode) -> Option<Name> {
         return None;
     }
     super::super::pattern_binding_name(param_pat)
+}
+
+fn pattern_annotation_sig(param_pat: &SyntaxNode) -> Option<crate::lower::signature::SigType> {
+    let ann = crate::lower::ann::pat_type_ann_node(param_pat)?;
+    let type_expr = ann
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeExpr)?;
+    crate::lower::signature::parse_sig_type_expr(&type_expr)
 }
 
 fn pattern_name_span(node: &SyntaxNode) -> Option<TextRange> {

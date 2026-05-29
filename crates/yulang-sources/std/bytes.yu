@@ -3,9 +3,12 @@ use std::range::*
 
 type bytes with:
     our b.len = std::bytes::len b
+    our b.is_empty = std::bytes::is_empty b
     our b.concat other = std::bytes::concat b other
     our b.to_utf8_raw = std::bytes::to_utf8_raw b
     our b.to_utf8_lossy = std::bytes::to_utf8_lossy b
+
+pub is_empty(b: bytes): bool = std::int::eq(std::bytes::len b, 0)
 
 pub to_utf8_lossy(b: bytes): str = case std::bytes::to_utf8_raw b:
     (text, _) -> text

@@ -61,7 +61,7 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
             run_str input line column k()
         parse::is_cut(), k -> run_str input line column k($cut)
         parse::snapshot(), k -> run_str input line column k((input, line, column))
-        parse::restore (saved_input, saved_line, saved_column), k -> run_str saved_input saved_line saved_column k()
+        parse::restore (input, line, column), k -> run_str input line column k()
         v -> ok v
 
 pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] 'a =
