@@ -25,7 +25,7 @@ use group::analyze_group_co_occurrences_with_role_constraints;
 use passes::{
     apply_exact_row_unifications, apply_exact_sandwich_removal,
     apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
-    apply_row_residual_unifications, apply_shadow_var_collapse,
+    apply_row_residual_unifications, apply_shadow_var_collapse, expose_positive_row_residual_tails,
 };
 use representative::lower_representatives_for_subst;
 
@@ -154,7 +154,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &protected_vars,
             &mut subst,
         );
-        apply_row_residual_unifications(
+        let exposed_row_residual_vars = apply_row_residual_unifications(
             &current_scheme,
             &current_constraints,
             &mut rec_vars,
@@ -181,7 +181,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &rec_vars,
             &subst,
         );
-        let rewritten_scheme = if use_representatives {
+        let mut rewritten_scheme = if use_representatives {
             rewrite_scheme_with_representatives(
                 &current_scheme,
                 &rec_vars,
@@ -191,6 +191,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         } else {
             rewrite_scheme(&current_scheme, &rec_vars, &subst)
         };
+        expose_positive_row_residual_tails(&mut rewritten_scheme, &exposed_row_residual_vars);
         let rewritten_constraints = if use_representatives {
             rewrite_constraints_with_representatives(
                 &rewritten_scheme,

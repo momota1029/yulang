@@ -7,7 +7,7 @@ use super::group::{GroupCoOccurrences, indistinguishable_group_replacements};
 use super::{
     AlongItem, CoOccurrences, CompactBounds, CompactRoleConstraint, CompactType, CompactTypeScheme,
     ExactInfo, ExactKeyKind, has_matching_polar_signature, is_effectively_recursive,
-    merge_compact_bounds, rewrite_bounds,
+    merge_compact_bounds, merge_compact_types, rewrite_bounds,
 };
 
 pub(super) fn apply_group_co_occurrence_substitutions(
@@ -55,7 +55,7 @@ pub(super) fn apply_row_residual_unifications(
     cooccurs: &mut CoOccurrences,
     protected_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
-) {
+) -> HashSet<TypeVar> {
     let mut classes = HashMap::<RowResidualKey, Vec<RowResidualOccurrence>>::new();
     collect_row_residuals_in_bounds(&scheme.cty, true, subst, &mut classes);
     let mut rec_var_items = rec_vars.iter().collect::<Vec<_>>();
@@ -70,6 +70,7 @@ pub(super) fn apply_row_residual_unifications(
     }
 
     let mut accepted = HashMap::<TypeVar, TypeVar>::new();
+    let mut residual_representatives = HashSet::<TypeVar>::new();
     for occurrences in classes.values() {
         let has_positive = occurrences.iter().any(|occurrence| occurrence.positive);
         let has_negative = occurrences.iter().any(|occurrence| !occurrence.positive);
@@ -77,12 +78,14 @@ pub(super) fn apply_row_residual_unifications(
             continue;
         }
 
-        accept_var_class(
+        if let Some(representative) = accept_var_class(
             occurrences.iter().map(|occurrence| occurrence.tv),
             protected_vars,
             subst,
             &mut accepted,
-        );
+        ) {
+            residual_representatives.insert(representative);
+        }
         if let Some(first) = occurrences.first() {
             for arg_index in 0..first.arg_vars.len() {
                 accept_var_class(
@@ -98,12 +101,132 @@ pub(super) fn apply_row_residual_unifications(
     }
 
     if accepted.is_empty() {
-        return;
+        return HashSet::new();
     }
 
+    residual_representatives = residual_representatives
+        .into_iter()
+        .map(|tv| rewrite_group_var(tv, &accepted))
+        .collect();
     subst.extend(accepted.iter().map(|(&from, &to)| (from, Some(to))));
     rewrite_occurrence_info(cooccurs, &accepted);
     rewrite_recursive_bounds(rec_vars, &accepted);
+    residual_representatives
+}
+
+pub(super) fn expose_positive_row_residual_tails(
+    scheme: &mut CompactTypeScheme,
+    residual_vars: &HashSet<TypeVar>,
+) {
+    if residual_vars.is_empty() {
+        return;
+    }
+    expose_positive_row_residual_tails_in_bounds(&mut scheme.cty, residual_vars);
+    for bounds in scheme.rec_vars.values_mut() {
+        expose_positive_row_residual_tails_in_bounds(bounds, residual_vars);
+    }
+}
+
+fn expose_positive_row_residual_tails_in_bounds(
+    bounds: &mut CompactBounds,
+    residual_vars: &HashSet<TypeVar>,
+) {
+    expose_positive_row_residual_tails_in_type(&mut bounds.lower, true, false, residual_vars);
+    expose_positive_row_residual_tails_in_type(&mut bounds.upper, false, false, residual_vars);
+}
+
+fn expose_positive_row_residual_tails_in_type(
+    ty: &mut CompactType,
+    positive: bool,
+    expose_current_row: bool,
+    residual_vars: &HashSet<TypeVar>,
+) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            expose_positive_row_residual_tails_in_bounds(arg, residual_vars);
+        }
+    }
+    for fun in &mut ty.funs {
+        expose_positive_row_residual_tails_in_type(&mut fun.arg, !positive, false, residual_vars);
+        expose_positive_row_residual_tails_in_type(
+            &mut fun.arg_eff,
+            !positive,
+            false,
+            residual_vars,
+        );
+        expose_positive_row_residual_tails_in_type(&mut fun.ret_eff, positive, true, residual_vars);
+        expose_positive_row_residual_tails_in_type(&mut fun.ret, positive, false, residual_vars);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            expose_positive_row_residual_tails_in_type(
+                &mut field.value,
+                positive,
+                false,
+                residual_vars,
+            );
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            expose_positive_row_residual_tails_in_type(
+                &mut field.value,
+                positive,
+                false,
+                residual_vars,
+            );
+        }
+        expose_positive_row_residual_tails_in_type(
+            &mut spread.tail,
+            positive,
+            false,
+            residual_vars,
+        );
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                expose_positive_row_residual_tails_in_type(payload, positive, false, residual_vars);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            expose_positive_row_residual_tails_in_type(item, positive, false, residual_vars);
+        }
+    }
+
+    let mut exposed_tail_types = Vec::new();
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            expose_positive_row_residual_tails_in_type(item, positive, false, residual_vars);
+        }
+        expose_positive_row_residual_tails_in_type(&mut row.tail, positive, false, residual_vars);
+        if expose_current_row
+            && positive
+            && !row.items.is_empty()
+            && is_row_residual_tail_for_vars(&row.tail, residual_vars)
+        {
+            exposed_tail_types.push(std::mem::take(&mut *row.tail));
+        }
+    }
+    for tail in exposed_tail_types {
+        let current = std::mem::take(ty);
+        *ty = merge_compact_types(true, current, tail);
+    }
+}
+
+fn is_row_residual_tail_for_vars(tail: &CompactType, residual_vars: &HashSet<TypeVar>) -> bool {
+    !tail.vars.is_empty()
+        && tail.vars.iter().all(|tv| residual_vars.contains(tv))
+        && tail.prims.is_empty()
+        && tail.cons.is_empty()
+        && tail.funs.is_empty()
+        && tail.records.is_empty()
+        && tail.record_spreads.is_empty()
+        && tail.variants.is_empty()
+        && tail.tuples.is_empty()
+        && tail.rows.is_empty()
 }
 
 pub(super) fn apply_exact_row_unifications(
@@ -372,20 +495,23 @@ fn accept_var_class(
     protected_vars: &HashSet<TypeVar>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
     accepted: &mut HashMap<TypeVar, TypeVar>,
-) {
+) -> Option<TypeVar> {
     let mut vars = vars
         .filter_map(|tv| rewrite_optional_var(tv, subst))
         .collect::<Vec<_>>();
     vars.sort_by_key(|tv| tv.0);
     vars.dedup();
-    if vars.len() < 2 {
-        return;
+    if vars.is_empty() {
+        return None;
     }
     let representative = vars
         .iter()
         .copied()
         .find(|tv| protected_vars.contains(tv))
         .unwrap_or(vars[0]);
+    if vars.len() < 2 {
+        return Some(representative);
+    }
     for var in vars {
         if var == representative
             || protected_vars.contains(&var)
@@ -396,6 +522,7 @@ fn accept_var_class(
         }
         accepted.insert(var, representative);
     }
+    Some(representative)
 }
 
 pub(super) fn apply_exact_sandwich_removal(
