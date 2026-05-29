@@ -1814,7 +1814,7 @@ mod tests {
             .find(|(name, _)| name == "k")
             .expect("k should be rendered");
 
-        assert_eq!(h.1, "α [io; β] -> [io; β] α");
+        assert_eq!(h.1, "α [β & [io; β]] -> [β] α");
         assert_eq!(k.1, "α [β & [io; β]] -> [β] α");
     }
 
@@ -1892,7 +1892,7 @@ mod tests {
             .find(|(name, _)| name == "shallow")
             .expect("shallow should be rendered");
 
-        assert_eq!(shallow.1, "(unit -> [undet; β] α) -> [undet; β] α");
+        assert_eq!(shallow.1, "(unit -> [undet; β] α) -> [β] α");
     }
 
     #[test]
@@ -2056,7 +2056,7 @@ mod tests {
             .find(|(name, _)| name == "j")
             .expect("j should be rendered");
 
-        assert_eq!(h.1, "α [io; β] -> [io; β] α");
+        assert_eq!(h.1, "α [β & [io; β]] -> [β] α");
         assert_eq!(j.1, "α [io; β] -> [β] α");
     }
 

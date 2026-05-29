@@ -25,6 +25,27 @@ impl Infer {
         residual: TypeVar,
         cause: ConstraintCause,
     ) {
+        self.record_handler_match_inner(actual, handled, residual, false, cause);
+    }
+
+    pub fn record_open_handler_match(
+        &self,
+        actual: TypeVar,
+        handled: Vec<NegId>,
+        residual: TypeVar,
+        cause: ConstraintCause,
+    ) {
+        self.record_handler_match_inner(actual, handled, residual, true, cause);
+    }
+
+    fn record_handler_match_inner(
+        &self,
+        actual: TypeVar,
+        handled: Vec<NegId>,
+        residual: TypeVar,
+        solve_open_rows: bool,
+        cause: ConstraintCause,
+    ) {
         let keep = self.effect_boundary_keep(actual);
         let captures_any = handled
             .iter()
@@ -42,6 +63,7 @@ impl Infer {
                 keep,
                 handled,
                 residual,
+                solve_open_rows,
                 cause: cause.clone(),
             });
             index
@@ -113,7 +135,7 @@ impl Infer {
         let Pos::Row(items, tail) = self.arena.get_pos(lower) else {
             return None;
         };
-        if !matches!(self.arena.get_pos(tail), Pos::Bot) {
+        if !edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot) {
             return None;
         }
         let mut kept = Vec::new();
@@ -128,7 +150,13 @@ impl Infer {
                 kept.push(item);
             }
         }
-        removed_any.then(|| self.arena.alloc_pos(Pos::Row(kept, tail)))
+        removed_any.then(|| {
+            if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
+                tail
+            } else {
+                self.arena.alloc_pos(Pos::Row(kept, tail))
+            }
+        })
     }
 
     fn capturing_handler_for_pos_item(
@@ -232,6 +260,70 @@ mod tests {
         assert!(
             infer.lower_refs_of(residual).is_empty(),
             "naked handler_match actual must stay pending"
+        );
+    }
+
+    #[test]
+    fn handler_match_subtracts_open_surface_row_to_tail() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let atom = EffectAtom {
+            path: path("io"),
+            args: Vec::new(),
+        };
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(atom.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(actual),
+        );
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(atom))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            infer.upper_refs_of(tail).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
+            }),
+            "open surface subtraction should expose the row tail as the residual"
+        );
+    }
+
+    #[test]
+    fn handler_match_keeps_open_surface_rows_pending_by_default() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let atom = EffectAtom {
+            path: path("io"),
+            args: Vec::new(),
+        };
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(atom.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(actual),
+        );
+
+        infer.record_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(atom))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            infer.lower_refs_of(residual).is_empty(),
+            "default handler_match should not solve from open surface rows"
         );
     }
 

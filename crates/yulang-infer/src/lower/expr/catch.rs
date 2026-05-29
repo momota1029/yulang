@@ -86,6 +86,8 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         let tv = state.fresh_tv();
         let eff = state.fresh_tv();
         let comp_handler_eff = catch_comp_handler_eff_tv(state, &comp);
+        let handler_rest_eff = state.fresh_tv();
+        state.infer.mark_through(handler_rest_eff);
 
         let mut lowered_arms: Vec<LoweredCatchArm> = catch_arm_nodes(node)
             .into_iter()
@@ -104,6 +106,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         let mut handled_ops = Vec::new();
         let mut handled_pos_ops = Vec::new();
         let mut handled_effect_paths = Vec::new();
+        let mut solve_open_handler_rows = false;
         let mut covered_effect_ops: HashMap<Path, HashSet<crate::ids::DefId>> = HashMap::new();
         let mut effect_arg_substs: HashMap<
             Path,
@@ -172,6 +175,8 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                             }),
                     };
                     let handled_op = Neg::Atom(handled_atom.clone());
+                    let directly_calls_continuation =
+                        catch_body_directly_calls_continuation(body, *k);
                     if arm_is_active {
                         constrain_existing_comp_effect_atoms(
                             state,
@@ -181,6 +186,10 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         handled_ops.push(handled_op.clone());
                         handled_pos_ops.push(Pos::Atom(handled_atom.clone()));
                         handled_effect_paths.push(effect_path.clone());
+                        if directly_calls_continuation {
+                            solve_open_handler_rows = true;
+                            record_comp_arg_tail_var_preserve_for_direct_resume(state, &comp);
+                        }
                         let covers_operation =
                             catch_arm_fully_covers_effect_operation(&lowered.check);
                         if let Some(op_def) = op_def
@@ -231,10 +240,15 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
 
                     if let Some(&k_tv) = state.def_tvs.get(k) {
                         let k_arg_eff = state.fresh_tv();
+                        let k_ret_eff = if arm_is_active && directly_calls_continuation {
+                            handler_rest_eff
+                        } else {
+                            comp.eff
+                        };
                         let k_fun = state.pos_fun(
                             Neg::Var(resume_tv),
                             Neg::Var(k_arg_eff),
-                            Pos::Var(comp.eff),
+                            Pos::Var(k_ret_eff),
                             Pos::Var(comp.tv),
                         );
                         state.infer.constrain(k_fun.clone(), Neg::Var(k_tv));
@@ -243,7 +257,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                             state.neg_fun(
                                 Pos::Var(resume_tv),
                                 Pos::Var(k_arg_eff),
-                                Neg::Var(comp.eff),
+                                Neg::Var(k_ret_eff),
                                 Neg::Var(comp.tv),
                             ),
                         );
@@ -320,17 +334,18 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
         } else if saw_value_arm {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
-            let rest_eff = state.fresh_tv();
-            state.infer.mark_through(rest_eff);
-            let handled = handled_ops
+            let rest_eff = handler_rest_eff;
+            let handled: Vec<crate::ids::NegId> = handled_ops
                 .iter()
                 .cloned()
                 .map(|op| state.infer.alloc_neg(op))
                 .collect();
-            state.infer.record_handler_match(
+            record_handler_match_for_catch(
+                state,
                 comp_handler_eff,
                 handled,
                 rest_eff,
+                solve_open_handler_rows,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
@@ -365,17 +380,18 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             }
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
-            let rest_eff = state.fresh_tv();
-            state.infer.mark_through(rest_eff);
-            let handled = handled_ops
+            let rest_eff = handler_rest_eff;
+            let handled: Vec<crate::ids::NegId> = handled_ops
                 .iter()
                 .cloned()
                 .map(|op| state.infer.alloc_neg(op))
                 .collect();
-            state.infer.record_handler_match(
+            record_handler_match_for_catch(
+                state,
                 comp_handler_eff,
                 handled,
                 rest_eff,
+                solve_open_handler_rows,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
@@ -553,6 +569,36 @@ fn record_comp_arg_tail_var_preserve(state: &mut LowerState, comp: &TypedExpr) {
     }
 }
 
+fn record_comp_arg_tail_var_preserve_for_direct_resume(state: &mut LowerState, comp: &TypedExpr) {
+    let ExprKind::Var(def) = &comp.kind else {
+        return;
+    };
+    if state.lambda_param_source_eff_tvs.contains_key(def)
+        || state.lambda_param_effect_annotations.contains_key(def)
+    {
+        state.register_lambda_param_preserve_arg_tail_var(*def);
+    }
+}
+
+fn record_handler_match_for_catch(
+    state: &mut LowerState,
+    comp_handler_eff: crate::ids::TypeVar,
+    handled: Vec<crate::ids::NegId>,
+    rest_eff: crate::ids::TypeVar,
+    solve_open_handler_rows: bool,
+    cause: ConstraintCause,
+) {
+    if solve_open_handler_rows {
+        state
+            .infer
+            .record_open_handler_match(comp_handler_eff, handled, rest_eff, cause);
+    } else {
+        state
+            .infer
+            .record_handler_match(comp_handler_eff, handled, rest_eff, cause);
+    }
+}
+
 fn effect_tv_flows_to(
     state: &LowerState,
     source: crate::ids::TypeVar,
@@ -658,6 +704,17 @@ fn direct_effect_call_path(state: &LowerState, expr: &TypedExpr) -> Option<Path>
         | ExprKind::PackForall(_, expr) => direct_effect_call_path(state, expr),
         ExprKind::Var(def) => state.effect_op_effect_paths.get(def).cloned(),
         _ => None,
+    }
+}
+
+fn catch_body_directly_calls_continuation(body: &TypedExpr, k: crate::ids::DefId) -> bool {
+    match &body.kind {
+        ExprKind::App { callee, .. } => catch_body_directly_calls_continuation(callee, k),
+        ExprKind::Coerce { expr, .. }
+        | ExprKind::BindHere(expr)
+        | ExprKind::PackForall(_, expr) => catch_body_directly_calls_continuation(expr, k),
+        ExprKind::Var(def) => *def == k,
+        _ => false,
     }
 }
 

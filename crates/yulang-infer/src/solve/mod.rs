@@ -86,6 +86,7 @@ pub struct HandlerMatchEdge {
     pub keep: ShiftKeep,
     pub handled: Vec<NegId>,
     pub residual: TypeVar,
+    pub solve_open_rows: bool,
     pub cause: ConstraintCause,
 }
 
