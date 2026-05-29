@@ -222,13 +222,14 @@ fn export_effect_operations(state: &LowerState) -> Vec<typed_ir::EffectOperation
         }) else {
             continue;
         };
-        let Some(frozen) = state.infer.frozen_scheme_of(def) else {
+        let Some(&pos_sig) = state.effect_op_pos_sigs.get(&def) else {
             continue;
         };
         let exported_path = export_path(&path);
         if !seen.insert(exported_path.clone()) {
             continue;
         }
+        let frozen = crate::scheme::freeze_pos_scheme(&state.infer, pos_sig);
         let scheme = export_frozen_scheme(&state.infer, &frozen);
         decls.push(typed_ir::EffectOperationDecl {
             path: exported_path,

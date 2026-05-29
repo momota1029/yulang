@@ -54,7 +54,12 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     state.infer.constrain(Pos::Var(owner_tv), Neg::Var(ret_tv));
     state.infer.constrain(Pos::Var(ret_tv), Neg::Var(owner_tv));
     if let Some(header) = header {
-        super::annotation::connect_binding_type_annotation(state, header, body_ret_tv);
+        super::annotation::connect_binding_type_annotation(
+            state,
+            header,
+            body_ret_tv,
+            Some(ret_eff),
+        );
     }
     state.provisional_self_root_tvs.insert(owner, ret_tv);
     let frozen =

@@ -32,8 +32,8 @@ pub(super) struct GroupCoOccurrences {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(super) struct GroupOccurrenceInfo {
-    positive: HashSet<u64>,
-    negative: HashSet<u64>,
+    positive: HashSet<GroupKey>,
+    negative: HashSet<GroupKey>,
 }
 
 pub(super) fn indistinguishable_group_replacements(
@@ -46,19 +46,19 @@ pub(super) fn indistinguishable_group_replacements(
         .map(|tv| (tv, tv))
         .collect::<HashMap<_, _>>();
 
-    let mut positive_groups = BTreeMap::<Vec<u64>, Vec<TypeVar>>::new();
-    let mut negative_groups = BTreeMap::<Vec<u64>, Vec<TypeVar>>::new();
+    let mut positive_groups = BTreeMap::<Vec<GroupKey>, Vec<TypeVar>>::new();
+    let mut negative_groups = BTreeMap::<Vec<GroupKey>, Vec<TypeVar>>::new();
     for (&tv, info) in occurrences {
         if require_bipolar && (info.positive.is_empty() || info.negative.is_empty()) {
             continue;
         }
         if !info.positive.is_empty() {
-            let mut groups = info.positive.iter().copied().collect::<Vec<_>>();
+            let mut groups = info.positive.iter().cloned().collect::<Vec<_>>();
             groups.sort_unstable();
             positive_groups.entry(groups).or_default().push(tv);
         }
         if !info.negative.is_empty() {
-            let mut groups = info.negative.iter().copied().collect::<Vec<_>>();
+            let mut groups = info.negative.iter().cloned().collect::<Vec<_>>();
             groups.sort_unstable();
             negative_groups.entry(groups).or_default().push(tv);
         }
@@ -93,6 +93,8 @@ struct GroupCoOccurrenceContext {
     analysis: GroupCoOccurrences,
 }
 
+type GroupKey = Vec<u64>;
+
 impl GroupCoOccurrenceContext {
     fn collect_root_bounds(&mut self, bounds: &CompactBounds) {
         self.collect_type(&bounds.lower, true);
@@ -111,14 +113,19 @@ impl GroupCoOccurrenceContext {
         self.collect_type_in_group(ty, positive, group);
     }
 
-    fn collect_type_in_group(&mut self, ty: &CompactType, positive: bool, group: u64) {
+    fn collect_type_in_group(&mut self, ty: &CompactType, positive: bool, group: GroupKey) {
         for tv in sorted_type_vars(&ty.vars) {
-            insert_group_occurrence(&mut self.analysis.types, tv, positive, group);
+            insert_group_occurrence(&mut self.analysis.types, tv, positive, group.clone());
         }
         self.collect_type_children_in_group(ty, positive, group);
     }
 
-    fn collect_type_children_in_group(&mut self, ty: &CompactType, positive: bool, group: u64) {
+    fn collect_type_children_in_group(
+        &mut self,
+        ty: &CompactType,
+        positive: bool,
+        group: GroupKey,
+    ) {
         for con in &ty.cons {
             for arg in &con.args {
                 self.collect_type(&arg.lower, true);
@@ -127,10 +134,10 @@ impl GroupCoOccurrenceContext {
         }
         for fun in &ty.funs {
             self.collect_type(&fun.arg, !positive);
-            self.collect_effect_type_in_group(&fun.arg_eff, !positive, group);
-            self.collect_effect_type_in_group(&fun.ret_eff, positive, group);
-            self.collect_effect_in_group(&fun.arg_eff, !positive, group);
-            self.collect_effect_in_group(&fun.ret_eff, positive, group);
+            self.collect_effect_type_in_group(&fun.arg_eff, !positive, group.clone());
+            self.collect_effect_type_in_group(&fun.ret_eff, positive, group.clone());
+            self.collect_effect_in_group(&fun.arg_eff, !positive, group.clone());
+            self.collect_effect_in_group(&fun.ret_eff, positive, group.clone());
             self.collect_type(&fun.ret, positive);
         }
         for record in &ty.records {
@@ -163,43 +170,44 @@ impl GroupCoOccurrenceContext {
         }
     }
 
-    fn collect_effect_type_in_group(&mut self, ty: &CompactType, positive: bool, group: u64) {
+    fn collect_effect_type_in_group(&mut self, ty: &CompactType, positive: bool, group: GroupKey) {
         for con in &ty.cons {
-            for arg in &con.args {
-                self.collect_effect_atom_arg_type_in_group(&arg.lower, true, group);
-                self.collect_effect_atom_arg_type_in_group(&arg.upper, false, group);
+            for (idx, arg) in con.args.iter().enumerate() {
+                let arg_group = effect_atom_arg_group(&group, idx);
+                self.collect_effect_atom_arg_type_in_group(&arg.lower, true, arg_group.clone());
+                self.collect_effect_atom_arg_type_in_group(&arg.upper, false, arg_group);
             }
         }
         for fun in &ty.funs {
-            self.collect_effect_type_in_group(&fun.arg_eff, !positive, group);
-            self.collect_effect_type_in_group(&fun.ret_eff, positive, group);
+            self.collect_effect_type_in_group(&fun.arg_eff, !positive, group.clone());
+            self.collect_effect_type_in_group(&fun.ret_eff, positive, group.clone());
         }
         for record in &ty.records {
             for field in &record.fields {
-                self.collect_effect_type_in_group(&field.value, positive, group);
+                self.collect_effect_type_in_group(&field.value, positive, group.clone());
             }
         }
         for spread in &ty.record_spreads {
             for field in &spread.fields {
-                self.collect_effect_type_in_group(&field.value, positive, group);
+                self.collect_effect_type_in_group(&field.value, positive, group.clone());
             }
-            self.collect_effect_type_in_group(&spread.tail, positive, group);
+            self.collect_effect_type_in_group(&spread.tail, positive, group.clone());
         }
         for variant in &ty.variants {
             for (_, payloads) in &variant.items {
                 for payload in payloads {
-                    self.collect_effect_type_in_group(payload, positive, group);
+                    self.collect_effect_type_in_group(payload, positive, group.clone());
                 }
             }
         }
         for tuple in &ty.tuples {
             for item in tuple {
-                self.collect_effect_type_in_group(item, positive, group);
+                self.collect_effect_type_in_group(item, positive, group.clone());
             }
         }
         for row in &ty.rows {
             for item in &row.items {
-                self.collect_effect_type_in_group(item, positive, group);
+                self.collect_effect_type_in_group(item, positive, group.clone());
             }
         }
     }
@@ -208,99 +216,100 @@ impl GroupCoOccurrenceContext {
         &mut self,
         ty: &CompactType,
         positive: bool,
-        group: u64,
+        group: GroupKey,
     ) {
         for tv in sorted_type_vars(&ty.vars) {
-            insert_group_occurrence(&mut self.analysis.effect_types, tv, positive, group);
+            insert_group_occurrence(&mut self.analysis.effect_types, tv, positive, group.clone());
         }
 
         for con in &ty.cons {
-            for arg in &con.args {
-                self.collect_effect_atom_arg_type_in_group(&arg.lower, true, group);
-                self.collect_effect_atom_arg_type_in_group(&arg.upper, false, group);
+            for (idx, arg) in con.args.iter().enumerate() {
+                let arg_group = effect_atom_arg_group(&group, idx);
+                self.collect_effect_atom_arg_type_in_group(&arg.lower, true, arg_group.clone());
+                self.collect_effect_atom_arg_type_in_group(&arg.upper, false, arg_group);
             }
         }
         for fun in &ty.funs {
-            self.collect_effect_atom_arg_type_in_group(&fun.arg, !positive, group);
-            self.collect_effect_type_in_group(&fun.arg_eff, !positive, group);
-            self.collect_effect_type_in_group(&fun.ret_eff, positive, group);
-            self.collect_effect_atom_arg_type_in_group(&fun.ret, positive, group);
+            self.collect_effect_atom_arg_type_in_group(&fun.arg, !positive, group.clone());
+            self.collect_effect_type_in_group(&fun.arg_eff, !positive, group.clone());
+            self.collect_effect_type_in_group(&fun.ret_eff, positive, group.clone());
+            self.collect_effect_atom_arg_type_in_group(&fun.ret, positive, group.clone());
         }
         for record in &ty.records {
             for field in &record.fields {
-                self.collect_effect_atom_arg_type_in_group(&field.value, positive, group);
+                self.collect_effect_atom_arg_type_in_group(&field.value, positive, group.clone());
             }
         }
         for spread in &ty.record_spreads {
             for field in &spread.fields {
-                self.collect_effect_atom_arg_type_in_group(&field.value, positive, group);
+                self.collect_effect_atom_arg_type_in_group(&field.value, positive, group.clone());
             }
-            self.collect_effect_atom_arg_type_in_group(&spread.tail, positive, group);
+            self.collect_effect_atom_arg_type_in_group(&spread.tail, positive, group.clone());
         }
         for variant in &ty.variants {
             for (_, payloads) in &variant.items {
                 for payload in payloads {
-                    self.collect_effect_atom_arg_type_in_group(payload, positive, group);
+                    self.collect_effect_atom_arg_type_in_group(payload, positive, group.clone());
                 }
             }
         }
         for tuple in &ty.tuples {
             for item in tuple {
-                self.collect_effect_atom_arg_type_in_group(item, positive, group);
+                self.collect_effect_atom_arg_type_in_group(item, positive, group.clone());
             }
         }
         for row in &ty.rows {
             for item in &row.items {
-                self.collect_effect_atom_arg_type_in_group(item, positive, group);
+                self.collect_effect_atom_arg_type_in_group(item, positive, group.clone());
             }
-            self.collect_effect_atom_arg_type_in_group(&row.tail, positive, group);
+            self.collect_effect_atom_arg_type_in_group(&row.tail, positive, group.clone());
         }
     }
 
-    fn collect_effect_in_group(&mut self, ty: &CompactType, positive: bool, group: u64) {
+    fn collect_effect_in_group(&mut self, ty: &CompactType, positive: bool, group: GroupKey) {
         for tv in sorted_type_vars(&ty.vars) {
-            insert_group_occurrence(&mut self.analysis.effects, tv, positive, group);
+            insert_group_occurrence(&mut self.analysis.effects, tv, positive, group.clone());
         }
 
         for fun in &ty.funs {
-            self.collect_effect_in_group(&fun.arg_eff, !positive, group);
-            self.collect_effect_in_group(&fun.ret_eff, positive, group);
+            self.collect_effect_in_group(&fun.arg_eff, !positive, group.clone());
+            self.collect_effect_in_group(&fun.ret_eff, positive, group.clone());
         }
         for record in &ty.records {
             for field in &record.fields {
-                self.collect_effect_in_group(&field.value, positive, group);
+                self.collect_effect_in_group(&field.value, positive, group.clone());
             }
         }
         for spread in &ty.record_spreads {
             for field in &spread.fields {
-                self.collect_effect_in_group(&field.value, positive, group);
+                self.collect_effect_in_group(&field.value, positive, group.clone());
             }
-            self.collect_effect_in_group(&spread.tail, positive, group);
+            self.collect_effect_in_group(&spread.tail, positive, group.clone());
         }
         for variant in &ty.variants {
             for (_, payloads) in &variant.items {
                 for payload in payloads {
-                    self.collect_effect_in_group(payload, positive, group);
+                    self.collect_effect_in_group(payload, positive, group.clone());
                 }
             }
         }
         for tuple in &ty.tuples {
             for item in tuple {
-                self.collect_effect_in_group(item, positive, group);
+                self.collect_effect_in_group(item, positive, group.clone());
             }
         }
         for row in &ty.rows {
             for item in &row.items {
-                self.collect_effect_in_group(item, positive, group);
+                self.collect_effect_in_group(item, positive, group.clone());
             }
-            self.collect_effect_in_group(&row.tail, positive, group);
+            self.collect_effect_in_group(&row.tail, positive, group.clone());
         }
     }
 
-    fn fresh_group(&mut self) -> u64 {
+    fn fresh_group(&mut self) -> GroupKey {
         let group = self.next_group;
         self.next_group += 1;
-        group
+        vec![group]
     }
 
     fn collect_root_upper_shared_direct_vars(&mut self, bounds: &CompactBounds) {
@@ -316,7 +325,7 @@ impl GroupCoOccurrenceContext {
 
         let group = self.fresh_group();
         for tv in shared {
-            insert_group_occurrence(&mut self.analysis.types, tv, false, group);
+            insert_group_occurrence(&mut self.analysis.types, tv, false, group.clone());
         }
     }
 }
@@ -327,11 +336,17 @@ fn sorted_type_vars(vars: &HashSet<TypeVar>) -> Vec<TypeVar> {
     vars
 }
 
+fn effect_atom_arg_group(group: &GroupKey, idx: usize) -> GroupKey {
+    let mut group = group.clone();
+    group.push(idx as u64);
+    group
+}
+
 fn insert_group_occurrence(
     map: &mut HashMap<TypeVar, GroupOccurrenceInfo>,
     tv: TypeVar,
     positive: bool,
-    group: u64,
+    group: GroupKey,
 ) {
     let entry = map.entry(tv).or_default();
     if positive {

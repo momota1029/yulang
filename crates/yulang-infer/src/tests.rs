@@ -2534,6 +2534,21 @@ fn impl_body_check_resolves_associated_output_in_expected_signature() {
 }
 
 #[test]
+fn role_impl_self_alias_field_collision_and_trailing_block_comment_typecheck() {
+    let mut state = parse_and_lower(
+        "role ParseError 'err:\n  type item\n  type pos\n  our e.merge: 'err -> 'err\n  our unexpected: item -> pos -> 'err\n  our expected: str -> pos -> 'err\n  our e.label: str -> self\n\n\
+struct str_error { line: int, column: int, unexpected: int, expected: int, message: int } with:\n\
+  impl ParseError:\n    type item = int\n    type pos = (int, int)\n    our e.merge(f: self) = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: e.expected, message: f.message }\n    our unexpected u ((l, c): pos) = str_error { line: l, column: c, unexpected: u, expected: 0, message: 0 }\n    our expected label ((l, c): pos) = str_error { line: l, column: c, unexpected: 0, expected: 1, message: 0 }\n    our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: e.expected, message: e.message }\n\n/* keep this comment after a record literal */\n",
+    );
+    state.finalize_compact_results();
+    assert!(
+        state.infer.type_errors().is_empty(),
+        "role impl should type-check with self alias, colliding field names, and trailing block comment: {:?}",
+        state.infer.type_errors(),
+    );
+}
+
+#[test]
 fn concrete_impl_beats_generic_impl_overlap() {
     let mut state = parse_and_lower(
         "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
@@ -2659,6 +2674,234 @@ fn act_operation_signature_creates_fun_lower_bound() {
         "operation should have Fun lower bound, got {:?}",
         lowers,
     );
+}
+
+#[test]
+fn generic_act_operation_display_preserves_independent_act_args() {
+    let mut state = parse_and_lower(
+        "act parse 'item 'err 'pos 'snap:\n  our item: () -> 'item\n  our fail: 'err -> never\n",
+    );
+    let item_def = state
+        .ctx
+        .resolve_path_value(&symbols::Path {
+            segments: vec![
+                symbols::Name("parse".to_string()),
+                symbols::Name("item".to_string()),
+            ],
+        })
+        .unwrap();
+    let pos_sig = state.effect_op_pos_sigs[&item_def];
+    let Pos::Fun { ret_eff, ret, .. } = state.infer.arena.get_pos(pos_sig) else {
+        panic!("item op should lower to a function");
+    };
+    let Pos::Row(items, _) = state.infer.arena.get_pos(ret_eff) else {
+        panic!("item op return effect should be a row");
+    };
+    let Pos::Atom(atom) = state.infer.arena.get_pos(items[0]) else {
+        panic!("item op return effect should contain parse atom");
+    };
+    assert!(matches!(state.infer.arena.get_pos(ret), Pos::Var(_)));
+    assert_eq!(atom.args.len(), 4);
+    assert_eq!(
+        atom.args
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        4
+    );
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    assert!(
+        rendered.iter().any(
+            |(name, scheme)| name == "parse::item" && scheme == "unit -> [parse<α, β, γ, δ>] α"
+        )
+    );
+    assert!(
+        rendered
+            .iter()
+            .any(|(name, scheme)| name == "parse::fail" && scheme == "α -> [parse<β, α, γ, δ>] ⊥")
+    );
+
+    let program = export_core_program(&mut state);
+    let item_op = program
+        .effect_operations
+        .iter()
+        .find(|operation| path_segments(&operation.path) == ["parse", "item"])
+        .expect("parse::item effect operation should be exported");
+    let yulang_typed_ir::Type::Fun {
+        ret_effect, ret, ..
+    } = &item_op.scheme.body
+    else {
+        panic!("parse::item should export as a function");
+    };
+    let yulang_typed_ir::Type::Var(ret_var) = ret.as_ref() else {
+        panic!("parse::item return should stay generic");
+    };
+    let yulang_typed_ir::Type::Row { items, .. } = ret_effect.as_ref() else {
+        panic!("parse::item return effect should be a row");
+    };
+    let yulang_typed_ir::Type::Named { args, .. } = &items[0] else {
+        panic!("parse::item return effect should contain parse atom");
+    };
+    let arg_vars = args
+        .iter()
+        .map(|arg| match arg {
+            yulang_typed_ir::TypeArg::Type(yulang_typed_ir::Type::Var(var)) => var.clone(),
+            other => panic!("parse act arg should export as an exact var, got {other:?}"),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(arg_vars.len(), 4);
+    assert_eq!(
+        arg_vars
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        4
+    );
+    assert_eq!(arg_vars[0], ret_var.clone());
+}
+
+#[test]
+fn function_effect_annotation_display_preserves_act_arg_positions() {
+    let mut state = parse_and_lower(
+        "act parse 'item 'err 'pos 'snap:\n  our item: () -> 'item\n\n\
+pub take(p: () -> [parse 'item 'err 'pos 'snap] 'a): unit = ()\n",
+    );
+    state.finalize_compact_results();
+    assert!(
+        state.infer.type_errors().is_empty(),
+        "function effect annotation should type-check: {:?}",
+        state.infer.type_errors(),
+    );
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    assert!(
+        rendered.iter().any(|(name, scheme)| name == "take"
+            && scheme == "(unit -> [parse<α, β, γ, δ>; ⊤] ⊤) -> unit"),
+        "function parameter effect annotation should keep act argument positions distinct, got: {rendered:?}",
+    );
+}
+
+#[test]
+fn concrete_effect_annotation_does_not_unify_all_act_args() {
+    let mut state = parse_and_lower(
+        "act parse 'item 'err 'pos 'snap:\n  our item: () -> 'item\n\n\
+pub make(): [parse int str bool unit] int = parse::item()\n",
+    );
+    state.finalize_compact_results();
+    assert!(
+        state.infer.type_errors().is_empty(),
+        "concrete effect annotation should not force all act arguments to one type: {:?}",
+        state.infer.type_errors(),
+    );
+}
+
+#[test]
+fn choice_effect_residual_coalesces_across_open_rows() {
+    let mut state = parse_and_lower(
+        "act parse 'item 'err 'pos 'snap:\n\
+             our item: () -> 'item\n\
+             our fail: 'err -> never\n\
+             our is_cut: () -> bool\n\
+             our snapshot: () -> 'snap\n\
+             our restore: 'snap -> ()\n\
+         role ParseError 'err:\n\
+             pub type item\n\
+             pub type pos\n\
+             pub e.merge: 'err -> 'err\n\
+         pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] 'a =\n\
+             my snap = parse::snapshot()\n\
+             catch p():\n\
+                 parse::fail e, _ if parse::is_cut() -> parse::fail e\n\
+                 parse::fail e1, _ ->\n\
+                     parse::restore snap\n\
+                     catch q(): parse::fail e2, _ -> parse::fail: e1.merge e2\n",
+    );
+    state.finalize_compact_results();
+    assert!(
+        state.infer.type_errors().is_empty(),
+        "choice should type-check: {:?}",
+        state.infer.type_errors(),
+    );
+    let choice_def = state
+        .ctx
+        .resolve_value(&symbols::Name("choice".to_string()))
+        .unwrap();
+    let scheme = state
+        .surface_compact_scheme_of(choice_def)
+        .expect("choice should have a compact scheme");
+
+    let choice_fun = single_compact_fun(&scheme.cty.lower, "choice");
+    let p_fun = single_compact_fun(&choice_fun.arg, "p");
+    let q_stage = single_compact_fun(&choice_fun.ret, "choice result");
+    let q_fun = single_compact_fun(&q_stage.arg, "q");
+
+    let p_residual = open_row_residual(&p_fun.ret_eff, "p return effect");
+    let q_residual = open_row_residual(&q_fun.ret_eff, "q return effect");
+    let result_residual = closed_row_residual(&q_stage.ret_eff, "choice return effect");
+
+    assert_eq!(p_residual, q_residual);
+    assert_eq!(p_residual, result_residual);
+}
+
+fn single_compact_fun<'a>(
+    ty: &'a crate::simplify::compact::CompactType,
+    label: &str,
+) -> &'a crate::simplify::compact::CompactFun {
+    assert_eq!(ty.funs.len(), 1, "{label} should have one function shape");
+    &ty.funs[0]
+}
+
+fn open_row_residual(
+    ty: &crate::simplify::compact::CompactType,
+    label: &str,
+) -> crate::ids::TypeVar {
+    assert_eq!(ty.rows.len(), 1, "{label} should have one row");
+    let row = &ty.rows[0];
+    assert_eq!(
+        row.items.len(),
+        1,
+        "{label} should contain the handled effect"
+    );
+    let residual = single_compact_var(ty, label);
+    assert_eq!(
+        single_compact_var(&row.tail, label),
+        residual,
+        "{label} should expose the same residual as its row tail",
+    );
+    residual
+}
+
+fn closed_row_residual(
+    ty: &crate::simplify::compact::CompactType,
+    label: &str,
+) -> crate::ids::TypeVar {
+    assert_eq!(ty.rows.len(), 1, "{label} should have one row");
+    let row = &ty.rows[0];
+    assert_eq!(
+        row.items.len(),
+        1,
+        "{label} should contain the handled effect"
+    );
+    assert!(
+        row.tail.vars.is_empty()
+            && row.tail.prims.is_empty()
+            && row.tail.cons.is_empty()
+            && row.tail.funs.is_empty()
+            && row.tail.records.is_empty()
+            && row.tail.record_spreads.is_empty()
+            && row.tail.variants.is_empty()
+            && row.tail.tuples.is_empty()
+            && row.tail.rows.is_empty(),
+        "{label} should not leave the residual in positive row-tail position",
+    );
+    single_compact_var(ty, label)
+}
+
+fn single_compact_var(
+    ty: &crate::simplify::compact::CompactType,
+    label: &str,
+) -> crate::ids::TypeVar {
+    assert_eq!(ty.vars.len(), 1, "{label} should expose one residual var");
+    *ty.vars.iter().next().unwrap()
 }
 
 #[test]

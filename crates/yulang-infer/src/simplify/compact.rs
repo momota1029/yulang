@@ -837,6 +837,20 @@ pub(crate) fn preserve_fun_arg_effect_row_tail_vars(scheme: &mut CompactTypeSche
     }
 }
 
+pub(crate) fn expose_positive_row_tails(scheme: &mut CompactTypeScheme) {
+    expose_positive_row_tails_in_bounds(&mut scheme.cty);
+    for bounds in scheme.rec_vars.values_mut() {
+        expose_positive_row_tails_in_bounds(bounds);
+    }
+}
+
+pub(crate) fn expose_negative_row_tail_vars(scheme: &mut CompactTypeScheme) {
+    expose_negative_row_tail_vars_in_bounds(&mut scheme.cty);
+    for bounds in scheme.rec_vars.values_mut() {
+        expose_negative_row_tail_vars_in_bounds(bounds);
+    }
+}
+
 fn normalize_compact_bounds_rows(bounds: &mut CompactBounds) {
     normalize_compact_type_rows(&mut bounds.lower, true);
     normalize_compact_type_rows(&mut bounds.upper, false);
@@ -948,6 +962,127 @@ fn add_row_tail_vars_to_compact_type(ty: &mut CompactType) {
         .filter_map(|row| compact_var_set(&row.tail))
         .flatten()
         .collect::<Vec<_>>();
+    ty.vars.extend(tail_vars);
+}
+
+fn expose_positive_row_tails_in_bounds(bounds: &mut CompactBounds) {
+    expose_positive_row_tails_in_type(&mut bounds.lower, true, false);
+    expose_positive_row_tails_in_type(&mut bounds.upper, false, false);
+}
+
+fn expose_positive_row_tails_in_type(
+    ty: &mut CompactType,
+    positive: bool,
+    expose_current_row: bool,
+) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            expose_positive_row_tails_in_bounds(arg);
+        }
+    }
+    for fun in &mut ty.funs {
+        expose_positive_row_tails_in_type(&mut fun.arg, !positive, false);
+        expose_positive_row_tails_in_type(&mut fun.arg_eff, !positive, false);
+        expose_positive_row_tails_in_type(&mut fun.ret_eff, positive, true);
+        expose_positive_row_tails_in_type(&mut fun.ret, positive, false);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            expose_positive_row_tails_in_type(&mut field.value, positive, false);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            expose_positive_row_tails_in_type(&mut field.value, positive, false);
+        }
+        expose_positive_row_tails_in_type(&mut spread.tail, positive, false);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                expose_positive_row_tails_in_type(payload, positive, false);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            expose_positive_row_tails_in_type(item, positive, false);
+        }
+    }
+    let mut exposed_tail_types = Vec::new();
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            expose_positive_row_tails_in_type(item, positive, false);
+        }
+        expose_positive_row_tails_in_type(&mut row.tail, positive, false);
+        if expose_current_row
+            && positive
+            && !row.items.is_empty()
+            && !is_empty_compact_type(&row.tail)
+        {
+            exposed_tail_types.push(std::mem::take(&mut *row.tail));
+        }
+    }
+    for tail in exposed_tail_types {
+        let current = std::mem::take(ty);
+        *ty = merge_compact_types(true, current, tail);
+    }
+}
+
+fn expose_negative_row_tail_vars_in_bounds(bounds: &mut CompactBounds) {
+    expose_negative_row_tail_vars_in_type(&mut bounds.lower, true, false);
+    expose_negative_row_tail_vars_in_type(&mut bounds.upper, false, false);
+}
+
+fn expose_negative_row_tail_vars_in_type(
+    ty: &mut CompactType,
+    positive: bool,
+    expose_current_row: bool,
+) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            expose_negative_row_tail_vars_in_bounds(arg);
+        }
+    }
+    for fun in &mut ty.funs {
+        expose_negative_row_tail_vars_in_type(&mut fun.arg, !positive, false);
+        expose_negative_row_tail_vars_in_type(&mut fun.arg_eff, !positive, false);
+        expose_negative_row_tail_vars_in_type(&mut fun.ret_eff, positive, true);
+        expose_negative_row_tail_vars_in_type(&mut fun.ret, positive, false);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            expose_negative_row_tail_vars_in_type(&mut field.value, positive, false);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            expose_negative_row_tail_vars_in_type(&mut field.value, positive, false);
+        }
+        expose_negative_row_tail_vars_in_type(&mut spread.tail, positive, false);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                expose_negative_row_tail_vars_in_type(payload, positive, false);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            expose_negative_row_tail_vars_in_type(item, positive, false);
+        }
+    }
+    let mut tail_vars = Vec::new();
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            expose_negative_row_tail_vars_in_type(item, positive, false);
+        }
+        expose_negative_row_tail_vars_in_type(&mut row.tail, positive, false);
+        if expose_current_row && !positive && !row.items.is_empty() {
+            tail_vars.extend(compact_var_set(&row.tail).into_iter().flatten());
+        }
+    }
     ty.vars.extend(tail_vars);
 }
 

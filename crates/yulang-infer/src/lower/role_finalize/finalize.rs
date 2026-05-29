@@ -12,7 +12,8 @@ use crate::scc::{
 };
 use crate::scheme::compact_pos_type;
 use crate::simplify::compact::{
-    CompactType, CompactTypeScheme, preserve_fun_arg_effect_row_tail_vars,
+    CompactType, CompactTypeScheme, expose_negative_row_tail_vars, expose_positive_row_tails,
+    preserve_fun_arg_effect_row_tail_vars,
 };
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
@@ -148,6 +149,13 @@ impl LowerState {
         }) {
             preserve_fun_arg_effect_row_tail_vars(&mut scheme);
         }
+        Some(scheme)
+    }
+
+    pub fn surface_compact_scheme_of(&self, def: DefId) -> Option<CompactTypeScheme> {
+        let mut scheme = self.compact_scheme_of(def)?;
+        expose_positive_row_tails(&mut scheme);
+        expose_negative_row_tail_vars(&mut scheme);
         Some(scheme)
     }
 

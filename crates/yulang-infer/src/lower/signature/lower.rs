@@ -21,8 +21,9 @@ pub fn lower_pure_sig_pos_id(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_pure_sig_neg_id(state, arg, vars);
-            let ret_eff = if let Some(row) = ret_eff.as_ref() {
+            let ret_eff = if let Some(row) = ret_eff {
                 lower_sig_row_pos_id(state, row, vars)
             } else {
                 state.infer.arena.empty_pos_row
@@ -122,8 +123,9 @@ pub fn lower_pure_sig_neg_id(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_pure_sig_pos_id(state, arg, vars);
-            let ret_eff = if let Some(row) = ret_eff.as_ref() {
+            let ret_eff = if let Some(row) = ret_eff {
                 lower_sig_row_neg_id(state, row, vars)
             } else {
                 state.infer.arena.empty_neg_row
@@ -240,12 +242,12 @@ pub fn lower_function_sig_shape(
         return None;
     };
 
+    let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
     let arg_pos = lower_pure_sig_pos_id(state, arg, vars);
     let arg_neg = lower_pure_sig_neg_id(state, arg, vars);
     let ret_pos = lower_pure_sig_pos_id(state, ret, vars);
     let ret_neg = lower_pure_sig_neg_id(state, ret, vars);
-    let (ret_eff_pos, ret_eff_neg, effect_hint) =
-        lower_function_sig_ret_eff(state, ret_eff.as_ref(), vars);
+    let (ret_eff_pos, ret_eff_neg, effect_hint) = lower_function_sig_ret_eff(state, ret_eff, vars);
 
     Some(LoweredFunctionSigShape {
         arg_pos,
@@ -256,6 +258,18 @@ pub fn lower_function_sig_shape(
         ret_eff_neg,
         effect_hint,
     })
+}
+
+fn split_function_return_effect<'a>(
+    ret_eff: Option<&'a SigRow>,
+    ret: &'a SigType,
+) -> (Option<&'a SigRow>, &'a SigType) {
+    if ret_eff.is_none()
+        && let SigType::EffectPrefixed { eff, ret, .. } = ret
+    {
+        return (Some(eff), ret.as_ref());
+    }
+    (ret_eff, ret)
 }
 
 fn lower_sig_type(
@@ -269,7 +283,8 @@ fn lower_sig_type(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
-            let ret_is_fun = matches!(ret.as_ref(), SigType::Fun { .. });
+            let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
+            let ret_is_fun = matches!(ret, SigType::Fun { .. });
             let ret_ty = lower_sig_type(state, ret, vars, effect_path.clone(), act_arg_tvs);
             let ret_eff = if let Some(row) = ret_eff {
                 lower_sig_row_pos(state, row, vars)
@@ -388,10 +403,10 @@ fn lower_sig_neg_type(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_sig_type(state, arg, vars, Path { segments: vec![] }, act_arg_tvs);
             let arg_eff = state.pos_row(vec![], Pos::Bot);
             let ret_eff = ret_eff
-                .as_ref()
                 .map(|row| lower_sig_row_neg(state, row, vars))
                 .unwrap_or_else(|| {
                     state

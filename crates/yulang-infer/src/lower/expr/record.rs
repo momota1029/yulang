@@ -60,6 +60,7 @@ fn lower_record_literal_fields(
     if node.children().any(|child| {
         !matches!(child.kind(), SyntaxKind::Expr | SyntaxKind::Separator)
             && child.kind() != SyntaxKind::DocCommentDecl
+            && child.kind() != SyntaxKind::BlockComment
             && !(child.kind() == SyntaxKind::InvalidToken && child.to_string().contains(','))
     }) {
         return None;

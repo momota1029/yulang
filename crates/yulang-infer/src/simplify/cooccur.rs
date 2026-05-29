@@ -25,7 +25,7 @@ use group::analyze_group_co_occurrences_with_role_constraints;
 use passes::{
     apply_exact_row_unifications, apply_exact_sandwich_removal,
     apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
-    apply_shadow_var_collapse,
+    apply_row_residual_unifications, apply_shadow_var_collapse,
 };
 use representative::lower_representatives_for_subst;
 
@@ -139,7 +139,6 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &current_scheme,
             &current_constraints,
         );
-        let exact_info = ExactInfo::from_analysis(&analysis);
         all_vars.extend(group_analysis.types.keys().copied());
         all_vars.extend(group_analysis.effect_types.keys().copied());
         all_vars.extend(group_analysis.effects.keys().copied());
@@ -155,7 +154,16 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &protected_vars,
             &mut subst,
         );
+        apply_row_residual_unifications(
+            &current_scheme,
+            &current_constraints,
+            &mut rec_vars,
+            &mut analysis,
+            &protected_vars,
+            &mut subst,
+        );
         apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &protected_vars, &mut subst);
+        let exact_info = ExactInfo::from_analysis(&analysis);
         apply_exact_row_unifications(
             &all_vars,
             &exact_info,
@@ -589,6 +597,8 @@ pub(crate) fn is_effectively_recursive(
 fn is_trivial_self_bounds(tv: TypeVar, bounds: &CompactBounds) -> bool {
     (is_empty_compact_type(&bounds.lower) && is_only_self_var(&bounds.upper, tv))
         || (is_only_self_var(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
+        || (is_empty_compact_type(&bounds.lower) && is_only_self_empty_row(&bounds.upper, tv))
+        || (is_only_self_empty_row(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
 }
 
 fn is_only_self_var(ty: &CompactType, tv: TypeVar) -> bool {
@@ -602,6 +612,18 @@ fn is_only_self_var(ty: &CompactType, tv: TypeVar) -> bool {
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
+}
+
+fn is_only_self_empty_row(ty: &CompactType, tv: TypeVar) -> bool {
+    ty.vars.is_empty()
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && matches!(ty.rows.as_slice(), [row] if row.items.is_empty() && is_only_self_var(&row.tail, tv))
 }
 
 fn is_empty_compact_type(ty: &CompactType) -> bool {
@@ -734,13 +756,13 @@ mod tests {
         coalesce_by_co_occurrence_with_role_constraints_report,
         coalesce_by_co_occurrence_with_role_constraints_report_inner, exact_occurrences,
     };
-    use crate::fresh_type_var;
     use crate::simplify::compact::merge_compact_types;
     use crate::simplify::compact::{
         CompactBounds, CompactCon, CompactRecordSpread, CompactRow, CompactType, CompactTypeScheme,
     };
     use crate::symbols::{Name, Path};
     use crate::types::RecordField;
+    use crate::{fresh_type_var, ids::TypeVar};
 
     #[test]
     fn analyze_co_occurrences_collects_positive_group() {
@@ -1500,6 +1522,65 @@ mod tests {
     }
 
     #[test]
+    fn coalesce_by_co_occurrence_shares_open_row_residuals_across_polarities() {
+        let negative_residual = fresh_type_var();
+        let positive_residual = fresh_type_var();
+        let io_path = Path {
+            segments: vec![Name("io".to_string())],
+        };
+        let effect_item = CompactType {
+            prims: HashSet::from([io_path]),
+            ..CompactType::default()
+        };
+        let effect_row = |tail| CompactType {
+            rows: vec![CompactRow {
+                items: vec![effect_item.clone()],
+                tail: Box::new(CompactType {
+                    vars: HashSet::from([tail]),
+                    ..CompactType::default()
+                }),
+            }],
+            ..CompactType::default()
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType {
+                            funs: vec![crate::simplify::compact::CompactFun {
+                                arg: CompactType::default(),
+                                arg_eff: CompactType::default(),
+                                ret_eff: effect_row(negative_residual),
+                                ret: CompactType::default(),
+                            }],
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType::default(),
+                        ret_eff: effect_row(positive_residual),
+                        ret: CompactType::default(),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let outer = &coalesced.cty.lower.funs[0];
+        let arg_fun = &outer.arg.funs[0];
+        let arg_residual = single_var(&arg_fun.ret_eff.rows[0].tail.vars);
+        assert_eq!(
+            arg_fun.ret_eff.rows[0].tail.vars,
+            HashSet::from([arg_residual])
+        );
+        assert_eq!(outer.ret_eff.vars, HashSet::from([arg_residual]));
+        assert!(outer.ret_eff.rows[0].tail.vars.is_empty());
+        assert!(outer.ret_eff.rows[0].tail.rows.is_empty());
+    }
+
+    #[test]
     fn coalesce_by_co_occurrence_merges_indistinguishable_effect_arg_vars() {
         let a = fresh_type_var();
         let b = fresh_type_var();
@@ -1598,5 +1679,10 @@ mod tests {
         assert_eq!(fun.arg_eff.vars.len(), 1);
         assert_eq!(fun.ret_eff.vars.len(), 1);
         assert_eq!(fun.arg_eff.vars, fun.ret_eff.vars);
+    }
+
+    fn single_var(vars: &HashSet<TypeVar>) -> TypeVar {
+        assert_eq!(vars.len(), 1);
+        *vars.iter().next().unwrap()
     }
 }

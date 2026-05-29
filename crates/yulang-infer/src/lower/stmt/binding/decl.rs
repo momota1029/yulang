@@ -114,6 +114,7 @@ pub(crate) fn lower_binding_with_type_scope(
             }
         };
 
+        super::super::connect_binding_body_effect_annotation(state, &header, raw_body.eff);
         let cast_body = super::super::apply_binding_type_annotation_cast(state, &header, raw_body);
         let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
         if let Some(def) = owner {
@@ -359,6 +360,7 @@ fn lower_dotted_method_binding(
         }
     };
 
+    super::super::connect_binding_body_effect_annotation(state, header, raw_body.eff);
     let cast_body = super::super::apply_binding_type_annotation_cast(state, header, raw_body);
     let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
     state.insert_principal_body(def, body_expr.clone());

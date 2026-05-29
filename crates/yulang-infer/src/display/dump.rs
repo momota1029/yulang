@@ -89,6 +89,14 @@ fn collect_compact_results_for_paths_impl(
             if let Some(scheme) = state.runtime_export_schemes.get(def) {
                 return Some((label, format_runtime_export_scheme(scheme)));
             }
+            if let Some(&pos_sig) = state.effect_op_pos_sigs.get(def) {
+                let scheme = crate::scheme::freeze_pos_scheme(&state.infer, pos_sig);
+                let constraints = state.infer.role_constraints_of(*def);
+                return Some((
+                    label,
+                    format_frozen_scheme_with_role_constraints(&state.infer, &scheme, &constraints),
+                ));
+            }
             if let Some(scheme) = state.compact_scheme_of(*def) {
                 let constraints = state.infer.compact_role_constraints_of(*def);
                 return Some((

@@ -57,8 +57,18 @@ fn lower_impl_decl_with_receiver(
             impl_scope_names.push(info.name.clone());
         }
     }
-    let impl_scope = fresh_type_scope(state, &impl_scope_names);
-    let role_sig_bindings = collect_impl_role_sig_bindings(&role_infos, &args, &assoc_eqs);
+    let mut impl_scope = fresh_type_scope(state, &impl_scope_names);
+    if let Some(first_input) = role_infos.iter().find(|info| info.is_input)
+        && let Some(&self_tv) = impl_scope.get(&first_input.name)
+    {
+        impl_scope.insert("self".to_string(), self_tv);
+    }
+    let mut role_sig_bindings = collect_impl_role_sig_bindings(&role_infos, &args, &assoc_eqs);
+    if let Some(first_input) = role_infos.iter().find(|info| info.is_input)
+        && let Some(self_sig) = role_sig_bindings.get(&first_input.name).cloned()
+    {
+        role_sig_bindings.insert("self".to_string(), self_sig);
+    }
     let member_defs = if let Some(body) = child_node(node, SyntaxKind::IndentBlock)
         .or_else(|| child_node(node, SyntaxKind::BraceGroup))
     {

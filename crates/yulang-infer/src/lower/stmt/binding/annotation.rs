@@ -9,6 +9,7 @@ pub(crate) fn connect_binding_type_annotation(
     state: &mut LowerState,
     header: &SyntaxNode,
     body_tv: TypeVar,
+    body_eff_tv: Option<TypeVar>,
 ) {
     let Some(pattern) = super::super::child_node(header, SyntaxKind::Pattern) else {
         return;
@@ -22,15 +23,45 @@ pub(crate) fn connect_binding_type_annotation(
         return;
     };
     let mut vars = state.current_type_scope().cloned().unwrap_or_default();
-    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
-    let mut neg_vars = vars.clone();
-    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
     let cause = ConstraintCause {
         span: Some(type_expr.text_range()),
         reason: ConstraintReason::Annotation,
     };
+    if let crate::lower::signature::SigType::EffectPrefixed { eff, ret, .. } = &sig {
+        connect_binding_return_effect_annotation(state, eff, body_eff_tv, &mut vars, &cause);
+        let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, ret, &mut vars);
+        let mut neg_vars = vars.clone();
+        let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, ret, &mut neg_vars);
+        let ann_tv = fresh_annotation_tv(state, pos_sig, neg_sig, &cause);
+        connect_annotated_target(state, body_tv, ann_tv, cause);
+        return;
+    }
+    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
+    let mut neg_vars = vars.clone();
+    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
     let ann_tv = fresh_annotation_tv(state, pos_sig, neg_sig, &cause);
     connect_annotated_target(state, body_tv, ann_tv, cause);
+}
+
+fn connect_binding_return_effect_annotation(
+    state: &mut LowerState,
+    eff: &crate::lower::signature::SigRow,
+    body_eff_tv: Option<TypeVar>,
+    vars: &mut std::collections::HashMap<String, TypeVar>,
+    cause: &ConstraintCause,
+) {
+    let Some(body_eff_tv) = body_eff_tv else {
+        return;
+    };
+    let pos_sig = crate::lower::signature::lower_sig_row_pos_id(state, eff, vars);
+    let mut neg_vars = vars.clone();
+    let neg_sig = crate::lower::signature::lower_sig_row_neg_id(state, eff, &mut neg_vars);
+    state
+        .infer
+        .constrain_with_cause(pos_sig, Neg::Var(body_eff_tv), cause.clone());
+    state
+        .infer
+        .constrain_with_cause(Pos::Var(body_eff_tv), neg_sig, cause.clone());
 }
 
 pub(crate) fn apply_binding_type_annotation_cast(
@@ -44,6 +75,27 @@ pub(crate) fn apply_binding_type_annotation_cast(
     state
         .implicit_cast_boundary(body, ann_tv, ExpectedEdgeKind::Annotation, cause, true)
         .0
+}
+
+pub(crate) fn connect_binding_body_effect_annotation(
+    state: &mut LowerState,
+    header: &SyntaxNode,
+    body_eff_tv: TypeVar,
+) {
+    let Some(type_expr) = binding_type_annotation_expr(header) else {
+        return;
+    };
+    let Some(crate::lower::signature::SigType::EffectPrefixed { eff, .. }) =
+        crate::lower::signature::parse_sig_type_expr(&type_expr)
+    else {
+        return;
+    };
+    let mut vars = state.current_type_scope().cloned().unwrap_or_default();
+    let cause = ConstraintCause {
+        span: Some(type_expr.text_range()),
+        reason: ConstraintReason::Annotation,
+    };
+    connect_binding_return_effect_annotation(state, &eff, Some(body_eff_tv), &mut vars, &cause);
 }
 
 pub(crate) fn connect_pattern_sig_annotation(

@@ -34,6 +34,11 @@ impl Infer {
         self.resolve_selection_def_inner(recv_tv, name, &mut seen)
     }
 
+    fn resolve_concrete_type_field_def(&self, recv_tv: TypeVar, name: &Name) -> Option<DefId> {
+        let mut seen = HashSet::new();
+        self.resolve_concrete_type_field_def_inner(recv_tv, name, &mut seen)
+    }
+
     pub fn resolve_final_structural_record_selections(&self) {
         let keys: Vec<_> = self.deferred_selections.borrow().keys().copied().collect();
         for recv_tv in keys {
@@ -163,6 +168,14 @@ impl Infer {
 
         if let Some(projection) = self.resolve_ref_field_projection_info(recv_tv, &selection.name) {
             if self.resolve_ref_field_projection_selection(recv_tv, selection, projection, true) {
+                return true;
+            }
+        }
+
+        if self.role_methods.contains_key(&selection.name)
+            && let Some(def) = self.resolve_concrete_type_field_def(recv_tv, &selection.name)
+        {
+            if self.resolve_method_def_selection(recv_tv, selection, def) {
                 return true;
             }
         }
@@ -385,6 +398,93 @@ impl Infer {
         }
 
         None
+    }
+
+    fn resolve_concrete_type_field_def_inner(
+        &self,
+        recv_tv: TypeVar,
+        name: &Name,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<DefId> {
+        if !seen.insert(recv_tv) {
+            return None;
+        }
+
+        for lower in self.lower_refs_of(recv_tv) {
+            if let Some(def) =
+                self.resolve_concrete_type_field_def_from_pos(lower, name, recv_tv, seen)
+            {
+                return Some(def);
+            }
+        }
+
+        for upper in self.upper_refs_of(recv_tv) {
+            if let Some(def) =
+                self.resolve_concrete_type_field_def_from_neg(upper, name, recv_tv, seen)
+            {
+                return Some(def);
+            }
+        }
+
+        None
+    }
+
+    fn resolve_concrete_type_field_def_from_pos(
+        &self,
+        pos: PosId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<DefId> {
+        match self.arena.get_pos(pos) {
+            Pos::Con(path, _) => self
+                .type_fields
+                .get(&path)
+                .and_then(|fields| fields.get(name).copied()),
+            Pos::Var(inner) | Pos::Raw(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_concrete_type_field_def_inner(inner, name, seen)
+            }
+            Pos::Union(left, right) => merge_unique_selection_def(
+                self.resolve_concrete_type_field_def_from_pos(
+                    left,
+                    name,
+                    dependent,
+                    &mut seen.clone(),
+                ),
+                self.resolve_concrete_type_field_def_from_pos(right, name, dependent, seen),
+            ),
+            _ => None,
+        }
+    }
+
+    fn resolve_concrete_type_field_def_from_neg(
+        &self,
+        neg: NegId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<DefId> {
+        match self.arena.get_neg(neg) {
+            Neg::Con(path, _) => self
+                .type_fields
+                .get(&path)
+                .and_then(|fields| fields.get(name).copied()),
+            Neg::Var(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_concrete_type_field_def_inner(inner, name, seen)
+            }
+            Neg::Intersection(left, right) => merge_unique_selection_def(
+                self.resolve_concrete_type_field_def_from_neg(
+                    left,
+                    name,
+                    dependent,
+                    &mut seen.clone(),
+                ),
+                self.resolve_concrete_type_field_def_from_neg(right, name, dependent, seen),
+            ),
+            _ => None,
+        }
     }
 
     fn resolve_method_def_selection(

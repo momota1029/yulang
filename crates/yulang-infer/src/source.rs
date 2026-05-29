@@ -3004,9 +3004,11 @@ fn collect_std_snapshot_schemes(
             } else {
                 return None;
             };
-            let rendered = crate::display::dump::format_compact_scheme(
-                compact.as_ref().expect("compact scheme should exist"),
-            );
+            let rendered_compact = state
+                .surface_compact_scheme_of(*def)
+                .or_else(|| compact.clone())
+                .expect("compact scheme should exist");
+            let rendered = crate::display::dump::format_compact_scheme(&rendered_compact);
             Some(StdInferSnapshotScheme {
                 symbol: *symbol,
                 rendered,

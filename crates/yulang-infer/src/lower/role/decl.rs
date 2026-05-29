@@ -20,7 +20,12 @@ pub(crate) fn lower_role_decl(state: &mut LowerState, node: &SyntaxNode) {
         .cloned()
         .chain(assoc_names.iter().cloned())
         .collect::<Vec<_>>();
-    let role_scope = fresh_type_scope(state, &role_arg_names);
+    let mut role_scope = fresh_type_scope(state, &role_arg_names);
+    if let Some(first_input) = input_names.first()
+        && let Some(&self_tv) = role_scope.get(first_input)
+    {
+        role_scope.insert("self".to_string(), self_tv);
+    }
     let role_arg_tvs = role_arg_names
         .iter()
         .filter_map(|name| role_scope.get(name).copied())
