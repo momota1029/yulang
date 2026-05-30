@@ -161,6 +161,11 @@ pub struct Infer {
     pub upper_members: RefCell<FxHashSet<(TypeVar, NegId)>>,
     pub compact_lower_instances: RefCell<FxHashMap<TypeVar, SmallVec<[OwnedSchemeInstance; 2]>>>,
     pub through: RefCell<FxHashSet<TypeVar>>,
+    /// エフェクト行変数 ρ に bind された handled アトム H_b（新エフェクト理論 §2.4）。
+    /// 「ρ は H_b について EFF-BIND 特殊推論の対象」というメタ情報だけを持ち、
+    /// 残差の実体は ρ の通常の上下界側にある（旧 `lambda_param_source_eff_tvs` の
+    /// ように残差変数そのものを側テーブルへ逃がすことはしない）。
+    pub eff_binds: RefCell<FxHashMap<TypeVar, Vec<crate::types::EffectAtom>>>,
     pub handler_matches: RefCell<Vec<HandlerMatchEdge>>,
     pub handler_match_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[usize; 2]>>>,
     pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
@@ -211,6 +216,7 @@ impl Infer {
             upper_members: RefCell::new(FxHashSet::default()),
             compact_lower_instances: RefCell::new(FxHashMap::default()),
             through: RefCell::new(FxHashSet::default()),
+            eff_binds: RefCell::new(FxHashMap::default()),
             handler_matches: RefCell::new(Vec::new()),
             handler_match_dependents: RefCell::new(FxHashMap::default()),
             effect_boundary_keeps: RefCell::new(FxHashMap::default()),
@@ -753,6 +759,29 @@ impl Infer {
 
     pub fn alloc_neg(&self, n: Neg) -> NegId {
         self.arena.alloc_neg(n)
+    }
+
+    /// ρ に handled アトム H_b を bind する（新エフェクト理論 §2.4.1）。
+    /// 以後 `lower <: ρ` の向きの制約に対して EFF-BIND 特殊推論が走る。
+    pub fn register_eff_bind(&self, rho: TypeVar, handled: Vec<crate::types::EffectAtom>) {
+        if handled.is_empty() {
+            return;
+        }
+        let mut binds = self.eff_binds.borrow_mut();
+        let entry = binds.entry(rho).or_default();
+        for atom in handled {
+            if !entry.contains(&atom) {
+                entry.push(atom);
+            }
+        }
+    }
+
+    pub fn eff_binds_of(&self, rho: TypeVar) -> Vec<crate::types::EffectAtom> {
+        self.eff_binds.borrow().get(&rho).cloned().unwrap_or_default()
+    }
+
+    pub fn is_eff_bound(&self, rho: TypeVar) -> bool {
+        self.eff_binds.borrow().contains_key(&rho)
     }
 
     pub fn mark_through(&self, tv: TypeVar) {
