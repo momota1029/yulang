@@ -15,6 +15,10 @@ use crate::simplify::compact::{
     CompactBounds, CompactTypeScheme, compact_neg_expr, compact_pos_expr,
     compact_type_vars_in_order, compact_type_vars_in_order_profiled,
 };
+use crate::simplify::compact::{
+    coalesce_multi_function_effect_residuals_in_scheme,
+    coalesce_nested_tail_function_effect_residuals_in_scheme,
+};
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
     coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars,
@@ -287,6 +291,9 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
             let mut frozen = infer.frozen_schemes.borrow().get(&item.def).cloned();
 
             if item.needs_compact || item.needs_frozen {
+                let mut compact = compact.clone();
+                let exposed_boundary_vars =
+                    coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
                 let compact_role_constraints = if item.needs_compact {
                     let role_constraints_start = Instant::now();
                     let constraints = compact_role_constraints(infer, item.def);
@@ -298,11 +305,12 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
 
                 let cooccur_start = Instant::now();
                 let non_generic_roots = infer.non_generic_vars_of(item.def);
-                let non_generic = collect_non_generic_vars(infer, &non_generic_roots);
-                let (scheme, compact_role_constraints) =
+                let mut non_generic = collect_non_generic_vars(infer, &non_generic_roots);
+                non_generic.extend(exposed_boundary_vars);
+                let (mut scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
                         coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
-                            compact,
+                            &compact,
                             &constraints,
                             |role| {
                                 let infos = infer.role_arg_infos_of(role);
@@ -313,12 +321,13 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                         )
                     } else {
                         coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
-                            compact,
+                            &compact,
                             &[],
                             |_| None,
                             &non_generic,
                         )
                     };
+                coalesce_multi_function_effect_residuals_in_scheme(&mut scheme);
                 profile.cooccur += cooccur_start.elapsed();
 
                 let freeze_start = Instant::now();

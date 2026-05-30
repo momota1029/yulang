@@ -279,6 +279,24 @@ pub(crate) fn coalesce_function_effect_residuals_in_scheme(scheme: &mut CompactT
     }
 }
 
+pub(crate) fn coalesce_multi_function_effect_residuals_in_scheme(scheme: &mut CompactTypeScheme) {
+    coalesce_multi_function_effect_residuals_in_bounds(&mut scheme.cty);
+    for bounds in scheme.rec_vars.values_mut() {
+        coalesce_multi_function_effect_residuals_in_bounds(bounds);
+    }
+}
+
+pub(crate) fn coalesce_nested_tail_function_effect_residuals_in_scheme(
+    scheme: &mut CompactTypeScheme,
+) -> HashSet<TypeVar> {
+    let mut exposed = HashSet::new();
+    coalesce_nested_tail_function_effect_residuals_in_bounds(&mut scheme.cty, &mut exposed);
+    for bounds in scheme.rec_vars.values_mut() {
+        coalesce_nested_tail_function_effect_residuals_in_bounds(bounds, &mut exposed);
+    }
+    exposed
+}
+
 fn coalesce_function_effect_residuals_in_bounds(bounds: &mut CompactBounds) {
     coalesce_function_effect_residuals_in_type(&mut bounds.lower);
     coalesce_function_effect_residuals_in_type(&mut bounds.upper);
@@ -326,6 +344,131 @@ fn coalesce_function_effect_residuals_in_type(ty: &mut CompactType) {
         }
         coalesce_function_effect_residuals_in_type(&mut row.tail);
     }
+}
+
+fn coalesce_multi_function_effect_residuals_in_bounds(bounds: &mut CompactBounds) {
+    coalesce_multi_function_effect_residuals_in_type(&mut bounds.lower);
+    coalesce_multi_function_effect_residuals_in_type(&mut bounds.upper);
+}
+
+fn coalesce_multi_function_effect_residuals_in_type(ty: &mut CompactType) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            coalesce_multi_function_effect_residuals_in_bounds(arg);
+        }
+    }
+    for fun in &mut ty.funs {
+        coalesce_multi_function_effect_residuals_in_type(&mut fun.arg);
+        coalesce_multi_function_effect_residuals_in_type(&mut fun.arg_eff);
+        coalesce_multi_function_effect_residuals_in_type(&mut fun.ret_eff);
+        coalesce_multi_function_effect_residuals_in_type(&mut fun.ret);
+        if fun.ret_eff.vars.len() > 1 {
+            coalesce_function_effect_residual(&mut fun.arg_eff, &mut fun.ret_eff);
+        }
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            coalesce_multi_function_effect_residuals_in_type(&mut field.value);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            coalesce_multi_function_effect_residuals_in_type(&mut field.value);
+        }
+        coalesce_multi_function_effect_residuals_in_type(&mut spread.tail);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                coalesce_multi_function_effect_residuals_in_type(payload);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            coalesce_multi_function_effect_residuals_in_type(item);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            coalesce_multi_function_effect_residuals_in_type(item);
+        }
+        coalesce_multi_function_effect_residuals_in_type(&mut row.tail);
+    }
+}
+
+fn coalesce_nested_tail_function_effect_residuals_in_bounds(
+    bounds: &mut CompactBounds,
+    exposed: &mut HashSet<TypeVar>,
+) {
+    coalesce_nested_tail_function_effect_residuals_in_type(&mut bounds.lower, exposed);
+    coalesce_nested_tail_function_effect_residuals_in_type(&mut bounds.upper, exposed);
+}
+
+fn coalesce_nested_tail_function_effect_residuals_in_type(
+    ty: &mut CompactType,
+    exposed: &mut HashSet<TypeVar>,
+) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            coalesce_nested_tail_function_effect_residuals_in_bounds(arg, exposed);
+        }
+    }
+    for fun in &mut ty.funs {
+        coalesce_nested_tail_function_effect_residuals_in_type(&mut fun.arg, exposed);
+        coalesce_nested_tail_function_effect_residuals_in_type(&mut fun.arg_eff, exposed);
+        coalesce_nested_tail_function_effect_residuals_in_type(&mut fun.ret_eff, exposed);
+        coalesce_nested_tail_function_effect_residuals_in_type(&mut fun.ret, exposed);
+        if fun.ret_eff.vars.len() > 1 && has_nested_effect_row_tail(&fun.arg_eff) {
+            let ret_vars = fun.ret_eff.vars.clone();
+            let mut tail_vars = HashSet::new();
+            collect_effect_row_tail_vars_with_items(&fun.arg_eff, &ret_vars, &mut tail_vars);
+            coalesce_function_effect_residual(&mut fun.arg_eff, &mut fun.ret_eff);
+            if let Some(representative) = tail_vars
+                .into_iter()
+                .filter(|tv| fun.ret_eff.vars.contains(tv))
+                .min_by_key(|tv| tv.0)
+            {
+                exposed.insert(representative);
+            }
+        }
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            coalesce_nested_tail_function_effect_residuals_in_type(&mut field.value, exposed);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            coalesce_nested_tail_function_effect_residuals_in_type(&mut field.value, exposed);
+        }
+        coalesce_nested_tail_function_effect_residuals_in_type(&mut spread.tail, exposed);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                coalesce_nested_tail_function_effect_residuals_in_type(payload, exposed);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            coalesce_nested_tail_function_effect_residuals_in_type(item, exposed);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            coalesce_nested_tail_function_effect_residuals_in_type(item, exposed);
+        }
+        coalesce_nested_tail_function_effect_residuals_in_type(&mut row.tail, exposed);
+    }
+}
+
+fn has_nested_effect_row_tail(ty: &CompactType) -> bool {
+    ty.rows.iter().any(|row| {
+        (!row.items.is_empty() && !row.tail.rows.is_empty())
+            || has_nested_effect_row_tail(&row.tail)
+    })
 }
 
 fn collect_effect_row_tail_vars_with_items(

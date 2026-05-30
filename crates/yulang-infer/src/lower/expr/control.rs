@@ -137,7 +137,19 @@ where
 
     state.ctx.push_local();
     state.ctx.bind_local(label_name, self_def);
+    if let Some(&tv) = state.provisional_self_root_tvs.get(&self_def) {
+        let eff_tv = state
+            .def_eff_tvs
+            .get(&self_def)
+            .copied()
+            .unwrap_or_else(|| state.fresh_exact_pure_eff_tv());
+        state.activate_recursive_self_instance(
+            self_def,
+            crate::lower::ActiveRecursiveSelfInstance { tv, eff_tv },
+        );
+    }
     let body = state.with_owner(self_def, |state| lower_body(state, receiver));
+    state.deactivate_recursive_self_instance(self_def);
     state.ctx.pop_local();
 
     let body_expr = case_like_lambda_expr(state, receiver, body, arg_eff_tv);
