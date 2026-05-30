@@ -9,6 +9,13 @@ pub fn project_runtime_effect(ty: &typed_ir::Type) -> typed_ir::Type {
     RuntimeTypeProjector::new(&BTreeSet::new()).project_effect(ty)
 }
 
+pub fn project_runtime_effect_with_vars(
+    ty: &typed_ir::Type,
+    allowed_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::Type {
+    RuntimeTypeProjector::new(allowed_vars).project_effect(ty)
+}
+
 pub fn project_runtime_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
     RuntimeTypeProjector::new(&BTreeSet::new()).project_bounds(bounds)
 }

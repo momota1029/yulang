@@ -17,7 +17,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
-    coalesce_by_co_occurrence_with_role_constraint_inputs,
+    coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected,
 };
 use crate::solve::Infer;
 
@@ -297,9 +297,10 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 };
 
                 let cooccur_start = Instant::now();
+                let non_generic = infer.non_generic_vars_of(item.def);
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs(
+                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
                             compact,
                             &constraints,
                             |role| {
@@ -307,9 +308,15 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                                 (!infos.is_empty())
                                     .then(|| infos.into_iter().map(|info| info.is_input).collect())
                             },
+                            &non_generic,
                         )
                     } else {
-                        (coalesce_by_co_occurrence(compact), Vec::new())
+                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+                            compact,
+                            &[],
+                            |_| None,
+                            &non_generic,
+                        )
                     };
                 profile.cooccur += cooccur_start.elapsed();
 
@@ -320,7 +327,7 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                     infer,
                     scheme.clone(),
                     extra_quantified.as_slice(),
-                    &infer.non_generic_vars_of(item.def),
+                    &non_generic,
                 );
                 profile.freeze += freeze_start.elapsed();
                 if item.needs_compact {

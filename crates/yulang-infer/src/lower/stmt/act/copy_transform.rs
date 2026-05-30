@@ -191,8 +191,9 @@ fn transform_copied_expr_kind(
                 .state
                 .lambda_param_function_sig_hints
                 .get(def)
-                .cloned()
+                .copied()
             {
+                let hint = types.copy_function_sig_effect_hint(hint);
                 types
                     .state
                     .lambda_param_function_sig_hints
@@ -777,6 +778,27 @@ impl<'a> CopiedTypeVars<'a> {
         }
 
         mapped
+    }
+
+    fn copy_function_sig_effect_hint(
+        &mut self,
+        hint: crate::lower::FunctionSigEffectHint,
+    ) -> crate::lower::FunctionSigEffectHint {
+        match hint {
+            crate::lower::FunctionSigEffectHint::Pure => crate::lower::FunctionSigEffectHint::Pure,
+            crate::lower::FunctionSigEffectHint::Through => {
+                crate::lower::FunctionSigEffectHint::Through
+            }
+            crate::lower::FunctionSigEffectHint::LowerBound(lower) => {
+                crate::lower::FunctionSigEffectHint::LowerBound(self.copy_pos_id(lower))
+            }
+            crate::lower::FunctionSigEffectHint::Bounds(lower, upper) => {
+                crate::lower::FunctionSigEffectHint::Bounds(
+                    self.copy_pos_id(lower),
+                    self.copy_neg_id(upper),
+                )
+            }
+        }
     }
 
     fn into_subst(self) -> Vec<(TypeVar, TypeVar)> {

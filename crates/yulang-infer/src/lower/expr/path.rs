@@ -379,9 +379,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
     }
     if let (Some(owner), Some(def_owner)) = (state.current_owner, state.def_owner(def)) {
         if owner != def_owner {
-            if let Some(&def_tv) = state.def_tvs.get(&def) {
-                state.infer.add_non_generic_var(owner, def_tv);
-            }
+            state.add_captured_def_non_generic_vars(owner, def);
         }
     }
     if state.current_owner == Some(def) {

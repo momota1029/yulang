@@ -2,14 +2,45 @@ use crate::ids::{DefId, RefId, TypeVar};
 use crate::symbols::{Name, Path};
 use yulang_typed_ir as typed_ir;
 
-/// 型変数つき式。tv は lowering 時に発行された fresh な TypeVar。
-/// eff はこの式の computation effect を表す TypeVar。
-/// 実際の型・エフェクトは制約テーブルを引くまで不明。
+/// 計算としての式型。
+///
+/// `value` は式が返す値、`effect` は評価中に発生しうる effect row。
+/// 理論上は `thunk[effect, value]` に対応する。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ComputationTy {
+    pub value: TypeVar,
+    pub effect: TypeVar,
+}
+
+impl ComputationTy {
+    pub fn new(value: TypeVar, effect: TypeVar) -> Self {
+        Self { value, effect }
+    }
+}
+
+/// 型変数つき式。
+///
+/// 既存コードとの互換のため `tv` / `eff` フィールドを残しているが、意味上は
+/// `ComputationTy { value: tv, effect: eff }` が主役。
 #[derive(Debug, Clone)]
 pub struct TypedExpr {
     pub tv: TypeVar,
     pub eff: TypeVar,
     pub kind: ExprKind,
+}
+
+impl TypedExpr {
+    pub fn new(ty: ComputationTy, kind: ExprKind) -> Self {
+        Self {
+            tv: ty.value,
+            eff: ty.effect,
+            kind,
+        }
+    }
+
+    pub fn computation_ty(&self) -> ComputationTy {
+        ComputationTy::new(self.tv, self.eff)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +112,12 @@ pub struct TypedBlock {
     pub eff: TypeVar,
     pub stmts: Vec<TypedStmt>,
     pub tail: Option<Box<TypedExpr>>,
+}
+
+impl TypedBlock {
+    pub fn computation_ty(&self) -> ComputationTy {
+        ComputationTy::new(self.tv, self.eff)
+    }
 }
 
 #[derive(Debug, Clone)]

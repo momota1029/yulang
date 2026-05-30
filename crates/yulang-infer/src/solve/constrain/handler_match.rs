@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
@@ -105,8 +107,11 @@ impl Infer {
             return;
         };
 
+        let mut seen = HashSet::new();
         for lower in self.lower_refs_of(edge.actual) {
-            if let Some(residual) = self.solve_handler_match_pos_lower(&edge, lower, cause, cache) {
+            for residual in
+                self.solve_handler_match_pos_lower(&edge, lower, cause, cache, &mut seen)
+            {
                 self.constrain_step_with_hint(
                     residual,
                     self.arena.alloc_neg(Neg::Var(edge.residual)),
@@ -128,34 +133,49 @@ impl Infer {
         lower: PosId,
         cause: &ConstraintCause,
         cache: &mut StepCache,
-    ) -> Option<PosId> {
-        let Pos::Row(items, tail) = self.arena.get_pos(lower) else {
-            return None;
+        seen: &mut HashSet<TypeVar>,
+    ) -> Vec<PosId> {
+        let lower = self.arena.get_pos(lower).clone();
+        let Pos::Row(items, tail) = lower else {
+            let Pos::Var(source) = lower else {
+                return Vec::new();
+            };
+            if !seen.insert(source) {
+                return Vec::new();
+            }
+            return self
+                .lower_refs_of(source)
+                .into_iter()
+                .flat_map(|lower| {
+                    self.solve_handler_match_pos_lower(edge, lower, cause, cache, seen)
+                })
+                .collect();
         };
         let mut kept = Vec::new();
         let mut removed_any = false;
-        for item in items {
+        for item in &items {
             if let Some(handled) =
-                self.capturing_handler_for_pos_item(&edge.keep, &edge.handled, item)
+                self.capturing_handler_for_pos_item(&edge.keep, &edge.handled, *item)
             {
                 removed_any = true;
-                self.constrain_row_item_match(item, handled, cause, cache);
+                self.constrain_row_item_match(*item, handled, cause, cache);
             } else {
-                kept.push(item);
+                kept.push(*item);
             }
         }
-        if matches!(edge.keep, ShiftKeep::Set(_))
-            || (!edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot))
-        {
-            return None;
+        if !edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot) {
+            return Vec::new();
         }
-        removed_any.then(|| {
-            if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
-                tail
-            } else {
-                self.arena.alloc_pos(Pos::Row(kept, tail))
-            }
-        })
+        removed_any
+            .then(|| {
+                if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
+                    tail
+                } else {
+                    self.arena.alloc_pos(Pos::Row(kept, tail))
+                }
+            })
+            .into_iter()
+            .collect()
     }
 
     fn capturing_handler_for_pos_item(
@@ -241,6 +261,77 @@ mod tests {
     }
 
     #[test]
+    fn handler_match_subtracts_indirect_lower_row() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let source = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let atom = EffectAtom {
+            path: path("io"),
+            args: Vec::new(),
+        };
+        infer.constrain(Pos::Var(source), Neg::Var(actual));
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(atom.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(source),
+        );
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(atom))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            infer.upper_refs_of(tail).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
+            }),
+            "handler_match should chase variable lower bounds before subtracting handled rows"
+        );
+    }
+
+    #[test]
+    fn handler_match_subtracts_indirect_through_lower_row() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let source = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let atom = EffectAtom {
+            path: path("io"),
+            args: Vec::new(),
+        };
+        infer.mark_through(tail);
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(atom.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(source),
+        );
+        infer.constrain(Pos::Var(source), Neg::Var(actual));
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(atom))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            infer.lower_refs_of(residual).into_iter().any(|lower| {
+                matches!(infer.arena.get_pos(lower), Pos::Var(open_tail) if open_tail == tail)
+            }),
+            "handler_match should expose through tails as residual lower bounds"
+        );
+    }
+
+    #[test]
     fn handler_match_does_not_open_naked_actual_var() {
         let infer = Infer::new();
         let actual = fresh_type_var();
@@ -292,6 +383,40 @@ mod tests {
                 matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
             }),
             "open surface subtraction should expose the row tail as the residual"
+        );
+    }
+
+    #[test]
+    fn handler_match_set_keep_subtracts_captured_path_to_tail() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let atom = EffectAtom {
+            path: path("io"),
+            args: Vec::new(),
+        };
+        infer.record_effect_boundary_keep(actual, ShiftKeep::Set(vec![path("io")]));
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(atom.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(actual),
+        );
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(atom))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            infer.upper_refs_of(tail).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
+            }),
+            "a path-limited handler still exposes the source tail after subtracting a captured path"
         );
     }
 

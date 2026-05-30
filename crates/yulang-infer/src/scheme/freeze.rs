@@ -735,8 +735,10 @@ fn collect_non_generic_vars(infer: &Infer, roots: &HashSet<TypeVar>) -> HashSet<
         out.insert(*root);
         let compact = compact_type_var(infer, *root);
         let scheme = coalesce_by_co_occurrence(&compact);
-        let body = compact_pos_type(&infer.arena, &scheme.cty.lower, &scheme, false);
-        out.extend(collect_pos_free_vars(infer, body));
+        let mut free = Vec::new();
+        collect_compact_type_free_vars(&scheme.cty.lower, &mut free);
+        collect_compact_type_free_vars(&scheme.cty.upper, &mut free);
+        out.extend(free);
     }
     out
 }

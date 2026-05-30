@@ -21,12 +21,16 @@ pub struct BindingGraphNode {
     pub binding: Path,
     pub scheme_body: Type,
     pub body_bounds: TypeBounds,
+    #[serde(default)]
+    pub effect_bounds: TypeBounds,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExprGraphNode {
     pub owner: GraphOwner,
     pub bounds: TypeBounds,
+    #[serde(default)]
+    pub effect_bounds: TypeBounds,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

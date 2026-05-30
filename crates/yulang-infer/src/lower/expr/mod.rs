@@ -91,14 +91,12 @@ pub fn lower_expr(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
 // ── ヘルパー ──────────────────────────────────────────────────────────────────
 
 pub(super) fn unit_expr(state: &mut LowerState) -> TypedExpr {
-    let tv = state.fresh_tv_with_origin(TypeOrigin::synthetic("unit"));
-    let eff = state.fresh_exact_pure_eff_tv();
-    state.infer.constrain(prim_type("unit"), Neg::Var(tv));
-    TypedExpr {
-        tv,
-        eff,
-        kind: ExprKind::Lit(Lit::Unit),
-    }
+    let ty = crate::ast::expr::ComputationTy::new(
+        state.fresh_tv_with_origin(TypeOrigin::synthetic("unit")),
+        state.fresh_exact_pure_eff_tv(),
+    );
+    state.infer.constrain(prim_type("unit"), Neg::Var(ty.value));
+    TypedExpr::new(ty, ExprKind::Lit(Lit::Unit))
 }
 
 #[cfg(test)]

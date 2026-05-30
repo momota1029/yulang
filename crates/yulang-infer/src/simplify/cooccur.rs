@@ -96,11 +96,26 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
+    coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+        scheme,
+        constraints,
+        role_arg_inputs,
+        &HashSet::new(),
+    )
+}
+
+pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+    protected_vars: &HashSet<TypeVar>,
+) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
         Some(&role_arg_inputs),
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+        Some(protected_vars),
     );
     (output.scheme, output.constraints)
 }
@@ -114,6 +129,7 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
         constraints,
         None,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+        None,
     )
 }
 
@@ -124,6 +140,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: Option<&RoleArgInputs<'_>>,
     use_representatives: bool,
+    extra_protected_vars: Option<&HashSet<TypeVar>>,
 ) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
     let mut current_constraints = constraints.to_vec();
@@ -132,6 +149,9 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     loop {
         let mut protected_vars =
             protected_role_constraint_vars(&current_constraints, role_arg_inputs);
+        if let Some(extra) = extra_protected_vars {
+            protected_vars.extend(extra.iter().copied());
+        }
         collect_open_interval_vars(&current_scheme.cty, &mut protected_vars);
         let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
         collect_open_interval_vars_in_constraints(
@@ -1648,9 +1668,14 @@ mod tests {
             rec_vars: Default::default(),
         };
 
-        let coalesced =
-            coalesce_by_co_occurrence_with_role_constraints_report_inner(&scheme, &[], None, true)
-                .scheme;
+        let coalesced = coalesce_by_co_occurrence_with_role_constraints_report_inner(
+            &scheme,
+            &[],
+            None,
+            true,
+            None,
+        )
+        .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());
         assert_eq!(coalesced.cty.lower.funs.len(), 1);
         assert_eq!(

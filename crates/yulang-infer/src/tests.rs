@@ -641,6 +641,23 @@ fn effect_operation_application_records_adapter_edge() {
 }
 
 #[test]
+fn core_graph_root_expr_exports_effect_bounds() {
+    let mut state = parse_and_lower("pub act out:\n  pub say: str -> ()\n\nout::say \"hi\"\n");
+    let program = export_core_program(&mut state);
+    let node = program
+        .graph
+        .root_exprs
+        .first()
+        .expect("root expression graph node");
+
+    assert!(
+        node.effect_bounds.lower.is_some() || node.effect_bounds.upper.is_some(),
+        "root expression graph node should carry computation effect bounds: {:?}",
+        node,
+    );
+}
+
+#[test]
 fn same_path_enum_constructor_and_effect_operation_are_both_tracked() {
     let state = parse_and_lower(
         "enum fs_err = not_found str\n\

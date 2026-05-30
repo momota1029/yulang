@@ -84,16 +84,11 @@ pub(crate) fn wrap_header_lambdas(
         {
             state.register_lambda_param_preserve_arg_tail_var(def);
         }
-        let ret_eff_tv = if matches!(body.kind, ExprKind::Lam(_, _)) {
-            state.fresh_exact_pure_eff_tv()
-        } else {
-            body.eff
-        };
         state.infer.constrain(
             state.pos_fun(
                 Neg::Var(param_tv),
                 Neg::Var(arg_eff_tv),
-                Pos::Var(ret_eff_tv),
+                Pos::Var(body.eff),
                 Pos::Var(body.tv),
             ),
             Neg::Var(tv),

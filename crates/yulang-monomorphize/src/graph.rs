@@ -2379,10 +2379,30 @@ fn collect_effect_item_position_vars(
     match ty {
         typed_ir::Type::Named { args, .. } => {
             for arg in args {
-                collect_type_arg_position_vars(arg, params, vars);
+                collect_effect_atom_arg_position_vars(arg, params, vars);
             }
         }
         other => collect_type_position_vars(other, TypePosition::Effect, params, vars),
+    }
+}
+
+fn collect_effect_atom_arg_position_vars(
+    arg: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    vars: &mut TypePositionVars,
+) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => {
+            collect_type_position_vars(ty, TypePosition::Effect, params, vars);
+        }
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = bounds.lower.as_deref() {
+                collect_type_position_vars(lower, TypePosition::Effect, params, vars);
+            }
+            if let Some(upper) = bounds.upper.as_deref() {
+                collect_type_position_vars(upper, TypePosition::Effect, params, vars);
+            }
+        }
     }
 }
 
@@ -3799,6 +3819,39 @@ mod tests {
         let solution = graph.solve();
 
         assert!(!solution.is_complete());
+    }
+
+    #[test]
+    fn effect_atom_payload_only_type_params_default_as_effect_params() {
+        let payload = typed_ir::TypeVar("payload".into());
+        let binding = Binding {
+            name: path(&["stateful"]),
+            type_params: vec![payload.clone()],
+            scheme: typed_ir::Scheme {
+                requirements: Vec::new(),
+                body: fun_type_with_effects(
+                    unit_type(),
+                    typed_ir::Type::Never,
+                    effect_row(vec![effect_type_arg(
+                        "state",
+                        typed_ir::Type::Var(payload.clone()),
+                    )]),
+                    unit_type(),
+                ),
+            },
+            body: Expr::typed(ExprKind::Tuple(Vec::new()), RuntimeType::Unknown),
+        };
+        let mut graph = TypeGraph::default();
+        let instance = graph.instantiate_principal(&binding);
+        let fresh = instance.type_params[0].fresh.clone();
+
+        graph
+            .default_unbound_lower(instance.effect_only_type_params(), typed_ir::Type::Never)
+            .unwrap();
+        let solution = graph.solve();
+
+        assert!(solution.is_complete());
+        assert_eq!(solution.solution_for(&fresh), Some(&typed_ir::Type::Never));
     }
 
     fn id_binding() -> Binding {

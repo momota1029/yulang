@@ -12,6 +12,7 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
+use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
 use crate::solve::{CastMethodResolution, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
@@ -368,6 +369,14 @@ impl LowerState {
         let tv = self.fresh_tv_at(level);
         self.register_origin(tv, origin);
         tv
+    }
+
+    pub fn fresh_computation_ty(&self) -> crate::ast::expr::ComputationTy {
+        crate::ast::expr::ComputationTy::new(self.fresh_tv(), self.fresh_tv())
+    }
+
+    pub fn fresh_exact_pure_computation_ty(&mut self) -> crate::ast::expr::ComputationTy {
+        crate::ast::expr::ComputationTy::new(self.fresh_tv(), self.fresh_exact_pure_eff_tv())
     }
 
     pub fn register_origin(&self, tv: TypeVar, origin: TypeOrigin) {
@@ -948,6 +957,23 @@ impl LowerState {
             .copied()
     }
 
+    pub fn add_captured_def_non_generic_vars(&self, owner: DefId, def: DefId) {
+        if let Some(&def_tv) = self.def_tvs.get(&def) {
+            self.infer.add_non_generic_var(owner, def_tv);
+        }
+        if let Some(&eff_tv) = self.def_eff_tvs.get(&def) {
+            self.infer.add_non_generic_var(owner, eff_tv);
+        }
+        if let Some(&source_eff) = self.lambda_param_source_eff_tvs.get(&def) {
+            self.infer.add_non_generic_var(owner, source_eff);
+        }
+        if let Some(hint) = self.lambda_param_function_sig_hint(def) {
+            for tv in function_sig_effect_hint_free_vars(&self.infer, hint) {
+                self.infer.add_non_generic_var(owner, tv);
+            }
+        }
+    }
+
     pub fn is_unannotated_current_lambda_param(&self, def: DefId) -> bool {
         self.current_owner
             .is_some_and(|owner| self.def_owner(def) == Some(owner))
@@ -1457,6 +1483,24 @@ impl LowerState {
         self.pop_type_scope();
         out
     }
+}
+
+fn function_sig_effect_hint_free_vars(
+    infer: &Infer,
+    hint: FunctionSigEffectHint,
+) -> HashSet<TypeVar> {
+    let mut out = HashSet::new();
+    match hint {
+        FunctionSigEffectHint::Pure | FunctionSigEffectHint::Through => {}
+        FunctionSigEffectHint::LowerBound(lower) => {
+            out.extend(collect_pos_free_vars(infer, lower));
+        }
+        FunctionSigEffectHint::Bounds(lower, upper) => {
+            out.extend(collect_pos_free_vars(infer, lower));
+            out.extend(collect_neg_free_vars(infer, upper));
+        }
+    }
+    out
 }
 
 fn expected_boundary_expr(

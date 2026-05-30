@@ -623,13 +623,23 @@ fn export_type_graph_view_for_paths(
         .iter()
         .filter_map(|(path, def)| {
             let body_tv = state.def_tvs.get(def).copied()?;
+            let body_comp = state
+                .principal_bodies
+                .get(def)
+                .map(|body| body.computation_ty());
             let binding = bindings
                 .iter()
                 .find(|binding| binding.name == export_path(path))?;
             Some(typed_ir::BindingGraphNode {
                 binding: binding.name.clone(),
                 scheme_body: binding.scheme.body.clone(),
-                body_bounds: export_type_bounds_for_tv(&state.infer, body_tv),
+                body_bounds: export_type_bounds_for_tv(
+                    &state.infer,
+                    body_comp.map_or(body_tv, |ty| ty.value),
+                ),
+                effect_bounds: body_comp
+                    .map(|ty| export_type_bounds_for_tv(&state.infer, ty.effect))
+                    .unwrap_or_default(),
             })
         })
         .collect();
@@ -1292,6 +1302,11 @@ fn export_root_expr_nodes(state: &LowerState) -> Vec<typed_ir::ExprGraphNode> {
                         expr.tv,
                         &BTreeSet::new(),
                     ),
+                    effect_bounds: export_relevant_type_bounds_for_tv(
+                        &state.infer,
+                        expr.eff,
+                        &BTreeSet::new(),
+                    ),
                 });
             }
         }
@@ -1299,6 +1314,11 @@ fn export_root_expr_nodes(state: &LowerState) -> Vec<typed_ir::ExprGraphNode> {
             nodes.push(typed_ir::ExprGraphNode {
                 owner: typed_ir::GraphOwner::RootExpr(nodes.len()),
                 bounds: export_relevant_type_bounds_for_tv(&state.infer, tail.tv, &BTreeSet::new()),
+                effect_bounds: export_relevant_type_bounds_for_tv(
+                    &state.infer,
+                    tail.eff,
+                    &BTreeSet::new(),
+                ),
             });
         }
     }
@@ -1308,16 +1328,19 @@ fn export_root_expr_nodes(state: &LowerState) -> Vec<typed_ir::ExprGraphNode> {
 fn export_owner_root_expr_nodes(state: &LowerState) -> Vec<typed_ir::ExprGraphNode> {
     let mut nodes = Vec::new();
     for owner in &state.top_level_expr_owners {
-        let tv = match state.principal_bodies.get(owner) {
-            Some(body) => body.tv,
+        let (tv, eff) = match state.principal_bodies.get(owner) {
+            Some(body) => (body.tv, Some(body.eff)),
             None => match state.def_tvs.get(owner) {
-                Some(&tv) => tv,
+                Some(&tv) => (tv, None),
                 None => continue,
             },
         };
         nodes.push(typed_ir::ExprGraphNode {
             owner: typed_ir::GraphOwner::RootExpr(nodes.len()),
             bounds: export_relevant_type_bounds_for_tv(&state.infer, tv, &BTreeSet::new()),
+            effect_bounds: eff
+                .map(|eff| export_relevant_type_bounds_for_tv(&state.infer, eff, &BTreeSet::new()))
+                .unwrap_or_default(),
         });
     }
     nodes

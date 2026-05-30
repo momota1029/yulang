@@ -33,22 +33,24 @@ pub(crate) fn make_app_with_cause(
 ) -> TypedExpr {
     let debug_app = debug_app_enabled();
     let passing_style = argument_passing_style(state, &func);
-    let tv = state.fresh_tv_with_origin(TypeOrigin {
-        span: cause.span,
-        file_span: None,
-        kind: TypeOriginKind::ApplicationResult,
-        label: None,
-    });
+    let result_ty = crate::ast::expr::ComputationTy::new(
+        state.fresh_tv_with_origin(TypeOrigin {
+            span: cause.span,
+            file_span: None,
+            kind: TypeOriginKind::ApplicationResult,
+            label: None,
+        }),
+        state.fresh_tv(),
+    );
     let expected_callee_tv = state.fresh_tv();
     let expected_arg_tv = state.fresh_tv();
     let call_eff = state.fresh_tv();
-    let eff = state.fresh_tv();
     if let Some(owner) = cross_owner_function_ref_owner(state, &func) {
-        state.infer.add_non_generic_var(owner, tv);
+        state.infer.add_non_generic_var(owner, result_ty.value);
         state.infer.add_non_generic_var(owner, expected_callee_tv);
         state.infer.add_non_generic_var(owner, expected_arg_tv);
         state.infer.add_non_generic_var(owner, call_eff);
-        state.infer.add_non_generic_var(owner, eff);
+        state.infer.add_non_generic_var(owner, result_ty.effect);
     }
     let pure_argument_slot = func_accepts_pure_argument(state, &func)
         || matches!(func.kind, ExprKind::Select { .. })
@@ -103,7 +105,7 @@ pub(crate) fn make_app_with_cause(
             Pos::Var(expected_arg_tv),
             Pos::Var(arg_eff_for_slot),
             demanded_ret_eff,
-            Neg::Var(tv),
+            Neg::Var(result_ty.value),
         ),
         cause.clone(),
     );
@@ -146,19 +148,29 @@ pub(crate) fn make_app_with_cause(
     if pure_argument_slot {
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
     }
-    state.infer.constrain(Pos::Var(func.eff), Neg::Var(eff));
+    state
+        .infer
+        .constrain(Pos::Var(func.eff), Neg::Var(result_ty.effect));
     if let Some(keep) = thunk_boundary_keep_for_call(state, &func, &arg) {
         state
             .infer
             .record_effect_boundary_keep(call_eff, keep.clone());
-        state.infer.record_effect_boundary_keep(eff, keep);
+        state
+            .infer
+            .record_effect_boundary_keep(result_ty.effect, keep);
     }
-    state.infer.constrain(Pos::Var(call_eff), Neg::Var(eff));
+    state
+        .infer
+        .constrain(Pos::Var(call_eff), Neg::Var(result_ty.effect));
     if pure_argument_slot || anf_arg {
-        state.infer.constrain(Pos::Var(arg.eff), Neg::Var(eff));
+        state
+            .infer
+            .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
     }
     if matches!(&func.kind, ExprKind::Var(def) if state.is_continuation_def(*def)) {
-        state.infer.constrain(Pos::Var(arg.eff), Neg::Var(eff));
+        state
+            .infer
+            .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
     }
 
     if debug_app && matches!(func.kind, ExprKind::Lam(_, _)) {
@@ -184,10 +196,9 @@ pub(crate) fn make_app_with_cause(
         eprintln!("call_eff uppers = {:?}", state.infer.uppers_of(call_eff));
     }
 
-    let result = TypedExpr {
-        tv,
-        eff,
-        kind: ExprKind::App {
+    let result = TypedExpr::new(
+        result_ty,
+        ExprKind::App {
             callee: Box::new(func),
             arg: Box::new(arg),
             callee_edge_id: Some(callee_edge_id),
@@ -195,7 +206,7 @@ pub(crate) fn make_app_with_cause(
             arg_edge_id: Some(arg_edge_id),
             expected_arg_tv,
         },
-    };
+    );
     register_role_method_call_spine(state, &result);
     result
 }

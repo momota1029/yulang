@@ -2904,6 +2904,7 @@ fn compiled_runtime_bundle_prunes_unreachable_dependencies_before_user_program()
             root_exprs: vec![yulang_typed_ir::ExprGraphNode {
                 owner: yulang_typed_ir::GraphOwner::RootExpr(0),
                 bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+                effect_bounds: yulang_typed_ir::TypeBounds::default(),
             }],
             ..yulang_typed_ir::CoreGraphView::default()
         },
@@ -2999,6 +3000,7 @@ fn compiled_runtime_bundle_keeps_transitive_reachable_dependencies() {
             root_exprs: vec![yulang_typed_ir::ExprGraphNode {
                 owner: yulang_typed_ir::GraphOwner::RootExpr(0),
                 bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+                effect_bounds: yulang_typed_ir::TypeBounds::default(),
             }],
             ..yulang_typed_ir::CoreGraphView::default()
         },
@@ -3059,6 +3061,7 @@ fn binding_graph_node(binding: CorePath) -> yulang_typed_ir::BindingGraphNode {
         binding,
         scheme_body: yulang_typed_ir::Type::Any,
         body_bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+        effect_bounds: yulang_typed_ir::TypeBounds::default(),
     }
 }
 
@@ -3103,6 +3106,7 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                     binding: path,
                     scheme_body: yulang_typed_ir::Type::Any,
                     body_bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+                    effect_bounds: yulang_typed_ir::TypeBounds::default(),
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
@@ -3196,6 +3200,7 @@ fn runtime_surface_with_record_default_apply_binding(name: &str) -> CompiledRunt
                     binding: path,
                     scheme_body: any.clone(),
                     body_bounds: any_bounds.clone(),
+                    effect_bounds: yulang_typed_ir::TypeBounds::default(),
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
@@ -5863,7 +5868,7 @@ fn unannotated_second_header_arg_stays_value_arg_after_effectful_first_arg() {
         let rendered = render_compact_results(&mut lowered.state);
         assert_eq!(
             rendered_type(&rendered, "listen"),
-            "Add<std::str::str | β> => α [out; δ] -> β -> [δ] γ | (α, β | std::str::str)"
+            "Add<std::str::str | β> => α [out; γ] -> β -> [γ] (α, β | std::str::str)"
         );
     });
 }

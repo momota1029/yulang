@@ -69,7 +69,6 @@ impl Lowerer<'_> {
         let ty = self
             .root_expr_type(index, &expr)
             .ok_or(RuntimeError::MissingRootType { index })?;
-        let ty = RuntimeType::value(ty);
         self.lower_expr(expr, Some(&ty), &mut HashMap::new(), TypeSource::RootGraph)
     }
 
@@ -2284,6 +2283,7 @@ impl Lowerer<'_> {
             .and_then(|node| self.tir_evidence_runtime_type(&node.body_bounds))
     }
 
+    #[cfg(test)]
     pub(super) fn root_graph_type(&self, index: usize) -> Option<typed_ir::Type> {
         self.graph
             .root_exprs
@@ -2292,18 +2292,34 @@ impl Lowerer<'_> {
             .and_then(|node| project_runtime_bounds(&node.bounds))
     }
 
+    pub(super) fn root_graph_runtime_type(&self, index: usize) -> Option<RuntimeType> {
+        self.graph
+            .root_exprs
+            .iter()
+            .find(|node| node.owner == typed_ir::GraphOwner::RootExpr(index))
+            .and_then(|node| {
+                project_runtime_bounds(&node.bounds)
+                    .map(|value| self.runtime_type_from_graph_bounds(value, &node.effect_bounds))
+            })
+    }
+
     pub(super) fn root_expr_type(
         &self,
         index: usize,
         expr: &typed_ir::Expr,
-    ) -> Option<typed_ir::Type> {
-        match (self.root_graph_type(index), self.visible_expr_type(expr)) {
-            (Some(graph), Some(visible)) if should_use_visible_root_type(&graph, &visible) => {
-                Some(visible)
+    ) -> Option<RuntimeType> {
+        match (
+            self.root_graph_runtime_type(index),
+            self.visible_expr_type(expr),
+        ) {
+            (Some(graph), Some(visible))
+                if should_use_visible_root_type(&runtime_core_type(&graph), &visible) =>
+            {
+                Some(runtime_type_with_visible_value(graph, visible))
             }
             (Some(graph), _) => Some(graph),
             (None, Some(visible)) if can_use_visible_root_type_without_graph(expr, &visible) => {
-                Some(visible)
+                Some(RuntimeType::value(visible))
             }
             (None, _) => None,
         }
@@ -2341,6 +2357,29 @@ impl Lowerer<'_> {
     ) -> Option<typed_ir::Type> {
         choose_bounds_type(bounds, BoundsChoice::TirEvidence)
             .map(|ty| project_runtime_hint_type_with_vars(&ty, &self.principal_vars))
+    }
+
+    pub(super) fn tir_evidence_runtime_effect(
+        &self,
+        bounds: &typed_ir::TypeBounds,
+    ) -> Option<typed_ir::Type> {
+        choose_bounds_type(bounds, BoundsChoice::TirEvidence)
+            .map(|ty| project_runtime_effect_with_vars(&ty, &self.principal_vars))
+    }
+
+    fn runtime_type_from_graph_bounds(
+        &self,
+        value: typed_ir::Type,
+        effect_bounds: &typed_ir::TypeBounds,
+    ) -> RuntimeType {
+        let value = RuntimeType::value(value);
+        match self
+            .tir_evidence_runtime_effect(effect_bounds)
+            .filter(should_thunk_effect)
+        {
+            Some(effect) => RuntimeType::thunk(effect, value),
+            None => value,
+        }
     }
 
     pub(super) fn tir_argument_runtime_type(
@@ -3165,6 +3204,15 @@ impl Lowerer<'_> {
                     .find(|member| member.name.0 == "cast")
                     .map(|member| member.value.clone())
             })
+    }
+}
+
+fn runtime_type_with_visible_value(base: RuntimeType, visible: typed_ir::Type) -> RuntimeType {
+    match base {
+        RuntimeType::Thunk { effect, .. } if should_thunk_effect(&effect) => {
+            RuntimeType::thunk(effect, RuntimeType::value(visible))
+        }
+        _ => RuntimeType::value(visible),
     }
 }
 

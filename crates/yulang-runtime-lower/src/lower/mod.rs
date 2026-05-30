@@ -32,11 +32,11 @@ use yulang_runtime_types::types::{
     infer_type_substitutions_prefer_non_never,
     infer_type_substitutions_prefer_non_never_skip_empty_effects, is_qualified_runtime_path,
     needs_runtime_coercion, project_runtime_bounds, project_runtime_effect,
-    project_runtime_hint_type_with_vars, project_runtime_hir_type_with_vars,
-    project_runtime_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
-    runtime_type_is_imprecise_runtime_slot, should_thunk_effect, strict_core_type as core_type,
-    substitute_bounds, substitute_hir_type, substitute_type, thunk_effect, type_compatible,
-    wildcard_effect_type,
+    project_runtime_effect_with_vars, project_runtime_hint_type_with_vars,
+    project_runtime_hir_type_with_vars, project_runtime_type_with_vars, runtime_core_type,
+    runtime_type_contains_unknown, runtime_type_is_imprecise_runtime_slot, should_thunk_effect,
+    strict_core_type as core_type, substitute_bounds, substitute_hir_type, substitute_type,
+    thunk_effect, type_compatible, wildcard_effect_type,
 };
 
 mod core_shape;

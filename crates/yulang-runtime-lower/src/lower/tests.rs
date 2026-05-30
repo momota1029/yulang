@@ -20,6 +20,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -33,6 +34,44 @@ mod tests {
         let module = lower_core_program(program).expect("lowered");
 
         assert_eq!(core_type(&module.root_exprs[0].ty), &named_type("int"));
+    }
+
+    #[test]
+    pub(super) fn lower_literal_root_uses_graph_effect_type() {
+        let effect = typed_ir::Type::Row {
+            items: vec![named_type("io")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: Vec::new(),
+                root_exprs: vec![typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
+            },
+            graph: typed_ir::CoreGraphView {
+                bindings: Vec::new(),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("int")),
+                    effect_bounds: typed_ir::TypeBounds::exact(effect.clone()),
+                }],
+                runtime_symbols: Vec::new(),
+                enum_variants: Vec::new(),
+                role_impls: Vec::new(),
+                primitive_types: Vec::new(),
+            },
+            evidence: typed_ir::PrincipalEvidence::default(),
+            effect_operations: Vec::new(),
+        };
+
+        let module = lower_core_program(program).expect("lowered");
+
+        assert_eq!(
+            module.root_exprs[0].ty,
+            RuntimeType::thunk(effect, RuntimeType::value(named_type("int")))
+        );
+        assert!(matches!(module.root_exprs[0].kind, ExprKind::Thunk { .. }));
     }
 
     #[test]
@@ -52,6 +91,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 primitive_types: vec![typed_ir::PrimitiveTypeGraphNode {
                     family: typed_ir::PrimitiveTypeFamily::Int,
@@ -176,6 +216,7 @@ mod tests {
                         lower: Some(Box::new(list_with_principal_var)),
                         upper: None,
                     },
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -465,6 +506,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(unit_type()),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -559,6 +601,7 @@ mod tests {
                     binding: point_path,
                     scheme_body: point_ctor_ty.clone(),
                     body_bounds: typed_ir::TypeBounds::upper(typed_ir::Type::Any),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
@@ -696,6 +739,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -811,6 +855,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(bool_type()),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: vec![typed_ir::RuntimeSymbol {
                     path: action_path,
@@ -868,6 +913,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(bool_type()),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -911,6 +957,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("float")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -957,6 +1004,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("float")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -1057,16 +1105,19 @@ mod tests {
                         binding: value_path,
                         scheme_body: frac.clone(),
                         body_bounds: typed_ir::TypeBounds::exact(frac.clone()),
+                        effect_bounds: typed_ir::TypeBounds::default(),
                     },
                     typed_ir::BindingGraphNode {
                         binding: cast_path.clone(),
                         scheme_body: cast_ty,
                         body_bounds: typed_ir::TypeBounds::exact(float.clone()),
+                        effect_bounds: typed_ir::TypeBounds::default(),
                     },
                 ],
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(float),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 role_impls: vec![typed_ir::RoleImplGraphNode {
                     role: typed_ir::Path::new(vec![typed_ir::Name("Cast".to_string())]),
@@ -1120,6 +1171,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("float")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -1199,6 +1251,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(bool_type()),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: vec![typed_ir::RuntimeSymbol {
                     path: effect_path.clone(),
@@ -1281,6 +1334,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -1335,6 +1389,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(tuple_ty.clone()),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
@@ -1392,6 +1447,7 @@ mod tests {
                 root_exprs: vec![typed_ir::ExprGraphNode {
                     owner: typed_ir::GraphOwner::RootExpr(0),
                     bounds: typed_ir::TypeBounds::exact(named_type("int")),
+                    effect_bounds: typed_ir::TypeBounds::default(),
                 }],
                 runtime_symbols: Vec::new(),
                 enum_variants: Vec::new(),
