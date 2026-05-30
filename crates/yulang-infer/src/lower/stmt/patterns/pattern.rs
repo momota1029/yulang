@@ -1,7 +1,6 @@
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{Lit, PatKind, RecordPatField, RecordPatSpread, TypedPat};
-use crate::ids::DefId;
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
 
@@ -39,15 +38,6 @@ pub(crate) fn pattern_binding_name(node: &SyntaxNode) -> Option<Name> {
 pub(crate) fn record_pat_spread_pat(spread: &RecordPatSpread) -> &TypedPat {
     match spread {
         RecordPatSpread::Head(pat) | RecordPatSpread::Tail(pat) => pat.as_ref(),
-    }
-}
-
-fn record_pat_spread_alias_def(state: &LowerState, spread: &RecordPatSpread) -> Option<DefId> {
-    let pat = record_pat_spread_pat(spread);
-    match &pat.kind {
-        PatKind::As(_, def) => Some(*def),
-        PatKind::UnresolvedName(name) => state.ctx.resolve_bound_value(name),
-        _ => None,
     }
 }
 
@@ -557,18 +547,6 @@ fn lower_record_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
         }
     }
     if let Some(spread_pat) = spread {
-        if let Some(def) = record_pat_spread_alias_def(state, &spread_pat) {
-            return PatKind::As(
-                Box::new(TypedPat {
-                    tv: state.fresh_tv(),
-                    kind: PatKind::Record {
-                        spread: None,
-                        fields,
-                    },
-                }),
-                def,
-            );
-        }
         PatKind::Record {
             spread: Some(spread_pat),
             fields,

@@ -250,7 +250,12 @@ fn connect_record_pat_shape_and_locals(
             }
         })
         .collect::<Vec<_>>();
-    if !has_default {
+    if let Some(spread) = spread {
+        let spread_pat = super::record_pat_spread_pat(spread);
+        state
+            .infer
+            .constrain(Pos::Var(pat_tv), Neg::Var(spread_pat.tv));
+    } else if !has_default {
         state
             .infer
             .constrain(state.pos_record(pos_fields), Neg::Var(pat_tv));

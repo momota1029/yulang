@@ -254,7 +254,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         let k_ret_eff = if arm_is_active && directly_calls_continuation {
                             handler_rest_eff
                         } else {
-                            comp_handler_eff
+                            comp.eff
                         };
                         let k_fun = state.pos_fun(
                             resume_neg,
@@ -275,9 +275,6 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     }
 
                     let original_body = body.clone();
-                    if arm_is_active && effect_tv_flows_to(state, comp.eff, original_body.eff) {
-                        record_comp_arg_tail_var_preserve(state, &comp);
-                    }
                     let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
                         original_body.clone(),
                         tv,
@@ -369,9 +366,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 },
             );
             if let Some(residual_eff) = direct_param_residual_eff {
-                state
-                    .infer
-                    .constrain(Pos::Var(residual_eff), Neg::Var(rest_eff));
+                // 単方向のみ。逆向き (comp.eff <: rest_eff) を張ると scrutinee の
+                // handled 分まで rest_eff 経由で結果効果へ混ざり、出力に余計な
+                // `;` が出てしまう。残差は rest_eff <: eff で結果へ流す。
                 state
                     .infer
                     .constrain(Pos::Var(rest_eff), Neg::Var(residual_eff));
@@ -392,7 +389,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     state.neg_row(visible.neg, Neg::Var(rest_eff)),
                 );
             }
-            if comp_handler_eff == comp.eff {
+            if comp_handler_eff == comp.eff || has_incomplete_effect_path {
                 state.infer.constrain(
                     Pos::Var(comp.eff),
                     state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
@@ -425,9 +422,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                 },
             );
             if let Some(residual_eff) = direct_param_residual_eff {
-                state
-                    .infer
-                    .constrain(Pos::Var(residual_eff), Neg::Var(rest_eff));
+                // 単方向のみ。逆向き (comp.eff <: rest_eff) を張ると scrutinee の
+                // handled 分まで rest_eff 経由で結果効果へ混ざり、出力に余計な
+                // `;` が出てしまう。残差は rest_eff <: eff で結果へ流す。
                 state
                     .infer
                     .constrain(Pos::Var(rest_eff), Neg::Var(residual_eff));
@@ -448,7 +445,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     state.neg_row(visible.neg, Neg::Var(rest_eff)),
                 );
             }
-            if comp_handler_eff == comp.eff {
+            if comp_handler_eff == comp.eff || has_incomplete_effect_path {
                 state.infer.constrain(
                     Pos::Var(comp.eff),
                     state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
@@ -587,33 +584,22 @@ fn pattern_covers_all(pat: &crate::ast::expr::TypedPat) -> bool {
 }
 
 fn catch_comp_handler_eff_tv(state: &LowerState, comp: &TypedExpr) -> crate::ids::TypeVar {
-    match &comp.kind {
-        ExprKind::Var(def) => state
-            .lambda_param_source_eff_tvs
-            .get(def)
-            .copied()
-            .unwrap_or(comp.eff),
-        _ => comp.eff,
-    }
+    direct_comp_source_eff_tv(state, comp).unwrap_or(comp.eff)
 }
 
 fn record_comp_arg_tail_var_preserve(state: &mut LowerState, comp: &TypedExpr) {
-    let ExprKind::Var(def) = &comp.kind else {
-        return;
-    };
-    if state.lambda_param_source_eff_tvs.contains_key(def) {
-        state.register_lambda_param_preserve_arg_tail_var(*def);
+    if let Some(def) = direct_comp_source_eff_def(state, comp) {
+        state.register_lambda_param_preserve_arg_tail_var(def);
     }
 }
 
 fn record_comp_arg_tail_var_preserve_for_direct_resume(state: &mut LowerState, comp: &TypedExpr) {
-    let ExprKind::Var(def) = &comp.kind else {
-        return;
-    };
-    if state.lambda_param_source_eff_tvs.contains_key(def)
-        || state.lambda_param_effect_annotations.contains_key(def)
+    if let Some(def) =
+        direct_comp_source_eff_def(state, comp).or_else(|| direct_comp_param_def(comp))
+        && (state.lambda_param_source_eff_tvs.contains_key(&def)
+            || state.lambda_param_effect_annotations.contains_key(&def))
     {
-        state.register_lambda_param_preserve_arg_tail_var(*def);
+        state.register_lambda_param_preserve_arg_tail_var(def);
     }
 }
 
@@ -641,70 +627,33 @@ fn complete_direct_param_residual_eff(
     comp: &TypedExpr,
     comp_handler_eff: crate::ids::TypeVar,
 ) -> Option<crate::ids::TypeVar> {
-    let ExprKind::Var(def) = &comp.kind else {
-        return None;
-    };
-    (state.lambda_param_source_eff_tvs.get(def).copied() == Some(comp_handler_eff)
+    (direct_comp_source_eff_tv(state, comp) == Some(comp_handler_eff)
         && comp.eff != comp_handler_eff)
         .then_some(comp.eff)
 }
 
-fn effect_tv_flows_to(
-    state: &LowerState,
-    source: crate::ids::TypeVar,
-    target: crate::ids::TypeVar,
-) -> bool {
-    if source == target {
-        return true;
-    }
-    let mut seen_tvs = HashSet::new();
-    let mut seen_pos = HashSet::new();
-    effect_tv_flows_to_inner(state, source, target, &mut seen_tvs, &mut seen_pos)
+fn direct_comp_source_eff_tv(state: &LowerState, comp: &TypedExpr) -> Option<crate::ids::TypeVar> {
+    let def = direct_comp_source_eff_def(state, comp)?;
+    state.lambda_param_source_eff_tvs.get(&def).copied()
 }
 
-fn effect_tv_flows_to_inner(
-    state: &LowerState,
-    source: crate::ids::TypeVar,
-    target: crate::ids::TypeVar,
-    seen_tvs: &mut HashSet<crate::ids::TypeVar>,
-    seen_pos: &mut HashSet<crate::ids::PosId>,
-) -> bool {
-    if source == target {
-        return true;
-    }
-    if !seen_tvs.insert(target) {
-        return false;
-    }
+fn direct_comp_source_eff_def(state: &LowerState, comp: &TypedExpr) -> Option<crate::ids::DefId> {
+    let def = direct_comp_param_def(comp)?;
     state
-        .infer
-        .lower_refs_of(target)
-        .into_iter()
-        .any(|lower| effect_pos_contains_tv(state, source, lower, seen_tvs, seen_pos))
+        .lambda_param_source_eff_tvs
+        .contains_key(&def)
+        .then_some(def)
 }
 
-fn effect_pos_contains_tv(
-    state: &LowerState,
-    source: crate::ids::TypeVar,
-    pos: crate::ids::PosId,
-    seen_tvs: &mut HashSet<crate::ids::TypeVar>,
-    seen_pos: &mut HashSet<crate::ids::PosId>,
-) -> bool {
-    if !seen_pos.insert(pos) {
-        return false;
-    }
-    match state.infer.arena.get_pos(pos) {
-        Pos::Var(tv) | Pos::Raw(tv) => {
-            source == tv || effect_tv_flows_to_inner(state, source, tv, seen_tvs, seen_pos)
-        }
-        Pos::Row(items, tail) => items
-            .into_iter()
-            .chain(std::iter::once(tail))
-            .any(|item| effect_pos_contains_tv(state, source, item, seen_tvs, seen_pos)),
-        Pos::Union(lhs, rhs) => {
-            effect_pos_contains_tv(state, source, lhs, seen_tvs, seen_pos)
-                || effect_pos_contains_tv(state, source, rhs, seen_tvs, seen_pos)
-        }
-        _ => false,
+fn direct_comp_param_def(comp: &TypedExpr) -> Option<crate::ids::DefId> {
+    match &comp.kind {
+        ExprKind::Var(def) => Some(*def),
+        ExprKind::BindHere(expr) | ExprKind::Coerce { expr, .. } => direct_comp_param_def(expr),
+        ExprKind::App { callee, .. } => match &callee.kind {
+            ExprKind::Var(def) => Some(*def),
+            _ => direct_comp_param_def(callee),
+        },
+        _ => None,
     }
 }
 

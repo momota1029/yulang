@@ -430,7 +430,7 @@ impl<'a> CompactToTypeCtx<'a> {
     fn coalesce_type_body(&mut self, ty: &CompactType, positive: bool) -> Type {
         let mut parts = Vec::new();
         let ty = if positive {
-            self.drop_witnessed_positive_vars(ty)
+            ty.clone()
         } else {
             self.drop_witnessed_negative_vars(ty)
         };
@@ -523,19 +523,6 @@ impl<'a> CompactToTypeCtx<'a> {
             self.lower_witnesses
                 .get(tv)
                 .is_none_or(|witness| !compact_type_contains_witness(&original, witness))
-        });
-        ty
-    }
-
-    fn drop_witnessed_positive_vars(&self, ty: &CompactType) -> CompactType {
-        let mut ty = ty.clone();
-        let original = ty.clone();
-        ty.vars.retain(|tv| {
-            self.input_vars.contains(tv)
-                || self
-                    .lower_witnesses
-                    .get(tv)
-                    .is_none_or(|witness| !compact_type_contains_witness(&original, witness))
         });
         ty
     }
@@ -667,7 +654,10 @@ fn coalesce_root_fun_effect_field(
         bounds.lower
     } else {
         common_compact_type(&bounds.lower, &bounds.upper)
-            .filter(|ty| !is_empty_compact(ty))
+            .filter(|common| {
+                !is_empty_compact(common)
+                    && (has_non_var_shape(common) || !has_non_var_shape(&bounds.lower))
+            })
             .unwrap_or(bounds.lower)
     };
 
@@ -1802,11 +1792,10 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
     flat = merge_variant_parts(flat, positive);
     if !positive
         && flat.len() > 1
-        && let Some(row) = merge_negative_row_intersection(&flat)
+        && let Some(row) = merge_negative_top_tail_rows(&flat)
     {
         flat = vec![row];
     }
-
     match flat.len() {
         0 => {
             if positive {
@@ -1826,22 +1815,19 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
     }
 }
 
-fn merge_negative_row_intersection(parts: &[Type]) -> Option<Type> {
+fn merge_negative_top_tail_rows(parts: &[Type]) -> Option<Type> {
     let mut items = Vec::new();
     let mut tail_parts = Vec::new();
     let mut saw_row = false;
 
     for part in parts {
         match part {
-            Type::Row(row_items, tail) => {
+            Type::Row(row_items, tail) if matches!(tail.as_ref(), Type::Top) => {
                 saw_row = true;
                 for item in row_items {
                     if !items.contains(item) {
                         items.push(item.clone());
                     }
-                }
-                if !matches!(tail.as_ref(), Type::Top) {
-                    tail_parts.push((**tail).clone());
                 }
             }
             Type::Var(_) => tail_parts.push(part.clone()),

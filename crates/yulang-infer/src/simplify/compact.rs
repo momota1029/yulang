@@ -1464,9 +1464,6 @@ fn single_effect_item_key(item: &CompactType) -> Option<(Path, usize)> {
     }
     if item.cons.len() == 1 && item.prims.is_empty() {
         let con = &item.cons[0];
-        if !con.args.is_empty() {
-            return None;
-        }
         return Some((con.path.clone(), con.args.len()));
     }
     None

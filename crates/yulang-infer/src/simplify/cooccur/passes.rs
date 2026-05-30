@@ -6,8 +6,8 @@ use crate::symbols::Path;
 use super::group::{GroupCoOccurrences, indistinguishable_group_replacements};
 use super::{
     AlongItem, CoOccurrences, CompactBounds, CompactRoleConstraint, CompactType, CompactTypeScheme,
-    ExactInfo, has_matching_polar_signature, is_effectively_recursive, merge_compact_bounds,
-    merge_compact_types, rewrite_bounds,
+    ExactInfo, ExactKeyKind, has_matching_polar_signature, is_effectively_recursive,
+    merge_compact_bounds, merge_compact_types, rewrite_bounds,
 };
 
 pub(super) fn apply_group_co_occurrence_substitutions(
@@ -637,34 +637,39 @@ pub(super) fn apply_one_sided_exact_alias_collapse(
         if subst.contains_key(&var) {
             continue;
         }
-        if protected_vars.contains(&var) {
-            continue;
-        }
         let Some(positive) = analysis.positive.get(&var) else {
             continue;
         };
         let Some(negative) = analysis.negative.get(&var) else {
             continue;
         };
-        if is_one_sided_exact_alias(var, positive, negative)
-            || is_one_sided_exact_alias(var, negative, positive)
-        {
-            subst.insert(var, None);
+        let alias = one_sided_exact_alias_kind(var, positive, negative)
+            .or_else(|| one_sided_exact_alias_kind(var, negative, positive));
+        let Some(kind) = alias else {
+            continue;
+        };
+        if protected_vars.contains(&var) && kind != ExactKeyKind::Fun {
+            continue;
         }
+        subst.insert(var, None);
     }
 }
 
-fn is_one_sided_exact_alias(
+fn one_sided_exact_alias_kind(
     var: TypeVar,
     plain_side: &HashSet<AlongItem>,
     exact_side: &HashSet<AlongItem>,
-) -> bool {
-    plain_side == &HashSet::from([AlongItem::Var(var)])
-        && exact_side.len() == 2
-        && exact_side.contains(&AlongItem::Var(var))
-        && exact_side
-            .iter()
-            .any(|item| matches!(item, AlongItem::Exact(_)))
+) -> Option<ExactKeyKind> {
+    if plain_side != &HashSet::from([AlongItem::Var(var)])
+        || exact_side.len() != 2
+        || !exact_side.contains(&AlongItem::Var(var))
+    {
+        return None;
+    }
+    exact_side.iter().find_map(|item| match item {
+        AlongItem::Exact(exact) => Some(exact.kind),
+        AlongItem::Var(_) => None,
+    })
 }
 
 fn collect_group_replacements(

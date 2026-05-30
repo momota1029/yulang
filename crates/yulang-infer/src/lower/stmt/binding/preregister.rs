@@ -42,8 +42,8 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
             state.register_def_owner(def, owner);
         }
         state.register_def_name(def, name.clone());
-        if let Some(sig) = pat_node.as_ref().and_then(binding_pattern_sig) {
-            super::register_sig_call_shape_hint(state, def, &sig);
+        if let Some(pat) = pat_node.as_ref() {
+            register_binding_call_shape_hint(state, def, pat);
         }
         state.register_def_span(
             def,
@@ -119,8 +119,8 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_tv(def, tv);
         state.mark_let_bound_def(def);
         state.register_def_name(def, name.clone());
-        if let Some(sig) = pat_node.as_ref().and_then(binding_pattern_sig) {
-            super::register_sig_call_shape_hint(state, def, &sig);
+        if let Some(pat) = pat_node.as_ref() {
+            register_binding_call_shape_hint(state, def, pat);
         }
         state.register_def_span(
             def,
@@ -145,6 +145,20 @@ pub(crate) fn preregister_binding_as_module_value(
 
     preregister_pat_names_as_module_values(state, pat_node.as_ref()?);
     None
+}
+
+fn register_binding_call_shape_hint(state: &mut LowerState, def: DefId, pat_node: &SyntaxNode) {
+    // ヘッダ引数を持つ束縛（`my f x = ...` や `my add (x)(y): int = ...`）は関数値ねぇ。
+    // 末尾の型注釈は返り値型であって束縛そのものの値の型ではないから、callable として扱う。
+    // ここを non-callable と誤登録すると、callee shadowing が prelude 側の同名関数を
+    // 選んでしまい、ユーザ定義の束縛が export から外れる。
+    if !super::collect_header_args(pat_node).is_empty() {
+        state.register_callable_value_def(def);
+        return;
+    }
+    if let Some(sig) = binding_pattern_sig(pat_node) {
+        super::register_sig_call_shape_hint(state, def, &sig);
+    }
 }
 
 fn binding_pattern_sig(node: &SyntaxNode) -> Option<crate::lower::signature::SigType> {

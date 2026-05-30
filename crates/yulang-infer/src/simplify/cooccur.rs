@@ -130,7 +130,15 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     let mut rounds = Vec::new();
 
     loop {
-        let protected_vars = protected_role_constraint_vars(&current_constraints, role_arg_inputs);
+        let mut protected_vars =
+            protected_role_constraint_vars(&current_constraints, role_arg_inputs);
+        collect_open_interval_vars(&current_scheme.cty, &mut protected_vars);
+        let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
+        collect_open_interval_vars_in_constraints(
+            &current_constraints,
+            &positive_scheme_vars,
+            &mut protected_vars,
+        );
         let mut analysis =
             analyze_co_occurrences_with_role_constraints(&current_scheme, &current_constraints);
         let mut rec_vars = current_scheme.rec_vars.clone();
@@ -175,6 +183,15 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         apply_shadow_var_collapse(&all_vars, &analysis, &protected_vars, &mut subst);
         let mut exact_alias_protected_vars = protected_vars.clone();
         collect_function_input_vars_in_scheme(&current_scheme, &mut exact_alias_protected_vars);
+        collect_escaping_function_input_vars_in_scheme(
+            &current_scheme,
+            &positive_scheme_vars,
+            &mut exact_alias_protected_vars,
+        );
+        collect_data_payload_interval_vars_in_scheme(
+            &current_scheme,
+            &mut exact_alias_protected_vars,
+        );
         apply_one_sided_exact_alias_collapse(
             &all_vars,
             &analysis,
@@ -186,16 +203,12 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         for &var in guarded_row_representatives.keys() {
             subst.entry(var).or_insert(None);
         }
-        let mut representatives = if use_representatives {
-            lower_representatives_for_subst(
-                &current_scheme,
-                &current_constraints,
-                &rec_vars,
-                &subst,
-            )
-        } else {
-            HashMap::new()
-        };
+        let mut representatives = lower_representatives_for_subst(
+            &current_scheme,
+            &current_constraints,
+            &rec_vars,
+            &subst,
+        );
         representatives.extend(
             guarded_row_representatives
                 .iter()
@@ -462,22 +475,187 @@ fn collect_function_input_vars_in_scheme(scheme: &CompactTypeScheme, out: &mut H
     }
 }
 
+fn collect_escaping_function_input_vars_in_scheme(
+    scheme: &CompactTypeScheme,
+    positive_scheme_vars: &HashSet<TypeVar>,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_escaping_function_input_vars_in_bounds(&scheme.cty, false, positive_scheme_vars, out);
+    for bounds in scheme.rec_vars.values() {
+        collect_escaping_function_input_vars_in_bounds(bounds, false, positive_scheme_vars, out);
+    }
+}
+
+fn collect_escaping_function_input_vars_in_bounds(
+    bounds: &CompactBounds,
+    inside_input: bool,
+    positive_scheme_vars: &HashSet<TypeVar>,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_escaping_function_input_vars_in_type(
+        &bounds.lower,
+        inside_input,
+        false,
+        positive_scheme_vars,
+        out,
+    );
+    collect_escaping_function_input_vars_in_type(
+        &bounds.upper,
+        inside_input,
+        false,
+        positive_scheme_vars,
+        out,
+    );
+}
+
+fn collect_escaping_function_input_vars_in_type(
+    ty: &CompactType,
+    inside_input: bool,
+    inside_effect_row_item: bool,
+    positive_scheme_vars: &HashSet<TypeVar>,
+    out: &mut HashSet<TypeVar>,
+) {
+    if inside_input && !inside_effect_row_item {
+        out.extend(
+            ty.vars
+                .iter()
+                .copied()
+                .filter(|var| positive_scheme_vars.contains(var)),
+        );
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_escaping_function_input_vars_in_bounds(
+                arg,
+                inside_input && !inside_effect_row_item,
+                positive_scheme_vars,
+                out,
+            );
+        }
+    }
+    for fun in &ty.funs {
+        collect_escaping_function_input_vars_in_type(
+            &fun.arg,
+            true,
+            false,
+            positive_scheme_vars,
+            out,
+        );
+        collect_escaping_function_input_vars_in_type(
+            &fun.arg_eff,
+            true,
+            false,
+            positive_scheme_vars,
+            out,
+        );
+        collect_escaping_function_input_vars_in_type(
+            &fun.ret_eff,
+            inside_input,
+            false,
+            positive_scheme_vars,
+            out,
+        );
+        collect_escaping_function_input_vars_in_type(
+            &fun.ret,
+            inside_input,
+            false,
+            positive_scheme_vars,
+            out,
+        );
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_escaping_function_input_vars_in_type(
+                &field.value,
+                inside_input,
+                false,
+                positive_scheme_vars,
+                out,
+            );
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_escaping_function_input_vars_in_type(
+                &field.value,
+                inside_input,
+                false,
+                positive_scheme_vars,
+                out,
+            );
+        }
+        collect_escaping_function_input_vars_in_type(
+            &spread.tail,
+            inside_input,
+            false,
+            positive_scheme_vars,
+            out,
+        );
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_escaping_function_input_vars_in_type(
+                    payload,
+                    inside_input,
+                    false,
+                    positive_scheme_vars,
+                    out,
+                );
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_escaping_function_input_vars_in_type(
+                item,
+                inside_input,
+                false,
+                positive_scheme_vars,
+                out,
+            );
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_escaping_function_input_vars_in_type(
+                item,
+                inside_input,
+                true,
+                positive_scheme_vars,
+                out,
+            );
+        }
+        collect_escaping_function_input_vars_in_type(
+            &row.tail,
+            inside_input,
+            false,
+            positive_scheme_vars,
+            out,
+        );
+    }
+}
+
 fn collect_function_input_vars_in_bounds(
     bounds: &CompactBounds,
     inside_input: bool,
     out: &mut HashSet<TypeVar>,
 ) {
-    collect_function_input_vars_in_type(&bounds.lower, inside_input, false, out);
-    collect_function_input_vars_in_type(&bounds.upper, inside_input, false, out);
+    collect_function_input_vars_in_type(&bounds.lower, inside_input, false, false, out);
+    collect_function_input_vars_in_type(&bounds.upper, inside_input, false, false, out);
 }
 
 fn collect_function_input_vars_in_type(
     ty: &CompactType,
     inside_input: bool,
+    inside_effect_position: bool,
     inside_effect_row_item: bool,
     out: &mut HashSet<TypeVar>,
 ) {
-    if inside_input && !inside_effect_row_item {
+    if inside_input
+        && !inside_effect_row_item
+        && (inside_effect_position || !compact_type_has_shape(ty))
+    {
         out.extend(ty.vars.iter().copied());
     }
     for con in &ty.cons {
@@ -490,40 +668,280 @@ fn collect_function_input_vars_in_type(
         }
     }
     for fun in &ty.funs {
-        collect_function_input_vars_in_type(&fun.arg, true, false, out);
-        collect_function_input_vars_in_type(&fun.arg_eff, true, false, out);
-        collect_function_input_vars_in_type(&fun.ret_eff, inside_input, false, out);
-        collect_function_input_vars_in_type(&fun.ret, inside_input, false, out);
+        collect_function_input_vars_in_type(&fun.arg, true, false, false, out);
+        collect_function_input_vars_in_type(&fun.arg_eff, true, true, false, out);
+        collect_function_input_vars_in_type(&fun.ret_eff, inside_input, true, false, out);
+        collect_function_input_vars_in_type(&fun.ret, inside_input, false, false, out);
     }
     for record in &ty.records {
         for field in &record.fields {
-            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
+            collect_function_input_vars_in_type(
+                &field.value,
+                inside_input,
+                inside_effect_position,
+                false,
+                out,
+            );
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
+            collect_function_input_vars_in_type(
+                &field.value,
+                inside_input,
+                inside_effect_position,
+                false,
+                out,
+            );
         }
-        collect_function_input_vars_in_type(&spread.tail, inside_input, false, out);
+        collect_function_input_vars_in_type(
+            &spread.tail,
+            inside_input,
+            inside_effect_position,
+            false,
+            out,
+        );
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                collect_function_input_vars_in_type(payload, inside_input, false, out);
+                collect_function_input_vars_in_type(
+                    payload,
+                    inside_input,
+                    inside_effect_position,
+                    false,
+                    out,
+                );
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            collect_function_input_vars_in_type(item, inside_input, false, out);
+            collect_function_input_vars_in_type(
+                item,
+                inside_input,
+                inside_effect_position,
+                false,
+                out,
+            );
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            collect_function_input_vars_in_type(item, inside_input, true, out);
+            collect_function_input_vars_in_type(
+                item,
+                inside_input,
+                inside_effect_position,
+                true,
+                out,
+            );
         }
-        collect_function_input_vars_in_type(&row.tail, inside_input, false, out);
+        collect_function_input_vars_in_type(
+            &row.tail,
+            inside_input,
+            inside_effect_position,
+            false,
+            out,
+        );
     }
+}
+
+fn collect_data_payload_interval_vars_in_scheme(
+    scheme: &CompactTypeScheme,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_data_payload_interval_vars_in_bounds(&scheme.cty, out);
+    for bounds in scheme.rec_vars.values() {
+        collect_data_payload_interval_vars_in_bounds(bounds, out);
+    }
+}
+
+fn collect_data_payload_interval_vars_in_bounds(
+    bounds: &CompactBounds,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_data_payload_interval_vars_in_type(&bounds.lower, out);
+    collect_data_payload_interval_vars_in_type(&bounds.upper, out);
+}
+
+fn collect_data_payload_interval_vars_in_type(ty: &CompactType, out: &mut HashSet<TypeVar>) {
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_open_payload_interval_vars(arg, out);
+            collect_data_payload_interval_vars_in_bounds(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_data_payload_interval_vars_in_type(&fun.arg, out);
+        collect_data_payload_interval_vars_in_type(&fun.arg_eff, out);
+        collect_data_payload_interval_vars_in_type(&fun.ret_eff, out);
+        collect_data_payload_interval_vars_in_type(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_data_payload_interval_vars_in_type(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_data_payload_interval_vars_in_type(&field.value, out);
+        }
+        collect_data_payload_interval_vars_in_type(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_data_payload_interval_vars_in_type(payload, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_data_payload_interval_vars_in_type(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_data_payload_interval_vars_in_type(item, out);
+        }
+        collect_data_payload_interval_vars_in_type(&row.tail, out);
+    }
+}
+
+fn collect_open_payload_interval_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
+    collect_open_interval_vars(bounds, out);
+}
+
+fn collect_open_interval_vars_in_constraints(
+    constraints: &[CompactRoleConstraint],
+    positive_scheme_vars: &HashSet<TypeVar>,
+    out: &mut HashSet<TypeVar>,
+) {
+    for constraint in constraints {
+        for arg in &constraint.args {
+            collect_open_interval_vars_matching(arg, out, |var| {
+                positive_scheme_vars.contains(&var)
+            });
+        }
+    }
+}
+
+fn collect_open_interval_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
+    collect_open_interval_vars_matching(bounds, out, |_| true);
+}
+
+fn collect_open_interval_vars_matching(
+    bounds: &CompactBounds,
+    out: &mut HashSet<TypeVar>,
+    keep: impl Fn(TypeVar) -> bool,
+) {
+    let Some(upper_vars) = compact_type_var_set(&bounds.upper) else {
+        return;
+    };
+    if upper_vars.len() != 1 || !compact_type_has_data_shape(&bounds.lower) {
+        return;
+    }
+    for var in upper_vars {
+        if keep(var) && bounds.lower.vars.contains(&var) {
+            out.insert(var);
+        }
+    }
+}
+
+fn collect_positive_scheme_vars(scheme: &CompactTypeScheme) -> HashSet<TypeVar> {
+    let mut out = HashSet::new();
+    collect_positive_vars_in_bounds(&scheme.cty, true, &mut out);
+    for bounds in scheme.rec_vars.values() {
+        collect_positive_vars_in_bounds(bounds, true, &mut out);
+    }
+    out
+}
+
+fn collect_positive_vars_in_bounds(
+    bounds: &CompactBounds,
+    positive: bool,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_positive_vars_in_type(&bounds.lower, positive, out);
+    collect_positive_vars_in_type(&bounds.upper, !positive, out);
+}
+
+fn collect_positive_vars_in_type(ty: &CompactType, positive: bool, out: &mut HashSet<TypeVar>) {
+    if positive {
+        out.extend(ty.vars.iter().copied());
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_positive_vars_in_bounds(arg, true, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_positive_vars_in_type(&fun.arg, !positive, out);
+        collect_positive_vars_in_type(&fun.arg_eff, !positive, out);
+        collect_positive_vars_in_type(&fun.ret_eff, positive, out);
+        collect_positive_vars_in_type(&fun.ret, positive, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_positive_vars_in_type(&field.value, positive, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_positive_vars_in_type(&field.value, positive, out);
+        }
+        collect_positive_vars_in_type(&spread.tail, positive, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_positive_vars_in_type(payload, positive, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_positive_vars_in_type(item, positive, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_positive_vars_in_type(item, positive, out);
+        }
+        collect_positive_vars_in_type(&row.tail, positive, out);
+    }
+}
+
+fn compact_type_var_set(ty: &CompactType) -> Option<HashSet<TypeVar>> {
+    (ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty())
+    .then(|| ty.vars.clone())
+}
+
+fn compact_type_has_data_shape(ty: &CompactType) -> bool {
+    !ty.prims.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+}
+
+fn compact_type_has_shape(ty: &CompactType) -> bool {
+    !ty.prims.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
 }
 
 fn protected_role_arg_var(
