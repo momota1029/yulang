@@ -217,16 +217,6 @@ fn transform_copied_expr_kind(
                     .lambda_param_source_eff_tvs
                     .insert(copied_def, copied_source_eff);
             }
-            if types
-                .state
-                .lambda_param_preserve_arg_tail_vars
-                .contains(def)
-            {
-                types
-                    .state
-                    .lambda_param_preserve_arg_tail_vars
-                    .insert(copied_def);
-            }
             let mut local_defs = vec![*def];
             local_defs.extend(source_local_defs);
             let previous = types.enter_local_defs(local_defs.as_slice());
@@ -721,15 +711,6 @@ impl<'a> CopiedTypeVars<'a> {
             self.state
                 .lambda_param_source_eff_tvs
                 .insert(copied, copied_source_eff);
-        }
-        if self
-            .state
-            .lambda_param_preserve_arg_tail_vars
-            .contains(&def)
-        {
-            self.state
-                .lambda_param_preserve_arg_tail_vars
-                .insert(copied);
         }
         if self.state.let_bound_defs.contains(&def) {
             self.state.let_bound_defs.insert(copied);

@@ -13,7 +13,6 @@ use crate::scc::{
 use crate::scheme::compact_pos_type;
 use crate::simplify::compact::{
     CompactType, CompactTypeScheme, expose_negative_row_tail_vars, expose_positive_row_tails,
-    preserve_fun_arg_effect_row_tail_vars,
 };
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
@@ -143,13 +142,7 @@ impl LowerState {
     }
 
     pub fn compact_scheme_of(&self, def: DefId) -> Option<CompactTypeScheme> {
-        let mut scheme = self.infer.compact_schemes.borrow().get(&def).cloned()?;
-        if self.def_owners.iter().any(|(param, owner)| {
-            *owner == def && self.lambda_param_preserve_arg_tail_vars.contains(param)
-        }) {
-            preserve_fun_arg_effect_row_tail_vars(&mut scheme);
-        }
-        Some(scheme)
+        self.infer.compact_schemes.borrow().get(&def).cloned()
     }
 
     pub fn surface_compact_scheme_of(&self, def: DefId) -> Option<CompactTypeScheme> {

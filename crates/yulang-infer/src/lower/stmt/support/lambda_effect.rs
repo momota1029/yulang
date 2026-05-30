@@ -86,6 +86,40 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
     }
 }
 
+pub(crate) fn direct_param_observed_eff_tv(body: &TypedExpr, param_def: DefId) -> Option<TypeVar> {
+    match &body.kind {
+        ExprKind::BindHere(expr) | ExprKind::Coerce { expr, .. } => {
+            direct_param_observed_eff_tv(expr, param_def)
+        }
+        ExprKind::Catch(comp, arms) => {
+            if direct_param_source_eff_tv(comp, param_def).is_some() {
+                return Some(body.eff);
+            }
+            arms.iter().find_map(|arm| {
+                arm.guard
+                    .as_ref()
+                    .and_then(|guard| direct_param_observed_eff_tv(guard, param_def))
+                    .or_else(|| match &arm.kind {
+                        CatchArmKind::Value(_, body) | CatchArmKind::Effect { body, .. } => {
+                            direct_param_observed_eff_tv(body, param_def)
+                        }
+                    })
+            })
+        }
+        ExprKind::App { callee, arg, .. } => match &arg.kind {
+            ExprKind::Var(def) if *def == param_def => Some(arg.eff),
+            _ if matches!(&callee.kind, ExprKind::Var(def) if *def == param_def) => Some(body.eff),
+            _ => direct_param_observed_eff_tv(callee, param_def)
+                .or_else(|| direct_param_observed_eff_tv(arg, param_def)),
+        },
+        ExprKind::Select { recv, .. } => match &recv.kind {
+            ExprKind::Var(def) if *def == param_def => Some(recv.eff),
+            _ => direct_param_observed_eff_tv(recv, param_def),
+        },
+        _ => direct_param_source_eff_tv(body, param_def),
+    }
+}
+
 pub(crate) fn lambda_expr_eff_tv(
     state: &mut LowerState,
     body: &TypedExpr,

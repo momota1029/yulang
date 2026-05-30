@@ -1,6 +1,6 @@
 use crate::profile::ProfileClock as Instant;
 
-use super::super::{direct_param_source_eff_tv, lambda_expr_eff_tv};
+use super::super::{direct_param_observed_eff_tv, direct_param_source_eff_tv, lambda_expr_eff_tv};
 use super::arg::{ArgPatInfo, configure_read_effect_from_ann};
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::lower::LowerState;
@@ -76,18 +76,11 @@ pub(crate) fn wrap_header_lambdas(
                 .infer
                 .constrain(Pos::Var(arg_eff_tv), Neg::Var(source_eff));
         }
-        if matches!(
-            arg_pat.ann.as_ref().and_then(|ann| ann.eff.as_ref()),
-            Some(LoweredEffAnn::Row { .. })
-        ) && direct_param_source_eff_tv(&body, def) == Some(body.eff)
-            && !body_is_direct_catch_of_param(&body, def)
-        {
-            state.register_lambda_param_preserve_arg_tail_var(def);
-        }
+        let arg_eff = lambda_arg_effect_neg(state, &body, def, arg_eff_tv, arg_pat.ann.as_ref());
         state.infer.constrain(
             state.pos_fun(
                 Neg::Var(param_tv),
-                Neg::Var(arg_eff_tv),
+                arg_eff,
                 Pos::Var(body.eff),
                 Pos::Var(body.tv),
             ),
@@ -112,6 +105,25 @@ pub(crate) fn wrap_header_lambdas(
     result
 }
 
-fn body_is_direct_catch_of_param(body: &TypedExpr, def: crate::ids::DefId) -> bool {
-    matches!(&body.kind, ExprKind::Catch(comp, _) if matches!(&comp.kind, ExprKind::Var(comp_def) if *comp_def == def))
+fn lambda_arg_effect_neg(
+    state: &mut LowerState,
+    body: &TypedExpr,
+    def: crate::ids::DefId,
+    arg_eff_tv: crate::ids::TypeVar,
+    ann: Option<&crate::lower::ann::LoweredPatAnn>,
+) -> Neg {
+    if ann.and_then(|ann| ann.eff.as_ref()).is_none() {
+        return Neg::Var(arg_eff_tv);
+    }
+
+    let Some(observed_eff) = direct_param_observed_eff_tv(body, def) else {
+        return Neg::Var(arg_eff_tv);
+    };
+    if observed_eff == arg_eff_tv {
+        return Neg::Var(arg_eff_tv);
+    }
+
+    let annotated = state.infer.alloc_neg(Neg::Var(arg_eff_tv));
+    let observed = state.infer.alloc_neg(Neg::Var(observed_eff));
+    Neg::Intersection(annotated, observed)
 }

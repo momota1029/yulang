@@ -58,7 +58,7 @@ fn normalize_rewritten_compact_type_in_place(ty: &mut CompactType, positive: boo
         normalize_rewritten_compact_type_in_place(&mut row.tail, positive);
     }
     merge_same_effect_rows_in_type(ty, positive);
-    simplify_row_tail_absorption_in_type(ty);
+    simplify_row_tail_absorption_in_type(ty, positive);
     simplify_same_items_rows_in_type(ty, positive);
     simplify_same_tail_rows_in_type(ty, positive);
 }
@@ -396,9 +396,11 @@ fn single_effect_item_key(item: &CompactType) -> Option<(Path, usize)> {
     None
 }
 
-fn simplify_row_tail_absorption_in_type(ty: &mut CompactType) {
-    ty.vars
-        .retain(|tv| !ty.rows.iter().any(|row| row_tail_is_exact_var(row, *tv)));
+fn simplify_row_tail_absorption_in_type(ty: &mut CompactType, positive: bool) {
+    if positive {
+        ty.vars
+            .retain(|tv| !ty.rows.iter().any(|row| row_tail_is_exact_var(row, *tv)));
+    }
 }
 
 fn simplify_same_tail_rows_in_type(ty: &mut CompactType, positive: bool) {

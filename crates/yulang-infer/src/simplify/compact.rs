@@ -828,15 +828,6 @@ pub(crate) fn normalize_compact_scheme_rows(scheme: &mut CompactTypeScheme) {
     }
 }
 
-pub(crate) fn preserve_fun_arg_effect_row_tail_vars(scheme: &mut CompactTypeScheme) {
-    preserve_fun_arg_effect_row_tail_vars_in_type(&mut scheme.cty.lower);
-    preserve_fun_arg_effect_row_tail_vars_in_type(&mut scheme.cty.upper);
-    for bounds in scheme.rec_vars.values_mut() {
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut bounds.lower);
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut bounds.upper);
-    }
-}
-
 pub(crate) fn expose_positive_row_tails(scheme: &mut CompactTypeScheme) {
     expose_positive_row_tails_in_bounds(&mut scheme.cty);
     for bounds in scheme.rec_vars.values_mut() {
@@ -907,62 +898,29 @@ fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
             }
         }
         row.items = merge_same_effect_items(positive, std::mem::take(&mut row.items));
+        absorb_tail_rows_already_present_in_outer_row(row);
     }
 }
 
-fn preserve_fun_arg_effect_row_tail_vars_in_type(ty: &mut CompactType) {
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
-            preserve_fun_arg_effect_row_tail_vars_in_type(&mut arg.lower);
-            preserve_fun_arg_effect_row_tail_vars_in_type(&mut arg.upper);
-        }
+fn absorb_tail_rows_already_present_in_outer_row(row: &mut CompactRow) {
+    if row.items.is_empty() || row.tail.rows.is_empty() {
+        return;
     }
-    for fun in &mut ty.funs {
-        add_row_tail_vars_to_compact_type(&mut fun.arg_eff);
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.arg);
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.arg_eff);
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.ret_eff);
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut fun.ret);
-    }
-    for record in &mut ty.records {
-        for field in &mut record.fields {
-            preserve_fun_arg_effect_row_tail_vars_in_type(&mut field.value);
-        }
-    }
-    for spread in &mut ty.record_spreads {
-        for field in &mut spread.fields {
-            preserve_fun_arg_effect_row_tail_vars_in_type(&mut field.value);
-        }
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut spread.tail);
-    }
-    for variant in &mut ty.variants {
-        for (_, payloads) in &mut variant.items {
-            for payload in payloads {
-                preserve_fun_arg_effect_row_tail_vars_in_type(payload);
-            }
-        }
-    }
-    for tuple in &mut ty.tuples {
-        for item in tuple {
-            preserve_fun_arg_effect_row_tail_vars_in_type(item);
-        }
-    }
-    for row in &mut ty.rows {
-        for item in &mut row.items {
-            preserve_fun_arg_effect_row_tail_vars_in_type(item);
-        }
-        preserve_fun_arg_effect_row_tail_vars_in_type(&mut row.tail);
-    }
+
+    let outer_tail_vars = row.tail.vars.clone();
+    row.tail.rows.retain(|tail_row| {
+        let tail_items_already_present = tail_row.items.iter().all(|item| row.items.contains(item));
+        !(tail_items_already_present
+            && row_tail_is_covered_by_outer_tail(&tail_row.tail, &outer_tail_vars))
+    });
 }
 
-fn add_row_tail_vars_to_compact_type(ty: &mut CompactType) {
-    let tail_vars = ty
-        .rows
-        .iter()
-        .filter_map(|row| compact_var_set(&row.tail))
-        .flatten()
-        .collect::<Vec<_>>();
-    ty.vars.extend(tail_vars);
+fn row_tail_is_covered_by_outer_tail(
+    tail: &CompactType,
+    outer_tail_vars: &std::collections::HashSet<TypeVar>,
+) -> bool {
+    is_empty_compact_type(tail)
+        || compact_var_set(tail).is_some_and(|vars| vars.is_subset(outer_tail_vars))
 }
 
 fn expose_positive_row_tails_in_bounds(bounds: &mut CompactBounds) {
@@ -1493,7 +1451,10 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
 #[cfg(test)]
 mod tests {
 
-    use super::compact_type_var;
+    use super::{
+        CompactBounds, CompactRow, CompactType, CompactTypeScheme, compact_type_var,
+        normalize_compact_scheme_rows,
+    };
     use crate::fresh_type_var;
     use crate::solve::Infer;
     use crate::symbols::{Name, Path};
@@ -1535,6 +1496,65 @@ mod tests {
     }
 
     #[test]
+    fn compact_type_var_recursively_expands_nested_function_bounds() {
+        let infer = Infer::new();
+        let root = fresh_type_var();
+        let a = fresh_type_var();
+        let b = fresh_type_var();
+        let c = fresh_type_var();
+        let d = fresh_type_var();
+        let e = fresh_type_var();
+
+        for current in [root, a, b, c, d, e] {
+            infer.register_level(current, 0);
+        }
+
+        let int_path = prim_path("int");
+        let str_path = prim_path("str");
+        let bool_path = prim_path("bool");
+        let unit_path = prim_path("unit");
+        infer.add_upper(a, Neg::Con(int_path.clone(), vec![]));
+        infer.add_upper(b, Neg::Con(str_path.clone(), vec![]));
+        infer.add_upper(d, Neg::Con(bool_path.clone(), vec![]));
+        infer.add_lower(e, Pos::Con(unit_path.clone(), vec![]));
+
+        let c_fun = infer.alloc_pos(Pos::Fun {
+            arg: infer.alloc_neg(Neg::Var(d)),
+            arg_eff: infer.arena.top,
+            ret_eff: infer.arena.bot,
+            ret: infer.alloc_pos(Pos::Var(e)),
+        });
+        infer.add_lower(c, c_fun);
+
+        let b_to_c = infer.alloc_pos(Pos::Fun {
+            arg: infer.alloc_neg(Neg::Var(b)),
+            arg_eff: infer.arena.top,
+            ret_eff: infer.arena.bot,
+            ret: infer.alloc_pos(Pos::Var(c)),
+        });
+        infer.add_lower(
+            root,
+            Pos::Fun {
+                arg: infer.alloc_neg(Neg::Var(a)),
+                arg_eff: infer.arena.top,
+                ret_eff: infer.arena.bot,
+                ret: b_to_c,
+            },
+        );
+
+        let compact = compact_type_var(&infer, root);
+        let a_to_rest = compact.cty.lower.funs.first().expect("a -> ...");
+        assert!(compact_type_has_con(&a_to_rest.arg, &int_path));
+
+        let b_to_rest = a_to_rest.ret.funs.first().expect("... -> b -> ...");
+        assert!(compact_type_has_con(&b_to_rest.arg, &str_path));
+
+        let d_to_e = b_to_rest.ret.funs.first().expect("... -> d -> e");
+        assert!(compact_type_has_con(&d_to_e.arg, &bool_path));
+        assert!(compact_type_has_con(&d_to_e.ret, &unit_path));
+    }
+
+    #[test]
     fn compact_type_var_merges_same_effect_items_in_row() {
         let infer = Infer::new();
         let tv = fresh_type_var();
@@ -1569,6 +1589,46 @@ mod tests {
         assert_eq!(row.items.len(), 1);
         assert_eq!(row.items[0].cons.len(), 1);
         assert_eq!(row.items[0].cons[0].args.len(), 1);
+    }
+
+    #[test]
+    fn normalize_compact_scheme_rows_absorbs_tail_row_items_already_in_outer_row() {
+        let tail = fresh_type_var();
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let tail_var = CompactType {
+            vars: std::collections::HashSet::from([tail]),
+            ..CompactType::default()
+        };
+        let mut scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    rows: vec![CompactRow {
+                        items: vec![io.clone()],
+                        tail: Box::new(CompactType {
+                            vars: std::collections::HashSet::from([tail]),
+                            rows: vec![CompactRow {
+                                items: vec![io],
+                                tail: Box::new(tail_var),
+                            }],
+                            ..CompactType::default()
+                        }),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        normalize_compact_scheme_rows(&mut scheme);
+
+        let row = &scheme.cty.lower.rows[0];
+        assert_eq!(row.tail.vars, std::collections::HashSet::from([tail]));
+        assert!(row.tail.rows.is_empty());
     }
 
     #[test]
@@ -1635,5 +1695,15 @@ mod tests {
 
         let compact = compact_type_var(&infer, tv);
         assert!(!compact.rec_vars.contains_key(&tv));
+    }
+
+    fn prim_path(name: &str) -> Path {
+        Path {
+            segments: vec![Name(name.to_string())],
+        }
+    }
+
+    fn compact_type_has_con(ty: &super::CompactType, path: &Path) -> bool {
+        ty.cons.iter().any(|con| &con.path == path)
     }
 }

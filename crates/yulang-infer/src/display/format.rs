@@ -5,7 +5,7 @@ use crate::ids::{TypeVar, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
-    CompactType, CompactTypeScheme, CompactVariant, compact_type_var,
+    CompactType, CompactTypeScheme, CompactVariant, compact_type_var, subst_compact_type,
 };
 use crate::solve::Infer;
 use crate::symbols::{Name, Path};
@@ -561,6 +561,12 @@ fn coalesce_root_fun(
     if !root_non_fun_parts_empty(&bounds.lower) || !root_non_fun_parts_empty(&bounds.upper) {
         return None;
     }
+    let mut lower_fun = lower_fun.clone();
+    let upper_fun = upper_fun.clone();
+    coalesce_root_function_effect_residual_for_render(
+        &mut lower_fun.arg_eff,
+        &mut lower_fun.ret_eff,
+    );
 
     if !normalize_fields {
         let arg = common_compact_type(&lower_fun.arg, &upper_fun.arg)
@@ -607,6 +613,48 @@ fn coalesce_root_fun(
     })
 }
 
+fn coalesce_root_function_effect_residual_for_render(
+    arg_eff: &mut CompactType,
+    ret_eff: &mut CompactType,
+) {
+    if arg_eff.rows.is_empty() || arg_eff.vars.is_empty() || ret_eff.vars.is_empty() {
+        return;
+    }
+    let tail_vars = arg_eff
+        .rows
+        .iter()
+        .filter(|row| !row.items.is_empty())
+        .flat_map(|row| row.tail.vars.iter().copied())
+        .filter(|tv| ret_eff.vars.contains(tv))
+        .collect::<HashSet<_>>();
+    if tail_vars.is_empty() {
+        return;
+    }
+    let mut subst = arg_eff
+        .vars
+        .iter()
+        .copied()
+        .filter(|tv| ret_eff.vars.contains(tv))
+        .filter_map(|surface| {
+            tail_vars
+                .iter()
+                .copied()
+                .find(|tail| *tail != surface)
+                .map(|tail| (surface, tail))
+        })
+        .collect::<Vec<_>>();
+    subst.sort_by_key(|(from, _)| from.0);
+    subst.dedup_by_key(|(from, _)| *from);
+    if subst.is_empty() {
+        return;
+    }
+    *arg_eff = subst_compact_type(arg_eff, &subst);
+    *ret_eff = subst_compact_type(ret_eff, &subst);
+    for &(_, tail) in &subst {
+        arg_eff.vars.remove(&tail);
+    }
+}
+
 fn coalesce_root_fun_arg_effect_field(
     ctx: &mut CompactToTypeCtx<'_>,
     lower: &CompactType,
@@ -618,9 +666,12 @@ fn coalesce_root_fun_arg_effect_field(
         upper: upper.clone(),
     });
     strip_generated_local_effects_from_compact_effect_bounds(&mut bounds);
-    let ty = common_compact_type(&bounds.lower, &bounds.upper)
-        .filter(|ty| !is_empty_compact(ty))
+    let mut ty = common_compact_type(&bounds.lower, &bounds.upper)
+        .filter(|ty| {
+            !is_empty_compact(ty) && (has_non_var_shape(ty) || !has_non_var_shape(&bounds.lower))
+        })
         .unwrap_or(bounds.lower);
+    remove_upper_covered_row_tail_vars(&mut ty, &bounds.upper);
 
     if is_empty_compact(&ty) || is_explicit_empty_row_compact(&ty) {
         Type::Bot
@@ -628,6 +679,21 @@ fn coalesce_root_fun_arg_effect_field(
         Type::Var(*ty.vars.iter().next().unwrap())
     } else {
         ctx.coalesce_type(&ty, false)
+    }
+}
+
+fn remove_upper_covered_row_tail_vars(ty: &mut CompactType, upper: &CompactType) {
+    if ty.rows.is_empty() || upper.vars.is_empty() {
+        return;
+    }
+    let covered = ty
+        .rows
+        .iter()
+        .flat_map(|row| row.tail.vars.iter().copied())
+        .filter(|tv| upper.vars.contains(tv))
+        .collect::<HashSet<_>>();
+    for tv in covered {
+        ty.vars.remove(&tv);
     }
 }
 

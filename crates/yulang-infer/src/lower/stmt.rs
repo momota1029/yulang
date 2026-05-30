@@ -96,8 +96,9 @@ pub(super) use support::{
     header_value_name, ident_name, ident_or_sigil_name,
 };
 pub(crate) use support::{
-    clone_replace_effect_path_pos_between_arenas, direct_param_source_eff_tv, lambda_expr_eff_tv,
-    replace_effect_path_neg, replace_effect_path_pos,
+    clone_replace_effect_path_pos_between_arenas, direct_param_observed_eff_tv,
+    direct_param_source_eff_tv, lambda_expr_eff_tv, replace_effect_path_neg,
+    replace_effect_path_pos,
 };
 use support::{collect_act_type_scope, header_module_visibility, header_operator_fixity};
 use support::{lookup_small_subst, neg_prim_type, prim_type};
