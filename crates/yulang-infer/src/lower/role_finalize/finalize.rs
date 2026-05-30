@@ -15,7 +15,7 @@ use crate::simplify::compact::{
     CompactType, CompactTypeScheme, expose_negative_row_tail_vars, expose_positive_row_tails,
     preserve_fun_arg_effect_row_tail_vars,
 };
-use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected;
+use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::types::Neg;
 
@@ -356,7 +356,7 @@ impl LowerState {
                     remaining =
                         apply_role_output_replacements_to_constraints(&remaining, &replacements);
                     let (rewritten_scheme, rewritten_constraints) =
-                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
                             &scheme,
                             &remaining,
                             |role| self.role_arg_input_flags(role),

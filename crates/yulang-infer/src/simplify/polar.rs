@@ -10,14 +10,14 @@ pub(crate) fn apply_polar_variable_removal(
     all_vars: &[TypeVar],
     analysis: &CoOccurrences,
     rec_vars: &HashMap<TypeVar, CompactBounds>,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     for &var in all_vars {
         if subst.contains_key(&var) {
             continue;
         }
-        if protected_vars.contains(&var) {
+        if rigid_vars.contains(&var) {
             continue;
         }
         match (analysis.positive.get(&var), analysis.negative.get(&var)) {

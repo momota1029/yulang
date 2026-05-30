@@ -14,7 +14,7 @@ pub(super) fn apply_group_co_occurrence_substitutions(
     analysis: &GroupCoOccurrences,
     cooccurs: &mut CoOccurrences,
     rec_vars: &mut HashMap<TypeVar, CompactBounds>,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     for (replacements, require_matching_polar_exact) in [
@@ -35,7 +35,7 @@ pub(super) fn apply_group_co_occurrence_substitutions(
             replacements,
             cooccurs,
             rec_vars,
-            protected_vars,
+            rigid_vars,
             subst,
             require_matching_polar_exact,
         );
@@ -53,7 +53,7 @@ pub(super) fn apply_row_residual_unifications(
     constraints: &[CompactRoleConstraint],
     rec_vars: &mut HashMap<TypeVar, CompactBounds>,
     cooccurs: &mut CoOccurrences,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) -> HashSet<TypeVar> {
     let mut classes = HashMap::<RowResidualKey, Vec<RowResidualOccurrence>>::new();
@@ -80,7 +80,7 @@ pub(super) fn apply_row_residual_unifications(
 
         if let Some(representative) = accept_var_class(
             occurrences.iter().map(|occurrence| occurrence.tv),
-            protected_vars,
+            rigid_vars,
             subst,
             &mut accepted,
         ) {
@@ -92,7 +92,7 @@ pub(super) fn apply_row_residual_unifications(
                     occurrences
                         .iter()
                         .flat_map(|occurrence| occurrence.arg_vars[arg_index].iter().copied()),
-                    protected_vars,
+                    rigid_vars,
                     subst,
                     &mut accepted,
                 );
@@ -233,7 +233,7 @@ pub(super) fn apply_exact_row_unifications(
     all_vars: &[TypeVar],
     exact_info: &ExactInfo,
     rec_vars: &HashMap<TypeVar, CompactBounds>,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     let mut representatives = HashMap::new();
@@ -241,7 +241,7 @@ pub(super) fn apply_exact_row_unifications(
         if subst.contains_key(&var) || !exact_info.has_concrete_row(var) {
             continue;
         }
-        if protected_vars.contains(&var) {
+        if rigid_vars.contains(&var) {
             continue;
         }
         let key = (
@@ -520,7 +520,7 @@ fn rewrite_optional_var(tv: TypeVar, subst: &HashMap<TypeVar, Option<TypeVar>>) 
 
 fn accept_var_class(
     vars: impl Iterator<Item = TypeVar>,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
     accepted: &mut HashMap<TypeVar, TypeVar>,
 ) -> Option<TypeVar> {
@@ -535,14 +535,14 @@ fn accept_var_class(
     let representative = vars
         .iter()
         .copied()
-        .find(|tv| protected_vars.contains(tv))
+        .find(|tv| rigid_vars.contains(tv))
         .unwrap_or(vars[0]);
     if vars.len() < 2 {
         return Some(representative);
     }
     for var in vars {
         if var == representative
-            || protected_vars.contains(&var)
+            || rigid_vars.contains(&var)
             || subst.contains_key(&var)
             || accepted.contains_key(&var)
         {
@@ -556,14 +556,14 @@ fn accept_var_class(
 pub(super) fn apply_exact_sandwich_removal(
     all_vars: &[TypeVar],
     exact_info: &ExactInfo,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     for &var in all_vars {
         if subst.contains_key(&var) {
             continue;
         }
-        if protected_vars.contains(&var) {
+        if rigid_vars.contains(&var) {
             continue;
         }
         for positive in [true, false] {
@@ -584,14 +584,14 @@ pub(super) fn apply_exact_sandwich_removal(
 pub(super) fn apply_shadow_var_collapse(
     all_vars: &[TypeVar],
     analysis: &CoOccurrences,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     for &var in all_vars {
         if subst.contains_key(&var) {
             continue;
         }
-        if protected_vars.contains(&var) {
+        if rigid_vars.contains(&var) {
             continue;
         }
         let Some(positive) = analysis.positive.get(&var) else {
@@ -630,7 +630,7 @@ pub(super) fn apply_shadow_var_collapse(
 pub(super) fn apply_one_sided_exact_alias_collapse(
     all_vars: &[TypeVar],
     analysis: &CoOccurrences,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     for &var in all_vars {
@@ -648,7 +648,7 @@ pub(super) fn apply_one_sided_exact_alias_collapse(
         let Some(kind) = alias else {
             continue;
         };
-        if protected_vars.contains(&var) && kind != ExactKeyKind::Fun {
+        if rigid_vars.contains(&var) && kind != ExactKeyKind::Fun {
             continue;
         }
         subst.insert(var, None);
@@ -676,7 +676,7 @@ fn collect_group_replacements(
     replacements: HashMap<TypeVar, TypeVar>,
     cooccurs: &CoOccurrences,
     rec_vars: &HashMap<TypeVar, CompactBounds>,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
     require_matching_polar_exact: bool,
 ) -> HashMap<TypeVar, TypeVar> {
@@ -685,7 +685,7 @@ fn collect_group_replacements(
         if from == to || subst.contains_key(&from) {
             continue;
         }
-        if protected_vars.contains(&from) {
+        if rigid_vars.contains(&from) {
             continue;
         }
         if require_matching_polar_exact && !has_matching_polar_signature(cooccurs, from, to) {

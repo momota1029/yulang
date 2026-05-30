@@ -12,7 +12,6 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
-use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
 use crate::solve::{CastMethodResolution, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
@@ -967,11 +966,6 @@ impl LowerState {
         if let Some(&source_eff) = self.lambda_param_source_eff_tvs.get(&def) {
             self.infer.add_non_generic_var(owner, source_eff);
         }
-        if let Some(hint) = self.lambda_param_function_sig_hint(def) {
-            for tv in function_sig_effect_hint_free_vars(&self.infer, hint) {
-                self.infer.add_non_generic_var(owner, tv);
-            }
-        }
     }
 
     pub fn is_unannotated_current_lambda_param(&self, def: DefId) -> bool {
@@ -1483,24 +1477,6 @@ impl LowerState {
         self.pop_type_scope();
         out
     }
-}
-
-fn function_sig_effect_hint_free_vars(
-    infer: &Infer,
-    hint: FunctionSigEffectHint,
-) -> HashSet<TypeVar> {
-    let mut out = HashSet::new();
-    match hint {
-        FunctionSigEffectHint::Pure | FunctionSigEffectHint::Through => {}
-        FunctionSigEffectHint::LowerBound(lower) => {
-            out.extend(collect_pos_free_vars(infer, lower));
-        }
-        FunctionSigEffectHint::Bounds(lower, upper) => {
-            out.extend(collect_pos_free_vars(infer, lower));
-            out.extend(collect_neg_free_vars(infer, upper));
-        }
-    }
-    out
 }
 
 fn expected_boundary_expr(

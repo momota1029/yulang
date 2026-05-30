@@ -96,7 +96,7 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
-    coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+    coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
         scheme,
         constraints,
         role_arg_inputs,
@@ -104,18 +104,18 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     )
 }
 
-pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
-    protected_vars: &HashSet<TypeVar>,
+    generalization_boundary_vars: &HashSet<TypeVar>,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
         Some(&role_arg_inputs),
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
-        Some(protected_vars),
+        generalization_boundary_vars,
     );
     (output.scheme, output.constraints)
 }
@@ -129,7 +129,7 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
         constraints,
         None,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
-        None,
+        &HashSet::new(),
     )
 }
 
@@ -140,24 +140,21 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: Option<&RoleArgInputs<'_>>,
     use_representatives: bool,
-    extra_protected_vars: Option<&HashSet<TypeVar>>,
+    generalization_boundary_vars: &HashSet<TypeVar>,
 ) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
     let mut current_constraints = constraints.to_vec();
     let mut rounds = Vec::new();
 
     loop {
-        let mut protected_vars =
-            protected_role_constraint_vars(&current_constraints, role_arg_inputs);
-        if let Some(extra) = extra_protected_vars {
-            protected_vars.extend(extra.iter().copied());
-        }
-        collect_open_interval_vars(&current_scheme.cty, &mut protected_vars);
+        let mut rigid_vars = role_constraint_rigid_vars(&current_constraints, role_arg_inputs);
+        rigid_vars.extend(generalization_boundary_vars.iter().copied());
+        collect_open_interval_vars(&current_scheme.cty, &mut rigid_vars);
         let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
         collect_open_interval_vars_in_constraints(
             &current_constraints,
             &positive_scheme_vars,
-            &mut protected_vars,
+            &mut rigid_vars,
         );
         let mut analysis =
             analyze_co_occurrences_with_role_constraints(&current_scheme, &current_constraints);
@@ -179,7 +176,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &group_analysis,
             &mut analysis,
             &mut rec_vars,
-            &protected_vars,
+            &rigid_vars,
             &mut subst,
         );
         let exposed_row_residual_vars = apply_row_residual_unifications(
@@ -187,39 +184,30 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &current_constraints,
             &mut rec_vars,
             &mut analysis,
-            &protected_vars,
+            &rigid_vars,
             &mut subst,
         );
-        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &protected_vars, &mut subst);
+        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &rigid_vars, &mut subst);
         let exact_info = ExactInfo::from_analysis(&analysis);
-        apply_exact_row_unifications(
-            &all_vars,
-            &exact_info,
-            &rec_vars,
-            &protected_vars,
-            &mut subst,
-        );
-        apply_exact_sandwich_removal(&all_vars, &exact_info, &protected_vars, &mut subst);
-        apply_shadow_var_collapse(&all_vars, &analysis, &protected_vars, &mut subst);
-        let mut exact_alias_protected_vars = protected_vars.clone();
-        collect_function_input_vars_in_scheme(&current_scheme, &mut exact_alias_protected_vars);
+        apply_exact_row_unifications(&all_vars, &exact_info, &rec_vars, &rigid_vars, &mut subst);
+        apply_exact_sandwich_removal(&all_vars, &exact_info, &rigid_vars, &mut subst);
+        apply_shadow_var_collapse(&all_vars, &analysis, &rigid_vars, &mut subst);
+        let mut exact_alias_rigid_vars = rigid_vars.clone();
+        collect_function_input_vars_in_scheme(&current_scheme, &mut exact_alias_rigid_vars);
         collect_escaping_function_input_vars_in_scheme(
             &current_scheme,
             &positive_scheme_vars,
-            &mut exact_alias_protected_vars,
+            &mut exact_alias_rigid_vars,
         );
-        collect_data_payload_interval_vars_in_scheme(
-            &current_scheme,
-            &mut exact_alias_protected_vars,
-        );
+        collect_data_payload_interval_vars_in_scheme(&current_scheme, &mut exact_alias_rigid_vars);
         apply_one_sided_exact_alias_collapse(
             &all_vars,
             &analysis,
-            &exact_alias_protected_vars,
+            &exact_alias_rigid_vars,
             &mut subst,
         );
         let guarded_row_representatives =
-            guarded_row_recursion_representatives(&rec_vars, &protected_vars, &subst);
+            guarded_row_recursion_representatives(&rec_vars, &rigid_vars, &subst);
         for &var in guarded_row_representatives.keys() {
             subst.entry(var).or_insert(None);
         }
@@ -293,7 +281,7 @@ pub struct CoalesceRound {
     pub representatives: HashMap<TypeVar, CompactType>,
 }
 
-fn protected_role_constraint_vars(
+fn role_constraint_rigid_vars(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: Option<&RoleArgInputs<'_>>,
 ) -> HashSet<TypeVar> {
@@ -307,23 +295,21 @@ fn protected_role_constraint_vars(
                 .args
                 .iter()
                 .enumerate()
-                .filter_map(move |(index, arg)| {
-                    protected_role_arg_var(arg, inputs.as_deref(), index)
-                })
+                .filter_map(move |(index, arg)| role_arg_rigid_var(arg, inputs.as_deref(), index))
         })
         .collect()
 }
 
 fn guarded_row_recursion_representatives(
     rec_vars: &HashMap<TypeVar, CompactBounds>,
-    protected_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
 ) -> HashMap<TypeVar, CompactType> {
     let mut out = HashMap::new();
     let mut items = rec_vars.iter().collect::<Vec<_>>();
     items.sort_by_key(|(tv, _)| tv.0);
     for (&tv, bounds) in items {
-        if protected_vars.contains(&tv) || subst.contains_key(&tv) {
+        if rigid_vars.contains(&tv) || subst.contains_key(&tv) {
             continue;
         }
         let mut rows = Vec::new();
@@ -964,7 +950,7 @@ fn compact_type_has_shape(ty: &CompactType) -> bool {
         || !ty.rows.is_empty()
 }
 
-fn protected_role_arg_var(
+fn role_arg_rigid_var(
     bounds: &CompactBounds,
     role_arg_inputs: Option<&[bool]>,
     index: usize,
@@ -1673,7 +1659,7 @@ mod tests {
             &[],
             None,
             true,
-            None,
+            &HashSet::new(),
         )
         .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());

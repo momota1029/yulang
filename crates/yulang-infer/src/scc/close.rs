@@ -17,7 +17,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
-    coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected,
+    coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars,
 };
 use crate::solve::Infer;
 
@@ -300,7 +300,7 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 let non_generic = infer.non_generic_vars_of(item.def);
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
                             compact,
                             &constraints,
                             |role| {
@@ -311,7 +311,7 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                             &non_generic,
                         )
                     } else {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_protected(
+                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
                             compact,
                             &[],
                             |_| None,

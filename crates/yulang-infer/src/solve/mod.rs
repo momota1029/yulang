@@ -777,7 +777,11 @@ impl Infer {
     }
 
     pub fn eff_binds_of(&self, rho: TypeVar) -> Vec<crate::types::EffectAtom> {
-        self.eff_binds.borrow().get(&rho).cloned().unwrap_or_default()
+        self.eff_binds
+            .borrow()
+            .get(&rho)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn is_eff_bound(&self, rho: TypeVar) -> bool {
