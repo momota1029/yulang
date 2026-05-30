@@ -494,7 +494,10 @@ fn def_expects_computation_argument(state: &LowerState, def: crate::ids::DefId) 
 
 fn lower_has_pure_fun_arg(state: &LowerState, pos: &Pos, seen: &mut HashSet<TypeVar>) -> bool {
     match pos {
-        Pos::Fun { arg_eff, .. } => super::neg_id_is_pure_row(state, *arg_eff, seen),
+        Pos::Fun { arg_eff, .. } => {
+            let mut row_seen = HashSet::new();
+            super::neg_id_is_pure_row(state, *arg_eff, &mut row_seen)
+        }
         Pos::Union(a, b) => {
             lower_has_pure_fun_arg(state, &state.infer.arena.get_pos(*a), seen)
                 || lower_has_pure_fun_arg(state, &state.infer.arena.get_pos(*b), seen)

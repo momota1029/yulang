@@ -22,10 +22,14 @@ pub(crate) fn neg_id_is_pure_row(
             !lowers.is_empty()
                 && lowers
                     .iter()
-                    .all(|lower| pos_id_is_empty_row(state, *lower, seen))
+                    .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen.clone()))
                 && uppers
                     .iter()
-                    .all(|upper| matches!(state.infer.arena.get_neg(*upper), Neg::Top))
+                    .all(|upper| neg_id_is_pure_row(state, *upper, &mut seen.clone()))
+        }
+        Neg::Intersection(a, b) => {
+            neg_id_is_pure_row(state, a, &mut seen.clone())
+                && neg_id_is_pure_row(state, b, &mut seen.clone())
         }
         _ => false,
     }
@@ -49,10 +53,14 @@ pub(crate) fn pos_id_is_empty_row(
             !lowers.is_empty()
                 && lowers
                     .iter()
-                    .all(|lower| pos_id_is_empty_row(state, *lower, seen))
+                    .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen.clone()))
                 && uppers
                     .iter()
-                    .all(|upper| neg_id_is_pure_row(state, *upper, seen))
+                    .all(|upper| neg_id_is_pure_row(state, *upper, &mut seen.clone()))
+        }
+        Pos::Union(a, b) => {
+            pos_id_is_empty_row(state, a, &mut seen.clone())
+                && pos_id_is_empty_row(state, b, &mut seen.clone())
         }
         _ => false,
     }

@@ -598,6 +598,8 @@ struct CopiedTypeVars<'a> {
     state: &'a mut LowerState,
     fixed: HashMap<TypeVar, TypeVar>,
     copied: HashMap<TypeVar, TypeVar>,
+    copied_tv_side_tables: HashSet<TypeVar>,
+    copied_handler_matches: HashSet<usize>,
     local_def_subst: HashMap<DefId, DefId>,
     local_name_subst: HashMap<Name, DefId>,
     local_defs: HashSet<DefId>,
@@ -620,6 +622,8 @@ impl<'a> CopiedTypeVars<'a> {
             state,
             fixed: fixed.iter().copied().collect(),
             copied: HashMap::new(),
+            copied_tv_side_tables: HashSet::new(),
+            copied_handler_matches: HashSet::new(),
             local_def_subst: HashMap::new(),
             local_name_subst: HashMap::new(),
             local_defs: HashSet::new(),
@@ -729,6 +733,7 @@ impl<'a> CopiedTypeVars<'a> {
 
     fn copy_tv(&mut self, tv: TypeVar) -> TypeVar {
         if let Some(mapped) = self.fixed.get(&tv).copied() {
+            self.copy_tv_side_tables(tv, mapped);
             return mapped;
         }
         if let Some(mapped) = self.copied.get(&tv).copied() {
@@ -745,20 +750,85 @@ impl<'a> CopiedTypeVars<'a> {
         let lowers = self.state.infer.lowers_of(tv);
         for lower in lowers {
             let lower = self.copy_pos(lower);
-            self.state.infer.add_lower(mapped, lower);
+            self.state.infer.constrain(lower, Neg::Var(mapped));
         }
 
         let uppers = self.state.infer.uppers_of(tv);
         for upper in uppers {
             let upper = self.copy_neg(upper);
-            self.state.infer.add_upper(mapped, upper);
+            self.state.infer.constrain(Pos::Var(mapped), upper);
         }
 
         if self.state.infer.is_through(tv) {
             self.state.infer.mark_through(mapped);
         }
+        self.copy_tv_side_tables(tv, mapped);
 
         mapped
+    }
+
+    fn copy_tv_side_tables(&mut self, tv: TypeVar, mapped: TypeVar) {
+        if !self.copied_tv_side_tables.insert(tv) {
+            return;
+        }
+        if let Some(keep) = self
+            .state
+            .infer
+            .effect_boundary_keeps
+            .borrow()
+            .get(&tv)
+            .cloned()
+        {
+            self.state.infer.record_effect_boundary_keep(mapped, keep);
+        }
+        self.copy_handler_matches_for(tv);
+    }
+
+    fn copy_handler_matches_for(&mut self, tv: TypeVar) {
+        let indices = self
+            .state
+            .infer
+            .handler_match_dependents
+            .borrow()
+            .get(&tv)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect::<Vec<_>>();
+        for index in indices {
+            if !self.copied_handler_matches.insert(index) {
+                continue;
+            }
+            let Some(edge) = self
+                .state
+                .infer
+                .handler_matches
+                .borrow()
+                .get(index)
+                .cloned()
+            else {
+                continue;
+            };
+            let actual = self.copy_tv(edge.actual);
+            let residual = self.copy_tv(edge.residual);
+            self.state
+                .infer
+                .record_effect_boundary_keep(actual, edge.keep.clone());
+            let handled = edge
+                .handled
+                .into_iter()
+                .map(|handled| self.copy_neg_id(handled))
+                .collect();
+            if edge.solve_open_rows {
+                self.state
+                    .infer
+                    .record_open_handler_match(actual, handled, residual, edge.cause);
+            } else {
+                self.state
+                    .infer
+                    .record_handler_match(actual, handled, residual, edge.cause);
+            }
+        }
     }
 
     fn copy_function_sig_effect_hint(

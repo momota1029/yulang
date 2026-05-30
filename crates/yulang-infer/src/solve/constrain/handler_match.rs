@@ -110,7 +110,7 @@ impl Infer {
         let mut seen = HashSet::new();
         for lower in self.lower_refs_of(edge.actual) {
             for residual in
-                self.solve_handler_match_pos_lower(&edge, lower, cause, cache, &mut seen)
+                self.solve_handler_match_pos_lower(index, &edge, lower, cause, cache, &mut seen)
             {
                 self.constrain_step_with_hint(
                     residual,
@@ -129,6 +129,7 @@ impl Infer {
 
     fn solve_handler_match_pos_lower(
         &self,
+        index: usize,
         edge: &HandlerMatchEdge,
         lower: PosId,
         cause: &ConstraintCause,
@@ -143,11 +144,18 @@ impl Infer {
             if !seen.insert(source) {
                 return Vec::new();
             }
+            {
+                let mut dependents = self.handler_match_dependents.borrow_mut();
+                let entry = dependents.entry(source).or_default();
+                if !entry.contains(&index) {
+                    entry.push(index);
+                }
+            }
             return self
                 .lower_refs_of(source)
                 .into_iter()
                 .flat_map(|lower| {
-                    self.solve_handler_match_pos_lower(edge, lower, cause, cache, seen)
+                    self.solve_handler_match_pos_lower(index, edge, lower, cause, cache, seen)
                 })
                 .collect();
         };

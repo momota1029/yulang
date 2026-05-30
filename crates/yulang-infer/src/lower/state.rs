@@ -962,6 +962,24 @@ impl LowerState {
         if let Some(&source_eff) = self.lambda_param_source_eff_tvs.get(&def) {
             self.infer.add_non_generic_var(owner, source_eff);
         }
+        if let Some(hint) = self.lambda_param_function_sig_hints.get(&def).copied() {
+            match hint {
+                FunctionSigEffectHint::Pure | FunctionSigEffectHint::Through => {}
+                FunctionSigEffectHint::LowerBound(lower) => {
+                    for tv in crate::scheme::collect_pos_free_vars(&self.infer, lower) {
+                        self.infer.add_non_generic_var(owner, tv);
+                    }
+                }
+                FunctionSigEffectHint::Bounds(lower, upper) => {
+                    for tv in crate::scheme::collect_pos_free_vars(&self.infer, lower) {
+                        self.infer.add_non_generic_var(owner, tv);
+                    }
+                    for tv in crate::scheme::collect_neg_free_vars(&self.infer, upper) {
+                        self.infer.add_non_generic_var(owner, tv);
+                    }
+                }
+            }
+        }
     }
 
     pub fn is_unannotated_current_lambda_param(&self, def: DefId) -> bool {

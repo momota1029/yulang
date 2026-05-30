@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use yulang_parser::lex::SyntaxKind;
 
 use super::ActCopy;
-use crate::ids::DefId;
+use crate::ids::{DefId, PosId};
 use crate::lower::LowerState;
 use crate::scheme::{
     SmallSubst, freeze_type_var_with_non_generic, instantiate_frozen_body_with_subst,
@@ -161,29 +161,48 @@ fn try_copy_lowered_act_body(
         state.register_def_name(def, name.clone());
         state.insert_value(state.ctx.current_module, name.clone(), def);
         let has_source_body = state.principal_bodies.contains_key(&source_def);
-        let copied_scheme_subst = if has_source_body {
-            instantiate_frozen_body_with_subst(&state.infer, &frozen, state.infer.level_of(tv), &[])
-                .1
-        } else {
-            instantiate_frozen_scheme_with_subst(&state.infer, &frozen, tv, &[])
-        };
+        let (copied_scheme_body, copied_scheme_subst): (Option<PosId>, SmallSubst) =
+            if has_source_body {
+                let (body, subst) = instantiate_frozen_body_with_subst(
+                    &state.infer,
+                    &frozen,
+                    state.infer.level_of(tv),
+                    &[],
+                );
+                (Some(body), subst)
+            } else {
+                (
+                    None,
+                    instantiate_frozen_scheme_with_subst(&state.infer, &frozen, tv, &[]),
+                )
+            };
         let copied_body_subst =
             translate_frozen_subst_to_original(frozen.as_ref(), copied_scheme_subst.as_slice());
         if !has_source_body {
             state.infer.store_frozen_scheme(def, frozen);
         }
-        copied_defs.push((name, source_def, def, tv, copied_body_subst));
+        copied_defs.push((
+            name,
+            source_def,
+            def,
+            tv,
+            copied_scheme_body,
+            copied_body_subst,
+        ));
     }
 
     let copied_def_subst = copied_defs
         .iter()
-        .map(|(_, source_def, def, _, _)| (*source_def, *def))
+        .map(|(_, source_def, def, _, _, _)| (*source_def, *def))
         .chain(collect_act_copy_template_def_subst(state, copy))
         .collect::<HashMap<_, _>>();
 
     let mut finalized_defs = HashSet::new();
-    for (_name, source_def, def, tv, copied_body_subst) in copied_defs {
+    for (_name, source_def, def, tv, copied_scheme_body, copied_body_subst) in copied_defs {
         if let Some(source_body) = state.clone_principal_body(source_def) {
+            if let Some(body) = copied_scheme_body {
+                state.infer.constrain(body, Neg::Var(tv));
+            }
             let body_tv_subst = merge_type_substs(subst.as_slice(), copied_body_subst.as_slice());
             let copied = super::transform_copied_principal_body_with_subst(
                 state,
