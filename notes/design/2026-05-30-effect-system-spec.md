@@ -232,7 +232,81 @@ row - H  <:  ε
 
 ### 2.5 〔TODO: アトムの型引数の subtyping（parse<τ,σ> の τ,σ 同士）、⊔/⊓ の正規化〕
 
-## 3. catch の lowering  〔TODO〕
+## 3. catch の lowering
+
+`catch` はエフェクトを取り出す唯一の構文。**shallow handler**（計算しやすさを優先した設計上の選択）。
+deep handler が要るときはユーザが再帰で巻く（§3.4）。
+
+### 3.1 構文と各部の型
+
+```
+catch x:
+  op1 p1, k1 -> body1      -- effect arm: op1 を捕まえ、引数 p1、継続 k1
+  op2 p2, k2 -> body2
+  v -> body_v              -- value arm: x が値 v を返したとき
+```
+
+- `x`: scrutinee。計算（thunk）。その**エフェクトスロットを ρ** とする。
+  x が引数注釈由来なら ρ には handled（H_b）が bind 済み（§2.4）。普通の式なら ρ は通常の行変数。
+- `handled2` = この catch が捕まえる op の集合 `{op1, op2, ...}`（value arm は含めない）。
+- `ρ_d` = catch の**残差**行変数（handle しきれず漏れるエフェクト）。新規に作る。
+
+### 3.2 scrutinee への制約
+
+catch は scrutinee に対して **bind の handled（H_b = handled1）と自分の handled2 の共通部分を
+明示的に**張る:
+
+```
+ρ  <:  [ (handled1 ∩ handled2) ; ρ_d ]         (CATCH-SCRUT)
+```
+
+種メモ「`'c <: [handled1 & handled2; 'd]`」の通り。`handled1 &` を**省略できない**。
+
+**なぜ EFF-BIND 任せにできないか**: EFF-BIND（§2.4.2）は `lower <: ρ`（ρ が下界を受け取る向き）
+でしか発火しない。CATCH-SCRUT は `ρ <: [...]`（ρ が上界へ向かう）で**向きが逆**なので、
+ここでは bind の特殊推論は起きない。よって handled1 を catch 側で明示的に ∩ して織り込む必要がある。
+（ρ が普通の行変数で bind が無い場合は handled1 = 全集合扱い、すなわち `handled1 ∩ handled2 = handled2`。）
+
+ここの ∩ は handled マージ（∩ は H にのみ効く、§1.3）。`ρ_d` は catch の残差行変数（新規）。
+
+### 3.3 catch 全体のエフェクト型
+
+```
+effectof(body1) ⊔ effectof(body2) ⊔ ... ⊔ effectof(body_v) ⊔ ρ_d
+```
+
+**`ρ_d` は CATCH-SCRUT の残差と同一変数**（別変数にするとバグる）。これにより
+「scrutinee の残差が catch の結果エフェクトへ素通しする」が成立する。これが理論の肝の一つで、
+旧実装はこの ρ_d を別変数に割って残差を消していた。
+
+### 3.4 継続 k と各 arm
+
+- **value arm `v -> body_v`**: `v` は x の値型。`body_v` を通常 lower。
+- **effect arm `opi pi, ki -> bodyi`**:
+  - `pi`: opi の引数型（opi のシグネチャから）。
+  - `ki`: 継続。**k が運ぶエフェクトは scrutinee の ρ と同一**（shallow なので handle 後の
+    残りではなく、scrutinee そのまま）。すなわち `ki : τ_resume [ρ] -> [ρ] τ_x`
+    （resume 値を受け、再び ρ のエフェクトで x の結果型 τ_x を生む）。
+  - deep handler が欲しいときは body 内で `catch` を含む再帰関数を自分で呼ぶ（例:
+    `op, k -> run(k v)` のように handler 自身を resume 結果に再適用する）。理論は
+    shallow だけを与え、deep はその合成として表現する。
+
+### 3.5 完全/不完全ハンドラはアトム単位では表せない → CATCH-SCRUT の明示で解決
+
+エフェクトアトム（`parse<...>` など）は op ファミリ（`item`/`fail` ...）を内包する。
+catch が一部の op だけ捕まえる「不完全ハンドラ」のとき、これを **EFF-ROW のアトム単位差分
+（`H1 - H2`）では表現できない**。理由は §3.2 の通り、CATCH-SCRUT は `ρ <: [...]` の向きで
+EFF-BIND（`lower <: ρ` 向き専用）が発火しないから。
+
+→ **解決は §3.2 に集約済み**: CATCH-SCRUT で `handled1 ∩ handled2` を明示的に張ることで、
+完全/不完全は handled の共通部分として自然に表現される。ρ_d 側の特別扱い（旧実装の
+`complete_handled_effect_paths` のようなファミリ網羅判定の分岐）は**不要**。
+
+> 旧実装はこの判定を `has_incomplete_effect_path` / `complete_handled_effect_paths` として
+> 持ち、残差の扱いを分岐させていた（理論スープの一因）。新理論ではこの分岐は消え、
+> CATCH-SCRUT の ∩ ひとつに吸収される。
+
+### 3.6 〔TODO: value arm 無しの catch、glob arm `_ -> ...`（全捕獲）の扱い〕
 
 ## 4. 単相化（compose 例の一般化）  〔TODO〕
 
