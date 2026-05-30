@@ -383,6 +383,21 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
         }
     }
     if state.current_owner == Some(def) {
+        if let Some(instance) = state.active_recursive_self_instance(def) {
+            state.mark_recursive_self_use(def);
+            let ref_id = state.ctx.fresh_ref();
+            state
+                .ctx
+                .refs
+                .resolve(ref_id, def, instance.tv, state.current_owner);
+            state.mark_resolved_ref_instantiated(ref_id);
+            record_resolve_bound_def_expr(state, start, ResolveBoundDefKind::SelfRecursive);
+            return TypedExpr {
+                tv: instance.tv,
+                eff: instance.eff_tv,
+                kind: ExprKind::Var(def),
+            };
+        }
         if let Some(scheme) = state.provisional_self_schemes.get(&def).cloned() {
             state.mark_recursive_self_use(def);
             let tv = state.fresh_tv();
@@ -531,6 +546,19 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
                         Some(&frozen),
                     );
             }
+        } else if should_defer_unlowered_callable_ref(state, def) {
+            resolve_kind = ResolveBoundDefKind::LetBound;
+            if let Some(owner) = state.current_owner {
+                state.infer.add_edge(owner, def);
+            }
+            let ref_id = state.ctx.fresh_ref();
+            state.ctx.refs.resolve(ref_id, def, tv, state.current_owner);
+            record_resolve_bound_def_expr(state, start, resolve_kind);
+            return TypedExpr {
+                tv,
+                eff,
+                kind: ExprKind::Var(def),
+            };
         } else if state.is_let_bound_def(def) && state.current_owner != Some(def) {
             resolve_kind = ResolveBoundDefKind::LetBound;
             if let Some(owner) = state.current_owner {
@@ -596,6 +624,13 @@ fn record_resolve_bound_def_expr(
             state.lower_detail.resolve_bound_def_direct += elapsed;
         }
     }
+}
+
+fn should_defer_unlowered_callable_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
+    state.is_let_bound_def(def)
+        && state.current_owner != Some(def)
+        && !state.principal_bodies.contains_key(&def)
+        && state.is_callable_value_def(def)
 }
 
 fn debug_ref_enabled() -> bool {

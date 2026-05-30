@@ -732,15 +732,21 @@ fn subst_effect_atom(atom: EffectAtom, subst: &[(TypeVar, TypeVar)]) -> EffectAt
     }
 }
 
-fn collect_non_generic_vars(infer: &Infer, roots: &HashSet<TypeVar>) -> HashSet<TypeVar> {
+pub(crate) fn collect_non_generic_vars(
+    infer: &Infer,
+    roots: &HashSet<TypeVar>,
+) -> HashSet<TypeVar> {
     let mut out = HashSet::new();
     for root in roots {
         out.insert(*root);
-        let compact = compact_type_var(infer, *root);
-        let scheme = coalesce_by_co_occurrence(&compact);
+        let mut scheme = compact_type_var(infer, *root);
+        coalesce_function_effect_residuals_in_scheme(&mut scheme);
         let mut free = Vec::new();
         collect_compact_type_free_vars(&scheme.cty.lower, &mut free);
         collect_compact_type_free_vars(&scheme.cty.upper, &mut free);
+        for bounds in scheme.rec_vars.values() {
+            collect_compact_bounds_free_vars(bounds, &mut free);
+        }
         out.extend(free);
     }
     out

@@ -7,7 +7,7 @@ use crate::profile::ProfileClock as Instant;
 use crate::ids::DefId;
 use crate::ref_table::{RefTable, ResolvedRef};
 use crate::scheme::{
-    collect_compact_role_constraint_free_vars,
+    collect_compact_role_constraint_free_vars, collect_non_generic_vars,
     freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
     instantiate_as_view_with_subst_profiled,
 };
@@ -297,7 +297,8 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 };
 
                 let cooccur_start = Instant::now();
-                let non_generic = infer.non_generic_vars_of(item.def);
+                let non_generic_roots = infer.non_generic_vars_of(item.def);
+                let non_generic = collect_non_generic_vars(infer, &non_generic_roots);
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
                         coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(

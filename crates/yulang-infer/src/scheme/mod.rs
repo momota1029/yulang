@@ -45,8 +45,8 @@ pub use view::{
 };
 
 pub(crate) use freeze::{
-    collect_compact_role_constraint_free_vars, compact_neg_type, compact_pos_type,
-    freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+    collect_compact_role_constraint_free_vars, collect_non_generic_vars, compact_neg_type,
+    compact_pos_type, freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
     freeze_compact_scheme_with_non_generic_and_extra_vars,
 };
 pub(crate) use instantiate::{subst_neg_id, subst_neg_id_map, subst_pos_id, subst_pos_id_map};

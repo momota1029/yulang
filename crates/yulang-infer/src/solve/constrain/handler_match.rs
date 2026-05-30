@@ -152,12 +152,10 @@ impl Infer {
                 .collect();
         };
         let mut kept = Vec::new();
-        let mut removed_any = false;
         for item in &items {
             if let Some(handled) =
                 self.capturing_handler_for_pos_item(&edge.keep, &edge.handled, *item)
             {
-                removed_any = true;
                 self.constrain_row_item_match(*item, handled, cause, cache);
             } else {
                 kept.push(*item);
@@ -166,16 +164,13 @@ impl Infer {
         if !edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot) {
             return Vec::new();
         }
-        removed_any
-            .then(|| {
-                if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
-                    tail
-                } else {
-                    self.arena.alloc_pos(Pos::Row(kept, tail))
-                }
-            })
-            .into_iter()
-            .collect()
+        vec![
+            if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
+                tail
+            } else {
+                self.arena.alloc_pos(Pos::Row(kept, tail))
+            },
+        ]
     }
 
     fn capturing_handler_for_pos_item(
@@ -383,6 +378,50 @@ mod tests {
                 matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
             }),
             "open surface subtraction should expose the row tail as the residual"
+        );
+    }
+
+    #[test]
+    fn handler_match_passes_unhandled_open_row_items_to_residual() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let handled = EffectAtom {
+            path: path("io"),
+            args: Vec::new(),
+        };
+        let unhandled = EffectAtom {
+            path: path("outer"),
+            args: Vec::new(),
+        };
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(unhandled.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(actual),
+        );
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(handled))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            infer.lower_refs_of(residual).into_iter().any(|lower| {
+                matches!(
+                    infer.arena.get_pos(lower),
+                    Pos::Row(items, row_tail)
+                        if items.iter().any(|item| matches!(
+                            infer.arena.get_pos(*item),
+                            Pos::Atom(atom) if atom == unhandled
+                        )) && matches!(infer.arena.get_pos(row_tail), Pos::Var(tv) if tv == tail)
+                )
+            }),
+            "open handler_match must pass unhandled row items through to the residual"
         );
     }
 

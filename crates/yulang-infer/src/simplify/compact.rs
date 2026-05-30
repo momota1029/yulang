@@ -197,6 +197,12 @@ pub(crate) fn coalesce_function_effect_residual(
     let mut tail_vars = HashSet::new();
     collect_effect_row_tail_vars_with_items(arg_eff, &ret_eff.vars, &mut tail_vars);
     if tail_vars.is_empty() {
+        let promoted = promote_adjacent_effect_residual_vars(arg_eff, &ret_eff.vars);
+        if !promoted.is_empty() {
+            for tv in promoted {
+                arg_eff.vars.remove(&tv);
+            }
+        }
         return;
     }
     let mut subst = arg_eff
@@ -227,6 +233,42 @@ pub(crate) fn coalesce_function_effect_residual(
     }
     for tail in tail_vars {
         arg_eff.vars.remove(&tail);
+    }
+}
+
+fn promote_adjacent_effect_residual_vars(
+    ty: &mut CompactType,
+    ret_vars: &HashSet<TypeVar>,
+) -> HashSet<TypeVar> {
+    let residual_vars = ty
+        .vars
+        .intersection(ret_vars)
+        .copied()
+        .collect::<HashSet<_>>();
+    if residual_vars.is_empty() {
+        return HashSet::new();
+    }
+
+    let mut promoted = HashSet::new();
+    for row in &mut ty.rows {
+        promote_adjacent_effect_residual_vars_in_row(row, &residual_vars, &mut promoted);
+    }
+    promoted
+}
+
+fn promote_adjacent_effect_residual_vars_in_row(
+    row: &mut CompactRow,
+    residual_vars: &HashSet<TypeVar>,
+    promoted: &mut HashSet<TypeVar>,
+) {
+    if !row.items.is_empty() && is_empty_compact_type(&row.tail) {
+        row.tail.vars.extend(residual_vars.iter().copied());
+        promoted.extend(residual_vars.iter().copied());
+        return;
+    }
+
+    for nested in &mut row.tail.rows {
+        promote_adjacent_effect_residual_vars_in_row(nested, residual_vars, promoted);
     }
 }
 
@@ -1570,8 +1612,8 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
 mod tests {
 
     use super::{
-        CompactBounds, CompactRow, CompactType, CompactTypeScheme, compact_type_var,
-        normalize_compact_scheme_rows,
+        CompactBounds, CompactRow, CompactType, CompactTypeScheme,
+        coalesce_function_effect_residual, compact_type_var, normalize_compact_scheme_rows,
     };
     use crate::fresh_type_var;
     use crate::solve::Infer;
@@ -1747,6 +1789,36 @@ mod tests {
         let row = &scheme.cty.lower.rows[0];
         assert_eq!(row.tail.vars, std::collections::HashSet::from([tail]));
         assert!(row.tail.rows.is_empty());
+    }
+
+    #[test]
+    fn coalesce_function_effect_residual_promotes_adjacent_row_var_to_tail() {
+        let residual = fresh_type_var();
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let mut arg_eff = CompactType {
+            vars: std::collections::HashSet::from([residual]),
+            rows: vec![CompactRow {
+                items: vec![io],
+                tail: Box::new(CompactType::default()),
+            }],
+            ..CompactType::default()
+        };
+        let mut ret_eff = CompactType {
+            vars: std::collections::HashSet::from([residual]),
+            ..CompactType::default()
+        };
+
+        coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
+
+        assert!(!arg_eff.vars.contains(&residual));
+        assert_eq!(
+            arg_eff.rows[0].tail.vars,
+            std::collections::HashSet::from([residual])
+        );
+        assert_eq!(ret_eff.vars, std::collections::HashSet::from([residual]));
     }
 
     #[test]

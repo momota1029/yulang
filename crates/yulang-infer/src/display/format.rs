@@ -45,7 +45,7 @@ pub enum Type {
 pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
     let mut ctx = CompactToTypeCtx::new(scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
-    if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true) {
+    if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true, !scheme.rec_vars.is_empty()) {
         return simplify_root_type(fun);
     }
     if let Some(fun) = coalesce_lower_only_root_fun(&mut ctx, &root) {
@@ -555,6 +555,7 @@ fn coalesce_root_fun(
     ctx: &mut CompactToTypeCtx<'_>,
     bounds: &CompactBounds,
     normalize_fields: bool,
+    coalesce_effect_residual: bool,
 ) -> Option<Type> {
     let [lower_fun] = bounds.lower.funs.as_slice() else {
         return None;
@@ -567,7 +568,9 @@ fn coalesce_root_fun(
     }
     let mut lower_fun = lower_fun.clone();
     let upper_fun = upper_fun.clone();
-    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+    if coalesce_effect_residual || lower_fun.ret_eff.vars.len() > 1 {
+        coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+    }
 
     if !normalize_fields {
         let arg = common_compact_type(&lower_fun.arg, &upper_fun.arg)
@@ -614,37 +617,6 @@ fn coalesce_root_fun(
     })
 }
 
-fn coalesce_lower_only_root_fun(
-    ctx: &mut CompactToTypeCtx<'_>,
-    bounds: &CompactBounds,
-) -> Option<Type> {
-    let [lower_fun] = bounds.lower.funs.as_slice() else {
-        return None;
-    };
-    if !bounds.upper.funs.is_empty()
-        || !root_non_fun_parts_empty(&bounds.lower)
-        || !root_non_fun_parts_empty(&bounds.upper)
-    {
-        return None;
-    }
-    if lower_fun.arg_eff.rows.is_empty()
-        || lower_fun.arg_eff.vars.is_empty()
-        || lower_fun.ret_eff.vars.is_empty()
-    {
-        return None;
-    }
-
-    let mut lower_fun = lower_fun.clone();
-    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
-
-    Some(Type::Fun {
-        arg: Box::new(ctx.coalesce_type(&lower_fun.arg, false)),
-        arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
-        ret_eff: Box::new(ctx.coalesce_type(&lower_fun.ret_eff, true)),
-        ret: Box::new(ctx.coalesce_type(&lower_fun.ret, true)),
-    })
-}
-
 fn coalesce_root_fun_arg_effect_field(
     ctx: &mut CompactToTypeCtx<'_>,
     lower: &CompactType,
@@ -687,6 +659,38 @@ fn remove_upper_covered_row_tail_vars(ty: &mut CompactType, upper: &CompactType)
     }
 }
 
+fn coalesce_lower_only_root_fun(
+    ctx: &mut CompactToTypeCtx<'_>,
+    bounds: &CompactBounds,
+) -> Option<Type> {
+    let [lower_fun] = bounds.lower.funs.as_slice() else {
+        return None;
+    };
+    if !bounds.upper.funs.is_empty()
+        || !root_non_fun_parts_empty(&bounds.lower)
+        || !root_non_fun_parts_empty(&bounds.upper)
+        || lower_fun.ret_eff.vars.len() <= 1
+    {
+        return None;
+    }
+    if lower_fun.arg_eff.rows.is_empty()
+        || lower_fun.arg_eff.vars.is_empty()
+        || lower_fun.ret_eff.vars.is_empty()
+    {
+        return None;
+    }
+
+    let mut lower_fun = lower_fun.clone();
+    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+
+    Some(Type::Fun {
+        arg: Box::new(ctx.coalesce_type(&lower_fun.arg, false)),
+        arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
+        ret_eff: Box::new(ctx.coalesce_type(&lower_fun.ret_eff, true)),
+        ret: Box::new(ctx.coalesce_type(&lower_fun.ret, true)),
+    })
+}
+
 fn coalesce_root_fun_effect_field(
     ctx: &mut CompactToTypeCtx<'_>,
     lower: &CompactType,
@@ -698,7 +702,7 @@ fn coalesce_root_fun_effect_field(
         lower: lower.clone(),
         upper: upper.clone(),
     });
-    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true) {
+    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true, false) {
         return simplify_type(fun);
     }
 
@@ -737,7 +741,7 @@ fn coalesce_root_fun_field(
         lower: lower.clone(),
         upper: upper.clone(),
     });
-    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true) {
+    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true, false) {
         return simplify_type(fun);
     }
 
