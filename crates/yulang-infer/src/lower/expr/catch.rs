@@ -106,10 +106,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
 
         let mut saw_value_arm = false;
         let mut handled_ops = Vec::new();
-        let mut handled_pos_ops = Vec::new();
-        let mut handled_effect_paths = Vec::new();
         let mut handled_effect_atoms = HashSet::new();
-        let mut covered_effect_ops: HashMap<Path, HashSet<crate::ids::DefId>> = HashMap::new();
         let mut effect_arg_substs: HashMap<
             Path,
             HashMap<crate::ids::TypeVar, crate::ids::TypeVar>,
@@ -187,18 +184,6 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         );
                         if handled_effect_atoms.insert(handled_atom.clone()) {
                             handled_ops.push(handled_op.clone());
-                            handled_pos_ops.push(Pos::Atom(handled_atom.clone()));
-                            handled_effect_paths.push(effect_path.clone());
-                        }
-                        let covers_operation =
-                            catch_arm_fully_covers_effect_operation(&lowered.check);
-                        if let Some(op_def) = op_def
-                            && covers_operation
-                        {
-                            covered_effect_ops
-                                .entry(effect_path.clone())
-                                .or_default()
-                                .insert(op_def);
                         }
                     }
 
@@ -247,8 +232,8 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                                 (Pos::Var(resume_tv), Neg::Var(resume_tv))
                             }
                         };
-                        let k_arg_eff = state.fresh_tv();
-                        let k_ret_eff = handler_rest_eff;
+                        let k_arg_eff = comp_handler_eff;
+                        let k_ret_eff = comp_handler_eff;
                         let k_fun = state.pos_fun(
                             resume_neg,
                             Neg::Var(k_arg_eff),
@@ -313,9 +298,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             arms: check_arms,
         });
 
-        if !saw_value_arm
-            && !comp_is_direct_handled_effect_call(state, &comp, &handled_effect_paths)
-        {
+        if !saw_value_arm && !comp_is_direct_handled_effect_call(state, &comp, &handled_ops) {
             state.infer.constrain(Pos::Var(comp.tv), Neg::Var(tv));
             state.infer.constrain(Pos::Var(tv), Neg::Var(comp.tv));
         }
@@ -324,23 +307,12 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             record_handler_body_boundary_keep(state, &comp, comp_handler_eff);
         }
 
-        let complete_effect_paths =
-            complete_handled_effect_paths(state, &handled_effect_paths, &covered_effect_ops);
-        let has_incomplete_effect_path = handled_effect_paths
-            .iter()
-            .any(|path| !complete_effect_paths.contains(path));
-        let solve_open_handler_rows = !has_incomplete_effect_path;
-        let direct_param_residual_eff =
-            complete_direct_param_residual_eff(state, &comp, comp_handler_eff)
-                .filter(|_| !has_incomplete_effect_path);
         if handled_ops.is_empty() {
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
             state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
         } else if saw_value_arm {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = handler_rest_eff;
-            let arm_rest_eff = state.fresh_tv();
-            state.infer.mark_through(arm_rest_eff);
             let handled: Vec<crate::ids::NegId> = handled_ops
                 .iter()
                 .cloned()
@@ -349,65 +321,22 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             record_handler_match_for_catch(
                 state,
                 comp_handler_eff,
-                handled.clone(),
-                rest_eff,
-                solve_open_handler_rows && direct_param_residual_eff.is_none(),
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::CatchBranch,
-                },
-            );
-            record_handler_match_for_catch(
-                state,
-                arm_eff,
                 handled,
-                arm_rest_eff,
-                solve_open_handler_rows,
+                rest_eff,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
                 },
             );
-            if let Some(residual_eff) = direct_param_residual_eff {
-                state
-                    .infer
-                    .constrain(Pos::Var(rest_eff), Neg::Var(residual_eff));
-            }
-            let visible = visible_handler_surface_ops(
-                state,
-                comp_handler_eff,
-                &handled_pos_ops,
-                &handled_ops,
+            state.infer.constrain(
+                Pos::Var(comp_handler_eff),
+                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
             );
-            if !visible.neg.is_empty() {
-                state.infer.constrain(
-                    state.pos_row(visible.pos, Pos::Var(rest_eff)),
-                    Neg::Var(comp_handler_eff),
-                );
-                state.infer.constrain(
-                    Pos::Var(comp_handler_eff),
-                    state.neg_row(visible.neg, Neg::Var(rest_eff)),
-                );
-            }
-            if comp_handler_eff == comp.eff || has_incomplete_effect_path {
-                state.infer.constrain(
-                    Pos::Var(comp.eff),
-                    state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
-                );
-            }
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
-            state.infer.constrain(Pos::Var(arm_rest_eff), Neg::Var(eff));
-            if has_incomplete_effect_path {
-                state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
-                state
-                    .infer
-                    .constrain(Pos::Var(comp_handler_eff), Neg::Var(eff));
-            }
+            state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = handler_rest_eff;
-            let arm_rest_eff = state.fresh_tv();
-            state.infer.mark_through(arm_rest_eff);
             let handled: Vec<crate::ids::NegId> = handled_ops
                 .iter()
                 .cloned()
@@ -416,60 +345,19 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             record_handler_match_for_catch(
                 state,
                 comp_handler_eff,
-                handled.clone(),
-                rest_eff,
-                solve_open_handler_rows && direct_param_residual_eff.is_none(),
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::CatchBranch,
-                },
-            );
-            record_handler_match_for_catch(
-                state,
-                arm_eff,
                 handled,
-                arm_rest_eff,
-                solve_open_handler_rows,
+                rest_eff,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
                 },
             );
-            if let Some(residual_eff) = direct_param_residual_eff {
-                state
-                    .infer
-                    .constrain(Pos::Var(rest_eff), Neg::Var(residual_eff));
-            }
-            let visible = visible_handler_surface_ops(
-                state,
-                comp_handler_eff,
-                &handled_pos_ops,
-                &handled_ops,
+            state.infer.constrain(
+                Pos::Var(comp_handler_eff),
+                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
             );
-            if !visible.neg.is_empty() {
-                state.infer.constrain(
-                    state.pos_row(visible.pos, Pos::Var(rest_eff)),
-                    Neg::Var(comp_handler_eff),
-                );
-                state.infer.constrain(
-                    Pos::Var(comp_handler_eff),
-                    state.neg_row(visible.neg, Neg::Var(rest_eff)),
-                );
-            }
-            if comp_handler_eff == comp.eff || has_incomplete_effect_path {
-                state.infer.constrain(
-                    Pos::Var(comp.eff),
-                    state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
-                );
-            }
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
-            state.infer.constrain(Pos::Var(arm_rest_eff), Neg::Var(eff));
-            if has_incomplete_effect_path {
-                state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
-                state
-                    .infer
-                    .constrain(Pos::Var(comp_handler_eff), Neg::Var(eff));
-            }
+            state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
         }
 
         TypedExpr {
@@ -604,28 +492,11 @@ fn record_handler_match_for_catch(
     comp_handler_eff: crate::ids::TypeVar,
     handled: Vec<crate::ids::NegId>,
     rest_eff: crate::ids::TypeVar,
-    solve_open_handler_rows: bool,
     cause: ConstraintCause,
 ) {
-    if solve_open_handler_rows {
-        state
-            .infer
-            .record_open_handler_match(comp_handler_eff, handled, rest_eff, cause);
-    } else {
-        state
-            .infer
-            .record_handler_match(comp_handler_eff, handled, rest_eff, cause);
-    }
-}
-
-fn complete_direct_param_residual_eff(
-    state: &LowerState,
-    comp: &TypedExpr,
-    comp_handler_eff: crate::ids::TypeVar,
-) -> Option<crate::ids::TypeVar> {
-    (direct_comp_source_eff_tv(state, comp) == Some(comp_handler_eff)
-        && comp.eff != comp_handler_eff)
-        .then_some(comp.eff)
+    state
+        .infer
+        .record_open_handler_match(comp_handler_eff, handled, rest_eff, cause);
 }
 
 fn direct_comp_source_eff_tv(state: &LowerState, comp: &TypedExpr) -> Option<crate::ids::TypeVar> {
@@ -681,14 +552,14 @@ fn eff_tv_is_exact_pure_row(state: &LowerState, tv: crate::ids::TypeVar) -> bool
 fn comp_is_direct_handled_effect_call(
     state: &LowerState,
     comp: &TypedExpr,
-    handled_effect_paths: &[Path],
+    handled_ops: &[Neg],
 ) -> bool {
     let Some(effect_path) = direct_effect_call_path(state, comp) else {
         return false;
     };
-    handled_effect_paths
+    handled_ops
         .iter()
-        .any(|handled| handled == &effect_path)
+        .any(|handled| matches!(handled, Neg::Atom(atom) if atom.path == effect_path))
 }
 
 fn direct_effect_call_path(state: &LowerState, expr: &TypedExpr) -> Option<Path> {
@@ -699,91 +570,6 @@ fn direct_effect_call_path(state: &LowerState, expr: &TypedExpr) -> Option<Path>
         | ExprKind::PackForall(_, expr) => direct_effect_call_path(state, expr),
         ExprKind::Var(def) => state.effect_op_effect_paths.get(def).cloned(),
         _ => None,
-    }
-}
-
-fn complete_handled_effect_paths(
-    state: &LowerState,
-    handled_effect_paths: &[Path],
-    covered_effect_ops: &HashMap<Path, HashSet<crate::ids::DefId>>,
-) -> HashSet<Path> {
-    handled_effect_paths
-        .iter()
-        .filter(|effect_path| {
-            effect_path_is_completely_covered(state, effect_path, covered_effect_ops)
-        })
-        .cloned()
-        .collect()
-}
-
-fn effect_path_is_completely_covered(
-    state: &LowerState,
-    effect_path: &Path,
-    covered_effect_ops: &HashMap<Path, HashSet<crate::ids::DefId>>,
-) -> bool {
-    let Some(covered) = covered_effect_ops.get(effect_path) else {
-        return false;
-    };
-
-    let mut saw_declared_operation = false;
-    for (op_def, op_effect_path) in &state.effect_op_effect_paths {
-        if op_effect_path != effect_path {
-            continue;
-        }
-        saw_declared_operation = true;
-        if !covered.contains(op_def) {
-            return false;
-        }
-    }
-    saw_declared_operation
-}
-
-fn catch_arm_fully_covers_effect_operation(check: &CatchArmCheckSite) -> bool {
-    if check.guard_span.is_some() {
-        return false;
-    }
-    matches!(
-        &check.kind,
-        CatchArmCheckKind::Effect {
-            payload_covers_all: true,
-            ..
-        }
-    )
-}
-
-struct VisibleHandlerOps {
-    pos: Vec<Pos>,
-    neg: Vec<Neg>,
-}
-
-fn visible_handler_surface_ops(
-    state: &LowerState,
-    comp_eff: crate::ids::TypeVar,
-    handled_pos_ops: &[Pos],
-    handled_ops: &[Neg],
-) -> VisibleHandlerOps {
-    match state.infer.effect_boundary_keep(comp_eff) {
-        ShiftKeep::None | ShiftKeep::CallBoundary => VisibleHandlerOps {
-            pos: Vec::new(),
-            neg: Vec::new(),
-        },
-        ShiftKeep::Surface => VisibleHandlerOps {
-            pos: handled_pos_ops.to_vec(),
-            neg: handled_ops.to_vec(),
-        },
-        ShiftKeep::Set(paths) => {
-            let mut pos = Vec::new();
-            let mut neg = Vec::new();
-            for (pos_op, neg_op) in handled_pos_ops.iter().zip(handled_ops.iter()) {
-                if neg_op_path(neg_op)
-                    .is_some_and(|path| paths.iter().any(|allowed| allowed == path))
-                {
-                    pos.push(pos_op.clone());
-                    neg.push(neg_op.clone());
-                }
-            }
-            VisibleHandlerOps { pos, neg }
-        }
     }
 }
 
@@ -833,13 +619,6 @@ fn handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) -> Option<Sh
                 .collect(),
         ),
     })
-}
-
-fn neg_op_path(op: &Neg) -> Option<&Path> {
-    match op {
-        Neg::Atom(atom) => Some(&atom.path),
-        _ => None,
-    }
 }
 
 fn record_handler_return_adapter_edge(

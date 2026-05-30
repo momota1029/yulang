@@ -4,7 +4,8 @@ use std::rc::Rc;
 use crate::ids::{NegId, PosId, TypeVar, fresh_frozen_type_var};
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
-    CompactType, CompactTypeScheme, CompactVariant, compact_type_var, merge_compact_types,
+    CompactType, CompactTypeScheme, CompactVariant, coalesce_function_effect_residual,
+    coalesce_function_effect_residuals_in_scheme, compact_type_var, merge_compact_types,
     subst_compact_bounds, subst_lookup_small,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
@@ -93,11 +94,12 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
     let mut quantified = collect_compact_root_body_free_vars(&scheme);
     quantified.extend_from_slice(extra_quantified);
     let quantification = prepare_freeze_quantification(infer, quantified, non_generic_roots);
-    let compact = if quantification.quantified_sources.is_empty() {
+    let mut compact = if quantification.quantified_sources.is_empty() {
         scheme
     } else {
         subst_compact_scheme_vars(scheme, quantification.quantified_sources.as_slice())
     };
+    coalesce_function_effect_residuals_in_scheme(&mut compact);
     let scheme_arena: FrozenArena = Rc::new(TypeArena::new());
     let body = compact_root_fun_pos_body(&scheme_arena, &compact)
         .unwrap_or_else(|| compact_pos_type(&scheme_arena, &compact.cty.lower, &compact, false));
@@ -135,11 +137,12 @@ fn freeze_live_pos_body_with_non_generic(
         body,
         quantification.quantified_sources.as_slice(),
     );
-    let compact = if quantification.quantified_sources.is_empty() {
+    let mut compact = if quantification.quantified_sources.is_empty() {
         compact
     } else {
         subst_compact_scheme_vars(compact, quantification.quantified_sources.as_slice())
     };
+    coalesce_function_effect_residuals_in_scheme(&mut compact);
     finish_frozen_scheme(scheme_arena, compact, frozen_body, quantification)
 }
 
@@ -754,14 +757,12 @@ fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> O
         return None;
     }
 
-    let (arg, arg_eff, ret_eff, ret) = match scheme.cty.upper.funs.as_slice() {
+    let (arg, mut arg_eff, mut ret_eff, ret) = match scheme.cty.upper.funs.as_slice() {
         [upper_fun] => (
             common_compact_type(&lower_fun.arg, &upper_fun.arg)
                 .filter(|ty| !is_empty_compact_type(ty))
                 .unwrap_or_else(|| lower_fun.arg.clone()),
-            common_compact_type(&lower_fun.arg_eff, &upper_fun.arg_eff)
-                .filter(|ty| !is_empty_compact_type(ty))
-                .unwrap_or_else(|| lower_fun.arg_eff.clone()),
+            root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
             merge_compact_types(true, lower_fun.ret_eff.clone(), upper_fun.ret_eff.clone()),
             merge_compact_types(true, lower_fun.ret.clone(), upper_fun.ret.clone()),
         ),
@@ -773,6 +774,7 @@ fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> O
         ),
         _ => return None,
     };
+    coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
 
     Some(arena.alloc_pos(Pos::Fun {
         arg: compact_neg_type(arena, &arg, scheme, false),
@@ -864,6 +866,14 @@ fn common_compact_type(lhs: &CompactType, rhs: &CompactType) -> Option<CompactTy
     })
 }
 
+fn root_fun_arg_eff_compact(lower: &CompactType, upper: &CompactType) -> CompactType {
+    common_compact_type(lower, upper)
+        .filter(|ty| {
+            !is_empty_compact_type(ty) && (has_non_var_shape(ty) || !has_non_var_shape(lower))
+        })
+        .unwrap_or_else(|| lower.clone())
+}
+
 fn is_empty_compact_type(ty: &CompactType) -> bool {
     ty.vars.is_empty()
         && ty.prims.is_empty()
@@ -874,6 +884,17 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
+}
+
+fn has_non_var_shape(ty: &CompactType) -> bool {
+    !ty.prims.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
 }
 
 fn compact_con_as_effect_atom(con: &CompactCon) -> Option<EffectAtom> {
@@ -906,15 +927,13 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
             // the body but not collected here will stay as a live TypeVar
             // after instantiation, so the two functions have to agree on
             // *which slices* of the bounds feed the body.
-            let (arg, arg_eff, ret_eff, ret) =
+            let (arg, mut arg_eff, mut ret_eff, ret) =
                 match scheme.cty.upper.funs.as_slice().first_chunk::<1>() {
                     Some([upper_fun]) => (
                         common_compact_type(&lower_fun.arg, &upper_fun.arg)
                             .filter(|ty| !is_empty_compact_type(ty))
                             .unwrap_or_else(|| lower_fun.arg.clone()),
-                        common_compact_type(&lower_fun.arg_eff, &upper_fun.arg_eff)
-                            .filter(|ty| !is_empty_compact_type(ty))
-                            .unwrap_or_else(|| lower_fun.arg_eff.clone()),
+                        root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
                         merge_compact_types(
                             true,
                             lower_fun.ret_eff.clone(),
@@ -933,6 +952,7 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
                         return out;
                     }
                 };
+            coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
             collect_compact_type_free_vars(&arg, &mut out);
             collect_compact_type_free_vars(&arg_eff, &mut out);
             collect_compact_type_free_vars(&ret_eff, &mut out);

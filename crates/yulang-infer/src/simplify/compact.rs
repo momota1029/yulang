@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::mem;
@@ -185,6 +185,124 @@ pub(crate) fn merge_compact_types(
     lhs.tuples = merge_tuples(positive, lhs.tuples, rhs_tuples);
     lhs.rows = merge_rows(positive, lhs.rows, rhs_rows);
     lhs
+}
+
+pub(crate) fn coalesce_function_effect_residual(
+    arg_eff: &mut CompactType,
+    ret_eff: &mut CompactType,
+) {
+    if arg_eff.rows.is_empty() || arg_eff.vars.is_empty() || ret_eff.vars.is_empty() {
+        return;
+    }
+    let mut tail_vars = HashSet::new();
+    collect_effect_row_tail_vars_with_items(arg_eff, &ret_eff.vars, &mut tail_vars);
+    if tail_vars.is_empty() {
+        return;
+    }
+    let mut subst = arg_eff
+        .vars
+        .iter()
+        .copied()
+        .filter(|tv| ret_eff.vars.contains(tv))
+        .filter_map(|surface| {
+            tail_vars
+                .iter()
+                .copied()
+                .find(|tail| *tail != surface)
+                .map(|tail| (surface, tail))
+        })
+        .collect::<Vec<_>>();
+    subst.sort_by_key(|(from, _)| from.0);
+    subst.dedup_by_key(|(from, _)| *from);
+    if subst.is_empty() {
+        for tail in tail_vars {
+            arg_eff.vars.remove(&tail);
+        }
+        return;
+    }
+    *arg_eff = subst_compact_type(arg_eff, &subst);
+    *ret_eff = subst_compact_type(ret_eff, &subst);
+    for &(_, tail) in &subst {
+        arg_eff.vars.remove(&tail);
+    }
+    for tail in tail_vars {
+        arg_eff.vars.remove(&tail);
+    }
+}
+
+pub(crate) fn coalesce_function_effect_residuals_in_scheme(scheme: &mut CompactTypeScheme) {
+    coalesce_function_effect_residuals_in_bounds(&mut scheme.cty);
+    for bounds in scheme.rec_vars.values_mut() {
+        coalesce_function_effect_residuals_in_bounds(bounds);
+    }
+}
+
+fn coalesce_function_effect_residuals_in_bounds(bounds: &mut CompactBounds) {
+    coalesce_function_effect_residuals_in_type(&mut bounds.lower);
+    coalesce_function_effect_residuals_in_type(&mut bounds.upper);
+}
+
+fn coalesce_function_effect_residuals_in_type(ty: &mut CompactType) {
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            coalesce_function_effect_residuals_in_bounds(arg);
+        }
+    }
+    for fun in &mut ty.funs {
+        coalesce_function_effect_residuals_in_type(&mut fun.arg);
+        coalesce_function_effect_residuals_in_type(&mut fun.arg_eff);
+        coalesce_function_effect_residuals_in_type(&mut fun.ret_eff);
+        coalesce_function_effect_residuals_in_type(&mut fun.ret);
+        coalesce_function_effect_residual(&mut fun.arg_eff, &mut fun.ret_eff);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            coalesce_function_effect_residuals_in_type(&mut field.value);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            coalesce_function_effect_residuals_in_type(&mut field.value);
+        }
+        coalesce_function_effect_residuals_in_type(&mut spread.tail);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                coalesce_function_effect_residuals_in_type(payload);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            coalesce_function_effect_residuals_in_type(item);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            coalesce_function_effect_residuals_in_type(item);
+        }
+        coalesce_function_effect_residuals_in_type(&mut row.tail);
+    }
+}
+
+fn collect_effect_row_tail_vars_with_items(
+    ty: &CompactType,
+    ret_vars: &HashSet<TypeVar>,
+    out: &mut HashSet<TypeVar>,
+) {
+    for row in &ty.rows {
+        if !row.items.is_empty() {
+            out.extend(
+                row.tail
+                    .vars
+                    .iter()
+                    .copied()
+                    .filter(|tv| ret_vars.contains(tv)),
+            );
+        }
+        collect_effect_row_tail_vars_with_items(&row.tail, ret_vars, out);
+    }
 }
 
 struct CompactContext<'a> {

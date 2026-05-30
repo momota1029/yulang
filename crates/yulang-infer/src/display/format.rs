@@ -5,7 +5,8 @@ use crate::ids::{TypeVar, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
-    CompactType, CompactTypeScheme, CompactVariant, compact_type_var, subst_compact_type,
+    CompactType, CompactTypeScheme, CompactVariant, coalesce_function_effect_residual,
+    compact_type_var,
 };
 use crate::solve::Infer;
 use crate::symbols::{Name, Path};
@@ -45,6 +46,9 @@ pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
     let mut ctx = CompactToTypeCtx::new(scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
     if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true) {
+        return simplify_root_type(fun);
+    }
+    if let Some(fun) = coalesce_lower_only_root_fun(&mut ctx, &root) {
         return simplify_root_type(fun);
     }
     simplify_root_type(ctx.coalesce_type(&root.lower, true))
@@ -563,10 +567,7 @@ fn coalesce_root_fun(
     }
     let mut lower_fun = lower_fun.clone();
     let upper_fun = upper_fun.clone();
-    coalesce_root_function_effect_residual_for_render(
-        &mut lower_fun.arg_eff,
-        &mut lower_fun.ret_eff,
-    );
+    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
 
     if !normalize_fields {
         let arg = common_compact_type(&lower_fun.arg, &upper_fun.arg)
@@ -613,46 +614,35 @@ fn coalesce_root_fun(
     })
 }
 
-fn coalesce_root_function_effect_residual_for_render(
-    arg_eff: &mut CompactType,
-    ret_eff: &mut CompactType,
-) {
-    if arg_eff.rows.is_empty() || arg_eff.vars.is_empty() || ret_eff.vars.is_empty() {
-        return;
+fn coalesce_lower_only_root_fun(
+    ctx: &mut CompactToTypeCtx<'_>,
+    bounds: &CompactBounds,
+) -> Option<Type> {
+    let [lower_fun] = bounds.lower.funs.as_slice() else {
+        return None;
+    };
+    if !bounds.upper.funs.is_empty()
+        || !root_non_fun_parts_empty(&bounds.lower)
+        || !root_non_fun_parts_empty(&bounds.upper)
+    {
+        return None;
     }
-    let tail_vars = arg_eff
-        .rows
-        .iter()
-        .filter(|row| !row.items.is_empty())
-        .flat_map(|row| row.tail.vars.iter().copied())
-        .filter(|tv| ret_eff.vars.contains(tv))
-        .collect::<HashSet<_>>();
-    if tail_vars.is_empty() {
-        return;
+    if lower_fun.arg_eff.rows.is_empty()
+        || lower_fun.arg_eff.vars.is_empty()
+        || lower_fun.ret_eff.vars.is_empty()
+    {
+        return None;
     }
-    let mut subst = arg_eff
-        .vars
-        .iter()
-        .copied()
-        .filter(|tv| ret_eff.vars.contains(tv))
-        .filter_map(|surface| {
-            tail_vars
-                .iter()
-                .copied()
-                .find(|tail| *tail != surface)
-                .map(|tail| (surface, tail))
-        })
-        .collect::<Vec<_>>();
-    subst.sort_by_key(|(from, _)| from.0);
-    subst.dedup_by_key(|(from, _)| *from);
-    if subst.is_empty() {
-        return;
-    }
-    *arg_eff = subst_compact_type(arg_eff, &subst);
-    *ret_eff = subst_compact_type(ret_eff, &subst);
-    for &(_, tail) in &subst {
-        arg_eff.vars.remove(&tail);
-    }
+
+    let mut lower_fun = lower_fun.clone();
+    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+
+    Some(Type::Fun {
+        arg: Box::new(ctx.coalesce_type(&lower_fun.arg, false)),
+        arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
+        ret_eff: Box::new(ctx.coalesce_type(&lower_fun.ret_eff, true)),
+        ret: Box::new(ctx.coalesce_type(&lower_fun.ret, true)),
+    })
 }
 
 fn coalesce_root_fun_arg_effect_field(
