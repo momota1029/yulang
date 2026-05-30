@@ -310,47 +310,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         if handled_ops.is_empty() {
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
             state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
-        } else if saw_value_arm {
-            record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
-            let rest_eff = handler_rest_eff;
-            let arm_rest_eff = state.fresh_tv();
-            state.infer.mark_through(arm_rest_eff);
-            let handled: Vec<crate::ids::NegId> = handled_ops
-                .iter()
-                .cloned()
-                .map(|op| state.infer.alloc_neg(op))
-                .collect();
-            record_handler_match_for_catch(
-                state,
-                comp_handler_eff,
-                handled.clone(),
-                rest_eff,
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::CatchBranch,
-                },
-            );
-            record_handler_match_for_catch(
-                state,
-                arm_eff,
-                handled.clone(),
-                arm_rest_eff,
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::CatchBranch,
-                },
-            );
-            state.infer.constrain(
-                Pos::Var(comp_handler_eff),
-                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
-            );
-            state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
-            state.infer.constrain(Pos::Var(arm_rest_eff), Neg::Var(eff));
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = handler_rest_eff;
-            let arm_rest_eff = state.fresh_tv();
-            state.infer.mark_through(arm_rest_eff);
             let handled: Vec<crate::ids::NegId> = handled_ops
                 .iter()
                 .cloned()
@@ -366,19 +328,21 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     reason: ConstraintReason::CatchBranch,
                 },
             );
+            state.infer.constrain(
+                Pos::Var(comp_handler_eff),
+                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
+            );
+            let arm_rest_eff = state.fresh_tv();
+            state.infer.mark_through(arm_rest_eff);
             record_handler_match_for_catch(
                 state,
                 arm_eff,
-                handled.clone(),
+                handled,
                 arm_rest_eff,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
                 },
-            );
-            state.infer.constrain(
-                Pos::Var(comp_handler_eff),
-                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
             );
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
             state.infer.constrain(Pos::Var(arm_rest_eff), Neg::Var(eff));

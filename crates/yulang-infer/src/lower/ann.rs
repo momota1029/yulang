@@ -5,7 +5,7 @@ use yulang_parser::lex::SyntaxKind;
 
 use super::{LowerState, SyntaxNode};
 use crate::diagnostic::{ConstraintCause, ConstraintReason, TypeOrigin, TypeOriginKind};
-use crate::lower::signature::{SigRow, SigType, SigVar};
+use crate::lower::signature::{SigRow, SigType};
 use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos};
@@ -197,7 +197,6 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
         Some(tv) => Neg::Var(tv),
         None => Neg::Top,
     };
-
     Some(LoweredEffAnn::Row {
         lower: Pos::Row(
             items
@@ -271,19 +270,21 @@ fn effect_ann_non_generic_tvs(eff: &LoweredEffAnn) -> Vec<crate::ids::TypeVar> {
 
 fn lower_sig_effect_ann(
     state: &mut LowerState,
-    type_expr: &SyntaxNode,
-    mut row: SigRow,
+    _type_expr: &SyntaxNode,
+    row: SigRow,
 ) -> LoweredEffAnn {
-    if row.tail.is_none() && !row.items.is_empty() {
-        row.tail = Some(SigVar {
-            name: "_".to_string(),
-            span: type_expr.text_range(),
-        });
-    }
-
     let mut vars = HashMap::new();
-    let lower_id = super::signature::lower_sig_row_pos_id(state, &row, &mut vars);
-    let upper_id = super::signature::lower_sig_row_neg_id(state, &row, &mut vars);
+    let closed = row.tail.is_none() && !row.items.is_empty();
+    let lower_id = if closed {
+        super::signature::lower_closed_sig_row_pos_id(state, &row, &mut vars)
+    } else {
+        super::signature::lower_sig_row_pos_id(state, &row, &mut vars)
+    };
+    let upper_id = if closed {
+        super::signature::lower_closed_sig_row_neg_id(state, &row, &mut vars)
+    } else {
+        super::signature::lower_sig_row_neg_id(state, &row, &mut vars)
+    };
     let lower = { state.infer.arena.get_pos(lower_id).clone() };
     let upper = { state.infer.arena.get_neg(upper_id).clone() };
     let sig_var_tvs = vars

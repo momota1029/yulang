@@ -65,7 +65,12 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
         },
         ExprKind::RefSet { reference, value } => direct_param_source_eff_tv(reference, param_def)
             .or_else(|| direct_param_source_eff_tv(value, param_def)),
-        ExprKind::Catch(comp, arms) => direct_param_source_eff_tv(comp, param_def).or_else(|| {
+        ExprKind::Catch(comp, arms) => {
+            // A parameter used as the catch scrutinee exposes the catch residual
+            // at this expression boundary, not the raw scrutinee effect row.
+            if direct_param_source_eff_tv(comp, param_def).is_some() {
+                return Some(body.eff);
+            }
             arms.iter().find_map(|arm| {
                 arm.guard
                     .as_ref()
@@ -76,7 +81,7 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
                         }
                     })
             })
-        }),
+        }
         ExprKind::Lam(def, body) if *def != param_def => {
             direct_param_source_eff_tv(body, param_def)
         }
@@ -91,10 +96,7 @@ pub(crate) fn direct_param_observed_eff_tv(body: &TypedExpr, param_def: DefId) -
         ExprKind::BindHere(expr) | ExprKind::Coerce { expr, .. } => {
             direct_param_observed_eff_tv(expr, param_def)
         }
-        ExprKind::Catch(comp, arms) => {
-            if direct_param_source_eff_tv(comp, param_def).is_some() {
-                return Some(body.eff);
-            }
+        ExprKind::Catch(comp, arms) => direct_param_source_eff_tv(comp, param_def).or_else(|| {
             arms.iter().find_map(|arm| {
                 arm.guard
                     .as_ref()
@@ -105,7 +107,7 @@ pub(crate) fn direct_param_observed_eff_tv(body: &TypedExpr, param_def: DefId) -
                         }
                     })
             })
-        }
+        }),
         ExprKind::App { callee, arg, .. } => match &arg.kind {
             ExprKind::Var(def) if *def == param_def => Some(arg.eff),
             _ if matches!(&callee.kind, ExprKind::Var(def) if *def == param_def) => Some(body.eff),

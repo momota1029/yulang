@@ -622,15 +622,18 @@ fn coalesce_root_fun_arg_effect_field(
     lower: &CompactType,
     upper: &CompactType,
 ) -> Type {
-    let mut bounds = normalize_render_bounds(CompactBounds {
+    let mut bounds = CompactBounds {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
-    });
+    };
     strip_generated_local_effects_from_compact_effect_bounds(&mut bounds);
-    let mut ty = common_compact_type(&bounds.lower, &bounds.upper)
-        .filter(|ty| {
-            !is_empty_compact(ty) && (has_non_var_shape(ty) || !has_non_var_shape(&bounds.lower))
+    let mut ty = closed_upper_row_with_matching_lower_shape(&bounds.lower, &bounds.upper)
+        .or_else(|| {
+            common_compact_type(&bounds.lower, &bounds.upper).filter(|ty| {
+                !is_empty_compact(ty)
+                    && (has_non_var_shape(ty) || !has_non_var_shape(&bounds.lower))
+            })
         })
         .unwrap_or(bounds.lower);
     remove_upper_covered_row_tail_vars(&mut ty, &bounds.upper);
@@ -642,6 +645,69 @@ fn coalesce_root_fun_arg_effect_field(
     } else {
         ctx.coalesce_type(&ty, false)
     }
+}
+
+fn closed_upper_row_with_matching_lower_shape(
+    lower: &CompactType,
+    upper: &CompactType,
+) -> Option<CompactType> {
+    let row = upper.rows.iter().find(|upper_row| {
+        is_empty_compact(&upper_row.tail)
+            && lower
+                .rows
+                .iter()
+                .any(|lower_row| same_effect_row_shape(lower_row, upper_row))
+    })?;
+    Some(CompactType {
+        rows: vec![row.clone()],
+        ..CompactType::default()
+    })
+}
+
+fn same_effect_row_shape(lhs: &CompactRow, rhs: &CompactRow) -> bool {
+    let Some(mut lhs_shapes) = effect_row_shapes(&lhs.items) else {
+        return false;
+    };
+    let Some(mut rhs_shapes) = effect_row_shapes(&rhs.items) else {
+        return false;
+    };
+    lhs_shapes.sort();
+    rhs_shapes.sort();
+    lhs_shapes == rhs_shapes
+}
+
+fn effect_row_shapes(items: &[CompactType]) -> Option<Vec<(String, usize)>> {
+    items.iter().map(effect_row_item_shape).collect()
+}
+
+fn effect_row_item_shape(item: &CompactType) -> Option<(String, usize)> {
+    if !item.vars.is_empty()
+        || !item.funs.is_empty()
+        || !item.records.is_empty()
+        || !item.record_spreads.is_empty()
+        || !item.variants.is_empty()
+        || !item.tuples.is_empty()
+        || !item.rows.is_empty()
+    {
+        return None;
+    }
+    if item.prims.len() == 1 && item.cons.is_empty() {
+        let path = item.prims.iter().next()?;
+        return Some((path_string_for_shape(path), 0));
+    }
+    if item.cons.len() == 1 && item.prims.is_empty() {
+        let con = &item.cons[0];
+        return Some((path_string_for_shape(&con.path), con.args.len()));
+    }
+    None
+}
+
+fn path_string_for_shape(path: &crate::symbols::Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn remove_upper_covered_row_tail_vars(ty: &mut CompactType, upper: &CompactType) {
@@ -1839,6 +1905,8 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
             match item {
                 Type::Bot if positive => {}
                 Type::Top if !positive => {}
+                Type::Row(items, tail)
+                    if !positive && items.is_empty() && matches!(tail.as_ref(), Type::Top) => {}
                 other if !flat.contains(&other) => flat.push(other),
                 _ => {}
             }

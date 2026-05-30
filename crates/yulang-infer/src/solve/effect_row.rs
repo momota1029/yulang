@@ -9,6 +9,7 @@ use crate::symbols::Path;
 pub(crate) fn normalize_rewritten_bounds(mut bounds: CompactBounds) -> CompactBounds {
     normalize_rewritten_compact_type_in_place(&mut bounds.lower, true);
     normalize_rewritten_compact_type_in_place(&mut bounds.upper, false);
+    close_lower_row_tails_covered_by_upper(&mut bounds);
     cancel_shared_vars_with_variable_extras(&mut bounds);
     absorb_upper_vars_from_row_lower(&mut bounds);
     collapse_root_self_alias_if_shaped(&mut bounds);
@@ -66,8 +67,101 @@ fn normalize_rewritten_compact_type_in_place(ty: &mut CompactType, positive: boo
 fn normalize_rewritten_bounds_in_place(bounds: &mut CompactBounds) {
     normalize_rewritten_compact_type_in_place(&mut bounds.lower, true);
     normalize_rewritten_compact_type_in_place(&mut bounds.upper, false);
+    close_lower_row_tails_covered_by_upper(bounds);
     cancel_shared_vars_with_variable_extras(bounds);
     absorb_upper_vars_from_row_lower(bounds);
+}
+
+fn close_lower_row_tails_covered_by_upper(bounds: &mut CompactBounds) {
+    close_lower_row_tails_covered_by_upper_type(&mut bounds.lower, &bounds.upper);
+}
+
+fn close_lower_row_tails_covered_by_upper_type(lower: &mut CompactType, upper: &CompactType) {
+    close_matching_row_tails(lower, upper);
+
+    for (lower_con, upper_con) in lower.cons.iter_mut().zip(&upper.cons) {
+        if lower_con.path != upper_con.path || lower_con.args.len() != upper_con.args.len() {
+            continue;
+        }
+        for (lower_arg, upper_arg) in lower_con.args.iter_mut().zip(&upper_con.args) {
+            close_lower_row_tails_covered_by_upper_type(&mut lower_arg.lower, &upper_arg.upper);
+        }
+    }
+    for (lower_fun, upper_fun) in lower.funs.iter_mut().zip(&upper.funs) {
+        close_lower_row_tails_covered_by_upper_type(&mut lower_fun.arg, &upper_fun.arg);
+        close_lower_row_tails_covered_by_upper_type(&mut lower_fun.arg_eff, &upper_fun.arg_eff);
+        close_lower_row_tails_covered_by_upper_type(&mut lower_fun.ret_eff, &upper_fun.ret_eff);
+        close_lower_row_tails_covered_by_upper_type(&mut lower_fun.ret, &upper_fun.ret);
+    }
+}
+
+fn close_matching_row_tails(lower: &mut CompactType, upper: &CompactType) {
+    let mut closed_tail_vars = HashSet::new();
+    for lower_row in &mut lower.rows {
+        let Some(tail_vars) = var_only_set(&lower_row.tail) else {
+            continue;
+        };
+        if tail_vars.is_empty() {
+            continue;
+        }
+        let covered_by_closed_upper = upper.rows.iter().any(|upper_row| {
+            same_row_items_for_bounds(lower_row, upper_row)
+                && is_empty_compact_type(&upper_row.tail)
+        });
+        if covered_by_closed_upper {
+            closed_tail_vars.extend(tail_vars);
+            *lower_row.tail = CompactType::default();
+        }
+    }
+    for tv in closed_tail_vars {
+        lower.vars.remove(&tv);
+    }
+}
+
+fn same_row_items_for_bounds(lhs: &CompactRow, rhs: &CompactRow) -> bool {
+    let Some(mut lhs_shapes) = row_item_shapes(&lhs.items) else {
+        return false;
+    };
+    let Some(mut rhs_shapes) = row_item_shapes(&rhs.items) else {
+        return false;
+    };
+    lhs_shapes.sort();
+    rhs_shapes.sort();
+    lhs_shapes == rhs_shapes
+}
+
+fn row_item_shapes(items: &[CompactType]) -> Option<Vec<(String, usize)>> {
+    items.iter().map(row_item_shape).collect()
+}
+
+fn row_item_shape(item: &CompactType) -> Option<(String, usize)> {
+    if !item.vars.is_empty()
+        || !item.funs.is_empty()
+        || !item.records.is_empty()
+        || !item.record_spreads.is_empty()
+        || !item.variants.is_empty()
+        || !item.tuples.is_empty()
+        || !item.rows.is_empty()
+    {
+        return None;
+    }
+    if item.prims.len() == 1 && item.cons.is_empty() {
+        let path = item.prims.iter().next()?;
+        return Some((path_key(path), 0));
+    }
+    if item.cons.len() == 1 && item.prims.is_empty() {
+        let con = &item.cons[0];
+        return Some((path_key(&con.path), con.args.len()));
+    }
+    None
+}
+
+fn path_key(path: &Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn cancel_shared_vars_with_variable_extras(bounds: &mut CompactBounds) {

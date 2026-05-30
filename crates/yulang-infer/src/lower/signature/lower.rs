@@ -517,7 +517,7 @@ fn lower_closed_sig_row_pos(
     state.pos_row(items, tail)
 }
 
-fn lower_closed_sig_row_pos_id(
+pub(crate) fn lower_closed_sig_row_pos_id(
     state: &mut LowerState,
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
@@ -591,7 +591,7 @@ fn lower_closed_sig_row_neg(
     state.neg_row(items, tail)
 }
 
-fn lower_closed_sig_row_neg_id(
+pub(crate) fn lower_closed_sig_row_neg_id(
     state: &mut LowerState,
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
