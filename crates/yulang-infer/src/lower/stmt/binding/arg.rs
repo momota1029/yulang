@@ -2,7 +2,6 @@ use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{PatKind, TypedPat};
-use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::ids::DefId;
 use crate::lower::ann::{LoweredEffAnn, LoweredPatAnn, fresh_arg_effect_tv, lower_pat_ann};
 use crate::lower::{LowerState, SyntaxNode};
@@ -64,19 +63,12 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             let arg_eff_tv = fresh_arg_effect_tv(state, ann.as_ref());
             if matches!(
                 ann.as_ref().and_then(|ann| ann.eff.as_ref()),
-                Some(LoweredEffAnn::Row { .. })
+                Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque)
             ) {
                 state.register_lambda_param_source_eff_tv(def, arg_eff_tv);
             }
             let read_eff_tv = ann.as_ref().and_then(|ann| match ann.eff {
-                Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => {
-                    Some(state.fresh_tv_with_origin(TypeOrigin {
-                        span: Some(ann.span),
-                        file_span: None,
-                        kind: TypeOriginKind::Annotation,
-                        label: Some("argument read effect".to_string()),
-                    }))
-                }
+                Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => Some(arg_eff_tv),
                 None => None,
             });
             state.register_def_tv(def, tv);

@@ -1,21 +1,282 @@
+use rustc_hash::FxHashMap;
+
 use super::Infer;
-use crate::ids::{NegId, PosId, TypeVar};
+use crate::ids::{NegId, PosId, TypeVar, fresh_type_var};
 use crate::types::{EffectAtom, Neg, Pos};
 
 impl Infer {
-    /// Pos 中の型変数のレベルを target_lvl 以下に in-place で下げ、同じ PosId を返す。
+    /// Simple-sub の extrusion。
+    ///
+    /// 低レベル変数の境界に高レベル変数を直接入れず、高レベル側の構造を
+    /// target level の近似変数へコピーする。元の変数 level は変えない。
     pub fn extrude_pos(&self, pos: PosId, target_lvl: u32) -> PosId {
-        if self.max_level_pos(pos) > target_lvl {
-            self.lower_levels_pos(pos, target_lvl);
+        if self.max_level_pos(pos) <= target_lvl {
+            return pos;
         }
-        pos
+        let mut ctx = ExtrudeCtx::new(target_lvl);
+        self.extrude_pos_id(pos, ExtrudePolarity::Positive, &mut ctx)
     }
 
     pub fn extrude_neg(&self, neg: NegId, target_lvl: u32) -> NegId {
-        if self.max_level_neg(neg) > target_lvl {
-            self.lower_levels_neg(neg, target_lvl);
+        if self.max_level_neg(neg) <= target_lvl {
+            return neg;
         }
-        neg
+        let mut ctx = ExtrudeCtx::new(target_lvl);
+        self.extrude_neg_id(neg, ExtrudePolarity::Negative, &mut ctx)
+    }
+
+    fn extrude_pos_id(&self, id: PosId, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> PosId {
+        if self.max_level_pos(id) <= ctx.target_lvl {
+            return id;
+        }
+        let node = match self.arena.get_pos(id) {
+            Pos::Bot => Pos::Bot,
+            Pos::Var(tv) => Pos::Var(self.extrude_type_var(tv, pol, ctx)),
+            Pos::Raw(tv) => Pos::Raw(self.extrude_type_var(tv, pol, ctx)),
+            Pos::Atom(atom) => Pos::Atom(self.extrude_effect_atom(atom, pol, ctx)),
+            Pos::Forall(vars, body) => Pos::Forall(vars, self.extrude_pos_id(body, pol, ctx)),
+            Pos::Con(path, args) => Pos::Con(
+                path,
+                args.into_iter()
+                    .map(|(pos, neg)| {
+                        (
+                            self.extrude_pos_id(pos, pol, ctx),
+                            self.extrude_neg_id(neg, pol.flip(), ctx),
+                        )
+                    })
+                    .collect(),
+            ),
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => Pos::Fun {
+                arg: self.extrude_neg_id(arg, pol.flip(), ctx),
+                arg_eff: self.extrude_neg_id(arg_eff, pol.flip(), ctx),
+                ret_eff: self.extrude_pos_id(ret_eff, pol, ctx),
+                ret: self.extrude_pos_id(ret, pol, ctx),
+            },
+            Pos::Record(fields) => Pos::Record(
+                fields
+                    .into_iter()
+                    .map(|mut field| {
+                        field.value = self.extrude_pos_id(field.value, pol, ctx);
+                        field
+                    })
+                    .collect(),
+            ),
+            Pos::RecordTailSpread { fields, tail } => Pos::RecordTailSpread {
+                fields: fields
+                    .into_iter()
+                    .map(|mut field| {
+                        field.value = self.extrude_pos_id(field.value, pol, ctx);
+                        field
+                    })
+                    .collect(),
+                tail: self.extrude_pos_id(tail, pol, ctx),
+            },
+            Pos::RecordHeadSpread { tail, fields } => Pos::RecordHeadSpread {
+                tail: self.extrude_pos_id(tail, pol, ctx),
+                fields: fields
+                    .into_iter()
+                    .map(|mut field| {
+                        field.value = self.extrude_pos_id(field.value, pol, ctx);
+                        field
+                    })
+                    .collect(),
+            },
+            Pos::PolyVariant(items) => Pos::PolyVariant(
+                items
+                    .into_iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name,
+                            payloads
+                                .into_iter()
+                                .map(|payload| self.extrude_pos_id(payload, pol, ctx))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            Pos::Tuple(items) => Pos::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.extrude_pos_id(item, pol, ctx))
+                    .collect(),
+            ),
+            Pos::Row(items, tail) => Pos::Row(
+                items
+                    .into_iter()
+                    .map(|item| self.extrude_pos_id(item, pol, ctx))
+                    .collect(),
+                self.extrude_pos_id(tail, pol, ctx),
+            ),
+            Pos::Union(left, right) => Pos::Union(
+                self.extrude_pos_id(left, pol, ctx),
+                self.extrude_pos_id(right, pol, ctx),
+            ),
+        };
+        self.alloc_pos(node)
+    }
+
+    fn extrude_neg_id(&self, id: NegId, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> NegId {
+        if self.max_level_neg(id) <= ctx.target_lvl {
+            return id;
+        }
+        let node = match self.arena.get_neg(id) {
+            Neg::Top => Neg::Top,
+            Neg::Var(tv) => Neg::Var(self.extrude_type_var(tv, pol, ctx)),
+            Neg::Atom(atom) => Neg::Atom(self.extrude_effect_atom(atom, pol, ctx)),
+            Neg::Forall(vars, body) => Neg::Forall(vars, self.extrude_neg_id(body, pol, ctx)),
+            Neg::Con(path, args) => Neg::Con(
+                path,
+                args.into_iter()
+                    .map(|(pos, neg)| {
+                        (
+                            self.extrude_pos_id(pos, pol, ctx),
+                            self.extrude_neg_id(neg, pol.flip(), ctx),
+                        )
+                    })
+                    .collect(),
+            ),
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => Neg::Fun {
+                arg: self.extrude_pos_id(arg, pol.flip(), ctx),
+                arg_eff: self.extrude_pos_id(arg_eff, pol.flip(), ctx),
+                ret_eff: self.extrude_neg_id(ret_eff, pol, ctx),
+                ret: self.extrude_neg_id(ret, pol, ctx),
+            },
+            Neg::Record(fields) => Neg::Record(
+                fields
+                    .into_iter()
+                    .map(|mut field| {
+                        field.value = self.extrude_neg_id(field.value, pol, ctx);
+                        field
+                    })
+                    .collect(),
+            ),
+            Neg::PolyVariant(items) => Neg::PolyVariant(
+                items
+                    .into_iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name,
+                            payloads
+                                .into_iter()
+                                .map(|payload| self.extrude_neg_id(payload, pol, ctx))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            Neg::Tuple(items) => Neg::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.extrude_neg_id(item, pol, ctx))
+                    .collect(),
+            ),
+            Neg::Row(items, tail) => Neg::Row(
+                items
+                    .into_iter()
+                    .map(|item| self.extrude_neg_id(item, pol, ctx))
+                    .collect(),
+                self.extrude_neg_id(tail, pol, ctx),
+            ),
+            Neg::Intersection(left, right) => Neg::Intersection(
+                self.extrude_neg_id(left, pol, ctx),
+                self.extrude_neg_id(right, pol, ctx),
+            ),
+        };
+        self.alloc_neg(node)
+    }
+
+    fn extrude_type_var(&self, tv: TypeVar, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> TypeVar {
+        if self.level_of(tv) <= ctx.target_lvl {
+            return tv;
+        }
+        if let Some(copy) = ctx.vars.get(&(tv, pol)).copied() {
+            return copy;
+        }
+
+        let copy = fresh_type_var();
+        self.register_level(copy, ctx.target_lvl);
+        ctx.vars.insert((tv, pol), copy);
+        self.copy_extruded_var_side_tables(tv, copy, pol, ctx);
+
+        match pol {
+            ExtrudePolarity::Positive => {
+                self.add_upper(tv, Neg::Var(copy));
+                for lower in self.lower_refs_of(tv) {
+                    let lower = self.extrude_pos_id(lower, pol, ctx);
+                    self.add_lower(copy, lower);
+                }
+                for instance in self.compact_lower_instances_of(tv) {
+                    let lower = self.materialize_compact_lower_instance(&instance);
+                    let lower = self.extrude_pos_id(lower, pol, ctx);
+                    self.add_lower(copy, lower);
+                }
+            }
+            ExtrudePolarity::Negative => {
+                self.add_lower(tv, Pos::Var(copy));
+                for upper in self.upper_refs_of(tv) {
+                    let upper = self.extrude_neg_id(upper, pol, ctx);
+                    self.add_upper(copy, upper);
+                }
+            }
+        }
+
+        copy
+    }
+
+    fn copy_extruded_var_side_tables(
+        &self,
+        from: TypeVar,
+        to: TypeVar,
+        pol: ExtrudePolarity,
+        ctx: &mut ExtrudeCtx,
+    ) {
+        if let Some(origin) = self.origin_of(from) {
+            self.register_origin(to, origin);
+        }
+        if self.is_through(from) {
+            self.mark_through(to);
+        }
+        let handled = self
+            .eff_binds_of(from)
+            .into_iter()
+            .map(|atom| self.extrude_effect_atom(atom, pol, ctx))
+            .collect();
+        self.register_eff_bind(to, handled);
+        if let Some(keep) = self.effect_boundary_keeps.borrow().get(&from).cloned() {
+            self.record_effect_boundary_keep(to, keep);
+        }
+    }
+
+    fn extrude_effect_atom(
+        &self,
+        atom: EffectAtom,
+        pol: ExtrudePolarity,
+        ctx: &mut ExtrudeCtx,
+    ) -> EffectAtom {
+        EffectAtom {
+            path: atom.path,
+            args: atom
+                .args
+                .into_iter()
+                .map(|(pos, neg)| {
+                    (
+                        self.extrude_type_var(pos, pol, ctx),
+                        self.extrude_type_var(neg, pol.flip(), ctx),
+                    )
+                })
+                .collect(),
+        }
     }
 
     fn max_level_pos(&self, id: PosId) -> u32 {
@@ -124,138 +385,6 @@ impl Infer {
         }
     }
 
-    fn lower_levels_pos(&self, id: PosId, target_lvl: u32) {
-        match self.arena.get_pos(id) {
-            Pos::Bot | Pos::Forall(..) => {}
-            Pos::Atom(atom) => self.lower_levels_atom(&atom, target_lvl),
-            Pos::Var(vs) | Pos::Raw(vs) => {
-                if self.level_of(vs) <= target_lvl {
-                    return;
-                }
-                self.register_level(vs, target_lvl);
-                for lb in self.lower_refs_of(vs) {
-                    self.lower_levels_pos(lb, target_lvl);
-                }
-            }
-            Pos::Con(_, args) => {
-                for (p, n) in args {
-                    self.lower_levels_pos(p, target_lvl);
-                    self.lower_levels_neg(n, target_lvl);
-                }
-            }
-            Pos::Fun {
-                arg,
-                arg_eff,
-                ret_eff,
-                ret,
-            } => {
-                self.lower_levels_neg(arg, target_lvl);
-                self.lower_levels_neg(arg_eff, target_lvl);
-                self.lower_levels_pos(ret_eff, target_lvl);
-                self.lower_levels_pos(ret, target_lvl);
-            }
-            Pos::Record(fields) => {
-                for field in fields {
-                    self.lower_levels_pos(field.value, target_lvl);
-                }
-            }
-            Pos::RecordTailSpread { fields, tail } => {
-                for field in fields {
-                    self.lower_levels_pos(field.value, target_lvl);
-                }
-                self.lower_levels_pos(tail, target_lvl);
-            }
-            Pos::RecordHeadSpread { tail, fields } => {
-                self.lower_levels_pos(tail, target_lvl);
-                for field in fields {
-                    self.lower_levels_pos(field.value, target_lvl);
-                }
-            }
-            Pos::PolyVariant(items) => {
-                for (_, ps) in items {
-                    for p in ps {
-                        self.lower_levels_pos(p, target_lvl);
-                    }
-                }
-            }
-            Pos::Tuple(items) => {
-                for p in items {
-                    self.lower_levels_pos(p, target_lvl);
-                }
-            }
-            Pos::Row(items, tail) => {
-                for p in items {
-                    self.lower_levels_pos(p, target_lvl);
-                }
-                self.lower_levels_pos(tail, target_lvl);
-            }
-            Pos::Union(a, b) => {
-                self.lower_levels_pos(a, target_lvl);
-                self.lower_levels_pos(b, target_lvl);
-            }
-        }
-    }
-
-    fn lower_levels_neg(&self, id: NegId, target_lvl: u32) {
-        match self.arena.get_neg(id) {
-            Neg::Top | Neg::Forall(..) => {}
-            Neg::Atom(atom) => self.lower_levels_atom(&atom, target_lvl),
-            Neg::Var(vs) => {
-                if self.level_of(vs) <= target_lvl {
-                    return;
-                }
-                self.register_level(vs, target_lvl);
-                for ub in self.upper_refs_of(vs) {
-                    self.lower_levels_neg(ub, target_lvl);
-                }
-            }
-            Neg::Con(_, args) => {
-                for (p, n) in args {
-                    self.lower_levels_pos(p, target_lvl);
-                    self.lower_levels_neg(n, target_lvl);
-                }
-            }
-            Neg::Fun {
-                arg,
-                arg_eff,
-                ret_eff,
-                ret,
-            } => {
-                self.lower_levels_pos(arg, target_lvl);
-                self.lower_levels_pos(arg_eff, target_lvl);
-                self.lower_levels_neg(ret_eff, target_lvl);
-                self.lower_levels_neg(ret, target_lvl);
-            }
-            Neg::Record(fields) => {
-                for field in fields {
-                    self.lower_levels_neg(field.value, target_lvl);
-                }
-            }
-            Neg::PolyVariant(items) => {
-                for (_, ns) in items {
-                    for n in ns {
-                        self.lower_levels_neg(n, target_lvl);
-                    }
-                }
-            }
-            Neg::Tuple(items) => {
-                for n in items {
-                    self.lower_levels_neg(n, target_lvl);
-                }
-            }
-            Neg::Row(items, tail) => {
-                for n in items {
-                    self.lower_levels_neg(n, target_lvl);
-                }
-                self.lower_levels_neg(tail, target_lvl);
-            }
-            Neg::Intersection(a, b) => {
-                self.lower_levels_neg(a, target_lvl);
-                self.lower_levels_neg(b, target_lvl);
-            }
-        }
-    }
-
     fn max_level_atom(&self, atom: &EffectAtom) -> u32 {
         atom.args
             .iter()
@@ -263,31 +392,34 @@ impl Infer {
             .max()
             .unwrap_or(0)
     }
+}
 
-    fn lower_levels_atom(&self, atom: &EffectAtom, target_lvl: u32) {
-        for (pos, neg) in &atom.args {
-            self.lower_pos_var_level(*pos, target_lvl);
-            self.lower_neg_var_level(*neg, target_lvl);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ExtrudePolarity {
+    Positive,
+    Negative,
+}
+
+impl ExtrudePolarity {
+    fn flip(self) -> Self {
+        match self {
+            Self::Positive => Self::Negative,
+            Self::Negative => Self::Positive,
         }
     }
+}
 
-    fn lower_pos_var_level(&self, tv: TypeVar, target_lvl: u32) {
-        if self.level_of(tv) <= target_lvl {
-            return;
-        }
-        self.register_level(tv, target_lvl);
-        for lower in self.lower_refs_of(tv) {
-            self.lower_levels_pos(lower, target_lvl);
-        }
-    }
+#[derive(Debug)]
+struct ExtrudeCtx {
+    target_lvl: u32,
+    vars: FxHashMap<(TypeVar, ExtrudePolarity), TypeVar>,
+}
 
-    fn lower_neg_var_level(&self, tv: TypeVar, target_lvl: u32) {
-        if self.level_of(tv) <= target_lvl {
-            return;
-        }
-        self.register_level(tv, target_lvl);
-        for upper in self.upper_refs_of(tv) {
-            self.lower_levels_neg(upper, target_lvl);
+impl ExtrudeCtx {
+    fn new(target_lvl: u32) -> Self {
+        Self {
+            target_lvl,
+            vars: FxHashMap::default(),
         }
     }
 }

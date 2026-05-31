@@ -59,6 +59,8 @@ pub(crate) fn make_app_with_cause(
         && matches!(arg.kind, ExprKind::App { .. });
     let arg_eff_for_slot = if pure_argument_slot || anf_arg {
         state.fresh_exact_pure_eff_tv()
+    } else if matches!(passing_style, ArgumentPassingStyle::Computation) {
+        argument_effect_for_slot(state, &arg)
     } else {
         argument_effect_for_slot(state, &arg)
     };
@@ -195,7 +197,6 @@ pub(crate) fn make_app_with_cause(
         eprintln!("call_eff lowers = {:?}", state.infer.lowers_of(call_eff));
         eprintln!("call_eff uppers = {:?}", state.infer.uppers_of(call_eff));
     }
-
     let result = TypedExpr::new(
         result_ty,
         ExprKind::App {

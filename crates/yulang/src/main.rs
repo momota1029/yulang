@@ -3694,7 +3694,6 @@ fn infer_error_expected_context(
         .max_by_key(|(rank, _)| *rank)
         .map(|(_, edge)| edge)?;
 
-    let detail = infer_error_derived_expected_context(state, error, edge);
     Some(InferExpectedContext {
         summary: format!(
             "{} expected {}; expression provides {}",
@@ -3703,10 +3702,11 @@ fn infer_error_expected_context(
             format_infer_pos(state, error.pos),
         ),
         edge: Some(infer_expected_edge_flow_context(state, edge)),
-        detail,
+        detail: None,
     })
 }
 
+#[allow(dead_code)]
 fn infer_error_derived_expected_context(
     state: &InferLowerState,
     error: &InferTypeError,
@@ -3725,6 +3725,7 @@ fn infer_error_derived_expected_context(
         .map(|(_, edge)| format_derived_expected_edge_context(&edge))
 }
 
+#[allow(dead_code)]
 fn infer_derived_expected_edge_error_rank(
     edge: &yulang_infer::DerivedExpectedEdgeEvidence,
     actual: &str,
@@ -3999,38 +4000,18 @@ fn infer_expected_edge_span_len(edge: &InferExpectedEdge) -> u32 {
         .unwrap_or(u32::MAX)
 }
 
-fn infer_expected_edge_flow_context(state: &InferLowerState, edge: &InferExpectedEdge) -> String {
-    let actual = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
-        &state.infer,
-        edge.actual_tv,
-    );
-    let expected = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
-        &state.infer,
-        edge.expected_tv,
-    );
+fn infer_expected_edge_flow_context(_state: &InferLowerState, edge: &InferExpectedEdge) -> String {
     let mut parts = vec![format!(
-        "#{} {} {} {} => {} {}",
+        "#{} {} {} ?{} => {} ?{}",
         edge.id.0,
         format_expected_edge_kind(edge.kind),
         infer_expected_edge_actual_label(edge.kind),
-        format_core_bounds(&actual),
+        edge.actual_tv.0,
         infer_expected_edge_expected_label(edge.kind),
-        format_core_bounds(&expected),
+        edge.expected_tv.0,
     )];
     if let (Some(actual_eff), Some(expected_eff)) = (edge.actual_eff, edge.expected_eff) {
-        let actual_eff = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
-            &state.infer,
-            actual_eff,
-        );
-        let expected_eff = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
-            &state.infer,
-            expected_eff,
-        );
-        parts.push(format!(
-            "effect {} => {}",
-            format_core_bounds(&actual_eff),
-            format_core_bounds(&expected_eff),
-        ));
+        parts.push(format!("effect ?{} => ?{}", actual_eff.0, expected_eff.0));
     }
     parts.join("; ")
 }

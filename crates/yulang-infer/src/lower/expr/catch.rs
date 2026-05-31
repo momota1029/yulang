@@ -1,6 +1,5 @@
 use crate::profile::ProfileClock as Instant;
 use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
 
 use yulang_parser::lex::SyntaxKind;
 
@@ -154,7 +153,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     let effect_path = op_def
                         .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
                         .unwrap_or_else(|| effect_scope_path(op_path));
-                    let arm_is_active = handler_captures_effect_path(state, &comp, &effect_path);
+                    let arm_is_active = handler_captures_effect_path(state, &comp);
                     lowered.check.active = arm_is_active;
                     record_catch_arm_effect_path(&mut lowered.check, effect_path.clone());
                     let op_use = op_def.and_then(|def| {
@@ -177,11 +176,6 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     };
                     let handled_op = Neg::Atom(handled_atom.clone());
                     if arm_is_active {
-                        constrain_existing_comp_effect_atoms(
-                            state,
-                            comp_handler_eff,
-                            &handled_atom,
-                        );
                         if handled_effect_atoms.insert(handled_atom.clone()) {
                             handled_ops.push(handled_op.clone());
                         }
@@ -233,7 +227,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                             }
                         };
                         let k_arg_eff = state.fresh_tv();
-                        let k_ret_eff = comp_handler_eff;
+                        let k_ret_eff = comp_handler_eff; // 変えないこと。userより
                         let k_fun = state.pos_fun(
                             resume_neg,
                             Neg::Var(k_arg_eff),
@@ -313,39 +307,24 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = handler_rest_eff;
-            let handled: Vec<crate::ids::NegId> = handled_ops
-                .iter()
-                .cloned()
+            let scrutinee_handled_ops =
+                catch_scrutinee_handled_ops(state, comp_handler_eff, &handled_ops);
+            let handled: Vec<crate::ids::NegId> = scrutinee_handled_ops
+                .into_iter()
                 .map(|op| state.infer.alloc_neg(op))
                 .collect();
             record_handler_match_for_catch(
                 state,
                 comp_handler_eff,
-                handled.clone(),
+                handled,
                 rest_eff,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
                 },
             );
-            state.infer.constrain(
-                Pos::Var(comp_handler_eff),
-                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
-            );
-            let arm_rest_eff = state.fresh_tv();
-            state.infer.mark_through(arm_rest_eff);
-            record_handler_match_for_catch(
-                state,
-                arm_eff,
-                handled,
-                arm_rest_eff,
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::CatchBranch,
-                },
-            );
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
-            state.infer.constrain(Pos::Var(arm_rest_eff), Neg::Var(eff));
+            state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
         }
 
         TypedExpr {
@@ -487,6 +466,57 @@ fn record_handler_match_for_catch(
         .record_open_handler_match(comp_handler_eff, handled, rest_eff, cause);
 }
 
+fn catch_scrutinee_handled_ops(
+    state: &mut LowerState,
+    comp_handler_eff: crate::ids::TypeVar,
+    handled_ops: &[Neg],
+) -> Vec<Neg> {
+    let bound = state.infer.eff_binds_of(comp_handler_eff);
+    if bound.is_empty() {
+        return handled_ops.to_vec();
+    }
+
+    let mut retained = Vec::new();
+    for handled in handled_ops {
+        let Neg::Atom(handled_atom) = handled else {
+            continue;
+        };
+        for bound_atom in &bound {
+            if !effect_atoms_have_same_head(handled_atom, bound_atom) {
+                continue;
+            }
+            connect_effect_atom_args(state, handled_atom, bound_atom);
+            retained.push(Neg::Atom(handled_atom.clone()));
+            break;
+        }
+    }
+    retained
+}
+
+fn effect_atoms_have_same_head(
+    lhs: &crate::types::EffectAtom,
+    rhs: &crate::types::EffectAtom,
+) -> bool {
+    lhs.path == rhs.path && lhs.args.len() == rhs.args.len()
+}
+
+fn connect_effect_atom_args(
+    state: &mut LowerState,
+    handled: &crate::types::EffectAtom,
+    bound: &crate::types::EffectAtom,
+) {
+    for ((handled_pos, handled_neg), (bound_pos, bound_neg)) in
+        handled.args.iter().zip(bound.args.iter())
+    {
+        state
+            .infer
+            .constrain(Pos::Var(*handled_pos), Neg::Var(*bound_neg));
+        state
+            .infer
+            .constrain(Pos::Var(*bound_pos), Neg::Var(*handled_neg));
+    }
+}
+
 fn direct_comp_source_eff_tv(state: &LowerState, comp: &TypedExpr) -> Option<crate::ids::TypeVar> {
     let def = direct_comp_source_eff_def(state, comp)?;
     state.lambda_param_source_eff_tvs.get(&def).copied()
@@ -512,15 +542,8 @@ fn direct_comp_param_def(comp: &TypedExpr) -> Option<crate::ids::DefId> {
     }
 }
 
-fn handler_captures_effect_path(state: &LowerState, comp: &TypedExpr, effect_path: &Path) -> bool {
-    if eff_tv_is_exact_pure_row(state, comp.eff) {
-        return false;
-    }
-    match handler_body_boundary_keep(state, comp).unwrap_or(ShiftKeep::Surface) {
-        ShiftKeep::None | ShiftKeep::CallBoundary => false,
-        ShiftKeep::Surface => true,
-        ShiftKeep::Set(paths) => paths.iter().any(|path| path == effect_path),
-    }
+fn handler_captures_effect_path(state: &LowerState, comp: &TypedExpr) -> bool {
+    !eff_tv_is_exact_pure_row(state, comp.eff)
 }
 
 fn eff_tv_is_exact_pure_row(state: &LowerState, tv: crate::ids::TypeVar) -> bool {
@@ -657,77 +680,6 @@ struct EffectOpUse {
     args: Vec<(crate::ids::TypeVar, crate::ids::TypeVar)>,
 }
 
-fn constrain_existing_comp_effect_atoms(
-    state: &mut LowerState,
-    comp_eff: crate::ids::TypeVar,
-    handled_atom: &crate::types::EffectAtom,
-) {
-    let debug = debug_catch_enabled();
-    if debug {
-        eprintln!("-- constrain_existing_comp_effect_atoms --");
-        eprintln!("comp_eff tv = {:?}", comp_eff);
-        eprintln!("handled = {:?}", handled_atom);
-        eprintln!("lowers = {:?}", state.infer.lowers_of(comp_eff));
-        eprintln!("uppers = {:?}", state.infer.uppers_of(comp_eff));
-        eprintln!(
-            "compact lowers = {:?}",
-            state.infer.compact_lower_instances_of(comp_eff)
-        );
-        debug_dump_effect_tv(state, comp_eff, 0, &mut HashSet::new());
-    }
-    let mut seen_tvs = HashSet::new();
-    let mut seen_pos = HashSet::new();
-    let mut seen_neg = HashSet::new();
-    let mut matched = HashSet::new();
-    seen_tvs.insert(comp_eff);
-
-    for lower in state.infer.lower_refs_of(comp_eff) {
-        collect_matching_effect_atoms_from_pos(
-            state,
-            lower,
-            &handled_atom.path,
-            handled_atom.args.len(),
-            &mut seen_tvs,
-            &mut seen_pos,
-            &mut seen_neg,
-            &mut matched,
-        );
-    }
-    for upper in state.infer.upper_refs_of(comp_eff) {
-        collect_matching_effect_atoms_from_neg(
-            state,
-            upper,
-            &handled_atom.path,
-            handled_atom.args.len(),
-            &mut seen_tvs,
-            &mut seen_pos,
-            &mut seen_neg,
-            &mut matched,
-        );
-    }
-
-    if debug {
-        eprintln!("matched = {:?}", matched);
-    }
-    for existing in matched {
-        for ((handled_pos, handled_neg), (existing_pos, existing_neg)) in
-            handled_atom.args.iter().zip(existing.args.iter())
-        {
-            state
-                .infer
-                .constrain(Pos::Var(*handled_pos), Neg::Var(*existing_neg));
-            state
-                .infer
-                .constrain(Pos::Var(*existing_pos), Neg::Var(*handled_neg));
-        }
-    }
-}
-
-fn debug_catch_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_CATCH").is_some())
-}
-
 pub(super) fn debug_dump_effect_tv(
     state: &LowerState,
     tv: crate::ids::TypeVar,
@@ -754,294 +706,6 @@ pub(super) fn debug_dump_effect_tv(
         if let Neg::Var(next) = upper {
             debug_dump_effect_tv(state, next, depth + 1, seen);
         }
-    }
-}
-
-fn collect_matching_effect_atoms_from_pos(
-    state: &LowerState,
-    pos: crate::ids::PosId,
-    effect_path: &Path,
-    arity: usize,
-    seen_tvs: &mut HashSet<crate::ids::TypeVar>,
-    seen_pos: &mut HashSet<crate::ids::PosId>,
-    seen_neg: &mut HashSet<crate::ids::NegId>,
-    out: &mut HashSet<crate::types::EffectAtom>,
-) {
-    if !seen_pos.insert(pos) {
-        return;
-    }
-    match state.infer.arena.get_pos(pos) {
-        Pos::Atom(atom) if atom.path == *effect_path && atom.args.len() == arity => {
-            out.insert(atom);
-        }
-        Pos::Var(tv) | Pos::Raw(tv) => {
-            if seen_tvs.insert(tv) {
-                for lower in state.infer.lower_refs_of(tv) {
-                    collect_matching_effect_atoms_from_pos(
-                        state,
-                        lower,
-                        effect_path,
-                        arity,
-                        seen_tvs,
-                        seen_pos,
-                        seen_neg,
-                        out,
-                    );
-                }
-                for instance in state.infer.compact_lower_instances_of(tv) {
-                    let body = state.infer.materialize_compact_lower_instance(&instance);
-                    collect_matching_effect_atoms_from_pos(
-                        state,
-                        body,
-                        effect_path,
-                        arity,
-                        seen_tvs,
-                        seen_pos,
-                        seen_neg,
-                        out,
-                    );
-                }
-                for upper in state.infer.upper_refs_of(tv) {
-                    collect_matching_effect_atoms_from_neg(
-                        state,
-                        upper,
-                        effect_path,
-                        arity,
-                        seen_tvs,
-                        seen_pos,
-                        seen_neg,
-                        out,
-                    );
-                }
-            }
-        }
-        Pos::Row(items, tail) => {
-            for item in items {
-                collect_matching_effect_atoms_from_pos(
-                    state,
-                    item,
-                    effect_path,
-                    arity,
-                    seen_tvs,
-                    seen_pos,
-                    seen_neg,
-                    out,
-                );
-            }
-            collect_matching_effect_atoms_from_pos(
-                state,
-                tail,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        Pos::Union(a, b) => {
-            collect_matching_effect_atoms_from_pos(
-                state,
-                a,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-            collect_matching_effect_atoms_from_pos(
-                state,
-                b,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        Pos::Fun {
-            arg_eff, ret_eff, ..
-        } => {
-            collect_matching_effect_atoms_from_neg(
-                state,
-                arg_eff,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-            collect_matching_effect_atoms_from_pos(
-                state,
-                ret_eff,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        Pos::Forall(_, body) => {
-            collect_matching_effect_atoms_from_pos(
-                state,
-                body,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        _ => {}
-    }
-}
-
-fn collect_matching_effect_atoms_from_neg(
-    state: &LowerState,
-    neg: crate::ids::NegId,
-    effect_path: &Path,
-    arity: usize,
-    seen_tvs: &mut HashSet<crate::ids::TypeVar>,
-    seen_pos: &mut HashSet<crate::ids::PosId>,
-    seen_neg: &mut HashSet<crate::ids::NegId>,
-    out: &mut HashSet<crate::types::EffectAtom>,
-) {
-    if !seen_neg.insert(neg) {
-        return;
-    }
-    match state.infer.arena.get_neg(neg) {
-        Neg::Atom(atom) if atom.path == *effect_path && atom.args.len() == arity => {
-            out.insert(atom);
-        }
-        Neg::Var(tv) => {
-            if seen_tvs.insert(tv) {
-                for lower in state.infer.lower_refs_of(tv) {
-                    collect_matching_effect_atoms_from_pos(
-                        state,
-                        lower,
-                        effect_path,
-                        arity,
-                        seen_tvs,
-                        seen_pos,
-                        seen_neg,
-                        out,
-                    );
-                }
-                for instance in state.infer.compact_lower_instances_of(tv) {
-                    let body = state.infer.materialize_compact_lower_instance(&instance);
-                    collect_matching_effect_atoms_from_pos(
-                        state,
-                        body,
-                        effect_path,
-                        arity,
-                        seen_tvs,
-                        seen_pos,
-                        seen_neg,
-                        out,
-                    );
-                }
-                for upper in state.infer.upper_refs_of(tv) {
-                    collect_matching_effect_atoms_from_neg(
-                        state,
-                        upper,
-                        effect_path,
-                        arity,
-                        seen_tvs,
-                        seen_pos,
-                        seen_neg,
-                        out,
-                    );
-                }
-            }
-        }
-        Neg::Row(items, tail) => {
-            for item in items {
-                collect_matching_effect_atoms_from_neg(
-                    state,
-                    item,
-                    effect_path,
-                    arity,
-                    seen_tvs,
-                    seen_pos,
-                    seen_neg,
-                    out,
-                );
-            }
-            collect_matching_effect_atoms_from_neg(
-                state,
-                tail,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        Neg::Intersection(a, b) => {
-            collect_matching_effect_atoms_from_neg(
-                state,
-                a,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-            collect_matching_effect_atoms_from_neg(
-                state,
-                b,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        Neg::Fun {
-            arg_eff, ret_eff, ..
-        } => {
-            collect_matching_effect_atoms_from_pos(
-                state,
-                arg_eff,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-            collect_matching_effect_atoms_from_neg(
-                state,
-                ret_eff,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        Neg::Forall(_, body) => {
-            collect_matching_effect_atoms_from_neg(
-                state,
-                body,
-                effect_path,
-                arity,
-                seen_tvs,
-                seen_pos,
-                seen_neg,
-                out,
-            );
-        }
-        _ => {}
     }
 }
 
@@ -1151,7 +815,6 @@ fn lower_catch_arm(
         });
         state.lower_detail.extract_catch_effect_path += path_start.elapsed();
 
-        bind_pattern_locals(state, &op_pat);
         let payload_pat = lower_catch_effect_payload_pat(state, &op_pat);
 
         let k = state.fresh_def();

@@ -194,15 +194,11 @@ pub(crate) fn coalesce_function_effect_residual(
     if arg_eff.rows.is_empty() || arg_eff.vars.is_empty() || ret_eff.vars.is_empty() {
         return;
     }
+    let keep_surface_residual = ret_eff.vars.len() > 1;
     let mut tail_vars = HashSet::new();
     collect_effect_row_tail_vars_with_items(arg_eff, &ret_eff.vars, &mut tail_vars);
     if tail_vars.is_empty() {
-        let promoted = promote_adjacent_effect_residual_vars(arg_eff, &ret_eff.vars);
-        if !promoted.is_empty() {
-            for tv in promoted {
-                arg_eff.vars.remove(&tv);
-            }
-        }
+        promote_adjacent_effect_residual_vars(arg_eff, &ret_eff.vars);
         return;
     }
     let mut subst = arg_eff
@@ -221,18 +217,22 @@ pub(crate) fn coalesce_function_effect_residual(
     subst.sort_by_key(|(from, _)| from.0);
     subst.dedup_by_key(|(from, _)| *from);
     if subst.is_empty() {
-        for tail in tail_vars {
-            arg_eff.vars.remove(&tail);
+        if !keep_surface_residual {
+            for tail in tail_vars {
+                arg_eff.vars.remove(&tail);
+            }
         }
         return;
     }
     *arg_eff = subst_compact_type(arg_eff, &subst);
     *ret_eff = subst_compact_type(ret_eff, &subst);
-    for &(_, tail) in &subst {
-        arg_eff.vars.remove(&tail);
-    }
-    for tail in tail_vars {
-        arg_eff.vars.remove(&tail);
+    if !keep_surface_residual {
+        for &(_, tail) in &subst {
+            arg_eff.vars.remove(&tail);
+        }
+        for tail in tail_vars {
+            arg_eff.vars.remove(&tail);
+        }
     }
 }
 
@@ -1935,7 +1935,7 @@ mod tests {
     }
 
     #[test]
-    fn coalesce_function_effect_residual_promotes_adjacent_row_var_to_tail() {
+    fn coalesce_function_effect_residual_exposes_adjacent_row_var_as_tail() {
         let residual = fresh_type_var();
         let io = CompactType {
             prims: std::collections::HashSet::from([prim_path("io")]),
@@ -1956,7 +1956,74 @@ mod tests {
 
         coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
 
-        assert!(!arg_eff.vars.contains(&residual));
+        assert!(arg_eff.vars.contains(&residual));
+        assert_eq!(
+            arg_eff.rows[0].tail.vars,
+            std::collections::HashSet::from([residual])
+        );
+        assert_eq!(ret_eff.vars, std::collections::HashSet::from([residual]));
+    }
+
+    #[test]
+    fn coalesce_function_effect_residual_drops_single_surface_var_already_in_row_tail() {
+        let residual = fresh_type_var();
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let mut arg_eff = CompactType {
+            vars: std::collections::HashSet::from([residual]),
+            rows: vec![CompactRow {
+                items: vec![io],
+                tail: Box::new(CompactType {
+                    vars: std::collections::HashSet::from([residual]),
+                    ..CompactType::default()
+                }),
+            }],
+            ..CompactType::default()
+        };
+        let mut ret_eff = CompactType {
+            vars: std::collections::HashSet::from([residual]),
+            ..CompactType::default()
+        };
+
+        coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
+
+        assert!(arg_eff.vars.is_empty());
+        assert_eq!(
+            arg_eff.rows[0].tail.vars,
+            std::collections::HashSet::from([residual])
+        );
+        assert_eq!(ret_eff.vars, std::collections::HashSet::from([residual]));
+    }
+
+    #[test]
+    fn coalesce_function_effect_residual_keeps_surface_var_when_result_exposes_source_and_tail() {
+        let source = fresh_type_var();
+        let residual = fresh_type_var();
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let mut arg_eff = CompactType {
+            vars: std::collections::HashSet::from([source]),
+            rows: vec![CompactRow {
+                items: vec![io],
+                tail: Box::new(CompactType {
+                    vars: std::collections::HashSet::from([residual]),
+                    ..CompactType::default()
+                }),
+            }],
+            ..CompactType::default()
+        };
+        let mut ret_eff = CompactType {
+            vars: std::collections::HashSet::from([source, residual]),
+            ..CompactType::default()
+        };
+
+        coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
+
+        assert_eq!(arg_eff.vars, std::collections::HashSet::from([residual]));
         assert_eq!(
             arg_eff.rows[0].tail.vars,
             std::collections::HashSet::from([residual])

@@ -24,8 +24,9 @@ use analysis::analyze_co_occurrences_with_role_constraints;
 use group::analyze_group_co_occurrences_with_role_constraints;
 use passes::{
     apply_exact_row_unifications, apply_exact_sandwich_removal,
-    apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
-    apply_row_residual_unifications, apply_shadow_var_collapse, expose_positive_row_residual_tails,
+    apply_function_effect_residual_unifications, apply_group_co_occurrence_substitutions,
+    apply_one_sided_exact_alias_collapse, apply_row_residual_unifications,
+    apply_shadow_var_collapse, expose_positive_row_residual_tails,
 };
 use representative::lower_representatives_for_subst;
 
@@ -180,6 +181,14 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &mut subst,
         );
         let exposed_row_residual_vars = apply_row_residual_unifications(
+            &current_scheme,
+            &current_constraints,
+            &mut rec_vars,
+            &mut analysis,
+            &rigid_vars,
+            &mut subst,
+        );
+        apply_function_effect_residual_unifications(
             &current_scheme,
             &current_constraints,
             &mut rec_vars,

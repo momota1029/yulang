@@ -26,6 +26,9 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
                 .chain(arg_pat.read_eff_tv)
         })
         .collect::<HashSet<_>>();
+    if let Some(scope) = state.current_type_scope() {
+        non_generic_roots.extend(scope.values().copied());
+    }
     for tv in arg_pats
         .iter()
         .flat_map(|arg_pat| arg_pat.ann_non_generic_tvs.iter().copied())

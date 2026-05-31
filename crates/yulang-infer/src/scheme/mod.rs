@@ -5,6 +5,7 @@ use smallvec::SmallVec;
 
 use crate::ids::{PosId, TypeVar};
 use crate::simplify::compact::CompactTypeScheme;
+use crate::types::EffectAtom;
 use crate::types::arena::TypeArena;
 
 pub mod freeze;
@@ -22,6 +23,7 @@ pub struct Scheme {
     pub quantified: Vec<TypeVar>,
     pub quantified_sources: SmallSubst,
     pub through: HashSet<TypeVar>,
+    pub eff_binds: Vec<(TypeVar, Vec<EffectAtom>)>,
 }
 
 pub type FrozenScheme = Rc<Scheme>;

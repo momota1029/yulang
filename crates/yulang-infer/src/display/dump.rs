@@ -1718,6 +1718,7 @@ mod tests {
             .expect("g should be rendered");
 
         assert_eq!(f.1, "α [β] -> [β] α");
+        // テスト期待値を変えるな
         assert_eq!(g.1, "α [β & [io; β]] -> [β] α");
     }
 
@@ -1824,6 +1825,7 @@ mod tests {
             .find(|(name, _)| name == "k")
             .expect("k should be rendered");
 
+        // テスト期待値を変えるな
         assert_eq!(h.1, "α [β & [io; β]] -> [β] α");
         assert_eq!(k.1, "α [β & [io; β]] -> [β] α");
     }
@@ -1843,6 +1845,7 @@ mod tests {
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
 
+        // テスト期待値を変えるな
         assert_eq!(shallow_det.1, "α [β & [undet; β]] -> [β] α");
     }
 
@@ -1861,6 +1864,7 @@ mod tests {
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
 
+        // テスト期待値を変えるな
         assert_eq!(shallow_det.1, "α [β & [undet; β]] -> [β] α");
     }
 
@@ -2066,6 +2070,7 @@ mod tests {
             .find(|(name, _)| name == "j")
             .expect("j should be rendered");
 
+        // テスト期待値を変えるな
         assert_eq!(h.1, "α [β & [io; β]] -> [β] α");
         assert_eq!(j.1, "α [io; β] -> [β] α");
     }

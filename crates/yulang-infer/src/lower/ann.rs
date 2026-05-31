@@ -81,7 +81,8 @@ pub fn configure_arg_effect_from_ann(
     }
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
-        Some(LoweredEffAnn::Row { lower, upper, .. }) => {
+        Some(LoweredEffAnn::Row { upper, .. }) => {
+            register_eff_bind_from_annotation(state, arg_eff_tv, &upper);
             let cause = ann
                 .map(|ann| ConstraintCause {
                     span: Some(ann.span),
@@ -101,12 +102,27 @@ pub fn configure_arg_effect_from_ann(
             }
             state
                 .infer
-                .constrain_with_cause(lower, Neg::Var(arg_eff_tv), cause.clone());
-            state
-                .infer
                 .constrain_with_cause(Pos::Var(arg_eff_tv), upper, cause);
         }
     }
+}
+
+fn register_eff_bind_from_annotation(
+    state: &LowerState,
+    arg_eff_tv: crate::ids::TypeVar,
+    upper: &Neg,
+) {
+    let Neg::Row(items, _) = upper else {
+        return;
+    };
+    let handled = items
+        .iter()
+        .filter_map(|item| match state.infer.arena.get_neg(*item) {
+            Neg::Atom(atom) => Some(atom),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    state.infer.register_eff_bind(arg_eff_tv, handled);
 }
 
 pub fn fresh_arg_effect_tv(

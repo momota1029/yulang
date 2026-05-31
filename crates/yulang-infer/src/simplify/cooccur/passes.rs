@@ -114,6 +114,40 @@ pub(super) fn apply_row_residual_unifications(
     residual_representatives
 }
 
+pub(super) fn apply_function_effect_residual_unifications(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    rec_vars: &mut HashMap<TypeVar, CompactBounds>,
+    cooccurs: &mut CoOccurrences,
+    rigid_vars: &HashSet<TypeVar>,
+    subst: &mut HashMap<TypeVar, Option<TypeVar>>,
+) {
+    let mut classes = Vec::<Vec<TypeVar>>::new();
+    collect_function_effect_residual_classes_in_bounds(&scheme.cty, subst, &mut classes);
+    let mut rec_var_items = rec_vars.iter().collect::<Vec<_>>();
+    rec_var_items.sort_by_key(|(tv, _)| tv.0);
+    for (_, bounds) in rec_var_items {
+        collect_function_effect_residual_classes_in_bounds(bounds, subst, &mut classes);
+    }
+    for constraint in constraints {
+        for arg in &constraint.args {
+            collect_function_effect_residual_classes_in_bounds(arg, subst, &mut classes);
+        }
+    }
+
+    let mut accepted = HashMap::<TypeVar, TypeVar>::new();
+    for class in classes {
+        accept_var_class(class.into_iter(), rigid_vars, subst, &mut accepted);
+    }
+    if accepted.is_empty() {
+        return;
+    }
+
+    subst.extend(accepted.iter().map(|(&from, &to)| (from, Some(to))));
+    rewrite_occurrence_info(cooccurs, &accepted);
+    rewrite_recursive_bounds(rec_vars, &accepted);
+}
+
 pub(super) fn expose_positive_row_residual_tails(
     scheme: &mut CompactTypeScheme,
     residual_vars: &HashSet<TypeVar>,
@@ -227,6 +261,109 @@ fn is_row_residual_tail_for_vars(tail: &CompactType, residual_vars: &HashSet<Typ
         && tail.variants.is_empty()
         && tail.tuples.is_empty()
         && tail.rows.is_empty()
+}
+
+fn collect_function_effect_residual_classes_in_bounds(
+    bounds: &CompactBounds,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    classes: &mut Vec<Vec<TypeVar>>,
+) {
+    collect_function_effect_residual_classes_in_type(&bounds.lower, subst, classes);
+    collect_function_effect_residual_classes_in_type(&bounds.upper, subst, classes);
+}
+
+fn collect_function_effect_residual_classes_in_type(
+    ty: &CompactType,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    classes: &mut Vec<Vec<TypeVar>>,
+) {
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_function_effect_residual_classes_in_bounds(arg, subst, classes);
+        }
+    }
+    for fun in &ty.funs {
+        collect_function_effect_residual_class(fun, subst, classes);
+        collect_function_effect_residual_classes_in_type(&fun.arg, subst, classes);
+        collect_function_effect_residual_classes_in_type(&fun.arg_eff, subst, classes);
+        collect_function_effect_residual_classes_in_type(&fun.ret_eff, subst, classes);
+        collect_function_effect_residual_classes_in_type(&fun.ret, subst, classes);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_function_effect_residual_classes_in_type(&field.value, subst, classes);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_function_effect_residual_classes_in_type(&field.value, subst, classes);
+        }
+        collect_function_effect_residual_classes_in_type(&spread.tail, subst, classes);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_function_effect_residual_classes_in_type(payload, subst, classes);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_function_effect_residual_classes_in_type(item, subst, classes);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_function_effect_residual_classes_in_type(item, subst, classes);
+        }
+        collect_function_effect_residual_classes_in_type(&row.tail, subst, classes);
+    }
+}
+
+fn collect_function_effect_residual_class(
+    fun: &super::CompactFun,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    classes: &mut Vec<Vec<TypeVar>>,
+) {
+    let ret_vars = compact_type_surface_vars(&fun.ret_eff, subst);
+    if ret_vars.is_empty() {
+        return;
+    }
+    let mut vars = compact_type_surface_vars(&fun.arg_eff, subst);
+    collect_arg_effect_tail_vars_matching_ret(&fun.arg_eff, &ret_vars, subst, &mut vars);
+    if vars.len() > 1 {
+        let mut vars = vars.into_iter().collect::<Vec<_>>();
+        vars.sort_by_key(|tv| tv.0);
+        classes.push(vars);
+    }
+}
+
+fn compact_type_surface_vars(
+    ty: &CompactType,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+) -> HashSet<TypeVar> {
+    ty.vars
+        .iter()
+        .filter_map(|&tv| rewrite_optional_var(tv, subst))
+        .collect()
+}
+
+fn collect_arg_effect_tail_vars_matching_ret(
+    ty: &CompactType,
+    ret_vars: &HashSet<TypeVar>,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    out: &mut HashSet<TypeVar>,
+) {
+    for row in &ty.rows {
+        if !row.items.is_empty() {
+            out.extend(
+                row_tail_vars(&row.tail, subst)
+                    .into_iter()
+                    .filter(|tv| ret_vars.contains(tv)),
+            );
+        }
+        collect_arg_effect_tail_vars_matching_ret(&row.tail, ret_vars, subst, out);
+    }
 }
 
 pub(super) fn apply_exact_row_unifications(

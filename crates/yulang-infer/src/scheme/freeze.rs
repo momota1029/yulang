@@ -8,7 +8,7 @@ use crate::simplify::compact::{
     coalesce_function_effect_residuals_in_scheme,
     coalesce_multi_function_effect_residuals_in_scheme,
     coalesce_nested_tail_function_effect_residuals_in_scheme, compact_type_var,
-    merge_compact_types, subst_compact_bounds, subst_lookup_small,
+    merge_compact_types, normalize_compact_scheme_rows, subst_compact_bounds, subst_lookup_small,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars;
@@ -54,6 +54,7 @@ fn coalesce_compact_scheme_for_freeze(
         &boundary,
     );
     coalesce_multi_function_effect_residuals_in_scheme(&mut scheme);
+    normalize_compact_scheme_rows(&mut scheme);
     scheme
 }
 
@@ -121,6 +122,7 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
         subst_compact_scheme_vars(scheme, quantification.quantified_sources.as_slice())
     };
     coalesce_function_effect_residuals_in_scheme(&mut compact);
+    normalize_compact_scheme_rows(&mut compact);
     let scheme_arena: FrozenArena = Rc::new(TypeArena::new());
     let body = compact_root_fun_pos_body(&scheme_arena, &compact)
         .unwrap_or_else(|| compact_pos_type(&scheme_arena, &compact.cty.lower, &compact, false));
@@ -164,6 +166,7 @@ fn freeze_live_pos_body_with_non_generic(
         subst_compact_scheme_vars(compact, quantification.quantified_sources.as_slice())
     };
     coalesce_function_effect_residuals_in_scheme(&mut compact);
+    normalize_compact_scheme_rows(&mut compact);
     finish_frozen_scheme(scheme_arena, compact, frozen_body, quantification)
 }
 
@@ -186,6 +189,7 @@ struct FreezeQuantification {
     quantified: Vec<TypeVar>,
     quantified_sources: SmallSubst,
     through: HashSet<TypeVar>,
+    eff_binds: Vec<(TypeVar, Vec<EffectAtom>)>,
 }
 
 fn prepare_freeze_quantification(
@@ -209,6 +213,23 @@ fn prepare_freeze_quantification(
         .iter()
         .filter_map(|(source, frozen)| infer.is_through(*source).then_some(*frozen))
         .collect();
+    let eff_binds: Vec<(TypeVar, Vec<EffectAtom>)> = quantified_sources
+        .iter()
+        .filter_map(|(source, frozen)| {
+            let handled = infer.eff_binds_of(*source);
+            if handled.is_empty() {
+                None
+            } else {
+                Some((
+                    *frozen,
+                    handled
+                        .into_iter()
+                        .map(|atom| subst_effect_atom_vars(atom, quantified_sources.as_slice()))
+                        .collect(),
+                ))
+            }
+        })
+        .collect();
     let quantified = quantified_sources
         .iter()
         .map(|(_, frozen)| *frozen)
@@ -217,6 +238,7 @@ fn prepare_freeze_quantification(
         quantified,
         quantified_sources,
         through,
+        eff_binds,
     }
 }
 
@@ -233,7 +255,24 @@ fn finish_frozen_scheme(
         quantified: quantification.quantified,
         quantified_sources: quantification.quantified_sources,
         through: quantification.through,
+        eff_binds: quantification.eff_binds,
     })
+}
+
+fn subst_effect_atom_vars(atom: EffectAtom, subst: &[(TypeVar, TypeVar)]) -> EffectAtom {
+    EffectAtom {
+        path: atom.path,
+        args: atom
+            .args
+            .into_iter()
+            .map(|(pos, neg)| {
+                (
+                    subst_lookup_small(subst, pos),
+                    subst_lookup_small(subst, neg),
+                )
+            })
+            .collect(),
+    }
 }
 
 fn compact_pos_expr_in_arena(arena: &TypeArena, id: PosId) -> CompactType {

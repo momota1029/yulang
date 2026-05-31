@@ -88,7 +88,15 @@ impl Infer {
     ) {
         let start = crate::profile::ProfileClock::now();
         let cause = ConstraintCause::unknown();
-        self.lower_levels_scheme_instance(&instance, self.level_of(target));
+        let target_lvl = self.level_of(target);
+        if self.max_level_scheme_instance(&instance) > target_lvl {
+            let body = self.materialize_compact_lower_instance(&instance);
+            self.constrain_instantiated_ref(body, target);
+            self.record_profile(start, |profile, elapsed| {
+                profile.constrain_instantiated_ref_instance += elapsed;
+            });
+            return;
+        }
         if self.add_compact_lower_instance(target, instance.clone()) {
             if let Some(source) = compact_instance_direct_var(&instance) {
                 if !self.is_through(source) {
@@ -193,9 +201,6 @@ impl Infer {
             (Pos::Var(a), Neg::Row(_, tail))
                 if self.effect_boundary_keep(a) == super::ShiftKeep::CallBoundary =>
             {
-                self.constrain_step(pos, tail, cause, cache);
-            }
-            (Pos::Var(a), Neg::Row(_, tail)) if self.is_through(a) => {
                 self.constrain_step(pos, tail, cause, cache);
             }
             (Pos::Var(a), _) => {
@@ -395,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn extrude_lowers_effect_atom_argument_levels() {
+    fn extrude_copies_effect_atom_argument_vars_at_target_level() {
         let infer = Infer::new();
         let pos_arg = fresh_type_var();
         let neg_arg = fresh_type_var();
@@ -408,10 +413,110 @@ mod tests {
             args: vec![(pos_arg, neg_arg)],
         }));
 
-        infer.extrude_pos(atom, 1);
+        let extruded = infer.extrude_pos(atom, 1);
 
-        assert_eq!(infer.level_of(pos_arg), 1);
-        assert_eq!(infer.level_of(neg_arg), 1);
+        assert_eq!(infer.level_of(pos_arg), 3);
+        assert_eq!(infer.level_of(neg_arg), 3);
+        let Pos::Atom(atom) = infer.arena.get_pos(extruded) else {
+            panic!("extruded atom should stay an atom");
+        };
+        let [(pos_copy, neg_copy)] = atom.args.as_slice() else {
+            panic!("extruded atom should keep its arity");
+        };
+        assert_ne!(*pos_copy, pos_arg);
+        assert_ne!(*neg_copy, neg_arg);
+        assert_eq!(infer.level_of(*pos_copy), 1);
+        assert_eq!(infer.level_of(*neg_copy), 1);
+        assert!(
+            infer
+                .uppers_of(pos_arg)
+                .iter()
+                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == *pos_copy))
+        );
+        assert!(
+            infer
+                .lowers_of(neg_arg)
+                .iter()
+                .any(|lower| matches!(lower, Pos::Var(tv) if *tv == *neg_copy))
+        );
+    }
+
+    #[test]
+    fn extrude_copies_high_level_var_bounds_without_lowering_source() {
+        let infer = Infer::new();
+        let source = fresh_type_var();
+        infer.register_level(source, 3);
+        let int_lower = infer.alloc_pos(prim("int"));
+        infer.add_lower(source, int_lower);
+
+        let extruded = infer.extrude_pos(infer.alloc_pos(Pos::Var(source)), 1);
+
+        assert_eq!(infer.level_of(source), 3);
+        let Pos::Var(copy) = infer.arena.get_pos(extruded) else {
+            panic!("extruded variable should stay a variable");
+        };
+        assert_ne!(copy, source);
+        assert_eq!(infer.level_of(copy), 1);
+        assert!(
+            infer
+                .uppers_of(source)
+                .iter()
+                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == copy))
+        );
+        assert!(
+            infer.lower_refs_of(copy).contains(&int_lower),
+            "positive extrusion should copy lower bounds onto the approximation"
+        );
+    }
+
+    #[test]
+    fn compact_instance_extrudes_high_level_subst_without_lowering_source() {
+        let infer = Infer::new();
+        let quantified = fresh_type_var();
+        let source = fresh_type_var();
+        let target = fresh_type_var();
+        infer.register_level(source, 3);
+        infer.register_level(target, 1);
+
+        let scheme_arena = std::rc::Rc::new(crate::types::arena::TypeArena::new());
+        let body = scheme_arena.alloc_pos(Pos::Var(quantified));
+        let scheme = std::rc::Rc::new(crate::scheme::Scheme {
+            arena: scheme_arena,
+            compact: crate::simplify::compact::CompactTypeScheme {
+                cty: crate::simplify::compact::CompactBounds {
+                    self_var: None,
+                    lower: crate::simplify::compact::CompactType {
+                        vars: std::collections::HashSet::from([quantified]),
+                        ..crate::simplify::compact::CompactType::default()
+                    },
+                    upper: crate::simplify::compact::CompactType::default(),
+                },
+                rec_vars: std::collections::HashMap::new(),
+            },
+            body,
+            quantified: vec![quantified],
+            quantified_sources: smallvec::smallvec![(quantified, quantified)],
+            through: std::collections::HashSet::new(),
+            eff_binds: Vec::new(),
+        });
+        let instance = crate::scheme::OwnedSchemeInstance {
+            scheme,
+            subst: smallvec::smallvec![(quantified, source)],
+            level: 3,
+        };
+
+        infer.constrain_instantiated_ref_instance(instance, target);
+
+        assert_eq!(infer.level_of(source), 3);
+        assert!(
+            infer.lower_refs_of(target).into_iter().any(|lower| {
+                matches!(
+                    infer.arena.get_pos(lower),
+                    Pos::Var(copy) if copy != source && infer.level_of(copy) == 1
+                )
+            }),
+            "compact instance should materialize through extrusion at the target level"
+        );
     }
 
     #[test]

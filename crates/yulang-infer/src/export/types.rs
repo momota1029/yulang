@@ -1,11 +1,10 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yulang_typed_ir as typed_ir;
-use yulang_typed_ir::normalize_union_members;
 
 use crate::FrozenScheme;
 use crate::display::format::{
-    Type as DisplayType, compact_scheme_to_type, compact_side_to_type, materialize_effect_args,
+    Type as DisplayType, compact_scheme_to_type, materialize_effect_args,
 };
 use crate::ids::TypeVar;
 use crate::simplify::compact::{
@@ -23,13 +22,17 @@ use crate::types::RecordField;
 use super::names::{export_name, export_path};
 
 pub fn export_scheme_body(scheme: &CompactTypeScheme) -> typed_ir::Type {
-    export_display_type(scheme, &compact_scheme_to_type(scheme))
+    let mut ctx = ExportTypeCtx::new(scheme);
+    let display = compact_scheme_to_type(scheme);
+    ctx.export_display_type(&display)
 }
 
 pub fn export_scheme_body_with_infer(infer: &Infer, scheme: &CompactTypeScheme) -> typed_ir::Type {
     let mut scheme = scheme.clone();
     materialize_effect_args(infer, &mut scheme);
-    export_display_type(&scheme, &compact_scheme_to_type(&scheme))
+    let mut ctx = ExportTypeCtx::new(&scheme);
+    let display = compact_scheme_to_type(&scheme);
+    ctx.export_display_type(&display)
 }
 
 pub fn export_scheme_body_type_vars(scheme: &CompactTypeScheme) -> BTreeSet<typed_ir::TypeVar> {
@@ -330,139 +333,347 @@ pub fn export_role_requirement(
     }
 }
 
-fn export_display_type(scheme: &CompactTypeScheme, ty: &DisplayType) -> typed_ir::Type {
-    let raw = match ty {
-        DisplayType::Var(tv) => typed_ir::Type::Var(export_type_var(*tv)),
-        DisplayType::Prim(path) => typed_ir::Type::Named {
-            path: export_path(path),
-            args: Vec::new(),
-        },
-        DisplayType::Con(path, args) => typed_ir::Type::Named {
-            path: export_path(path),
-            args: args
-                .iter()
-                .map(|arg| export_type_arg(scheme, arg))
-                .collect(),
-        },
-        DisplayType::Fun {
-            arg,
-            arg_eff,
-            ret_eff,
-            ret,
-        } => typed_ir::Type::Fun {
-            param: Box::new(export_display_type(scheme, arg)),
-            param_effect: Box::new(export_display_type(scheme, arg_eff)),
-            ret_effect: Box::new(export_display_type(scheme, ret_eff)),
-            ret: Box::new(export_display_type(scheme, ret)),
-        },
-        DisplayType::Record(fields) => typed_ir::Type::Record(typed_ir::RecordType {
-            fields: export_record_fields(scheme, fields),
-            spread: None,
-        }),
-        DisplayType::RecordTailSpread { fields, tail } => {
-            typed_ir::Type::Record(typed_ir::RecordType {
-                fields: export_record_fields(scheme, fields),
-                spread: Some(typed_ir::RecordSpread::Tail(Box::new(export_display_type(
-                    scheme, tail,
-                )))),
-            })
-        }
-        DisplayType::RecordHeadSpread { tail, fields } => {
-            typed_ir::Type::Record(typed_ir::RecordType {
-                fields: export_record_fields(scheme, fields),
-                spread: Some(typed_ir::RecordSpread::Head(Box::new(export_display_type(
-                    scheme, tail,
-                )))),
-            })
-        }
-        DisplayType::Variant(items) => typed_ir::Type::Variant(typed_ir::VariantType {
-            cases: items
-                .iter()
-                .map(|(name, payloads)| typed_ir::VariantCase {
-                    name: export_name(name),
-                    payloads: payloads
-                        .iter()
-                        .map(|payload| export_display_type(scheme, payload))
-                        .collect(),
-                })
-                .collect(),
-            tail: None,
-        }),
-        DisplayType::Tuple(items) => typed_ir::Type::Tuple(
-            items
-                .iter()
-                .map(|item| export_display_type(scheme, item))
-                .collect(),
-        ),
-        DisplayType::Row(items, tail) => typed_ir::Type::Row {
-            items: items
-                .iter()
-                .map(|item| export_display_type(scheme, item))
-                .collect(),
-            tail: Box::new(export_display_type(scheme, tail)),
-        },
-        DisplayType::Union(items) => typed_ir::Type::Union(
-            items
-                .iter()
-                .map(|item| export_display_type(scheme, item))
-                .collect(),
-        ),
-        DisplayType::Inter(items) => typed_ir::Type::Inter(
-            items
-                .iter()
-                .map(|item| export_display_type(scheme, item))
-                .collect(),
-        ),
-        DisplayType::Rec(tv, body) => typed_ir::Type::Recursive {
-            var: export_type_var(*tv),
-            body: Box::new(export_display_type(scheme, body)),
-        },
-        DisplayType::Bot => typed_ir::Type::Never,
-        DisplayType::Top => typed_ir::Type::Any,
-    };
-    normalize_core_type(raw)
-}
-
-fn export_record_fields(
-    scheme: &CompactTypeScheme,
-    fields: &[RecordField<DisplayType>],
-) -> Vec<typed_ir::RecordField<typed_ir::Type>> {
-    fields
-        .iter()
-        .map(|field| typed_ir::RecordField {
-            name: export_name(&field.name),
-            value: export_display_type(scheme, &field.value),
-            optional: field.optional,
-        })
-        .collect()
-}
-
-fn export_type_arg(scheme: &CompactTypeScheme, arg: &CompactBounds) -> typed_ir::TypeArg {
-    let bounds = export_type_bounds(scheme, arg);
-    match (&bounds.lower, &bounds.upper) {
-        (Some(lower), Some(upper)) if lower == upper => typed_ir::TypeArg::Type((**lower).clone()),
-        _ => typed_ir::TypeArg::Bounds(bounds),
-    }
-}
-
 fn export_type_bounds(scheme: &CompactTypeScheme, bounds: &CompactBounds) -> typed_ir::TypeBounds {
-    typed_ir::TypeBounds {
-        lower: compact_side_option(scheme, &bounds.lower, true).map(Box::new),
-        upper: compact_side_option(scheme, &bounds.upper, false).map(Box::new),
+    let mut ctx = ExportTypeCtx::new(scheme);
+    ctx.export_compact_bounds(bounds)
+}
+
+struct ExportTypeCtx {
+    active_sides: HashMap<CompactSideKey, typed_ir::TypeVar>,
+    recursive_sides: HashSet<CompactSideKey>,
+}
+
+impl ExportTypeCtx {
+    fn new(_scheme: &CompactTypeScheme) -> Self {
+        Self {
+            active_sides: HashMap::new(),
+            recursive_sides: HashSet::new(),
+        }
+    }
+
+    fn export_display_type(&mut self, ty: &DisplayType) -> typed_ir::Type {
+        self.export_display_type_raw(ty)
+    }
+
+    fn export_display_type_raw(&mut self, ty: &DisplayType) -> typed_ir::Type {
+        let raw = match ty {
+            DisplayType::Var(tv) => typed_ir::Type::Var(export_type_var(*tv)),
+            DisplayType::Prim(path) => typed_ir::Type::Named {
+                path: export_path(path),
+                args: Vec::new(),
+            },
+            DisplayType::Con(path, args) => typed_ir::Type::Named {
+                path: export_path(path),
+                args: args.iter().map(|arg| self.export_type_arg(arg)).collect(),
+            },
+            DisplayType::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => typed_ir::Type::Fun {
+                param: Box::new(self.export_display_type_raw(arg)),
+                param_effect: Box::new(self.export_display_type_raw(arg_eff)),
+                ret_effect: Box::new(self.export_display_type_raw(ret_eff)),
+                ret: Box::new(self.export_display_type_raw(ret)),
+            },
+            DisplayType::Record(fields) => typed_ir::Type::Record(typed_ir::RecordType {
+                fields: self.export_record_fields_raw(fields),
+                spread: None,
+            }),
+            DisplayType::RecordTailSpread { fields, tail } => {
+                typed_ir::Type::Record(typed_ir::RecordType {
+                    fields: self.export_record_fields_raw(fields),
+                    spread: Some(typed_ir::RecordSpread::Tail(Box::new(
+                        self.export_display_type_raw(tail),
+                    ))),
+                })
+            }
+            DisplayType::RecordHeadSpread { tail, fields } => {
+                typed_ir::Type::Record(typed_ir::RecordType {
+                    fields: self.export_record_fields_raw(fields),
+                    spread: Some(typed_ir::RecordSpread::Head(Box::new(
+                        self.export_display_type_raw(tail),
+                    ))),
+                })
+            }
+            DisplayType::Variant(items) => typed_ir::Type::Variant(typed_ir::VariantType {
+                cases: items
+                    .iter()
+                    .map(|(name, payloads)| typed_ir::VariantCase {
+                        name: export_name(name),
+                        payloads: payloads
+                            .iter()
+                            .map(|payload| self.export_display_type_raw(payload))
+                            .collect(),
+                    })
+                    .collect(),
+                tail: None,
+            }),
+            DisplayType::Tuple(items) => typed_ir::Type::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.export_display_type_raw(item))
+                    .collect(),
+            ),
+            DisplayType::Row(items, tail) => typed_ir::Type::Row {
+                items: items
+                    .iter()
+                    .map(|item| self.export_display_type_raw(item))
+                    .collect(),
+                tail: Box::new(self.export_display_type_raw(tail)),
+            },
+            DisplayType::Union(items) => typed_ir::Type::Union(
+                items
+                    .iter()
+                    .map(|item| self.export_display_type_raw(item))
+                    .collect(),
+            ),
+            DisplayType::Inter(items) => typed_ir::Type::Inter(
+                items
+                    .iter()
+                    .map(|item| self.export_display_type_raw(item))
+                    .collect(),
+            ),
+            DisplayType::Rec(tv, body) => typed_ir::Type::Recursive {
+                var: export_type_var(*tv),
+                body: Box::new(self.export_display_type_raw(body)),
+            },
+            DisplayType::Bot => typed_ir::Type::Never,
+            DisplayType::Top => typed_ir::Type::Any,
+        };
+        raw
+    }
+
+    fn export_record_fields_raw(
+        &mut self,
+        fields: &[RecordField<DisplayType>],
+    ) -> Vec<typed_ir::RecordField<typed_ir::Type>> {
+        fields
+            .iter()
+            .map(|field| typed_ir::RecordField {
+                name: export_name(&field.name),
+                value: self.export_display_type_raw(&field.value),
+                optional: field.optional,
+            })
+            .collect()
+    }
+
+    fn export_type_arg(&mut self, arg: &CompactBounds) -> typed_ir::TypeArg {
+        let bounds = self.export_compact_bounds(arg);
+        match (&bounds.lower, &bounds.upper) {
+            (Some(lower), Some(upper)) if lower == upper => {
+                typed_ir::TypeArg::Type((**lower).clone())
+            }
+            _ => typed_ir::TypeArg::Bounds(bounds),
+        }
+    }
+
+    fn export_compact_bounds(&mut self, bounds: &CompactBounds) -> typed_ir::TypeBounds {
+        typed_ir::TypeBounds {
+            lower: self.export_compact_side(&bounds.lower, true).map(Box::new),
+            upper: self.export_compact_side(&bounds.upper, false).map(Box::new),
+        }
+    }
+
+    fn export_compact_side(&mut self, ty: &CompactType, positive: bool) -> Option<typed_ir::Type> {
+        if compact_type_is_empty(ty) {
+            return None;
+        }
+
+        let key = compact_side_key(ty, positive);
+        if let Some(var) = self.active_sides.get(&key).cloned() {
+            self.recursive_sides.insert(key);
+            return Some(typed_ir::Type::Var(var));
+        }
+
+        let rec_var = typed_ir::TypeVar(format!("r{}", self.active_sides.len()));
+        self.active_sides.insert(key.clone(), rec_var.clone());
+        let body = self.export_compact_type_body(ty, positive);
+        self.active_sides.remove(&key);
+
+        let out = if self.recursive_sides.remove(&key) {
+            typed_ir::Type::Recursive {
+                var: rec_var,
+                body: Box::new(body),
+            }
+        } else {
+            body
+        };
+        Some(out)
+    }
+
+    fn export_required_compact_side(&mut self, ty: &CompactType, positive: bool) -> typed_ir::Type {
+        self.export_compact_side(ty, positive)
+            .unwrap_or_else(|| empty_compact_side_type(positive))
+    }
+
+    fn export_compact_var_side(&mut self, tv: TypeVar, _positive: bool) -> typed_ir::Type {
+        typed_ir::Type::Var(export_type_var(tv))
+    }
+
+    fn export_compact_type_body(&mut self, ty: &CompactType, positive: bool) -> typed_ir::Type {
+        let mut parts = Vec::new();
+
+        let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+        vars.sort_by_key(|tv| tv.0);
+        parts.extend(
+            vars.into_iter()
+                .map(|tv| self.export_compact_var_side(tv, positive)),
+        );
+
+        let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+        prims.sort_by_key(export_path_sort_key);
+        parts.extend(prims.into_iter().map(|path| typed_ir::Type::Named {
+            path: export_path(&path),
+            args: Vec::new(),
+        }));
+
+        let mut cons = ty.cons.iter().collect::<Vec<_>>();
+        cons.sort_by_key(|con| export_path_sort_key(&con.path));
+        parts.extend(cons.into_iter().map(|con| {
+            typed_ir::Type::Named {
+                path: export_path(&con.path),
+                args: con
+                    .args
+                    .iter()
+                    .map(|arg| self.export_type_arg(arg))
+                    .collect(),
+            }
+        }));
+
+        parts.extend(ty.funs.iter().map(|fun| typed_ir::Type::Fun {
+            param: Box::new(self.export_required_compact_side(&fun.arg, !positive)),
+            param_effect: Box::new(self.export_required_compact_side(&fun.arg_eff, !positive)),
+            ret_effect: Box::new(self.export_required_compact_side(&fun.ret_eff, positive)),
+            ret: Box::new(self.export_required_compact_side(&fun.ret, positive)),
+        }));
+
+        parts.extend(ty.records.iter().map(|record| {
+            typed_ir::Type::Record(typed_ir::RecordType {
+                fields: record
+                    .fields
+                    .iter()
+                    .map(|field| typed_ir::RecordField {
+                        name: export_name(&field.name),
+                        value: self.export_required_compact_side(&field.value, positive),
+                        optional: field.optional,
+                    })
+                    .collect(),
+                spread: None,
+            })
+        }));
+
+        parts.extend(ty.record_spreads.iter().map(|spread| {
+            typed_ir::Type::Record(typed_ir::RecordType {
+                fields: spread
+                    .fields
+                    .iter()
+                    .map(|field| typed_ir::RecordField {
+                        name: export_name(&field.name),
+                        value: self.export_required_compact_side(&field.value, positive),
+                        optional: field.optional,
+                    })
+                    .collect(),
+                spread: Some(if spread.tail_wins {
+                    typed_ir::RecordSpread::Tail(Box::new(
+                        self.export_required_compact_side(&spread.tail, positive),
+                    ))
+                } else {
+                    typed_ir::RecordSpread::Head(Box::new(
+                        self.export_required_compact_side(&spread.tail, positive),
+                    ))
+                }),
+            })
+        }));
+
+        parts.extend(ty.variants.iter().map(|variant| {
+            typed_ir::Type::Variant(typed_ir::VariantType {
+                cases: variant
+                    .items
+                    .iter()
+                    .map(|(name, payloads)| typed_ir::VariantCase {
+                        name: export_name(name),
+                        payloads: payloads
+                            .iter()
+                            .map(|payload| self.export_required_compact_side(payload, positive))
+                            .collect(),
+                    })
+                    .collect(),
+                tail: None,
+            })
+        }));
+
+        parts.extend(ty.tuples.iter().map(|tuple| {
+            typed_ir::Type::Tuple(
+                tuple
+                    .iter()
+                    .map(|item| self.export_required_compact_side(item, positive))
+                    .collect(),
+            )
+        }));
+
+        parts.extend(ty.rows.iter().map(|row| {
+            typed_ir::Type::Row {
+                items: row
+                    .items
+                    .iter()
+                    .map(|item| self.export_required_compact_side(item, positive))
+                    .collect(),
+                tail: Box::new(self.export_required_compact_side(&row.tail, positive)),
+            }
+        }));
+
+        combine_export_parts(parts, positive)
     }
 }
 
-fn compact_side_option(
-    scheme: &CompactTypeScheme,
-    ty: &CompactType,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct CompactSideKey {
+    ptr: usize,
     positive: bool,
-) -> Option<typed_ir::Type> {
-    (!is_empty_compact_type(ty)).then(|| {
-        export_display_type(
-            scheme,
-            &compact_side_to_type(&scheme.rec_vars, ty, positive),
+}
+
+fn compact_side_key(ty: &CompactType, positive: bool) -> CompactSideKey {
+    CompactSideKey {
+        ptr: ty as *const CompactType as usize,
+        positive,
+    }
+}
+
+fn empty_compact_side_type(positive: bool) -> typed_ir::Type {
+    if positive {
+        typed_ir::Type::Never
+    } else {
+        typed_ir::Type::Any
+    }
+}
+
+fn combine_export_parts(mut parts: Vec<typed_ir::Type>, positive: bool) -> typed_ir::Type {
+    parts.retain(|part| {
+        !matches!(
+            (positive, part),
+            (true, typed_ir::Type::Never) | (false, typed_ir::Type::Any)
         )
-    })
+    });
+    parts.dedup();
+    match parts.len() {
+        0 => empty_compact_side_type(positive),
+        1 => parts
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| empty_compact_side_type(positive)),
+        _ if positive => typed_ir::Type::Union(parts),
+        _ => typed_ir::Type::Inter(parts),
+    }
+}
+
+fn export_path_sort_key(path: &Path) -> String {
+    path.segments
+        .iter()
+        .map(|name| name.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn export_type_var(tv: crate::ids::TypeVar) -> typed_ir::TypeVar {
@@ -711,7 +922,7 @@ pub(crate) fn collect_core_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<ty
     }
 }
 
-fn is_empty_compact_type(ty: &CompactType) -> bool {
+fn compact_type_is_empty(ty: &CompactType) -> bool {
     ty.vars.is_empty()
         && ty.prims.is_empty()
         && ty.cons.is_empty()
@@ -721,106 +932,6 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
-}
-
-fn normalize_core_type(ty: typed_ir::Type) -> typed_ir::Type {
-    match ty {
-        typed_ir::Type::Unknown
-        | typed_ir::Type::Never
-        | typed_ir::Type::Any
-        | typed_ir::Type::Var(_) => ty,
-        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
-            path,
-            args: args
-                .into_iter()
-                .map(|arg| match arg {
-                    typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(normalize_core_type(ty)),
-                    typed_ir::TypeArg::Bounds(bounds) => {
-                        typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
-                            lower: bounds.lower.map(|ty| Box::new(normalize_core_type(*ty))),
-                            upper: bounds.upper.map(|ty| Box::new(normalize_core_type(*ty))),
-                        })
-                    }
-                })
-                .collect(),
-        },
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => typed_ir::Type::Fun {
-            param: Box::new(normalize_core_type(*param)),
-            param_effect: Box::new(normalize_core_type(*param_effect)),
-            ret_effect: Box::new(normalize_core_type(*ret_effect)),
-            ret: Box::new(normalize_core_type(*ret)),
-        },
-        typed_ir::Type::Tuple(items) => {
-            typed_ir::Type::Tuple(items.into_iter().map(normalize_core_type).collect())
-        }
-        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
-            fields: record
-                .fields
-                .into_iter()
-                .map(|field| typed_ir::RecordField {
-                    name: field.name,
-                    value: normalize_core_type(field.value),
-                    optional: field.optional,
-                })
-                .collect(),
-            spread: record.spread.map(|spread| match spread {
-                typed_ir::RecordSpread::Head(ty) => {
-                    typed_ir::RecordSpread::Head(Box::new(normalize_core_type(*ty)))
-                }
-                typed_ir::RecordSpread::Tail(ty) => {
-                    typed_ir::RecordSpread::Tail(Box::new(normalize_core_type(*ty)))
-                }
-            }),
-        }),
-        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
-            cases: variant
-                .cases
-                .into_iter()
-                .map(|case| typed_ir::VariantCase {
-                    name: case.name,
-                    payloads: case.payloads.into_iter().map(normalize_core_type).collect(),
-                })
-                .collect(),
-            tail: variant
-                .tail
-                .map(|tail| Box::new(normalize_core_type(*tail))),
-        }),
-        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
-            items: items.into_iter().map(normalize_core_type).collect(),
-            tail: Box::new(normalize_core_type(*tail)),
-        },
-        typed_ir::Type::Union(items) => normalize_union(items),
-        typed_ir::Type::Inter(items) => {
-            typed_ir::Type::Inter(items.into_iter().map(normalize_core_type).collect())
-        }
-        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
-            var,
-            body: Box::new(normalize_core_type(*body)),
-        },
-    }
-}
-
-fn normalize_union(items: Vec<typed_ir::Type>) -> typed_ir::Type {
-    let mut items = items
-        .into_iter()
-        .map(normalize_core_type)
-        .flat_map(|item| match item {
-            typed_ir::Type::Union(items) => items,
-            other => vec![other],
-        })
-        .collect::<Vec<_>>();
-    items = normalize_union_members(items);
-    items.dedup();
-    match items.len() {
-        0 => typed_ir::Type::Never,
-        1 => items.into_iter().next().unwrap_or(typed_ir::Type::Never),
-        _ => typed_ir::Type::Union(items),
-    }
 }
 
 #[allow(dead_code)]

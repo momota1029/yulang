@@ -53,6 +53,7 @@ pub fn instantiate_frozen_body(infer: &Infer, scheme: &FrozenScheme, level: u32)
         }
         subst.push((*quantified, fresh));
     }
+    apply_scheme_var_metadata(infer, scheme, subst.as_slice());
     let instance = SchemeInstance {
         scheme: scheme.clone(),
         subst,
@@ -94,6 +95,7 @@ pub fn instantiate_frozen_body_with_subst_profiled(
         }
         subst.push((*quantified, fresh));
     }
+    apply_scheme_var_metadata(infer, scheme, subst.as_slice());
     profile.build_subst += build_subst_start.elapsed();
 
     let subst_body_start = Instant::now();
@@ -146,6 +148,7 @@ pub fn instantiate_as_view_with_subst_profiled(
         }
         subst.push((*quantified, fresh));
     }
+    apply_scheme_var_metadata(infer, scheme, subst.as_slice());
     profile.build_subst += build_subst_start.elapsed();
     (
         SchemeInstance {
@@ -155,6 +158,18 @@ pub fn instantiate_as_view_with_subst_profiled(
         },
         profile,
     )
+}
+
+fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(TypeVar, TypeVar)]) {
+    for (rho, handled) in &scheme.eff_binds {
+        let mapped_rho = subst_lookup_small(subst, *rho);
+        let handled = handled
+            .iter()
+            .cloned()
+            .map(|atom| subst_atom_small(atom, subst))
+            .collect();
+        infer.register_eff_bind(mapped_rho, handled);
+    }
 }
 
 pub(crate) fn subst_pos_id(infer: &Infer, id: PosId, subst: &[(TypeVar, TypeVar)]) -> PosId {

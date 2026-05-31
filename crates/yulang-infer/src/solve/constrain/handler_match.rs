@@ -1,10 +1,7 @@
-use std::collections::HashSet;
-
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
-use crate::ids::{NegId, PosId, TypeVar};
+use crate::ids::{NegId, TypeVar};
 use crate::solve::{HandlerMatchEdge, ShiftKeep};
-use crate::symbols::Path;
 use crate::types::{Neg, Pos};
 
 impl Infer {
@@ -49,17 +46,17 @@ impl Infer {
         cause: ConstraintCause,
     ) {
         let keep = self.effect_boundary_keep(actual);
-        let captures_any = handled
-            .iter()
-            .any(|handled| self.shift_keep_captures_neg(&keep, *handled));
+        let mut cache = StepCache::default();
+        let residual_tail = self.arena.alloc_neg(Neg::Var(residual));
+        let upper = if handled.is_empty() {
+            residual_tail
+        } else {
+            self.arena
+                .alloc_neg(Neg::Row(handled.clone(), residual_tail))
+        };
 
-        if handled.is_empty() || !captures_any {
-            self.constrain(Pos::Var(actual), Neg::Var(residual));
-        }
-
-        let index = {
+        {
             let mut edges = self.handler_matches.borrow_mut();
-            let index = edges.len();
             edges.push(HandlerMatchEdge {
                 actual,
                 keep,
@@ -68,16 +65,14 @@ impl Infer {
                 solve_open_rows,
                 cause: cause.clone(),
             });
-            index
-        };
-        self.handler_match_dependents
-            .borrow_mut()
-            .entry(actual)
-            .or_default()
-            .push(index);
+        }
 
-        let mut cache = StepCache::default();
-        self.solve_handler_match_edge(index, &cause, &mut cache);
+        self.constrain_step(
+            self.arena.alloc_pos(Pos::Var(actual)),
+            upper,
+            &cause,
+            &mut cache,
+        );
     }
 
     pub(super) fn solve_handler_matches_for(
@@ -86,136 +81,7 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        let dependents = self
-            .handler_match_dependents
-            .borrow()
-            .get(&actual)
-            .cloned()
-            .unwrap_or_default();
-        for edge in dependents {
-            self.solve_handler_match_edge(edge, cause, cache);
-        }
-    }
-
-    fn solve_handler_match_edge(
-        &self,
-        index: usize,
-        cause: &ConstraintCause,
-        cache: &mut StepCache,
-    ) {
-        let Some(edge) = self.handler_matches.borrow().get(index).cloned() else {
-            return;
-        };
-
-        let mut seen = HashSet::new();
-        for lower in self.lower_refs_of(edge.actual) {
-            for residual in
-                self.solve_handler_match_pos_lower(index, &edge, lower, cause, cache, &mut seen)
-            {
-                self.constrain_step_with_hint(
-                    residual,
-                    self.arena.alloc_neg(Neg::Var(edge.residual)),
-                    cause,
-                    Some(edge.actual),
-                    cache,
-                );
-            }
-        }
-
-        // Do not solve from upper bounds or compact instances yet. Those are
-        // summary views, not a concrete source surface, and using them here
-        // would make handler_match invent residual row shape indirectly.
-    }
-
-    fn solve_handler_match_pos_lower(
-        &self,
-        index: usize,
-        edge: &HandlerMatchEdge,
-        lower: PosId,
-        cause: &ConstraintCause,
-        cache: &mut StepCache,
-        seen: &mut HashSet<TypeVar>,
-    ) -> Vec<PosId> {
-        let lower = self.arena.get_pos(lower).clone();
-        let Pos::Row(items, tail) = lower else {
-            let Pos::Var(source) = lower else {
-                return Vec::new();
-            };
-            if !seen.insert(source) {
-                return Vec::new();
-            }
-            {
-                let mut dependents = self.handler_match_dependents.borrow_mut();
-                let entry = dependents.entry(source).or_default();
-                if !entry.contains(&index) {
-                    entry.push(index);
-                }
-            }
-            return self
-                .lower_refs_of(source)
-                .into_iter()
-                .flat_map(|lower| {
-                    self.solve_handler_match_pos_lower(index, edge, lower, cause, cache, seen)
-                })
-                .collect();
-        };
-        let mut kept = Vec::new();
-        for item in &items {
-            if let Some(handled) =
-                self.capturing_handler_for_pos_item(&edge.keep, &edge.handled, *item)
-            {
-                self.constrain_row_item_match(*item, handled, cause, cache);
-            } else {
-                kept.push(*item);
-            }
-        }
-        if !edge.solve_open_rows && !matches!(self.arena.get_pos(tail), Pos::Bot) {
-            return Vec::new();
-        }
-        vec![
-            if kept.is_empty() && !matches!(self.arena.get_pos(tail), Pos::Bot) {
-                tail
-            } else {
-                self.arena.alloc_pos(Pos::Row(kept, tail))
-            },
-        ]
-    }
-
-    fn capturing_handler_for_pos_item(
-        &self,
-        keep: &ShiftKeep,
-        handled: &[NegId],
-        item: PosId,
-    ) -> Option<NegId> {
-        let Pos::Atom(pos_atom) = self.arena.get_pos(item) else {
-            return None;
-        };
-        handled.iter().copied().find(|handled| {
-            self.shift_keep_captures_neg(keep, *handled)
-                && matches!(
-                    self.arena.get_neg(*handled),
-                    Neg::Atom(neg_atom)
-                        if neg_atom.path == pos_atom.path
-                            && neg_atom.args.len() == pos_atom.args.len()
-                )
-        })
-    }
-
-    fn shift_keep_captures_neg(&self, keep: &ShiftKeep, handled: NegId) -> bool {
-        match keep {
-            ShiftKeep::None | ShiftKeep::CallBoundary => false,
-            ShiftKeep::Surface => true,
-            ShiftKeep::Set(paths) => self
-                .neg_effect_path(handled)
-                .is_some_and(|path| paths.iter().any(|allowed| allowed == &path)),
-        }
-    }
-
-    fn neg_effect_path(&self, handled: NegId) -> Option<Path> {
-        match self.arena.get_neg(handled) {
-            Neg::Atom(atom) => Some(atom.path),
-            _ => None,
-        }
+        let _ = (actual, cause, cache);
     }
 }
 
@@ -224,7 +90,7 @@ mod tests {
     use super::*;
     use crate::diagnostic::ConstraintCause;
     use crate::fresh_type_var;
-    use crate::symbols::Name;
+    use crate::symbols::{Name, Path};
     use crate::types::EffectAtom;
 
     #[test]
@@ -252,14 +118,12 @@ mod tests {
         );
 
         assert!(
-            infer.lower_refs_of(residual).into_iter().any(|lower| {
-                matches!(
-                    infer.arena.get_pos(lower),
-                    Pos::Row(items, tail)
-                        if items.is_empty() && matches!(infer.arena.get_pos(tail), Pos::Bot)
-                )
-            }),
-            "closed surface subtraction should add an empty residual row"
+            has_handler_row_upper(&infer, actual, residual, "io"),
+            "handler_match should encode subtraction as an ordinary row upper bound"
+        );
+        assert!(
+            infer.lower_refs_of(residual).is_empty(),
+            "closed empty residual is represented by bottom, not by a synthetic empty row lower"
         );
     }
 
@@ -291,10 +155,8 @@ mod tests {
         );
 
         assert!(
-            infer.upper_refs_of(tail).into_iter().any(|upper| {
-                matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
-            }),
-            "handler_match should chase variable lower bounds before subtracting handled rows"
+            tail_flows_to_residual(&infer, tail, residual),
+            "ordinary row constraints should propagate an open tail to the residual"
         );
     }
 
@@ -382,10 +244,8 @@ mod tests {
         );
 
         assert!(
-            infer.upper_refs_of(tail).into_iter().any(|upper| {
-                matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
-            }),
-            "open surface subtraction should expose the row tail as the residual"
+            tail_flows_to_residual(&infer, tail, residual),
+            "open surface subtraction should be handled by row decomposition"
         );
     }
 
@@ -460,10 +320,15 @@ mod tests {
         );
 
         assert!(
-            infer.upper_refs_of(tail).into_iter().any(|upper| {
-                matches!(infer.arena.get_neg(upper), Neg::Var(open_residual) if open_residual == residual)
-            }),
-            "a path-limited handler still exposes the source tail after subtracting a captured path"
+            tail_flows_to_residual(&infer, tail, residual),
+            "boundary keep metadata should not change the ordinary row constraint"
+        );
+        assert!(
+            matches!(
+                infer.handler_matches.borrow().first().map(|edge| &edge.keep),
+                Some(ShiftKeep::Set(paths)) if paths == &vec![path("io")]
+            ),
+            "boundary keep should remain available as exported evidence"
         );
     }
 
@@ -552,5 +417,43 @@ mod tests {
         Path {
             segments: vec![Name(name.to_string())],
         }
+    }
+
+    fn has_handler_row_upper(
+        infer: &Infer,
+        actual: crate::ids::TypeVar,
+        residual: crate::ids::TypeVar,
+        path_name: &str,
+    ) -> bool {
+        infer.upper_refs_of(actual).into_iter().any(|upper| {
+            let Neg::Row(items, tail) = infer.arena.get_neg(upper) else {
+                return false;
+            };
+            matches!(infer.arena.get_neg(tail), Neg::Var(tv) if tv == residual)
+                && items.iter().any(|item| {
+                    matches!(
+                        infer.arena.get_neg(*item),
+                        Neg::Atom(atom) if atom.path == path(path_name)
+                    )
+                })
+        })
+    }
+
+    fn tail_flows_to_residual(
+        infer: &Infer,
+        tail: crate::ids::TypeVar,
+        residual: crate::ids::TypeVar,
+    ) -> bool {
+        infer
+            .upper_refs_of(tail)
+            .into_iter()
+            .any(|upper| match infer.arena.get_neg(upper) {
+                Neg::Var(tv) => tv == residual,
+                Neg::Row(items, row_tail) => {
+                    items.is_empty()
+                        && matches!(infer.arena.get_neg(row_tail), Neg::Var(tv) if tv == residual)
+                }
+                _ => false,
+            })
     }
 }

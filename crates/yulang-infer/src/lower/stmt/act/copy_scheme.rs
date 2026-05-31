@@ -3,8 +3,10 @@ use crate::lower::LowerState;
 use crate::scheme::compact_scheme_from_pos_body_in_arena;
 use crate::symbols::Path;
 use crate::types::arena::TypeArena;
-use crate::types::{Neg, Pos};
+use crate::types::{EffectAtom, Neg, Pos};
 use rustc_hash::FxHashSet;
+
+use super::super::lookup_small_subst;
 
 pub(crate) fn transform_copied_frozen_scheme(
     _state: &LowerState,
@@ -46,12 +48,7 @@ pub(crate) fn transform_copied_frozen_scheme(
     let mut quantified_sources = source
         .quantified_sources
         .iter()
-        .map(|(source_tv, frozen_tv)| {
-            (
-                super::super::lookup_small_subst(subst, *source_tv),
-                *frozen_tv,
-            )
-        })
+        .map(|(source_tv, frozen_tv)| (lookup_small_subst(subst, *source_tv), *frozen_tv))
         .filter(|(tv, frozen_tv)| !fixed_tvs.contains(tv) && !fixed_frozen_tvs.contains(frozen_tv))
         .collect::<crate::scheme::SmallSubst>();
     quantified_sources.sort_by_key(|(tv, _)| tv.0);
@@ -67,6 +64,24 @@ pub(crate) fn transform_copied_frozen_scheme(
         .iter()
         .copied()
         .filter(|tv| quantified.contains(tv))
+        .collect();
+    let eff_binds = source
+        .eff_binds
+        .iter()
+        .filter_map(|(rho, handled)| {
+            let rho = lookup_small_subst(frozen_subst.as_slice(), *rho);
+            if !quantified.contains(&rho) {
+                return None;
+            }
+            Some((
+                rho,
+                handled
+                    .iter()
+                    .cloned()
+                    .map(|atom| subst_effect_atom_vars(atom, frozen_subst.as_slice()))
+                    .collect(),
+            ))
+        })
         .collect();
     let arena = std::rc::Rc::new(TypeArena::new());
     let frozen_body = super::super::clone_replace_effect_path_pos_between_arenas(
@@ -85,7 +100,27 @@ pub(crate) fn transform_copied_frozen_scheme(
         quantified,
         quantified_sources,
         through,
+        eff_binds,
     })
+}
+
+fn subst_effect_atom_vars(
+    atom: EffectAtom,
+    subst: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+) -> EffectAtom {
+    EffectAtom {
+        path: atom.path,
+        args: atom
+            .args
+            .into_iter()
+            .map(|(pos, neg)| {
+                (
+                    lookup_small_subst(subst, pos),
+                    lookup_small_subst(subst, neg),
+                )
+            })
+            .collect(),
+    }
 }
 
 fn effect_path_frozen_subst(

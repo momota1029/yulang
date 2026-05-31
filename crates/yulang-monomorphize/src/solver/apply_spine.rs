@@ -737,13 +737,11 @@ pub(crate) fn solve_simple_apply(
             graph.constrain_subtype(result_effect.clone(), observed_arg_effect)?;
         }
         if !role_required_binding {
-            let protected_result_vars = bounded_type_vars(&graph, &result);
             step.constrain_result_bounds(
                 &mut graph,
                 result.clone(),
                 result_effect.clone(),
                 local_types,
-                &protected_result_vars,
             )?;
         }
         current = result;
@@ -1339,10 +1337,9 @@ impl ApplyStep<'_> {
         result: typed_ir::Type,
         _result_effect: typed_ir::Type,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
-        protected_result_vars: &BTreeSet<typed_ir::TypeVar>,
     ) -> MonomorphizeResult<()> {
         let evidence_value_bound = if let Some(evidence) = self.evidence {
-            constrain_observed_type_bounds(graph, &result, &evidence.result, protected_result_vars)?
+            constrain_observed_type_bounds(graph, &result, &evidence.result)?
         } else {
             false
         };
@@ -1351,20 +1348,19 @@ impl ApplyStep<'_> {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { value, .. } => {
                 let observed = super::runtime_type_to_core((*value).clone());
-                if !(evidence_value_bound && runtime_type_value_is_function(&value)) {
-                    constrain_observed_upper_bound(
-                        graph,
-                        &result,
-                        &observed,
-                        protected_result_vars,
-                    )?;
+                if super::core_type_is_closed(&observed)
+                    && !(evidence_value_bound && runtime_type_value_is_function(&value))
+                {
+                    constrain_observed_upper_bound(graph, &result, &observed)?;
                 }
                 Ok(())
             }
             ty if evidence_value_bound && runtime_type_value_is_function(&ty) => Ok(()),
             ty => {
                 let observed = super::runtime_type_to_core(ty);
-                constrain_observed_upper_bound(graph, &result, &observed, protected_result_vars)?;
+                if super::core_type_is_closed(&observed) {
+                    constrain_observed_upper_bound(graph, &result, &observed)?;
+                }
                 Ok(())
             }
         }
@@ -1475,20 +1471,17 @@ fn constrain_observed_type_bounds(
     graph: &mut TypeGraph,
     template: &typed_ir::Type,
     bounds: &typed_ir::TypeBounds,
-    protected_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> MonomorphizeResult<bool> {
     let mut constrained = false;
     if let Some(lower) = bounds.lower.as_deref() {
-        constrained |= constrain_observed_lower_bound(graph, template, lower, protected_vars)?;
+        if super::core_type_is_closed(lower) {
+            constrained |= constrain_observed_lower_bound(graph, template, lower)?;
+        }
     }
     if let Some(upper) = bounds.upper.as_deref() {
-        // Upper bounds carry call-site information that the principal has not
-        // observed yet (e.g. principal's open type-param vars must be specialized
-        // from the upper). Don't protect template vars that already have a
-        // lower bound, because adding an upper bound here is purely additive
-        // and is exactly how the call-site narrows those open variables.
-        let empty = BTreeSet::new();
-        constrained |= constrain_observed_upper_bound(graph, template, upper, &empty)?;
+        if super::core_type_is_closed(upper) {
+            constrained |= constrain_observed_upper_bound(graph, template, upper)?;
+        }
     }
     Ok(constrained)
 }
@@ -1497,246 +1490,24 @@ fn constrain_observed_lower_bound(
     graph: &mut TypeGraph,
     template: &typed_ir::Type,
     observed: &typed_ir::Type,
-    protected_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> MonomorphizeResult<bool> {
-    constrain_observed_bound(
-        graph,
-        template,
-        observed,
-        protected_vars,
-        ObservedBoundSide::Lower,
-    )
+    if matches!(observed, typed_ir::Type::Unknown) {
+        return Ok(false);
+    }
+    graph.constrain_subtype(observed.clone(), template.clone())?;
+    Ok(true)
 }
 
 fn constrain_observed_upper_bound(
     graph: &mut TypeGraph,
     template: &typed_ir::Type,
     observed: &typed_ir::Type,
-    protected_vars: &BTreeSet<typed_ir::TypeVar>,
-) -> MonomorphizeResult<bool> {
-    constrain_observed_bound(
-        graph,
-        template,
-        observed,
-        protected_vars,
-        ObservedBoundSide::Upper,
-    )
-}
-
-enum ObservedBoundSide {
-    Lower,
-    Upper,
-}
-
-fn constrain_observed_bound(
-    graph: &mut TypeGraph,
-    template: &typed_ir::Type,
-    observed: &typed_ir::Type,
-    protected_vars: &BTreeSet<typed_ir::TypeVar>,
-    side: ObservedBoundSide,
 ) -> MonomorphizeResult<bool> {
     if matches!(observed, typed_ir::Type::Unknown) {
         return Ok(false);
     }
-    if !type_contains_any_var(template, protected_vars) {
-        match side {
-            ObservedBoundSide::Lower => {
-                graph.constrain_subtype(observed.clone(), template.clone())?
-            }
-            ObservedBoundSide::Upper => {
-                graph.constrain_subtype(template.clone(), observed.clone())?
-            }
-        }
-        return Ok(true);
-    }
-    match (template, observed) {
-        (typed_ir::Type::Var(var), _) if protected_vars.contains(var) => Ok(false),
-        (
-            typed_ir::Type::Named {
-                path: template_path,
-                args: template_args,
-            },
-            typed_ir::Type::Named {
-                path: observed_path,
-                args: observed_args,
-            },
-        ) if template_path == observed_path && template_args.len() == observed_args.len() => {
-            let mut constrained = false;
-            for (template_arg, observed_arg) in template_args.iter().zip(observed_args.iter()) {
-                constrained |= constrain_observed_type_arg_bound(
-                    graph,
-                    template_arg,
-                    observed_arg,
-                    protected_vars,
-                    &side,
-                )?;
-            }
-            Ok(constrained)
-        }
-        (typed_ir::Type::Tuple(template_items), typed_ir::Type::Tuple(observed_items))
-            if template_items.len() == observed_items.len() =>
-        {
-            let mut constrained = false;
-            for (template_item, observed_item) in template_items.iter().zip(observed_items.iter()) {
-                constrained |= constrain_observed_bound(
-                    graph,
-                    template_item,
-                    observed_item,
-                    protected_vars,
-                    side_ref(&side),
-                )?;
-            }
-            Ok(constrained)
-        }
-        (
-            typed_ir::Type::Row {
-                items: template_items,
-                tail: template_tail,
-            },
-            typed_ir::Type::Row {
-                items: observed_items,
-                tail: observed_tail,
-            },
-        ) if template_items.len() == observed_items.len() => {
-            let mut constrained = false;
-            for (template_item, observed_item) in template_items.iter().zip(observed_items.iter()) {
-                constrained |= constrain_observed_bound(
-                    graph,
-                    template_item,
-                    observed_item,
-                    protected_vars,
-                    side_ref(&side),
-                )?;
-            }
-            constrained |= constrain_observed_bound(
-                graph,
-                template_tail,
-                observed_tail,
-                protected_vars,
-                side,
-            )?;
-            Ok(constrained)
-        }
-        _ => Ok(false),
-    }
-}
-
-fn side_ref(side: &ObservedBoundSide) -> ObservedBoundSide {
-    match side {
-        ObservedBoundSide::Lower => ObservedBoundSide::Lower,
-        ObservedBoundSide::Upper => ObservedBoundSide::Upper,
-    }
-}
-
-fn constrain_observed_type_arg_bound(
-    graph: &mut TypeGraph,
-    template: &typed_ir::TypeArg,
-    observed: &typed_ir::TypeArg,
-    protected_vars: &BTreeSet<typed_ir::TypeVar>,
-    side: &ObservedBoundSide,
-) -> MonomorphizeResult<bool> {
-    match (template, observed) {
-        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(observed)) => {
-            constrain_observed_bound(graph, template, observed, protected_vars, side_ref(side))
-        }
-        _ => Ok(false),
-    }
-}
-
-fn bounded_type_vars(graph: &TypeGraph, ty: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {
-    let mut vars = BTreeSet::new();
-    collect_type_vars(ty, &mut vars);
-    vars.into_iter()
-        .filter(|var| {
-            graph
-                .slot(var)
-                .is_some_and(|slot| slot.lower.is_some() || slot.upper.is_some())
-        })
-        .collect()
-}
-
-fn type_contains_any_var(ty: &typed_ir::Type, vars: &BTreeSet<typed_ir::TypeVar>) -> bool {
-    let mut found = BTreeSet::new();
-    collect_type_vars(ty, &mut found);
-    found.iter().any(|var| vars.contains(var))
-}
-
-fn collect_type_vars(ty: &typed_ir::Type, out: &mut BTreeSet<typed_ir::TypeVar>) {
-    match ty {
-        typed_ir::Type::Var(var) => {
-            out.insert(var.clone());
-        }
-        typed_ir::Type::Named { args, .. } => {
-            for arg in args {
-                collect_type_arg_vars(arg, out);
-            }
-        }
-        typed_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => {
-            collect_type_vars(param, out);
-            collect_type_vars(param_effect, out);
-            collect_type_vars(ret_effect, out);
-            collect_type_vars(ret, out);
-        }
-        typed_ir::Type::Tuple(items)
-        | typed_ir::Type::Union(items)
-        | typed_ir::Type::Inter(items) => {
-            for item in items {
-                collect_type_vars(item, out);
-            }
-        }
-        typed_ir::Type::Record(record) => {
-            for field in &record.fields {
-                collect_type_vars(&field.value, out);
-            }
-            if let Some(spread) = &record.spread {
-                match spread {
-                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
-                        collect_type_vars(ty, out);
-                    }
-                }
-            }
-        }
-        typed_ir::Type::Variant(variant) => {
-            for case in &variant.cases {
-                for payload in &case.payloads {
-                    collect_type_vars(payload, out);
-                }
-            }
-            if let Some(tail) = &variant.tail {
-                collect_type_vars(tail, out);
-            }
-        }
-        typed_ir::Type::Row { items, tail } => {
-            for item in items {
-                collect_type_vars(item, out);
-            }
-            collect_type_vars(tail, out);
-        }
-        typed_ir::Type::Recursive { var, body } => {
-            out.insert(var.clone());
-            collect_type_vars(body, out);
-        }
-        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
-    }
-}
-
-fn collect_type_arg_vars(arg: &typed_ir::TypeArg, out: &mut BTreeSet<typed_ir::TypeVar>) {
-    match arg {
-        typed_ir::TypeArg::Type(ty) => collect_type_vars(ty, out),
-        typed_ir::TypeArg::Bounds(bounds) => {
-            if let Some(lower) = &bounds.lower {
-                collect_type_vars(lower, out);
-            }
-            if let Some(upper) = &bounds.upper {
-                collect_type_vars(upper, out);
-            }
-        }
-    }
+    graph.constrain_subtype(template.clone(), observed.clone())?;
+    Ok(true)
 }
 
 fn apply_evidence_return_effect(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {

@@ -419,151 +419,169 @@ fn expand_role_constraint_with_scheme_bounds(
     constraint: &CompactRoleConstraint,
     scheme: &CompactTypeScheme,
 ) -> CompactRoleConstraint {
+    let mut ctx = SchemeBoundsExpansion::new(scheme);
     CompactRoleConstraint {
         role: constraint.role.clone(),
         args: constraint
             .args
             .iter()
-            .map(|arg| expand_bounds_with_scheme_bounds(arg, scheme))
+            .map(|arg| ctx.expand_bounds(arg))
             .collect(),
     }
 }
 
-fn expand_bounds_with_scheme_bounds(
-    bounds: &CompactBounds,
-    scheme: &CompactTypeScheme,
-) -> CompactBounds {
-    normalize_rewritten_bounds(CompactBounds {
-        self_var: bounds.self_var,
-        lower: expand_type_with_scheme_bounds(&bounds.lower, scheme, true),
-        upper: expand_type_with_scheme_bounds(&bounds.upper, scheme, false),
-    })
+struct SchemeBoundsExpansion<'a> {
+    scheme: &'a CompactTypeScheme,
+    in_progress: HashSet<(TypeVar, bool)>,
+    cache: HashMap<(TypeVar, bool), CompactType>,
 }
 
-fn expand_type_with_scheme_bounds(
-    ty: &CompactType,
-    scheme: &CompactTypeScheme,
-    positive: bool,
-) -> CompactType {
-    let mut out = CompactType {
-        vars: ty.vars.clone(),
-        prims: ty.prims.clone(),
-        cons: ty
-            .cons
-            .iter()
-            .map(|con| crate::simplify::compact::CompactCon {
-                path: con.path.clone(),
-                args: con
-                    .args
-                    .iter()
-                    .map(|arg| expand_bounds_with_scheme_bounds(arg, scheme))
-                    .collect(),
-            })
-            .collect(),
-        funs: ty
-            .funs
-            .iter()
-            .map(|fun| crate::simplify::compact::CompactFun {
-                arg: expand_type_with_scheme_bounds(&fun.arg, scheme, !positive),
-                arg_eff: expand_type_with_scheme_bounds(&fun.arg_eff, scheme, !positive),
-                ret_eff: expand_type_with_scheme_bounds(&fun.ret_eff, scheme, positive),
-                ret: expand_type_with_scheme_bounds(&fun.ret, scheme, positive),
-            })
-            .collect(),
-        records: ty
-            .records
-            .iter()
-            .map(|record| crate::simplify::compact::CompactRecord {
-                fields: record
-                    .fields
-                    .iter()
-                    .map(|field| crate::types::RecordField {
-                        name: field.name.clone(),
-                        value: expand_type_with_scheme_bounds(&field.value, scheme, positive),
-                        optional: field.optional,
-                    })
-                    .collect(),
-            })
-            .collect(),
-        record_spreads: ty
-            .record_spreads
-            .iter()
-            .map(|spread| crate::simplify::compact::CompactRecordSpread {
-                fields: spread
-                    .fields
-                    .iter()
-                    .map(|field| crate::types::RecordField {
-                        name: field.name.clone(),
-                        value: expand_type_with_scheme_bounds(&field.value, scheme, positive),
-                        optional: field.optional,
-                    })
-                    .collect(),
-                tail: Box::new(expand_type_with_scheme_bounds(
-                    &spread.tail,
-                    scheme,
-                    positive,
-                )),
-                tail_wins: spread.tail_wins,
-            })
-            .collect(),
-        variants: ty
-            .variants
-            .iter()
-            .map(|variant| crate::simplify::compact::CompactVariant {
-                items: variant
-                    .items
-                    .iter()
-                    .map(|(name, payloads)| {
-                        (
-                            name.clone(),
-                            payloads
-                                .iter()
-                                .map(|payload| {
-                                    expand_type_with_scheme_bounds(payload, scheme, positive)
-                                })
-                                .collect(),
-                        )
-                    })
-                    .collect(),
-            })
-            .collect(),
-        tuples: ty
-            .tuples
-            .iter()
-            .map(|tuple| {
-                tuple
-                    .iter()
-                    .map(|item| expand_type_with_scheme_bounds(item, scheme, positive))
-                    .collect()
-            })
-            .collect(),
-        rows: ty
-            .rows
-            .iter()
-            .map(|row| crate::simplify::compact::CompactRow {
-                items: row
-                    .items
-                    .iter()
-                    .map(|item| expand_type_with_scheme_bounds(item, scheme, positive))
-                    .collect(),
-                tail: Box::new(expand_type_with_scheme_bounds(&row.tail, scheme, positive)),
-            })
-            .collect(),
-    };
+impl<'a> SchemeBoundsExpansion<'a> {
+    fn new(scheme: &'a CompactTypeScheme) -> Self {
+        Self {
+            scheme,
+            in_progress: HashSet::new(),
+            cache: HashMap::new(),
+        }
+    }
 
-    for var in &ty.vars {
-        let Some(bounds) = scheme.rec_vars.get(var) else {
-            continue;
+    fn expand_type(&mut self, ty: &CompactType, positive: bool) -> CompactType {
+        let mut out = CompactType {
+            vars: ty.vars.clone(),
+            prims: ty.prims.clone(),
+            cons: ty
+                .cons
+                .iter()
+                .map(|con| crate::simplify::compact::CompactCon {
+                    path: con.path.clone(),
+                    args: con.args.iter().map(|arg| self.expand_bounds(arg)).collect(),
+                })
+                .collect(),
+            funs: ty
+                .funs
+                .iter()
+                .map(|fun| crate::simplify::compact::CompactFun {
+                    arg: self.expand_type(&fun.arg, !positive),
+                    arg_eff: self.expand_type(&fun.arg_eff, !positive),
+                    ret_eff: self.expand_type(&fun.ret_eff, positive),
+                    ret: self.expand_type(&fun.ret, positive),
+                })
+                .collect(),
+            records: ty
+                .records
+                .iter()
+                .map(|record| crate::simplify::compact::CompactRecord {
+                    fields: record
+                        .fields
+                        .iter()
+                        .map(|field| crate::types::RecordField {
+                            name: field.name.clone(),
+                            value: self.expand_type(&field.value, positive),
+                            optional: field.optional,
+                        })
+                        .collect(),
+                })
+                .collect(),
+            record_spreads: ty
+                .record_spreads
+                .iter()
+                .map(|spread| crate::simplify::compact::CompactRecordSpread {
+                    fields: spread
+                        .fields
+                        .iter()
+                        .map(|field| crate::types::RecordField {
+                            name: field.name.clone(),
+                            value: self.expand_type(&field.value, positive),
+                            optional: field.optional,
+                        })
+                        .collect(),
+                    tail: Box::new(self.expand_type(&spread.tail, positive)),
+                    tail_wins: spread.tail_wins,
+                })
+                .collect(),
+            variants: ty
+                .variants
+                .iter()
+                .map(|variant| crate::simplify::compact::CompactVariant {
+                    items: variant
+                        .items
+                        .iter()
+                        .map(|(name, payloads)| {
+                            (
+                                name.clone(),
+                                payloads
+                                    .iter()
+                                    .map(|payload| self.expand_type(payload, positive))
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
+                })
+                .collect(),
+            tuples: ty
+                .tuples
+                .iter()
+                .map(|tuple| {
+                    tuple
+                        .iter()
+                        .map(|item| self.expand_type(item, positive))
+                        .collect()
+                })
+                .collect(),
+            rows: ty
+                .rows
+                .iter()
+                .map(|row| crate::simplify::compact::CompactRow {
+                    items: row
+                        .items
+                        .iter()
+                        .map(|item| self.expand_type(item, positive))
+                        .collect(),
+                    tail: Box::new(self.expand_type(&row.tail, positive)),
+                })
+                .collect(),
         };
+
+        for var in &ty.vars {
+            if let Some(expanded) = self.expand_rec_var(*var, positive) {
+                out = merge_compact_types(positive, out, expanded);
+            }
+        }
+        normalize_builtin_numeric_compact_type(&mut out);
+        out
+    }
+
+    fn expand_bounds(&mut self, bounds: &CompactBounds) -> CompactBounds {
+        normalize_rewritten_bounds(CompactBounds {
+            self_var: bounds.self_var,
+            lower: self.expand_type(&bounds.lower, true),
+            upper: self.expand_type(&bounds.upper, false),
+        })
+    }
+
+    fn expand_rec_var(&mut self, var: TypeVar, positive: bool) -> Option<CompactType> {
+        let bounds = self.scheme.rec_vars.get(&var)?;
+        let key = (var, positive);
+        if let Some(cached) = self.cache.get(&key) {
+            return Some(cached.clone());
+        }
+        if !self.in_progress.insert(key) {
+            // Recursive compact schemes keep cycles as rec_vars; expansion should expose
+            // the surrounding bounds without unrolling the same polarized edge forever.
+            return Some(CompactType {
+                vars: [var].into_iter().collect(),
+                ..CompactType::default()
+            });
+        }
         let expanded = if positive {
-            expand_type_with_scheme_bounds(&bounds.lower, scheme, positive)
+            self.expand_type(&bounds.lower, positive)
         } else {
-            expand_type_with_scheme_bounds(&bounds.upper, scheme, positive)
+            self.expand_type(&bounds.upper, positive)
         };
-        out = merge_compact_types(positive, out, expanded);
+        self.in_progress.remove(&key);
+        self.cache.insert(key, expanded.clone());
+        Some(expanded)
     }
-    normalize_builtin_numeric_compact_type(&mut out);
-    out
 }
 
 fn render_concrete_compact_type(ty: &CompactType) -> String {

@@ -39,20 +39,20 @@ impl Infer {
         )
     }
 
-    pub(super) fn lower_levels_scheme_instance(
-        &self,
-        instance: &OwnedSchemeInstance,
-        target_lvl: u32,
-    ) {
-        lower_levels_compact_bounds(
+    pub(super) fn max_level_scheme_instance(&self, instance: &OwnedSchemeInstance) -> u32 {
+        let mut max = max_level_compact_bounds(
             self,
             &instance.scheme.compact.cty,
             instance.subst.as_slice(),
-            target_lvl,
         );
         for bounds in instance.scheme.compact.rec_vars.values() {
-            lower_levels_compact_bounds(self, bounds, instance.subst.as_slice(), target_lvl);
+            max = max.max(max_level_compact_bounds(
+                self,
+                bounds,
+                instance.subst.as_slice(),
+            ));
         }
+        max
     }
 }
 
@@ -204,68 +204,66 @@ fn compact_type_preserves_through(
     false
 }
 
-fn lower_levels_compact_bounds(
+fn max_level_compact_bounds(
     infer: &Infer,
     bounds: &CompactBounds,
     subst: &[(TypeVar, TypeVar)],
-    target_lvl: u32,
-) {
-    lower_levels_compact_type(infer, &bounds.lower, subst, target_lvl);
-    lower_levels_compact_type(infer, &bounds.upper, subst, target_lvl);
+) -> u32 {
+    max_level_compact_type(infer, &bounds.lower, subst).max(max_level_compact_type(
+        infer,
+        &bounds.upper,
+        subst,
+    ))
 }
 
-fn lower_levels_compact_type(
-    infer: &Infer,
-    ty: &CompactType,
-    subst: &[(TypeVar, TypeVar)],
-    target_lvl: u32,
-) {
-    for tv in &ty.vars {
-        let tv = subst_lookup_small(subst, *tv);
-        if infer.level_of(tv) > target_lvl {
-            infer.register_level(tv, target_lvl);
-        }
-    }
+fn max_level_compact_type(infer: &Infer, ty: &CompactType, subst: &[(TypeVar, TypeVar)]) -> u32 {
+    let mut max = ty
+        .vars
+        .iter()
+        .map(|tv| infer.level_of(subst_lookup_small(subst, *tv)))
+        .max()
+        .unwrap_or(0);
     for con in &ty.cons {
         for arg in &con.args {
-            lower_levels_compact_bounds(infer, arg, subst, target_lvl);
+            max = max.max(max_level_compact_bounds(infer, arg, subst));
         }
     }
     for fun in &ty.funs {
-        lower_levels_compact_type(infer, &fun.arg, subst, target_lvl);
-        lower_levels_compact_type(infer, &fun.arg_eff, subst, target_lvl);
-        lower_levels_compact_type(infer, &fun.ret_eff, subst, target_lvl);
-        lower_levels_compact_type(infer, &fun.ret, subst, target_lvl);
+        max = max.max(max_level_compact_type(infer, &fun.arg, subst));
+        max = max.max(max_level_compact_type(infer, &fun.arg_eff, subst));
+        max = max.max(max_level_compact_type(infer, &fun.ret_eff, subst));
+        max = max.max(max_level_compact_type(infer, &fun.ret, subst));
     }
     for record in &ty.records {
         for field in &record.fields {
-            lower_levels_compact_type(infer, &field.value, subst, target_lvl);
+            max = max.max(max_level_compact_type(infer, &field.value, subst));
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            lower_levels_compact_type(infer, &field.value, subst, target_lvl);
+            max = max.max(max_level_compact_type(infer, &field.value, subst));
         }
-        lower_levels_compact_type(infer, &spread.tail, subst, target_lvl);
+        max = max.max(max_level_compact_type(infer, &spread.tail, subst));
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                lower_levels_compact_type(infer, payload, subst, target_lvl);
+                max = max.max(max_level_compact_type(infer, payload, subst));
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            lower_levels_compact_type(infer, item, subst, target_lvl);
+            max = max.max(max_level_compact_type(infer, item, subst));
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            lower_levels_compact_type(infer, item, subst, target_lvl);
+            max = max.max(max_level_compact_type(infer, item, subst));
         }
-        lower_levels_compact_type(infer, &row.tail, subst, target_lvl);
+        max = max.max(max_level_compact_type(infer, &row.tail, subst));
     }
+    max
 }
 
 fn dummy_compact_scheme() -> crate::simplify::compact::CompactTypeScheme {

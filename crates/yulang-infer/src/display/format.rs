@@ -6,7 +6,7 @@ use crate::lower::ctx::LowerCtx;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
     CompactType, CompactTypeScheme, CompactVariant, coalesce_function_effect_residual,
-    compact_type_var,
+    compact_type_var, normalize_compact_scheme_rows,
 };
 use crate::solve::Infer;
 use crate::symbols::{Name, Path};
@@ -43,12 +43,14 @@ pub enum Type {
 }
 
 pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
-    let mut ctx = CompactToTypeCtx::new(scheme);
+    let mut scheme = scheme.clone();
+    normalize_compact_scheme_rows(&mut scheme);
+    let mut ctx = CompactToTypeCtx::new(&scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
     if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true, !scheme.rec_vars.is_empty()) {
         return simplify_root_type(fun);
     }
-    if let Some(fun) = coalesce_lower_only_root_fun(&mut ctx, &root) {
+    if let Some(fun) = coalesce_lower_only_root_fun(&mut ctx, &root, !scheme.rec_vars.is_empty()) {
         return simplify_root_type(fun);
     }
     simplify_root_type(ctx.coalesce_type(&root.lower, true))
@@ -363,6 +365,8 @@ struct CompactToTypeCtx<'a> {
     scheme: &'a CompactTypeScheme,
     lower_witnesses: HashMap<TypeVar, CompactType>,
     input_vars: HashSet<TypeVar>,
+    cached_vars: HashMap<(TypeVar, bool), Type>,
+    cached_types: HashMap<(String, bool), Type>,
     in_process_vars: HashMap<(TypeVar, bool), TypeVar>,
     recursive_var_hits: HashSet<(TypeVar, bool)>,
     in_process_types: HashMap<(String, bool), TypeVar>,
@@ -375,6 +379,8 @@ impl<'a> CompactToTypeCtx<'a> {
             scheme,
             lower_witnesses: collect_lower_witnesses(scheme),
             input_vars: collect_function_input_vars(scheme),
+            cached_vars: HashMap::new(),
+            cached_types: HashMap::new(),
             in_process_vars: HashMap::new(),
             recursive_var_hits: HashSet::new(),
             in_process_types: HashMap::new(),
@@ -384,6 +390,9 @@ impl<'a> CompactToTypeCtx<'a> {
 
     fn coalesce_var(&mut self, tv: TypeVar, positive: bool) -> Type {
         let key = (tv, positive);
+        if let Some(cached) = self.cached_vars.get(&key) {
+            return cached.clone();
+        }
         if let Some(rec_tv) = self.in_process_vars.get(&key) {
             self.recursive_var_hits.insert(key);
             return Type::Var(*rec_tv);
@@ -402,16 +411,21 @@ impl<'a> CompactToTypeCtx<'a> {
         };
         self.in_process_vars.remove(&key);
 
-        if self.recursive_var_hits.remove(&key) {
+        let out = if self.recursive_var_hits.remove(&key) {
             Type::Rec(rec_tv, Box::new(body))
         } else {
             body
-        }
+        };
+        self.cached_vars.insert(key, out.clone());
+        out
     }
 
     fn coalesce_type(&mut self, ty: &CompactType, positive: bool) -> Type {
         if should_hash_cons_type(ty) {
             let key = (compact_type_key(ty), positive);
+            if let Some(cached) = self.cached_types.get(&key) {
+                return cached.clone();
+            }
             if let Some(rec_tv) = self.in_process_types.get(&key) {
                 self.recursive_type_hits.insert(key.clone());
                 return Type::Var(*rec_tv);
@@ -422,10 +436,13 @@ impl<'a> CompactToTypeCtx<'a> {
             let body = self.coalesce_type_body(ty, positive);
             self.in_process_types.remove(&key);
 
-            if self.recursive_type_hits.remove(&key) {
-                return Type::Rec(rec_tv, Box::new(body));
-            }
-            return body;
+            let out = if self.recursive_type_hits.remove(&key) {
+                Type::Rec(rec_tv, Box::new(body))
+            } else {
+                body
+            };
+            self.cached_types.insert(key, out.clone());
+            return out;
         }
 
         self.coalesce_type_body(ty, positive)
@@ -534,6 +551,8 @@ impl<'a> CompactToTypeCtx<'a> {
 
 impl CompactToTypeCtx<'_> {
     fn coalesce_fun(&mut self, fun: &CompactFun, positive: bool) -> Type {
+        let mut fun = fun.clone();
+        simplify_function_effect_residual_rows_for_render(&mut fun);
         Type::Fun {
             arg: Box::new(self.coalesce_type(&fun.arg, !positive)),
             arg_eff: Box::new(self.coalesce_fun_effect_field(&fun.arg_eff, !positive)),
@@ -571,6 +590,7 @@ fn coalesce_root_fun(
     if coalesce_effect_residual || lower_fun.ret_eff.vars.len() > 1 {
         coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
     }
+    simplify_function_effect_residual_rows_for_render(&mut lower_fun);
 
     if !normalize_fields {
         let arg = common_compact_type(&lower_fun.arg, &upper_fun.arg)
@@ -647,6 +667,88 @@ fn coalesce_root_fun_arg_effect_field(
     }
 }
 
+fn simplify_function_effect_residual_rows_for_render(fun: &mut CompactFun) {
+    if fun.arg_eff.rows.is_empty() || fun.ret_eff.vars.is_empty() {
+        return;
+    }
+
+    let closed_shapes = fun
+        .arg_eff
+        .rows
+        .iter()
+        .filter(|row| !row.items.is_empty() && is_empty_compact(&row.tail))
+        .filter_map(|row| sorted_effect_row_shape(row))
+        .collect::<HashSet<_>>();
+    let has_empty_residual_row = fun.arg_eff.rows.iter().any(|row| {
+        row.items.is_empty() && row.tail.vars.iter().any(|tv| fun.ret_eff.vars.contains(tv))
+    });
+    let mut row_tail_vars = HashSet::new();
+    let mut closed_covered_tail_vars = HashSet::new();
+    for row in &fun.arg_eff.rows {
+        if row.items.is_empty() {
+            continue;
+        }
+        let tail_vars = row
+            .tail
+            .vars
+            .intersection(&fun.ret_eff.vars)
+            .copied()
+            .collect::<Vec<_>>();
+        if tail_vars.is_empty() {
+            continue;
+        }
+        row_tail_vars.extend(tail_vars.iter().copied());
+        if sorted_effect_row_shape(row).is_some_and(|shape| closed_shapes.contains(&shape)) {
+            closed_covered_tail_vars.extend(tail_vars);
+        }
+    }
+    if !has_empty_residual_row && closed_covered_tail_vars.is_empty() {
+        return;
+    }
+
+    for tv in &row_tail_vars {
+        fun.arg_eff.vars.remove(tv);
+    }
+    for tv in &closed_covered_tail_vars {
+        fun.ret_eff.vars.remove(tv);
+    }
+
+    fun.arg_eff.rows.retain(|row| {
+        if row.items.is_empty() {
+            return !row_tail_is_only_vars_from(row, &row_tail_vars);
+        }
+        if closed_covered_tail_vars.is_empty() {
+            return true;
+        }
+        let has_closed_shape =
+            sorted_effect_row_shape(row).is_some_and(|shape| closed_shapes.contains(&shape));
+        !has_closed_shape || !row_tail_has_var_from(row, &closed_covered_tail_vars)
+    });
+}
+
+fn sorted_effect_row_shape(row: &CompactRow) -> Option<Vec<(String, usize)>> {
+    let mut shape = effect_row_shapes(&row.items)?;
+    shape.sort();
+    Some(shape)
+}
+
+fn row_tail_is_only_vars_from(row: &CompactRow, vars: &HashSet<TypeVar>) -> bool {
+    !row.tail.vars.is_empty()
+        && row.tail.vars.iter().all(|tv| vars.contains(tv))
+        && row.tail.prims.is_empty()
+        && row.tail.cons.is_empty()
+        && row.tail.funs.is_empty()
+        && row.tail.records.is_empty()
+        && row.tail.record_spreads.is_empty()
+        && row.tail.variants.is_empty()
+        && row.tail.tuples.is_empty()
+        && row.tail.rows.is_empty()
+}
+
+fn row_tail_has_var_from(row: &CompactRow, vars: &HashSet<TypeVar>) -> bool {
+    row.tail.vars.iter().any(|tv| vars.contains(tv))
+}
+
 fn closed_upper_row_with_matching_lower_shape(
     lower: &CompactType,
     upper: &CompactType,
@@ -659,6 +761,7 @@ fn closed_upper_row_with_matching_lower_shape(
                 .any(|lower_row| same_effect_row_shape(lower_row, upper_row))
     })?;
     Some(CompactType {
+        vars: upper.vars.clone(),
         rows: vec![row.clone()],
         ..CompactType::default()
     })
@@ -728,14 +831,17 @@ fn remove_upper_covered_row_tail_vars(ty: &mut CompactType, upper: &CompactType)
 fn coalesce_lower_only_root_fun(
     ctx: &mut CompactToTypeCtx<'_>,
     bounds: &CompactBounds,
+    coalesce_effect_residual: bool,
 ) -> Option<Type> {
     let [lower_fun] = bounds.lower.funs.as_slice() else {
         return None;
     };
+    let should_coalesce_effect_residual =
+        coalesce_effect_residual || lower_fun.ret_eff.vars.len() > 1;
     if !bounds.upper.funs.is_empty()
         || !root_non_fun_parts_empty(&bounds.lower)
         || !root_non_fun_parts_empty(&bounds.upper)
-        || lower_fun.ret_eff.vars.len() <= 1
+        || !should_coalesce_effect_residual
     {
         return None;
     }
@@ -748,6 +854,7 @@ fn coalesce_lower_only_root_fun(
 
     let mut lower_fun = lower_fun.clone();
     coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+    simplify_function_effect_residual_rows_for_render(&mut lower_fun);
 
     Some(Type::Fun {
         arg: Box::new(ctx.coalesce_type(&lower_fun.arg, false)),
@@ -1611,6 +1718,52 @@ fn compact_bounds_contains_var(bounds: &CompactBounds, var: TypeVar) -> bool {
         || compact_type_contains_var_for_render(&bounds.upper, var)
 }
 
+fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool {
+    ty.vars.contains(&var)
+        || ty.cons.iter().any(|con| {
+            con.args
+                .iter()
+                .any(|arg| compact_bounds_contains_var(arg, var))
+        })
+        || ty.funs.iter().any(|fun| {
+            compact_type_contains_var_for_render(&fun.arg, var)
+                || compact_type_contains_var_for_render(&fun.arg_eff, var)
+                || compact_type_contains_var_for_render(&fun.ret_eff, var)
+                || compact_type_contains_var_for_render(&fun.ret, var)
+        })
+        || ty.records.iter().any(|record| {
+            record
+                .fields
+                .iter()
+                .any(|field| compact_type_contains_var_for_render(&field.value, var))
+        })
+        || ty.record_spreads.iter().any(|spread| {
+            spread
+                .fields
+                .iter()
+                .any(|field| compact_type_contains_var_for_render(&field.value, var))
+                || compact_type_contains_var_for_render(&spread.tail, var)
+        })
+        || ty.variants.iter().any(|variant| {
+            variant.items.iter().any(|(_, payloads)| {
+                payloads
+                    .iter()
+                    .any(|payload| compact_type_contains_var_for_render(payload, var))
+            })
+        })
+        || ty.tuples.iter().any(|items| {
+            items
+                .iter()
+                .any(|item| compact_type_contains_var_for_render(item, var))
+        })
+        || ty.rows.iter().any(|row| {
+            row.items
+                .iter()
+                .any(|item| compact_type_contains_var_for_render(item, var))
+                || compact_type_contains_var_for_render(&row.tail, var)
+        })
+}
+
 fn collect_function_input_vars(scheme: &CompactTypeScheme) -> HashSet<TypeVar> {
     let mut out = HashSet::new();
     collect_function_input_vars_in_bounds(&scheme.cty, false, &mut out);
@@ -1766,52 +1919,6 @@ fn compact_type_without_var(ty: &CompactType, var: TypeVar) -> CompactType {
 fn compact_type_contains_witness(ty: &CompactType, witness: &CompactType) -> bool {
     common_compact_type(ty, witness)
         .is_some_and(|common| !is_empty_compact(&common) && common == *witness)
-}
-
-fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool {
-    ty.vars.contains(&var)
-        || ty.cons.iter().any(|con| {
-            con.args
-                .iter()
-                .any(|arg| compact_bounds_contains_var(arg, var))
-        })
-        || ty.funs.iter().any(|fun| {
-            compact_type_contains_var_for_render(&fun.arg, var)
-                || compact_type_contains_var_for_render(&fun.arg_eff, var)
-                || compact_type_contains_var_for_render(&fun.ret_eff, var)
-                || compact_type_contains_var_for_render(&fun.ret, var)
-        })
-        || ty.records.iter().any(|record| {
-            record
-                .fields
-                .iter()
-                .any(|field| compact_type_contains_var_for_render(&field.value, var))
-        })
-        || ty.record_spreads.iter().any(|spread| {
-            spread
-                .fields
-                .iter()
-                .any(|field| compact_type_contains_var_for_render(&field.value, var))
-                || compact_type_contains_var_for_render(&spread.tail, var)
-        })
-        || ty.variants.iter().any(|variant| {
-            variant.items.iter().any(|(_, payloads)| {
-                payloads
-                    .iter()
-                    .any(|payload| compact_type_contains_var_for_render(payload, var))
-            })
-        })
-        || ty.tuples.iter().any(|items| {
-            items
-                .iter()
-                .any(|item| compact_type_contains_var_for_render(item, var))
-        })
-        || ty.rows.iter().any(|row| {
-            row.items
-                .iter()
-                .any(|item| compact_type_contains_var_for_render(item, var))
-                || compact_type_contains_var_for_render(&row.tail, var)
-        })
 }
 
 fn clear_prefix_latent_effects_before_effectful_arg(chain: &mut [RootFunLink]) {
