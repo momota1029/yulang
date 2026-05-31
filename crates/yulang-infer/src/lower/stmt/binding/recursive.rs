@@ -63,6 +63,7 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
         ret_eff = state.fresh_exact_pure_eff_tv();
     }
 
+    state.infer.constrain(Pos::Var(owner_tv), Neg::Var(ret_tv));
     state.infer.constrain(Pos::Var(ret_tv), Neg::Var(owner_tv));
     if let Some(header) = header {
         super::annotation::connect_binding_type_annotation(

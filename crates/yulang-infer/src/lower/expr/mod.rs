@@ -55,7 +55,7 @@ mod var;
 pub(super) use apply::{make_app, make_app_with_cause};
 pub(super) use arms::collect_child_arms;
 use atom::{lower_expr_atom, lower_yada_yada_expr};
-use catch::{debug_dump_effect_tv, lower_catch, lower_catch_lambda};
+use catch::{lower_catch, lower_catch_lambda};
 use chain::lower_expr_chain;
 use control::{lower_case, lower_case_lambda, lower_if};
 pub(super) use effect_rows::{neg_id_is_pure_row, pos_id_is_empty_row};

@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{
@@ -31,7 +30,6 @@ pub(crate) fn make_app_with_cause(
     arg: TypedExpr,
     cause: ConstraintCause,
 ) -> TypedExpr {
-    let debug_app = debug_app_enabled();
     let passing_style = argument_passing_style(state, &func);
     record_callee_dependency(state, &func);
     let result_ty = crate::ast::expr::ComputationTy::new(
@@ -187,52 +185,6 @@ pub(crate) fn make_app_with_cause(
             .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
     }
 
-    if debug_app {
-        eprintln!(
-            "APP owner={:?} func={:?} passing={:?} pure_slot={} anf={} arg_eff_slot={:?} actual_arg_eff={:?} call_eff={:?} result_eff={:?}",
-            state.current_owner,
-            match &func.kind {
-                ExprKind::Var(def) => Some(*def),
-                _ => None,
-            },
-            passing_style,
-            pure_argument_slot,
-            anf_arg,
-            arg_eff_for_slot,
-            arg.eff,
-            call_eff,
-            result_ty.effect,
-        );
-        eprintln!("APP arg slot graph:");
-        super::debug_dump_effect_tv(state, arg_eff_for_slot, 1, &mut HashSet::new());
-        eprintln!("APP call effect graph:");
-        super::debug_dump_effect_tv(state, call_eff, 1, &mut HashSet::new());
-        eprintln!("APP result effect graph:");
-        super::debug_dump_effect_tv(state, result_ty.effect, 1, &mut HashSet::new());
-    }
-
-    if debug_app && matches!(func.kind, ExprKind::Lam(_, _)) {
-        eprintln!("-- make_app_with_cause --");
-        eprintln!("arg.kind = {:?}", arg.kind);
-        eprintln!("arg.tv = {:?}", arg.tv);
-        eprintln!("arg lowers = {:?}", state.infer.lowers_of(arg.tv));
-        eprintln!("arg uppers = {:?}", state.infer.uppers_of(arg.tv));
-        for upper in state.infer.uppers_of(arg.tv) {
-            if let Neg::Fun { ret_eff, ret, .. } = upper {
-                eprintln!(
-                    "arg upper ret_eff node = {:?}",
-                    state.infer.arena.get_neg(ret_eff)
-                );
-                eprintln!("arg upper ret node = {:?}", state.infer.arena.get_neg(ret));
-                if let Neg::Var(ret_eff_tv) = state.infer.arena.get_neg(ret_eff) {
-                    super::debug_dump_effect_tv(state, ret_eff_tv, 1, &mut HashSet::new());
-                }
-            }
-        }
-        eprintln!("call_eff = {:?}", call_eff);
-        eprintln!("call_eff lowers = {:?}", state.infer.lowers_of(call_eff));
-        eprintln!("call_eff uppers = {:?}", state.infer.uppers_of(call_eff));
-    }
     let result = TypedExpr::new(
         result_ty,
         ExprKind::App {
@@ -393,11 +345,6 @@ fn record_effect_subtractability_from_upper(
         .infer
         .record_effect_subtractability(effect, EffectSubtractability::Set(paths));
     true
-}
-
-fn debug_app_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_APP").is_some())
 }
 
 fn cross_owner_function_ref_owner(

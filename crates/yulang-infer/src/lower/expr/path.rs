@@ -1,6 +1,5 @@
 use crate::profile::ProfileClock as Instant;
 use std::collections::HashSet;
-use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::diagnostic::{TypeOrigin, TypeOriginKind};
@@ -364,48 +363,12 @@ pub(super) fn resolve_operator_expr_with_span(
 
 pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::DefId) -> TypedExpr {
     let start = Instant::now();
-    let debug_ref = debug_ref_enabled();
-    if debug_ref {
-        eprintln!(
-            "-- resolve_bound_def_expr {:?} name={:?} owner={:?} def_owner={:?} frozen={} def_eff={} let_bound={}",
-            def,
-            state.def_names.get(&def),
-            state.current_owner,
-            state.def_owner(def),
-            state.infer.frozen_scheme_of(def).is_some(),
-            state.def_eff_tvs.contains_key(&def),
-            state.is_let_bound_def(def),
-        );
-    }
     if let (Some(owner), Some(def_owner)) = (state.current_owner, state.def_owner(def)) {
         if owner != def_owner {
             state.add_captured_def_non_generic_vars(owner, def);
         }
     }
     if state.current_owner == Some(def) {
-        if let Some(scheme) = state.provisional_self_schemes.get(&def).cloned() {
-            state.mark_recursive_self_use(def);
-            let tv = state.fresh_tv();
-            let eff = state
-                .def_eff_tvs
-                .get(&def)
-                .copied()
-                .unwrap_or_else(|| state.fresh_exact_pure_eff_tv());
-            crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
-            if let Some(&def_tv) = state.def_tvs.get(&def) {
-                state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
-                state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
-            }
-            let ref_id = state.ctx.fresh_ref();
-            state.ctx.refs.resolve(ref_id, def, tv, state.current_owner);
-            state.mark_resolved_ref_instantiated(ref_id);
-            record_resolve_bound_def_expr(state, start, ResolveBoundDefKind::SelfRecursive);
-            return TypedExpr {
-                tv,
-                eff,
-                kind: ExprKind::Var(def),
-            };
-        }
         if let Some(instance) = state.active_recursive_self_instance(def) {
             state.mark_recursive_self_use(def);
             let ref_id = state.ctx.fresh_ref();
@@ -470,15 +433,6 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
         resolve_kind = ResolveBoundDefKind::Frozen;
         let subst =
             crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
-        if debug_ref {
-            eprintln!(
-                "  instantiated frozen scheme {:?} -> tv {:?} lowers {:?} uppers {:?}",
-                crate::display::dump::format_compact_scheme(&scheme.compact),
-                tv,
-                state.infer.lowers_of(tv),
-                state.infer.uppers_of(tv)
-            );
-        }
         if let Some(owner) = state.current_owner {
             state
                 .infer
@@ -495,21 +449,7 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             && principal_body_is_lambda_value(state, def)
         {
             resolve_kind = ResolveBoundDefKind::OnDemandLambda;
-            if debug_ref {
-                eprintln!(
-                    "  before refresh deferred={} role_constraints={:?}",
-                    state.infer.deferred_selections.borrow().len(),
-                    state.infer.role_constraints_of(def),
-                );
-            }
             state.refresh_selection_environment();
-            if debug_ref {
-                eprintln!(
-                    "  after refresh deferred={} role_constraints={:?}",
-                    state.infer.deferred_selections.borrow().len(),
-                    state.infer.role_constraints_of(def),
-                );
-            }
             let finalized_defs = HashSet::from([def]);
             state.finalize_compact_results_for_defs(&finalized_defs);
             let non_generic = state.infer.non_generic_vars_of(def);
@@ -550,15 +490,6 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             };
             let subst =
                 crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &frozen, tv, &[]);
-            if debug_ref {
-                eprintln!(
-                    "  on-demand frozen scheme {:?} -> tv {:?} lowers {:?} uppers {:?}",
-                    crate::display::dump::format_compact_scheme(&frozen.compact),
-                    tv,
-                    state.infer.lowers_of(tv),
-                    state.infer.uppers_of(tv)
-                );
-            }
             if let Some(owner) = state.current_owner {
                 state
                     .infer
@@ -654,11 +585,6 @@ fn should_defer_unlowered_callable_ref(state: &LowerState, def: crate::ids::DefI
         && state.current_owner != Some(def)
         && !state.principal_bodies.contains_key(&def)
         && state.is_callable_value_def(def)
-}
-
-fn debug_ref_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_REF").is_some())
 }
 
 fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {

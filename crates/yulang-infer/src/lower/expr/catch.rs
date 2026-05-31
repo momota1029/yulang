@@ -515,26 +515,6 @@ fn constrain_catch_result_effect_with_handlers(
 
     let leaves_open =
         catch_leaves_effect_family_open(state, &handled.paths, &handled.fully_covered_ops);
-    if std::env::var_os("YULANG_DEBUG_CATCH_EFFECTS").is_some() {
-        eprintln!(
-            "CATCH owner={:?} scrutinee={:?} rest={:?} value_arm={:?} effect_arm={:?} result={:?} leaves_open={} saw_value_arm={} handled_paths={:?}",
-            state.current_owner,
-            scrutinee.eff_tv,
-            vars.scrutinee_rest_eff_tv,
-            vars.value_arm_eff_tv,
-            vars.effect_arm_eff_tv,
-            vars.eff_tv,
-            leaves_open,
-            saw_value_arm,
-            handled.paths,
-        );
-        eprintln!("CATCH scrutinee graph:");
-        debug_dump_effect_tv(state, scrutinee.eff_tv, 1, &mut HashSet::new());
-        eprintln!("CATCH effect arm graph:");
-        debug_dump_effect_tv(state, vars.effect_arm_eff_tv, 1, &mut HashSet::new());
-        eprintln!("CATCH result graph:");
-        debug_dump_effect_tv(state, vars.eff_tv, 1, &mut HashSet::new());
-    }
     if leaves_open {
         state.infer.constrain_with_cause(
             Pos::Var(scrutinee.eff_tv),
@@ -952,40 +932,6 @@ struct EffectOpUse {
     pos_sig: crate::ids::PosId,
     neg_sig: crate::ids::NegId,
     args: Vec<(crate::ids::TypeVar, crate::ids::TypeVar)>,
-}
-
-pub(super) fn debug_dump_effect_tv(
-    state: &LowerState,
-    tv: crate::ids::TypeVar,
-    depth: usize,
-    seen: &mut HashSet<crate::ids::TypeVar>,
-) {
-    if !seen.insert(tv) || depth > 3 {
-        return;
-    }
-    let indent = "  ".repeat(depth);
-    eprintln!("{indent}tv {tv:?}");
-    eprintln!("{indent}  lowers {:?}", state.infer.lowers_of(tv));
-    eprintln!("{indent}  uppers {:?}", state.infer.uppers_of(tv));
-    eprintln!(
-        "{indent}  compact {:?}",
-        state.infer.compact_lower_instances_of(tv)
-    );
-    eprintln!(
-        "{indent}  subtractable {:?} through={}",
-        state.infer.effect_subtractability(tv),
-        state.infer.is_through(tv)
-    );
-    for lower in state.infer.lowers_of(tv) {
-        if let Pos::Var(next) | Pos::Raw(next) = lower {
-            debug_dump_effect_tv(state, next, depth + 1, seen);
-        }
-    }
-    for upper in state.infer.uppers_of(tv) {
-        if let Neg::Var(next) = upper {
-            debug_dump_effect_tv(state, next, depth + 1, seen);
-        }
-    }
 }
 
 fn instantiate_effect_op_use(

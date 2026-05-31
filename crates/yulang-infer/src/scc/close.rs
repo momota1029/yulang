@@ -290,24 +290,8 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
 
             if item.needs_compact || item.needs_frozen {
                 let mut compact = compact.clone();
-                if std::env::var_os("YULANG_DEBUG_COMPACT_PIPELINE").is_some() {
-                    eprintln!(
-                        "PRE_NESTED def={:?} rendered={}",
-                        item.def,
-                        crate::display::format::format_coalesced_scheme(&compact)
-                    );
-                    eprintln!("PRE_NESTED_RAW def={:?} compact={compact:#?}", item.def);
-                }
                 let exposed_boundary_vars =
                     coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
-                if std::env::var_os("YULANG_DEBUG_COMPACT_PIPELINE").is_some() {
-                    eprintln!(
-                        "PRE_COOCCUR def={:?} exposed={exposed_boundary_vars:?} rendered={}",
-                        item.def,
-                        crate::display::format::format_coalesced_scheme(&compact)
-                    );
-                    eprintln!("PRE_COOCCUR_RAW def={:?} compact={compact:#?}", item.def);
-                }
                 let compact_role_constraints = if item.needs_compact {
                     let role_constraints_start = Instant::now();
                     let constraints = compact_role_constraints(infer, item.def);
@@ -321,12 +305,6 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 let non_generic_roots = infer.non_generic_vars_of(item.def);
                 let mut non_generic = collect_non_generic_vars(infer, &non_generic_roots);
                 non_generic.extend(exposed_boundary_vars);
-                if std::env::var_os("YULANG_DEBUG_COMPACT_PIPELINE").is_some() {
-                    eprintln!(
-                        "COOCCUR_BOUNDARY def={:?} roots={:?} vars={:?}",
-                        item.def, non_generic_roots, non_generic
-                    );
-                }
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
                         coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
@@ -347,13 +325,6 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                             &non_generic,
                         )
                     };
-                if std::env::var_os("YULANG_DEBUG_COMPACT_PIPELINE").is_some() {
-                    eprintln!(
-                        "POST_COOCCUR def={:?} rendered={}",
-                        item.def,
-                        crate::display::format::format_coalesced_scheme(&scheme)
-                    );
-                }
                 profile.cooccur += cooccur_start.elapsed();
 
                 let freeze_start = Instant::now();
@@ -365,17 +336,6 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                     extra_quantified.as_slice(),
                     &non_generic,
                 );
-                if std::env::var_os("YULANG_DEBUG_COMPACT_PIPELINE").is_some() {
-                    eprintln!(
-                        "FROZEN_COMPACT def={:?} rendered={}",
-                        item.def,
-                        crate::display::format::format_coalesced_scheme(&new_frozen.compact)
-                    );
-                    eprintln!(
-                        "FROZEN_COMPACT_RAW def={:?} compact={:#?}",
-                        item.def, new_frozen.compact
-                    );
-                }
                 profile.freeze += freeze_start.elapsed();
                 if item.needs_compact {
                     infer.store_compact_scheme(item.def, scheme);

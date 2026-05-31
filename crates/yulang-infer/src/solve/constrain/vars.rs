@@ -14,12 +14,6 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        if std::env::var_os("YULANG_DEBUG_VAR_CONSTRAINTS").is_some() {
-            eprintln!(
-                "VAR_CONSTRAINT {:?} <: {:?} cause={:?}",
-                source, target, cause
-            );
-        }
         if source != target {
             self.constrain_eff_bind_source_lowers_to_var(source, target, cause, cache);
         }
