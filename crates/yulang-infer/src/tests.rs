@@ -1047,7 +1047,7 @@ fn catch_records_handler_adapter_edges() {
 }
 
 #[test]
-fn catch_direct_resume_continuation_returns_handler_residual() {
+fn catch_direct_resume_continuation_keeps_scrutinee_effect() {
     let state = parse_and_lower(
         "pub act out:\n  pub say: str -> ()\n\nmy handled(x: [out] ()) = catch x:\n  out::say msg, k -> k ()\n  value -> value\n",
     );
@@ -1076,14 +1076,22 @@ fn catch_direct_resume_continuation_returns_handler_residual() {
             None
         })
         .collect::<Vec<_>>();
-    let direct_resume_uses_residual = !lower_ret_effs.is_empty()
+    let lower_returns_scrutinee = !lower_ret_effs.is_empty()
         && lower_ret_effs
             .iter()
-            .all(|ret_eff| *ret_eff != site.body_eff_tv);
+            .any(|ret_eff| *ret_eff == site.body_eff_tv);
+    let upper_returns_scrutinee = state.infer.uppers_of(k_tv).iter().any(|upper| {
+        if let Neg::Fun { ret_eff, .. } = upper
+            && let Neg::Var(tv) = state.infer.arena.get_neg(*ret_eff)
+        {
+            return tv == site.body_eff_tv;
+        }
+        false
+    });
 
     assert!(
-        direct_resume_uses_residual,
-        "direct resume continuation should not return scrutinee effect, site={site:?}, lowers={:?}, uppers={:?}",
+        lower_returns_scrutinee && upper_returns_scrutinee,
+        "direct resume continuation should keep scrutinee effect, site={site:?}, lowers={:?}, uppers={:?}",
         state.infer.lowers_of(k_tv),
         state.infer.uppers_of(k_tv),
     );
