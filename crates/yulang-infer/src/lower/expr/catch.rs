@@ -107,6 +107,9 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
 
         let mut saw_value_arm = false;
         let mut handled_ops = Vec::new();
+        let mut handled_effect_paths = HashSet::new();
+        let mut fully_covered_effect_ops: HashMap<Path, HashSet<crate::ids::DefId>> =
+            HashMap::new();
         let mut handled_effect_atoms = HashSet::new();
         let mut effect_arg_substs: HashMap<
             Path,
@@ -180,6 +183,15 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     };
                     let handled_op = Neg::Atom(handled_atom.clone());
                     if arm_is_active {
+                        handled_effect_paths.insert(effect_path.clone());
+                        if pattern_covers_all(pat)
+                            && let Some(op_def) = op_def
+                        {
+                            fully_covered_effect_ops
+                                .entry(effect_path.clone())
+                                .or_default()
+                                .insert(op_def);
+                        }
                         if handled_effect_atoms.insert(handled_atom.clone()) {
                             handled_ops.push(handled_op.clone());
                         }
@@ -373,6 +385,15 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
             state
                 .infer
                 .constrain(Pos::Var(effect_arm_rest_eff), Neg::Var(eff));
+            if catch_leaves_effect_family_open(
+                state,
+                &handled_effect_paths,
+                &fully_covered_effect_ops,
+            ) {
+                state
+                    .infer
+                    .constrain(Pos::Var(scrutinee.eff_tv), Neg::Var(eff));
+            }
         }
 
         TypedExpr {
@@ -655,6 +676,31 @@ fn connect_effect_atom_args(
             .infer
             .constrain(Pos::Var(*bound_pos), Neg::Var(*handled_neg));
     }
+}
+
+fn catch_leaves_effect_family_open(
+    state: &LowerState,
+    handled_effect_paths: &HashSet<Path>,
+    fully_covered_effect_ops: &HashMap<Path, HashSet<crate::ids::DefId>>,
+) -> bool {
+    for effect_path in handled_effect_paths {
+        let known_ops = state
+            .effect_op_effect_paths
+            .iter()
+            .filter_map(|(def, path)| (path == effect_path).then_some(*def))
+            .collect::<Vec<_>>();
+        if known_ops.is_empty() {
+            continue;
+        }
+        let covered = fully_covered_effect_ops.get(effect_path);
+        if known_ops
+            .iter()
+            .any(|def| !covered.is_some_and(|covered| covered.contains(def)))
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn direct_comp_source_eff_tv(state: &LowerState, comp: &TypedExpr) -> Option<crate::ids::TypeVar> {
