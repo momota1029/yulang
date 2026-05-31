@@ -3,10 +3,11 @@
 
 # 新規導入変数について
 1. 引数の`f`に対して`f x`を推論したときに出てくる`f: α [β] → [γ] δ`について: `γ`は「何も引いてはならない型変数」であるので、Emptyをsubtractableとして登録する。`β`は透過モードとする。
-2. `my f(x: [handled] α)`など注釈された変数について: `x: [β] α`と登録し、`β`には`handled`をsubtractableとして登録する。`handled`が`_`だった場合はAllにする。
+2. `my f(x: [handled] α)`など注釈された変数について: `x: [β] α`と登録し、`β`には`handled`をsubtractableとして登録する。`handled`が`_`だった場合はAllにする。出力型は透過モードとする。
 3. `my f(g: α [β] -> [handled] γ)`と注釈された関数について: `f: α [β] -> [δ] γ`として登録し、`δ`には`handled`をsubtractableとして登録する。`β`に`handled2; ε`などと書いてあった場合はそのまま登録してよく、`ε`はAll-subtractableな変数とする。
 4. 実際に値の定まった型を引いてくる場合: subtractable classを参照。
 5. 実際に値は定まっていないが、量化されていない値`f`に対して`f x`を推論したときに出てくる`f: α [β] → [γ] δ`について: `β`も`γ`も透過モードとする。
+6. `\x -> y`について: どちらも透過モードにする。
 
 # subtractable class
 量化のとき、その型のsubtractableを型クラスのように別テーブルで保存する。単相化のときはこれをまず参照する。
@@ -44,7 +45,7 @@ act outer:
         our sub(x: [_] _) = catch x:
             break(), _ -> ()
             _ -> ()
-        my act repeat = local
+        my act repeat = local   // 内部のみ同じ別エフェクト
         our run(f: () -> [outer] _) = local::sub: loop true with:
             our loop b = if b:
                 loop (repeat::judge:catch f():
