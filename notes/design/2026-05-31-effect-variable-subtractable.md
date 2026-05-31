@@ -82,7 +82,7 @@ my m(x: [io; e] _) = catch x:
 6. `α [io; β] → [β] α`
 7. このように巡回が発生する余地はない。
 
-# (All-`ref_update _`)-subtractableと変数表現
+# (All except `ref_update _`)-subtractableと変数表現
 データ型を定義する際には、反変表現として保存する。これにより次の様なデータが作成できる:
 ```yu
 struct ref 'e 'a {
@@ -97,7 +97,7 @@ ref: {
     update_effect: () -> [ref_update 'a; 'e] ()
 } -> ref 'e 'a
 ```
-が定義されるが、また同じように`update_effect: ref 'e 'a → () -> [ref_update 'a, 'e] ()`も定義される必要がある。このとき、`'e`は何か？　(All-`ref_update _`)-subtractableであるとするのが妥当であろう。この後、`catch`で`[ref_update 'a; 'e]`を取り去るのであるから当然であり、分離とはそのように成される。
+が定義されるが、また同じように`update_effect: ref 'e 'a → () -> [ref_update 'a, 'e] ()`も定義される必要がある。このとき、`'e`は何か？　(All except `ref_update _`)-subtractableであるとするのが妥当であろう。この後、`catch`で`[ref_update 'a; 'e]`を取り去るのであるから当然であり、分離とはそのように成される。
 
 # 実際の表現について
 compact collect型については、通常の共変型が`変数 + record + ...`であるように、こちらも共変部分は`変数 + 行`であることが望ましい。また、反変部分は`A = 変数 + [効果1, 効果2; A] + [効果3; A] + ...`であるのが望ましい。
