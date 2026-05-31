@@ -83,6 +83,17 @@ pub(crate) fn transform_copied_frozen_scheme(
             ))
         })
         .collect();
+    let effect_subtractabilities = source
+        .effect_subtractabilities
+        .iter()
+        .filter_map(|(rho, subtractability)| {
+            let rho = lookup_small_subst(frozen_subst.as_slice(), *rho);
+            if !quantified.contains(&rho) {
+                return None;
+            }
+            Some((rho, subtractability.clone()))
+        })
+        .collect();
     let arena = std::rc::Rc::new(TypeArena::new());
     let frozen_body = super::super::clone_replace_effect_path_pos_between_arenas(
         &source.arena,
@@ -101,6 +112,7 @@ pub(crate) fn transform_copied_frozen_scheme(
         quantified_sources,
         through,
         eff_binds,
+        effect_subtractabilities,
     })
 }
 

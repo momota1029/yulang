@@ -5,7 +5,7 @@ use crate::symbols::{Name, Path};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FunctionSigEffectHint {
     Pure,
-    Through,
+    AllSubtractable,
     LowerBound(PosId),
     Bounds(PosId, NegId),
 }

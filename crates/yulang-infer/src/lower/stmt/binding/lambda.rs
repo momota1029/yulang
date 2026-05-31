@@ -42,6 +42,12 @@ pub(crate) fn wrap_header_lambdas(
                 if let Some(ann) = arg_pat.ann.as_ref() {
                     configure_read_effect_from_ann(state, read_eff_tv, ann);
                 }
+                state
+                    .infer
+                    .constrain(Pos::Var(arg_eff_tv), Neg::Var(read_eff_tv));
+                state
+                    .infer
+                    .constrain(Pos::Var(read_eff_tv), Neg::Var(arg_eff_tv));
             }
         }
         if let Some(pat) = &arg_pat.pat {

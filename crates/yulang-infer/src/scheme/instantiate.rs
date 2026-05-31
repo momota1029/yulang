@@ -170,6 +170,12 @@ fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(Typ
             .collect();
         infer.register_eff_bind(mapped_rho, handled);
     }
+    for (rho, subtractability) in &scheme.effect_subtractabilities {
+        infer.record_effect_subtractability(
+            subst_lookup_small(subst, *rho),
+            subtractability.clone(),
+        );
+    }
 }
 
 pub(crate) fn subst_pos_id(infer: &Infer, id: PosId, subst: &[(TypeVar, TypeVar)]) -> PosId {
@@ -600,4 +606,58 @@ fn subst_lookup_small(subst: &[(TypeVar, TypeVar)], tv: TypeVar) -> TypeVar {
 fn subst_lookup_small_opt(subst: &[(TypeVar, TypeVar)], tv: TypeVar) -> Option<TypeVar> {
     let mapped = subst_lookup_small(subst, tv);
     (mapped != tv).then_some(mapped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::solve::EffectSubtractability;
+    use crate::symbols::{Name, Path};
+
+    #[test]
+    fn instantiate_restores_frozen_effect_subtractability() {
+        let infer = Infer::new();
+        let source = fresh_type_var();
+        let io = Path {
+            segments: vec![Name("io".to_string())],
+        };
+        infer.record_effect_subtractability(source, EffectSubtractability::Set(vec![io.clone()]));
+
+        let compact = crate::simplify::compact::CompactTypeScheme {
+            cty: crate::simplify::compact::CompactBounds {
+                self_var: None,
+                lower: crate::simplify::compact::CompactType {
+                    vars: std::collections::HashSet::from([source]),
+                    ..crate::simplify::compact::CompactType::default()
+                },
+                upper: crate::simplify::compact::CompactType::default(),
+            },
+            rec_vars: std::collections::HashMap::new(),
+        };
+        let scheme = crate::scheme::freeze_compact_scheme_with_non_generic(
+            &infer,
+            &compact,
+            &std::collections::HashSet::new(),
+        );
+        let (frozen_effect, frozen_subtractability) = scheme
+            .effect_subtractabilities
+            .iter()
+            .find(|(_, subtractability)| {
+                subtractability == &EffectSubtractability::Set(vec![io.clone()])
+            })
+            .cloned()
+            .expect("frozen scheme should retain effect subtractability");
+
+        let instance = instantiate_as_view(&infer, &scheme, 0);
+        let instantiated_effect = subst_lookup_small(instance.subst.as_slice(), frozen_effect);
+
+        assert_eq!(
+            frozen_subtractability,
+            EffectSubtractability::Set(vec![io.clone()])
+        );
+        assert_eq!(
+            infer.effect_subtractability(instantiated_effect),
+            Some(EffectSubtractability::Set(vec![io]))
+        );
+    }
 }

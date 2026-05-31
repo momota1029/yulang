@@ -173,7 +173,7 @@ pub(crate) fn connect_pattern_sig_annotation(
             cause.clone(),
         );
         return Some(if fun.effect_hint {
-            crate::lower::FunctionSigEffectHint::Through
+            crate::lower::FunctionSigEffectHint::AllSubtractable
         } else if fun.ret_eff_pos == state.infer.arena.empty_pos_row
             && fun.ret_eff_neg == state.infer.arena.empty_neg_row
         {

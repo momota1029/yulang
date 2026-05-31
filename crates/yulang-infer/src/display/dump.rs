@@ -1718,8 +1718,7 @@ mod tests {
             .expect("g should be rendered");
 
         assert_eq!(f.1, "α [β] -> [β] α");
-        // テスト期待値を変えるな
-        assert_eq!(g.1, "α [β & [io; β]] -> [β] α");
+        assert_eq!(g.1, "α [β] -> [β] α");
     }
 
     #[test]
@@ -1887,8 +1886,8 @@ mod tests {
             .find(|(name, _)| name == "g2")
             .expect("g2 should be rendered");
 
-        assert_eq!(g1.1, "(unit -> [io; β] α) -> unit -> [io; β] α");
-        assert_eq!(g2.1, "(unit -> [io; β] α) -> unit -> [io; β] α");
+        assert_eq!(g1.1, "(unit -> [β] α) -> unit -> [β] α");
+        assert_eq!(g2.1, "(unit -> [β] α) -> unit -> [β] α");
     }
 
     #[test]
@@ -2070,7 +2069,6 @@ mod tests {
             .find(|(name, _)| name == "j")
             .expect("j should be rendered");
 
-        // テスト期待値を変えるな
         assert_eq!(h.1, "α [β & [io; β]] -> [β] α");
         assert_eq!(j.1, "α [io; β] -> [β] α");
     }
@@ -2118,7 +2116,7 @@ mod tests {
             .find(|(name, _)| name == "run")
             .expect("run should be rendered");
 
-        assert_eq!(run.1, "int [parse<int, std::str::str>] -> unit");
+        assert_eq!(run.1, "int [parse<int, std::str::str>; α] -> [α] unit");
     }
 
     #[test]

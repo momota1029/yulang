@@ -249,12 +249,10 @@ pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<
 
     let (arg, mut arg_eff, mut ret_eff, ret) = match scheme.cty.upper.funs.as_slice() {
         [upper_fun] => (
-            common_compact_type(&lower_fun.arg, &upper_fun.arg)
-                .filter(|ty| !is_empty_compact_type(ty))
-                .unwrap_or_else(|| lower_fun.arg.clone()),
+            root_fun_value_compact(&lower_fun.arg, &upper_fun.arg),
             root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
             lower_fun.ret_eff.clone(),
-            lower_fun.ret.clone(),
+            root_fun_value_compact(&lower_fun.ret, &upper_fun.ret),
         ),
         [] => (
             lower_fun.arg.clone(),
@@ -265,16 +263,112 @@ pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<
         _ => return None,
     };
     coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
+    let mut fun = CompactFun {
+        arg,
+        arg_eff,
+        ret_eff,
+        ret,
+    };
+    simplify_function_effect_residual_rows(&mut fun);
 
     Some(CompactType {
-        funs: vec![CompactFun {
-            arg,
-            arg_eff,
-            ret_eff,
-            ret,
-        }],
+        funs: vec![fun],
         ..CompactType::default()
     })
+}
+
+fn simplify_function_effect_residual_rows(fun: &mut CompactFun) {
+    if fun.arg_eff.rows.is_empty() || fun.ret_eff.vars.is_empty() {
+        return;
+    }
+
+    let closed_shapes = fun
+        .arg_eff
+        .rows
+        .iter()
+        .filter(|row| !row.items.is_empty() && compact_type_is_empty(&row.tail))
+        .filter_map(sorted_effect_row_shape)
+        .collect::<HashSet<_>>();
+    let has_empty_residual_row = fun.arg_eff.rows.iter().any(|row| {
+        row.items.is_empty() && row.tail.vars.iter().any(|tv| fun.ret_eff.vars.contains(tv))
+    });
+    let mut row_tail_vars = HashSet::new();
+    let mut closed_covered_tail_vars = HashSet::new();
+    for row in &fun.arg_eff.rows {
+        if row.items.is_empty() {
+            continue;
+        }
+        let tail_vars = row
+            .tail
+            .vars
+            .intersection(&fun.ret_eff.vars)
+            .copied()
+            .collect::<Vec<_>>();
+        if tail_vars.is_empty() {
+            continue;
+        }
+        row_tail_vars.extend(tail_vars.iter().copied());
+        if sorted_effect_row_shape(row).is_some_and(|shape| closed_shapes.contains(&shape)) {
+            closed_covered_tail_vars.extend(tail_vars);
+        }
+    }
+    if !has_empty_residual_row && closed_covered_tail_vars.is_empty() {
+        return;
+    }
+
+    for tv in &row_tail_vars {
+        fun.arg_eff.vars.remove(tv);
+    }
+    for tv in &closed_covered_tail_vars {
+        fun.ret_eff.vars.remove(tv);
+    }
+
+    fun.arg_eff.rows.retain(|row| {
+        if row.items.is_empty() {
+            return !row_tail_is_only_vars_from(row, &row_tail_vars);
+        }
+        if closed_covered_tail_vars.is_empty() {
+            return true;
+        }
+        let has_closed_shape =
+            sorted_effect_row_shape(row).is_some_and(|shape| closed_shapes.contains(&shape));
+        !has_closed_shape || !row_tail_has_var_from(row, &closed_covered_tail_vars)
+    });
+}
+
+fn sorted_effect_row_shape(row: &CompactRow) -> Option<Vec<(String, usize)>> {
+    let mut shape = effect_row_shapes(&row.items)?;
+    shape.sort();
+    Some(shape)
+}
+
+fn row_tail_is_only_vars_from(row: &CompactRow, vars: &HashSet<TypeVar>) -> bool {
+    !row.tail.vars.is_empty()
+        && row.tail.vars.iter().all(|tv| vars.contains(tv))
+        && row.tail.prims.is_empty()
+        && row.tail.cons.is_empty()
+        && row.tail.funs.is_empty()
+        && row.tail.records.is_empty()
+        && row.tail.record_spreads.is_empty()
+        && row.tail.variants.is_empty()
+        && row.tail.tuples.is_empty()
+        && row.tail.rows.is_empty()
+}
+
+fn row_tail_has_var_from(row: &CompactRow, vars: &HashSet<TypeVar>) -> bool {
+    row.tail.vars.iter().any(|tv| vars.contains(tv))
+}
+
+fn compact_type_is_empty(ty: &CompactType) -> bool {
+    ty.vars.is_empty()
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
 }
 
 fn compact_root_non_fun_parts_empty(
@@ -368,6 +462,16 @@ fn root_fun_arg_eff_compact(lower: &CompactType, upper: &CompactType) -> Compact
             !is_empty_compact_type(ty) && (has_non_var_shape(ty) || !has_non_var_shape(lower))
         })
         .unwrap_or_else(|| lower.clone())
+}
+
+fn root_fun_value_compact(lower: &CompactType, upper: &CompactType) -> CompactType {
+    let mut ty = common_compact_type(lower, upper)
+        .filter(|ty| !is_empty_compact_type(ty))
+        .unwrap_or_else(|| lower.clone());
+    if has_non_var_shape(&ty) {
+        ty.vars.clear();
+    }
+    ty
 }
 
 fn has_non_var_shape(ty: &CompactType) -> bool {
@@ -1148,6 +1252,9 @@ impl<'a> CompactContext<'a> {
                 .get(&tv)
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
             {
+                Some(bounds) if self.infer.is_through(tv) => {
+                    self.compact_through_neg_bounds_ref(bounds.as_slice(), parents)
+                }
                 Some(bounds) => self.compact_neg_bounds_ref(bounds.as_slice(), parents),
                 None => CompactType::default(),
             }
@@ -1226,6 +1333,35 @@ impl<'a> CompactContext<'a> {
             compact = merge_compact_types(false, compact, self.compact_neg_id(*bound, parents));
         }
         compact
+    }
+
+    fn compact_through_neg_bounds_ref(
+        &mut self,
+        bounds: &[NegId],
+        parents: &ParentStack,
+    ) -> CompactType {
+        let Some((first, rest)) = bounds.split_first() else {
+            return CompactType::default();
+        };
+
+        let mut compact = self.compact_through_neg_id(*first, parents);
+        for bound in rest {
+            compact =
+                merge_compact_types(false, compact, self.compact_through_neg_id(*bound, parents));
+        }
+        compact
+    }
+
+    fn compact_through_neg_id(&mut self, id: NegId, parents: &ParentStack) -> CompactType {
+        match self.infer.arena.get_neg(id) {
+            Neg::Row(_, tail) => self.compact_neg_id(tail, &ParentStack::new()),
+            Neg::Intersection(lhs, rhs) => merge_compact_types(
+                false,
+                self.compact_through_neg_id(lhs, parents),
+                self.compact_through_neg_id(rhs, parents),
+            ),
+            _ => self.compact_neg_id(id, parents),
+        }
     }
 
     fn compact_pos_id(&mut self, id: PosId, parents: &ParentStack) -> CompactType {

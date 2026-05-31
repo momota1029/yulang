@@ -24,9 +24,8 @@ use analysis::analyze_co_occurrences_with_role_constraints;
 use group::analyze_group_co_occurrences_with_role_constraints;
 use passes::{
     apply_exact_row_unifications, apply_exact_sandwich_removal,
-    apply_function_effect_residual_unifications, apply_group_co_occurrence_substitutions,
-    apply_one_sided_exact_alias_collapse, apply_row_residual_unifications,
-    apply_shadow_var_collapse, expose_positive_row_residual_tails,
+    apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
+    apply_row_residual_unifications, apply_shadow_var_collapse, expose_positive_row_residual_tails,
 };
 use representative::lower_representatives_for_subst;
 
@@ -173,6 +172,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         all_vars.sort_by_key(|tv| std::cmp::Reverse(tv.0));
 
         let mut subst = HashMap::<TypeVar, Option<TypeVar>>::new();
+        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &rigid_vars, &mut subst);
         apply_group_co_occurrence_substitutions(
             &group_analysis,
             &mut analysis,
@@ -188,15 +188,6 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &rigid_vars,
             &mut subst,
         );
-        apply_function_effect_residual_unifications(
-            &current_scheme,
-            &current_constraints,
-            &mut rec_vars,
-            &mut analysis,
-            &rigid_vars,
-            &mut subst,
-        );
-        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &rigid_vars, &mut subst);
         let exact_info = ExactInfo::from_analysis(&analysis);
         apply_exact_row_unifications(&all_vars, &exact_info, &rec_vars, &rigid_vars, &mut subst);
         apply_exact_sandwich_removal(&all_vars, &exact_info, &rigid_vars, &mut subst);

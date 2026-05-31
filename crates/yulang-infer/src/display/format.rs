@@ -364,7 +364,6 @@ fn shortest_unique_type_path(ctx: &LowerCtx, full_path: &Path) -> String {
 struct CompactToTypeCtx<'a> {
     scheme: &'a CompactTypeScheme,
     lower_witnesses: HashMap<TypeVar, CompactType>,
-    input_vars: HashSet<TypeVar>,
     cached_vars: HashMap<(TypeVar, bool), Type>,
     cached_types: HashMap<(String, bool), Type>,
     in_process_vars: HashMap<(TypeVar, bool), TypeVar>,
@@ -378,7 +377,6 @@ impl<'a> CompactToTypeCtx<'a> {
         Self {
             scheme,
             lower_witnesses: collect_lower_witnesses(scheme),
-            input_vars: collect_function_input_vars(scheme),
             cached_vars: HashMap::new(),
             cached_types: HashMap::new(),
             in_process_vars: HashMap::new(),
@@ -613,13 +611,12 @@ fn coalesce_root_fun(
         });
     }
 
+    let arg = coalesce_root_fun_field(ctx, &lower_fun.arg, &upper_fun.arg, false, &HashSet::new());
+    let mut rendered_input_vars = HashSet::new();
+    collect_type_vars(&arg, &mut rendered_input_vars);
+
     Some(Type::Fun {
-        arg: Box::new(coalesce_root_fun_field(
-            ctx,
-            &lower_fun.arg,
-            &upper_fun.arg,
-            false,
-        )),
+        arg: Box::new(arg),
         arg_eff: Box::new(coalesce_root_fun_arg_effect_field(
             ctx,
             &lower_fun.arg_eff,
@@ -636,6 +633,7 @@ fn coalesce_root_fun(
             &lower_fun.ret,
             &upper_fun.ret,
             true,
+            &rendered_input_vars,
         )),
     })
 }
@@ -873,27 +871,55 @@ fn coalesce_lower_only_root_fun(
     if !bounds.upper.funs.is_empty()
         || !root_non_fun_parts_empty(&bounds.lower)
         || !root_non_fun_parts_empty(&bounds.upper)
-        || !should_coalesce_effect_residual
-    {
-        return None;
-    }
-    if lower_fun.arg_eff.rows.is_empty()
-        || lower_fun.arg_eff.vars.is_empty()
-        || lower_fun.ret_eff.vars.is_empty()
     {
         return None;
     }
 
     let mut lower_fun = lower_fun.clone();
-    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+    if should_coalesce_effect_residual
+        && !lower_fun.arg_eff.rows.is_empty()
+        && !lower_fun.arg_eff.vars.is_empty()
+        && !lower_fun.ret_eff.vars.is_empty()
+    {
+        coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+    }
     simplify_function_effect_residual_rows_for_render(&mut lower_fun);
+    let arg = coalesce_lower_only_root_fun_field(ctx, &lower_fun.arg, false, &HashSet::new());
+    let mut rendered_input_vars = HashSet::new();
+    collect_type_vars(&arg, &mut rendered_input_vars);
 
     Some(Type::Fun {
-        arg: Box::new(ctx.coalesce_type(&lower_fun.arg, false)),
+        arg: Box::new(arg),
         arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
         ret_eff: Box::new(ctx.coalesce_type(&lower_fun.ret_eff, true)),
-        ret: Box::new(ctx.coalesce_type(&lower_fun.ret, true)),
+        ret: Box::new(coalesce_lower_only_root_fun_field(
+            ctx,
+            &lower_fun.ret,
+            true,
+            &rendered_input_vars,
+        )),
     })
+}
+
+fn coalesce_lower_only_root_fun_field(
+    ctx: &mut CompactToTypeCtx<'_>,
+    ty: &CompactType,
+    positive: bool,
+    input_vars: &HashSet<TypeVar>,
+) -> Type {
+    let mut ty = ty.clone();
+    if has_non_var_shape(&ty) {
+        if positive {
+            ty.vars.retain(|var| input_vars.contains(var));
+        } else {
+            ty.vars.clear();
+        }
+    }
+    if is_var_only_compact(&ty) {
+        Type::Var(*ty.vars.iter().next().unwrap())
+    } else {
+        ctx.coalesce_type(&ty, positive)
+    }
 }
 
 fn coalesce_root_fun_effect_field(
@@ -940,6 +966,7 @@ fn coalesce_root_fun_field(
     lower: &CompactType,
     upper: &CompactType,
     positive: bool,
+    input_vars: &HashSet<TypeVar>,
 ) -> Type {
     let bounds = normalize_render_bounds(CompactBounds {
         self_var: None,
@@ -956,12 +983,16 @@ fn coalesce_root_fun_field(
                 !is_empty_compact(common)
                     && !has_non_var_shape_outside_common(&bounds.lower, common)
             })
-            .map(|common| drop_non_input_vars_when_concrete(common, &ctx.input_vars))
+            .map(|common| drop_non_input_vars_when_concrete(common, input_vars))
             .unwrap_or(bounds.lower)
     } else {
-        common_compact_type(&bounds.lower, &bounds.upper)
+        let mut ty = common_compact_type(&bounds.lower, &bounds.upper)
             .filter(|ty| !is_empty_compact(ty))
-            .unwrap_or(bounds.lower)
+            .unwrap_or(bounds.lower);
+        if has_non_var_shape(&ty) {
+            ty.vars.clear();
+        }
+        ty
     };
 
     if is_var_only_compact(&ty) {
@@ -1794,79 +1825,6 @@ fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool 
                 .any(|item| compact_type_contains_var_for_render(item, var))
                 || compact_type_contains_var_for_render(&row.tail, var)
         })
-}
-
-fn collect_function_input_vars(scheme: &CompactTypeScheme) -> HashSet<TypeVar> {
-    let mut out = HashSet::new();
-    collect_function_input_vars_in_bounds(&scheme.cty, false, &mut out);
-    for bounds in scheme.rec_vars.values() {
-        collect_function_input_vars_in_bounds(bounds, false, &mut out);
-    }
-    out
-}
-
-fn collect_function_input_vars_in_bounds(
-    bounds: &CompactBounds,
-    inside_input: bool,
-    out: &mut HashSet<TypeVar>,
-) {
-    collect_function_input_vars_in_type(&bounds.lower, inside_input, false, out);
-    collect_function_input_vars_in_type(&bounds.upper, inside_input, false, out);
-}
-
-fn collect_function_input_vars_in_type(
-    ty: &CompactType,
-    inside_input: bool,
-    inside_effect_row_item: bool,
-    out: &mut HashSet<TypeVar>,
-) {
-    if inside_input && !inside_effect_row_item {
-        out.extend(ty.vars.iter().copied());
-    }
-    for con in &ty.cons {
-        for arg in &con.args {
-            collect_function_input_vars_in_bounds(
-                arg,
-                inside_input && !inside_effect_row_item,
-                out,
-            );
-        }
-    }
-    for fun in &ty.funs {
-        collect_function_input_vars_in_type(&fun.arg, true, false, out);
-        collect_function_input_vars_in_type(&fun.arg_eff, true, false, out);
-        collect_function_input_vars_in_type(&fun.ret_eff, inside_input, false, out);
-        collect_function_input_vars_in_type(&fun.ret, inside_input, false, out);
-    }
-    for record in &ty.records {
-        for field in &record.fields {
-            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
-        }
-    }
-    for spread in &ty.record_spreads {
-        for field in &spread.fields {
-            collect_function_input_vars_in_type(&field.value, inside_input, false, out);
-        }
-        collect_function_input_vars_in_type(&spread.tail, inside_input, false, out);
-    }
-    for variant in &ty.variants {
-        for (_, payloads) in &variant.items {
-            for payload in payloads {
-                collect_function_input_vars_in_type(payload, inside_input, false, out);
-            }
-        }
-    }
-    for tuple in &ty.tuples {
-        for item in tuple {
-            collect_function_input_vars_in_type(item, inside_input, false, out);
-        }
-    }
-    for row in &ty.rows {
-        for item in &row.items {
-            collect_function_input_vars_in_type(item, inside_input, true, out);
-        }
-        collect_function_input_vars_in_type(&row.tail, inside_input, false, out);
-    }
 }
 
 fn collect_lower_witnesses(scheme: &CompactTypeScheme) -> HashMap<TypeVar, CompactType> {

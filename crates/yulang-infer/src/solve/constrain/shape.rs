@@ -35,6 +35,21 @@ impl Infer {
                 self.constrain_step(arg_pos, arg_neg, cause, cache);
                 let arg_eff_pure =
                     live_neg_is_empty_row(self, arg_eff_neg, &mut FxHashSet::default());
+                if std::env::var_os("YULANG_DEBUG_FUN_SHAPE").is_some() {
+                    eprintln!(
+                        "FUN_SHAPE arg_eff_pure={arg_eff_pure} arg_eff_neg={:?} arg_eff_pos={:?} ret_eff_neg={:?}",
+                        self.arena.get_neg(arg_eff_neg),
+                        self.arena.get_pos(arg_eff_pos),
+                        self.arena.get_neg(ret_eff_neg),
+                    );
+                    if let Neg::Intersection(lhs, rhs) = self.arena.get_neg(arg_eff_neg) {
+                        eprintln!(
+                            "FUN_SHAPE_INTERSECTION lhs={:?} rhs={:?}",
+                            self.arena.get_neg(lhs),
+                            self.arena.get_neg(rhs),
+                        );
+                    }
+                }
                 if arg_eff_pure {
                     self.constrain_step(arg_eff_pos, ret_eff_neg, cause, cache);
                 } else {

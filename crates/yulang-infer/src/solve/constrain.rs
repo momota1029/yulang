@@ -23,8 +23,8 @@ use compact::compact_instance_direct_var;
 
 enum RowUpperProjection {
     Original,
+    Project(Vec<NegId>),
     TailOnly,
-    Items(Vec<NegId>),
 }
 
 #[derive(Debug, Default)]
@@ -107,13 +107,8 @@ impl Infer {
         }
         if self.add_compact_lower_instance(target, instance.clone()) {
             if let Some(source) = compact_instance_direct_var(&instance) {
-                if !self.is_through(source) {
-                    self.clear_through(target);
-                }
                 let mut cache = StepCache::default();
                 self.propagate_through(source, target, &cause, &mut cache);
-            } else if !self.compact_instance_preserves_through(&instance) {
-                self.clear_through(target);
             }
 
             {
@@ -226,18 +221,20 @@ impl Infer {
             (_, Neg::Var(b)) => {
                 self.constrain_to_neg_var(pos, b, cause, cache);
             }
-            (Pos::Var(a), Neg::Row(items, tail)) => match self.row_upper_projection(a, &items) {
-                RowUpperProjection::Original => {
-                    self.constrain_pos_var_to(a, neg, cause, cache);
+            (Pos::Var(a), Neg::Row(items, tail)) => {
+                match self.row_upper_projection(a, &items, tail, origin_hint) {
+                    RowUpperProjection::Original => {
+                        self.constrain_pos_var_to(a, neg, cause, cache);
+                    }
+                    RowUpperProjection::Project(projected_items) => {
+                        let projected = self.arena.alloc_neg(Neg::Row(projected_items, tail));
+                        self.constrain_pos_var_to(a, projected, cause, cache);
+                    }
+                    RowUpperProjection::TailOnly => {
+                        self.constrain_step(pos, tail, cause, cache);
+                    }
                 }
-                RowUpperProjection::TailOnly => {
-                    self.constrain_step(pos, tail, cause, cache);
-                }
-                RowUpperProjection::Items(items) => {
-                    let projected = self.arena.alloc_neg(Neg::Row(items, tail));
-                    self.constrain_step(pos, projected, cause, cache);
-                }
-            },
+            }
             (Pos::Var(a), _) => {
                 self.constrain_pos_var_to(a, neg, cause, cache);
             }
@@ -246,31 +243,43 @@ impl Infer {
         }
     }
 
-    fn row_upper_projection(&self, effect: TypeVar, items: &[NegId]) -> RowUpperProjection {
-        if self.is_through(effect) {
-            return RowUpperProjection::TailOnly;
+    fn row_upper_projection(
+        &self,
+        effect: TypeVar,
+        items: &[NegId],
+        tail: NegId,
+        origin_hint: Option<TypeVar>,
+    ) -> RowUpperProjection {
+        let subtractability_source = origin_hint.unwrap_or(effect);
+        if subtractability_source != effect
+            && let Some(subtractability) = self.effect_subtractability(subtractability_source)
+        {
+            self.record_effect_subtractability(effect, subtractability);
+        }
+        if let Neg::Var(tail_var) = self.arena.get_neg(tail) {
+            self.copy_effect_subtractability(subtractability_source, tail_var);
         }
 
-        match self.effect_boundary_keep(effect) {
-            super::ShiftKeep::CallBoundary => RowUpperProjection::TailOnly,
-            super::ShiftKeep::Set(paths) => {
+        match self.effect_subtractability(subtractability_source) {
+            Some(super::EffectSubtractability::All) if !items.is_empty() => {
+                RowUpperProjection::Original
+            }
+            Some(super::EffectSubtractability::All) => RowUpperProjection::TailOnly,
+            Some(super::EffectSubtractability::Set(paths)) => {
                 let projected = items
                     .iter()
                     .copied()
-                    .filter(|item| match self.arena.get_neg(*item) {
-                        Neg::Atom(atom) => paths.iter().any(|path| path == &atom.path),
-                        _ => true,
+                    .filter(|item| {
+                        matches!(self.arena.get_neg(*item), Neg::Atom(atom) if paths.contains(&atom.path))
                     })
                     .collect::<Vec<_>>();
-                if projected.len() == items.len() {
-                    RowUpperProjection::Original
-                } else if projected.is_empty() {
+                if projected.is_empty() {
                     RowUpperProjection::TailOnly
                 } else {
-                    RowUpperProjection::Items(projected)
+                    RowUpperProjection::Project(projected)
                 }
             }
-            super::ShiftKeep::None | super::ShiftKeep::Surface => RowUpperProjection::Original,
+            Some(super::EffectSubtractability::Empty) | None => RowUpperProjection::TailOnly,
         }
     }
 }
@@ -561,6 +570,7 @@ mod tests {
             quantified_sources: smallvec::smallvec![(quantified, quantified)],
             through: std::collections::HashSet::new(),
             eff_binds: Vec::new(),
+            effect_subtractabilities: Vec::new(),
         });
         let instance = crate::scheme::OwnedSchemeInstance {
             scheme,

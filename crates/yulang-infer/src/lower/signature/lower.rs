@@ -6,6 +6,7 @@ use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::LowerState;
 use crate::lower::builtin_types::builtin_source_type_path;
+use crate::solve::EffectSubtractability;
 use crate::symbols::{Name, Path};
 use crate::types::RecordField;
 use crate::types::{Neg, Pos};
@@ -475,7 +476,7 @@ fn lower_sig_row_pos(
     vars: &mut HashMap<String, TypeVar>,
 ) -> Pos {
     if let Some(assoc_tail) = single_in_scope_ident_item(row, vars) {
-        state.infer.mark_through(assoc_tail);
+        record_sig_row_tail_metadata(state, assoc_tail, row);
         return state.pos_row(Vec::new(), Pos::Var(assoc_tail));
     }
     let items = row
@@ -485,11 +486,11 @@ fn lower_sig_row_pos(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        state.infer.mark_through(tv);
+        record_sig_row_tail_metadata(state, tv, row);
         Pos::Var(tv)
     } else if let Some(implicit) = implicit_row_tail_sig_var(row) {
         let tv = sig_var(state, vars, &implicit);
-        state.infer.mark_through(tv);
+        record_sig_row_tail_metadata(state, tv, row);
         Pos::Var(tv)
     } else {
         Pos::Bot
@@ -509,7 +510,7 @@ fn lower_closed_sig_row_pos(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        state.infer.mark_through(tv);
+        record_sig_row_tail_metadata(state, tv, row);
         Pos::Var(tv)
     } else {
         Pos::Bot
@@ -541,7 +542,7 @@ fn lower_sig_row_neg(
     vars: &mut HashMap<String, TypeVar>,
 ) -> Neg {
     if let Some(assoc_tail) = single_in_scope_ident_item(row, vars) {
-        state.infer.mark_through(assoc_tail);
+        record_sig_row_tail_metadata(state, assoc_tail, row);
         return state.neg_row(Vec::new(), Neg::Var(assoc_tail));
     }
     let items = row
@@ -551,11 +552,11 @@ fn lower_sig_row_neg(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        state.infer.mark_through(tv);
+        record_sig_row_tail_metadata(state, tv, row);
         Neg::Var(tv)
     } else if let Some(implicit) = implicit_row_tail_sig_var(row) {
         let tv = sig_var(state, vars, &implicit);
-        state.infer.mark_through(tv);
+        record_sig_row_tail_metadata(state, tv, row);
         Neg::Var(tv)
     } else {
         state
@@ -579,7 +580,7 @@ fn lower_closed_sig_row_neg(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        state.infer.mark_through(tv);
+        record_sig_row_tail_metadata(state, tv, row);
         Neg::Var(tv)
     } else {
         state
@@ -611,6 +612,14 @@ fn implicit_row_tail_sig_var(row: &SigRow) -> Option<SigVar> {
         ),
         span,
     })
+}
+
+fn record_sig_row_tail_metadata(state: &LowerState, tv: TypeVar, row: &SigRow) {
+    if !row.items.is_empty() {
+        state
+            .infer
+            .record_effect_subtractability(tv, EffectSubtractability::All);
+    }
 }
 
 fn single_in_scope_ident_item(row: &SigRow, vars: &HashMap<String, TypeVar>) -> Option<TypeVar> {
@@ -728,7 +737,9 @@ fn lower_function_sig_ret_eff(
             let tv = sig_var(state, vars, tail);
             let is_wildcard_tail = tail.name == "_";
             if is_wildcard_tail {
-                state.infer.mark_through(tv);
+                state
+                    .infer
+                    .record_effect_subtractability(tv, EffectSubtractability::All);
             }
             return (
                 state.infer.alloc_pos(Pos::Var(tv)),
@@ -745,32 +756,38 @@ fn lower_function_sig_ret_eff(
 
     let tail_tv = if let Some(tail) = &row.tail {
         let tv = sig_var(state, vars, tail);
-        state.infer.mark_through(tv);
+        record_function_ret_eff_subtractability(state, tv, row, vars);
         tv
     } else {
         let tv = fresh_sig_annotation_tv(state, row.items[0].span(), "function latent effect");
-        state.infer.mark_through(tv);
+        record_function_ret_eff_subtractability(state, tv, row, vars);
         tv
     };
-    let pos_items = row
-        .items
-        .iter()
-        .filter_map(|item| lower_sig_effect_atom(state, item, vars).map(Pos::Atom))
-        .collect::<Vec<_>>();
-    let neg_items = row
-        .items
-        .iter()
-        .filter_map(|item| lower_sig_effect_atom(state, item, vars).map(Neg::Atom))
-        .collect::<Vec<_>>();
     (
-        state
-            .infer
-            .alloc_pos(state.pos_row(pos_items, Pos::Var(tail_tv))),
-        state
-            .infer
-            .alloc_neg(state.neg_row(neg_items, Neg::Var(tail_tv))),
+        state.infer.alloc_pos(Pos::Var(tail_tv)),
+        state.infer.alloc_neg(Neg::Var(tail_tv)),
         false,
     )
+}
+
+fn record_function_ret_eff_subtractability(
+    state: &mut LowerState,
+    tv: TypeVar,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) {
+    let paths = row
+        .items
+        .iter()
+        .filter_map(|item| lower_sig_effect_atom(state, item, vars))
+        .map(|atom| atom.path)
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        return;
+    }
+    state
+        .infer
+        .record_effect_subtractability(tv, EffectSubtractability::Set(paths));
 }
 
 fn sig_var_key(var: &SigVar) -> String {

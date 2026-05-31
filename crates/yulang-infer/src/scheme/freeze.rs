@@ -4,16 +4,14 @@ use std::rc::Rc;
 use crate::ids::{NegId, PosId, TypeVar, fresh_frozen_type_var};
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
-    CompactType, CompactTypeScheme, CompactVariant, coalesce_function_effect_residuals_in_scheme,
-    coalesce_multi_function_effect_residuals_in_scheme,
-    coalesce_nested_tail_function_effect_residuals_in_scheme,
-    coalesce_rehandled_function_effect_residuals_in_scheme, compact_root_fun_body_lower,
+    CompactType, CompactTypeScheme, CompactVariant,
+    coalesce_nested_tail_function_effect_residuals_in_scheme, compact_root_fun_body_lower,
     compact_type_var, merge_compact_types, normalize_compact_scheme_rows, subst_compact_bounds,
     subst_lookup_small,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars;
-use crate::solve::Infer;
+use crate::solve::{EffectSubtractability, Infer};
 use crate::symbols::Path;
 use crate::types::RecordField;
 use crate::types::arena::TypeArena;
@@ -46,7 +44,6 @@ fn coalesce_compact_scheme_for_freeze(
 ) -> CompactTypeScheme {
     let exposed_boundary_vars =
         coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
-    coalesce_multi_function_effect_residuals_in_scheme(&mut compact);
     let mut boundary = collect_non_generic_vars(infer, non_generic_roots);
     boundary.extend(exposed_boundary_vars);
     let (mut scheme, _) = coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
@@ -55,8 +52,6 @@ fn coalesce_compact_scheme_for_freeze(
         |_| None,
         &boundary,
     );
-    coalesce_multi_function_effect_residuals_in_scheme(&mut scheme);
-    coalesce_rehandled_function_effect_residuals_in_scheme(&mut scheme);
     normalize_compact_scheme_rows(&mut scheme);
     scheme
 }
@@ -124,7 +119,6 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
     } else {
         subst_compact_scheme_vars(scheme, quantification.quantified_sources.as_slice())
     };
-    coalesce_function_effect_residuals_in_scheme(&mut compact);
     normalize_compact_scheme_rows(&mut compact);
     let scheme_arena: FrozenArena = Rc::new(TypeArena::new());
     let body = compact_root_fun_pos_body(&scheme_arena, &compact)
@@ -168,7 +162,6 @@ fn freeze_live_pos_body_with_non_generic(
     } else {
         subst_compact_scheme_vars(compact, quantification.quantified_sources.as_slice())
     };
-    coalesce_function_effect_residuals_in_scheme(&mut compact);
     normalize_compact_scheme_rows(&mut compact);
     finish_frozen_scheme(scheme_arena, compact, frozen_body, quantification)
 }
@@ -193,6 +186,7 @@ struct FreezeQuantification {
     quantified_sources: SmallSubst,
     through: HashSet<TypeVar>,
     eff_binds: Vec<(TypeVar, Vec<EffectAtom>)>,
+    effect_subtractabilities: Vec<(TypeVar, EffectSubtractability)>,
 }
 
 fn prepare_freeze_quantification(
@@ -233,6 +227,14 @@ fn prepare_freeze_quantification(
             }
         })
         .collect();
+    let effect_subtractabilities = quantified_sources
+        .iter()
+        .filter_map(|(source, frozen)| {
+            infer
+                .effect_subtractability(*source)
+                .map(|subtractability| (*frozen, subtractability))
+        })
+        .collect();
     let quantified = quantified_sources
         .iter()
         .map(|(_, frozen)| *frozen)
@@ -242,6 +244,7 @@ fn prepare_freeze_quantification(
         quantified_sources,
         through,
         eff_binds,
+        effect_subtractabilities,
     }
 }
 
@@ -259,6 +262,7 @@ fn finish_frozen_scheme(
         quantified_sources: quantification.quantified_sources,
         through: quantification.through,
         eff_binds: quantification.eff_binds,
+        effect_subtractabilities: quantification.effect_subtractabilities,
     })
 }
 
@@ -802,8 +806,7 @@ pub(crate) fn collect_non_generic_vars(
     let mut out = HashSet::new();
     for root in roots {
         out.insert(*root);
-        let mut scheme = compact_type_var(infer, *root);
-        coalesce_function_effect_residuals_in_scheme(&mut scheme);
+        let scheme = compact_type_var(infer, *root);
         let mut free = Vec::new();
         collect_compact_type_free_vars(&scheme.cty.lower, &mut free);
         collect_compact_type_free_vars(&scheme.cty.upper, &mut free);

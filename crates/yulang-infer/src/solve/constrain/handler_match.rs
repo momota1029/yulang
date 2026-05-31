@@ -3,12 +3,22 @@ use rustc_hash::FxHashSet;
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
-use crate::solve::{HandlerMatchEdge, ShiftKeep};
+use crate::solve::{EffectSubtractability, HandlerMatchEdge, ShiftKeep};
 use crate::types::{Neg, Pos};
 
 impl Infer {
     pub fn record_effect_boundary_keep(&self, effect: TypeVar, keep: ShiftKeep) {
-        self.effect_boundary_keeps.borrow_mut().insert(effect, keep);
+        let mut keeps = self.effect_boundary_keeps.borrow_mut();
+        match keeps.get(&effect).cloned() {
+            Some(existing) => {
+                keeps.insert(effect, merge_shift_keep(existing, keep));
+            }
+            None => {
+                if keep != ShiftKeep::Surface {
+                    keeps.insert(effect, keep);
+                }
+            }
+        }
     }
 
     pub fn effect_boundary_keep(&self, effect: TypeVar) -> ShiftKeep {
@@ -17,6 +27,35 @@ impl Infer {
             .get(&effect)
             .cloned()
             .unwrap_or(ShiftKeep::Surface)
+    }
+
+    pub fn record_effect_subtractability(
+        &self,
+        effect: TypeVar,
+        subtractability: EffectSubtractability,
+    ) {
+        let mut subtractables = self.effect_subtractables.borrow_mut();
+        match subtractables.get(&effect).cloned() {
+            Some(existing) => {
+                subtractables.insert(
+                    effect,
+                    merge_effect_subtractability(existing, subtractability),
+                );
+            }
+            None => {
+                subtractables.insert(effect, subtractability);
+            }
+        }
+    }
+
+    pub fn effect_subtractability(&self, effect: TypeVar) -> Option<EffectSubtractability> {
+        self.effect_subtractables.borrow().get(&effect).cloned()
+    }
+
+    pub fn copy_effect_subtractability(&self, from: TypeVar, to: TypeVar) {
+        if let Some(subtractability) = self.effect_subtractability(from) {
+            self.record_effect_subtractability(to, subtractability);
+        }
     }
 
     pub fn record_handler_match(
@@ -220,6 +259,41 @@ impl Infer {
             (Pos::Var(pos), Neg::Var(neg)) => pos == neg,
             (Pos::Bot, Neg::Top) => true,
             _ => false,
+        }
+    }
+}
+
+fn merge_shift_keep(existing: ShiftKeep, incoming: ShiftKeep) -> ShiftKeep {
+    match (existing, incoming) {
+        (ShiftKeep::CallBoundary, _) | (_, ShiftKeep::CallBoundary) => ShiftKeep::CallBoundary,
+        (ShiftKeep::None, _) | (_, ShiftKeep::None) => ShiftKeep::None,
+        (ShiftKeep::Surface, keep) | (keep, ShiftKeep::Surface) => keep,
+        (ShiftKeep::Set(mut lhs), ShiftKeep::Set(rhs)) => {
+            for path in rhs {
+                if !lhs.contains(&path) {
+                    lhs.push(path);
+                }
+            }
+            ShiftKeep::Set(lhs)
+        }
+    }
+}
+
+fn merge_effect_subtractability(
+    existing: EffectSubtractability,
+    incoming: EffectSubtractability,
+) -> EffectSubtractability {
+    match (existing, incoming) {
+        (EffectSubtractability::Empty, _) | (_, EffectSubtractability::Empty) => {
+            EffectSubtractability::Empty
+        }
+        (EffectSubtractability::All, keep) | (keep, EffectSubtractability::All) => keep,
+        (EffectSubtractability::Set(lhs), EffectSubtractability::Set(rhs)) => {
+            EffectSubtractability::Set(
+                lhs.into_iter()
+                    .filter(|path| rhs.contains(path))
+                    .collect::<Vec<_>>(),
+            )
         }
     }
 }

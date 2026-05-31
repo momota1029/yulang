@@ -4,9 +4,10 @@ use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
 use super::{LowerState, SyntaxNode};
-use crate::diagnostic::{ConstraintCause, ConstraintReason, TypeOrigin, TypeOriginKind};
+use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::lower::signature::{SigRow, SigType};
 use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
+use crate::solve::EffectSubtractability;
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos};
 
@@ -79,16 +80,11 @@ pub fn configure_arg_effect_from_ann(
     {
         return;
     }
+    record_effect_annotation_subtractability(state, arg_eff_tv, ann);
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
-        Some(LoweredEffAnn::Row { lower, upper, .. }) => {
+        Some(LoweredEffAnn::Row { upper, .. }) => {
             register_eff_bind_from_annotation(state, arg_eff_tv, &upper);
-            let cause = ann
-                .map(|ann| ConstraintCause {
-                    span: Some(ann.span),
-                    reason: ConstraintReason::Annotation,
-                })
-                .unwrap_or_else(ConstraintCause::unknown);
             if let Some(ann) = ann {
                 state.register_origin(
                     arg_eff_tv,
@@ -100,13 +96,32 @@ pub fn configure_arg_effect_from_ann(
                     },
                 );
             }
-            state
-                .infer
-                .constrain_with_cause(lower, Neg::Var(arg_eff_tv), cause.clone());
-            state
-                .infer
-                .constrain_with_cause(Pos::Var(arg_eff_tv), upper, cause);
         }
+    }
+}
+
+pub fn record_effect_annotation_subtractability(
+    state: &LowerState,
+    arg_eff_tv: crate::ids::TypeVar,
+    ann: Option<&LoweredPatAnn>,
+) {
+    match ann.and_then(|ann| ann.eff.as_ref()) {
+        Some(LoweredEffAnn::Opaque) => state
+            .infer
+            .record_effect_subtractability(arg_eff_tv, EffectSubtractability::All),
+        Some(LoweredEffAnn::Row { upper, .. }) => {
+            let paths = row_atom_paths(state, upper);
+            if paths.is_empty() {
+                state
+                    .infer
+                    .record_effect_subtractability(arg_eff_tv, EffectSubtractability::Empty);
+            } else {
+                state
+                    .infer
+                    .record_effect_subtractability(arg_eff_tv, EffectSubtractability::Set(paths));
+            }
+        }
+        None => {}
     }
 }
 
@@ -126,6 +141,19 @@ fn register_eff_bind_from_annotation(
         })
         .collect::<Vec<_>>();
     state.infer.register_eff_bind(arg_eff_tv, handled);
+}
+
+fn row_atom_paths(state: &LowerState, upper: &Neg) -> Vec<Path> {
+    let Neg::Row(items, _) = upper else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| match state.infer.arena.get_neg(*item) {
+            Neg::Atom(atom) => Some(atom.path.clone()),
+            _ => None,
+        })
+        .collect()
 }
 
 pub fn fresh_arg_effect_tv(
@@ -182,7 +210,7 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
 
     if separator.is_none() {
         let tail_tv = annotation_tv(state, type_expr);
-        state.infer.mark_through(tail_tv);
+        record_effect_ann_tail_metadata(state, tail_tv, !items.is_empty());
         let lower = Pos::Row(
             items
                 .iter()
@@ -207,7 +235,7 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
 
     let lower_tail = match tail {
         Some(tv) => {
-            state.infer.mark_through(tv);
+            record_effect_ann_tail_metadata(state, tv, !items.is_empty());
             Pos::Var(tv)
         }
         None => Pos::Bot,
@@ -234,6 +262,14 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
         ),
         non_generic_tvs: Vec::new(),
     })
+}
+
+fn record_effect_ann_tail_metadata(state: &LowerState, tv: crate::ids::TypeVar, has_items: bool) {
+    if has_items {
+        state
+            .infer
+            .record_effect_subtractability(tv, EffectSubtractability::All);
+    }
 }
 
 fn is_wildcard_type_expr(node: &SyntaxNode) -> bool {

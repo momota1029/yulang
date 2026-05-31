@@ -10,8 +10,8 @@ use crate::ids::TypeVar;
 use crate::lower::{FunctionSigEffectHint, LowerState};
 use crate::solve::DeferredRoleMethodCall;
 use crate::solve::RoleMethodInfo;
-use crate::solve::ShiftKeep;
 use crate::solve::role::role_method_info_for_path;
+use crate::solve::{EffectSubtractability, ShiftKeep};
 use crate::types::{Neg, Pos};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,7 +46,8 @@ pub(crate) fn make_app_with_cause(
     let expected_callee_tv = state.fresh_tv();
     let expected_arg_tv = state.fresh_tv();
     let call_eff = state.fresh_tv();
-    if let Some(owner) = cross_owner_function_ref_owner(state, &func) {
+    let cross_owner = cross_owner_function_ref_owner(state, &func);
+    if let Some(owner) = cross_owner {
         state.infer.add_non_generic_var(owner, result_ty.value);
         state.infer.add_non_generic_var(owner, expected_callee_tv);
         state.infer.add_non_generic_var(owner, expected_arg_tv);
@@ -60,12 +61,19 @@ pub(crate) fn make_app_with_cause(
         && matches!(arg.kind, ExprKind::App { .. });
     let arg_eff_for_slot = if pure_argument_slot || anf_arg {
         state.fresh_exact_pure_eff_tv()
-    } else if matches!(passing_style, ArgumentPassingStyle::Computation) {
-        argument_effect_for_slot(state, &arg)
     } else {
-        argument_effect_for_slot(state, &arg)
+        let slot = state.fresh_tv();
+        state.infer.mark_through(slot);
+        let actual = argument_effect_for_slot(state, &arg);
+        state.infer.constrain(Pos::Var(actual), Neg::Var(slot));
+        if let Some(owner) = cross_owner {
+            state.infer.add_non_generic_var(owner, slot);
+        }
+        slot
     };
+    let boundary_keep = thunk_boundary_keep_for_call(state, &func);
     let mut demanded_ret_eff = Neg::Var(call_eff);
+    let mut call_eff_has_subtractability = false;
     if let ExprKind::Var(def) = &func.kind {
         if let Some(hint) = state.lambda_param_function_sig_hint(*def) {
             match hint {
@@ -82,24 +90,35 @@ pub(crate) fn make_app_with_cause(
                         .get_neg(state.infer.arena.empty_neg_row)
                         .clone();
                 }
-                FunctionSigEffectHint::Through => {
-                    state.infer.mark_through(call_eff);
+                FunctionSigEffectHint::AllSubtractable => {
+                    state
+                        .infer
+                        .record_effect_subtractability(call_eff, EffectSubtractability::All);
+                    call_eff_has_subtractability = true;
                 }
                 FunctionSigEffectHint::LowerBound(lower) => {
                     state.infer.constrain(lower, Neg::Var(call_eff));
                 }
                 FunctionSigEffectHint::Bounds(lower, upper) => {
+                    call_eff_has_subtractability |=
+                        record_effect_subtractability_from_upper(state, call_eff, upper);
                     state.infer.constrain(lower, Neg::Var(call_eff));
                     state.infer.constrain(Pos::Var(call_eff), upper);
                     demanded_ret_eff = state.infer.arena.get_neg(upper).clone();
                 }
             }
-        } else if !state.effect_op_args.contains_key(def)
-            && !state.is_let_bound_def(*def)
-            && !state.is_continuation_def(*def)
-        {
-            state.infer.mark_through(call_eff);
         }
+    }
+    call_eff_has_subtractability |= record_call_boundary_effect_metadata(
+        state,
+        call_eff,
+        result_ty.effect,
+        boundary_keep.as_ref(),
+    );
+    if !call_eff_has_subtractability {
+        state
+            .infer
+            .record_effect_subtractability(call_eff, EffectSubtractability::Empty);
     }
 
     state.infer.constrain_with_cause(
@@ -154,14 +173,6 @@ pub(crate) fn make_app_with_cause(
     state
         .infer
         .constrain(Pos::Var(func.eff), Neg::Var(result_ty.effect));
-    if let Some(keep) = thunk_boundary_keep_for_call(state, &func) {
-        state
-            .infer
-            .record_effect_boundary_keep(call_eff, keep.clone());
-        state
-            .infer
-            .record_effect_boundary_keep(result_ty.effect, keep);
-    }
     state
         .infer
         .constrain(Pos::Var(call_eff), Neg::Var(result_ty.effect));
@@ -174,6 +185,30 @@ pub(crate) fn make_app_with_cause(
         state
             .infer
             .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
+    }
+
+    if debug_app {
+        eprintln!(
+            "APP owner={:?} func={:?} passing={:?} pure_slot={} anf={} arg_eff_slot={:?} actual_arg_eff={:?} call_eff={:?} result_eff={:?}",
+            state.current_owner,
+            match &func.kind {
+                ExprKind::Var(def) => Some(*def),
+                _ => None,
+            },
+            passing_style,
+            pure_argument_slot,
+            anf_arg,
+            arg_eff_for_slot,
+            arg.eff,
+            call_eff,
+            result_ty.effect,
+        );
+        eprintln!("APP arg slot graph:");
+        super::debug_dump_effect_tv(state, arg_eff_for_slot, 1, &mut HashSet::new());
+        eprintln!("APP call effect graph:");
+        super::debug_dump_effect_tv(state, call_eff, 1, &mut HashSet::new());
+        eprintln!("APP result effect graph:");
+        super::debug_dump_effect_tv(state, result_ty.effect, 1, &mut HashSet::new());
     }
 
     if debug_app && matches!(func.kind, ExprKind::Lam(_, _)) {
@@ -290,6 +325,74 @@ fn thunk_boundary_keep_for_call(state: &LowerState, func: &TypedExpr) -> Option<
                 .collect(),
         ),
     })
+}
+
+fn effect_subtractability_for_keep(keep: &ShiftKeep) -> Option<EffectSubtractability> {
+    match keep {
+        ShiftKeep::None | ShiftKeep::CallBoundary => Some(EffectSubtractability::Empty),
+        ShiftKeep::Surface => None,
+        ShiftKeep::Set(paths) => Some(EffectSubtractability::Set(paths.clone())),
+    }
+}
+
+fn record_call_boundary_effect_metadata(
+    state: &LowerState,
+    call_eff: TypeVar,
+    result_eff: TypeVar,
+    keep: Option<&ShiftKeep>,
+) -> bool {
+    let Some(keep) = keep else {
+        return false;
+    };
+    state
+        .infer
+        .record_effect_boundary_keep(call_eff, keep.clone());
+    state
+        .infer
+        .record_effect_boundary_keep(result_eff, keep.clone());
+    let Some(subtractability) = effect_subtractability_for_keep(keep) else {
+        return false;
+    };
+    state
+        .infer
+        .record_effect_subtractability(call_eff, subtractability.clone());
+    state
+        .infer
+        .record_effect_subtractability(result_eff, subtractability);
+    true
+}
+
+fn record_effect_subtractability_from_upper(
+    state: &LowerState,
+    effect: TypeVar,
+    upper: crate::ids::NegId,
+) -> bool {
+    if let Neg::Var(source) = state.infer.arena.get_neg(upper) {
+        let Some(subtractability) = state.infer.effect_subtractability(source) else {
+            return false;
+        };
+        state
+            .infer
+            .record_effect_subtractability(effect, subtractability);
+        return true;
+    }
+    let Neg::Row(items, _) = state.infer.arena.get_neg(upper) else {
+        return false;
+    };
+    let paths = items
+        .into_iter()
+        .filter_map(|item| match state.infer.arena.get_neg(item) {
+            Neg::Atom(atom) => Some(atom.path),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        return false;
+    }
+    state
+        .infer
+        .record_effect_subtractability(effect, EffectSubtractability::Set(paths));
+    true
 }
 
 fn debug_app_enabled() -> bool {

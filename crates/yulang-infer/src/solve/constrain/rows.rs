@@ -1,7 +1,7 @@
 use super::util::same_row_tail_var_nodes;
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
-use crate::ids::{NegId, PosId};
+use crate::ids::{NegId, PosId, TypeVar};
 use crate::types::{Neg, Pos};
 
 impl Infer {
@@ -14,6 +14,8 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
+        let original_neg_items = neg_items.clone();
+        let original_neg_tail = neg_tail;
         let mut pos_diff = pos_items;
         let mut neg_unmatched: Vec<NegId> = Vec::new();
 
@@ -31,39 +33,60 @@ impl Infer {
 
         let mut concrete_diff: Vec<PosId> = Vec::new();
         for item in pos_diff {
-            if let Pos::Raw(e) = self.arena.get_pos(item) {
-                let neg_row = self
-                    .arena
-                    .alloc_neg(Neg::Row(neg_unmatched.clone(), neg_tail));
-                let neg_row = self.extrude_neg(neg_row, self.level_of(e));
-                if self.add_upper(e, neg_row) {
-                    for lower in self.lower_refs_of(e) {
-                        self.constrain_step(lower, neg_row, cause, cache);
-                    }
+            match self.arena.get_pos(item) {
+                Pos::Var(tv) | Pos::Raw(tv) => {
+                    self.constrain_row_var_to_row(
+                        tv,
+                        original_neg_items.clone(),
+                        original_neg_tail,
+                        cause,
+                        cache,
+                    );
                 }
-            } else {
-                concrete_diff.push(item);
+                _ => concrete_diff.push(item),
             }
         }
 
         let pos_tail_node = self.arena.get_pos(pos_tail);
         let neg_tail_node = self.arena.get_neg(neg_tail);
+        let tail_is_var = matches!(pos_tail_node, Pos::Var(_) | Pos::Raw(_));
+        let concrete_tail = if tail_is_var {
+            self.arena.bot
+        } else {
+            pos_tail
+        };
 
         if !concrete_diff.is_empty() && !same_row_tail_var_nodes(&pos_tail_node, &neg_tail_node) {
-            let residual = self.arena.alloc_pos(Pos::Row(concrete_diff, pos_tail));
+            let residual = self.arena.alloc_pos(Pos::Row(concrete_diff, concrete_tail));
             self.constrain_step(residual, neg_tail, cause, cache);
         }
 
         match pos_tail_node {
-            Pos::Var(tv) | Pos::Raw(tv) if self.is_through(tv) => {
-                let var_pos = self.arena.alloc_pos(Pos::Var(tv));
-                self.constrain_step(var_pos, neg_tail, cause, cache);
-            }
+            Pos::Var(tv) | Pos::Raw(tv) => self.constrain_row_var_to_row(
+                tv,
+                original_neg_items,
+                original_neg_tail,
+                cause,
+                cache,
+            ),
             _ => {
                 let neg_row = self.arena.alloc_neg(Neg::Row(neg_unmatched, neg_tail));
                 self.constrain_step(pos_tail, neg_row, cause, cache);
             }
         }
+    }
+
+    fn constrain_row_var_to_row(
+        &self,
+        tv: TypeVar,
+        neg_items: Vec<NegId>,
+        neg_tail: NegId,
+        cause: &ConstraintCause,
+        cache: &mut StepCache,
+    ) {
+        let pos = self.arena.alloc_pos(Pos::Var(tv));
+        let neg = self.arena.alloc_neg(Neg::Row(neg_items, neg_tail));
+        self.constrain_step(pos, neg, cause, cache);
     }
 
     fn row_items_can_cancel(&self, pos: PosId, neg: NegId) -> bool {

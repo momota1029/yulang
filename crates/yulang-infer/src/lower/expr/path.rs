@@ -383,6 +383,29 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
         }
     }
     if state.current_owner == Some(def) {
+        if let Some(scheme) = state.provisional_self_schemes.get(&def).cloned() {
+            state.mark_recursive_self_use(def);
+            let tv = state.fresh_tv();
+            let eff = state
+                .def_eff_tvs
+                .get(&def)
+                .copied()
+                .unwrap_or_else(|| state.fresh_exact_pure_eff_tv());
+            crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
+            if let Some(&def_tv) = state.def_tvs.get(&def) {
+                state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
+                state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
+            }
+            let ref_id = state.ctx.fresh_ref();
+            state.ctx.refs.resolve(ref_id, def, tv, state.current_owner);
+            state.mark_resolved_ref_instantiated(ref_id);
+            record_resolve_bound_def_expr(state, start, ResolveBoundDefKind::SelfRecursive);
+            return TypedExpr {
+                tv,
+                eff,
+                kind: ExprKind::Var(def),
+            };
+        }
         if let Some(instance) = state.active_recursive_self_instance(def) {
             state.mark_recursive_self_use(def);
             let ref_id = state.ctx.fresh_ref();

@@ -98,6 +98,13 @@ pub enum ShiftKeep {
     Set(Vec<Path>),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EffectSubtractability {
+    Empty,
+    All,
+    Set(Vec<Path>),
+}
+
 #[derive(Debug, Clone)]
 pub struct ExtensionMethodInfo {
     pub name: Name,
@@ -169,6 +176,7 @@ pub struct Infer {
     pub handler_matches: RefCell<Vec<HandlerMatchEdge>>,
     pub handler_match_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[usize; 2]>>>,
     pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
+    pub effect_subtractables: RefCell<FxHashMap<TypeVar, EffectSubtractability>>,
     pub levels: RefCell<FxHashMap<TypeVar, u32>>,
     pub origins: RefCell<FxHashMap<TypeVar, TypeOrigin>>,
     pub errors: RefCell<Vec<TypeError>>,
@@ -220,6 +228,7 @@ impl Infer {
             handler_matches: RefCell::new(Vec::new()),
             handler_match_dependents: RefCell::new(FxHashMap::default()),
             effect_boundary_keeps: RefCell::new(FxHashMap::default()),
+            effect_subtractables: RefCell::new(FxHashMap::default()),
             levels: RefCell::new(FxHashMap::default()),
             origins: RefCell::new(FxHashMap::default()),
             errors: RefCell::new(Vec::new()),
@@ -790,6 +799,9 @@ impl Infer {
 
     pub fn mark_through(&self, tv: TypeVar) {
         self.through.borrow_mut().insert(tv);
+        self.effect_subtractables
+            .borrow_mut()
+            .insert(tv, EffectSubtractability::All);
     }
 
     pub fn is_through(&self, tv: TypeVar) -> bool {

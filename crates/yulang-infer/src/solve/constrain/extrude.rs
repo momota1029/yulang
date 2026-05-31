@@ -256,6 +256,7 @@ impl Infer {
         if let Some(keep) = self.effect_boundary_keeps.borrow().get(&from).cloned() {
             self.record_effect_boundary_keep(to, keep);
         }
+        self.copy_effect_subtractability(from, to);
     }
 
     fn extrude_effect_atom(

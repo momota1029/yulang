@@ -964,7 +964,7 @@ impl LowerState {
         }
         if let Some(hint) = self.lambda_param_function_sig_hints.get(&def).copied() {
             match hint {
-                FunctionSigEffectHint::Pure | FunctionSigEffectHint::Through => {}
+                FunctionSigEffectHint::Pure | FunctionSigEffectHint::AllSubtractable => {}
                 FunctionSigEffectHint::LowerBound(lower) => {
                     for tv in crate::scheme::collect_pos_free_vars(&self.infer, lower) {
                         self.infer.add_non_generic_var(owner, tv);

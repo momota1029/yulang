@@ -781,6 +781,7 @@ impl<'a> CopiedTypeVars<'a> {
         {
             self.state.infer.record_effect_boundary_keep(mapped, keep);
         }
+        self.state.infer.copy_effect_subtractability(tv, mapped);
         self.copy_handler_matches_for(tv);
     }
 
@@ -837,8 +838,8 @@ impl<'a> CopiedTypeVars<'a> {
     ) -> crate::lower::FunctionSigEffectHint {
         match hint {
             crate::lower::FunctionSigEffectHint::Pure => crate::lower::FunctionSigEffectHint::Pure,
-            crate::lower::FunctionSigEffectHint::Through => {
-                crate::lower::FunctionSigEffectHint::Through
+            crate::lower::FunctionSigEffectHint::AllSubtractable => {
+                crate::lower::FunctionSigEffectHint::AllSubtractable
             }
             crate::lower::FunctionSigEffectHint::LowerBound(lower) => {
                 crate::lower::FunctionSigEffectHint::LowerBound(self.copy_pos_id(lower))

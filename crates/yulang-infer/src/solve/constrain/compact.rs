@@ -3,9 +3,9 @@ use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, TypeVar};
 use crate::scheme::{OwnedSchemeInstance, compact_neg_type, compact_pos_type};
 use crate::simplify::compact::{
-    CompactBounds, CompactType, single_substituted_compact_var, subst_compact_con,
-    subst_compact_fun, subst_compact_record, subst_compact_record_spread, subst_compact_row,
-    subst_compact_type, subst_compact_variant, subst_lookup_small,
+    CompactBounds, CompactType, compact_root_fun_body_lower, single_substituted_compact_var,
+    subst_compact_con, subst_compact_fun, subst_compact_record, subst_compact_record_spread,
+    subst_compact_row, subst_compact_type, subst_compact_variant, subst_lookup_small,
 };
 use crate::types::Pos;
 
@@ -18,11 +18,11 @@ impl Infer {
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
     ) {
-        let parts = compact_pos_parts_with_subst(
-            self,
-            &instance.scheme.compact.cty.lower,
-            instance.subst.as_slice(),
-        );
+        let normalized_root_body = compact_root_fun_body_lower(&instance.scheme.compact);
+        let lower = normalized_root_body
+            .as_ref()
+            .unwrap_or(&instance.scheme.compact.cty.lower);
+        let parts = compact_pos_parts_with_subst(self, lower, instance.subst.as_slice());
         for part in parts {
             self.constrain_step_with_hint(part, neg, cause, origin_hint, cache);
         }
@@ -35,17 +35,6 @@ impl Infer {
         compact_neg_parts_with_subst(
             self,
             &instance.scheme.compact.cty.upper,
-            instance.subst.as_slice(),
-        )
-    }
-
-    pub(super) fn compact_instance_preserves_through(
-        &self,
-        instance: &OwnedSchemeInstance,
-    ) -> bool {
-        compact_type_preserves_through(
-            self,
-            &instance.scheme.compact.cty.lower,
             instance.subst.as_slice(),
         )
     }
@@ -296,35 +285,6 @@ fn compact_neg_parts_with_subst(
         ));
     }
     parts
-}
-
-fn compact_type_preserves_through(
-    infer: &Infer,
-    ty: &CompactType,
-    subst: &[(TypeVar, TypeVar)],
-) -> bool {
-    if compact_type_is_empty(ty) {
-        return true;
-    }
-    if let Some(tv) = single_substituted_compact_var(ty, subst) {
-        return infer.is_through(tv);
-    }
-    if ty.prims.is_empty()
-        && ty.cons.is_empty()
-        && ty.funs.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.vars.is_empty()
-        && ty.rows.len() == 1
-    {
-        let row = &ty.rows[0];
-        if row.items.is_empty() {
-            return compact_type_preserves_through(infer, &row.tail, subst);
-        }
-    }
-    false
 }
 
 fn max_level_compact_bounds(

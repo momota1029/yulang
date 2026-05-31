@@ -20,7 +20,7 @@ pub(crate) fn connect_let_pattern(
     body_tv: TypeVar,
     body_eff_tv: TypeVar,
     body_span: Option<TextRange>,
-    _recursive_self_used: bool,
+    recursive_self_used: bool,
 ) {
     let cause = ConstraintCause {
         span: body_span,
@@ -34,9 +34,11 @@ pub(crate) fn connect_let_pattern(
                     Neg::Var(def_tv),
                     cause.clone(),
                 );
-                state
-                    .infer
-                    .constrain_with_cause(Pos::Var(def_tv), Neg::Var(body_tv), cause);
+                if !recursive_self_used {
+                    state
+                        .infer
+                        .constrain_with_cause(Pos::Var(def_tv), Neg::Var(body_tv), cause);
+                }
                 return;
             }
         }

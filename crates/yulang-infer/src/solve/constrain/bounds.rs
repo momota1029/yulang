@@ -79,12 +79,7 @@ impl Infer {
         cache: &mut StepCache,
     ) {
         if let Pos::Var(source) = self.arena.get_pos(pos) {
-            if !self.is_through(source) {
-                self.clear_through(target);
-            }
             self.propagate_through(source, target, cause, cache);
-        } else if !self.lower_preserves_through_id(pos) {
-            self.clear_through(target);
         }
     }
 }
