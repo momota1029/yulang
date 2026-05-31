@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::profile::ProfileClock as Instant;
 
 use crate::ids::{NegId, PosId, TypeVar, fresh_type_var};
-use crate::solve::Infer;
+use crate::solve::{EffectSubtractability, Infer};
 use crate::types::RecordField;
 use crate::types::{EffectAtom, Neg, Pos};
 
@@ -173,7 +173,7 @@ fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(Typ
     for (rho, subtractability) in &scheme.effect_subtractabilities {
         infer.record_effect_subtractability(
             subst_lookup_small(subst, *rho),
-            subtractability.clone(),
+            subst_effect_subtractability(subtractability.clone(), subst),
         );
     }
 }
@@ -546,6 +546,22 @@ fn subst_atom_small(atom: EffectAtom, subst: &[(TypeVar, TypeVar)]) -> EffectAto
     }
 }
 
+fn subst_effect_subtractability(
+    subtractability: EffectSubtractability,
+    subst: &[(TypeVar, TypeVar)],
+) -> EffectSubtractability {
+    match subtractability {
+        EffectSubtractability::Empty => EffectSubtractability::Empty,
+        EffectSubtractability::All => EffectSubtractability::All,
+        EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
+            atoms
+                .into_iter()
+                .map(|atom| subst_atom_small(atom, subst))
+                .collect(),
+        ),
+    }
+}
+
 fn subst_atom(atom: EffectAtom, subst: &HashMap<TypeVar, TypeVar>) -> EffectAtom {
     EffectAtom {
         path: atom.path,
@@ -613,6 +629,7 @@ mod tests {
     use super::*;
     use crate::solve::EffectSubtractability;
     use crate::symbols::{Name, Path};
+    use crate::types::EffectAtom;
 
     #[test]
     fn instantiate_restores_frozen_effect_subtractability() {
@@ -621,7 +638,14 @@ mod tests {
         let io = Path {
             segments: vec![Name("io".to_string())],
         };
-        infer.record_effect_subtractability(source, EffectSubtractability::Set(vec![io.clone()]));
+        let io_atom = EffectAtom {
+            path: io.clone(),
+            args: Vec::new(),
+        };
+        infer.record_effect_subtractability(
+            source,
+            EffectSubtractability::Set(vec![io_atom.clone()]),
+        );
 
         let compact = crate::simplify::compact::CompactTypeScheme {
             cty: crate::simplify::compact::CompactBounds {
@@ -643,7 +667,7 @@ mod tests {
             .effect_subtractabilities
             .iter()
             .find(|(_, subtractability)| {
-                subtractability == &EffectSubtractability::Set(vec![io.clone()])
+                subtractability == &EffectSubtractability::Set(vec![io_atom.clone()])
             })
             .cloned()
             .expect("frozen scheme should retain effect subtractability");
@@ -653,11 +677,11 @@ mod tests {
 
         assert_eq!(
             frozen_subtractability,
-            EffectSubtractability::Set(vec![io.clone()])
+            EffectSubtractability::Set(vec![io_atom.clone()])
         );
         assert_eq!(
             infer.effect_subtractability(instantiated_effect),
-            Some(EffectSubtractability::Set(vec![io]))
+            Some(EffectSubtractability::Set(vec![io_atom]))
         );
     }
 }

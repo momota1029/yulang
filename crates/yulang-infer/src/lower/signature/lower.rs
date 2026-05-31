@@ -776,18 +776,17 @@ fn record_function_ret_eff_subtractability(
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
 ) {
-    let paths = row
+    let atoms = row
         .items
         .iter()
         .filter_map(|item| lower_sig_effect_atom(state, item, vars))
-        .map(|atom| atom.path)
         .collect::<Vec<_>>();
-    if paths.is_empty() {
+    if atoms.is_empty() {
         return;
     }
     state
         .infer
-        .record_effect_subtractability(tv, EffectSubtractability::Set(paths));
+        .record_effect_subtractability(tv, EffectSubtractability::Set(atoms));
 }
 
 fn sig_var_key(var: &SigVar) -> String {

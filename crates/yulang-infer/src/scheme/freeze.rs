@@ -194,6 +194,7 @@ fn prepare_freeze_quantification(
     mut quantified: Vec<TypeVar>,
     non_generic_roots: &HashSet<TypeVar>,
 ) -> FreezeQuantification {
+    add_effect_metadata_free_vars(infer, &mut quantified);
     if !non_generic_roots.is_empty() {
         let non_generic = collect_non_generic_vars(infer, non_generic_roots);
         quantified.retain(|tv| !non_generic.contains(tv));
@@ -232,7 +233,15 @@ fn prepare_freeze_quantification(
         .filter_map(|(source, frozen)| {
             infer
                 .effect_subtractability(*source)
-                .map(|subtractability| (*frozen, subtractability))
+                .map(|subtractability| {
+                    (
+                        *frozen,
+                        subst_effect_subtractability(
+                            subtractability,
+                            quantified_sources.as_slice(),
+                        ),
+                    )
+                })
         })
         .collect();
     let quantified = quantified_sources
@@ -245,6 +254,59 @@ fn prepare_freeze_quantification(
         through,
         eff_binds,
         effect_subtractabilities,
+    }
+}
+
+fn add_effect_metadata_free_vars(infer: &Infer, quantified: &mut Vec<TypeVar>) {
+    let mut pending = quantified.clone();
+    let mut seen = quantified.iter().copied().collect::<HashSet<_>>();
+    while let Some(tv) = pending.pop() {
+        if let Some(subtractability) = infer.effect_subtractability(tv) {
+            for var in effect_subtractability_free_vars(&subtractability) {
+                if seen.insert(var) {
+                    quantified.push(var);
+                    pending.push(var);
+                }
+            }
+        }
+        for atom in infer.eff_binds_of(tv) {
+            for var in effect_atom_free_vars(&atom) {
+                if seen.insert(var) {
+                    quantified.push(var);
+                    pending.push(var);
+                }
+            }
+        }
+    }
+}
+
+fn effect_subtractability_free_vars(subtractability: &EffectSubtractability) -> Vec<TypeVar> {
+    match subtractability {
+        EffectSubtractability::Empty | EffectSubtractability::All => Vec::new(),
+        EffectSubtractability::Set(atoms) => atoms.iter().flat_map(effect_atom_free_vars).collect(),
+    }
+}
+
+fn effect_atom_free_vars(atom: &EffectAtom) -> Vec<TypeVar> {
+    atom.args
+        .iter()
+        .flat_map(|(pos, neg)| [*pos, *neg])
+        .collect()
+}
+
+fn subst_effect_subtractability(
+    subtractability: EffectSubtractability,
+    subst: &[(TypeVar, TypeVar)],
+) -> EffectSubtractability {
+    match subtractability {
+        EffectSubtractability::Empty => EffectSubtractability::Empty,
+        EffectSubtractability::All => EffectSubtractability::All,
+        EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
+            atoms
+                .into_iter()
+                .map(|atom| subst_effect_atom_vars(atom, subst))
+                .collect(),
+        ),
     }
 }
 

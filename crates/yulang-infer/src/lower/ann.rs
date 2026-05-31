@@ -6,10 +6,9 @@ use yulang_parser::lex::SyntaxKind;
 use super::{LowerState, SyntaxNode};
 use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::lower::signature::{SigRow, SigType};
-use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
 use crate::solve::EffectSubtractability;
 use crate::symbols::{Name, Path};
-use crate::types::{EffectAtom, Neg, Pos};
+use crate::types::EffectAtom;
 
 #[derive(Debug, Clone)]
 pub struct LoweredPatAnn {
@@ -22,8 +21,7 @@ pub struct LoweredPatAnn {
 pub enum LoweredEffAnn {
     Opaque,
     Row {
-        lower: Pos,
-        upper: Neg,
+        atoms: Vec<EffectAtom>,
         non_generic_tvs: Vec<crate::ids::TypeVar>,
     },
 }
@@ -83,8 +81,8 @@ pub fn configure_arg_effect_from_ann(
     record_effect_annotation_subtractability(state, arg_eff_tv, ann);
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
-        Some(LoweredEffAnn::Row { upper, .. }) => {
-            register_eff_bind_from_annotation(state, arg_eff_tv, &upper);
+        Some(LoweredEffAnn::Row { atoms, .. }) => {
+            state.infer.register_eff_bind(arg_eff_tv, atoms);
             if let Some(ann) = ann {
                 state.register_origin(
                     arg_eff_tv,
@@ -109,51 +107,20 @@ pub fn record_effect_annotation_subtractability(
         Some(LoweredEffAnn::Opaque) => state
             .infer
             .record_effect_subtractability(arg_eff_tv, EffectSubtractability::All),
-        Some(LoweredEffAnn::Row { upper, .. }) => {
-            let paths = row_atom_paths(state, upper);
-            if paths.is_empty() {
+        Some(LoweredEffAnn::Row { atoms, .. }) => {
+            if atoms.is_empty() {
                 state
                     .infer
                     .record_effect_subtractability(arg_eff_tv, EffectSubtractability::Empty);
             } else {
-                state
-                    .infer
-                    .record_effect_subtractability(arg_eff_tv, EffectSubtractability::Set(paths));
+                state.infer.record_effect_subtractability(
+                    arg_eff_tv,
+                    EffectSubtractability::Set(atoms.clone()),
+                );
             }
         }
         None => {}
     }
-}
-
-fn register_eff_bind_from_annotation(
-    state: &LowerState,
-    arg_eff_tv: crate::ids::TypeVar,
-    upper: &Neg,
-) {
-    let Neg::Row(items, _) = upper else {
-        return;
-    };
-    let handled = items
-        .iter()
-        .filter_map(|item| match state.infer.arena.get_neg(*item) {
-            Neg::Atom(atom) => Some(atom),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    state.infer.register_eff_bind(arg_eff_tv, handled);
-}
-
-fn row_atom_paths(state: &LowerState, upper: &Neg) -> Vec<Path> {
-    let Neg::Row(items, _) = upper else {
-        return Vec::new();
-    };
-    items
-        .iter()
-        .filter_map(|item| match state.infer.arena.get_neg(*item) {
-            Neg::Atom(atom) => Some(atom.path.clone()),
-            _ => None,
-        })
-        .collect()
 }
 
 pub fn fresh_arg_effect_tv(
@@ -191,16 +158,13 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
     }
 
     let mut items = Vec::new();
-    let mut tail = None;
     let mut seen_separator = false;
 
     for child in row.children() {
         match child.kind() {
             SyntaxKind::Separator => seen_separator = true,
             SyntaxKind::TypeExpr => {
-                if seen_separator {
-                    tail = lower_row_tail(state, &child);
-                } else if let Some(atom) = lower_effect_atom(state, &child) {
+                if !seen_separator && let Some(atom) = lower_effect_atom(state, &child) {
                     items.push(atom);
                 }
             }
@@ -208,94 +172,16 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
         }
     }
 
-    if separator.is_none() {
-        let tail_tv = annotation_tv(state, type_expr);
-        record_effect_ann_tail_metadata(state, tail_tv, !items.is_empty());
-        let lower = Pos::Row(
-            items
-                .iter()
-                .cloned()
-                .map(|atom| state.infer.alloc_pos(Pos::Atom(atom)))
-                .collect(),
-            state.infer.alloc_pos(Pos::Var(tail_tv)),
-        );
-        let upper = Neg::Row(
-            items
-                .into_iter()
-                .map(|atom| state.infer.alloc_neg(Neg::Atom(atom)))
-                .collect(),
-            state.infer.alloc_neg(Neg::Var(tail_tv)),
-        );
-        return Some(LoweredEffAnn::Row {
-            lower,
-            upper,
-            non_generic_tvs: Vec::new(),
-        });
-    }
-
-    let lower_tail = match tail {
-        Some(tv) => {
-            record_effect_ann_tail_metadata(state, tv, !items.is_empty());
-            Pos::Var(tv)
-        }
-        None => Pos::Bot,
-    };
-    let upper_tail = match tail {
-        Some(tv) => Neg::Var(tv),
-        None => Neg::Top,
-    };
     Some(LoweredEffAnn::Row {
-        lower: Pos::Row(
-            items
-                .iter()
-                .cloned()
-                .map(|atom| state.infer.alloc_pos(Pos::Atom(atom)))
-                .collect(),
-            state.infer.alloc_pos(lower_tail),
-        ),
-        upper: Neg::Row(
-            items
-                .into_iter()
-                .map(|atom| state.infer.alloc_neg(Neg::Atom(atom)))
-                .collect(),
-            state.infer.alloc_neg(upper_tail),
-        ),
+        atoms: items,
         non_generic_tvs: Vec::new(),
     })
-}
-
-fn record_effect_ann_tail_metadata(state: &LowerState, tv: crate::ids::TypeVar, has_items: bool) {
-    if has_items {
-        state
-            .infer
-            .record_effect_subtractability(tv, EffectSubtractability::All);
-    }
 }
 
 fn is_wildcard_type_expr(node: &SyntaxNode) -> bool {
     node.children_with_tokens()
         .filter_map(|it| it.into_token())
         .any(|tok| tok.kind() == SyntaxKind::Ident && tok.text() == "_")
-}
-
-fn lower_row_tail(state: &mut LowerState, node: &SyntaxNode) -> Option<crate::ids::TypeVar> {
-    if is_wildcard_type_expr(node) {
-        return Some(annotation_tv(state, node));
-    }
-    let has_ident = node
-        .children_with_tokens()
-        .filter_map(|it| it.into_token())
-        .any(|tok| tok.kind() == SyntaxKind::Ident);
-    has_ident.then(|| annotation_tv(state, node))
-}
-
-fn annotation_tv(state: &LowerState, node: &SyntaxNode) -> crate::ids::TypeVar {
-    state.fresh_tv_with_origin(TypeOrigin {
-        span: Some(node.text_range()),
-        file_span: None,
-        kind: TypeOriginKind::Annotation,
-        label: Some(node.text().to_string()),
-    })
 }
 
 fn sig_effect_row(sig: SigType) -> Option<SigRow> {
@@ -329,32 +215,50 @@ fn lower_sig_effect_ann(
     row: SigRow,
 ) -> LoweredEffAnn {
     let mut vars = HashMap::new();
-    let closed = row.tail.is_none() && !row.items.is_empty();
-    let lower_id = if closed {
-        super::signature::lower_closed_sig_row_pos_id(state, &row, &mut vars)
-    } else {
-        super::signature::lower_sig_row_pos_id(state, &row, &mut vars)
-    };
-    let upper_id = if closed {
-        super::signature::lower_closed_sig_row_neg_id(state, &row, &mut vars)
-    } else {
-        super::signature::lower_sig_row_neg_id(state, &row, &mut vars)
-    };
-    let lower = { state.infer.arena.get_pos(lower_id).clone() };
-    let upper = { state.infer.arena.get_neg(upper_id).clone() };
+    let atoms = row
+        .items
+        .iter()
+        .filter_map(|item| lower_sig_effect_atom_for_ann(state, item, &mut vars))
+        .collect::<Vec<_>>();
     let sig_var_tvs = vars
         .values()
         .copied()
         .collect::<std::collections::HashSet<_>>();
-    let mut non_generic_tvs = collect_pos_free_vars(&state.infer, lower_id);
-    non_generic_tvs.extend(collect_neg_free_vars(&state.infer, upper_id));
+    let mut non_generic_tvs = atoms
+        .iter()
+        .flat_map(|atom| atom.args.iter().flat_map(|(pos, neg)| [*pos, *neg]))
+        .collect::<Vec<_>>();
     non_generic_tvs.retain(|tv| !sig_var_tvs.contains(tv));
     non_generic_tvs.sort_by_key(|tv| tv.0);
     non_generic_tvs.dedup();
     LoweredEffAnn::Row {
-        lower,
-        upper,
+        atoms,
         non_generic_tvs,
+    }
+}
+
+fn lower_sig_effect_atom_for_ann(
+    state: &mut LowerState,
+    sig: &SigType,
+    vars: &mut HashMap<String, crate::ids::TypeVar>,
+) -> Option<EffectAtom> {
+    match sig {
+        SigType::Prim { path, .. } => Some(EffectAtom {
+            path: state
+                .ctx
+                .canonical_current_type_path(&state.rewrite_synthetic_path(path)),
+            args: vec![],
+        }),
+        SigType::Apply { path, args, .. } => Some(EffectAtom {
+            path: state
+                .ctx
+                .canonical_current_type_path(&state.rewrite_synthetic_path(path)),
+            args: args
+                .iter()
+                .map(|arg| super::signature::lower_sig_effect_arg(state, arg, vars))
+                .collect(),
+        }),
+        _ => None,
     }
 }
 

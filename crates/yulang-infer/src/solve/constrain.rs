@@ -265,12 +265,12 @@ impl Infer {
                 RowUpperProjection::Original
             }
             Some(super::EffectSubtractability::All) => RowUpperProjection::TailOnly,
-            Some(super::EffectSubtractability::Set(paths)) => {
+            Some(super::EffectSubtractability::Set(atoms)) => {
                 let projected = items
                     .iter()
                     .copied()
                     .filter(|item| {
-                        matches!(self.arena.get_neg(*item), Neg::Atom(atom) if paths.contains(&atom.path))
+                        matches!(self.arena.get_neg(*item), Neg::Atom(atom) if atoms.iter().any(|allowed| allowed.path == atom.path))
                     })
                     .collect::<Vec<_>>();
                 if projected.is_empty() {

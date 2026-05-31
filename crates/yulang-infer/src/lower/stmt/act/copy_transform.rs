@@ -6,7 +6,7 @@ use crate::ast::expr::{
 };
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::lower::LowerState;
-use crate::solve::{RefFieldProjection, TypeFieldInfo};
+use crate::solve::{EffectSubtractability, RefFieldProjection, TypeFieldInfo};
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos, RecordField};
 
@@ -781,8 +781,29 @@ impl<'a> CopiedTypeVars<'a> {
         {
             self.state.infer.record_effect_boundary_keep(mapped, keep);
         }
-        self.state.infer.copy_effect_subtractability(tv, mapped);
+        if let Some(subtractability) = self.state.infer.effect_subtractability(tv) {
+            let subtractability = self.copy_effect_subtractability(subtractability);
+            self.state
+                .infer
+                .record_effect_subtractability(mapped, subtractability);
+        }
         self.copy_handler_matches_for(tv);
+    }
+
+    fn copy_effect_subtractability(
+        &mut self,
+        subtractability: EffectSubtractability,
+    ) -> EffectSubtractability {
+        match subtractability {
+            EffectSubtractability::Empty => EffectSubtractability::Empty,
+            EffectSubtractability::All => EffectSubtractability::All,
+            EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
+                atoms
+                    .into_iter()
+                    .map(|atom| self.copy_effect_atom(atom))
+                    .collect(),
+            ),
+        }
     }
 
     fn copy_handler_matches_for(&mut self, tv: TypeVar) {

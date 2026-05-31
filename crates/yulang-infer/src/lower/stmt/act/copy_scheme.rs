@@ -1,6 +1,7 @@
 use crate::ids::{NegId, PosId};
 use crate::lower::LowerState;
 use crate::scheme::compact_scheme_from_pos_body_in_arena;
+use crate::solve::EffectSubtractability;
 use crate::symbols::Path;
 use crate::types::arena::TypeArena;
 use crate::types::{EffectAtom, Neg, Pos};
@@ -91,7 +92,10 @@ pub(crate) fn transform_copied_frozen_scheme(
             if !quantified.contains(&rho) {
                 return None;
             }
-            Some((rho, subtractability.clone()))
+            Some((
+                rho,
+                subst_effect_subtractability(subtractability.clone(), frozen_subst.as_slice()),
+            ))
         })
         .collect();
     let arena = std::rc::Rc::new(TypeArena::new());
@@ -132,6 +136,22 @@ fn subst_effect_atom_vars(
                 )
             })
             .collect(),
+    }
+}
+
+fn subst_effect_subtractability(
+    subtractability: EffectSubtractability,
+    subst: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+) -> EffectSubtractability {
+    match subtractability {
+        EffectSubtractability::Empty => EffectSubtractability::Empty,
+        EffectSubtractability::All => EffectSubtractability::All,
+        EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
+            atoms
+                .into_iter()
+                .map(|atom| subst_effect_atom_vars(atom, subst))
+                .collect(),
+        ),
     }
 }
 

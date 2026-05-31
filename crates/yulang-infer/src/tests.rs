@@ -2791,6 +2791,50 @@ fn function_effect_annotation_display_preserves_act_arg_positions() {
         "act parse 'item 'err 'pos 'snap:\n  our item: () -> 'item\n\n\
 pub take(p: () -> [parse 'item 'err 'pos 'snap] 'a): unit = ()\n",
     );
+    let hint = state
+        .lambda_param_function_sig_hints
+        .values()
+        .next()
+        .copied()
+        .expect("take parameter should keep a function signature effect hint");
+    let crate::lower::FunctionSigEffectHint::Bounds(_, upper) = hint else {
+        panic!("parse annotation should lower to an effect metadata-bearing signature hint");
+    };
+    let Neg::Var(effect_tv) = state.infer.arena.get_neg(upper) else {
+        panic!("function effect annotation should introduce a metadata effect variable");
+    };
+    let Some(solve::EffectSubtractability::Set(atoms)) =
+        state.infer.effect_subtractability(effect_tv)
+    else {
+        panic!("function effect annotation should record subtractability atoms");
+    };
+    let parse_atom = atoms
+        .iter()
+        .find(|atom| {
+            atom.path
+                .segments
+                .last()
+                .is_some_and(|name| name.0 == "parse")
+        })
+        .expect("parse annotation should keep the parse atom");
+    let arg_vars = parse_atom
+        .args
+        .iter()
+        .map(|(pos, neg)| {
+            assert_eq!(pos, neg);
+            *pos
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(arg_vars.len(), 4);
+    assert_eq!(
+        arg_vars
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        4,
+        "effect metadata should keep act argument positions distinct",
+    );
+
     state.finalize_compact_results();
     assert!(
         state.infer.type_errors().is_empty(),
@@ -2799,9 +2843,10 @@ pub take(p: () -> [parse 'item 'err 'pos 'snap] 'a): unit = ()\n",
     );
     let rendered = crate::display::dump::render_compact_results(&mut state);
     assert!(
-        rendered.iter().any(|(name, scheme)| name == "take"
-            && scheme == "(unit -> [parse<α, β, γ, δ>; ⊤] ⊤) -> unit"),
-        "function parameter effect annotation should keep act argument positions distinct, got: {rendered:?}",
+        rendered
+            .iter()
+            .any(|(name, scheme)| name == "take" && scheme == "(unit -> ⊤) -> unit"),
+        "unused function parameter effect metadata should not materialize as a row type, got: {rendered:?}",
     );
 }
 
@@ -3070,7 +3115,7 @@ fn wildcard_effect_annotation_does_not_mark_arg_effect_through() {
 }
 
 #[test]
-fn row_effect_annotation_marks_only_tail_var_through() {
+fn row_effect_annotation_records_subtractability_without_row_bounds() {
     let state = parse_and_lower("my g(x: [io; e] _) = x");
     let g_def = state
         .ctx
@@ -3093,25 +3138,31 @@ fn row_effect_annotation_marks_only_tail_var_through() {
 
     assert!(
         !state.infer.is_through(arg_eff_tv),
-        "[io; e] should constrain the argument effect slot rather than mark it through",
+        "[io; e] should record subtractability metadata rather than mark the slot through",
     );
 
-    let has_tail_var = state
+    let has_row_lower = state
         .infer
         .lowers_of(arg_eff_tv)
         .into_iter()
-        .find_map(|bound| match bound {
-            Pos::Row(_, tail) => match state.infer.arena.get_pos(tail) {
-                Pos::Var(_) => Some(()),
-                _ => None,
-            },
-            _ => None,
-        })
-        .is_some();
+        .any(|bound| matches!(bound, Pos::Row(..)));
 
     assert!(
-        has_tail_var,
-        "row annotation should contribute a row lower bound with a tail var",
+        !has_row_lower,
+        "row annotation should not inject a row lower bound into the type graph",
+    );
+
+    let expected = symbols::Path {
+        segments: vec![symbols::Name("io".to_string())],
+    };
+    let subtractability = state.infer.effect_subtractability(arg_eff_tv);
+    assert!(
+        matches!(
+            subtractability,
+            Some(solve::EffectSubtractability::Set(ref atoms))
+                if atoms.len() == 1 && atoms[0].path == expected && atoms[0].args.is_empty()
+        ),
+        "row annotation should be kept as subtractability metadata, got {subtractability:?}",
     );
 }
 

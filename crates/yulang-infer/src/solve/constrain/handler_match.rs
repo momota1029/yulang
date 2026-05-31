@@ -291,11 +291,21 @@ fn merge_effect_subtractability(
         (EffectSubtractability::Set(lhs), EffectSubtractability::Set(rhs)) => {
             EffectSubtractability::Set(
                 lhs.into_iter()
-                    .filter(|path| rhs.contains(path))
+                    .filter(|atom| {
+                        rhs.iter()
+                            .any(|rhs| subtractability_atoms_overlap(atom, rhs))
+                    })
                     .collect::<Vec<_>>(),
             )
         }
     }
+}
+
+fn subtractability_atoms_overlap(
+    lhs: &crate::types::EffectAtom,
+    rhs: &crate::types::EffectAtom,
+) -> bool {
+    lhs.path == rhs.path
 }
 
 #[cfg(test)]

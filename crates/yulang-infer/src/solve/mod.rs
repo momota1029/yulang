@@ -10,7 +10,7 @@ use smallvec::SmallVec;
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::symbols::{ModuleId, ModuleTable, Name, Path};
 use crate::types::arena::TypeArena;
-use crate::types::{Neg, Pos, Variance};
+use crate::types::{EffectAtom, Neg, Pos, Variance};
 
 use crate::diagnostic::{ConstraintCause, TypeError, TypeOrigin};
 use crate::scheme::{FrozenScheme, OwnedSchemeInstance};
@@ -102,7 +102,21 @@ pub enum ShiftKeep {
 pub enum EffectSubtractability {
     Empty,
     All,
-    Set(Vec<Path>),
+    Set(Vec<EffectAtom>),
+}
+
+impl EffectSubtractability {
+    pub fn from_paths(paths: Vec<Path>) -> Self {
+        Self::Set(
+            paths
+                .into_iter()
+                .map(|path| EffectAtom {
+                    path,
+                    args: Vec::new(),
+                })
+                .collect(),
+        )
+    }
 }
 
 #[derive(Debug, Clone)]

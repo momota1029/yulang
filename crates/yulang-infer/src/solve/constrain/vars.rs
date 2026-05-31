@@ -84,10 +84,10 @@ impl Infer {
     ) -> Vec<PosId> {
         match subtractability {
             Some(EffectSubtractability::All) => items,
-            Some(EffectSubtractability::Set(paths)) => items
+            Some(EffectSubtractability::Set(atoms)) => items
                 .into_iter()
                 .filter(|item| match self.arena.get_pos(*item) {
-                    Pos::Atom(atom) => paths.iter().any(|path| path == &atom.path),
+                    Pos::Atom(atom) => atoms.iter().any(|allowed| allowed.path == atom.path),
                     _ => true,
                 })
                 .collect(),

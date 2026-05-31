@@ -72,6 +72,10 @@ pub(crate) fn make_app_with_cause(
     let boundary_keep = thunk_boundary_keep_for_call(state, &func);
     let mut demanded_ret_eff = Neg::Var(call_eff);
     let mut call_eff_has_subtractability = false;
+    if callee_is_unquantified_let_bound_value(state, &func) {
+        state.infer.mark_through(call_eff);
+        call_eff_has_subtractability = true;
+    }
     if let ExprKind::Var(def) = &func.kind {
         if let Some(hint) = state.lambda_param_function_sig_hint(*def) {
             match hint {
@@ -200,6 +204,19 @@ pub(crate) fn make_app_with_cause(
     result
 }
 
+fn callee_is_unquantified_let_bound_value(state: &LowerState, func: &TypedExpr) -> bool {
+    let ExprKind::Var(def) = &func.kind else {
+        return false;
+    };
+    if !state.is_let_bound_def(*def) {
+        return false;
+    }
+    if state.infer.frozen_schemes.borrow().contains_key(def) {
+        return false;
+    }
+    !state.infer.compact_schemes.borrow().contains_key(def)
+}
+
 fn record_callee_dependency(state: &LowerState, func: &TypedExpr) {
     let ExprKind::Var(def) = &func.kind else {
         return;
@@ -283,7 +300,7 @@ fn effect_subtractability_for_keep(keep: &ShiftKeep) -> Option<EffectSubtractabi
     match keep {
         ShiftKeep::None | ShiftKeep::CallBoundary => Some(EffectSubtractability::Empty),
         ShiftKeep::Surface => None,
-        ShiftKeep::Set(paths) => Some(EffectSubtractability::Set(paths.clone())),
+        ShiftKeep::Set(paths) => Some(EffectSubtractability::from_paths(paths.clone())),
     }
 }
 
@@ -331,19 +348,19 @@ fn record_effect_subtractability_from_upper(
     let Neg::Row(items, _) = state.infer.arena.get_neg(upper) else {
         return false;
     };
-    let paths = items
+    let atoms = items
         .into_iter()
         .filter_map(|item| match state.infer.arena.get_neg(item) {
-            Neg::Atom(atom) => Some(atom.path),
+            Neg::Atom(atom) => Some(atom),
             _ => None,
         })
         .collect::<Vec<_>>();
-    if paths.is_empty() {
+    if atoms.is_empty() {
         return false;
     }
     state
         .infer
-        .record_effect_subtractability(effect, EffectSubtractability::Set(paths));
+        .record_effect_subtractability(effect, EffectSubtractability::Set(atoms));
     true
 }
 

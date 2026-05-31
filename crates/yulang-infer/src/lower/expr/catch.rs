@@ -881,7 +881,7 @@ fn effect_subtractability_for_keep(keep: &ShiftKeep) -> Option<EffectSubtractabi
     match keep {
         ShiftKeep::None | ShiftKeep::CallBoundary => Some(EffectSubtractability::Empty),
         ShiftKeep::Surface => None,
-        ShiftKeep::Set(paths) => Some(EffectSubtractability::Set(paths.clone())),
+        ShiftKeep::Set(paths) => Some(EffectSubtractability::from_paths(paths.clone())),
     }
 }
 

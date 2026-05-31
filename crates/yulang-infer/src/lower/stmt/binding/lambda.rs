@@ -1,7 +1,7 @@
 use crate::profile::ProfileClock as Instant;
 
 use super::super::lambda_expr_eff_tv;
-use super::arg::{ArgPatInfo, configure_read_effect_from_ann};
+use super::arg::ArgPatInfo;
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::lower::LowerState;
 use crate::types::{Neg, Pos};
@@ -37,19 +37,6 @@ pub(crate) fn wrap_header_lambdas(
                 .constrain(Pos::Var(param_tv), super::super::neg_prim_type("unit"));
         }
         super::super::configure_arg_effect_from_ann(state, arg_eff_tv, arg_pat.ann.as_ref());
-        if let Some(read_eff_tv) = arg_pat.read_eff_tv {
-            if read_eff_tv != arg_eff_tv {
-                if let Some(ann) = arg_pat.ann.as_ref() {
-                    configure_read_effect_from_ann(state, read_eff_tv, ann);
-                }
-                state
-                    .infer
-                    .constrain(Pos::Var(arg_eff_tv), Neg::Var(read_eff_tv));
-                state
-                    .infer
-                    .constrain(Pos::Var(read_eff_tv), Neg::Var(arg_eff_tv));
-            }
-        }
         if let Some(pat) = &arg_pat.pat {
             state.infer.constrain(Pos::Var(param_tv), Neg::Var(pat.tv));
             state.infer.constrain(Pos::Var(pat.tv), Neg::Var(param_tv));
