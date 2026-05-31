@@ -2837,7 +2837,10 @@ mod tests {
             .find(|(name, _)| name == "r")
             .expect("r should be rendered");
 
-        assert_eq!(r.1, "(unit -> [outer; α] ⊤) -> [α] unit");
+        assert_eq!(
+            r.1,
+            "(unit -> [outer; α & [outer::local; α]] ⊤) -> [α] unit"
+        );
     }
 
     #[test]

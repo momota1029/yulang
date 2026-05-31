@@ -20,6 +20,13 @@ mod util;
 mod vars;
 
 use compact::compact_instance_direct_var;
+
+enum BoundaryRowUpper {
+    Unchanged,
+    TailOnly,
+    Filtered(Vec<NegId>),
+}
+
 #[derive(Debug, Default)]
 struct StepCache {
     seen: FxHashSet<(PosId, NegId)>,
@@ -214,16 +221,47 @@ impl Infer {
             (_, Neg::Var(b)) => {
                 self.constrain_to_neg_var(pos, b, cause, cache);
             }
-            (Pos::Var(a), Neg::Row(_, tail))
-                if self.effect_boundary_keep(a) == super::ShiftKeep::CallBoundary =>
-            {
-                self.constrain_step(pos, tail, cause, cache);
-            }
+            (Pos::Var(a), Neg::Row(items, tail)) => match self.boundary_row_upper(a, &items) {
+                BoundaryRowUpper::Unchanged => {
+                    self.constrain_pos_var_to(a, neg, cause, cache);
+                }
+                BoundaryRowUpper::TailOnly => {
+                    self.constrain_step(pos, tail, cause, cache);
+                }
+                BoundaryRowUpper::Filtered(items) => {
+                    let filtered = self.arena.alloc_neg(Neg::Row(items, tail));
+                    self.constrain_step(pos, filtered, cause, cache);
+                }
+            },
             (Pos::Var(a), _) => {
                 self.constrain_pos_var_to(a, neg, cause, cache);
             }
 
             _ => self.constrain_shape(pos, neg, cause, origin_hint, cache),
+        }
+    }
+
+    fn boundary_row_upper(&self, effect: TypeVar, items: &[NegId]) -> BoundaryRowUpper {
+        match self.effect_boundary_keep(effect) {
+            super::ShiftKeep::CallBoundary => BoundaryRowUpper::TailOnly,
+            super::ShiftKeep::Set(paths) => {
+                let filtered = items
+                    .iter()
+                    .copied()
+                    .filter(|item| match self.arena.get_neg(*item) {
+                        Neg::Atom(atom) => paths.iter().any(|path| path == &atom.path),
+                        _ => true,
+                    })
+                    .collect::<Vec<_>>();
+                if filtered.len() == items.len() {
+                    BoundaryRowUpper::Unchanged
+                } else if filtered.is_empty() {
+                    BoundaryRowUpper::TailOnly
+                } else {
+                    BoundaryRowUpper::Filtered(filtered)
+                }
+            }
+            super::ShiftKeep::None | super::ShiftKeep::Surface => BoundaryRowUpper::Unchanged,
         }
     }
 }

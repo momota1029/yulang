@@ -46,6 +46,9 @@ impl Infer {
         cause: ConstraintCause,
     ) {
         let keep = self.effect_boundary_keep(actual);
+        if let Some(residual_keep) = self.residual_boundary_keep(&keep, &handled) {
+            self.record_effect_boundary_keep(residual, residual_keep);
+        }
         let mut cache = StepCache::default();
         let residual_tail = self.arena.alloc_neg(Neg::Var(residual));
         let upper = if handled.is_empty() {
@@ -73,6 +76,27 @@ impl Infer {
             &cause,
             &mut cache,
         );
+    }
+
+    fn residual_boundary_keep(&self, keep: &ShiftKeep, handled: &[NegId]) -> Option<ShiftKeep> {
+        match keep {
+            ShiftKeep::CallBoundary => Some(ShiftKeep::CallBoundary),
+            ShiftKeep::Set(paths) => {
+                let mut remaining = paths.clone();
+                for handled in handled {
+                    let Neg::Atom(atom) = self.arena.get_neg(*handled) else {
+                        continue;
+                    };
+                    remaining.retain(|path| path != &atom.path);
+                }
+                Some(if remaining.is_empty() {
+                    ShiftKeep::CallBoundary
+                } else {
+                    ShiftKeep::Set(remaining)
+                })
+            }
+            ShiftKeep::None | ShiftKeep::Surface => None,
+        }
     }
 
     pub(super) fn solve_handler_matches_for(
@@ -333,6 +357,64 @@ mod tests {
     }
 
     #[test]
+    fn handler_match_set_keep_passes_uncaptured_path_to_residual() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        let tail = fresh_type_var();
+        let local = EffectAtom {
+            path: path("local"),
+            args: Vec::new(),
+        };
+        infer.record_effect_boundary_keep(actual, ShiftKeep::Set(vec![path("outer")]));
+        infer.constrain(
+            Pos::Row(
+                vec![infer.arena.alloc_pos(Pos::Atom(local.clone()))],
+                infer.arena.alloc_pos(Pos::Var(tail)),
+            ),
+            Neg::Var(actual),
+        );
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(local))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            residual_has_row_item(&infer, residual, "local"),
+            "handlers outside the call boundary keep set should leave the row item in the residual"
+        );
+    }
+
+    #[test]
+    fn handler_match_set_keep_removes_captured_path_from_residual_keep() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.record_effect_boundary_keep(actual, ShiftKeep::Set(vec![path("outer"), path("io")]));
+
+        infer.record_open_handler_match(
+            actual,
+            vec![infer.arena.alloc_neg(Neg::Atom(EffectAtom {
+                path: path("outer"),
+                args: Vec::new(),
+            }))],
+            residual,
+            ConstraintCause::unknown(),
+        );
+
+        assert!(
+            matches!(
+                infer.effect_boundary_keep(residual),
+                ShiftKeep::Set(paths) if paths == vec![path("io")]
+            ),
+            "residual keep should retain only the still-capturable paths"
+        );
+    }
+
+    #[test]
     fn handler_match_keeps_open_surface_rows_pending_by_default() {
         let infer = Infer::new();
         let actual = fresh_type_var();
@@ -455,5 +537,23 @@ mod tests {
                 }
                 _ => false,
             })
+    }
+
+    fn residual_has_row_item(
+        infer: &Infer,
+        residual: crate::ids::TypeVar,
+        path_name: &str,
+    ) -> bool {
+        infer.lower_refs_of(residual).into_iter().any(|lower| {
+            let Pos::Row(items, _) = infer.arena.get_pos(lower) else {
+                return false;
+            };
+            items.iter().any(|item| {
+                matches!(
+                    infer.arena.get_pos(*item),
+                    Pos::Atom(atom) if atom.path == path(path_name)
+                )
+            })
+        })
     }
 }
