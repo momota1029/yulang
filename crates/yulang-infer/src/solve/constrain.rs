@@ -21,10 +21,10 @@ mod vars;
 
 use compact::compact_instance_direct_var;
 
-enum BoundaryRowUpper {
-    Unchanged,
+enum RowUpperProjection {
+    Original,
     TailOnly,
-    Filtered(Vec<NegId>),
+    Items(Vec<NegId>),
 }
 
 #[derive(Debug, Default)]
@@ -114,6 +114,11 @@ impl Infer {
                 self.propagate_through(source, target, &cause, &mut cache);
             } else if !self.compact_instance_preserves_through(&instance) {
                 self.clear_through(target);
+            }
+
+            {
+                let mut cache = StepCache::default();
+                self.solve_handler_matches_for(target, &cause, &mut cache);
             }
 
             let uppers = self.upper_refs_of(target);
@@ -221,16 +226,16 @@ impl Infer {
             (_, Neg::Var(b)) => {
                 self.constrain_to_neg_var(pos, b, cause, cache);
             }
-            (Pos::Var(a), Neg::Row(items, tail)) => match self.boundary_row_upper(a, &items) {
-                BoundaryRowUpper::Unchanged => {
+            (Pos::Var(a), Neg::Row(items, tail)) => match self.row_upper_projection(a, &items) {
+                RowUpperProjection::Original => {
                     self.constrain_pos_var_to(a, neg, cause, cache);
                 }
-                BoundaryRowUpper::TailOnly => {
+                RowUpperProjection::TailOnly => {
                     self.constrain_step(pos, tail, cause, cache);
                 }
-                BoundaryRowUpper::Filtered(items) => {
-                    let filtered = self.arena.alloc_neg(Neg::Row(items, tail));
-                    self.constrain_step(pos, filtered, cause, cache);
+                RowUpperProjection::Items(items) => {
+                    let projected = self.arena.alloc_neg(Neg::Row(items, tail));
+                    self.constrain_step(pos, projected, cause, cache);
                 }
             },
             (Pos::Var(a), _) => {
@@ -241,11 +246,15 @@ impl Infer {
         }
     }
 
-    fn boundary_row_upper(&self, effect: TypeVar, items: &[NegId]) -> BoundaryRowUpper {
+    fn row_upper_projection(&self, effect: TypeVar, items: &[NegId]) -> RowUpperProjection {
+        if self.is_through(effect) {
+            return RowUpperProjection::TailOnly;
+        }
+
         match self.effect_boundary_keep(effect) {
-            super::ShiftKeep::CallBoundary => BoundaryRowUpper::TailOnly,
+            super::ShiftKeep::CallBoundary => RowUpperProjection::TailOnly,
             super::ShiftKeep::Set(paths) => {
-                let filtered = items
+                let projected = items
                     .iter()
                     .copied()
                     .filter(|item| match self.arena.get_neg(*item) {
@@ -253,15 +262,15 @@ impl Infer {
                         _ => true,
                     })
                     .collect::<Vec<_>>();
-                if filtered.len() == items.len() {
-                    BoundaryRowUpper::Unchanged
-                } else if filtered.is_empty() {
-                    BoundaryRowUpper::TailOnly
+                if projected.len() == items.len() {
+                    RowUpperProjection::Original
+                } else if projected.is_empty() {
+                    RowUpperProjection::TailOnly
                 } else {
-                    BoundaryRowUpper::Filtered(filtered)
+                    RowUpperProjection::Items(projected)
                 }
             }
-            super::ShiftKeep::None | super::ShiftKeep::Surface => BoundaryRowUpper::Unchanged,
+            super::ShiftKeep::None | super::ShiftKeep::Surface => RowUpperProjection::Original,
         }
     }
 }

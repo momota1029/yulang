@@ -1,6 +1,8 @@
+use rustc_hash::FxHashSet;
+
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
-use crate::ids::{NegId, TypeVar};
+use crate::ids::{NegId, PosId, TypeVar};
 use crate::solve::{HandlerMatchEdge, ShiftKeep};
 use crate::types::{Neg, Pos};
 
@@ -46,20 +48,10 @@ impl Infer {
         cause: ConstraintCause,
     ) {
         let keep = self.effect_boundary_keep(actual);
-        if let Some(residual_keep) = self.residual_boundary_keep(&keep, &handled) {
-            self.record_effect_boundary_keep(residual, residual_keep);
-        }
         let mut cache = StepCache::default();
-        let residual_tail = self.arena.alloc_neg(Neg::Var(residual));
-        let upper = if handled.is_empty() {
-            residual_tail
-        } else {
-            self.arena
-                .alloc_neg(Neg::Row(handled.clone(), residual_tail))
-        };
-
-        {
+        let index = {
             let mut edges = self.handler_matches.borrow_mut();
+            let index = edges.len();
             edges.push(HandlerMatchEdge {
                 actual,
                 keep,
@@ -68,35 +60,10 @@ impl Infer {
                 solve_open_rows,
                 cause: cause.clone(),
             });
-        }
-
-        self.constrain_step(
-            self.arena.alloc_pos(Pos::Var(actual)),
-            upper,
-            &cause,
-            &mut cache,
-        );
-    }
-
-    fn residual_boundary_keep(&self, keep: &ShiftKeep, handled: &[NegId]) -> Option<ShiftKeep> {
-        match keep {
-            ShiftKeep::CallBoundary => Some(ShiftKeep::CallBoundary),
-            ShiftKeep::Set(paths) => {
-                let mut remaining = paths.clone();
-                for handled in handled {
-                    let Neg::Atom(atom) = self.arena.get_neg(*handled) else {
-                        continue;
-                    };
-                    remaining.retain(|path| path != &atom.path);
-                }
-                Some(if remaining.is_empty() {
-                    ShiftKeep::CallBoundary
-                } else {
-                    ShiftKeep::Set(remaining)
-                })
-            }
-            ShiftKeep::None | ShiftKeep::Surface => None,
-        }
+            index
+        };
+        self.record_handler_match_dependent(actual, index);
+        self.solve_handler_matches_for(actual, &cause, &mut cache);
     }
 
     pub(super) fn solve_handler_matches_for(
@@ -105,7 +72,155 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        let _ = (actual, cause, cache);
+        let indices = self
+            .handler_match_dependents
+            .borrow()
+            .get(&actual)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        for index in indices {
+            let Some(edge) = self.handler_matches.borrow().get(index).cloned() else {
+                continue;
+            };
+            let mut seen = FxHashSet::default();
+            self.solve_handler_match_var(index, actual, &edge, cause, cache, &mut seen);
+        }
+    }
+
+    fn record_handler_match_dependent(&self, actual: TypeVar, index: usize) {
+        let mut dependents = self.handler_match_dependents.borrow_mut();
+        let entry = dependents.entry(actual).or_default();
+        if !entry.contains(&index) {
+            entry.push(index);
+        }
+    }
+
+    fn solve_handler_match_var(
+        &self,
+        index: usize,
+        actual: TypeVar,
+        edge: &HandlerMatchEdge,
+        cause: &ConstraintCause,
+        cache: &mut StepCache,
+        seen: &mut FxHashSet<TypeVar>,
+    ) {
+        if !seen.insert(actual) {
+            return;
+        }
+
+        for lower in self.lower_refs_of(actual) {
+            self.solve_handler_match_lower(index, lower, edge, cause, cache, seen);
+        }
+        for instance in self.compact_lower_instances_of(actual) {
+            let lower = self.materialize_compact_lower_instance(&instance);
+            self.solve_handler_match_lower(index, lower, edge, cause, cache, seen);
+        }
+    }
+
+    fn solve_handler_match_lower(
+        &self,
+        index: usize,
+        lower: PosId,
+        edge: &HandlerMatchEdge,
+        cause: &ConstraintCause,
+        cache: &mut StepCache,
+        seen: &mut FxHashSet<TypeVar>,
+    ) {
+        match self.arena.get_pos(lower).clone() {
+            Pos::Var(source) | Pos::Raw(source) => {
+                self.record_handler_match_dependent(source, index);
+                self.solve_handler_match_var(index, source, edge, cause, cache, seen);
+                if edge.solve_open_rows && source != edge.actual && self.is_through(source) {
+                    self.constrain_step(
+                        self.arena.alloc_pos(Pos::Var(source)),
+                        self.arena.alloc_neg(Neg::Var(edge.residual)),
+                        cause,
+                        cache,
+                    );
+                }
+            }
+            Pos::Union(left, right) => {
+                self.solve_handler_match_lower(index, left, edge, cause, cache, seen);
+                self.solve_handler_match_lower(index, right, edge, cause, cache, seen);
+            }
+            Pos::Row(items, tail) => {
+                self.solve_handler_match_row(items, tail, edge, cause, cache);
+            }
+            _ => {}
+        }
+    }
+
+    fn solve_handler_match_row(
+        &self,
+        items: Vec<PosId>,
+        tail: PosId,
+        edge: &HandlerMatchEdge,
+        cause: &ConstraintCause,
+        cache: &mut StepCache,
+    ) {
+        let mut unmatched = items;
+        for handled in &edge.handled {
+            let Some(index) = unmatched
+                .iter()
+                .position(|item| self.handler_match_row_items_match(*item, *handled))
+            else {
+                continue;
+            };
+            let matched = unmatched.remove(index);
+            self.constrain_row_item_match(matched, *handled, cause, cache);
+        }
+
+        let include_open_tail = edge.solve_open_rows;
+        let residual = self.handler_match_residual_lower(unmatched, tail, include_open_tail);
+        if let Some(residual) = residual {
+            self.constrain_step(
+                residual,
+                self.arena.alloc_neg(Neg::Var(edge.residual)),
+                cause,
+                cache,
+            );
+        }
+    }
+
+    fn handler_match_residual_lower(
+        &self,
+        unmatched: Vec<PosId>,
+        tail: PosId,
+        include_open_tail: bool,
+    ) -> Option<PosId> {
+        let tail_is_empty = self.pos_tail_is_empty_row(tail);
+        if unmatched.is_empty() {
+            return (!tail_is_empty && include_open_tail).then_some(tail);
+        }
+
+        let tail = if include_open_tail && !tail_is_empty {
+            tail
+        } else {
+            self.arena.bot
+        };
+        Some(self.arena.alloc_pos(Pos::Row(unmatched, tail)))
+    }
+
+    fn pos_tail_is_empty_row(&self, tail: PosId) -> bool {
+        match self.arena.get_pos(tail) {
+            Pos::Bot => true,
+            Pos::Row(items, row_tail) if items.is_empty() => self.pos_tail_is_empty_row(row_tail),
+            _ => false,
+        }
+    }
+
+    fn handler_match_row_items_match(&self, pos: PosId, neg: NegId) -> bool {
+        match (self.arena.get_pos(pos), self.arena.get_neg(neg)) {
+            (Pos::Atom(pos_atom), Neg::Atom(neg_atom)) => {
+                pos_atom.path == neg_atom.path && pos_atom.args.len() == neg_atom.args.len()
+            }
+            (Pos::Var(pos), Neg::Var(neg)) => pos == neg,
+            (Pos::Bot, Neg::Top) => true,
+            _ => false,
+        }
     }
 }
 
@@ -142,8 +257,8 @@ mod tests {
         );
 
         assert!(
-            has_handler_row_upper(&infer, actual, residual, "io"),
-            "handler_match should encode subtraction as an ordinary row upper bound"
+            !has_handler_row_upper(&infer, actual, residual, "io"),
+            "handler_match should solve residual rows without adding an ordinary row upper bound"
         );
         assert!(
             infer.lower_refs_of(residual).is_empty(),
@@ -181,6 +296,10 @@ mod tests {
         assert!(
             tail_flows_to_residual(&infer, tail, residual),
             "ordinary row constraints should propagate an open tail to the residual"
+        );
+        assert!(
+            !has_handler_row_upper(&infer, source, residual, "io"),
+            "handler subtraction should not push handled row uppers back into the source"
         );
     }
 
@@ -357,64 +476,6 @@ mod tests {
     }
 
     #[test]
-    fn handler_match_set_keep_passes_uncaptured_path_to_residual() {
-        let infer = Infer::new();
-        let actual = fresh_type_var();
-        let residual = fresh_type_var();
-        let tail = fresh_type_var();
-        let local = EffectAtom {
-            path: path("local"),
-            args: Vec::new(),
-        };
-        infer.record_effect_boundary_keep(actual, ShiftKeep::Set(vec![path("outer")]));
-        infer.constrain(
-            Pos::Row(
-                vec![infer.arena.alloc_pos(Pos::Atom(local.clone()))],
-                infer.arena.alloc_pos(Pos::Var(tail)),
-            ),
-            Neg::Var(actual),
-        );
-
-        infer.record_open_handler_match(
-            actual,
-            vec![infer.arena.alloc_neg(Neg::Atom(local))],
-            residual,
-            ConstraintCause::unknown(),
-        );
-
-        assert!(
-            residual_has_row_item(&infer, residual, "local"),
-            "handlers outside the call boundary keep set should leave the row item in the residual"
-        );
-    }
-
-    #[test]
-    fn handler_match_set_keep_removes_captured_path_from_residual_keep() {
-        let infer = Infer::new();
-        let actual = fresh_type_var();
-        let residual = fresh_type_var();
-        infer.record_effect_boundary_keep(actual, ShiftKeep::Set(vec![path("outer"), path("io")]));
-
-        infer.record_open_handler_match(
-            actual,
-            vec![infer.arena.alloc_neg(Neg::Atom(EffectAtom {
-                path: path("outer"),
-                args: Vec::new(),
-            }))],
-            residual,
-            ConstraintCause::unknown(),
-        );
-
-        assert!(
-            matches!(
-                infer.effect_boundary_keep(residual),
-                ShiftKeep::Set(paths) if paths == vec![path("io")]
-            ),
-            "residual keep should retain only the still-capturable paths"
-        );
-    }
-
-    #[test]
     fn handler_match_keeps_open_surface_rows_pending_by_default() {
         let infer = Infer::new();
         let actual = fresh_type_var();
@@ -537,23 +598,5 @@ mod tests {
                 }
                 _ => false,
             })
-    }
-
-    fn residual_has_row_item(
-        infer: &Infer,
-        residual: crate::ids::TypeVar,
-        path_name: &str,
-    ) -> bool {
-        infer.lower_refs_of(residual).into_iter().any(|lower| {
-            let Pos::Row(items, _) = infer.arena.get_pos(lower) else {
-                return false;
-            };
-            items.iter().any(|item| {
-                matches!(
-                    infer.arena.get_pos(*item),
-                    Pos::Atom(atom) if atom.path == path(path_name)
-                )
-            })
-        })
     }
 }
