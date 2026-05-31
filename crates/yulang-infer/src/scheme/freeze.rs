@@ -850,15 +850,62 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
     let mut out = Vec::new();
     if let Some(body) = compact_root_fun_body_lower(scheme) {
         collect_compact_type_free_vars(&body, &mut out);
-        return out;
+    } else {
+        collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
     }
-    collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
+    // Root upper evidence is installed as a use-site upper constraint, not
+    // folded into the positive body.  Quantify variables that occur inside
+    // upper constructors so that this delayed evidence is freshened too.
+    collect_compact_root_upper_child_free_vars(&scheme.cty.upper, &mut out);
     out
 }
 
 fn collect_compact_bounds_free_vars(bounds: &CompactBounds, out: &mut Vec<TypeVar>) {
     collect_compact_type_free_vars(&bounds.lower, out);
     collect_compact_type_free_vars(&bounds.upper, out);
+}
+
+fn collect_compact_root_upper_child_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_compact_bounds_free_vars(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_compact_type_free_vars(&fun.arg, out);
+        collect_compact_type_free_vars(&fun.arg_eff, out);
+        collect_compact_type_free_vars(&fun.ret_eff, out);
+        collect_compact_type_free_vars(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_compact_type_free_vars(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_free_vars(&field.value, out);
+        }
+        collect_compact_type_free_vars(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_compact_type_free_vars(payload, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_compact_type_free_vars(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_compact_type_free_vars(item, out);
+        }
+        collect_compact_type_free_vars(&row.tail, out);
+    }
 }
 
 fn collect_compact_type_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {

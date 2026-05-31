@@ -248,25 +248,14 @@ pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<
     }
 
     let (arg, mut arg_eff, mut ret_eff, ret) = match scheme.cty.upper.funs.as_slice() {
-        [upper_fun] => {
-            let rehandles = upper_fun_rehandles_lower_arg_effect(lower_fun, upper_fun);
-            (
-                common_compact_type(&lower_fun.arg, &upper_fun.arg)
-                    .filter(|ty| !is_empty_compact_type(ty))
-                    .unwrap_or_else(|| lower_fun.arg.clone()),
-                root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
-                if rehandles {
-                    merge_compact_types(true, lower_fun.ret_eff.clone(), upper_fun.ret_eff.clone())
-                } else {
-                    lower_fun.ret_eff.clone()
-                },
-                if rehandles {
-                    merge_compact_types(true, lower_fun.ret.clone(), upper_fun.ret.clone())
-                } else {
-                    lower_fun.ret.clone()
-                },
-            )
-        }
+        [upper_fun] => (
+            common_compact_type(&lower_fun.arg, &upper_fun.arg)
+                .filter(|ty| !is_empty_compact_type(ty))
+                .unwrap_or_else(|| lower_fun.arg.clone()),
+            root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
+            lower_fun.ret_eff.clone(),
+            lower_fun.ret.clone(),
+        ),
         [] => (
             lower_fun.arg.clone(),
             lower_fun.arg_eff.clone(),
