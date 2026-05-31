@@ -888,8 +888,8 @@ fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> O
 
     Some(arena.alloc_pos(Pos::Fun {
         arg: compact_neg_type(arena, &fun.arg, scheme, false),
-        arg_eff: compact_neg_type(arena, &fun.arg_eff, scheme, false),
-        ret_eff: compact_pos_type(arena, &fun.ret_eff, scheme, false),
+        arg_eff: compact_neg_effect_row(arena, &fun.arg_eff, scheme),
+        ret_eff: compact_pos_effect_row(arena, &fun.ret_eff, scheme),
         ret: compact_pos_type(arena, &fun.ret, scheme, false),
     }))
 }
@@ -1086,8 +1086,8 @@ pub(crate) fn compact_pos_type(
     {
         parts.push(arena.alloc_pos(Pos::Fun {
             arg: compact_neg_type(arena, arg, scheme, false),
-            arg_eff: compact_neg_type(arena, arg_eff, scheme, false),
-            ret_eff: compact_pos_type(arena, ret_eff, scheme, false),
+            arg_eff: compact_neg_effect_row(arena, arg_eff, scheme),
+            ret_eff: compact_pos_effect_row(arena, ret_eff, scheme),
             ret: compact_pos_type(arena, ret, scheme, false),
         }));
     }
@@ -1217,8 +1217,8 @@ pub(crate) fn compact_neg_type(
     {
         parts.push(arena.alloc_neg(Neg::Fun {
             arg: compact_pos_type(arena, arg, scheme, false),
-            arg_eff: compact_pos_type(arena, arg_eff, scheme, false),
-            ret_eff: compact_neg_type(arena, ret_eff, scheme, false),
+            arg_eff: compact_pos_effect_row(arena, arg_eff, scheme),
+            ret_eff: compact_neg_effect_row(arena, ret_eff, scheme),
             ret: compact_neg_type(arena, ret, scheme, false),
         }));
     }
@@ -1296,6 +1296,103 @@ pub(crate) fn compact_neg_type(
         );
     }
     fold_neg_intersection_id(arena, parts)
+}
+
+/// Build the `Neg` for an effect row stored as a compact `prims + vars (+ effect cons + nested
+/// rows)` set: emit `Neg::Row(atoms; tail)` so it matches a handler's row constraint exactly.
+fn compact_neg_effect_row(
+    arena: &TypeArena,
+    ty: &CompactType,
+    scheme: &CompactTypeScheme,
+) -> NegId {
+    let mut items = Vec::new();
+    let mut tail_parts = Vec::new();
+    collect_neg_effect_row_parts(arena, ty, scheme, &mut items, &mut tail_parts);
+    if items.is_empty() {
+        // No handled atoms — a pure / variable-only effect row. Keep the legacy
+        // representation (`Var` / `Top`) so pure functions are left untouched.
+        return fold_neg_intersection_id(arena, tail_parts);
+    }
+    let tail = fold_neg_intersection_id(arena, tail_parts);
+    arena.alloc_neg(Neg::Row(items, tail))
+}
+
+/// Flatten an effect-row compact type into `(atoms, tail-vars)`: handled atoms become row
+/// items, residual vars become the tail, nested rows are spliced in recursively.
+fn collect_neg_effect_row_parts(
+    arena: &TypeArena,
+    ty: &CompactType,
+    scheme: &CompactTypeScheme,
+    items: &mut Vec<NegId>,
+    tail_parts: &mut Vec<NegId>,
+) {
+    let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+    prims.sort_by_key(path_key);
+    for path in prims {
+        items.push(arena.alloc_neg(Neg::Atom(EffectAtom { path, args: vec![] })));
+    }
+    for con in &ty.cons {
+        if let Some(atom) = compact_con_as_effect_atom(con) {
+            items.push(arena.alloc_neg(Neg::Atom(atom)));
+        }
+    }
+    let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    for tv in vars {
+        tail_parts.push(arena.alloc_neg(Neg::Var(tv)));
+    }
+    for CompactRow { items: row_items, tail } in &ty.rows {
+        for item in row_items {
+            collect_neg_effect_row_parts(arena, item, scheme, items, tail_parts);
+        }
+        collect_neg_effect_row_parts(arena, tail, scheme, items, tail_parts);
+    }
+}
+
+/// `compact_neg_effect_row`'s positive twin: emit `Pos::Row(atoms; tail)`.
+fn compact_pos_effect_row(
+    arena: &TypeArena,
+    ty: &CompactType,
+    scheme: &CompactTypeScheme,
+) -> PosId {
+    let mut items = Vec::new();
+    let mut tail_parts = Vec::new();
+    collect_pos_effect_row_parts(arena, ty, scheme, &mut items, &mut tail_parts);
+    if items.is_empty() {
+        return fold_pos_union_id(arena, tail_parts);
+    }
+    let tail = fold_pos_union_id(arena, tail_parts);
+    arena.alloc_pos(Pos::Row(items, tail))
+}
+
+fn collect_pos_effect_row_parts(
+    arena: &TypeArena,
+    ty: &CompactType,
+    scheme: &CompactTypeScheme,
+    items: &mut Vec<PosId>,
+    tail_parts: &mut Vec<PosId>,
+) {
+    let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+    prims.sort_by_key(path_key);
+    for path in prims {
+        items.push(arena.alloc_pos(Pos::Atom(EffectAtom { path, args: vec![] })));
+    }
+    for con in &ty.cons {
+        if let Some(atom) = compact_con_as_effect_atom(con) {
+            items.push(arena.alloc_pos(Pos::Atom(atom)));
+        }
+    }
+    let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    for tv in vars {
+        tail_parts.push(arena.alloc_pos(Pos::Var(tv)));
+    }
+    for CompactRow { items: row_items, tail } in &ty.rows {
+        for item in row_items {
+            collect_pos_effect_row_parts(arena, item, scheme, items, tail_parts);
+        }
+        collect_pos_effect_row_parts(arena, tail, scheme, items, tail_parts);
+    }
 }
 
 fn fold_pos_union_id(arena: &TypeArena, parts: Vec<PosId>) -> PosId {

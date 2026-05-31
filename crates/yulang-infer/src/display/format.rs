@@ -687,6 +687,7 @@ fn coalesce_root_fun_arg_effect_field(
         })
         .unwrap_or(bounds.lower);
     remove_upper_covered_row_tail_vars(&mut ty, &bounds.upper);
+    absorb_redundant_row_tail_residual_vars(&mut ty);
 
     if is_empty_compact(&ty) || is_explicit_empty_row_compact(&ty) {
         Type::Bot
@@ -695,6 +696,22 @@ fn coalesce_root_fun_arg_effect_field(
     } else {
         ctx.coalesce_type(&ty, false)
     }
+}
+
+/// Drop a bare residual var that the same effect row already carries as its tail:
+/// `β & [io; β]` ⇒ `[io; β]`. The row constrains `β` exactly as tightly, so the
+/// standalone `β` is redundant.
+fn absorb_redundant_row_tail_residual_vars(ty: &mut CompactType) {
+    if ty.vars.is_empty() || ty.rows.is_empty() {
+        return;
+    }
+    let tail_vars: HashSet<TypeVar> = ty
+        .rows
+        .iter()
+        .filter(|row| !row.items.is_empty())
+        .flat_map(|row| row.tail.vars.iter().copied())
+        .collect();
+    ty.vars.retain(|tv| !tail_vars.contains(tv));
 }
 
 fn simplify_function_effect_residual_rows_for_render(fun: &mut CompactFun) {
@@ -883,6 +900,7 @@ fn coalesce_lower_only_root_fun(
     {
         coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
     }
+    absorb_redundant_row_tail_residual_vars(&mut lower_fun.arg_eff);
     simplify_function_effect_residual_rows_for_render(&mut lower_fun);
     let arg = coalesce_lower_only_root_fun_field(ctx, &lower_fun.arg, false, &HashSet::new());
     let mut rendered_input_vars = HashSet::new();
