@@ -1,7 +1,7 @@
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, TypeVar};
-use crate::scheme::{OwnedSchemeInstance, compact_pos_type};
+use crate::scheme::{OwnedSchemeInstance, compact_neg_type, compact_pos_type};
 use crate::simplify::compact::{
     CompactBounds, CompactType, single_substituted_compact_var, subst_compact_con,
     subst_compact_fun, subst_compact_record, subst_compact_record_spread, subst_compact_row,
@@ -26,6 +26,17 @@ impl Infer {
         for part in parts {
             self.constrain_step_with_hint(part, neg, cause, origin_hint, cache);
         }
+    }
+
+    pub(super) fn compact_instance_root_upper_parts(
+        &self,
+        instance: &OwnedSchemeInstance,
+    ) -> Vec<NegId> {
+        compact_neg_parts_with_subst(
+            self,
+            &instance.scheme.compact.cty.upper,
+            instance.subst.as_slice(),
+        )
     }
 
     pub(super) fn compact_instance_preserves_through(
@@ -166,6 +177,118 @@ fn compact_pos_parts_with_subst(
         let mut fragment = CompactType::default();
         fragment.rows.push(subst_compact_row(row, subst));
         parts.push(compact_pos_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    parts
+}
+
+fn compact_neg_parts_with_subst(
+    infer: &Infer,
+    ty: &CompactType,
+    subst: &[(TypeVar, TypeVar)],
+) -> Vec<crate::ids::NegId> {
+    if compact_type_is_empty(ty) {
+        return Vec::new();
+    }
+
+    let mut parts = Vec::new();
+    let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    parts.extend(
+        vars.into_iter()
+            .map(|tv| infer.alloc_neg(crate::types::Neg::Var(subst_lookup_small(subst, tv)))),
+    );
+
+    let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+    prims.sort_by_key(path_key);
+    for path in prims {
+        let mut fragment = CompactType::default();
+        fragment.prims.insert(path);
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+
+    for con in &ty.cons {
+        let mut fragment = CompactType::default();
+        fragment.cons.push(subst_compact_con(con, subst));
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    for fun in &ty.funs {
+        let mut fragment = CompactType::default();
+        fragment.funs.push(subst_compact_fun(fun, subst));
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    for record in &ty.records {
+        let mut fragment = CompactType::default();
+        fragment.records.push(subst_compact_record(record, subst));
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    for spread in &ty.record_spreads {
+        let mut fragment = CompactType::default();
+        fragment
+            .record_spreads
+            .push(subst_compact_record_spread(spread, subst));
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    for variant in &ty.variants {
+        let mut fragment = CompactType::default();
+        fragment
+            .variants
+            .push(subst_compact_variant(variant, subst));
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    for tuple in &ty.tuples {
+        let mut fragment = CompactType::default();
+        fragment.tuples.push(
+            tuple
+                .iter()
+                .map(|item| subst_compact_type(item, subst))
+                .collect(),
+        );
+        parts.push(compact_neg_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
+    for row in &ty.rows {
+        let mut fragment = CompactType::default();
+        fragment.rows.push(subst_compact_row(row, subst));
+        parts.push(compact_neg_type(
             &infer.arena,
             &fragment,
             &dummy_compact_scheme(),

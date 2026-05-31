@@ -81,7 +81,7 @@ pub fn configure_arg_effect_from_ann(
     }
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
-        Some(LoweredEffAnn::Row { upper, .. }) => {
+        Some(LoweredEffAnn::Row { lower, upper, .. }) => {
             register_eff_bind_from_annotation(state, arg_eff_tv, &upper);
             let cause = ann
                 .map(|ann| ConstraintCause {
@@ -100,6 +100,9 @@ pub fn configure_arg_effect_from_ann(
                     },
                 );
             }
+            state
+                .infer
+                .constrain_with_cause(lower, Neg::Var(arg_eff_tv), cause.clone());
             state
                 .infer
                 .constrain_with_cause(Pos::Var(arg_eff_tv), upper, cause);

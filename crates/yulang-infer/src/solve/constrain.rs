@@ -92,6 +92,7 @@ impl Infer {
         if self.max_level_scheme_instance(&instance) > target_lvl {
             let body = self.materialize_compact_lower_instance(&instance);
             self.constrain_instantiated_ref(body, target);
+            self.constrain_instantiated_ref_root_uppers(&instance, target, &cause);
             self.record_profile(start, |profile, elapsed| {
                 profile.constrain_instantiated_ref_instance += elapsed;
             });
@@ -121,10 +122,25 @@ impl Infer {
                     );
                 }
             }
+            self.constrain_instantiated_ref_root_uppers(&instance, target, &cause);
         }
         self.record_profile(start, |profile, elapsed| {
             profile.constrain_instantiated_ref_instance += elapsed;
         });
+    }
+
+    fn constrain_instantiated_ref_root_uppers(
+        &self,
+        instance: &OwnedSchemeInstance,
+        target: TypeVar,
+        cause: &ConstraintCause,
+    ) {
+        let mut cache = StepCache::default();
+        for upper in self.compact_instance_root_upper_parts(instance) {
+            if self.add_upper_bound(target, upper, cause, &mut cache) {
+                self.propagate_upper_to_lowers(target, upper, cause, &mut cache);
+            }
+        }
     }
 
     fn constrain_step(

@@ -123,15 +123,15 @@ pub(super) fn apply_function_effect_residual_unifications(
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     let mut classes = Vec::<Vec<TypeVar>>::new();
-    collect_function_effect_residual_classes_in_bounds(&scheme.cty, subst, &mut classes);
+    collect_function_effect_residual_classes_in_bounds(&scheme.cty, subst, rec_vars, &mut classes);
     let mut rec_var_items = rec_vars.iter().collect::<Vec<_>>();
     rec_var_items.sort_by_key(|(tv, _)| tv.0);
     for (_, bounds) in rec_var_items {
-        collect_function_effect_residual_classes_in_bounds(bounds, subst, &mut classes);
+        collect_function_effect_residual_classes_in_bounds(bounds, subst, rec_vars, &mut classes);
     }
     for constraint in constraints {
         for arg in &constraint.args {
-            collect_function_effect_residual_classes_in_bounds(arg, subst, &mut classes);
+            collect_function_effect_residual_classes_in_bounds(arg, subst, rec_vars, &mut classes);
         }
     }
 
@@ -266,63 +266,76 @@ fn is_row_residual_tail_for_vars(tail: &CompactType, residual_vars: &HashSet<Typ
 fn collect_function_effect_residual_classes_in_bounds(
     bounds: &CompactBounds,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
     classes: &mut Vec<Vec<TypeVar>>,
 ) {
-    collect_function_effect_residual_classes_in_type(&bounds.lower, subst, classes);
-    collect_function_effect_residual_classes_in_type(&bounds.upper, subst, classes);
+    collect_function_effect_residual_classes_in_type(&bounds.lower, subst, rec_vars, classes);
+    collect_function_effect_residual_classes_in_type(&bounds.upper, subst, rec_vars, classes);
 }
 
 fn collect_function_effect_residual_classes_in_type(
     ty: &CompactType,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
     classes: &mut Vec<Vec<TypeVar>>,
 ) {
     for con in &ty.cons {
         for arg in &con.args {
-            collect_function_effect_residual_classes_in_bounds(arg, subst, classes);
+            collect_function_effect_residual_classes_in_bounds(arg, subst, rec_vars, classes);
         }
     }
     for fun in &ty.funs {
-        collect_function_effect_residual_class(fun, subst, classes);
-        collect_function_effect_residual_classes_in_type(&fun.arg, subst, classes);
-        collect_function_effect_residual_classes_in_type(&fun.arg_eff, subst, classes);
-        collect_function_effect_residual_classes_in_type(&fun.ret_eff, subst, classes);
-        collect_function_effect_residual_classes_in_type(&fun.ret, subst, classes);
+        collect_function_effect_residual_class(fun, subst, rec_vars, classes);
+        collect_function_effect_residual_classes_in_type(&fun.arg, subst, rec_vars, classes);
+        collect_function_effect_residual_classes_in_type(&fun.arg_eff, subst, rec_vars, classes);
+        collect_function_effect_residual_classes_in_type(&fun.ret_eff, subst, rec_vars, classes);
+        collect_function_effect_residual_classes_in_type(&fun.ret, subst, rec_vars, classes);
     }
     for record in &ty.records {
         for field in &record.fields {
-            collect_function_effect_residual_classes_in_type(&field.value, subst, classes);
+            collect_function_effect_residual_classes_in_type(
+                &field.value,
+                subst,
+                rec_vars,
+                classes,
+            );
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            collect_function_effect_residual_classes_in_type(&field.value, subst, classes);
+            collect_function_effect_residual_classes_in_type(
+                &field.value,
+                subst,
+                rec_vars,
+                classes,
+            );
         }
-        collect_function_effect_residual_classes_in_type(&spread.tail, subst, classes);
+        collect_function_effect_residual_classes_in_type(&spread.tail, subst, rec_vars, classes);
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                collect_function_effect_residual_classes_in_type(payload, subst, classes);
+                collect_function_effect_residual_classes_in_type(payload, subst, rec_vars, classes);
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            collect_function_effect_residual_classes_in_type(item, subst, classes);
+            collect_function_effect_residual_classes_in_type(item, subst, rec_vars, classes);
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            collect_function_effect_residual_classes_in_type(item, subst, classes);
+            collect_function_effect_residual_classes_in_type(item, subst, rec_vars, classes);
         }
-        collect_function_effect_residual_classes_in_type(&row.tail, subst, classes);
+        collect_function_effect_residual_classes_in_type(&row.tail, subst, rec_vars, classes);
     }
 }
 
 fn collect_function_effect_residual_class(
     fun: &super::CompactFun,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
     classes: &mut Vec<Vec<TypeVar>>,
 ) {
     let ret_vars = compact_type_surface_vars(&fun.ret_eff, subst);
@@ -331,11 +344,34 @@ fn collect_function_effect_residual_class(
     }
     let mut vars = compact_type_surface_vars(&fun.arg_eff, subst);
     collect_arg_effect_tail_vars_matching_ret(&fun.arg_eff, &ret_vars, subst, &mut vars);
+    if arg_effect_tail_mentions_recursive_var(&fun.arg_eff, rec_vars, subst) {
+        vars.extend(ret_vars);
+    }
     if vars.len() > 1 {
         let mut vars = vars.into_iter().collect::<Vec<_>>();
         vars.sort_by_key(|tv| tv.0);
         classes.push(vars);
     }
+}
+
+fn arg_effect_tail_mentions_recursive_var(
+    ty: &CompactType,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+) -> bool {
+    for row in &ty.rows {
+        if !row.items.is_empty()
+            && row_tail_vars(&row.tail, subst)
+                .into_iter()
+                .any(|tv| rec_vars.contains_key(&tv))
+        {
+            return true;
+        }
+        if arg_effect_tail_mentions_recursive_var(&row.tail, rec_vars, subst) {
+            return true;
+        }
+    }
+    false
 }
 
 fn compact_type_surface_vars(
@@ -624,7 +660,6 @@ fn row_tail_vars(tail: &CompactType, subst: &HashMap<TypeVar, Option<TypeVar>>) 
         || !tail.record_spreads.is_empty()
         || !tail.variants.is_empty()
         || !tail.tuples.is_empty()
-        || !tail.rows.is_empty()
     {
         return Vec::new();
     }
@@ -634,6 +669,9 @@ fn row_tail_vars(tail: &CompactType, subst: &HashMap<TypeVar, Option<TypeVar>>) 
         .iter()
         .filter_map(|&tv| rewrite_optional_var(tv, subst))
         .collect::<Vec<_>>();
+    for row in &tail.rows {
+        vars.extend(row_tail_vars(&row.tail, subst));
+    }
     vars.sort_by_key(|tv| tv.0);
     vars.dedup();
     vars

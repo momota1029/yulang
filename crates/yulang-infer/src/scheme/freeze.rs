@@ -4,11 +4,12 @@ use std::rc::Rc;
 use crate::ids::{NegId, PosId, TypeVar, fresh_frozen_type_var};
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
-    CompactType, CompactTypeScheme, CompactVariant, coalesce_function_effect_residual,
-    coalesce_function_effect_residuals_in_scheme,
+    CompactType, CompactTypeScheme, CompactVariant, coalesce_function_effect_residuals_in_scheme,
     coalesce_multi_function_effect_residuals_in_scheme,
-    coalesce_nested_tail_function_effect_residuals_in_scheme, compact_type_var,
-    merge_compact_types, normalize_compact_scheme_rows, subst_compact_bounds, subst_lookup_small,
+    coalesce_nested_tail_function_effect_residuals_in_scheme,
+    coalesce_rehandled_function_effect_residuals_in_scheme, compact_root_fun_body_lower,
+    compact_type_var, merge_compact_types, normalize_compact_scheme_rows, subst_compact_bounds,
+    subst_lookup_small,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars;
@@ -45,6 +46,7 @@ fn coalesce_compact_scheme_for_freeze(
 ) -> CompactTypeScheme {
     let exposed_boundary_vars =
         coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
+    coalesce_multi_function_effect_residuals_in_scheme(&mut compact);
     let mut boundary = collect_non_generic_vars(infer, non_generic_roots);
     boundary.extend(exposed_boundary_vars);
     let (mut scheme, _) = coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
@@ -54,6 +56,7 @@ fn coalesce_compact_scheme_for_freeze(
         &boundary,
     );
     coalesce_multi_function_effect_residuals_in_scheme(&mut scheme);
+    coalesce_rehandled_function_effect_residuals_in_scheme(&mut scheme);
     normalize_compact_scheme_rows(&mut scheme);
     scheme
 }
@@ -813,154 +816,17 @@ pub(crate) fn collect_non_generic_vars(
 }
 
 fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> Option<PosId> {
-    let [lower_fun] = scheme.cty.lower.funs.as_slice() else {
+    let body = compact_root_fun_body_lower(scheme)?;
+    let [fun] = body.funs.as_slice() else {
         return None;
     };
-    let ignorable_root_vars = ignorable_root_vars(&scheme.cty);
-    if !root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
-        || !root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
-    {
-        return None;
-    }
-
-    let (arg, mut arg_eff, mut ret_eff, ret) = match scheme.cty.upper.funs.as_slice() {
-        [upper_fun] => (
-            common_compact_type(&lower_fun.arg, &upper_fun.arg)
-                .filter(|ty| !is_empty_compact_type(ty))
-                .unwrap_or_else(|| lower_fun.arg.clone()),
-            root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
-            merge_compact_types(true, lower_fun.ret_eff.clone(), upper_fun.ret_eff.clone()),
-            merge_compact_types(true, lower_fun.ret.clone(), upper_fun.ret.clone()),
-        ),
-        [] => (
-            lower_fun.arg.clone(),
-            lower_fun.arg_eff.clone(),
-            lower_fun.ret_eff.clone(),
-            lower_fun.ret.clone(),
-        ),
-        _ => return None,
-    };
-    coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
 
     Some(arena.alloc_pos(Pos::Fun {
-        arg: compact_neg_type(arena, &arg, scheme, false),
-        arg_eff: compact_neg_type(arena, &arg_eff, scheme, false),
-        ret_eff: compact_pos_type(arena, &ret_eff, scheme, false),
-        ret: compact_pos_type(arena, &ret, scheme, false),
+        arg: compact_neg_type(arena, &fun.arg, scheme, false),
+        arg_eff: compact_neg_type(arena, &fun.arg_eff, scheme, false),
+        ret_eff: compact_pos_type(arena, &fun.ret_eff, scheme, false),
+        ret: compact_pos_type(arena, &fun.ret, scheme, false),
     }))
-}
-
-fn root_non_fun_parts_empty(ty: &CompactType, ignorable_root_vars: &HashSet<TypeVar>) -> bool {
-    ty.vars.iter().all(|tv| ignorable_root_vars.contains(tv))
-        && ty.prims.is_empty()
-        && ty.cons.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.rows.is_empty()
-}
-
-fn ignorable_root_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
-    let mut vars = bounds
-        .lower
-        .vars
-        .intersection(&bounds.upper.vars)
-        .copied()
-        .collect::<HashSet<_>>();
-    if let Some(self_var) = bounds.self_var {
-        vars.insert(self_var);
-    }
-    vars
-}
-
-fn common_compact_type(lhs: &CompactType, rhs: &CompactType) -> Option<CompactType> {
-    let vars = lhs.vars.intersection(&rhs.vars).copied().collect();
-    let prims = lhs.prims.intersection(&rhs.prims).cloned().collect();
-    let cons = lhs
-        .cons
-        .iter()
-        .filter(|item| rhs.cons.contains(item))
-        .cloned()
-        .collect();
-    let funs = lhs
-        .funs
-        .iter()
-        .filter(|item| rhs.funs.contains(item))
-        .cloned()
-        .collect();
-    let records = lhs
-        .records
-        .iter()
-        .filter(|item| rhs.records.contains(item))
-        .cloned()
-        .collect();
-    let record_spreads = lhs
-        .record_spreads
-        .iter()
-        .filter(|item| rhs.record_spreads.contains(item))
-        .cloned()
-        .collect();
-    let variants = lhs
-        .variants
-        .iter()
-        .filter(|item| rhs.variants.contains(item))
-        .cloned()
-        .collect();
-    let tuples = lhs
-        .tuples
-        .iter()
-        .filter(|item| rhs.tuples.contains(item))
-        .cloned()
-        .collect();
-    let rows = lhs
-        .rows
-        .iter()
-        .filter(|item| rhs.rows.contains(item))
-        .cloned()
-        .collect();
-    Some(CompactType {
-        vars,
-        prims,
-        cons,
-        funs,
-        records,
-        record_spreads,
-        variants,
-        tuples,
-        rows,
-    })
-}
-
-fn root_fun_arg_eff_compact(lower: &CompactType, upper: &CompactType) -> CompactType {
-    common_compact_type(lower, upper)
-        .filter(|ty| {
-            !is_empty_compact_type(ty) && (has_non_var_shape(ty) || !has_non_var_shape(lower))
-        })
-        .unwrap_or_else(|| lower.clone())
-}
-
-fn is_empty_compact_type(ty: &CompactType) -> bool {
-    ty.vars.is_empty()
-        && ty.prims.is_empty()
-        && ty.cons.is_empty()
-        && ty.funs.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.rows.is_empty()
-}
-
-fn has_non_var_shape(ty: &CompactType) -> bool {
-    !ty.prims.is_empty()
-        || !ty.cons.is_empty()
-        || !ty.funs.is_empty()
-        || !ty.records.is_empty()
-        || !ty.record_spreads.is_empty()
-        || !ty.variants.is_empty()
-        || !ty.tuples.is_empty()
-        || !ty.rows.is_empty()
 }
 
 fn compact_con_as_effect_atom(con: &CompactCon) -> Option<EffectAtom> {
@@ -982,49 +848,9 @@ fn compact_con_as_effect_atom(con: &CompactCon) -> Option<EffectAtom> {
 
 fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVar> {
     let mut out = Vec::new();
-    let ignorable_root_vars = ignorable_root_vars(&scheme.cty);
-    if let Some([lower_fun]) = scheme.cty.lower.funs.as_slice().first_chunk::<1>() {
-        if root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
-            && root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
-        {
-            // Match `compact_root_fun_pos_body` exactly: arg / arg_eff use
-            // the common (intersection) of lower and upper, while ret_eff
-            // and ret merge lower with upper. Any variable that ends up in
-            // the body but not collected here will stay as a live TypeVar
-            // after instantiation, so the two functions have to agree on
-            // *which slices* of the bounds feed the body.
-            let (arg, mut arg_eff, mut ret_eff, ret) =
-                match scheme.cty.upper.funs.as_slice().first_chunk::<1>() {
-                    Some([upper_fun]) => (
-                        common_compact_type(&lower_fun.arg, &upper_fun.arg)
-                            .filter(|ty| !is_empty_compact_type(ty))
-                            .unwrap_or_else(|| lower_fun.arg.clone()),
-                        root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
-                        merge_compact_types(
-                            true,
-                            lower_fun.ret_eff.clone(),
-                            upper_fun.ret_eff.clone(),
-                        ),
-                        merge_compact_types(true, lower_fun.ret.clone(), upper_fun.ret.clone()),
-                    ),
-                    None if scheme.cty.upper.funs.is_empty() => (
-                        lower_fun.arg.clone(),
-                        lower_fun.arg_eff.clone(),
-                        lower_fun.ret_eff.clone(),
-                        lower_fun.ret.clone(),
-                    ),
-                    _ => {
-                        collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
-                        return out;
-                    }
-                };
-            coalesce_function_effect_residual(&mut arg_eff, &mut ret_eff);
-            collect_compact_type_free_vars(&arg, &mut out);
-            collect_compact_type_free_vars(&arg_eff, &mut out);
-            collect_compact_type_free_vars(&ret_eff, &mut out);
-            collect_compact_type_free_vars(&ret, &mut out);
-            return out;
-        }
+    if let Some(body) = compact_root_fun_body_lower(scheme) {
+        collect_compact_type_free_vars(&body, &mut out);
+        return out;
     }
     collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
     out

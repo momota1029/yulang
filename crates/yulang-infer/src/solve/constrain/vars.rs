@@ -13,10 +13,8 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        if source != target
-            && self.constrain_eff_bind_source_lowers_to_var(source, target, cause, cache)
-        {
-            return;
+        if source != target {
+            self.constrain_eff_bind_source_lowers_to_var(source, target, cause, cache);
         }
 
         if self.is_through(source) && !self.is_through(target) {
@@ -44,9 +42,7 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        if self.constrain_eff_bind_lower_to_var(pos, target, cause, cache) {
-            return;
-        }
+        self.constrain_eff_bind_lower_to_var(pos, target, cause, cache);
         let ep = self.extrude_pos(pos, self.level_of(target));
         if self.add_lower_bound(target, ep, cause, cache)
             || self.should_revisit_lower(cause, target, ep)
@@ -61,15 +57,45 @@ impl Infer {
         target: TypeVar,
         cause: &ConstraintCause,
         cache: &mut StepCache,
-    ) -> bool {
-        if !self.is_eff_bound(target) {
-            return false;
+    ) {
+        let handled = self.eff_binds_of(target);
+        if handled.is_empty() {
+            return;
         }
         let Pos::Row(pos_items, pos_tail) = self.arena.get_pos(pos).clone() else {
-            return false;
+            return;
         };
 
-        let mut matched_any = false;
+        let mut matched = Vec::new();
+        let mut unmatched = pos_items;
+        for handled_atom in handled {
+            if let Some(index) = unmatched.iter().position(|pos_item| {
+                self.effect_row_item_matches_bound_atom(*pos_item, &handled_atom)
+            }) {
+                let pos_item = unmatched.remove(index);
+                let neg_item = self.arena.alloc_neg(Neg::Atom(handled_atom));
+                self.constrain_row_item_match(pos_item, neg_item, cause, cache);
+                matched.push(pos_item);
+            }
+        }
+
+        if matched.is_empty() {
+            return;
+        }
+
+        let transformed_tail = if unmatched.is_empty() {
+            self.arena.empty_pos_row
+        } else {
+            self.arena
+                .alloc_pos(Pos::Row(unmatched.clone(), self.arena.bot))
+        };
+        let transformed = self.arena.alloc_pos(Pos::Row(matched, transformed_tail));
+        if self.add_lower_bound(target, transformed, cause, cache)
+            || self.should_revisit_lower(cause, target, transformed)
+        {
+            self.propagate_lower_to_uppers(target, transformed, cause, cache);
+        }
+
         for upper in self.upper_refs_of(target) {
             let Neg::Row(neg_items, neg_tail) = self.arena.get_neg(upper).clone() else {
                 continue;
@@ -78,7 +104,6 @@ impl Infer {
                 continue;
             }
 
-            let mut unmatched = pos_items.clone();
             let mut matched_this_row = false;
             for neg_item in neg_items {
                 if let Some(index) = unmatched
@@ -94,59 +119,13 @@ impl Infer {
                 continue;
             }
 
-            matched_any = true;
             let residual = if unmatched.is_empty() {
                 pos_tail
             } else {
-                self.arena.alloc_pos(Pos::Row(unmatched, pos_tail))
+                self.arena.alloc_pos(Pos::Row(unmatched.clone(), pos_tail))
             };
             self.constrain_step(residual, neg_tail, cause, cache);
         }
-
-        if matched_any {
-            return true;
-        }
-
-        self.constrain_eff_bind_lower_to_self_tail(pos_items, pos_tail, target, cause, cache)
-    }
-
-    fn constrain_eff_bind_lower_to_self_tail(
-        &self,
-        pos_items: Vec<PosId>,
-        pos_tail: PosId,
-        target: TypeVar,
-        cause: &ConstraintCause,
-        cache: &mut StepCache,
-    ) -> bool {
-        let handled = self.eff_binds_of(target);
-        if handled.is_empty() {
-            return false;
-        }
-
-        let mut unmatched = pos_items;
-        let mut matched_any = false;
-        for handled_atom in handled {
-            if let Some(index) = unmatched.iter().position(|pos_item| {
-                self.effect_row_item_matches_bound_atom(*pos_item, &handled_atom)
-            }) {
-                let pos_item = unmatched.remove(index);
-                let neg_item = self.arena.alloc_neg(Neg::Atom(handled_atom));
-                self.constrain_row_item_match(pos_item, neg_item, cause, cache);
-                matched_any = true;
-            }
-        }
-        if !matched_any {
-            return false;
-        }
-
-        let residual = if unmatched.is_empty() {
-            pos_tail
-        } else {
-            self.arena.alloc_pos(Pos::Row(unmatched, pos_tail))
-        };
-        let target_neg = self.arena.alloc_neg(Neg::Var(target));
-        self.constrain_step(residual, target_neg, cause, cache);
-        true
     }
 
     fn effect_row_items_match(&self, pos: PosId, neg: NegId) -> bool {
@@ -173,15 +152,13 @@ impl Infer {
         target: TypeVar,
         cause: &ConstraintCause,
         cache: &mut StepCache,
-    ) -> bool {
+    ) {
         if !self.is_eff_bound(target) {
-            return false;
+            return;
         }
-        let mut matched = false;
         for lower in self.lower_refs_of(source) {
-            matched |= self.constrain_eff_bind_lower_to_var(lower, target, cause, cache);
+            self.constrain_eff_bind_lower_to_var(lower, target, cause, cache);
         }
-        matched
     }
 
     pub(super) fn constrain_pos_var_to(

@@ -33,6 +33,7 @@ pub(crate) fn make_app_with_cause(
 ) -> TypedExpr {
     let debug_app = debug_app_enabled();
     let passing_style = argument_passing_style(state, &func);
+    record_callee_dependency(state, &func);
     let result_ty = crate::ast::expr::ComputationTy::new(
         state.fresh_tv_with_origin(TypeOrigin {
             span: cause.span,
@@ -210,6 +211,18 @@ pub(crate) fn make_app_with_cause(
     );
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn record_callee_dependency(state: &LowerState, func: &TypedExpr) {
+    let ExprKind::Var(def) = &func.kind else {
+        return;
+    };
+    let Some(owner) = state.current_owner else {
+        return;
+    };
+    if owner != *def && state.is_let_bound_def(*def) {
+        state.infer.add_edge(owner, *def);
+    }
 }
 
 fn argument_effect_for_slot(state: &mut LowerState, arg: &TypedExpr) -> TypeVar {

@@ -1300,6 +1300,10 @@ fn is_trivial_self_bounds(tv: TypeVar, bounds: &CompactBounds) -> bool {
         || (is_only_self_var(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
         || (is_empty_compact_type(&bounds.lower) && is_only_self_empty_row(&bounds.upper, tv))
         || (is_only_self_empty_row(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
+        || (is_empty_compact_type(&bounds.lower)
+            && is_self_with_guarded_self_rows(&bounds.upper, tv))
+        || (is_self_with_guarded_self_rows(&bounds.lower, tv)
+            && is_empty_compact_type(&bounds.upper))
         || is_var_only_self_alias_bounds(tv, bounds)
 }
 
@@ -1352,6 +1356,23 @@ fn is_only_self_empty_row(ty: &CompactType, tv: TypeVar) -> bool {
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && matches!(ty.rows.as_slice(), [row] if row.items.is_empty() && is_only_self_var(&row.tail, tv))
+}
+
+fn is_self_with_guarded_self_rows(ty: &CompactType, tv: TypeVar) -> bool {
+    ty.vars.len() == 1
+        && ty.vars.contains(&tv)
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && !ty.rows.is_empty()
+        && ty
+            .rows
+            .iter()
+            .all(|row| !row.items.is_empty() && is_only_self_var(&row.tail, tv))
 }
 
 fn is_empty_compact_type(ty: &CompactType) -> bool {

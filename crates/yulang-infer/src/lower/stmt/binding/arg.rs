@@ -2,6 +2,7 @@ use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{PatKind, TypedPat};
+use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::ids::DefId;
 use crate::lower::ann::{LoweredEffAnn, LoweredPatAnn, fresh_arg_effect_tv, lower_pat_ann};
 use crate::lower::{LowerState, SyntaxNode};
@@ -68,7 +69,13 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 state.register_lambda_param_source_eff_tv(def, arg_eff_tv);
             }
             let read_eff_tv = ann.as_ref().and_then(|ann| match ann.eff {
-                Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque) => Some(arg_eff_tv),
+                Some(LoweredEffAnn::Opaque) => Some(arg_eff_tv),
+                Some(LoweredEffAnn::Row { .. }) => Some(state.fresh_tv_with_origin(TypeOrigin {
+                    span: Some(ann.span),
+                    file_span: None,
+                    kind: TypeOriginKind::Annotation,
+                    label: Some("argument read effect".to_string()),
+                })),
                 None => None,
             });
             state.register_def_tv(def, tv);
@@ -84,7 +91,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             }
             if let Some(read_eff_tv) = read_eff_tv {
                 state.register_def_eff_tv(def, read_eff_tv);
-                if let Some(ann) = ann.as_ref().filter(|ann| !ann.non_generic_tvs.is_empty()) {
+                if let Some(ann) = ann.as_ref() {
                     configure_read_effect_from_ann(state, read_eff_tv, ann);
                 }
             }
@@ -163,13 +170,22 @@ pub(crate) fn configure_read_effect_from_ann(
     ann: &LoweredPatAnn,
 ) {
     match ann.eff.clone() {
-        Some(LoweredEffAnn::Opaque) => {
-            state.infer.mark_through(read_eff_tv);
-        }
+        Some(LoweredEffAnn::Opaque) => {}
         Some(LoweredEffAnn::Row { lower, upper, .. }) => match (lower, upper) {
             (Pos::Row(_, lower_tail), Neg::Row(_, upper_tail)) => {
-                state.infer.constrain(lower_tail, Neg::Var(read_eff_tv));
-                state.infer.constrain(Pos::Var(read_eff_tv), upper_tail);
+                if matches!(state.infer.arena.get_pos(lower_tail), Pos::Bot)
+                    && matches!(state.infer.arena.get_neg(upper_tail), Neg::Top)
+                {
+                    state
+                        .infer
+                        .constrain(state.infer.arena.empty_pos_row, Neg::Var(read_eff_tv));
+                    state
+                        .infer
+                        .constrain(Pos::Var(read_eff_tv), state.infer.arena.empty_neg_row);
+                } else {
+                    state.infer.constrain(lower_tail, Neg::Var(read_eff_tv));
+                    state.infer.constrain(Pos::Var(read_eff_tv), upper_tail);
+                }
             }
             (lower, _) => {
                 state.infer.constrain(lower, Neg::Var(read_eff_tv));

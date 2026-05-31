@@ -640,7 +640,7 @@ impl Infer {
     }
 
     pub fn materialize_compact_lower_instance(&self, instance: &OwnedSchemeInstance) -> PosId {
-        debug_materialize_compact_lower(self, instance)
+        materialize_compact_lower(self, instance)
     }
 
     pub fn lowers_of(&self, tv: TypeVar) -> Vec<Pos> {
@@ -650,7 +650,7 @@ impl Infer {
             .map(|id| self.arena.get_pos(id))
             .collect::<Vec<_>>();
         for instance in self.compact_lower_instances_of(tv) {
-            let body = debug_materialize_compact_lower(self, &instance);
+            let body = materialize_compact_lower(self, &instance);
             lowers.push(self.arena.get_pos(body));
         }
         lowers
@@ -746,7 +746,7 @@ impl Infer {
             };
             for (tv, instances) in pending {
                 for instance in instances {
-                    let body = debug_materialize_compact_lower(self, &instance);
+                    let body = materialize_compact_lower(self, &instance);
                     self.constrain_instantiated_ref(body, tv);
                 }
             }
@@ -892,7 +892,7 @@ impl Infer {
     }
 }
 
-fn debug_materialize_compact_lower(infer: &Infer, instance: &OwnedSchemeInstance) -> PosId {
+fn materialize_compact_lower(infer: &Infer, instance: &OwnedSchemeInstance) -> PosId {
     if let Some(tv) = compact_instance_direct_var(instance) {
         return infer.alloc_pos(Pos::Var(tv));
     }

@@ -84,16 +84,18 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
     let result = (|| {
         let tv = state.fresh_tv();
         let eff = state.fresh_tv();
-        let comp_handler_eff = catch_comp_handler_eff_tv(state, &comp);
+        let scrutinee = catch_scrutinee(state, &comp);
         let handler_rest_eff = state.fresh_tv();
-        let arm_eff = state.fresh_tv();
+        let value_arm_eff = state.fresh_tv();
+        let effect_arm_eff = state.fresh_tv();
         state.infer.mark_through(handler_rest_eff);
-        state.infer.mark_through(arm_eff);
+        state.infer.mark_through(value_arm_eff);
+        state.infer.mark_through(effect_arm_eff);
 
         let mut lowered_arms: Vec<LoweredCatchArm> = catch_arm_nodes(node)
             .into_iter()
             .map(|arm_node| {
-                let raw = lower_catch_arm(state, &arm_node, (comp.tv, comp.eff));
+                let raw = lower_catch_arm(state, &arm_node, (scrutinee.value_tv, scrutinee.eff_tv));
                 let check = catch_arm_check_site(state, &arm_node, &raw.arm);
                 LoweredCatchArm {
                     arm: raw.arm,
@@ -120,7 +122,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
                         original_body.clone(),
                         tv,
-                        arm_eff,
+                        value_arm_eff,
                         ExpectedEdgeKind::CatchBranch,
                         ConstraintCause {
                             span: None,
@@ -134,14 +136,16 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         branch_edge_id,
                         &original_body,
                         tv,
-                        arm_eff,
+                        value_arm_eff,
                     );
                     if let Some(guard_eff) = guard_eff {
                         state
                             .infer
-                            .constrain(Pos::Var(guard_eff), Neg::Var(arm_eff));
+                            .constrain(Pos::Var(guard_eff), Neg::Var(value_arm_eff));
                     }
-                    state.infer.constrain(Pos::Var(comp.tv), Neg::Var(pat.tv));
+                    state
+                        .infer
+                        .constrain(Pos::Var(scrutinee.value_tv), Neg::Var(pat.tv));
                 }
                 CatchArmKind::Effect {
                     op_path,
@@ -153,7 +157,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     let effect_path = op_def
                         .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
                         .unwrap_or_else(|| effect_scope_path(op_path));
-                    let arm_is_active = handler_captures_effect_path(state, &comp);
+                    let arm_is_active = handler_captures_effect_path(state, scrutinee.eff_tv);
                     lowered.check.active = arm_is_active;
                     record_catch_arm_effect_path(&mut lowered.check, effect_path.clone());
                     let op_use = op_def.and_then(|def| {
@@ -227,12 +231,12 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                             }
                         };
                         let k_arg_eff = state.fresh_tv();
-                        let k_ret_eff = comp_handler_eff; // 変えないこと。userより
+                        let k_ret_eff = scrutinee.eff_tv; // 変えないこと。userより
                         let k_fun = state.pos_fun(
                             resume_neg,
                             Neg::Var(k_arg_eff),
                             Pos::Var(k_ret_eff),
-                            Pos::Var(comp.tv),
+                            Pos::Var(scrutinee.value_tv),
                         );
                         state.infer.constrain(k_fun.clone(), Neg::Var(k_tv));
                         state.infer.constrain(
@@ -241,7 +245,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                                 resume_pos,
                                 Pos::Var(k_arg_eff),
                                 Neg::Var(k_ret_eff),
-                                Neg::Var(comp.tv),
+                                Neg::Var(scrutinee.value_tv),
                             ),
                         );
                     }
@@ -250,7 +254,7 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
                         original_body.clone(),
                         tv,
-                        arm_eff,
+                        effect_arm_eff,
                         ExpectedEdgeKind::CatchBranch,
                         ConstraintCause {
                             span: None,
@@ -264,12 +268,12 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         branch_edge_id,
                         &original_body,
                         tv,
-                        arm_eff,
+                        effect_arm_eff,
                     );
                     if let Some(guard_eff) = guard_eff {
                         state
                             .infer
-                            .constrain(Pos::Var(guard_eff), Neg::Var(arm_eff));
+                            .constrain(Pos::Var(guard_eff), Neg::Var(effect_arm_eff));
                     }
                 }
             }
@@ -285,46 +289,90 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
         state.catch_check_sites.push(CatchCheckSite {
             span: node.text_range(),
             file_span: state.current_source_span(node.text_range()),
-            body_tv: comp.tv,
-            body_eff_tv: comp.eff,
+            body_tv: scrutinee.value_tv,
+            body_eff_tv: scrutinee.eff_tv,
             result_tv: tv,
             result_eff_tv: eff,
             arms: check_arms,
         });
-
         if !saw_value_arm && !comp_is_direct_handled_effect_call(state, &comp, &handled_ops) {
-            state.infer.constrain(Pos::Var(comp.tv), Neg::Var(tv));
-            state.infer.constrain(Pos::Var(tv), Neg::Var(comp.tv));
+            state
+                .infer
+                .constrain(Pos::Var(scrutinee.value_tv), Neg::Var(tv));
+            state
+                .infer
+                .constrain(Pos::Var(tv), Neg::Var(scrutinee.value_tv));
         }
 
         if !handled_ops.is_empty() {
-            record_handler_body_boundary_keep(state, &comp, comp_handler_eff);
+            record_handler_body_boundary_keep(state, &comp, scrutinee.eff_tv);
         }
 
         if handled_ops.is_empty() {
-            state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
-            state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
+            state
+                .infer
+                .constrain(Pos::Var(scrutinee.eff_tv), Neg::Var(eff));
+            if saw_value_arm {
+                state
+                    .infer
+                    .constrain(Pos::Var(value_arm_eff), Neg::Var(eff));
+            }
+            state
+                .infer
+                .constrain(Pos::Var(effect_arm_eff), Neg::Var(eff));
         } else {
-            record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
+            record_handler_residual_adapter_edge(
+                state,
+                scrutinee.value_tv,
+                scrutinee.eff_tv,
+                tv,
+                eff,
+                node,
+            );
             let rest_eff = handler_rest_eff;
+            let record_handler_evidence =
+                handler_body_boundary_keep(state, &comp) != Some(ShiftKeep::None);
             let scrutinee_handled_ops =
-                catch_scrutinee_handled_ops(state, comp_handler_eff, &handled_ops);
+                catch_scrutinee_handled_ops(state, scrutinee.eff_tv, &handled_ops);
+            bind_catch_scrutinee_to_handled_ops(state, scrutinee.eff_tv, &scrutinee_handled_ops);
+            replay_catch_scrutinee_effect_inputs(state, &scrutinee);
             let handled: Vec<crate::ids::NegId> = scrutinee_handled_ops
                 .into_iter()
                 .map(|op| state.infer.alloc_neg(op))
                 .collect();
-            record_handler_match_for_catch(
+            constrain_handler_match_for_catch(
                 state,
-                comp_handler_eff,
-                handled,
+                scrutinee.eff_tv,
+                handled.clone(),
                 rest_eff,
                 ConstraintCause {
                     span: Some(node.text_range()),
                     reason: ConstraintReason::CatchBranch,
                 },
+                record_handler_evidence,
             );
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
-            state.infer.constrain(Pos::Var(arm_eff), Neg::Var(eff));
+            if saw_value_arm {
+                state
+                    .infer
+                    .constrain(Pos::Var(value_arm_eff), Neg::Var(eff));
+            }
+            let effect_arm_rest_eff = state.fresh_tv();
+            state.infer.mark_through(effect_arm_rest_eff);
+            constrain_handler_match_for_catch(
+                state,
+                effect_arm_eff,
+                handled.clone(),
+                effect_arm_rest_eff,
+                ConstraintCause {
+                    span: Some(node.text_range()),
+                    reason: ConstraintReason::CatchBranch,
+                },
+                record_handler_evidence,
+            );
+            state
+                .infer
+                .constrain(Pos::Var(effect_arm_rest_eff), Neg::Var(eff));
         }
 
         TypedExpr {
@@ -335,6 +383,13 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
     })();
     state.lower_detail.lower_catch += start.elapsed();
     result
+}
+
+#[derive(Clone)]
+struct CatchScrutinee {
+    value_tv: crate::ids::TypeVar,
+    eff_tv: crate::ids::TypeVar,
+    input_eff_tvs: smallvec::SmallVec<[crate::ids::TypeVar; 2]>,
 }
 
 struct LoweredCatchArm {
@@ -450,8 +505,69 @@ fn pattern_covers_all(pat: &crate::ast::expr::TypedPat) -> bool {
     }
 }
 
-fn catch_comp_handler_eff_tv(state: &LowerState, comp: &TypedExpr) -> crate::ids::TypeVar {
-    direct_comp_source_eff_tv(state, comp).unwrap_or(comp.eff)
+fn catch_scrutinee(state: &mut LowerState, comp: &TypedExpr) -> CatchScrutinee {
+    let value_tv = state.fresh_tv();
+    let eff_tv = state.fresh_tv();
+    let mut input_eff_tvs = smallvec::SmallVec::new();
+    state.infer.constrain(Pos::Var(comp.tv), Neg::Var(value_tv));
+    state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff_tv));
+    copy_effect_var_metadata(state, comp.eff, eff_tv);
+    if let Some(source_eff) = direct_comp_source_eff_tv(state, comp) {
+        copy_effect_bind_metadata(state, source_eff, eff_tv);
+    }
+    input_eff_tvs.push(comp.eff);
+
+    CatchScrutinee {
+        value_tv,
+        eff_tv,
+        input_eff_tvs,
+    }
+}
+
+fn bind_catch_scrutinee_to_handled_ops(
+    state: &LowerState,
+    scrutinee_eff: crate::ids::TypeVar,
+    handled_ops: &[Neg],
+) {
+    let handled = handled_ops
+        .iter()
+        .filter_map(|op| match op {
+            Neg::Atom(atom) => Some(atom.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    state.infer.register_eff_bind(scrutinee_eff, handled);
+}
+
+fn replay_catch_scrutinee_effect_inputs(state: &mut LowerState, scrutinee: &CatchScrutinee) {
+    for input_eff in scrutinee.input_eff_tvs.iter().copied() {
+        state
+            .infer
+            .constrain(Pos::Var(input_eff), Neg::Var(scrutinee.eff_tv));
+    }
+}
+
+fn copy_effect_var_metadata(
+    state: &LowerState,
+    from: crate::ids::TypeVar,
+    to: crate::ids::TypeVar,
+) {
+    if state.infer.is_through(from) {
+        state.infer.mark_through(to);
+    }
+    state
+        .infer
+        .register_eff_bind(to, state.infer.eff_binds_of(from));
+}
+
+fn copy_effect_bind_metadata(
+    state: &LowerState,
+    from: crate::ids::TypeVar,
+    to: crate::ids::TypeVar,
+) {
+    state
+        .infer
+        .register_eff_bind(to, state.infer.eff_binds_of(from));
 }
 
 fn record_handler_match_for_catch(
@@ -464,6 +580,30 @@ fn record_handler_match_for_catch(
     state
         .infer
         .record_open_handler_match(comp_handler_eff, handled, rest_eff, cause);
+}
+
+fn constrain_handler_match_for_catch(
+    state: &mut LowerState,
+    comp_handler_eff: crate::ids::TypeVar,
+    handled: Vec<crate::ids::NegId>,
+    rest_eff: crate::ids::TypeVar,
+    cause: ConstraintCause,
+    record_evidence: bool,
+) {
+    if record_evidence {
+        record_handler_match_for_catch(state, comp_handler_eff, handled, rest_eff, cause);
+        return;
+    }
+
+    let rest_tail = state.infer.alloc_neg(Neg::Var(rest_eff));
+    let upper = if handled.is_empty() {
+        rest_tail
+    } else {
+        state.infer.alloc_neg(Neg::Row(handled, rest_tail))
+    };
+    state
+        .infer
+        .constrain_with_cause(Pos::Var(comp_handler_eff), upper, cause);
 }
 
 fn catch_scrutinee_handled_ops(
@@ -542,8 +682,8 @@ fn direct_comp_param_def(comp: &TypedExpr) -> Option<crate::ids::DefId> {
     }
 }
 
-fn handler_captures_effect_path(state: &LowerState, comp: &TypedExpr) -> bool {
-    !eff_tv_is_exact_pure_row(state, comp.eff)
+fn handler_captures_effect_path(state: &LowerState, eff: crate::ids::TypeVar) -> bool {
+    !eff_tv_is_exact_pure_row(state, eff)
 }
 
 fn eff_tv_is_exact_pure_row(state: &LowerState, tv: crate::ids::TypeVar) -> bool {
@@ -655,7 +795,8 @@ fn record_handler_return_adapter_edge(
 
 fn record_handler_residual_adapter_edge(
     state: &mut LowerState,
-    comp: &TypedExpr,
+    scrutinee_tv: crate::ids::TypeVar,
+    scrutinee_eff: crate::ids::TypeVar,
     result_tv: crate::ids::TypeVar,
     result_eff: crate::ids::TypeVar,
     node: &SyntaxNode,
@@ -663,9 +804,9 @@ fn record_handler_residual_adapter_edge(
     state.record_expected_adapter_edge(
         ExpectedAdapterEdgeKind::HandlerResidual,
         None,
-        Some(comp.tv),
+        Some(scrutinee_tv),
         Some(result_tv),
-        Some(comp.eff),
+        Some(scrutinee_eff),
         Some(result_eff),
         ConstraintCause {
             span: Some(node.text_range()),
