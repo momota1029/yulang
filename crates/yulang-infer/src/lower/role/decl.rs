@@ -190,16 +190,6 @@ fn lower_role_method_binding(
     if let Some(sig) = sig.as_ref() {
         let mut pos_vars = role_scope.clone();
         let mut neg_vars = role_scope.clone();
-        crate::lower::signature::record_function_sig_vars_all_subtractable(
-            state,
-            sig,
-            &mut pos_vars,
-        );
-        crate::lower::signature::record_function_sig_vars_all_subtractable(
-            state,
-            sig,
-            &mut neg_vars,
-        );
         let (annotation_eff, annotation_ret) = match sig {
             SigType::EffectPrefixed { eff, ret, .. } => (Some(eff.clone()), ret.as_ref().clone()),
             other => (None, other.clone()),

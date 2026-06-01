@@ -42,6 +42,11 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
             arg_pat.ann.as_ref(),
         );
     }
+    if state.def_owner(owner).is_some() {
+        for arg_pat in arg_pats {
+            state.infer.mark_through(arg_pat.arg_eff_tv);
+        }
+    }
     let body_ret_tv = state.fresh_tv();
     let body_ret_eff_tv = state.fresh_tv();
     state.infer.mark_through(body_ret_eff_tv);

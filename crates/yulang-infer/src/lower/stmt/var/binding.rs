@@ -79,7 +79,6 @@ fn block_expr_from_parts(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    state.infer.mark_through(eff);
     for stmt in &stmts {
         if let Some(stmt_eff) = stmt_eff(stmt) {
             state.infer.constrain(Pos::Var(stmt_eff), Neg::Var(eff));
@@ -264,9 +263,6 @@ fn constrain_var_ref_binding_to_init(
         return;
     };
     let eff_tv = state.fresh_tv();
-    state
-        .infer
-        .record_standard_ref_residual_subtractability(eff_tv);
     constrain_var_ref_effect_row_to_act(state, eff_tv, act);
     state.infer.constrain(
         Pos::Con(
@@ -338,7 +334,6 @@ fn bind_here_tail_expr(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
 fn bind_here_expr(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    state.infer.mark_through(eff);
     state.infer.constrain(Pos::Var(expr.tv), Neg::Var(tv));
     state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
     TypedExpr {

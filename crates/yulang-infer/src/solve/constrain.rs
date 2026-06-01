@@ -253,21 +253,21 @@ impl Infer {
         tail: NegId,
         _origin_hint: Option<TypeVar>,
     ) -> RowUpperProjection {
-        if items.is_empty() {
-            return RowUpperProjection::TailOnly;
-        }
-        let subtractability =
-            self.require_effect_subtractability(effect, "projecting an effect row upper bound");
-
-        if let Neg::Var(tail_var) = self.arena.get_neg(tail) {
-            self.record_effect_subtractability(tail_var, subtractability.clone());
+        if !items.is_empty()
+            && let Neg::Var(tail_var) = self.arena.get_neg(tail)
+        {
+            self.copy_effect_subtractability(effect, tail_var);
         }
 
-        match subtractability {
-            super::EffectSubtractability::All if !items.is_empty() => RowUpperProjection::Original,
-            super::EffectSubtractability::All => RowUpperProjection::TailOnly,
-            subtractability @ (super::EffectSubtractability::AllExcept(_)
-            | super::EffectSubtractability::Set(_)) => {
+        match self.effect_subtractability(effect) {
+            Some(super::EffectSubtractability::All) if !items.is_empty() => {
+                RowUpperProjection::Original
+            }
+            Some(super::EffectSubtractability::All) => RowUpperProjection::TailOnly,
+            Some(
+                subtractability @ (super::EffectSubtractability::AllExcept(_)
+                | super::EffectSubtractability::Set(_)),
+            ) => {
                 let projected = items
                     .iter()
                     .copied()
@@ -281,7 +281,7 @@ impl Infer {
                     RowUpperProjection::Project(projected)
                 }
             }
-            super::EffectSubtractability::Empty => RowUpperProjection::TailOnly,
+            Some(super::EffectSubtractability::Empty) | None => RowUpperProjection::TailOnly,
         }
     }
 }
@@ -294,7 +294,7 @@ mod tests {
         ConstraintCause, ConstraintReason, ExpectedShape, TypeErrorKind, TypeOrigin, TypeOriginKind,
     };
     use crate::ids::fresh_type_var;
-    use crate::solve::{EffectSubtractability, Infer};
+    use crate::solve::Infer;
     use crate::symbols::{Name, Path};
     use crate::types::RecordField;
     use crate::types::{EffectAtom, Neg, Pos};
@@ -599,7 +599,6 @@ mod tests {
         let infer = Infer::new();
         let tail = fresh_type_var();
         infer.register_level(tail, 0);
-        infer.record_effect_subtractability(tail, EffectSubtractability::Empty);
         let effect = EffectAtom {
             path: Path {
                 segments: vec![Name("io".to_string())],
@@ -614,16 +613,15 @@ mod tests {
         infer.constrain(pos, neg);
 
         let uppers = infer.uppers_of(tail);
-        let has_empty_row_upper = uppers.iter().any(|upper| {
-            matches!(
-                upper,
-                Neg::Row(items, row_tail)
-                    if items.is_empty() && matches!(infer.arena.get_neg(*row_tail), Neg::Row(empty, _) if empty.is_empty())
-            )
-        });
         assert!(
-            uppers.is_empty() || has_empty_row_upper,
-            "tail should receive no concrete row items after cancellation, got {uppers:?}",
+            uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, row_tail)
+                        if items.is_empty() && matches!(infer.arena.get_neg(*row_tail), Neg::Row(empty, _) if empty.is_empty())
+                )
+            }),
+            "tail should receive only unmatched row items, got {uppers:?}",
         );
         assert!(
             !uppers.iter().any(|upper| {
@@ -633,49 +631,6 @@ mod tests {
                 )
             }),
             "matched row item should not be required again from the tail, got {uppers:?}",
-        );
-    }
-
-    #[test]
-    fn pure_function_lift_preserves_effect_variable_when_pure_arg_eff_has_no_upper_yet() {
-        let infer = Infer::new();
-        let [arg, ret, pure_arg_eff, demanded_arg_eff, demanded_ret_eff] =
-            std::array::from_fn(|_| {
-                let tv = fresh_type_var();
-                infer.register_level(tv, 0);
-                tv
-            });
-        infer.record_effect_subtractability(pure_arg_eff, EffectSubtractability::Empty);
-        infer.add_lower(pure_arg_eff, infer.arena.bot);
-
-        let actual = infer.alloc_pos(Pos::Fun {
-            arg: infer.alloc_neg(Neg::Var(arg)),
-            arg_eff: infer.alloc_neg(Neg::Var(pure_arg_eff)),
-            ret_eff: infer.arena.bot,
-            ret: infer.alloc_pos(Pos::Var(ret)),
-        });
-        let expected = infer.alloc_neg(Neg::Fun {
-            arg: infer.alloc_pos(Pos::Var(arg)),
-            arg_eff: infer.alloc_pos(Pos::Var(demanded_arg_eff)),
-            ret_eff: infer.alloc_neg(Neg::Var(demanded_ret_eff)),
-            ret: infer.alloc_neg(Neg::Var(ret)),
-        });
-
-        infer.constrain(actual, expected);
-
-        assert!(
-            infer.lower_refs_of(demanded_ret_eff).iter().any(|lower| {
-                matches!(
-                    infer.arena.get_pos(*lower),
-                    Pos::Var(tv) if tv == demanded_arg_eff
-                )
-            }),
-            "effectful function cast should constrain demanded argument effect into demanded return effect, got {:?}",
-            infer.lowers_of(demanded_ret_eff),
-        );
-        assert!(
-            infer.is_through(demanded_arg_eff),
-            "lifted argument effect should remain transparent",
         );
     }
 

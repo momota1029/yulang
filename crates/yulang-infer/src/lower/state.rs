@@ -12,7 +12,7 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
-use crate::solve::{CastMethodResolution, EffectSubtractability, Infer};
+use crate::solve::{CastMethodResolution, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
@@ -858,8 +858,7 @@ impl LowerState {
     /// 新しいファイルを登録して FileId を発行する。
     pub fn register_file(&mut self, info: FileInfo) -> FileId {
         let id = FileId(self.files.len() as u32);
-        self.files.push(info.clone());
-        self.infer.register_file_info(id, info);
+        self.files.push(info);
         id
     }
 
@@ -1020,10 +1019,9 @@ impl LowerState {
 
     pub fn fresh_exact_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
+        self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         self.infer
-            .record_effect_subtractability(tv, EffectSubtractability::Empty);
-        // freeze/restore 後にも pure row 判定が見えるよう、bottom 下界を明示的に残す。
-        self.infer.add_lower(tv, self.infer.arena.bot);
+            .constrain(Pos::Var(tv), self.infer.arena.empty_neg_row);
         tv
     }
 

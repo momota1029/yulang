@@ -48,13 +48,11 @@ impl ApplicationEffectAssumption {
         arg: &TypedExpr,
         cross_owner: Option<DefId>,
     ) -> TypeVar {
-        if self.argument_slot_is_pure() {
-            return state.fresh_exact_pure_eff_tv();
+        if self.through_argument_slot || !self.argument_slot_is_pure() {
+            fresh_through_arg_effect_slot(state, arg, cross_owner)
+        } else {
+            state.fresh_exact_pure_eff_tv()
         }
-        if self.through_argument_slot {
-            return fresh_through_arg_effect_slot(state, arg, cross_owner);
-        }
-        argument_effect_for_slot(state, arg)
     }
 
     fn argument_slot_is_pure(self) -> bool {
@@ -67,7 +65,7 @@ impl ApplicationEffectAssumption {
         call_eff: TypeVar,
         result_eff: TypeVar,
     ) {
-        if self.through_result_effects && !self.argument_slot_is_pure() {
+        if self.through_result_effects {
             state.infer.mark_through(call_eff);
             state.infer.mark_through(result_eff);
         }
@@ -98,15 +96,9 @@ pub(crate) fn make_app_with_cause(
         }),
         state.fresh_tv(),
     );
-    state
-        .infer
-        .record_effect_subtractability(result_ty.effect, EffectSubtractability::All);
     let expected_callee_tv = state.fresh_tv();
     let expected_arg_tv = state.fresh_tv();
     let call_eff = state.fresh_tv();
-    state
-        .infer
-        .record_effect_subtractability(call_eff, EffectSubtractability::Empty);
     let cross_owner = cross_owner_function_ref_owner(state, &func);
     if let Some(owner) = cross_owner {
         state.infer.add_non_generic_var(owner, result_ty.value);
@@ -460,9 +452,9 @@ fn record_effect_subtractability_from_upper(
     upper: crate::ids::NegId,
 ) -> bool {
     if let Neg::Var(source) = state.infer.arena.get_neg(upper) {
-        let subtractability = state
-            .infer
-            .require_effect_subtractability(source, "copying a function return effect bound");
+        let Some(subtractability) = state.infer.effect_subtractability(source) else {
+            return false;
+        };
         state
             .infer
             .record_effect_subtractability(effect, subtractability);

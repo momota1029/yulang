@@ -3167,7 +3167,7 @@ fn row_effect_annotation_records_subtractability_without_row_bounds() {
 }
 
 #[test]
-fn var_propagation_does_not_clear_through_mode() {
+fn non_through_lower_clears_through_on_var_propagation() {
     let infer = solve::Infer::new();
     let a = fresh_type_var();
     let b = fresh_type_var();
@@ -3179,8 +3179,8 @@ fn var_propagation_does_not_clear_through_mode() {
     infer.constrain(Pos::Var(a), Neg::Var(b));
 
     assert!(
-        infer.is_through(b),
-        "through mode belongs to the generated effect slot, not to ordinary var propagation"
+        !infer.is_through(b),
+        "through should be cleared by a non-through lower bound"
     );
 }
 
@@ -3222,14 +3222,6 @@ fn pure_function_passes_argument_effect_to_return_effect() {
     assert!(
         ret_eff_lowers.contains(&Pos::Var(arg_eff)),
         "argument effect should also flow into return effect for pure functions"
-    );
-    assert!(
-        infer.is_through(arg_eff),
-        "argument effect slot should become through when a pure function is lifted"
-    );
-    assert!(
-        infer.is_through(ret_eff),
-        "return effect slot should become through when a pure function is lifted"
     );
 }
 

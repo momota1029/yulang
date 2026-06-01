@@ -747,11 +747,6 @@ impl<'a> CopiedTypeVars<'a> {
         };
         self.copied.insert(tv, mapped);
 
-        if self.state.infer.is_through(tv) {
-            self.state.infer.mark_through(mapped);
-        }
-        self.copy_tv_side_tables(tv, mapped);
-
         let lowers = self.state.infer.lowers_of(tv);
         for lower in lowers {
             let lower = self.copy_pos(lower);
@@ -763,6 +758,11 @@ impl<'a> CopiedTypeVars<'a> {
             let upper = self.copy_neg(upper);
             self.state.infer.constrain(Pos::Var(mapped), upper);
         }
+
+        if self.state.infer.is_through(tv) {
+            self.state.infer.mark_through(mapped);
+        }
+        self.copy_tv_side_tables(tv, mapped);
 
         mapped
     }

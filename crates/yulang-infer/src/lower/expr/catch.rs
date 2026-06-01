@@ -318,8 +318,6 @@ impl CatchResultVars {
             effect_arm_eff_tv: state.fresh_tv(),
         };
         state.infer.mark_through(vars.eff_tv);
-        state.infer.mark_through(vars.value_arm_eff_tv);
-        state.infer.mark_through(vars.effect_arm_eff_tv);
         vars
     }
 }
@@ -1107,7 +1105,6 @@ fn lower_catch_arm(
             };
             let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
             let expected_guard_eff = state.fresh_tv();
-            state.infer.mark_through(expected_guard_eff);
             guard_eff = Some(expected_guard_eff);
             guard = Some(
                 state
@@ -1161,7 +1158,6 @@ fn lower_catch_arm(
             };
             let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
             let expected_guard_eff = state.fresh_tv();
-            state.infer.mark_through(expected_guard_eff);
             guard_eff = Some(expected_guard_eff);
             guard = Some(
                 state

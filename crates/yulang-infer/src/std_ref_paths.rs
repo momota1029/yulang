@@ -26,16 +26,6 @@ pub(crate) fn standard_var_act_path() -> Path {
     }
 }
 
-pub(crate) fn standard_ref_update_effect_path() -> Path {
-    Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("var".to_string()),
-            Name("ref_update".to_string()),
-        ],
-    }
-}
-
 pub(crate) fn core_standard_ref_type_path() -> yulang_typed_ir::Path {
     yulang_typed_ir::Path::new(vec![
         yulang_typed_ir::Name("std".to_string()),

@@ -11,7 +11,6 @@ mod scope;
 pub use compact::{
     collect_all_sig_vars, compact_sig_pattern_type, render_concrete_sig_type, sig_type_head,
 };
-pub(crate) use lower::record_function_sig_vars_all_subtractable;
 pub use lower::{
     lower_function_sig_shape, lower_pure_sig_neg_id, lower_pure_sig_neg_type,
     lower_pure_sig_pos_id, lower_pure_sig_type, lower_sig_effect_arg, lower_sig_neg_id,

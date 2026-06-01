@@ -394,7 +394,6 @@ fn push_deferred_selection(
     structural_record_allowed: bool,
     source_span: Option<rowan::TextRange>,
 ) -> TypedExpr {
-    state.infer.mark_through(eff);
     let owner = state.current_owner;
     let recv_tv = acc.tv;
     let recv_eff = selection_receiver_eff(state, &acc);

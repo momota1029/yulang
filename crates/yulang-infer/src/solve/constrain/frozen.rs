@@ -65,17 +65,6 @@ impl Infer {
                 self.constrain_frozen_pos_to_neg(arena, pos, subst, a, cause, origin_hint, cache);
                 self.constrain_frozen_pos_to_neg(arena, pos, subst, b, cause, origin_hint, cache);
             }
-            (_, Neg::Var(_)) => {
-                let materialized = materialize_frozen_pos(self, arena, pos, subst);
-                let mut live_cache = StepCache::default();
-                self.constrain_step_with_hint(
-                    materialized,
-                    neg,
-                    cause,
-                    origin_hint,
-                    &mut live_cache,
-                );
-            }
             (
                 Pos::Fun {
                     arg: arg_neg,
@@ -100,7 +89,6 @@ impl Infer {
                 );
                 if arg_eff_pure {
                     let mut live_cache = StepCache::default();
-                    self.mark_pure_function_effect_lift_through(arg_eff_pos, ret_eff_neg);
                     self.constrain_step(arg_eff_pos, ret_eff_neg, cause, &mut live_cache);
                 } else {
                     self.constrain_pos_to_frozen_neg(arg_eff_pos, arena, arg_eff_neg, subst, cause);

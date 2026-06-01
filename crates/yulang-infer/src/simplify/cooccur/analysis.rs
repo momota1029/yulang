@@ -58,19 +58,7 @@ fn visit_compact_type(
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
 ) {
-    visit_compact_type_with_extra_group(scheme, ty, positive, expanded, analysis, &HashSet::new());
-}
-
-fn visit_compact_type_with_extra_group(
-    scheme: &CompactTypeScheme,
-    ty: &CompactType,
-    positive: bool,
-    expanded: &mut HashSet<(TypeVar, bool)>,
-    analysis: &mut CoOccurrences,
-    extra_group: &HashSet<AlongItem>,
-) {
-    let mut group = along_group(ty);
-    group.extend(extra_group.iter().cloned());
+    let group = along_group(ty);
     for &tv in &ty.vars {
         let map = if positive {
             &mut analysis.positive
@@ -140,15 +128,10 @@ pub(super) fn visit_compact_type_children(
         }
     }
     for row in &ty.rows {
-        let row_group = along_group(ty);
         for item in &row.items {
-            visit_compact_type_with_extra_group(
-                scheme, item, positive, expanded, analysis, &row_group,
-            );
+            visit_compact_type(scheme, item, positive, expanded, analysis);
         }
-        visit_compact_type_with_extra_group(
-            scheme, &row.tail, positive, expanded, analysis, &row_group,
-        );
+        visit_compact_type(scheme, &row.tail, positive, expanded, analysis);
     }
 }
 

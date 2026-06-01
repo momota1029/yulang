@@ -8,7 +8,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
 use crate::ids::{DefId, NegId, PosId, TypeVar};
-use crate::lower::state::{FileId, FileInfo};
 use crate::symbols::{ModuleId, ModuleTable, Name, Path};
 use crate::types::arena::TypeArena;
 use crate::types::{EffectAtom, Neg, Pos, Variance};
@@ -99,7 +98,7 @@ pub enum ShiftKeep {
     Set(Vec<Path>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EffectSubtractability {
     Empty,
     All,
@@ -290,7 +289,6 @@ pub struct Infer {
     pub effect_subtractables: RefCell<FxHashMap<TypeVar, EffectSubtractability>>,
     pub levels: RefCell<FxHashMap<TypeVar, u32>>,
     pub origins: RefCell<FxHashMap<TypeVar, TypeOrigin>>,
-    source_files: RefCell<Vec<FileInfo>>,
     pub errors: RefCell<Vec<TypeError>>,
     pub expansive: HashSet<TypeVar>,
     pub variances: HashMap<Path, Vec<Variance>>,
@@ -343,7 +341,6 @@ impl Infer {
             effect_subtractables: RefCell::new(FxHashMap::default()),
             levels: RefCell::new(FxHashMap::default()),
             origins: RefCell::new(FxHashMap::default()),
-            source_files: RefCell::new(Vec::new()),
             errors: RefCell::new(Vec::new()),
             expansive: HashSet::new(),
             variances: HashMap::new(),
@@ -406,20 +403,6 @@ impl Infer {
 
     pub fn origin_of(&self, tv: TypeVar) -> Option<TypeOrigin> {
         self.origins.borrow().get(&tv).cloned()
-    }
-
-    pub fn register_file_info(&self, file: FileId, info: FileInfo) {
-        let mut files = self.source_files.borrow_mut();
-        let index = file.0 as usize;
-        if index == files.len() {
-            files.push(info);
-        } else if let Some(slot) = files.get_mut(index) {
-            *slot = info;
-        }
-    }
-
-    pub fn file_info(&self, file: FileId) -> Option<FileInfo> {
-        self.source_files.borrow().get(file.0 as usize).cloned()
     }
 
     pub fn type_errors(&self) -> Vec<TypeError> {
@@ -966,16 +949,6 @@ impl Infer {
     pub fn mark_through(&self, tv: TypeVar) {
         self.through.borrow_mut().insert(tv);
         self.record_effect_subtractability(tv, EffectSubtractability::All);
-    }
-
-    pub(crate) fn record_standard_ref_residual_subtractability(&self, tv: TypeVar) {
-        self.record_effect_subtractability(
-            tv,
-            EffectSubtractability::all_except(vec![EffectAtom {
-                path: crate::std_ref_paths::standard_ref_update_effect_path(),
-                args: Vec::new(),
-            }]),
-        );
     }
 
     pub fn is_through(&self, tv: TypeVar) -> bool {
