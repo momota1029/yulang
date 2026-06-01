@@ -172,19 +172,19 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         all_vars.sort_by_key(|tv| std::cmp::Reverse(tv.0));
 
         let mut subst = HashMap::<TypeVar, Option<TypeVar>>::new();
-        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &rigid_vars, &mut subst);
-        apply_group_co_occurrence_substitutions(
-            &group_analysis,
-            &mut analysis,
-            &mut rec_vars,
-            &rigid_vars,
-            &mut subst,
-        );
         let exposed_row_residual_vars = apply_row_residual_unifications(
             &current_scheme,
             &current_constraints,
             &mut rec_vars,
             &mut analysis,
+            &rigid_vars,
+            &mut subst,
+        );
+        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &rigid_vars, &mut subst);
+        apply_group_co_occurrence_substitutions(
+            &group_analysis,
+            &mut analysis,
+            &mut rec_vars,
             &rigid_vars,
             &mut subst,
         );
