@@ -5,135 +5,96 @@ use std::char::*
 use std::str::*
 use std::var::*
 
-pub enum parse_error:
-    eof int
-    expected(str, int)
-    message(str, int)
+pub act parse 'item 'err 'pos 'snap:
+    pub item: () -> 'item
+    pub fail: 'err -> never
+    pub pos: () -> 'pos
+    pub cut: () -> ()
+    pub is_cut: () -> bool
+    pub snapshot: () -> 'snap
+    pub restore: 'snap -> ()
 
-pub act parse:
-    pub item: () -> char
-    pub peek: () -> opt char
-    pub position: () -> int
-    pub fail: std::parse::parse_error -> never
-    pub commit: () -> ()
-    pub pick: () -> bool
+pub role ParseError 'err:
+    pub type item
+    pub type pos
+    pub e.merge: 'err -> 'err
+    pub unexpected: opt item -> pos -> 'err
+    pub expected: str -> pos -> 'err
+    pub e.label: str -> self
 
-my act pick:
-    our branch: () -> bool
-    our reject: std::parse::parse_error -> never
-    our cut: () -> ()
-    our loop(x: [pick] 'a, queue: list (bool -> [pick] 'a)): std::result::result 'a std::parse::parse_error = catch x:
-        branch(), k -> loop(k true, std::list::cons(k, queue))
-        reject parse_err, _ -> case std::list::uncons queue:
-            opt::nil -> result::err parse_err
-            opt::just (k, rest) -> loop(k false, rest)
-        cut(), k -> loop(k(), [])
-        value -> result::ok value
-    our once(x: [pick] 'a): std::result::result 'a std::parse::parse_error = loop x []
+pub struct str_error {
+    line: int, column: int, unexpected: opt char, expected: list str, message: list str
+} with:
+    impl ParseError:
+        our type item = char
+        our type pos = (int, int)
+        our e.merge(f: self) = if e.line < f.line: f
+            elsif e.line > f.line: e
+            elsif e.column < f.column: f
+            elsif e.column > f.column: e
+            else str_error {
+                line: e.line, column: e.column,
+                unexpected: e.unexpected,
+                expected: e.expected + f.expected,
+                message: e.message + f.message
+            }
+        our unexpected(u: opt char) ((l, c): pos) =
+            str_error { line: l, column: c, unexpected: u, expected: [], message: [] }
+        our expected(label: str) ((l, c): pos) =
+            str_error { line: l, column: c, unexpected: nil, expected: [label], message: [] }
+        our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: [label], message: e.message }
 
-my dispatch(input: str, pos: int, action: [_] 'b): 'b = catch action:
-    parse::pick(), k -> dispatch input pos (k pick::branch())
-    parse::item(), k ->
-        if pos < input.len:
-            dispatch input (pos + 1) (k input[pos])
-        else:
-            pick::reject (parse_error::eof pos)
-    parse::peek(), k ->
-        if pos < input.len:
-            dispatch input pos (k (opt::just input[pos]))
-        else:
-            dispatch input pos (k opt::nil)
-    parse::position(), k -> dispatch input pos (k pos)
-    parse::fail parse_err, _ -> pick::reject parse_err
-    parse::commit(), k ->
-        pick::cut()
-        dispatch input pos (k())
-    value -> value
+pub run_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
+    my $cut = false
+    catch parser:
+        parse::item, k if input.len == 0 -> err(ParseError::unexpected(nil, (line, column)))
+        parse::item, k ->
+            my item = std::str::index_raw input 0
+            my rest = std::str::index_range input (0<..)
+            case item.to_string:
+                "\r" | "\r\n" | "\n" -> run_str rest line+1 1 k(item)
+                _ -> run_str rest line column+1 k(item)
+        parse::fail e, _ -> err e
+        parse::pos(), k -> run_str input line column k((line, column))
+        parse::cut(), k ->
+            &cut = true
+            run_str input line column k()
+        parse::is_cut(), k -> run_str input line column k($cut)
+        parse::snapshot(), k -> run_str input line column k((input, line, column))
+        parse::restore (input, line, column), k -> run_str input line column k()
+        v -> ok v
 
-pub run_with_pos(input: str, parser: () -> [parse] 'a): std::result::result ('a, int) std::parse::parse_error =
-    pick::once:
-        dispatch input 0:
-            my value = parser()
-            my pos = parse::position()
-            (value, pos)
+pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] 'a =
+    my snap = parse::snapshot()
+    catch p():
+        parse::fail e, _ if parse::is_cut() -> parse::fail e
+        parse::fail e1, _ ->
+            parse::restore snap
+            catch q(): parse::fail e2, _ -> parse::fail: e1.merge e2
 
-pub run(input: str, parser: () -> [parse] 'a): std::result::result 'a std::parse::parse_error =
-    case run_with_pos input parser:
-        result::ok (value, pos) ->
-            if pos == input.len:
-                result::ok value
-            else:
-                result::err (parse_error::expected ("<eof>", pos))
-        result::err parse_err -> result::err parse_err
+pub satisfy(p: 'item -> bool)(): [parse 'item 'err 'pos 'snap] 'item =
+    my (pos, item) = (parse::pos(), parse::item())
+    if p item: item else parse::fail ParseError::unexpected(just item, pos)
 
-pub run_full(input: str, parser: () -> [parse] 'a): std::result::result 'a std::parse::parse_error =
-    run input parser
-
-my read_from(expected: str, i: int): () =
+my token_from(expected: str, i: int)(): [parse char 'err 'pos 'snap] unit =
     if i < expected.len:
-        case parse::peek():
-            opt::just actual ->
-                if actual == expected[i]:
-                    parse::item()
-                    read_from expected (i + 1)
-                else:
-                    parse::fail (parse_error::expected (std::char::to_string expected[i], parse::position()))
-            opt::nil -> parse::fail (parse_error::eof (parse::position()))
+        my _ = satisfy(\p-> p == std::str::index_raw expected i)()
+        token_from(expected, i + 1)()
 
-pub token(expected: str): () = read_from expected 0
-pub read(expected: str): () = token expected
+pub token(expected: str)(): [parse char 'err 'pos 'snap] unit =
+    token_from(expected, 0)()
 
-pub satisfy(pred: char -> bool, expected: str): char =
-    my pos = parse::position()
-    my actual = parse::item()
-    if pred actual:
-        actual
-    else:
-        parse::fail (parse_error::expected (expected, pos))
+pub optional(p: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] opt 'a = choice(\() -> just (p()), \() -> nil)
 
-pub choice(left: () -> [parse] 'a, right: () -> [parse] 'a): 'a =
-    if parse::pick():
-        left()
-    else:
-        right()
-
-pub optional(p: () -> [parse] 'a): opt 'a =
+pub many(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] list 'a =
     choice
-        (\() -> opt::just (p()))
-        (\() -> opt::nil)
-
-pub many(p: () -> [parse] 'a): list 'a =
-    choice
-        (\() -> [p(), ..many p])
+        (\() -> [p(), ..many(p)()])
         (\() -> [])
 
-pub some(p: () -> [parse] 'a): list 'a =
-    [p(), ..many p]
+pub some(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] list 'a =
+    [p(), ..many(p)()]
 
-pub many_lazy(p: () -> [parse] 'a): list 'a =
-    choice
-        (\() -> [])
-        (\() -> [p(), ..many_lazy p])
+pub label(p: () -> [parse 'item 'err 'pos 'snap] 'a, label_text: str)(): [parse 'item 'err 'pos 'snap] 'a = catch p():
+    parse::fail e, _ -> parse::fail e.label(label_text)
 
-pub some_lazy(p: () -> [parse] 'a): list 'a =
-    [p(), ..many_lazy p]
-
-my word_tail(acc: str): str = case parse::peek():
-    opt::just ch ->
-        if std::char::is_word ch:
-            parse::item()
-            word_tail (acc + std::char::to_string ch)
-        else:
-            acc
-    opt::nil -> acc
-
-pub word(): str = case parse::peek():
-    opt::just ch ->
-        if std::char::is_word ch:
-            parse::item()
-            word_tail (std::char::to_string ch)
-        else:
-            parse::fail (parse_error::expected ("word", parse::position()))
-    opt::nil -> parse::fail (parse_error::eof (parse::position()))
-
-pub use std::parse::parse::*
+pub word = label(some(satisfy(std::char::is_word)), "word")
