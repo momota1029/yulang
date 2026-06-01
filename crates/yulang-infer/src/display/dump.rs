@@ -2000,7 +2000,7 @@ mod tests {
 
         assert_eq!(
             super::format_coalesced_scheme_with_role_constraints(&infer, &scheme, &constraints),
-            "Add<std::list::list<α> | β> => α [flip; γ] -> [γ] β | std::list::list<α>"
+            "Add<std::list::list<α> | γ> => α [flip; β] -> [β] std::list::list<α>"
         );
     }
 

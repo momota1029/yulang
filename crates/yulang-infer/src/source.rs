@@ -423,7 +423,7 @@ pub struct StdInferSnapshot {
     data: StdInferSnapshotData,
 }
 
-pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 5;
+pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotManifest {
@@ -1320,6 +1320,7 @@ fn import_compiled_compact_schemes(
 ) {
     for (scheme, def) in typed.schemes.iter().zip(&refs.schemes) {
         if let (Some(compact), Some(def)) = (&scheme.compact, def) {
+            import_snapshot_scheme_effect_metadata(state, scheme);
             state.infer.store_compact_scheme(*def, compact.clone());
             state
                 .infer

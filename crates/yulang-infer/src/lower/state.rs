@@ -858,7 +858,8 @@ impl LowerState {
     /// 新しいファイルを登録して FileId を発行する。
     pub fn register_file(&mut self, info: FileInfo) -> FileId {
         let id = FileId(self.files.len() as u32);
-        self.files.push(info);
+        self.files.push(info.clone());
+        self.infer.register_file_info(id, info);
         id
     }
 
@@ -1021,9 +1022,8 @@ impl LowerState {
         let tv = self.fresh_tv();
         self.infer
             .record_effect_subtractability(tv, EffectSubtractability::Empty);
-        self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
-        self.infer
-            .constrain(Pos::Var(tv), self.infer.arena.empty_neg_row);
+        // freeze/restore 後にも pure row 判定が見えるよう、bottom 下界を明示的に残す。
+        self.infer.add_lower(tv, self.infer.arena.bot);
         tv
     }
 

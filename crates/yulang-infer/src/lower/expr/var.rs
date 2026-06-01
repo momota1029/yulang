@@ -118,6 +118,10 @@ fn lower_ref_set_assignment(
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
     let ref_eff = state.fresh_tv();
+    state.infer.mark_through(eff);
+    state
+        .infer
+        .record_standard_ref_residual_subtractability(ref_eff);
     prefer_reference_field_projections(state, &reference);
     constrain_ref_set_assignment(state, tv, eff, ref_eff, &reference, &value, value_span);
     TypedExpr {

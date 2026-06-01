@@ -3167,7 +3167,7 @@ fn row_effect_annotation_records_subtractability_without_row_bounds() {
 }
 
 #[test]
-fn non_through_lower_clears_through_on_var_propagation() {
+fn var_propagation_does_not_clear_through_mode() {
     let infer = solve::Infer::new();
     let a = fresh_type_var();
     let b = fresh_type_var();
@@ -3179,8 +3179,8 @@ fn non_through_lower_clears_through_on_var_propagation() {
     infer.constrain(Pos::Var(a), Neg::Var(b));
 
     assert!(
-        !infer.is_through(b),
-        "through should be cleared by a non-through lower bound"
+        infer.is_through(b),
+        "through mode belongs to the generated effect slot, not to ordinary var propagation"
     );
 }
 

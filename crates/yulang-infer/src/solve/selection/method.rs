@@ -542,6 +542,7 @@ impl Infer {
         self.register_level(inner_tv, level);
         self.register_level(field_tv, level);
         self.register_level(field_call_eff, self.level_of(selection.result_eff));
+        self.record_standard_ref_residual_subtractability(eff_tv);
         self.mark_through(field_call_eff);
 
         let Some((field_method_tv, _)) =

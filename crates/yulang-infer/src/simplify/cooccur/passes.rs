@@ -6,8 +6,8 @@ use crate::symbols::Path;
 use super::group::{GroupCoOccurrences, indistinguishable_group_replacements};
 use super::{
     AlongItem, CoOccurrences, CompactBounds, CompactRoleConstraint, CompactType, CompactTypeScheme,
-    ExactInfo, ExactKeyKind, has_matching_polar_signature, is_effectively_recursive,
-    merge_compact_bounds, merge_compact_types, rewrite_bounds,
+    ExactInfo, ExactKeyKind, exact_occurrences, has_matching_polar_signature,
+    is_effectively_recursive, merge_compact_bounds, merge_compact_types, rewrite_bounds,
 };
 
 pub(super) fn apply_group_co_occurrence_substitutions(
@@ -17,18 +17,18 @@ pub(super) fn apply_group_co_occurrence_substitutions(
     rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
-    for (replacements, require_matching_polar_exact) in [
+    for (replacements, exact_match) in [
         (
             indistinguishable_group_replacements(&analysis.types, true),
-            false,
+            GroupExactMatch::None,
         ),
         (
             indistinguishable_group_replacements(&analysis.effect_types, true),
-            false,
+            GroupExactMatch::None,
         ),
         (
             indistinguishable_group_replacements(&analysis.effects, true),
-            true,
+            GroupExactMatch::AllowRowEndpoint,
         ),
     ] {
         let accepted = collect_group_replacements(
@@ -37,7 +37,7 @@ pub(super) fn apply_group_co_occurrence_substitutions(
             rec_vars,
             rigid_vars,
             subst,
-            require_matching_polar_exact,
+            exact_match,
         );
         if accepted.is_empty() {
             continue;
@@ -680,7 +680,7 @@ fn collect_group_replacements(
     rec_vars: &HashMap<TypeVar, CompactBounds>,
     rigid_vars: &HashSet<TypeVar>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
-    require_matching_polar_exact: bool,
+    exact_match: GroupExactMatch,
 ) -> HashMap<TypeVar, TypeVar> {
     let mut accepted = HashMap::new();
     for (from, to) in replacements {
@@ -696,7 +696,7 @@ fn collect_group_replacements(
         if rigid_vars.contains(&from) {
             continue;
         }
-        if require_matching_polar_exact && !has_matching_polar_signature(cooccurs, from, to) {
+        if !exact_match.accepts(cooccurs, from, to) {
             continue;
         }
         if is_effectively_recursive(from, rec_vars) != is_effectively_recursive(to, rec_vars) {
@@ -705,6 +705,37 @@ fn collect_group_replacements(
         accepted.insert(from, to);
     }
     accepted
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GroupExactMatch {
+    None,
+    AllowRowEndpoint,
+}
+
+impl GroupExactMatch {
+    fn accepts(self, cooccurs: &CoOccurrences, from: TypeVar, to: TypeVar) -> bool {
+        match self {
+            GroupExactMatch::None => true,
+            GroupExactMatch::AllowRowEndpoint => {
+                has_matching_polar_signature(cooccurs, from, to)
+                    || has_row_exact_occurrence(cooccurs, from)
+                    || has_row_exact_occurrence(cooccurs, to)
+            }
+        }
+    }
+}
+
+fn has_row_exact_occurrence(cooccurs: &CoOccurrences, tv: TypeVar) -> bool {
+    exact_occurrences(cooccurs, true, tv)
+        .into_iter()
+        .chain(exact_occurrences(cooccurs, false, tv))
+        .any(|exact| {
+            matches!(
+                exact.kind,
+                ExactKeyKind::ConcreteRow | ExactKeyKind::EmptyRow
+            )
+        })
 }
 
 fn rewrite_occurrence_info(analysis: &mut CoOccurrences, accepted: &HashMap<TypeVar, TypeVar>) {

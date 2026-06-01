@@ -4,6 +4,7 @@ use std::ops::*
 use std::char::*
 use std::str::*
 use std::var::*
+use std::result::*
 
 pub act parse 'item 'err 'pos 'snap:
     pub item: () -> 'item
@@ -47,14 +48,14 @@ pub struct str_error {
 pub run_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
     my $cut = false
     catch parser:
-        parse::item, k if input.len == 0 -> err(ParseError::unexpected(nil, (line, column)))
+        parse::item, k if input.len == 0 -> result::err(ParseError::unexpected(nil, (line, column)))
         parse::item, k ->
             my item = std::str::index_raw input 0
-            my rest = std::str::index_range input (0<..)
+            my rest = std::str::index_range input (std::range::from_excluded 0)
             case item.to_string:
                 "\r" | "\r\n" | "\n" -> run_str rest line+1 1 k(item)
                 _ -> run_str rest line column+1 k(item)
-        parse::fail e, _ -> err e
+        parse::fail e, _ -> result::err e
         parse::pos(), k -> run_str input line column k((line, column))
         parse::cut(), k ->
             &cut = true
@@ -62,7 +63,7 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
         parse::is_cut(), k -> run_str input line column k($cut)
         parse::snapshot(), k -> run_str input line column k((input, line, column))
         parse::restore (input, line, column), k -> run_str input line column k()
-        v -> ok v
+        v -> result::ok v
 
 pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] 'a =
     my snap = parse::snapshot()

@@ -242,7 +242,7 @@ impl Infer {
         ret_eff_neg: NegId,
     ) {
         self.mark_effect_pos_vars_through(arg_eff_pos);
-        self.mark_effect_neg_vars_through(ret_eff_neg);
+        self.mark_effect_neg_vars_all_subtractable(ret_eff_neg);
     }
 
     fn mark_effect_pos_vars_through(&self, pos: PosId) {
@@ -258,14 +258,16 @@ impl Infer {
         }
     }
 
-    fn mark_effect_neg_vars_through(&self, neg: NegId) {
+    fn mark_effect_neg_vars_all_subtractable(&self, neg: NegId) {
         match self.arena.get_neg(neg) {
-            Neg::Var(tv) => self.mark_through(tv),
-            Neg::Forall(_, body) => self.mark_effect_neg_vars_through(body),
-            Neg::Row(_, tail) => self.mark_effect_neg_vars_through(tail),
+            Neg::Var(tv) => {
+                self.record_effect_subtractability(tv, super::super::EffectSubtractability::All)
+            }
+            Neg::Forall(_, body) => self.mark_effect_neg_vars_all_subtractable(body),
+            Neg::Row(_, tail) => self.mark_effect_neg_vars_all_subtractable(tail),
             Neg::Intersection(lhs, rhs) => {
-                self.mark_effect_neg_vars_through(lhs);
-                self.mark_effect_neg_vars_through(rhs);
+                self.mark_effect_neg_vars_all_subtractable(lhs);
+                self.mark_effect_neg_vars_all_subtractable(rhs);
             }
             _ => {}
         }

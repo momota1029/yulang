@@ -165,8 +165,9 @@ impl GroupCoOccurrenceContext {
         }
         for row in &ty.rows {
             for item in &row.items {
-                self.collect_type(item, positive);
+                self.collect_type_in_group(item, positive, group.clone());
             }
+            self.collect_type_in_group(&row.tail, positive, group.clone());
         }
     }
 
@@ -209,6 +210,7 @@ impl GroupCoOccurrenceContext {
             for item in &row.items {
                 self.collect_effect_type_in_group(item, positive, group.clone());
             }
+            self.collect_effect_type_in_group(&row.tail, positive, group.clone());
         }
     }
 

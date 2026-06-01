@@ -92,7 +92,7 @@ pub(super) fn live_neg_var_is_empty_row(
             .all(|lower| live_pos_is_empty_row(infer, *lower, seen))
         && uppers
             .iter()
-            .all(|upper| matches!(infer.arena.get_neg(*upper), Neg::Top))
+            .all(|upper| live_neg_is_empty_row(infer, *upper, seen))
 }
 
 pub(super) fn live_pos_var_is_empty_row(

@@ -48,11 +48,13 @@ impl ApplicationEffectAssumption {
         arg: &TypedExpr,
         cross_owner: Option<DefId>,
     ) -> TypeVar {
-        if self.through_argument_slot || !self.argument_slot_is_pure() {
-            fresh_through_arg_effect_slot(state, arg, cross_owner)
-        } else {
-            state.fresh_exact_pure_eff_tv()
+        if self.argument_slot_is_pure() {
+            return state.fresh_exact_pure_eff_tv();
         }
+        if self.through_argument_slot {
+            return fresh_through_arg_effect_slot(state, arg, cross_owner);
+        }
+        argument_effect_for_slot(state, arg)
     }
 
     fn argument_slot_is_pure(self) -> bool {
@@ -65,7 +67,7 @@ impl ApplicationEffectAssumption {
         call_eff: TypeVar,
         result_eff: TypeVar,
     ) {
-        if self.through_result_effects {
+        if self.through_result_effects && !self.argument_slot_is_pure() {
             state.infer.mark_through(call_eff);
             state.infer.mark_through(result_eff);
         }
