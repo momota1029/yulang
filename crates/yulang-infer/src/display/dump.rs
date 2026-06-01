@@ -470,7 +470,9 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
     };
     let mut scheme = scheme.clone();
     display_format::materialize_effect_args(infer, &mut scheme);
-    let body_type = display_format::compact_scheme_to_type(&scheme);
+    let observed_vars = compact_role_constraint_observed_vars(constraints);
+    let body_type =
+        display_format::compact_scheme_to_type_with_observed_vars(&scheme, &observed_vars);
     let body = display_format::format_type_with_namer(&body_type, &mut namer);
     let rendered_constraints = constraints
         .iter()
@@ -486,6 +488,18 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
     } else {
         format!("{} => {}", rendered_constraints.join(", "), body)
     }
+}
+
+fn compact_role_constraint_observed_vars(
+    constraints: &[CompactRoleConstraint],
+) -> HashSet<TypeVar> {
+    let mut out = HashSet::new();
+    for constraint in constraints {
+        for arg in &constraint.args {
+            display_format::collect_compact_bounds_observed_vars(arg, &mut out);
+        }
+    }
+    out
 }
 
 fn format_role_constraint_with_display_namer(

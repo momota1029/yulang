@@ -43,14 +43,23 @@ pub enum Type {
 }
 
 pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
+    compact_scheme_to_type_with_observed_vars(scheme, &HashSet::new())
+}
+
+pub(crate) fn compact_scheme_to_type_with_observed_vars(
+    scheme: &CompactTypeScheme,
+    observed_vars: &HashSet<TypeVar>,
+) -> Type {
     let mut scheme = scheme.clone();
     normalize_compact_scheme_rows(&mut scheme);
     let mut ctx = CompactToTypeCtx::new(&scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
-    if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true) {
+    if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true, observed_vars) {
         return simplify_root_type(fun);
     }
-    if let Some(fun) = coalesce_lower_only_root_fun(&mut ctx, &root, !scheme.rec_vars.is_empty()) {
+    if let Some(fun) =
+        coalesce_lower_only_root_fun(&mut ctx, &root, !scheme.rec_vars.is_empty(), observed_vars)
+    {
         return simplify_root_type(fun);
     }
     simplify_root_type(ctx.coalesce_type(&root.lower, true))
@@ -596,6 +605,7 @@ fn coalesce_root_fun(
     ctx: &mut CompactToTypeCtx<'_>,
     bounds: &CompactBounds,
     normalize_fields: bool,
+    observed_vars: &HashSet<TypeVar>,
 ) -> Option<Type> {
     let [lower_fun] = bounds.lower.funs.as_slice() else {
         return None;
@@ -629,9 +639,17 @@ fn coalesce_root_fun(
         });
     }
 
-    let arg = coalesce_root_fun_field(ctx, &lower_fun.arg, &upper_fun.arg, false, &HashSet::new());
+    let arg = coalesce_root_fun_field(
+        ctx,
+        &lower_fun.arg,
+        &upper_fun.arg,
+        false,
+        &HashSet::new(),
+        observed_vars,
+    );
     let mut rendered_input_vars = HashSet::new();
     collect_type_vars(&arg, &mut rendered_input_vars);
+    rendered_input_vars.extend(observed_vars.iter().copied());
 
     Some(Type::Fun {
         arg: Box::new(arg),
@@ -645,6 +663,7 @@ fn coalesce_root_fun(
             &lower_fun.ret_eff,
             &CompactType::default(),
             true,
+            observed_vars,
         )),
         ret: Box::new(coalesce_root_fun_field(
             ctx,
@@ -652,6 +671,7 @@ fn coalesce_root_fun(
             &upper_fun.ret,
             true,
             &rendered_input_vars,
+            observed_vars,
         )),
     })
 }
@@ -851,6 +871,7 @@ fn coalesce_lower_only_root_fun(
     ctx: &mut CompactToTypeCtx<'_>,
     bounds: &CompactBounds,
     coalesce_effect_residual: bool,
+    observed_vars: &HashSet<TypeVar>,
 ) -> Option<Type> {
     let [lower_fun] = bounds.lower.funs.as_slice() else {
         return None;
@@ -876,6 +897,7 @@ fn coalesce_lower_only_root_fun(
     let arg = coalesce_lower_only_root_fun_field(ctx, &lower_fun.arg, false, &HashSet::new());
     let mut rendered_input_vars = HashSet::new();
     collect_type_vars(&arg, &mut rendered_input_vars);
+    rendered_input_vars.extend(observed_vars.iter().copied());
 
     Some(Type::Fun {
         arg: Box::new(arg),
@@ -916,13 +938,14 @@ fn coalesce_root_fun_effect_field(
     lower: &CompactType,
     upper: &CompactType,
     positive: bool,
+    observed_vars: &HashSet<TypeVar>,
 ) -> Type {
     let bounds = normalize_render_bounds(CompactBounds {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
     });
-    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true) {
+    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true, observed_vars) {
         return simplify_type(fun);
     }
 
@@ -956,13 +979,14 @@ fn coalesce_root_fun_field(
     upper: &CompactType,
     positive: bool,
     input_vars: &HashSet<TypeVar>,
+    observed_vars: &HashSet<TypeVar>,
 ) -> Type {
     let bounds = normalize_render_bounds(CompactBounds {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
     });
-    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true) {
+    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true, observed_vars) {
         return simplify_type(fun);
     }
 
@@ -1315,6 +1339,16 @@ fn collect_type_vars(ty: &Type, out: &mut HashSet<TypeVar>) {
         }
         Type::Prim(_) | Type::Bot | Type::Top => {}
     }
+}
+
+pub(crate) fn collect_compact_bounds_observed_vars(
+    bounds: &CompactBounds,
+    out: &mut HashSet<TypeVar>,
+) {
+    if let Some(tv) = bounds.self_var {
+        out.insert(tv);
+    }
+    collect_compact_bounds_vars(bounds, out);
 }
 
 fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
