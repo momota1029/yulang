@@ -5,7 +5,7 @@ use crate::diagnostic::{
     ConstraintCause, ExpectedAdapterEdgeKind, ExpectedEdgeKind, TypeErrorKind, TypeOrigin,
     TypeOriginKind,
 };
-use crate::ids::{PosId, TypeVar};
+use crate::ids::{DefId, PosId, TypeVar};
 use crate::lower::{FunctionSigEffectHint, LowerState};
 use crate::solve::DeferredRoleMethodCall;
 use crate::solve::RoleMethodInfo;
@@ -20,6 +20,62 @@ enum ArgumentPassingStyle {
     Unknown,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ApplicationEffectAssumption {
+    pure_argument_slot: bool,
+    anf_argument: bool,
+    through_argument_slot: bool,
+    through_result_effects: bool,
+}
+
+impl ApplicationEffectAssumption {
+    fn infer(state: &LowerState, func: &TypedExpr, arg: &TypedExpr) -> Self {
+        let passing_style = argument_passing_style(state, func);
+        Self {
+            pure_argument_slot: func_accepts_pure_argument(state, func)
+                || matches!(&func.kind, ExprKind::Select { .. })
+                || selected_value_method_accepts_pure_next_arg(state, func),
+            anf_argument: matches!(passing_style, ArgumentPassingStyle::Value)
+                && matches!(arg.kind, ExprKind::App { .. }),
+            through_argument_slot: callee_uses_through_argument_slot(state, func),
+            through_result_effects: callee_uses_through_result_effects(state, func),
+        }
+    }
+
+    fn argument_slot(
+        self,
+        state: &mut LowerState,
+        arg: &TypedExpr,
+        cross_owner: Option<DefId>,
+    ) -> TypeVar {
+        if self.through_argument_slot || !self.argument_slot_is_pure() {
+            fresh_through_arg_effect_slot(state, arg, cross_owner)
+        } else {
+            state.fresh_exact_pure_eff_tv()
+        }
+    }
+
+    fn argument_slot_is_pure(self) -> bool {
+        self.pure_argument_slot || self.anf_argument
+    }
+
+    fn mark_call_result_effects(
+        self,
+        state: &mut LowerState,
+        call_eff: TypeVar,
+        result_eff: TypeVar,
+    ) {
+        if self.through_result_effects {
+            state.infer.mark_through(call_eff);
+            state.infer.mark_through(result_eff);
+        }
+    }
+
+    fn argument_effect_flows_to_result(self) -> bool {
+        self.pure_argument_slot || self.anf_argument
+    }
+}
+
 pub(crate) fn make_app(state: &mut LowerState, func: TypedExpr, arg: TypedExpr) -> TypedExpr {
     make_app_with_cause(state, func, arg, ConstraintCause::unknown())
 }
@@ -30,7 +86,6 @@ pub(crate) fn make_app_with_cause(
     arg: TypedExpr,
     cause: ConstraintCause,
 ) -> TypedExpr {
-    let passing_style = argument_passing_style(state, &func);
     record_callee_dependency(state, &func);
     let result_ty = crate::ast::expr::ComputationTy::new(
         state.fresh_tv_with_origin(TypeOrigin {
@@ -52,33 +107,11 @@ pub(crate) fn make_app_with_cause(
         state.infer.add_non_generic_var(owner, call_eff);
         state.infer.add_non_generic_var(owner, result_ty.effect);
     }
-    let pure_argument_slot = func_accepts_pure_argument(state, &func)
-        || matches!(func.kind, ExprKind::Select { .. })
-        || selected_value_method_accepts_pure_next_arg(state, &func);
-    let anf_arg = matches!(passing_style, ArgumentPassingStyle::Value)
-        && matches!(arg.kind, ExprKind::App { .. });
-    let arg_eff_for_slot = if pure_argument_slot || anf_arg {
-        state.fresh_exact_pure_eff_tv()
-    } else {
-        let slot = state.fresh_tv();
-        state.infer.mark_through(slot);
-        let actual = argument_effect_for_slot(state, &arg);
-        state.infer.constrain(Pos::Var(actual), Neg::Var(slot));
-        if let Some(owner) = cross_owner {
-            state.infer.add_non_generic_var(owner, slot);
-        }
-        slot
-    };
+    let effect_assumption = ApplicationEffectAssumption::infer(state, &func, &arg);
+    let arg_eff_for_slot = effect_assumption.argument_slot(state, &arg, cross_owner);
     let boundary_keep = thunk_boundary_keep_for_call(state, &func);
     let mut demanded_ret_eff = Neg::Var(call_eff);
-    if callee_is_unquantified_let_bound_value(state, &func)
-        || callee_is_active_recursive_self(state, &func)
-        || matches!(func.kind, ExprKind::Select { .. })
-        || callee_has_through_return_effect(state, &func)
-    {
-        state.infer.mark_through(call_eff);
-        state.infer.mark_through(result_ty.effect);
-    }
+    effect_assumption.mark_call_result_effects(state, call_eff, result_ty.effect);
     if let ExprKind::Var(def) = &func.kind {
         if let Some(hint) = state.lambda_param_function_sig_hint(*def) {
             match hint {
@@ -160,7 +193,7 @@ pub(crate) fn make_app_with_cause(
             cause.clone(),
         );
     }
-    if pure_argument_slot {
+    if effect_assumption.pure_argument_slot {
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
     }
     state
@@ -169,7 +202,7 @@ pub(crate) fn make_app_with_cause(
     state
         .infer
         .constrain(Pos::Var(call_eff), Neg::Var(result_ty.effect));
-    if pure_argument_slot || anf_arg {
+    if effect_assumption.argument_effect_flows_to_result() {
         state
             .infer
             .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
@@ -193,6 +226,32 @@ pub(crate) fn make_app_with_cause(
     );
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn callee_uses_through_argument_slot(state: &LowerState, func: &TypedExpr) -> bool {
+    callee_is_unquantified_let_bound_value(state, func)
+        || callee_is_active_recursive_self(state, func)
+}
+
+fn callee_uses_through_result_effects(state: &LowerState, func: &TypedExpr) -> bool {
+    callee_uses_through_argument_slot(state, func)
+        || matches!(&func.kind, ExprKind::Select { .. })
+        || callee_has_through_return_effect(state, func)
+}
+
+fn fresh_through_arg_effect_slot(
+    state: &mut LowerState,
+    arg: &TypedExpr,
+    cross_owner: Option<DefId>,
+) -> TypeVar {
+    let slot = state.fresh_tv();
+    state.infer.mark_through(slot);
+    let actual = argument_effect_for_slot(state, arg);
+    state.infer.constrain(Pos::Var(actual), Neg::Var(slot));
+    if let Some(owner) = cross_owner {
+        state.infer.add_non_generic_var(owner, slot);
+    }
+    slot
 }
 
 fn callee_is_unquantified_let_bound_value(state: &LowerState, func: &TypedExpr) -> bool {
@@ -420,10 +479,7 @@ fn record_effect_subtractability_from_upper(
     true
 }
 
-fn cross_owner_function_ref_owner(
-    state: &LowerState,
-    func: &TypedExpr,
-) -> Option<crate::ids::DefId> {
+fn cross_owner_function_ref_owner(state: &LowerState, func: &TypedExpr) -> Option<DefId> {
     let ExprKind::Var(def) = &func.kind else {
         return None;
     };

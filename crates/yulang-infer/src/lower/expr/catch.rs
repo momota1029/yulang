@@ -141,51 +141,31 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                     k,
                     body,
                 } => {
-                    let op_def = resolve_effect_op_def(state, op_path);
-                    let effect_path = op_def
-                        .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
-                        .unwrap_or_else(|| effect_scope_path(op_path));
-                    let arm_is_active = handler_captures_effect_path(state, scrutinee.eff_tv);
-                    lowered.check.active = arm_is_active;
-                    record_catch_arm_effect_path(&mut lowered.check, effect_path.clone());
-                    let op_use = op_def.and_then(|def| {
-                        instantiate_effect_op_use(
-                            state,
-                            def,
-                            &effect_path,
-                            &mut handled.effect_arg_substs,
-                        )
-                    });
-                    let handled_atom = crate::types::EffectAtom {
-                        path: effect_path.clone(),
-                        args: op_use
-                            .as_ref()
-                            .map(|op| op.args.clone())
-                            .unwrap_or_else(|| {
-                                (0..state.effect_arities.get(&effect_path).copied().unwrap_or(0))
-                                    .map(|_| {
-                                        let pos = state.fresh_tv();
-                                        let neg = state.fresh_tv();
-                                        (pos, neg)
-                                    })
-                                    .collect()
-                            }),
-                    };
-                    let handled_op = Neg::Atom(handled_atom.clone());
-                    if arm_is_active {
+                    let effect_arm = catch_effect_arm_info(
+                        state,
+                        op_path,
+                        scrutinee.eff_tv,
+                        &mut handled.effect_arg_substs,
+                    );
+                    lowered.check.active = effect_arm.active;
+                    record_catch_arm_effect_path(
+                        &mut lowered.check,
+                        effect_arm.effect_path.clone(),
+                    );
+                    if effect_arm.active {
                         handled.record_active_arm(
-                            effect_path.clone(),
-                            op_def,
+                            effect_arm.effect_path.clone(),
+                            effect_arm.op_def,
                             pat,
-                            handled_atom.clone(),
-                            handled_op.clone(),
+                            effect_arm.handled_atom.clone(),
+                            effect_arm.handled_op.clone(),
                         );
                     }
 
                     let mut resume_pos = None;
                     let mut resume_neg = None;
                     let op_call_eff = state.fresh_tv();
-                    if let Some(op_use) = op_use {
+                    if let Some(op_use) = &effect_arm.op_use {
                         let pos_sig = state.infer.arena.get_pos(op_use.pos_sig);
                         let neg_sig = state.infer.arena.get_neg(op_use.neg_sig);
                         let (
@@ -211,10 +191,10 @@ fn lower_catch_with_comp(state: &mut LowerState, node: &SyntaxNode, comp: TypedE
                         state.infer.constrain(Pos::Var(op_call_eff), op_ret_eff_neg);
                         resume_pos = Some(state.infer.arena.get_pos(op_ret_pos).clone());
                         resume_neg = Some(state.infer.arena.get_neg(op_ret_neg).clone());
-                        if arm_is_active {
+                        if effect_arm.active {
                             state.infer.constrain(
                                 Pos::Var(op_call_eff),
-                                state.neg_row(vec![handled_op.clone()], Neg::Top),
+                                state.neg_row(vec![effect_arm.handled_op.clone()], Neg::Top),
                             );
                         }
                     }
@@ -384,6 +364,59 @@ struct LoweredCatchArm {
 struct RawLoweredCatchArm {
     arm: TypedCatchArm,
     guard_eff: Option<crate::ids::TypeVar>,
+}
+
+struct CatchEffectArmInfo {
+    effect_path: Path,
+    op_def: Option<crate::ids::DefId>,
+    op_use: Option<EffectOpUse>,
+    handled_atom: crate::types::EffectAtom,
+    handled_op: Neg,
+    active: bool,
+}
+
+fn catch_effect_arm_info(
+    state: &mut LowerState,
+    op_path: &Path,
+    scrutinee_eff: crate::ids::TypeVar,
+    effect_arg_substs: &mut HashMap<Path, HashMap<crate::ids::TypeVar, crate::ids::TypeVar>>,
+) -> CatchEffectArmInfo {
+    let op_def = resolve_effect_op_def(state, op_path);
+    let effect_path = op_def
+        .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
+        .unwrap_or_else(|| effect_scope_path(op_path));
+    let active = handler_captures_effect_path(state, scrutinee_eff);
+    let op_use = op_def
+        .and_then(|def| instantiate_effect_op_use(state, def, &effect_path, effect_arg_substs));
+    let handled_atom = crate::types::EffectAtom {
+        path: effect_path.clone(),
+        args: op_use
+            .as_ref()
+            .map(|op| op.args.clone())
+            .unwrap_or_else(|| fresh_effect_atom_args(state, &effect_path)),
+    };
+    let handled_op = Neg::Atom(handled_atom.clone());
+    CatchEffectArmInfo {
+        effect_path,
+        op_def,
+        op_use,
+        handled_atom,
+        handled_op,
+        active,
+    }
+}
+
+fn fresh_effect_atom_args(
+    state: &mut LowerState,
+    effect_path: &Path,
+) -> Vec<(crate::ids::TypeVar, crate::ids::TypeVar)> {
+    (0..state.effect_arities.get(effect_path).copied().unwrap_or(0))
+        .map(|_| {
+            let pos = state.fresh_tv();
+            let neg = state.fresh_tv();
+            (pos, neg)
+        })
+        .collect()
 }
 
 fn constrain_catch_result_value(
