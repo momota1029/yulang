@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 mod analysis;
 mod group;
 mod passes;
+mod polarity;
 mod representative;
 
 use crate::ids::TypeVar;
@@ -18,7 +19,7 @@ use super::compact::{
     CompactTypeScheme, CompactVariant, merge_compact_bounds, merge_compact_types,
     normalize_compact_scheme_rows,
 };
-use super::polar::apply_polar_variable_removal;
+use super::polar::{apply_polar_variable_removal, rewrite_polar_occurrences};
 use super::role_constraints::rewrite_role_constraints;
 use analysis::analyze_co_occurrences_with_role_constraints;
 use group::analyze_group_co_occurrences_with_role_constraints;
@@ -27,6 +28,7 @@ use passes::{
     apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
     apply_row_residual_unifications, apply_shadow_var_collapse, expose_positive_row_residual_tails,
 };
+use polarity::analyze_polar_occurrences_with_role_constraints;
 use representative::lower_representatives_for_subst;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -156,10 +158,14 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &positive_scheme_vars,
             &mut rigid_vars,
         );
+        let mut polar_analysis =
+            analyze_polar_occurrences_with_role_constraints(&current_scheme, &current_constraints);
         let mut analysis =
             analyze_co_occurrences_with_role_constraints(&current_scheme, &current_constraints);
         let mut rec_vars = current_scheme.rec_vars.clone();
         let mut all_vars = collect_all_vars(&current_scheme, &analysis);
+        all_vars.extend(polar_analysis.positive.iter().copied());
+        all_vars.extend(polar_analysis.negative.iter().copied());
         let group_analysis = analyze_group_co_occurrences_with_role_constraints(
             &current_scheme,
             &current_constraints,
@@ -180,7 +186,14 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &rigid_vars,
             &mut subst,
         );
-        apply_polar_variable_removal(&all_vars, &analysis, &rec_vars, &rigid_vars, &mut subst);
+        rewrite_polar_occurrences(&mut polar_analysis, &subst);
+        apply_polar_variable_removal(
+            &all_vars,
+            &polar_analysis,
+            &rec_vars,
+            &rigid_vars,
+            &mut subst,
+        );
         apply_group_co_occurrence_substitutions(
             &group_analysis,
             &mut analysis,
@@ -1779,6 +1792,84 @@ mod tests {
     }
 
     #[test]
+    fn coalesce_by_polarity_removes_root_upper_mirrored_effect_input_vars() {
+        let value = fresh_type_var();
+        let scrutinee = fresh_type_var();
+        let residual = fresh_type_var();
+        let io_path = Path {
+            segments: vec![Name("io".to_string())],
+        };
+        let row = CompactRow {
+            items: vec![CompactType {
+                prims: HashSet::from([io_path]),
+                ..CompactType::default()
+            }],
+            tail: Box::new(CompactType {
+                vars: HashSet::from([residual]),
+                ..CompactType::default()
+            }),
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType {
+                            vars: HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType {
+                            vars: HashSet::from([scrutinee]),
+                            rows: vec![row.clone()],
+                            ..CompactType::default()
+                        },
+                        ret_eff: CompactType {
+                            vars: HashSet::from([residual]),
+                            ..CompactType::default()
+                        },
+                        ret: CompactType {
+                            vars: HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType {
+                            vars: HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType {
+                            vars: HashSet::from([scrutinee]),
+                            ..CompactType::default()
+                        },
+                        ret_eff: CompactType {
+                            vars: HashSet::from([residual]),
+                            ..CompactType::default()
+                        },
+                        ret: CompactType {
+                            vars: HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+            },
+            rec_vars: Default::default(),
+        };
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let fun = &coalesced.cty.lower.funs[0];
+        assert!(
+            fun.arg_eff.vars.is_empty(),
+            "the mirrored root upper effect input must not keep a negative-only effect variable alive",
+        );
+        assert_eq!(fun.arg_eff.rows[0].tail.vars, HashSet::from([residual]));
+        assert_eq!(fun.ret_eff.vars, HashSet::from([residual]));
+    }
+
+    #[test]
     fn coalesce_by_co_occurrence_removes_positive_only_effect_arg_type_vars() {
         let a = fresh_type_var();
         let eff_path = Path {
@@ -2417,6 +2508,58 @@ mod tests {
         assert_eq!(outer.ret_eff.vars, HashSet::from([arg_residual]));
         assert!(outer.ret_eff.rows[0].tail.vars.is_empty());
         assert!(outer.ret_eff.rows[0].tail.rows.is_empty());
+    }
+
+    #[test]
+    fn coalesce_by_co_occurrence_does_not_merge_effect_row_outer_vars_with_tail_vars() {
+        let outer_var = fresh_type_var();
+        let tail_var = fresh_type_var();
+        let io_path = Path {
+            segments: vec![Name("io".to_string())],
+        };
+        let effect_input = CompactType {
+            vars: HashSet::from([outer_var]),
+            rows: vec![CompactRow {
+                items: vec![CompactType {
+                    prims: HashSet::from([io_path]),
+                    ..CompactType::default()
+                }],
+                tail: Box::new(CompactType {
+                    vars: HashSet::from([tail_var]),
+                    ..CompactType::default()
+                }),
+            }],
+            ..CompactType::default()
+        };
+        let effect_output = CompactType {
+            vars: HashSet::from([tail_var]),
+            ..CompactType::default()
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType::default(),
+                        arg_eff: effect_input,
+                        ret_eff: effect_output,
+                        ret: CompactType::default(),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let fun = &coalesced.cty.lower.funs[0];
+        let coalesced_tail = single_var(&fun.arg_eff.rows[0].tail.vars);
+        assert!(
+            fun.arg_eff.vars.is_empty(),
+            "a negative-only effect var outside the row must be removed, not unified with the row tail",
+        );
+        assert_eq!(fun.ret_eff.vars, HashSet::from([coalesced_tail]));
     }
 
     #[test]

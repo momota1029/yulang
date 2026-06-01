@@ -302,7 +302,6 @@ impl GroupCoOccurrenceContext {
             for item in &row.items {
                 self.collect_effect_in_group(item, positive, group.clone());
             }
-            self.collect_effect_in_group(&row.tail, positive, group.clone());
         }
     }
 

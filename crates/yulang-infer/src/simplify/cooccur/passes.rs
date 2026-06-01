@@ -27,7 +27,7 @@ pub(super) fn apply_group_co_occurrence_substitutions(
             false,
         ),
         (
-            indistinguishable_group_replacements(&analysis.effects, true),
+            indistinguishable_group_replacements(&analysis.effects, false),
             true,
         ),
     ] {

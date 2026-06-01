@@ -1,0 +1,367 @@
+use std::collections::HashSet;
+
+use crate::ids::TypeVar;
+use crate::simplify::polar::PolarOccurrences;
+
+use super::{CompactBounds, CompactFun, CompactRoleConstraint, CompactType, CompactTypeScheme};
+
+pub(super) fn analyze_polar_occurrences_with_role_constraints(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+) -> PolarOccurrences {
+    let mut occurrences = PolarOccurrences::default();
+    let mut expanded = HashSet::new();
+    let suppressed = HashSet::new();
+
+    visit_type(
+        scheme,
+        &scheme.cty.lower,
+        true,
+        &suppressed,
+        &mut expanded,
+        &mut occurrences,
+    );
+    visit_root_upper_children(
+        scheme,
+        &scheme.cty.lower,
+        &scheme.cty.upper,
+        &mut expanded,
+        &mut occurrences,
+    );
+    for constraint in constraints {
+        for arg in &constraint.args {
+            visit_bounds(
+                scheme,
+                arg,
+                true,
+                &suppressed,
+                &mut expanded,
+                &mut occurrences,
+            );
+        }
+    }
+
+    occurrences
+}
+
+fn visit_bounds(
+    scheme: &CompactTypeScheme,
+    bounds: &CompactBounds,
+    positive: bool,
+    suppressed: &HashSet<TypeVar>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    occurrences: &mut PolarOccurrences,
+) {
+    visit_type(
+        scheme,
+        &bounds.lower,
+        positive,
+        suppressed,
+        expanded,
+        occurrences,
+    );
+    visit_type(
+        scheme,
+        &bounds.upper,
+        !positive,
+        suppressed,
+        expanded,
+        occurrences,
+    );
+}
+
+fn visit_type(
+    scheme: &CompactTypeScheme,
+    ty: &CompactType,
+    positive: bool,
+    suppressed: &HashSet<TypeVar>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    occurrences: &mut PolarOccurrences,
+) {
+    for &tv in &ty.vars {
+        if suppressed.contains(&tv) {
+            continue;
+        }
+        occurrences.insert(tv, positive);
+        if expanded.insert((tv, positive))
+            && let Some(bounds) = scheme.rec_vars.get(&tv)
+        {
+            let recur = if positive {
+                &bounds.lower
+            } else {
+                &bounds.upper
+            };
+            visit_type(scheme, recur, positive, suppressed, expanded, occurrences);
+        }
+    }
+
+    visit_type_children(scheme, ty, positive, suppressed, expanded, occurrences);
+}
+
+fn visit_type_children(
+    scheme: &CompactTypeScheme,
+    ty: &CompactType,
+    positive: bool,
+    suppressed: &HashSet<TypeVar>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    occurrences: &mut PolarOccurrences,
+) {
+    for con in &ty.cons {
+        for arg in &con.args {
+            visit_bounds(scheme, arg, true, suppressed, expanded, occurrences);
+        }
+    }
+    for fun in &ty.funs {
+        visit_fun(scheme, fun, positive, suppressed, expanded, occurrences);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            visit_type(
+                scheme,
+                &field.value,
+                positive,
+                suppressed,
+                expanded,
+                occurrences,
+            );
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            visit_type(
+                scheme,
+                &field.value,
+                positive,
+                suppressed,
+                expanded,
+                occurrences,
+            );
+        }
+        visit_type(
+            scheme,
+            &spread.tail,
+            positive,
+            suppressed,
+            expanded,
+            occurrences,
+        );
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                visit_type(scheme, payload, positive, suppressed, expanded, occurrences);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            visit_type(scheme, item, positive, suppressed, expanded, occurrences);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            visit_type(scheme, item, positive, suppressed, expanded, occurrences);
+        }
+        visit_type(
+            scheme,
+            &row.tail,
+            positive,
+            suppressed,
+            expanded,
+            occurrences,
+        );
+    }
+}
+
+fn visit_fun(
+    scheme: &CompactTypeScheme,
+    fun: &CompactFun,
+    positive: bool,
+    suppressed: &HashSet<TypeVar>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    occurrences: &mut PolarOccurrences,
+) {
+    visit_type(
+        scheme,
+        &fun.arg,
+        !positive,
+        suppressed,
+        expanded,
+        occurrences,
+    );
+    visit_type(
+        scheme,
+        &fun.arg_eff,
+        !positive,
+        suppressed,
+        expanded,
+        occurrences,
+    );
+    visit_type(
+        scheme,
+        &fun.ret_eff,
+        positive,
+        suppressed,
+        expanded,
+        occurrences,
+    );
+    visit_type(
+        scheme,
+        &fun.ret,
+        positive,
+        suppressed,
+        expanded,
+        occurrences,
+    );
+}
+
+fn visit_root_upper_children(
+    scheme: &CompactTypeScheme,
+    lower: &CompactType,
+    upper: &CompactType,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    occurrences: &mut PolarOccurrences,
+) {
+    let empty = HashSet::new();
+    let lower_fun_vars = lower_fun_field_vars(lower);
+
+    for con in &upper.cons {
+        for arg in &con.args {
+            visit_bounds(scheme, arg, true, &empty, expanded, occurrences);
+        }
+    }
+    for fun in &upper.funs {
+        visit_type(
+            scheme,
+            &fun.arg,
+            true,
+            &lower_fun_vars.arg,
+            expanded,
+            occurrences,
+        );
+        visit_type(
+            scheme,
+            &fun.arg_eff,
+            true,
+            &lower_fun_vars.arg_eff,
+            expanded,
+            occurrences,
+        );
+        visit_type(
+            scheme,
+            &fun.ret_eff,
+            false,
+            &lower_fun_vars.ret_eff,
+            expanded,
+            occurrences,
+        );
+        visit_type(
+            scheme,
+            &fun.ret,
+            false,
+            &lower_fun_vars.ret,
+            expanded,
+            occurrences,
+        );
+    }
+    for record in &upper.records {
+        for field in &record.fields {
+            visit_type(scheme, &field.value, false, &empty, expanded, occurrences);
+        }
+    }
+    for spread in &upper.record_spreads {
+        for field in &spread.fields {
+            visit_type(scheme, &field.value, false, &empty, expanded, occurrences);
+        }
+        visit_type(scheme, &spread.tail, false, &empty, expanded, occurrences);
+    }
+    for variant in &upper.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                visit_type(scheme, payload, false, &empty, expanded, occurrences);
+            }
+        }
+    }
+    for tuple in &upper.tuples {
+        for item in tuple {
+            visit_type(scheme, item, false, &empty, expanded, occurrences);
+        }
+    }
+    for row in &upper.rows {
+        for item in &row.items {
+            visit_type(scheme, item, false, &empty, expanded, occurrences);
+        }
+        visit_type(scheme, &row.tail, false, &empty, expanded, occurrences);
+    }
+}
+
+#[derive(Default)]
+struct FunFieldVars {
+    arg: HashSet<TypeVar>,
+    arg_eff: HashSet<TypeVar>,
+    ret_eff: HashSet<TypeVar>,
+    ret: HashSet<TypeVar>,
+}
+
+fn lower_fun_field_vars(lower: &CompactType) -> FunFieldVars {
+    let mut out = FunFieldVars::default();
+    for fun in &lower.funs {
+        collect_type_vars(&fun.arg, &mut out.arg);
+        collect_type_vars(&fun.arg_eff, &mut out.arg_eff);
+        collect_type_vars(&fun.ret_eff, &mut out.ret_eff);
+        collect_type_vars(&fun.ret, &mut out.ret);
+    }
+    out
+}
+
+fn collect_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
+    out.extend(ty.vars.iter().copied());
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_bounds_vars(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_type_vars(&fun.arg, out);
+        collect_type_vars(&fun.arg_eff, out);
+        collect_type_vars(&fun.ret_eff, out);
+        collect_type_vars(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_type_vars(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_type_vars(&field.value, out);
+        }
+        collect_type_vars(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_type_vars(payload, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_type_vars(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_type_vars(item, out);
+        }
+        collect_type_vars(&row.tail, out);
+    }
+}
+
+fn collect_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
+    if let Some(tv) = bounds.self_var {
+        out.insert(tv);
+    }
+    collect_type_vars(&bounds.lower, out);
+    collect_type_vars(&bounds.upper, out);
+}
