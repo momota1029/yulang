@@ -1013,15 +1013,13 @@ impl LowerState {
 
     pub fn fresh_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
-        self.infer
-            .constrain(self.infer.arena.empty_pos_row, Neg::Var(tv));
+        self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         tv
     }
 
     pub fn fresh_exact_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
-        self.infer
-            .constrain(self.infer.arena.empty_pos_row, Neg::Var(tv));
+        self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         self.infer
             .constrain(Pos::Var(tv), self.infer.arena.empty_neg_row);
         tv
@@ -1039,13 +1037,7 @@ impl LowerState {
     }
 
     pub fn pos_row(&self, items: Vec<Pos>, tail: Pos) -> Pos {
-        Pos::Row(
-            items
-                .into_iter()
-                .map(|item| self.infer.alloc_pos(item))
-                .collect(),
-            self.infer.alloc_pos(tail),
-        )
+        self.infer.pos_effect_union_node(items, tail)
     }
 
     pub fn neg_row(&self, items: Vec<Neg>, tail: Neg) -> Neg {

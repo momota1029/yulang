@@ -631,7 +631,7 @@ fn pattern_covers_all(pat: &crate::ast::expr::TypedPat) -> bool {
 
 fn catch_scrutinee(state: &mut LowerState, comp: &TypedExpr) -> CatchScrutinee {
     let value_tv = state.fresh_tv();
-    let eff_tv = comp.eff;
+    let eff_tv = direct_catch_scrutinee_source_eff_tv(state, comp).unwrap_or(comp.eff);
     state.infer.constrain(Pos::Var(comp.tv), Neg::Var(value_tv));
     copy_catch_scrutinee_bind_metadata(state, comp, eff_tv);
 

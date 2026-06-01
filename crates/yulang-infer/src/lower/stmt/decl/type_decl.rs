@@ -32,7 +32,13 @@ pub(crate) fn lower_type_decl(state: &mut LowerState, node: &SyntaxNode) {
         {
             let saved = state.ctx.enter_or_create_module(name);
             state.mark_companion_module(state.ctx.current_module);
-            lower_type_with_bindings(state, node, &type_path, &type_param_names);
+            lower_type_with_bindings(
+                state,
+                node,
+                &type_path,
+                &type_param_names,
+                &super::super::TypeParamEffectMetadata::default(),
+            );
             state.ctx.leave_module(saved);
             return;
         }
@@ -52,7 +58,7 @@ pub(crate) fn lower_type_decl(state: &mut LowerState, node: &SyntaxNode) {
     let saved = state.ctx.enter_module(name);
     state.mark_companion_module(state.ctx.current_module);
     if let Some(self_struct) = self_struct {
-        lower_self_struct_fields(
+        let metadata = lower_self_struct_fields(
             state,
             &self_struct,
             &type_path,
@@ -62,8 +68,16 @@ pub(crate) fn lower_type_decl(state: &mut LowerState, node: &SyntaxNode) {
             ctor_def,
             ctor_tv,
         );
+        lower_type_with_bindings(state, node, &type_path, &type_param_names, &metadata);
+    } else {
+        lower_type_with_bindings(
+            state,
+            node,
+            &type_path,
+            &type_param_names,
+            &super::super::TypeParamEffectMetadata::default(),
+        );
     }
-    lower_type_with_bindings(state, node, &type_path, &type_param_names);
     state.ctx.leave_module(saved);
 }
 
@@ -116,9 +130,9 @@ fn lower_self_struct_fields(
     type_param_names: &[String],
     ctor_def: DefId,
     ctor_tv: TypeVar,
-) {
+) -> super::super::TypeParamEffectMetadata {
     let mut fields = Vec::new();
-    let mut field_defs = Vec::new();
+    let mut field_nodes = Vec::new();
     for field in super::super::child_nodes(struct_node, SyntaxKind::StructField) {
         let Some(field_name) = super::super::ident_name(&field) else {
             continue;
@@ -129,10 +143,16 @@ fn lower_self_struct_fields(
             continue;
         };
         fields.push((field_name.clone(), field_pos.clone(), field_neg.clone()));
+        field_nodes.push((field_name, field));
+    }
+    let metadata = super::super::collect_type_param_effect_metadata(state, type_arg_tvs);
 
+    let mut field_defs = Vec::new();
+    for (field_name, field) in field_nodes {
         let accessor_scope = crate::lower::signature::fresh_type_scope(state, type_param_names);
         let accessor_arg_tvs =
             crate::lower::signature::ordered_type_vars(type_param_names, &accessor_scope);
+        super::super::apply_type_param_effect_metadata(state, &metadata, &accessor_arg_tvs);
         let Some((accessor_field_pos, _)) =
             super::super::lower_struct_field_type(state, &field, &accessor_scope)
         else {
@@ -206,12 +226,16 @@ fn lower_self_struct_fields(
         .infer
         .constrain(Pos::Var(ctor_tv), Neg::Var(ctor_body.tv));
 
+    let projection_fields = fields
+        .iter()
+        .map(|(name, pos, _)| (name.clone(), pos.clone()))
+        .collect::<Vec<_>>();
     for (field_name, field_def, field_tv) in field_defs {
         let body = super::super::synthetic_struct_field_body(
             state,
             type_path,
             type_arg_tvs,
-            &fields,
+            &projection_fields,
             field_def,
             &field_name,
         );
@@ -219,6 +243,7 @@ fn lower_self_struct_fields(
         state.infer.constrain(Pos::Var(body.tv), Neg::Var(field_tv));
         state.infer.constrain(Pos::Var(field_tv), Neg::Var(body.tv));
     }
+    metadata
 }
 
 pub(crate) fn lower_type_with_bindings(
@@ -226,6 +251,7 @@ pub(crate) fn lower_type_with_bindings(
     node: &SyntaxNode,
     type_path: &Path,
     type_param_names: &[String],
+    type_param_metadata: &super::super::TypeParamEffectMetadata,
 ) {
     let Some(with_block) = super::super::child_node(node, SyntaxKind::IndentBlock)
         .or_else(|| super::super::child_node(node, SyntaxKind::BraceGroup))
@@ -240,6 +266,11 @@ pub(crate) fn lower_type_with_bindings(
                     crate::lower::signature::fresh_type_scope(state, type_param_names);
                 let method_arg_tvs =
                     crate::lower::signature::ordered_type_vars(type_param_names, &method_scope);
+                super::super::apply_type_param_effect_metadata(
+                    state,
+                    type_param_metadata,
+                    &method_arg_tvs,
+                );
                 super::super::lower_struct_with_binding(state, &item, type_path, &method_arg_tvs);
             }
             SyntaxKind::ImplDecl => {

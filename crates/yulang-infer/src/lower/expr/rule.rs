@@ -283,9 +283,7 @@ fn record_expr(state: &mut LowerState, fields: Vec<(Name, TypedExpr)>) -> TypedE
     state
         .infer
         .constrain(state.pos_record(record_fields), Neg::Var(tv));
-    state
-        .infer
-        .constrain(state.infer.arena.empty_pos_row, Neg::Var(eff));
+    state.infer.constrain(state.infer.arena.bot, Neg::Var(eff));
     for (_, expr) in &fields {
         state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
     }

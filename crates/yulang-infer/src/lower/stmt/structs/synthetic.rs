@@ -2,8 +2,7 @@ use crate::ast::expr::{ExprKind, PatKind, TypedExpr, TypedPat};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::LowerState;
 use crate::symbols::{Name, Path};
-use crate::types::RecordField;
-use crate::types::{Neg, Pos};
+use crate::types::{Neg, Pos, RecordField};
 
 pub(crate) fn synthetic_struct_constructor_body(
     state: &mut LowerState,
@@ -54,7 +53,7 @@ pub(crate) fn synthetic_struct_field_body(
     state: &mut LowerState,
     struct_path: &Path,
     type_arg_tvs: &[TypeVar],
-    record_fields: &[(Name, Pos, Neg)],
+    record_fields: &[(Name, Pos)],
     field_def: DefId,
     field_name: &Name,
 ) -> TypedExpr {
@@ -83,19 +82,10 @@ pub(crate) fn synthetic_struct_field_body(
         state.pos_record(
             record_fields
                 .iter()
-                .map(|(name, pos, _)| RecordField::required(name.clone(), pos.clone()))
+                .map(|(name, pos)| RecordField::required(name.clone(), pos.clone()))
                 .collect(),
         ),
         Neg::Var(record_tv),
-    );
-    state.infer.constrain(
-        Pos::Var(record_tv),
-        state.neg_record(
-            record_fields
-                .iter()
-                .map(|(name, _, neg)| RecordField::required(name.clone(), neg.clone()))
-                .collect(),
-        ),
     );
 
     let recv_coerce_eff = state.fresh_exact_pure_eff_tv();

@@ -1382,8 +1382,7 @@ fn invariant_type_args(
 }
 
 fn pure_pos_row(infer: &Infer) -> crate::ids::PosId {
-    let tail = infer.alloc_pos(Pos::Bot);
-    infer.alloc_pos(Pos::Row(vec![], tail))
+    infer.arena.bot
 }
 
 fn lookup_small_subst(subst: &[(TypeVar, TypeVar)], tv: TypeVar) -> TypeVar {

@@ -102,12 +102,13 @@ pub enum ShiftKeep {
 pub enum EffectSubtractability {
     Empty,
     All,
+    AllExcept(Vec<EffectAtom>),
     Set(Vec<EffectAtom>),
 }
 
 impl EffectSubtractability {
     pub fn from_paths(paths: Vec<Path>) -> Self {
-        Self::Set(
+        Self::set(
             paths
                 .into_iter()
                 .map(|path| EffectAtom {
@@ -117,6 +118,101 @@ impl EffectSubtractability {
                 .collect(),
         )
     }
+
+    pub fn set(atoms: Vec<EffectAtom>) -> Self {
+        let atoms = unique_effect_atom_families(atoms);
+        if atoms.is_empty() {
+            Self::Empty
+        } else {
+            Self::Set(atoms)
+        }
+    }
+
+    pub fn all_except(atoms: Vec<EffectAtom>) -> Self {
+        let atoms = unique_effect_atom_families(atoms);
+        if atoms.is_empty() {
+            Self::All
+        } else {
+            Self::AllExcept(atoms)
+        }
+    }
+
+    pub fn union(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Self::Empty, other) | (other, Self::Empty) => other,
+            (Self::All, _) | (_, Self::All) => Self::All,
+            (Self::Set(lhs), Self::Set(rhs)) => Self::set(union_effect_atom_families(lhs, rhs)),
+            (Self::AllExcept(excluded), Self::Set(atoms))
+            | (Self::Set(atoms), Self::AllExcept(excluded)) => {
+                Self::all_except(remove_effect_atom_families(excluded, &atoms))
+            }
+            (Self::AllExcept(lhs), Self::AllExcept(rhs)) => {
+                Self::all_except(intersect_effect_atom_families(lhs, &rhs))
+            }
+        }
+    }
+
+    pub fn allows_atom_family(&self, atom: &EffectAtom) -> bool {
+        match self {
+            Self::Empty => false,
+            Self::All => true,
+            Self::AllExcept(excluded) => !excluded
+                .iter()
+                .any(|excluded| effect_atom_families_overlap(excluded, atom)),
+            Self::Set(allowed) => allowed
+                .iter()
+                .any(|allowed| effect_atom_families_overlap(allowed, atom)),
+        }
+    }
+}
+
+pub fn effect_atom_families_overlap(lhs: &EffectAtom, rhs: &EffectAtom) -> bool {
+    lhs.path == rhs.path
+}
+
+fn unique_effect_atom_families(atoms: Vec<EffectAtom>) -> Vec<EffectAtom> {
+    let mut out = Vec::new();
+    for atom in atoms {
+        if !out
+            .iter()
+            .any(|existing| effect_atom_families_overlap(existing, &atom))
+        {
+            out.push(atom);
+        }
+    }
+    out
+}
+
+fn union_effect_atom_families(mut lhs: Vec<EffectAtom>, rhs: Vec<EffectAtom>) -> Vec<EffectAtom> {
+    for atom in rhs {
+        if !lhs
+            .iter()
+            .any(|existing| effect_atom_families_overlap(existing, &atom))
+        {
+            lhs.push(atom);
+        }
+    }
+    lhs
+}
+
+fn remove_effect_atom_families(atoms: Vec<EffectAtom>, removed: &[EffectAtom]) -> Vec<EffectAtom> {
+    atoms
+        .into_iter()
+        .filter(|atom| {
+            !removed
+                .iter()
+                .any(|removed| effect_atom_families_overlap(atom, removed))
+        })
+        .collect()
+}
+
+fn intersect_effect_atom_families(lhs: Vec<EffectAtom>, rhs: &[EffectAtom]) -> Vec<EffectAtom> {
+    lhs.into_iter()
+        .filter(|atom| {
+            rhs.iter()
+                .any(|rhs| effect_atom_families_overlap(atom, rhs))
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -784,6 +880,45 @@ impl Infer {
         self.arena.alloc_neg(n)
     }
 
+    pub fn pos_effect_union(&self, items: Vec<PosId>, tail: PosId) -> PosId {
+        let mut acc = if self.pos_effect_lower_is_empty(tail) {
+            self.arena.bot
+        } else {
+            tail
+        };
+        for item in items.into_iter().rev() {
+            if self.pos_effect_lower_is_empty(item) {
+                continue;
+            }
+            acc = if self.pos_effect_lower_is_empty(acc) {
+                item
+            } else {
+                self.arena.alloc_pos(Pos::Union(item, acc))
+            };
+        }
+        acc
+    }
+
+    pub fn pos_effect_union_node(&self, items: Vec<Pos>, tail: Pos) -> Pos {
+        let items = items
+            .into_iter()
+            .map(|item| self.arena.alloc_pos(item))
+            .collect();
+        let tail = self.arena.alloc_pos(tail);
+        self.arena.get_pos(self.pos_effect_union(items, tail))
+    }
+
+    pub fn pos_effect_lower_is_empty(&self, pos: PosId) -> bool {
+        match self.arena.get_pos(pos) {
+            Pos::Bot => true,
+            Pos::Row(items, tail) => items.is_empty() && self.pos_effect_lower_is_empty(tail),
+            Pos::Union(left, right) => {
+                self.pos_effect_lower_is_empty(left) && self.pos_effect_lower_is_empty(right)
+            }
+            _ => false,
+        }
+    }
+
     /// ρ に handled アトム H_b を bind する（新エフェクト理論 §2.4.1）。
     /// 以後 `lower <: ρ` の向きの制約に対して EFF-BIND 特殊推論が走る。
     pub fn register_eff_bind(&self, rho: TypeVar, handled: Vec<crate::types::EffectAtom>) {
@@ -813,9 +948,7 @@ impl Infer {
 
     pub fn mark_through(&self, tv: TypeVar) {
         self.through.borrow_mut().insert(tv);
-        self.effect_subtractables
-            .borrow_mut()
-            .insert(tv, EffectSubtractability::All);
+        self.record_effect_subtractability(tv, EffectSubtractability::All);
     }
 
     pub fn is_through(&self, tv: TypeVar) -> bool {

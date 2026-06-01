@@ -51,9 +51,7 @@ pub(crate) fn lower_block_from_items(state: &mut LowerState, items: &[SyntaxNode
         state
             .infer
             .constrain(super::super::prim_type("unit"), Neg::Var(tv));
-        state
-            .infer
-            .constrain(state.infer.arena.empty_pos_row, Neg::Var(eff));
+        state.infer.constrain(state.infer.arena.bot, Neg::Var(eff));
     }
 
     TypedBlock {

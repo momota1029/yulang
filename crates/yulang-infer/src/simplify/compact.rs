@@ -195,27 +195,27 @@ pub(crate) fn coalesce_function_effect_residual(
         return;
     }
     let keep_surface_residual = ret_eff.vars.len() > 1;
+    let surface_vars = arg_eff
+        .vars
+        .intersection(&ret_eff.vars)
+        .copied()
+        .collect::<HashSet<_>>();
     let mut tail_vars = HashSet::new();
     collect_effect_row_tail_vars_with_items(arg_eff, &ret_eff.vars, &mut tail_vars);
     if tail_vars.is_empty() {
         promote_adjacent_effect_residual_vars(arg_eff, &ret_eff.vars);
         return;
     }
-    let mut subst = arg_eff
-        .vars
+    let cyclic_tail_surface_count = tail_vars
         .iter()
-        .copied()
-        .filter(|tv| ret_eff.vars.contains(tv))
-        .filter_map(|surface| {
-            tail_vars
-                .iter()
-                .copied()
-                .find(|tail| *tail != surface)
-                .map(|tail| (surface, tail))
-        })
-        .collect::<Vec<_>>();
-    subst.sort_by_key(|(from, _)| from.0);
-    subst.dedup_by_key(|(from, _)| *from);
+        .filter(|tail| surface_vars.contains(tail))
+        .count();
+    let collapse_cyclic_tail_surface = cyclic_tail_surface_count > 1;
+    let subst = if collapse_cyclic_tail_surface {
+        canonical_effect_residual_subst(&surface_vars, &tail_vars)
+    } else {
+        adjacent_effect_residual_subst(&surface_vars, &tail_vars)
+    };
     if subst.is_empty() {
         if !keep_surface_residual {
             for tail in tail_vars {
@@ -226,14 +226,75 @@ pub(crate) fn coalesce_function_effect_residual(
     }
     *arg_eff = subst_compact_type(arg_eff, &subst);
     *ret_eff = subst_compact_type(ret_eff, &subst);
-    if !keep_surface_residual {
-        for &(_, tail) in &subst {
-            arg_eff.vars.remove(&tail);
-        }
-        for tail in tail_vars {
+    if !keep_surface_residual || collapse_cyclic_tail_surface {
+        for tail in coalesced_tail_vars(&tail_vars, &subst) {
             arg_eff.vars.remove(&tail);
         }
     }
+}
+
+fn adjacent_effect_residual_subst(
+    surface_vars: &HashSet<TypeVar>,
+    tail_vars: &HashSet<TypeVar>,
+) -> Vec<(TypeVar, TypeVar)> {
+    let mut subst = surface_vars
+        .iter()
+        .copied()
+        .filter_map(|surface| {
+            tail_vars
+                .iter()
+                .copied()
+                .find(|tail| *tail != surface)
+                .map(|tail| (surface, tail))
+        })
+        .collect::<Vec<_>>();
+    subst.sort_by_key(|(from, _)| from.0);
+    subst.dedup_by_key(|(from, _)| *from);
+    subst
+}
+
+fn canonical_effect_residual_subst(
+    surface_vars: &HashSet<TypeVar>,
+    tail_vars: &HashSet<TypeVar>,
+) -> Vec<(TypeVar, TypeVar)> {
+    let Some(rep) = surface_vars
+        .iter()
+        .chain(tail_vars.iter())
+        .copied()
+        .min_by_key(|tv| tv.0)
+    else {
+        return Vec::new();
+    };
+
+    let mut vars = surface_vars
+        .iter()
+        .chain(tail_vars.iter())
+        .copied()
+        .filter(|tv| *tv != rep)
+        .collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    vars.dedup();
+    vars.into_iter().map(|tv| (tv, rep)).collect()
+}
+
+fn coalesced_tail_vars(
+    tail_vars: &HashSet<TypeVar>,
+    subst: &[(TypeVar, TypeVar)],
+) -> HashSet<TypeVar> {
+    tail_vars
+        .iter()
+        .copied()
+        .map(|tail| subst_lookup_small(subst, tail))
+        .collect()
+}
+
+fn compact_through_lower_type(mut ty: CompactType) -> CompactType {
+    let rows = mem::take(&mut ty.rows);
+    let mut out = ty;
+    for row in rows {
+        out = merge_compact_types(true, out, compact_through_lower_type(*row.tail));
+    }
+    out
 }
 
 pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<CompactType> {
@@ -951,6 +1012,9 @@ impl<'a> CompactContext<'a> {
                 .get(&tv)
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
             {
+                Some(bounds) if self.infer.is_through(tv) => {
+                    self.compact_through_pos_bounds_ref(bounds.as_slice(), parents)
+                }
                 Some(bounds) => self.compact_pos_bounds_ref(bounds.as_slice(), parents),
                 None => CompactType::default(),
             };
@@ -960,6 +1024,9 @@ impl<'a> CompactContext<'a> {
                     .cloned()
                     .collect::<SmallVec<[OwnedSchemeInstance; 2]>>()
             }) {
+                Some(instances) if self.infer.is_through(tv) => {
+                    self.compact_through_instance_bounds_ref(instances.as_slice(), parents)
+                }
                 Some(instances) => self.compact_instance_bounds_ref(instances.as_slice(), parents),
                 None => CompactType::default(),
             };
@@ -991,6 +1058,23 @@ impl<'a> CompactContext<'a> {
         compact
     }
 
+    fn compact_through_pos_bounds_ref(
+        &mut self,
+        bounds: &[PosId],
+        parents: &ParentStack,
+    ) -> CompactType {
+        let Some((first, rest)) = bounds.split_first() else {
+            return CompactType::default();
+        };
+
+        let mut compact = self.compact_through_pos_id(*first, parents);
+        for bound in rest {
+            compact =
+                merge_compact_types(true, compact, self.compact_through_pos_id(*bound, parents));
+        }
+        compact
+    }
+
     fn compact_instance_bounds_ref(
         &mut self,
         instances: &[OwnedSchemeInstance],
@@ -1006,6 +1090,26 @@ impl<'a> CompactContext<'a> {
                 true,
                 compact,
                 self.compact_instance_lower(instance, parents),
+            );
+        }
+        compact
+    }
+
+    fn compact_through_instance_bounds_ref(
+        &mut self,
+        instances: &[OwnedSchemeInstance],
+        parents: &ParentStack,
+    ) -> CompactType {
+        let Some((first, rest)) = instances.split_first() else {
+            return CompactType::default();
+        };
+
+        let mut compact = compact_through_lower_type(self.compact_instance_lower(first, parents));
+        for instance in rest {
+            compact = merge_compact_types(
+                true,
+                compact,
+                compact_through_lower_type(self.compact_instance_lower(instance, parents)),
             );
         }
         compact
@@ -1041,6 +1145,50 @@ impl<'a> CompactContext<'a> {
         lower
     }
 
+    fn compact_through_var_side(
+        &mut self,
+        tv: TypeVar,
+        positive: bool,
+        parents: &ParentStack,
+    ) -> CompactType {
+        if parents.contains(&tv) {
+            return CompactType::default();
+        }
+
+        let mut next_parents = parents.clone();
+        next_parents.push(tv);
+        let bounds = if positive {
+            let regular = self
+                .lower_bounds
+                .get(&tv)
+                .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
+                .map(|bounds| self.compact_through_pos_bounds_ref(bounds.as_slice(), &next_parents))
+                .unwrap_or_default();
+            let instantiated = self
+                .compact_lower_instances
+                .get(&tv)
+                .map(|instances| {
+                    instances
+                        .iter()
+                        .cloned()
+                        .collect::<SmallVec<[OwnedSchemeInstance; 2]>>()
+                })
+                .map(|instances| {
+                    self.compact_through_instance_bounds_ref(instances.as_slice(), &next_parents)
+                })
+                .unwrap_or_default();
+            merge_compact_types(true, regular, instantiated)
+        } else {
+            self.upper_bounds
+                .get(&tv)
+                .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
+                .map(|bounds| self.compact_through_neg_bounds_ref(bounds.as_slice(), &next_parents))
+                .unwrap_or_default()
+        };
+
+        merge_compact_types(positive, CompactType::from_var(tv), bounds)
+    }
+
     fn compact_neg_bounds_ref(&mut self, bounds: &[NegId], parents: &ParentStack) -> CompactType {
         let Some((first, rest)) = bounds.split_first() else {
             return CompactType::default();
@@ -1051,6 +1199,20 @@ impl<'a> CompactContext<'a> {
             compact = merge_compact_types(false, compact, self.compact_neg_id(*bound, parents));
         }
         compact
+    }
+
+    fn compact_through_pos_id(&mut self, id: PosId, parents: &ParentStack) -> CompactType {
+        match self.infer.arena.get_pos(id) {
+            Pos::Var(tv) | Pos::Raw(tv) => self.compact_through_var_side(tv, true, parents),
+            Pos::Row(_, tail) => self.compact_through_pos_id(tail, parents),
+            Pos::Union(lhs, rhs) => merge_compact_types(
+                true,
+                self.compact_through_pos_id(lhs, parents),
+                self.compact_through_pos_id(rhs, parents),
+            ),
+            Pos::Atom(_) => CompactType::default(),
+            _ => self.compact_pos_id(id, parents),
+        }
     }
 
     fn compact_through_neg_bounds_ref(
@@ -1072,6 +1234,7 @@ impl<'a> CompactContext<'a> {
 
     fn compact_through_neg_id(&mut self, id: NegId, parents: &ParentStack) -> CompactType {
         match self.infer.arena.get_neg(id) {
+            Neg::Var(tv) => self.compact_through_var_side(tv, false, parents),
             Neg::Row(_, tail) => self.compact_neg_id(tail, &ParentStack::new()),
             Neg::Intersection(lhs, rhs) => merge_compact_types(
                 false,

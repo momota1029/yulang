@@ -5,7 +5,7 @@ use crate::diagnostic::{
     ConstraintCause, ExpectedAdapterEdgeKind, ExpectedEdgeKind, TypeErrorKind, TypeOrigin,
     TypeOriginKind,
 };
-use crate::ids::TypeVar;
+use crate::ids::{PosId, TypeVar};
 use crate::lower::{FunctionSigEffectHint, LowerState};
 use crate::solve::DeferredRoleMethodCall;
 use crate::solve::RoleMethodInfo;
@@ -71,10 +71,13 @@ pub(crate) fn make_app_with_cause(
     };
     let boundary_keep = thunk_boundary_keep_for_call(state, &func);
     let mut demanded_ret_eff = Neg::Var(call_eff);
-    let mut call_eff_has_subtractability = false;
-    if callee_is_unquantified_let_bound_value(state, &func) {
+    if callee_is_unquantified_let_bound_value(state, &func)
+        || callee_is_active_recursive_self(state, &func)
+        || matches!(func.kind, ExprKind::Select { .. })
+        || callee_has_through_return_effect(state, &func)
+    {
         state.infer.mark_through(call_eff);
-        call_eff_has_subtractability = true;
+        state.infer.mark_through(result_ty.effect);
     }
     if let ExprKind::Var(def) = &func.kind {
         if let Some(hint) = state.lambda_param_function_sig_hint(*def) {
@@ -82,7 +85,7 @@ pub(crate) fn make_app_with_cause(
                 FunctionSigEffectHint::Pure => {
                     state
                         .infer
-                        .constrain(state.infer.arena.empty_pos_row, Neg::Var(call_eff));
+                        .constrain(state.infer.arena.bot, Neg::Var(call_eff));
                     state
                         .infer
                         .constrain(Pos::Var(call_eff), state.infer.arena.empty_neg_row);
@@ -96,14 +99,12 @@ pub(crate) fn make_app_with_cause(
                     state
                         .infer
                         .record_effect_subtractability(call_eff, EffectSubtractability::All);
-                    call_eff_has_subtractability = true;
                 }
                 FunctionSigEffectHint::LowerBound(lower) => {
                     state.infer.constrain(lower, Neg::Var(call_eff));
                 }
                 FunctionSigEffectHint::Bounds(lower, upper) => {
-                    call_eff_has_subtractability |=
-                        record_effect_subtractability_from_upper(state, call_eff, upper);
+                    record_effect_subtractability_from_upper(state, call_eff, upper);
                     state.infer.constrain(lower, Neg::Var(call_eff));
                     state.infer.constrain(Pos::Var(call_eff), upper);
                     demanded_ret_eff = state.infer.arena.get_neg(upper).clone();
@@ -111,17 +112,7 @@ pub(crate) fn make_app_with_cause(
             }
         }
     }
-    call_eff_has_subtractability |= record_call_boundary_effect_metadata(
-        state,
-        call_eff,
-        result_ty.effect,
-        boundary_keep.as_ref(),
-    );
-    if !call_eff_has_subtractability {
-        state
-            .infer
-            .record_effect_subtractability(call_eff, EffectSubtractability::Empty);
-    }
+    record_call_boundary_effect_metadata(state, call_eff, result_ty.effect, boundary_keep.as_ref());
 
     state.infer.constrain_with_cause(
         Pos::Var(expected_callee_tv),
@@ -215,6 +206,71 @@ fn callee_is_unquantified_let_bound_value(state: &LowerState, func: &TypedExpr) 
         return false;
     }
     !state.infer.compact_schemes.borrow().contains_key(def)
+}
+
+fn callee_is_active_recursive_self(state: &LowerState, func: &TypedExpr) -> bool {
+    let ExprKind::Var(def) = &func.kind else {
+        return false;
+    };
+    state.current_owner == Some(*def) && state.active_recursive_self_instance(*def).is_some()
+}
+
+fn callee_has_through_return_effect(state: &LowerState, func: &TypedExpr) -> bool {
+    let mut seen = HashSet::new();
+    pos_var_has_through_return_effect(state, func.tv, &mut seen)
+}
+
+fn pos_var_has_through_return_effect(
+    state: &LowerState,
+    tv: TypeVar,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
+    if !seen.insert(tv) {
+        return false;
+    }
+    for lower in state.infer.lower_refs_of(tv) {
+        if pos_id_has_through_return_effect(state, lower, seen) {
+            return true;
+        }
+    }
+    for instance in state.infer.compact_lower_instances_of(tv) {
+        let lower = state.infer.materialize_compact_lower_instance(&instance);
+        if pos_id_has_through_return_effect(state, lower, seen) {
+            return true;
+        }
+    }
+    false
+}
+
+fn pos_id_has_through_return_effect(
+    state: &LowerState,
+    pos: PosId,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
+    match state.infer.arena.get_pos(pos) {
+        Pos::Fun { ret_eff, .. } => pos_effect_is_through(state, ret_eff, seen),
+        Pos::Var(tv) | Pos::Raw(tv) => pos_var_has_through_return_effect(state, tv, seen),
+        Pos::Forall(_, body) => pos_id_has_through_return_effect(state, body, seen),
+        Pos::Union(lhs, rhs) => {
+            pos_id_has_through_return_effect(state, lhs, &mut seen.clone())
+                || pos_id_has_through_return_effect(state, rhs, &mut seen.clone())
+        }
+        _ => false,
+    }
+}
+
+fn pos_effect_is_through(state: &LowerState, pos: PosId, seen: &mut HashSet<TypeVar>) -> bool {
+    match state.infer.arena.get_pos(pos) {
+        Pos::Var(tv) | Pos::Raw(tv) => {
+            state.infer.is_through(tv) || pos_var_has_through_return_effect(state, tv, seen)
+        }
+        Pos::Forall(_, body) => pos_effect_is_through(state, body, seen),
+        Pos::Union(lhs, rhs) => {
+            pos_effect_is_through(state, lhs, &mut seen.clone())
+                || pos_effect_is_through(state, rhs, &mut seen.clone())
+        }
+        _ => false,
+    }
 }
 
 fn record_callee_dependency(state: &LowerState, func: &TypedExpr) {

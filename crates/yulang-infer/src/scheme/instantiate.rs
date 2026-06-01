@@ -553,6 +553,12 @@ fn subst_effect_subtractability(
     match subtractability {
         EffectSubtractability::Empty => EffectSubtractability::Empty,
         EffectSubtractability::All => EffectSubtractability::All,
+        EffectSubtractability::AllExcept(atoms) => EffectSubtractability::all_except(
+            atoms
+                .into_iter()
+                .map(|atom| subst_atom_small(atom, subst))
+                .collect(),
+        ),
         EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
             atoms
                 .into_iter()

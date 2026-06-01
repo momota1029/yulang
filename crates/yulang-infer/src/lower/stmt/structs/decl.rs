@@ -49,7 +49,7 @@ pub(crate) fn lower_struct_decl_with_scope(
     state.mark_companion_module(state.ctx.current_module);
 
     let mut fields = Vec::new();
-    let mut field_defs = Vec::new();
+    let mut field_nodes = Vec::new();
     for field in super::super::child_nodes(node, SyntaxKind::StructField) {
         let Some(field_name) = super::super::ident_name(&field) else {
             continue;
@@ -60,7 +60,12 @@ pub(crate) fn lower_struct_decl_with_scope(
             continue;
         };
         fields.push((field_name.clone(), field_pos.clone(), field_neg.clone()));
+        field_nodes.push((field_name, field_pos));
+    }
+    let metadata = super::super::collect_type_param_effect_metadata(state, &type_arg_tvs);
 
+    let mut field_defs = Vec::new();
+    for (field_name, field_pos) in field_nodes {
         let field_def = state.fresh_def();
         let field_tv = state.fresh_tv();
         state.register_def_tv(field_def, field_tv);
@@ -122,12 +127,16 @@ pub(crate) fn lower_struct_decl_with_scope(
     );
     state.infer.mark_frozen_ref_committed(ctor_def);
 
+    let projection_fields = fields
+        .iter()
+        .map(|(name, pos, _)| (name.clone(), pos.clone()))
+        .collect::<Vec<_>>();
     for (field_name, field_def, field_tv) in field_defs {
         let body = super::super::synthetic_struct_field_body(
             state,
             &struct_path,
             &type_arg_tvs,
-            &fields,
+            &projection_fields,
             field_def,
             &field_name,
         );
@@ -147,6 +156,7 @@ pub(crate) fn lower_struct_decl_with_scope(
         &struct_path,
         &type_param_names,
         &type_arg_tvs,
+        &metadata,
     );
     state.ctx.leave_module(saved);
 }

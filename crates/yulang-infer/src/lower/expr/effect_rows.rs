@@ -41,6 +41,7 @@ pub(crate) fn pos_id_is_empty_row(
     seen: &mut HashSet<TypeVar>,
 ) -> bool {
     match state.infer.arena.get_pos(pos) {
+        Pos::Bot => true,
         Pos::Row(items, tail) => {
             items.is_empty() && matches!(state.infer.arena.get_pos(tail), Pos::Bot)
         }

@@ -221,7 +221,7 @@ impl Infer {
             (_, Neg::Var(b)) => {
                 self.constrain_to_neg_var(pos, b, cause, cache);
             }
-            (Pos::Var(a), Neg::Row(items, tail)) => {
+            (Pos::Var(a) | Pos::Raw(a), Neg::Row(items, tail)) => {
                 match self.row_upper_projection(a, &items, tail, origin_hint) {
                     RowUpperProjection::Original => {
                         self.constrain_pos_var_to(a, neg, cause, cache);
@@ -234,6 +234,9 @@ impl Infer {
                         self.constrain_step(pos, tail, cause, cache);
                     }
                 }
+            }
+            (Pos::Atom(_), Neg::Row(items, tail)) => {
+                self.constrain_row_item_to_row(pos, items, tail, cause, cache);
             }
             (Pos::Var(a), _) => {
                 self.constrain_pos_var_to(a, neg, cause, cache);
@@ -248,29 +251,28 @@ impl Infer {
         effect: TypeVar,
         items: &[NegId],
         tail: NegId,
-        origin_hint: Option<TypeVar>,
+        _origin_hint: Option<TypeVar>,
     ) -> RowUpperProjection {
-        let subtractability_source = origin_hint.unwrap_or(effect);
-        if subtractability_source != effect
-            && let Some(subtractability) = self.effect_subtractability(subtractability_source)
+        if !items.is_empty()
+            && let Neg::Var(tail_var) = self.arena.get_neg(tail)
         {
-            self.record_effect_subtractability(effect, subtractability);
-        }
-        if let Neg::Var(tail_var) = self.arena.get_neg(tail) {
-            self.copy_effect_subtractability(subtractability_source, tail_var);
+            self.copy_effect_subtractability(effect, tail_var);
         }
 
-        match self.effect_subtractability(subtractability_source) {
+        match self.effect_subtractability(effect) {
             Some(super::EffectSubtractability::All) if !items.is_empty() => {
                 RowUpperProjection::Original
             }
             Some(super::EffectSubtractability::All) => RowUpperProjection::TailOnly,
-            Some(super::EffectSubtractability::Set(atoms)) => {
+            Some(
+                subtractability @ (super::EffectSubtractability::AllExcept(_)
+                | super::EffectSubtractability::Set(_)),
+            ) => {
                 let projected = items
                     .iter()
                     .copied()
                     .filter(|item| {
-                        matches!(self.arena.get_neg(*item), Neg::Atom(atom) if atoms.iter().any(|allowed| allowed.path == atom.path))
+                        matches!(self.arena.get_neg(*item), Neg::Atom(atom) if subtractability.allows_atom_family(&atom))
                     })
                     .collect::<Vec<_>>();
                 if projected.is_empty() {

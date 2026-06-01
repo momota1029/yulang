@@ -9,7 +9,7 @@ use crate::lower::builtin_types::builtin_source_type_path;
 use crate::solve::EffectSubtractability;
 use crate::symbols::{Name, Path};
 use crate::types::RecordField;
-use crate::types::{Neg, Pos};
+use crate::types::{EffectAtom, Neg, Pos};
 
 use super::{LoweredFunctionSigShape, SigRow, SigType, SigVar};
 
@@ -27,7 +27,7 @@ pub fn lower_pure_sig_pos_id(
             let ret_eff = if let Some(row) = ret_eff {
                 lower_sig_row_pos_id(state, row, vars)
             } else {
-                state.infer.arena.empty_pos_row
+                state.infer.arena.bot
             };
             let ret = lower_pure_sig_pos_id(state, ret, vars);
             state.infer.alloc_pos(Pos::Fun {
@@ -134,7 +134,7 @@ pub fn lower_pure_sig_neg_id(
             let ret = lower_pure_sig_neg_id(state, ret, vars);
             state.infer.alloc_neg(Neg::Fun {
                 arg,
-                arg_eff: state.infer.arena.empty_pos_row,
+                arg_eff: state.infer.arena.bot,
                 ret_eff,
                 ret,
             })
@@ -476,7 +476,6 @@ fn lower_sig_row_pos(
     vars: &mut HashMap<String, TypeVar>,
 ) -> Pos {
     if let Some(assoc_tail) = single_in_scope_ident_item(row, vars) {
-        record_sig_row_tail_metadata(state, assoc_tail, row);
         return state.pos_row(Vec::new(), Pos::Var(assoc_tail));
     }
     let items = row
@@ -486,11 +485,11 @@ fn lower_sig_row_pos(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        record_sig_row_tail_metadata(state, tv, row);
+        record_sig_row_tail_metadata(state, tv, &items, RowTailSubtractability::AllExceptItems);
         Pos::Var(tv)
     } else if let Some(implicit) = implicit_row_tail_sig_var(row) {
         let tv = sig_var(state, vars, &implicit);
-        record_sig_row_tail_metadata(state, tv, row);
+        record_sig_row_tail_metadata(state, tv, &items, RowTailSubtractability::OnlyItems);
         Pos::Var(tv)
     } else {
         Pos::Bot
@@ -510,7 +509,7 @@ fn lower_closed_sig_row_pos(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        record_sig_row_tail_metadata(state, tv, row);
+        record_sig_row_tail_metadata(state, tv, &items, RowTailSubtractability::AllExceptItems);
         Pos::Var(tv)
     } else {
         Pos::Bot
@@ -542,7 +541,6 @@ fn lower_sig_row_neg(
     vars: &mut HashMap<String, TypeVar>,
 ) -> Neg {
     if let Some(assoc_tail) = single_in_scope_ident_item(row, vars) {
-        record_sig_row_tail_metadata(state, assoc_tail, row);
         return state.neg_row(Vec::new(), Neg::Var(assoc_tail));
     }
     let items = row
@@ -552,11 +550,11 @@ fn lower_sig_row_neg(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        record_sig_row_tail_metadata(state, tv, row);
+        record_sig_row_tail_metadata(state, tv, &items, RowTailSubtractability::AllExceptItems);
         Neg::Var(tv)
     } else if let Some(implicit) = implicit_row_tail_sig_var(row) {
         let tv = sig_var(state, vars, &implicit);
-        record_sig_row_tail_metadata(state, tv, row);
+        record_sig_row_tail_metadata(state, tv, &items, RowTailSubtractability::OnlyItems);
         Neg::Var(tv)
     } else {
         state
@@ -580,7 +578,7 @@ fn lower_closed_sig_row_neg(
         .collect::<Vec<_>>();
     let tail = if let Some(var) = row.tail.as_ref() {
         let tv = sig_var(state, vars, var);
-        record_sig_row_tail_metadata(state, tv, row);
+        record_sig_row_tail_metadata(state, tv, &items, RowTailSubtractability::AllExceptItems);
         Neg::Var(tv)
     } else {
         state
@@ -614,11 +612,56 @@ fn implicit_row_tail_sig_var(row: &SigRow) -> Option<SigVar> {
     })
 }
 
-fn record_sig_row_tail_metadata(state: &LowerState, tv: TypeVar, row: &SigRow) {
-    if !row.items.is_empty() {
-        state
-            .infer
-            .record_effect_subtractability(tv, EffectSubtractability::All);
+#[derive(Debug, Clone, Copy)]
+enum RowTailSubtractability {
+    OnlyItems,
+    AllExceptItems,
+}
+
+fn record_sig_row_tail_metadata<T>(
+    state: &LowerState,
+    tv: TypeVar,
+    items: &[T],
+    mode: RowTailSubtractability,
+) where
+    T: EffectAtomRef,
+{
+    let atoms = items
+        .iter()
+        .map(EffectAtomRef::effect_atom)
+        .cloned()
+        .collect::<Vec<_>>();
+    if atoms.is_empty() {
+        return;
+    }
+    let subtractability = match mode {
+        RowTailSubtractability::OnlyItems => EffectSubtractability::set(atoms),
+        RowTailSubtractability::AllExceptItems => EffectSubtractability::all_except(atoms),
+    };
+    state
+        .infer
+        .record_effect_subtractability(tv, subtractability);
+}
+
+trait EffectAtomRef {
+    fn effect_atom(&self) -> &EffectAtom;
+}
+
+impl EffectAtomRef for Pos {
+    fn effect_atom(&self) -> &EffectAtom {
+        let Pos::Atom(atom) = self else {
+            unreachable!("signature effect row items are lowered as atoms")
+        };
+        atom
+    }
+}
+
+impl EffectAtomRef for Neg {
+    fn effect_atom(&self) -> &EffectAtom {
+        let Neg::Atom(atom) = self else {
+            unreachable!("signature effect row items are lowered as atoms")
+        };
+        atom
     }
 }
 
@@ -726,7 +769,7 @@ fn lower_function_sig_ret_eff(
 ) -> (PosId, NegId, bool) {
     let Some(row) = ret_eff else {
         return (
-            state.infer.arena.empty_pos_row,
+            state.infer.arena.bot,
             state.infer.arena.empty_neg_row,
             false,
         );
@@ -748,7 +791,7 @@ fn lower_function_sig_ret_eff(
             );
         }
         return (
-            state.infer.arena.empty_pos_row,
+            state.infer.arena.bot,
             state.infer.arena.empty_neg_row,
             false,
         );
@@ -756,11 +799,23 @@ fn lower_function_sig_ret_eff(
 
     let tail_tv = if let Some(tail) = &row.tail {
         let tv = sig_var(state, vars, tail);
-        record_function_ret_eff_subtractability(state, tv, row, vars);
+        record_function_ret_eff_subtractability(
+            state,
+            tv,
+            row,
+            vars,
+            RowTailSubtractability::AllExceptItems,
+        );
         tv
     } else {
         let tv = fresh_sig_annotation_tv(state, row.items[0].span(), "function latent effect");
-        record_function_ret_eff_subtractability(state, tv, row, vars);
+        record_function_ret_eff_subtractability(
+            state,
+            tv,
+            row,
+            vars,
+            RowTailSubtractability::OnlyItems,
+        );
         tv
     };
     (
@@ -775,6 +830,7 @@ fn record_function_ret_eff_subtractability(
     tv: TypeVar,
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
+    mode: RowTailSubtractability,
 ) {
     let atoms = row
         .items
@@ -784,9 +840,13 @@ fn record_function_ret_eff_subtractability(
     if atoms.is_empty() {
         return;
     }
+    let subtractability = match mode {
+        RowTailSubtractability::OnlyItems => EffectSubtractability::set(atoms),
+        RowTailSubtractability::AllExceptItems => EffectSubtractability::all_except(atoms),
+    };
     state
         .infer
-        .record_effect_subtractability(tv, EffectSubtractability::Set(atoms));
+        .record_effect_subtractability(tv, subtractability);
 }
 
 fn sig_var_key(var: &SigVar) -> String {
@@ -828,7 +888,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn row_literal_type_argument_without_tail_lowers_as_closed_row() {
+    fn row_literal_type_argument_without_tail_lowers_as_effect_union() {
         let span = TextRange::new(TextSize::from(0), TextSize::from(2));
         let sig = SigType::Row {
             row: SigRow {
@@ -847,11 +907,10 @@ mod tests {
 
         let row = lower_pure_sig_type(&mut state, &sig, &mut vars);
 
-        let Pos::Row(items, tail) = row else {
-            panic!("expected row type");
+        let Pos::Atom(atom) = row else {
+            panic!("expected effect atom");
         };
-        assert_eq!(items.len(), 1);
-        assert!(matches!(state.infer.arena.get_pos(tail), Pos::Bot));
+        assert_eq!(atom.path.segments, vec![Name("fs".to_string())]);
     }
 }
 

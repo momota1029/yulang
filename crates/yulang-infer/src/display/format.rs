@@ -522,17 +522,25 @@ impl<'a> CompactToTypeCtx<'a> {
                     .collect(),
             )
         }));
-        parts.extend(ty.rows.iter().map(|row| {
-            Type::Row(
-                row.items
-                    .iter()
-                    .map(|item| self.coalesce_type(item, positive))
-                    .collect(),
-                Box::new(self.coalesce_type(&row.tail, positive)),
-            )
-        }));
+        parts.extend(ty.rows.iter().map(|row| self.coalesce_row(row, positive)));
 
         combine_types(parts, positive)
+    }
+
+    fn coalesce_row(&mut self, row: &CompactRow, positive: bool) -> Type {
+        let items = row
+            .items
+            .iter()
+            .map(|item| self.coalesce_type(item, positive))
+            .collect::<Vec<_>>();
+        let tail = self.coalesce_type(&row.tail, positive);
+        if positive {
+            let mut parts = items;
+            parts.push(tail);
+            combine_types(parts, true)
+        } else {
+            Type::Row(items, Box::new(tail))
+        }
     }
 
     fn drop_witnessed_negative_vars(&self, ty: &CompactType) -> CompactType {
@@ -551,6 +559,9 @@ impl CompactToTypeCtx<'_> {
     fn coalesce_fun(&mut self, fun: &CompactFun, positive: bool) -> Type {
         let mut fun = fun.clone();
         simplify_function_effect_residual_rows_for_render(&mut fun);
+        if !positive {
+            remove_row_tail_residual_vars_from_negative_ret_effect(&mut fun.ret_eff);
+        }
         Type::Fun {
             arg: Box::new(self.coalesce_type(&fun.arg, !positive)),
             arg_eff: Box::new(self.coalesce_fun_effect_field(&fun.arg_eff, !positive)),
@@ -566,6 +577,19 @@ impl CompactToTypeCtx<'_> {
             self.coalesce_type(ty, positive)
         }
     }
+}
+
+fn remove_row_tail_residual_vars_from_negative_ret_effect(ty: &mut CompactType) {
+    if ty.vars.is_empty() || ty.rows.is_empty() {
+        return;
+    }
+    let tail_vars = ty
+        .rows
+        .iter()
+        .filter(|row| !row.items.is_empty())
+        .flat_map(|row| row.tail.vars.iter().copied())
+        .collect::<HashSet<_>>();
+    ty.vars.retain(|tv| !tail_vars.contains(tv));
 }
 
 fn coalesce_root_fun(
@@ -687,7 +711,6 @@ fn coalesce_root_fun_arg_effect_field(
         })
         .unwrap_or(bounds.lower);
     remove_upper_covered_row_tail_vars(&mut ty, &bounds.upper);
-    absorb_redundant_row_tail_residual_vars(&mut ty);
 
     if is_empty_compact(&ty) || is_explicit_empty_row_compact(&ty) {
         Type::Bot
@@ -696,22 +719,6 @@ fn coalesce_root_fun_arg_effect_field(
     } else {
         ctx.coalesce_type(&ty, false)
     }
-}
-
-/// Drop a bare residual var that the same effect row already carries as its tail:
-/// `β & [io; β]` ⇒ `[io; β]`. The row constrains `β` exactly as tightly, so the
-/// standalone `β` is redundant.
-fn absorb_redundant_row_tail_residual_vars(ty: &mut CompactType) {
-    if ty.vars.is_empty() || ty.rows.is_empty() {
-        return;
-    }
-    let tail_vars: HashSet<TypeVar> = ty
-        .rows
-        .iter()
-        .filter(|row| !row.items.is_empty())
-        .flat_map(|row| row.tail.vars.iter().copied())
-        .collect();
-    ty.vars.retain(|tv| !tail_vars.contains(tv));
 }
 
 fn simplify_function_effect_residual_rows_for_render(fun: &mut CompactFun) {
@@ -900,7 +907,6 @@ fn coalesce_lower_only_root_fun(
     {
         coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
     }
-    absorb_redundant_row_tail_residual_vars(&mut lower_fun.arg_eff);
     simplify_function_effect_residual_rows_for_render(&mut lower_fun);
     let arg = coalesce_lower_only_root_fun_field(ctx, &lower_fun.arg, false, &HashSet::new());
     let mut rendered_input_vars = HashSet::new();

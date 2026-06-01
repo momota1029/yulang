@@ -18,7 +18,7 @@ pub struct TypeArena {
     pub bot: PosId,
     /// Neg::Top の定数インデックス
     pub top: NegId,
-    /// Pos::Row([], bot) の定数インデックス
+    /// 正側の空 effect row は Bot と同じ。正側 row は union として表す。
     pub empty_pos_row: PosId,
     /// Neg::Row([], top) の定数インデックス
     pub empty_neg_row: NegId,
@@ -79,10 +79,7 @@ impl TypeArena {
         neg.push(top_node.clone());
         neg_index.insert(top_node, top);
 
-        let empty_pos_row = PosId(pos.len() as u32);
-        let empty_pos_row_node = Pos::Row(vec![], bot);
-        pos.push(empty_pos_row_node.clone());
-        pos_index.insert(empty_pos_row_node, empty_pos_row);
+        let empty_pos_row = bot;
 
         let empty_neg_row = NegId(neg.len() as u32);
         let empty_neg_row_node = Neg::Row(vec![], top);
@@ -102,6 +99,10 @@ impl TypeArena {
     }
 
     pub fn alloc_pos(&self, p: Pos) -> PosId {
+        let p = match p {
+            Pos::Row(items, tail) if items.is_empty() && tail == self.bot => Pos::Bot,
+            other => other,
+        };
         if let Some(id) = self.pos_index.borrow().get(&p).copied() {
             return id;
         }

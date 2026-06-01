@@ -548,7 +548,7 @@ fn connect_impl_member_expected_type(
             .unwrap_or(state.infer.arena.empty_neg_row);
         neg_sig = state.infer.alloc_neg(Neg::Fun {
             arg: recv_pos,
-            arg_eff: state.infer.arena.empty_pos_row,
+            arg_eff: state.infer.arena.bot,
             ret_eff: outer_ret_eff_neg,
             ret: neg_sig,
         });
@@ -676,7 +676,7 @@ fn lower_impl_receiver_member(
             Pos::Var(method_tv),
             state.infer.alloc_neg(Neg::Fun {
                 arg: state.infer.alloc_pos(Pos::Var(recv_tv)),
-                arg_eff: state.infer.arena.empty_pos_row,
+                arg_eff: state.infer.arena.bot,
                 ret_eff: state.infer.alloc_neg(Neg::Var(constrained_body.eff)),
                 ret: state.infer.alloc_neg(Neg::Var(constrained_body.tv)),
             }),

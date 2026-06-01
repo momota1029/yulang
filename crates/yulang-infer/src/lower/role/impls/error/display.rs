@@ -137,7 +137,7 @@ fn lower_synthetic_error_display_body(
     let constrained_sig = state.infer.alloc_pos(Pos::Fun {
         arg: state.infer.alloc_neg(Neg::Var(arg_tv)),
         arg_eff: state.infer.arena.empty_neg_row,
-        ret_eff: state.infer.arena.empty_pos_row,
+        ret_eff: state.infer.arena.bot,
         ret: state.infer.alloc_pos(Pos::Var(body.tv)),
     });
     state.infer.constrain(constrained_sig, Neg::Var(method_tv));
@@ -145,7 +145,7 @@ fn lower_synthetic_error_display_body(
         Pos::Var(method_tv),
         state.infer.alloc_neg(Neg::Fun {
             arg: state.infer.alloc_pos(Pos::Var(arg_tv)),
-            arg_eff: state.infer.arena.empty_pos_row,
+            arg_eff: state.infer.arena.bot,
             ret_eff: state.infer.arena.empty_neg_row,
             ret: state.infer.alloc_neg(Neg::Var(body.tv)),
         }),
@@ -322,7 +322,7 @@ fn store_synthetic_error_display_scheme(
     let scheme_pos = state.infer.alloc_pos(Pos::Fun {
         arg,
         arg_eff: state.infer.arena.empty_neg_row,
-        ret_eff: state.infer.arena.empty_pos_row,
+        ret_eff: state.infer.arena.bot,
         ret,
     });
     state.infer.store_frozen_scheme(

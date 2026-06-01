@@ -155,7 +155,7 @@ fn lower_synthetic_error_throw_body(
         Pos::Var(method_tv),
         state.infer.alloc_neg(Neg::Fun {
             arg: state.infer.alloc_pos(Pos::Var(arg_tv)),
-            arg_eff: state.infer.arena.empty_pos_row,
+            arg_eff: state.infer.arena.bot,
             ret_eff: state.infer.alloc_neg(Neg::Var(body.eff)),
             ret: state.infer.alloc_neg(Neg::Var(body.tv)),
         }),

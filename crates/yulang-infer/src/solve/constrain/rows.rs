@@ -5,6 +5,24 @@ use crate::ids::{NegId, PosId, TypeVar};
 use crate::types::{Neg, Pos};
 
 impl Infer {
+    pub(super) fn constrain_row_item_to_row(
+        &self,
+        pos: PosId,
+        neg_items: Vec<NegId>,
+        neg_tail: NegId,
+        cause: &ConstraintCause,
+        cache: &mut StepCache,
+    ) {
+        if let Some(matched) = neg_items
+            .into_iter()
+            .find(|&item| self.row_items_can_cancel(pos, item))
+        {
+            self.constrain_row_item_match(pos, matched, cause, cache);
+            return;
+        }
+        self.constrain_step(pos, neg_tail, cause, cache);
+    }
+
     pub(super) fn constrain_row(
         &self,
         pos_items: Vec<PosId>,
@@ -57,7 +75,7 @@ impl Infer {
         };
 
         if !concrete_diff.is_empty() && !same_row_tail_var_nodes(&pos_tail_node, &neg_tail_node) {
-            let residual = self.arena.alloc_pos(Pos::Row(concrete_diff, concrete_tail));
+            let residual = self.pos_effect_union(concrete_diff, concrete_tail);
             self.constrain_step(residual, neg_tail, cause, cache);
         }
 
@@ -90,9 +108,7 @@ impl Infer {
     }
 
     fn row_items_can_cancel(&self, pos: PosId, neg: NegId) -> bool {
-        let pos_node = self.arena.get_pos(pos);
-        let neg_node = self.arena.get_neg(neg);
-        match (&pos_node, &neg_node) {
+        match (self.arena.get_pos(pos), self.arena.get_neg(neg)) {
             (Pos::Atom(pa), Neg::Atom(na)) => pa.path == na.path && pa.args.len() == na.args.len(),
             (Pos::Var(a), Neg::Var(b)) => a == b,
             (Pos::Bot, Neg::Top) => true,

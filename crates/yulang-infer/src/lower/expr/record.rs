@@ -27,9 +27,7 @@ pub(super) fn lower_record_literal(state: &mut LowerState, node: &SyntaxNode) ->
         }
     };
     state.infer.constrain(pos, Neg::Var(tv));
-    state
-        .infer
-        .constrain(state.infer.arena.empty_pos_row, Neg::Var(eff));
+    state.infer.constrain(state.infer.arena.bot, Neg::Var(eff));
     for (_, expr) in &lowered.fields {
         state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
     }

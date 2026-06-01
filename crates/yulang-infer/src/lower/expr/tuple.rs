@@ -15,9 +15,7 @@ pub(super) fn lower_tuple_expr(state: &mut LowerState, items: Vec<SyntaxNode>) -
         state.pos_tuple(fields.iter().map(|field| Pos::Var(field.tv)).collect()),
         Neg::Var(tv),
     );
-    state
-        .infer
-        .constrain(state.infer.arena.empty_pos_row, Neg::Var(eff));
+    state.infer.constrain(state.infer.arena.bot, Neg::Var(eff));
     for field in &fields {
         state.infer.constrain(Pos::Var(field.eff), Neg::Var(eff));
     }

@@ -211,7 +211,7 @@ fn lower_role_method_binding(
             let outer_ret_eff_pos = annotation_eff
                 .as_ref()
                 .map(|row| crate::lower::signature::lower_sig_row_pos_id(state, row, &mut pos_vars))
-                .unwrap_or(state.infer.arena.empty_pos_row);
+                .unwrap_or(state.infer.arena.bot);
             let outer_ret_eff_neg = annotation_eff
                 .as_ref()
                 .map(|row| crate::lower::signature::lower_sig_row_neg_id(state, row, &mut neg_vars))
@@ -224,7 +224,7 @@ fn lower_role_method_binding(
             });
             neg_sig = state.infer.alloc_neg(crate::types::Neg::Fun {
                 arg: state.infer.alloc_pos(crate::types::Pos::Var(recv_tv)),
-                arg_eff: state.infer.arena.empty_pos_row,
+                arg_eff: state.infer.arena.bot,
                 ret_eff: outer_ret_eff_neg,
                 ret: neg_sig,
             });

@@ -12,6 +12,7 @@ pub(crate) fn lower_struct_with_bindings(
     struct_path: &Path,
     type_param_names: &[String],
     type_arg_tvs: &[crate::ids::TypeVar],
+    type_param_metadata: &super::super::TypeParamEffectMetadata,
 ) {
     let Some(with_block) = super::super::child_node(node, SyntaxKind::IndentBlock)
         .or_else(|| super::super::child_node(node, SyntaxKind::BraceGroup))
@@ -22,6 +23,11 @@ pub(crate) fn lower_struct_with_bindings(
     for item in with_block.children() {
         match item.kind() {
             SyntaxKind::Binding => {
+                super::super::apply_type_param_effect_metadata(
+                    state,
+                    type_param_metadata,
+                    type_arg_tvs,
+                );
                 lower_struct_with_binding(state, &item, struct_path, type_arg_tvs);
             }
             SyntaxKind::ImplDecl => {
@@ -163,7 +169,7 @@ pub(crate) fn lower_struct_with_binding(
                 crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
             let neg_sig = state.infer.alloc_neg(Neg::Fun {
                 arg: recv_pos,
-                arg_eff: state.infer.arena.empty_pos_row,
+                arg_eff: state.infer.arena.bot,
                 ret_eff: state.infer.arena.empty_neg_row,
                 ret: ret_neg,
             });
@@ -221,10 +227,9 @@ fn constrain_ref_method_receiver(
     let eff_tail_tv = state.fresh_tv();
     let value_tv = state.fresh_tv();
     state.infer.mark_through(eff_tail_tv);
-    state.infer.constrain(
-        Pos::Row(Vec::new(), state.infer.alloc_pos(Pos::Var(eff_tail_tv))),
-        Neg::Var(eff_tv),
-    );
+    state
+        .infer
+        .constrain(Pos::Var(eff_tail_tv), Neg::Var(eff_tv));
     state.infer.constrain(
         Pos::Var(eff_tv),
         Neg::Row(Vec::new(), state.infer.alloc_neg(Neg::Var(eff_tail_tv))),

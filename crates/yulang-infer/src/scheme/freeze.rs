@@ -283,7 +283,9 @@ fn add_effect_metadata_free_vars(infer: &Infer, quantified: &mut Vec<TypeVar>) {
 fn effect_subtractability_free_vars(subtractability: &EffectSubtractability) -> Vec<TypeVar> {
     match subtractability {
         EffectSubtractability::Empty | EffectSubtractability::All => Vec::new(),
-        EffectSubtractability::Set(atoms) => atoms.iter().flat_map(effect_atom_free_vars).collect(),
+        EffectSubtractability::AllExcept(atoms) | EffectSubtractability::Set(atoms) => {
+            atoms.iter().flat_map(effect_atom_free_vars).collect()
+        }
     }
 }
 
@@ -301,6 +303,12 @@ fn subst_effect_subtractability(
     match subtractability {
         EffectSubtractability::Empty => EffectSubtractability::Empty,
         EffectSubtractability::All => EffectSubtractability::All,
+        EffectSubtractability::AllExcept(atoms) => EffectSubtractability::all_except(
+            atoms
+                .into_iter()
+                .map(|atom| subst_effect_atom_vars(atom, subst))
+                .collect(),
+        ),
         EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
             atoms
                 .into_iter()
@@ -1152,16 +1160,12 @@ pub(crate) fn compact_pos_type(
         );
     }
     for CompactRow { items, tail } in &ty.rows {
-        let tail_id = compact_pos_type(arena, tail, scheme, false);
-        parts.push(
-            arena.alloc_pos(Pos::Row(
-                items
-                    .iter()
-                    .map(|item| compact_pos_type(arena, item, scheme, true))
-                    .collect(),
-                tail_id,
-            )),
-        );
+        let mut row_parts = items
+            .iter()
+            .map(|item| compact_pos_type(arena, item, scheme, true))
+            .collect::<Vec<_>>();
+        row_parts.push(compact_pos_type(arena, tail, scheme, false));
+        parts.push(fold_pos_union_id(arena, row_parts));
     }
     fold_pos_union_id(arena, parts)
 }
@@ -1341,7 +1345,11 @@ fn collect_neg_effect_row_parts(
     for tv in vars {
         tail_parts.push(arena.alloc_neg(Neg::Var(tv)));
     }
-    for CompactRow { items: row_items, tail } in &ty.rows {
+    for CompactRow {
+        items: row_items,
+        tail,
+    } in &ty.rows
+    {
         for item in row_items {
             collect_neg_effect_row_parts(arena, item, scheme, items, tail_parts);
         }
@@ -1349,7 +1357,8 @@ fn collect_neg_effect_row_parts(
     }
 }
 
-/// `compact_neg_effect_row`'s positive twin: emit `Pos::Row(atoms; tail)`.
+/// `compact_neg_effect_row`'s positive twin: positive effect rows are just unions
+/// of single effects and residual variables.
 fn compact_pos_effect_row(
     arena: &TypeArena,
     ty: &CompactType,
@@ -1358,11 +1367,8 @@ fn compact_pos_effect_row(
     let mut items = Vec::new();
     let mut tail_parts = Vec::new();
     collect_pos_effect_row_parts(arena, ty, scheme, &mut items, &mut tail_parts);
-    if items.is_empty() {
-        return fold_pos_union_id(arena, tail_parts);
-    }
-    let tail = fold_pos_union_id(arena, tail_parts);
-    arena.alloc_pos(Pos::Row(items, tail))
+    items.extend(tail_parts);
+    fold_pos_union_id(arena, items)
 }
 
 fn collect_pos_effect_row_parts(
@@ -1387,7 +1393,11 @@ fn collect_pos_effect_row_parts(
     for tv in vars {
         tail_parts.push(arena.alloc_pos(Pos::Var(tv)));
     }
-    for CompactRow { items: row_items, tail } in &ty.rows {
+    for CompactRow {
+        items: row_items,
+        tail,
+    } in &ty.rows
+    {
         for item in row_items {
             collect_pos_effect_row_parts(arena, item, scheme, items, tail_parts);
         }

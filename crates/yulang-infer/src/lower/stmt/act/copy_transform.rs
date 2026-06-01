@@ -797,6 +797,12 @@ impl<'a> CopiedTypeVars<'a> {
         match subtractability {
             EffectSubtractability::Empty => EffectSubtractability::Empty,
             EffectSubtractability::All => EffectSubtractability::All,
+            EffectSubtractability::AllExcept(atoms) => EffectSubtractability::all_except(
+                atoms
+                    .into_iter()
+                    .map(|atom| self.copy_effect_atom(atom))
+                    .collect(),
+            ),
             EffectSubtractability::Set(atoms) => EffectSubtractability::Set(
                 atoms
                     .into_iter()

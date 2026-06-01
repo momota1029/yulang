@@ -63,9 +63,7 @@ pub(crate) fn lower_do_binding(
         ),
         Neg::Var(tv),
     );
-    state
-        .infer
-        .constrain(state.infer.arena.empty_pos_row, Neg::Var(eff));
+    state.infer.constrain(state.infer.arena.bot, Neg::Var(eff));
     let replacement = TypedExpr {
         tv,
         eff,

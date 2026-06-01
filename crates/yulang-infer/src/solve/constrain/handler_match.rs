@@ -3,7 +3,10 @@ use rustc_hash::FxHashSet;
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
-use crate::solve::{EffectSubtractability, HandlerMatchEdge, ShiftKeep};
+use crate::solve::{
+    EffectSubtractability, HandlerMatchEdge, ShiftKeep, effect_atom_families_overlap,
+};
+use crate::types::EffectAtom;
 use crate::types::{Neg, Pos};
 
 impl Infer {
@@ -185,6 +188,9 @@ impl Infer {
                 self.solve_handler_match_lower(index, left, edge, cause, cache, seen);
                 self.solve_handler_match_lower(index, right, edge, cause, cache, seen);
             }
+            Pos::Atom(_) => {
+                self.solve_handler_match_row(vec![lower], self.arena.bot, edge, cause, cache);
+            }
             Pos::Row(items, tail) => {
                 self.solve_handler_match_row(items, tail, edge, cause, cache);
             }
@@ -240,15 +246,11 @@ impl Infer {
         } else {
             self.arena.bot
         };
-        Some(self.arena.alloc_pos(Pos::Row(unmatched, tail)))
+        Some(self.pos_effect_union(unmatched, tail))
     }
 
     fn pos_tail_is_empty_row(&self, tail: PosId) -> bool {
-        match self.arena.get_pos(tail) {
-            Pos::Bot => true,
-            Pos::Row(items, row_tail) if items.is_empty() => self.pos_tail_is_empty_row(row_tail),
-            _ => false,
-        }
+        self.pos_effect_lower_is_empty(tail)
     }
 
     fn handler_match_row_items_match(&self, pos: PosId, neg: NegId) -> bool {
@@ -289,23 +291,51 @@ fn merge_effect_subtractability(
         }
         (EffectSubtractability::All, keep) | (keep, EffectSubtractability::All) => keep,
         (EffectSubtractability::Set(lhs), EffectSubtractability::Set(rhs)) => {
-            EffectSubtractability::Set(
-                lhs.into_iter()
-                    .filter(|atom| {
-                        rhs.iter()
-                            .any(|rhs| subtractability_atoms_overlap(atom, rhs))
-                    })
-                    .collect::<Vec<_>>(),
-            )
+            EffectSubtractability::set(intersect_atom_families(lhs, &rhs))
+        }
+        (EffectSubtractability::Set(atoms), EffectSubtractability::AllExcept(excluded))
+        | (EffectSubtractability::AllExcept(excluded), EffectSubtractability::Set(atoms)) => {
+            EffectSubtractability::set(remove_excluded_atom_families(atoms, &excluded))
+        }
+        (EffectSubtractability::AllExcept(lhs), EffectSubtractability::AllExcept(rhs)) => {
+            EffectSubtractability::all_except(union_atom_families(lhs, rhs))
         }
     }
 }
 
-fn subtractability_atoms_overlap(
-    lhs: &crate::types::EffectAtom,
-    rhs: &crate::types::EffectAtom,
-) -> bool {
-    lhs.path == rhs.path
+fn intersect_atom_families(lhs: Vec<EffectAtom>, rhs: &[EffectAtom]) -> Vec<EffectAtom> {
+    lhs.into_iter()
+        .filter(|atom| {
+            rhs.iter()
+                .any(|rhs| effect_atom_families_overlap(atom, rhs))
+        })
+        .collect()
+}
+
+fn remove_excluded_atom_families(
+    atoms: Vec<EffectAtom>,
+    excluded: &[EffectAtom],
+) -> Vec<EffectAtom> {
+    atoms
+        .into_iter()
+        .filter(|atom| {
+            !excluded
+                .iter()
+                .any(|excluded| effect_atom_families_overlap(atom, excluded))
+        })
+        .collect()
+}
+
+fn union_atom_families(mut lhs: Vec<EffectAtom>, rhs: Vec<EffectAtom>) -> Vec<EffectAtom> {
+    for atom in rhs {
+        if !lhs
+            .iter()
+            .any(|existing| effect_atom_families_overlap(existing, &atom))
+        {
+            lhs.push(atom);
+        }
+    }
+    lhs
 }
 
 #[cfg(test)]
@@ -505,17 +535,18 @@ mod tests {
             ConstraintCause::unknown(),
         );
 
+        let (has_item, has_tail) =
+            infer
+                .lower_refs_of(residual)
+                .into_iter()
+                .fold((false, false), |mut acc, lower| {
+                    let lower = pos_effect_contains_item_and_tail(&infer, lower, &unhandled, tail);
+                    acc.0 |= lower.0;
+                    acc.1 |= lower.1;
+                    acc
+                });
         assert!(
-            infer.lower_refs_of(residual).into_iter().any(|lower| {
-                matches!(
-                    infer.arena.get_pos(lower),
-                    Pos::Row(items, row_tail)
-                        if items.iter().any(|item| matches!(
-                            infer.arena.get_pos(*item),
-                            Pos::Atom(atom) if atom == unhandled
-                        )) && matches!(infer.arena.get_pos(row_tail), Pos::Var(tv) if tv == tail)
-                )
-            }),
+            has_item && has_tail,
             "open handler_match must pass unhandled row items through to the residual"
         );
     }
@@ -682,5 +713,32 @@ mod tests {
                 }
                 _ => false,
             })
+    }
+
+    fn pos_effect_contains_item_and_tail(
+        infer: &Infer,
+        pos: crate::ids::PosId,
+        atom: &EffectAtom,
+        tail: crate::ids::TypeVar,
+    ) -> (bool, bool) {
+        match infer.arena.get_pos(pos) {
+            Pos::Atom(candidate) => (candidate == *atom, false),
+            Pos::Var(tv) | Pos::Raw(tv) => (false, tv == tail),
+            Pos::Row(items, row_tail) => {
+                let mut out = pos_effect_contains_item_and_tail(infer, row_tail, atom, tail);
+                for item in items {
+                    let item_out = pos_effect_contains_item_and_tail(infer, item, atom, tail);
+                    out.0 |= item_out.0;
+                    out.1 |= item_out.1;
+                }
+                out
+            }
+            Pos::Union(lhs, rhs) => {
+                let lhs = pos_effect_contains_item_and_tail(infer, lhs, atom, tail);
+                let rhs = pos_effect_contains_item_and_tail(infer, rhs, atom, tail);
+                (lhs.0 || rhs.0, lhs.1 || rhs.1)
+            }
+            _ => (false, false),
+        }
     }
 }

@@ -69,6 +69,7 @@ pub(super) fn live_pos_is_empty_row(
     seen: &mut FxHashSet<TypeVar>,
 ) -> bool {
     match infer.arena.get_pos(pos) {
+        Pos::Bot => true,
         Pos::Row(items, tail) => items.is_empty() && matches!(infer.arena.get_pos(tail), Pos::Bot),
         Pos::Var(tv) => live_pos_var_is_empty_row(infer, tv, seen),
         _ => false,

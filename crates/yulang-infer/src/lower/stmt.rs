@@ -85,6 +85,7 @@ pub(crate) use patterns::{
     resolve_pattern_constructor_ref,
 };
 use structs::{
+    TypeParamEffectMetadata, apply_type_param_effect_metadata, collect_type_param_effect_metadata,
     export_runtime_struct_method_type, export_runtime_struct_receiver_type, invariant_args,
     lower_struct_decl, lower_struct_decl_with_scope, lower_struct_field_type,
     lower_struct_with_binding, lower_struct_with_bindings, synthetic_struct_constructor_body,

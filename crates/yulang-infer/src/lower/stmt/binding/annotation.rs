@@ -157,7 +157,7 @@ pub(crate) fn connect_pattern_sig_annotation(
             Pos::Var(ann_tv),
             Neg::Fun {
                 arg: fun.arg_pos,
-                arg_eff: state.infer.arena.empty_pos_row,
+                arg_eff: state.infer.arena.bot,
                 ret_eff: fun.ret_eff_neg,
                 ret: fun.ret_neg,
             },
@@ -174,7 +174,7 @@ pub(crate) fn connect_pattern_sig_annotation(
         );
         return Some(if fun.effect_hint {
             crate::lower::FunctionSigEffectHint::AllSubtractable
-        } else if fun.ret_eff_pos == state.infer.arena.empty_pos_row
+        } else if state.infer.pos_effect_lower_is_empty(fun.ret_eff_pos)
             && fun.ret_eff_neg == state.infer.arena.empty_neg_row
         {
             crate::lower::FunctionSigEffectHint::Pure

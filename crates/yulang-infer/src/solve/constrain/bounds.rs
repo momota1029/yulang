@@ -1,6 +1,7 @@
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
+use crate::solve::EffectSubtractability;
 use crate::types::{Neg, Pos};
 
 impl Infer {
@@ -14,6 +15,9 @@ impl Infer {
         let start = crate::profile::ProfileClock::now();
         let added = self.add_lower(target, pos);
         if added {
+            if let Some(subtractability) = self.effect_lower_subtractability(pos, false) {
+                self.record_effect_subtractability(target, subtractability);
+            }
             self.update_through_after_lower(target, pos, cause, cache);
             self.solve_handler_matches_for(target, cause, cache);
         }
@@ -81,5 +85,45 @@ impl Infer {
         if let Pos::Var(source) = self.arena.get_pos(pos) {
             self.propagate_through(source, target, cause, cache);
         }
+    }
+
+    fn effect_lower_subtractability(
+        &self,
+        pos: PosId,
+        allow_var_metadata: bool,
+    ) -> Option<EffectSubtractability> {
+        match self.arena.get_pos(pos) {
+            Pos::Atom(atom) => Some(EffectSubtractability::set(vec![atom.clone()])),
+            Pos::Union(lhs, rhs) => union_subtractability(
+                self.effect_lower_subtractability(lhs, true),
+                self.effect_lower_subtractability(rhs, true),
+            ),
+            Pos::Row(items, tail) => {
+                let mut out = self.effect_lower_subtractability(tail, true);
+                for item in items {
+                    out = union_subtractability(out, self.effect_lower_subtractability(item, true));
+                }
+                out
+            }
+            Pos::Var(tv) | Pos::Raw(tv) if allow_var_metadata => {
+                if self.is_through(tv) {
+                    Some(EffectSubtractability::All)
+                } else {
+                    self.effect_subtractability(tv)
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+fn union_subtractability(
+    lhs: Option<EffectSubtractability>,
+    rhs: Option<EffectSubtractability>,
+) -> Option<EffectSubtractability> {
+    match (lhs, rhs) {
+        (Some(lhs), Some(rhs)) => Some(lhs.union(rhs)),
+        (Some(subtractability), None) | (None, Some(subtractability)) => Some(subtractability),
+        (None, None) => None,
     }
 }

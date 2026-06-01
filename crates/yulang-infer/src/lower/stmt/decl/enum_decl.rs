@@ -50,7 +50,13 @@ pub(crate) fn lower_enum_decl(state: &mut LowerState, node: &SyntaxNode) {
     state
         .enum_variants_by_enum_path
         .insert(enum_path.clone(), variant_names);
-    super::super::lower_type_with_bindings(state, node, &enum_path, &type_param_names);
+    super::super::lower_type_with_bindings(
+        state,
+        node,
+        &enum_path,
+        &type_param_names,
+        &super::super::TypeParamEffectMetadata::default(),
+    );
     state.ctx.leave_module(saved);
 }
 
