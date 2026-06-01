@@ -89,6 +89,7 @@ impl Infer {
                 );
                 if arg_eff_pure {
                     let mut live_cache = StepCache::default();
+                    self.mark_pure_function_effect_lift_through(arg_eff_pos, ret_eff_neg);
                     self.constrain_step(arg_eff_pos, ret_eff_neg, cause, &mut live_cache);
                 } else {
                     self.constrain_pos_to_frozen_neg(arg_eff_pos, arena, arg_eff_neg, subst, cause);

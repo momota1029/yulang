@@ -58,6 +58,9 @@ pub(crate) fn register_sig_call_shape_hint(
 pub(crate) fn sig_type_callable_shape(sig: &crate::lower::signature::SigType) -> Option<bool> {
     match sig {
         crate::lower::signature::SigType::Fun { .. } => Some(true),
+        crate::lower::signature::SigType::EffectPrefixed { ret, .. } => {
+            sig_type_callable_shape(ret)
+        }
         crate::lower::signature::SigType::Var(_) => None,
         crate::lower::signature::SigType::Prim { .. }
         | crate::lower::signature::SigType::Apply { .. }
@@ -66,8 +69,7 @@ pub(crate) fn sig_type_callable_shape(sig: &crate::lower::signature::SigType) ->
         | crate::lower::signature::SigType::Record { .. }
         | crate::lower::signature::SigType::RecordTailSpread { .. }
         | crate::lower::signature::SigType::RecordHeadSpread { .. }
-        | crate::lower::signature::SigType::Row { .. }
-        | crate::lower::signature::SigType::EffectPrefixed { .. } => Some(false),
+        | crate::lower::signature::SigType::Row { .. } => Some(false),
     }
 }
 
@@ -140,8 +142,11 @@ pub(crate) fn connect_pattern_sig_annotation(
         span: Some(type_expr.text_range()),
         reason: ConstraintReason::Annotation,
     };
+    let value_sig = annotation_value_sig(&sig);
 
-    if let Some(fun) = crate::lower::signature::lower_function_sig_shape(state, &sig, &mut vars) {
+    if let Some(fun) =
+        crate::lower::signature::lower_function_sig_shape(state, value_sig, &mut vars)
+    {
         let ann_tv = state.fresh_tv();
         state.infer.constrain_with_cause(
             Pos::Fun {
@@ -183,9 +188,9 @@ pub(crate) fn connect_pattern_sig_annotation(
         });
     }
 
-    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
+    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, value_sig, &mut vars);
     let mut neg_vars = vars.clone();
-    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
+    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, value_sig, &mut neg_vars);
     let ann_tv = fresh_annotation_tv(state, pos_sig, neg_sig, &cause);
     connect_annotated_target(state, target_tv, ann_tv, cause);
     None
@@ -232,12 +237,22 @@ fn binding_type_annotation_tv(
     let type_expr = binding_type_annotation_expr(header)?;
     let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
     let mut vars = state.current_type_scope().cloned().unwrap_or_default();
-    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
+    let value_sig = annotation_value_sig(&sig);
+    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, value_sig, &mut vars);
     let mut neg_vars = vars.clone();
-    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
+    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, value_sig, &mut neg_vars);
     let cause = ConstraintCause {
         span: Some(type_expr.text_range()),
         reason: ConstraintReason::Annotation,
     };
     Some((fresh_annotation_tv(state, pos_sig, neg_sig, &cause), cause))
+}
+
+fn annotation_value_sig(
+    sig: &crate::lower::signature::SigType,
+) -> &crate::lower::signature::SigType {
+    match sig {
+        crate::lower::signature::SigType::EffectPrefixed { ret, .. } => ret,
+        _ => sig,
+    }
 }

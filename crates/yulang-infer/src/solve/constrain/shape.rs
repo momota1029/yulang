@@ -36,6 +36,7 @@ impl Infer {
                 let arg_eff_pure =
                     live_neg_is_empty_row(self, arg_eff_neg, &mut FxHashSet::default());
                 if arg_eff_pure {
+                    self.mark_pure_function_effect_lift_through(arg_eff_pos, ret_eff_neg);
                     self.constrain_step(arg_eff_pos, ret_eff_neg, cause, cache);
                 } else {
                     self.constrain_step(arg_eff_pos, arg_eff_neg, cause, cache);
@@ -230,6 +231,41 @@ impl Infer {
                         expected: ExpectedShape::Constructor,
                     },
                 );
+            }
+            _ => {}
+        }
+    }
+
+    pub(super) fn mark_pure_function_effect_lift_through(
+        &self,
+        arg_eff_pos: PosId,
+        ret_eff_neg: NegId,
+    ) {
+        self.mark_effect_pos_vars_through(arg_eff_pos);
+        self.mark_effect_neg_vars_through(ret_eff_neg);
+    }
+
+    fn mark_effect_pos_vars_through(&self, pos: PosId) {
+        match self.arena.get_pos(pos) {
+            Pos::Var(tv) | Pos::Raw(tv) => self.mark_through(tv),
+            Pos::Forall(_, body) => self.mark_effect_pos_vars_through(body),
+            Pos::Row(_, tail) => self.mark_effect_pos_vars_through(tail),
+            Pos::Union(lhs, rhs) => {
+                self.mark_effect_pos_vars_through(lhs);
+                self.mark_effect_pos_vars_through(rhs);
+            }
+            _ => {}
+        }
+    }
+
+    fn mark_effect_neg_vars_through(&self, neg: NegId) {
+        match self.arena.get_neg(neg) {
+            Neg::Var(tv) => self.mark_through(tv),
+            Neg::Forall(_, body) => self.mark_effect_neg_vars_through(body),
+            Neg::Row(_, tail) => self.mark_effect_neg_vars_through(tail),
+            Neg::Intersection(lhs, rhs) => {
+                self.mark_effect_neg_vars_through(lhs);
+                self.mark_effect_neg_vars_through(rhs);
             }
             _ => {}
         }

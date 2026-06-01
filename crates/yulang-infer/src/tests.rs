@@ -3223,6 +3223,14 @@ fn pure_function_passes_argument_effect_to_return_effect() {
         ret_eff_lowers.contains(&Pos::Var(arg_eff)),
         "argument effect should also flow into return effect for pure functions"
     );
+    assert!(
+        infer.is_through(arg_eff),
+        "argument effect slot should become through when a pure function is lifted"
+    );
+    assert!(
+        infer.is_through(ret_eff),
+        "return effect slot should become through when a pure function is lifted"
+    );
 }
 
 #[test]

@@ -2238,6 +2238,9 @@ fn compiled_typed_validation_reports_missing_scheme_symbol() {
             symbol: 7,
             rendered: "int".to_string(),
             compact: None,
+            through: Vec::new(),
+            eff_binds: Vec::new(),
+            effect_subtractabilities: Vec::new(),
             role_constraints: Vec::new(),
         }],
         ..CompiledTypedSurface::default()
@@ -2255,6 +2258,9 @@ fn compiled_typed_import_rejects_missing_scheme_symbol() {
             symbol: 7,
             rendered: "int".to_string(),
             compact: None,
+            through: Vec::new(),
+            eff_binds: Vec::new(),
+            effect_subtractabilities: Vec::new(),
             role_constraints: Vec::new(),
         }],
         ..CompiledTypedSurface::default()

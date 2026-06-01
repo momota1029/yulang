@@ -231,6 +231,7 @@ fn block_expr_from_parts(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
     for stmt in &stmts {
         match stmt {
             TypedStmt::Let(_, expr) | TypedStmt::Expr(expr) => {
@@ -261,6 +262,7 @@ fn lower_case_with_scrutinee(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
 
     let scrutinee_pattern = scrutinee_case_pattern(state, &scrutinee);
     state
@@ -457,6 +459,7 @@ fn case_payload_pattern_covers_all(pat: &TypedPat) -> bool {
 pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
 
     let mut scrutinee = None;
     let mut arms = Vec::new();
@@ -604,6 +607,7 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
 fn discard_if_branch_value(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
     let unit = unit_expr(state);
     state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
     state.infer.constrain(Pos::Var(unit.tv), Neg::Var(tv));

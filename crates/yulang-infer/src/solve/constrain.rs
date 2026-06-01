@@ -253,21 +253,21 @@ impl Infer {
         tail: NegId,
         _origin_hint: Option<TypeVar>,
     ) -> RowUpperProjection {
-        if !items.is_empty()
-            && let Neg::Var(tail_var) = self.arena.get_neg(tail)
-        {
-            self.copy_effect_subtractability(effect, tail_var);
+        if items.is_empty() {
+            return RowUpperProjection::TailOnly;
+        }
+        let subtractability =
+            self.require_effect_subtractability(effect, "projecting an effect row upper bound");
+
+        if let Neg::Var(tail_var) = self.arena.get_neg(tail) {
+            self.record_effect_subtractability(tail_var, subtractability.clone());
         }
 
-        match self.effect_subtractability(effect) {
-            Some(super::EffectSubtractability::All) if !items.is_empty() => {
-                RowUpperProjection::Original
-            }
-            Some(super::EffectSubtractability::All) => RowUpperProjection::TailOnly,
-            Some(
-                subtractability @ (super::EffectSubtractability::AllExcept(_)
-                | super::EffectSubtractability::Set(_)),
-            ) => {
+        match subtractability {
+            super::EffectSubtractability::All if !items.is_empty() => RowUpperProjection::Original,
+            super::EffectSubtractability::All => RowUpperProjection::TailOnly,
+            subtractability @ (super::EffectSubtractability::AllExcept(_)
+            | super::EffectSubtractability::Set(_)) => {
                 let projected = items
                     .iter()
                     .copied()
@@ -281,7 +281,7 @@ impl Infer {
                     RowUpperProjection::Project(projected)
                 }
             }
-            Some(super::EffectSubtractability::Empty) | None => RowUpperProjection::TailOnly,
+            super::EffectSubtractability::Empty => RowUpperProjection::TailOnly,
         }
     }
 }

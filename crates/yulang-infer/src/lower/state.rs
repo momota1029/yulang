@@ -12,7 +12,7 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
-use crate::solve::{CastMethodResolution, Infer};
+use crate::solve::{CastMethodResolution, EffectSubtractability, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
@@ -1019,6 +1019,8 @@ impl LowerState {
 
     pub fn fresh_exact_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
+        self.infer
+            .record_effect_subtractability(tv, EffectSubtractability::Empty);
         self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         self.infer
             .constrain(Pos::Var(tv), self.infer.arena.empty_neg_row);

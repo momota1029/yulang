@@ -12,6 +12,7 @@ pub(super) fn lower_record_literal(state: &mut LowerState, node: &SyntaxNode) ->
 
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
     let record_fields = lowered
         .fields
         .iter()

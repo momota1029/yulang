@@ -55,6 +55,19 @@ impl Infer {
         self.effect_subtractables.borrow().get(&effect).cloned()
     }
 
+    pub fn require_effect_subtractability(
+        &self,
+        effect: TypeVar,
+        context: &'static str,
+    ) -> EffectSubtractability {
+        self.effect_subtractability(effect).unwrap_or_else(|| {
+            let origin = self.origin_of(effect);
+            panic!(
+                "missing effect subtractability for {effect:?} while {context}; origin: {origin:?}"
+            )
+        })
+    }
+
     pub fn copy_effect_subtractability(&self, from: TypeVar, to: TypeVar) {
         if let Some(subtractability) = self.effect_subtractability(from) {
             self.record_effect_subtractability(to, subtractability);

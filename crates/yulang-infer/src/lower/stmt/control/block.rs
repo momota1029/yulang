@@ -30,6 +30,7 @@ pub(crate) fn collect_block_items(node: &SyntaxNode, out: &mut Vec<SyntaxNode>) 
 pub(crate) fn lower_block_from_items(state: &mut LowerState, items: &[SyntaxNode]) -> TypedBlock {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
 
     super::preregister_items_until_do(state, items);
 
@@ -94,6 +95,7 @@ fn block_expr_from_parts(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
+    state.infer.mark_through(eff);
     for stmt in &stmts {
         if let Some(stmt_eff) = stmt_eff(stmt) {
             state.infer.constrain(Pos::Var(stmt_eff), Neg::Var(eff));

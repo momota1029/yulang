@@ -542,6 +542,7 @@ impl Infer {
         self.register_level(inner_tv, level);
         self.register_level(field_tv, level);
         self.register_level(field_call_eff, self.level_of(selection.result_eff));
+        self.mark_through(field_call_eff);
 
         let Some((field_method_tv, _)) =
             self.selection_method_use_tv(projection.field.def, selection.result_tv, Some(inner_tv))
@@ -935,6 +936,7 @@ impl Infer {
         let call_eff = fresh_type_var();
         let level = self.level_of(selection.result_eff);
         self.register_level(call_eff, level);
+        self.mark_through(call_eff);
         let receiver_arg_eff = match receiver_style {
             SelectedReceiverStyle::Value => pure_pos_row(self),
             SelectedReceiverStyle::Computation => self.alloc_pos(Pos::Var(selection.recv_eff)),

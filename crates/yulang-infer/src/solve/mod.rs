@@ -98,7 +98,7 @@ pub enum ShiftKeep {
     Set(Vec<Path>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EffectSubtractability {
     Empty,
     All,

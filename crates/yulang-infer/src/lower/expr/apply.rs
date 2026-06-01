@@ -96,9 +96,15 @@ pub(crate) fn make_app_with_cause(
         }),
         state.fresh_tv(),
     );
+    state
+        .infer
+        .record_effect_subtractability(result_ty.effect, EffectSubtractability::All);
     let expected_callee_tv = state.fresh_tv();
     let expected_arg_tv = state.fresh_tv();
     let call_eff = state.fresh_tv();
+    state
+        .infer
+        .record_effect_subtractability(call_eff, EffectSubtractability::Empty);
     let cross_owner = cross_owner_function_ref_owner(state, &func);
     if let Some(owner) = cross_owner {
         state.infer.add_non_generic_var(owner, result_ty.value);
@@ -452,9 +458,9 @@ fn record_effect_subtractability_from_upper(
     upper: crate::ids::NegId,
 ) -> bool {
     if let Neg::Var(source) = state.infer.arena.get_neg(upper) {
-        let Some(subtractability) = state.infer.effect_subtractability(source) else {
-            return false;
-        };
+        let subtractability = state
+            .infer
+            .require_effect_subtractability(source, "copying a function return effect bound");
         state
             .infer
             .record_effect_subtractability(effect, subtractability);

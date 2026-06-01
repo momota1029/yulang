@@ -22,6 +22,7 @@ pub fn lower_pure_sig_pos_id(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
             let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_pure_sig_neg_id(state, arg, vars);
             let ret_eff = if let Some(row) = ret_eff {
@@ -111,7 +112,10 @@ pub fn lower_pure_sig_pos_id(
         SigType::Var(var) => state.infer.alloc_pos(Pos::Var(sig_var(state, vars, var))),
         SigType::Unit { .. } => state.infer.alloc_pos(prim_type("unit")),
         SigType::Row { row, .. } => lower_closed_sig_row_pos_id(state, row, vars),
-        SigType::EffectPrefixed { ret, .. } => lower_pure_sig_pos_id(state, ret, vars),
+        SigType::EffectPrefixed { ret, .. } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
+            lower_pure_sig_pos_id(state, ret, vars)
+        }
     }
 }
 
@@ -124,6 +128,7 @@ pub fn lower_pure_sig_neg_id(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
             let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_pure_sig_pos_id(state, arg, vars);
             let ret_eff = if let Some(row) = ret_eff {
@@ -188,7 +193,10 @@ pub fn lower_pure_sig_neg_id(
         SigType::Var(var) => state.infer.alloc_neg(Neg::Var(sig_var(state, vars, var))),
         SigType::Unit { .. } => state.infer.alloc_neg(neg_prim_type("unit")),
         SigType::Row { row, .. } => lower_closed_sig_row_neg_id(state, row, vars),
-        SigType::EffectPrefixed { ret, .. } => lower_pure_sig_neg_id(state, ret, vars),
+        SigType::EffectPrefixed { ret, .. } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
+            lower_pure_sig_neg_id(state, ret, vars)
+        }
     }
 }
 
@@ -243,6 +251,7 @@ pub fn lower_function_sig_shape(
         return None;
     };
 
+    record_function_sig_vars_all_subtractable(state, sig, vars);
     let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
     let arg_pos = lower_pure_sig_pos_id(state, arg, vars);
     let arg_neg = lower_pure_sig_neg_id(state, arg, vars);
@@ -273,6 +282,79 @@ fn split_function_return_effect<'a>(
     (ret_eff, ret)
 }
 
+pub(crate) fn record_function_sig_vars_all_subtractable(
+    state: &LowerState,
+    sig: &SigType,
+    vars: &mut HashMap<String, TypeVar>,
+) {
+    record_sig_effect_vars_all_subtractable(state, sig, vars);
+}
+
+fn record_sig_effect_vars_all_subtractable(
+    state: &LowerState,
+    sig: &SigType,
+    vars: &mut HashMap<String, TypeVar>,
+) {
+    match sig {
+        SigType::Apply { args, .. } | SigType::Tuple { items: args, .. } => {
+            for arg in args {
+                record_sig_effect_vars_all_subtractable(state, arg, vars);
+            }
+        }
+        SigType::Record { fields, .. } => {
+            for field in fields {
+                record_sig_effect_vars_all_subtractable(state, &field.ty, vars);
+            }
+        }
+        SigType::RecordTailSpread { fields, tail, .. } => {
+            for field in fields {
+                record_sig_effect_vars_all_subtractable(state, &field.ty, vars);
+            }
+            record_sig_effect_vars_all_subtractable(state, tail, vars);
+        }
+        SigType::RecordHeadSpread { tail, fields, .. } => {
+            record_sig_effect_vars_all_subtractable(state, tail, vars);
+            for field in fields {
+                record_sig_effect_vars_all_subtractable(state, &field.ty, vars);
+            }
+        }
+        SigType::Fun {
+            arg, ret_eff, ret, ..
+        } => {
+            record_sig_effect_vars_all_subtractable(state, arg, vars);
+            if let Some(row) = ret_eff {
+                record_sig_row_vars_all_subtractable(state, row, vars);
+            }
+            record_sig_effect_vars_all_subtractable(state, ret, vars);
+        }
+        SigType::Row { row, .. } => record_sig_row_vars_all_subtractable(state, row, vars),
+        SigType::EffectPrefixed { eff, ret, .. } => {
+            record_sig_row_vars_all_subtractable(state, eff, vars);
+            record_sig_effect_vars_all_subtractable(state, ret, vars);
+        }
+        SigType::Prim { .. } | SigType::Var(_) | SigType::Unit { .. } => {}
+    }
+}
+
+fn record_sig_row_vars_all_subtractable(
+    state: &LowerState,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) {
+    if let Some(tv) = single_in_scope_ident_item(row, vars) {
+        state
+            .infer
+            .record_effect_subtractability(tv, EffectSubtractability::All);
+        return;
+    }
+    if let Some(tail) = &row.tail {
+        let tv = sig_var(state, vars, tail);
+        state
+            .infer
+            .record_effect_subtractability(tv, EffectSubtractability::All);
+    }
+}
+
 fn lower_sig_type(
     state: &mut LowerState,
     sig: &SigType,
@@ -284,6 +366,7 @@ fn lower_sig_type(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
             let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let ret_is_fun = matches!(ret, SigType::Fun { .. });
             let ret_ty = lower_sig_type(state, ret, vars, effect_path.clone(), act_arg_tvs);
@@ -389,6 +472,7 @@ fn lower_sig_type(
         SigType::Unit { .. } => prim_type("unit"),
         SigType::Row { row, .. } => lower_closed_sig_row_pos(state, row, vars),
         SigType::EffectPrefixed { ret, .. } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
             lower_sig_type(state, ret, vars, effect_path, act_arg_tvs)
         }
     }
@@ -404,6 +488,7 @@ fn lower_sig_neg_type(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
             let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_sig_type(state, arg, vars, Path { segments: vec![] }, act_arg_tvs);
             let arg_eff = state.pos_row(vec![], Pos::Bot);
@@ -466,7 +551,10 @@ fn lower_sig_neg_type(
         SigType::Var(var) => Neg::Var(sig_var(state, vars, var)),
         SigType::Unit { .. } => neg_prim_type("unit"),
         SigType::Row { row, .. } => lower_closed_sig_row_neg(state, row, vars),
-        SigType::EffectPrefixed { ret, .. } => lower_sig_neg_type(state, ret, vars, act_arg_tvs),
+        SigType::EffectPrefixed { ret, .. } => {
+            record_function_sig_vars_all_subtractable(state, sig, vars);
+            lower_sig_neg_type(state, ret, vars, act_arg_tvs)
+        }
     }
 }
 

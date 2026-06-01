@@ -20,7 +20,9 @@ use crate::lower::{EnumVariantPatternPayload, LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
 use crate::simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
 use crate::simplify::cooccur::CompactRoleConstraint;
+use crate::solve::EffectSubtractability;
 use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
+use crate::types::EffectAtom;
 use yulang_typed_ir as typed_ir;
 use yulang_typed_ir::CoreProgram;
 
@@ -604,6 +606,12 @@ pub struct StdInferSnapshotScheme {
     pub symbol: u32,
     pub rendered: String,
     pub compact: Option<CompactTypeScheme>,
+    #[serde(default)]
+    pub through: Vec<TypeVar>,
+    #[serde(default)]
+    pub eff_binds: Vec<(TypeVar, Vec<EffectAtom>)>,
+    #[serde(default)]
+    pub effect_subtractabilities: Vec<(TypeVar, EffectSubtractability)>,
     #[serde(default)]
     pub role_constraints: Vec<CompactRoleConstraint>,
 }
@@ -1327,11 +1335,26 @@ fn import_std_snapshot_compact_schemes(
 ) {
     for (scheme, def) in data.schemes.iter().zip(&refs.schemes) {
         if let (Some(compact), Some(def)) = (&scheme.compact, def) {
+            import_snapshot_scheme_effect_metadata(state, scheme);
             state.infer.store_compact_scheme(*def, compact.clone());
             state
                 .infer
                 .store_compact_role_constraints(*def, scheme.role_constraints.clone());
         }
+    }
+}
+
+fn import_snapshot_scheme_effect_metadata(state: &LowerState, scheme: &StdInferSnapshotScheme) {
+    for (rho, handled) in &scheme.eff_binds {
+        state.infer.register_eff_bind(*rho, handled.clone());
+    }
+    for (tv, subtractability) in &scheme.effect_subtractabilities {
+        state
+            .infer
+            .record_effect_subtractability(*tv, subtractability.clone());
+    }
+    for tv in &scheme.through {
+        state.infer.mark_through(*tv);
     }
 }
 
@@ -1389,6 +1412,19 @@ fn collect_snapshot_scheme_max_type_var(
 ) {
     if let Some(compact) = &scheme.compact {
         collect_compact_scheme_max_type_var(compact, max);
+    }
+    for tv in &scheme.through {
+        push_max_type_var(*tv, max);
+    }
+    for (rho, handled) in &scheme.eff_binds {
+        push_max_type_var(*rho, max);
+        for atom in handled {
+            collect_effect_atom_max_type_var(atom, max);
+        }
+    }
+    for (tv, subtractability) in &scheme.effect_subtractabilities {
+        push_max_type_var(*tv, max);
+        collect_effect_subtractability_max_type_var(subtractability, max);
     }
     for constraint in &scheme.role_constraints {
         for arg in &constraint.args {
@@ -1456,6 +1492,27 @@ fn collect_compact_type_max_type_var(ty: &CompactType, max: &mut Option<TypeVar>
             collect_compact_type_max_type_var(item, max);
         }
         collect_compact_type_max_type_var(&row.tail, max);
+    }
+}
+
+fn collect_effect_subtractability_max_type_var(
+    subtractability: &EffectSubtractability,
+    max: &mut Option<TypeVar>,
+) {
+    match subtractability {
+        EffectSubtractability::Empty | EffectSubtractability::All => {}
+        EffectSubtractability::AllExcept(atoms) | EffectSubtractability::Set(atoms) => {
+            for atom in atoms {
+                collect_effect_atom_max_type_var(atom, max);
+            }
+        }
+    }
+}
+
+fn collect_effect_atom_max_type_var(atom: &EffectAtom, max: &mut Option<TypeVar>) {
+    for (pos, neg) in &atom.args {
+        push_max_type_var(*pos, max);
+        push_max_type_var(*neg, max);
     }
 }
 
@@ -3009,16 +3066,126 @@ fn collect_std_snapshot_schemes(
                 .or_else(|| compact.clone())
                 .expect("compact scheme should exist");
             let rendered = crate::display::dump::format_compact_scheme(&rendered_compact);
+            let role_constraints = snapshot_role_constraints_for_def(state, *def);
+            let (through, eff_binds, effect_subtractabilities) =
+                snapshot_scheme_effect_metadata(state, compact.as_ref(), &role_constraints);
             Some(StdInferSnapshotScheme {
                 symbol: *symbol,
                 rendered,
                 compact,
-                role_constraints: snapshot_role_constraints_for_def(state, *def),
+                through,
+                eff_binds,
+                effect_subtractabilities,
+                role_constraints,
             })
         })
         .collect::<Vec<_>>();
     schemes.sort_by(|lhs, rhs| lhs.symbol.cmp(&rhs.symbol));
     schemes
+}
+
+fn snapshot_scheme_effect_metadata(
+    state: &LowerState,
+    compact: Option<&CompactTypeScheme>,
+    role_constraints: &[CompactRoleConstraint],
+) -> (
+    Vec<TypeVar>,
+    Vec<(TypeVar, Vec<EffectAtom>)>,
+    Vec<(TypeVar, EffectSubtractability)>,
+) {
+    let mut vars = HashSet::new();
+    if let Some(compact) = compact {
+        collect_compact_scheme_type_vars(compact, &mut vars);
+    }
+    for constraint in role_constraints {
+        for arg in &constraint.args {
+            collect_compact_bounds_type_vars(arg, &mut vars);
+        }
+    }
+
+    let mut vars = vars.into_iter().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+
+    let through = vars
+        .iter()
+        .copied()
+        .filter(|tv| state.infer.is_through(*tv))
+        .collect::<Vec<_>>();
+    let eff_binds = vars
+        .iter()
+        .copied()
+        .filter_map(|tv| {
+            let handled = state.infer.eff_binds_of(tv);
+            (!handled.is_empty()).then_some((tv, handled))
+        })
+        .collect::<Vec<_>>();
+    let effect_subtractabilities = vars
+        .iter()
+        .copied()
+        .filter_map(|tv| state.infer.effect_subtractability(tv).map(|s| (tv, s)))
+        .collect::<Vec<_>>();
+
+    (through, eff_binds, effect_subtractabilities)
+}
+
+fn collect_compact_scheme_type_vars(scheme: &CompactTypeScheme, out: &mut HashSet<TypeVar>) {
+    collect_compact_bounds_type_vars(&scheme.cty, out);
+    for (var, bounds) in &scheme.rec_vars {
+        out.insert(*var);
+        collect_compact_bounds_type_vars(bounds, out);
+    }
+}
+
+fn collect_compact_bounds_type_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
+    if let Some(var) = bounds.self_var {
+        out.insert(var);
+    }
+    collect_compact_type_type_vars(&bounds.lower, out);
+    collect_compact_type_type_vars(&bounds.upper, out);
+}
+
+fn collect_compact_type_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
+    out.extend(ty.vars.iter().copied());
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_compact_bounds_type_vars(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_compact_type_type_vars(&fun.arg, out);
+        collect_compact_type_type_vars(&fun.arg_eff, out);
+        collect_compact_type_type_vars(&fun.ret_eff, out);
+        collect_compact_type_type_vars(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_compact_type_type_vars(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_type_vars(&field.value, out);
+        }
+        collect_compact_type_type_vars(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payload) in &variant.items {
+            for item in payload {
+                collect_compact_type_type_vars(item, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_compact_type_type_vars(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_compact_type_type_vars(item, out);
+        }
+        collect_compact_type_type_vars(&row.tail, out);
+    }
 }
 
 fn collect_std_snapshot_enum_variants(
@@ -4527,6 +4694,9 @@ fn compiled_typed_surface_for_namespace(
                     symbol,
                     rendered: scheme.rendered.clone(),
                     compact: scheme.compact.clone(),
+                    through: scheme.through.clone(),
+                    eff_binds: scheme.eff_binds.clone(),
+                    effect_subtractabilities: scheme.effect_subtractabilities.clone(),
                     role_constraints: scheme.role_constraints.clone(),
                 })
             })
