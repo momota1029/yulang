@@ -812,14 +812,18 @@ struct CompactContext<'a> {
     upper_bounds: std::cell::Ref<'a, FxHashMap<TypeVar, SmallVec<[NegId; 2]>>>,
     compact_lower_instances:
         std::cell::Ref<'a, FxHashMap<TypeVar, SmallVec<[OwnedSchemeInstance; 2]>>>,
-    in_progress: FxHashSet<(TypeVar, bool)>,
-    recursive: FxHashSet<(TypeVar, bool)>,
+    in_progress: FxHashSet<PolarTypeVar>,
+    recursive: FxHashSet<PolarTypeVar>,
     rec_vars: FxHashMap<TypeVar, CompactBounds>,
-    cache: FxHashMap<(TypeVar, bool), CompactType>,
+    cache: FxHashMap<PolarTypeVar, CompactType>,
     profile: CompactProfile,
 }
 
+type PolarTypeVar = (TypeVar, bool);
 type ParentStack = SmallVec<[TypeVar; 8]>;
+// Through expansion uses the same variable/polarity key as recursive coalescing,
+// but it computes a transparent effect-flow closure instead of introducing rec_vars.
+type ThroughSeen = FxHashSet<PolarTypeVar>;
 
 impl<'a> CompactContext<'a> {
     fn new(infer: &'a Infer) -> Self {
@@ -1013,7 +1017,8 @@ impl<'a> CompactContext<'a> {
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
             {
                 Some(bounds) if self.infer.is_through(tv) => {
-                    self.compact_through_pos_bounds_ref(bounds.as_slice(), parents)
+                    let mut seen = ThroughSeen::default();
+                    self.compact_through_pos_bounds_ref(bounds.as_slice(), parents, &mut seen)
                 }
                 Some(bounds) => self.compact_pos_bounds_ref(bounds.as_slice(), parents),
                 None => CompactType::default(),
@@ -1038,7 +1043,8 @@ impl<'a> CompactContext<'a> {
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
             {
                 Some(bounds) if self.infer.is_through(tv) => {
-                    self.compact_through_neg_bounds_ref(bounds.as_slice(), parents)
+                    let mut seen = ThroughSeen::default();
+                    self.compact_through_neg_bounds_ref(bounds.as_slice(), parents, &mut seen)
                 }
                 Some(bounds) => self.compact_neg_bounds_ref(bounds.as_slice(), parents),
                 None => CompactType::default(),
@@ -1062,15 +1068,19 @@ impl<'a> CompactContext<'a> {
         &mut self,
         bounds: &[PosId],
         parents: &ParentStack,
+        seen: &mut ThroughSeen,
     ) -> CompactType {
         let Some((first, rest)) = bounds.split_first() else {
             return CompactType::default();
         };
 
-        let mut compact = self.compact_through_pos_id(*first, parents);
+        let mut compact = self.compact_through_pos_id(*first, parents, seen);
         for bound in rest {
-            compact =
-                merge_compact_types(true, compact, self.compact_through_pos_id(*bound, parents));
+            compact = merge_compact_types(
+                true,
+                compact,
+                self.compact_through_pos_id(*bound, parents, seen),
+            );
         }
         compact
     }
@@ -1150,8 +1160,12 @@ impl<'a> CompactContext<'a> {
         tv: TypeVar,
         positive: bool,
         parents: &ParentStack,
+        seen: &mut ThroughSeen,
     ) -> CompactType {
         if parents.contains(&tv) {
+            return CompactType::default();
+        }
+        if !seen.insert((tv, positive)) {
             return CompactType::default();
         }
 
@@ -1162,7 +1176,9 @@ impl<'a> CompactContext<'a> {
                 .lower_bounds
                 .get(&tv)
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
-                .map(|bounds| self.compact_through_pos_bounds_ref(bounds.as_slice(), &next_parents))
+                .map(|bounds| {
+                    self.compact_through_pos_bounds_ref(bounds.as_slice(), &next_parents, seen)
+                })
                 .unwrap_or_default();
             let instantiated = self
                 .compact_lower_instances
@@ -1182,7 +1198,9 @@ impl<'a> CompactContext<'a> {
             self.upper_bounds
                 .get(&tv)
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
-                .map(|bounds| self.compact_through_neg_bounds_ref(bounds.as_slice(), &next_parents))
+                .map(|bounds| {
+                    self.compact_through_neg_bounds_ref(bounds.as_slice(), &next_parents, seen)
+                })
                 .unwrap_or_default()
         };
 
@@ -1201,15 +1219,20 @@ impl<'a> CompactContext<'a> {
         compact
     }
 
-    fn compact_through_pos_id(&mut self, id: PosId, parents: &ParentStack) -> CompactType {
+    fn compact_through_pos_id(
+        &mut self,
+        id: PosId,
+        parents: &ParentStack,
+        seen: &mut ThroughSeen,
+    ) -> CompactType {
         match self.infer.arena.get_pos(id) {
-            Pos::Var(tv) | Pos::Raw(tv) => self.compact_through_var_side(tv, true, parents),
-            Pos::Row(_, tail) => self.compact_through_pos_id(tail, parents),
-            Pos::Union(lhs, rhs) => merge_compact_types(
-                true,
-                self.compact_through_pos_id(lhs, parents),
-                self.compact_through_pos_id(rhs, parents),
-            ),
+            Pos::Var(tv) | Pos::Raw(tv) => self.compact_through_var_side(tv, true, parents, seen),
+            Pos::Row(_, tail) => self.compact_through_pos_id(tail, parents, seen),
+            Pos::Union(lhs, rhs) => {
+                let lhs = self.compact_through_pos_id(lhs, parents, seen);
+                let rhs = self.compact_through_pos_id(rhs, parents, seen);
+                merge_compact_types(true, lhs, rhs)
+            }
             Pos::Atom(_) => CompactType::default(),
             _ => self.compact_pos_id(id, parents),
         }
@@ -1219,28 +1242,37 @@ impl<'a> CompactContext<'a> {
         &mut self,
         bounds: &[NegId],
         parents: &ParentStack,
+        seen: &mut ThroughSeen,
     ) -> CompactType {
         let Some((first, rest)) = bounds.split_first() else {
             return CompactType::default();
         };
 
-        let mut compact = self.compact_through_neg_id(*first, parents);
+        let mut compact = self.compact_through_neg_id(*first, parents, seen);
         for bound in rest {
-            compact =
-                merge_compact_types(false, compact, self.compact_through_neg_id(*bound, parents));
+            compact = merge_compact_types(
+                false,
+                compact,
+                self.compact_through_neg_id(*bound, parents, seen),
+            );
         }
         compact
     }
 
-    fn compact_through_neg_id(&mut self, id: NegId, parents: &ParentStack) -> CompactType {
+    fn compact_through_neg_id(
+        &mut self,
+        id: NegId,
+        parents: &ParentStack,
+        seen: &mut ThroughSeen,
+    ) -> CompactType {
         match self.infer.arena.get_neg(id) {
-            Neg::Var(tv) => self.compact_through_var_side(tv, false, parents),
-            Neg::Row(_, tail) => self.compact_neg_id(tail, &ParentStack::new()),
-            Neg::Intersection(lhs, rhs) => merge_compact_types(
-                false,
-                self.compact_through_neg_id(lhs, parents),
-                self.compact_through_neg_id(rhs, parents),
-            ),
+            Neg::Var(tv) => self.compact_through_var_side(tv, false, parents, seen),
+            Neg::Row(_, tail) => self.compact_through_neg_id(tail, parents, seen),
+            Neg::Intersection(lhs, rhs) => {
+                let lhs = self.compact_through_neg_id(lhs, parents, seen);
+                let rhs = self.compact_through_neg_id(rhs, parents, seen);
+                merge_compact_types(false, lhs, rhs)
+            }
             _ => self.compact_neg_id(id, parents),
         }
     }
