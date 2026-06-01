@@ -15,11 +15,8 @@ mod handler_match;
 mod records;
 mod rows;
 mod shape;
-mod through;
 mod util;
 mod vars;
-
-use compact::compact_instance_direct_var;
 
 enum RowUpperProjection {
     Original,
@@ -106,11 +103,6 @@ impl Infer {
             return;
         }
         if self.add_compact_lower_instance(target, instance.clone()) {
-            if let Some(source) = compact_instance_direct_var(&instance) {
-                let mut cache = StepCache::default();
-                self.propagate_through(source, target, &cause, &mut cache);
-            }
-
             {
                 let mut cache = StepCache::default();
                 self.solve_handler_matches_for(target, &cause, &mut cache);
@@ -281,7 +273,9 @@ impl Infer {
                     RowUpperProjection::Project(projected)
                 }
             }
-            Some(super::EffectSubtractability::Empty) | None => RowUpperProjection::TailOnly,
+            Some(super::EffectSubtractability::Empty) => RowUpperProjection::TailOnly,
+            None if !items.is_empty() => RowUpperProjection::Original,
+            None => RowUpperProjection::TailOnly,
         }
     }
 }
@@ -570,8 +564,6 @@ mod tests {
             body,
             quantified: vec![quantified],
             quantified_sources: smallvec::smallvec![(quantified, quantified)],
-            through: std::collections::HashSet::new(),
-            eff_binds: Vec::new(),
             effect_subtractabilities: Vec::new(),
         });
         let instance = crate::scheme::OwnedSchemeInstance {

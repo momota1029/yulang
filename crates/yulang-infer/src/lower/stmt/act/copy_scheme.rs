@@ -60,30 +60,6 @@ pub(crate) fn transform_copied_frozen_scheme(
         .copied()
         .filter(|tv| !fixed_frozen_tvs.contains(tv))
         .collect::<Vec<_>>();
-    let through = source
-        .through
-        .iter()
-        .copied()
-        .filter(|tv| quantified.contains(tv))
-        .collect();
-    let eff_binds = source
-        .eff_binds
-        .iter()
-        .filter_map(|(rho, handled)| {
-            let rho = lookup_small_subst(frozen_subst.as_slice(), *rho);
-            if !quantified.contains(&rho) {
-                return None;
-            }
-            Some((
-                rho,
-                handled
-                    .iter()
-                    .cloned()
-                    .map(|atom| subst_effect_atom_vars(atom, frozen_subst.as_slice()))
-                    .collect(),
-            ))
-        })
-        .collect();
     let effect_subtractabilities = source
         .effect_subtractabilities
         .iter()
@@ -114,8 +90,6 @@ pub(crate) fn transform_copied_frozen_scheme(
         body: frozen_body,
         quantified,
         quantified_sources,
-        through,
-        eff_binds,
         effect_subtractabilities,
     })
 }

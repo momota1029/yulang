@@ -147,7 +147,6 @@ impl Infer {
                         .unwrap_or(crate::types::Variance::Invariant);
                     match variance {
                         crate::types::Variance::Invariant => {
-                            self.propagate_invariant_arg_through(pa.0, pa.1, na.0, na.1);
                             self.constrain_step(pa.0, na.1, cause, cache);
                             self.constrain_step(na.0, pa.1, cause, cache);
                         }

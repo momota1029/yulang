@@ -536,9 +536,13 @@ fn propagate_invariant_arg_through_frozen(
         pos_id_direct_var(&infer.arena.get_pos(np)),
         neg_id_direct_var(&infer.arena.get_neg(nn)),
     ];
-    if vars.into_iter().flatten().any(|tv| infer.is_through(tv)) {
+    if vars
+        .into_iter()
+        .flatten()
+        .any(|tv| infer.effect_is_all_subtractable(tv))
+    {
         for tv in vars.into_iter().flatten() {
-            infer.mark_through(tv);
+            infer.record_effect_subtractability(tv, crate::solve::EffectSubtractability::All);
         }
     }
 }

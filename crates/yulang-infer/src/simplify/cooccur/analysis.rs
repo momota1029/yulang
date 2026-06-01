@@ -338,7 +338,7 @@ fn compact_row_exact_key(row: &CompactRow) -> ExactKey {
         } else {
             ExactKeyKind::ConcreteRow
         },
-        (b'W', items, compact_type_exact_key(&row.tail)),
+        (b'W', items),
     )
 }
 

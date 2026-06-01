@@ -45,6 +45,9 @@ pub(crate) fn apply_polar_variable_removal(
             (false, true) if !super::cooccur::is_effectively_recursive(var, rec_vars) => {
                 subst.insert(var, None);
             }
+            (false, false) => {
+                subst.insert(var, None);
+            }
             _ => {}
         }
     }

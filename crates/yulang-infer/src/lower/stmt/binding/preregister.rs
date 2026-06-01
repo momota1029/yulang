@@ -44,6 +44,7 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
         state.register_def_name(def, name.clone());
         if let Some(pat) = pat_node.as_ref() {
             register_binding_call_shape_hint(state, def, pat);
+            register_binding_computation_arg_hint(state, def, pat);
         }
         state.register_def_span(
             def,
@@ -121,6 +122,7 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_name(def, name.clone());
         if let Some(pat) = pat_node.as_ref() {
             register_binding_call_shape_hint(state, def, pat);
+            register_binding_computation_arg_hint(state, def, pat);
         }
         state.register_def_span(
             def,
@@ -159,6 +161,28 @@ fn register_binding_call_shape_hint(state: &mut LowerState, def: DefId, pat_node
     if let Some(sig) = binding_pattern_sig(pat_node) {
         super::register_sig_call_shape_hint(state, def, &sig);
     }
+}
+
+fn register_binding_computation_arg_hint(
+    state: &mut LowerState,
+    def: DefId,
+    pat_node: &SyntaxNode,
+) {
+    let Some(super::HeaderArg::Pattern(first_arg)) =
+        super::collect_header_args(pat_node).into_iter().next()
+    else {
+        return;
+    };
+    let Some(sig) = binding_pattern_sig(&first_arg) else {
+        return;
+    };
+    if sig_type_is_computation(&sig) {
+        state.register_binding_computation_arg_def(def);
+    }
+}
+
+fn sig_type_is_computation(sig: &crate::lower::signature::SigType) -> bool {
+    matches!(sig, crate::lower::signature::SigType::EffectPrefixed { .. })
 }
 
 fn binding_pattern_sig(node: &SyntaxNode) -> Option<crate::lower::signature::SigType> {

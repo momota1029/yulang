@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use crate::ids::DefId;
 use crate::lower::{LowerState, SyntaxNode};
+use crate::solve::EffectSubtractability;
 use crate::types::{Neg, Pos};
 
 use super::ArgPatInfo;
@@ -44,12 +45,16 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     }
     if state.def_owner(owner).is_some() {
         for arg_pat in arg_pats {
-            state.infer.mark_through(arg_pat.arg_eff_tv);
+            state
+                .infer
+                .record_effect_subtractability(arg_pat.arg_eff_tv, EffectSubtractability::All);
         }
     }
     let body_ret_tv = state.fresh_tv();
     let body_ret_eff_tv = state.fresh_tv();
-    state.infer.mark_through(body_ret_eff_tv);
+    state
+        .infer
+        .record_effect_subtractability(body_ret_eff_tv, EffectSubtractability::All);
     non_generic_roots.insert(body_ret_tv);
     non_generic_roots.insert(body_ret_eff_tv);
     let mut ret_tv = body_ret_tv;

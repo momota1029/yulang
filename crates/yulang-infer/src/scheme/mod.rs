@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use smallvec::SmallVec;
@@ -6,7 +5,6 @@ use smallvec::SmallVec;
 use crate::ids::{PosId, TypeVar};
 use crate::simplify::compact::CompactTypeScheme;
 use crate::solve::EffectSubtractability;
-use crate::types::EffectAtom;
 use crate::types::arena::TypeArena;
 
 pub mod freeze;
@@ -23,8 +21,6 @@ pub struct Scheme {
     pub body: PosId,
     pub quantified: Vec<TypeVar>,
     pub quantified_sources: SmallSubst,
-    pub through: HashSet<TypeVar>,
-    pub eff_binds: Vec<(TypeVar, Vec<EffectAtom>)>,
     pub effect_subtractabilities: Vec<(TypeVar, EffectSubtractability)>,
 }
 

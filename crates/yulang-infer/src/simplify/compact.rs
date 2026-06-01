@@ -288,15 +288,6 @@ fn coalesced_tail_vars(
         .collect()
 }
 
-fn compact_through_lower_type(mut ty: CompactType) -> CompactType {
-    let rows = mem::take(&mut ty.rows);
-    let mut out = ty;
-    for row in rows {
-        out = merge_compact_types(true, out, compact_through_lower_type(*row.tail));
-    }
-    out
-}
-
 pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<CompactType> {
     let [lower_fun] = scheme.cty.lower.funs.as_slice() else {
         return None;
@@ -336,6 +327,24 @@ pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<
         funs: vec![fun],
         ..CompactType::default()
     })
+}
+
+pub(crate) fn coalesce_root_function_interval_effect_residuals(scheme: &mut CompactTypeScheme) {
+    let ignorable_root_vars = compact_root_ignorable_vars(&scheme.cty);
+    if !compact_root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
+        || !compact_root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
+    {
+        return;
+    }
+    if !matches!(scheme.cty.upper.funs.as_slice(), [_]) {
+        return;
+    }
+    let [lower_fun] = scheme.cty.lower.funs.as_mut_slice() else {
+        return;
+    };
+
+    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
+    simplify_function_effect_residual_rows(lower_fun);
 }
 
 fn simplify_function_effect_residual_rows(fun: &mut CompactFun) {
@@ -821,9 +830,7 @@ struct CompactContext<'a> {
 
 type PolarTypeVar = (TypeVar, bool);
 type ParentStack = SmallVec<[TypeVar; 8]>;
-// Through expansion uses the same variable/polarity key as recursive coalescing,
-// but it computes a transparent effect-flow closure instead of introducing rec_vars.
-type ThroughSeen = FxHashSet<PolarTypeVar>;
+type TailSeen = FxHashSet<TypeVar>;
 
 impl<'a> CompactContext<'a> {
     fn new(infer: &'a Infer) -> Self {
@@ -1016,10 +1023,6 @@ impl<'a> CompactContext<'a> {
                 .get(&tv)
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
             {
-                Some(bounds) if self.infer.is_through(tv) => {
-                    let mut seen = ThroughSeen::default();
-                    self.compact_through_pos_bounds_ref(bounds.as_slice(), parents, &mut seen)
-                }
                 Some(bounds) => self.compact_pos_bounds_ref(bounds.as_slice(), parents),
                 None => CompactType::default(),
             };
@@ -1029,9 +1032,6 @@ impl<'a> CompactContext<'a> {
                     .cloned()
                     .collect::<SmallVec<[OwnedSchemeInstance; 2]>>()
             }) {
-                Some(instances) if self.infer.is_through(tv) => {
-                    self.compact_through_instance_bounds_ref(instances.as_slice(), parents)
-                }
                 Some(instances) => self.compact_instance_bounds_ref(instances.as_slice(), parents),
                 None => CompactType::default(),
             };
@@ -1042,9 +1042,14 @@ impl<'a> CompactContext<'a> {
                 .get(&tv)
                 .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
             {
-                Some(bounds) if self.infer.is_through(tv) => {
-                    let mut seen = ThroughSeen::default();
-                    self.compact_through_neg_bounds_ref(bounds.as_slice(), parents, &mut seen)
+                Some(bounds) if self.infer.effect_subtractability(tv).is_none() => {
+                    let mut seen = TailSeen::default();
+                    seen.insert(tv);
+                    self.compact_neg_bounds_without_row_items_ref(
+                        bounds.as_slice(),
+                        parents,
+                        &mut seen,
+                    )
                 }
                 Some(bounds) => self.compact_neg_bounds_ref(bounds.as_slice(), parents),
                 None => CompactType::default(),
@@ -1060,27 +1065,6 @@ impl<'a> CompactContext<'a> {
         let mut compact = self.compact_pos_id(*first, parents);
         for bound in rest {
             compact = merge_compact_types(true, compact, self.compact_pos_id(*bound, parents));
-        }
-        compact
-    }
-
-    fn compact_through_pos_bounds_ref(
-        &mut self,
-        bounds: &[PosId],
-        parents: &ParentStack,
-        seen: &mut ThroughSeen,
-    ) -> CompactType {
-        let Some((first, rest)) = bounds.split_first() else {
-            return CompactType::default();
-        };
-
-        let mut compact = self.compact_through_pos_id(*first, parents, seen);
-        for bound in rest {
-            compact = merge_compact_types(
-                true,
-                compact,
-                self.compact_through_pos_id(*bound, parents, seen),
-            );
         }
         compact
     }
@@ -1105,26 +1089,6 @@ impl<'a> CompactContext<'a> {
         compact
     }
 
-    fn compact_through_instance_bounds_ref(
-        &mut self,
-        instances: &[OwnedSchemeInstance],
-        parents: &ParentStack,
-    ) -> CompactType {
-        let Some((first, rest)) = instances.split_first() else {
-            return CompactType::default();
-        };
-
-        let mut compact = compact_through_lower_type(self.compact_instance_lower(first, parents));
-        for instance in rest {
-            compact = merge_compact_types(
-                true,
-                compact,
-                compact_through_lower_type(self.compact_instance_lower(instance, parents)),
-            );
-        }
-        compact
-    }
-
     fn compact_instance_lower(
         &mut self,
         instance: &OwnedSchemeInstance,
@@ -1140,11 +1104,13 @@ impl<'a> CompactContext<'a> {
         let compact = subst_compact_scheme(&instance.scheme.compact, instance.subst.as_slice());
         let lower =
             compact_root_fun_body_lower(&compact).unwrap_or_else(|| compact.cty.lower.clone());
+        let lower = self.expand_instantiated_compact_type_vars(lower, true, parents);
         let reachable_rec_vars = reachable_compact_rec_vars_from_type(&lower, &compact.rec_vars);
         for (tv, bounds) in compact.rec_vars {
             if !reachable_rec_vars.contains(&tv) {
                 continue;
             }
+            let bounds = self.expand_instantiated_compact_bounds_vars(bounds, parents);
             self.rec_vars
                 .entry(tv)
                 .and_modify(|existing| {
@@ -1155,56 +1121,164 @@ impl<'a> CompactContext<'a> {
         lower
     }
 
-    fn compact_through_var_side(
+    fn expand_instantiated_compact_bounds_vars(
         &mut self,
-        tv: TypeVar,
+        bounds: CompactBounds,
+        parents: &ParentStack,
+    ) -> CompactBounds {
+        CompactBounds {
+            self_var: bounds.self_var,
+            lower: self.expand_instantiated_compact_type_vars(bounds.lower, true, parents),
+            upper: self.expand_instantiated_compact_type_vars(bounds.upper, false, parents),
+        }
+    }
+
+    fn expand_instantiated_compact_type_vars(
+        &mut self,
+        ty: CompactType,
         positive: bool,
         parents: &ParentStack,
-        seen: &mut ThroughSeen,
     ) -> CompactType {
-        if parents.contains(&tv) {
-            return CompactType::default();
-        }
-        if !seen.insert((tv, positive)) {
-            return CompactType::default();
-        }
-
-        let mut next_parents = parents.clone();
-        next_parents.push(tv);
-        let bounds = if positive {
-            let regular = self
-                .lower_bounds
-                .get(&tv)
-                .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
-                .map(|bounds| {
-                    self.compact_through_pos_bounds_ref(bounds.as_slice(), &next_parents, seen)
+        let CompactType {
+            vars,
+            prims,
+            cons,
+            funs,
+            records,
+            record_spreads,
+            variants,
+            tuples,
+            rows,
+        } = ty;
+        let vars_to_expand = vars.iter().copied().collect::<Vec<_>>();
+        let mut out = CompactType {
+            vars,
+            prims,
+            cons: cons
+                .into_iter()
+                .map(|con| CompactCon {
+                    path: con.path,
+                    args: con
+                        .args
+                        .into_iter()
+                        .map(|arg| self.expand_instantiated_compact_bounds_vars(arg, parents))
+                        .collect(),
                 })
-                .unwrap_or_default();
-            let instantiated = self
-                .compact_lower_instances
-                .get(&tv)
-                .map(|instances| {
-                    instances
-                        .iter()
-                        .cloned()
-                        .collect::<SmallVec<[OwnedSchemeInstance; 2]>>()
+                .collect(),
+            funs: funs
+                .into_iter()
+                .map(|fun| CompactFun {
+                    arg: self.expand_instantiated_compact_type_vars(fun.arg, !positive, parents),
+                    arg_eff: self.expand_instantiated_compact_type_vars(
+                        fun.arg_eff,
+                        !positive,
+                        parents,
+                    ),
+                    ret_eff: self.expand_instantiated_compact_type_vars(
+                        fun.ret_eff,
+                        positive,
+                        parents,
+                    ),
+                    ret: self.expand_instantiated_compact_type_vars(fun.ret, positive, parents),
                 })
-                .map(|instances| {
-                    self.compact_through_instance_bounds_ref(instances.as_slice(), &next_parents)
+                .collect(),
+            records: records
+                .into_iter()
+                .map(|record| CompactRecord {
+                    fields: record
+                        .fields
+                        .into_iter()
+                        .map(|field| RecordField {
+                            name: field.name,
+                            value: self.expand_instantiated_compact_type_vars(
+                                field.value,
+                                positive,
+                                parents,
+                            ),
+                            optional: field.optional,
+                        })
+                        .collect(),
                 })
-                .unwrap_or_default();
-            merge_compact_types(true, regular, instantiated)
-        } else {
-            self.upper_bounds
-                .get(&tv)
-                .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
-                .map(|bounds| {
-                    self.compact_through_neg_bounds_ref(bounds.as_slice(), &next_parents, seen)
+                .collect(),
+            record_spreads: record_spreads
+                .into_iter()
+                .map(|spread| CompactRecordSpread {
+                    fields: spread
+                        .fields
+                        .into_iter()
+                        .map(|field| RecordField {
+                            name: field.name,
+                            value: self.expand_instantiated_compact_type_vars(
+                                field.value,
+                                positive,
+                                parents,
+                            ),
+                            optional: field.optional,
+                        })
+                        .collect(),
+                    tail: Box::new(self.expand_instantiated_compact_type_vars(
+                        *spread.tail,
+                        positive,
+                        parents,
+                    )),
+                    tail_wins: spread.tail_wins,
                 })
-                .unwrap_or_default()
+                .collect(),
+            variants: variants
+                .into_iter()
+                .map(|variant| CompactVariant {
+                    items: variant
+                        .items
+                        .into_iter()
+                        .map(|(name, payloads)| {
+                            (
+                                name,
+                                payloads
+                                    .into_iter()
+                                    .map(|payload| {
+                                        self.expand_instantiated_compact_type_vars(
+                                            payload, positive, parents,
+                                        )
+                                    })
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
+                })
+                .collect(),
+            tuples: tuples
+                .into_iter()
+                .map(|tuple| {
+                    tuple
+                        .into_iter()
+                        .map(|item| {
+                            self.expand_instantiated_compact_type_vars(item, positive, parents)
+                        })
+                        .collect()
+                })
+                .collect(),
+            rows: rows
+                .into_iter()
+                .map(|row| CompactRow {
+                    items: row
+                        .items
+                        .into_iter()
+                        .map(|item| {
+                            self.expand_instantiated_compact_type_vars(item, positive, parents)
+                        })
+                        .collect(),
+                    tail: Box::new(
+                        self.expand_instantiated_compact_type_vars(*row.tail, positive, parents),
+                    ),
+                })
+                .collect(),
         };
 
-        merge_compact_types(positive, CompactType::from_var(tv), bounds)
+        for tv in vars_to_expand {
+            let expanded = self.compact_var_side(tv, positive, parents);
+            out = merge_compact_types(positive, out, expanded);
+        }
+        out
     }
 
     fn compact_neg_bounds_ref(&mut self, bounds: &[NegId], parents: &ParentStack) -> CompactType {
@@ -1219,58 +1293,222 @@ impl<'a> CompactContext<'a> {
         compact
     }
 
-    fn compact_through_pos_id(
-        &mut self,
-        id: PosId,
-        parents: &ParentStack,
-        seen: &mut ThroughSeen,
-    ) -> CompactType {
-        match self.infer.arena.get_pos(id) {
-            Pos::Var(tv) | Pos::Raw(tv) => self.compact_through_var_side(tv, true, parents, seen),
-            Pos::Row(_, tail) => self.compact_through_pos_id(tail, parents, seen),
-            Pos::Union(lhs, rhs) => {
-                let lhs = self.compact_through_pos_id(lhs, parents, seen);
-                let rhs = self.compact_through_pos_id(rhs, parents, seen);
-                merge_compact_types(true, lhs, rhs)
-            }
-            Pos::Atom(_) => CompactType::default(),
-            _ => self.compact_pos_id(id, parents),
-        }
-    }
-
-    fn compact_through_neg_bounds_ref(
+    fn compact_neg_bounds_without_row_items_ref(
         &mut self,
         bounds: &[NegId],
         parents: &ParentStack,
-        seen: &mut ThroughSeen,
+        seen: &mut TailSeen,
     ) -> CompactType {
         let Some((first, rest)) = bounds.split_first() else {
             return CompactType::default();
         };
 
-        let mut compact = self.compact_through_neg_id(*first, parents, seen);
+        let mut compact = self.compact_neg_without_row_items_id(*first, parents, seen);
         for bound in rest {
             compact = merge_compact_types(
                 false,
                 compact,
-                self.compact_through_neg_id(*bound, parents, seen),
+                self.compact_neg_without_row_items_id(*bound, parents, seen),
             );
         }
         compact
     }
 
-    fn compact_through_neg_id(
+    fn compact_neg_without_row_items_id(
         &mut self,
         id: NegId,
         parents: &ParentStack,
-        seen: &mut ThroughSeen,
+        seen: &mut TailSeen,
     ) -> CompactType {
         match self.infer.arena.get_neg(id) {
-            Neg::Var(tv) => self.compact_through_var_side(tv, false, parents, seen),
-            Neg::Row(_, tail) => self.compact_through_neg_id(tail, parents, seen),
+            Neg::Var(tv) => self.compact_neg_tail_var(tv, parents, seen),
+            Neg::Row(_, tail) => self.compact_neg_without_row_items_id(tail, parents, seen),
             Neg::Intersection(lhs, rhs) => {
-                let lhs = self.compact_through_neg_id(lhs, parents, seen);
-                let rhs = self.compact_through_neg_id(rhs, parents, seen);
+                let lhs = self.compact_neg_without_row_items_id(lhs, parents, seen);
+                let rhs = self.compact_neg_without_row_items_id(rhs, parents, seen);
+                merge_compact_types(false, lhs, rhs)
+            }
+            _ => self.compact_neg_id(id, parents),
+        }
+    }
+
+    fn compact_pos_tail_id(
+        &mut self,
+        id: PosId,
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        match self.infer.arena.get_pos(id) {
+            Pos::Var(tv) | Pos::Raw(tv) => self.compact_pos_tail_var(tv, parents, seen),
+            Pos::Row(items, tail) => CompactType::from_row_with_polarity(
+                true,
+                items
+                    .iter()
+                    .map(|item| self.compact_pos_id(*item, &ParentStack::new()))
+                    .collect(),
+                self.compact_pos_tail_id(tail, parents, seen),
+            ),
+            Pos::Union(lhs, rhs) => {
+                let lhs = self.compact_pos_tail_id(lhs, parents, seen);
+                let rhs = self.compact_pos_tail_id(rhs, parents, seen);
+                merge_compact_types(true, lhs, rhs)
+            }
+            _ => self.compact_pos_id(id, parents),
+        }
+    }
+
+    fn compact_pos_tail_var(
+        &mut self,
+        tv: TypeVar,
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        if parents.contains(&tv) {
+            return CompactType::from_var(tv);
+        }
+        if !seen.insert(tv) {
+            return CompactType::from_var(tv);
+        }
+
+        let mut next_parents = parents.clone();
+        next_parents.push(tv);
+        let regular = match self
+            .lower_bounds
+            .get(&tv)
+            .map(|bounds| bounds.iter().copied().collect::<SmallVec<[PosId; 4]>>())
+        {
+            Some(bounds) => {
+                self.compact_pos_tail_bounds_ref(bounds.as_slice(), &next_parents, seen)
+            }
+            None => CompactType::default(),
+        };
+        let instantiated = match self.compact_lower_instances.get(&tv).map(|instances| {
+            instances
+                .iter()
+                .cloned()
+                .collect::<SmallVec<[OwnedSchemeInstance; 2]>>()
+        }) {
+            Some(instances) => {
+                self.compact_instance_bounds_ref(instances.as_slice(), &next_parents)
+            }
+            None => CompactType::default(),
+        };
+        let compact = merge_compact_types(true, regular, instantiated);
+        if is_empty_compact_type(&compact) {
+            CompactType::from_var(tv)
+        } else {
+            merge_compact_types(true, CompactType::from_var(tv), compact)
+        }
+    }
+
+    fn compact_pos_tail_bounds_ref(
+        &mut self,
+        bounds: &[PosId],
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        let Some((first, rest)) = bounds.split_first() else {
+            return CompactType::default();
+        };
+
+        let mut compact = self.compact_pos_tail_id(*first, parents, seen);
+        for bound in rest {
+            compact = merge_compact_types(
+                true,
+                compact,
+                self.compact_pos_tail_id(*bound, parents, seen),
+            );
+        }
+        compact
+    }
+
+    fn compact_neg_tail_id(
+        &mut self,
+        id: NegId,
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        match self.infer.arena.get_neg(id) {
+            Neg::Var(tv) => self.compact_neg_tail_var(tv, parents, seen),
+            _ => self.compact_neg_id(id, parents),
+        }
+    }
+
+    fn compact_neg_tail_var(
+        &mut self,
+        tv: TypeVar,
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        if parents.contains(&tv) {
+            return CompactType::from_var(tv);
+        }
+        if !seen.insert(tv) {
+            return CompactType::from_var(tv);
+        }
+
+        let Some(bounds) = self
+            .upper_bounds
+            .get(&tv)
+            .map(|bounds| bounds.iter().copied().collect::<SmallVec<[NegId; 4]>>())
+        else {
+            return CompactType::from_var(tv);
+        };
+
+        let mut next_parents = parents.clone();
+        next_parents.push(tv);
+        let compact = if self.infer.effect_subtractability(tv).is_none() {
+            self.compact_neg_bounds_without_row_items_ref(bounds.as_slice(), &next_parents, seen)
+        } else {
+            self.compact_neg_tail_bounds_ref(bounds.as_slice(), &next_parents, seen)
+        };
+        if is_empty_compact_type(&compact) {
+            CompactType::from_var(tv)
+        } else {
+            merge_compact_types(false, CompactType::from_var(tv), compact)
+        }
+    }
+
+    fn compact_neg_tail_bounds_ref(
+        &mut self,
+        bounds: &[NegId],
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        let Some((first, rest)) = bounds.split_first() else {
+            return CompactType::default();
+        };
+
+        let mut compact = self.compact_neg_tail_bound_id(*first, parents, seen);
+        for bound in rest {
+            compact = merge_compact_types(
+                false,
+                compact,
+                self.compact_neg_tail_bound_id(*bound, parents, seen),
+            );
+        }
+        compact
+    }
+
+    fn compact_neg_tail_bound_id(
+        &mut self,
+        id: NegId,
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        match self.infer.arena.get_neg(id) {
+            Neg::Var(tv) => self.compact_neg_tail_var(tv, parents, seen),
+            Neg::Row(items, tail) => CompactType::from_row_with_polarity(
+                false,
+                items
+                    .iter()
+                    .map(|item| self.compact_neg_id(*item, &ParentStack::new()))
+                    .collect(),
+                self.compact_neg_tail_id(tail, parents, seen),
+            ),
+            Neg::Intersection(lhs, rhs) => {
+                let lhs = self.compact_neg_tail_bound_id(lhs, parents, seen);
+                let rhs = self.compact_neg_tail_bound_id(rhs, parents, seen);
                 merge_compact_types(false, lhs, rhs)
             }
             _ => self.compact_neg_id(id, parents),
@@ -1359,14 +1597,17 @@ impl<'a> CompactContext<'a> {
                     .map(|item| self.compact_pos_id(*item, &ParentStack::new()))
                     .collect(),
             ),
-            Pos::Row(items, tail) => CompactType::from_row_with_polarity(
-                true,
-                items
-                    .iter()
-                    .map(|item| self.compact_pos_id(*item, &ParentStack::new()))
-                    .collect(),
-                self.compact_pos_id(tail, &ParentStack::new()),
-            ),
+            Pos::Row(items, tail) => {
+                let mut seen = TailSeen::default();
+                CompactType::from_row_with_polarity(
+                    true,
+                    items
+                        .iter()
+                        .map(|item| self.compact_pos_id(*item, &ParentStack::new()))
+                        .collect(),
+                    self.compact_pos_tail_id(tail, &ParentStack::new(), &mut seen),
+                )
+            }
             Pos::Union(lhs, rhs) => merge_compact_types(
                 true,
                 self.compact_pos_id(lhs, parents),
@@ -1435,14 +1676,17 @@ impl<'a> CompactContext<'a> {
                     .map(|item| self.compact_neg_id(*item, &ParentStack::new()))
                     .collect(),
             ),
-            Neg::Row(items, tail) => CompactType::from_row_with_polarity(
-                false,
-                items
-                    .iter()
-                    .map(|item| self.compact_neg_id(*item, &ParentStack::new()))
-                    .collect(),
-                self.compact_neg_id(tail, &ParentStack::new()),
-            ),
+            Neg::Row(items, tail) => {
+                let mut seen = TailSeen::default();
+                CompactType::from_row_with_polarity(
+                    false,
+                    items
+                        .iter()
+                        .map(|item| self.compact_neg_id(*item, &ParentStack::new()))
+                        .collect(),
+                    self.compact_neg_tail_id(tail, &ParentStack::new(), &mut seen),
+                )
+            }
             Neg::Intersection(lhs, rhs) => merge_compact_types(
                 false,
                 self.compact_neg_id(lhs, parents),
@@ -1463,8 +1707,12 @@ impl<'a> CompactContext<'a> {
                     .iter()
                     .map(|(pos_tv, neg_tv)| CompactBounds {
                         self_var: None,
-                        lower: CompactType::from_var(*pos_tv),
-                        upper: CompactType::from_var(*neg_tv),
+                        lower: merge_compact_types(
+                            true,
+                            self.compact_var_side(*pos_tv, true, &ParentStack::new()),
+                            self.compact_var_side(*neg_tv, true, &ParentStack::new()),
+                        ),
+                        upper: self.compact_var_side(*neg_tv, false, &ParentStack::new()),
                     })
                     .collect(),
             )
@@ -2310,8 +2558,9 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
 mod tests {
 
     use super::{
-        CompactBounds, CompactRow, CompactType, CompactTypeScheme,
-        coalesce_function_effect_residual, compact_type_var, normalize_compact_scheme_rows,
+        CompactBounds, CompactFun, CompactRow, CompactType, CompactTypeScheme,
+        coalesce_function_effect_residual, coalesce_root_function_interval_effect_residuals,
+        compact_type_var, normalize_compact_scheme_rows,
     };
     use crate::fresh_type_var;
     use crate::solve::Infer;
@@ -2413,6 +2662,96 @@ mod tests {
     }
 
     #[test]
+    fn compact_type_var_expands_vars_inside_compact_lower_instances() {
+        let infer = Infer::new();
+        let root = fresh_type_var();
+        let source = fresh_type_var();
+        let quantified = fresh_type_var();
+
+        for current in [root, source] {
+            infer.register_level(current, 0);
+        }
+
+        let int_path = prim_path("int");
+        infer.add_lower(source, Pos::Con(int_path.clone(), vec![]));
+
+        let arena = std::rc::Rc::new(crate::types::arena::TypeArena::new());
+        let body_item = arena.alloc_pos(Pos::Var(quantified));
+        let body = arena.alloc_pos(Pos::Tuple(vec![body_item]));
+        let scheme = std::rc::Rc::new(crate::scheme::Scheme {
+            arena,
+            compact: CompactTypeScheme {
+                cty: CompactBounds {
+                    self_var: None,
+                    lower: CompactType {
+                        tuples: vec![vec![CompactType {
+                            vars: std::collections::HashSet::from([quantified]),
+                            ..CompactType::default()
+                        }]],
+                        ..CompactType::default()
+                    },
+                    upper: CompactType::default(),
+                },
+                rec_vars: Default::default(),
+            },
+            body,
+            quantified: vec![quantified],
+            quantified_sources: smallvec::smallvec![(quantified, quantified)],
+            effect_subtractabilities: Vec::new(),
+        });
+        infer.add_compact_lower_instance(
+            root,
+            crate::scheme::OwnedSchemeInstance {
+                scheme,
+                subst: smallvec::smallvec![(quantified, source)],
+                level: 0,
+            },
+        );
+
+        let compact = compact_type_var(&infer, root);
+        let item = &compact.cty.lower.tuples[0][0];
+        assert!(item.vars.contains(&source));
+        assert!(compact_type_has_con(item, &int_path));
+    }
+
+    #[test]
+    fn compact_type_var_expands_effect_atom_arg_bounds() {
+        let infer = Infer::new();
+        let root = fresh_type_var();
+        let pos_arg = fresh_type_var();
+        let pos_alias = fresh_type_var();
+        let neg_arg = fresh_type_var();
+        let neg_alias = fresh_type_var();
+
+        for current in [root, pos_arg, pos_alias, neg_arg, neg_alias] {
+            infer.register_level(current, 0);
+        }
+
+        let int_path = prim_path("int");
+        infer.add_lower(pos_arg, Pos::Var(pos_alias));
+        infer.add_lower(pos_alias, Pos::Con(int_path.clone(), vec![]));
+        infer.add_upper(neg_arg, Neg::Var(neg_alias));
+        infer.add_upper(neg_alias, Neg::Con(int_path.clone(), vec![]));
+
+        let op_path = prim_path("var");
+        infer.add_lower(
+            root,
+            Pos::Row(
+                vec![infer.alloc_pos(Pos::Atom(EffectAtom {
+                    path: op_path,
+                    args: vec![(pos_arg, neg_arg)],
+                }))],
+                infer.arena.bot,
+            ),
+        );
+
+        let compact = compact_type_var(&infer, root);
+        let arg = &compact.cty.lower.rows[0].items[0].cons[0].args[0];
+        assert!(compact_type_has_con(&arg.lower, &int_path));
+        assert!(compact_type_has_con(&arg.upper, &int_path));
+    }
+
+    #[test]
     fn compact_type_var_merges_same_effect_items_in_row() {
         let infer = Infer::new();
         let tv = fresh_type_var();
@@ -2447,6 +2786,167 @@ mod tests {
         assert_eq!(row.items.len(), 1);
         assert_eq!(row.items[0].cons.len(), 1);
         assert_eq!(row.items[0].cons[0].args.len(), 1);
+    }
+
+    #[test]
+    fn compact_type_var_skips_negative_row_items_without_subtractability_metadata() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let tail = fresh_type_var();
+        for current in [tv, tail] {
+            infer.register_level(current, 0);
+        }
+
+        let path = prim_path("io");
+        infer.add_upper(
+            tv,
+            Neg::Row(
+                vec![infer.alloc_neg(Neg::Atom(EffectAtom {
+                    path: path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.alloc_neg(Neg::Var(tail)),
+            ),
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        assert!(compact.cty.upper.rows.is_empty());
+        assert!(!compact.cty.upper.prims.contains(&path));
+        assert!(compact.cty.upper.vars.contains(&tail));
+    }
+
+    #[test]
+    fn compact_type_var_follows_negative_row_tail_vars_without_collecting_items() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let tail = fresh_type_var();
+        let residual = fresh_type_var();
+        for current in [tv, tail, residual] {
+            infer.register_level(current, 0);
+        }
+
+        let path = prim_path("io");
+        infer.add_upper(
+            tv,
+            Neg::Row(
+                vec![infer.alloc_neg(Neg::Atom(EffectAtom {
+                    path: path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.alloc_neg(Neg::Var(tail)),
+            ),
+        );
+        infer.add_upper(tail, Neg::Var(residual));
+
+        let compact = compact_type_var(&infer, tv);
+        assert!(compact.cty.upper.rows.is_empty());
+        assert!(!compact.cty.upper.prims.contains(&path));
+        assert!(compact.cty.upper.vars.contains(&tail));
+        assert!(compact.cty.upper.vars.contains(&residual));
+    }
+
+    #[test]
+    fn compact_type_var_expands_positive_row_tail_vars() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let tail = fresh_type_var();
+        let residual = fresh_type_var();
+        let final_tail = fresh_type_var();
+        for current in [tv, tail, residual, final_tail] {
+            infer.register_level(current, 0);
+        }
+
+        let io_path = prim_path("io");
+        let parse_path = prim_path("parse");
+        infer.add_lower(
+            tv,
+            Pos::Row(
+                vec![infer.alloc_pos(Pos::Atom(EffectAtom {
+                    path: io_path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.alloc_pos(Pos::Var(tail)),
+            ),
+        );
+        infer.add_lower(tail, Pos::Var(residual));
+        infer.add_lower(
+            residual,
+            Pos::Row(
+                vec![infer.alloc_pos(Pos::Atom(EffectAtom {
+                    path: parse_path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.alloc_pos(Pos::Var(final_tail)),
+            ),
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let row = &compact.cty.lower.rows[0];
+        assert!(
+            row.items
+                .iter()
+                .any(|item| compact_type_has_prim(item, &io_path))
+        );
+        assert!(row.tail.vars.contains(&tail));
+        assert!(row.tail.vars.contains(&residual));
+        let tail_row = row.tail.rows.first().expect("expanded tail row");
+        assert!(
+            tail_row
+                .items
+                .iter()
+                .any(|item| compact_type_has_prim(item, &parse_path))
+        );
+        assert!(tail_row.tail.vars.contains(&final_tail));
+    }
+
+    #[test]
+    fn compact_type_var_stops_positive_row_tail_cycles() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let tail = fresh_type_var();
+        for current in [tv, tail] {
+            infer.register_level(current, 0);
+        }
+
+        let io_path = prim_path("io");
+        let parse_path = prim_path("parse");
+        infer.add_lower(
+            tv,
+            Pos::Row(
+                vec![infer.alloc_pos(Pos::Atom(EffectAtom {
+                    path: io_path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.alloc_pos(Pos::Var(tail)),
+            ),
+        );
+        infer.add_lower(
+            tail,
+            Pos::Row(
+                vec![infer.alloc_pos(Pos::Atom(EffectAtom {
+                    path: parse_path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.alloc_pos(Pos::Var(tail)),
+            ),
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let row = &compact.cty.lower.rows[0];
+        assert!(
+            row.items
+                .iter()
+                .any(|item| compact_type_has_prim(item, &io_path))
+        );
+        assert!(row.tail.vars.contains(&tail));
+        let tail_row = row.tail.rows.first().expect("expanded tail row");
+        assert!(
+            tail_row
+                .items
+                .iter()
+                .any(|item| compact_type_has_prim(item, &parse_path))
+        );
+        assert!(tail_row.tail.vars.contains(&tail));
     }
 
     #[test]
@@ -2553,6 +3053,131 @@ mod tests {
     }
 
     #[test]
+    fn coalesce_root_function_interval_effect_residuals_drops_surface_tail_var() {
+        let value = fresh_type_var();
+        let residual = fresh_type_var();
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let mut scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![CompactFun {
+                        arg: CompactType {
+                            vars: std::collections::HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType {
+                            vars: std::collections::HashSet::from([residual]),
+                            rows: vec![CompactRow {
+                                items: vec![io],
+                                tail: Box::new(CompactType {
+                                    vars: std::collections::HashSet::from([residual]),
+                                    ..CompactType::default()
+                                }),
+                            }],
+                            ..CompactType::default()
+                        },
+                        ret_eff: CompactType {
+                            vars: std::collections::HashSet::from([residual]),
+                            ..CompactType::default()
+                        },
+                        ret: CompactType {
+                            vars: std::collections::HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType {
+                    funs: vec![CompactFun {
+                        arg: CompactType {
+                            vars: std::collections::HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType {
+                            vars: std::collections::HashSet::from([residual]),
+                            ..CompactType::default()
+                        },
+                        ret: CompactType {
+                            vars: std::collections::HashSet::from([value]),
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+            },
+            rec_vars: Default::default(),
+        };
+
+        coalesce_root_function_interval_effect_residuals(&mut scheme);
+
+        let lower_fun = &scheme.cty.lower.funs[0];
+        assert!(lower_fun.arg_eff.vars.is_empty());
+        assert_eq!(
+            lower_fun.arg_eff.rows[0].tail.vars,
+            std::collections::HashSet::from([residual])
+        );
+        assert_eq!(
+            lower_fun.ret_eff.vars,
+            std::collections::HashSet::from([residual])
+        );
+    }
+
+    #[test]
+    fn coalesce_root_function_interval_effect_residuals_keeps_lower_only_surface_tail_var() {
+        let residual = fresh_type_var();
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let mut scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![CompactFun {
+                        arg: CompactType::default(),
+                        arg_eff: CompactType {
+                            vars: std::collections::HashSet::from([residual]),
+                            rows: vec![CompactRow {
+                                items: vec![io],
+                                tail: Box::new(CompactType {
+                                    vars: std::collections::HashSet::from([residual]),
+                                    ..CompactType::default()
+                                }),
+                            }],
+                            ..CompactType::default()
+                        },
+                        ret_eff: CompactType {
+                            vars: std::collections::HashSet::from([residual]),
+                            ..CompactType::default()
+                        },
+                        ret: CompactType::default(),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        coalesce_root_function_interval_effect_residuals(&mut scheme);
+
+        let lower_fun = &scheme.cty.lower.funs[0];
+        assert_eq!(
+            lower_fun.arg_eff.vars,
+            std::collections::HashSet::from([residual])
+        );
+        assert_eq!(
+            lower_fun.arg_eff.rows[0].tail.vars,
+            std::collections::HashSet::from([residual])
+        );
+    }
+
+    #[test]
     fn coalesce_function_effect_residual_keeps_surface_var_when_result_exposes_source_and_tail() {
         let source = fresh_type_var();
         let residual = fresh_type_var();
@@ -2652,6 +3277,25 @@ mod tests {
         assert!(!compact.rec_vars.contains_key(&tv));
     }
 
+    #[test]
+    fn compact_type_var_records_guarded_self_cycle() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        infer.register_level(tv, 0);
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.arena.top,
+                arg_eff: infer.arena.top,
+                ret_eff: infer.arena.bot,
+                ret: infer.alloc_pos(Pos::Var(tv)),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        assert!(compact.rec_vars.contains_key(&tv));
+    }
+
     fn prim_path(name: &str) -> Path {
         Path {
             segments: vec![Name(name.to_string())],
@@ -2660,5 +3304,9 @@ mod tests {
 
     fn compact_type_has_con(ty: &super::CompactType, path: &Path) -> bool {
         ty.cons.iter().any(|con| &con.path == path)
+    }
+
+    fn compact_type_has_prim(ty: &super::CompactType, path: &Path) -> bool {
+        ty.prims.contains(path)
     }
 }

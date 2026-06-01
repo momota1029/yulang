@@ -2,7 +2,7 @@ use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::solve::EffectSubtractability;
-use crate::types::{Neg, Pos};
+use crate::types::Pos;
 
 impl Infer {
     pub(super) fn add_lower_bound(
@@ -18,7 +18,6 @@ impl Infer {
             if let Some(subtractability) = self.effect_lower_subtractability(pos, false) {
                 self.record_effect_subtractability(target, subtractability);
             }
-            self.update_through_after_lower(target, pos, cause, cache);
             self.solve_handler_matches_for(target, cause, cache);
         }
         self.record_profile(start, |profile, elapsed| {
@@ -37,9 +36,6 @@ impl Infer {
         let start = crate::profile::ProfileClock::now();
         let added = self.add_upper(source, neg);
         if added {
-            if let Neg::Var(target) = self.arena.get_neg(neg) {
-                self.propagate_through(source, target, cause, cache);
-            }
             self.solve_handler_matches_for(source, cause, cache);
         }
         self.record_profile(start, |profile, elapsed| {
@@ -75,18 +71,6 @@ impl Infer {
         }
     }
 
-    pub(super) fn update_through_after_lower(
-        &self,
-        target: TypeVar,
-        pos: PosId,
-        cause: &ConstraintCause,
-        cache: &mut StepCache,
-    ) {
-        if let Pos::Var(source) = self.arena.get_pos(pos) {
-            self.propagate_through(source, target, cause, cache);
-        }
-    }
-
     fn effect_lower_subtractability(
         &self,
         pos: PosId,
@@ -106,7 +90,7 @@ impl Infer {
                 out
             }
             Pos::Var(tv) | Pos::Raw(tv) if allow_var_metadata => {
-                if self.is_through(tv) {
+                if self.effect_is_all_subtractable(tv) {
                     Some(EffectSubtractability::All)
                 } else {
                     self.effect_subtractability(tv)

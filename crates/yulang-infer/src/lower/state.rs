@@ -59,6 +59,8 @@ pub struct LowerState {
     pub let_bound_defs: HashSet<DefId>,
     /// catch arm が導入した continuation DefId。
     pub continuation_defs: HashSet<DefId>,
+    /// continuation DefId → resume 後に戻る scrutinee effect。
+    pub continuation_result_eff_tvs: HashMap<DefId, TypeVar>,
     /// lexical parameter / pattern DefId → それを導入した binding owner。
     pub def_owners: HashMap<DefId, DefId>,
     /// local DefId の人間向け名前。
@@ -95,8 +97,13 @@ pub struct LowerState {
     /// 関数シグネチャ注釈が許可する effect allow-list。
     pub lambda_param_function_allowed_effects:
         HashMap<DefId, yulang_typed_ir::FunctionSigAllowedEffects>,
+    /// preregister でヘッダから見えた「先頭引数が computation」の binding。
+    pub binding_computation_arg_defs: HashSet<DefId>,
     /// header/lambda parameter の effect annotation を接続済みの arg effect tv。
     pub configured_arg_effect_tvs: HashSet<TypeVar>,
+    /// lowering が「厳密に pure な effect row」として導入した tv。
+    /// これは純粋性の判定用メタ情報で、solver の bound としては見せない。
+    pub(crate) exact_pure_effect_tvs: HashSet<TypeVar>,
     /// top-level / observable binding の desugar 済み body。
     pub principal_bodies: HashMap<DefId, Arc<TypedExpr>>,
     /// lowering 中の self recursive binding が self-call で使う provisional scheme。
@@ -219,6 +226,7 @@ impl LowerState {
             def_tvs: HashMap::new(),
             let_bound_defs: HashSet::new(),
             continuation_defs: HashSet::new(),
+            continuation_result_eff_tvs: HashMap::new(),
             def_owners: HashMap::new(),
             def_names: HashMap::new(),
             def_hover_types: HashMap::new(),
@@ -237,7 +245,9 @@ impl LowerState {
             lambda_param_effect_annotations: HashMap::new(),
             lambda_param_function_sig_hints: HashMap::new(),
             lambda_param_function_allowed_effects: HashMap::new(),
+            binding_computation_arg_defs: HashSet::new(),
             configured_arg_effect_tvs: HashSet::new(),
+            exact_pure_effect_tvs: HashSet::new(),
             principal_bodies: HashMap::new(),
             provisional_self_schemes: HashMap::new(),
             provisional_self_root_tvs: HashMap::new(),
@@ -722,6 +732,14 @@ impl LowerState {
         self.continuation_defs.contains(&def)
     }
 
+    pub fn register_continuation_result_eff_tv(&mut self, def: DefId, eff: TypeVar) {
+        self.continuation_result_eff_tvs.insert(def, eff);
+    }
+
+    pub fn continuation_result_eff_tv(&self, def: DefId) -> Option<TypeVar> {
+        self.continuation_result_eff_tvs.get(&def).copied()
+    }
+
     pub fn register_def_owner(&mut self, def: DefId, owner: DefId) {
         self.def_owners.insert(def, owner);
     }
@@ -943,6 +961,14 @@ impl LowerState {
             .insert(param_def, allowed);
     }
 
+    pub fn register_binding_computation_arg_def(&mut self, def: DefId) {
+        self.binding_computation_arg_defs.insert(def);
+    }
+
+    pub fn binding_expects_computation_argument(&self, def: DefId) -> bool {
+        self.binding_computation_arg_defs.contains(&def)
+    }
+
     pub fn lambda_param_function_sig_hint(
         &self,
         param_def: DefId,
@@ -1019,6 +1045,7 @@ impl LowerState {
 
     pub fn fresh_exact_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
+        self.exact_pure_effect_tvs.insert(tv);
         self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         self.infer
             .constrain(Pos::Var(tv), self.infer.arena.empty_neg_row);

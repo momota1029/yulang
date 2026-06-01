@@ -3,9 +3,9 @@ use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, TypeVar};
 use crate::scheme::{OwnedSchemeInstance, compact_neg_type, compact_pos_type};
 use crate::simplify::compact::{
-    CompactBounds, CompactType, compact_root_fun_body_lower, single_substituted_compact_var,
-    subst_compact_con, subst_compact_fun, subst_compact_record, subst_compact_record_spread,
-    subst_compact_row, subst_compact_type, subst_compact_variant, subst_lookup_small,
+    CompactBounds, CompactType, compact_root_fun_body_lower, subst_compact_con, subst_compact_fun,
+    subst_compact_record, subst_compact_record_spread, subst_compact_row, subst_compact_type,
+    subst_compact_variant, subst_lookup_small,
 };
 use crate::types::Pos;
 
@@ -54,13 +54,6 @@ impl Infer {
         }
         max
     }
-}
-
-pub(super) fn compact_instance_direct_var(instance: &OwnedSchemeInstance) -> Option<TypeVar> {
-    single_substituted_compact_var(
-        &instance.scheme.compact.cty.lower,
-        instance.subst.as_slice(),
-    )
 }
 
 fn compact_pos_parts_with_subst(

@@ -1988,9 +1988,6 @@ fn max_state_type_var(state: &LowerState) -> Option<TypeVar> {
     for tv in state.infer.compact_lower_instances.borrow().keys().copied() {
         push_max_type_var(tv, &mut max);
     }
-    for tv in state.infer.through.borrow().iter().copied() {
-        push_max_type_var(tv, &mut max);
-    }
     for edge in state.infer.handler_matches.borrow().iter() {
         push_max_type_var(edge.actual, &mut max);
         push_max_type_var(edge.residual, &mut max);

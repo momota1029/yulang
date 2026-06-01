@@ -81,8 +81,7 @@ pub fn configure_arg_effect_from_ann(
     record_effect_annotation_subtractability(state, arg_eff_tv, ann);
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
-        Some(LoweredEffAnn::Row { atoms, .. }) => {
-            state.infer.register_eff_bind(arg_eff_tv, atoms);
+        Some(LoweredEffAnn::Row { .. }) => {
             if let Some(ann) = ann {
                 state.register_origin(
                     arg_eff_tv,

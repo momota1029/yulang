@@ -3087,7 +3087,7 @@ fn lambda_seals_effects() {
 }
 
 #[test]
-fn wildcard_effect_annotation_does_not_mark_arg_effect_through() {
+fn wildcard_effect_annotation_records_all_subtractability() {
     let state = parse_and_lower("my f(x: [_] _) = x");
     let f_def = state
         .ctx
@@ -3100,17 +3100,28 @@ fn wildcard_effect_annotation_does_not_mark_arg_effect_through() {
         .find(|p| matches!(p, Pos::Fun { .. }))
         .expect("f should have Fun lower bound");
 
-    let arg_eff_tv = match fun {
-        Pos::Fun { arg_eff, .. } => match state.infer.arena.get_neg(*arg_eff) {
-            Neg::Var(tv) => tv,
-            other => panic!("expected arg_eff var, got {:?}", other),
-        },
+    let (arg_tv, arg_eff_tv) = match fun {
+        Pos::Fun { arg, arg_eff, .. } => {
+            let arg_tv = match state.infer.arena.get_neg(*arg) {
+                Neg::Var(tv) => tv,
+                other => panic!("expected arg var, got {:?}", other),
+            };
+            let arg_eff_tv = match state.infer.arena.get_neg(*arg_eff) {
+                Neg::Var(tv) => tv,
+                other => panic!("expected arg_eff var, got {:?}", other),
+            };
+            (arg_tv, arg_eff_tv)
+        }
         _ => unreachable!(),
     };
 
     assert!(
-        !state.infer.is_through(arg_eff_tv),
-        "[_] should not mark the function argument effect slot as through",
+        state.infer.effect_subtractability(arg_tv).is_none(),
+        "[_] should not attach explicit subtractability metadata to the function argument value slot",
+    );
+    assert!(
+        state.infer.effect_is_all_subtractable(arg_eff_tv),
+        "[_] should mark the function argument effect slot as all-subtractable",
     );
 }
 
@@ -3128,16 +3139,27 @@ fn row_effect_annotation_records_subtractability_without_row_bounds() {
         .find(|p| matches!(p, Pos::Fun { .. }))
         .expect("g should have Fun lower bound");
 
-    let arg_eff_tv = match fun {
-        Pos::Fun { arg_eff, .. } => match state.infer.arena.get_neg(*arg_eff) {
-            Neg::Var(tv) => tv,
-            other => panic!("expected arg_eff var, got {:?}", other),
-        },
+    let (arg_tv, arg_eff_tv) = match fun {
+        Pos::Fun { arg, arg_eff, .. } => {
+            let arg_tv = match state.infer.arena.get_neg(*arg) {
+                Neg::Var(tv) => tv,
+                other => panic!("expected arg var, got {:?}", other),
+            };
+            let arg_eff_tv = match state.infer.arena.get_neg(*arg_eff) {
+                Neg::Var(tv) => tv,
+                other => panic!("expected arg_eff var, got {:?}", other),
+            };
+            (arg_tv, arg_eff_tv)
+        }
         _ => unreachable!(),
     };
 
     assert!(
-        !state.infer.is_through(arg_eff_tv),
+        state.infer.effect_subtractability(arg_tv).is_none(),
+        "[io; e] should not attach explicit subtractability metadata to the function argument value slot",
+    );
+    assert!(
+        !state.infer.effect_is_all_subtractable(arg_eff_tv),
         "[io; e] should record subtractability metadata rather than mark the slot through",
     );
 
@@ -3174,12 +3196,12 @@ fn non_through_lower_clears_through_on_var_propagation() {
 
     infer.register_level(a, 0);
     infer.register_level(b, 0);
-    infer.mark_through(b);
+    infer.record_effect_subtractability(b, solve::EffectSubtractability::All);
 
     infer.constrain(Pos::Var(a), Neg::Var(b));
 
     assert!(
-        !infer.is_through(b),
+        !infer.effect_is_all_subtractable(b),
         "through should be cleared by a non-through lower bound"
     );
 }

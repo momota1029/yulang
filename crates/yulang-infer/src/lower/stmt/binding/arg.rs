@@ -65,7 +65,6 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 Some(LoweredEffAnn::Row { .. }) | Some(LoweredEffAnn::Opaque)
             ) {
                 state.register_lambda_param_source_eff_tv(def, arg_eff_tv);
-                state.infer.mark_through(tv);
             }
             let read_eff_tv = ann.as_ref().and_then(|ann| match ann.eff {
                 Some(LoweredEffAnn::Opaque) => Some(arg_eff_tv),

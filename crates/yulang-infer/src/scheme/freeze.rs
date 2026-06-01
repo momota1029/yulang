@@ -184,8 +184,6 @@ pub fn compact_scheme_from_pos_body_in_arena(arena: &TypeArena, body: PosId) -> 
 struct FreezeQuantification {
     quantified: Vec<TypeVar>,
     quantified_sources: SmallSubst,
-    through: HashSet<TypeVar>,
-    eff_binds: Vec<(TypeVar, Vec<EffectAtom>)>,
     effect_subtractabilities: Vec<(TypeVar, EffectSubtractability)>,
 }
 
@@ -207,27 +205,6 @@ fn prepare_freeze_quantification(
         .copied()
         .map(|tv| (tv, fresh_frozen_type_var()))
         .collect::<SmallSubst>();
-    let through = quantified_sources
-        .iter()
-        .filter_map(|(source, frozen)| infer.is_through(*source).then_some(*frozen))
-        .collect();
-    let eff_binds: Vec<(TypeVar, Vec<EffectAtom>)> = quantified_sources
-        .iter()
-        .filter_map(|(source, frozen)| {
-            let handled = infer.eff_binds_of(*source);
-            if handled.is_empty() {
-                None
-            } else {
-                Some((
-                    *frozen,
-                    handled
-                        .into_iter()
-                        .map(|atom| subst_effect_atom_vars(atom, quantified_sources.as_slice()))
-                        .collect(),
-                ))
-            }
-        })
-        .collect();
     let effect_subtractabilities = quantified_sources
         .iter()
         .filter_map(|(source, frozen)| {
@@ -251,8 +228,6 @@ fn prepare_freeze_quantification(
     FreezeQuantification {
         quantified,
         quantified_sources,
-        through,
-        eff_binds,
         effect_subtractabilities,
     }
 }
@@ -263,14 +238,6 @@ fn add_effect_metadata_free_vars(infer: &Infer, quantified: &mut Vec<TypeVar>) {
     while let Some(tv) = pending.pop() {
         if let Some(subtractability) = infer.effect_subtractability(tv) {
             for var in effect_subtractability_free_vars(&subtractability) {
-                if seen.insert(var) {
-                    quantified.push(var);
-                    pending.push(var);
-                }
-            }
-        }
-        for atom in infer.eff_binds_of(tv) {
-            for var in effect_atom_free_vars(&atom) {
                 if seen.insert(var) {
                     quantified.push(var);
                     pending.push(var);
@@ -330,8 +297,6 @@ fn finish_frozen_scheme(
         body,
         quantified: quantification.quantified,
         quantified_sources: quantification.quantified_sources,
-        through: quantification.through,
-        eff_binds: quantification.eff_binds,
         effect_subtractabilities: quantification.effect_subtractabilities,
     })
 }

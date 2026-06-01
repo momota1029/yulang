@@ -238,21 +238,15 @@ impl Infer {
         &self,
         from: TypeVar,
         to: TypeVar,
-        pol: ExtrudePolarity,
-        ctx: &mut ExtrudeCtx,
+        _pol: ExtrudePolarity,
+        _ctx: &mut ExtrudeCtx,
     ) {
         if let Some(origin) = self.origin_of(from) {
             self.register_origin(to, origin);
         }
-        if self.is_through(from) {
-            self.mark_through(to);
+        if self.effect_is_all_subtractable(from) {
+            self.record_effect_subtractability(to, crate::solve::EffectSubtractability::All);
         }
-        let handled = self
-            .eff_binds_of(from)
-            .into_iter()
-            .map(|atom| self.extrude_effect_atom(atom, pol, ctx))
-            .collect();
-        self.register_eff_bind(to, handled);
         if let Some(keep) = self.effect_boundary_keeps.borrow().get(&from).cloned() {
             self.record_effect_boundary_keep(to, keep);
         }

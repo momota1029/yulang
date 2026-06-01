@@ -48,9 +48,6 @@ pub fn instantiate_frozen_body(infer: &Infer, scheme: &FrozenScheme, level: u32)
     for quantified in &scheme.quantified {
         let fresh = fresh_type_var();
         infer.register_level(fresh, level);
-        if scheme.through.contains(quantified) {
-            infer.mark_through(fresh);
-        }
         subst.push((*quantified, fresh));
     }
     apply_scheme_var_metadata(infer, scheme, subst.as_slice());
@@ -82,17 +79,11 @@ pub fn instantiate_frozen_body_with_subst_profiled(
     let mut subst = SmallSubst::with_capacity(preset.len() + scheme.quantified.len());
     subst.extend(preset.iter().copied());
     for quantified in &scheme.quantified {
-        if let Some(mapped) = subst_lookup_small_opt(subst.as_slice(), *quantified) {
-            if scheme.through.contains(quantified) {
-                infer.mark_through(mapped);
-            }
+        if subst_lookup_small_opt(subst.as_slice(), *quantified).is_some() {
             continue;
         }
         let fresh = fresh_type_var();
         infer.register_level(fresh, level);
-        if scheme.through.contains(quantified) {
-            infer.mark_through(fresh);
-        }
         subst.push((*quantified, fresh));
     }
     apply_scheme_var_metadata(infer, scheme, subst.as_slice());
@@ -135,17 +126,11 @@ pub fn instantiate_as_view_with_subst_profiled(
     let build_subst_start = Instant::now();
     subst.extend(preset.iter().copied());
     for quantified in &scheme.quantified {
-        if let Some(mapped) = subst_lookup_small_opt(subst.as_slice(), *quantified) {
-            if scheme.through.contains(quantified) {
-                infer.mark_through(mapped);
-            }
+        if subst_lookup_small_opt(subst.as_slice(), *quantified).is_some() {
             continue;
         }
         let fresh = fresh_type_var();
         infer.register_level(fresh, level);
-        if scheme.through.contains(quantified) {
-            infer.mark_through(fresh);
-        }
         subst.push((*quantified, fresh));
     }
     apply_scheme_var_metadata(infer, scheme, subst.as_slice());
@@ -161,15 +146,6 @@ pub fn instantiate_as_view_with_subst_profiled(
 }
 
 fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(TypeVar, TypeVar)]) {
-    for (rho, handled) in &scheme.eff_binds {
-        let mapped_rho = subst_lookup_small(subst, *rho);
-        let handled = handled
-            .iter()
-            .cloned()
-            .map(|atom| subst_atom_small(atom, subst))
-            .collect();
-        infer.register_eff_bind(mapped_rho, handled);
-    }
     for (rho, subtractability) in &scheme.effect_subtractabilities {
         infer.record_effect_subtractability(
             subst_lookup_small(subst, *rho),

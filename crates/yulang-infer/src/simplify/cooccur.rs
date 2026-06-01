@@ -16,8 +16,8 @@ use crate::types::RecordField;
 
 use super::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRow, CompactType,
-    CompactTypeScheme, CompactVariant, merge_compact_bounds, merge_compact_types,
-    normalize_compact_scheme_rows,
+    CompactTypeScheme, CompactVariant, coalesce_root_function_interval_effect_residuals,
+    merge_compact_bounds, merge_compact_types, normalize_compact_scheme_rows,
 };
 use super::polar::{apply_polar_variable_removal, rewrite_polar_occurrences};
 use super::role_constraints::rewrite_role_constraints;
@@ -248,6 +248,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             rewrite_scheme(&current_scheme, &rec_vars, &subst)
         };
         expose_positive_row_residual_tails(&mut rewritten_scheme, &exposed_row_residual_vars);
+        coalesce_root_function_interval_effect_residuals(&mut rewritten_scheme);
         let rewritten_constraints = if use_representatives_now {
             rewrite_constraints_with_representatives(
                 &rewritten_scheme,
@@ -1020,9 +1021,65 @@ pub(crate) fn rewrite_scheme_with_subst(
 
 fn collect_all_vars(scheme: &CompactTypeScheme, analysis: &CoOccurrences) -> Vec<TypeVar> {
     let mut vars = scheme.rec_vars.keys().copied().collect::<HashSet<_>>();
+    collect_vars_in_bounds(&scheme.cty, &mut vars);
+    for bounds in scheme.rec_vars.values() {
+        collect_vars_in_bounds(bounds, &mut vars);
+    }
     vars.extend(analysis.positive.keys().copied());
     vars.extend(analysis.negative.keys().copied());
     vars.into_iter().collect()
+}
+
+fn collect_vars_in_bounds(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
+    if let Some(tv) = bounds.self_var {
+        out.insert(tv);
+    }
+    collect_vars_in_type(&bounds.lower, out);
+    collect_vars_in_type(&bounds.upper, out);
+}
+
+fn collect_vars_in_type(ty: &CompactType, out: &mut HashSet<TypeVar>) {
+    out.extend(ty.vars.iter().copied());
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_vars_in_bounds(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_vars_in_type(&fun.arg, out);
+        collect_vars_in_type(&fun.arg_eff, out);
+        collect_vars_in_type(&fun.ret_eff, out);
+        collect_vars_in_type(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_vars_in_type(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_vars_in_type(&field.value, out);
+        }
+        collect_vars_in_type(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_vars_in_type(payload, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_vars_in_type(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_vars_in_type(item, out);
+        }
+        collect_vars_in_type(&row.tail, out);
+    }
 }
 
 fn rewrite_scheme(

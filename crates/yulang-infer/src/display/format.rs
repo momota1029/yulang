@@ -47,7 +47,7 @@ pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
     normalize_compact_scheme_rows(&mut scheme);
     let mut ctx = CompactToTypeCtx::new(&scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
-    if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true, !scheme.rec_vars.is_empty()) {
+    if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true) {
         return simplify_root_type(fun);
     }
     if let Some(fun) = coalesce_lower_only_root_fun(&mut ctx, &root, !scheme.rec_vars.is_empty()) {
@@ -596,7 +596,6 @@ fn coalesce_root_fun(
     ctx: &mut CompactToTypeCtx<'_>,
     bounds: &CompactBounds,
     normalize_fields: bool,
-    coalesce_effect_residual: bool,
 ) -> Option<Type> {
     let [lower_fun] = bounds.lower.funs.as_slice() else {
         return None;
@@ -609,12 +608,7 @@ fn coalesce_root_fun(
     }
     let mut lower_fun = lower_fun.clone();
     let upper_fun = upper_fun.clone();
-    if coalesce_effect_residual
-        || lower_fun.ret_eff.vars.len() > 1
-        || upper_fun_rehandles_lower_arg_effect(&lower_fun, &upper_fun)
-    {
-        coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
-    }
+    coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
     simplify_function_effect_residual_rows_for_render(&mut lower_fun);
 
     if !normalize_fields {
@@ -660,35 +654,6 @@ fn coalesce_root_fun(
             &rendered_input_vars,
         )),
     })
-}
-
-fn upper_fun_rehandles_lower_arg_effect(lower: &CompactFun, upper: &CompactFun) -> bool {
-    if lower.arg_eff.rows.is_empty()
-        || lower.ret_eff.vars.is_empty()
-        || upper.ret_eff.rows.is_empty()
-    {
-        return false;
-    }
-
-    lower
-        .arg_eff
-        .rows
-        .iter()
-        .filter(|row| {
-            !row.items.is_empty()
-                && row
-                    .tail
-                    .vars
-                    .iter()
-                    .any(|tv| lower.ret_eff.vars.contains(tv))
-        })
-        .any(|lower_row| {
-            upper
-                .ret_eff
-                .rows
-                .iter()
-                .any(|upper_row| same_effect_row_shape(lower_row, upper_row))
-        })
 }
 
 fn coalesce_root_fun_arg_effect_field(
@@ -957,7 +922,7 @@ fn coalesce_root_fun_effect_field(
         lower: lower.clone(),
         upper: upper.clone(),
     });
-    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true, false) {
+    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true) {
         return simplify_type(fun);
     }
 
@@ -997,7 +962,7 @@ fn coalesce_root_fun_field(
         lower: lower.clone(),
         upper: upper.clone(),
     });
-    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true, false) {
+    if let Some(fun) = coalesce_root_fun(ctx, &bounds, true) {
         return simplify_type(fun);
     }
 

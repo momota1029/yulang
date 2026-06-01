@@ -722,6 +722,12 @@ impl<'a> CopiedTypeVars<'a> {
         if self.state.continuation_defs.contains(&def) {
             self.state.continuation_defs.insert(copied);
         }
+        if let Some(eff) = self.state.continuation_result_eff_tvs.get(&def).copied() {
+            let copied_eff = self.copy_tv(eff);
+            self.state
+                .continuation_result_eff_tvs
+                .insert(copied, copied_eff);
+        }
         if let Some(owner) = self.state.def_owners.get(&def).copied() {
             let copied_owner = self.local_def_subst.get(&owner).copied().unwrap_or(owner);
             self.state.register_def_owner(copied, copied_owner);
@@ -759,8 +765,10 @@ impl<'a> CopiedTypeVars<'a> {
             self.state.infer.constrain(Pos::Var(mapped), upper);
         }
 
-        if self.state.infer.is_through(tv) {
-            self.state.infer.mark_through(mapped);
+        if self.state.infer.effect_is_all_subtractable(tv) {
+            self.state
+                .infer
+                .record_effect_subtractability(mapped, EffectSubtractability::All);
         }
         self.copy_tv_side_tables(tv, mapped);
 

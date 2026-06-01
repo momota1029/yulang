@@ -2922,11 +2922,8 @@ mod tests {
                 "std::list::list<int | α> -> std::list::list<int | α>"
             );
             assert_eq!(middle.1, "std::list::list<α> -> std::list::list<α>");
-            assert!(
-                lowered.state.infer.type_errors().is_empty(),
-                "{:#?}",
-                lowered.state.infer.type_errors()
-            );
+            let type_error_count = lowered.state.infer.type_errors().len();
+            assert_eq!(type_error_count, 0);
         });
     }
 

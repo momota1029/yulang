@@ -317,7 +317,9 @@ impl CatchResultVars {
             value_arm_eff_tv: state.fresh_tv(),
             effect_arm_eff_tv: state.fresh_tv(),
         };
-        state.infer.mark_through(vars.eff_tv);
+        state
+            .infer
+            .record_effect_subtractability(vars.eff_tv, EffectSubtractability::All);
         vars
     }
 }
@@ -500,10 +502,10 @@ fn constrain_catch_result_effect_with_handlers(
         node,
     );
 
-    let scrutinee_handled_ops = catch_scrutinee_handled_ops(state, scrutinee.eff_tv, &handled.ops);
-    bind_catch_scrutinee_to_handled_ops(state, scrutinee.eff_tv, &scrutinee_handled_ops);
-
-    let handled_ops = scrutinee_handled_ops
+    let handled_ops = handled
+        .ops
+        .iter()
+        .cloned()
         .into_iter()
         .map(|op| state.infer.alloc_neg(op))
         .collect::<Vec<_>>();
@@ -671,30 +673,12 @@ fn catch_scrutinee(state: &mut LowerState, comp: &TypedExpr) -> CatchScrutinee {
     CatchScrutinee { value_tv, eff_tv }
 }
 
-fn bind_catch_scrutinee_to_handled_ops(
-    state: &LowerState,
-    scrutinee_eff: crate::ids::TypeVar,
-    handled_ops: &[Neg],
-) {
-    let handled = handled_ops
-        .iter()
-        .filter_map(|op| match op {
-            Neg::Atom(atom) => Some(atom.clone()),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    state.infer.register_eff_bind(scrutinee_eff, handled);
-}
-
 fn copy_catch_scrutinee_bind_metadata(
     state: &LowerState,
     comp: &TypedExpr,
     scrutinee_eff: crate::ids::TypeVar,
 ) {
     if let Some(source_eff) = direct_catch_scrutinee_source_eff_tv(state, comp) {
-        state
-            .infer
-            .register_eff_bind(scrutinee_eff, state.infer.eff_binds_of(source_eff));
         state
             .infer
             .copy_effect_subtractability(source_eff, scrutinee_eff);
@@ -735,57 +719,6 @@ fn constrain_handler_row_upper(
     state
         .infer
         .constrain_with_cause(Pos::Var(comp_handler_eff), upper, cause);
-}
-
-fn catch_scrutinee_handled_ops(
-    state: &mut LowerState,
-    comp_handler_eff: crate::ids::TypeVar,
-    handled_ops: &[Neg],
-) -> Vec<Neg> {
-    let bound = state.infer.eff_binds_of(comp_handler_eff);
-    if bound.is_empty() {
-        return handled_ops.to_vec();
-    }
-
-    let mut retained = Vec::new();
-    for handled in handled_ops {
-        let Neg::Atom(handled_atom) = handled else {
-            continue;
-        };
-        for bound_atom in &bound {
-            if !effect_atoms_have_same_head(handled_atom, bound_atom) {
-                continue;
-            }
-            connect_effect_atom_args(state, handled_atom, bound_atom);
-            retained.push(Neg::Atom(handled_atom.clone()));
-            break;
-        }
-    }
-    retained
-}
-
-fn effect_atoms_have_same_head(
-    lhs: &crate::types::EffectAtom,
-    rhs: &crate::types::EffectAtom,
-) -> bool {
-    lhs.path == rhs.path && lhs.args.len() == rhs.args.len()
-}
-
-fn connect_effect_atom_args(
-    state: &mut LowerState,
-    handled: &crate::types::EffectAtom,
-    bound: &crate::types::EffectAtom,
-) {
-    for ((handled_pos, handled_neg), (bound_pos, bound_neg)) in
-        handled.args.iter().zip(bound.args.iter())
-    {
-        state
-            .infer
-            .constrain(Pos::Var(*handled_pos), Neg::Var(*bound_neg));
-        state
-            .infer
-            .constrain(Pos::Var(*bound_pos), Neg::Var(*handled_neg));
-    }
 }
 
 fn catch_leaves_effect_family_open(
@@ -1042,7 +975,7 @@ fn resolve_effect_op_def(state: &LowerState, op_path: &Path) -> Option<crate::id
 fn lower_catch_arm(
     state: &mut LowerState,
     node: &SyntaxNode,
-    _resume_result: (crate::ids::TypeVar, crate::ids::TypeVar),
+    resume_result: (crate::ids::TypeVar, crate::ids::TypeVar),
 ) -> RawLoweredCatchArm {
     use crate::ast::expr::{PatKind, TypedPat};
     let start = Instant::now();
@@ -1079,6 +1012,7 @@ fn lower_catch_arm(
         let k_tv = state.fresh_tv();
         state.register_def_tv(k, k_tv);
         state.mark_continuation_def(k);
+        state.register_continuation_result_eff_tv(k, resume_result.1);
         if let Some(owner) = state.current_owner {
             state.register_def_owner(k, owner);
         }

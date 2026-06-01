@@ -3,6 +3,7 @@ use yulang_typed_ir as typed_ir;
 
 use crate::ast::expr::{ExprKind, Lit, PatKind, TypedExpr, TypedPat};
 use crate::lower::{LowerState, SyntaxNode};
+use crate::solve::EffectSubtractability;
 use crate::symbols::{Name, Path};
 use crate::types::{Neg, Pos};
 
@@ -226,7 +227,9 @@ fn constrain_ref_method_receiver(
     let eff_tv = state.fresh_tv();
     let eff_tail_tv = state.fresh_tv();
     let value_tv = state.fresh_tv();
-    state.infer.mark_through(eff_tail_tv);
+    state
+        .infer
+        .record_effect_subtractability(eff_tail_tv, EffectSubtractability::All);
     state
         .infer
         .constrain(Pos::Var(eff_tail_tv), Neg::Var(eff_tv));

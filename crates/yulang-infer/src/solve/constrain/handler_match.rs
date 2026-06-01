@@ -175,7 +175,10 @@ impl Infer {
             Pos::Var(source) | Pos::Raw(source) => {
                 self.record_handler_match_dependent(source, index);
                 self.solve_handler_match_var(index, source, edge, cause, cache, seen);
-                if edge.solve_open_rows && source != edge.actual && self.is_through(source) {
+                if edge.solve_open_rows
+                    && source != edge.actual
+                    && self.effect_is_all_subtractable(source)
+                {
                     self.constrain_step(
                         self.arena.alloc_pos(Pos::Var(source)),
                         self.arena.alloc_neg(Neg::Var(edge.residual)),
@@ -428,7 +431,7 @@ mod tests {
             path: path("io"),
             args: Vec::new(),
         };
-        infer.mark_through(tail);
+        infer.record_effect_subtractability(tail, EffectSubtractability::All);
         infer.constrain(
             Pos::Row(
                 vec![infer.arena.alloc_pos(Pos::Atom(atom.clone()))],

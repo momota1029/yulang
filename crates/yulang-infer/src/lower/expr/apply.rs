@@ -24,21 +24,28 @@ enum ArgumentPassingStyle {
 struct ApplicationEffectAssumption {
     pure_argument_slot: bool,
     anf_argument: bool,
-    through_argument_slot: bool,
-    through_result_effects: bool,
+    direct_computation_argument_slot: bool,
+    all_subtractable_argument_slot: bool,
+    all_subtractable_result_effects: bool,
 }
 
 impl ApplicationEffectAssumption {
     fn infer(state: &LowerState, func: &TypedExpr, arg: &TypedExpr) -> Self {
         let passing_style = argument_passing_style(state, func);
+        let direct_computation_argument_slot =
+            matches!(passing_style, ArgumentPassingStyle::Computation)
+                && !callee_is_active_recursive_self(state, func)
+                && !callee_is_continuation(state, func);
         Self {
             pure_argument_slot: func_accepts_pure_argument(state, func)
                 || matches!(&func.kind, ExprKind::Select { .. })
                 || selected_value_method_accepts_pure_next_arg(state, func),
             anf_argument: matches!(passing_style, ArgumentPassingStyle::Value)
                 && matches!(arg.kind, ExprKind::App { .. }),
-            through_argument_slot: callee_uses_through_argument_slot(state, func),
-            through_result_effects: callee_uses_through_result_effects(state, func),
+            direct_computation_argument_slot,
+            all_subtractable_argument_slot: callee_uses_all_subtractable_argument_slot(state, func),
+            all_subtractable_result_effects: !direct_computation_argument_slot
+                && callee_uses_all_subtractable_result_effects(state, func),
         }
     }
 
@@ -48,8 +55,11 @@ impl ApplicationEffectAssumption {
         arg: &TypedExpr,
         cross_owner: Option<DefId>,
     ) -> TypeVar {
-        if self.through_argument_slot || !self.argument_slot_is_pure() {
-            fresh_through_arg_effect_slot(state, arg, cross_owner)
+        if self.direct_computation_argument_slot {
+            return argument_effect_for_slot(state, arg);
+        }
+        if self.all_subtractable_argument_slot || !self.argument_slot_is_pure() {
+            fresh_all_subtractable_arg_effect_slot(state, arg, cross_owner)
         } else {
             state.fresh_exact_pure_eff_tv()
         }
@@ -65,9 +75,13 @@ impl ApplicationEffectAssumption {
         call_eff: TypeVar,
         result_eff: TypeVar,
     ) {
-        if self.through_result_effects {
-            state.infer.mark_through(call_eff);
-            state.infer.mark_through(result_eff);
+        if self.all_subtractable_result_effects {
+            state
+                .infer
+                .record_effect_subtractability(call_eff, EffectSubtractability::All);
+            state
+                .infer
+                .record_effect_subtractability(result_eff, EffectSubtractability::All);
         }
     }
 
@@ -112,6 +126,7 @@ pub(crate) fn make_app_with_cause(
     let boundary_keep = thunk_boundary_keep_for_call(state, &func);
     let mut demanded_ret_eff = Neg::Var(call_eff);
     effect_assumption.mark_call_result_effects(state, call_eff, result_ty.effect);
+    copy_continuation_result_effect_metadata(state, &func, call_eff, result_ty.effect);
     if let ExprKind::Var(def) = &func.kind {
         if let Some(hint) = state.lambda_param_function_sig_hint(*def) {
             match hint {
@@ -228,24 +243,26 @@ pub(crate) fn make_app_with_cause(
     result
 }
 
-fn callee_uses_through_argument_slot(state: &LowerState, func: &TypedExpr) -> bool {
+fn callee_uses_all_subtractable_argument_slot(state: &LowerState, func: &TypedExpr) -> bool {
     callee_is_unquantified_let_bound_value(state, func)
         || callee_is_active_recursive_self(state, func)
 }
 
-fn callee_uses_through_result_effects(state: &LowerState, func: &TypedExpr) -> bool {
-    callee_uses_through_argument_slot(state, func)
+fn callee_uses_all_subtractable_result_effects(state: &LowerState, func: &TypedExpr) -> bool {
+    callee_uses_all_subtractable_argument_slot(state, func)
         || matches!(&func.kind, ExprKind::Select { .. })
-        || callee_has_through_return_effect(state, func)
+        || callee_has_all_subtractable_return_effect(state, func)
 }
 
-fn fresh_through_arg_effect_slot(
+fn fresh_all_subtractable_arg_effect_slot(
     state: &mut LowerState,
     arg: &TypedExpr,
     cross_owner: Option<DefId>,
 ) -> TypeVar {
     let slot = state.fresh_tv();
-    state.infer.mark_through(slot);
+    state
+        .infer
+        .record_effect_subtractability(slot, EffectSubtractability::All);
     let actual = argument_effect_for_slot(state, arg);
     state.infer.constrain(Pos::Var(actual), Neg::Var(slot));
     if let Some(owner) = cross_owner {
@@ -274,12 +291,36 @@ fn callee_is_active_recursive_self(state: &LowerState, func: &TypedExpr) -> bool
     state.current_owner == Some(*def) && state.active_recursive_self_instance(*def).is_some()
 }
 
-fn callee_has_through_return_effect(state: &LowerState, func: &TypedExpr) -> bool {
-    let mut seen = HashSet::new();
-    pos_var_has_through_return_effect(state, func.tv, &mut seen)
+fn callee_is_continuation(state: &LowerState, func: &TypedExpr) -> bool {
+    matches!(&func.kind, ExprKind::Var(def) if state.is_continuation_def(*def))
 }
 
-fn pos_var_has_through_return_effect(
+fn copy_continuation_result_effect_metadata(
+    state: &LowerState,
+    func: &TypedExpr,
+    call_eff: TypeVar,
+    result_eff: TypeVar,
+) {
+    let ExprKind::Var(def) = &func.kind else {
+        return;
+    };
+    let Some(source_eff) = state.continuation_result_eff_tv(*def) else {
+        return;
+    };
+    state
+        .infer
+        .copy_effect_subtractability(source_eff, call_eff);
+    state
+        .infer
+        .copy_effect_subtractability(source_eff, result_eff);
+}
+
+fn callee_has_all_subtractable_return_effect(state: &LowerState, func: &TypedExpr) -> bool {
+    let mut seen = HashSet::new();
+    pos_var_has_all_subtractable_return_effect(state, func.tv, &mut seen)
+}
+
+fn pos_var_has_all_subtractable_return_effect(
     state: &LowerState,
     tv: TypeVar,
     seen: &mut HashSet<TypeVar>,
@@ -288,45 +329,50 @@ fn pos_var_has_through_return_effect(
         return false;
     }
     for lower in state.infer.lower_refs_of(tv) {
-        if pos_id_has_through_return_effect(state, lower, seen) {
+        if pos_id_has_all_subtractable_return_effect(state, lower, seen) {
             return true;
         }
     }
     for instance in state.infer.compact_lower_instances_of(tv) {
         let lower = state.infer.materialize_compact_lower_instance(&instance);
-        if pos_id_has_through_return_effect(state, lower, seen) {
+        if pos_id_has_all_subtractable_return_effect(state, lower, seen) {
             return true;
         }
     }
     false
 }
 
-fn pos_id_has_through_return_effect(
+fn pos_id_has_all_subtractable_return_effect(
     state: &LowerState,
     pos: PosId,
     seen: &mut HashSet<TypeVar>,
 ) -> bool {
     match state.infer.arena.get_pos(pos) {
-        Pos::Fun { ret_eff, .. } => pos_effect_is_through(state, ret_eff, seen),
-        Pos::Var(tv) | Pos::Raw(tv) => pos_var_has_through_return_effect(state, tv, seen),
-        Pos::Forall(_, body) => pos_id_has_through_return_effect(state, body, seen),
+        Pos::Fun { ret_eff, .. } => pos_effect_is_all_subtractable(state, ret_eff, seen),
+        Pos::Var(tv) | Pos::Raw(tv) => pos_var_has_all_subtractable_return_effect(state, tv, seen),
+        Pos::Forall(_, body) => pos_id_has_all_subtractable_return_effect(state, body, seen),
         Pos::Union(lhs, rhs) => {
-            pos_id_has_through_return_effect(state, lhs, &mut seen.clone())
-                || pos_id_has_through_return_effect(state, rhs, &mut seen.clone())
+            pos_id_has_all_subtractable_return_effect(state, lhs, &mut seen.clone())
+                || pos_id_has_all_subtractable_return_effect(state, rhs, &mut seen.clone())
         }
         _ => false,
     }
 }
 
-fn pos_effect_is_through(state: &LowerState, pos: PosId, seen: &mut HashSet<TypeVar>) -> bool {
+fn pos_effect_is_all_subtractable(
+    state: &LowerState,
+    pos: PosId,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
     match state.infer.arena.get_pos(pos) {
         Pos::Var(tv) | Pos::Raw(tv) => {
-            state.infer.is_through(tv) || pos_var_has_through_return_effect(state, tv, seen)
+            state.infer.effect_is_all_subtractable(tv)
+                || pos_var_has_all_subtractable_return_effect(state, tv, seen)
         }
-        Pos::Forall(_, body) => pos_effect_is_through(state, body, seen),
+        Pos::Forall(_, body) => pos_effect_is_all_subtractable(state, body, seen),
         Pos::Union(lhs, rhs) => {
-            pos_effect_is_through(state, lhs, &mut seen.clone())
-                || pos_effect_is_through(state, rhs, &mut seen.clone())
+            pos_effect_is_all_subtractable(state, lhs, &mut seen.clone())
+                || pos_effect_is_all_subtractable(state, rhs, &mut seen.clone())
         }
         _ => false,
     }
@@ -666,6 +712,9 @@ fn selected_value_method_accepts_pure_next_arg(state: &LowerState, func: &TypedE
 }
 
 fn def_expects_computation_argument(state: &LowerState, def: crate::ids::DefId) -> bool {
+    if state.binding_expects_computation_argument(def) {
+        return true;
+    }
     let Some(body) = state.principal_bodies.get(&def) else {
         return false;
     };

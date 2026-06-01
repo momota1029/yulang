@@ -18,14 +18,10 @@ pub(crate) fn neg_id_is_pure_row(
                 return false;
             }
             let lowers = state.infer.lower_refs_of(tv);
-            let uppers = state.infer.upper_refs_of(tv);
-            !lowers.is_empty()
+            (state.exact_pure_effect_tvs.contains(&tv) || !lowers.is_empty())
                 && lowers
                     .iter()
                     .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen.clone()))
-                && uppers
-                    .iter()
-                    .all(|upper| neg_id_is_pure_row(state, *upper, &mut seen.clone()))
         }
         Neg::Intersection(a, b) => {
             neg_id_is_pure_row(state, a, &mut seen.clone())
@@ -50,14 +46,10 @@ pub(crate) fn pos_id_is_empty_row(
                 return false;
             }
             let lowers = state.infer.lower_refs_of(tv);
-            let uppers = state.infer.upper_refs_of(tv);
-            !lowers.is_empty()
+            (state.exact_pure_effect_tvs.contains(&tv) || !lowers.is_empty())
                 && lowers
                     .iter()
                     .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen.clone()))
-                && uppers
-                    .iter()
-                    .all(|upper| neg_id_is_pure_row(state, *upper, &mut seen.clone()))
         }
         Pos::Union(a, b) => {
             pos_id_is_empty_row(state, a, &mut seen.clone())
