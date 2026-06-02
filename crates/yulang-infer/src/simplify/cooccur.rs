@@ -99,26 +99,11 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
-    coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
-        scheme,
-        constraints,
-        role_arg_inputs,
-        &HashSet::new(),
-    )
-}
-
-pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
-    scheme: &CompactTypeScheme,
-    constraints: &[CompactRoleConstraint],
-    role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
-    generalization_boundary_vars: &HashSet<TypeVar>,
-) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
         Some(&role_arg_inputs),
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
-        generalization_boundary_vars,
     );
     (output.scheme, output.constraints)
 }
@@ -132,7 +117,6 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
         constraints,
         None,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
-        &HashSet::new(),
     )
 }
 
@@ -143,20 +127,17 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: Option<&RoleArgInputs<'_>>,
     use_representatives: bool,
-    generalization_boundary_vars: &HashSet<TypeVar>,
 ) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
     let mut current_constraints = constraints.to_vec();
     let mut rounds = Vec::new();
 
     loop {
-        let mut rigid_vars = role_constraint_rigid_vars(&current_constraints, role_arg_inputs);
-        // NOTE: generalization_boundary_vars (captured / non-generic vars) は
-        // ここで rigid にしない。共起統合・極性消去は汎化とは独立な構造的簡約で、
-        // 境界変数を保護すると再帰ハンドラの残留 SCC のような健全な畳み込みまで
-        // 止めてしまい、catch の引き算を迂回したエフェクト漏れを生む。
+        // 汎化境界（捕捉/非汎化）変数は rigid にしない。共起統合・極性消去は汎化とは
+        // 独立な構造的簡約で、境界変数を保護すると再帰ハンドラの残留 SCC のような
+        // 健全な畳み込みまで止め、catch の引き算を迂回したエフェクト漏れを生む。
         // 非汎化性は量化の段で扱う問題であって、この簡約では扱わない。
-        let _ = &generalization_boundary_vars;
+        let mut rigid_vars = role_constraint_rigid_vars(&current_constraints, role_arg_inputs);
         collect_open_interval_vars(&current_scheme.cty, &mut rigid_vars);
         let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
         collect_open_interval_vars_in_constraints(
@@ -1764,7 +1745,6 @@ mod tests {
             &[],
             None,
             true,
-            &HashSet::new(),
         )
         .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());

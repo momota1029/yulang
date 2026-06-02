@@ -10,7 +10,7 @@ use crate::simplify::compact::{
     subst_lookup_small,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
-use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars;
+use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
 use crate::solve::{EffectSubtractability, Infer};
 use crate::symbols::Path;
 use crate::types::RecordField;
@@ -33,25 +33,16 @@ pub fn freeze_type_var_with_non_generic(
     non_generic_roots: &HashSet<TypeVar>,
 ) -> FrozenScheme {
     let compact = compact_type_var(infer, root);
-    let scheme = coalesce_compact_scheme_for_freeze(infer, compact, non_generic_roots);
+    let scheme = coalesce_compact_scheme_for_freeze(compact);
     freeze_compact_scheme_owned_with_non_generic(infer, scheme, non_generic_roots)
 }
 
-fn coalesce_compact_scheme_for_freeze(
-    infer: &Infer,
-    mut compact: CompactTypeScheme,
-    non_generic_roots: &HashSet<TypeVar>,
-) -> CompactTypeScheme {
-    let exposed_boundary_vars =
-        coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
-    let mut boundary = collect_non_generic_vars(infer, non_generic_roots);
-    boundary.extend(exposed_boundary_vars);
-    let (mut scheme, _) = coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
-        &compact,
-        &[],
-        |_| None,
-        &boundary,
-    );
+fn coalesce_compact_scheme_for_freeze(mut compact: CompactTypeScheme) -> CompactTypeScheme {
+    // 入れ子末尾の効果残差を畳む副作用のために呼ぶ（戻り値の boundary は使わない:
+    // 共起簡約は汎化境界を保護しないのが正しい）。
+    coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
+    let (mut scheme, _) =
+        coalesce_by_co_occurrence_with_role_constraint_inputs(&compact, &[], |_| None);
     normalize_compact_scheme_rows(&mut scheme);
     scheme
 }

@@ -18,7 +18,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
-    coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars,
+    coalesce_by_co_occurrence_with_role_constraint_inputs,
 };
 use crate::solve::Infer;
 
@@ -290,6 +290,8 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
 
             if item.needs_compact || item.needs_frozen {
                 let mut compact = compact.clone();
+                // 入れ子末尾の効果残差を畳む副作用＋ freeze 量化用に exposed 変数を得る。
+                // cooccur の boundary には使わない（共起簡約は汎化境界を保護しないのが正）。
                 let exposed_boundary_vars =
                     coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
                 let compact_role_constraints = if item.needs_compact {
@@ -302,12 +304,9 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 };
 
                 let cooccur_start = Instant::now();
-                let non_generic_roots = infer.non_generic_vars_of(item.def);
-                let mut non_generic = collect_non_generic_vars(infer, &non_generic_roots);
-                non_generic.extend(exposed_boundary_vars);
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
+                        coalesce_by_co_occurrence_with_role_constraint_inputs(
                             &compact,
                             &constraints,
                             |role| {
@@ -315,14 +314,12 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                                 (!infos.is_empty())
                                     .then(|| infos.into_iter().map(|info| info.is_input).collect())
                             },
-                            &non_generic,
                         )
                     } else {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs_and_boundary_vars(
+                        coalesce_by_co_occurrence_with_role_constraint_inputs(
                             &compact,
                             &[],
                             |_| None,
-                            &non_generic,
                         )
                     };
                 profile.cooccur += cooccur_start.elapsed();
@@ -330,6 +327,9 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 let freeze_start = Instant::now();
                 let extra_quantified =
                     collect_compact_role_constraint_free_vars(&compact_role_constraints);
+                let non_generic_roots = infer.non_generic_vars_of(item.def);
+                let mut non_generic = collect_non_generic_vars(infer, &non_generic_roots);
+                non_generic.extend(exposed_boundary_vars);
                 let new_frozen = freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
                     infer,
                     scheme.clone(),
