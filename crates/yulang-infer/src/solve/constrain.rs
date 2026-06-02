@@ -287,8 +287,8 @@ mod tests {
     use crate::diagnostic::{
         ConstraintCause, ConstraintReason, ExpectedShape, TypeErrorKind, TypeOrigin, TypeOriginKind,
     };
-    use crate::ids::fresh_type_var;
-    use crate::solve::Infer;
+    use crate::ids::{NegId, fresh_type_var};
+    use crate::solve::{EffectSubtractability, Infer};
     use crate::symbols::{Name, Path};
     use crate::types::RecordField;
     use crate::types::{EffectAtom, Neg, Pos};
@@ -355,6 +355,28 @@ mod tests {
             },
             vec![],
         )
+    }
+
+    fn effect_atom(name: &str) -> EffectAtom {
+        EffectAtom {
+            path: Path {
+                segments: vec![Name(name.to_string())],
+            },
+            args: Vec::new(),
+        }
+    }
+
+    fn row_items_match(infer: &Infer, items: &[NegId], atoms: &[&EffectAtom]) -> bool {
+        items.len() == atoms.len()
+            && atoms
+                .iter()
+                .all(|atom| row_items_contain_atom(infer, items, atom))
+    }
+
+    fn row_items_contain_atom(infer: &Infer, items: &[NegId], atom: &EffectAtom) -> bool {
+        items
+            .iter()
+            .any(|item| matches!(infer.arena.get_neg(*item), Neg::Atom(found) if found == *atom))
     }
 
     fn record_name() -> Name {
@@ -623,6 +645,173 @@ mod tests {
                 )
             }),
             "matched row item should not be required again from the tail, got {uppers:?}",
+        );
+    }
+
+    #[test]
+    fn subtractable_var_row_upper_projects_before_registering_bound() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(actual, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        let local = effect_atom("local");
+        infer.record_effect_subtractability(actual, EffectSubtractability::set(vec![io.clone()]));
+        let io_neg = infer.alloc_neg(Neg::Atom(io.clone()));
+        let local_neg = infer.alloc_neg(Neg::Atom(local.clone()));
+        let row = infer.alloc_neg(Neg::Row(
+            vec![io_neg, local_neg],
+            infer.alloc_neg(Neg::Var(residual)),
+        ));
+
+        infer.constrain(Pos::Var(actual), row);
+
+        let uppers = infer.uppers_of(actual);
+        assert!(
+            uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, tail)
+                        if row_items_match(&infer, items, &[&io])
+                            && matches!(infer.arena.get_neg(*tail), Neg::Var(tv) if tv == residual)
+                )
+            }),
+            "actual should receive only the intersection of handled row items and subtractability, got {uppers:?}"
+        );
+        assert!(
+            !uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, _) if row_items_contain_atom(&infer, items, &local)
+                )
+            }),
+            "unsubtractable row items must not be registered on the source variable, got {uppers:?}"
+        );
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            Some(EffectSubtractability::set(vec![io])),
+            "row tail should inherit the source subtractability"
+        );
+    }
+
+    #[test]
+    fn subtractable_var_row_upper_uses_tail_when_projection_is_empty() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(actual, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        let local = effect_atom("local");
+        infer.record_effect_subtractability(actual, EffectSubtractability::set(vec![io.clone()]));
+        let local_neg = infer.alloc_neg(Neg::Atom(local.clone()));
+        let row = infer.alloc_neg(Neg::Row(
+            vec![local_neg],
+            infer.alloc_neg(Neg::Var(residual)),
+        ));
+
+        infer.constrain(Pos::Var(actual), row);
+
+        let uppers = infer.uppers_of(actual);
+        assert!(
+            uppers
+                .iter()
+                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == residual)),
+            "empty projection should register only the row tail, got {uppers:?}"
+        );
+        assert!(
+            !uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, _) if row_items_contain_atom(&infer, items, &local)
+                )
+            }),
+            "the original handled row must not be registered when intersection is empty, got {uppers:?}"
+        );
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            Some(EffectSubtractability::set(vec![io])),
+            "row tail should inherit the source subtractability even when no items remain"
+        );
+    }
+
+    #[test]
+    fn empty_subtractable_var_row_upper_uses_tail_for_handled_row() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(actual, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        infer.record_effect_subtractability(actual, EffectSubtractability::Empty);
+        let io_neg = infer.alloc_neg(Neg::Atom(io.clone()));
+        let row = infer.alloc_neg(Neg::Row(vec![io_neg], infer.alloc_neg(Neg::Var(residual))));
+
+        infer.constrain(Pos::Var(actual), row);
+
+        let uppers = infer.uppers_of(actual);
+        assert!(
+            uppers
+                .iter()
+                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == residual)),
+            "Empty subtractability should make handled row intersection empty, got {uppers:?}"
+        );
+        assert!(
+            !uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, _) if row_items_contain_atom(&infer, items, &io)
+                )
+            }),
+            "handled row items must not be registered when source subtractability is Empty, got {uppers:?}"
+        );
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            Some(EffectSubtractability::Empty),
+            "row tail should inherit Empty subtractability from the source"
+        );
+    }
+
+    #[test]
+    fn empty_subtractable_source_projects_row_upper_propagated_through_alias() {
+        let infer = Infer::new();
+        let source = fresh_type_var();
+        let alias = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(source, 0);
+        infer.register_level(alias, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        infer.record_effect_subtractability(source, EffectSubtractability::Empty);
+        infer.constrain(Pos::Var(source), Neg::Var(alias));
+        infer.constrain(
+            Pos::Var(alias),
+            Neg::Row(
+                vec![infer.alloc_neg(Neg::Atom(io.clone()))],
+                infer.alloc_neg(Neg::Var(residual)),
+            ),
+        );
+
+        let uppers = infer.uppers_of(source);
+        assert!(
+            uppers
+                .iter()
+                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == residual)),
+            "source should project propagated row upper with Empty subtractability, got {uppers:?}"
+        );
+        assert!(
+            !uppers.iter().any(|upper| {
+                matches!(
+                    upper,
+                    Neg::Row(items, _) if row_items_contain_atom(&infer, items, &io)
+                )
+            }),
+            "handled row items must not stay on the Empty-subtractable source, got {uppers:?}"
         );
     }
 
