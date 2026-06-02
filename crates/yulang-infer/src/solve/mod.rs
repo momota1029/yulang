@@ -298,6 +298,8 @@ pub struct Infer {
     // --- 診断用（メモリ爆食いループの暴走源特定）。YULANG_EXTRUDE_LIMIT 未設定なら無効 ---
     pub(crate) extrude_origin: RefCell<FxHashMap<TypeVar, TypeVar>>,
     pub(crate) extrude_call_count: std::cell::Cell<u64>,
+    // approach c: instantiate 時の新世代レベル算出用に、登録済みの最大レベルを追う。
+    pub(crate) max_level_seen: std::cell::Cell<u32>,
     pub origins: RefCell<FxHashMap<TypeVar, TypeOrigin>>,
     pub errors: RefCell<Vec<TypeError>>,
     pub expansive: HashSet<TypeVar>,
@@ -355,6 +357,7 @@ impl Infer {
             extrude_var_cache: RefCell::new(FxHashMap::default()),
             extrude_origin: RefCell::new(FxHashMap::default()),
             extrude_call_count: std::cell::Cell::new(0),
+            max_level_seen: std::cell::Cell::new(0),
             origins: RefCell::new(FxHashMap::default()),
             errors: RefCell::new(Vec::new()),
             expansive: HashSet::new(),
@@ -410,6 +413,16 @@ impl Infer {
 
     pub fn register_level(&self, tv: TypeVar, level: u32) {
         self.levels.borrow_mut().insert(tv, level);
+        if level > self.max_level_seen.get() {
+            self.max_level_seen.set(level);
+        }
+    }
+
+    /// approach c: 量化変数を instantiate するときの「最新世代」レベル。
+    /// 既存の最大レベル+1。instance を常に最新（高レベル）側に置くことで、
+    /// 低レベルへの巻き下げ extrude（def/ref 仮変数の指数増殖）を止める。
+    pub fn next_generation_level(&self) -> u32 {
+        self.max_level_seen.get() + 1
     }
 
     pub fn register_origin(&self, tv: TypeVar, origin: TypeOrigin) {

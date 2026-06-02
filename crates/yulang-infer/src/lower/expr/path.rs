@@ -411,7 +411,13 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
         record_resolve_bound_def_expr(state, start, ResolveBoundDefKind::Alias);
         return expr;
     }
-    let tv = state.fresh_tv();
+    // ref 側の仮型変数は def 側と freshness(level) を合わせる。
+    // ずらすと量化時に freshness が食い違い、constrain で extrude が走って
+    // def/ref 仮変数が指数増殖する。def_tv は lower 時に既知なので配管が通る。
+    let tv = match state.def_tvs.get(&def).copied() {
+        Some(def_tv) => state.fresh_tv_at(state.infer.level_of(def_tv)),
+        None => state.fresh_tv(),
+    };
     let eff = state
         .def_eff_tvs
         .get(&def)
