@@ -721,6 +721,30 @@ mod tests {
     }
 
     #[test]
+    fn effect_lower_bound_does_not_create_subtractability_metadata() {
+        let infer = Infer::new();
+        let target = fresh_type_var();
+        let lower_tail = fresh_type_var();
+        infer.register_level(target, 0);
+        infer.register_level(lower_tail, 0);
+
+        let io = effect_atom("io");
+        infer.record_effect_subtractability(lower_tail, EffectSubtractability::All);
+        let lower = infer.alloc_pos(Pos::Row(
+            vec![infer.alloc_pos(Pos::Atom(io))],
+            infer.alloc_pos(Pos::Var(lower_tail)),
+        ));
+
+        infer.constrain(lower, Neg::Var(target));
+
+        assert_eq!(
+            infer.effect_subtractability(target),
+            None,
+            "effect lower bounds must not turn concrete row items or tail metadata into target subtractability"
+        );
+    }
+
+    #[test]
     fn subtractable_var_row_upper_projects_before_registering_bound() {
         let infer = Infer::new();
         let actual = fresh_type_var();
