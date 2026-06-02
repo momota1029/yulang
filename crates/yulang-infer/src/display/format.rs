@@ -552,6 +552,144 @@ impl<'a> CompactToTypeCtx<'a> {
         }
     }
 
+    fn coalesce_output_effect_type(&mut self, ty: &CompactType, positive: bool) -> Type {
+        if has_effect_row_surface(ty) {
+            self.coalesce_output_effect_surface_type(ty, positive)
+        } else {
+            self.coalesce_type(ty, positive)
+        }
+    }
+
+    fn coalesce_output_effect_surface_type(&mut self, ty: &CompactType, positive: bool) -> Type {
+        let ty = if positive {
+            ty.clone()
+        } else {
+            self.drop_witnessed_negative_vars(ty)
+        };
+        let mut parts = Vec::new();
+
+        let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+        vars.sort_by_key(|tv| tv.0);
+        parts.extend(vars.into_iter().map(Type::Var));
+
+        let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+        prims.sort_by(|a, b| path_string(a).cmp(&path_string(b)));
+        parts.extend(prims.into_iter().map(Type::Prim));
+
+        let mut cons = ty.cons.clone();
+        cons.sort_by(|a, b| path_string(&a.path).cmp(&path_string(&b.path)));
+        parts.extend(cons.into_iter().map(|con| Type::Con(con.path, con.args)));
+
+        parts.extend(ty.funs.iter().map(|fun| self.coalesce_fun(fun, positive)));
+        parts.extend(ty.records.iter().map(|record| {
+            Type::Record(
+                record
+                    .fields
+                    .iter()
+                    .map(|field| RecordField {
+                        name: field.name.clone(),
+                        value: self.coalesce_type(&field.value, positive),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            )
+        }));
+        parts.extend(ty.record_spreads.iter().map(|spread| {
+            let fields = spread
+                .fields
+                .iter()
+                .map(|field| RecordField {
+                    name: field.name.clone(),
+                    value: self.coalesce_type(&field.value, positive),
+                    optional: field.optional,
+                })
+                .collect();
+            let tail = Box::new(self.coalesce_type(&spread.tail, positive));
+            if spread.tail_wins {
+                Type::RecordTailSpread { fields, tail }
+            } else {
+                Type::RecordHeadSpread { tail, fields }
+            }
+        }));
+        parts.extend(ty.variants.iter().map(|variant| {
+            Type::Variant(
+                variant
+                    .items
+                    .iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name.clone(),
+                            payloads
+                                .iter()
+                                .map(|payload| self.coalesce_type(payload, positive))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            )
+        }));
+        parts.extend(ty.tuples.iter().map(|tuple| {
+            Type::Tuple(
+                tuple
+                    .iter()
+                    .map(|item| self.coalesce_type(item, positive))
+                    .collect(),
+            )
+        }));
+        parts.extend(
+            ty.rows
+                .iter()
+                .map(|row| self.coalesce_output_effect_row(row, positive)),
+        );
+
+        combine_types(parts, positive)
+    }
+
+    fn coalesce_output_effect_row(&mut self, row: &CompactRow, positive: bool) -> Type {
+        let items = row
+            .items
+            .iter()
+            .map(|item| self.coalesce_type(item, positive))
+            .collect::<Vec<_>>();
+        let tail = self.coalesce_output_effect_tail(&row.tail, positive);
+        if positive {
+            let mut parts = items;
+            parts.push(tail);
+            combine_types(parts, true)
+        } else {
+            Type::Row(items, Box::new(tail))
+        }
+    }
+
+    fn coalesce_output_effect_tail(&mut self, ty: &CompactType, positive: bool) -> Type {
+        let ty = if positive {
+            ty.clone()
+        } else {
+            self.drop_witnessed_negative_vars(ty)
+        };
+        let mut parts = Vec::new();
+
+        let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+        vars.sort_by_key(|tv| tv.0);
+        parts.extend(vars.into_iter().map(Type::Var));
+
+        let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+        prims.sort_by(|a, b| path_string(a).cmp(&path_string(b)));
+        parts.extend(prims.into_iter().map(Type::Prim));
+
+        let mut cons = ty.cons.clone();
+        cons.sort_by(|a, b| path_string(&a.path).cmp(&path_string(&b.path)));
+        parts.extend(cons.into_iter().map(|con| Type::Con(con.path, con.args)));
+
+        parts.extend(
+            ty.rows
+                .iter()
+                .map(|row| self.coalesce_output_effect_row(row, positive)),
+        );
+
+        combine_types(parts, positive)
+    }
+
     fn drop_witnessed_negative_vars(&self, ty: &CompactType) -> CompactType {
         let mut ty = ty.clone();
         let original = ty.clone();
@@ -574,7 +712,7 @@ impl CompactToTypeCtx<'_> {
         Type::Fun {
             arg: Box::new(self.coalesce_type(&fun.arg, !positive)),
             arg_eff: Box::new(self.coalesce_fun_effect_field(&fun.arg_eff, !positive)),
-            ret_eff: Box::new(self.coalesce_fun_effect_field(&fun.ret_eff, positive)),
+            ret_eff: Box::new(self.coalesce_fun_ret_effect_field(&fun.ret_eff, positive)),
             ret: Box::new(self.coalesce_type(&fun.ret, positive)),
         }
     }
@@ -584,6 +722,14 @@ impl CompactToTypeCtx<'_> {
             Type::Bot
         } else {
             self.coalesce_type(ty, positive)
+        }
+    }
+
+    fn coalesce_fun_ret_effect_field(&mut self, ty: &CompactType, positive: bool) -> Type {
+        if is_empty_compact(ty) || is_explicit_empty_row_compact(ty) {
+            Type::Bot
+        } else {
+            self.coalesce_output_effect_type(ty, positive)
         }
     }
 }
@@ -634,7 +780,7 @@ fn coalesce_root_fun(
         return Some(Type::Fun {
             arg: Box::new(rendered_arg),
             arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
-            ret_eff: Box::new(ctx.coalesce_type(&lower_fun.ret_eff, true)),
+            ret_eff: Box::new(ctx.coalesce_output_effect_type(&lower_fun.ret_eff, true)),
             ret: Box::new(ctx.coalesce_type(&lower_fun.ret, true)),
         });
     }
@@ -902,7 +1048,7 @@ fn coalesce_lower_only_root_fun(
     Some(Type::Fun {
         arg: Box::new(arg),
         arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
-        ret_eff: Box::new(ctx.coalesce_type(&lower_fun.ret_eff, true)),
+        ret_eff: Box::new(ctx.coalesce_output_effect_type(&lower_fun.ret_eff, true)),
         ret: Box::new(coalesce_lower_only_root_fun_field(
             ctx,
             &lower_fun.ret,
@@ -969,7 +1115,7 @@ fn coalesce_root_fun_effect_field(
     } else if is_var_only_compact(&ty) {
         Type::Var(*ty.vars.iter().next().unwrap())
     } else {
-        ctx.coalesce_type(&ty, positive)
+        ctx.coalesce_output_effect_type(&ty, positive)
     }
 }
 
@@ -3140,6 +3286,10 @@ fn has_non_var_shape(ty: &CompactType) -> bool {
         || !ty.variants.is_empty()
         || !ty.tuples.is_empty()
         || !ty.rows.is_empty()
+}
+
+fn has_effect_row_surface(ty: &CompactType) -> bool {
+    !ty.prims.is_empty() || !ty.cons.is_empty() || !ty.rows.is_empty()
 }
 
 fn has_non_var_shape_outside_common(ty: &CompactType, common: &CompactType) -> bool {
