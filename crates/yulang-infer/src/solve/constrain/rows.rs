@@ -82,7 +82,7 @@ impl Infer {
         match pos_tail_node {
             Pos::Var(tv) | Pos::Raw(tv) => self.constrain_row_var_to_row(
                 tv,
-                original_neg_items,
+                neg_unmatched,
                 original_neg_tail,
                 cause,
                 cache,

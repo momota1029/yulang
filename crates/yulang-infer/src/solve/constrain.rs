@@ -613,16 +613,26 @@ mod tests {
         let infer = Infer::new();
         let tail = fresh_type_var();
         infer.register_level(tail, 0);
-        let effect = EffectAtom {
+        let handled = EffectAtom {
             path: Path {
                 segments: vec![Name("io".to_string())],
             },
             args: Vec::new(),
         };
-        let pos_item = infer.alloc_pos(Pos::Atom(effect.clone()));
-        let neg_item = infer.alloc_neg(Neg::Atom(effect));
+        let unhandled = EffectAtom {
+            path: Path {
+                segments: vec![Name("net".to_string())],
+            },
+            args: Vec::new(),
+        };
+        let pos_item = infer.alloc_pos(Pos::Atom(handled.clone()));
+        let handled_neg = infer.alloc_neg(Neg::Atom(handled.clone()));
+        let unhandled_neg = infer.alloc_neg(Neg::Atom(unhandled.clone()));
         let pos = infer.alloc_pos(Pos::Row(vec![pos_item], infer.alloc_pos(Pos::Var(tail))));
-        let neg = infer.alloc_neg(Neg::Row(vec![neg_item], infer.arena.empty_neg_row));
+        let neg = infer.alloc_neg(Neg::Row(
+            vec![handled_neg, unhandled_neg],
+            infer.arena.empty_neg_row,
+        ));
 
         infer.constrain(pos, neg);
 
@@ -632,7 +642,8 @@ mod tests {
                 matches!(
                     upper,
                     Neg::Row(items, row_tail)
-                        if items.is_empty() && matches!(infer.arena.get_neg(*row_tail), Neg::Row(empty, _) if empty.is_empty())
+                        if row_items_match(&infer, items, &[&unhandled])
+                            && matches!(infer.arena.get_neg(*row_tail), Neg::Row(empty, _) if empty.is_empty())
                 )
             }),
             "tail should receive only unmatched row items, got {uppers:?}",
@@ -641,10 +652,71 @@ mod tests {
             !uppers.iter().any(|upper| {
                 matches!(
                     upper,
-                    Neg::Row(items, _) if items.iter().any(|item| matches!(infer.arena.get_neg(*item), Neg::Atom(_)))
+                    Neg::Row(items, _) if row_items_contain_atom(&infer, items, &handled)
                 )
             }),
             "matched row item should not be required again from the tail, got {uppers:?}",
+        );
+    }
+
+    #[test]
+    fn row_item_upper_matches_handled_atom_args_without_tail_flow() {
+        let infer = Infer::new();
+        let tail = fresh_type_var();
+        let actual_pos = fresh_type_var();
+        let actual_neg = fresh_type_var();
+        let handled_pos = fresh_type_var();
+        let handled_neg = fresh_type_var();
+        let effect_path = Path {
+            segments: vec![Name("parse".to_string())],
+        };
+        let pos = infer.alloc_pos(Pos::Atom(EffectAtom {
+            path: effect_path.clone(),
+            args: vec![(actual_pos, actual_neg)],
+        }));
+        let handled = infer.alloc_neg(Neg::Atom(EffectAtom {
+            path: effect_path,
+            args: vec![(handled_pos, handled_neg)],
+        }));
+        let neg = infer.alloc_neg(Neg::Row(vec![handled], infer.alloc_neg(Neg::Var(tail))));
+
+        infer.constrain(pos, neg);
+
+        assert!(
+            infer.upper_refs_of(actual_pos).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(tv) if tv == handled_neg)
+            }),
+            "matched atom args should connect the source pos side to the handler neg side"
+        );
+        assert!(
+            infer.upper_refs_of(handled_pos).into_iter().any(|upper| {
+                matches!(infer.arena.get_neg(upper), Neg::Var(tv) if tv == actual_neg)
+            }),
+            "matched atom args should connect the handler pos side to the source neg side"
+        );
+        assert!(
+            infer.lower_refs_of(tail).is_empty(),
+            "matched atoms must not flow to the row tail"
+        );
+    }
+
+    #[test]
+    fn row_item_upper_passes_unmatched_atom_to_tail() {
+        let infer = Infer::new();
+        let tail = fresh_type_var();
+        let actual = effect_atom("io");
+        let handled = effect_atom("parse");
+        let pos = infer.alloc_pos(Pos::Atom(actual.clone()));
+        let handled = infer.alloc_neg(Neg::Atom(handled));
+        let neg = infer.alloc_neg(Neg::Row(vec![handled], infer.alloc_neg(Neg::Var(tail))));
+
+        infer.constrain(pos, neg);
+
+        assert!(
+            infer.lower_refs_of(tail).into_iter().any(|lower| {
+                matches!(infer.arena.get_pos(lower), Pos::Atom(atom) if atom == actual)
+            }),
+            "unmatched atoms should flow to the row tail"
         );
     }
 
