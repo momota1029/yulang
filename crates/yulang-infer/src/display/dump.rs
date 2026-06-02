@@ -2660,7 +2660,7 @@ mod tests {
             .find(|(name, _)| name == "ref::update")
             .expect("ref::update should be rendered");
 
-        assert_eq!(update.1, "ref<α & β, γ> -> (γ -> [β] γ) -> [α, β] unit");
+        assert_eq!(update.1, "ref<α, β> -> (β -> [α] β) -> [α] unit");
     }
 
     #[test]
