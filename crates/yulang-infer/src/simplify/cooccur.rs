@@ -24,9 +24,10 @@ use super::role_constraints::rewrite_role_constraints;
 use analysis::analyze_co_occurrences_with_role_constraints;
 use group::analyze_group_co_occurrences_with_role_constraints;
 use passes::{
-    apply_exact_row_unifications, apply_exact_sandwich_removal,
-    apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
-    apply_row_residual_unifications, apply_shadow_var_collapse, expose_positive_row_residual_tails,
+    apply_effect_pairwise_co_occurrence_substitutions, apply_exact_row_unifications,
+    apply_exact_sandwich_removal, apply_group_co_occurrence_substitutions,
+    apply_one_sided_exact_alias_collapse, apply_row_residual_unifications,
+    apply_shadow_var_collapse, expose_positive_row_residual_tails,
 };
 use polarity::analyze_polar_occurrences_with_role_constraints;
 use representative::lower_representatives_for_subst;
@@ -191,6 +192,14 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &all_vars,
             &polar_analysis,
             &rec_vars,
+            &rigid_vars,
+            &mut subst,
+        );
+        let effect_vars = group_analysis.effects.keys().copied().collect::<Vec<_>>();
+        apply_effect_pairwise_co_occurrence_substitutions(
+            &effect_vars,
+            &mut analysis,
+            &mut rec_vars,
             &rigid_vars,
             &mut subst,
         );
@@ -1448,16 +1457,16 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
         && ty.rows.is_empty()
 }
 
-pub(crate) fn has_matching_polar_signature(
+pub(crate) fn has_always_mutual_polar_co_occurrence(
     analysis: &CoOccurrences,
     lhs: TypeVar,
     rhs: TypeVar,
 ) -> bool {
-    matching_occurrence_side(&analysis.positive, lhs, rhs)
-        || matching_occurrence_side(&analysis.negative, lhs, rhs)
+    always_mutual_occurrence_side(&analysis.positive, lhs, rhs)
+        || always_mutual_occurrence_side(&analysis.negative, lhs, rhs)
 }
 
-fn matching_occurrence_side(
+fn always_mutual_occurrence_side(
     map: &HashMap<TypeVar, HashSet<AlongItem>>,
     lhs: TypeVar,
     rhs: TypeVar,
@@ -1468,7 +1477,7 @@ fn matching_occurrence_side(
     let Some(rhs_occurs) = map.get(&rhs) else {
         return false;
     };
-    !lhs_occurs.is_empty() && lhs_occurs == rhs_occurs
+    lhs_occurs.contains(&AlongItem::Var(rhs)) && rhs_occurs.contains(&AlongItem::Var(lhs))
 }
 
 fn exact_occurrences(analysis: &CoOccurrences, positive: bool, tv: TypeVar) -> HashSet<ExactKey> {
@@ -2162,6 +2171,73 @@ mod tests {
             analysis.positive.contains_key(&a),
             "record spread tail vars should participate in positive co-occurrence analysis",
         );
+    }
+
+    #[test]
+    fn analyze_co_occurrences_tracks_effect_row_tail_vars_in_row_plane() {
+        let a = fresh_type_var();
+        let b = fresh_type_var();
+        let io_path = Path {
+            segments: vec![Name("io".to_string())],
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    rows: vec![CompactRow {
+                        items: vec![CompactType {
+                            prims: HashSet::from([io_path]),
+                            ..CompactType::default()
+                        }],
+                        tail: Box::new(CompactType {
+                            vars: HashSet::from([a, b]),
+                            ..CompactType::default()
+                        }),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let analysis = analyze_co_occurrences(&scheme);
+        assert!(analysis.positive[&a].contains(&AlongItem::Var(b)));
+        assert!(analysis.positive[&b].contains(&AlongItem::Var(a)));
+    }
+
+    #[test]
+    fn analyze_co_occurrences_does_not_mix_effect_row_outer_vars_with_tail_vars() {
+        let outer = fresh_type_var();
+        let tail = fresh_type_var();
+        let io_path = Path {
+            segments: vec![Name("io".to_string())],
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    vars: HashSet::from([outer]),
+                    rows: vec![CompactRow {
+                        items: vec![CompactType {
+                            prims: HashSet::from([io_path]),
+                            ..CompactType::default()
+                        }],
+                        tail: Box::new(CompactType {
+                            vars: HashSet::from([tail]),
+                            ..CompactType::default()
+                        }),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let analysis = analyze_co_occurrences(&scheme);
+        assert!(!analysis.positive[&outer].contains(&AlongItem::Var(tail)));
+        assert!(!analysis.positive[&tail].contains(&AlongItem::Var(outer)));
     }
 
     #[test]

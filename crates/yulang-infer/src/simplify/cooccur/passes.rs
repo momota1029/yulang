@@ -6,7 +6,7 @@ use crate::symbols::Path;
 use super::group::{GroupCoOccurrences, indistinguishable_group_replacements};
 use super::{
     AlongItem, CoOccurrences, CompactBounds, CompactRoleConstraint, CompactType, CompactTypeScheme,
-    ExactInfo, ExactKeyKind, has_matching_polar_signature, is_effectively_recursive,
+    ExactInfo, ExactKeyKind, has_always_mutual_polar_co_occurrence, is_effectively_recursive,
     merge_compact_bounds, merge_compact_types, rewrite_bounds,
 };
 
@@ -17,7 +17,7 @@ pub(super) fn apply_group_co_occurrence_substitutions(
     rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
-    for (replacements, require_matching_polar_exact) in [
+    for (replacements, require_matching_polar_co_occurrence) in [
         (
             indistinguishable_group_replacements(&analysis.types, true),
             false,
@@ -37,7 +37,32 @@ pub(super) fn apply_group_co_occurrence_substitutions(
             rec_vars,
             rigid_vars,
             subst,
-            require_matching_polar_exact,
+            require_matching_polar_co_occurrence,
+        );
+        if accepted.is_empty() {
+            continue;
+        }
+        subst.extend(accepted.iter().map(|(&from, &to)| (from, Some(to))));
+        rewrite_occurrence_info(cooccurs, &accepted);
+        rewrite_recursive_bounds(rec_vars, &accepted);
+    }
+}
+
+pub(super) fn apply_effect_pairwise_co_occurrence_substitutions(
+    effect_vars: &[TypeVar],
+    cooccurs: &mut CoOccurrences,
+    rec_vars: &mut HashMap<TypeVar, CompactBounds>,
+    rigid_vars: &HashSet<TypeVar>,
+    subst: &mut HashMap<TypeVar, Option<TypeVar>>,
+) {
+    for positive in [true, false] {
+        let accepted = collect_pairwise_co_occurrence_replacements(
+            effect_vars,
+            cooccurs,
+            rec_vars,
+            rigid_vars,
+            subst,
+            positive,
         );
         if accepted.is_empty() {
             continue;
@@ -680,7 +705,7 @@ fn collect_group_replacements(
     rec_vars: &HashMap<TypeVar, CompactBounds>,
     rigid_vars: &HashSet<TypeVar>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
-    require_matching_polar_exact: bool,
+    require_matching_polar_co_occurrence: bool,
 ) -> HashMap<TypeVar, TypeVar> {
     let mut accepted = HashMap::new();
     for (from, to) in replacements {
@@ -696,13 +721,112 @@ fn collect_group_replacements(
         if rigid_vars.contains(&from) {
             continue;
         }
-        if require_matching_polar_exact && !has_matching_polar_signature(cooccurs, from, to) {
+        if require_matching_polar_co_occurrence
+            && !has_always_mutual_polar_co_occurrence(cooccurs, from, to)
+        {
             continue;
         }
         if is_effectively_recursive(from, rec_vars) != is_effectively_recursive(to, rec_vars) {
             continue;
         }
         accepted.insert(from, to);
+    }
+    accepted
+}
+
+fn collect_pairwise_co_occurrence_replacements(
+    vars: &[TypeVar],
+    cooccurs: &CoOccurrences,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    rigid_vars: &HashSet<TypeVar>,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    positive: bool,
+) -> HashMap<TypeVar, TypeVar> {
+    let side = if positive {
+        &cooccurs.positive
+    } else {
+        &cooccurs.negative
+    };
+    let live_vars = vars
+        .iter()
+        .filter_map(|&tv| rewrite_optional_var(tv, subst))
+        .collect::<HashSet<_>>();
+    if live_vars.is_empty() {
+        return HashMap::new();
+    }
+
+    let mut parent = live_vars
+        .iter()
+        .copied()
+        .map(|tv| (tv, tv))
+        .collect::<HashMap<_, _>>();
+    let mut lhs_vars = live_vars.iter().copied().collect::<Vec<_>>();
+    lhs_vars.sort_by_key(|tv| tv.0);
+    for lhs in lhs_vars {
+        let Some(lhs_occurs) = side.get(&lhs) else {
+            continue;
+        };
+        let mut rhs_vars = lhs_occurs
+            .iter()
+            .filter_map(|item| match item {
+                AlongItem::Var(tv) => Some(*tv),
+                AlongItem::Exact(_) => None,
+            })
+            .filter(|rhs| live_vars.contains(rhs))
+            .collect::<Vec<_>>();
+        rhs_vars.sort_by_key(|tv| tv.0);
+        rhs_vars.dedup();
+        for rhs in rhs_vars {
+            if lhs == rhs {
+                continue;
+            }
+            if is_effectively_recursive(lhs, rec_vars) != is_effectively_recursive(rhs, rec_vars) {
+                continue;
+            }
+            let Some(rhs_occurs) = side.get(&rhs) else {
+                continue;
+            };
+            if rhs_occurs.contains(&AlongItem::Var(lhs)) {
+                union_parent(&mut parent, lhs, rhs);
+            }
+        }
+    }
+
+    collect_parent_replacements(parent, &live_vars, rigid_vars, subst)
+}
+
+fn collect_parent_replacements(
+    mut parent: HashMap<TypeVar, TypeVar>,
+    live_vars: &HashSet<TypeVar>,
+    rigid_vars: &HashSet<TypeVar>,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+) -> HashMap<TypeVar, TypeVar> {
+    let mut components = HashMap::<TypeVar, Vec<TypeVar>>::new();
+    let mut vars = live_vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    for tv in vars {
+        let root = find_parent(&mut parent, tv);
+        components.entry(root).or_default().push(tv);
+    }
+
+    let mut accepted = HashMap::new();
+    for component in components.values_mut() {
+        component.sort_by_key(|tv| tv.0);
+        component.dedup();
+        if component.len() < 2 {
+            continue;
+        }
+        let representative = component
+            .iter()
+            .copied()
+            .find(|tv| rigid_vars.contains(tv))
+            .unwrap_or(component[0]);
+        for &tv in component.iter() {
+            if tv == representative || rigid_vars.contains(&tv) || subst.contains_key(&tv) {
+                continue;
+            }
+            accepted.insert(tv, representative);
+        }
     }
     accepted
 }
@@ -763,6 +887,31 @@ fn rewrite_group_var(tv: TypeVar, accepted: &HashMap<TypeVar, TypeVar>) -> TypeV
         cur = next;
     }
     cur
+}
+
+fn union_parent(parent: &mut HashMap<TypeVar, TypeVar>, lhs: TypeVar, rhs: TypeVar) {
+    let lhs_root = find_parent(parent, lhs);
+    let rhs_root = find_parent(parent, rhs);
+    if lhs_root == rhs_root {
+        return;
+    }
+    let (root, child) = if lhs_root.0 <= rhs_root.0 {
+        (lhs_root, rhs_root)
+    } else {
+        (rhs_root, lhs_root)
+    };
+    parent.insert(child, root);
+}
+
+fn find_parent(parent: &mut HashMap<TypeVar, TypeVar>, tv: TypeVar) -> TypeVar {
+    let parent_tv = parent.get(&tv).copied().unwrap_or(tv);
+    if parent_tv == tv {
+        parent_tv
+    } else {
+        let root = find_parent(parent, parent_tv);
+        parent.insert(tv, root);
+        root
+    }
 }
 
 fn rewrite_along_item(item: AlongItem, accepted: &HashMap<TypeVar, TypeVar>) -> AlongItem {

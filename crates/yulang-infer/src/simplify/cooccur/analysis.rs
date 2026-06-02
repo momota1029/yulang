@@ -60,27 +60,7 @@ fn visit_compact_type(
 ) {
     let group = along_group(ty);
     for &tv in &ty.vars {
-        let map = if positive {
-            &mut analysis.positive
-        } else {
-            &mut analysis.negative
-        };
-        match map.get_mut(&tv) {
-            Some(existing) => existing.retain(|item| group.contains(item)),
-            None => {
-                map.insert(tv, group.clone());
-            }
-        }
-        if expanded.insert((tv, positive)) {
-            if let Some(bounds) = scheme.rec_vars.get(&tv) {
-                let recur = if positive {
-                    &bounds.lower
-                } else {
-                    &bounds.upper
-                };
-                visit_compact_type(scheme, recur, positive, expanded, analysis);
-            }
-        }
+        record_var_occurrence(scheme, tv, positive, &group, expanded, analysis);
     }
 
     visit_compact_type_children(scheme, ty, positive, expanded, analysis);
@@ -128,10 +108,59 @@ pub(super) fn visit_compact_type_children(
         }
     }
     for row in &ty.rows {
+        let group = row_along_group(row);
+        visit_row_tail_vars_in_group(scheme, &row.tail, positive, &group, expanded, analysis);
         for item in &row.items {
             visit_compact_type(scheme, item, positive, expanded, analysis);
         }
         visit_compact_type(scheme, &row.tail, positive, expanded, analysis);
+    }
+}
+
+fn record_var_occurrence(
+    scheme: &CompactTypeScheme,
+    tv: TypeVar,
+    positive: bool,
+    group: &HashSet<AlongItem>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    analysis: &mut CoOccurrences,
+) {
+    let map = if positive {
+        &mut analysis.positive
+    } else {
+        &mut analysis.negative
+    };
+    match map.get_mut(&tv) {
+        Some(existing) => existing.retain(|item| group.contains(item)),
+        None => {
+            map.insert(tv, group.clone());
+        }
+    }
+    if expanded.insert((tv, positive)) {
+        if let Some(bounds) = scheme.rec_vars.get(&tv) {
+            let recur = if positive {
+                &bounds.lower
+            } else {
+                &bounds.upper
+            };
+            visit_compact_type(scheme, recur, positive, expanded, analysis);
+        }
+    }
+}
+
+fn visit_row_tail_vars_in_group(
+    scheme: &CompactTypeScheme,
+    ty: &CompactType,
+    positive: bool,
+    group: &HashSet<AlongItem>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    analysis: &mut CoOccurrences,
+) {
+    for &tv in &ty.vars {
+        record_var_occurrence(scheme, tv, positive, group, expanded, analysis);
+    }
+    for row in &ty.rows {
+        visit_row_tail_vars_in_group(scheme, &row.tail, positive, group, expanded, analysis);
     }
 }
 
@@ -140,6 +169,22 @@ fn along_group(ty: &CompactType) -> HashSet<AlongItem> {
     out.extend(ty.vars.iter().copied().map(AlongItem::Var));
     out.extend(exact_group(ty).into_iter().map(AlongItem::Exact));
     out
+}
+
+fn row_along_group(row: &CompactRow) -> HashSet<AlongItem> {
+    let mut out = HashSet::new();
+    collect_row_tail_vars(&row.tail, &mut out);
+    for item in &row.items {
+        out.extend(exact_group(item).into_iter().map(AlongItem::Exact));
+    }
+    out
+}
+
+fn collect_row_tail_vars(ty: &CompactType, out: &mut HashSet<AlongItem>) {
+    out.extend(ty.vars.iter().copied().map(AlongItem::Var));
+    for row in &ty.rows {
+        collect_row_tail_vars(&row.tail, out);
+    }
 }
 
 fn exact_group(ty: &CompactType) -> HashSet<ExactKey> {
