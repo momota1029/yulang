@@ -2660,7 +2660,11 @@ mod tests {
             .find(|(name, _)| name == "ref::update")
             .expect("ref::update should be rendered");
 
-        assert_eq!(update.1, "ref<α, β> -> (β -> [α] β) -> [α] unit");
+        // 残留は α・β の2変数のまま（`[α]` には畳まない）。これが principal 形:
+        // α=残留, β=f の捕捉エフェクト(γ_f) は正極性でしか共起せず、β は f の型内に
+        // 非対称な負極性出現を持つため、健全には統合できない（例: α=io, β=[io, undet]）。
+        // 共変の join を自動計算しないので畳めないのが正しい挙動。
+        assert_eq!(update.1, "ref<α & β, γ> -> (γ -> [β] γ) -> [α, β] unit");
     }
 
     #[test]

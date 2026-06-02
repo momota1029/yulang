@@ -151,7 +151,12 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
 
     loop {
         let mut rigid_vars = role_constraint_rigid_vars(&current_constraints, role_arg_inputs);
-        rigid_vars.extend(generalization_boundary_vars.iter().copied());
+        // NOTE: generalization_boundary_vars (captured / non-generic vars) は
+        // ここで rigid にしない。共起統合・極性消去は汎化とは独立な構造的簡約で、
+        // 境界変数を保護すると再帰ハンドラの残留 SCC のような健全な畳み込みまで
+        // 止めてしまい、catch の引き算を迂回したエフェクト漏れを生む。
+        // 非汎化性は量化の段で扱う問題であって、この簡約では扱わない。
+        let _ = &generalization_boundary_vars;
         collect_open_interval_vars(&current_scheme.cty, &mut rigid_vars);
         let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
         collect_open_interval_vars_in_constraints(
