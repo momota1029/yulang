@@ -436,7 +436,7 @@ fn thunk_boundary_keep_for_call(state: &LowerState, func: &TypedExpr) -> Option<
     let ExprKind::Var(def) = &func.kind else {
         return None;
     };
-    if state.is_unannotated_current_lambda_param(*def) {
+    if state.is_unannotated_current_or_ancestor_lambda_param(*def) {
         return Some(ShiftKeep::None);
     }
     let allowed = state.lambda_param_function_allowed_effects.get(def)?;

@@ -102,6 +102,7 @@ pub(super) fn unit_expr(state: &mut LowerState) -> TypedExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::solve::EffectSubtractability;
     use crate::types::Pos;
 
     #[test]
@@ -187,6 +188,80 @@ mod tests {
                 .lowers_of(app.eff)
                 .contains(&Pos::Var(call_eff_tv)),
             "total application effect should include callee effect",
+        );
+    }
+
+    #[test]
+    fn app_marks_unannotated_lambda_param_return_effect_empty_subtractable() {
+        let mut state = LowerState::new();
+        let owner = state.fresh_def();
+        let param = state.fresh_def();
+        let func_ty =
+            crate::ast::expr::ComputationTy::new(state.fresh_tv(), state.fresh_exact_pure_eff_tv());
+        state.register_def_owner(param, owner);
+        state.register_def_tv(param, func_ty.value);
+        let func = TypedExpr::new(func_ty, ExprKind::Var(param));
+        let arg = unit_expr(&mut state);
+
+        state.with_owner(owner, |state| {
+            make_app(state, func.clone(), arg);
+        });
+
+        let ret_eff = state
+            .infer
+            .uppers_of(func.tv)
+            .into_iter()
+            .find_map(|neg| match neg {
+                Neg::Fun { ret_eff, .. } => Some(ret_eff),
+                _ => None,
+            })
+            .expect("application should constrain function with Fun upper bound");
+        let call_eff_tv = match state.infer.arena.get_neg(ret_eff) {
+            Neg::Var(tv) => tv,
+            other => panic!("expected ret_eff slot to be a var, got {other:?}"),
+        };
+
+        assert_eq!(
+            state.infer.effect_subtractability(call_eff_tv),
+            Some(EffectSubtractability::Empty),
+        );
+    }
+
+    #[test]
+    fn app_marks_captured_unannotated_lambda_param_return_effect_empty_subtractable() {
+        let mut state = LowerState::new();
+        let outer = state.fresh_def();
+        let inner = state.fresh_def();
+        let param = state.fresh_def();
+        let func_ty =
+            crate::ast::expr::ComputationTy::new(state.fresh_tv(), state.fresh_exact_pure_eff_tv());
+        state.register_def_owner(inner, outer);
+        state.register_def_owner(param, outer);
+        state.register_def_tv(param, func_ty.value);
+        let func = TypedExpr::new(func_ty, ExprKind::Var(param));
+        let arg = unit_expr(&mut state);
+
+        state.with_owner(inner, |state| {
+            make_app(state, func.clone(), arg);
+        });
+
+        let ret_eff = state
+            .infer
+            .uppers_of(func.tv)
+            .into_iter()
+            .find_map(|neg| match neg {
+                Neg::Fun { ret_eff, .. } => Some(ret_eff),
+                _ => None,
+            })
+            .expect("application should constrain function with Fun upper bound");
+        let call_eff_tv = match state.infer.arena.get_neg(ret_eff) {
+            Neg::Var(tv) => tv,
+            other => panic!("expected ret_eff slot to be a var, got {other:?}"),
+        };
+
+        assert_eq!(
+            state.infer.effect_subtractability(call_eff_tv),
+            Some(EffectSubtractability::Empty),
         );
     }
 }

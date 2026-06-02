@@ -818,7 +818,7 @@ fn handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) -> Option<Sh
     if state.effect_op_args.contains_key(&def) {
         return None;
     }
-    if state.is_unannotated_current_lambda_param(def) {
+    if state.is_unannotated_current_or_ancestor_lambda_param(def) {
         return Some(if direct_var {
             ShiftKeep::Surface
         } else {

@@ -1008,13 +1008,27 @@ impl LowerState {
         }
     }
 
-    pub fn is_unannotated_current_lambda_param(&self, def: DefId) -> bool {
-        self.current_owner
-            .is_some_and(|owner| self.def_owner(def) == Some(owner))
+    pub fn is_unannotated_current_or_ancestor_lambda_param(&self, def: DefId) -> bool {
+        self.def_owner(def)
+            .is_some_and(|owner| self.current_owner_is_or_is_nested_under(owner))
             && !self.is_let_bound_def(def)
             && !self.is_continuation_def(def)
             && !self.lambda_param_effect_annotations.contains_key(&def)
             && !self.lambda_param_function_sig_hints.contains_key(&def)
+    }
+
+    fn current_owner_is_or_is_nested_under(&self, ancestor: DefId) -> bool {
+        let mut current = self.current_owner;
+        for _ in 0..=self.def_owners.len() {
+            let Some(owner) = current else {
+                return false;
+            };
+            if owner == ancestor {
+                return true;
+            }
+            current = self.def_owner(owner);
+        }
+        false
     }
 
     pub fn record_top_level_block(&mut self, path: Path, block: crate::ast::expr::TypedBlock) {
