@@ -395,7 +395,6 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
             crate::scheme::instantiate_frozen_scheme_with_subst(&state.infer, &scheme, tv, &[]);
             if let Some(&def_tv) = state.def_tvs.get(&def) {
                 state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
-                state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
             }
             let ref_id = state.ctx.fresh_ref();
             state.ctx.refs.resolve(ref_id, def, tv, state.current_owner);
@@ -427,7 +426,6 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
     if state.def_eff_tvs.contains_key(&def) {
         if let Some(&def_tv) = state.def_tvs.get(&def) {
             state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
-            state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
         }
     } else if let Some(scheme) = state.infer.frozen_scheme_of(def) {
         resolve_kind = ResolveBoundDefKind::Frozen;
@@ -521,14 +519,11 @@ pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::De
                     .infer
                     .instantiate_role_constraints_for_owner(def, owner, &[]);
                 state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
-                state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
             } else {
                 state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
-                state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
             }
         } else {
             state.infer.constrain(Pos::Var(def_tv), Neg::Var(tv));
-            state.infer.constrain(Pos::Var(tv), Neg::Var(def_tv));
         }
     }
     let ref_id = state.ctx.fresh_ref();

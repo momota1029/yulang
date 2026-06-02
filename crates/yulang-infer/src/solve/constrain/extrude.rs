@@ -1,5 +1,3 @@
-use rustc_hash::FxHashMap;
-
 use super::Infer;
 use crate::ids::{NegId, PosId, TypeVar, fresh_type_var};
 use crate::types::{EffectAtom, Neg, Pos};
@@ -28,6 +26,10 @@ impl Infer {
     fn extrude_pos_id(&self, id: PosId, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> PosId {
         if self.max_level_pos(id) <= ctx.target_lvl {
             return id;
+        }
+        let key = (id, ctx.target_lvl, pol);
+        if let Some(cached) = self.extrude_pos_cache.borrow().get(&key).copied() {
+            return cached;
         }
         let node = match self.arena.get_pos(id) {
             Pos::Bot => Pos::Bot,
@@ -118,12 +120,18 @@ impl Infer {
                 self.extrude_pos_id(right, pol, ctx),
             ),
         };
-        self.alloc_pos(node)
+        let result = self.alloc_pos(node);
+        self.extrude_pos_cache.borrow_mut().insert(key, result);
+        result
     }
 
     fn extrude_neg_id(&self, id: NegId, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> NegId {
         if self.max_level_neg(id) <= ctx.target_lvl {
             return id;
+        }
+        let key = (id, ctx.target_lvl, pol);
+        if let Some(cached) = self.extrude_neg_cache.borrow().get(&key).copied() {
+            return cached;
         }
         let node = match self.arena.get_neg(id) {
             Neg::Top => Neg::Top,
@@ -193,20 +201,25 @@ impl Infer {
                 self.extrude_neg_id(right, pol, ctx),
             ),
         };
-        self.alloc_neg(node)
+        let result = self.alloc_neg(node);
+        self.extrude_neg_cache.borrow_mut().insert(key, result);
+        result
     }
 
     fn extrude_type_var(&self, tv: TypeVar, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> TypeVar {
+        self.bump_extrude_counter(tv, pol, ctx.target_lvl);
         if self.level_of(tv) <= ctx.target_lvl {
             return tv;
         }
-        if let Some(copy) = ctx.vars.get(&(tv, pol)).copied() {
+        let key = (tv, ctx.target_lvl, pol);
+        if let Some(copy) = self.extrude_var_cache.borrow().get(&key).copied() {
             return copy;
         }
 
         let copy = fresh_type_var();
         self.register_level(copy, ctx.target_lvl);
-        ctx.vars.insert((tv, pol), copy);
+        self.extrude_var_cache.borrow_mut().insert(key, copy);
+        self.extrude_origin.borrow_mut().insert(copy, tv);
         self.copy_extruded_var_side_tables(tv, copy, pol, ctx);
 
         match pol {
@@ -214,16 +227,16 @@ impl Infer {
                 self.add_upper(tv, Neg::Var(copy));
                 for lower in self.lower_refs_of(tv) {
                     let lower = self.extrude_pos_id(lower, pol, ctx);
-                    self.add_lower(copy, lower);
+                    self.add_lower_raw(copy, lower);
                 }
                 for instance in self.compact_lower_instances_of(tv) {
                     let lower = self.materialize_compact_lower_instance(&instance);
                     let lower = self.extrude_pos_id(lower, pol, ctx);
-                    self.add_lower(copy, lower);
+                    self.add_lower_raw(copy, lower);
                 }
             }
             ExtrudePolarity::Negative => {
-                self.add_lower(tv, Pos::Var(copy));
+                self.add_lower_raw(tv, Pos::Var(copy));
                 for upper in self.upper_refs_of(tv) {
                     let upper = self.extrude_neg_id(upper, pol, ctx);
                     self.add_upper(copy, upper);
@@ -247,7 +260,8 @@ impl Infer {
         if self.effect_is_all_subtractable(from) {
             self.record_effect_subtractability(to, crate::solve::EffectSubtractability::All);
         }
-        if let Some(keep) = self.effect_boundary_keeps.borrow().get(&from).cloned() {
+        let boundary_keep = self.effect_boundary_keeps.borrow().get(&from).cloned();
+        if let Some(keep) = boundary_keep {
             self.record_effect_boundary_keep(to, keep);
         }
         self.copy_effect_subtractability(from, to);
@@ -275,7 +289,10 @@ impl Infer {
     }
 
     fn max_level_pos(&self, id: PosId) -> u32 {
-        match self.arena.get_pos(id) {
+        if let Some(level) = self.pos_max_level_cache.borrow().get(&id).copied() {
+            return level;
+        }
+        let level = match self.arena.get_pos(id) {
             Pos::Bot => 0,
             Pos::Atom(atom) => self.max_level_atom(&atom),
             Pos::Var(tv) | Pos::Raw(tv) => self.level_of(tv),
@@ -330,11 +347,16 @@ impl Infer {
                 .unwrap_or(0)
                 .max(self.max_level_pos(tail)),
             Pos::Union(a, b) => self.max_level_pos(a).max(self.max_level_pos(b)),
-        }
+        };
+        self.pos_max_level_cache.borrow_mut().insert(id, level);
+        level
     }
 
     fn max_level_neg(&self, id: NegId) -> u32 {
-        match self.arena.get_neg(id) {
+        if let Some(level) = self.neg_max_level_cache.borrow().get(&id).copied() {
+            return level;
+        }
+        let level = match self.arena.get_neg(id) {
             Neg::Top => 0,
             Neg::Atom(atom) => self.max_level_atom(&atom),
             Neg::Var(tv) => self.level_of(tv),
@@ -377,7 +399,9 @@ impl Infer {
                 .unwrap_or(0)
                 .max(self.max_level_neg(tail)),
             Neg::Intersection(a, b) => self.max_level_neg(a).max(self.max_level_neg(b)),
-        }
+        };
+        self.neg_max_level_cache.borrow_mut().insert(id, level);
+        level
     }
 
     fn max_level_atom(&self, atom: &EffectAtom) -> u32 {
@@ -387,10 +411,70 @@ impl Infer {
             .max()
             .unwrap_or(0)
     }
+
+    // === 診断: メモリ爆食いループの暴走源特定（YULANG_EXTRUDE_LIMIT 設定時のみ有効）===
+    fn bump_extrude_counter(&self, tv: TypeVar, pol: ExtrudePolarity, target_lvl: u32) {
+        let limit = std::env::var("YULANG_EXTRUDE_LIMIT")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0);
+        if limit == 0 {
+            return;
+        }
+        let count = self.extrude_call_count.get() + 1;
+        self.extrude_call_count.set(count);
+        if count == limit {
+            panic!(
+                "extrude limit {limit} 到達。暴走源 tv{} pol={pol:?} target_lvl={target_lvl}\n祖先チェーン(コピー→元):\n{}",
+                tv.0,
+                self.dump_extrude_ancestry(tv),
+            );
+        }
+    }
+
+    fn dump_extrude_ancestry(&self, tv: TypeVar) -> String {
+        let mut out = String::new();
+        let mut cur = tv;
+        let mut seen = std::collections::HashSet::new();
+        let mut depth = 0usize;
+        while seen.insert(cur) && depth < 80 {
+            out.push_str(&format!("  [{depth}] {}\n", self.describe_var(cur)));
+            match self.extrude_origin.borrow().get(&cur).copied() {
+                Some(parent) => cur = parent,
+                None => break,
+            }
+            depth += 1;
+        }
+        if depth >= 80 {
+            out.push_str("  ... (祖先が80を超えた=祖先方向にも循環)\n");
+        }
+        out
+    }
+
+    fn describe_var(&self, tv: TypeVar) -> String {
+        let level = self.level_of(tv);
+        let owner_def = self
+            .def_tvs
+            .borrow()
+            .iter()
+            .find(|(_, v)| **v == tv)
+            .map(|(d, _)| *d);
+        let (kind, label) = match self.origin_of(tv) {
+            Some(o) => (format!("{:?}", o.kind), o.label.unwrap_or_default()),
+            None => ("?".to_string(), String::new()),
+        };
+        let n_lower = self.lower_refs_of(tv).len();
+        let n_upper = self.upper_refs_of(tv).len();
+        let n_compact = self.compact_lower_instances_of(tv).len();
+        format!(
+            "tv{} level={level} kind={kind} label={label:?} owner_def={owner_def:?} lowers={n_lower} uppers={n_upper} compact={n_compact}",
+            tv.0
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ExtrudePolarity {
+pub(crate) enum ExtrudePolarity {
     Positive,
     Negative,
 }
@@ -404,17 +488,15 @@ impl ExtrudePolarity {
     }
 }
 
+// extrude のメモ化は Infer の extrude_pos_cache/neg_cache/var_cache（グローバル・永続）が担う。
+// ExtrudeCtx は対象 level だけを運ぶ。
 #[derive(Debug)]
 struct ExtrudeCtx {
     target_lvl: u32,
-    vars: FxHashMap<(TypeVar, ExtrudePolarity), TypeVar>,
 }
 
 impl ExtrudeCtx {
     fn new(target_lvl: u32) -> Self {
-        Self {
-            target_lvl,
-            vars: FxHashMap::default(),
-        }
+        Self { target_lvl }
     }
 }

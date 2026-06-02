@@ -36,7 +36,12 @@ pub(crate) fn lower_binding_with_type_scope(
 ) -> Option<TypedStmt> {
     let header = super::super::child_node(node, SyntaxKind::BindingHeader)
         .or_else(|| super::super::child_node(node, SyntaxKind::OpDefHeader))?;
-    state.with_type_scope(type_scope, |state| {
+    // 論文の typeLetRhs: named binding の RHS は lvl+1 で型付けする。
+    // body 内で生まれる変数（catch residual など）が高レベルになり、
+    // 外側依存（引数・外側 binding 参照）は低レベルのまま → constrain で extrude が低レベルコピーを作る。
+    // 量化判定そのものは SCC + non_generic に任せる（approach B: level は extrude 駆動のみ）。
+    state.enter_let();
+    let result = state.with_type_scope(type_scope, |state| {
         if let Some(info) = super::super::global_extension_method_header(&header) {
             return lower_dotted_method_binding(state, node, &header, &info);
         }
@@ -141,7 +146,9 @@ pub(crate) fn lower_binding_with_type_scope(
             insert_destructured_binding_principal_bodies(state, &bind_pat, &body_expr);
         }
         Some(TypedStmt::Let(bind_pat, body_expr))
-    })
+    });
+    state.leave_let();
+    result
 }
 
 fn insert_destructured_binding_principal_bodies(

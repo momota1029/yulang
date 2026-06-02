@@ -9,7 +9,7 @@ use crate::types::{Neg, Pos};
 mod bounds;
 mod compact;
 mod errors;
-mod extrude;
+pub(crate) mod extrude;
 mod frozen;
 mod handler_match;
 mod records;

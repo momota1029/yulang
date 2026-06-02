@@ -282,6 +282,22 @@ pub struct Infer {
     pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
     pub effect_subtractables: RefCell<FxHashMap<TypeVar, EffectSubtractability>>,
     pub levels: RefCell<FxHashMap<TypeVar, u32>>,
+    // 型ノードの最大 level のメモ化（論文 Fig.6 の lazy val level 相当）。
+    // var の level は register 後に変わらないので PosId/NegId → level を永続キャッシュできる。
+    pub(crate) pos_max_level_cache: RefCell<FxHashMap<PosId, u32>>,
+    pub(crate) neg_max_level_cache: RefCell<FxHashMap<NegId, u32>>,
+    // extrude 結果のグローバルメモ化。constrain ステップを跨いで同じ (型, target_lvl, 極性) には
+    // 同じコピーを返し、雪だるま式の新変数増殖（メモリ爆食い・無限ループ）を防ぐ。
+    // level は不変なのでキーは安定。コピー変数の bounds は後続 constrain が育てる（論文の nvs と同じ）。
+    pub(crate) extrude_pos_cache:
+        RefCell<FxHashMap<(PosId, u32, constrain::extrude::ExtrudePolarity), PosId>>,
+    pub(crate) extrude_neg_cache:
+        RefCell<FxHashMap<(NegId, u32, constrain::extrude::ExtrudePolarity), NegId>>,
+    pub(crate) extrude_var_cache:
+        RefCell<FxHashMap<(TypeVar, u32, constrain::extrude::ExtrudePolarity), TypeVar>>,
+    // --- 診断用（メモリ爆食いループの暴走源特定）。YULANG_EXTRUDE_LIMIT 未設定なら無効 ---
+    pub(crate) extrude_origin: RefCell<FxHashMap<TypeVar, TypeVar>>,
+    pub(crate) extrude_call_count: std::cell::Cell<u64>,
     pub origins: RefCell<FxHashMap<TypeVar, TypeOrigin>>,
     pub errors: RefCell<Vec<TypeError>>,
     pub expansive: HashSet<TypeVar>,
@@ -332,6 +348,13 @@ impl Infer {
             effect_boundary_keeps: RefCell::new(FxHashMap::default()),
             effect_subtractables: RefCell::new(FxHashMap::default()),
             levels: RefCell::new(FxHashMap::default()),
+            pos_max_level_cache: RefCell::new(FxHashMap::default()),
+            neg_max_level_cache: RefCell::new(FxHashMap::default()),
+            extrude_pos_cache: RefCell::new(FxHashMap::default()),
+            extrude_neg_cache: RefCell::new(FxHashMap::default()),
+            extrude_var_cache: RefCell::new(FxHashMap::default()),
+            extrude_origin: RefCell::new(FxHashMap::default()),
+            extrude_call_count: std::cell::Cell::new(0),
             origins: RefCell::new(FxHashMap::default()),
             errors: RefCell::new(Vec::new()),
             expansive: HashSet::new(),
@@ -776,6 +799,20 @@ impl Infer {
 
     pub fn add_lower<P: IntoPosId>(&self, tv: TypeVar, pos: P) -> bool {
         let pos = pos.into_pos_id(self);
+        if !self.add_lower_raw(tv, pos) {
+            return false;
+        }
+        self.resolve_deferred_selections_for(tv);
+        self.resolve_deferred_selection_dependents_for(tv);
+        true
+    }
+
+    /// deferred selection 解決をトリガーしない生の lower 追加。
+    /// 論文 extrude の `nvs.lowerBounds = ...`（純粋な bounds 代入）に対応する。
+    /// add_lower は副作用で deferred selection を発火するため、extrude 内で使うと
+    /// selection 解決 → constrain → extrude → add_lower … の無限再帰に落ちる。
+    pub fn add_lower_raw<P: IntoPosId>(&self, tv: TypeVar, pos: P) -> bool {
+        let pos = pos.into_pos_id(self);
         if !self.lower_members.borrow_mut().insert((tv, pos)) {
             return false;
         }
@@ -783,8 +820,6 @@ impl Infer {
         if let Pos::Var(source) | Pos::Raw(source) = self.arena.get_pos(pos) {
             self.add_selection_var_dependent(source, tv);
         }
-        self.resolve_deferred_selections_for(tv);
-        self.resolve_deferred_selection_dependents_for(tv);
         true
     }
 
