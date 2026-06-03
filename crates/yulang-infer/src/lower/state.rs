@@ -141,6 +141,9 @@ pub struct LowerState {
     /// 通常の変数参照は `def_eff_tvs` を使うが、catch の scrutinee は
     /// 注釈で明示された handled effect も見ないと差し引きができない。
     pub lambda_param_source_eff_tvs: HashMap<DefId, TypeVar>,
+    /// struct method body の値 receiver。登録済み type field への selection を、
+    /// lowering 時点で純粋な field accessor として扱うために使う。
+    pub value_struct_receiver_paths: HashMap<DefId, Path>,
     /// `$x` 用の local ref DefId → 対応する synthetic act 名。
     pub var_ref_acts: HashMap<DefId, crate::symbols::Name>,
     /// var binding における `#x` (init) ↔ `&x` (reference) の DefId 対応。
@@ -265,6 +268,7 @@ impl LowerState {
             type_var_scopes: Vec::new(),
             def_eff_tvs: HashMap::new(),
             lambda_param_source_eff_tvs: HashMap::new(),
+            value_struct_receiver_paths: HashMap::new(),
             var_ref_acts: HashMap::new(),
             var_init_to_ref: HashMap::new(),
             var_ref_to_init: HashMap::new(),
@@ -722,9 +726,6 @@ impl LowerState {
         // def の型変数は max で建て、extrude に本体レベルへ揃えさせる。
         // current_level で建てると level 0 の型変数が生まれ、本体変数(level 1)を巻き込んで老化させる。
         self.infer.register_level(tv, u32::MAX);
-        if std::env::var("YULANG_DBG").is_ok() {
-            eprintln!("[register_def_tv] def={} tv={} level=MAX", def.0, tv.0);
-        }
     }
 
     pub fn mark_let_bound_def(&mut self, def: DefId) {
@@ -1062,6 +1063,10 @@ impl LowerState {
         self.lambda_param_source_eff_tvs.insert(def, eff_tv);
     }
 
+    pub fn register_value_struct_receiver(&mut self, def: DefId, path: Path) {
+        self.value_struct_receiver_paths.insert(def, path);
+    }
+
     pub fn fresh_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
         self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
@@ -1076,8 +1081,7 @@ impl LowerState {
         self.infer.register_level(tv, u32::MAX);
         self.exact_pure_effect_tvs.insert(tv);
         self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
-        self.infer
-            .constrain(Pos::Var(tv), self.infer.arena.empty_neg_row);
+        self.infer.add_upper(tv, self.infer.arena.empty_neg_row);
         tv
     }
 

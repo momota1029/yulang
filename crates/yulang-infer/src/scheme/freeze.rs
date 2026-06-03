@@ -41,14 +41,13 @@ fn coalesce_compact_scheme_for_freeze(mut compact: CompactTypeScheme) -> Compact
     // 入れ子末尾の効果残差を畳む副作用のために呼ぶ（戻り値の boundary は使わない:
     // 共起簡約は汎化境界を保護しないのが正しい）。
     coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
-    let (mut scheme, _) =
-        coalesce_by_co_occurrence_with_role_constraint_inputs(
-            &compact,
-            &[],
-            |_| None,
-            &std::collections::HashMap::new(),
-            0,
-        );
+    let (mut scheme, _) = coalesce_by_co_occurrence_with_role_constraint_inputs(
+        &compact,
+        &[],
+        |_| None,
+        &std::collections::HashMap::new(),
+        0,
+    );
     normalize_compact_scheme_rows(&mut scheme);
     scheme
 }

@@ -25,7 +25,7 @@ pub fn lower_pure_sig_pos_id(
             let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_pure_sig_neg_id(state, arg, vars);
             let ret_eff = if let Some(row) = ret_eff {
-                lower_sig_row_pos_id(state, row, vars)
+                lower_closed_sig_row_pos_id(state, row, vars)
             } else {
                 state.infer.arena.bot
             };
@@ -127,7 +127,7 @@ pub fn lower_pure_sig_neg_id(
             let (ret_eff, ret) = split_function_return_effect(ret_eff.as_ref(), ret.as_ref());
             let arg = lower_pure_sig_pos_id(state, arg, vars);
             let ret_eff = if let Some(row) = ret_eff {
-                lower_sig_row_neg_id(state, row, vars)
+                lower_closed_sig_row_neg_id(state, row, vars)
             } else {
                 state.infer.arena.empty_neg_row
             };
@@ -808,15 +808,27 @@ fn lower_function_sig_ret_eff(
         );
         tv
     } else {
-        let tv = fresh_sig_annotation_tv(state, row.items[0].span(), "function latent effect");
-        record_function_ret_eff_subtractability(
-            state,
-            tv,
-            row,
-            vars,
-            RowTailSubtractability::OnlyItems,
-        );
-        tv
+        let atoms = row
+            .items
+            .iter()
+            .filter_map(|item| lower_sig_effect_atom(state, item, vars))
+            .collect::<Vec<_>>();
+        let pos_items = atoms
+            .iter()
+            .cloned()
+            .map(|atom| state.infer.alloc_pos(Pos::Atom(atom)))
+            .collect();
+        let neg_items = atoms
+            .into_iter()
+            .map(|atom| state.infer.alloc_neg(Neg::Atom(atom)))
+            .collect();
+        let pos = state
+            .infer
+            .alloc_pos(Pos::Row(pos_items, state.infer.arena.bot));
+        let neg = state
+            .infer
+            .alloc_neg(Neg::Row(neg_items, state.infer.arena.top));
+        return (pos, neg, false);
     };
     (
         state.infer.alloc_pos(Pos::Var(tail_tv)),

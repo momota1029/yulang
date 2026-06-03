@@ -102,6 +102,9 @@ pub fn share_type_vars_within_sccs_with_refs_by_owner(
                 continue;
             };
             for resolved in resolved_refs {
+                if infer.is_frozen_ref_committed(resolved.def_id) {
+                    continue;
+                }
                 if !defs_in_scc.contains(&resolved.def_id) {
                     continue;
                 }

@@ -3451,6 +3451,7 @@ fn deferred_selection_resolves_from_type_lower_bound() {
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
             structural_record_allowed: false,
+            receiver_is_plain_pure_value: false,
         });
     infer.increment_pending_selection(owner_def);
 
@@ -3524,6 +3525,7 @@ fn constrain_immediately_resolves_deferred_selection_when_type_is_known() {
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
             structural_record_allowed: false,
+            receiver_is_plain_pure_value: false,
         });
     infer.increment_pending_selection(owner_def);
 
@@ -3589,6 +3591,7 @@ fn deferred_selection_resolves_structural_record_field_from_lower_bound() {
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
             structural_record_allowed: true,
+            receiver_is_plain_pure_value: false,
         });
     infer.increment_pending_selection(owner_def);
 
@@ -4418,6 +4421,7 @@ fn deferred_selection_resolves_from_global_extension_method_fallback() {
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
             structural_record_allowed: false,
+            receiver_is_plain_pure_value: false,
         });
     infer.increment_pending_selection(owner_def);
     infer.resolve_deferred_selections();

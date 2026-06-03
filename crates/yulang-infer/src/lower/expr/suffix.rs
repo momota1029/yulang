@@ -396,7 +396,16 @@ fn push_deferred_selection(
 ) -> TypedExpr {
     let owner = state.current_owner;
     let recv_tv = acc.tv;
+    let receiver_is_known_value_struct_field =
+        receiver_is_known_value_struct_field_read(state, &acc, &name);
+    let receiver_is_plain_pure_value =
+        receiver_is_known_value_struct_field || receiver_is_plain_pure_value_read(state, &acc);
     let recv_eff = selection_receiver_eff(state, &acc);
+    let eff = if receiver_is_known_value_struct_field {
+        state.fresh_exact_pure_eff_tv()
+    } else {
+        eff
+    };
     if let Some(owner) = owner {
         state.infer.increment_pending_selection(owner);
     }
@@ -418,6 +427,7 @@ fn push_deferred_selection(
                 reason: ConstraintReason::FieldSelection,
             },
             structural_record_allowed,
+            receiver_is_plain_pure_value,
         });
     if let Some(span) = source_span {
         state.record_selection_span(span, recv_tv, recv_eff, tv, eff);
@@ -432,7 +442,29 @@ fn push_deferred_selection(
     }
 }
 
+fn receiver_is_known_value_struct_field_read(
+    state: &LowerState,
+    expr: &TypedExpr,
+    name: &Name,
+) -> bool {
+    match &expr.kind {
+        ExprKind::Var(def) => state
+            .value_struct_receiver_paths
+            .get(def)
+            .and_then(|path| state.infer.type_fields.get(path))
+            .is_some_and(|fields| fields.contains_key(name)),
+        ExprKind::BindHere(expr) | ExprKind::Coerce { expr, .. } => {
+            receiver_is_known_value_struct_field_read(state, expr, name)
+        }
+        _ => false,
+    }
+}
+
 fn selection_receiver_eff(state: &mut LowerState, recv: &TypedExpr) -> crate::ids::TypeVar {
+    if receiver_is_plain_pure_value_read(state, recv) {
+        return state.fresh_exact_pure_eff_tv();
+    }
+
     let mut source_effs = Vec::new();
     collect_receiver_source_effs(state, recv, &mut source_effs);
     if source_effs.is_empty() {
@@ -444,6 +476,19 @@ fn selection_receiver_eff(state: &mut LowerState, recv: &TypedExpr) -> crate::id
         state.infer.constrain(Pos::Var(source_eff), Neg::Var(eff));
     }
     eff
+}
+
+fn receiver_is_plain_pure_value_read(state: &LowerState, expr: &TypedExpr) -> bool {
+    match &expr.kind {
+        ExprKind::Var(def) => {
+            !state.def_eff_tvs.contains_key(def)
+                && !state.lambda_param_source_eff_tvs.contains_key(def)
+        }
+        ExprKind::BindHere(expr) | ExprKind::Coerce { expr, .. } => {
+            receiver_is_plain_pure_value_read(state, expr)
+        }
+        _ => false,
+    }
 }
 
 fn collect_receiver_source_effs(

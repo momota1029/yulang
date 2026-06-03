@@ -245,6 +245,7 @@ impl Infer {
             selection.cause.clone(),
         );
         self.constrain(Pos::Var(selection.recv_eff), Neg::Var(selection.result_eff));
+        self.constrain(Pos::Var(selection.result_eff), Neg::Var(selection.recv_eff));
         if let Some(owner) = selection.owner {
             self.decrement_pending_selection(owner);
         }
@@ -503,12 +504,30 @@ impl Infer {
             self.decrement_pending_selection(owner);
         }
         self.record_resolved_selection(selection, def);
+        if self.type_field_owners.contains_key(&def) && selection.receiver_is_plain_pure_value {
+            self.register_level(selection.result_eff, self.level_of(selection.result_tv));
+            self.constrain_with_cause(
+                self.alloc_pos(Pos::Var(method_tv)),
+                self.alloc_neg(Neg::Fun {
+                    arg: self.alloc_pos(Pos::Var(recv_tv)),
+                    arg_eff: pure_pos_row(self),
+                    ret_eff: self.arena.empty_neg_row,
+                    ret: self.alloc_neg(Neg::Var(selection.result_tv)),
+                }),
+                selection.cause.clone(),
+            );
+            self.constrain(Pos::Var(selection.result_eff), self.arena.empty_neg_row);
+            return true;
+        }
         self.constrain_selected_method_call(
             method_tv,
             recv_tv,
             selection,
             SelectedReceiverStyle::Value,
         );
+        if self.type_field_owners.contains_key(&def) {
+            self.constrain(Pos::Var(selection.result_eff), Neg::Var(selection.recv_eff));
+        }
         true
     }
 
@@ -588,6 +607,7 @@ impl Infer {
         );
 
         self.constrain(Pos::Var(selection.recv_eff), Neg::Var(selection.result_eff));
+        self.constrain(Pos::Var(selection.result_eff), Neg::Var(selection.recv_eff));
         self.constrain(Pos::Var(field_call_eff), Neg::Var(selection.result_eff));
 
         if let Some(owner) = selection.owner {

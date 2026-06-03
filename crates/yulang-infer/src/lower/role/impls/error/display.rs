@@ -265,6 +265,7 @@ fn payload_display_expr(
                 reason: ConstraintReason::FieldSelection,
             },
             structural_record_allowed: false,
+            receiver_is_plain_pure_value: false,
         });
     TypedExpr {
         tv,

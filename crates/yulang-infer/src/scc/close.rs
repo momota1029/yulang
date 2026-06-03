@@ -7,8 +7,8 @@ use crate::profile::ProfileClock as Instant;
 use crate::ids::DefId;
 use crate::ref_table::{RefTable, ResolvedRef};
 use crate::scheme::{
-    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme, collect_var_levels,
-    freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
+    collect_var_levels, freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
     instantiate_as_view_with_subst_profiled,
 };
 use crate::simplify::compact::coalesce_nested_tail_function_effect_residuals_in_scheme;

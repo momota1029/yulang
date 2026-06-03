@@ -128,20 +128,7 @@ pub(crate) fn make_app_with_cause(
     effect_assumption.mark_call_result_effects(state, call_eff, result_ty.effect);
     copy_continuation_result_effect_metadata(state, &func, call_eff, result_ty.effect);
     if let ExprKind::Var(def) = &func.kind {
-        if std::env::var("YULANG_DBG").is_ok() {
-            eprintln!(
-                "[make_app] func_def={} has_hint={} call_eff={} result_eff={} func_eff={}",
-                def.0,
-                state.lambda_param_function_sig_hint(*def).is_some(),
-                call_eff.0,
-                result_ty.effect.0,
-                func.eff.0,
-            );
-        }
         if let Some(hint) = state.lambda_param_function_sig_hint(*def) {
-            if std::env::var("YULANG_DBG").is_ok() {
-                eprintln!("  [hint kind] def={} {:?}", def.0, hint);
-            }
             match hint {
                 FunctionSigEffectHint::Pure => {
                     state
@@ -165,13 +152,6 @@ pub(crate) fn make_app_with_cause(
                     state.infer.constrain(lower, Neg::Var(call_eff));
                 }
                 FunctionSigEffectHint::Bounds(lower, upper) => {
-                    if std::env::var("YULANG_DBG").is_ok() {
-                        eprintln!(
-                            "  Bounds lower={:?} upper={:?}",
-                            state.infer.arena.get_pos(lower),
-                            state.infer.arena.get_neg(upper)
-                        );
-                    }
                     record_effect_subtractability_from_upper(state, call_eff, upper);
                     state.infer.constrain(lower, Neg::Var(call_eff));
                     state.infer.constrain(Pos::Var(call_eff), upper);

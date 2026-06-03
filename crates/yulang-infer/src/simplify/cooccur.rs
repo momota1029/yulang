@@ -176,6 +176,18 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
 
         let mut subst = HashMap::<TypeVar, Option<TypeVar>>::new();
         rewrite_polar_occurrences(&mut polar_analysis, &subst);
+        if std::env::var("YULANG_DBG").is_ok() {
+            let mut pos: Vec<_> = polar_analysis.positive.iter().map(|t| t.0).collect();
+            pos.sort();
+            let mut neg: Vec<_> = polar_analysis.negative.iter().map(|t| t.0).collect();
+            neg.sort();
+            let both: Vec<_> = pos
+                .iter()
+                .filter(|x| neg.binary_search(x).is_ok())
+                .copied()
+                .collect();
+            eprintln!("[polar] boundary={boundary} pos={pos:?} neg={neg:?} both={both:?}");
+        }
         apply_polar_variable_removal(
             &all_vars,
             &polar_analysis,

@@ -67,6 +67,7 @@ pub struct DeferredSelection {
     pub owner: Option<DefId>,
     pub cause: ConstraintCause,
     pub structural_record_allowed: bool,
+    pub receiver_is_plain_pure_value: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -400,7 +401,11 @@ impl Infer {
     }
 
     pub fn register_level(&self, tv: TypeVar, level: u32) {
-        self.levels.borrow_mut().insert(tv, level);
+        let previous = self.levels.borrow_mut().insert(tv, level);
+        if previous != Some(level) {
+            self.pos_max_level_cache.borrow_mut().clear();
+            self.neg_max_level_cache.borrow_mut().clear();
+        }
     }
 
     pub fn register_origin(&self, tv: TypeVar, origin: TypeOrigin) {

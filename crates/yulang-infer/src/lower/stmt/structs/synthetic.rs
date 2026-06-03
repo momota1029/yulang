@@ -57,6 +57,9 @@ pub(crate) fn synthetic_struct_field_body(
     field_def: DefId,
     field_name: &Name,
 ) -> TypedExpr {
+    // field accessor の本体も def_level+1 で型付けする。pure な effect 変数(MAX で建つ)が
+    // extrude で本体 level に老化し、level フィルタを通って polar removal で消えるように。
+    state.enter_let();
     let recv_def = state.fresh_def();
     let recv_tv = state.fresh_tv();
     let record_tv = state.fresh_tv();
@@ -110,7 +113,7 @@ pub(crate) fn synthetic_struct_field_body(
         },
     };
     let arg_eff_tv = state.fresh_exact_pure_eff_tv();
-    super::super::wrap_header_lambdas(
+    let result = super::super::wrap_header_lambdas(
         state,
         body,
         vec![super::super::ArgPatInfo {
@@ -127,5 +130,7 @@ pub(crate) fn synthetic_struct_field_body(
             ann_non_generic_tvs: Vec::new(),
             unit_arg: false,
         }],
-    )
+    );
+    state.leave_let();
+    result
 }

@@ -711,48 +711,14 @@ fn constrain_handler_row_upper(
     cause: ConstraintCause,
 ) {
     let rest_tail = state.infer.alloc_neg(Neg::Var(rest_eff));
-    let handled_count = handled.len();
     let upper = if handled.is_empty() {
         rest_tail
     } else {
         state.infer.alloc_neg(Neg::Row(handled, rest_tail))
     };
-    if std::env::var("YULANG_DBG").is_ok() {
-        eprintln!(
-            "[handler_row_upper] comp={} rest(β)={} handled={} comp_level={} rest_level={} comp_lowers={}",
-            comp_handler_eff.0,
-            rest_eff.0,
-            handled_count,
-            state.infer.level_of(comp_handler_eff),
-            state.infer.level_of(rest_eff),
-            state.infer.lower_refs_of(comp_handler_eff).len(),
-        );
-        for lower in state.infer.lower_refs_of(comp_handler_eff) {
-            let node = state.infer.arena.get_pos(lower);
-            eprintln!("    comp_lower: {node:?}");
-            if let Pos::Var(v) | Pos::Raw(v) = node {
-                for l2 in state.infer.lower_refs_of(v) {
-                    eprintln!("      -> {:?}", state.infer.arena.get_pos(l2));
-                }
-                if state.infer.lower_refs_of(v).is_empty() {
-                    eprintln!("      -> (空: level={})", state.infer.level_of(v));
-                }
-            }
-        }
-    }
     state
         .infer
         .constrain_with_cause(Pos::Var(comp_handler_eff), upper, cause);
-    if std::env::var("YULANG_DBG").is_ok() {
-        eprintln!(
-            "  [after constrain] rest(β)={} β_level={} β_subtr={:?} comp={} comp_subtr={:?}",
-            rest_eff.0,
-            state.infer.level_of(rest_eff),
-            state.infer.effect_subtractability(rest_eff),
-            comp_handler_eff.0,
-            state.infer.effect_subtractability(comp_handler_eff),
-        );
-    }
 }
 
 fn catch_leaves_effect_family_open(

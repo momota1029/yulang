@@ -102,7 +102,11 @@ pub(crate) fn lower_struct_with_binding(
     }
     let method_type_arg_tvs =
         crate::lower::signature::ordered_type_vars(type_param_names, &method_type_scope);
-    super::super::apply_type_param_effect_metadata(state, type_param_metadata, &method_type_arg_tvs);
+    super::super::apply_type_param_effect_metadata(
+        state,
+        type_param_metadata,
+        &method_type_arg_tvs,
+    );
     state.push_type_scope(method_type_scope);
     let mut arg_pats: Vec<super::super::ArgPatInfo> = super::super::collect_header_args(&pattern)
         .into_iter()
@@ -132,6 +136,7 @@ pub(crate) fn lower_struct_with_binding(
         constrain_ref_method_receiver(state, recv_tv, struct_path, &method_type_arg_tvs);
     } else {
         constrain_value_method_receiver(state, recv_tv, struct_path, &method_type_arg_tvs);
+        state.register_value_struct_receiver(recv_def, struct_path.clone());
     }
 
     let body_node = super::super::child_node(binding, SyntaxKind::BindingBody);

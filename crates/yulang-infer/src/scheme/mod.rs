@@ -45,8 +45,8 @@ pub use view::{
 };
 
 pub(crate) use freeze::{
-    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme, collect_var_levels,
-    compact_neg_type, compact_pos_type,
+    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
+    collect_var_levels, compact_neg_type, compact_pos_type,
     freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
     freeze_compact_scheme_with_non_generic_and_extra_vars,
 };

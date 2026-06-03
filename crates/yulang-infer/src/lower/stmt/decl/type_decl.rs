@@ -219,18 +219,12 @@ fn lower_self_struct_fields(
 
     let ctor_body = super::super::synthetic_struct_constructor_body(state, ctor_def);
     state.insert_principal_body(ctor_def, ctor_body.clone());
-    state
-        .infer
-        .constrain(Pos::Var(ctor_body.tv), Neg::Var(ctor_tv));
-    state
-        .infer
-        .constrain(Pos::Var(ctor_tv), Neg::Var(ctor_body.tv));
 
     let projection_fields = fields
         .iter()
         .map(|(name, pos, _)| (name.clone(), pos.clone()))
         .collect::<Vec<_>>();
-    for (field_name, field_def, field_tv) in field_defs {
+    for (field_name, field_def, _) in field_defs {
         let body = super::super::synthetic_struct_field_body(
             state,
             type_path,
@@ -240,8 +234,6 @@ fn lower_self_struct_fields(
             &field_name,
         );
         state.insert_principal_body(field_def, body.clone());
-        state.infer.constrain(Pos::Var(body.tv), Neg::Var(field_tv));
-        state.infer.constrain(Pos::Var(field_tv), Neg::Var(body.tv));
     }
     metadata
 }
