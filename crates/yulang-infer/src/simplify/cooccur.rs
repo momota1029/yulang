@@ -164,18 +164,17 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         // 量化されうる変数（level >= boundary）だけを解析対象に残す。外側スコープの変数は
         // 走査しない。情報(analysis/polar_analysis)は全変数のままなので、極性消去でも
         // (false,false) 扱いにならず、外側変数は消されない。
+        if std::env::var("YULANG_DBG").is_ok() {
+            let pre: Vec<_> = all_vars
+                .iter()
+                .map(|t| (t.0, var_levels.get(t).copied().unwrap_or(u32::MAX)))
+                .collect();
+            eprintln!("[prefilter] boundary={boundary} vars_with_level={pre:?}");
+        }
         all_vars.retain(|tv| var_levels.get(tv).copied().unwrap_or(u32::MAX) >= boundary);
         all_vars.sort_by_key(|tv| std::cmp::Reverse(tv.0));
 
         let mut subst = HashMap::<TypeVar, Option<TypeVar>>::new();
-        let exposed_row_residual_vars = apply_row_residual_unifications(
-            &current_scheme,
-            &current_constraints,
-            &mut rec_vars,
-            &mut analysis,
-            &rigid_vars,
-            &mut subst,
-        );
         rewrite_polar_occurrences(&mut polar_analysis, &subst);
         apply_polar_variable_removal(
             &all_vars,
@@ -188,6 +187,16 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         // 論文外の group/effect_pairwise/exact_row/exact_sandwich/shadow/alias/guarded_row は撤去。
         apply_indistinguishable_unification(&all_vars, &analysis, &mut subst);
         apply_sandwich_flattening(&all_vars, &analysis, &mut subst);
+        if std::env::var("YULANG_DBG").is_ok() {
+            let mut s = subst
+                .iter()
+                .map(|(k, v)| (k.0, v.map(|x| x.0)))
+                .collect::<Vec<_>>();
+            s.sort();
+            let mut av = all_vars.iter().map(|t| t.0).collect::<Vec<_>>();
+            av.sort();
+            eprintln!("[subst] boundary={boundary} all_vars={av:?} subst={s:?}");
+        }
         let guarded_row_representatives: HashMap<TypeVar, CompactType> = HashMap::new();
         for &var in guarded_row_representatives.keys() {
             subst.entry(var).or_insert(None);
@@ -205,6 +214,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         );
         let use_representatives_now =
             use_representatives || !guarded_row_representatives.is_empty();
+        dbg_dump_scheme("[before]", &current_scheme);
         let mut rewritten_scheme = if use_representatives_now {
             rewrite_scheme_with_representatives(
                 &current_scheme,
@@ -215,7 +225,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         } else {
             rewrite_scheme(&current_scheme, &rec_vars, &subst)
         };
-        expose_positive_row_residual_tails(&mut rewritten_scheme, &exposed_row_residual_vars);
+        dbg_dump_scheme("[after]", &rewritten_scheme);
         coalesce_root_function_interval_effect_residuals(&mut rewritten_scheme);
         let rewritten_constraints = if use_representatives_now {
             rewrite_constraints_with_representatives(
@@ -245,8 +255,14 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             });
         }
 
-        current_scheme = rewritten_scheme;
-        current_constraints = rewritten_constraints;
+        // 固定点ループは廃止。co-occurrence simplification は 1 パスで完了する。
+        let mut scheme = rewritten_scheme;
+        normalize_compact_scheme_rows(&mut scheme);
+        return CoalesceOutput {
+            scheme,
+            constraints: rewritten_constraints,
+            rounds,
+        };
     }
 }
 
@@ -261,6 +277,26 @@ pub struct CoalesceOutput {
 pub struct CoalesceRound {
     pub subst: HashMap<TypeVar, Option<TypeVar>>,
     pub representatives: HashMap<TypeVar, CompactType>,
+}
+
+fn dbg_dump_scheme(label: &str, scheme: &CompactTypeScheme) {
+    if std::env::var("YULANG_DBG").is_err() {
+        return;
+    }
+    let mut namer = crate::display::format::VarNamer::default();
+    eprintln!(
+        "{label} cty: {}",
+        crate::display::format::format_compact_bounds(&scheme.cty, &mut namer)
+    );
+    let mut keys: Vec<_> = scheme.rec_vars.keys().copied().collect();
+    keys.sort_by_key(|t| t.0);
+    for k in keys {
+        eprintln!(
+            "{label}   rec[#{}]: {}",
+            k.0,
+            crate::display::format::format_compact_bounds(&scheme.rec_vars[&k], &mut namer)
+        );
+    }
 }
 
 fn role_constraint_rigid_vars(
@@ -282,40 +318,51 @@ fn role_constraint_rigid_vars(
         .collect()
 }
 
+/// subst を辿って代表変数を返す。None(除去済み)に当たったら None。
+fn resolve_subst_var(subst: &HashMap<TypeVar, Option<TypeVar>>, v: TypeVar) -> Option<TypeVar> {
+    let mut cur = v;
+    let mut seen = HashSet::new();
+    loop {
+        match subst.get(&cur) {
+            Some(Some(next)) => {
+                if !seen.insert(cur) {
+                    return Some(cur);
+                }
+                cur = *next;
+            }
+            Some(None) => return None,
+            None => return Some(cur),
+        }
+    }
+}
+
+/// a と b を等価として統合する。両者の代表を辿り、番号の大きい方を小さい方へ向ける。
+/// 既に同一代表 or どちらか除去済みなら何もしない。常に from.0 > to.0 を保つので循環しない。
+fn merge_equiv_vars(subst: &mut HashMap<TypeVar, Option<TypeVar>>, a: TypeVar, b: TypeVar) {
+    let (Some(ra), Some(rb)) = (resolve_subst_var(subst, a), resolve_subst_var(subst, b)) else {
+        return;
+    };
+    if ra == rb {
+        return;
+    }
+    let (from, to) = if ra.0 > rb.0 { (ra, rb) } else { (rb, ra) };
+    subst.insert(from, Some(to));
+}
+
 /// 論文 4.3.1 の indistinguishable unification: α と β が positive(または negative)で
-/// 常に共に現れる(互いの always-共起集合に入っている)なら判別不可なので、β を α に統合する。
+/// 常に共に現れる(互いの always-共起集合に入っている)なら判別不可なので統合する。
+/// 向きは merge_equiv_vars が「大きい番号→小さい番号」へ正規化する(sandwich と循環しない)。
 fn apply_indistinguishable_unification(
     all_vars: &[TypeVar],
     analysis: &CoOccurrences,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
-    if std::env::var("YULANG_DBG").is_ok() {
-        let vars_of = |set: Option<&HashSet<AlongItem>>| {
-            set.map(|s| {
-                s.iter()
-                    .filter_map(|i| match i {
-                        AlongItem::Var(w) => Some(w.0),
-                        AlongItem::Exact(_) => None,
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
-        };
-        for &v in all_vars {
-            eprintln!(
-                "[indist] v={} pos={:?} neg={:?}",
-                v.0,
-                vars_of(analysis.positive.get(&v)),
-                vars_of(analysis.negative.get(&v))
-            );
-        }
-    }
     for &alpha in all_vars {
-        if subst.contains_key(&alpha) {
-            continue;
-        }
         for &beta in all_vars {
-            if beta.0 >= alpha.0 || subst.contains_key(&beta) {
+            if beta.0 >= alpha.0 {
+                continue;
+            }
+            if matches!(subst.get(&alpha), Some(None)) || matches!(subst.get(&beta), Some(None)) {
                 continue;
             }
             let pos_together = analysis
@@ -335,10 +382,7 @@ fn apply_indistinguishable_unification(
                     .get(&beta)
                     .is_some_and(|s| s.contains(&AlongItem::Var(alpha)));
             if pos_together || neg_together {
-                if std::env::var("YULANG_DBG").is_ok() {
-                    eprintln!("[indist-merge] {} -> {}", beta.0, alpha.0);
-                }
-                subst.insert(beta, Some(alpha));
+                merge_equiv_vars(subst, alpha, beta);
             }
         }
     }
@@ -365,7 +409,7 @@ fn apply_sandwich_flattening(
         if let Some(item) = sandwich {
             match item {
                 AlongItem::Var(w) => {
-                    subst.insert(v, Some(*w));
+                    merge_equiv_vars(subst, v, *w);
                 }
                 AlongItem::Exact(_) => {
                     subst.insert(v, None);

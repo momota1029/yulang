@@ -29,7 +29,14 @@ pub(crate) fn lower_struct_with_bindings(
                     type_param_metadata,
                     type_arg_tvs,
                 );
-                lower_struct_with_binding(state, &item, struct_path, type_arg_tvs);
+                lower_struct_with_binding(
+                    state,
+                    &item,
+                    struct_path,
+                    type_param_names,
+                    type_arg_tvs,
+                    type_param_metadata,
+                );
             }
             SyntaxKind::ImplDecl => {
                 super::super::lower_attached_impl_decl(state, &item, struct_path, type_param_names);
@@ -46,7 +53,9 @@ pub(crate) fn lower_struct_with_binding(
     state: &mut LowerState,
     binding: &SyntaxNode,
     struct_path: &Path,
+    type_param_names: &[String],
     type_arg_tvs: &[crate::ids::TypeVar],
+    type_param_metadata: &super::super::TypeParamEffectMetadata,
 ) -> Option<()> {
     let header = super::super::child_node(binding, SyntaxKind::BindingHeader)?;
     let pattern = super::super::child_node(&header, SyntaxKind::Pattern)?;
@@ -81,6 +90,20 @@ pub(crate) fn lower_struct_with_binding(
             .register_ref_type_method(struct_path.clone(), method_name.clone(), method_def);
     }
 
+    // struct method の本体も通常の binding と同じく def_level+1 で型付けする。
+    // これが無いと本体変数が def と同 level になり、simplify の level フィルタで全除外される（task #4）。
+    state.enter_let();
+    // method スコープ専用の 'e 'a を fresh で作り直す（宣言用 type_arg_tvs(level 0) とは別物）。
+    // receiver(self=ref 'e 'a)・引数注釈・本体注釈に出る 'e 'a はこの fresh に同期する。
+    let mut method_type_scope: std::collections::HashMap<String, crate::ids::TypeVar> =
+        std::collections::HashMap::new();
+    for name in type_param_names {
+        method_type_scope.insert(name.clone(), state.fresh_tv());
+    }
+    let method_type_arg_tvs =
+        crate::lower::signature::ordered_type_vars(type_param_names, &method_type_scope);
+    super::super::apply_type_param_effect_metadata(state, type_param_metadata, &method_type_arg_tvs);
+    state.push_type_scope(method_type_scope);
     let mut arg_pats: Vec<super::super::ArgPatInfo> = super::super::collect_header_args(&pattern)
         .into_iter()
         .map(|arg| super::super::make_arg_pat_info(state, arg))
@@ -106,9 +129,9 @@ pub(crate) fn lower_struct_with_binding(
     state.register_def_name(recv_def, recv_name.clone());
     state.register_def_owner(recv_def, method_def);
     if receiver_is_ref {
-        constrain_ref_method_receiver(state, recv_tv, struct_path, type_arg_tvs);
+        constrain_ref_method_receiver(state, recv_tv, struct_path, &method_type_arg_tvs);
     } else {
-        constrain_value_method_receiver(state, recv_tv, struct_path, type_arg_tvs);
+        constrain_value_method_receiver(state, recv_tv, struct_path, &method_type_arg_tvs);
     }
 
     let body_node = super::super::child_node(binding, SyntaxKind::BindingBody);
@@ -164,7 +187,7 @@ pub(crate) fn lower_struct_with_binding(
             let mut neg_vars = pos_vars.clone();
             let recv_pos = state.infer.alloc_pos(state.pos_con(
                 struct_path.clone(),
-                super::super::invariant_args(type_arg_tvs),
+                super::super::invariant_args(&method_type_arg_tvs),
             ));
             let ret_neg =
                 crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
@@ -193,6 +216,8 @@ pub(crate) fn lower_struct_with_binding(
             );
         }
     }
+    state.pop_type_scope();
+    state.leave_let();
     Some(())
 }
 

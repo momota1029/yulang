@@ -271,7 +271,14 @@ pub(crate) fn lower_type_with_bindings(
                     type_param_metadata,
                     &method_arg_tvs,
                 );
-                super::super::lower_struct_with_binding(state, &item, type_path, &method_arg_tvs);
+                super::super::lower_struct_with_binding(
+                    state,
+                    &item,
+                    type_path,
+                    type_param_names,
+                    &method_arg_tvs,
+                    type_param_metadata,
+                );
             }
             SyntaxKind::ImplDecl => {
                 super::lower_attached_impl_decl(state, &item, type_path, type_param_names);

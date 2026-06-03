@@ -1070,6 +1070,10 @@ impl LowerState {
 
     pub fn fresh_exact_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
+        // 純粋な effect 変数も def 型変数と同じく MAX で建て、extrude に本体レベルへ
+        // 揃えさせる。current_level で建てると level 0 の型変数が生まれ、cooccur の
+        // 量化候補(level >= boundary)をすり抜けて型に残ってしまう。
+        self.infer.register_level(tv, u32::MAX);
         self.exact_pure_effect_tvs.insert(tv);
         self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         self.infer

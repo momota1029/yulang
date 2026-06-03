@@ -2538,7 +2538,7 @@ fn format_ret_row_inline(ty: &Type, namer: &mut VarNamer<'_>) -> Option<String> 
     }
 }
 
-fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer<'_>) -> String {
+pub(crate) fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer<'_>) -> String {
     let normalized = normalize_format_bounds(bounds.clone());
     let bounds = &normalized;
     if let Some(rendered) = format_compact_bounds_with_center(bounds, namer) {
