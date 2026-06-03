@@ -348,6 +348,9 @@ impl LowerState {
     /// let binding の body に入るとき。
     pub fn enter_let(&mut self) {
         self.current_level += 1;
+        if std::env::var("YULANG_DBG").is_ok() {
+            eprintln!("[enter_let] -> {}", self.current_level);
+        }
     }
 
     /// let binding の body から出るとき。
@@ -716,6 +719,12 @@ impl LowerState {
         self.infer.register_def_tv(def, tv);
         // 量化境界の物差し。宣言時の current_level（本体の enter_let より一段外）を控える。
         self.infer.register_def_level(def, self.current_level);
+        // def の型変数は max で建て、extrude に本体レベルへ揃えさせる。
+        // current_level で建てると level 0 の型変数が生まれ、本体変数(level 1)を巻き込んで老化させる。
+        self.infer.register_level(tv, u32::MAX);
+        if std::env::var("YULANG_DBG").is_ok() {
+            eprintln!("[register_def_tv] def={} tv={} level=MAX", def.0, tv.0);
+        }
     }
 
     pub fn mark_let_bound_def(&mut self, def: DefId) {

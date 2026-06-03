@@ -304,9 +304,10 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 };
 
                 let cooccur_start = Instant::now();
-                // この def より外側（低 level）の変数は、極性消去・共起分析の消去・統一から
-                // 保護する。高レベルな再帰ハンドラ等の simplify が外側 effect 変数を巻き込むのを防ぐ。
-                let level_boundary = infer.def_level_of(item.def);
+                // この def の本体レベル(def_level + 1)より低い変数 = 外側スコープ由来の変数を、
+                // 極性消去・共起分析の消去・統一から保護する。本体変数(level = def_level + 1)は処理対象。
+                // 高レベルな再帰ハンドラ等の simplify が外側 effect 変数を巻き込むのを防ぐ。
+                let level_boundary = infer.def_level_of(item.def) + 1;
                 let low_level_vars =
                     collect_strictly_lower_level_vars(infer, &compact, level_boundary);
                 let (scheme, compact_role_constraints) =

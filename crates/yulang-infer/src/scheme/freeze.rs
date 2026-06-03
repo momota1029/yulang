@@ -879,6 +879,15 @@ pub(crate) fn collect_strictly_lower_level_vars(
     for bounds in scheme.rec_vars.values() {
         collect_compact_bounds_free_vars(bounds, &mut all);
     }
+    if std::env::var("YULANG_DBG").is_ok() {
+        eprintln!(
+            "[strict_lower] threshold={} vars={:?}",
+            threshold,
+            all.iter()
+                .map(|tv| (tv.0, infer.level_of(*tv)))
+                .collect::<Vec<_>>()
+        );
+    }
     all.into_iter()
         .filter(|tv| infer.level_of(*tv) < threshold)
         .collect()
