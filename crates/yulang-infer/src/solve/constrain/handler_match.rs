@@ -222,10 +222,27 @@ impl Infer {
     ) {
         let mut unmatched = items;
         for handled in &edge.handled {
-            let Some(index) = unmatched
+            let matched_pos = unmatched
                 .iter()
-                .position(|item| self.handler_match_row_items_match(*item, *handled))
-            else {
+                .position(|item| self.handler_match_row_items_match(*item, *handled));
+            if std::env::var("YULANG_DBG").is_ok() {
+                let handled_path = match self.arena.get_neg(*handled) {
+                    Neg::Atom(a) => format!("{:?}", a.path.segments),
+                    other => format!("{other:?}"),
+                };
+                let item_paths: Vec<String> = unmatched
+                    .iter()
+                    .map(|item| match self.arena.get_pos(*item) {
+                        Pos::Atom(a) => format!("{:?}", a.path.segments),
+                        other => format!("{other:?}"),
+                    })
+                    .collect();
+                eprintln!(
+                    "[subtract] try handled={handled_path} from items={item_paths:?} matched={}",
+                    matched_pos.is_some()
+                );
+            }
+            let Some(index) = matched_pos else {
                 continue;
             };
             let matched = unmatched.remove(index);

@@ -42,7 +42,13 @@ fn coalesce_compact_scheme_for_freeze(mut compact: CompactTypeScheme) -> Compact
     // 共起簡約は汎化境界を保護しないのが正しい）。
     coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
     let (mut scheme, _) =
-        coalesce_by_co_occurrence_with_role_constraint_inputs(&compact, &[], |_| None, &HashSet::new());
+        coalesce_by_co_occurrence_with_role_constraint_inputs(
+            &compact,
+            &[],
+            |_| None,
+            &std::collections::HashMap::new(),
+            0,
+        );
     normalize_compact_scheme_rows(&mut scheme);
     scheme
 }
@@ -868,29 +874,17 @@ pub(crate) fn collect_low_level_vars_in_scheme(
 /// 「この def（自分）のレベルより外側」の変数 = 量化されない外側スコープの変数。
 /// 極性消去・共起分析でこれらを rigid 保護することで、高レベルな関数（再帰ハンドラ等）の
 /// simplify が外側の effect 変数を巻き込んで消すのを防ぐ（消去・統一だけ level に頼る）。
-pub(crate) fn collect_strictly_lower_level_vars(
+pub(crate) fn collect_var_levels(
     infer: &Infer,
     scheme: &CompactTypeScheme,
-    threshold: u32,
-) -> HashSet<TypeVar> {
+) -> std::collections::HashMap<TypeVar, u32> {
     let mut all = Vec::new();
     collect_compact_type_free_vars(&scheme.cty.lower, &mut all);
     collect_compact_type_free_vars(&scheme.cty.upper, &mut all);
     for bounds in scheme.rec_vars.values() {
         collect_compact_bounds_free_vars(bounds, &mut all);
     }
-    if std::env::var("YULANG_DBG").is_ok() {
-        eprintln!(
-            "[strict_lower] threshold={} vars={:?}",
-            threshold,
-            all.iter()
-                .map(|tv| (tv.0, infer.level_of(*tv)))
-                .collect::<Vec<_>>()
-        );
-    }
-    all.into_iter()
-        .filter(|tv| infer.level_of(*tv) < threshold)
-        .collect()
+    all.into_iter().map(|tv| (tv, infer.level_of(tv))).collect()
 }
 
 fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> Option<PosId> {

@@ -2857,6 +2857,20 @@ mod tests {
     }
 
     #[test]
+    fn dbg_min_act_run() {
+        let green = yulang_parser::parse_module_to_green(
+            "act outer:\n  our redo: () -> never\n  my act local:\n    our break: () -> never\n    our judge(x: [_] _) = catch x:\n      break(), _ -> true\n      _ -> false\n    our sub(x: [_] _) = catch x:\n      break(), _ -> ()\n      _ -> ()\n  my act repeat:\n    our break: () -> never\n    our judge(x: [_] _) = catch x:\n      break(), _ -> true\n      _ -> false\n    our sub(x: [_] _) = catch x:\n      break(), _ -> ()\n      _ -> ()\n  our run(f: () -> [outer] _) = local::sub: loop true with:\n    our loop b = if b:\n      loop (repeat::judge:catch f():\n        redo(), _ -> repeat::break()\n        _ -> local::break()\n      )\n    else ()\n\npub r = outer::run\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+        let rendered = render_compact_results(&mut state);
+        for (name, ty) in &rendered {
+            eprintln!("DBG-RESULT {name} = {ty}");
+        }
+    }
+
+    #[test]
     fn render_compact_results_lowers_for_in_stmt_to_loop_for_in() {
         run_with_large_stack(|| {
             let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

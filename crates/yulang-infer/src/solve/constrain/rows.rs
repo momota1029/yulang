@@ -108,12 +108,26 @@ impl Infer {
     }
 
     fn row_items_can_cancel(&self, pos: PosId, neg: NegId) -> bool {
-        match (self.arena.get_pos(pos), self.arena.get_neg(neg)) {
+        let result = match (self.arena.get_pos(pos), self.arena.get_neg(neg)) {
             (Pos::Atom(pa), Neg::Atom(na)) => pa.path == na.path && pa.args.len() == na.args.len(),
             (Pos::Var(a), Neg::Var(b)) => a == b,
             (Pos::Bot, Neg::Top) => true,
             _ => false,
+        };
+        if std::env::var("YULANG_DBG").is_ok() {
+            let pos_desc = match self.arena.get_pos(pos) {
+                Pos::Atom(a) => format!("atom{:?}", a.path.segments),
+                Pos::Var(t) | Pos::Raw(t) => format!("var{}", t.0),
+                other => format!("{other:?}"),
+            };
+            let neg_desc = match self.arena.get_neg(neg) {
+                Neg::Atom(a) => format!("atom{:?}", a.path.segments),
+                Neg::Var(t) => format!("var{}", t.0),
+                other => format!("{other:?}"),
+            };
+            eprintln!("[can_cancel] pos={pos_desc} vs neg={neg_desc} -> {result}");
         }
+        result
     }
 
     pub(super) fn constrain_row_item_match(

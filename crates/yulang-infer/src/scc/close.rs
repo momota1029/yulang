@@ -7,8 +7,8 @@ use crate::profile::ProfileClock as Instant;
 use crate::ids::DefId;
 use crate::ref_table::{RefTable, ResolvedRef};
 use crate::scheme::{
-    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
-    collect_strictly_lower_level_vars, freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme, collect_var_levels,
+    freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
     instantiate_as_view_with_subst_profiled,
 };
 use crate::simplify::compact::coalesce_nested_tail_function_effect_residuals_in_scheme;
@@ -304,12 +304,10 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 };
 
                 let cooccur_start = Instant::now();
-                // この def の本体レベル(def_level + 1)より低い変数 = 外側スコープ由来の変数を、
-                // 極性消去・共起分析の消去・統一から保護する。本体変数(level = def_level + 1)は処理対象。
-                // 高レベルな再帰ハンドラ等の simplify が外側 effect 変数を巻き込むのを防ぐ。
+                // cooccur は「量化されうる変数(level >= boundary = この def の本体レベル)」だけを
+                // 解析対象にする。外側スコープ由来(level < boundary)の変数は走査しない。
                 let level_boundary = infer.def_level_of(item.def) + 1;
-                let low_level_vars =
-                    collect_strictly_lower_level_vars(infer, &compact, level_boundary);
+                let var_levels = collect_var_levels(infer, &compact);
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
                         coalesce_by_co_occurrence_with_role_constraint_inputs(
@@ -320,14 +318,16 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                                 (!infos.is_empty())
                                     .then(|| infos.into_iter().map(|info| info.is_input).collect())
                             },
-                            &low_level_vars,
+                            &var_levels,
+                            level_boundary,
                         )
                     } else {
                         coalesce_by_co_occurrence_with_role_constraint_inputs(
                             &compact,
                             &[],
                             |_| None,
-                            &low_level_vars,
+                            &var_levels,
+                            level_boundary,
                         )
                     };
                 profile.cooccur += cooccur_start.elapsed();

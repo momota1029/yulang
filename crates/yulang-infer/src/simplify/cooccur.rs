@@ -98,14 +98,16 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
-    extra_rigid: &HashSet<TypeVar>,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
         Some(&role_arg_inputs),
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
-        extra_rigid,
+        var_levels,
+        boundary,
     );
     (output.scheme, output.constraints)
 }
@@ -119,7 +121,8 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
         constraints,
         None,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
-        &HashSet::new(),
+        &HashMap::new(),
+        0,
     )
 }
 
@@ -130,30 +133,17 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: Option<&RoleArgInputs<'_>>,
     use_representatives: bool,
-    extra_rigid: &HashSet<TypeVar>,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
 ) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
     let mut current_constraints = constraints.to_vec();
     let mut rounds = Vec::new();
 
     loop {
-        // 汎化境界（捕捉/非汎化）変数は rigid にしない。共起統合・極性消去は汎化とは
-        // 独立な構造的簡約で、境界変数を保護すると再帰ハンドラの残留 SCC のような
-        // 健全な畳み込みまで止め、catch の引き算を迂回したエフェクト漏れを生む。
-        // 非汎化性は量化の段で扱う問題であって、この簡約では扱わない。
-        let mut rigid_vars = role_constraint_rigid_vars(&current_constraints, role_arg_inputs);
-        collect_open_interval_vars(&current_scheme.cty, &mut rigid_vars);
-        // level 保護を含まない base。guarded_row_recursion（再帰構造の μ 化）は
-        // level 保護の rigid を混ぜると deep handler を shallow 化させるので、base を渡す。
-        let base_rigid_vars = rigid_vars.clone();
-        // level ベースの保護: この def より外側（低 level）の変数は消去・統一しない。
-        rigid_vars.extend(extra_rigid.iter().copied());
-        let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
-        collect_open_interval_vars_in_constraints(
-            &current_constraints,
-            &positive_scheme_vars,
-            &mut rigid_vars,
-        );
+        // rigid_vars は完全に空。情報収集(analyze)の段階で低 level 変数を弾くことで、
+        // 後段の全 pass が自動的に対象外にする。rigid という「守るべき変数集合」は撤廃。
+        let rigid_vars: HashSet<TypeVar> = HashSet::new();
         let mut polar_analysis =
             analyze_polar_occurrences_with_role_constraints(&current_scheme, &current_constraints);
         let mut analysis =
@@ -171,6 +161,10 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         all_vars.extend(group_analysis.effects.keys().copied());
         all_vars.sort_by_key(|tv| tv.0);
         all_vars.dedup();
+        // 量化されうる変数（level >= boundary）だけを解析対象に残す。外側スコープの変数は
+        // 走査しない。情報(analysis/polar_analysis)は全変数のままなので、極性消去でも
+        // (false,false) 扱いにならず、外側変数は消されない。
+        all_vars.retain(|tv| var_levels.get(tv).copied().unwrap_or(u32::MAX) >= boundary);
         all_vars.sort_by_key(|tv| std::cmp::Reverse(tv.0));
 
         let mut subst = HashMap::<TypeVar, Option<TypeVar>>::new();
@@ -190,41 +184,11 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &rigid_vars,
             &mut subst,
         );
-        let effect_vars = group_analysis.effects.keys().copied().collect::<Vec<_>>();
-        apply_effect_pairwise_co_occurrence_substitutions(
-            &effect_vars,
-            &mut analysis,
-            &mut rec_vars,
-            &rigid_vars,
-            &mut subst,
-        );
-        apply_group_co_occurrence_substitutions(
-            &group_analysis,
-            &mut analysis,
-            &mut rec_vars,
-            &rigid_vars,
-            &mut subst,
-        );
-        let exact_info = ExactInfo::from_analysis(&analysis);
-        apply_exact_row_unifications(&all_vars, &exact_info, &rec_vars, &rigid_vars, &mut subst);
-        apply_exact_sandwich_removal(&all_vars, &exact_info, &rigid_vars, &mut subst);
-        apply_shadow_var_collapse(&all_vars, &analysis, &rigid_vars, &mut subst);
-        let mut exact_alias_rigid_vars = rigid_vars.clone();
-        collect_function_input_vars_in_scheme(&current_scheme, &mut exact_alias_rigid_vars);
-        collect_escaping_function_input_vars_in_scheme(
-            &current_scheme,
-            &positive_scheme_vars,
-            &mut exact_alias_rigid_vars,
-        );
-        collect_data_payload_interval_vars_in_scheme(&current_scheme, &mut exact_alias_rigid_vars);
-        apply_one_sided_exact_alias_collapse(
-            &all_vars,
-            &analysis,
-            &exact_alias_rigid_vars,
-            &mut subst,
-        );
-        let guarded_row_representatives =
-            guarded_row_recursion_representatives(&rec_vars, &base_rigid_vars, &subst);
+        // 論文 4.3.1 の2つだけ: indistinguishable unification と sandwich flattening。
+        // 論文外の group/effect_pairwise/exact_row/exact_sandwich/shadow/alias/guarded_row は撤去。
+        apply_indistinguishable_unification(&all_vars, &analysis, &mut subst);
+        apply_sandwich_flattening(&all_vars, &analysis, &mut subst);
+        let guarded_row_representatives: HashMap<TypeVar, CompactType> = HashMap::new();
         for &var in guarded_row_representatives.keys() {
             subst.entry(var).or_insert(None);
         }
@@ -316,6 +280,99 @@ fn role_constraint_rigid_vars(
                 .filter_map(move |(index, arg)| role_arg_rigid_var(arg, inputs.as_deref(), index))
         })
         .collect()
+}
+
+/// 論文 4.3.1 の indistinguishable unification: α と β が positive(または negative)で
+/// 常に共に現れる(互いの always-共起集合に入っている)なら判別不可なので、β を α に統合する。
+fn apply_indistinguishable_unification(
+    all_vars: &[TypeVar],
+    analysis: &CoOccurrences,
+    subst: &mut HashMap<TypeVar, Option<TypeVar>>,
+) {
+    if std::env::var("YULANG_DBG").is_ok() {
+        let vars_of = |set: Option<&HashSet<AlongItem>>| {
+            set.map(|s| {
+                s.iter()
+                    .filter_map(|i| match i {
+                        AlongItem::Var(w) => Some(w.0),
+                        AlongItem::Exact(_) => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+        };
+        for &v in all_vars {
+            eprintln!(
+                "[indist] v={} pos={:?} neg={:?}",
+                v.0,
+                vars_of(analysis.positive.get(&v)),
+                vars_of(analysis.negative.get(&v))
+            );
+        }
+    }
+    for &alpha in all_vars {
+        if subst.contains_key(&alpha) {
+            continue;
+        }
+        for &beta in all_vars {
+            if beta.0 >= alpha.0 || subst.contains_key(&beta) {
+                continue;
+            }
+            let pos_together = analysis
+                .positive
+                .get(&alpha)
+                .is_some_and(|s| s.contains(&AlongItem::Var(beta)))
+                && analysis
+                    .positive
+                    .get(&beta)
+                    .is_some_and(|s| s.contains(&AlongItem::Var(alpha)));
+            let neg_together = analysis
+                .negative
+                .get(&alpha)
+                .is_some_and(|s| s.contains(&AlongItem::Var(beta)))
+                && analysis
+                    .negative
+                    .get(&beta)
+                    .is_some_and(|s| s.contains(&AlongItem::Var(alpha)));
+            if pos_together || neg_together {
+                if std::env::var("YULANG_DBG").is_ok() {
+                    eprintln!("[indist-merge] {} -> {}", beta.0, alpha.0);
+                }
+                subst.insert(beta, Some(alpha));
+            }
+        }
+    }
+}
+
+/// 論文 4.3.1 の variable sandwich flattening(polar removal の一般化): 変数 v が
+/// ある型 τ(変数 or concrete = AlongItem)と positive・negative の両方で常に共起するなら、
+/// v は τ と等価なので消す。τ=Var(w) なら v→w に統合、τ=Exact(concrete) なら v を除去する。
+fn apply_sandwich_flattening(
+    all_vars: &[TypeVar],
+    analysis: &CoOccurrences,
+    subst: &mut HashMap<TypeVar, Option<TypeVar>>,
+) {
+    for &v in all_vars {
+        if subst.contains_key(&v) {
+            continue;
+        }
+        let (Some(pos), Some(neg)) = (analysis.positive.get(&v), analysis.negative.get(&v)) else {
+            continue;
+        };
+        let sandwich = pos
+            .iter()
+            .find(|item| **item != AlongItem::Var(v) && neg.contains(item));
+        if let Some(item) = sandwich {
+            match item {
+                AlongItem::Var(w) => {
+                    subst.insert(v, Some(*w));
+                }
+                AlongItem::Exact(_) => {
+                    subst.insert(v, None);
+                }
+            }
+        }
+    }
 }
 
 fn guarded_row_recursion_representatives(
@@ -1754,7 +1811,8 @@ mod tests {
             &[],
             None,
             true,
-            &HashSet::new(),
+            &std::collections::HashMap::new(),
+            0,
         )
         .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());

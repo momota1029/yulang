@@ -273,6 +273,7 @@ pub(crate) struct VarNamer<'scope> {
     names: HashMap<u32, String>,
     next: usize,
     scope: Option<&'scope LowerCtx>,
+    numeric: bool,
 }
 
 impl Default for VarNamer<'_> {
@@ -281,6 +282,7 @@ impl Default for VarNamer<'_> {
             names: HashMap::new(),
             next: 0,
             scope: None,
+            numeric: std::env::var_os("YULANG_DBG").is_some(),
         }
     }
 }
@@ -291,10 +293,14 @@ impl<'scope> VarNamer<'scope> {
             names: HashMap::new(),
             next: 0,
             scope: Some(scope),
+            numeric: std::env::var_os("YULANG_DBG").is_some(),
         }
     }
 
     fn name(&mut self, raw: u32) -> String {
+        if self.numeric {
+            return format!("#{raw}");
+        }
         const GREEK: &[&str] = &[
             "α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ρ",
             "σ", "τ", "υ", "φ", "χ", "ψ", "ω",
