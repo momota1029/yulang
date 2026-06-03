@@ -1413,6 +1413,36 @@ impl<'a> CompactContext<'a> {
         }
     }
 
+    fn compact_neg_tail_bounds_without_row_items_ref(
+        &mut self,
+        bounds: &[NegId],
+        _parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        let mut vars = HashSet::new();
+        let mut stack = bounds.iter().copied().collect::<Vec<_>>();
+        while let Some(id) = stack.pop() {
+            match self.infer.arena.get_neg(id) {
+                Neg::Var(tv) => {
+                    vars.insert(tv);
+                    seen.insert(tv);
+                }
+                Neg::Row(_, tail) => {
+                    stack.push(tail);
+                }
+                Neg::Intersection(lhs, rhs) => {
+                    stack.push(lhs);
+                    stack.push(rhs);
+                }
+                _ => {}
+            }
+        }
+        CompactType {
+            vars,
+            ..CompactType::default()
+        }
+    }
+
     fn compact_pos_tail_id(
         &mut self,
         id: PosId,
@@ -1556,7 +1586,11 @@ impl<'a> CompactContext<'a> {
         let mut next_parents = parents.clone();
         next_parents.push(tv);
         let compact = if self.infer.effect_subtractability(tv).is_none() {
-            self.compact_neg_bounds_without_row_items_ref(bounds.as_slice(), &next_parents, seen)
+            self.compact_neg_tail_bounds_without_row_items_ref(
+                bounds.as_slice(),
+                &next_parents,
+                seen,
+            )
         } else {
             self.compact_neg_tail_bounds_ref(bounds.as_slice(), &next_parents, seen)
         };
