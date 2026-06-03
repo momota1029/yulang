@@ -1,18 +1,25 @@
+use rustc_hash::FxHashSet;
+
 use super::Infer;
-use crate::ids::{NegId, PosId, TypeVar, fresh_type_var};
+use crate::ids::{NegId, PosId, TypeVar};
 use crate::types::{EffectAtom, Neg, Pos};
 
 impl Infer {
-    /// Simple-sub の extrusion。
+    /// Simple-sub の extrusion（代入版）。
     ///
-    /// 低レベル変数の境界に高レベル変数を直接入れず、高レベル側の構造を
-    /// target level の近似変数へコピーする。元の変数 level は変えない。
+    /// 論文 (Fig.7) の extrude はコピーで「level を下げた近似グラフ」を作る。その目的は
+    /// (1) level を下げること、(2) let 多相の instantiation 独立性を保つこと、の2つ。
+    /// yulang は (2) を SCC + frozen scheme の instantiate で別に実装済みなので、
+    /// extrude に残る役割は (1) だけ。新変数・新ノードを作らず、辿り着いた型変数を
+    /// 直接 target level へ「老化」させる（＝代入）。型グラフは不変なので返り値は入力 id。
+    /// コピーしないため、コピー由来の変数増殖（compact の Intersection 無限ネスト）も起きない。
     pub fn extrude_pos(&self, pos: PosId, target_lvl: u32) -> PosId {
         if self.max_level_pos(pos) <= target_lvl {
             return pos;
         }
         let mut ctx = ExtrudeCtx::new(target_lvl);
-        self.extrude_pos_id(pos, ExtrudePolarity::Positive, &mut ctx)
+        self.extrude_pos_id(pos, &mut ctx);
+        pos
     }
 
     pub fn extrude_neg(&self, neg: NegId, target_lvl: u32) -> NegId {
@@ -20,271 +27,162 @@ impl Infer {
             return neg;
         }
         let mut ctx = ExtrudeCtx::new(target_lvl);
-        self.extrude_neg_id(neg, ExtrudePolarity::Negative, &mut ctx)
+        self.extrude_neg_id(neg, &mut ctx);
+        neg
     }
 
-    fn extrude_pos_id(&self, id: PosId, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> PosId {
+    fn extrude_pos_id(&self, id: PosId, ctx: &mut ExtrudeCtx) {
         if self.max_level_pos(id) <= ctx.target_lvl {
-            return id;
+            return;
         }
-        let key = (id, ctx.target_lvl, pol);
-        if let Some(cached) = self.extrude_pos_cache.borrow().get(&key).copied() {
-            return cached;
-        }
-        let node = match self.arena.get_pos(id) {
-            Pos::Bot => Pos::Bot,
-            Pos::Var(tv) => Pos::Var(self.extrude_type_var(tv, pol, ctx)),
-            Pos::Raw(tv) => Pos::Raw(self.extrude_type_var(tv, pol, ctx)),
-            Pos::Atom(atom) => Pos::Atom(self.extrude_effect_atom(atom, pol, ctx)),
-            Pos::Forall(vars, body) => Pos::Forall(vars, self.extrude_pos_id(body, pol, ctx)),
-            Pos::Con(path, args) => Pos::Con(
-                path,
-                args.into_iter()
-                    .map(|(pos, neg)| {
-                        (
-                            self.extrude_pos_id(pos, pol, ctx),
-                            self.extrude_neg_id(neg, pol.flip(), ctx),
-                        )
-                    })
-                    .collect(),
-            ),
+        match self.arena.get_pos(id) {
+            Pos::Bot => {}
+            Pos::Var(tv) | Pos::Raw(tv) => self.extrude_type_var(tv, ctx),
+            Pos::Atom(atom) => self.extrude_effect_atom(&atom, ctx),
+            Pos::Forall(_, body) => self.extrude_pos_id(body, ctx),
+            Pos::Con(_, args) => {
+                for (pos, neg) in args {
+                    self.extrude_pos_id(pos, ctx);
+                    self.extrude_neg_id(neg, ctx);
+                }
+            }
             Pos::Fun {
                 arg,
                 arg_eff,
                 ret_eff,
                 ret,
-            } => Pos::Fun {
-                arg: self.extrude_neg_id(arg, pol.flip(), ctx),
-                arg_eff: self.extrude_neg_id(arg_eff, pol.flip(), ctx),
-                ret_eff: self.extrude_pos_id(ret_eff, pol, ctx),
-                ret: self.extrude_pos_id(ret, pol, ctx),
-            },
-            Pos::Record(fields) => Pos::Record(
-                fields
-                    .into_iter()
-                    .map(|mut field| {
-                        field.value = self.extrude_pos_id(field.value, pol, ctx);
-                        field
-                    })
-                    .collect(),
-            ),
-            Pos::RecordTailSpread { fields, tail } => Pos::RecordTailSpread {
-                fields: fields
-                    .into_iter()
-                    .map(|mut field| {
-                        field.value = self.extrude_pos_id(field.value, pol, ctx);
-                        field
-                    })
-                    .collect(),
-                tail: self.extrude_pos_id(tail, pol, ctx),
-            },
-            Pos::RecordHeadSpread { tail, fields } => Pos::RecordHeadSpread {
-                tail: self.extrude_pos_id(tail, pol, ctx),
-                fields: fields
-                    .into_iter()
-                    .map(|mut field| {
-                        field.value = self.extrude_pos_id(field.value, pol, ctx);
-                        field
-                    })
-                    .collect(),
-            },
-            Pos::PolyVariant(items) => Pos::PolyVariant(
-                items
-                    .into_iter()
-                    .map(|(name, payloads)| {
-                        (
-                            name,
-                            payloads
-                                .into_iter()
-                                .map(|payload| self.extrude_pos_id(payload, pol, ctx))
-                                .collect(),
-                        )
-                    })
-                    .collect(),
-            ),
-            Pos::Tuple(items) => Pos::Tuple(
-                items
-                    .into_iter()
-                    .map(|item| self.extrude_pos_id(item, pol, ctx))
-                    .collect(),
-            ),
-            Pos::Row(items, tail) => Pos::Row(
-                items
-                    .into_iter()
-                    .map(|item| self.extrude_pos_id(item, pol, ctx))
-                    .collect(),
-                self.extrude_pos_id(tail, pol, ctx),
-            ),
-            Pos::Union(left, right) => Pos::Union(
-                self.extrude_pos_id(left, pol, ctx),
-                self.extrude_pos_id(right, pol, ctx),
-            ),
-        };
-        let result = self.alloc_pos(node);
-        self.extrude_pos_cache.borrow_mut().insert(key, result);
-        result
+            } => {
+                self.extrude_neg_id(arg, ctx);
+                self.extrude_neg_id(arg_eff, ctx);
+                self.extrude_pos_id(ret_eff, ctx);
+                self.extrude_pos_id(ret, ctx);
+            }
+            Pos::Record(fields) => {
+                for field in fields {
+                    self.extrude_pos_id(field.value, ctx);
+                }
+            }
+            Pos::RecordTailSpread { fields, tail } => {
+                for field in fields {
+                    self.extrude_pos_id(field.value, ctx);
+                }
+                self.extrude_pos_id(tail, ctx);
+            }
+            Pos::RecordHeadSpread { tail, fields } => {
+                self.extrude_pos_id(tail, ctx);
+                for field in fields {
+                    self.extrude_pos_id(field.value, ctx);
+                }
+            }
+            Pos::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.extrude_pos_id(payload, ctx);
+                    }
+                }
+            }
+            Pos::Tuple(items) => {
+                for item in items {
+                    self.extrude_pos_id(item, ctx);
+                }
+            }
+            Pos::Row(items, tail) => {
+                for item in items {
+                    self.extrude_pos_id(item, ctx);
+                }
+                self.extrude_pos_id(tail, ctx);
+            }
+            Pos::Union(left, right) => {
+                self.extrude_pos_id(left, ctx);
+                self.extrude_pos_id(right, ctx);
+            }
+        }
     }
 
-    fn extrude_neg_id(&self, id: NegId, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> NegId {
+    fn extrude_neg_id(&self, id: NegId, ctx: &mut ExtrudeCtx) {
         if self.max_level_neg(id) <= ctx.target_lvl {
-            return id;
+            return;
         }
-        let key = (id, ctx.target_lvl, pol);
-        if let Some(cached) = self.extrude_neg_cache.borrow().get(&key).copied() {
-            return cached;
-        }
-        let node = match self.arena.get_neg(id) {
-            Neg::Top => Neg::Top,
-            Neg::Var(tv) => Neg::Var(self.extrude_type_var(tv, pol, ctx)),
-            Neg::Atom(atom) => Neg::Atom(self.extrude_effect_atom(atom, pol, ctx)),
-            Neg::Forall(vars, body) => Neg::Forall(vars, self.extrude_neg_id(body, pol, ctx)),
-            Neg::Con(path, args) => Neg::Con(
-                path,
-                args.into_iter()
-                    .map(|(pos, neg)| {
-                        (
-                            self.extrude_pos_id(pos, pol, ctx),
-                            self.extrude_neg_id(neg, pol.flip(), ctx),
-                        )
-                    })
-                    .collect(),
-            ),
+        match self.arena.get_neg(id) {
+            Neg::Top => {}
+            Neg::Var(tv) => self.extrude_type_var(tv, ctx),
+            Neg::Atom(atom) => self.extrude_effect_atom(&atom, ctx),
+            Neg::Forall(_, body) => self.extrude_neg_id(body, ctx),
+            Neg::Con(_, args) => {
+                for (pos, neg) in args {
+                    self.extrude_pos_id(pos, ctx);
+                    self.extrude_neg_id(neg, ctx);
+                }
+            }
             Neg::Fun {
                 arg,
                 arg_eff,
                 ret_eff,
                 ret,
-            } => Neg::Fun {
-                arg: self.extrude_pos_id(arg, pol.flip(), ctx),
-                arg_eff: self.extrude_pos_id(arg_eff, pol.flip(), ctx),
-                ret_eff: self.extrude_neg_id(ret_eff, pol, ctx),
-                ret: self.extrude_neg_id(ret, pol, ctx),
-            },
-            Neg::Record(fields) => Neg::Record(
-                fields
-                    .into_iter()
-                    .map(|mut field| {
-                        field.value = self.extrude_neg_id(field.value, pol, ctx);
-                        field
-                    })
-                    .collect(),
-            ),
-            Neg::PolyVariant(items) => Neg::PolyVariant(
-                items
-                    .into_iter()
-                    .map(|(name, payloads)| {
-                        (
-                            name,
-                            payloads
-                                .into_iter()
-                                .map(|payload| self.extrude_neg_id(payload, pol, ctx))
-                                .collect(),
-                        )
-                    })
-                    .collect(),
-            ),
-            Neg::Tuple(items) => Neg::Tuple(
-                items
-                    .into_iter()
-                    .map(|item| self.extrude_neg_id(item, pol, ctx))
-                    .collect(),
-            ),
-            Neg::Row(items, tail) => Neg::Row(
-                items
-                    .into_iter()
-                    .map(|item| self.extrude_neg_id(item, pol, ctx))
-                    .collect(),
-                self.extrude_neg_id(tail, pol, ctx),
-            ),
-            Neg::Intersection(left, right) => Neg::Intersection(
-                self.extrude_neg_id(left, pol, ctx),
-                self.extrude_neg_id(right, pol, ctx),
-            ),
-        };
-        let result = self.alloc_neg(node);
-        self.extrude_neg_cache.borrow_mut().insert(key, result);
-        result
+            } => {
+                self.extrude_pos_id(arg, ctx);
+                self.extrude_pos_id(arg_eff, ctx);
+                self.extrude_neg_id(ret_eff, ctx);
+                self.extrude_neg_id(ret, ctx);
+            }
+            Neg::Record(fields) => {
+                for field in fields {
+                    self.extrude_neg_id(field.value, ctx);
+                }
+            }
+            Neg::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.extrude_neg_id(payload, ctx);
+                    }
+                }
+            }
+            Neg::Tuple(items) => {
+                for item in items {
+                    self.extrude_neg_id(item, ctx);
+                }
+            }
+            Neg::Row(items, tail) => {
+                for item in items {
+                    self.extrude_neg_id(item, ctx);
+                }
+                self.extrude_neg_id(tail, ctx);
+            }
+            Neg::Intersection(left, right) => {
+                self.extrude_neg_id(left, ctx);
+                self.extrude_neg_id(right, ctx);
+            }
+        }
     }
 
-    fn extrude_type_var(&self, tv: TypeVar, pol: ExtrudePolarity, ctx: &mut ExtrudeCtx) -> TypeVar {
-        self.bump_extrude_counter(tv, pol, ctx.target_lvl);
+    /// 型変数を target level へ代入老化する（新変数は作らない）。
+    /// bounds（lower / upper / compact）も level 不変条件を保つため再帰的に老化する。
+    /// bounds はサイクルを持ちうるので visited で多重訪問を止める（論文の cache c に相当）。
+    fn extrude_type_var(&self, tv: TypeVar, ctx: &mut ExtrudeCtx) {
         if self.level_of(tv) <= ctx.target_lvl {
-            return tv;
+            return;
         }
-        let key = (tv, ctx.target_lvl, pol);
-        if let Some(copy) = self.extrude_var_cache.borrow().get(&key).copied() {
-            return copy;
+        if !ctx.visited.insert(tv) {
+            return;
         }
-
-        let copy = fresh_type_var();
-        self.register_level(copy, ctx.target_lvl);
-        self.extrude_var_cache.borrow_mut().insert(key, copy);
-        self.extrude_origin.borrow_mut().insert(copy, tv);
-        self.copy_extruded_var_side_tables(tv, copy, pol, ctx);
-
-        match pol {
-            ExtrudePolarity::Positive => {
-                self.add_upper(tv, Neg::Var(copy));
-                for lower in self.lower_refs_of(tv) {
-                    let lower = self.extrude_pos_id(lower, pol, ctx);
-                    self.add_lower_raw(copy, lower);
-                }
-                for instance in self.compact_lower_instances_of(tv) {
-                    let lower = self.materialize_compact_lower_instance(&instance);
-                    let lower = self.extrude_pos_id(lower, pol, ctx);
-                    self.add_lower_raw(copy, lower);
-                }
-            }
-            ExtrudePolarity::Negative => {
-                self.add_lower_raw(tv, Pos::Var(copy));
-                for upper in self.upper_refs_of(tv) {
-                    let upper = self.extrude_neg_id(upper, pol, ctx);
-                    self.add_upper(copy, upper);
-                }
-            }
+        self.bump_extrude_counter(tv, ctx.target_lvl);
+        self.register_level(tv, ctx.target_lvl);
+        for lower in self.lower_refs_of(tv) {
+            self.extrude_pos_id(lower, ctx);
         }
-
-        copy
+        for upper in self.upper_refs_of(tv) {
+            self.extrude_neg_id(upper, ctx);
+        }
+        for instance in self.compact_lower_instances_of(tv) {
+            let lower = self.materialize_compact_lower_instance(&instance);
+            self.extrude_pos_id(lower, ctx);
+        }
     }
 
-    fn copy_extruded_var_side_tables(
-        &self,
-        from: TypeVar,
-        to: TypeVar,
-        _pol: ExtrudePolarity,
-        _ctx: &mut ExtrudeCtx,
-    ) {
-        if let Some(origin) = self.origin_of(from) {
-            self.register_origin(to, origin);
-        }
-        if self.effect_is_all_subtractable(from) {
-            self.record_effect_subtractability(to, crate::solve::EffectSubtractability::All);
-        }
-        let boundary_keep = self.effect_boundary_keeps.borrow().get(&from).cloned();
-        if let Some(keep) = boundary_keep {
-            self.record_effect_boundary_keep(to, keep);
-        }
-        self.copy_effect_subtractability(from, to);
-    }
-
-    fn extrude_effect_atom(
-        &self,
-        atom: EffectAtom,
-        pol: ExtrudePolarity,
-        ctx: &mut ExtrudeCtx,
-    ) -> EffectAtom {
-        EffectAtom {
-            path: atom.path,
-            args: atom
-                .args
-                .into_iter()
-                .map(|(pos, neg)| {
-                    (
-                        self.extrude_type_var(pos, pol, ctx),
-                        self.extrude_type_var(neg, pol.flip(), ctx),
-                    )
-                })
-                .collect(),
+    fn extrude_effect_atom(&self, atom: &EffectAtom, ctx: &mut ExtrudeCtx) {
+        for (pos, neg) in &atom.args {
+            self.extrude_type_var(*pos, ctx);
+            self.extrude_type_var(*neg, ctx);
         }
     }
 
@@ -412,8 +310,8 @@ impl Infer {
             .unwrap_or(0)
     }
 
-    // === 診断: メモリ爆食いループの暴走源特定（YULANG_EXTRUDE_LIMIT 設定時のみ有効）===
-    fn bump_extrude_counter(&self, tv: TypeVar, pol: ExtrudePolarity, target_lvl: u32) {
+    // === 診断: 暴走源特定（YULANG_EXTRUDE_LIMIT 設定時のみ有効）===
+    fn bump_extrude_counter(&self, tv: TypeVar, target_lvl: u32) {
         let limit = std::env::var("YULANG_EXTRUDE_LIMIT")
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
@@ -425,78 +323,29 @@ impl Infer {
         self.extrude_call_count.set(count);
         if count == limit {
             panic!(
-                "extrude limit {limit} 到達。暴走源 tv{} pol={pol:?} target_lvl={target_lvl}\n祖先チェーン(コピー→元):\n{}",
+                "extrude limit {limit} 到達。tv{} target_lvl={target_lvl} level={} lowers={} uppers={} compact={}",
                 tv.0,
-                self.dump_extrude_ancestry(tv),
+                self.level_of(tv),
+                self.lower_refs_of(tv).len(),
+                self.upper_refs_of(tv).len(),
+                self.compact_lower_instances_of(tv).len(),
             );
         }
     }
-
-    fn dump_extrude_ancestry(&self, tv: TypeVar) -> String {
-        let mut out = String::new();
-        let mut cur = tv;
-        let mut seen = std::collections::HashSet::new();
-        let mut depth = 0usize;
-        while seen.insert(cur) && depth < 80 {
-            out.push_str(&format!("  [{depth}] {}\n", self.describe_var(cur)));
-            match self.extrude_origin.borrow().get(&cur).copied() {
-                Some(parent) => cur = parent,
-                None => break,
-            }
-            depth += 1;
-        }
-        if depth >= 80 {
-            out.push_str("  ... (祖先が80を超えた=祖先方向にも循環)\n");
-        }
-        out
-    }
-
-    fn describe_var(&self, tv: TypeVar) -> String {
-        let level = self.level_of(tv);
-        let owner_def = self
-            .def_tvs
-            .borrow()
-            .iter()
-            .find(|(_, v)| **v == tv)
-            .map(|(d, _)| *d);
-        let (kind, label) = match self.origin_of(tv) {
-            Some(o) => (format!("{:?}", o.kind), o.label.unwrap_or_default()),
-            None => ("?".to_string(), String::new()),
-        };
-        let n_lower = self.lower_refs_of(tv).len();
-        let n_upper = self.upper_refs_of(tv).len();
-        let n_compact = self.compact_lower_instances_of(tv).len();
-        format!(
-            "tv{} level={level} kind={kind} label={label:?} owner_def={owner_def:?} lowers={n_lower} uppers={n_upper} compact={n_compact}",
-            tv.0
-        )
-    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum ExtrudePolarity {
-    Positive,
-    Negative,
-}
-
-impl ExtrudePolarity {
-    fn flip(self) -> Self {
-        match self {
-            Self::Positive => Self::Negative,
-            Self::Negative => Self::Positive,
-        }
-    }
-}
-
-// extrude のメモ化は Infer の extrude_pos_cache/neg_cache/var_cache（グローバル・永続）が担う。
-// ExtrudeCtx は対象 level だけを運ぶ。
 #[derive(Debug)]
 struct ExtrudeCtx {
     target_lvl: u32,
+    /// 老化済みの変数。bounds のサイクルで無限再帰しないためのガード（論文の cache c）。
+    visited: FxHashSet<TypeVar>,
 }
 
 impl ExtrudeCtx {
     fn new(target_lvl: u32) -> Self {
-        Self { target_lvl }
+        Self {
+            target_lvl,
+            visited: FxHashSet::default(),
+        }
     }
 }
