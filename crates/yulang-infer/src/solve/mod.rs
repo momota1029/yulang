@@ -302,6 +302,9 @@ pub struct Infer {
     pub frozen_ref_commits: RefCell<FxHashMap<DefId, ()>>,
     pub role_constraints: RefCell<FxHashMap<DefId, Vec<RoleConstraint>>>,
     pub non_generic_vars: RefCell<FxHashMap<DefId, HashSet<TypeVar>>>,
+    /// DefId → その def を generalize する境界レベル（宣言時の current_level）。
+    /// 量化判定の固定された物差し。老化で動く変数 level とは別に控えておく。
+    pub def_levels: RefCell<FxHashMap<DefId, u32>>,
     pub components: Vec<SmallVec<[DefId; 1]>>,
     pub def_to_component: FxHashMap<DefId, usize>,
     pub component_edges: Vec<RefCell<SmallVec<[usize; 4]>>>,
@@ -355,6 +358,7 @@ impl Infer {
             frozen_ref_commits: RefCell::new(FxHashMap::default()),
             role_constraints: RefCell::new(FxHashMap::default()),
             non_generic_vars: RefCell::new(FxHashMap::default()),
+            def_levels: RefCell::new(FxHashMap::default()),
             components: Vec::new(),
             def_to_component: FxHashMap::default(),
             component_edges: Vec::new(),
@@ -670,6 +674,14 @@ impl Infer {
             .get(&owner)
             .cloned()
             .unwrap_or_default()
+    }
+
+    pub fn register_def_level(&self, def: DefId, level: u32) {
+        self.def_levels.borrow_mut().insert(def, level);
+    }
+
+    pub fn def_level_of(&self, def: DefId) -> u32 {
+        self.def_levels.borrow().get(&def).copied().unwrap_or(0)
     }
 
     pub fn is_role_method_def(&self, def: DefId) -> bool {

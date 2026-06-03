@@ -98,12 +98,14 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+    extra_rigid: &HashSet<TypeVar>,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
         Some(&role_arg_inputs),
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+        extra_rigid,
     );
     (output.scheme, output.constraints)
 }
@@ -117,6 +119,7 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
         constraints,
         None,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+        &HashSet::new(),
     )
 }
 
@@ -127,6 +130,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     constraints: &[CompactRoleConstraint],
     role_arg_inputs: Option<&RoleArgInputs<'_>>,
     use_representatives: bool,
+    extra_rigid: &HashSet<TypeVar>,
 ) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
     let mut current_constraints = constraints.to_vec();
@@ -139,6 +143,11 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         // 非汎化性は量化の段で扱う問題であって、この簡約では扱わない。
         let mut rigid_vars = role_constraint_rigid_vars(&current_constraints, role_arg_inputs);
         collect_open_interval_vars(&current_scheme.cty, &mut rigid_vars);
+        // level 保護を含まない base。guarded_row_recursion（再帰構造の μ 化）は
+        // level 保護の rigid を混ぜると deep handler を shallow 化させるので、base を渡す。
+        let base_rigid_vars = rigid_vars.clone();
+        // level ベースの保護: この def より外側（低 level）の変数は消去・統一しない。
+        rigid_vars.extend(extra_rigid.iter().copied());
         let positive_scheme_vars = collect_positive_scheme_vars(&current_scheme);
         collect_open_interval_vars_in_constraints(
             &current_constraints,
@@ -215,7 +224,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &mut subst,
         );
         let guarded_row_representatives =
-            guarded_row_recursion_representatives(&rec_vars, &rigid_vars, &subst);
+            guarded_row_recursion_representatives(&rec_vars, &base_rigid_vars, &subst);
         for &var in guarded_row_representatives.keys() {
             subst.entry(var).or_insert(None);
         }
@@ -1745,6 +1754,7 @@ mod tests {
             &[],
             None,
             true,
+            &HashSet::new(),
         )
         .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());

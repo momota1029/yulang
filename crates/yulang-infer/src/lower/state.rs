@@ -714,6 +714,8 @@ impl LowerState {
     pub fn register_def_tv(&mut self, def: DefId, tv: TypeVar) {
         self.def_tvs.insert(def, tv);
         self.infer.register_def_tv(def, tv);
+        // 量化境界の物差し。宣言時の current_level（本体の enter_let より一段外）を控える。
+        self.infer.register_def_level(def, self.current_level);
     }
 
     pub fn mark_let_bound_def(&mut self, def: DefId) {

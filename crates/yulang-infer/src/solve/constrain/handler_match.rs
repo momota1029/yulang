@@ -90,6 +90,17 @@ impl Infer {
         cause: ConstraintCause,
     ) {
         let keep = self.effect_boundary_keep(actual);
+        if std::env::var("YULANG_DBG").is_ok() {
+            eprintln!(
+                "[record_hm] actual={} residual={} handled={} open={} actual_level={} lowers={}",
+                actual.0,
+                residual.0,
+                handled.len(),
+                solve_open_rows,
+                self.level_of(actual),
+                self.lower_refs_of(actual).len()
+            );
+        }
         let mut cache = StepCache::default();
         let index = {
             let mut edges = self.handler_matches.borrow_mut();
@@ -222,7 +233,19 @@ impl Infer {
         }
 
         let include_open_tail = edge.solve_open_rows;
+        let unmatched_len = unmatched.len();
+        let tail_empty = self.pos_tail_is_empty_row(tail);
         let residual = self.handler_match_residual_lower(unmatched, tail, include_open_tail);
+        if std::env::var("YULANG_DBG").is_ok() {
+            eprintln!(
+                "[handler_row] residual_tv={} solve_open={} unmatched={} tail_empty={} residual_some={}",
+                edge.residual.0,
+                include_open_tail,
+                unmatched_len,
+                tail_empty,
+                residual.is_some()
+            );
+        }
         if let Some(residual) = residual {
             self.constrain_step(
                 residual,

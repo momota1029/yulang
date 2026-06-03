@@ -7,8 +7,8 @@ use crate::profile::ProfileClock as Instant;
 use crate::ids::DefId;
 use crate::ref_table::{RefTable, ResolvedRef};
 use crate::scheme::{
-    collect_compact_role_constraint_free_vars, collect_non_generic_vars,
-    freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
+    collect_strictly_lower_level_vars, freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
     instantiate_as_view_with_subst_profiled,
 };
 use crate::simplify::compact::coalesce_nested_tail_function_effect_residuals_in_scheme;
@@ -304,6 +304,11 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 };
 
                 let cooccur_start = Instant::now();
+                // この def より外側（低 level）の変数は、極性消去・共起分析の消去・統一から
+                // 保護する。高レベルな再帰ハンドラ等の simplify が外側 effect 変数を巻き込むのを防ぐ。
+                let level_boundary = infer.def_level_of(item.def);
+                let low_level_vars =
+                    collect_strictly_lower_level_vars(infer, &compact, level_boundary);
                 let (scheme, compact_role_constraints) =
                     if let Some(constraints) = compact_role_constraints {
                         coalesce_by_co_occurrence_with_role_constraint_inputs(
@@ -314,12 +319,14 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                                 (!infos.is_empty())
                                     .then(|| infos.into_iter().map(|info| info.is_input).collect())
                             },
+                            &low_level_vars,
                         )
                     } else {
                         coalesce_by_co_occurrence_with_role_constraint_inputs(
                             &compact,
                             &[],
                             |_| None,
+                            &low_level_vars,
                         )
                     };
                 profile.cooccur += cooccur_start.elapsed();
@@ -327,8 +334,10 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 let freeze_start = Instant::now();
                 let extra_quantified =
                     collect_compact_role_constraint_free_vars(&compact_role_constraints);
-                let non_generic_roots = infer.non_generic_vars_of(item.def);
-                let mut non_generic = collect_non_generic_vars(infer, &non_generic_roots);
+                // 量化境界 = この def を宣言したレベル。level <= boundary の変数は
+                // 外側スコープ由来なので量化しない（出現ベースの非汎化集合を置き換え）。
+                let boundary = infer.def_level_of(item.def);
+                let mut non_generic = collect_low_level_vars_in_scheme(infer, &scheme, boundary);
                 non_generic.extend(exposed_boundary_vars);
                 let new_frozen = freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
                     infer,

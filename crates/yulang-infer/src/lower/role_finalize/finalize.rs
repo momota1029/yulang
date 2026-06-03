@@ -353,6 +353,7 @@ impl LowerState {
                             &scheme,
                             &remaining,
                             |role| self.role_arg_input_flags(role),
+                            &std::collections::HashSet::new(),
                         );
                     scheme = rewritten_scheme;
                     constraints = rewritten_constraints;

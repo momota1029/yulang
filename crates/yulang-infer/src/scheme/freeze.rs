@@ -42,7 +42,7 @@ fn coalesce_compact_scheme_for_freeze(mut compact: CompactTypeScheme) -> Compact
     // 共起簡約は汎化境界を保護しないのが正しい）。
     coalesce_nested_tail_function_effect_residuals_in_scheme(&mut compact);
     let (mut scheme, _) =
-        coalesce_by_co_occurrence_with_role_constraint_inputs(&compact, &[], |_| None);
+        coalesce_by_co_occurrence_with_role_constraint_inputs(&compact, &[], |_| None, &HashSet::new());
     normalize_compact_scheme_rows(&mut scheme);
     scheme
 }
@@ -842,6 +842,46 @@ pub(crate) fn collect_non_generic_vars(
         out.extend(free);
     }
     out
+}
+
+/// scheme に現れる自由変数のうち、量化境界 `boundary` 以下の level を持つものを集める。
+/// これらは外側スコープ由来（または老化で外に落ちた）ので量化しない。
+/// freeze がこの集合を non_generic として除外することで、`level > boundary` の
+/// 本体由来変数だけが量化される（論文の generalize(lvl): level > lvl を量化）。
+pub(crate) fn collect_low_level_vars_in_scheme(
+    infer: &Infer,
+    scheme: &CompactTypeScheme,
+    boundary: u32,
+) -> HashSet<TypeVar> {
+    let mut all = Vec::new();
+    collect_compact_type_free_vars(&scheme.cty.lower, &mut all);
+    collect_compact_type_free_vars(&scheme.cty.upper, &mut all);
+    for bounds in scheme.rec_vars.values() {
+        collect_compact_bounds_free_vars(bounds, &mut all);
+    }
+    all.into_iter()
+        .filter(|tv| infer.level_of(*tv) <= boundary)
+        .collect()
+}
+
+/// scheme に現れる自由変数のうち、`threshold` より厳密に低い level を持つものを集める。
+/// 「この def（自分）のレベルより外側」の変数 = 量化されない外側スコープの変数。
+/// 極性消去・共起分析でこれらを rigid 保護することで、高レベルな関数（再帰ハンドラ等）の
+/// simplify が外側の effect 変数を巻き込んで消すのを防ぐ（消去・統一だけ level に頼る）。
+pub(crate) fn collect_strictly_lower_level_vars(
+    infer: &Infer,
+    scheme: &CompactTypeScheme,
+    threshold: u32,
+) -> HashSet<TypeVar> {
+    let mut all = Vec::new();
+    collect_compact_type_free_vars(&scheme.cty.lower, &mut all);
+    collect_compact_type_free_vars(&scheme.cty.upper, &mut all);
+    for bounds in scheme.rec_vars.values() {
+        collect_compact_bounds_free_vars(bounds, &mut all);
+    }
+    all.into_iter()
+        .filter(|tv| infer.level_of(*tv) < threshold)
+        .collect()
 }
 
 fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> Option<PosId> {
