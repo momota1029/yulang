@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::ids::TypeVar;
 
@@ -25,14 +24,10 @@ pub(crate) fn apply_polar_variable_removal(
     all_vars: &[TypeVar],
     analysis: &PolarOccurrences,
     rec_vars: &HashMap<TypeVar, CompactBounds>,
-    rigid_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
     for &var in all_vars {
         if subst.contains_key(&var) {
-            continue;
-        }
-        if rigid_vars.contains(&var) {
             continue;
         }
         match (

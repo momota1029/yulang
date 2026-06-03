@@ -352,9 +352,6 @@ impl LowerState {
     /// let binding の body に入るとき。
     pub fn enter_let(&mut self) {
         self.current_level += 1;
-        if std::env::var("YULANG_DBG").is_ok() {
-            eprintln!("[enter_let] -> {}", self.current_level);
-        }
     }
 
     /// let binding の body から出るとき。

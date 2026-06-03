@@ -808,27 +808,22 @@ fn lower_function_sig_ret_eff(
         );
         tv
     } else {
-        let atoms = row
-            .items
-            .iter()
-            .filter_map(|item| lower_sig_effect_atom(state, item, vars))
-            .collect::<Vec<_>>();
-        let pos_items = atoms
-            .iter()
-            .cloned()
-            .map(|atom| state.infer.alloc_pos(Pos::Atom(atom)))
-            .collect();
-        let neg_items = atoms
-            .into_iter()
-            .map(|atom| state.infer.alloc_neg(Neg::Atom(atom)))
-            .collect();
-        let pos = state
-            .infer
-            .alloc_pos(Pos::Row(pos_items, state.infer.arena.bot));
-        let neg = state
-            .infer
-            .alloc_neg(Neg::Row(neg_items, state.infer.arena.top));
-        return (pos, neg, false);
+        let Some(implicit) = implicit_row_tail_sig_var(row) else {
+            return (
+                state.infer.arena.bot,
+                state.infer.arena.empty_neg_row,
+                false,
+            );
+        };
+        let tv = sig_var(state, vars, &implicit);
+        record_function_ret_eff_subtractability(
+            state,
+            tv,
+            row,
+            vars,
+            RowTailSubtractability::OnlyItems,
+        );
+        tv
     };
     (
         state.infer.alloc_pos(Pos::Var(tail_tv)),

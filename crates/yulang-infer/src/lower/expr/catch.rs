@@ -14,7 +14,7 @@ use crate::scheme::{
 };
 use crate::solve::{EffectSubtractability, ShiftKeep};
 use crate::symbols::{Name, Path};
-use crate::types::{Neg, Pos};
+use crate::types::{EffectAtom, Neg, Pos};
 
 use super::control::{case_like_label_name, lower_arm_guard, lower_recursive_case_like};
 use super::{
@@ -397,6 +397,9 @@ fn catch_effect_arm_info(
             .map(|op| op.args.clone())
             .unwrap_or_else(|| fresh_effect_atom_args(state, &effect_path)),
     };
+    if active {
+        constrain_handled_atom_args_from_scrutinee_metadata(state, scrutinee_eff, &handled_atom);
+    }
     let handled_op = Neg::Atom(handled_atom.clone());
     CatchEffectArmInfo {
         effect_path,
@@ -419,6 +422,42 @@ fn fresh_effect_atom_args(
             (pos, neg)
         })
         .collect()
+}
+
+fn constrain_handled_atom_args_from_scrutinee_metadata(
+    state: &LowerState,
+    scrutinee_eff: crate::ids::TypeVar,
+    handled_atom: &EffectAtom,
+) {
+    let Some(EffectSubtractability::Set(atoms)) = state.infer.effect_subtractability(scrutinee_eff)
+    else {
+        return;
+    };
+
+    for source_atom in atoms {
+        if source_atom.path == handled_atom.path
+            && source_atom.args.len() == handled_atom.args.len()
+        {
+            constrain_matched_effect_atom_args(state, &source_atom, handled_atom);
+        }
+    }
+}
+
+fn constrain_matched_effect_atom_args(
+    state: &LowerState,
+    source_atom: &EffectAtom,
+    handled_atom: &EffectAtom,
+) {
+    for ((source_pos, source_neg), (handled_pos, handled_neg)) in
+        source_atom.args.iter().zip(&handled_atom.args)
+    {
+        state
+            .infer
+            .constrain(Pos::Var(*source_pos), Neg::Var(*handled_neg));
+        state
+            .infer
+            .constrain(Pos::Var(*handled_pos), Neg::Var(*source_neg));
+    }
 }
 
 fn constrain_catch_result_value(
