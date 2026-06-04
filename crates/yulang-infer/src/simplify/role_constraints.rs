@@ -5,10 +5,20 @@ use crate::ids::TypeVar;
 use super::compact::{CompactBounds, CompactType, CompactTypeScheme, merge_compact_bounds};
 use super::cooccur::CompactRoleConstraint;
 
+#[cfg(test)]
 pub(crate) fn rewrite_role_constraints(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    subst: &std::collections::HashMap<TypeVar, Option<TypeVar>>,
+) -> Vec<CompactRoleConstraint> {
+    rewrite_role_constraints_with_role_arg_inputs(scheme, constraints, subst, &|_| None)
+}
+
+pub(crate) fn rewrite_role_constraints_with_role_arg_inputs(
     _scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     subst: &std::collections::HashMap<TypeVar, Option<TypeVar>>,
+    role_arg_inputs: &dyn Fn(&crate::symbols::Path) -> Option<Vec<bool>>,
 ) -> Vec<CompactRoleConstraint> {
     let mut out = Vec::new();
     for constraint in constraints {
@@ -24,12 +34,13 @@ pub(crate) fn rewrite_role_constraints(
             out.push(rewritten);
         }
     }
-    let coalesced = coalesce_role_constraints(out);
+    let coalesced = coalesce_role_constraints(out, role_arg_inputs);
     remove_empty_role_constraints(coalesced)
 }
 
 fn coalesce_role_constraints(
     constraints: Vec<CompactRoleConstraint>,
+    role_arg_inputs: &dyn Fn(&crate::symbols::Path) -> Option<Vec<bool>>,
 ) -> Vec<CompactRoleConstraint> {
     let mut out = Vec::new();
     let mut visited = vec![false; constraints.len()];
@@ -48,7 +59,11 @@ fn coalesce_role_constraints(
                 if visited[other] {
                     continue;
                 }
-                if can_coalesce_role_constraints(&constraints[current], &constraints[other]) {
+                if can_coalesce_role_constraints(
+                    &constraints[current],
+                    &constraints[other],
+                    role_arg_inputs,
+                ) {
                     visited[other] = true;
                     component.push(other);
                 }
@@ -81,7 +96,11 @@ fn role_constraint_is_empty(constraint: &CompactRoleConstraint) -> bool {
     })
 }
 
-fn can_coalesce_role_constraints(lhs: &CompactRoleConstraint, rhs: &CompactRoleConstraint) -> bool {
+fn can_coalesce_role_constraints(
+    lhs: &CompactRoleConstraint,
+    rhs: &CompactRoleConstraint,
+    role_arg_inputs: &dyn Fn(&crate::symbols::Path) -> Option<Vec<bool>>,
+) -> bool {
     if lhs.role != rhs.role || lhs.args.len() != rhs.args.len() {
         return false;
     }
@@ -89,15 +108,37 @@ fn can_coalesce_role_constraints(lhs: &CompactRoleConstraint, rhs: &CompactRoleC
         return true;
     }
     // 設計 §簡約2: role を等号で結ぶ（融合する）のは、対応する全ての引数が共通の
-    // 型変数を共有しているときのみ。1 つでも共有のない引数があれば別の制約として残す。
-    // 旧実装は全引数の変数を 1 集合にまぜた `!is_disjoint`（= どれか 1 つでも共通変数が
-    // あれば融合）で、無関係な制約まで芋づるに潰し中心型を膨張させていた。
-    !lhs.args.is_empty()
-        && lhs
-            .args
-            .iter()
-            .zip(rhs.args.iter())
-            .all(|(lhs_arg, rhs_arg)| !bounds_vars(lhs_arg).is_disjoint(&bounds_vars(rhs_arg)))
+    // 通常引数を共有しているときのみ。関連型は融合後に境界を合流させる対象だが、
+    // それだけで impl head を同じものとして扱う根拠にはしない。
+    let input_indices = role_constraint_input_indices(lhs, role_arg_inputs);
+    !input_indices.is_empty()
+        && input_indices.iter().all(|index| {
+            let lhs_arg = &lhs.args[*index];
+            let rhs_arg = &rhs.args[*index];
+            !bounds_vars(lhs_arg).is_disjoint(&bounds_vars(rhs_arg))
+        })
+}
+
+fn role_constraint_input_indices(
+    constraint: &CompactRoleConstraint,
+    role_arg_inputs: &dyn Fn(&crate::symbols::Path) -> Option<Vec<bool>>,
+) -> Vec<usize> {
+    let Some(flags) = role_arg_inputs(&constraint.role) else {
+        return (0..constraint.args.len()).collect();
+    };
+    if flags.len() != constraint.args.len() {
+        return (0..constraint.args.len()).collect();
+    }
+    let indices = flags
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, is_input)| is_input.then_some(index))
+        .collect::<Vec<_>>();
+    if indices.is_empty() {
+        (0..constraint.args.len()).collect()
+    } else {
+        indices
+    }
 }
 
 fn bounds_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
@@ -186,7 +227,10 @@ fn collect_compact_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{rewrite_role_constraints, role_constraint_vars};
+    use super::{
+        rewrite_role_constraints, rewrite_role_constraints_with_role_arg_inputs,
+        role_constraint_vars,
+    };
     use std::collections::{HashMap, HashSet};
 
     use crate::fresh_type_var;
@@ -256,11 +300,79 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rewrite_role_constraints_does_not_coalesce_through_associated_args_only() {
+        let input_a = fresh_type_var();
+        let input_b = fresh_type_var();
+        let assoc = fresh_type_var();
+        let scheme = CompactTypeScheme::default();
+        let role = role_path("Index");
+        let constraints = vec![
+            CompactRoleConstraint {
+                role: role.clone(),
+                args: vec![var_bounds(input_a), var_bounds(assoc)],
+            },
+            CompactRoleConstraint {
+                role: role.clone(),
+                args: vec![var_bounds(input_b), var_bounds(assoc)],
+            },
+        ];
+
+        let rewritten = rewrite_role_constraints_with_role_arg_inputs(
+            &scheme,
+            &constraints,
+            &HashMap::new(),
+            &|path| (path == &role).then_some(vec![true, false]),
+        );
+
+        assert_eq!(
+            rewritten.len(),
+            2,
+            "associated type variables do not make two role heads equal",
+        );
+    }
+
+    #[test]
+    fn rewrite_role_constraints_coalesces_inputs_and_merges_associated_args() {
+        let input = fresh_type_var();
+        let assoc_a = fresh_type_var();
+        let assoc_b = fresh_type_var();
+        let scheme = CompactTypeScheme::default();
+        let role = role_path("Index");
+        let constraints = vec![
+            CompactRoleConstraint {
+                role: role.clone(),
+                args: vec![var_bounds(input), var_bounds(assoc_a)],
+            },
+            CompactRoleConstraint {
+                role: role.clone(),
+                args: vec![var_bounds(input), var_bounds(assoc_b)],
+            },
+        ];
+
+        let rewritten = rewrite_role_constraints_with_role_arg_inputs(
+            &scheme,
+            &constraints,
+            &HashMap::new(),
+            &|path| (path == &role).then_some(vec![true, false]),
+        );
+
+        assert_eq!(rewritten.len(), 1);
+        let vars = role_constraint_vars(&rewritten[0]);
+        assert!(vars.contains(&input));
+        assert!(vars.contains(&assoc_a));
+        assert!(vars.contains(&assoc_b));
+    }
+
+    fn role_path(name: &str) -> Path {
+        Path {
+            segments: vec![Name(name.to_string())],
+        }
+    }
+
     fn role_constraint(name: &str, args: Vec<CompactBounds>) -> CompactRoleConstraint {
         CompactRoleConstraint {
-            role: Path {
-                segments: vec![Name(name.to_string())],
-            },
+            role: role_path(name),
             args,
         }
     }

@@ -18,7 +18,7 @@ use super::compact::{
     merge_compact_bounds, merge_compact_types, normalize_compact_scheme_rows,
 };
 use super::polar::{apply_polar_variable_removal, rewrite_polar_occurrences};
-use super::role_constraints::rewrite_role_constraints;
+use super::role_constraints::rewrite_role_constraints_with_role_arg_inputs;
 use analysis::analyze_co_occurrences_with_role_constraints;
 use polarity::analyze_polar_occurrences_with_role_constraints;
 use representative::lower_representatives_for_subst;
@@ -74,13 +74,14 @@ pub fn coalesce_by_co_occurrence_with_role_constraints(
 pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
-    _role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+    role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
     var_levels: &HashMap<TypeVar, u32>,
     boundary: u32,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     let output = coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
+        &role_arg_inputs,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
         var_levels,
         boundary,
@@ -91,13 +92,14 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
 pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_report(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
-    _role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+    role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
     var_levels: &HashMap<TypeVar, u32>,
     boundary: u32,
 ) -> CoalesceOutput {
     coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
+        &role_arg_inputs,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
         var_levels,
         boundary,
@@ -111,15 +113,21 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
     coalesce_by_co_occurrence_with_role_constraints_report_inner(
         scheme,
         constraints,
+        &no_role_arg_inputs,
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
         &HashMap::new(),
         0,
     )
 }
 
+fn no_role_arg_inputs(_: &Path) -> Option<Vec<bool>> {
+    None
+}
+
 fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
     use_representatives: bool,
     var_levels: &HashMap<TypeVar, u32>,
     boundary: u32,
@@ -174,9 +182,15 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
                 &current_constraints,
                 &subst,
                 &representatives,
+                role_arg_inputs,
             )
         } else {
-            rewrite_role_constraints(&rewritten_scheme, &current_constraints, &subst)
+            rewrite_role_constraints_with_role_arg_inputs(
+                &rewritten_scheme,
+                &current_constraints,
+                &subst,
+                role_arg_inputs,
+            )
         };
 
         if rewritten_scheme == current_scheme && rewritten_constraints == current_constraints {
@@ -442,6 +456,7 @@ fn rewrite_constraints_with_representatives(
     constraints: &[CompactRoleConstraint],
     subst: &HashMap<TypeVar, Option<TypeVar>>,
     representatives: &HashMap<TypeVar, CompactType>,
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
 ) -> Vec<CompactRoleConstraint> {
     let rewritten = constraints
         .iter()
@@ -454,7 +469,12 @@ fn rewrite_constraints_with_representatives(
                 .collect(),
         })
         .collect::<Vec<_>>();
-    rewrite_role_constraints(scheme, &rewritten, &HashMap::new())
+    rewrite_role_constraints_with_role_arg_inputs(
+        scheme,
+        &rewritten,
+        &HashMap::new(),
+        role_arg_inputs,
+    )
 }
 
 fn rewrite_bounds_with_representatives(
@@ -771,7 +791,8 @@ mod tests {
     use std::collections::HashSet;
 
     use super::{
-        AlongItem, ExactKeyKind, analyze_co_occurrences, coalesce_by_co_occurrence,
+        AlongItem, CompactRoleConstraint, ExactKeyKind, analyze_co_occurrences,
+        coalesce_by_co_occurrence, coalesce_by_co_occurrence_with_role_constraint_inputs_report,
         coalesce_by_co_occurrence_with_role_constraints_report,
         coalesce_by_co_occurrence_with_role_constraints_report_inner,
     };
@@ -957,6 +978,7 @@ mod tests {
         let coalesced = coalesce_by_co_occurrence_with_role_constraints_report_inner(
             &scheme,
             &[],
+            &super::no_role_arg_inputs,
             true,
             &std::collections::HashMap::new(),
             0,
@@ -971,6 +993,36 @@ mod tests {
                 ..CompactType::default()
             }
         );
+    }
+
+    #[test]
+    fn coalesce_role_constraints_uses_input_args_not_associated_args_for_head_equality() {
+        let input_a = fresh_type_var();
+        let input_b = fresh_type_var();
+        let associated = fresh_type_var();
+        let role = Path {
+            segments: vec![Name("Index".to_string())],
+        };
+        let constraints = vec![
+            CompactRoleConstraint {
+                role: role.clone(),
+                args: vec![var_bounds(input_a), var_bounds(associated)],
+            },
+            CompactRoleConstraint {
+                role: role.clone(),
+                args: vec![var_bounds(input_b), var_bounds(associated)],
+            },
+        ];
+
+        let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+            &CompactTypeScheme::default(),
+            &constraints,
+            |path| (path == &role).then_some(vec![true, false]),
+            &std::collections::HashMap::new(),
+            0,
+        );
+
+        assert_eq!(coalesced.constraints.len(), 2);
     }
 
     #[test]
@@ -1847,5 +1899,19 @@ mod tests {
     fn single_var(vars: &HashSet<TypeVar>) -> TypeVar {
         assert_eq!(vars.len(), 1);
         *vars.iter().next().unwrap()
+    }
+
+    fn var_bounds(tv: TypeVar) -> CompactBounds {
+        CompactBounds {
+            self_var: None,
+            lower: CompactType {
+                vars: HashSet::from([tv]),
+                ..CompactType::default()
+            },
+            upper: CompactType {
+                vars: HashSet::from([tv]),
+                ..CompactType::default()
+            },
+        }
     }
 }

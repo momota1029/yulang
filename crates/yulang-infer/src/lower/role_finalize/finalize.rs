@@ -22,11 +22,11 @@ use super::super::{FinalizeCompactProfile, FinalizeCompactResults};
 use super::{
     LowerState, RoleCandidatePrerequisiteStatus, apply_role_output_replacements_to_constraints,
     apply_role_output_replacements_to_scheme, collect_role_default_replacements_if_disappeared,
-    collect_role_output_replacements, concrete_bounds_repr, concrete_selected_input_types,
+    collect_role_output_replacements, concrete_selected_role_input_types,
     expand_role_constraint_with_scheme_bounds, path_string, projection_target_var,
     remove_disappearing_noncenter_role_vars, render_role_constraint_args_for_diagnostic,
-    render_selected_concrete_args, role_candidate_prerequisite_status, role_candidate_previews,
-    role_constraint_arg_indices, role_constraint_is_observationally_empty,
+    role_candidate_prerequisite_status, role_candidate_previews, role_constraint_arg_indices,
+    role_constraint_is_observationally_empty, role_input_concrete_type_for_target,
 };
 
 impl LowerState {
@@ -180,26 +180,35 @@ impl LowerState {
                 scheme = coalesced.scheme;
                 constraints = coalesced.constraints;
             }
-            // §決定1: 通常引数が具体型1つに定まった role は、その中心変数を具体型へ確定する。
-            // impl の有無は問わない（impl が無ければ role 制約は具体型のまま浮き、後で実装が
-            // 見つかったときに消える）。関数など非 expansive な束縛は量化したい変数を潰さない
-            // よう、allow_boundary を expansive / 関連型ありのときだけ立てる。
+            // §決定1: 通常引数が具体型1つに定まり、中心変数が主型の反対方向に現れない
+            // role は、その中心変数を具体型へ確定する。impl の有無は問わない（impl が無ければ
+            // role 制約は具体型のまま浮き、後で実装が見つかったときに消える）。
             {
-                let expansive = self.binding_allows_role_defaulting(def);
                 let mut concretizations = Vec::<(TypeVar, CompactType)>::new();
+                let main_polarity = super::main_type_polarity(&scheme);
                 for constraint in &constraints {
+                    let resolved_constraint =
+                        expand_role_constraint_with_scheme_bounds(constraint, &scheme);
                     let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
-                    let (input_indices, output_indices) =
+                    let (input_indices, _) =
                         role_constraint_arg_indices(&arg_infos, constraint.args.len());
-                    let allow_boundary = expansive || !output_indices.is_empty();
                     for &i in &input_indices {
-                        let Some(arg) = constraint.args.get(i) else {
+                        let Some(original_arg) = constraint.args.get(i) else {
                             continue;
                         };
-                        let Some(target) = projection_target_var(arg) else {
+                        let Some(resolved_arg) = resolved_constraint.args.get(i) else {
                             continue;
                         };
-                        let Some(concrete) = concrete_bounds_repr(arg, allow_boundary) else {
+                        let Some(target) = projection_target_var(original_arg)
+                            .or_else(|| projection_target_var(resolved_arg))
+                        else {
+                            continue;
+                        };
+                        let Some(concrete) = role_input_concrete_type_for_target(
+                            resolved_arg,
+                            Some(target),
+                            &main_polarity,
+                        ) else {
                             continue;
                         };
                         concretizations.push((target, concrete));
@@ -241,11 +250,11 @@ impl LowerState {
                     let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
                     let (input_indices, output_indices) =
                         role_constraint_arg_indices(&arg_infos, constraint.args.len());
-                    let allow_boundary_inputs = expansive_defaulting || !output_indices.is_empty();
-                    let Some(_rendered_inputs) = render_selected_concrete_args(
+                    let main_polarity = super::main_type_polarity(&scheme);
+                    let Some(concrete_inputs) = concrete_selected_role_input_types(
                         &resolved_constraint,
                         &input_indices,
-                        allow_boundary_inputs,
+                        &main_polarity,
                     ) else {
                         if expansive_defaulting
                             && role_constraint_is_observationally_empty(&constraint)
@@ -253,14 +262,6 @@ impl LowerState {
                             progressed = true;
                             continue;
                         }
-                        remaining.push(constraint);
-                        continue;
-                    };
-                    let Some(concrete_inputs) = concrete_selected_input_types(
-                        &resolved_constraint,
-                        &input_indices,
-                        allow_boundary_inputs,
-                    ) else {
                         remaining.push(constraint);
                         continue;
                     };
@@ -331,6 +332,7 @@ impl LowerState {
                                 matches[0],
                                 &subst,
                                 &input_indices,
+                                &|role| self.role_arg_input_flags(role),
                             ) {
                                 replacements.push((target, ty));
                             }
@@ -437,7 +439,9 @@ impl LowerState {
                 }
             }
             let (scheme, constraints) =
-                remove_disappearing_noncenter_role_vars(&scheme, &constraints);
+                remove_disappearing_noncenter_role_vars(&scheme, &constraints, &|role| {
+                    self.role_arg_input_flags(role)
+                });
             self.infer.store_compact_scheme(def, scheme);
             self.infer.store_compact_role_constraints(def, constraints);
         }

@@ -5,13 +5,14 @@ use crate::ids::TypeVar;
 use crate::lower::builtin_types::{
     join_primitive_type_paths, primitive_numeric_type_family, primitive_type_family,
 };
-use crate::simplify::compact::merge_compact_types;
-use crate::simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
-use crate::simplify::cooccur::{
-    CompactRoleConstraint, coalesce_by_co_occurrence_with_role_constraints,
-    rewrite_scheme_with_subst,
+use crate::simplify::compact::{
+    CompactBounds, CompactType, CompactTypeScheme, compact_root_fun_body_lower, merge_compact_types,
 };
-use crate::simplify::role_constraints::rewrite_role_constraints;
+use crate::simplify::cooccur::{
+    CompactRoleConstraint, coalesce_by_co_occurrence_with_role_constraint_inputs,
+    coalesce_by_co_occurrence_with_role_constraints, rewrite_scheme_with_subst,
+};
+use crate::simplify::role_constraints::rewrite_role_constraints_with_role_arg_inputs;
 use crate::solve::effect_row::normalize_rewritten_bounds;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::symbols::Path;
@@ -20,6 +21,218 @@ use super::LowerState;
 
 mod alias;
 mod finalize;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RoleInputBoundary {
+    Lower,
+    Upper,
+}
+
+#[derive(Debug, Default)]
+struct MainTypePolarity {
+    positive: HashSet<TypeVar>,
+    negative: HashSet<TypeVar>,
+}
+
+impl MainTypePolarity {
+    fn insert(&mut self, tv: TypeVar, positive: bool) {
+        if positive {
+            self.positive.insert(tv);
+        } else {
+            self.negative.insert(tv);
+        }
+    }
+
+    fn accepts_role_input_boundary(&self, tv: TypeVar, boundary: RoleInputBoundary) -> bool {
+        match boundary {
+            RoleInputBoundary::Lower => !self.negative.contains(&tv),
+            RoleInputBoundary::Upper => !self.positive.contains(&tv),
+        }
+    }
+}
+
+fn role_input_concrete_type(
+    bounds: &CompactBounds,
+    main_polarity: &MainTypePolarity,
+) -> Option<CompactType> {
+    role_input_concrete_type_for_target(bounds, projection_target_var(bounds), main_polarity)
+}
+
+fn role_input_concrete_type_for_target(
+    bounds: &CompactBounds,
+    target: Option<TypeVar>,
+    main_polarity: &MainTypePolarity,
+) -> Option<CompactType> {
+    let (boundary, concrete) = concrete_role_input_boundary(bounds)?;
+    if let Some(target) = target
+        && !main_polarity.accepts_role_input_boundary(target, boundary)
+    {
+        return None;
+    }
+    Some(concrete)
+}
+
+fn concrete_selected_role_input_types(
+    constraint: &CompactRoleConstraint,
+    indices: &[usize],
+    main_polarity: &MainTypePolarity,
+) -> Option<Vec<CompactType>> {
+    indices
+        .iter()
+        .map(|index| role_input_concrete_type(constraint.args.get(*index)?, main_polarity))
+        .collect()
+}
+
+fn concrete_role_input_boundary(
+    bounds: &CompactBounds,
+) -> Option<(RoleInputBoundary, CompactType)> {
+    single_boundary_concrete_type(&bounds.lower)
+        .map(|concrete| (RoleInputBoundary::Lower, concrete))
+        .or_else(|| {
+            single_boundary_concrete_type(&bounds.upper)
+                .map(|concrete| (RoleInputBoundary::Upper, concrete))
+        })
+}
+
+fn single_boundary_concrete_type(ty: &CompactType) -> Option<CompactType> {
+    let mut concrete = strip_compact_type_vars(ty);
+    normalize_builtin_numeric_compact_type(&mut concrete);
+    (concrete != CompactType::default()
+        && is_concrete_compact_type(&concrete)
+        && concrete_surface_count(&concrete) == 1)
+        .then_some(concrete)
+}
+
+fn concrete_surface_count(ty: &CompactType) -> usize {
+    let mut named = ty.prims.iter().cloned().collect::<HashSet<_>>();
+    let mut count = ty.funs.len()
+        + ty.records.len()
+        + ty.record_spreads.len()
+        + ty.variants.len()
+        + ty.tuples.len()
+        + ty.rows.len();
+    for con in &ty.cons {
+        if con.args.is_empty() {
+            named.insert(con.path.clone());
+        } else {
+            count += 1;
+        }
+    }
+    count + named.len()
+}
+
+fn main_type_polarity(scheme: &CompactTypeScheme) -> MainTypePolarity {
+    let mut polarity = MainTypePolarity::default();
+    let mut expanded = HashSet::new();
+    if let Some(root_fun_body) = compact_root_fun_body_lower(scheme) {
+        collect_type_main_type_polarity(&root_fun_body, true, scheme, &mut expanded, &mut polarity);
+    } else {
+        collect_type_main_type_polarity(
+            &scheme.cty.lower,
+            true,
+            scheme,
+            &mut expanded,
+            &mut polarity,
+        );
+    }
+    polarity
+}
+
+fn collect_bounds_main_type_polarity(
+    bounds: &CompactBounds,
+    positive: bool,
+    scheme: &CompactTypeScheme,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    polarity: &mut MainTypePolarity,
+) {
+    collect_type_main_type_polarity(&bounds.lower, positive, scheme, expanded, polarity);
+    collect_type_main_type_polarity(&bounds.upper, !positive, scheme, expanded, polarity);
+}
+
+fn collect_type_main_type_polarity(
+    ty: &CompactType,
+    positive: bool,
+    scheme: &CompactTypeScheme,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    polarity: &mut MainTypePolarity,
+) {
+    if !compact_type_has_non_var_surface(ty) {
+        collect_main_type_root_vars(ty, positive, scheme, expanded, polarity);
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_bounds_main_type_polarity(arg, true, scheme, expanded, polarity);
+        }
+    }
+    for fun in &ty.funs {
+        collect_type_main_type_polarity(&fun.arg, !positive, scheme, expanded, polarity);
+        collect_type_main_type_polarity(&fun.arg_eff, !positive, scheme, expanded, polarity);
+        collect_type_main_type_polarity(&fun.ret_eff, positive, scheme, expanded, polarity);
+        collect_type_main_type_polarity(&fun.ret, positive, scheme, expanded, polarity);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_type_main_type_polarity(&field.value, positive, scheme, expanded, polarity);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_type_main_type_polarity(&field.value, positive, scheme, expanded, polarity);
+        }
+        collect_type_main_type_polarity(&spread.tail, positive, scheme, expanded, polarity);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_type_main_type_polarity(payload, positive, scheme, expanded, polarity);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_type_main_type_polarity(item, positive, scheme, expanded, polarity);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_type_main_type_polarity(item, positive, scheme, expanded, polarity);
+        }
+        collect_type_main_type_polarity(&row.tail, positive, scheme, expanded, polarity);
+    }
+}
+
+fn collect_main_type_root_vars(
+    ty: &CompactType,
+    positive: bool,
+    scheme: &CompactTypeScheme,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    polarity: &mut MainTypePolarity,
+) {
+    for &tv in &ty.vars {
+        polarity.insert(tv, positive);
+        if expanded.insert((tv, positive))
+            && let Some(bounds) = scheme.rec_vars.get(&tv)
+        {
+            let recur = if positive {
+                &bounds.lower
+            } else {
+                &bounds.upper
+            };
+            collect_type_main_type_polarity(recur, positive, scheme, expanded, polarity);
+        }
+    }
+}
+
+fn compact_type_has_non_var_surface(ty: &CompactType) -> bool {
+    !ty.prims.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
+}
 
 fn concrete_bounds_repr(bounds: &CompactBounds, allow_boundary: bool) -> Option<CompactType> {
     let lower_empty = bounds.lower == CompactType::default();
@@ -850,6 +1063,7 @@ fn collect_role_default_replacements_if_disappeared(
     candidate: &crate::solve::RoleImplCandidate,
     subst: &HashMap<TypeVar, CompactType>,
     input_indices: &[usize],
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
 ) -> Vec<(TypeVar, CompactType)> {
     let replacements =
         collect_role_default_replacement_candidates(constraint, candidate, subst, input_indices);
@@ -866,7 +1080,13 @@ fn collect_role_default_replacements_if_disappeared(
     let rewritten_constraints =
         apply_role_output_replacements_to_constraints(&remaining_constraints, &replacements);
     let (coalesced_scheme, coalesced_constraints) =
-        coalesce_by_co_occurrence_with_role_constraints(&rewritten_scheme, &rewritten_constraints);
+        coalesce_by_co_occurrence_with_role_constraint_inputs(
+            &rewritten_scheme,
+            &rewritten_constraints,
+            role_arg_inputs,
+            &HashMap::new(),
+            0,
+        );
     replacements
         .iter()
         .filter(|(target, _)| {
@@ -880,6 +1100,7 @@ fn collect_role_default_replacements_if_disappeared(
 fn remove_disappearing_noncenter_role_vars(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
     if constraints.is_empty() {
         return (scheme.clone(), constraints.to_vec());
@@ -902,8 +1123,19 @@ fn remove_disappearing_noncenter_role_vars(
         .map(|tv| (tv, None))
         .collect::<HashMap<_, _>>();
     let rewritten_scheme = rewrite_scheme_with_subst(scheme, &subst);
-    let rewritten_constraints = rewrite_role_constraints(&rewritten_scheme, constraints, &subst);
-    coalesce_by_co_occurrence_with_role_constraints(&rewritten_scheme, &rewritten_constraints)
+    let rewritten_constraints = rewrite_role_constraints_with_role_arg_inputs(
+        &rewritten_scheme,
+        constraints,
+        &subst,
+        role_arg_inputs,
+    );
+    coalesce_by_co_occurrence_with_role_constraint_inputs(
+        &rewritten_scheme,
+        &rewritten_constraints,
+        role_arg_inputs,
+        &HashMap::new(),
+        0,
+    )
 }
 
 fn role_constraint_is_observationally_empty(constraint: &CompactRoleConstraint) -> bool {

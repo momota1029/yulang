@@ -2620,6 +2620,27 @@ mod tests {
     }
 
     #[test]
+    fn render_compact_results_keeps_partial_role_application_open() {
+        let green = yulang_parser::parse_module_to_green(
+            "role Add 'a:\n  our a.add: 'a -> 'a\n\n\
+             impl Add int;\n\
+             impl Add float;\n\
+             my plus1 = Add::add 1\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+
+        let rendered = render_compact_results(&mut state);
+        let plus1 = rendered
+            .iter()
+            .find(|(name, _)| name == "plus1")
+            .expect("plus1 should be rendered");
+
+        assert_eq!(plus1.1, "Add<int | α> => α -> α | int");
+    }
+
+    #[test]
     fn render_compact_results_defaults_mixed_numeric_role_inputs_to_float() {
         let green = yulang_parser::parse_module_to_green(
             "role Add 'a:\n  our a.add: 'a -> 'a\n\n\
