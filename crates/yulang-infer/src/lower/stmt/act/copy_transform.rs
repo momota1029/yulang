@@ -817,6 +817,15 @@ impl<'a> CopiedTypeVars<'a> {
         }
         let mapped = self.state.infer.fresh_effect_subtract_id();
         self.copied_effect_subtract_ids.insert(id, mapped);
+        if self
+            .state
+            .infer
+            .effect_subtract_id_needs_call_non_subtract(id)
+        {
+            self.state
+                .infer
+                .record_effect_subtract_call_non_subtract_id(mapped);
+        }
         mapped
     }
 
@@ -895,14 +904,19 @@ impl<'a> CopiedTypeVars<'a> {
     ) -> crate::lower::FunctionSigEffectHint {
         match hint {
             crate::lower::FunctionSigEffectHint::Pure => crate::lower::FunctionSigEffectHint::Pure,
-            crate::lower::FunctionSigEffectHint::AllSubtractable { subtract_ids } => {
-                crate::lower::FunctionSigEffectHint::AllSubtractable {
-                    subtract_ids: subtract_ids
-                        .into_iter()
-                        .map(|id| self.copy_effect_subtract_id(id))
-                        .collect(),
-                }
-            }
+            crate::lower::FunctionSigEffectHint::AllSubtractable {
+                subtract_ids,
+                non_subtract_targets,
+            } => crate::lower::FunctionSigEffectHint::AllSubtractable {
+                subtract_ids: subtract_ids
+                    .into_iter()
+                    .map(|id| self.copy_effect_subtract_id(id))
+                    .collect(),
+                non_subtract_targets: non_subtract_targets
+                    .into_iter()
+                    .map(|tv| self.copy_tv(tv))
+                    .collect(),
+            },
             crate::lower::FunctionSigEffectHint::LowerBound(lower) => {
                 crate::lower::FunctionSigEffectHint::LowerBound(self.copy_pos_id(lower))
             }
@@ -910,12 +924,17 @@ impl<'a> CopiedTypeVars<'a> {
                 lower,
                 upper,
                 subtract_ids,
+                non_subtract_targets,
             } => crate::lower::FunctionSigEffectHint::Bounds {
                 lower: self.copy_pos_id(lower),
                 upper: self.copy_neg_id(upper),
                 subtract_ids: subtract_ids
                     .into_iter()
                     .map(|id| self.copy_effect_subtract_id(id))
+                    .collect(),
+                non_subtract_targets: non_subtract_targets
+                    .into_iter()
+                    .map(|tv| self.copy_tv(tv))
                     .collect(),
             },
         }

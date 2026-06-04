@@ -87,10 +87,20 @@ pub(crate) fn apply_type_param_effect_metadata(
     for (_, id) in &metadata.non_subtracts {
         fresh_metadata_effect_subtract_id(state, &mut id_subst, *id);
     }
+    let ids_with_non_subtract = metadata
+        .non_subtracts
+        .iter()
+        .map(|(_, id)| *id)
+        .collect::<std::collections::HashSet<_>>();
     for (index, fact) in &metadata.subtracts {
         let Some(&target) = type_arg_tvs.get(*index) else {
             continue;
         };
+        if !ids_with_non_subtract.contains(&fact.id)
+            && let Some(id) = id_subst.get(&fact.id).copied()
+        {
+            state.infer.record_effect_subtract_call_non_subtract_id(id);
+        }
         state.infer.record_effect_subtract_fact(
             target,
             subst_effect_subtract_fact(fact.clone(), &subst, &id_subst),

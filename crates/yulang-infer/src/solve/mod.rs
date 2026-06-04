@@ -292,6 +292,7 @@ pub struct Infer {
     pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
     pub effect_subtracts: RefCell<FxHashMap<TypeVar, Vec<EffectSubtractFact>>>,
     pub effect_non_subtracts: RefCell<FxHashMap<TypeVar, FxHashSet<EffectSubtractId>>>,
+    pub effect_subtract_call_non_subtract_ids: RefCell<FxHashSet<EffectSubtractId>>,
     pub next_effect_subtract_id: Cell<u32>,
     pub levels: RefCell<FxHashMap<TypeVar, u32>>,
     // 型ノードの最大 level のメモ化（論文 Fig.6 の lazy val level 相当）。
@@ -354,6 +355,7 @@ impl Infer {
             effect_boundary_keeps: RefCell::new(FxHashMap::default()),
             effect_subtracts: RefCell::new(FxHashMap::default()),
             effect_non_subtracts: RefCell::new(FxHashMap::default()),
+            effect_subtract_call_non_subtract_ids: RefCell::new(FxHashSet::default()),
             next_effect_subtract_id: Cell::new(0),
             levels: RefCell::new(FxHashMap::default()),
             pos_max_level_cache: RefCell::new(FxHashMap::default()),

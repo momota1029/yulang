@@ -153,12 +153,21 @@ fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(Typ
     for (_, id) in &scheme.effect_non_subtracts {
         fresh_scheme_effect_subtract_id(infer, &mut id_subst, *id);
     }
+    let ids_with_non_subtract = scheme
+        .effect_non_subtracts
+        .iter()
+        .map(|(_, id)| *id)
+        .collect::<std::collections::HashSet<_>>();
 
     for (rho, fact) in &scheme.effect_subtracts {
-        infer.record_effect_subtract_fact(
-            subst_lookup_small(subst, *rho),
-            subst_effect_subtract_fact(fact.clone(), subst, &id_subst),
-        );
+        let original_id = fact.id;
+        let fact = subst_effect_subtract_fact(fact.clone(), subst, &id_subst);
+        if !ids_with_non_subtract.contains(&original_id)
+            && let Some(id) = id_subst.get(&original_id).copied()
+        {
+            infer.record_effect_subtract_call_non_subtract_id(id);
+        }
+        infer.record_effect_subtract_fact(subst_lookup_small(subst, *rho), fact);
     }
     for (rho, id) in &scheme.effect_non_subtracts {
         if let Some(id) = id_subst.get(id).copied() {
@@ -703,6 +712,49 @@ mod tests {
         assert_eq!(
             infer.effect_subtractability(instantiated_effect),
             Some(EffectSubtractability::Set(vec![io_atom]))
+        );
+    }
+
+    #[test]
+    fn instantiate_marks_orphan_effect_subtract_ids_for_call_non_subtract() {
+        let infer = Infer::new();
+        let source = fresh_type_var();
+        let io_atom = EffectAtom {
+            path: Path {
+                segments: vec![Name("io".to_string())],
+            },
+            args: Vec::new(),
+        };
+        infer.record_effect_subtractability(source, EffectSubtractability::Set(vec![io_atom]));
+
+        let compact = crate::simplify::compact::CompactTypeScheme {
+            cty: crate::simplify::compact::CompactBounds {
+                self_var: None,
+                lower: crate::simplify::compact::CompactType {
+                    vars: std::collections::HashSet::from([source]),
+                    ..crate::simplify::compact::CompactType::default()
+                },
+                upper: crate::simplify::compact::CompactType::default(),
+            },
+            rec_vars: std::collections::HashMap::new(),
+        };
+        let scheme = crate::scheme::freeze_compact_scheme_with_non_generic(
+            &infer,
+            &compact,
+            &std::collections::HashSet::new(),
+        );
+
+        let instance = instantiate_as_view(&infer, &scheme, 0);
+        let frozen_effect = scheme.effect_subtracts[0].0;
+        let instantiated_effect = subst_lookup_small(instance.subst.as_slice(), frozen_effect);
+        let facts = infer.effect_subtract_facts(instantiated_effect);
+        let [fact] = facts.as_slice() else {
+            panic!("instantiated effect should keep one subtract fact");
+        };
+
+        assert!(
+            infer.effect_subtract_id_needs_call_non_subtract(fact.id),
+            "orphan subtract ids restored from a scheme should be completed at call exposure",
         );
     }
 }

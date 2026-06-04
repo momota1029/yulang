@@ -103,6 +103,11 @@ impl Infer {
         self.insert_effect_non_subtract(effect, id);
     }
 
+    pub fn record_effect_non_subtract_deep(&self, effect: TypeVar, id: EffectSubtractId) {
+        let mut seen = FxHashSet::default();
+        self.record_effect_non_subtract_recursive(effect, id, &mut seen);
+    }
+
     pub fn effect_non_subtract_ids(&self, effect: TypeVar) -> Vec<EffectSubtractId> {
         let mut ids = self
             .effect_non_subtracts
@@ -112,6 +117,18 @@ impl Infer {
             .unwrap_or_default();
         ids.sort();
         ids
+    }
+
+    pub fn record_effect_subtract_call_non_subtract_id(&self, id: EffectSubtractId) {
+        self.effect_subtract_call_non_subtract_ids
+            .borrow_mut()
+            .insert(id);
+    }
+
+    pub fn effect_subtract_id_needs_call_non_subtract(&self, id: EffectSubtractId) -> bool {
+        self.effect_subtract_call_non_subtract_ids
+            .borrow()
+            .contains(&id)
     }
 
     pub fn prune_resolved_effect_subtract_metadata(&self) {

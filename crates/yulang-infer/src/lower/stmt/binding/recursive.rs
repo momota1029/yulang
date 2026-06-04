@@ -36,16 +36,13 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     {
         state.infer.add_non_generic_var(owner, tv);
     }
-    let mut output_non_subtract_ids = Vec::new();
     for arg_pat in arg_pats {
-        output_non_subtract_ids.extend(super::super::configure_arg_effect_from_ann(
+        super::super::configure_arg_effect_from_ann(
             state,
             arg_pat.arg_eff_tv,
             arg_pat.ann.as_ref(),
-        ));
+        );
     }
-    output_non_subtract_ids.sort();
-    output_non_subtract_ids.dedup();
     if state.def_owner(owner).is_some() {
         for arg_pat in arg_pats {
             state
@@ -55,10 +52,6 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     }
     let body_ret_tv = state.fresh_tv();
     let body_ret_eff_tv = state.fresh_tv();
-    for id in output_non_subtract_ids {
-        state.infer.record_effect_non_subtract(body_ret_tv, id);
-        state.infer.record_effect_non_subtract(body_ret_eff_tv, id);
-    }
     state
         .infer
         .record_effect_subtractability(body_ret_eff_tv, EffectSubtractability::All);

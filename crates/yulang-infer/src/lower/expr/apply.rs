@@ -143,16 +143,13 @@ pub(crate) fn make_app_with_cause(
                         .get_neg(state.infer.arena.empty_neg_row)
                         .clone();
                 }
-                FunctionSigEffectHint::AllSubtractable { subtract_ids } => {
+                FunctionSigEffectHint::AllSubtractable { subtract_ids, .. } => {
                     if subtract_ids.is_empty() {
                         state
                             .infer
                             .record_effect_subtractability(call_eff, EffectSubtractability::All);
                     } else {
                         for id in subtract_ids {
-                            state.infer.record_effect_non_subtract(call_eff, id);
-                            state.infer.record_effect_non_subtract(result_ty.value, id);
-                            state.infer.record_effect_non_subtract(result_ty.effect, id);
                             state.infer.record_effect_subtractability_for_id(
                                 call_eff,
                                 id,
@@ -167,13 +164,9 @@ pub(crate) fn make_app_with_cause(
                 FunctionSigEffectHint::Bounds {
                     lower,
                     upper,
-                    subtract_ids,
+                    subtract_ids: _,
+                    non_subtract_targets: _,
                 } => {
-                    for id in subtract_ids {
-                        state.infer.record_effect_non_subtract(call_eff, id);
-                        state.infer.record_effect_non_subtract(result_ty.value, id);
-                        state.infer.record_effect_non_subtract(result_ty.effect, id);
-                    }
                     record_effect_subtractability_from_upper(state, call_eff, upper);
                     state.infer.constrain(lower, Neg::Var(call_eff));
                     state.infer.constrain(Pos::Var(call_eff), upper);
@@ -249,6 +242,7 @@ pub(crate) fn make_app_with_cause(
             .infer
             .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
     }
+    record_call_exposed_effect_non_subtracts(state, call_eff, result_ty);
 
     let result = TypedExpr::new(
         result_ty,
@@ -263,6 +257,34 @@ pub(crate) fn make_app_with_cause(
     );
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn record_call_exposed_effect_non_subtracts(
+    state: &LowerState,
+    call_eff: TypeVar,
+    result_ty: crate::ast::expr::ComputationTy,
+) {
+    let mut ids = state
+        .infer
+        .effect_subtract_facts(call_eff)
+        .into_iter()
+        .filter_map(|fact| {
+            state
+                .infer
+                .effect_subtract_id_needs_call_non_subtract(fact.id)
+                .then_some(fact.id)
+        })
+        .collect::<Vec<_>>();
+    ids.sort();
+    ids.dedup();
+    for id in ids {
+        state
+            .infer
+            .record_effect_non_subtract_deep(result_ty.value, id);
+        state
+            .infer
+            .record_effect_non_subtract_deep(result_ty.effect, id);
+    }
 }
 
 fn callee_uses_all_subtractable_argument_slot(state: &LowerState, func: &TypedExpr) -> bool {

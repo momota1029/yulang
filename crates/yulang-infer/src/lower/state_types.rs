@@ -8,13 +8,39 @@ pub enum FunctionSigEffectHint {
     Pure,
     AllSubtractable {
         subtract_ids: Vec<EffectSubtractId>,
+        non_subtract_targets: Vec<TypeVar>,
     },
     LowerBound(PosId),
     Bounds {
         lower: PosId,
         upper: NegId,
         subtract_ids: Vec<EffectSubtractId>,
+        non_subtract_targets: Vec<TypeVar>,
     },
+}
+
+impl FunctionSigEffectHint {
+    pub(crate) fn subtract_ids(&self) -> &[EffectSubtractId] {
+        match self {
+            FunctionSigEffectHint::Pure | FunctionSigEffectHint::LowerBound(_) => &[],
+            FunctionSigEffectHint::AllSubtractable { subtract_ids, .. }
+            | FunctionSigEffectHint::Bounds { subtract_ids, .. } => subtract_ids,
+        }
+    }
+
+    pub(crate) fn non_subtract_targets(&self) -> &[TypeVar] {
+        match self {
+            FunctionSigEffectHint::Pure | FunctionSigEffectHint::LowerBound(_) => &[],
+            FunctionSigEffectHint::AllSubtractable {
+                non_subtract_targets,
+                ..
+            }
+            | FunctionSigEffectHint::Bounds {
+                non_subtract_targets,
+                ..
+            } => non_subtract_targets,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

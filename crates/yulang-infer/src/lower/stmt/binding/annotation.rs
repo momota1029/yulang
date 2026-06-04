@@ -4,7 +4,6 @@ use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
-use crate::solve::EffectSubtractId;
 use crate::types::{Neg, Pos};
 
 pub(crate) fn connect_binding_type_annotation(
@@ -174,10 +173,11 @@ pub(crate) fn connect_pattern_sig_annotation(
             ExpectedEdgeKind::Annotation,
             cause.clone(),
         );
-        record_output_effect_non_subtracts(state, &fun, &fun.effect_subtract_ids);
+        let non_subtract_targets = function_sig_ret_effect_vars(state, &fun);
         return Some(if fun.effect_hint {
             crate::lower::FunctionSigEffectHint::AllSubtractable {
                 subtract_ids: fun.effect_subtract_ids,
+                non_subtract_targets,
             }
         } else if state.infer.pos_effect_lower_is_empty(fun.ret_eff_pos)
             && fun.ret_eff_neg == state.infer.arena.empty_neg_row
@@ -188,6 +188,7 @@ pub(crate) fn connect_pattern_sig_annotation(
                 lower: fun.ret_eff_pos,
                 upper: fun.ret_eff_neg,
                 subtract_ids: fun.effect_subtract_ids,
+                non_subtract_targets,
             }
         });
     }
@@ -200,28 +201,15 @@ pub(crate) fn connect_pattern_sig_annotation(
     None
 }
 
-fn record_output_effect_non_subtracts(
+fn function_sig_ret_effect_vars(
     state: &LowerState,
     fun: &crate::lower::signature::LoweredFunctionSigShape,
-    ids: &[EffectSubtractId],
-) {
-    if ids.is_empty() {
-        return;
-    }
-
-    let mut output_vars = Vec::new();
-    output_vars.extend(collect_pos_free_vars(&state.infer, fun.ret_pos));
-    output_vars.extend(collect_neg_free_vars(&state.infer, fun.ret_neg));
-    output_vars.extend(collect_pos_free_vars(&state.infer, fun.ret_eff_pos));
-    output_vars.extend(collect_neg_free_vars(&state.infer, fun.ret_eff_neg));
-    output_vars.sort_by_key(|tv| tv.0);
-    output_vars.dedup();
-
-    for tv in output_vars {
-        for id in ids {
-            state.infer.record_effect_non_subtract(tv, *id);
-        }
-    }
+) -> Vec<TypeVar> {
+    let mut vars = collect_pos_free_vars(&state.infer, fun.ret_eff_pos);
+    vars.extend(collect_neg_free_vars(&state.infer, fun.ret_eff_neg));
+    vars.sort_by_key(|tv| tv.0);
+    vars.dedup();
+    vars
 }
 
 fn fresh_annotation_tv(

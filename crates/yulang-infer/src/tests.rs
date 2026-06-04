@@ -3126,41 +3126,36 @@ fn wildcard_effect_annotation_records_all_subtractability() {
 }
 
 #[test]
-fn row_effect_annotation_records_subtractability_without_row_bounds() {
-    let state = parse_and_lower("my g(x: [io; e] _) = x");
-    let g_def = state
-        .ctx
-        .resolve_value(&symbols::Name("g".to_string()))
-        .unwrap();
-    let g_tv = state.def_tvs[&g_def];
-    let lowers = state.infer.lowers_of(g_tv);
-    let fun = lowers
-        .iter()
-        .find(|p| matches!(p, Pos::Fun { .. }))
-        .expect("g should have Fun lower bound");
+fn row_effect_annotation_keeps_subtractability_without_argument_occurrence() {
+    let state = parse_and_lower("my g(x: [io; e] _) = ()");
+    let (_, arg_eff_tv) = first_function_arg_slots(&state, "g");
 
-    let (arg_tv, arg_eff_tv) = match fun {
-        Pos::Fun { arg, arg_eff, .. } => {
-            let arg_tv = match state.infer.arena.get_neg(*arg) {
-                Neg::Var(tv) => tv,
-                other => panic!("expected arg var, got {:?}", other),
-            };
-            let arg_eff_tv = match state.infer.arena.get_neg(*arg_eff) {
-                Neg::Var(tv) => tv,
-                other => panic!("expected arg_eff var, got {:?}", other),
-            };
-            (arg_tv, arg_eff_tv)
-        }
-        _ => unreachable!(),
+    let expected = symbols::Path {
+        segments: vec![symbols::Name("io".to_string())],
     };
+    let subtractability = state.infer.effect_subtractability(arg_eff_tv);
+    assert!(
+        matches!(
+            subtractability,
+            Some(solve::EffectSubtractability::Set(ref atoms))
+                if atoms.len() == 1 && atoms[0].path == expected && atoms[0].args.is_empty()
+        ),
+        "unused row annotation should keep subtractability metadata, got {subtractability:?}",
+    );
+}
+
+#[test]
+fn row_effect_annotation_clears_subtractability_when_argument_reaches_output() {
+    let state = parse_and_lower("my g(x: [io; e] _) = x");
+    let (arg_tv, arg_eff_tv) = first_function_arg_slots(&state, "g");
 
     assert!(
         state.infer.effect_subtractability(arg_tv).is_none(),
         "[io; e] should not attach explicit subtractability metadata to the function argument value slot",
     );
     assert!(
-        !state.infer.effect_is_all_subtractable(arg_eff_tv),
-        "[io; e] should record subtractability metadata rather than mark the slot through",
+        state.infer.effect_is_all_subtractable(arg_eff_tv),
+        "[io; e] should clear its row subtractability once the argument effect reaches the binding output",
     );
 
     let has_row_lower = state
@@ -3179,13 +3174,87 @@ fn row_effect_annotation_records_subtractability_without_row_bounds() {
     };
     let subtractability = state.infer.effect_subtractability(arg_eff_tv);
     assert!(
-        matches!(
-            subtractability,
-            Some(solve::EffectSubtractability::Set(ref atoms))
+        !matches!(
+            &subtractability,
+            Some(solve::EffectSubtractability::Set(atoms))
                 if atoms.len() == 1 && atoms[0].path == expected && atoms[0].args.is_empty()
         ),
-        "row annotation should be kept as subtractability metadata, got {subtractability:?}",
+        "row annotation should be cleared by the matching NonSubtract, got {subtractability:?}",
     );
+}
+
+#[test]
+fn function_effect_annotation_clears_subtractability_on_parameter_occurrence() {
+    let state = parse_and_lower(
+        "act io:\n  our read: () -> int\n\n\
+         my f(g: () -> [io] _) = g\n",
+    );
+    let hint = state
+        .lambda_param_function_sig_hints
+        .values()
+        .next()
+        .cloned()
+        .expect("f parameter should keep a function signature effect hint");
+    let crate::lower::FunctionSigEffectHint::Bounds { upper, .. } = hint else {
+        panic!("io annotation should lower to an effect metadata-bearing signature hint");
+    };
+    let Neg::Var(effect_tv) = state.infer.arena.get_neg(upper) else {
+        panic!("function effect annotation should introduce a metadata effect variable");
+    };
+
+    assert!(
+        state.infer.effect_subtractability(effect_tv).is_none(),
+        "function parameter occurrence should clear its return-effect subtractability",
+    );
+}
+
+fn first_function_arg_slots(
+    state: &crate::lower::LowerState,
+    name: &str,
+) -> (crate::ids::TypeVar, crate::ids::TypeVar) {
+    let def = state
+        .ctx
+        .resolve_value(&symbols::Name(name.to_string()))
+        .unwrap();
+    let tv = state.def_tvs[&def];
+    let lowers = state.infer.lowers_of(tv);
+    let fun = lowers
+        .iter()
+        .find(|p| matches!(p, Pos::Fun { .. }))
+        .unwrap_or_else(|| panic!("{name} should have Fun lower bound"));
+
+    match fun {
+        Pos::Fun { arg, arg_eff, .. } => {
+            let arg_tv = match state.infer.arena.get_neg(*arg) {
+                Neg::Var(tv) => tv,
+                other => panic!("expected arg var, got {:?}", other),
+            };
+            let arg_eff_tv = match state.infer.arena.get_neg(*arg_eff) {
+                Neg::Var(tv) => tv,
+                other => panic!("expected arg_eff var, got {:?}", other),
+            };
+            (arg_tv, arg_eff_tv)
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn partial_application_keeps_latent_function_effect_non_subtract_off_outer_effect() {
+    let mut state = parse_and_lower(
+        "act io:\n  our read: () -> int\n\n\
+         my partial(f: int -> int -> [io] int) = f 1\n\
+         my full(f: int -> int -> [io] int) = f 1 2\n",
+    );
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let partial = rendered.iter().find(|(name, _)| name == "partial").unwrap();
+    let full = rendered.iter().find(|(name, _)| name == "full").unwrap();
+
+    assert!(
+        !partial.1.contains("NonSubtract"),
+        "partial application should keep latent function effect metadata off the outer computation effect",
+    );
+    assert!(full.1.contains("[io"));
 }
 
 #[test]
