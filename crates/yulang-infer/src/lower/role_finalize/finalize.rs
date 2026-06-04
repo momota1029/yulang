@@ -22,7 +22,7 @@ use super::super::{FinalizeCompactProfile, FinalizeCompactResults};
 use super::{
     LowerState, RoleCandidatePrerequisiteStatus, apply_role_output_replacements_to_constraints,
     apply_role_output_replacements_to_scheme, collect_role_default_replacements_if_disappeared,
-    collect_role_output_replacements, concrete_selected_role_input_types,
+    collect_role_output_replacements, concrete_selected_role_input_types, constructor_arg_variance,
     expand_role_constraint_with_scheme_bounds, path_string, projection_target_var,
     remove_disappearing_noncenter_role_vars, render_role_constraint_args_for_diagnostic,
     role_candidate_prerequisite_status, role_candidate_previews, role_constraint_arg_indices,
@@ -185,7 +185,9 @@ impl LowerState {
             // role 制約は具体型のまま浮き、後で実装が見つかったときに消える）。
             {
                 let mut concretizations = Vec::<(TypeVar, CompactType)>::new();
-                let main_polarity = super::main_type_polarity(&scheme);
+                let main_polarity = super::main_type_polarity(&scheme, &|path, index| {
+                    constructor_arg_variance(&self.infer, path, index)
+                });
                 for constraint in &constraints {
                     let resolved_constraint =
                         expand_role_constraint_with_scheme_bounds(constraint, &scheme);
@@ -250,7 +252,9 @@ impl LowerState {
                     let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
                     let (input_indices, output_indices) =
                         role_constraint_arg_indices(&arg_infos, constraint.args.len());
-                    let main_polarity = super::main_type_polarity(&scheme);
+                    let main_polarity = super::main_type_polarity(&scheme, &|path, index| {
+                        constructor_arg_variance(&self.infer, path, index)
+                    });
                     let Some(concrete_inputs) = concrete_selected_role_input_types(
                         &resolved_constraint,
                         &input_indices,

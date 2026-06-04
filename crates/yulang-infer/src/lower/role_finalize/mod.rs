@@ -16,6 +16,7 @@ use crate::simplify::role_constraints::rewrite_role_constraints_with_role_arg_in
 use crate::solve::effect_row::normalize_rewritten_bounds;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::symbols::Path;
+use crate::types::Variance;
 
 use super::LowerState;
 
@@ -121,16 +122,29 @@ fn concrete_surface_count(ty: &CompactType) -> usize {
     count + named.len()
 }
 
-fn main_type_polarity(scheme: &CompactTypeScheme) -> MainTypePolarity {
+fn main_type_polarity(
+    scheme: &CompactTypeScheme,
+    variance_of: &dyn Fn(&Path, usize) -> Variance,
+) -> MainTypePolarity {
     let mut polarity = MainTypePolarity::default();
     let mut expanded = HashSet::new();
     if let Some(root_fun_body) = compact_root_fun_body_lower(scheme) {
-        collect_type_main_type_polarity(&root_fun_body, true, scheme, &mut expanded, &mut polarity);
+        collect_type_main_type_polarity(
+            &root_fun_body,
+            true,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            &mut expanded,
+            &mut polarity,
+        );
     } else {
         collect_type_main_type_polarity(
             &scheme.cty.lower,
             true,
+            SurfaceVarMode::DropAtConcreteSurface,
             scheme,
+            variance_of,
             &mut expanded,
             &mut polarity,
         );
@@ -141,63 +155,191 @@ fn main_type_polarity(scheme: &CompactTypeScheme) -> MainTypePolarity {
 fn collect_bounds_main_type_polarity(
     bounds: &CompactBounds,
     positive: bool,
+    surface_vars: SurfaceVarMode,
     scheme: &CompactTypeScheme,
+    variance_of: &dyn Fn(&Path, usize) -> Variance,
     expanded: &mut HashSet<(TypeVar, bool)>,
     polarity: &mut MainTypePolarity,
 ) {
-    collect_type_main_type_polarity(&bounds.lower, positive, scheme, expanded, polarity);
-    collect_type_main_type_polarity(&bounds.upper, !positive, scheme, expanded, polarity);
+    collect_type_main_type_polarity(
+        &bounds.lower,
+        positive,
+        surface_vars,
+        scheme,
+        variance_of,
+        expanded,
+        polarity,
+    );
+    collect_type_main_type_polarity(
+        &bounds.upper,
+        !positive,
+        surface_vars,
+        scheme,
+        variance_of,
+        expanded,
+        polarity,
+    );
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SurfaceVarMode {
+    DropAtConcreteSurface,
+    KeepAtConcreteSurface,
 }
 
 fn collect_type_main_type_polarity(
     ty: &CompactType,
     positive: bool,
+    surface_vars: SurfaceVarMode,
     scheme: &CompactTypeScheme,
+    variance_of: &dyn Fn(&Path, usize) -> Variance,
     expanded: &mut HashSet<(TypeVar, bool)>,
     polarity: &mut MainTypePolarity,
 ) {
-    if !compact_type_has_non_var_surface(ty) {
-        collect_main_type_root_vars(ty, positive, scheme, expanded, polarity);
+    if surface_vars == SurfaceVarMode::KeepAtConcreteSurface
+        || !compact_type_has_non_var_surface(ty)
+    {
+        collect_main_type_root_vars(ty, positive, scheme, variance_of, expanded, polarity);
     }
     for con in &ty.cons {
-        for arg in &con.args {
-            collect_bounds_main_type_polarity(arg, true, scheme, expanded, polarity);
+        for (index, arg) in con.args.iter().enumerate() {
+            let arg_positive = match variance_of(&con.path, index) {
+                Variance::Invariant | Variance::Covariant => positive,
+                Variance::Contravariant => !positive,
+            };
+            collect_bounds_main_type_polarity(
+                arg,
+                arg_positive,
+                SurfaceVarMode::KeepAtConcreteSurface,
+                scheme,
+                variance_of,
+                expanded,
+                polarity,
+            );
         }
     }
     for fun in &ty.funs {
-        collect_type_main_type_polarity(&fun.arg, !positive, scheme, expanded, polarity);
-        collect_type_main_type_polarity(&fun.arg_eff, !positive, scheme, expanded, polarity);
-        collect_type_main_type_polarity(&fun.ret_eff, positive, scheme, expanded, polarity);
-        collect_type_main_type_polarity(&fun.ret, positive, scheme, expanded, polarity);
+        collect_type_main_type_polarity(
+            &fun.arg,
+            !positive,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            expanded,
+            polarity,
+        );
+        collect_type_main_type_polarity(
+            &fun.arg_eff,
+            !positive,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            expanded,
+            polarity,
+        );
+        collect_type_main_type_polarity(
+            &fun.ret_eff,
+            positive,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            expanded,
+            polarity,
+        );
+        collect_type_main_type_polarity(
+            &fun.ret,
+            positive,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            expanded,
+            polarity,
+        );
     }
     for record in &ty.records {
         for field in &record.fields {
-            collect_type_main_type_polarity(&field.value, positive, scheme, expanded, polarity);
+            collect_type_main_type_polarity(
+                &field.value,
+                positive,
+                SurfaceVarMode::DropAtConcreteSurface,
+                scheme,
+                variance_of,
+                expanded,
+                polarity,
+            );
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            collect_type_main_type_polarity(&field.value, positive, scheme, expanded, polarity);
+            collect_type_main_type_polarity(
+                &field.value,
+                positive,
+                SurfaceVarMode::DropAtConcreteSurface,
+                scheme,
+                variance_of,
+                expanded,
+                polarity,
+            );
         }
-        collect_type_main_type_polarity(&spread.tail, positive, scheme, expanded, polarity);
+        collect_type_main_type_polarity(
+            &spread.tail,
+            positive,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            expanded,
+            polarity,
+        );
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                collect_type_main_type_polarity(payload, positive, scheme, expanded, polarity);
+                collect_type_main_type_polarity(
+                    payload,
+                    positive,
+                    SurfaceVarMode::DropAtConcreteSurface,
+                    scheme,
+                    variance_of,
+                    expanded,
+                    polarity,
+                );
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            collect_type_main_type_polarity(item, positive, scheme, expanded, polarity);
+            collect_type_main_type_polarity(
+                item,
+                positive,
+                SurfaceVarMode::DropAtConcreteSurface,
+                scheme,
+                variance_of,
+                expanded,
+                polarity,
+            );
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            collect_type_main_type_polarity(item, positive, scheme, expanded, polarity);
+            collect_type_main_type_polarity(
+                item,
+                positive,
+                SurfaceVarMode::DropAtConcreteSurface,
+                scheme,
+                variance_of,
+                expanded,
+                polarity,
+            );
         }
-        collect_type_main_type_polarity(&row.tail, positive, scheme, expanded, polarity);
+        collect_type_main_type_polarity(
+            &row.tail,
+            positive,
+            SurfaceVarMode::DropAtConcreteSurface,
+            scheme,
+            variance_of,
+            expanded,
+            polarity,
+        );
     }
 }
 
@@ -205,6 +347,7 @@ fn collect_main_type_root_vars(
     ty: &CompactType,
     positive: bool,
     scheme: &CompactTypeScheme,
+    variance_of: &dyn Fn(&Path, usize) -> Variance,
     expanded: &mut HashSet<(TypeVar, bool)>,
     polarity: &mut MainTypePolarity,
 ) {
@@ -218,9 +361,26 @@ fn collect_main_type_root_vars(
             } else {
                 &bounds.upper
             };
-            collect_type_main_type_polarity(recur, positive, scheme, expanded, polarity);
+            collect_type_main_type_polarity(
+                recur,
+                positive,
+                SurfaceVarMode::DropAtConcreteSurface,
+                scheme,
+                variance_of,
+                expanded,
+                polarity,
+            );
         }
     }
+}
+
+fn constructor_arg_variance(infer: &crate::solve::Infer, path: &Path, index: usize) -> Variance {
+    infer
+        .variances
+        .get(path)
+        .and_then(|items| items.get(index))
+        .copied()
+        .unwrap_or(Variance::Invariant)
 }
 
 fn compact_type_has_non_var_surface(ty: &CompactType) -> bool {
@@ -1706,4 +1866,98 @@ fn apply_role_output_replacements_to_type(
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use crate::fresh_type_var;
+    use crate::symbols::Name;
+
+    use super::*;
+
+    #[test]
+    fn role_input_resolution_ignores_root_concrete_residual_vars() {
+        let a = fresh_type_var();
+        let role_arg = bounds(
+            type_with_vars_and_cons([a], ["int"]),
+            CompactType::default(),
+        );
+        let scheme = CompactTypeScheme {
+            cty: bounds(
+                type_with_vars_and_cons([a], ["int"]),
+                CompactType::default(),
+            ),
+            rec_vars: Default::default(),
+        };
+
+        let polarity = main_type_polarity(&scheme, &|_, _| Variance::Invariant);
+
+        assert!(
+            role_input_concrete_type_for_target(&role_arg, Some(a), &polarity).is_some(),
+            "root int | α is rendered as int, so α does not block lower-bound role resolution",
+        );
+    }
+
+    #[test]
+    fn role_input_resolution_counts_vars_inside_invariant_constructor_bounds() {
+        let a = fresh_type_var();
+        let box_path = path("Box");
+        let invariant_arg = bounds(
+            type_with_vars_and_cons([a], ["int"]),
+            type_with_vars_and_cons([a], ["float"]),
+        );
+        let scheme = CompactTypeScheme {
+            cty: bounds(
+                CompactType {
+                    cons: vec![crate::simplify::compact::CompactCon {
+                        path: box_path,
+                        args: vec![invariant_arg.clone()],
+                    }],
+                    ..CompactType::default()
+                },
+                CompactType::default(),
+            ),
+            rec_vars: Default::default(),
+        };
+
+        let polarity = main_type_polarity(&scheme, &|_, _| Variance::Invariant);
+
+        assert!(
+            role_input_concrete_type_for_target(&invariant_arg, Some(a), &polarity).is_none(),
+            "invariant args are read as (lower covariant, upper contravariant), so α in the upper side blocks lower-bound role resolution",
+        );
+    }
+
+    fn bounds(lower: CompactType, upper: CompactType) -> CompactBounds {
+        CompactBounds {
+            self_var: None,
+            lower,
+            upper,
+        }
+    }
+
+    fn type_with_vars_and_cons(
+        vars: impl IntoIterator<Item = TypeVar>,
+        cons: impl IntoIterator<Item = &'static str>,
+    ) -> CompactType {
+        CompactType {
+            vars: vars.into_iter().collect::<HashSet<_>>(),
+            cons: cons
+                .into_iter()
+                .map(|name| crate::simplify::compact::CompactCon {
+                    path: path(name),
+                    args: Vec::new(),
+                })
+                .collect(),
+            ..CompactType::default()
+        }
+    }
+
+    fn path(name: &str) -> Path {
+        Path {
+            segments: vec![Name(name.to_string())],
+        }
+    }
 }
