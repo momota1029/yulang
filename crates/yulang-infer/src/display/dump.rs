@@ -13,7 +13,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::solve::{Infer, RoleConstraint};
-use crate::symbols::{Name, Path};
+use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{EffectAtom, Neg, Pos};
 
 // ── エントリポイント ──────────────────────────────────────────────────────────
@@ -81,6 +81,7 @@ fn collect_compact_results_for_paths_impl(
     scope: Option<&crate::lower::ctx::LowerCtx>,
 ) -> Vec<(String, String)> {
     let mut seen = HashSet::new();
+    let hidden_effect_paths = hidden_effect_paths_for_display(state);
     let mut entries = paths
         .into_iter()
         .filter(|(_, def)| seen.insert(*def))
@@ -106,6 +107,7 @@ fn collect_compact_results_for_paths_impl(
                         &scheme,
                         &constraints,
                         scope,
+                        &hidden_effect_paths,
                     ),
                 ));
             }
@@ -121,6 +123,49 @@ fn collect_compact_results_for_paths_impl(
         .collect::<Vec<_>>();
     entries.sort_by(|a, b| a.0.cmp(&b.0));
     entries
+}
+
+fn hidden_effect_paths_for_display(state: &LowerState) -> HashSet<Path> {
+    state
+        .effect_arities
+        .keys()
+        .filter(|path| {
+            absolute_type_path_visibility(&state.ctx, path)
+                .is_some_and(|visibility| matches!(visibility, Visibility::My))
+        })
+        .cloned()
+        .collect()
+}
+
+fn absolute_type_path_visibility(
+    ctx: &crate::lower::ctx::LowerCtx,
+    path: &Path,
+) -> Option<Visibility> {
+    let (last, module_segments) = path.segments.split_last()?;
+    for root in ctx.modules.module_ids() {
+        if ctx.modules.node(root).parent.is_some() {
+            continue;
+        }
+        let Some(module) = absolute_module_path_from(ctx, root, module_segments) else {
+            continue;
+        };
+        if ctx.modules.node(module).types.contains_key(last) {
+            return Some(ctx.modules.type_visibility(module, last));
+        }
+    }
+    None
+}
+
+fn absolute_module_path_from(
+    ctx: &crate::lower::ctx::LowerCtx,
+    root: ModuleId,
+    segments: &[Name],
+) -> Option<ModuleId> {
+    let mut module = root;
+    for segment in segments {
+        module = *ctx.modules.node(module).modules.get(segment)?;
+    }
+    Some(module)
 }
 
 fn render_label_path(
@@ -455,7 +500,13 @@ fn format_coalesced_scheme_with_role_constraints(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
 ) -> String {
-    format_coalesced_scheme_with_role_constraints_optional_scope(infer, scheme, constraints, None)
+    format_coalesced_scheme_with_role_constraints_optional_scope(
+        infer,
+        scheme,
+        constraints,
+        None,
+        &HashSet::new(),
+    )
 }
 
 fn format_coalesced_scheme_with_role_constraints_optional_scope(
@@ -463,6 +514,7 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     scope: Option<&crate::lower::ctx::LowerCtx>,
+    hidden_effect_paths: &HashSet<Path>,
 ) -> String {
     let mut namer = match scope {
         Some(scope) => display_format::VarNamer::with_scope(scope),
@@ -471,8 +523,11 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
     let mut scheme = scheme.clone();
     display_format::materialize_effect_args(infer, &mut scheme);
     let observed_vars = compact_role_constraint_observed_vars(constraints);
-    let body_type =
-        display_format::compact_scheme_to_type_with_observed_vars(&scheme, &observed_vars);
+    let body_type = display_format::compact_scheme_to_type_with_observed_vars_and_hidden_effects(
+        &scheme,
+        &observed_vars,
+        hidden_effect_paths,
+    );
     let body = display_format::format_type_with_namer(&body_type, &mut namer);
     let rendered_constraints = constraints
         .iter()

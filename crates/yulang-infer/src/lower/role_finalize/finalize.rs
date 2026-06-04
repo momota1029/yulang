@@ -135,6 +135,7 @@ impl LowerState {
 
         profile.total = total_start.elapsed();
         self.resolve_concrete_role_constraints_for_defs(&finalized);
+        self.inherit_finalized_role_var_alias_schemes(&finalized);
         FinalizeCompactResults {
             finalized_defs: finalized,
             profile,

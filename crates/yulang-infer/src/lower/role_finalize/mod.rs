@@ -18,6 +18,7 @@ use crate::symbols::Path;
 
 use super::LowerState;
 
+mod alias;
 mod finalize;
 
 fn concrete_bounds_repr(bounds: &CompactBounds, allow_boundary: bool) -> Option<CompactType> {

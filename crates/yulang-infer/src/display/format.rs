@@ -50,19 +50,31 @@ pub(crate) fn compact_scheme_to_type_with_observed_vars(
     scheme: &CompactTypeScheme,
     observed_vars: &HashSet<TypeVar>,
 ) -> Type {
+    compact_scheme_to_type_with_observed_vars_and_hidden_effects(
+        scheme,
+        observed_vars,
+        &HashSet::new(),
+    )
+}
+
+pub(crate) fn compact_scheme_to_type_with_observed_vars_and_hidden_effects(
+    scheme: &CompactTypeScheme,
+    observed_vars: &HashSet<TypeVar>,
+    hidden_effect_paths: &HashSet<Path>,
+) -> Type {
     let mut scheme = scheme.clone();
     normalize_compact_scheme_rows(&mut scheme);
     let mut ctx = CompactToTypeCtx::new(&scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
     if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true, observed_vars) {
-        return simplify_root_type(fun);
+        return simplify_root_type(fun, hidden_effect_paths);
     }
     if let Some(fun) =
         coalesce_lower_only_root_fun(&mut ctx, &root, !scheme.rec_vars.is_empty(), observed_vars)
     {
-        return simplify_root_type(fun);
+        return simplify_root_type(fun, hidden_effect_paths);
     }
-    simplify_root_type(ctx.coalesce_type(&root.lower, true))
+    simplify_root_type(ctx.coalesce_type(&root.lower, true), hidden_effect_paths)
 }
 
 pub fn materialize_effect_args(infer: &Infer, scheme: &mut CompactTypeScheme) {
@@ -1276,10 +1288,12 @@ fn simplify_type(ty: Type) -> Type {
     }
 }
 
-fn simplify_root_type(ty: Type) -> Type {
+fn simplify_root_type(ty: Type, hidden_effect_paths: &HashSet<Path>) -> Type {
     let ty = simplify_type(ty);
     let generated_local_effect_vars = generated_local_effect_tail_vars(&ty);
     let ty = strip_generated_local_effects_from_fun_effects(ty, &generated_local_effect_vars);
+    let ty = simplify_type(ty);
+    let ty = strip_hidden_effects_from_fun_effects(ty, hidden_effect_paths);
     let ty = simplify_type(ty);
     normalize_root_curried_fun_effect_chain(ty)
 }
@@ -1701,6 +1715,169 @@ fn strip_generated_local_effect_type(ty: Type, tainted: &HashSet<TypeVar>) -> Ty
             )),
         },
         other => strip_generated_local_effects_from_fun_effects(other, tainted),
+    }
+}
+
+fn strip_hidden_effects_from_fun_effects(ty: Type, hidden_effect_paths: &HashSet<Path>) -> Type {
+    if hidden_effect_paths.is_empty() {
+        return ty;
+    }
+    match ty {
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(strip_hidden_effects_from_fun_effects(
+                *arg,
+                hidden_effect_paths,
+            )),
+            arg_eff: Box::new(strip_hidden_effect_type(*arg_eff, hidden_effect_paths)),
+            ret_eff: Box::new(strip_hidden_effect_type(*ret_eff, hidden_effect_paths)),
+            ret: Box::new(strip_hidden_effects_from_fun_effects(
+                *ret,
+                hidden_effect_paths,
+            )),
+        },
+        Type::Record(fields) => Type::Record(
+            fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: strip_hidden_effects_from_fun_effects(field.value, hidden_effect_paths),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        Type::RecordTailSpread { fields, tail } => Type::RecordTailSpread {
+            fields: fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: strip_hidden_effects_from_fun_effects(field.value, hidden_effect_paths),
+                    optional: field.optional,
+                })
+                .collect(),
+            tail: Box::new(strip_hidden_effects_from_fun_effects(
+                *tail,
+                hidden_effect_paths,
+            )),
+        },
+        Type::RecordHeadSpread { tail, fields } => Type::RecordHeadSpread {
+            tail: Box::new(strip_hidden_effects_from_fun_effects(
+                *tail,
+                hidden_effect_paths,
+            )),
+            fields: fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: strip_hidden_effects_from_fun_effects(field.value, hidden_effect_paths),
+                    optional: field.optional,
+                })
+                .collect(),
+        },
+        Type::Variant(cases) => Type::Variant(
+            cases
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| {
+                                strip_hidden_effects_from_fun_effects(payload, hidden_effect_paths)
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Type::Tuple(items) => Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| strip_hidden_effects_from_fun_effects(item, hidden_effect_paths))
+                .collect(),
+        ),
+        Type::Union(items) => Type::Union(
+            items
+                .into_iter()
+                .map(|item| strip_hidden_effects_from_fun_effects(item, hidden_effect_paths))
+                .collect(),
+        ),
+        Type::Inter(items) => Type::Inter(
+            items
+                .into_iter()
+                .map(|item| strip_hidden_effects_from_fun_effects(item, hidden_effect_paths))
+                .collect(),
+        ),
+        Type::Row(items, tail) => Type::Row(
+            items
+                .into_iter()
+                .map(|item| strip_hidden_effects_from_fun_effects(item, hidden_effect_paths))
+                .collect(),
+            Box::new(strip_hidden_effects_from_fun_effects(
+                *tail,
+                hidden_effect_paths,
+            )),
+        ),
+        Type::Rec(var, body) => Type::Rec(
+            var,
+            Box::new(strip_hidden_effects_from_fun_effects(
+                *body,
+                hidden_effect_paths,
+            )),
+        ),
+        other => other,
+    }
+}
+
+fn strip_hidden_effect_type(ty: Type, hidden_effect_paths: &HashSet<Path>) -> Type {
+    match ty {
+        Type::Prim(path) if hidden_effect_paths.contains(&path) => Type::Bot,
+        Type::Con(path, _) if hidden_effect_paths.contains(&path) => Type::Bot,
+        Type::Row(items, tail) => {
+            let items = items
+                .into_iter()
+                .map(|item| strip_hidden_effect_type(item, hidden_effect_paths))
+                .filter(|item| !is_empty_effect_placeholder(item))
+                .collect();
+            let tail = strip_hidden_effect_type(*tail, hidden_effect_paths);
+            Type::Row(items, Box::new(tail))
+        }
+        Type::Union(items) => Type::Union(
+            items
+                .into_iter()
+                .map(|item| strip_hidden_effect_type(item, hidden_effect_paths))
+                .filter(|item| !is_empty_effect_placeholder(item))
+                .collect(),
+        ),
+        Type::Inter(items) => Type::Inter(
+            items
+                .into_iter()
+                .map(|item| strip_hidden_effect_type(item, hidden_effect_paths))
+                .filter(|item| !is_empty_effect_placeholder(item))
+                .collect(),
+        ),
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(strip_hidden_effects_from_fun_effects(
+                *arg,
+                hidden_effect_paths,
+            )),
+            arg_eff: Box::new(strip_hidden_effect_type(*arg_eff, hidden_effect_paths)),
+            ret_eff: Box::new(strip_hidden_effect_type(*ret_eff, hidden_effect_paths)),
+            ret: Box::new(strip_hidden_effects_from_fun_effects(
+                *ret,
+                hidden_effect_paths,
+            )),
+        },
+        other => strip_hidden_effects_from_fun_effects(other, hidden_effect_paths),
     }
 }
 

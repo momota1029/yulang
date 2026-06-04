@@ -185,6 +185,49 @@ impl Infer {
         *self.deferred_role_method_calls.borrow_mut() = unresolved;
     }
 
+    pub(crate) fn add_deferred_role_method_constraints_for_owner(&self, owner: DefId) {
+        let calls = self.deferred_role_method_calls.borrow().clone();
+        for call in calls {
+            if call.owner != Some(owner) {
+                continue;
+            }
+            let Some(info) = call
+                .role_path
+                .as_ref()
+                .and_then(|path| role_method_info_for_path(&self.role_methods, path))
+                .or_else(|| self.role_methods.get(&call.name).cloned())
+            else {
+                continue;
+            };
+            self.add_role_method_call_constraint_for_owner(
+                &info,
+                owner,
+                call.recv_tv,
+                &call.arg_tvs,
+                call.result_tv,
+            );
+        }
+    }
+
+    pub(crate) fn has_deferred_role_method_call_for_owner(&self, owner: DefId) -> bool {
+        self.deferred_role_method_calls.borrow().iter().any(|call| {
+            if call.owner != Some(owner) {
+                return false;
+            }
+            let Some(info) = call
+                .role_path
+                .as_ref()
+                .and_then(|path| role_method_info_for_path(&self.role_methods, path))
+                .or_else(|| self.role_methods.get(&call.name).cloned())
+            else {
+                return false;
+            };
+            call.cast_coercion
+                || role_method_value_arg_count(&info)
+                    .is_none_or(|arity| call.arg_tvs.len() >= arity)
+        })
+    }
+
     pub(crate) fn add_role_method_call_constraint_for_owner(
         &self,
         info: &RoleMethodInfo,

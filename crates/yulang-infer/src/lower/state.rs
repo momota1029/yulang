@@ -106,6 +106,9 @@ pub struct LowerState {
     pub(crate) exact_pure_effect_tvs: HashSet<TypeVar>,
     /// top-level / observable binding の desugar 済み body。
     pub principal_bodies: HashMap<DefId, Arc<TypedExpr>>,
+    /// `my alias = target` のような単純 Var principal body。
+    pub(crate) principal_var_alias_targets: HashMap<DefId, DefId>,
+    pub(crate) pending_role_var_alias_schemes: HashSet<DefId>,
     /// lowering 中の self recursive binding が self-call で使う provisional scheme。
     pub provisional_self_schemes: HashMap<DefId, crate::FrozenScheme>,
     /// lowering 中の self recursive binding が body 内で共有する monomorphic root tv。
@@ -252,6 +255,8 @@ impl LowerState {
             configured_arg_effect_tvs: HashSet::new(),
             exact_pure_effect_tvs: HashSet::new(),
             principal_bodies: HashMap::new(),
+            principal_var_alias_targets: HashMap::new(),
+            pending_role_var_alias_schemes: HashSet::new(),
             provisional_self_schemes: HashMap::new(),
             provisional_self_root_tvs: HashMap::new(),
             active_recursive_self_instances: HashMap::new(),
@@ -304,6 +309,7 @@ impl LowerState {
     }
 
     pub fn insert_principal_body(&mut self, def: DefId, body: TypedExpr) {
+        self.update_principal_var_alias_index(def, &body);
         self.principal_bodies.insert(def, Arc::new(body));
     }
 
@@ -311,6 +317,27 @@ impl LowerState {
         self.principal_bodies
             .get(&def)
             .map(|body| body.as_ref().clone())
+    }
+
+    pub(crate) fn principal_var_alias_target(&self, def: DefId) -> Option<DefId> {
+        self.principal_var_alias_targets.get(&def).copied()
+    }
+
+    fn update_principal_var_alias_index(&mut self, def: DefId, body: &TypedExpr) {
+        self.principal_var_alias_targets.remove(&def);
+        self.pending_role_var_alias_schemes.remove(&def);
+
+        let Some(target) = principal_var_alias_target_from_body(body) else {
+            return;
+        };
+        if target == def || !self.is_let_bound_def(def) {
+            return;
+        }
+
+        self.principal_var_alias_targets.insert(def, target);
+        if self.ctx.is_operator_def(def) {
+            self.pending_role_var_alias_schemes.insert(def);
+        }
     }
 
     pub(crate) fn builtin_source_type_path(&self, name: &str) -> Path {
@@ -1535,6 +1562,19 @@ impl LowerState {
         let out = f(self);
         self.pop_type_scope();
         out
+    }
+}
+
+fn principal_var_alias_target_from_body(body: &TypedExpr) -> Option<DefId> {
+    let mut body = body;
+    loop {
+        match &body.kind {
+            ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {
+                body = expr;
+            }
+            ExprKind::Var(target) => return Some(*target),
+            _ => return None,
+        }
     }
 }
 

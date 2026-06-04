@@ -1806,8 +1806,21 @@ fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
     let mut profile = source_set_profile_header(source_set);
     let mut state = LowerState::new();
     install_builtin_primitives(&mut state);
-    for file in &source_set.files {
+    let mut saw_std_file = false;
+    let mut finalized_std_role_aliases = false;
+    for (file_idx, file) in source_set.files.iter().enumerate() {
         lower_source_file_inner(file, &mut state, &mut profile);
+        if file.origin == SourceOrigin::Std {
+            saw_std_file = true;
+        }
+        let next_is_std = source_set
+            .files
+            .get(file_idx + 1)
+            .is_some_and(|next| next.origin == SourceOrigin::Std);
+        if saw_std_file && !finalized_std_role_aliases && !next_is_std {
+            state.finalize_pending_role_var_alias_schemes();
+            finalized_std_role_aliases = true;
+        }
     }
     let finish_start = ProfileClock::now();
     finish_lowering(&mut state);
@@ -1864,11 +1877,23 @@ fn lower_source_set_from_cached_state(
     if uncached_sources_may_need_cached_act_templates(source_set, cached_files) {
         seed_cached_source_act_templates(source_set, cached_files, &mut state, &mut profile);
     }
+    let mut saw_std_file = false;
+    let mut finalized_std_role_aliases = false;
     for (file_idx, file) in source_set.files.iter().enumerate() {
         if cached_files.contains(&file_idx) {
             continue;
         }
         lower_source_file_inner(file, &mut state, &mut profile);
+        if file.origin == SourceOrigin::Std {
+            saw_std_file = true;
+        }
+        let next_uncached_is_std =
+            next_uncached_source_file(source_set, cached_files, file_idx + 1)
+                .is_some_and(|next| next.origin == SourceOrigin::Std);
+        if saw_std_file && !finalized_std_role_aliases && !next_uncached_is_std {
+            state.finalize_pending_role_var_alias_schemes();
+            finalized_std_role_aliases = true;
+        }
     }
     let finish_start = ProfileClock::now();
     finish_lowering(&mut state);
@@ -1882,6 +1907,19 @@ fn lower_source_set_from_cached_state(
         },
         profile,
     }
+}
+
+fn next_uncached_source_file<'a>(
+    source_set: &'a SourceSet,
+    cached_files: &HashSet<usize>,
+    start: usize,
+) -> Option<&'a SourceFile> {
+    source_set
+        .files
+        .iter()
+        .enumerate()
+        .skip(start)
+        .find_map(|(idx, file)| (!cached_files.contains(&idx)).then_some(file))
 }
 
 fn reserve_fresh_ids_after_state(state: &LowerState) {
