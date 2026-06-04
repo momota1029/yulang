@@ -24,7 +24,7 @@
 # subtractable class
 量化の際に、全ての`S-subtract(α,#a)`と`non-subtract(β, #a)`は別テーブルに保存される。ただし、`non-subtract(γ, #a)`が存在する時`T-subtract(γ,#a)`は消去して良く、また全ての`S-subtract(_,#a)`が存在しない時、`non-subtract(γ, #a)`もまた消去してよい。
 
-instantiateのときは型変数と同じように`#a`もfreshにする。また、`non-subtract(_,#a)`を呼んだ関数の出力型と出力エフェクト型に付与する。
+instantiateのときは型変数と同じように`#a`もfreshにする。また、**`non-subtract`が存在しない時**、`non-subtract(_,#a)`を呼んだ関数の出力型と出力エフェクト型に付与する。
 
 # subtractableの合成
 共起分析で別の型と統合する場合や、既存の型にsubtract情報を付けるときは次に注意する:
