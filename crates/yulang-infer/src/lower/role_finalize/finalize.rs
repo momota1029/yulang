@@ -10,11 +10,14 @@ use crate::scc::{
     compress_components, compute_component_sccs, refs_by_def, refs_by_owner,
     share_type_vars_within_sccs_with_refs_by_owner,
 };
-use crate::scheme::compact_pos_type;
+use crate::scheme::{collect_var_levels, compact_pos_type};
 use crate::simplify::compact::{
-    CompactType, CompactTypeScheme, expose_negative_row_tail_vars, expose_positive_row_tails,
+    CompactType, CompactTypeScheme, coalesce_nested_tail_function_effect_residuals_in_scheme,
+    compact_type_var, expose_negative_row_tail_vars, expose_positive_row_tails,
 };
-use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_report;
+use crate::simplify::cooccur::{
+    CompactRoleConstraint, coalesce_by_co_occurrence_with_role_constraint_inputs_report,
+};
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::types::Neg;
 
@@ -121,6 +124,11 @@ impl LowerState {
             profile.commit_ready.merge(&commit_profile);
 
             if ready_components.is_empty() {
+                if self
+                    .resolve_pending_method_role_constraints_before_defaulting(&relevant_components)
+                {
+                    continue;
+                }
                 break;
             }
 
@@ -155,299 +163,408 @@ impl LowerState {
 
     fn resolve_concrete_role_constraints_for_defs(&mut self, defs: &[DefId]) {
         for &def in defs {
-            let Some(mut scheme) = self.compact_scheme_of(def) else {
+            let Some(scheme) = self.compact_scheme_of(def) else {
                 continue;
             };
-            let mut constraints = self.infer.compact_role_constraints_of(def);
+            let constraints = self.infer.compact_role_constraints_of(def);
             if constraints.is_empty() {
                 continue;
             }
-            // 明示計算で親/グローバル(level 0)へ上がった role 制約変数は、この def の commit
-            // (boundary = def_level + 1) では simplify 対象外で残る。ここで boundary 0 の
-            // グローバル相当 simplify を一度かけ、共起する変数を中心変数へ畳む。
-            {
-                let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+            let options = RoleConstraintResolutionOptions {
+                allow_expansive_defaulting: self.binding_allows_role_defaulting(def),
+                resolve_input_concretizations: true,
+                rewrite_effect_metadata: true,
+                report_errors: true,
+            };
+            let resolved =
+                self.resolve_compact_role_constraints_for_def(def, scheme, constraints, options);
+            self.infer.store_compact_scheme(def, resolved.scheme);
+            self.infer
+                .store_compact_role_constraints(def, resolved.constraints);
+        }
+    }
+
+    fn resolve_pending_method_role_constraints_before_defaulting(
+        &mut self,
+        relevant_components: &HashSet<usize>,
+    ) -> bool {
+        let mut components = relevant_components.iter().copied().collect::<Vec<_>>();
+        components.sort_unstable();
+
+        let mut changed_live_graph = false;
+        for component_idx in components {
+            if self.component_pending_selection_count(component_idx) == 0 {
+                continue;
+            }
+            let defs = self
+                .infer
+                .components
+                .get(component_idx)
+                .map(|component| component.iter().copied().collect::<Vec<_>>())
+                .unwrap_or_default();
+            for def in defs {
+                changed_live_graph |=
+                    self.resolve_pending_method_role_constraints_for_def_before_defaulting(def);
+            }
+        }
+        changed_live_graph
+    }
+
+    fn resolve_pending_method_role_constraints_for_def_before_defaulting(
+        &mut self,
+        def: DefId,
+    ) -> bool {
+        self.infer
+            .add_deferred_role_method_constraints_for_owner(def);
+
+        let mut constraints = crate::lower::role::compact_role_constraints(&self.infer, def);
+        if constraints.is_empty() {
+            constraints = self.infer.compact_role_constraints_of(def);
+        }
+        if constraints.is_empty() {
+            return false;
+        }
+
+        let Some(tv) = self.infer.def_tvs.borrow().get(&def).copied() else {
+            return false;
+        };
+        let mut scheme = self
+            .compact_scheme_of(def)
+            .unwrap_or_else(|| compact_type_var(&self.infer, tv));
+        coalesce_nested_tail_function_effect_residuals_in_scheme(&mut scheme);
+
+        let level_boundary = self.infer.def_level_of(def).saturating_add(1);
+        let var_levels = collect_var_levels(&self.infer, &scheme);
+        let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+            &scheme,
+            &constraints,
+            |role| self.role_arg_input_flags(role),
+            &var_levels,
+            level_boundary,
+        );
+        // ここは method selection を進めるための仮 pass で、SCC はまだ commit していない。
+        // effect metadata の rewrite は最終 compact 側に任せる。
+
+        let resolved = self.resolve_compact_role_constraints_for_def(
+            def,
+            coalesced.scheme,
+            coalesced.constraints,
+            RoleConstraintResolutionOptions {
+                allow_expansive_defaulting: false,
+                resolve_input_concretizations: false,
+                rewrite_effect_metadata: false,
+                report_errors: false,
+            },
+        );
+        resolved.changed_live_graph
+    }
+
+    fn component_pending_selection_count(&self, component_idx: usize) -> usize {
+        self.infer
+            .component_pending_selections
+            .get(component_idx)
+            .map(|pending| *pending.borrow())
+            .unwrap_or(0)
+    }
+
+    fn resolve_compact_role_constraints_for_def(
+        &mut self,
+        def: DefId,
+        mut scheme: CompactTypeScheme,
+        mut constraints: Vec<CompactRoleConstraint>,
+        options: RoleConstraintResolutionOptions,
+    ) -> RoleConstraintResolution {
+        let mut changed_live_graph = false;
+        // 明示計算で親/グローバル(level 0)へ上がった role 制約変数は、この def の commit
+        // (boundary = def_level + 1) では simplify 対象外で残る。ここで boundary 0 の
+        // グローバル相当 simplify を一度かけ、共起する変数を中心変数へ畳む。
+        {
+            let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                &scheme,
+                &constraints,
+                |role| self.role_arg_input_flags(role),
+                &std::collections::HashMap::new(),
+                0,
+            );
+            if options.rewrite_effect_metadata {
+                for round in &coalesced.rounds {
+                    self.infer
+                        .rewrite_effect_subtract_metadata_vars(&round.subst);
+                }
+            }
+            scheme = coalesced.scheme;
+            constraints = coalesced.constraints;
+        }
+        if options.resolve_input_concretizations {
+            // §決定1: 通常引数が具体型1つに定まり、中心変数が主型の反対方向に現れない
+            // role は、その中心変数を具体型へ確定する。impl の有無は問わない（impl が無ければ
+            // role 制約は具体型のまま浮き、後で実装が見つかったときに消える）。
+            let mut concretizations = Vec::<(TypeVar, CompactType)>::new();
+            let main_polarity = super::main_type_polarity(&scheme, &|path, index| {
+                constructor_arg_variance(&self.infer, path, index)
+            });
+            for constraint in &constraints {
+                let resolved_constraint =
+                    expand_role_constraint_with_scheme_bounds(constraint, &scheme);
+                let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
+                let (input_indices, _) =
+                    role_constraint_arg_indices(&arg_infos, constraint.args.len());
+                for &i in &input_indices {
+                    let Some(original_arg) = constraint.args.get(i) else {
+                        continue;
+                    };
+                    let Some(resolved_arg) = resolved_constraint.args.get(i) else {
+                        continue;
+                    };
+                    let Some(target) = projection_target_var(original_arg)
+                        .or_else(|| projection_target_var(resolved_arg))
+                    else {
+                        continue;
+                    };
+                    let Some(concrete) = role_input_concrete_type_for_target(
+                        resolved_arg,
+                        Some(target),
+                        &main_polarity,
+                    ) else {
+                        continue;
+                    };
+                    concretizations.push((target, concrete));
+                }
+            }
+            if !concretizations.is_empty() {
+                changed_live_graph |=
+                    self.apply_role_output_replacements_to_live_graph(&concretizations);
+                scheme = apply_role_output_replacements_to_scheme(&scheme, &concretizations);
+                constraints =
+                    apply_role_output_replacements_to_constraints(&constraints, &concretizations);
+                let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
                     &scheme,
                     &constraints,
                     |role| self.role_arg_input_flags(role),
                     &std::collections::HashMap::new(),
                     0,
                 );
-                for round in &coalesced.rounds {
-                    self.infer
-                        .rewrite_effect_subtract_metadata_vars(&round.subst);
-                }
-                scheme = coalesced.scheme;
-                constraints = coalesced.constraints;
-            }
-            // §決定1: 通常引数が具体型1つに定まり、中心変数が主型の反対方向に現れない
-            // role は、その中心変数を具体型へ確定する。impl の有無は問わない（impl が無ければ
-            // role 制約は具体型のまま浮き、後で実装が見つかったときに消える）。
-            {
-                let mut concretizations = Vec::<(TypeVar, CompactType)>::new();
-                let main_polarity = super::main_type_polarity(&scheme, &|path, index| {
-                    constructor_arg_variance(&self.infer, path, index)
-                });
-                for constraint in &constraints {
-                    let resolved_constraint =
-                        expand_role_constraint_with_scheme_bounds(constraint, &scheme);
-                    let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
-                    let (input_indices, _) =
-                        role_constraint_arg_indices(&arg_infos, constraint.args.len());
-                    for &i in &input_indices {
-                        let Some(original_arg) = constraint.args.get(i) else {
-                            continue;
-                        };
-                        let Some(resolved_arg) = resolved_constraint.args.get(i) else {
-                            continue;
-                        };
-                        let Some(target) = projection_target_var(original_arg)
-                            .or_else(|| projection_target_var(resolved_arg))
-                        else {
-                            continue;
-                        };
-                        let Some(concrete) = role_input_concrete_type_for_target(
-                            resolved_arg,
-                            Some(target),
-                            &main_polarity,
-                        ) else {
-                            continue;
-                        };
-                        concretizations.push((target, concrete));
-                    }
-                }
-                if !concretizations.is_empty() {
-                    self.apply_role_output_replacements_to_live_graph(&concretizations);
-                    scheme = apply_role_output_replacements_to_scheme(&scheme, &concretizations);
-                    constraints = apply_role_output_replacements_to_constraints(
-                        &constraints,
-                        &concretizations,
-                    );
-                    let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
-                        &scheme,
-                        &constraints,
-                        |role| self.role_arg_input_flags(role),
-                        &std::collections::HashMap::new(),
-                        0,
-                    );
+                if options.rewrite_effect_metadata {
                     for round in &rewritten.rounds {
                         self.infer
                             .rewrite_effect_subtract_metadata_vars(&round.subst);
                     }
-                    scheme = rewritten.scheme;
-                    constraints = rewritten.constraints;
                 }
+                scheme = rewritten.scheme;
+                constraints = rewritten.constraints;
             }
-            loop {
-                let mut progressed = false;
-                let mut replacements = Vec::<(TypeVar, CompactType)>::new();
-                let mut remaining = Vec::new();
-                let expansive_defaulting = self.binding_allows_role_defaulting(def);
-                let current_constraints = constraints.clone();
-                for (constraint_index, constraint) in
-                    current_constraints.iter().cloned().enumerate()
-                {
-                    let resolved_constraint =
-                        expand_role_constraint_with_scheme_bounds(&constraint, &scheme);
-                    let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
-                    let (input_indices, output_indices) =
-                        role_constraint_arg_indices(&arg_infos, constraint.args.len());
-                    let main_polarity = super::main_type_polarity(&scheme, &|path, index| {
-                        constructor_arg_variance(&self.infer, path, index)
-                    });
-                    let Some(concrete_inputs) = concrete_selected_role_input_types(
-                        &resolved_constraint,
-                        &input_indices,
-                        &main_polarity,
-                    ) else {
-                        if expansive_defaulting
-                            && role_constraint_is_observationally_empty(&constraint)
-                        {
-                            progressed = true;
-                            continue;
-                        }
-                        remaining.push(constraint);
-                        continue;
-                    };
-                    let rendered_args = render_role_constraint_args_for_diagnostic(
-                        &resolved_constraint,
-                        &output_indices,
-                        &arg_infos,
-                    );
-
-                    let candidates = self.infer.role_impl_candidates_of(&constraint.role);
-                    let head_matches = candidates
-                        .iter()
-                        .filter(|candidate| {
-                            role_candidate_input_subst(candidate, &input_indices, &concrete_inputs)
-                                .is_some()
-                        })
-                        .collect::<Vec<_>>();
-                    let mut prerequisite_failure = None;
-                    let viable_matches = head_matches
-                        .iter()
-                        .copied()
-                        .filter(|candidate| {
-                            let Some(subst) = role_candidate_input_subst(
-                                candidate,
-                                &input_indices,
-                                &concrete_inputs,
-                            ) else {
-                                return false;
-                            };
-                            match role_candidate_prerequisite_status(
-                                &self.infer,
-                                candidate,
-                                &subst,
-                                &mut Vec::new(),
-                            ) {
-                                RoleCandidatePrerequisiteStatus::Satisfied => true,
-                                failure => {
-                                    prerequisite_failure.get_or_insert(failure);
-                                    false
-                                }
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    let matches =
-                        select_most_specific_role_candidates(viable_matches, &input_indices);
-                    if matches.len() == 1 {
-                        let subst = role_candidate_input_subst(
-                            matches[0],
-                            &input_indices,
-                            &concrete_inputs,
-                        )
-                        .unwrap_or_default();
+        }
+        loop {
+            let mut progressed = false;
+            let mut replacements = Vec::<(TypeVar, CompactType)>::new();
+            let mut remaining = Vec::new();
+            let current_constraints = constraints.clone();
+            for (constraint_index, constraint) in current_constraints.iter().cloned().enumerate() {
+                let resolved_constraint =
+                    expand_role_constraint_with_scheme_bounds(&constraint, &scheme);
+                let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
+                let (input_indices, output_indices) =
+                    role_constraint_arg_indices(&arg_infos, constraint.args.len());
+                let main_polarity = super::main_type_polarity(&scheme, &|path, index| {
+                    constructor_arg_variance(&self.infer, path, index)
+                });
+                let Some(concrete_inputs) = concrete_selected_role_input_types(
+                    &resolved_constraint,
+                    &input_indices,
+                    &main_polarity,
+                ) else {
+                    if options.allow_expansive_defaulting
+                        && role_constraint_is_observationally_empty(&constraint)
+                    {
                         progressed = true;
-                        for (target, ty) in collect_role_output_replacements(
+                        continue;
+                    }
+                    remaining.push(constraint);
+                    continue;
+                };
+                let rendered_args = render_role_constraint_args_for_diagnostic(
+                    &resolved_constraint,
+                    &output_indices,
+                    &arg_infos,
+                );
+
+                let candidates = self.infer.role_impl_candidates_of(&constraint.role);
+                let head_matches = candidates
+                    .iter()
+                    .filter(|candidate| {
+                        role_candidate_input_subst(candidate, &input_indices, &concrete_inputs)
+                            .is_some()
+                    })
+                    .collect::<Vec<_>>();
+                let mut prerequisite_failure = None;
+                let viable_matches = head_matches
+                    .iter()
+                    .copied()
+                    .filter(|candidate| {
+                        let Some(subst) =
+                            role_candidate_input_subst(candidate, &input_indices, &concrete_inputs)
+                        else {
+                            return false;
+                        };
+                        match role_candidate_prerequisite_status(
+                            &self.infer,
+                            candidate,
+                            &subst,
+                            &mut Vec::new(),
+                        ) {
+                            RoleCandidatePrerequisiteStatus::Satisfied => true,
+                            failure => {
+                                prerequisite_failure.get_or_insert(failure);
+                                false
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let matches = select_most_specific_role_candidates(viable_matches, &input_indices);
+                if matches.len() == 1 {
+                    let subst =
+                        role_candidate_input_subst(matches[0], &input_indices, &concrete_inputs)
+                            .unwrap_or_default();
+                    progressed = true;
+                    for (target, ty) in collect_role_output_replacements(
+                        &constraint,
+                        matches[0],
+                        &subst,
+                        &output_indices,
+                    ) {
+                        replacements.push((target, ty));
+                    }
+                    if options.allow_expansive_defaulting {
+                        for (target, ty) in collect_role_default_replacements_if_disappeared(
+                            &scheme,
+                            &current_constraints,
+                            constraint_index,
                             &constraint,
                             matches[0],
                             &subst,
-                            &output_indices,
+                            &input_indices,
+                            &|role| self.role_arg_input_flags(role),
                         ) {
                             replacements.push((target, ty));
                         }
-                        if expansive_defaulting {
-                            for (target, ty) in collect_role_default_replacements_if_disappeared(
-                                &scheme,
-                                &current_constraints,
-                                constraint_index,
-                                &constraint,
-                                matches[0],
-                                &subst,
-                                &input_indices,
-                                &|role| self.role_arg_input_flags(role),
-                            ) {
-                                replacements.push((target, ty));
-                            }
-                        }
-                        continue;
                     }
+                    continue;
+                }
 
-                    let role = path_string(&constraint.role);
-                    if matches.is_empty() && !head_matches.is_empty() {
-                        match prerequisite_failure {
-                            Some(RoleCandidatePrerequisiteStatus::MissingImpl {
-                                role: prerequisite_role,
-                                args: prerequisite_args,
-                                origins,
-                            }) => self
-                                .infer
-                                .report_synthetic_type_error_with_cause_and_origins(
-                                    TypeErrorKind::MissingImplPrerequisite {
-                                        role,
-                                        args: rendered_args,
-                                        prerequisite_role,
-                                        prerequisite_args,
-                                    },
-                                    format!("def {}", def.0),
-                                    crate::diagnostic::ConstraintCause::unknown(),
-                                    origins,
-                                ),
-                            Some(RoleCandidatePrerequisiteStatus::AmbiguousImpl {
-                                role: prerequisite_role,
-                                args: prerequisite_args,
-                                candidates,
-                                previews,
-                                origins,
-                            }) => self
-                                .infer
-                                .report_synthetic_type_error_with_cause_and_origins(
-                                    TypeErrorKind::AmbiguousImplPrerequisite {
-                                        role,
-                                        args: rendered_args,
-                                        prerequisite_role,
-                                        prerequisite_args,
-                                        candidates,
-                                        previews,
-                                    },
-                                    format!("def {}", def.0),
-                                    crate::diagnostic::ConstraintCause::unknown(),
-                                    origins,
-                                ),
-                            _ => self.infer.report_synthetic_type_error(
-                                TypeErrorKind::MissingImpl {
+                if !options.report_errors {
+                    remaining.push(constraint);
+                    continue;
+                }
+
+                let role = path_string(&constraint.role);
+                if matches.is_empty() && !head_matches.is_empty() {
+                    match prerequisite_failure {
+                        Some(RoleCandidatePrerequisiteStatus::MissingImpl {
+                            role: prerequisite_role,
+                            args: prerequisite_args,
+                            origins,
+                        }) => self
+                            .infer
+                            .report_synthetic_type_error_with_cause_and_origins(
+                                TypeErrorKind::MissingImplPrerequisite {
                                     role,
                                     args: rendered_args,
+                                    prerequisite_role,
+                                    prerequisite_args,
                                 },
                                 format!("def {}", def.0),
+                                crate::diagnostic::ConstraintCause::unknown(),
+                                origins,
                             ),
-                        }
-                    } else if matches.is_empty() {
-                        self.infer.report_synthetic_type_error(
+                        Some(RoleCandidatePrerequisiteStatus::AmbiguousImpl {
+                            role: prerequisite_role,
+                            args: prerequisite_args,
+                            candidates,
+                            previews,
+                            origins,
+                        }) => self
+                            .infer
+                            .report_synthetic_type_error_with_cause_and_origins(
+                                TypeErrorKind::AmbiguousImplPrerequisite {
+                                    role,
+                                    args: rendered_args,
+                                    prerequisite_role,
+                                    prerequisite_args,
+                                    candidates,
+                                    previews,
+                                },
+                                format!("def {}", def.0),
+                                crate::diagnostic::ConstraintCause::unknown(),
+                                origins,
+                            ),
+                        _ => self.infer.report_synthetic_type_error(
                             TypeErrorKind::MissingImpl {
                                 role,
                                 args: rendered_args,
                             },
                             format!("def {}", def.0),
-                        );
-                    } else {
-                        self.infer.report_synthetic_type_error(
-                            TypeErrorKind::AmbiguousImpl {
-                                role,
-                                args: rendered_args,
-                                candidates: matches.len(),
-                                previews: role_candidate_previews(matches),
-                            },
-                            format!("def {}", def.0),
-                        );
+                        ),
                     }
-                    progressed = true;
-                }
-
-                if !replacements.is_empty() {
-                    self.apply_role_output_replacements_to_live_graph(&replacements);
-                    scheme = apply_role_output_replacements_to_scheme(&scheme, &replacements);
-                    remaining =
-                        apply_role_output_replacements_to_constraints(&remaining, &replacements);
-                    let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
-                        &scheme,
-                        &remaining,
-                        |role| self.role_arg_input_flags(role),
-                        &std::collections::HashMap::new(),
-                        0,
+                } else if matches.is_empty() {
+                    self.infer.report_synthetic_type_error(
+                        TypeErrorKind::MissingImpl {
+                            role,
+                            args: rendered_args,
+                        },
+                        format!("def {}", def.0),
                     );
+                } else {
+                    self.infer.report_synthetic_type_error(
+                        TypeErrorKind::AmbiguousImpl {
+                            role,
+                            args: rendered_args,
+                            candidates: matches.len(),
+                            previews: role_candidate_previews(matches),
+                        },
+                        format!("def {}", def.0),
+                    );
+                }
+                progressed = true;
+            }
+
+            if !replacements.is_empty() {
+                changed_live_graph |=
+                    self.apply_role_output_replacements_to_live_graph(&replacements);
+                scheme = apply_role_output_replacements_to_scheme(&scheme, &replacements);
+                remaining =
+                    apply_role_output_replacements_to_constraints(&remaining, &replacements);
+                let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                    &scheme,
+                    &remaining,
+                    |role| self.role_arg_input_flags(role),
+                    &std::collections::HashMap::new(),
+                    0,
+                );
+                if options.rewrite_effect_metadata {
                     for round in &rewritten.rounds {
                         self.infer
                             .rewrite_effect_subtract_metadata_vars(&round.subst);
                     }
-                    scheme = rewritten.scheme;
-                    constraints = rewritten.constraints;
-                    progressed = true;
-                } else {
-                    constraints = remaining;
                 }
-
-                if !progressed {
-                    break;
-                }
+                scheme = rewritten.scheme;
+                constraints = rewritten.constraints;
+                progressed = true;
+            } else {
+                constraints = remaining;
             }
-            let (scheme, constraints) =
-                remove_disappearing_noncenter_role_vars(&scheme, &constraints, &|role| {
-                    self.role_arg_input_flags(role)
-                });
-            self.infer.store_compact_scheme(def, scheme);
-            self.infer.store_compact_role_constraints(def, constraints);
+
+            if !progressed {
+                break;
+            }
+        }
+        let (scheme, constraints) =
+            remove_disappearing_noncenter_role_vars(&scheme, &constraints, &|role| {
+                self.role_arg_input_flags(role)
+            });
+        RoleConstraintResolution {
+            scheme,
+            constraints,
+            changed_live_graph,
         }
     }
 
@@ -462,12 +579,16 @@ impl LowerState {
     fn apply_role_output_replacements_to_live_graph(
         &mut self,
         replacements: &[(TypeVar, CompactType)],
-    ) {
+    ) -> bool {
         let empty_scheme = CompactTypeScheme::default();
+        let mut changed = false;
         for (target, ty) in replacements {
             let pos = compact_pos_type(&self.infer.arena, ty, &empty_scheme, false);
+            let pos = self.infer.extrude_pos(pos, self.infer.level_of(*target));
+            changed |= !self.infer.lower_members.borrow().contains(&(*target, pos));
             self.infer.constrain(pos, Neg::Var(*target));
         }
+        changed
     }
 
     fn strip_transparent_expansive_wrappers<'a>(&'a self, expr: &'a TypedExpr) -> &'a TypedExpr {
@@ -536,4 +657,18 @@ impl LowerState {
             .map(|(_, def)| def)
             .collect()
     }
+}
+
+#[derive(Clone, Copy)]
+struct RoleConstraintResolutionOptions {
+    allow_expansive_defaulting: bool,
+    resolve_input_concretizations: bool,
+    rewrite_effect_metadata: bool,
+    report_errors: bool,
+}
+
+struct RoleConstraintResolution {
+    scheme: CompactTypeScheme,
+    constraints: Vec<CompactRoleConstraint>,
+    changed_live_graph: bool,
 }

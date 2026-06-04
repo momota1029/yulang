@@ -2534,6 +2534,29 @@ fn generic_impl_resolves_associated_output_from_input_substitution() {
 }
 
 #[test]
+fn pending_method_selection_resolves_after_role_associated_output() {
+    let mut state = parse_and_lower(
+        "role Pick 'container:\n  type item\n  our container.pick: item\n\n\
+             type bag\n\n\
+             struct token { value: bool } with:\n  our t.flag = t.value\n\n\
+             impl Pick bag:\n  type item = token\n  our b.pick = token { value: true }\n\n\
+             my get(xs: bag) = xs.pick.flag\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let get = rendered
+        .iter()
+        .find(|(name, _)| name == "get")
+        .expect("get should be rendered");
+    assert_eq!(get.1, "bag -> bool");
+    assert!(
+        state.infer.deferred_selections.borrow().is_empty(),
+        "role-associated output should unblock the downstream method selection, got {:?}",
+        state.infer.deferred_selections.borrow(),
+    );
+}
+
+#[test]
 fn impl_body_check_resolves_associated_output_in_expected_signature() {
     let mut state = parse_and_lower(
         "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
