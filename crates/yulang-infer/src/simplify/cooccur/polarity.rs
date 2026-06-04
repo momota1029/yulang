@@ -30,14 +30,7 @@ pub(super) fn analyze_polar_occurrences_with_role_constraints(
     );
     for constraint in constraints {
         for arg in &constraint.args {
-            visit_bounds(
-                scheme,
-                arg,
-                true,
-                &suppressed,
-                &mut expanded,
-                &mut occurrences,
-            );
+            visit_bounds(scheme, arg, &suppressed, &mut expanded, &mut occurrences);
         }
     }
 
@@ -47,15 +40,22 @@ pub(super) fn analyze_polar_occurrences_with_role_constraints(
 fn visit_bounds(
     scheme: &CompactTypeScheme,
     bounds: &CompactBounds,
-    positive: bool,
     suppressed: &HashSet<TypeVar>,
     expanded: &mut HashSet<(TypeVar, bool)>,
     occurrences: &mut PolarOccurrences,
 ) {
+    let centers = center_vars(bounds);
+    for &center in &centers {
+        if suppressed.contains(&center) {
+            continue;
+        }
+        occurrences.insert(center, true);
+        occurrences.insert(center, false);
+    }
     visit_type(
         scheme,
         &bounds.lower,
-        positive,
+        true,
         suppressed,
         expanded,
         occurrences,
@@ -63,7 +63,7 @@ fn visit_bounds(
     visit_type(
         scheme,
         &bounds.upper,
-        !positive,
+        false,
         suppressed,
         expanded,
         occurrences,
@@ -108,7 +108,7 @@ fn visit_type_children(
 ) {
     for con in &ty.cons {
         for arg in &con.args {
-            visit_bounds(scheme, arg, true, suppressed, expanded, occurrences);
+            visit_bounds(scheme, arg, suppressed, expanded, occurrences);
         }
     }
     for fun in &ty.funs {
@@ -227,7 +227,7 @@ fn visit_root_upper_children(
 
     for con in &upper.cons {
         for arg in &con.args {
-            visit_bounds(scheme, arg, true, &empty, expanded, occurrences);
+            visit_bounds(scheme, arg, &empty, expanded, occurrences);
         }
     }
     for fun in &upper.funs {
@@ -364,4 +364,17 @@ fn collect_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
     }
     collect_type_vars(&bounds.lower, out);
     collect_type_vars(&bounds.upper, out);
+}
+
+fn center_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
+    let mut out = bounds
+        .lower
+        .vars
+        .intersection(&bounds.upper.vars)
+        .copied()
+        .collect::<HashSet<_>>();
+    if let Some(self_var) = bounds.self_var {
+        out.insert(self_var);
+    }
+    out
 }

@@ -47,8 +47,9 @@ fn visit_bounds(
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
 ) {
-    visit_compact_type(scheme, &bounds.lower, true, expanded, analysis);
-    visit_compact_type(scheme, &bounds.upper, false, expanded, analysis);
+    let centers = center_vars(bounds);
+    visit_compact_type_with_extra_vars(scheme, &bounds.lower, true, &centers, expanded, analysis);
+    visit_compact_type_with_extra_vars(scheme, &bounds.upper, false, &centers, expanded, analysis);
 }
 
 fn visit_compact_type(
@@ -60,6 +61,23 @@ fn visit_compact_type(
 ) {
     let group = along_group(ty);
     for &tv in &ty.vars {
+        record_var_occurrence(scheme, tv, positive, &group, expanded, analysis);
+    }
+
+    visit_compact_type_children(scheme, ty, positive, expanded, analysis);
+}
+
+fn visit_compact_type_with_extra_vars(
+    scheme: &CompactTypeScheme,
+    ty: &CompactType,
+    positive: bool,
+    extra_vars: &HashSet<TypeVar>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    analysis: &mut CoOccurrences,
+) {
+    let mut group = along_group(ty);
+    group.extend(extra_vars.iter().copied().map(AlongItem::Var));
+    for &tv in ty.vars.iter().chain(extra_vars.iter()) {
         record_var_occurrence(scheme, tv, positive, &group, expanded, analysis);
     }
 
@@ -115,6 +133,19 @@ pub(super) fn visit_compact_type_children(
         }
         visit_compact_type(scheme, &row.tail, positive, expanded, analysis);
     }
+}
+
+fn center_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
+    let mut out = bounds
+        .lower
+        .vars
+        .intersection(&bounds.upper.vars)
+        .copied()
+        .collect::<HashSet<_>>();
+    if let Some(self_var) = bounds.self_var {
+        out.insert(self_var);
+    }
+    out
 }
 
 fn record_var_occurrence(

@@ -790,6 +790,7 @@ pub(super) fn exact_key_from_hash(kind: ExactKeyKind, value: impl Hash) -> Exact
 mod tests {
     use std::collections::HashSet;
 
+    use super::polarity::analyze_polar_occurrences_with_role_constraints;
     use super::{
         AlongItem, CompactRoleConstraint, ExactKeyKind, analyze_co_occurrences,
         coalesce_by_co_occurrence, coalesce_by_co_occurrence_with_role_constraint_inputs_report,
@@ -854,6 +855,68 @@ mod tests {
         assert!(analysis.positive[&a].iter().any(
             |item| matches!(item, AlongItem::Exact(exact) if exact.kind == ExactKeyKind::Other)
         ));
+    }
+
+    #[test]
+    fn analyze_co_occurrences_reads_constructor_arg_bounds_as_input_intervals() {
+        let lower_arg = fresh_type_var();
+        let upper_arg = fresh_type_var();
+        let scheme = invariant_box_in_function_arg_scheme(lower_arg, upper_arg);
+
+        let analysis = analyze_co_occurrences(&scheme);
+        let polar = analyze_polar_occurrences_with_role_constraints(&scheme, &[]);
+
+        assert!(
+            analysis.positive.contains_key(&lower_arg),
+            "lower half of a constructor arg interval is the result side of the input interval",
+        );
+        assert!(
+            analysis.negative.contains_key(&upper_arg),
+            "upper half of a constructor arg interval is the argument side of the input interval",
+        );
+        assert!(polar.positive.contains(&lower_arg));
+        assert!(polar.negative.contains(&upper_arg));
+    }
+
+    #[test]
+    fn coalesce_by_co_occurrence_keeps_ref_update_like_effect_vars_distinct() {
+        let residual = fresh_type_var();
+        let captured = fresh_type_var();
+        let value = fresh_type_var();
+        let scheme = ref_update_like_curried_effect_scheme(residual, captured, value);
+
+        let analysis = analyze_co_occurrences(&scheme);
+        assert_eq!(
+            analysis.positive[&residual],
+            HashSet::from([AlongItem::Var(residual)])
+        );
+        assert_eq!(
+            analysis.negative[&captured],
+            HashSet::from([AlongItem::Var(captured)])
+        );
+        assert!(analysis.negative[&residual].contains(&AlongItem::Var(captured)));
+        assert!(analysis.positive[&captured].contains(&AlongItem::Var(residual)));
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let fun = &coalesced.cty.lower.funs[0];
+        assert_eq!(
+            fun.arg.cons[0].args[0].lower.vars,
+            HashSet::from([residual])
+        );
+        assert_eq!(
+            fun.arg.cons[0].args[0].upper.vars,
+            HashSet::from([residual, captured])
+        );
+        assert_eq!(fun.arg.cons[0].args[1], var_bounds(value));
+        let callback_fun = &fun.ret.funs[0];
+        assert_eq!(
+            callback_fun.arg.funs[0].ret_eff.vars,
+            HashSet::from([captured])
+        );
+        assert_eq!(
+            callback_fun.ret_eff.vars,
+            HashSet::from([residual, captured])
+        );
     }
 
     #[test]
@@ -1912,6 +1975,118 @@ mod tests {
                 vars: HashSet::from([tv]),
                 ..CompactType::default()
             },
+        }
+    }
+
+    fn invariant_box_in_function_arg_scheme(
+        lower_arg: TypeVar,
+        upper_arg: TypeVar,
+    ) -> CompactTypeScheme {
+        CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType {
+                            cons: vec![CompactCon {
+                                path: Path {
+                                    segments: vec![Name("Box".to_string())],
+                                },
+                                args: vec![CompactBounds {
+                                    self_var: None,
+                                    lower: CompactType {
+                                        vars: HashSet::from([lower_arg]),
+                                        ..CompactType::default()
+                                    },
+                                    upper: CompactType {
+                                        vars: HashSet::from([upper_arg]),
+                                        ..CompactType::default()
+                                    },
+                                }],
+                            }],
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: CompactType::default(),
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        }
+    }
+
+    fn ref_update_like_curried_effect_scheme(
+        residual: TypeVar,
+        captured: TypeVar,
+        value: TypeVar,
+    ) -> CompactTypeScheme {
+        CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType {
+                            cons: vec![CompactCon {
+                                path: Path {
+                                    segments: vec![Name("ref".to_string())],
+                                },
+                                args: vec![
+                                    CompactBounds {
+                                        self_var: None,
+                                        lower: CompactType {
+                                            vars: HashSet::from([residual]),
+                                            ..CompactType::default()
+                                        },
+                                        upper: CompactType {
+                                            vars: HashSet::from([residual, captured]),
+                                            ..CompactType::default()
+                                        },
+                                    },
+                                    var_bounds(value),
+                                ],
+                            }],
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: CompactType {
+                            funs: vec![crate::simplify::compact::CompactFun {
+                                arg: CompactType {
+                                    funs: vec![crate::simplify::compact::CompactFun {
+                                        arg: CompactType {
+                                            vars: HashSet::from([value]),
+                                            ..CompactType::default()
+                                        },
+                                        arg_eff: CompactType::default(),
+                                        ret_eff: CompactType {
+                                            vars: HashSet::from([captured]),
+                                            ..CompactType::default()
+                                        },
+                                        ret: CompactType {
+                                            vars: HashSet::from([value]),
+                                            ..CompactType::default()
+                                        },
+                                    }],
+                                    ..CompactType::default()
+                                },
+                                arg_eff: CompactType::default(),
+                                ret_eff: CompactType {
+                                    vars: HashSet::from([residual, captured]),
+                                    ..CompactType::default()
+                                },
+                                ret: CompactType::default(),
+                            }],
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
         }
     }
 }
