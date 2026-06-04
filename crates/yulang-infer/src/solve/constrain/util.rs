@@ -81,6 +81,9 @@ pub(super) fn live_neg_var_is_empty_row(
     tv: TypeVar,
     seen: &mut FxHashSet<TypeVar>,
 ) -> bool {
+    if infer.effect_subtractability(tv).is_some() {
+        return false;
+    }
     if !seen.insert(tv) {
         return false;
     }

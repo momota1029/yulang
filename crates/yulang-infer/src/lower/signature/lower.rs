@@ -249,7 +249,7 @@ pub fn lower_function_sig_shape(
     let ret_pos = lower_pure_sig_pos_id(state, ret, vars);
     let ret_neg = lower_pure_sig_neg_id(state, ret, vars);
     let (ret_eff_pos, ret_eff_neg, effect_hint, effect_subtract_ids) =
-        lower_function_sig_ret_eff(state, ret_eff, vars);
+        lower_function_sig_ret_eff(state, ret_eff, vars, ret.span());
 
     Some(LoweredFunctionSigShape {
         arg_pos,
@@ -294,13 +294,11 @@ fn lower_sig_type(
             } else if ret_is_fun {
                 state.pos_row(vec![], Pos::Bot)
             } else {
-                state.pos_row(
-                    vec![Pos::Atom(crate::types::EffectAtom {
-                        path: effect_path,
-                        args: act_arg_tvs.iter().map(|tv| (*tv, *tv)).collect(),
-                    })],
-                    Pos::Bot,
-                )
+                let item = state.infer.alloc_pos(Pos::Atom(crate::types::EffectAtom {
+                    path: effect_path,
+                    args: act_arg_tvs.iter().map(|tv| (*tv, *tv)).collect(),
+                }));
+                Pos::Row(vec![item], state.infer.arena.empty_pos_row)
             };
             let arg = lower_sig_neg_type(state, arg, vars, act_arg_tvs);
             let arg_eff = state.neg_row(vec![], Neg::Top);
@@ -768,11 +766,13 @@ fn lower_function_sig_ret_eff(
     state: &mut LowerState,
     ret_eff: Option<&SigRow>,
     vars: &mut HashMap<String, TypeVar>,
+    implicit_span: TextRange,
 ) -> (PosId, NegId, bool, Vec<EffectSubtractId>) {
     let Some(row) = ret_eff else {
+        let tv = fresh_sig_annotation_tv(state, implicit_span, "function effect");
         return (
-            state.infer.arena.bot,
-            state.infer.arena.empty_neg_row,
+            state.infer.alloc_pos(Pos::Var(tv)),
+            state.infer.alloc_neg(Neg::Var(tv)),
             false,
             Vec::new(),
         );

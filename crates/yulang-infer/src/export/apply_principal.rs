@@ -2023,9 +2023,9 @@ mod tests {
         assert!(evidence.source_range.is_some());
         assert!(evidence.actual_effect.is_none());
         assert!(evidence.expected_effect.is_none());
-        assert!(!evidence.closed);
+        assert!(evidence.closed);
         assert!(evidence.informative);
-        assert!(!evidence.runtime_usable);
+        assert!(evidence.runtime_usable);
     }
 
     #[test]

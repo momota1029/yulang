@@ -490,7 +490,7 @@ mod tests {
     }
 
     #[test]
-    fn extrude_copies_effect_atom_argument_vars_at_target_level() {
+    fn extrude_ages_effect_atom_argument_vars_to_target_level() {
         let infer = Infer::new();
         let pos_arg = fresh_type_var();
         let neg_arg = fresh_type_var();
@@ -505,34 +505,21 @@ mod tests {
 
         let extruded = infer.extrude_pos(atom, 1);
 
-        assert_eq!(infer.level_of(pos_arg), 3);
-        assert_eq!(infer.level_of(neg_arg), 3);
+        assert_eq!(extruded, atom);
+        assert_eq!(infer.level_of(pos_arg), 1);
+        assert_eq!(infer.level_of(neg_arg), 1);
         let Pos::Atom(atom) = infer.arena.get_pos(extruded) else {
             panic!("extruded atom should stay an atom");
         };
-        let [(pos_copy, neg_copy)] = atom.args.as_slice() else {
+        let [(extruded_pos_arg, extruded_neg_arg)] = atom.args.as_slice() else {
             panic!("extruded atom should keep its arity");
         };
-        assert_ne!(*pos_copy, pos_arg);
-        assert_ne!(*neg_copy, neg_arg);
-        assert_eq!(infer.level_of(*pos_copy), 1);
-        assert_eq!(infer.level_of(*neg_copy), 1);
-        assert!(
-            infer
-                .uppers_of(pos_arg)
-                .iter()
-                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == *pos_copy))
-        );
-        assert!(
-            infer
-                .lowers_of(neg_arg)
-                .iter()
-                .any(|lower| matches!(lower, Pos::Var(tv) if *tv == *neg_copy))
-        );
+        assert_eq!(*extruded_pos_arg, pos_arg);
+        assert_eq!(*extruded_neg_arg, neg_arg);
     }
 
     #[test]
-    fn extrude_copies_high_level_var_bounds_without_lowering_source() {
+    fn extrude_ages_high_level_var_and_preserves_bounds() {
         let infer = Infer::new();
         let source = fresh_type_var();
         infer.register_level(source, 3);
@@ -541,26 +528,19 @@ mod tests {
 
         let extruded = infer.extrude_pos(infer.alloc_pos(Pos::Var(source)), 1);
 
-        assert_eq!(infer.level_of(source), 3);
-        let Pos::Var(copy) = infer.arena.get_pos(extruded) else {
+        assert_eq!(infer.level_of(source), 1);
+        let Pos::Var(extruded_var) = infer.arena.get_pos(extruded) else {
             panic!("extruded variable should stay a variable");
         };
-        assert_ne!(copy, source);
-        assert_eq!(infer.level_of(copy), 1);
+        assert_eq!(extruded_var, source);
         assert!(
-            infer
-                .uppers_of(source)
-                .iter()
-                .any(|upper| matches!(upper, Neg::Var(tv) if *tv == copy))
-        );
-        assert!(
-            infer.lower_refs_of(copy).contains(&int_lower),
-            "positive extrusion should copy lower bounds onto the approximation"
+            infer.lower_refs_of(source).contains(&int_lower),
+            "positive extrusion should keep existing lower bounds on the aged variable"
         );
     }
 
     #[test]
-    fn compact_instance_extrudes_high_level_subst_without_lowering_source() {
+    fn compact_instance_extrudes_high_level_subst_by_aging_source() {
         let infer = Infer::new();
         let quantified = fresh_type_var();
         let source = fresh_type_var();
@@ -586,6 +566,7 @@ mod tests {
             body,
             quantified: vec![quantified],
             quantified_sources: smallvec::smallvec![(quantified, quantified)],
+            effect_atom_arg_bounds: Vec::new(),
             effect_subtracts: Vec::new(),
             effect_non_subtracts: Vec::new(),
         });
@@ -597,15 +578,12 @@ mod tests {
 
         infer.constrain_instantiated_ref_instance(instance, target);
 
-        assert_eq!(infer.level_of(source), 3);
+        assert_eq!(infer.level_of(source), 1);
         assert!(
             infer.lower_refs_of(target).into_iter().any(|lower| {
-                matches!(
-                    infer.arena.get_pos(lower),
-                    Pos::Var(copy) if copy != source && infer.level_of(copy) == 1
-                )
+                matches!(infer.arena.get_pos(lower), Pos::Var(tv) if tv == source)
             }),
-            "compact instance should materialize through extrusion at the target level"
+            "compact instance should materialize through substitution-style extrusion"
         );
     }
 

@@ -10,14 +10,20 @@ use crate::scc::{
     compress_components, compute_component_sccs, refs_by_def, refs_by_owner,
     share_type_vars_within_sccs_with_refs_by_owner,
 };
-use crate::scheme::{collect_var_levels, compact_pos_type};
+use crate::scheme::{
+    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
+    collect_var_levels, compact_pos_type,
+    freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+};
 use crate::simplify::compact::{
     CompactType, CompactTypeScheme, coalesce_nested_tail_function_effect_residuals_in_scheme,
     compact_type_var, expose_negative_row_tail_vars, expose_positive_row_tails,
 };
 use crate::simplify::cooccur::{
-    CompactRoleConstraint, coalesce_by_co_occurrence_with_role_constraint_inputs_report,
+    CoalesceRound, CompactRoleConstraint,
+    coalesce_by_co_occurrence_with_role_constraint_inputs_report, rewrite_scheme_with_subst,
 };
+use crate::simplify::role_constraints::rewrite_role_constraints_with_role_arg_inputs;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::types::Neg;
 
@@ -144,7 +150,7 @@ impl LowerState {
         }
 
         profile.total = total_start.elapsed();
-        self.resolve_concrete_role_constraints_for_defs(&newly_finalized);
+        self.resolve_top_level_compact_results_for_defs(&newly_finalized);
         self.inherit_finalized_role_var_alias_schemes(&newly_finalized);
         FinalizeCompactResults {
             finalized_defs: finalized,
@@ -163,7 +169,7 @@ impl LowerState {
         Some(scheme)
     }
 
-    fn resolve_concrete_role_constraints_for_defs(&mut self, defs: &[DefId]) {
+    fn resolve_top_level_compact_results_for_defs(&mut self, defs: &[DefId]) {
         for &def in defs {
             let Some(scheme) = self.compact_scheme_of(def) else {
                 continue;
@@ -184,6 +190,119 @@ impl LowerState {
             self.infer
                 .store_compact_role_constraints(def, resolved.constraints);
         }
+    }
+
+    fn store_finalized_compact_result(
+        &mut self,
+        def: DefId,
+        mut scheme: CompactTypeScheme,
+        constraints: Vec<CompactRoleConstraint>,
+    ) {
+        let exposed_boundary_vars =
+            coalesce_nested_tail_function_effect_residuals_in_scheme(&mut scheme);
+        let extra_quantified = collect_compact_role_constraint_free_vars(&constraints);
+        let boundary = self.infer.def_level_of(def);
+        let mut non_generic = collect_low_level_vars_in_scheme(&self.infer, &scheme, boundary);
+        non_generic.extend(exposed_boundary_vars);
+        let frozen = freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
+            &self.infer,
+            scheme.clone(),
+            extra_quantified.as_slice(),
+            &non_generic,
+        );
+        self.infer.store_compact_scheme(def, scheme);
+        self.infer.store_compact_role_constraints(def, constraints);
+        self.infer.store_frozen_scheme(def, frozen);
+    }
+
+    fn apply_coalesce_rounds_to_descendant_results(
+        &mut self,
+        owner: DefId,
+        rounds: &[CoalesceRound],
+    ) {
+        if rounds.is_empty() {
+            return;
+        }
+        let descendants = self.descendant_defs_of(owner);
+        for round in rounds {
+            if round.subst.is_empty() {
+                continue;
+            }
+            for &def in &descendants {
+                self.apply_compact_subst_to_stored_result(def, &round.subst);
+            }
+        }
+    }
+
+    fn apply_compact_subst_to_stored_result(
+        &mut self,
+        def: DefId,
+        subst: &std::collections::HashMap<TypeVar, Option<TypeVar>>,
+    ) -> bool {
+        let Some(scheme) = self.compact_scheme_of(def) else {
+            return false;
+        };
+        let constraints = self.infer.compact_role_constraints_of(def);
+        let rewritten_scheme = rewrite_scheme_with_subst(&scheme, subst);
+        let rewritten_constraints = rewrite_role_constraints_with_role_arg_inputs(
+            &rewritten_scheme,
+            &constraints,
+            subst,
+            &|role| self.role_arg_input_flags(role),
+        );
+        if rewritten_scheme == scheme && rewritten_constraints == constraints {
+            return false;
+        }
+        self.store_finalized_compact_result(def, rewritten_scheme, rewritten_constraints);
+        true
+    }
+
+    fn apply_role_output_replacements_to_descendant_results(
+        &mut self,
+        owner: DefId,
+        replacements: &[(TypeVar, CompactType)],
+    ) {
+        if replacements.is_empty() {
+            return;
+        }
+        for def in self.descendant_defs_of(owner) {
+            let Some(scheme) = self.compact_scheme_of(def) else {
+                continue;
+            };
+            let constraints = self.infer.compact_role_constraints_of(def);
+            let rewritten_scheme = apply_role_output_replacements_to_scheme(&scheme, replacements);
+            let rewritten_constraints =
+                apply_role_output_replacements_to_constraints(&constraints, replacements);
+            if rewritten_scheme == scheme && rewritten_constraints == constraints {
+                continue;
+            }
+            self.store_finalized_compact_result(def, rewritten_scheme, rewritten_constraints);
+        }
+    }
+
+    fn descendant_defs_of(&self, owner: DefId) -> Vec<DefId> {
+        let mut defs = self
+            .def_owners
+            .keys()
+            .copied()
+            .filter(|def| *def != owner && self.def_is_nested_under(*def, owner))
+            .collect::<Vec<_>>();
+        defs.sort_by_key(|def| def.0);
+        defs
+    }
+
+    fn def_is_nested_under(&self, def: DefId, ancestor: DefId) -> bool {
+        let mut current = self.def_owner(def);
+        for _ in 0..=self.def_owners.len() {
+            let Some(owner) = current else {
+                return false;
+            };
+            if owner == ancestor {
+                return true;
+            }
+            current = self.def_owner(owner);
+        }
+        false
     }
 
     fn resolve_pending_method_role_constraints_before_defaulting(
@@ -294,6 +413,7 @@ impl LowerState {
                         .rewrite_effect_subtract_metadata_vars(&round.subst);
                 }
             }
+            self.apply_coalesce_rounds_to_descendant_results(def, &coalesced.rounds);
             scheme = coalesced.scheme;
             constraints = coalesced.constraints;
         }
@@ -339,6 +459,7 @@ impl LowerState {
                 scheme = apply_role_output_replacements_to_scheme(&scheme, &concretizations);
                 constraints =
                     apply_role_output_replacements_to_constraints(&constraints, &concretizations);
+                self.apply_role_output_replacements_to_descendant_results(def, &concretizations);
                 let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
                     &scheme,
                     &constraints,
@@ -352,6 +473,7 @@ impl LowerState {
                             .rewrite_effect_subtract_metadata_vars(&round.subst);
                     }
                 }
+                self.apply_coalesce_rounds_to_descendant_results(def, &rewritten.rounds);
                 scheme = rewritten.scheme;
                 constraints = rewritten.constraints;
             }
@@ -535,6 +657,7 @@ impl LowerState {
                 scheme = apply_role_output_replacements_to_scheme(&scheme, &replacements);
                 remaining =
                     apply_role_output_replacements_to_constraints(&remaining, &replacements);
+                self.apply_role_output_replacements_to_descendant_results(def, &replacements);
                 let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
                     &scheme,
                     &remaining,
@@ -548,6 +671,7 @@ impl LowerState {
                             .rewrite_effect_subtract_metadata_vars(&round.subst);
                     }
                 }
+                self.apply_coalesce_rounds_to_descendant_results(def, &rewritten.rounds);
                 scheme = rewritten.scheme;
                 constraints = rewritten.constraints;
                 progressed = true;

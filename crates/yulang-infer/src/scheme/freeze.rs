@@ -34,7 +34,12 @@ pub fn freeze_type_var_with_non_generic(
 ) -> FrozenScheme {
     let compact = compact_type_var(infer, root);
     let scheme = coalesce_compact_scheme_for_freeze(compact);
-    freeze_compact_scheme_owned_with_non_generic(infer, scheme, non_generic_roots)
+    freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
+        infer,
+        scheme,
+        &[],
+        non_generic_roots,
+    )
 }
 
 fn coalesce_compact_scheme_for_freeze(mut compact: CompactTypeScheme) -> CompactTypeScheme {
@@ -74,19 +79,6 @@ pub fn freeze_compact_scheme_with_non_generic(
     )
 }
 
-pub(crate) fn freeze_compact_scheme_owned_with_non_generic(
-    infer: &Infer,
-    scheme: CompactTypeScheme,
-    non_generic_roots: &HashSet<TypeVar>,
-) -> FrozenScheme {
-    freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
-        infer,
-        scheme,
-        &[],
-        non_generic_roots,
-    )
-}
-
 pub(crate) fn freeze_compact_scheme_with_non_generic_and_extra_vars(
     infer: &Infer,
     scheme: &CompactTypeScheme,
@@ -109,7 +101,8 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
 ) -> FrozenScheme {
     let mut quantified = collect_compact_root_body_free_vars(&scheme);
     quantified.extend_from_slice(extra_quantified);
-    let quantification = prepare_freeze_quantification(infer, quantified, non_generic_roots);
+    let quantification =
+        prepare_freeze_quantification(infer, quantified, extra_quantified, non_generic_roots);
     let mut compact = if quantification.quantified_sources.is_empty() {
         scheme
     } else {
@@ -117,9 +110,24 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
     };
     normalize_compact_scheme_rows(&mut compact);
     let scheme_arena: FrozenArena = Rc::new(TypeArena::new());
-    let body = compact_root_fun_pos_body(&scheme_arena, &compact)
-        .unwrap_or_else(|| compact_pos_type(&scheme_arena, &compact.cty.lower, &compact, false));
-    finish_frozen_scheme(scheme_arena, compact, body, quantification)
+    let mut effect_atom_arg_bounds = EffectAtomArgBounds::capturing();
+    let body = compact_root_fun_pos_body(&scheme_arena, &compact, &mut effect_atom_arg_bounds)
+        .unwrap_or_else(|| {
+            compact_pos_type_inner(
+                &scheme_arena,
+                &compact.cty.lower,
+                &compact,
+                false,
+                &mut effect_atom_arg_bounds,
+            )
+        });
+    finish_frozen_scheme(
+        scheme_arena,
+        compact,
+        body,
+        effect_atom_arg_bounds.bounds,
+        quantification,
+    )
 }
 
 pub(crate) fn collect_compact_role_constraint_free_vars(
@@ -144,6 +152,7 @@ fn freeze_live_pos_body_with_non_generic(
     let quantification = prepare_freeze_quantification(
         infer,
         collect_pos_free_vars_in_arena(src_arena, body),
+        &[],
         non_generic_roots,
     );
     let scheme_arena: FrozenArena = Rc::new(TypeArena::new());
@@ -159,7 +168,13 @@ fn freeze_live_pos_body_with_non_generic(
         subst_compact_scheme_vars(compact, quantification.quantified_sources.as_slice())
     };
     normalize_compact_scheme_rows(&mut compact);
-    finish_frozen_scheme(scheme_arena, compact, frozen_body, quantification)
+    finish_frozen_scheme(
+        scheme_arena,
+        compact,
+        frozen_body,
+        Vec::new(),
+        quantification,
+    )
 }
 
 pub fn compact_scheme_from_pos_body(infer: &Infer, body: PosId) -> CompactTypeScheme {
@@ -187,13 +202,15 @@ struct FreezeQuantification {
 fn prepare_freeze_quantification(
     infer: &Infer,
     mut quantified: Vec<TypeVar>,
+    forced_quantified: &[TypeVar],
     non_generic_roots: &HashSet<TypeVar>,
 ) -> FreezeQuantification {
     infer.prune_resolved_effect_subtract_metadata();
     add_effect_metadata_free_vars(infer, &mut quantified);
+    let forced_quantified = forced_quantified.iter().copied().collect::<HashSet<_>>();
     if !non_generic_roots.is_empty() {
         let non_generic = collect_non_generic_vars(infer, non_generic_roots);
-        quantified.retain(|tv| !non_generic.contains(tv));
+        quantified.retain(|tv| !non_generic.contains(tv) || forced_quantified.contains(tv));
     }
     quantified.sort_by_key(|tv| tv.0);
     quantified.dedup();
@@ -310,14 +327,22 @@ fn finish_frozen_scheme(
     arena: FrozenArena,
     compact: CompactTypeScheme,
     body: PosId,
+    effect_atom_arg_bounds: Vec<(TypeVar, CompactBounds)>,
     quantification: FreezeQuantification,
 ) -> FrozenScheme {
+    let mut quantified = quantification.quantified;
+    for (tv, _) in &effect_atom_arg_bounds {
+        quantified.push(*tv);
+    }
+    quantified.sort_by_key(|tv| tv.0);
+    quantified.dedup();
     Rc::new(Scheme {
         arena,
         compact,
         body,
-        quantified: quantification.quantified,
+        quantified,
         quantified_sources: quantification.quantified_sources,
+        effect_atom_arg_bounds,
         effect_subtracts: quantification.effect_subtracts,
         effect_non_subtracts: quantification.effect_non_subtracts,
     })
@@ -913,35 +938,55 @@ pub(crate) fn collect_var_levels(
     all.into_iter().map(|tv| (tv, infer.level_of(tv))).collect()
 }
 
-fn compact_root_fun_pos_body(arena: &TypeArena, scheme: &CompactTypeScheme) -> Option<PosId> {
+fn compact_root_fun_pos_body(
+    arena: &TypeArena,
+    scheme: &CompactTypeScheme,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
+) -> Option<PosId> {
     let body = compact_root_fun_body_lower(scheme)?;
     let [fun] = body.funs.as_slice() else {
         return None;
     };
 
     Some(arena.alloc_pos(Pos::Fun {
-        arg: compact_neg_type(arena, &fun.arg, scheme, false),
-        arg_eff: compact_neg_effect_row(arena, &fun.arg_eff, scheme),
-        ret_eff: compact_pos_effect_row(arena, &fun.ret_eff, scheme),
-        ret: compact_pos_type(arena, &fun.ret, scheme, false),
+        arg: compact_neg_type_inner(arena, &fun.arg, scheme, false, effect_atom_arg_bounds),
+        arg_eff: compact_neg_effect_row(arena, &fun.arg_eff, scheme, effect_atom_arg_bounds),
+        ret_eff: compact_pos_effect_row(arena, &fun.ret_eff, scheme, effect_atom_arg_bounds),
+        ret: compact_pos_type_inner(arena, &fun.ret, scheme, false, effect_atom_arg_bounds),
     }))
 }
 
-fn compact_con_as_effect_atom(con: &CompactCon) -> Option<EffectAtom> {
+fn compact_con_as_effect_atom(
+    con: &CompactCon,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
+) -> Option<EffectAtom> {
     let args = con
         .args
         .iter()
-        .map(|arg| {
-            Some((
-                single_compact_var(&arg.lower)?,
-                single_compact_var(&arg.upper)?,
-            ))
-        })
+        .map(|arg| compact_effect_atom_arg(arg, effect_atom_arg_bounds))
         .collect::<Option<Vec<_>>>()?;
     Some(EffectAtom {
         path: con.path.clone(),
         args,
     })
+}
+
+fn compact_effect_atom_arg(
+    arg: &CompactBounds,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
+) -> Option<(TypeVar, TypeVar)> {
+    if let (Some(pos), Some(neg)) = (
+        single_compact_var(&arg.lower),
+        single_compact_var(&arg.upper),
+    ) {
+        return Some((pos, neg));
+    }
+    if !effect_atom_arg_bounds.capture {
+        return None;
+    }
+    let tv = fresh_frozen_type_var();
+    effect_atom_arg_bounds.bounds.push((tv, arg.clone()));
+    Some((tv, tv))
 }
 
 fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVar> {
@@ -1095,11 +1140,41 @@ fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
     .flatten()
 }
 
+#[derive(Default)]
+struct EffectAtomArgBounds {
+    capture: bool,
+    bounds: Vec<(TypeVar, CompactBounds)>,
+}
+
+impl EffectAtomArgBounds {
+    fn disabled() -> Self {
+        Self::default()
+    }
+
+    fn capturing() -> Self {
+        Self {
+            capture: true,
+            bounds: Vec::new(),
+        }
+    }
+}
+
 pub(crate) fn compact_pos_type(
     arena: &TypeArena,
     ty: &CompactType,
     scheme: &CompactTypeScheme,
     in_row: bool,
+) -> PosId {
+    let mut effect_atom_arg_bounds = EffectAtomArgBounds::disabled();
+    compact_pos_type_inner(arena, ty, scheme, in_row, &mut effect_atom_arg_bounds)
+}
+
+fn compact_pos_type_inner(
+    arena: &TypeArena,
+    ty: &CompactType,
+    scheme: &CompactTypeScheme,
+    in_row: bool,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
 ) -> PosId {
     let _ = scheme;
     let mut parts = Vec::new();
@@ -1117,7 +1192,7 @@ pub(crate) fn compact_pos_type(
     }));
     for con in &ty.cons {
         if in_row {
-            if let Some(atom) = compact_con_as_effect_atom(con) {
+            if let Some(atom) = compact_con_as_effect_atom(con, effect_atom_arg_bounds) {
                 parts.push(arena.alloc_pos(Pos::Atom(atom)));
                 continue;
             }
@@ -1129,8 +1204,20 @@ pub(crate) fn compact_pos_type(
                     .iter()
                     .map(|arg| {
                         (
-                            compact_pos_type(arena, &arg.lower, scheme, false),
-                            compact_neg_type(arena, &arg.upper, scheme, false),
+                            compact_pos_type_inner(
+                                arena,
+                                &arg.lower,
+                                scheme,
+                                false,
+                                effect_atom_arg_bounds,
+                            ),
+                            compact_neg_type_inner(
+                                arena,
+                                &arg.upper,
+                                scheme,
+                                false,
+                                effect_atom_arg_bounds,
+                            ),
                         )
                     })
                     .collect(),
@@ -1145,10 +1232,10 @@ pub(crate) fn compact_pos_type(
     } in &ty.funs
     {
         parts.push(arena.alloc_pos(Pos::Fun {
-            arg: compact_neg_type(arena, arg, scheme, false),
-            arg_eff: compact_neg_effect_row(arena, arg_eff, scheme),
-            ret_eff: compact_pos_effect_row(arena, ret_eff, scheme),
-            ret: compact_pos_type(arena, ret, scheme, false),
+            arg: compact_neg_type_inner(arena, arg, scheme, false, effect_atom_arg_bounds),
+            arg_eff: compact_neg_effect_row(arena, arg_eff, scheme, effect_atom_arg_bounds),
+            ret_eff: compact_pos_effect_row(arena, ret_eff, scheme, effect_atom_arg_bounds),
+            ret: compact_pos_type_inner(arena, ret, scheme, false, effect_atom_arg_bounds),
         }));
     }
     for CompactRecord { fields } in &ty.records {
@@ -1158,7 +1245,13 @@ pub(crate) fn compact_pos_type(
                     .iter()
                     .map(|field| RecordField {
                         name: field.name.clone(),
-                        value: compact_pos_type(arena, &field.value, scheme, false),
+                        value: compact_pos_type_inner(
+                            arena,
+                            &field.value,
+                            scheme,
+                            false,
+                            effect_atom_arg_bounds,
+                        ),
                         optional: field.optional,
                     })
                     .collect(),
@@ -1171,11 +1264,18 @@ pub(crate) fn compact_pos_type(
             .iter()
             .map(|field| RecordField {
                 name: field.name.clone(),
-                value: compact_pos_type(arena, &field.value, scheme, false),
+                value: compact_pos_type_inner(
+                    arena,
+                    &field.value,
+                    scheme,
+                    false,
+                    effect_atom_arg_bounds,
+                ),
                 optional: field.optional,
             })
             .collect();
-        let tail = compact_pos_type(arena, &spread.tail, scheme, false);
+        let tail =
+            compact_pos_type_inner(arena, &spread.tail, scheme, false, effect_atom_arg_bounds);
         let pos = if spread.tail_wins {
             Pos::RecordTailSpread { fields, tail }
         } else {
@@ -1193,7 +1293,15 @@ pub(crate) fn compact_pos_type(
                             name.clone(),
                             payloads
                                 .iter()
-                                .map(|p| compact_pos_type(arena, p, scheme, false))
+                                .map(|p| {
+                                    compact_pos_type_inner(
+                                        arena,
+                                        p,
+                                        scheme,
+                                        false,
+                                        effect_atom_arg_bounds,
+                                    )
+                                })
                                 .collect(),
                         )
                     })
@@ -1206,7 +1314,9 @@ pub(crate) fn compact_pos_type(
             arena.alloc_pos(Pos::Tuple(
                 tuple
                     .iter()
-                    .map(|item| compact_pos_type(arena, item, scheme, false))
+                    .map(|item| {
+                        compact_pos_type_inner(arena, item, scheme, false, effect_atom_arg_bounds)
+                    })
                     .collect(),
             )),
         );
@@ -1214,9 +1324,15 @@ pub(crate) fn compact_pos_type(
     for CompactRow { items, tail } in &ty.rows {
         let mut row_parts = items
             .iter()
-            .map(|item| compact_pos_type(arena, item, scheme, true))
+            .map(|item| compact_pos_type_inner(arena, item, scheme, true, effect_atom_arg_bounds))
             .collect::<Vec<_>>();
-        row_parts.push(compact_pos_type(arena, tail, scheme, false));
+        row_parts.push(compact_pos_type_inner(
+            arena,
+            tail,
+            scheme,
+            false,
+            effect_atom_arg_bounds,
+        ));
         parts.push(fold_pos_union_id(arena, row_parts));
     }
     fold_pos_union_id(arena, parts)
@@ -1227,6 +1343,17 @@ pub(crate) fn compact_neg_type(
     ty: &CompactType,
     scheme: &CompactTypeScheme,
     in_row: bool,
+) -> NegId {
+    let mut effect_atom_arg_bounds = EffectAtomArgBounds::disabled();
+    compact_neg_type_inner(arena, ty, scheme, in_row, &mut effect_atom_arg_bounds)
+}
+
+fn compact_neg_type_inner(
+    arena: &TypeArena,
+    ty: &CompactType,
+    scheme: &CompactTypeScheme,
+    in_row: bool,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
 ) -> NegId {
     let _ = scheme;
     let mut parts = Vec::new();
@@ -1244,7 +1371,7 @@ pub(crate) fn compact_neg_type(
     }));
     for con in &ty.cons {
         if in_row {
-            if let Some(atom) = compact_con_as_effect_atom(con) {
+            if let Some(atom) = compact_con_as_effect_atom(con, effect_atom_arg_bounds) {
                 parts.push(arena.alloc_neg(Neg::Atom(atom)));
                 continue;
             }
@@ -1256,8 +1383,20 @@ pub(crate) fn compact_neg_type(
                     .iter()
                     .map(|arg| {
                         (
-                            compact_pos_type(arena, &arg.lower, scheme, false),
-                            compact_neg_type(arena, &arg.upper, scheme, false),
+                            compact_pos_type_inner(
+                                arena,
+                                &arg.lower,
+                                scheme,
+                                false,
+                                effect_atom_arg_bounds,
+                            ),
+                            compact_neg_type_inner(
+                                arena,
+                                &arg.upper,
+                                scheme,
+                                false,
+                                effect_atom_arg_bounds,
+                            ),
                         )
                     })
                     .collect(),
@@ -1272,10 +1411,10 @@ pub(crate) fn compact_neg_type(
     } in &ty.funs
     {
         parts.push(arena.alloc_neg(Neg::Fun {
-            arg: compact_pos_type(arena, arg, scheme, false),
-            arg_eff: compact_pos_effect_row(arena, arg_eff, scheme),
-            ret_eff: compact_neg_effect_row(arena, ret_eff, scheme),
-            ret: compact_neg_type(arena, ret, scheme, false),
+            arg: compact_pos_type_inner(arena, arg, scheme, false, effect_atom_arg_bounds),
+            arg_eff: compact_pos_effect_row(arena, arg_eff, scheme, effect_atom_arg_bounds),
+            ret_eff: compact_neg_effect_row(arena, ret_eff, scheme, effect_atom_arg_bounds),
+            ret: compact_neg_type_inner(arena, ret, scheme, false, effect_atom_arg_bounds),
         }));
     }
     for CompactRecord { fields } in &ty.records {
@@ -1285,7 +1424,13 @@ pub(crate) fn compact_neg_type(
                     .iter()
                     .map(|field| RecordField {
                         name: field.name.clone(),
-                        value: compact_neg_type(arena, &field.value, scheme, false),
+                        value: compact_neg_type_inner(
+                            arena,
+                            &field.value,
+                            scheme,
+                            false,
+                            effect_atom_arg_bounds,
+                        ),
                         optional: field.optional,
                     })
                     .collect(),
@@ -1304,7 +1449,13 @@ pub(crate) fn compact_neg_type(
                     .iter()
                     .map(|field| RecordField {
                         name: field.name.clone(),
-                        value: compact_neg_type(arena, &field.value, scheme, false),
+                        value: compact_neg_type_inner(
+                            arena,
+                            &field.value,
+                            scheme,
+                            false,
+                            effect_atom_arg_bounds,
+                        ),
                         optional: field.optional,
                     })
                     .collect(),
@@ -1321,7 +1472,15 @@ pub(crate) fn compact_neg_type(
                             name.clone(),
                             payloads
                                 .iter()
-                                .map(|p| compact_neg_type(arena, p, scheme, false))
+                                .map(|p| {
+                                    compact_neg_type_inner(
+                                        arena,
+                                        p,
+                                        scheme,
+                                        false,
+                                        effect_atom_arg_bounds,
+                                    )
+                                })
                                 .collect(),
                         )
                     })
@@ -1334,18 +1493,22 @@ pub(crate) fn compact_neg_type(
             arena.alloc_neg(Neg::Tuple(
                 tuple
                     .iter()
-                    .map(|item| compact_neg_type(arena, item, scheme, false))
+                    .map(|item| {
+                        compact_neg_type_inner(arena, item, scheme, false, effect_atom_arg_bounds)
+                    })
                     .collect(),
             )),
         );
     }
     for CompactRow { items, tail } in &ty.rows {
-        let tail_id = compact_neg_type(arena, tail, scheme, false);
+        let tail_id = compact_neg_type_inner(arena, tail, scheme, false, effect_atom_arg_bounds);
         parts.push(
             arena.alloc_neg(Neg::Row(
                 items
                     .iter()
-                    .map(|item| compact_neg_type(arena, item, scheme, true))
+                    .map(|item| {
+                        compact_neg_type_inner(arena, item, scheme, true, effect_atom_arg_bounds)
+                    })
                     .collect(),
                 tail_id,
             )),
@@ -1360,10 +1523,18 @@ fn compact_neg_effect_row(
     arena: &TypeArena,
     ty: &CompactType,
     scheme: &CompactTypeScheme,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
 ) -> NegId {
     let mut items = Vec::new();
     let mut tail_parts = Vec::new();
-    collect_neg_effect_row_parts(arena, ty, scheme, &mut items, &mut tail_parts);
+    collect_neg_effect_row_parts(
+        arena,
+        ty,
+        scheme,
+        effect_atom_arg_bounds,
+        &mut items,
+        &mut tail_parts,
+    );
     if items.is_empty() {
         // No handled atoms — a pure / variable-only effect row. Keep the legacy
         // representation (`Var` / `Top`) so pure functions are left untouched.
@@ -1379,6 +1550,7 @@ fn collect_neg_effect_row_parts(
     arena: &TypeArena,
     ty: &CompactType,
     scheme: &CompactTypeScheme,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
     items: &mut Vec<NegId>,
     tail_parts: &mut Vec<NegId>,
 ) {
@@ -1388,7 +1560,7 @@ fn collect_neg_effect_row_parts(
         items.push(arena.alloc_neg(Neg::Atom(EffectAtom { path, args: vec![] })));
     }
     for con in &ty.cons {
-        if let Some(atom) = compact_con_as_effect_atom(con) {
+        if let Some(atom) = compact_con_as_effect_atom(con, effect_atom_arg_bounds) {
             items.push(arena.alloc_neg(Neg::Atom(atom)));
         }
     }
@@ -1403,30 +1575,56 @@ fn collect_neg_effect_row_parts(
     } in &ty.rows
     {
         for item in row_items {
-            collect_neg_effect_row_parts(arena, item, scheme, items, tail_parts);
+            collect_neg_effect_row_parts(
+                arena,
+                item,
+                scheme,
+                effect_atom_arg_bounds,
+                items,
+                tail_parts,
+            );
         }
-        collect_neg_effect_row_parts(arena, tail, scheme, items, tail_parts);
+        collect_neg_effect_row_parts(
+            arena,
+            tail,
+            scheme,
+            effect_atom_arg_bounds,
+            items,
+            tail_parts,
+        );
     }
 }
 
-/// `compact_neg_effect_row`'s positive twin: positive effect rows are just unions
-/// of single effects and residual variables.
+/// `compact_neg_effect_row`'s positive twin: when concrete effects are present,
+/// keep them as row items so row matching can subtract matched effects from the tail.
 fn compact_pos_effect_row(
     arena: &TypeArena,
     ty: &CompactType,
     scheme: &CompactTypeScheme,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
 ) -> PosId {
     let mut items = Vec::new();
     let mut tail_parts = Vec::new();
-    collect_pos_effect_row_parts(arena, ty, scheme, &mut items, &mut tail_parts);
-    items.extend(tail_parts);
-    fold_pos_union_id(arena, items)
+    collect_pos_effect_row_parts(
+        arena,
+        ty,
+        scheme,
+        effect_atom_arg_bounds,
+        &mut items,
+        &mut tail_parts,
+    );
+    if items.is_empty() {
+        return fold_pos_union_id(arena, tail_parts);
+    }
+    let tail = fold_pos_union_id(arena, tail_parts);
+    arena.alloc_pos(Pos::Row(items, tail))
 }
 
 fn collect_pos_effect_row_parts(
     arena: &TypeArena,
     ty: &CompactType,
     scheme: &CompactTypeScheme,
+    effect_atom_arg_bounds: &mut EffectAtomArgBounds,
     items: &mut Vec<PosId>,
     tail_parts: &mut Vec<PosId>,
 ) {
@@ -1436,7 +1634,7 @@ fn collect_pos_effect_row_parts(
         items.push(arena.alloc_pos(Pos::Atom(EffectAtom { path, args: vec![] })));
     }
     for con in &ty.cons {
-        if let Some(atom) = compact_con_as_effect_atom(con) {
+        if let Some(atom) = compact_con_as_effect_atom(con, effect_atom_arg_bounds) {
             items.push(arena.alloc_pos(Pos::Atom(atom)));
         }
     }
@@ -1451,9 +1649,23 @@ fn collect_pos_effect_row_parts(
     } in &ty.rows
     {
         for item in row_items {
-            collect_pos_effect_row_parts(arena, item, scheme, items, tail_parts);
+            collect_pos_effect_row_parts(
+                arena,
+                item,
+                scheme,
+                effect_atom_arg_bounds,
+                items,
+                tail_parts,
+            );
         }
-        collect_pos_effect_row_parts(arena, tail, scheme, items, tail_parts);
+        collect_pos_effect_row_parts(
+            arena,
+            tail,
+            scheme,
+            effect_atom_arg_bounds,
+            items,
+            tail_parts,
+        );
     }
 }
 

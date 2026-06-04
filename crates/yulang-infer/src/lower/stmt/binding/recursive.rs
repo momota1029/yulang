@@ -45,9 +45,15 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
     }
     if state.def_owner(owner).is_some() {
         for arg_pat in arg_pats {
-            state
+            if state
                 .infer
-                .record_effect_subtractability(arg_pat.arg_eff_tv, EffectSubtractability::All);
+                .effect_subtract_facts(arg_pat.arg_eff_tv)
+                .is_empty()
+            {
+                state
+                    .infer
+                    .record_effect_subtractability(arg_pat.arg_eff_tv, EffectSubtractability::All);
+            }
         }
     }
     let body_ret_tv = state.fresh_tv();

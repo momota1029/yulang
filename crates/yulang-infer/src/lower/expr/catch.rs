@@ -749,6 +749,19 @@ fn constrain_handler_row_upper(
     rest_eff: crate::ids::TypeVar,
     cause: ConstraintCause,
 ) {
+    let handled_atoms = handled
+        .iter()
+        .filter_map(|neg| match state.infer.arena.get_neg(*neg) {
+            Neg::Atom(atom) => Some(atom.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if !handled_atoms.is_empty() {
+        state.infer.record_effect_subtractability(
+            comp_handler_eff,
+            EffectSubtractability::Set(handled_atoms),
+        );
+    }
     let rest_tail = state.infer.alloc_neg(Neg::Var(rest_eff));
     let upper = if handled.is_empty() {
         rest_tail
@@ -794,7 +807,7 @@ fn eff_tv_is_exact_pure_row(state: &LowerState, tv: crate::ids::TypeVar) -> bool
     seen.insert(tv);
     let lowers = state.infer.lower_refs_of(tv);
     let uppers = state.infer.upper_refs_of(tv);
-    !lowers.is_empty()
+    (state.exact_pure_effect_tvs.contains(&tv) || !lowers.is_empty())
         && lowers
             .iter()
             .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen))

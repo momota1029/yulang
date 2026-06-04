@@ -4,7 +4,7 @@ use crate::diagnostic::TypeErrorKind;
 use crate::ids::{PosId, TypeVar};
 use crate::scheme::OwnedSchemeInstance;
 use crate::simplify::compact::CompactType;
-use crate::solve::{EffectMethodInfo, Infer};
+use crate::solve::{EffectMethodInfo, EffectSubtractability, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::Pos;
 
@@ -70,6 +70,11 @@ impl Infer {
             return Vec::new();
         }
         let mut out = Vec::new();
+        if let Some(EffectSubtractability::Set(atoms)) = self.effect_subtractability(tv) {
+            for atom in atoms {
+                push_unique_path(&mut out, atom.path);
+            }
+        }
         for lower in self.lower_refs_of(tv) {
             self.collect_effect_paths_from_pos(lower, seen, &mut out);
         }

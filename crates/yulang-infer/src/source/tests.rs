@@ -2249,6 +2249,8 @@ fn compiled_typed_validation_reports_missing_scheme_symbol() {
             rendered: "int".to_string(),
             compact: None,
             role_constraints: Vec::new(),
+            effect_subtracts: Vec::new(),
+            effect_non_subtracts: Vec::new(),
         }],
         ..CompiledTypedSurface::default()
     };
@@ -2266,6 +2268,8 @@ fn compiled_typed_import_rejects_missing_scheme_symbol() {
             rendered: "int".to_string(),
             compact: None,
             role_constraints: Vec::new(),
+            effect_subtracts: Vec::new(),
+            effect_non_subtracts: Vec::new(),
         }],
         ..CompiledTypedSurface::default()
     };
@@ -4469,7 +4473,7 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
         );
         assert_eq!(
             rendered_type(&rendered, "take_map"),
-            "std::list::list<int> -> (int -> int) -> std::list::list<int>"
+            "std::list::list<int> -> (int -> int) -> std::list::list<int | α>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_filter"),
@@ -4481,7 +4485,7 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
         );
         assert_eq!(
             rendered_type(&rendered, "take_fold"),
-            "std::list::list<int> -> int -> (int -> int -> int) -> int"
+            "std::list::list<int> -> int -> (int -> [α] int -> [α] int) -> [α] int"
         );
         assert_eq!(
             rendered_type(&rendered, "append_self"),
@@ -5027,11 +5031,11 @@ fn effect_method_list_selection_uses_receiver_effect_row() {
         assert_eq!(rendered_type(&rendered, "once_value"), "std::opt::opt<int>");
         assert_eq!(
             rendered_type(&rendered, "direct_list"),
-            "std::list::list<int | α>"
+            "std::list::list<int>"
         );
         assert_eq!(
             rendered_type(&rendered, "direct_once"),
-            "std::opt::opt<int | α>"
+            "std::opt::opt<int>"
         );
     });
 }

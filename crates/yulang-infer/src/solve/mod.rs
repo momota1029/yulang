@@ -5,6 +5,7 @@ use std::mem;
 use std::time::Duration;
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::ids::{DefId, NegId, PosId, TypeVar};
@@ -99,7 +100,7 @@ pub enum ShiftKeep {
     Set(Vec<Path>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectSubtractability {
     Empty,
     All,
@@ -107,10 +108,10 @@ pub enum EffectSubtractability {
     Set(Vec<EffectAtom>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct EffectSubtractId(pub u32);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EffectSubtractFact {
     pub id: EffectSubtractId,
     pub subtractability: EffectSubtractability,
@@ -924,6 +925,13 @@ impl Infer {
 
     pub fn alloc_neg(&self, n: Neg) -> NegId {
         self.arena.alloc_neg(n)
+    }
+
+    pub fn reserve_effect_subtract_ids_through(&self, max: EffectSubtractId) {
+        let next = max.0.saturating_add(1);
+        if self.next_effect_subtract_id.get() < next {
+            self.next_effect_subtract_id.set(next);
+        }
     }
 
     pub fn pos_effect_union(&self, items: Vec<PosId>, tail: PosId) -> PosId {

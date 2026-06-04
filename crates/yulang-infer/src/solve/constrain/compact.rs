@@ -1,12 +1,14 @@
 use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
-use crate::ids::{NegId, TypeVar};
+use crate::ids::{NegId, TypeVar, fresh_type_var};
 use crate::scheme::{OwnedSchemeInstance, compact_neg_type, compact_pos_type};
 use crate::simplify::compact::{
     CompactBounds, CompactType, compact_root_fun_body_lower, subst_compact_con, subst_compact_fun,
     subst_compact_record, subst_compact_record_spread, subst_compact_row, subst_compact_type,
     subst_compact_variant, subst_lookup_small,
 };
+use crate::solve::{EffectSubtractFact, EffectSubtractability};
+use crate::symbols::Path;
 use crate::types::Pos;
 
 impl Infer {
@@ -18,9 +20,24 @@ impl Infer {
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
     ) {
-        let normalized_root_body = compact_root_fun_body_lower(&instance.scheme.compact);
-        let lower = normalized_root_body
+        let root_body = compact_root_fun_body_lower(&instance.scheme.compact);
+        let captured_root_body = root_body.clone().and_then(|mut body| {
+            let subtract_paths = subtract_set_paths(instance.scheme.effect_subtracts.as_slice());
+            if subtract_paths.is_empty()
+                || !erase_complex_subtract_atom_args_in_root_effect_rows(
+                    self,
+                    &mut body,
+                    &subtract_paths,
+                    instance.level,
+                )
+            {
+                return None;
+            }
+            Some(body)
+        });
+        let lower = captured_root_body
             .as_ref()
+            .or(root_body.as_ref())
             .unwrap_or(&instance.scheme.compact.cty.lower);
         let parts = compact_pos_parts_with_subst(self, lower, instance.subst.as_slice());
         for part in parts {
@@ -278,6 +295,113 @@ fn compact_neg_parts_with_subst(
         ));
     }
     parts
+}
+
+fn subtract_set_paths(subtracts: &[(TypeVar, EffectSubtractFact)]) -> Vec<Path> {
+    let mut out = Vec::new();
+    for (_, fact) in subtracts {
+        let EffectSubtractability::Set(atoms) = &fact.subtractability else {
+            continue;
+        };
+        for atom in atoms {
+            if !out.contains(&atom.path) {
+                out.push(atom.path.clone());
+            }
+        }
+    }
+    out
+}
+
+fn erase_complex_subtract_atom_args_in_root_effect_rows(
+    infer: &Infer,
+    root_body: &mut CompactType,
+    subtract_paths: &[Path],
+    level: u32,
+) -> bool {
+    let [fun] = root_body.funs.as_mut_slice() else {
+        return false;
+    };
+    let arg_changed = erase_complex_subtract_atom_args_in_effect_row(
+        infer,
+        &mut fun.arg_eff,
+        subtract_paths,
+        level,
+    );
+    let ret_changed = erase_complex_subtract_atom_args_in_effect_row(
+        infer,
+        &mut fun.ret_eff,
+        subtract_paths,
+        level,
+    );
+    arg_changed || ret_changed
+}
+
+fn erase_complex_subtract_atom_args_in_effect_row(
+    infer: &Infer,
+    ty: &mut CompactType,
+    subtract_paths: &[Path],
+    level: u32,
+) -> bool {
+    let mut changed = false;
+    for con in &mut ty.cons {
+        if !subtract_paths.contains(&con.path) {
+            continue;
+        }
+        for arg in &mut con.args {
+            if single_compact_var(&arg.lower).is_some() && single_compact_var(&arg.upper).is_some()
+            {
+                continue;
+            }
+            let tv = fresh_type_var();
+            infer.register_level(tv, level);
+            *arg = exact_compact_var_bounds(tv);
+            changed = true;
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            changed |=
+                erase_complex_subtract_atom_args_in_effect_row(infer, item, subtract_paths, level);
+        }
+        changed |= erase_complex_subtract_atom_args_in_effect_row(
+            infer,
+            &mut row.tail,
+            subtract_paths,
+            level,
+        );
+    }
+    changed
+}
+
+fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
+    (ty.vars.len() == 1
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty())
+    .then(|| ty.vars.iter().copied().next())
+    .flatten()
+}
+
+fn exact_compact_var_bounds(tv: TypeVar) -> CompactBounds {
+    CompactBounds {
+        self_var: None,
+        lower: compact_type_from_var(tv),
+        upper: compact_type_from_var(tv),
+    }
+}
+
+fn compact_type_from_var(tv: TypeVar) -> CompactType {
+    let mut vars = std::collections::HashSet::new();
+    vars.insert(tv);
+    CompactType {
+        vars,
+        ..CompactType::default()
+    }
 }
 
 fn max_level_compact_bounds(

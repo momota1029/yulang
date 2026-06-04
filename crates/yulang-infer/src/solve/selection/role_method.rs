@@ -21,11 +21,7 @@ impl Infer {
     }
 
     pub(crate) fn push_deferred_role_method_call(&self, call: DeferredRoleMethodCall) {
-        if let Some(info) = call
-            .role_path
-            .as_ref()
-            .and_then(|path| role_method_info_for_path(&self.role_methods, path))
-            .or_else(|| self.role_methods.get(&call.name).cloned())
+        if let Some(info) = role_method_info_for_call(self, &call)
             && let Some(owner) = call.owner
             && role_method_value_arg_count(&info).is_none_or(|arity| call.arg_tvs.len() >= arity)
         {
@@ -102,12 +98,7 @@ impl Infer {
         let calls = self.deferred_role_method_calls.borrow().clone();
         let mut unresolved = Vec::new();
         for call in calls {
-            let Some(info) = call
-                .role_path
-                .as_ref()
-                .and_then(|path| role_method_info_for_path(&self.role_methods, path))
-                .or_else(|| self.role_methods.get(&call.name).cloned())
-            else {
+            let Some(info) = role_method_info_for_call(self, &call) else {
                 unresolved.push(call);
                 continue;
             };
@@ -191,12 +182,7 @@ impl Infer {
             if call.owner != Some(owner) {
                 continue;
             }
-            let Some(info) = call
-                .role_path
-                .as_ref()
-                .and_then(|path| role_method_info_for_path(&self.role_methods, path))
-                .or_else(|| self.role_methods.get(&call.name).cloned())
-            else {
+            let Some(info) = role_method_info_for_call(self, &call) else {
                 continue;
             };
             self.add_role_method_call_constraint_for_owner(
@@ -214,12 +200,7 @@ impl Infer {
             if call.owner != Some(owner) {
                 return false;
             }
-            let Some(info) = call
-                .role_path
-                .as_ref()
-                .and_then(|path| role_method_info_for_path(&self.role_methods, path))
-                .or_else(|| self.role_methods.get(&call.name).cloned())
-            else {
+            let Some(info) = role_method_info_for_call(self, call) else {
                 return false;
             };
             call.cast_coercion
@@ -278,6 +259,16 @@ impl Infer {
     fn constrain_role_method_call_output(&self, output: &CompactType, result_tv: TypeVar) {
         let pos = compact_pos_type(&self.arena, output, &CompactTypeScheme::default(), false);
         self.constrain(pos, Neg::Var(result_tv));
+    }
+}
+
+fn role_method_info_for_call(
+    infer: &Infer,
+    call: &DeferredRoleMethodCall,
+) -> Option<RoleMethodInfo> {
+    match &call.role_path {
+        Some(path) => role_method_info_for_path(&infer.role_methods, path),
+        None => infer.role_methods.get(&call.name).cloned(),
     }
 }
 

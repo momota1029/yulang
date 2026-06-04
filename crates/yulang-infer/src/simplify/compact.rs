@@ -292,6 +292,8 @@ pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<
     let [lower_fun] = scheme.cty.lower.funs.as_slice() else {
         return None;
     };
+    let lower_arg_eff = lower_fun.arg_eff.clone();
+    let lower_ret_eff = lower_fun.ret_eff.clone();
     let ignorable_root_vars = compact_root_ignorable_vars(&scheme.cty);
     if !compact_root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
         || !compact_root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
@@ -322,11 +324,21 @@ pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<
         ret,
     };
     simplify_function_effect_residual_rows(&mut fun);
+    if has_concrete_effect_row(&lower_arg_eff) && !has_concrete_effect_row(&fun.arg_eff) {
+        fun.arg_eff = lower_arg_eff;
+    }
+    if has_non_var_shape(&lower_ret_eff) && !has_non_var_shape(&fun.ret_eff) {
+        fun.ret_eff = lower_ret_eff;
+    }
 
     Some(CompactType {
         funs: vec![fun],
         ..CompactType::default()
     })
+}
+
+fn has_concrete_effect_row(ty: &CompactType) -> bool {
+    ty.rows.iter().any(|row| !row.items.is_empty())
 }
 
 pub(crate) fn coalesce_root_function_interval_effect_residuals(scheme: &mut CompactTypeScheme) {
@@ -3138,6 +3150,7 @@ mod tests {
             body,
             quantified: vec![quantified],
             quantified_sources: smallvec::smallvec![(quantified, quantified)],
+            effect_atom_arg_bounds: Vec::new(),
             effect_subtracts: Vec::new(),
             effect_non_subtracts: Vec::new(),
         });

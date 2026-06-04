@@ -4,6 +4,8 @@ use std::time::Duration;
 use crate::profile::ProfileClock as Instant;
 
 use crate::ids::{NegId, PosId, TypeVar, fresh_type_var};
+use crate::scheme::{compact_neg_type, compact_pos_type};
+use crate::simplify::compact::subst_compact_bounds;
 use crate::solve::{EffectSubtractFact, EffectSubtractId, EffectSubtractability, Infer};
 use crate::types::RecordField;
 use crate::types::{EffectAtom, Neg, Pos};
@@ -51,6 +53,7 @@ pub fn instantiate_frozen_body(infer: &Infer, scheme: &FrozenScheme, level: u32)
         subst.push((*quantified, fresh));
     }
     apply_scheme_var_metadata(infer, scheme, subst.as_slice());
+    apply_scheme_effect_atom_arg_bounds(infer, scheme, subst.as_slice());
     let instance = SchemeInstance {
         scheme: scheme.clone(),
         subst,
@@ -87,6 +90,7 @@ pub fn instantiate_frozen_body_with_subst_profiled(
         subst.push((*quantified, fresh));
     }
     apply_scheme_var_metadata(infer, scheme, subst.as_slice());
+    apply_scheme_effect_atom_arg_bounds(infer, scheme, subst.as_slice());
     profile.build_subst += build_subst_start.elapsed();
 
     let subst_body_start = Instant::now();
@@ -134,6 +138,7 @@ pub fn instantiate_as_view_with_subst_profiled(
         subst.push((*quantified, fresh));
     }
     apply_scheme_var_metadata(infer, scheme, subst.as_slice());
+    apply_scheme_effect_atom_arg_bounds(infer, scheme, subst.as_slice());
     profile.build_subst += build_subst_start.elapsed();
     (
         SchemeInstance {
@@ -173,6 +178,21 @@ fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(Typ
         if let Some(id) = id_subst.get(id).copied() {
             infer.record_effect_non_subtract(subst_lookup_small(subst, *rho), id);
         }
+    }
+}
+
+fn apply_scheme_effect_atom_arg_bounds(
+    infer: &Infer,
+    scheme: &FrozenScheme,
+    subst: &[(TypeVar, TypeVar)],
+) {
+    for (tv, bounds) in &scheme.effect_atom_arg_bounds {
+        let live_tv = subst_lookup_small(subst, *tv);
+        let bounds = subst_compact_bounds(bounds, subst);
+        let lower = compact_pos_type(&infer.arena, &bounds.lower, &scheme.compact, false);
+        let upper = compact_neg_type(&infer.arena, &bounds.upper, &scheme.compact, false);
+        infer.constrain(lower, Neg::Var(live_tv));
+        infer.constrain(Pos::Var(live_tv), upper);
     }
 }
 

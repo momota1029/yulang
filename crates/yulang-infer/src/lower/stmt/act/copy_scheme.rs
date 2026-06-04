@@ -98,6 +98,7 @@ pub(crate) fn transform_copied_frozen_scheme(
         body: frozen_body,
         quantified,
         quantified_sources,
+        effect_atom_arg_bounds: Vec::new(),
         effect_subtracts,
         effect_non_subtracts,
     })

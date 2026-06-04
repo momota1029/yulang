@@ -67,10 +67,6 @@ impl Infer {
     }
 
     pub fn record_effect_subtract_fact(&self, effect: TypeVar, fact: EffectSubtractFact) {
-        if self.effect_has_non_subtract_id(effect, fact.id) {
-            return;
-        }
-
         let mut subtracts = self.effect_subtracts.borrow_mut();
         let entry = subtracts.entry(effect).or_default();
         if let Some(existing) = entry.iter_mut().find(|existing| existing.id == fact.id) {
@@ -464,13 +460,6 @@ impl Infer {
 }
 
 impl Infer {
-    fn effect_has_non_subtract_id(&self, effect: TypeVar, id: EffectSubtractId) -> bool {
-        self.effect_non_subtracts
-            .borrow()
-            .get(&effect)
-            .is_some_and(|ids| ids.contains(&id))
-    }
-
     fn record_effect_non_subtract_recursive(
         &self,
         effect: TypeVar,
@@ -506,19 +495,7 @@ impl Infer {
             let mut non_subtracts = self.effect_non_subtracts.borrow_mut();
             non_subtracts.entry(effect).or_default().insert(id)
         };
-        self.remove_effect_subtract_fact(effect, id);
         inserted
-    }
-
-    fn remove_effect_subtract_fact(&self, effect: TypeVar, id: EffectSubtractId) {
-        let mut subtracts = self.effect_subtracts.borrow_mut();
-        let Some(facts) = subtracts.get_mut(&effect) else {
-            return;
-        };
-        facts.retain(|fact| fact.id != id);
-        if facts.is_empty() {
-            subtracts.remove(&effect);
-        }
     }
 }
 
@@ -821,7 +798,7 @@ mod tests {
     }
 
     #[test]
-    fn non_subtract_removes_same_id_subtract_fact() {
+    fn non_subtract_cancels_same_id_subtract_fact_when_pruned() {
         let infer = Infer::new();
         let effect = fresh_type_var();
         let atom = EffectAtom {
@@ -833,9 +810,17 @@ mod tests {
 
         infer.record_effect_non_subtract(effect, subtract_id);
 
+        assert_eq!(
+            infer.effect_subtractability(effect),
+            Some(EffectSubtractability::Set(vec![atom]))
+        );
+        assert_eq!(infer.effect_non_subtract_ids(effect), vec![subtract_id]);
+
+        infer.prune_resolved_effect_subtract_metadata();
+
         assert_eq!(infer.effect_subtractability(effect), None);
         assert_eq!(infer.effect_subtract_facts(effect), Vec::new());
-        assert_eq!(infer.effect_non_subtract_ids(effect), vec![subtract_id]);
+        assert_eq!(infer.effect_non_subtract_ids(effect), Vec::new());
     }
 
     #[test]
@@ -858,9 +843,17 @@ mod tests {
             Neg::Row(Vec::new(), infer.arena.alloc_neg(Neg::Var(compared))),
         );
 
+        assert_eq!(
+            infer.effect_subtractability(compared),
+            Some(EffectSubtractability::Set(vec![atom]))
+        );
+        assert_eq!(infer.effect_non_subtract_ids(compared), vec![subtract_id]);
+
+        infer.prune_resolved_effect_subtract_metadata();
+
         assert_eq!(infer.effect_subtractability(compared), None);
         assert_eq!(infer.effect_subtract_facts(compared), Vec::new());
-        assert_eq!(infer.effect_non_subtract_ids(compared), vec![subtract_id]);
+        assert_eq!(infer.effect_non_subtract_ids(compared), Vec::new());
     }
 
     #[test]

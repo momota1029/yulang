@@ -1853,7 +1853,7 @@ mod tests {
     }
 
     #[test]
-    fn render_compact_results_keeps_compose_effects_separate() {
+    fn render_compact_results_accumulates_higher_order_argument_effects() {
         let green = yulang_parser::parse_module_to_green("my compose f g x = f (g x)\n");
         let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
         let mut state = LowerState::new();
@@ -1864,7 +1864,7 @@ mod tests {
             .iter()
             .find(|(name, _)| name == "compose")
             .expect("compose should be rendered");
-        assert_eq!(compose.1, "(α [γ] -> [δ] β) -> (ε -> [γ] α) -> ε -> [δ] β");
+        assert_eq!(compose.1, "(α -> [γ] β) -> (δ -> [γ] α) -> δ -> [γ] β");
     }
 
     #[test]
@@ -2251,7 +2251,7 @@ mod tests {
     }
 
     #[test]
-    fn render_compact_results_keeps_annotated_pure_arguments_pure() {
+    fn render_compact_results_keeps_function_annotations_effect_open() {
         let green = yulang_parser::parse_module_to_green(
             "my g(x: int) = x\nmy h(f: () -> int) = f\nmy k(f: () -> int) = \\() -> f()\n",
         );
@@ -2274,8 +2274,8 @@ mod tests {
             .expect("k should be rendered");
 
         assert_eq!(g.1, "int -> int");
-        assert_eq!(h.1, "(unit -> int) -> unit -> int");
-        assert_eq!(k.1, "(unit -> int) -> unit -> int");
+        assert_eq!(h.1, "(unit -> [α] int) -> unit -> [α] int");
+        assert_eq!(k.1, "(unit -> [α] int) -> unit -> [α] int");
     }
 
     #[test]
@@ -2927,6 +2927,31 @@ mod tests {
     }
 
     #[test]
+    fn render_compact_results_preserves_concrete_ref_update_row_items() {
+        let green = yulang_parser::parse_module_to_green(
+            "act ref_update 'a:\n  our update: 'a -> 'a\n\n\
+             type ref 'e 'a with:\n  struct self:\n    get: () -> ['e] 'a\n    update_effect: () -> [ref_update 'a; 'e] ()\n\n\
+             struct str { value: int }\n\
+             struct char { value: int }\n\
+             my index_raw(s: str, i: int): char = char { value: i }\n\
+             my to_string(c: char): str = str { value: c.value }\n\
+             my splice(old: str, replacement: str): str = replacement\n\n\
+             role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index (ref 'e str) int:\n  type value = ref 'e char\n  our r.index i = ref {\n    get: \\() -> index_raw (r.get()) i,\n    update_effect: \\() ->\n      my loop(x: [_] _) = catch x:\n        ref_update::update old, k ->\n          my new_item = ref_update::update (index_raw old i)\n          my replacement = to_string new_item\n          loop(k(splice old replacement))\n      loop((r.update_effect)())\n  }\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+
+        let _ = render_compact_results(&mut state);
+        assert!(
+            state.infer.type_errors().is_empty(),
+            "{:#?}",
+            state.infer.type_errors()
+        );
+    }
+
+    #[test]
     fn render_compact_results_lowers_expr_do_notation() {
         let green =
             yulang_parser::parse_module_to_green("my id x = x\n\nmy a =\n  id(id do)\n  1\n");
@@ -3301,7 +3326,7 @@ mod tests {
                     .iter()
                     .find(|(rendered_name, _)| rendered_name == name)
                     .expect("sub result should be rendered");
-                assert_eq!(item.1, "int");
+                assert_eq!(item.1, "int", "{name}");
             }
         });
     }

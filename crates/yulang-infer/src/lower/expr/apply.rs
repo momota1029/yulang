@@ -17,11 +17,11 @@ use crate::types::{Neg, Pos};
 enum ArgumentPassingStyle {
     Value,
     Computation,
-    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ApplicationEffectAssumption {
+    value_argument_effect: bool,
     pure_argument_slot: bool,
     anf_argument: bool,
     direct_computation_argument_slot: bool,
@@ -34,14 +34,15 @@ impl ApplicationEffectAssumption {
         let passing_style = argument_passing_style(state, func);
         let direct_computation_argument_slot =
             matches!(passing_style, ArgumentPassingStyle::Computation)
-                && !callee_is_active_recursive_self(state, func)
-                && !callee_is_continuation(state, func);
+                && !callee_is_continuation(state, func)
+                && !callee_is_active_recursive_self(state, func);
+        let value_argument_slot = matches!(passing_style, ArgumentPassingStyle::Value);
         Self {
+            value_argument_effect: value_argument_slot,
             pure_argument_slot: func_accepts_pure_argument(state, func)
                 || matches!(&func.kind, ExprKind::Select { .. })
                 || selected_value_method_accepts_pure_next_arg(state, func),
-            anf_argument: matches!(passing_style, ArgumentPassingStyle::Value)
-                && matches!(arg.kind, ExprKind::App { .. }),
+            anf_argument: value_argument_slot && matches!(arg.kind, ExprKind::App { .. }),
             direct_computation_argument_slot,
             all_subtractable_argument_slot: callee_uses_all_subtractable_argument_slot(state, func),
             all_subtractable_result_effects: !direct_computation_argument_slot
@@ -86,7 +87,7 @@ impl ApplicationEffectAssumption {
     }
 
     fn argument_effect_flows_to_result(self) -> bool {
-        self.pure_argument_slot || self.anf_argument
+        self.value_argument_effect || self.anf_argument
     }
 }
 
@@ -201,7 +202,9 @@ pub(crate) fn make_app_with_cause(
         cause.clone(),
         false,
     );
-    if matches!(&func.kind, ExprKind::Var(def) if state.effect_op_args.contains_key(def)) {
+    if let ExprKind::Var(def) = &func.kind
+        && state.effect_op_args.contains_key(def)
+    {
         state.record_expected_adapter_edge(
             ExpectedAdapterEdgeKind::EffectOperationArgument,
             Some(arg_edge_id),
@@ -224,23 +227,29 @@ pub(crate) fn make_app_with_cause(
         );
     }
     if effect_assumption.pure_argument_slot {
-        state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
-    }
-    state
-        .infer
-        .constrain(Pos::Var(func.eff), Neg::Var(result_ty.effect));
-    state
-        .infer
-        .constrain(Pos::Var(call_eff), Neg::Var(result_ty.effect));
-    if effect_assumption.argument_effect_flows_to_result() {
         state
             .infer
-            .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
+            .constrain(effect_lower_for_flow(state, arg.eff), Neg::Var(call_eff));
+    }
+    state.infer.constrain(
+        effect_lower_for_flow(state, func.eff),
+        Neg::Var(result_ty.effect),
+    );
+    state.infer.constrain(
+        effect_lower_for_flow(state, call_eff),
+        Neg::Var(result_ty.effect),
+    );
+    if effect_assumption.argument_effect_flows_to_result() {
+        state.infer.constrain(
+            effect_lower_for_flow(state, arg.eff),
+            Neg::Var(result_ty.effect),
+        );
     }
     if matches!(&func.kind, ExprKind::Var(def) if state.is_continuation_def(*def)) {
-        state
-            .infer
-            .constrain(Pos::Var(arg.eff), Neg::Var(result_ty.effect));
+        state.infer.constrain(
+            effect_lower_for_flow(state, arg.eff),
+            Neg::Var(result_ty.effect),
+        );
     }
     record_call_exposed_effect_non_subtracts(state, call_eff, result_ty);
 
@@ -308,7 +317,9 @@ fn fresh_all_subtractable_arg_effect_slot(
         .infer
         .record_effect_subtractability(slot, EffectSubtractability::All);
     let actual = argument_effect_for_slot(state, arg);
-    state.infer.constrain(Pos::Var(actual), Neg::Var(slot));
+    state
+        .infer
+        .constrain(effect_lower_for_flow(state, actual), Neg::Var(slot));
     if let Some(owner) = cross_owner {
         state.infer.add_non_generic_var(owner, slot);
     }
@@ -442,6 +453,14 @@ fn argument_effect_for_slot(state: &mut LowerState, arg: &TypedExpr) -> TypeVar 
         return arg.eff;
     };
     source_eff
+}
+
+fn effect_lower_for_flow(state: &LowerState, effect: TypeVar) -> PosId {
+    if state.exact_pure_effect_tvs.contains(&effect) {
+        state.infer.arena.empty_pos_row
+    } else {
+        state.infer.alloc_pos(Pos::Var(effect))
+    }
 }
 
 fn report_extra_struct_literal_fields(state: &LowerState, func: &TypedExpr, arg: &TypedExpr) {
@@ -689,10 +708,132 @@ fn argument_passing_style(state: &LowerState, func: &TypedExpr) -> ArgumentPassi
     if matches!(&func.kind, ExprKind::Var(def) if def_expects_computation_argument(state, *def)) {
         return ArgumentPassingStyle::Computation;
     }
+    if func_expects_computation_argument(state, func) {
+        return ArgumentPassingStyle::Computation;
+    }
     if func_accepts_pure_argument(state, func) {
         return ArgumentPassingStyle::Value;
     }
-    ArgumentPassingStyle::Unknown
+    ArgumentPassingStyle::Value
+}
+
+fn func_expects_computation_argument(state: &LowerState, func: &TypedExpr) -> bool {
+    let mut seen = HashSet::new();
+    pos_var_expects_computation_argument(state, func.tv, &mut seen)
+}
+
+fn pos_var_expects_computation_argument(
+    state: &LowerState,
+    tv: TypeVar,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
+    if !seen.insert(tv) {
+        return false;
+    }
+    for lower in state.infer.lower_refs_of(tv) {
+        if pos_id_expects_computation_argument(state, lower, seen) {
+            return true;
+        }
+    }
+    for instance in state.infer.compact_lower_instances_of(tv) {
+        let lower = state.infer.materialize_compact_lower_instance(&instance);
+        if pos_id_expects_computation_argument(state, lower, seen) {
+            return true;
+        }
+    }
+    false
+}
+
+fn pos_id_expects_computation_argument(
+    state: &LowerState,
+    pos: PosId,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
+    match state.infer.arena.get_pos(pos) {
+        Pos::Fun { arg_eff, .. } => {
+            let mut row_seen = HashSet::new();
+            neg_effect_has_computation_evidence(state, arg_eff, &mut row_seen)
+        }
+        Pos::Var(tv) | Pos::Raw(tv) => pos_var_expects_computation_argument(state, tv, seen),
+        Pos::Forall(_, body) => pos_id_expects_computation_argument(state, body, seen),
+        Pos::Union(lhs, rhs) => {
+            pos_id_expects_computation_argument(state, lhs, &mut seen.clone())
+                || pos_id_expects_computation_argument(state, rhs, &mut seen.clone())
+        }
+        _ => false,
+    }
+}
+
+fn neg_effect_has_computation_evidence(
+    state: &LowerState,
+    neg: crate::ids::NegId,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
+    match state.infer.arena.get_neg(neg) {
+        Neg::Row(items, tail) => {
+            !items.is_empty() || neg_effect_has_computation_evidence(state, tail, seen)
+        }
+        Neg::Var(tv) => {
+            if state.infer.effect_subtractability(tv).is_some() {
+                return true;
+            }
+            if !seen.insert(tv) {
+                return false;
+            }
+            state
+                .infer
+                .upper_refs_of(tv)
+                .into_iter()
+                .any(|upper| neg_effect_has_computation_evidence(state, upper, seen))
+                || state
+                    .infer
+                    .lower_refs_of(tv)
+                    .into_iter()
+                    .any(|lower| pos_effect_has_computation_evidence(state, lower, seen))
+        }
+        Neg::Forall(_, body) => neg_effect_has_computation_evidence(state, body, seen),
+        Neg::Intersection(lhs, rhs) => {
+            neg_effect_has_computation_evidence(state, lhs, &mut seen.clone())
+                || neg_effect_has_computation_evidence(state, rhs, &mut seen.clone())
+        }
+        _ => false,
+    }
+}
+
+fn pos_effect_has_computation_evidence(
+    state: &LowerState,
+    pos: PosId,
+    seen: &mut HashSet<TypeVar>,
+) -> bool {
+    match state.infer.arena.get_pos(pos) {
+        Pos::Row(items, tail) => {
+            !items.is_empty() || pos_effect_has_computation_evidence(state, tail, seen)
+        }
+        Pos::Var(tv) | Pos::Raw(tv) => {
+            if state.infer.effect_subtractability(tv).is_some() {
+                return true;
+            }
+            if !seen.insert(tv) {
+                return false;
+            }
+            state
+                .infer
+                .lower_refs_of(tv)
+                .into_iter()
+                .any(|lower| pos_effect_has_computation_evidence(state, lower, seen))
+                || state
+                    .infer
+                    .upper_refs_of(tv)
+                    .into_iter()
+                    .any(|upper| neg_effect_has_computation_evidence(state, upper, seen))
+        }
+        Pos::Forall(_, body) => pos_effect_has_computation_evidence(state, body, seen),
+        Pos::Union(lhs, rhs) => {
+            pos_effect_has_computation_evidence(state, lhs, &mut seen.clone())
+                || pos_effect_has_computation_evidence(state, rhs, &mut seen.clone())
+        }
+        _ => false,
+    }
 }
 
 fn func_accepts_pure_argument(state: &LowerState, func: &TypedExpr) -> bool {

@@ -22,7 +22,7 @@ use super::type_props::{
 };
 use super::types::{
     export_coalesced_type_bounds_for_tv, export_compact_type_bounds, export_frozen_scheme,
-    export_relevant_type_bounds_for_tv, export_type_bounds_for_tv,
+    export_frozen_scheme_body, export_relevant_type_bounds_for_tv, export_type_bounds_for_tv,
 };
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedBlock, TypedExpr, TypedStmt};
 use crate::diagnostic::ExpectedEdgeId;
@@ -230,7 +230,7 @@ fn export_effect_operations(state: &LowerState) -> Vec<typed_ir::EffectOperation
             continue;
         }
         let frozen = crate::scheme::freeze_pos_scheme(&state.infer, pos_sig);
-        let scheme = export_frozen_scheme(&state.infer, &frozen);
+        let scheme = export_frozen_scheme_body(&frozen);
         decls.push(typed_ir::EffectOperationDecl {
             path: exported_path,
             scheme,

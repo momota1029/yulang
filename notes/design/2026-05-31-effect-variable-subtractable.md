@@ -64,11 +64,9 @@ act outer:
         my act repeat = local   // 内部のみ同じ別エフェクト
         our run(f: () -> [outer] _) = local::sub: loop true with:
             our loop b = if b:
-                loop (repeat::judge:catch f():
+                loop:repeat::judge:catch f():
                     redo(), _ -> repeat::break()
                     _ -> local::break()
-                )
-                else ()
 
 pub r = outer::run
 ```

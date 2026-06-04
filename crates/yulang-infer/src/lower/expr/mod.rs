@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn app_connects_argument_effect_to_function_arg_effect_slot() {
+    fn app_uses_fresh_subtractable_slot_for_unknown_argument_effect() {
         let mut state = LowerState::new();
         let func = unit_expr(&mut state);
         let arg = unit_expr(&mut state);
@@ -147,8 +147,12 @@ mod tests {
         };
 
         assert!(
-            arg_eff_tv == arg.eff,
-            "argument expression effect should be passed to function arg_eff slot directly",
+            arg_eff_tv != arg.eff,
+            "unknown callees should receive a fresh argument effect slot",
+        );
+        assert_eq!(
+            state.infer.effect_subtractability(arg_eff_tv),
+            Some(EffectSubtractability::All),
         );
         assert!(
             !state.infer.lowers_of(app.eff).contains(&Pos::Var(arg.eff)),

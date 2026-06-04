@@ -17,7 +17,7 @@ use crate::simplify::cooccur::{
 };
 use crate::solve::Infer;
 use crate::symbols::{Name, Path};
-use crate::types::RecordField;
+use crate::types::{EffectAtom, Neg, Pos, RecordField};
 
 use super::names::{export_name, export_path};
 
@@ -64,6 +64,13 @@ pub fn export_frozen_scheme(infer: &Infer, scheme: &FrozenScheme) -> typed_ir::S
     typed_ir::Scheme {
         requirements: Vec::new(),
         body: export_scheme_body_with_infer(infer, compact),
+    }
+}
+
+pub fn export_frozen_scheme_body(scheme: &FrozenScheme) -> typed_ir::Scheme {
+    typed_ir::Scheme {
+        requirements: Vec::new(),
+        body: export_frozen_pos(&scheme.arena, scheme.body),
     }
 }
 
@@ -678,6 +685,213 @@ fn export_path_sort_key(path: &Path) -> String {
 
 fn export_type_var(tv: crate::ids::TypeVar) -> typed_ir::TypeVar {
     typed_ir::TypeVar(format!("t{}", tv.0))
+}
+
+fn export_frozen_pos(
+    arena: &crate::types::arena::TypeArena,
+    id: crate::ids::PosId,
+) -> typed_ir::Type {
+    match arena.get_pos(id) {
+        Pos::Bot => typed_ir::Type::Never,
+        Pos::Var(tv) | Pos::Raw(tv) => typed_ir::Type::Var(export_type_var(tv)),
+        Pos::Atom(atom) => export_frozen_effect_atom(atom),
+        Pos::Forall(_, body) => export_frozen_pos(arena, body),
+        Pos::Con(path, args) => typed_ir::Type::Named {
+            path: export_path(&path),
+            args: args
+                .into_iter()
+                .map(|(pos, neg)| export_frozen_type_arg(arena, pos, neg))
+                .collect(),
+        },
+        Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(export_frozen_neg(arena, arg)),
+            param_effect: Box::new(export_frozen_neg(arena, arg_eff)),
+            ret_effect: Box::new(export_frozen_pos(arena, ret_eff)),
+            ret: Box::new(export_frozen_pos(arena, ret)),
+        },
+        Pos::Record(fields) => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: fields
+                .into_iter()
+                .map(|field| typed_ir::RecordField {
+                    name: export_name(&field.name),
+                    value: export_frozen_pos(arena, field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: None,
+        }),
+        Pos::RecordTailSpread { fields, tail } => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: fields
+                .into_iter()
+                .map(|field| typed_ir::RecordField {
+                    name: export_name(&field.name),
+                    value: export_frozen_pos(arena, field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: Some(typed_ir::RecordSpread::Tail(Box::new(export_frozen_pos(
+                arena, tail,
+            )))),
+        }),
+        Pos::RecordHeadSpread { tail, fields } => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: fields
+                .into_iter()
+                .map(|field| typed_ir::RecordField {
+                    name: export_name(&field.name),
+                    value: export_frozen_pos(arena, field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: Some(typed_ir::RecordSpread::Head(Box::new(export_frozen_pos(
+                arena, tail,
+            )))),
+        }),
+        Pos::PolyVariant(items) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: items
+                .into_iter()
+                .map(|(name, payloads)| typed_ir::VariantCase {
+                    name: export_name(&name),
+                    payloads: payloads
+                        .into_iter()
+                        .map(|payload| export_frozen_pos(arena, payload))
+                        .collect(),
+                })
+                .collect(),
+            tail: None,
+        }),
+        Pos::Tuple(items) => typed_ir::Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| export_frozen_pos(arena, item))
+                .collect(),
+        ),
+        Pos::Row(items, tail) => typed_ir::Type::Row {
+            items: items
+                .into_iter()
+                .map(|item| export_frozen_pos(arena, item))
+                .collect(),
+            tail: Box::new(export_frozen_pos(arena, tail)),
+        },
+        Pos::Union(lhs, rhs) => combine_export_parts(
+            vec![export_frozen_pos(arena, lhs), export_frozen_pos(arena, rhs)],
+            true,
+        ),
+    }
+}
+
+fn export_frozen_neg(
+    arena: &crate::types::arena::TypeArena,
+    id: crate::ids::NegId,
+) -> typed_ir::Type {
+    match arena.get_neg(id) {
+        Neg::Top => typed_ir::Type::Any,
+        Neg::Var(tv) => typed_ir::Type::Var(export_type_var(tv)),
+        Neg::Atom(atom) => export_frozen_effect_atom(atom),
+        Neg::Forall(_, body) => export_frozen_neg(arena, body),
+        Neg::Con(path, args) => typed_ir::Type::Named {
+            path: export_path(&path),
+            args: args
+                .into_iter()
+                .map(|(pos, neg)| export_frozen_type_arg(arena, pos, neg))
+                .collect(),
+        },
+        Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(export_frozen_pos(arena, arg)),
+            param_effect: Box::new(export_frozen_pos(arena, arg_eff)),
+            ret_effect: Box::new(export_frozen_neg(arena, ret_eff)),
+            ret: Box::new(export_frozen_neg(arena, ret)),
+        },
+        Neg::Record(fields) => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: fields
+                .into_iter()
+                .map(|field| typed_ir::RecordField {
+                    name: export_name(&field.name),
+                    value: export_frozen_neg(arena, field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: None,
+        }),
+        Neg::PolyVariant(items) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: items
+                .into_iter()
+                .map(|(name, payloads)| typed_ir::VariantCase {
+                    name: export_name(&name),
+                    payloads: payloads
+                        .into_iter()
+                        .map(|payload| export_frozen_neg(arena, payload))
+                        .collect(),
+                })
+                .collect(),
+            tail: None,
+        }),
+        Neg::Tuple(items) => typed_ir::Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| export_frozen_neg(arena, item))
+                .collect(),
+        ),
+        Neg::Row(items, tail) => typed_ir::Type::Row {
+            items: items
+                .into_iter()
+                .map(|item| export_frozen_neg(arena, item))
+                .collect(),
+            tail: Box::new(export_frozen_neg(arena, tail)),
+        },
+        Neg::Intersection(lhs, rhs) => combine_export_parts(
+            vec![export_frozen_neg(arena, lhs), export_frozen_neg(arena, rhs)],
+            false,
+        ),
+    }
+}
+
+fn export_frozen_effect_atom(atom: EffectAtom) -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: export_path(&atom.path),
+        args: atom
+            .args
+            .into_iter()
+            .map(|(pos, neg)| {
+                let lower = typed_ir::Type::Var(export_type_var(pos));
+                let upper = typed_ir::Type::Var(export_type_var(neg));
+                if lower == upper {
+                    typed_ir::TypeArg::Type(lower)
+                } else {
+                    typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                        lower: Some(Box::new(lower)),
+                        upper: Some(Box::new(upper)),
+                    })
+                }
+            })
+            .collect(),
+    }
+}
+
+fn export_frozen_type_arg(
+    arena: &crate::types::arena::TypeArena,
+    pos: crate::ids::PosId,
+    neg: crate::ids::NegId,
+) -> typed_ir::TypeArg {
+    let lower = export_frozen_pos(arena, pos);
+    let upper = export_frozen_neg(arena, neg);
+    if lower == upper {
+        typed_ir::TypeArg::Type(lower)
+    } else {
+        typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+            lower: Some(Box::new(lower)),
+            upper: Some(Box::new(upper)),
+        })
+    }
 }
 
 fn project_type_bounds(

@@ -1498,6 +1498,7 @@ impl LowerState {
             .collect::<Vec<_>>();
 
         for (ref_id, resolved) in refs {
+            self.register_late_resolved_ref_dependency(resolved);
             if !self.infer.is_frozen_ref_committed(resolved.def_id) {
                 continue;
             }
@@ -1520,6 +1521,15 @@ impl LowerState {
                     );
             }
             self.instantiated_resolved_refs.insert(ref_id);
+        }
+    }
+
+    fn register_late_resolved_ref_dependency(&self, resolved: crate::ref_table::ResolvedRef) {
+        let Some(owner) = resolved.owner else {
+            return;
+        };
+        if owner != resolved.def_id && self.is_let_bound_def(resolved.def_id) {
+            self.infer.add_edge(owner, resolved.def_id);
         }
     }
 
