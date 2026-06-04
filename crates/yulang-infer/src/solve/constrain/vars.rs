@@ -12,6 +12,9 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
+        self.propagate_effect_non_subtracts_to_var(source, target);
+        self.propagate_effect_non_subtracts_to_var(target, source);
+
         let ep = self.extrude_pos(pos, self.level_of(target));
         let en = self.extrude_neg(neg, self.level_of(source));
         let added_lower = self.add_lower_bound(target, ep, cause, cache);
@@ -32,6 +35,8 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
+        self.propagate_effect_non_subtracts_to_pos(target, pos);
+
         let ep = self.extrude_pos(pos, self.level_of(target));
         if self.add_lower_bound(target, ep, cause, cache)
             || self.should_revisit_lower(cause, target, ep)
@@ -47,6 +52,8 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
+        self.propagate_effect_non_subtracts_to_neg(source, neg);
+
         let en = self.extrude_neg(neg, self.level_of(source));
         if self.add_upper_bound(source, en, cause, cache)
             || self.should_revisit_upper(cause, source, en)

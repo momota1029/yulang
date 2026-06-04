@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::profile::ProfileClock as Instant;
 
 use crate::ids::{NegId, PosId, TypeVar, fresh_type_var};
-use crate::solve::{EffectSubtractability, Infer};
+use crate::solve::{EffectSubtractFact, EffectSubtractId, EffectSubtractability, Infer};
 use crate::types::RecordField;
 use crate::types::{EffectAtom, Neg, Pos};
 
@@ -146,11 +146,24 @@ pub fn instantiate_as_view_with_subst_profiled(
 }
 
 fn apply_scheme_var_metadata(infer: &Infer, scheme: &FrozenScheme, subst: &[(TypeVar, TypeVar)]) {
-    for (rho, subtractability) in &scheme.effect_subtractabilities {
-        infer.record_effect_subtractability(
+    let mut id_subst = HashMap::new();
+    for (_, fact) in &scheme.effect_subtracts {
+        fresh_scheme_effect_subtract_id(infer, &mut id_subst, fact.id);
+    }
+    for (_, id) in &scheme.effect_non_subtracts {
+        fresh_scheme_effect_subtract_id(infer, &mut id_subst, *id);
+    }
+
+    for (rho, fact) in &scheme.effect_subtracts {
+        infer.record_effect_subtract_fact(
             subst_lookup_small(subst, *rho),
-            subst_effect_subtractability(subtractability.clone(), subst),
+            subst_effect_subtract_fact(fact.clone(), subst, &id_subst),
         );
+    }
+    for (rho, id) in &scheme.effect_non_subtracts {
+        if let Some(id) = id_subst.get(id).copied() {
+            infer.record_effect_non_subtract(subst_lookup_small(subst, *rho), id);
+        }
     }
 }
 
@@ -544,6 +557,27 @@ fn subst_effect_subtractability(
     }
 }
 
+fn subst_effect_subtract_fact(
+    fact: EffectSubtractFact,
+    subst: &[(TypeVar, TypeVar)],
+    id_subst: &HashMap<EffectSubtractId, EffectSubtractId>,
+) -> EffectSubtractFact {
+    EffectSubtractFact {
+        id: id_subst.get(&fact.id).copied().unwrap_or(fact.id),
+        subtractability: subst_effect_subtractability(fact.subtractability, subst),
+    }
+}
+
+fn fresh_scheme_effect_subtract_id(
+    infer: &Infer,
+    id_subst: &mut HashMap<EffectSubtractId, EffectSubtractId>,
+    id: EffectSubtractId,
+) -> EffectSubtractId {
+    *id_subst
+        .entry(id)
+        .or_insert_with(|| infer.fresh_effect_subtract_id())
+}
+
 fn subst_atom(atom: EffectAtom, subst: &HashMap<TypeVar, TypeVar>) -> EffectAtom {
     EffectAtom {
         path: atom.path,
@@ -645,11 +679,11 @@ mod tests {
             &compact,
             &std::collections::HashSet::new(),
         );
-        let (frozen_effect, frozen_subtractability) = scheme
-            .effect_subtractabilities
+        let (frozen_effect, frozen_fact) = scheme
+            .effect_subtracts
             .iter()
-            .find(|(_, subtractability)| {
-                subtractability == &EffectSubtractability::Set(vec![io_atom.clone()])
+            .find(|(_, fact)| {
+                fact.subtractability == EffectSubtractability::Set(vec![io_atom.clone()])
             })
             .cloned()
             .expect("frozen scheme should retain effect subtractability");
@@ -658,8 +692,13 @@ mod tests {
         let instantiated_effect = subst_lookup_small(instance.subst.as_slice(), frozen_effect);
 
         assert_eq!(
-            frozen_subtractability,
+            frozen_fact.subtractability,
             EffectSubtractability::Set(vec![io_atom.clone()])
+        );
+        assert_ne!(
+            infer.effect_subtract_facts(instantiated_effect)[0].id,
+            frozen_fact.id,
+            "instantiating a scheme should freshen subtract ids"
         );
         assert_eq!(
             infer.effect_subtractability(instantiated_effect),

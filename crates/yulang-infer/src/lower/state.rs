@@ -12,7 +12,7 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
-use crate::solve::{CastMethodResolution, Infer};
+use crate::solve::{CastMethodResolution, EffectSubtractId, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
@@ -101,6 +101,8 @@ pub struct LowerState {
     pub binding_computation_arg_defs: HashSet<DefId>,
     /// header/lambda parameter の effect annotation を接続済みの arg effect tv。
     pub configured_arg_effect_tvs: HashSet<TypeVar>,
+    /// 接続済み arg effect tv ごとに採番した subtract id。
+    pub configured_arg_effect_subtract_ids: HashMap<TypeVar, Vec<EffectSubtractId>>,
     /// lowering が「厳密に pure な effect row」として導入した tv。
     /// これは純粋性の判定用メタ情報で、solver の bound としては見せない。
     pub(crate) exact_pure_effect_tvs: HashSet<TypeVar>,
@@ -253,6 +255,7 @@ impl LowerState {
             lambda_param_function_allowed_effects: HashMap::new(),
             binding_computation_arg_defs: HashSet::new(),
             configured_arg_effect_tvs: HashSet::new(),
+            configured_arg_effect_subtract_ids: HashMap::new(),
             exact_pure_effect_tvs: HashSet::new(),
             principal_bodies: HashMap::new(),
             principal_var_alias_targets: HashMap::new(),
@@ -1011,7 +1014,7 @@ impl LowerState {
     ) -> Option<FunctionSigEffectHint> {
         self.lambda_param_function_sig_hints
             .get(&param_def)
-            .copied()
+            .cloned()
     }
 
     pub fn add_captured_def_non_generic_vars(&self, owner: DefId, def: DefId) {
@@ -1024,15 +1027,15 @@ impl LowerState {
         if let Some(&source_eff) = self.lambda_param_source_eff_tvs.get(&def) {
             self.infer.add_non_generic_var(owner, source_eff);
         }
-        if let Some(hint) = self.lambda_param_function_sig_hints.get(&def).copied() {
+        if let Some(hint) = self.lambda_param_function_sig_hints.get(&def).cloned() {
             match hint {
-                FunctionSigEffectHint::Pure | FunctionSigEffectHint::AllSubtractable => {}
+                FunctionSigEffectHint::Pure | FunctionSigEffectHint::AllSubtractable { .. } => {}
                 FunctionSigEffectHint::LowerBound(lower) => {
                     for tv in crate::scheme::collect_pos_free_vars(&self.infer, lower) {
                         self.infer.add_non_generic_var(owner, tv);
                     }
                 }
-                FunctionSigEffectHint::Bounds(lower, upper) => {
+                FunctionSigEffectHint::Bounds { lower, upper, .. } => {
                     for tv in crate::scheme::collect_pos_free_vars(&self.infer, lower) {
                         self.infer.add_non_generic_var(owner, tv);
                     }

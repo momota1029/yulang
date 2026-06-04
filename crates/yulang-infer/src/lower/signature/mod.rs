@@ -1,6 +1,7 @@
 use rowan::TextRange;
 
 use crate::ids::{NegId, PosId};
+use crate::solve::EffectSubtractId;
 use crate::symbols::Name;
 
 mod compact;
@@ -121,4 +122,5 @@ pub struct LoweredFunctionSigShape {
     pub ret_eff_pos: PosId,
     pub ret_eff_neg: NegId,
     pub effect_hint: bool,
+    pub effect_subtract_ids: Vec<EffectSubtractId>,
 }

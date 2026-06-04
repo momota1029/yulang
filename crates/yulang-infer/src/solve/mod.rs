@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::mem;
@@ -105,6 +105,15 @@ pub enum EffectSubtractability {
     All,
     AllExcept(Vec<EffectAtom>),
     Set(Vec<EffectAtom>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EffectSubtractId(pub u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectSubtractFact {
+    pub id: EffectSubtractId,
+    pub subtractability: EffectSubtractability,
 }
 
 impl EffectSubtractability {
@@ -281,7 +290,9 @@ pub struct Infer {
     pub handler_matches: RefCell<Vec<HandlerMatchEdge>>,
     pub handler_match_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[usize; 2]>>>,
     pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
-    pub effect_subtractables: RefCell<FxHashMap<TypeVar, EffectSubtractability>>,
+    pub effect_subtracts: RefCell<FxHashMap<TypeVar, Vec<EffectSubtractFact>>>,
+    pub effect_non_subtracts: RefCell<FxHashMap<TypeVar, FxHashSet<EffectSubtractId>>>,
+    pub next_effect_subtract_id: Cell<u32>,
     pub levels: RefCell<FxHashMap<TypeVar, u32>>,
     // 型ノードの最大 level のメモ化（論文 Fig.6 の lazy val level 相当）。
     // var の level は register 後に変わらないので PosId/NegId → level を永続キャッシュできる。
@@ -341,7 +352,9 @@ impl Infer {
             handler_matches: RefCell::new(Vec::new()),
             handler_match_dependents: RefCell::new(FxHashMap::default()),
             effect_boundary_keeps: RefCell::new(FxHashMap::default()),
-            effect_subtractables: RefCell::new(FxHashMap::default()),
+            effect_subtracts: RefCell::new(FxHashMap::default()),
+            effect_non_subtracts: RefCell::new(FxHashMap::default()),
+            next_effect_subtract_id: Cell::new(0),
             levels: RefCell::new(FxHashMap::default()),
             pos_max_level_cache: RefCell::new(FxHashMap::default()),
             neg_max_level_cache: RefCell::new(FxHashMap::default()),

@@ -1,13 +1,20 @@
 use crate::diagnostic::TypeOrigin;
 use crate::ids::{NegId, PosId, TypeVar};
+use crate::solve::EffectSubtractId;
 use crate::symbols::{Name, Path};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FunctionSigEffectHint {
     Pure,
-    AllSubtractable,
+    AllSubtractable {
+        subtract_ids: Vec<EffectSubtractId>,
+    },
     LowerBound(PosId),
-    Bounds(PosId, NegId),
+    Bounds {
+        lower: PosId,
+        upper: NegId,
+        subtract_ids: Vec<EffectSubtractId>,
+    },
 }
 
 #[derive(Debug, Clone)]

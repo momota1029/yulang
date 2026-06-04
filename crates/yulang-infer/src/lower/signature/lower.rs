@@ -6,7 +6,7 @@ use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::LowerState;
 use crate::lower::builtin_types::builtin_source_type_path;
-use crate::solve::EffectSubtractability;
+use crate::solve::{EffectSubtractId, EffectSubtractability};
 use crate::symbols::{Name, Path};
 use crate::types::RecordField;
 use crate::types::{EffectAtom, Neg, Pos};
@@ -248,7 +248,8 @@ pub fn lower_function_sig_shape(
     let arg_neg = lower_pure_sig_neg_id(state, arg, vars);
     let ret_pos = lower_pure_sig_pos_id(state, ret, vars);
     let ret_neg = lower_pure_sig_neg_id(state, ret, vars);
-    let (ret_eff_pos, ret_eff_neg, effect_hint) = lower_function_sig_ret_eff(state, ret_eff, vars);
+    let (ret_eff_pos, ret_eff_neg, effect_hint, effect_subtract_ids) =
+        lower_function_sig_ret_eff(state, ret_eff, vars);
 
     Some(LoweredFunctionSigShape {
         arg_pos,
@@ -258,6 +259,7 @@ pub fn lower_function_sig_shape(
         ret_eff_pos,
         ret_eff_neg,
         effect_hint,
+        effect_subtract_ids,
     })
 }
 
@@ -766,12 +768,13 @@ fn lower_function_sig_ret_eff(
     state: &mut LowerState,
     ret_eff: Option<&SigRow>,
     vars: &mut HashMap<String, TypeVar>,
-) -> (PosId, NegId, bool) {
+) -> (PosId, NegId, bool, Vec<EffectSubtractId>) {
     let Some(row) = ret_eff else {
         return (
             state.infer.arena.bot,
             state.infer.arena.empty_neg_row,
             false,
+            Vec::new(),
         );
     };
 
@@ -779,33 +782,41 @@ fn lower_function_sig_ret_eff(
         if let Some(tail) = &row.tail {
             let tv = sig_var(state, vars, tail);
             let is_wildcard_tail = tail.name == "_";
+            let mut subtract_ids = Vec::new();
             if is_wildcard_tail {
-                state
-                    .infer
-                    .record_effect_subtractability(tv, EffectSubtractability::All);
+                subtract_ids.push(
+                    state
+                        .infer
+                        .record_effect_subtractability(tv, EffectSubtractability::All),
+                );
             }
             return (
                 state.infer.alloc_pos(Pos::Var(tv)),
                 state.infer.alloc_neg(Neg::Var(tv)),
                 is_wildcard_tail,
+                subtract_ids,
             );
         }
         return (
             state.infer.arena.bot,
             state.infer.arena.empty_neg_row,
             false,
+            Vec::new(),
         );
     }
 
+    let mut subtract_ids = Vec::new();
     let tail_tv = if let Some(tail) = &row.tail {
         let tv = sig_var(state, vars, tail);
-        record_function_ret_eff_subtractability(
+        if let Some(id) = record_function_ret_eff_subtractability(
             state,
             tv,
             row,
             vars,
             RowTailSubtractability::AllExceptItems,
-        );
+        ) {
+            subtract_ids.push(id);
+        }
         tv
     } else {
         let Some(implicit) = implicit_row_tail_sig_var(row) else {
@@ -813,22 +824,26 @@ fn lower_function_sig_ret_eff(
                 state.infer.arena.bot,
                 state.infer.arena.empty_neg_row,
                 false,
+                Vec::new(),
             );
         };
         let tv = sig_var(state, vars, &implicit);
-        record_function_ret_eff_subtractability(
+        if let Some(id) = record_function_ret_eff_subtractability(
             state,
             tv,
             row,
             vars,
             RowTailSubtractability::OnlyItems,
-        );
+        ) {
+            subtract_ids.push(id);
+        }
         tv
     };
     (
         state.infer.alloc_pos(Pos::Var(tail_tv)),
         state.infer.alloc_neg(Neg::Var(tail_tv)),
         false,
+        subtract_ids,
     )
 }
 
@@ -838,22 +853,24 @@ fn record_function_ret_eff_subtractability(
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
     mode: RowTailSubtractability,
-) {
+) -> Option<EffectSubtractId> {
     let atoms = row
         .items
         .iter()
         .filter_map(|item| lower_sig_effect_atom(state, item, vars))
         .collect::<Vec<_>>();
     if atoms.is_empty() {
-        return;
+        return None;
     }
     let subtractability = match mode {
         RowTailSubtractability::OnlyItems => EffectSubtractability::set(atoms),
         RowTailSubtractability::AllExceptItems => EffectSubtractability::all_except(atoms),
     };
-    state
-        .infer
-        .record_effect_subtractability(tv, subtractability);
+    Some(
+        state
+            .infer
+            .record_effect_subtractability(tv, subtractability),
+    )
 }
 
 fn sig_var_key(var: &SigVar) -> String {

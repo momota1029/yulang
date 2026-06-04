@@ -3090,7 +3090,8 @@ mod tests {
             body,
             quantified: vec![quantified],
             quantified_sources: smallvec::smallvec![(quantified, quantified)],
-            effect_subtractabilities: Vec::new(),
+            effect_subtracts: Vec::new(),
+            effect_non_subtracts: Vec::new(),
         });
         infer.add_compact_lower_instance(
             root,

@@ -4,14 +4,15 @@ use yulang_parser::lex::SyntaxKind;
 
 use crate::ids::TypeVar;
 use crate::lower::{LowerState, SyntaxNode};
-use crate::solve::EffectSubtractability;
+use crate::solve::{EffectSubtractFact, EffectSubtractId, EffectSubtractability};
 use crate::types::EffectAtom;
 use crate::types::{Neg, Pos};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct TypeParamEffectMetadata {
     source_args: Vec<TypeVar>,
-    subtractabilities: Vec<(usize, EffectSubtractability)>,
+    subtracts: Vec<(usize, EffectSubtractFact)>,
+    non_subtracts: Vec<(usize, EffectSubtractId)>,
 }
 
 pub(crate) fn lower_struct_field_type(
@@ -39,19 +40,32 @@ pub(crate) fn collect_type_param_effect_metadata(
     state: &LowerState,
     type_arg_tvs: &[TypeVar],
 ) -> TypeParamEffectMetadata {
-    let subtractabilities = type_arg_tvs
+    let subtracts = type_arg_tvs
         .iter()
         .enumerate()
-        .filter_map(|(index, tv)| {
+        .flat_map(|(index, tv)| {
             state
                 .infer
-                .effect_subtractability(*tv)
-                .map(|subtractability| (index, subtractability))
+                .effect_subtract_facts(*tv)
+                .into_iter()
+                .map(move |fact| (index, fact))
+        })
+        .collect();
+    let non_subtracts = type_arg_tvs
+        .iter()
+        .enumerate()
+        .flat_map(|(index, tv)| {
+            state
+                .infer
+                .effect_non_subtract_ids(*tv)
+                .into_iter()
+                .map(move |id| (index, id))
         })
         .collect();
     TypeParamEffectMetadata {
         source_args: type_arg_tvs.to_vec(),
-        subtractabilities,
+        subtracts,
+        non_subtracts,
     }
 }
 
@@ -66,14 +80,29 @@ pub(crate) fn apply_type_param_effect_metadata(
         .copied()
         .zip(type_arg_tvs.iter().copied())
         .collect::<Vec<_>>();
-    for (index, subtractability) in &metadata.subtractabilities {
+    let mut id_subst = HashMap::new();
+    for (_, fact) in &metadata.subtracts {
+        fresh_metadata_effect_subtract_id(state, &mut id_subst, fact.id);
+    }
+    for (_, id) in &metadata.non_subtracts {
+        fresh_metadata_effect_subtract_id(state, &mut id_subst, *id);
+    }
+    for (index, fact) in &metadata.subtracts {
         let Some(&target) = type_arg_tvs.get(*index) else {
             continue;
         };
-        state.infer.record_effect_subtractability(
+        state.infer.record_effect_subtract_fact(
             target,
-            subst_effect_subtractability(subtractability.clone(), &subst),
+            subst_effect_subtract_fact(fact.clone(), &subst, &id_subst),
         );
+    }
+    for (index, id) in &metadata.non_subtracts {
+        let Some(&target) = type_arg_tvs.get(*index) else {
+            continue;
+        };
+        if let Some(id) = id_subst.get(id).copied() {
+            state.infer.record_effect_non_subtract(target, id);
+        }
     }
 }
 
@@ -97,6 +126,27 @@ fn subst_effect_subtractability(
                 .collect(),
         ),
     }
+}
+
+fn subst_effect_subtract_fact(
+    fact: EffectSubtractFact,
+    subst: &[(TypeVar, TypeVar)],
+    id_subst: &HashMap<EffectSubtractId, EffectSubtractId>,
+) -> EffectSubtractFact {
+    EffectSubtractFact {
+        id: id_subst.get(&fact.id).copied().unwrap_or(fact.id),
+        subtractability: subst_effect_subtractability(fact.subtractability, subst),
+    }
+}
+
+fn fresh_metadata_effect_subtract_id(
+    state: &LowerState,
+    id_subst: &mut HashMap<EffectSubtractId, EffectSubtractId>,
+    id: EffectSubtractId,
+) -> EffectSubtractId {
+    *id_subst
+        .entry(id)
+        .or_insert_with(|| state.infer.fresh_effect_subtract_id())
 }
 
 fn subst_effect_atom(atom: EffectAtom, subst: &[(TypeVar, TypeVar)]) -> EffectAtom {

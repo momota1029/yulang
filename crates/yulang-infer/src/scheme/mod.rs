@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::ids::{PosId, TypeVar};
 use crate::simplify::compact::CompactTypeScheme;
-use crate::solve::EffectSubtractability;
+use crate::solve::{EffectSubtractFact, EffectSubtractId};
 use crate::types::arena::TypeArena;
 
 pub mod freeze;
@@ -21,7 +21,8 @@ pub struct Scheme {
     pub body: PosId,
     pub quantified: Vec<TypeVar>,
     pub quantified_sources: SmallSubst,
-    pub effect_subtractabilities: Vec<(TypeVar, EffectSubtractability)>,
+    pub effect_subtracts: Vec<(TypeVar, EffectSubtractFact)>,
+    pub effect_non_subtracts: Vec<(TypeVar, EffectSubtractId)>,
 }
 
 pub type FrozenScheme = Rc<Scheme>;

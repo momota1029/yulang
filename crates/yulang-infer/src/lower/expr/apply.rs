@@ -143,15 +143,35 @@ pub(crate) fn make_app_with_cause(
                         .get_neg(state.infer.arena.empty_neg_row)
                         .clone();
                 }
-                FunctionSigEffectHint::AllSubtractable => {
-                    state
-                        .infer
-                        .record_effect_subtractability(call_eff, EffectSubtractability::All);
+                FunctionSigEffectHint::AllSubtractable { subtract_ids } => {
+                    if subtract_ids.is_empty() {
+                        state
+                            .infer
+                            .record_effect_subtractability(call_eff, EffectSubtractability::All);
+                    } else {
+                        for id in subtract_ids {
+                            state.infer.record_effect_non_subtract(result_ty.value, id);
+                            state.infer.record_effect_non_subtract(result_ty.effect, id);
+                            state.infer.record_effect_subtractability_for_id(
+                                call_eff,
+                                id,
+                                EffectSubtractability::All,
+                            );
+                        }
+                    }
                 }
                 FunctionSigEffectHint::LowerBound(lower) => {
                     state.infer.constrain(lower, Neg::Var(call_eff));
                 }
-                FunctionSigEffectHint::Bounds(lower, upper) => {
+                FunctionSigEffectHint::Bounds {
+                    lower,
+                    upper,
+                    subtract_ids,
+                } => {
+                    for id in subtract_ids {
+                        state.infer.record_effect_non_subtract(result_ty.value, id);
+                        state.infer.record_effect_non_subtract(result_ty.effect, id);
+                    }
                     record_effect_subtractability_from_upper(state, call_eff, upper);
                     state.infer.constrain(lower, Neg::Var(call_eff));
                     state.infer.constrain(Pos::Var(call_eff), upper);
@@ -483,12 +503,15 @@ fn record_call_boundary_effect_metadata(
     let Some(subtractability) = effect_subtractability_for_keep(keep) else {
         return false;
     };
+    let subtract_id = state.infer.fresh_effect_subtract_id();
+    state.infer.record_effect_subtractability_for_id(
+        call_eff,
+        subtract_id,
+        subtractability.clone(),
+    );
     state
         .infer
-        .record_effect_subtractability(call_eff, subtractability.clone());
-    state
-        .infer
-        .record_effect_subtractability(result_eff, subtractability);
+        .record_effect_subtractability_for_id(result_eff, subtract_id, subtractability);
     true
 }
 
@@ -498,12 +521,12 @@ fn record_effect_subtractability_from_upper(
     upper: crate::ids::NegId,
 ) -> bool {
     if let Neg::Var(source) = state.infer.arena.get_neg(upper) {
-        let Some(subtractability) = state.infer.effect_subtractability(source) else {
+        if state.infer.effect_subtract_facts(source).is_empty()
+            && state.infer.effect_non_subtract_ids(source).is_empty()
+        {
             return false;
-        };
-        state
-            .infer
-            .record_effect_subtractability(effect, subtractability);
+        }
+        state.infer.copy_effect_subtractability(source, effect);
         return true;
     }
     let Neg::Row(items, _) = state.infer.arena.get_neg(upper) else {

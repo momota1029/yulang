@@ -332,6 +332,10 @@ impl<'scope> VarNamer<'scope> {
         name
     }
 
+    pub(crate) fn type_var_name(&mut self, tv: TypeVar) -> String {
+        self.name(tv.0)
+    }
+
     pub(crate) fn render_path(&self, path: &Path) -> String {
         match self.scope {
             Some(ctx) => shortest_unique_type_path(ctx, path),
@@ -1449,7 +1453,7 @@ fn collect_compact_type_generated_local_effect_tail_vars(
     }
 }
 
-fn collect_type_vars(ty: &Type, out: &mut HashSet<TypeVar>) {
+pub(crate) fn collect_type_vars(ty: &Type, out: &mut HashSet<TypeVar>) {
     match ty {
         Type::Var(var) => {
             out.insert(*var);

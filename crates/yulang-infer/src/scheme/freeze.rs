@@ -11,7 +11,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
-use crate::solve::{EffectSubtractability, Infer};
+use crate::solve::{EffectSubtractFact, EffectSubtractId, EffectSubtractability, Infer};
 use crate::symbols::Path;
 use crate::types::RecordField;
 use crate::types::arena::TypeArena;
@@ -180,7 +180,8 @@ pub fn compact_scheme_from_pos_body_in_arena(arena: &TypeArena, body: PosId) -> 
 struct FreezeQuantification {
     quantified: Vec<TypeVar>,
     quantified_sources: SmallSubst,
-    effect_subtractabilities: Vec<(TypeVar, EffectSubtractability)>,
+    effect_subtracts: Vec<(TypeVar, EffectSubtractFact)>,
+    effect_non_subtracts: Vec<(TypeVar, EffectSubtractId)>,
 }
 
 fn prepare_freeze_quantification(
@@ -188,6 +189,7 @@ fn prepare_freeze_quantification(
     mut quantified: Vec<TypeVar>,
     non_generic_roots: &HashSet<TypeVar>,
 ) -> FreezeQuantification {
+    infer.prune_resolved_effect_subtract_metadata();
     add_effect_metadata_free_vars(infer, &mut quantified);
     if !non_generic_roots.is_empty() {
         let non_generic = collect_non_generic_vars(infer, non_generic_roots);
@@ -201,20 +203,32 @@ fn prepare_freeze_quantification(
         .copied()
         .map(|tv| (tv, fresh_frozen_type_var()))
         .collect::<SmallSubst>();
-    let effect_subtractabilities = quantified_sources
+    let effect_subtracts = quantified_sources
         .iter()
-        .filter_map(|(source, frozen)| {
+        .flat_map(|(source, frozen)| {
             infer
-                .effect_subtractability(*source)
-                .map(|subtractability| {
+                .effect_subtract_facts(*source)
+                .into_iter()
+                .map(|fact| {
                     (
                         *frozen,
-                        subst_effect_subtractability(
-                            subtractability,
-                            quantified_sources.as_slice(),
-                        ),
+                        subst_effect_subtract_fact(fact, quantified_sources.as_slice()),
                     )
                 })
+        })
+        .collect::<Vec<_>>();
+    let subtract_ids = effect_subtracts
+        .iter()
+        .map(|(_, fact)| fact.id)
+        .collect::<HashSet<_>>();
+    let effect_non_subtracts = quantified_sources
+        .iter()
+        .flat_map(|(source, frozen)| {
+            infer
+                .effect_non_subtract_ids(*source)
+                .into_iter()
+                .filter(|id| subtract_ids.contains(id))
+                .map(|id| (*frozen, id))
         })
         .collect();
     let quantified = quantified_sources
@@ -224,7 +238,8 @@ fn prepare_freeze_quantification(
     FreezeQuantification {
         quantified,
         quantified_sources,
-        effect_subtractabilities,
+        effect_subtracts,
+        effect_non_subtracts,
     }
 }
 
@@ -232,8 +247,8 @@ fn add_effect_metadata_free_vars(infer: &Infer, quantified: &mut Vec<TypeVar>) {
     let mut pending = quantified.clone();
     let mut seen = quantified.iter().copied().collect::<HashSet<_>>();
     while let Some(tv) = pending.pop() {
-        if let Some(subtractability) = infer.effect_subtractability(tv) {
-            for var in effect_subtractability_free_vars(&subtractability) {
+        for fact in infer.effect_subtract_facts(tv) {
+            for var in effect_subtractability_free_vars(&fact.subtractability) {
                 if seen.insert(var) {
                     quantified.push(var);
                     pending.push(var);
@@ -281,6 +296,16 @@ fn subst_effect_subtractability(
     }
 }
 
+fn subst_effect_subtract_fact(
+    fact: EffectSubtractFact,
+    subst: &[(TypeVar, TypeVar)],
+) -> EffectSubtractFact {
+    EffectSubtractFact {
+        id: fact.id,
+        subtractability: subst_effect_subtractability(fact.subtractability, subst),
+    }
+}
+
 fn finish_frozen_scheme(
     arena: FrozenArena,
     compact: CompactTypeScheme,
@@ -293,7 +318,8 @@ fn finish_frozen_scheme(
         body,
         quantified: quantification.quantified,
         quantified_sources: quantification.quantified_sources,
-        effect_subtractabilities: quantification.effect_subtractabilities,
+        effect_subtracts: quantification.effect_subtracts,
+        effect_non_subtracts: quantification.effect_non_subtracts,
     })
 }
 

@@ -36,7 +36,12 @@ pub(crate) fn wrap_header_lambdas(
                 .infer
                 .constrain(Pos::Var(param_tv), super::super::neg_prim_type("unit"));
         }
-        super::super::configure_arg_effect_from_ann(state, arg_eff_tv, arg_pat.ann.as_ref());
+        let subtract_ids =
+            super::super::configure_arg_effect_from_ann(state, arg_eff_tv, arg_pat.ann.as_ref());
+        for id in subtract_ids {
+            state.infer.record_effect_non_subtract(body.tv, id);
+            state.infer.record_effect_non_subtract(body.eff, id);
+        }
         if let Some(pat) = &arg_pat.pat {
             state.infer.constrain(Pos::Var(param_tv), Neg::Var(pat.tv));
             state.infer.constrain(Pos::Var(pat.tv), Neg::Var(param_tv));

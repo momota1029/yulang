@@ -12,7 +12,7 @@ use crate::simplify::compact::{
     CompactTypeScheme, CompactVariant, compact_type_var,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
-use crate::solve::{Infer, RoleConstraint};
+use crate::solve::{EffectSubtractability, Infer, RoleConstraint};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{EffectAtom, Neg, Pos};
 
@@ -528,16 +528,21 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
         &observed_vars,
         hidden_effect_paths,
     );
+    let mut metadata_vars = observed_vars.clone();
+    display_format::collect_type_vars(&body_type, &mut metadata_vars);
     let body = display_format::format_type_with_namer(&body_type, &mut namer);
-    let rendered_constraints = constraints
-        .iter()
-        .map(|constraint| format_role_constraint_with_display_namer(infer, constraint, &mut namer))
-        .fold(Vec::<String>::new(), |mut out, item| {
-            if !out.contains(&item) {
-                out.push(item);
-            }
-            out
-        });
+    let rendered_constraints =
+        format_effect_metadata_constraints(infer, &metadata_vars, &mut namer)
+            .into_iter()
+            .chain(constraints.iter().map(|constraint| {
+                format_role_constraint_with_display_namer(infer, constraint, &mut namer)
+            }))
+            .fold(Vec::<String>::new(), |mut out, item| {
+                if !out.contains(&item) {
+                    out.push(item);
+                }
+                out
+            });
     if rendered_constraints.is_empty() {
         body
     } else {
@@ -555,6 +560,82 @@ fn compact_role_constraint_observed_vars(
         }
     }
     out
+}
+
+fn format_effect_metadata_constraints(
+    infer: &Infer,
+    observed_vars: &HashSet<TypeVar>,
+    namer: &mut display_format::VarNamer<'_>,
+) -> Vec<String> {
+    let mut vars = observed_vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    let mut out = Vec::new();
+    for tv in vars {
+        for fact in infer.effect_subtract_facts(tv) {
+            out.push(format!(
+                "Subtract#{}<{}, {}>",
+                fact.id.0,
+                namer.type_var_name(tv),
+                format_effect_subtractability(&fact.subtractability, namer)
+            ));
+        }
+        for id in infer.effect_non_subtract_ids(tv) {
+            out.push(format!("NonSubtract#{}<{}>", id.0, namer.type_var_name(tv)));
+        }
+    }
+    out
+}
+
+fn format_effect_subtractability(
+    subtractability: &EffectSubtractability,
+    namer: &mut display_format::VarNamer<'_>,
+) -> String {
+    match subtractability {
+        EffectSubtractability::Empty => "[]".to_string(),
+        EffectSubtractability::All => "*".to_string(),
+        EffectSubtractability::Set(atoms) => format_effect_atom_set(atoms, namer),
+        EffectSubtractability::AllExcept(atoms) => {
+            format!("* \\ {}", format_effect_atom_set(atoms, namer))
+        }
+    }
+}
+
+fn format_effect_atom_set(
+    atoms: &[EffectAtom],
+    namer: &mut display_format::VarNamer<'_>,
+) -> String {
+    let atoms = atoms
+        .iter()
+        .map(|atom| format_effect_atom_with_display_namer(atom, namer))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("[{atoms}]")
+}
+
+fn format_effect_atom_with_display_namer(
+    atom: &EffectAtom,
+    namer: &mut display_format::VarNamer<'_>,
+) -> String {
+    if atom.args.is_empty() {
+        return namer.render_path(&atom.path);
+    }
+    let args = atom
+        .args
+        .iter()
+        .map(|(pos, neg)| {
+            if pos == neg {
+                namer.type_var_name(*pos)
+            } else {
+                format!(
+                    "{} <: {}",
+                    namer.type_var_name(*pos),
+                    namer.type_var_name(*neg)
+                )
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{}<{}>", namer.render_path(&atom.path), args)
 }
 
 fn format_role_constraint_with_display_namer(

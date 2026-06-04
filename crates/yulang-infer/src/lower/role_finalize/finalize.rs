@@ -66,6 +66,7 @@ impl LowerState {
         target_defs: &HashSet<DefId>,
         follow_owner_refs: bool,
     ) -> FinalizeCompactResults {
+        self.infer.prune_resolved_effect_subtract_metadata();
         let total_start = Instant::now();
         let mut profile = FinalizeCompactProfile::default();
         let mut finalized = target_defs

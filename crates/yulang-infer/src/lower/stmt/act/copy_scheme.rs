@@ -1,7 +1,7 @@
 use crate::ids::{NegId, PosId};
 use crate::lower::LowerState;
 use crate::scheme::compact_scheme_from_pos_body_in_arena;
-use crate::solve::EffectSubtractability;
+use crate::solve::{EffectSubtractFact, EffectSubtractability};
 use crate::symbols::Path;
 use crate::types::arena::TypeArena;
 use crate::types::{EffectAtom, Neg, Pos};
@@ -60,18 +60,26 @@ pub(crate) fn transform_copied_frozen_scheme(
         .copied()
         .filter(|tv| !fixed_frozen_tvs.contains(tv))
         .collect::<Vec<_>>();
-    let effect_subtractabilities = source
-        .effect_subtractabilities
+    let effect_subtracts = source
+        .effect_subtracts
         .iter()
-        .filter_map(|(rho, subtractability)| {
+        .filter_map(|(rho, fact)| {
             let rho = lookup_small_subst(frozen_subst.as_slice(), *rho);
             if !quantified.contains(&rho) {
                 return None;
             }
             Some((
                 rho,
-                subst_effect_subtractability(subtractability.clone(), frozen_subst.as_slice()),
+                subst_effect_subtract_fact(fact.clone(), frozen_subst.as_slice()),
             ))
+        })
+        .collect();
+    let effect_non_subtracts = source
+        .effect_non_subtracts
+        .iter()
+        .filter_map(|(rho, id)| {
+            let rho = lookup_small_subst(frozen_subst.as_slice(), *rho);
+            quantified.contains(&rho).then_some((rho, *id))
         })
         .collect();
     let arena = std::rc::Rc::new(TypeArena::new());
@@ -90,7 +98,8 @@ pub(crate) fn transform_copied_frozen_scheme(
         body: frozen_body,
         quantified,
         quantified_sources,
-        effect_subtractabilities,
+        effect_subtracts,
+        effect_non_subtracts,
     })
 }
 
@@ -132,6 +141,16 @@ fn subst_effect_subtractability(
                 .map(|atom| subst_effect_atom_vars(atom, subst))
                 .collect(),
         ),
+    }
+}
+
+fn subst_effect_subtract_fact(
+    fact: EffectSubtractFact,
+    subst: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+) -> EffectSubtractFact {
+    EffectSubtractFact {
+        id: fact.id,
+        subtractability: subst_effect_subtractability(fact.subtractability, subst),
     }
 }
 

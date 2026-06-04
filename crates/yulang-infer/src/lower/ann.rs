@@ -6,7 +6,7 @@ use yulang_parser::lex::SyntaxKind;
 use super::{LowerState, SyntaxNode};
 use crate::diagnostic::{TypeOrigin, TypeOriginKind};
 use crate::lower::signature::{SigRow, SigType};
-use crate::solve::EffectSubtractability;
+use crate::solve::{EffectSubtractId, EffectSubtractability};
 use crate::symbols::{Name, Path};
 use crate::types::EffectAtom;
 
@@ -72,13 +72,22 @@ pub fn configure_arg_effect_from_ann(
     state: &mut LowerState,
     arg_eff_tv: crate::ids::TypeVar,
     ann: Option<&LoweredPatAnn>,
-) {
+) -> Vec<EffectSubtractId> {
     if ann.as_ref().and_then(|ann| ann.eff.as_ref()).is_some()
         && !state.configured_arg_effect_tvs.insert(arg_eff_tv)
     {
-        return;
+        return state
+            .configured_arg_effect_subtract_ids
+            .get(&arg_eff_tv)
+            .cloned()
+            .unwrap_or_default();
     }
-    record_effect_annotation_subtractability(state, arg_eff_tv, ann);
+    let subtract_ids = record_effect_annotation_subtractability(state, arg_eff_tv, ann);
+    if !subtract_ids.is_empty() {
+        state
+            .configured_arg_effect_subtract_ids
+            .insert(arg_eff_tv, subtract_ids.clone());
+    }
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
         Some(LoweredEffAnn::Row { .. }) => {
@@ -95,30 +104,37 @@ pub fn configure_arg_effect_from_ann(
             }
         }
     }
+    subtract_ids
 }
 
 pub fn record_effect_annotation_subtractability(
     state: &LowerState,
     arg_eff_tv: crate::ids::TypeVar,
     ann: Option<&LoweredPatAnn>,
-) {
+) -> Vec<EffectSubtractId> {
     match ann.and_then(|ann| ann.eff.as_ref()) {
-        Some(LoweredEffAnn::Opaque) => state
-            .infer
-            .record_effect_subtractability(arg_eff_tv, EffectSubtractability::All),
-        Some(LoweredEffAnn::Row { atoms, .. }) => {
-            if atoms.is_empty() {
+        Some(LoweredEffAnn::Opaque) => {
+            vec![
                 state
                     .infer
-                    .record_effect_subtractability(arg_eff_tv, EffectSubtractability::Empty);
+                    .record_effect_subtractability(arg_eff_tv, EffectSubtractability::All),
+            ]
+        }
+        Some(LoweredEffAnn::Row { atoms, .. }) => {
+            if atoms.is_empty() {
+                vec![
+                    state
+                        .infer
+                        .record_effect_subtractability(arg_eff_tv, EffectSubtractability::Empty),
+                ]
             } else {
-                state.infer.record_effect_subtractability(
+                vec![state.infer.record_effect_subtractability(
                     arg_eff_tv,
                     EffectSubtractability::Set(atoms.clone()),
-                );
+                )]
             }
         }
-        None => {}
+        None => Vec::new(),
     }
 }
 

@@ -2795,9 +2795,9 @@ pub take(p: () -> [parse 'item 'err 'pos 'snap] 'a): unit = ()\n",
         .lambda_param_function_sig_hints
         .values()
         .next()
-        .copied()
+        .cloned()
         .expect("take parameter should keep a function signature effect hint");
-    let crate::lower::FunctionSigEffectHint::Bounds(_, upper) = hint else {
+    let crate::lower::FunctionSigEffectHint::Bounds { upper, .. } = hint else {
         panic!("parse annotation should lower to an effect metadata-bearing signature hint");
     };
     let Neg::Var(effect_tv) = state.infer.arena.get_neg(upper) else {

@@ -3,6 +3,8 @@ use yulang_parser::lex::SyntaxKind;
 use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
+use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
+use crate::solve::EffectSubtractId;
 use crate::types::{Neg, Pos};
 
 pub(crate) fn connect_binding_type_annotation(
@@ -172,14 +174,21 @@ pub(crate) fn connect_pattern_sig_annotation(
             ExpectedEdgeKind::Annotation,
             cause.clone(),
         );
+        record_output_effect_non_subtracts(state, &fun, &fun.effect_subtract_ids);
         return Some(if fun.effect_hint {
-            crate::lower::FunctionSigEffectHint::AllSubtractable
+            crate::lower::FunctionSigEffectHint::AllSubtractable {
+                subtract_ids: fun.effect_subtract_ids,
+            }
         } else if state.infer.pos_effect_lower_is_empty(fun.ret_eff_pos)
             && fun.ret_eff_neg == state.infer.arena.empty_neg_row
         {
             crate::lower::FunctionSigEffectHint::Pure
         } else {
-            crate::lower::FunctionSigEffectHint::Bounds(fun.ret_eff_pos, fun.ret_eff_neg)
+            crate::lower::FunctionSigEffectHint::Bounds {
+                lower: fun.ret_eff_pos,
+                upper: fun.ret_eff_neg,
+                subtract_ids: fun.effect_subtract_ids,
+            }
         });
     }
 
@@ -189,6 +198,30 @@ pub(crate) fn connect_pattern_sig_annotation(
     let ann_tv = fresh_annotation_tv(state, pos_sig, neg_sig, &cause);
     connect_annotated_target(state, target_tv, ann_tv, cause);
     None
+}
+
+fn record_output_effect_non_subtracts(
+    state: &LowerState,
+    fun: &crate::lower::signature::LoweredFunctionSigShape,
+    ids: &[EffectSubtractId],
+) {
+    if ids.is_empty() {
+        return;
+    }
+
+    let mut output_vars = Vec::new();
+    output_vars.extend(collect_pos_free_vars(&state.infer, fun.ret_pos));
+    output_vars.extend(collect_neg_free_vars(&state.infer, fun.ret_neg));
+    output_vars.extend(collect_pos_free_vars(&state.infer, fun.ret_eff_pos));
+    output_vars.extend(collect_neg_free_vars(&state.infer, fun.ret_eff_neg));
+    output_vars.sort_by_key(|tv| tv.0);
+    output_vars.dedup();
+
+    for tv in output_vars {
+        for id in ids {
+            state.infer.record_effect_non_subtract(tv, *id);
+        }
+    }
 }
 
 fn fresh_annotation_tv(

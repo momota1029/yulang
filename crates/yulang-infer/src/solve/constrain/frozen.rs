@@ -541,8 +541,13 @@ fn propagate_invariant_arg_through_frozen(
         .flatten()
         .any(|tv| infer.effect_is_all_subtractable(tv))
     {
+        let subtract_id = infer.fresh_effect_subtract_id();
         for tv in vars.into_iter().flatten() {
-            infer.record_effect_subtractability(tv, crate::solve::EffectSubtractability::All);
+            infer.record_effect_subtractability_for_id(
+                tv,
+                subtract_id,
+                crate::solve::EffectSubtractability::All,
+            );
         }
     }
 }

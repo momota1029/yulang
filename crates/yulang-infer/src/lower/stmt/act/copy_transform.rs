@@ -6,7 +6,9 @@ use crate::ast::expr::{
 };
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::lower::LowerState;
-use crate::solve::{EffectSubtractability, RefFieldProjection, TypeFieldInfo};
+use crate::solve::{
+    EffectSubtractFact, EffectSubtractId, EffectSubtractability, RefFieldProjection, TypeFieldInfo,
+};
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos, RecordField};
 
@@ -191,7 +193,7 @@ fn transform_copied_expr_kind(
                 .state
                 .lambda_param_function_sig_hints
                 .get(def)
-                .copied()
+                .cloned()
             {
                 let hint = types.copy_function_sig_effect_hint(hint);
                 types
@@ -598,6 +600,7 @@ struct CopiedTypeVars<'a> {
     state: &'a mut LowerState,
     fixed: HashMap<TypeVar, TypeVar>,
     copied: HashMap<TypeVar, TypeVar>,
+    copied_effect_subtract_ids: HashMap<EffectSubtractId, EffectSubtractId>,
     copied_tv_side_tables: HashSet<TypeVar>,
     copied_handler_matches: HashSet<usize>,
     local_def_subst: HashMap<DefId, DefId>,
@@ -622,6 +625,7 @@ impl<'a> CopiedTypeVars<'a> {
             state,
             fixed: fixed.iter().copied().collect(),
             copied: HashMap::new(),
+            copied_effect_subtract_ids: HashMap::new(),
             copied_tv_side_tables: HashSet::new(),
             copied_handler_matches: HashSet::new(),
             local_def_subst: HashMap::new(),
@@ -789,13 +793,31 @@ impl<'a> CopiedTypeVars<'a> {
         {
             self.state.infer.record_effect_boundary_keep(mapped, keep);
         }
-        if let Some(subtractability) = self.state.infer.effect_subtractability(tv) {
-            let subtractability = self.copy_effect_subtractability(subtractability);
-            self.state
-                .infer
-                .record_effect_subtractability(mapped, subtractability);
+        for fact in self.state.infer.effect_subtract_facts(tv) {
+            let fact = self.copy_effect_subtract_fact(fact);
+            self.state.infer.record_effect_subtract_fact(mapped, fact);
+        }
+        for id in self.state.infer.effect_non_subtract_ids(tv) {
+            let id = self.copy_effect_subtract_id(id);
+            self.state.infer.record_effect_non_subtract(mapped, id);
         }
         self.copy_handler_matches_for(tv);
+    }
+
+    fn copy_effect_subtract_fact(&mut self, fact: EffectSubtractFact) -> EffectSubtractFact {
+        EffectSubtractFact {
+            id: self.copy_effect_subtract_id(fact.id),
+            subtractability: self.copy_effect_subtractability(fact.subtractability),
+        }
+    }
+
+    fn copy_effect_subtract_id(&mut self, id: EffectSubtractId) -> EffectSubtractId {
+        if let Some(mapped) = self.copied_effect_subtract_ids.get(&id).copied() {
+            return mapped;
+        }
+        let mapped = self.state.infer.fresh_effect_subtract_id();
+        self.copied_effect_subtract_ids.insert(id, mapped);
+        mapped
     }
 
     fn copy_effect_subtractability(
@@ -873,18 +895,29 @@ impl<'a> CopiedTypeVars<'a> {
     ) -> crate::lower::FunctionSigEffectHint {
         match hint {
             crate::lower::FunctionSigEffectHint::Pure => crate::lower::FunctionSigEffectHint::Pure,
-            crate::lower::FunctionSigEffectHint::AllSubtractable => {
-                crate::lower::FunctionSigEffectHint::AllSubtractable
+            crate::lower::FunctionSigEffectHint::AllSubtractable { subtract_ids } => {
+                crate::lower::FunctionSigEffectHint::AllSubtractable {
+                    subtract_ids: subtract_ids
+                        .into_iter()
+                        .map(|id| self.copy_effect_subtract_id(id))
+                        .collect(),
+                }
             }
             crate::lower::FunctionSigEffectHint::LowerBound(lower) => {
                 crate::lower::FunctionSigEffectHint::LowerBound(self.copy_pos_id(lower))
             }
-            crate::lower::FunctionSigEffectHint::Bounds(lower, upper) => {
-                crate::lower::FunctionSigEffectHint::Bounds(
-                    self.copy_pos_id(lower),
-                    self.copy_neg_id(upper),
-                )
-            }
+            crate::lower::FunctionSigEffectHint::Bounds {
+                lower,
+                upper,
+                subtract_ids,
+            } => crate::lower::FunctionSigEffectHint::Bounds {
+                lower: self.copy_pos_id(lower),
+                upper: self.copy_neg_id(upper),
+                subtract_ids: subtract_ids
+                    .into_iter()
+                    .map(|id| self.copy_effect_subtract_id(id))
+                    .collect(),
+            },
         }
     }
 
