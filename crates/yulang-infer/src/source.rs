@@ -2447,6 +2447,7 @@ fn build_std_infer_snapshot_inner(
     for file in source_set.std_files() {
         lower_source_file_inner(file, &mut state, profile);
     }
+    state.finalize_pending_role_var_alias_schemes();
     Some(StdInferSnapshot::new(key, state))
 }
 
@@ -2461,6 +2462,7 @@ fn build_std_infer_snapshot_data_inner(source_set: &SourceSet) -> Option<StdInfe
     for file in source_set.std_files() {
         lower_source_file_inner(file, &mut state, &mut profile);
     }
+    state.finalize_pending_role_var_alias_schemes();
     finish_lowering(&mut state);
     Some(StdInferSnapshotData::from_state(key, &state))
 }
@@ -2480,6 +2482,7 @@ fn build_std_core_snapshot_data_inner(source_set: &SourceSet) -> Option<StdCoreS
     for file in source_set.std_files() {
         lower_source_file_inner(file, &mut state, &mut profile);
     }
+    state.finalize_pending_role_var_alias_schemes();
     finish_lowering(&mut state);
     let binding_paths = state.ctx.collect_all_binding_paths();
     let program = crate::export_core_program_for_binding_paths(&mut state, &binding_paths);
@@ -3456,7 +3459,7 @@ fn build_compiled_runtime_surfaces(
         .or_else(|| typed_artifacts.first())
         .map(|artifact| artifact.manifest.unit_index);
 
-    typed_artifacts
+    let plans = typed_artifacts
         .iter()
         .map(|artifact| {
             let unit_paths = artifact
@@ -3478,20 +3481,49 @@ fn build_compiled_runtime_surfaces(
             } else {
                 Vec::new()
             };
-            let mut export_state = state.clone();
-            let mut program =
-                crate::export_core_program_for_binding_paths(&mut export_state, &binding_paths);
-            let aliases = compiled_runtime_binding_aliases(state, &binding_paths);
-            add_core_program_binding_aliases(&mut program, &aliases);
+            CompiledRuntimeSurfacePlan {
+                unit_paths,
+                binding_paths,
+                extra_runtime_paths,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let mut export_binding_paths = Vec::new();
+    let mut seen_defs = HashSet::new();
+    for plan in &plans {
+        for (path, def) in &plan.binding_paths {
+            if seen_defs.insert(*def) {
+                export_binding_paths.push((path.clone(), *def));
+            }
+        }
+    }
+
+    let mut export_state = state.clone();
+    let mut exported_program =
+        crate::export_core_program_for_binding_paths(&mut export_state, &export_binding_paths);
+    let aliases = compiled_runtime_binding_aliases(state, &export_binding_paths);
+    add_core_program_binding_aliases(&mut exported_program, &aliases);
+
+    plans
+        .iter()
+        .map(|plan| {
+            let mut program = exported_program.clone();
             prune_core_program_to_modules_and_paths(
                 &mut program,
-                &unit_paths,
-                &extra_runtime_paths,
+                &plan.unit_paths,
+                &plan.extra_runtime_paths,
             );
             clear_core_program_roots(&mut program);
             CompiledRuntimeSurface { program }
         })
         .collect()
+}
+
+struct CompiledRuntimeSurfacePlan {
+    unit_paths: Vec<Vec<String>>,
+    binding_paths: Vec<(Path, crate::ids::DefId)>,
+    extra_runtime_paths: Vec<typed_ir::Path>,
 }
 
 fn extend_primitive_runtime_binding_paths(

@@ -6,8 +6,8 @@ use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
     CompactType, CompactTypeScheme, CompactVariant,
     coalesce_nested_tail_function_effect_residuals_in_scheme, compact_root_fun_body_lower,
-    compact_type_var, merge_compact_types, normalize_compact_scheme_rows, subst_compact_bounds,
-    subst_lookup_small,
+    compact_type_var, compact_type_vars_in_order, merge_compact_types,
+    normalize_compact_scheme_rows, subst_compact_bounds, subst_lookup_small,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
@@ -861,9 +861,10 @@ pub(crate) fn collect_non_generic_vars(
     roots: &HashSet<TypeVar>,
 ) -> HashSet<TypeVar> {
     let mut out = HashSet::new();
-    for root in roots {
-        out.insert(*root);
-        let scheme = compact_type_var(infer, *root);
+    let roots = roots.iter().copied().collect::<Vec<_>>();
+    let schemes = compact_type_vars_in_order(infer, &roots);
+    for (root, scheme) in roots.into_iter().zip(schemes) {
+        out.insert(root);
         let mut free = Vec::new();
         collect_compact_type_free_vars(&scheme.cty.lower, &mut free);
         collect_compact_type_free_vars(&scheme.cty.upper, &mut free);
@@ -958,98 +959,125 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
 }
 
 fn collect_compact_bounds_free_vars(bounds: &CompactBounds, out: &mut Vec<TypeVar>) {
-    collect_compact_type_free_vars(&bounds.lower, out);
-    collect_compact_type_free_vars(&bounds.upper, out);
+    let mut seen = out.iter().copied().collect::<HashSet<_>>();
+    collect_compact_bounds_free_vars_inner(bounds, out, &mut seen);
+}
+
+fn collect_compact_bounds_free_vars_inner(
+    bounds: &CompactBounds,
+    out: &mut Vec<TypeVar>,
+    seen: &mut HashSet<TypeVar>,
+) {
+    collect_compact_type_free_vars_inner(&bounds.lower, out, seen);
+    collect_compact_type_free_vars_inner(&bounds.upper, out, seen);
 }
 
 fn collect_compact_root_upper_child_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {
+    let mut seen = out.iter().copied().collect::<HashSet<_>>();
+    collect_compact_root_upper_child_free_vars_inner(ty, out, &mut seen);
+}
+
+fn collect_compact_root_upper_child_free_vars_inner(
+    ty: &CompactType,
+    out: &mut Vec<TypeVar>,
+    seen: &mut HashSet<TypeVar>,
+) {
     for con in &ty.cons {
         for arg in &con.args {
-            collect_compact_bounds_free_vars(arg, out);
+            collect_compact_bounds_free_vars_inner(arg, out, seen);
         }
     }
     for fun in &ty.funs {
-        collect_compact_type_free_vars(&fun.arg, out);
-        collect_compact_type_free_vars(&fun.arg_eff, out);
-        collect_compact_type_free_vars(&fun.ret_eff, out);
-        collect_compact_type_free_vars(&fun.ret, out);
+        collect_compact_type_free_vars_inner(&fun.arg, out, seen);
+        collect_compact_type_free_vars_inner(&fun.arg_eff, out, seen);
+        collect_compact_type_free_vars_inner(&fun.ret_eff, out, seen);
+        collect_compact_type_free_vars_inner(&fun.ret, out, seen);
     }
     for record in &ty.records {
         for field in &record.fields {
-            collect_compact_type_free_vars(&field.value, out);
+            collect_compact_type_free_vars_inner(&field.value, out, seen);
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            collect_compact_type_free_vars(&field.value, out);
+            collect_compact_type_free_vars_inner(&field.value, out, seen);
         }
-        collect_compact_type_free_vars(&spread.tail, out);
+        collect_compact_type_free_vars_inner(&spread.tail, out, seen);
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                collect_compact_type_free_vars(payload, out);
+                collect_compact_type_free_vars_inner(payload, out, seen);
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            collect_compact_type_free_vars(item, out);
+            collect_compact_type_free_vars_inner(item, out, seen);
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            collect_compact_type_free_vars(item, out);
+            collect_compact_type_free_vars_inner(item, out, seen);
         }
-        collect_compact_type_free_vars(&row.tail, out);
+        collect_compact_type_free_vars_inner(&row.tail, out, seen);
     }
 }
 
 fn collect_compact_type_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {
+    let mut seen = out.iter().copied().collect::<HashSet<_>>();
+    collect_compact_type_free_vars_inner(ty, out, &mut seen);
+}
+
+fn collect_compact_type_free_vars_inner(
+    ty: &CompactType,
+    out: &mut Vec<TypeVar>,
+    seen: &mut HashSet<TypeVar>,
+) {
     for tv in ty.vars.iter().copied() {
-        if !out.contains(&tv) {
+        if seen.insert(tv) {
             out.push(tv);
         }
     }
     for con in &ty.cons {
         for arg in &con.args {
-            collect_compact_bounds_free_vars(arg, out);
+            collect_compact_bounds_free_vars_inner(arg, out, seen);
         }
     }
     for fun in &ty.funs {
-        collect_compact_type_free_vars(&fun.arg, out);
-        collect_compact_type_free_vars(&fun.arg_eff, out);
-        collect_compact_type_free_vars(&fun.ret_eff, out);
-        collect_compact_type_free_vars(&fun.ret, out);
+        collect_compact_type_free_vars_inner(&fun.arg, out, seen);
+        collect_compact_type_free_vars_inner(&fun.arg_eff, out, seen);
+        collect_compact_type_free_vars_inner(&fun.ret_eff, out, seen);
+        collect_compact_type_free_vars_inner(&fun.ret, out, seen);
     }
     for record in &ty.records {
         for field in &record.fields {
-            collect_compact_type_free_vars(&field.value, out);
+            collect_compact_type_free_vars_inner(&field.value, out, seen);
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            collect_compact_type_free_vars(&field.value, out);
+            collect_compact_type_free_vars_inner(&field.value, out, seen);
         }
-        collect_compact_type_free_vars(&spread.tail, out);
+        collect_compact_type_free_vars_inner(&spread.tail, out, seen);
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                collect_compact_type_free_vars(payload, out);
+                collect_compact_type_free_vars_inner(payload, out, seen);
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            collect_compact_type_free_vars(item, out);
+            collect_compact_type_free_vars_inner(item, out, seen);
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            collect_compact_type_free_vars(item, out);
+            collect_compact_type_free_vars_inner(item, out, seen);
         }
-        collect_compact_type_free_vars(&row.tail, out);
+        collect_compact_type_free_vars_inner(&row.tail, out, seen);
     }
 }
 

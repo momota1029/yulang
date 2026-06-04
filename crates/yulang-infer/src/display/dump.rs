@@ -19,25 +19,27 @@ use crate::types::{EffectAtom, Neg, Pos};
 // ── エントリポイント ──────────────────────────────────────────────────────────
 
 pub fn render_compact_results(state: &mut LowerState) -> Vec<(String, String)> {
-    state.finalize_compact_results();
-    state.infer.prune_resolved_effect_subtract_metadata();
-    collect_compact_results(state)
+    let paths = collect_user_observable_binding_paths(state);
+    finalize_compact_results_for_paths(state, &paths);
+    collect_compact_results_for_paths(state, &paths)
 }
 
 pub fn render_exported_compact_results(state: &mut LowerState) -> Vec<(String, String)> {
-    state.finalize_compact_results();
-    state.infer.prune_resolved_effect_subtract_metadata();
-    collect_compact_results_for_paths(state, &collect_non_std_exported_binding_paths(state))
+    let paths = collect_non_std_exported_binding_paths(state);
+    finalize_compact_results_for_paths(state, &paths);
+    collect_compact_results_for_paths(state, &paths)
 }
 
 pub fn render_exported_compact_results_in_scope(state: &mut LowerState) -> Vec<(String, String)> {
-    state.finalize_compact_results();
+    let paths = collect_non_std_exported_binding_paths(state);
+    finalize_compact_results_for_paths(state, &paths);
+    collect_compact_results_for_paths_in_scope(state, &paths, &state.ctx)
+}
+
+fn finalize_compact_results_for_paths(state: &mut LowerState, paths: &[(Path, crate::ids::DefId)]) {
+    let target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
+    state.finalize_compact_results_for_defs(&target_defs);
     state.infer.prune_resolved_effect_subtract_metadata();
-    collect_compact_results_for_paths_in_scope(
-        state,
-        &collect_non_std_exported_binding_paths(state),
-        &state.ctx,
-    )
 }
 
 pub(crate) fn format_pos_for_diagnostic(infer: &Infer, pos: PosId) -> String {
@@ -1604,7 +1606,10 @@ fn display_name_segment(name: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use std::collections::{HashMap, HashSet};
+    use std::panic::{self, AssertUnwindSafe};
+    use std::sync::{OnceLock, mpsc};
     use std::thread;
 
     use crate::diagnostic::TypeOriginKind;
@@ -1624,16 +1629,67 @@ mod tests {
 
     use super::render_compact_results;
 
+    type LargeStackJob = Box<dyn FnOnce() + Send + 'static>;
+
+    thread_local! {
+        static STD_SOURCE_CACHE: RefCell<crate::SourceLowerCache> =
+            RefCell::new(crate::SourceLowerCache::default());
+    }
+
     fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
     where
         T: Send + 'static,
     {
-        thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
-            .spawn(f)
-            .expect("spawn large-stack test thread")
-            .join()
-            .unwrap()
+        let (result_tx, result_rx) = mpsc::sync_channel(1);
+        large_stack_worker()
+            .send(Box::new(move || {
+                let result = panic::catch_unwind(AssertUnwindSafe(f));
+                let _ = result_tx.send(result);
+            }))
+            .expect("large-stack test worker should accept jobs");
+        match result_rx
+            .recv()
+            .expect("large-stack test worker should reply")
+        {
+            Ok(value) => value,
+            Err(payload) => panic::resume_unwind(payload),
+        }
+    }
+
+    fn large_stack_worker() -> &'static mpsc::Sender<LargeStackJob> {
+        static WORKER: OnceLock<mpsc::Sender<LargeStackJob>> = OnceLock::new();
+        WORKER.get_or_init(|| {
+            let (job_tx, job_rx) = mpsc::channel::<LargeStackJob>();
+            thread::Builder::new()
+                .name("display-dump-large-stack".to_string())
+                .stack_size(32 * 1024 * 1024)
+                .spawn(move || {
+                    for job in job_rx {
+                        job();
+                    }
+                })
+                .expect("spawn large-stack test worker");
+            job_tx
+        })
+    }
+
+    fn lower_virtual_std_source(source: &str) -> crate::LoweredSources {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source_set = crate::collect_virtual_source_files_with_options(
+            source,
+            Some(repo_root),
+            crate::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should collect");
+        STD_SOURCE_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            crate::lower_source_set_with_std_cache(&source_set, &mut cache)
+        })
     }
 
     #[test]
@@ -3062,18 +3118,7 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_for_in_stmt_to_loop_for_in() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
-                "pub run(xs) =\n  for x in xs:\n    ()\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            let mut lowered = lower_virtual_std_source("pub run(xs) =\n  for x in xs:\n    ()\n");
 
             let rendered = render_compact_results(&mut lowered.state);
             let run = rendered
@@ -3088,18 +3133,9 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_for_in_ref_push_body() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
+            let mut lowered = lower_virtual_std_source(
                 "my test =\n  my $xs = []\n  for x in [1, 2, 3]:\n    &xs.push(x)\n  $xs\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            );
 
             let rendered = render_compact_results(&mut lowered.state);
             let test = rendered
@@ -3114,18 +3150,7 @@ mod tests {
     #[test]
     fn render_compact_results_keeps_state_read_value_type() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
-                "my read_only =\n  my $a = 0\n  $a\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            let mut lowered = lower_virtual_std_source("my read_only =\n  my $a = 0\n  $a\n");
 
             let rendered = render_compact_results(&mut lowered.state);
             let read_only = rendered
@@ -3140,18 +3165,8 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_direct_list_append() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
-                "my test =\n  my xs = []\n  std::list::append xs [1]\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            let mut lowered =
+                lower_virtual_std_source("my test =\n  my xs = []\n  std::list::append xs [1]\n");
 
             let rendered = render_compact_results(&mut lowered.state);
             let test = rendered
@@ -3166,19 +3181,10 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_list_expr_and_pattern_spread() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
+            let mut lowered = lower_virtual_std_source(
                 "my spread ys = [1, ..ys, 3]\n\
              my middle xs = case xs:\n  [head, ..middle, tail] -> middle\n  _ -> []\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            );
 
             let rendered = render_compact_results(&mut lowered.state);
             let spread = rendered
@@ -3203,19 +3209,10 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_labeled_for_in_stmt() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
+            let mut lowered = lower_virtual_std_source(
                 "my test =\n  for 'outer x in [1, 2, 3]:\n    'outer.next()\n\
              my nested =\n  for 'outer x in [1, 2, 3]:\n    for 'inner y in [4, 5, 6]:\n      redo 'inner\n    next 'outer\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            );
 
             let rendered = render_compact_results(&mut lowered.state);
             let test = rendered
@@ -3254,18 +3251,9 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_loop_control_operators() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
+            let mut lowered = lower_virtual_std_source(
                 "my bare =\n  for x in [1, 2, 3]:\n    next\nmy labeled =\n  for 'outer x in [1, 2, 3]:\n    redo 'outer\npub for_in = std::flow::loop::for_in\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            );
 
             let rendered = render_compact_results(&mut lowered.state);
             let bare = rendered
@@ -3293,22 +3281,13 @@ mod tests {
     #[test]
     fn render_compact_results_lowers_sub_return_syntax() {
         run_with_large_stack(|| {
-            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let std_root = repo_root.join("lib/std");
-            let mut lowered = crate::lower_virtual_source_with_options(
+            let mut lowered = lower_virtual_std_source(
                 "my plain = sub:\n  return 1\n\
              my labeled_field = sub 'outer:\n  'outer.return 1\n\
              my labeled_plain = sub 'outer:\n  return 2\n\
              my nested_field = sub 'outer:\n  sub 'inner:\n    'inner.return true\n  'outer.return 1\n\
              my nested_plain = sub 'outer:\n  sub 'inner:\n    return true\n  return 1\n",
-                Some(repo_root),
-                crate::SourceOptions {
-                    std_root: Some(std_root),
-                    implicit_prelude: true,
-                    search_paths: Vec::new(),
-                },
-            )
-            .expect("source should lower");
+            );
 
             let rendered = render_compact_results(&mut lowered.state);
             for name in [

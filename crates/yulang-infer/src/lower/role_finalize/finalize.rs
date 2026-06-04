@@ -83,6 +83,7 @@ impl LowerState {
             .copied()
             .filter(|def| !finalized_seen.contains(def))
             .collect::<HashSet<_>>();
+        let mut newly_finalized = Vec::new();
         loop {
             if pending_target_defs.is_empty() {
                 break;
@@ -136,14 +137,15 @@ impl LowerState {
                 for &def in &self.infer.components[component_idx] {
                     if pending_target_defs.remove(&def) && finalized_seen.insert(def) {
                         finalized.push(def);
+                        newly_finalized.push(def);
                     }
                 }
             }
         }
 
         profile.total = total_start.elapsed();
-        self.resolve_concrete_role_constraints_for_defs(&finalized);
-        self.inherit_finalized_role_var_alias_schemes(&finalized);
+        self.resolve_concrete_role_constraints_for_defs(&newly_finalized);
+        self.inherit_finalized_role_var_alias_schemes(&newly_finalized);
         FinalizeCompactResults {
             finalized_defs: finalized,
             profile,
