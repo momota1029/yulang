@@ -18,7 +18,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
-    coalesce_by_co_occurrence_with_role_constraint_inputs,
+    coalesce_by_co_occurrence_with_role_constraint_inputs_report,
 };
 use crate::solve::Infer;
 
@@ -307,28 +307,32 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 // 解析対象にする。外側スコープ由来(level < boundary)の変数は走査しない。
                 let level_boundary = infer.def_level_of(item.def) + 1;
                 let var_levels = collect_var_levels(infer, &compact);
-                let (scheme, compact_role_constraints) =
-                    if let Some(constraints) = compact_role_constraints {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs(
-                            &compact,
-                            &constraints,
-                            |role| {
-                                let infos = infer.role_arg_infos_of(role);
-                                (!infos.is_empty())
-                                    .then(|| infos.into_iter().map(|info| info.is_input).collect())
-                            },
-                            &var_levels,
-                            level_boundary,
-                        )
-                    } else {
-                        coalesce_by_co_occurrence_with_role_constraint_inputs(
-                            &compact,
-                            &[],
-                            |_| None,
-                            &var_levels,
-                            level_boundary,
-                        )
-                    };
+                let coalesced = if let Some(constraints) = compact_role_constraints {
+                    coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                        &compact,
+                        &constraints,
+                        |role| {
+                            let infos = infer.role_arg_infos_of(role);
+                            (!infos.is_empty())
+                                .then(|| infos.into_iter().map(|info| info.is_input).collect())
+                        },
+                        &var_levels,
+                        level_boundary,
+                    )
+                } else {
+                    coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                        &compact,
+                        &[],
+                        |_| None,
+                        &var_levels,
+                        level_boundary,
+                    )
+                };
+                for round in &coalesced.rounds {
+                    infer.rewrite_effect_subtract_metadata_vars(&round.subst);
+                }
+                let scheme = coalesced.scheme;
+                let compact_role_constraints = coalesced.constraints;
                 profile.cooccur += cooccur_start.elapsed();
 
                 let freeze_start = Instant::now();

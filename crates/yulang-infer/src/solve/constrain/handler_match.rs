@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use rustc_hash::FxHashSet;
 
 use super::{Infer, StepCache};
@@ -98,8 +100,7 @@ impl Infer {
     }
 
     pub fn record_effect_non_subtract(&self, effect: TypeVar, id: EffectSubtractId) {
-        let mut seen = FxHashSet::default();
-        self.record_effect_non_subtract_recursive(effect, id, &mut seen);
+        self.insert_effect_non_subtract(effect, id);
     }
 
     pub fn effect_non_subtract_ids(&self, effect: TypeVar) -> Vec<EffectSubtractId> {
@@ -144,6 +145,56 @@ impl Infer {
         non_subtracts.retain(|_, ids| !ids.is_empty());
     }
 
+    pub fn rewrite_effect_subtract_metadata_vars(&self, subst: &HashMap<TypeVar, Option<TypeVar>>) {
+        if subst.is_empty() {
+            return;
+        }
+
+        let keys = subst.keys().copied().collect::<Vec<_>>();
+        let moved_subtracts = {
+            let mut subtracts = self.effect_subtracts.borrow_mut();
+            keys.iter()
+                .filter_map(|from| subtracts.remove(from).map(|facts| (*from, facts)))
+                .collect::<Vec<_>>()
+        };
+        let moved_non_subtracts = {
+            let mut non_subtracts = self.effect_non_subtracts.borrow_mut();
+            keys.iter()
+                .filter_map(|from| non_subtracts.remove(from).map(|ids| (*from, ids)))
+                .collect::<Vec<_>>()
+        };
+
+        for (from, facts) in moved_subtracts {
+            let Some(to) = resolve_effect_metadata_subst_var(subst, from) else {
+                continue;
+            };
+            for fact in facts {
+                self.record_effect_subtract_fact(to, fact);
+            }
+        }
+        for (from, ids) in moved_non_subtracts {
+            let Some(to) = resolve_effect_metadata_subst_var(subst, from) else {
+                continue;
+            };
+            for id in ids {
+                self.record_effect_non_subtract(to, id);
+            }
+        }
+    }
+
+    pub fn clear_effect_subtract_metadata_for_vars(&self, vars: &HashSet<TypeVar>) {
+        let mut subtracts = self.effect_subtracts.borrow_mut();
+        for tv in vars {
+            subtracts.remove(tv);
+        }
+        drop(subtracts);
+
+        let mut non_subtracts = self.effect_non_subtracts.borrow_mut();
+        for tv in vars {
+            non_subtracts.remove(tv);
+        }
+    }
+
     pub fn copy_effect_subtractability(&self, from: TypeVar, to: TypeVar) {
         for fact in self.effect_subtract_facts(from) {
             self.record_effect_subtract_fact(to, fact);
@@ -155,7 +206,8 @@ impl Infer {
 
     pub(super) fn propagate_effect_non_subtracts_to_var(&self, source: TypeVar, target: TypeVar) {
         for id in self.effect_non_subtract_ids(source) {
-            self.record_effect_non_subtract(target, id);
+            let mut seen = FxHashSet::default();
+            self.record_effect_non_subtract_recursive(target, id, &mut seen);
         }
     }
 
@@ -167,7 +219,8 @@ impl Infer {
         let vars = collect_pos_vars(self, pos);
         for id in ids {
             for tv in &vars {
-                self.record_effect_non_subtract(*tv, id);
+                let mut seen = FxHashSet::default();
+                self.record_effect_non_subtract_recursive(*tv, id, &mut seen);
             }
         }
     }
@@ -180,7 +233,8 @@ impl Infer {
         let vars = collect_neg_vars(self, neg);
         for id in ids {
             for tv in &vars {
-                self.record_effect_non_subtract(*tv, id);
+                let mut seen = FxHashSet::default();
+                self.record_effect_non_subtract_recursive(*tv, id, &mut seen);
             }
         }
     }
@@ -410,11 +464,7 @@ impl Infer {
             return;
         }
 
-        let inserted = {
-            let mut non_subtracts = self.effect_non_subtracts.borrow_mut();
-            non_subtracts.entry(effect).or_default().insert(id)
-        };
-        self.remove_effect_subtract_fact(effect, id);
+        let inserted = self.insert_effect_non_subtract(effect, id);
         if !inserted {
             return;
         }
@@ -432,6 +482,15 @@ impl Infer {
         for tv in lower_vars.into_iter().chain(upper_vars) {
             self.record_effect_non_subtract_recursive(tv, id, seen);
         }
+    }
+
+    fn insert_effect_non_subtract(&self, effect: TypeVar, id: EffectSubtractId) -> bool {
+        let inserted = {
+            let mut non_subtracts = self.effect_non_subtracts.borrow_mut();
+            non_subtracts.entry(effect).or_default().insert(id)
+        };
+        self.remove_effect_subtract_fact(effect, id);
+        inserted
     }
 
     fn remove_effect_subtract_fact(&self, effect: TypeVar, id: EffectSubtractId) {
@@ -517,6 +576,24 @@ fn union_atom_families(mut lhs: Vec<EffectAtom>, rhs: Vec<EffectAtom>) -> Vec<Ef
         }
     }
     lhs
+}
+
+fn resolve_effect_metadata_subst_var(
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    tv: TypeVar,
+) -> Option<TypeVar> {
+    let mut current = tv;
+    let mut seen = FxHashSet::default();
+    loop {
+        if !seen.insert(current) {
+            return Some(current);
+        }
+        match subst.get(&current) {
+            Some(Some(next)) => current = *next,
+            Some(None) => return None,
+            None => return Some(current),
+        }
+    }
 }
 
 fn collect_pos_vars(infer: &Infer, pos: PosId) -> Vec<TypeVar> {

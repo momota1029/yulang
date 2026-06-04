@@ -14,7 +14,7 @@ use crate::scheme::compact_pos_type;
 use crate::simplify::compact::{
     CompactType, CompactTypeScheme, expose_negative_row_tail_vars, expose_positive_row_tails,
 };
-use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs;
+use crate::simplify::cooccur::coalesce_by_co_occurrence_with_role_constraint_inputs_report;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::types::Neg;
 
@@ -66,7 +66,6 @@ impl LowerState {
         target_defs: &HashSet<DefId>,
         follow_owner_refs: bool,
     ) -> FinalizeCompactResults {
-        self.infer.prune_resolved_effect_subtract_metadata();
         let total_start = Instant::now();
         let mut profile = FinalizeCompactProfile::default();
         let mut finalized = target_defs
@@ -167,16 +166,19 @@ impl LowerState {
             // (boundary = def_level + 1) では simplify 対象外で残る。ここで boundary 0 の
             // グローバル相当 simplify を一度かけ、共起する変数を中心変数へ畳む。
             {
-                let (coalesced_scheme, coalesced_constraints) =
-                    coalesce_by_co_occurrence_with_role_constraint_inputs(
-                        &scheme,
-                        &constraints,
-                        |role| self.role_arg_input_flags(role),
-                        &std::collections::HashMap::new(),
-                        0,
-                    );
-                scheme = coalesced_scheme;
-                constraints = coalesced_constraints;
+                let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                    &scheme,
+                    &constraints,
+                    |role| self.role_arg_input_flags(role),
+                    &std::collections::HashMap::new(),
+                    0,
+                );
+                for round in &coalesced.rounds {
+                    self.infer
+                        .rewrite_effect_subtract_metadata_vars(&round.subst);
+                }
+                scheme = coalesced.scheme;
+                constraints = coalesced.constraints;
             }
             // §決定1: 通常引数が具体型1つに定まった role は、その中心変数を具体型へ確定する。
             // impl の有無は問わない（impl が無ければ role 制約は具体型のまま浮き、後で実装が
@@ -210,16 +212,19 @@ impl LowerState {
                         &constraints,
                         &concretizations,
                     );
-                    let (rewritten_scheme, rewritten_constraints) =
-                        coalesce_by_co_occurrence_with_role_constraint_inputs(
-                            &scheme,
-                            &constraints,
-                            |role| self.role_arg_input_flags(role),
-                            &std::collections::HashMap::new(),
-                            0,
-                        );
-                    scheme = rewritten_scheme;
-                    constraints = rewritten_constraints;
+                    let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                        &scheme,
+                        &constraints,
+                        |role| self.role_arg_input_flags(role),
+                        &std::collections::HashMap::new(),
+                        0,
+                    );
+                    for round in &rewritten.rounds {
+                        self.infer
+                            .rewrite_effect_subtract_metadata_vars(&round.subst);
+                    }
+                    scheme = rewritten.scheme;
+                    constraints = rewritten.constraints;
                 }
             }
             loop {
@@ -409,16 +414,19 @@ impl LowerState {
                     scheme = apply_role_output_replacements_to_scheme(&scheme, &replacements);
                     remaining =
                         apply_role_output_replacements_to_constraints(&remaining, &replacements);
-                    let (rewritten_scheme, rewritten_constraints) =
-                        coalesce_by_co_occurrence_with_role_constraint_inputs(
-                            &scheme,
-                            &remaining,
-                            |role| self.role_arg_input_flags(role),
-                            &std::collections::HashMap::new(),
-                            0,
-                        );
-                    scheme = rewritten_scheme;
-                    constraints = rewritten_constraints;
+                    let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+                        &scheme,
+                        &remaining,
+                        |role| self.role_arg_input_flags(role),
+                        &std::collections::HashMap::new(),
+                        0,
+                    );
+                    for round in &rewritten.rounds {
+                        self.infer
+                            .rewrite_effect_subtract_metadata_vars(&round.subst);
+                    }
+                    scheme = rewritten.scheme;
+                    constraints = rewritten.constraints;
                     progressed = true;
                 } else {
                     constraints = remaining;

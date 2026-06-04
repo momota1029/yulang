@@ -88,6 +88,22 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
     (output.scheme, output.constraints)
 }
 
+pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    _role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
+) -> CoalesceOutput {
+    coalesce_by_co_occurrence_with_role_constraints_report_inner(
+        scheme,
+        constraints,
+        std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+        var_levels,
+        boundary,
+    )
+}
+
 pub fn coalesce_by_co_occurrence_with_role_constraints_report(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],

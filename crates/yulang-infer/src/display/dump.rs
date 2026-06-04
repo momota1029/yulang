@@ -20,16 +20,19 @@ use crate::types::{EffectAtom, Neg, Pos};
 
 pub fn render_compact_results(state: &mut LowerState) -> Vec<(String, String)> {
     state.finalize_compact_results();
+    state.infer.prune_resolved_effect_subtract_metadata();
     collect_compact_results(state)
 }
 
 pub fn render_exported_compact_results(state: &mut LowerState) -> Vec<(String, String)> {
     state.finalize_compact_results();
+    state.infer.prune_resolved_effect_subtract_metadata();
     collect_compact_results_for_paths(state, &collect_non_std_exported_binding_paths(state))
 }
 
 pub fn render_exported_compact_results_in_scope(state: &mut LowerState) -> Vec<(String, String)> {
     state.finalize_compact_results();
+    state.infer.prune_resolved_effect_subtract_metadata();
     collect_compact_results_for_paths_in_scope(
         state,
         &collect_non_std_exported_binding_paths(state),
@@ -530,6 +533,7 @@ fn format_coalesced_scheme_with_role_constraints_optional_scope(
     );
     let mut metadata_vars = observed_vars.clone();
     display_format::collect_type_vars(&body_type, &mut metadata_vars);
+    infer.clear_effect_subtract_metadata_for_vars(&metadata_vars);
     let body = display_format::format_type_with_namer(&body_type, &mut namer);
     let rendered_constraints =
         format_effect_metadata_constraints(infer, &metadata_vars, &mut namer)

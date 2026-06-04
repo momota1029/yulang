@@ -150,6 +150,7 @@ pub(crate) fn make_app_with_cause(
                             .record_effect_subtractability(call_eff, EffectSubtractability::All);
                     } else {
                         for id in subtract_ids {
+                            state.infer.record_effect_non_subtract(call_eff, id);
                             state.infer.record_effect_non_subtract(result_ty.value, id);
                             state.infer.record_effect_non_subtract(result_ty.effect, id);
                             state.infer.record_effect_subtractability_for_id(
@@ -169,6 +170,7 @@ pub(crate) fn make_app_with_cause(
                     subtract_ids,
                 } => {
                     for id in subtract_ids {
+                        state.infer.record_effect_non_subtract(call_eff, id);
                         state.infer.record_effect_non_subtract(result_ty.value, id);
                         state.infer.record_effect_non_subtract(result_ty.effect, id);
                     }
