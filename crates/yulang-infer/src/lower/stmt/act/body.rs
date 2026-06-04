@@ -67,7 +67,7 @@ pub(crate) fn lower_act_body(
 
         let bindings_start = Instant::now();
         for child in &bindings {
-            super::super::lower_binding(state, child);
+            lower_act_body_binding(state, child);
         }
         state.lower_detail.lower_act_body_bindings += bindings_start.elapsed();
     });
@@ -188,6 +188,22 @@ fn impl_decl_role_name(node: &SyntaxNode) -> Option<Name> {
     let sig = crate::lower::signature::parse_sig_type_expr(&head)?;
     let (role, _) = crate::lower::signature::sig_type_head(&sig)?;
     role.segments.last().cloned()
+}
+
+fn lower_act_body_binding(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+) -> Option<crate::ast::expr::TypedStmt> {
+    let header = super::super::child_node(node, SyntaxKind::BindingHeader)
+        .or_else(|| super::super::child_node(node, SyntaxKind::OpDefHeader))?;
+    let mut type_scope = HashMap::new();
+    let binding_level = state.current_level.saturating_add(1);
+    for name in super::super::binding_sig_var_names(&header) {
+        type_scope
+            .entry(name)
+            .or_insert_with(|| state.fresh_tv_at(binding_level));
+    }
+    super::super::lower_binding_with_type_scope(state, node, type_scope)
 }
 
 fn act_body_item_info(node: &SyntaxNode) -> Option<ActBodyItemInfo> {

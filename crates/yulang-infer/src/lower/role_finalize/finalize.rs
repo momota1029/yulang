@@ -22,8 +22,8 @@ use super::super::{FinalizeCompactProfile, FinalizeCompactResults};
 use super::{
     LowerState, RoleCandidatePrerequisiteStatus, apply_role_output_replacements_to_constraints,
     apply_role_output_replacements_to_scheme, collect_role_default_replacements_if_disappeared,
-    collect_role_output_replacements, concrete_selected_input_types,
-    expand_role_constraint_with_scheme_bounds, path_string,
+    collect_role_output_replacements, concrete_bounds_repr, concrete_selected_input_types,
+    expand_role_constraint_with_scheme_bounds, path_string, projection_target_var,
     remove_disappearing_noncenter_role_vars, render_role_constraint_args_for_diagnostic,
     render_selected_concrete_args, role_candidate_prerequisite_status, role_candidate_previews,
     role_constraint_arg_indices, role_constraint_is_observationally_empty,
@@ -160,6 +160,65 @@ impl LowerState {
             let mut constraints = self.infer.compact_role_constraints_of(def);
             if constraints.is_empty() {
                 continue;
+            }
+            // 明示計算で親/グローバル(level 0)へ上がった role 制約変数は、この def の commit
+            // (boundary = def_level + 1) では simplify 対象外で残る。ここで boundary 0 の
+            // グローバル相当 simplify を一度かけ、共起する変数を中心変数へ畳む。
+            {
+                let (coalesced_scheme, coalesced_constraints) =
+                    coalesce_by_co_occurrence_with_role_constraint_inputs(
+                        &scheme,
+                        &constraints,
+                        |role| self.role_arg_input_flags(role),
+                        &std::collections::HashMap::new(),
+                        0,
+                    );
+                scheme = coalesced_scheme;
+                constraints = coalesced_constraints;
+            }
+            // §決定1: 通常引数が具体型1つに定まった role は、その中心変数を具体型へ確定する。
+            // impl の有無は問わない（impl が無ければ role 制約は具体型のまま浮き、後で実装が
+            // 見つかったときに消える）。関数など非 expansive な束縛は量化したい変数を潰さない
+            // よう、allow_boundary を expansive / 関連型ありのときだけ立てる。
+            {
+                let expansive = self.binding_allows_role_defaulting(def);
+                let mut concretizations = Vec::<(TypeVar, CompactType)>::new();
+                for constraint in &constraints {
+                    let arg_infos = self.infer.role_arg_infos_of(&constraint.role);
+                    let (input_indices, output_indices) =
+                        role_constraint_arg_indices(&arg_infos, constraint.args.len());
+                    let allow_boundary = expansive || !output_indices.is_empty();
+                    for &i in &input_indices {
+                        let Some(arg) = constraint.args.get(i) else {
+                            continue;
+                        };
+                        let Some(target) = projection_target_var(arg) else {
+                            continue;
+                        };
+                        let Some(concrete) = concrete_bounds_repr(arg, allow_boundary) else {
+                            continue;
+                        };
+                        concretizations.push((target, concrete));
+                    }
+                }
+                if !concretizations.is_empty() {
+                    self.apply_role_output_replacements_to_live_graph(&concretizations);
+                    scheme = apply_role_output_replacements_to_scheme(&scheme, &concretizations);
+                    constraints = apply_role_output_replacements_to_constraints(
+                        &constraints,
+                        &concretizations,
+                    );
+                    let (rewritten_scheme, rewritten_constraints) =
+                        coalesce_by_co_occurrence_with_role_constraint_inputs(
+                            &scheme,
+                            &constraints,
+                            |role| self.role_arg_input_flags(role),
+                            &std::collections::HashMap::new(),
+                            0,
+                        );
+                    scheme = rewritten_scheme;
+                    constraints = rewritten_constraints;
+                }
             }
             loop {
                 let mut progressed = false;

@@ -227,7 +227,6 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
     let total_start = Instant::now();
     profile.ready_components += ready.len();
     let mut committed = Vec::new();
-    let mut invalidated_components = HashSet::new();
     for &component_idx in ready {
         let defs = infer.components[component_idx]
             .iter()
@@ -388,12 +387,6 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                     infer.constrain_instantiated_ref_instance(instance.clone(), resolved.ref_tv);
                     profile.instantiate_constrain += constrain_start.elapsed();
                     if let Some(owner) = resolved.owner {
-                        if let Some(owner_component) = infer.def_to_component.get(&owner).copied()
-                            && owner_component != component_idx
-                        {
-                            invalidate_component_compacts(infer, owner_component);
-                            invalidated_components.insert(owner_component);
-                        }
                         let role_constraints_start = Instant::now();
                         infer.instantiate_role_constraints_for_owner(
                             item.def,
@@ -415,24 +408,9 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
             committed.push(component_idx);
         }
     }
-    committed.retain(|component_idx| !invalidated_components.contains(component_idx));
     profile.committed_components += committed.len();
     profile.total += total_start.elapsed();
     committed
-}
-
-fn invalidate_component_compacts(infer: &Infer, component_idx: usize) {
-    let Some(component) = infer.components.get(component_idx) else {
-        return;
-    };
-    let mut compact_schemes = infer.compact_schemes.borrow_mut();
-    let mut compact_role_constraints = infer.compact_role_constraints.borrow_mut();
-    let mut frozen_schemes = infer.frozen_schemes.borrow_mut();
-    for def in component.iter().copied() {
-        compact_schemes.remove(&def);
-        compact_role_constraints.remove(&def);
-        frozen_schemes.remove(&def);
-    }
 }
 
 // Keeps SCC close incremental: commit removes sink components, so only their

@@ -19,14 +19,22 @@ pub(crate) fn lower_binding(state: &mut LowerState, node: &SyntaxNode) -> Option
     let result = (|| {
         let header = super::super::child_node(node, SyntaxKind::BindingHeader)
             .or_else(|| super::super::child_node(node, SyntaxKind::OpDefHeader))?;
-        let type_scope = crate::lower::signature::fresh_type_scope(
-            state,
-            &super::super::binding_sig_var_names(&header),
-        );
+        let type_scope =
+            fresh_binding_type_scope(state, &super::super::binding_sig_var_names(&header));
         lower_binding_with_type_scope(state, node, type_scope)
     })();
     state.lower_detail.lower_binding += start.elapsed();
     result
+}
+
+fn fresh_binding_type_scope(state: &LowerState, names: &[String]) -> HashMap<String, TypeVar> {
+    let mut out = HashMap::new();
+    let level = state.current_level.saturating_add(1);
+    for name in names {
+        out.entry(name.clone())
+            .or_insert_with(|| state.fresh_tv_at(level));
+    }
+    out
 }
 
 pub(crate) fn lower_binding_with_type_scope(

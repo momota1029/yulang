@@ -33,10 +33,6 @@ fn coalesce_role_constraints(
 ) -> Vec<CompactRoleConstraint> {
     let mut out = Vec::new();
     let mut visited = vec![false; constraints.len()];
-    let var_sets = constraints
-        .iter()
-        .map(role_constraint_vars)
-        .collect::<Vec<_>>();
 
     for index in 0..constraints.len() {
         if visited[index] {
@@ -52,12 +48,7 @@ fn coalesce_role_constraints(
                 if visited[other] {
                     continue;
                 }
-                if can_coalesce_role_constraints(
-                    &constraints[current],
-                    &constraints[other],
-                    &var_sets[current],
-                    &var_sets[other],
-                ) {
+                if can_coalesce_role_constraints(&constraints[current], &constraints[other]) {
                     visited[other] = true;
                     component.push(other);
                 }
@@ -90,20 +81,36 @@ fn role_constraint_is_empty(constraint: &CompactRoleConstraint) -> bool {
     })
 }
 
-fn can_coalesce_role_constraints(
-    lhs: &CompactRoleConstraint,
-    rhs: &CompactRoleConstraint,
-    lhs_vars: &HashSet<TypeVar>,
-    rhs_vars: &HashSet<TypeVar>,
-) -> bool {
-    lhs.role == rhs.role
-        && lhs.args.len() == rhs.args.len()
-        && (lhs == rhs || !lhs_vars.is_disjoint(rhs_vars))
+fn can_coalesce_role_constraints(lhs: &CompactRoleConstraint, rhs: &CompactRoleConstraint) -> bool {
+    if lhs.role != rhs.role || lhs.args.len() != rhs.args.len() {
+        return false;
+    }
+    if lhs == rhs {
+        return true;
+    }
+    // 設計 §簡約2: role を等号で結ぶ（融合する）のは、対応する全ての引数が共通の
+    // 型変数を共有しているときのみ。1 つでも共有のない引数があれば別の制約として残す。
+    // 旧実装は全引数の変数を 1 集合にまぜた `!is_disjoint`（= どれか 1 つでも共通変数が
+    // あれば融合）で、無関係な制約まで芋づるに潰し中心型を膨張させていた。
+    !lhs.args.is_empty()
+        && lhs
+            .args
+            .iter()
+            .zip(rhs.args.iter())
+            .all(|(lhs_arg, rhs_arg)| !bounds_vars(lhs_arg).is_disjoint(&bounds_vars(rhs_arg)))
+}
+
+fn bounds_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
+    let mut out = HashSet::new();
+    collect_compact_bounds_vars(bounds, &mut out);
+    out
 }
 
 fn merge_role_constraint_component(
-    mut constraints: impl Iterator<Item = CompactRoleConstraint>,
+    constraints: impl Iterator<Item = CompactRoleConstraint>,
 ) -> CompactRoleConstraint {
+    let items = constraints.collect::<Vec<_>>();
+    let mut constraints = items.into_iter();
     let mut merged = constraints.next().expect("component must not be empty");
     for constraint in constraints {
         merged.args = merged
@@ -116,6 +123,7 @@ fn merge_role_constraint_component(
     merged
 }
 
+#[cfg(test)]
 fn role_constraint_vars(constraint: &CompactRoleConstraint) -> HashSet<TypeVar> {
     let mut out = HashSet::new();
     for arg in &constraint.args {

@@ -26,16 +26,6 @@ fn store_list_primitive_scheme(
     );
 }
 
-fn store_list_runtime_scheme(state: &mut LowerState, def: crate::ids::DefId, body: typed_ir::Type) {
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body,
-        },
-    );
-}
-
 pub(super) fn install_list_len_primitive(
     state: &mut LowerState,
     module: ModuleId,
@@ -84,7 +74,7 @@ pub(super) fn install_list_len_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_len_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_len_scheme_body());
 }
 
 pub(super) fn install_list_index_primitive(
@@ -149,7 +139,7 @@ pub(super) fn install_list_index_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_index_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_index_scheme_body());
 }
 
 pub(super) fn install_list_index_range_primitive(
@@ -214,7 +204,7 @@ pub(super) fn install_list_index_range_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_index_range_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_index_range_scheme_body());
 }
 
 pub(super) fn install_list_empty_primitive(
@@ -265,7 +255,7 @@ pub(super) fn install_list_empty_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_empty_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_empty_scheme_body());
 }
 
 pub(super) fn install_list_splice_primitive(
@@ -347,7 +337,7 @@ pub(super) fn install_list_splice_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_splice_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_splice_scheme_body());
 }
 
 pub(super) fn install_list_singleton_primitive(
@@ -397,7 +387,7 @@ pub(super) fn install_list_singleton_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_singleton_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_singleton_scheme_body());
 }
 
 pub(super) fn install_list_merge_primitive(
@@ -464,7 +454,7 @@ pub(super) fn install_list_merge_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_merge_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_merge_scheme_body());
 }
 
 pub(super) fn install_list_index_range_raw_primitive(
@@ -543,7 +533,7 @@ pub(super) fn install_list_index_range_raw_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_index_range_raw_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_index_range_raw_scheme_body());
 }
 
 pub(super) fn install_list_splice_raw_primitive(
@@ -636,7 +626,7 @@ pub(super) fn install_list_splice_raw_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    store_list_runtime_scheme(state, def, list_splice_raw_scheme_body());
+    store_list_primitive_scheme(state, def, pos_sig, list_splice_raw_scheme_body());
 }
 
 pub(super) fn install_list_view_raw_primitive(

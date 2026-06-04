@@ -458,9 +458,10 @@ fn impl_member_type_scope(
         .or_else(|| child_node(node, SyntaxKind::OpDefHeader))
         .unwrap_or_else(|| node.clone());
     let mut scope = impl_scope.clone();
+    let member_level = state.current_level.saturating_add(1);
     for name in binding_sig_var_names(&header) {
         if !scope.contains_key(&name) {
-            scope.insert(name, state.fresh_tv());
+            scope.insert(name, state.fresh_tv_at(member_level));
         }
     }
     scope

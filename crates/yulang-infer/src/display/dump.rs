@@ -2152,6 +2152,30 @@ mod tests {
     }
 
     #[test]
+    fn render_compact_results_lowers_annotated_act_body_helpers() {
+        for src in [
+            "act var 't:\n  our get: () -> 't\n  our set: 't -> ()\n\n  my run(v: 't, x: [_] 'r): 'r = catch x:\n    get(), k -> run(v, k v)\n    set v, k -> run(v, k())\n",
+            "act var 't:\n  our get: () -> 't\n  our set: 't -> ()\n\n  my run(v: 't, x: [_] _) = catch x:\n    get(), k -> run(v, k v)\n    set v, k -> run(v, k())\n",
+            "act var 't:\n  our get: () -> 't\n  our set: 't -> ()\n\n  my run(v, x: [_] 'r) = catch x:\n    get(), k -> run(v, k v)\n    set v, k -> run(v, k())\n",
+            "act var 't:\n  our get: () -> 't\n  our set: 't -> ()\n\n  my run(v, x: [_] _): 'r = catch x:\n    get(), k -> run(v, k v)\n    set v, k -> run(v, k())\n",
+            "act var 't:\n  our get: () -> 't\n  our set: 't -> ()\n\n  my run(v: 't, x: [_] 'r): 'r = catch x:\n    get(), k -> run v: k v\n    set v, k -> run v: k()\n",
+        ] {
+            let green = yulang_parser::parse_module_to_green(src);
+            let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+            let mut state = LowerState::new();
+            lower_root(&mut state, &root);
+
+            let rendered = render_compact_results(&mut state);
+            let run = rendered
+                .iter()
+                .find(|(name, _)| name == "var::run")
+                .expect("var::run should be rendered");
+
+            assert_eq!(run.1, "α -> β [var<α>; γ] -> [γ] β");
+        }
+    }
+
+    #[test]
     fn render_compact_results_lowers_copied_act() {
         let green = yulang_parser::parse_module_to_green(
             "act var 't:\n  our get: () -> 't\n  our set: 't -> ()\n\nact local 't = var 't\n\nmy run(v, x: [_] _) = catch x:\n  local::get(), k -> run(v, k v)\n  local::set v, k -> run(v, k())\n",
@@ -2376,8 +2400,8 @@ mod tests {
 
         assert_eq!(add.1, "Add<α> => α -> α -> α");
         assert_eq!(pl.1, "Add<int | α> => α -> α | int");
-        assert_eq!(pl2.1, "α | int");
-        assert_eq!(pl3.1, "α | int");
+        assert_eq!(pl2.1, "int");
+        assert_eq!(pl3.1, "int");
     }
 
     #[test]
@@ -2889,6 +2913,58 @@ mod tests {
             let std_root = repo_root.join("lib/std");
             let mut lowered = crate::lower_virtual_source_with_options(
                 "my test =\n  my $xs = []\n  for x in [1, 2, 3]:\n    &xs.push(x)\n  $xs\n",
+                Some(repo_root),
+                crate::SourceOptions {
+                    std_root: Some(std_root),
+                    implicit_prelude: true,
+                    search_paths: Vec::new(),
+                },
+            )
+            .expect("source should lower");
+
+            let rendered = render_compact_results(&mut lowered.state);
+            let test = rendered
+                .iter()
+                .find(|(name, _)| name == "test")
+                .expect("test should be rendered");
+
+            assert_eq!(test.1, "std::list::list<int | α>");
+        });
+    }
+
+    #[test]
+    fn render_compact_results_keeps_state_read_value_type() {
+        run_with_large_stack(|| {
+            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+            let std_root = repo_root.join("lib/std");
+            let mut lowered = crate::lower_virtual_source_with_options(
+                "my read_only =\n  my $a = 0\n  $a\n",
+                Some(repo_root),
+                crate::SourceOptions {
+                    std_root: Some(std_root),
+                    implicit_prelude: true,
+                    search_paths: Vec::new(),
+                },
+            )
+            .expect("source should lower");
+
+            let rendered = render_compact_results(&mut lowered.state);
+            let read_only = rendered
+                .iter()
+                .find(|(name, _)| name == "read_only")
+                .expect("read_only should be rendered");
+
+            assert_eq!(read_only.1, "int");
+        });
+    }
+
+    #[test]
+    fn render_compact_results_lowers_direct_list_append() {
+        run_with_large_stack(|| {
+            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+            let std_root = repo_root.join("lib/std");
+            let mut lowered = crate::lower_virtual_source_with_options(
+                "my test =\n  my xs = []\n  std::list::append xs [1]\n",
                 Some(repo_root),
                 crate::SourceOptions {
                     std_root: Some(std_root),
