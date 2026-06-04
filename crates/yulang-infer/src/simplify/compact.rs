@@ -1707,7 +1707,9 @@ impl<'a> CompactContext<'a> {
             None => CompactType::default(),
         };
         let compact = merge_compact_types(true, regular, instantiated);
-        if is_empty_compact_type(&compact) {
+        if self.effect_var_has_empty_upper_bound(tv) && is_empty_effect_row_compact_type(&compact) {
+            CompactType::default()
+        } else if is_empty_compact_type(&compact) {
             CompactType::from_var(tv)
         } else {
             merge_compact_types(true, CompactType::from_var(tv), compact)
@@ -1742,7 +1744,7 @@ impl<'a> CompactContext<'a> {
         seen: &mut TailSeen,
     ) -> CompactType {
         match self.infer.arena.get_pos(id) {
-            Pos::Var(tv) | Pos::Raw(tv) => CompactType::from_var(tv),
+            Pos::Var(tv) | Pos::Raw(tv) => self.compact_effect_row_bound_var(tv),
             Pos::Row(items, tail) => self.compact_pos_effect_row(items, tail, parents, seen),
             Pos::Union(lhs, rhs) => {
                 let lhs = self.compact_pos_effect_row_bound_id(lhs, parents, seen);
@@ -1818,7 +1820,9 @@ impl<'a> CompactContext<'a> {
         next_parents.push(tv);
         let compact =
             self.compact_neg_effect_row_bounds_ref(bounds.as_slice(), &next_parents, seen);
-        if is_empty_compact_type(&compact) {
+        if self.effect_var_has_empty_upper_bound(tv) && is_empty_effect_row_compact_type(&compact) {
+            CompactType::default()
+        } else if is_empty_compact_type(&compact) {
             CompactType::from_var(tv)
         } else {
             merge_compact_types(false, CompactType::from_var(tv), compact)
@@ -1853,7 +1857,7 @@ impl<'a> CompactContext<'a> {
         seen: &mut TailSeen,
     ) -> CompactType {
         match self.infer.arena.get_neg(id) {
-            Neg::Var(tv) => CompactType::from_var(tv),
+            Neg::Var(tv) => self.compact_effect_row_bound_var(tv),
             Neg::Row(items, tail) => self.compact_neg_effect_row(items, tail, parents, seen),
             Neg::Intersection(lhs, rhs) => {
                 let lhs = self.compact_neg_effect_row_bound_id(lhs, parents, seen);
@@ -1879,6 +1883,35 @@ impl<'a> CompactContext<'a> {
                 .collect(),
             self.compact_neg_effect_row_id_inner(tail, parents, seen),
         )
+    }
+
+    fn compact_effect_row_bound_var(&self, tv: TypeVar) -> CompactType {
+        if self.effect_var_has_empty_upper_bound(tv) {
+            CompactType::default()
+        } else {
+            CompactType::from_var(tv)
+        }
+    }
+
+    fn effect_var_has_empty_upper_bound(&self, tv: TypeVar) -> bool {
+        self.upper_bounds.get(&tv).is_some_and(|bounds| {
+            bounds
+                .iter()
+                .copied()
+                .any(|bound| self.neg_bound_is_empty_effect_row(bound))
+        })
+    }
+
+    fn neg_bound_is_empty_effect_row(&self, id: NegId) -> bool {
+        match self.infer.arena.get_neg(id) {
+            Neg::Row(items, tail) => {
+                items.is_empty() && matches!(self.infer.arena.get_neg(tail), Neg::Top)
+            }
+            Neg::Intersection(lhs, rhs) => {
+                self.neg_bound_is_empty_effect_row(lhs) || self.neg_bound_is_empty_effect_row(rhs)
+            }
+            _ => false,
+        }
     }
 
     fn compact_pos_id(&mut self, id: PosId, parents: &ParentStack) -> CompactType {
@@ -2947,13 +2980,28 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
         && ty.rows.is_empty()
 }
 
+fn is_empty_effect_row_compact_type(ty: &CompactType) -> bool {
+    ty.vars.is_empty()
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty
+            .rows
+            .iter()
+            .all(|row| row.items.is_empty() && is_empty_effect_row_compact_type(row.tail.as_ref()))
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::{
         CompactBounds, CompactFun, CompactRow, CompactType, CompactTypeScheme,
         coalesce_function_effect_residual, coalesce_root_function_interval_effect_residuals,
-        compact_type_var, normalize_compact_scheme_rows,
+        compact_type_var, is_empty_effect_row_compact_type, normalize_compact_scheme_rows,
     };
     use crate::fresh_type_var;
     use crate::solve::{EffectSubtractability, Infer};
@@ -3493,6 +3541,33 @@ mod tests {
         let compact = compact_type_var(&infer, tv);
         let fun = &compact.cty.lower.funs[0];
         assert!(compact_type_has_prim(&fun.ret_eff, &undet_path));
+    }
+
+    #[test]
+    fn compact_type_var_drops_exact_empty_positive_output_effect_var() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let effect = fresh_type_var();
+        for current in [tv, effect] {
+            infer.register_level(current, 0);
+        }
+
+        infer.add_lower(effect, Pos::Bot);
+        infer.add_upper(effect, infer.arena.empty_neg_row);
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.arena.top,
+                arg_eff: infer.arena.top,
+                ret_eff: infer.alloc_pos(Pos::Var(effect)),
+                ret: infer.alloc_pos(Pos::Tuple(Vec::new())),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let fun = &compact.cty.lower.funs[0];
+        assert!(is_empty_effect_row_compact_type(&fun.ret_eff));
+        assert!(fun.ret_eff.vars.is_empty());
     }
 
     #[test]
