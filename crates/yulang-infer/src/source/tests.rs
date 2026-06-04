@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,6 +21,40 @@ where
         .expect("spawn large-stack test thread")
         .join()
         .unwrap()
+}
+
+fn cached_std_compiled_unit_artifact_bundle() -> &'static CompiledUnitArtifactBundle {
+    static BUNDLE: OnceLock<CompiledUnitArtifactBundle> = OnceLock::new();
+    BUNDLE.get_or_init(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source_set = collect_virtual_source_files_with_options(
+            "(each 1..3 + each 1..3).list\n",
+            Some(repo_root),
+            yulang_sources::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("std artifact probe source should collect");
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results_profiled();
+        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+        let std_artifacts = artifacts
+            .into_iter()
+            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+            .collect::<Vec<_>>();
+        build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle")
+    })
+}
+
+fn cached_std_compiled_unit_semantic_artifact_bundle() -> &'static CompiledUnitSemanticArtifactBundle
+{
+    static BUNDLE: OnceLock<CompiledUnitSemanticArtifactBundle> = OnceLock::new();
+    BUNDLE.get_or_init(|| {
+        CompiledUnitSemanticArtifactBundle::from(cached_std_compiled_unit_artifact_bundle())
+    })
 }
 
 fn normalize_runtime_scheme_vars(text: &str) -> String {
@@ -932,14 +967,7 @@ fn compiled_typed_import_preserves_unqualified_prelude_variant_pattern_shape() {
         let source = "case just 42:\n  just n -> n\n  _ -> 0\n";
         let source_set =
             collect_virtual_source_files_with_options(source, Some(repo_root), options).unwrap();
-        let lowered = lower_source_set(&source_set);
-        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
-        let std_artifacts = artifacts
-            .into_iter()
-            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
-            .collect::<Vec<_>>();
-        let bundle =
-            build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
+        let bundle = cached_std_compiled_unit_artifact_bundle();
         assert!(
             bundle.typed.enum_variants.iter().any(|variant| {
                 variant.tag == "just"
@@ -952,12 +980,13 @@ fn compiled_typed_import_preserves_unqualified_prelude_variant_pattern_shape() {
             "compiled std bundle should preserve opt::just pattern shape"
         );
 
-        let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-            &source_set,
-            &bundle,
-        )
-        .lowered
-        .lowered;
+        let semantic_bundle = cached_std_compiled_unit_semantic_artifact_bundle();
+        let mut imported =
+            lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+                &source_set,
+                semantic_bundle,
+            )
+            .lowered;
         let program = crate::export_core_program(&mut imported.state);
         let result = program
             .program
@@ -2154,21 +2183,13 @@ fn compiled_typed_import_preserves_operator_role_constraints() {
             },
         )
         .unwrap();
-        let mut lowered = lower_source_set(&source_set);
-        lowered.state.finalize_compact_results();
-        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
-        let std_artifacts = artifacts
-            .into_iter()
-            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
-            .collect::<Vec<_>>();
-        let bundle =
-            build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
-        let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-            &source_set,
-            &bundle,
-        )
-        .lowered
-        .lowered;
+        let bundle = cached_std_compiled_unit_semantic_artifact_bundle();
+        let mut imported =
+            lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+                &source_set,
+                bundle,
+            )
+            .lowered;
         let rendered = render_compact_results(&mut imported.state);
         let both = rendered
             .iter()
@@ -2189,21 +2210,7 @@ fn compiled_typed_import_preserves_associated_role_method_output_for_root_expr()
             implicit_prelude: true,
             search_paths: Vec::new(),
         };
-        let first = collect_virtual_source_files_with_options(
-            "(1/3).say\n",
-            Some(repo_root.clone()),
-            options.clone(),
-        )
-        .unwrap();
-        let mut lowered = lower_source_set(&first);
-        lowered.state.finalize_compact_results();
-        let artifacts = build_compiled_unit_artifacts(&first, &lowered.state);
-        let std_artifacts = artifacts
-            .into_iter()
-            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
-            .collect::<Vec<_>>();
-        let bundle =
-            build_compiled_unit_artifact_bundle(&std_artifacts).expect("std compiled unit bundle");
+        let bundle = cached_std_compiled_unit_artifact_bundle();
         assert!(
             bundle.typed.role_methods.iter().any(|method| {
                 method.name == "div"
@@ -2218,10 +2225,13 @@ fn compiled_typed_import_preserves_associated_role_method_output_for_root_expr()
         let second =
             collect_virtual_source_files_with_options("(7/3).say\n", Some(repo_root), options)
                 .unwrap();
+        let semantic_bundle = cached_std_compiled_unit_semantic_artifact_bundle();
         let mut imported =
-            lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(&second, &bundle)
-                .lowered
-                .lowered;
+            lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+                &second,
+                semantic_bundle,
+            )
+            .lowered;
         imported.state.finalize_compact_results();
         assert!(
             imported.state.infer.type_errors().is_empty(),
@@ -2523,30 +2533,7 @@ fn cached_source_act_template_seed_is_needed_for_act_copy_and_synthetic_act_sour
 #[test]
 fn compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies() {
     run_with_large_stack(|| {
-        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let std_root = repo_root.join("lib/std");
-        let source_set = collect_virtual_source_files_with_options(
-            "(each 1..3 + each 1..3).list\n",
-            Some(repo_root.clone()),
-            yulang_sources::SourceOptions {
-                std_root: Some(std_root),
-                implicit_prelude: true,
-                search_paths: Vec::new(),
-            },
-        )
-        .unwrap();
-        let mut lowered = lower_source_set(&source_set);
-        lowered.state.finalize_compact_results_profiled();
-        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
-        let runtime = CompiledRuntimeBundle::from_surfaces(
-            artifacts
-                .iter()
-                .filter(|artifact| {
-                    artifact.manifest.origin == yulang_sources::SourceCompilationUnitOrigin::Std
-                })
-                .map(|artifact| &artifact.runtime),
-        )
-        .expect("std runtime surfaces should merge without duplicate unit bindings");
+        let runtime = &cached_std_compiled_unit_artifact_bundle().runtime;
         let binding_paths = runtime
             .surface
             .program
@@ -2593,21 +2580,10 @@ fn compiled_std_artifact_import_keeps_effectful_guard_constraints() {
             },
         )
         .unwrap();
-        let mut lowered = lower_source_set(&source_set);
-        lowered.state.finalize_compact_results_profiled();
-        let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
-        let bundle = build_compiled_unit_artifact_bundle(
-            &artifacts
-                .into_iter()
-                .filter(|artifact| {
-                    artifact.manifest.origin == yulang_sources::SourceCompilationUnitOrigin::Std
-                })
-                .collect::<Vec<_>>(),
-        )
-        .expect("std compiled unit bundle");
+        let bundle = cached_std_compiled_unit_artifact_bundle();
         let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
             &source_set,
-            &bundle,
+            bundle,
         );
         imported.lowered.lowered.state.finalize_compact_results();
 
