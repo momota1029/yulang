@@ -2003,6 +2003,24 @@ mod tests {
     }
 
     #[test]
+    fn render_compact_results_keeps_shallow_handler_limited_to_annotated_effect() {
+        let green = yulang_parser::parse_module_to_green(
+            "act read1:\n  our read: () -> int\n\nact read2:\n  our read: () -> int\n\nmy shallow_read1(x: [read1] _) = catch x:\n  read1::read(), k -> k 0\n  read2::read(), k -> k 0\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+
+        let rendered = render_compact_results(&mut state);
+        let shallow_read1 = rendered
+            .iter()
+            .find(|(name, _)| name == "shallow_read1")
+            .expect("shallow_read1 should be rendered");
+
+        assert_eq!(shallow_read1.1, "α [β & [read1; β]] -> [β] α");
+    }
+
+    #[test]
     fn render_compact_results_keeps_concrete_effect_annotation_shallow_with_root_use() {
         let green = yulang_parser::parse_module_to_green(
             "act undet:\n  our bool: () -> bool\n\nmy shallow_det(x: [undet] _) = catch x:\n  undet::bool(), k -> k true\n\nshallow_det(undet::bool())\n",
