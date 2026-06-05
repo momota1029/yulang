@@ -1,5 +1,5 @@
 use super::util::same_row_tail_var_nodes;
-use super::{Infer, StepCache};
+use super::{EffectConstraintWeights, Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::types::{Neg, Pos};
@@ -10,6 +10,7 @@ impl Infer {
         pos: PosId,
         neg_items: Vec<NegId>,
         neg_tail: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
@@ -17,10 +18,10 @@ impl Infer {
             .into_iter()
             .find(|&item| self.row_items_can_cancel(pos, item))
         {
-            self.constrain_row_item_match(pos, matched, cause, cache);
+            self.constrain_row_item_match(pos, matched, weights, cause, cache);
             return;
         }
-        self.constrain_step(pos, neg_tail, cause, cache);
+        self.constrain_step_with_hint_weighted(pos, neg_tail, weights, cause, None, cache);
     }
 
     pub(super) fn constrain_row(
@@ -29,6 +30,7 @@ impl Infer {
         pos_tail: PosId,
         neg_items: Vec<NegId>,
         neg_tail: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
@@ -43,7 +45,7 @@ impl Infer {
                 .position(|&candidate| self.row_items_can_cancel(candidate, item))
             {
                 let matched = pos_diff.remove(idx);
-                self.constrain_row_item_match(matched, item, cause, cache);
+                self.constrain_row_item_match(matched, item, weights.clone(), cause, cache);
             } else {
                 neg_unmatched.push(item);
             }
@@ -57,6 +59,7 @@ impl Infer {
                         tv,
                         original_neg_items.clone(),
                         original_neg_tail,
+                        weights.clone(),
                         cause,
                         cache,
                     );
@@ -76,16 +79,30 @@ impl Infer {
 
         if !concrete_diff.is_empty() && !same_row_tail_var_nodes(&pos_tail_node, &neg_tail_node) {
             let residual = self.pos_effect_union(concrete_diff, concrete_tail);
-            self.constrain_step(residual, neg_tail, cause, cache);
+            self.constrain_step_with_hint_weighted(
+                residual,
+                neg_tail,
+                weights.clone(),
+                cause,
+                None,
+                cache,
+            );
         }
 
         match pos_tail_node {
-            Pos::Var(tv) | Pos::Raw(tv) => {
-                self.constrain_row_var_to_row(tv, neg_unmatched, original_neg_tail, cause, cache)
-            }
+            Pos::Var(tv) | Pos::Raw(tv) => self.constrain_row_var_to_row(
+                tv,
+                neg_unmatched,
+                original_neg_tail,
+                weights,
+                cause,
+                cache,
+            ),
             _ => {
                 let neg_row = self.arena.alloc_neg(Neg::Row(neg_unmatched, neg_tail));
-                self.constrain_step(pos_tail, neg_row, cause, cache);
+                self.constrain_step_with_hint_weighted(
+                    pos_tail, neg_row, weights, cause, None, cache,
+                );
             }
         }
     }
@@ -95,12 +112,13 @@ impl Infer {
         tv: TypeVar,
         neg_items: Vec<NegId>,
         neg_tail: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
         let pos = self.arena.alloc_pos(Pos::Var(tv));
         let neg = self.arena.alloc_neg(Neg::Row(neg_items, neg_tail));
-        self.constrain_step(pos, neg, cause, cache);
+        self.constrain_step_with_hint_weighted(pos, neg, weights, cause, None, cache);
     }
 
     fn row_items_can_cancel(&self, pos: PosId, neg: NegId) -> bool {
@@ -116,6 +134,7 @@ impl Infer {
         &self,
         pos: PosId,
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
@@ -130,10 +149,24 @@ impl Infer {
                 {
                     let pp = self.arena.alloc_pos(Pos::Var(pos_pos));
                     let nn = self.arena.alloc_neg(Neg::Var(neg_neg));
-                    self.constrain_step(pp, nn, cause, cache);
+                    self.constrain_step_with_hint_weighted(
+                        pp,
+                        nn,
+                        weights.clone(),
+                        cause,
+                        None,
+                        cache,
+                    );
                     let np = self.arena.alloc_pos(Pos::Var(neg_pos));
                     let pn = self.arena.alloc_neg(Neg::Var(pos_neg));
-                    self.constrain_step(np, pn, cause, cache);
+                    self.constrain_step_with_hint_weighted(
+                        np,
+                        pn,
+                        weights.swapped(),
+                        cause,
+                        None,
+                        cache,
+                    );
                 }
             }
             _ => {}

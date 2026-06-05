@@ -1,5 +1,5 @@
 use super::util::{find_record_field, optionalized_neg_field, singleton_neg_record};
-use super::{Infer, StepCache};
+use super::{EffectConstraintWeights, Infer, StepCache};
 use crate::diagnostic::{ConstraintCause, TypeErrorKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::types::Pos;
@@ -10,6 +10,7 @@ impl Infer {
         fields: &[crate::types::RecordField<PosId>],
         tail: PosId,
         neg_fields: &[crate::types::RecordField<NegId>],
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
@@ -31,19 +32,30 @@ impl Infer {
                         },
                     );
                 } else {
-                    self.constrain_step(pos_field.value, neg_field.value, cause, cache);
+                    self.constrain_step_with_hint_weighted(
+                        pos_field.value,
+                        neg_field.value,
+                        weights.clone(),
+                        cause,
+                        origin_hint,
+                        cache,
+                    );
                 }
-                self.constrain_step(
+                self.constrain_step_with_hint_weighted(
                     tail,
                     singleton_neg_record(self, optionalized_neg_field(neg_field.clone())),
+                    weights.clone(),
                     cause,
+                    origin_hint,
                     cache,
                 );
             } else {
-                self.constrain_step(
+                self.constrain_step_with_hint_weighted(
                     tail,
                     singleton_neg_record(self, neg_field.clone()),
+                    weights.clone(),
                     cause,
+                    origin_hint,
                     cache,
                 );
             }
@@ -55,6 +67,7 @@ impl Infer {
         tail: PosId,
         fields: &[crate::types::RecordField<PosId>],
         neg_fields: &[crate::types::RecordField<NegId>],
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
@@ -76,13 +89,22 @@ impl Infer {
                         },
                     );
                 } else {
-                    self.constrain_step(pos_field.value, neg_field.value, cause, cache);
+                    self.constrain_step_with_hint_weighted(
+                        pos_field.value,
+                        neg_field.value,
+                        weights.clone(),
+                        cause,
+                        origin_hint,
+                        cache,
+                    );
                 }
             } else {
-                self.constrain_step(
+                self.constrain_step_with_hint_weighted(
                     tail,
                     singleton_neg_record(self, neg_field.clone()),
+                    weights.clone(),
                     cause,
+                    origin_hint,
                     cache,
                 );
             }

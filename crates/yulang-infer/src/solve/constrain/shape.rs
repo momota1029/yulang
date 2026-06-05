@@ -1,7 +1,7 @@
 use rustc_hash::FxHashSet;
 
 use super::util::{find_record_field, is_builtin_primitive_widening, live_neg_is_empty_row};
-use super::{Infer, StepCache};
+use super::{EffectConstraintWeights, Infer, StepCache};
 use crate::diagnostic::{ConstraintCause, ExpectedShape, TypeErrorKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::types::{Neg, Pos};
@@ -11,6 +11,7 @@ impl Infer {
         &self,
         pos: PosId,
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
@@ -32,16 +33,51 @@ impl Infer {
                     ret: ret_neg,
                 },
             ) => {
-                self.constrain_step(arg_pos, arg_neg, cause, cache);
+                self.constrain_step_with_hint_weighted(
+                    arg_pos,
+                    arg_neg,
+                    weights.swapped(),
+                    cause,
+                    origin_hint,
+                    cache,
+                );
                 let arg_eff_pure =
                     live_neg_is_empty_row(self, arg_eff_neg, &mut FxHashSet::default());
                 if arg_eff_pure {
-                    self.constrain_step(arg_eff_pos, ret_eff_neg, cause, cache);
+                    self.constrain_step_with_hint_weighted(
+                        arg_eff_pos,
+                        ret_eff_neg,
+                        weights.clone(),
+                        cause,
+                        origin_hint,
+                        cache,
+                    );
                 } else {
-                    self.constrain_step(arg_eff_pos, arg_eff_neg, cause, cache);
+                    self.constrain_step_with_hint_weighted(
+                        arg_eff_pos,
+                        arg_eff_neg,
+                        weights.swapped(),
+                        cause,
+                        origin_hint,
+                        cache,
+                    );
                 }
-                self.constrain_step(ret_eff_pos, ret_eff_neg, cause, cache);
-                self.constrain_step(ret_pos, ret_neg, cause, cache);
+                self.constrain_step_with_hint_weighted(
+                    ret_eff_pos,
+                    ret_eff_neg,
+                    weights.clone(),
+                    cause,
+                    origin_hint,
+                    cache,
+                );
+                self.constrain_step_with_hint_weighted(
+                    ret_pos,
+                    ret_neg,
+                    weights,
+                    cause,
+                    origin_hint,
+                    cache,
+                );
             }
             (Pos::Record(pos_fields), Neg::Record(neg_fields)) => {
                 for neg_field in &neg_fields {
@@ -59,7 +95,14 @@ impl Infer {
                                 },
                             );
                         } else {
-                            self.constrain_step(pos_field.value, neg_field.value, cause, cache);
+                            self.constrain_step_with_hint_weighted(
+                                pos_field.value,
+                                neg_field.value,
+                                weights.clone(),
+                                cause,
+                                origin_hint,
+                                cache,
+                            );
                         }
                     } else if !neg_field.optional {
                         self.report_type_error(
@@ -79,6 +122,7 @@ impl Infer {
                     fields.as_slice(),
                     tail,
                     neg_fields.as_slice(),
+                    weights,
                     cause,
                     origin_hint,
                     cache,
@@ -89,6 +133,7 @@ impl Infer {
                     tail,
                     fields.as_slice(),
                     neg_fields.as_slice(),
+                    weights,
                     cause,
                     origin_hint,
                     cache,
@@ -101,7 +146,14 @@ impl Infer {
                     };
                     if pos_payloads.len() == neg_payloads.len() {
                         for (p, n) in pos_payloads.iter().zip(neg_payloads.iter()) {
-                            self.constrain_step(*p, *n, cause, cache);
+                            self.constrain_step_with_hint_weighted(
+                                *p,
+                                *n,
+                                weights.clone(),
+                                cause,
+                                origin_hint,
+                                cache,
+                            );
                         }
                     }
                 }
@@ -119,7 +171,14 @@ impl Infer {
                     );
                 } else {
                     for (p, n) in pos_items.iter().zip(neg_items.iter()) {
-                        self.constrain_step(*p, *n, cause, cache);
+                        self.constrain_step_with_hint_weighted(
+                            *p,
+                            *n,
+                            weights.clone(),
+                            cause,
+                            origin_hint,
+                            cache,
+                        );
                     }
                 }
             }
@@ -147,14 +206,42 @@ impl Infer {
                         .unwrap_or(crate::types::Variance::Invariant);
                     match variance {
                         crate::types::Variance::Invariant => {
-                            self.constrain_step(pa.0, na.1, cause, cache);
-                            self.constrain_step(na.0, pa.1, cause, cache);
+                            self.constrain_step_with_hint_weighted(
+                                pa.0,
+                                na.1,
+                                weights.clone(),
+                                cause,
+                                origin_hint,
+                                cache,
+                            );
+                            self.constrain_step_with_hint_weighted(
+                                na.0,
+                                pa.1,
+                                weights.swapped(),
+                                cause,
+                                origin_hint,
+                                cache,
+                            );
                         }
                         crate::types::Variance::Covariant => {
-                            self.constrain_step(pa.0, na.1, cause, cache);
+                            self.constrain_step_with_hint_weighted(
+                                pa.0,
+                                na.1,
+                                weights.clone(),
+                                cause,
+                                origin_hint,
+                                cache,
+                            );
                         }
                         crate::types::Variance::Contravariant => {
-                            self.constrain_step(na.0, pa.1, cause, cache);
+                            self.constrain_step_with_hint_weighted(
+                                na.0,
+                                pa.1,
+                                weights.swapped(),
+                                cause,
+                                origin_hint,
+                                cache,
+                            );
                         }
                     }
                 }
@@ -177,7 +264,9 @@ impl Infer {
                 );
             }
             (Pos::Row(pos_items, pos_tail), Neg::Row(neg_items, neg_tail)) => {
-                self.constrain_row(pos_items, pos_tail, neg_items, neg_tail, cause, cache);
+                self.constrain_row(
+                    pos_items, pos_tail, neg_items, neg_tail, weights, cause, cache,
+                );
             }
             (pos_node, Neg::Fun { .. })
                 if super::errors::should_report_expected_function(&pos_node) =>

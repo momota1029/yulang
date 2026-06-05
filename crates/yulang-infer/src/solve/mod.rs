@@ -117,6 +117,90 @@ pub struct EffectSubtractFact {
     pub subtractability: EffectSubtractability,
 }
 
+/// Subtract ids attached to one side of a weighted constraint.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct EffectConstraintWeight(SmallVec<[EffectSubtractId; 2]>);
+
+impl EffectConstraintWeight {
+    pub fn empty() -> Self {
+        Self(SmallVec::new())
+    }
+
+    pub fn from_ids(ids: impl IntoIterator<Item = EffectSubtractId>) -> Self {
+        let mut ids = ids.into_iter().collect::<SmallVec<[_; 2]>>();
+        ids.sort();
+        ids.dedup();
+        Self(ids)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn contains(&self, id: EffectSubtractId) -> bool {
+        self.0.contains(&id)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = EffectSubtractId> + '_ {
+        self.0.iter().copied()
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        Self::from_ids(self.iter().chain(other.iter()))
+    }
+}
+
+/// The `#A/#B` in `T #A <: #B U`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct EffectConstraintWeights {
+    pub left: EffectConstraintWeight,
+    pub right: EffectConstraintWeight,
+}
+
+impl EffectConstraintWeights {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.left.is_empty() && self.right.is_empty()
+    }
+
+    pub fn swapped(&self) -> Self {
+        Self {
+            left: self.right.clone(),
+            right: self.left.clone(),
+        }
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        Self {
+            left: self.left.union(&other.left),
+            right: self.right.union(&other.right),
+        }
+    }
+}
+
+/// Lower bounds keep weights separately from the public unweighted bound view.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct WeightedLowerBound {
+    pub pos: PosId,
+    pub weights: EffectConstraintWeights,
+}
+
+/// Upper bounds keep weights separately from the public unweighted bound view.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct WeightedUpperBound {
+    pub neg: NegId,
+    pub weights: EffectConstraintWeights,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct BoundInsert {
+    pub unweighted: bool,
+    pub weighted: bool,
+}
+
 impl EffectSubtractability {
     pub fn from_paths(paths: Vec<Path>) -> Self {
         Self::set(
@@ -287,6 +371,12 @@ pub struct Infer {
     pub upper: RefCell<FxHashMap<TypeVar, SmallVec<[NegId; 2]>>>,
     pub lower_members: RefCell<FxHashSet<(TypeVar, PosId)>>,
     pub upper_members: RefCell<FxHashSet<(TypeVar, NegId)>>,
+    pub(crate) weighted_lower_bounds:
+        RefCell<FxHashMap<TypeVar, SmallVec<[WeightedLowerBound; 2]>>>,
+    pub(crate) weighted_upper_bounds:
+        RefCell<FxHashMap<TypeVar, SmallVec<[WeightedUpperBound; 2]>>>,
+    pub(crate) weighted_lower_members: RefCell<FxHashSet<(TypeVar, WeightedLowerBound)>>,
+    pub(crate) weighted_upper_members: RefCell<FxHashSet<(TypeVar, WeightedUpperBound)>>,
     pub compact_lower_instances: RefCell<FxHashMap<TypeVar, SmallVec<[OwnedSchemeInstance; 2]>>>,
     pub handler_matches: RefCell<Vec<HandlerMatchEdge>>,
     pub handler_match_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[usize; 2]>>>,
@@ -351,6 +441,10 @@ impl Infer {
             upper: RefCell::new(FxHashMap::default()),
             lower_members: RefCell::new(FxHashSet::default()),
             upper_members: RefCell::new(FxHashSet::default()),
+            weighted_lower_bounds: RefCell::new(FxHashMap::default()),
+            weighted_upper_bounds: RefCell::new(FxHashMap::default()),
+            weighted_lower_members: RefCell::new(FxHashSet::default()),
+            weighted_upper_members: RefCell::new(FxHashSet::default()),
             compact_lower_instances: RefCell::new(FxHashMap::default()),
             handler_matches: RefCell::new(Vec::new()),
             handler_match_dependents: RefCell::new(FxHashMap::default()),
@@ -804,6 +898,26 @@ impl Infer {
         }
     }
 
+    pub(crate) fn weighted_lower_bounds_of(
+        &self,
+        tv: TypeVar,
+    ) -> SmallVec<[WeightedLowerBound; 4]> {
+        match self.weighted_lower_bounds.borrow().get(&tv) {
+            Some(v) => v.iter().cloned().collect(),
+            None => SmallVec::new(),
+        }
+    }
+
+    pub(crate) fn weighted_upper_bounds_of(
+        &self,
+        tv: TypeVar,
+    ) -> SmallVec<[WeightedUpperBound; 4]> {
+        match self.weighted_upper_bounds.borrow().get(&tv) {
+            Some(v) => v.iter().cloned().collect(),
+            None => SmallVec::new(),
+        }
+    }
+
     pub fn compact_lower_instances_of(&self, tv: TypeVar) -> SmallVec<[OwnedSchemeInstance; 2]> {
         let start = crate::profile::ProfileClock::now();
         let instances = match self.compact_lower_instances.borrow().get(&tv) {
@@ -842,7 +956,8 @@ impl Infer {
 
     pub fn add_lower<P: IntoPosId>(&self, tv: TypeVar, pos: P) -> bool {
         let pos = pos.into_pos_id(self);
-        if !self.add_lower_raw(tv, pos) {
+        let inserted = self.add_lower_raw(tv, pos);
+        if !inserted {
             return false;
         }
         self.resolve_deferred_selections_for(tv);
@@ -856,6 +971,36 @@ impl Infer {
     /// selection 解決 → constrain → extrude → add_lower … の無限再帰に落ちる。
     pub fn add_lower_raw<P: IntoPosId>(&self, tv: TypeVar, pos: P) -> bool {
         let pos = pos.into_pos_id(self);
+        self.add_weighted_lower_raw(tv, pos, EffectConstraintWeights::empty())
+            .unweighted
+    }
+
+    pub(crate) fn add_weighted_lower_raw(
+        &self,
+        tv: TypeVar,
+        pos: PosId,
+        weights: EffectConstraintWeights,
+    ) -> BoundInsert {
+        let unweighted = self.insert_unweighted_lower(tv, pos);
+        let bound = WeightedLowerBound { pos, weights };
+        let weighted = self
+            .weighted_lower_members
+            .borrow_mut()
+            .insert((tv, bound.clone()));
+        if weighted {
+            self.weighted_lower_bounds
+                .borrow_mut()
+                .entry(tv)
+                .or_default()
+                .push(bound);
+        }
+        BoundInsert {
+            unweighted,
+            weighted,
+        }
+    }
+
+    fn insert_unweighted_lower(&self, tv: TypeVar, pos: PosId) -> bool {
         if !self.lower_members.borrow_mut().insert((tv, pos)) {
             return false;
         }
@@ -896,6 +1041,36 @@ impl Infer {
 
     pub fn add_upper<N: IntoNegId>(&self, tv: TypeVar, neg: N) -> bool {
         let neg = neg.into_neg_id(self);
+        self.add_weighted_upper_raw(tv, neg, EffectConstraintWeights::empty())
+            .unweighted
+    }
+
+    pub(crate) fn add_weighted_upper_raw(
+        &self,
+        tv: TypeVar,
+        neg: NegId,
+        weights: EffectConstraintWeights,
+    ) -> BoundInsert {
+        let unweighted = self.insert_unweighted_upper(tv, neg);
+        let bound = WeightedUpperBound { neg, weights };
+        let weighted = self
+            .weighted_upper_members
+            .borrow_mut()
+            .insert((tv, bound.clone()));
+        if weighted {
+            self.weighted_upper_bounds
+                .borrow_mut()
+                .entry(tv)
+                .or_default()
+                .push(bound);
+        }
+        BoundInsert {
+            unweighted,
+            weighted,
+        }
+    }
+
+    fn insert_unweighted_upper(&self, tv: TypeVar, neg: NegId) -> bool {
         if !self.upper_members.borrow_mut().insert((tv, neg)) {
             return false;
         }

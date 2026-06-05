@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet;
 
-use super::{Infer, IntoNegId, IntoPosId};
+use super::{EffectConstraintWeights, Infer, IntoNegId, IntoPosId};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::scheme::OwnedSchemeInstance;
@@ -25,20 +25,21 @@ enum RowUpperProjection {
 }
 
 #[derive(Debug, Default)]
-struct StepCache {
-    seen: FxHashSet<(PosId, NegId)>,
+pub(super) struct StepCache {
+    seen: FxHashSet<(PosId, NegId, EffectConstraintWeights)>,
     pending: Vec<ConstraintStep>,
     depth: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct ConstraintStep {
     pos: PosId,
     neg: NegId,
+    weights: EffectConstraintWeights,
     origin_hint: Option<TypeVar>,
 }
 
-type FrozenStepCache = FxHashSet<(usize, PosId, NegId)>;
+type FrozenStepCache = FxHashSet<(usize, PosId, NegId, EffectConstraintWeights)>;
 const MAX_INLINE_CONSTRAINT_DEPTH: usize = 128;
 
 impl Infer {
@@ -72,11 +73,24 @@ impl Infer {
         let cause = ConstraintCause::unknown();
         let pos = self.extrude_pos(pos, self.level_of(target));
         let mut cache = StepCache::default();
-        if self.add_lower_bound(target, pos, &cause, &mut cache) {
-            let uppers = self.upper_refs_of(target);
+        if self.add_lower_bound(
+            target,
+            pos,
+            EffectConstraintWeights::empty(),
+            &cause,
+            &mut cache,
+        ) {
+            let uppers = self.weighted_upper_bounds_of(target);
             if !uppers.is_empty() {
                 for upper in uppers {
-                    self.constrain_step_with_hint(pos, upper, &cause, Some(target), &mut cache);
+                    self.constrain_step_with_hint_weighted(
+                        pos,
+                        upper.neg,
+                        upper.weights,
+                        &cause,
+                        Some(target),
+                        &mut cache,
+                    );
                 }
             }
         }
@@ -108,13 +122,14 @@ impl Infer {
                 self.solve_handler_matches_for(target, &cause, &mut cache);
             }
 
-            let uppers = self.upper_refs_of(target);
+            let uppers = self.weighted_upper_bounds_of(target);
             if !uppers.is_empty() {
                 let mut cache = FxHashSet::default();
                 for upper in uppers {
                     self.constrain_frozen_instance_to_neg(
                         &instance,
-                        upper,
+                        upper.neg,
+                        upper.weights,
                         &cause,
                         Some(target),
                         &mut cache,
@@ -136,8 +151,20 @@ impl Infer {
     ) {
         let mut cache = StepCache::default();
         for upper in self.compact_instance_root_upper_parts(instance) {
-            if self.add_upper_bound(target, upper, cause, &mut cache) {
-                self.propagate_upper_to_lowers(target, upper, cause, &mut cache);
+            if self.add_upper_bound(
+                target,
+                upper,
+                EffectConstraintWeights::empty(),
+                cause,
+                &mut cache,
+            ) {
+                self.propagate_upper_to_lowers(
+                    target,
+                    upper,
+                    EffectConstraintWeights::empty(),
+                    cause,
+                    &mut cache,
+                );
             }
         }
     }
@@ -149,23 +176,32 @@ impl Infer {
         cause: &ConstraintCause,
         cache: &mut StepCache,
     ) {
-        self.constrain_step_with_hint(pos, neg, cause, None, cache);
+        self.constrain_step_with_hint_weighted(
+            pos,
+            neg,
+            EffectConstraintWeights::empty(),
+            cause,
+            None,
+            cache,
+        );
     }
 
-    fn constrain_step_with_hint(
+    pub(super) fn constrain_step_with_hint_weighted(
         &self,
         pos: PosId,
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
     ) {
-        if !cache.seen.insert((pos, neg)) {
+        if !cache.seen.insert((pos, neg, weights.clone())) {
             return;
         }
         cache.pending.push(ConstraintStep {
             pos,
             neg,
+            weights,
             origin_hint,
         });
         if cache.depth >= MAX_INLINE_CONSTRAINT_DEPTH {
@@ -174,7 +210,14 @@ impl Infer {
 
         while let Some(step) = cache.pending.pop() {
             cache.depth += 1;
-            self.constrain_step_now(step.pos, step.neg, cause, step.origin_hint, cache);
+            self.constrain_step_now(
+                step.pos,
+                step.neg,
+                step.weights,
+                cause,
+                step.origin_hint,
+                cache,
+            );
             cache.depth -= 1;
             if cache.depth > 0 {
                 break;
@@ -186,6 +229,7 @@ impl Infer {
         &self,
         pos: PosId,
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
@@ -199,42 +243,63 @@ impl Infer {
 
             // Union / Intersection を分配
             (Pos::Union(a, b), _) => {
-                self.constrain_step(a, neg, cause, cache);
-                self.constrain_step(b, neg, cause, cache);
+                self.constrain_step_with_hint_weighted(
+                    a,
+                    neg,
+                    weights.clone(),
+                    cause,
+                    origin_hint,
+                    cache,
+                );
+                self.constrain_step_with_hint_weighted(b, neg, weights, cause, origin_hint, cache);
             }
             (_, Neg::Intersection(a, b)) => {
-                self.constrain_step(pos, a, cause, cache);
-                self.constrain_step(pos, b, cause, cache);
+                self.constrain_step_with_hint_weighted(
+                    pos,
+                    a,
+                    weights.clone(),
+                    cause,
+                    origin_hint,
+                    cache,
+                );
+                self.constrain_step_with_hint_weighted(pos, b, weights, cause, origin_hint, cache);
             }
 
             (Pos::Var(a), Neg::Var(b)) => {
-                self.constrain_var_to_var(pos, a, neg, b, cause, cache);
+                self.constrain_var_to_var(pos, a, neg, b, weights, cause, cache);
             }
             (_, Neg::Var(b)) => {
-                self.constrain_to_neg_var(pos, b, cause, cache);
+                self.constrain_to_neg_var(pos, b, weights, cause, cache);
             }
             (Pos::Var(a) | Pos::Raw(a), Neg::Row(items, tail)) => {
-                match self.row_upper_projection(a, &items, tail, origin_hint) {
+                match self.row_upper_projection(a, &items, tail, &weights, origin_hint) {
                     RowUpperProjection::Original => {
-                        self.constrain_pos_var_to(a, neg, cause, cache);
+                        self.constrain_pos_var_to(a, neg, weights, cause, cache);
                     }
                     RowUpperProjection::Project(projected_items) => {
                         let projected = self.arena.alloc_neg(Neg::Row(projected_items, tail));
-                        self.constrain_pos_var_to(a, projected, cause, cache);
+                        self.constrain_pos_var_to(a, projected, weights, cause, cache);
                     }
                     RowUpperProjection::TailOnly => {
-                        self.constrain_step(pos, tail, cause, cache);
+                        self.constrain_step_with_hint_weighted(
+                            pos,
+                            tail,
+                            weights,
+                            cause,
+                            origin_hint,
+                            cache,
+                        );
                     }
                 }
             }
             (Pos::Atom(_), Neg::Row(items, tail)) => {
-                self.constrain_row_item_to_row(pos, items, tail, cause, cache);
+                self.constrain_row_item_to_row(pos, items, tail, weights, cause, cache);
             }
             (Pos::Var(a), _) => {
-                self.constrain_pos_var_to(a, neg, cause, cache);
+                self.constrain_pos_var_to(a, neg, weights, cause, cache);
             }
 
-            _ => self.constrain_shape(pos, neg, cause, origin_hint, cache),
+            _ => self.constrain_shape(pos, neg, weights, cause, origin_hint, cache),
         }
     }
 
@@ -243,15 +308,15 @@ impl Infer {
         effect: TypeVar,
         items: &[NegId],
         tail: NegId,
+        weights: &EffectConstraintWeights,
         _origin_hint: Option<TypeVar>,
     ) -> RowUpperProjection {
-        if !items.is_empty()
-            && let Neg::Var(tail_var) = self.arena.get_neg(tail)
-        {
-            self.copy_effect_subtractability(effect, tail_var);
+        if let Neg::Var(tail_var) = self.arena.get_neg(tail) {
+            self.copy_effect_subtractability_except(effect, tail_var, &weights.left);
+            self.record_effect_non_subtracts_to_var(tail_var, &weights.right);
         }
 
-        match self.effect_subtractability(effect) {
+        match self.effect_subtractability_except(effect, &weights.left) {
             Some(super::EffectSubtractability::All) if !items.is_empty() => {
                 RowUpperProjection::Original
             }
@@ -282,13 +347,17 @@ impl Infer {
 
 #[cfg(test)]
 mod tests {
+    use super::StepCache;
+
     use rowan::TextRange;
 
     use crate::diagnostic::{
         ConstraintCause, ConstraintReason, ExpectedShape, TypeErrorKind, TypeOrigin, TypeOriginKind,
     };
     use crate::ids::{NegId, fresh_type_var};
-    use crate::solve::{EffectSubtractability, Infer};
+    use crate::solve::{
+        EffectConstraintWeight, EffectConstraintWeights, EffectSubtractability, Infer,
+    };
     use crate::symbols::{Name, Path};
     use crate::types::RecordField;
     use crate::types::{EffectAtom, Neg, Pos};
@@ -377,6 +446,19 @@ mod tests {
         items
             .iter()
             .any(|item| matches!(infer.arena.get_neg(*item), Neg::Atom(found) if found == *atom))
+    }
+
+    fn row_upper_contains_atoms(
+        infer: &Infer,
+        tv: crate::ids::TypeVar,
+        atoms: &[&EffectAtom],
+    ) -> bool {
+        infer.uppers_of(tv).iter().any(|upper| {
+            matches!(
+                upper,
+                Neg::Row(items, _) if row_items_match(infer, items, atoms)
+            )
+        })
     }
 
     fn record_name() -> Name {
@@ -887,6 +969,147 @@ mod tests {
                 )
             }),
             "handled row items must not stay on the Empty-subtractable source, got {uppers:?}"
+        );
+    }
+
+    #[test]
+    fn left_weight_cancels_subtractability_before_row_projection() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(actual, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        let local = effect_atom("local");
+        let subtract_id = infer
+            .record_effect_subtractability(actual, EffectSubtractability::set(vec![io.clone()]));
+        let row = infer.alloc_neg(Neg::Row(
+            vec![
+                infer.alloc_neg(Neg::Atom(io.clone())),
+                infer.alloc_neg(Neg::Atom(local.clone())),
+            ],
+            infer.alloc_neg(Neg::Var(residual)),
+        ));
+        let weights = EffectConstraintWeights {
+            left: EffectConstraintWeight::from_ids([subtract_id]),
+            right: EffectConstraintWeight::empty(),
+        };
+        let mut cache = StepCache::default();
+
+        infer.constrain_step_with_hint_weighted(
+            infer.alloc_pos(Pos::Var(actual)),
+            row,
+            weights,
+            &ConstraintCause::unknown(),
+            None,
+            &mut cache,
+        );
+
+        assert!(
+            row_upper_contains_atoms(&infer, actual, &[&io, &local]),
+            "left weight should cancel the matching subtract id before row projection"
+        );
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            None,
+            "row tail must not inherit a subtract fact canceled by the left weight"
+        );
+    }
+
+    #[test]
+    fn right_weight_marks_projected_row_tail_non_subtract() {
+        let infer = Infer::new();
+        let actual = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(actual, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        let subtract_id = infer
+            .record_effect_subtractability(actual, EffectSubtractability::set(vec![io.clone()]));
+        let row = infer.alloc_neg(Neg::Row(
+            vec![infer.alloc_neg(Neg::Atom(io.clone()))],
+            infer.alloc_neg(Neg::Var(residual)),
+        ));
+        let weights = EffectConstraintWeights {
+            left: EffectConstraintWeight::empty(),
+            right: EffectConstraintWeight::from_ids([subtract_id]),
+        };
+        let mut cache = StepCache::default();
+
+        infer.constrain_step_with_hint_weighted(
+            infer.alloc_pos(Pos::Var(actual)),
+            row,
+            weights,
+            &ConstraintCause::unknown(),
+            None,
+            &mut cache,
+        );
+
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            Some(EffectSubtractability::set(vec![io.clone()])),
+            "row tail first inherits the active subtract fact"
+        );
+        assert_eq!(infer.effect_non_subtract_ids(residual), vec![subtract_id]);
+
+        infer.prune_resolved_effect_subtract_metadata();
+
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            None,
+            "right weight should cancel the copied subtract fact during cleanup"
+        );
+    }
+
+    #[test]
+    fn weighted_var_boundary_preserves_left_weight_through_alias() {
+        let infer = Infer::new();
+        let source = fresh_type_var();
+        let alias = fresh_type_var();
+        let residual = fresh_type_var();
+        infer.register_level(source, 0);
+        infer.register_level(alias, 0);
+        infer.register_level(residual, 0);
+
+        let io = effect_atom("io");
+        let local = effect_atom("local");
+        let subtract_id = infer
+            .record_effect_subtractability(source, EffectSubtractability::set(vec![io.clone()]));
+        let weights = EffectConstraintWeights {
+            left: EffectConstraintWeight::from_ids([subtract_id]),
+            right: EffectConstraintWeight::empty(),
+        };
+        let mut cache = StepCache::default();
+        infer.constrain_step_with_hint_weighted(
+            infer.alloc_pos(Pos::Var(source)),
+            infer.alloc_neg(Neg::Var(alias)),
+            weights,
+            &ConstraintCause::unknown(),
+            None,
+            &mut cache,
+        );
+
+        infer.constrain(
+            Pos::Var(alias),
+            Neg::Row(
+                vec![
+                    infer.alloc_neg(Neg::Atom(io.clone())),
+                    infer.alloc_neg(Neg::Atom(local.clone())),
+                ],
+                infer.alloc_neg(Neg::Var(residual)),
+            ),
+        );
+
+        assert!(
+            row_upper_contains_atoms(&infer, source, &[&io, &local]),
+            "weighted alias propagation should keep local instead of projecting with source subtractability"
+        );
+        assert_eq!(
+            infer.effect_subtractability(residual),
+            None,
+            "alias-propagated left weight must also block subtractability copy to the tail"
         );
     }
 

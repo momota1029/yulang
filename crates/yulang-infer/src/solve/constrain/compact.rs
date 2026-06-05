@@ -1,4 +1,4 @@
-use super::{Infer, StepCache};
+use super::{EffectConstraintWeights, Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, TypeVar, fresh_type_var};
 use crate::scheme::{OwnedSchemeInstance, compact_neg_type, compact_pos_type};
@@ -12,10 +12,11 @@ use crate::symbols::Path;
 use crate::types::Pos;
 
 impl Infer {
-    pub(super) fn constrain_compact_instance_to_neg(
+    pub(super) fn constrain_compact_instance_to_neg_weighted(
         &self,
         instance: &OwnedSchemeInstance,
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
@@ -26,7 +27,7 @@ impl Infer {
             .is_some_and(root_fun_effect_rows_have_complex_atom_args)
         {
             let body = self.materialize_compact_lower_instance(instance);
-            self.constrain_step_with_hint(body, neg, cause, origin_hint, cache);
+            self.constrain_step_with_hint_weighted(body, neg, weights, cause, origin_hint, cache);
             return;
         }
         let captured_root_body = root_body.clone().and_then(|mut body| {
@@ -49,7 +50,14 @@ impl Infer {
             .unwrap_or(&instance.scheme.compact.cty.lower);
         let parts = compact_pos_parts_with_subst(self, lower, instance.subst.as_slice());
         for part in parts {
-            self.constrain_step_with_hint(part, neg, cause, origin_hint, cache);
+            self.constrain_step_with_hint_weighted(
+                part,
+                neg,
+                weights.clone(),
+                cause,
+                origin_hint,
+                cache,
+            );
         }
     }
 

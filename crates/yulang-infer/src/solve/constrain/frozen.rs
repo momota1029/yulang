@@ -4,7 +4,7 @@ use super::util::{
     find_record_field, is_builtin_primitive_widening, live_neg_var_is_empty_row, neg_id_direct_var,
     optionalized_neg_field, pos_id_direct_var, singleton_neg_record,
 };
-use super::{FrozenStepCache, Infer, StepCache};
+use super::{EffectConstraintWeights, FrozenStepCache, Infer, StepCache};
 use crate::diagnostic::{ConstraintCause, ExpectedShape, TypeErrorKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::scheme::{OwnedSchemeInstance, read_neg_with_subst, read_pos_with_subst};
@@ -17,6 +17,7 @@ impl Infer {
         &self,
         instance: &OwnedSchemeInstance,
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut FrozenStepCache,
@@ -26,6 +27,7 @@ impl Infer {
             instance.scheme.body,
             instance.subst.as_slice(),
             neg,
+            weights,
             cause,
             origin_hint,
             cache,
@@ -38,11 +40,17 @@ impl Infer {
         pos: PosId,
         subst: &[(TypeVar, TypeVar)],
         neg: NegId,
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut FrozenStepCache,
     ) {
-        let cache_key = ((arena as *const TypeArena) as usize, pos, neg);
+        let cache_key = (
+            (arena as *const TypeArena) as usize,
+            pos,
+            neg,
+            weights.clone(),
+        );
         if !cache.insert(cache_key) {
             return;
         }
@@ -53,17 +61,60 @@ impl Infer {
             (Pos::Var(tv), _) | (Pos::Raw(tv), _) => {
                 let live_pos = self.alloc_pos(Pos::Var(subst_lookup_small(subst, tv)));
                 let mut live_cache = StepCache::default();
-                self.constrain_step_with_hint(live_pos, neg, cause, origin_hint, &mut live_cache);
+                self.constrain_step_with_hint_weighted(
+                    live_pos,
+                    neg,
+                    weights,
+                    cause,
+                    origin_hint,
+                    &mut live_cache,
+                );
             }
             (Pos::Bot, _) | (_, Neg::Top) => {}
             (Pos::Forall(..), _) | (_, Neg::Forall(..)) => {}
             (Pos::Union(a, b), _) => {
-                self.constrain_frozen_pos_to_neg(arena, a, subst, neg, cause, origin_hint, cache);
-                self.constrain_frozen_pos_to_neg(arena, b, subst, neg, cause, origin_hint, cache);
+                self.constrain_frozen_pos_to_neg(
+                    arena,
+                    a,
+                    subst,
+                    neg,
+                    weights.clone(),
+                    cause,
+                    origin_hint,
+                    cache,
+                );
+                self.constrain_frozen_pos_to_neg(
+                    arena,
+                    b,
+                    subst,
+                    neg,
+                    weights,
+                    cause,
+                    origin_hint,
+                    cache,
+                );
             }
             (_, Neg::Intersection(a, b)) => {
-                self.constrain_frozen_pos_to_neg(arena, pos, subst, a, cause, origin_hint, cache);
-                self.constrain_frozen_pos_to_neg(arena, pos, subst, b, cause, origin_hint, cache);
+                self.constrain_frozen_pos_to_neg(
+                    arena,
+                    pos,
+                    subst,
+                    a,
+                    weights.clone(),
+                    cause,
+                    origin_hint,
+                    cache,
+                );
+                self.constrain_frozen_pos_to_neg(
+                    arena,
+                    pos,
+                    subst,
+                    b,
+                    weights,
+                    cause,
+                    origin_hint,
+                    cache,
+                );
             }
             (
                 Pos::Fun {
@@ -79,7 +130,14 @@ impl Infer {
                     ret: ret_neg,
                 },
             ) => {
-                self.constrain_pos_to_frozen_neg(arg_pos, arena, arg_neg, subst, cause);
+                self.constrain_pos_to_frozen_neg(
+                    arg_pos,
+                    arena,
+                    arg_neg,
+                    subst,
+                    weights.swapped(),
+                    cause,
+                );
                 let arg_eff_pure = frozen_neg_is_empty_row(
                     self,
                     arena,
@@ -89,15 +147,30 @@ impl Infer {
                 );
                 if arg_eff_pure {
                     let mut live_cache = StepCache::default();
-                    self.constrain_step(arg_eff_pos, ret_eff_neg, cause, &mut live_cache);
+                    self.constrain_step_with_hint_weighted(
+                        arg_eff_pos,
+                        ret_eff_neg,
+                        weights.clone(),
+                        cause,
+                        origin_hint,
+                        &mut live_cache,
+                    );
                 } else {
-                    self.constrain_pos_to_frozen_neg(arg_eff_pos, arena, arg_eff_neg, subst, cause);
+                    self.constrain_pos_to_frozen_neg(
+                        arg_eff_pos,
+                        arena,
+                        arg_eff_neg,
+                        subst,
+                        weights.swapped(),
+                        cause,
+                    );
                 }
                 self.constrain_frozen_pos_to_neg(
                     arena,
                     ret_eff_pos,
                     subst,
                     ret_eff_neg,
+                    weights.clone(),
                     cause,
                     origin_hint,
                     cache,
@@ -107,6 +180,7 @@ impl Infer {
                     ret_pos,
                     subst,
                     ret_neg,
+                    weights,
                     cause,
                     origin_hint,
                     cache,
@@ -134,6 +208,7 @@ impl Infer {
                                 pos_field.value,
                                 subst,
                                 neg_field.value,
+                                weights.clone(),
                                 cause,
                                 origin_hint,
                                 cache,
@@ -160,6 +235,7 @@ impl Infer {
                     tail,
                     subst,
                     neg_fields.as_slice(),
+                    weights,
                     cause,
                     origin_hint,
                     cache,
@@ -172,6 +248,7 @@ impl Infer {
                     fields.as_slice(),
                     subst,
                     neg_fields.as_slice(),
+                    weights,
                     cause,
                     origin_hint,
                     cache,
@@ -189,6 +266,7 @@ impl Infer {
                                 *p,
                                 subst,
                                 *n,
+                                weights.clone(),
                                 cause,
                                 origin_hint,
                                 cache,
@@ -216,6 +294,7 @@ impl Infer {
                             *p,
                             subst,
                             *n,
+                            weights.clone(),
                             cause,
                             origin_hint,
                             cache,
@@ -250,11 +329,19 @@ impl Infer {
                                 pa.0,
                                 subst,
                                 na.1,
+                                weights.clone(),
                                 cause,
                                 origin_hint,
                                 cache,
                             );
-                            self.constrain_pos_to_frozen_neg(na.0, arena, pa.1, subst, cause);
+                            self.constrain_pos_to_frozen_neg(
+                                na.0,
+                                arena,
+                                pa.1,
+                                subst,
+                                weights.swapped(),
+                                cause,
+                            );
                         }
                         crate::types::Variance::Covariant => {
                             self.constrain_frozen_pos_to_neg(
@@ -262,13 +349,21 @@ impl Infer {
                                 pa.0,
                                 subst,
                                 na.1,
+                                weights.clone(),
                                 cause,
                                 origin_hint,
                                 cache,
                             );
                         }
                         crate::types::Variance::Contravariant => {
-                            self.constrain_pos_to_frozen_neg(na.0, arena, pa.1, subst, cause);
+                            self.constrain_pos_to_frozen_neg(
+                                na.0,
+                                arena,
+                                pa.1,
+                                subst,
+                                weights.swapped(),
+                                cause,
+                            );
                         }
                     }
                 }
@@ -295,9 +390,10 @@ impl Infer {
             (Pos::Row(..), Neg::Row(..)) => {
                 let materialized = materialize_frozen_pos(self, arena, pos, subst);
                 let mut live_cache = StepCache::default();
-                self.constrain_step_with_hint(
+                self.constrain_step_with_hint_weighted(
                     materialized,
                     neg,
+                    weights,
                     cause,
                     origin_hint,
                     &mut live_cache,
@@ -368,11 +464,19 @@ impl Infer {
         arena: &TypeArena,
         neg: NegId,
         subst: &[(TypeVar, TypeVar)],
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
     ) {
         let materialized = materialize_frozen_neg(self, arena, neg, subst);
         let mut live_cache = StepCache::default();
-        self.constrain_step(pos, materialized, cause, &mut live_cache);
+        self.constrain_step_with_hint_weighted(
+            pos,
+            materialized,
+            weights,
+            cause,
+            None,
+            &mut live_cache,
+        );
     }
 
     fn constrain_frozen_record_tail_spread_to_neg_record(
@@ -382,6 +486,7 @@ impl Infer {
         tail: PosId,
         subst: &[(TypeVar, TypeVar)],
         neg_fields: &[crate::types::RecordField<NegId>],
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut FrozenStepCache,
@@ -408,6 +513,7 @@ impl Infer {
                         pos_field.value,
                         subst,
                         neg_field.value,
+                        weights.clone(),
                         cause,
                         origin_hint,
                         cache,
@@ -418,6 +524,7 @@ impl Infer {
                     tail,
                     subst,
                     singleton_neg_record(self, optionalized_neg_field(neg_field.clone())),
+                    weights.clone(),
                     cause,
                     origin_hint,
                     cache,
@@ -428,6 +535,7 @@ impl Infer {
                     tail,
                     subst,
                     singleton_neg_record(self, neg_field.clone()),
+                    weights.clone(),
                     cause,
                     origin_hint,
                     cache,
@@ -443,6 +551,7 @@ impl Infer {
         fields: &[crate::types::RecordField<PosId>],
         subst: &[(TypeVar, TypeVar)],
         neg_fields: &[crate::types::RecordField<NegId>],
+        weights: EffectConstraintWeights,
         cause: &ConstraintCause,
         origin_hint: Option<TypeVar>,
         cache: &mut FrozenStepCache,
@@ -469,6 +578,7 @@ impl Infer {
                         pos_field.value,
                         subst,
                         neg_field.value,
+                        weights.clone(),
                         cause,
                         origin_hint,
                         cache,
@@ -480,6 +590,7 @@ impl Infer {
                     tail,
                     subst,
                     singleton_neg_record(self, neg_field.clone()),
+                    weights.clone(),
                     cause,
                     origin_hint,
                     cache,

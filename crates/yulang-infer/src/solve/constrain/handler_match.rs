@@ -6,8 +6,8 @@ use super::{Infer, StepCache};
 use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::solve::{
-    EffectSubtractFact, EffectSubtractId, EffectSubtractability, HandlerMatchEdge, ShiftKeep,
-    effect_atom_families_overlap,
+    EffectConstraintWeight, EffectConstraintWeights, EffectSubtractFact, EffectSubtractId,
+    EffectSubtractability, HandlerMatchEdge, ShiftKeep, effect_atom_families_overlap,
 };
 use crate::types::EffectAtom;
 use crate::types::{Neg, Pos};
@@ -83,6 +83,18 @@ impl Infer {
     pub fn effect_subtractability(&self, effect: TypeVar) -> Option<EffectSubtractability> {
         self.effect_subtract_facts(effect)
             .into_iter()
+            .map(|fact| fact.subtractability)
+            .reduce(merge_effect_subtractability)
+    }
+
+    pub fn effect_subtractability_except(
+        &self,
+        effect: TypeVar,
+        excluded_ids: &EffectConstraintWeight,
+    ) -> Option<EffectSubtractability> {
+        self.effect_subtract_facts(effect)
+            .into_iter()
+            .filter(|fact| !excluded_ids.contains(fact.id))
             .map(|fact| fact.subtractability)
             .reduce(merge_effect_subtractability)
     }
@@ -214,6 +226,67 @@ impl Infer {
         }
         for id in self.effect_non_subtract_ids(from) {
             self.record_effect_non_subtract(to, id);
+        }
+    }
+
+    pub fn copy_effect_subtractability_except(
+        &self,
+        from: TypeVar,
+        to: TypeVar,
+        excluded_subtract_ids: &EffectConstraintWeight,
+    ) {
+        for fact in self.effect_subtract_facts(from) {
+            if !excluded_subtract_ids.contains(fact.id) {
+                self.record_effect_subtract_fact(to, fact);
+            }
+        }
+        for id in self.effect_non_subtract_ids(from) {
+            self.record_effect_non_subtract(to, id);
+        }
+    }
+
+    pub(super) fn record_effect_non_subtracts_to_var(
+        &self,
+        target: TypeVar,
+        ids: &EffectConstraintWeight,
+    ) {
+        for id in ids.iter() {
+            let mut seen = FxHashSet::default();
+            self.record_effect_non_subtract_recursive(target, id, &mut seen);
+        }
+    }
+
+    pub(super) fn record_effect_non_subtracts_to_pos(
+        &self,
+        pos: PosId,
+        ids: &EffectConstraintWeight,
+    ) {
+        if ids.is_empty() {
+            return;
+        }
+        let vars = collect_pos_vars(self, pos);
+        for id in ids.iter() {
+            for tv in &vars {
+                let mut seen = FxHashSet::default();
+                self.record_effect_non_subtract_recursive(*tv, id, &mut seen);
+            }
+        }
+    }
+
+    pub(super) fn record_effect_non_subtracts_to_neg(
+        &self,
+        neg: NegId,
+        ids: &EffectConstraintWeight,
+    ) {
+        if ids.is_empty() {
+            return;
+        }
+        let vars = collect_neg_vars(self, neg);
+        for id in ids.iter() {
+            for tv in &vars {
+                let mut seen = FxHashSet::default();
+                self.record_effect_non_subtract_recursive(*tv, id, &mut seen);
+            }
         }
     }
 
@@ -409,7 +482,13 @@ impl Infer {
                 continue;
             };
             let matched = unmatched.remove(index);
-            self.constrain_row_item_match(matched, *handled, cause, cache);
+            self.constrain_row_item_match(
+                matched,
+                *handled,
+                EffectConstraintWeights::empty(),
+                cause,
+                cache,
+            );
         }
 
         let include_open_tail = edge.solve_open_rows;
