@@ -1050,6 +1050,7 @@ struct ControlClosure {
     result_wraps_thunk: bool,
     env: ControlEnv,
     guard_stack: GuardStack,
+    lookup_stack: GuardStack,
     self_name: Option<ControlLocalId>,
 }
 
@@ -1060,6 +1061,7 @@ struct DirectKnownClosure {
     body: ExprId,
     result_wraps_thunk: bool,
     guard_stack: GuardStack,
+    lookup_stack: GuardStack,
 }
 
 impl DirectKnownClosure {
@@ -1072,6 +1074,7 @@ impl DirectKnownClosure {
             result_wraps_thunk: self.result_wraps_thunk,
             env: ControlEnv::new(),
             guard_stack: self.guard_stack,
+            lookup_stack: self.lookup_stack,
             self_name: None,
         }
     }
@@ -1088,6 +1091,7 @@ struct ControlThunk {
     body: ControlThunkBody,
     env: ControlEnv,
     guard_stack: GuardStack,
+    lookup_stack: GuardStack,
     blocked: Vec<BlockedEffect>,
 }
 
@@ -1110,6 +1114,7 @@ struct ControlResume {
 struct ControlContinuation {
     frames: VecDeque<ControlFrame>,
     guard_stack: GuardStack,
+    lookup_stack: GuardStack,
 }
 
 #[derive(Clone)]
@@ -1173,6 +1178,7 @@ enum ControlFrame {
         arms: ControlHandleArmsId,
         env: ControlEnv,
         guard_stack: GuardStack,
+        lookup_stack: GuardStack,
         result_wraps_thunk: bool,
     },
     HandleGuard {
@@ -1180,6 +1186,7 @@ enum ControlFrame {
         request: ControlRequest,
         outer: ControlContinuation,
         handler_guard_stack: GuardStack,
+        handler_lookup_stack: GuardStack,
         arms: ControlHandleArmsId,
         next_arm_index: usize,
         env: ControlEnv,
@@ -1192,6 +1199,12 @@ enum ControlFrame {
     },
     LocalPushId {
         parent: GuardStack,
+        lookup_parent: GuardStack,
+        guard_id: u64,
+    },
+    RestoreGuardStack {
+        parent: GuardStack,
+        lookup_parent: GuardStack,
     },
     BlockedEffects {
         blocked: Vec<BlockedEffect>,
@@ -1236,6 +1249,7 @@ struct ControlInterpreter<'m> {
     module: &'m ControlModule,
     next_guard_id: u64,
     guard_stack: GuardStack,
+    lookup_stack: GuardStack,
     eval_depth: usize,
     profile: VmProfile,
 }
@@ -1246,6 +1260,7 @@ impl<'m> ControlInterpreter<'m> {
             module,
             next_guard_id: 0,
             guard_stack: GuardStack::default(),
+            lookup_stack: GuardStack::default(),
             eval_depth: 0,
             profile: VmProfile::default(),
         }
@@ -1309,6 +1324,7 @@ impl<'m> ControlInterpreter<'m> {
             continuation: VmContinuation {
                 frames: Vec::new(),
                 guard_stack: GuardStack::default(),
+                lookup_stack: GuardStack::default(),
                 blocked_ids: request.blocked_ids.clone(),
             },
             blocked_id: request.blocked_id,
@@ -1367,6 +1383,7 @@ impl<'m> ControlInterpreter<'m> {
                     result_wraps_thunk,
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     self_name: None,
                 }),
             ))),
@@ -1445,24 +1462,31 @@ impl<'m> ControlInterpreter<'m> {
                     body: ControlThunkBody::Expr(expr),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     blocked: Vec::new(),
                 }),
             ))),
             ControlExprKind::LocalPushId { id, body } => {
                 let guard_id = self.fresh_guard_id();
                 let parent = self.guard_stack.clone();
-                self.guard_stack = parent.push(GuardEntry {
-                    var: id,
-                    id: guard_id,
-                });
+                let lookup_parent = self.lookup_stack.clone();
+                self.guard_stack = parent.push(GuardEntry::new(id, guard_id));
+                self.lookup_stack = lookup_parent.push(GuardEntry::new(id, guard_id));
                 let result = self.eval_expr(body, env);
                 self.guard_stack = parent.clone();
+                self.lookup_stack = lookup_parent.clone();
                 match result? {
                     ControlResult::Request(request) => Ok(ControlResult::Request(push_frame(
                         request,
-                        ControlFrame::LocalPushId { parent },
+                        ControlFrame::LocalPushId {
+                            parent,
+                            lookup_parent,
+                            guard_id,
+                        },
                     ))),
-                    value => Ok(value),
+                    ControlResult::Value(value) => Ok(ControlResult::Value(
+                        deactivate_control_value_guard(value, guard_id),
+                    )),
                 }
             }
             ControlExprKind::PeekId => {
@@ -1600,6 +1624,7 @@ impl<'m> ControlInterpreter<'m> {
                 body,
                 result_wraps_thunk,
                 guard_stack: self.guard_stack.clone(),
+                lookup_stack: self.lookup_stack.clone(),
             })),
             ControlExprKind::PrimitiveOp(typed_ir::PrimitiveOp::YadaYada) => None,
             ControlExprKind::PrimitiveOp(op) => Some(DirectKnownCallee::PrimitiveOp(op)),
@@ -1749,6 +1774,7 @@ impl<'m> ControlInterpreter<'m> {
 
     fn bind_here(&mut self, value: ControlValue) -> Result<ControlResult, VmError> {
         let parent = self.guard_stack.clone();
+        let lookup_parent = self.lookup_stack.clone();
         let mut value = value;
         let mut outer_thunks = Vec::new();
         let result = loop {
@@ -1756,6 +1782,7 @@ impl<'m> ControlInterpreter<'m> {
                 break Ok(ControlResult::Value(value));
             };
             self.guard_stack = thunk.guard_stack.clone();
+            self.lookup_stack = self.lookup_stack.overlay_newer(&thunk.lookup_stack);
             match &thunk.body {
                 ControlThunkBody::Value(next) => {
                     value = next.clone();
@@ -1782,6 +1809,7 @@ impl<'m> ControlInterpreter<'m> {
                             continuation: ControlContinuation {
                                 frames: VecDeque::new(),
                                 guard_stack: self.guard_stack.clone(),
+                                lookup_stack: self.lookup_stack.clone(),
                             },
                             blocked_id: None,
                             blocked_ids: Vec::new(),
@@ -1796,6 +1824,7 @@ impl<'m> ControlInterpreter<'m> {
             }
         };
         self.guard_stack = parent;
+        self.lookup_stack = lookup_parent;
         result
     }
 
@@ -1817,6 +1846,7 @@ impl<'m> ControlInterpreter<'m> {
                     body: ControlThunkBody::Expr(arg),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     blocked: Vec::new(),
                 })),
             );
@@ -1947,6 +1977,7 @@ impl<'m> ControlInterpreter<'m> {
                     body: ControlThunkBody::Expr(arg),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     blocked: Vec::new(),
                 })),
             );
@@ -2003,6 +2034,7 @@ impl<'m> ControlInterpreter<'m> {
                     },
                     env: ControlEnv::new(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     blocked: Vec::new(),
                 }),
             ))),
@@ -2035,6 +2067,7 @@ impl<'m> ControlInterpreter<'m> {
         self.eval_closure_body(
             env,
             &callee.guard_stack,
+            &callee.lookup_stack,
             callee.body,
             callee.result_wraps_thunk,
         )
@@ -2054,6 +2087,7 @@ impl<'m> ControlInterpreter<'m> {
         self.eval_closure_body(
             env,
             &callee.guard_stack,
+            &callee.lookup_stack,
             callee.body,
             callee.result_wraps_thunk,
         )
@@ -2063,18 +2097,23 @@ impl<'m> ControlInterpreter<'m> {
         &mut self,
         env: ControlEnv,
         guard_stack: &GuardStack,
+        lookup_stack: &GuardStack,
         body: ExprId,
         result_wraps_thunk: bool,
     ) -> Result<ControlResult, VmError> {
         let parent_guard_stack = self.guard_stack.clone();
+        let parent_lookup_stack = self.lookup_stack.clone();
         self.guard_stack = parent_guard_stack.overlay_newer(guard_stack);
+        self.lookup_stack = parent_lookup_stack.overlay_newer(lookup_stack);
         let result = self.eval_expr(body, &env)?;
         self.guard_stack = parent_guard_stack.clone();
+        self.lookup_stack = parent_lookup_stack.clone();
         if let ControlResult::Request(request) = result {
             return Ok(ControlResult::Request(push_frame(
                 request,
-                ControlFrame::LocalPushId {
+                ControlFrame::RestoreGuardStack {
                     parent: parent_guard_stack,
+                    lookup_parent: parent_lookup_stack,
                 },
             )));
         }
@@ -2438,6 +2477,7 @@ impl<'m> ControlInterpreter<'m> {
     ) -> Result<ControlResult, VmError> {
         let id = self.fresh_guard_id();
         let handler_guard_stack = self.guard_stack.clone();
+        let handler_lookup_stack = self.lookup_stack.clone();
         let result = match self.eval_expr(body, env)? {
             ControlResult::Value(ControlValue::Thunk(thunk)) => {
                 self.bind_here(ControlValue::Thunk(thunk))?
@@ -2454,6 +2494,7 @@ impl<'m> ControlInterpreter<'m> {
                         arms,
                         env: env.clone(),
                         guard_stack: handler_guard_stack,
+                        lookup_stack: handler_lookup_stack,
                         result_wraps_thunk,
                     },
                 );
@@ -2496,6 +2537,7 @@ impl<'m> ControlInterpreter<'m> {
         start_arm_index: usize,
         env: &ControlEnv,
         handler_guard_stack: &GuardStack,
+        handler_lookup_stack: &GuardStack,
         result_wraps_thunk: bool,
     ) -> Result<ControlResult, VmError> {
         if control_request_is_blocked_by_stack(&request, handler_guard_stack) {
@@ -2522,8 +2564,11 @@ impl<'m> ControlInterpreter<'m> {
             if let ControlValue::Thunk(thunk) = request.payload.clone() {
                 let previous =
                     std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+                let previous_lookup =
+                    std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
                 let payload_result = self.bind_here(ControlValue::Thunk(thunk));
                 self.guard_stack = previous;
+                self.lookup_stack = previous_lookup;
                 return match payload_result? {
                     ControlResult::Value(payload) => {
                         let mut request = request;
@@ -2535,6 +2580,7 @@ impl<'m> ControlInterpreter<'m> {
                             arm_index,
                             env,
                             handler_guard_stack,
+                            handler_lookup_stack,
                             result_wraps_thunk,
                         )
                     }
@@ -2559,8 +2605,11 @@ impl<'m> ControlInterpreter<'m> {
             self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
             insert_control_resume(&mut arm_env, arm.resume, inner);
             let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+            let previous_lookup =
+                std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
             let guard_result = self.eval_expr(guard, &arm_env);
             self.guard_stack = previous;
+            self.lookup_stack = previous_lookup;
             return match guard_result? {
                 ControlResult::Value(guard) => self.continue_handle_guard(
                     guard,
@@ -2571,6 +2620,7 @@ impl<'m> ControlInterpreter<'m> {
                     next_arm_index,
                     env.clone(),
                     handler_guard_stack.clone(),
+                    handler_lookup_stack.clone(),
                     arm_env,
                     arm.body,
                     result_wraps_thunk,
@@ -2582,6 +2632,7 @@ impl<'m> ControlInterpreter<'m> {
                         request,
                         outer,
                         handler_guard_stack: handler_guard_stack.clone(),
+                        handler_lookup_stack: handler_lookup_stack.clone(),
                         arms,
                         next_arm_index,
                         env: env.clone(),
@@ -2603,8 +2654,11 @@ impl<'m> ControlInterpreter<'m> {
         self.bind_pattern(&arm.payload, payload, &mut arm_env)?;
         insert_control_resume(&mut arm_env, arm.resume, inner);
         let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+        let previous_lookup =
+            std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
         let result = self.eval_expr(arm.body, &arm_env);
         self.guard_stack = previous;
+        self.lookup_stack = previous_lookup;
         let result = result?;
         self.continue_handle_result(result, outer, result_wraps_thunk)
     }
@@ -2620,6 +2674,7 @@ impl<'m> ControlInterpreter<'m> {
         next_arm_index: usize,
         env: ControlEnv,
         handler_guard_stack: GuardStack,
+        handler_lookup_stack: GuardStack,
         arm_env: ControlEnv,
         body: ExprId,
         result_wraps_thunk: bool,
@@ -2628,8 +2683,11 @@ impl<'m> ControlInterpreter<'m> {
             ControlValue::Bool(true) => {
                 let previous =
                     std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+                let previous_lookup =
+                    std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
                 let result = self.eval_expr(body, &arm_env);
                 self.guard_stack = previous;
+                self.lookup_stack = previous_lookup;
                 let result = result?;
                 self.continue_handle_result(result, outer, result_wraps_thunk)
             }
@@ -2640,6 +2698,7 @@ impl<'m> ControlInterpreter<'m> {
                 next_arm_index,
                 &env,
                 &handler_guard_stack,
+                &handler_lookup_stack,
                 result_wraps_thunk,
             ),
             other => Err(VmError::ExpectedBool(export_value_lossy(
@@ -2655,6 +2714,8 @@ impl<'m> ControlInterpreter<'m> {
         mut value: ControlValue,
     ) -> Result<ControlResult, VmError> {
         let previous = std::mem::replace(&mut self.guard_stack, continuation.guard_stack.clone());
+        let previous_lookup =
+            std::mem::replace(&mut self.lookup_stack, continuation.lookup_stack.clone());
         self.profile.max_continuation_frames = self
             .profile
             .max_continuation_frames
@@ -2677,6 +2738,7 @@ impl<'m> ControlInterpreter<'m> {
             }
         };
         self.guard_stack = previous;
+        self.lookup_stack = previous_lookup;
         result
     }
 
@@ -2732,6 +2794,7 @@ impl<'m> ControlInterpreter<'m> {
                 arms,
                 env,
                 guard_stack,
+                lookup_stack,
                 result_wraps_thunk,
             } => match value {
                 ControlValue::Thunk(thunk) => {
@@ -2741,12 +2804,14 @@ impl<'m> ControlInterpreter<'m> {
                         arms,
                         env,
                         guard_stack,
+                        lookup_stack,
                         result_wraps_thunk,
                     });
                     Ok(result)
                 }
                 value => {
                     continuation.guard_stack = guard_stack;
+                    continuation.lookup_stack = lookup_stack;
                     self.handle_value(value, arms, &env, result_wraps_thunk)
                 }
             },
@@ -2755,6 +2820,7 @@ impl<'m> ControlInterpreter<'m> {
                 request,
                 outer,
                 handler_guard_stack,
+                handler_lookup_stack,
                 arms,
                 next_arm_index,
                 env,
@@ -2770,6 +2836,7 @@ impl<'m> ControlInterpreter<'m> {
                 next_arm_index,
                 env,
                 handler_guard_stack,
+                handler_lookup_stack,
                 arm_env,
                 body,
                 result_wraps_thunk,
@@ -2779,11 +2846,27 @@ impl<'m> ControlInterpreter<'m> {
                 request.continuation = ControlContinuation {
                     frames: VecDeque::new(),
                     guard_stack: continuation.guard_stack.clone(),
+                    lookup_stack: continuation.lookup_stack.clone(),
                 };
                 Ok(ControlResult::Request(request))
             }
-            ControlFrame::LocalPushId { parent } => {
+            ControlFrame::LocalPushId {
+                parent,
+                lookup_parent,
+                guard_id,
+            } => {
                 continuation.guard_stack = parent;
+                continuation.lookup_stack = lookup_parent;
+                Ok(ControlResult::Value(deactivate_control_value_guard(
+                    value, guard_id,
+                )))
+            }
+            ControlFrame::RestoreGuardStack {
+                parent,
+                lookup_parent,
+            } => {
+                continuation.guard_stack = parent;
+                continuation.lookup_stack = lookup_parent;
                 Ok(ControlResult::Value(value))
             }
             ControlFrame::BlockedEffects { .. } => Ok(ControlResult::Value(value)),
@@ -2905,6 +2988,7 @@ impl<'m> ControlInterpreter<'m> {
             arms,
             env,
             guard_stack,
+            lookup_stack,
             result_wraps_thunk,
         } = request
             .continuation
@@ -2915,7 +2999,16 @@ impl<'m> ControlInterpreter<'m> {
         else {
             unreachable!();
         };
-        match self.handle_request(request, id, arms, 0, &env, &guard_stack, result_wraps_thunk)? {
+        match self.handle_request(
+            request,
+            id,
+            arms,
+            0,
+            &env,
+            &guard_stack,
+            &lookup_stack,
+            result_wraps_thunk,
+        )? {
             ControlResult::Request(request) => self.propagate_request_before(request, index),
             value => Ok(value),
         }
@@ -3052,20 +3145,68 @@ impl<'m> ControlInterpreter<'m> {
             EffectIdRef::Var(var) => self
                 .guard_stack
                 .find_var(var)
+                .or_else(|| self.lookup_stack.find_var(var))
                 .or_else(|| self.guard_stack.peek())
+                .or_else(|| self.lookup_stack.peek())
                 .ok_or(VmError::UnsupportedEffectIdVar(var.0)),
         }
     }
 
     fn find_effect_id(&self, id: EffectIdRef) -> Result<bool, VmError> {
         let id = self.eval_effect_id(id)?;
-        Ok(self.guard_stack.contains(id))
+        Ok(self.guard_stack.contains(id) || self.lookup_stack.contains(id))
     }
 
     fn fresh_guard_id(&mut self) -> u64 {
         let id = self.next_guard_id;
         self.next_guard_id += 1;
         id
+    }
+}
+
+fn deactivate_control_value_guard(value: ControlValue, guard_id: u64) -> ControlValue {
+    match value {
+        ControlValue::List(items) => {
+            ControlValue::List(ListTree::from_items(items.to_vec().into_iter().map(
+                |item| Rc::new(deactivate_control_value_guard((*item).clone(), guard_id)),
+            )))
+        }
+        ControlValue::Tuple(items) => ControlValue::Tuple(
+            items
+                .into_iter()
+                .map(|item| deactivate_control_value_guard(item, guard_id))
+                .collect(),
+        ),
+        ControlValue::Record(fields) => ControlValue::Record(
+            fields
+                .into_iter()
+                .map(|(field, value)| (field, deactivate_control_value_guard(value, guard_id)))
+                .collect(),
+        ),
+        ControlValue::Variant { tag, value } => ControlValue::Variant {
+            tag,
+            value: value.map(|value| Box::new(deactivate_control_value_guard(*value, guard_id))),
+        },
+        ControlValue::PrimitiveOp(primitive) => {
+            let mut primitive = (*primitive).clone();
+            primitive.args = primitive
+                .args
+                .into_iter()
+                .map(|arg| deactivate_control_value_guard(arg, guard_id))
+                .collect();
+            ControlValue::PrimitiveOp(ControlHeap::new(primitive))
+        }
+        ControlValue::Closure(closure) => {
+            let mut closure = (*closure).clone();
+            closure.guard_stack = closure.guard_stack.without_id(guard_id);
+            ControlValue::Closure(ControlHeap::new(closure))
+        }
+        ControlValue::Thunk(thunk) => {
+            let mut thunk = (*thunk).clone();
+            thunk.guard_stack = thunk.guard_stack.without_id(guard_id);
+            ControlValue::Thunk(ControlHeap::new(thunk))
+        }
+        value => value,
     }
 }
 
@@ -3080,25 +3221,35 @@ fn split_handle_continuations(
             ControlContinuation {
                 frames: VecDeque::new(),
                 guard_stack: continuation.guard_stack.clone(),
+                lookup_stack: continuation.lookup_stack.clone(),
             },
             ControlContinuation {
                 frames: VecDeque::new(),
                 guard_stack: continuation.guard_stack.clone(),
+                lookup_stack: continuation.lookup_stack.clone(),
             },
         );
     };
 
-    let outer_guard_stack =
-        if let ControlFrame::Handle { guard_stack, .. } = &continuation.frames[index] {
-            guard_stack.clone()
-        } else {
-            continuation.guard_stack.clone()
-        };
+    let (outer_guard_stack, outer_lookup_stack) = if let ControlFrame::Handle {
+        guard_stack,
+        lookup_stack,
+        ..
+    } = &continuation.frames[index]
+    {
+        (guard_stack.clone(), lookup_stack.clone())
+    } else {
+        (
+            continuation.guard_stack.clone(),
+            continuation.lookup_stack.clone(),
+        )
+    };
 
     (
         ControlContinuation {
             frames: continuation.frames.iter().take(index).cloned().collect(),
             guard_stack: outer_guard_stack,
+            lookup_stack: outer_lookup_stack,
         },
         ControlContinuation {
             frames: continuation
@@ -3108,6 +3259,7 @@ fn split_handle_continuations(
                 .cloned()
                 .collect(),
             guard_stack: continuation.guard_stack.clone(),
+            lookup_stack: continuation.lookup_stack.clone(),
         },
     )
 }
@@ -3123,10 +3275,12 @@ fn split_handle_continuations_owned(
             ControlContinuation {
                 frames: VecDeque::new(),
                 guard_stack: continuation.guard_stack.clone(),
+                lookup_stack: continuation.lookup_stack.clone(),
             },
             ControlContinuation {
                 frames: VecDeque::new(),
                 guard_stack: continuation.guard_stack,
+                lookup_stack: continuation.lookup_stack,
             },
         );
     };
@@ -3136,20 +3290,30 @@ fn split_handle_continuations_owned(
         .frames
         .pop_back()
         .expect("handle frame at split point");
-    let outer_guard_stack = if let ControlFrame::Handle { guard_stack, .. } = handle_frame {
-        guard_stack
+    let (outer_guard_stack, outer_lookup_stack) = if let ControlFrame::Handle {
+        guard_stack,
+        lookup_stack,
+        ..
+    } = handle_frame
+    {
+        (guard_stack, lookup_stack)
     } else {
-        continuation.guard_stack.clone()
+        (
+            continuation.guard_stack.clone(),
+            continuation.lookup_stack.clone(),
+        )
     };
 
     (
         ControlContinuation {
             frames: continuation.frames,
             guard_stack: outer_guard_stack,
+            lookup_stack: outer_lookup_stack,
         },
         ControlContinuation {
             frames: inner_frames,
             guard_stack: continuation.guard_stack,
+            lookup_stack: continuation.lookup_stack,
         },
     )
 }
@@ -3255,12 +3419,20 @@ fn control_request_has_live_blocker(request: &ControlRequest) -> bool {
 fn control_request_blocker_is_live(request: &ControlRequest, blocked: Option<u64>) -> bool {
     blocked.is_some_and(|blocked| {
         request.continuation.guard_stack.contains(blocked)
+            || request.continuation.lookup_stack.contains(blocked)
             || request.continuation.frames.iter().any(|frame| match frame {
-                ControlFrame::Handle { guard_stack, .. } => guard_stack.contains(blocked),
+                ControlFrame::Handle {
+                    guard_stack,
+                    lookup_stack,
+                    ..
+                } => guard_stack.contains(blocked) || lookup_stack.contains(blocked),
                 ControlFrame::HandleGuard {
                     handler_guard_stack,
+                    handler_lookup_stack,
                     ..
-                } => handler_guard_stack.contains(blocked),
+                } => {
+                    handler_guard_stack.contains(blocked) || handler_lookup_stack.contains(blocked)
+                }
                 _ => false,
             })
     })
@@ -3359,6 +3531,7 @@ fn control_wrap_value(value: ControlValue, result_wraps_thunk: bool) -> ControlV
         body: ControlThunkBody::Value(value),
         env: ControlEnv::new(),
         guard_stack: GuardStack::default(),
+        lookup_stack: GuardStack::default(),
         blocked: Vec::new(),
     }))
 }
@@ -3735,6 +3908,7 @@ mod tests {
                 ControlFrame::BindHere,
             ]),
             guard_stack: GuardStack::default(),
+            lookup_stack: GuardStack::default(),
         };
 
         let (outer, inner) = split_handle_continuations(&continuation, 2);
@@ -3758,6 +3932,7 @@ mod tests {
             arms: ControlHandleArmsId(0),
             env: ControlEnv::new(),
             guard_stack: GuardStack::default(),
+            lookup_stack: GuardStack::default(),
             result_wraps_thunk: false,
         }
     }

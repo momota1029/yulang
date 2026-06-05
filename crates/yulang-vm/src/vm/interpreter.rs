@@ -6,6 +6,7 @@ pub(super) struct VmInterpreter<'m> {
     bindings: HashMap<typed_ir::Path, usize>,
     next_guard_id: u64,
     guard_stack: GuardStack,
+    lookup_stack: GuardStack,
     eval_depth: usize,
     profile: VmProfile,
 }
@@ -22,6 +23,7 @@ impl<'m> VmInterpreter<'m> {
                 .collect(),
             next_guard_id: 0,
             guard_stack: GuardStack::default(),
+            lookup_stack: GuardStack::default(),
             eval_depth: 0,
             profile: VmProfile::default(),
         }
@@ -97,6 +99,7 @@ impl<'m> VmInterpreter<'m> {
                     ret,
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     self_name: None,
                 }))))
             }
@@ -186,20 +189,30 @@ impl<'m> VmInterpreter<'m> {
                 body: ThunkBody::Expr((**expr).clone()),
                 env: env.clone(),
                 guard_stack: self.guard_stack.clone(),
+                lookup_stack: self.lookup_stack.clone(),
                 blocked: Vec::new(),
             })))),
             ExprKind::LocalPushId { id: var, body } => {
                 let id = self.fresh_guard_id();
                 let parent = self.guard_stack.clone();
-                self.guard_stack = parent.push(GuardEntry { var: *var, id });
+                let lookup_parent = self.lookup_stack.clone();
+                self.guard_stack = parent.push(GuardEntry::new(*var, id));
+                self.lookup_stack = lookup_parent.push(GuardEntry::new(*var, id));
                 let result = self.eval_expr(body, env);
                 self.guard_stack = parent.clone();
+                self.lookup_stack = lookup_parent.clone();
                 match result? {
                     VmResult::Request(request) => Ok(VmResult::Request(push_frame(
                         request,
-                        Frame::LocalPushId { parent },
+                        Frame::LocalPushId {
+                            parent,
+                            lookup_parent,
+                            guard_id: id,
+                        },
                     ))),
-                    value => Ok(value),
+                    VmResult::Value(value) => {
+                        Ok(VmResult::Value(deactivate_vm_value_guard(value, id)))
+                    }
                 }
             }
             ExprKind::PeekId => {
@@ -385,6 +398,7 @@ impl<'m> VmInterpreter<'m> {
     pub(super) fn bind_here(&mut self, value: VmValue) -> Result<VmResult, VmError> {
         trace_bind_here_entry(&value);
         let parent = self.guard_stack.clone();
+        let lookup_parent = self.lookup_stack.clone();
         let mut value = value;
         let mut outer_thunks = Vec::new();
         let result = loop {
@@ -392,6 +406,7 @@ impl<'m> VmInterpreter<'m> {
                 break Ok(VmResult::Value(value));
             };
             self.guard_stack = thunk.guard_stack.clone();
+            self.lookup_stack = self.lookup_stack.overlay_newer(&thunk.lookup_stack);
             match &thunk.body {
                 ThunkBody::Value(next) => {
                     value = next.clone();
@@ -415,7 +430,10 @@ impl<'m> VmInterpreter<'m> {
                         VmRequest {
                             effect: effect.clone(),
                             payload: payload.clone(),
-                            continuation: VmContinuation::new(self.guard_stack.clone()),
+                            continuation: VmContinuation::new_with_lookup(
+                                self.guard_stack.clone(),
+                                self.lookup_stack.clone(),
+                            ),
                             blocked_id: None,
                         },
                         &thunk,
@@ -428,6 +446,7 @@ impl<'m> VmInterpreter<'m> {
             }
         };
         self.guard_stack = parent;
+        self.lookup_stack = lookup_parent;
         result
     }
 
@@ -449,6 +468,7 @@ impl<'m> VmInterpreter<'m> {
                     body: ThunkBody::Expr(arg.clone()),
                     env: env.clone(),
                     guard_stack: self.guard_stack.clone(),
+                    lookup_stack: self.lookup_stack.clone(),
                     blocked: Vec::new(),
                 })),
             );
@@ -497,14 +517,18 @@ impl<'m> VmInterpreter<'m> {
                 }
                 env.insert(typed_ir::Path::from_name(callee.param.clone()), arg);
                 let parent_guard_stack = self.guard_stack.clone();
+                let parent_lookup_stack = self.lookup_stack.clone();
                 self.guard_stack = parent_guard_stack.overlay_newer(&callee.guard_stack);
+                self.lookup_stack = parent_lookup_stack.overlay_newer(&callee.lookup_stack);
                 let result = self.eval_expr(&callee.body, &env)?;
                 self.guard_stack = parent_guard_stack.clone();
+                self.lookup_stack = parent_lookup_stack.clone();
                 if let VmResult::Request(request) = result {
                     return Ok(VmResult::Request(push_frame(
                         request,
-                        Frame::LocalPushId {
+                        Frame::RestoreGuardStack {
                             parent: parent_guard_stack,
+                            lookup_parent: parent_lookup_stack,
                         },
                     )));
                 }
@@ -518,6 +542,7 @@ impl<'m> VmInterpreter<'m> {
                 },
                 env: Env::new(),
                 guard_stack: self.guard_stack.clone(),
+                lookup_stack: self.lookup_stack.clone(),
                 blocked: Vec::new(),
             })))),
             VmValue::PrimitiveOp(primitive) => {
@@ -860,6 +885,7 @@ impl<'m> VmInterpreter<'m> {
     ) -> Result<VmResult, VmError> {
         let id = self.fresh_guard_id();
         let handler_guard_stack = self.guard_stack.clone();
+        let handler_lookup_stack = self.lookup_stack.clone();
         let result = match self.eval_expr(body, env)? {
             VmResult::Value(VmValue::Thunk(thunk)) => self.bind_here(VmValue::Thunk(thunk))?,
             other => other,
@@ -875,6 +901,7 @@ impl<'m> VmInterpreter<'m> {
                         arms: arms.to_vec(),
                         env: env.clone(),
                         guard_stack: handler_guard_stack.clone(),
+                        lookup_stack: handler_lookup_stack.clone(),
                         expected_ty: expected_ty.clone(),
                     },
                 );
@@ -911,6 +938,7 @@ impl<'m> VmInterpreter<'m> {
         arms: &[HandleArm],
         env: &Env,
         handler_guard_stack: &GuardStack,
+        handler_lookup_stack: &GuardStack,
         expected_ty: &Type,
     ) -> Result<VmResult, VmError> {
         if request_is_blocked_by_stack(&request, handler_guard_stack) {
@@ -933,8 +961,11 @@ impl<'m> VmInterpreter<'m> {
         let payload = request.payload.clone();
         if handle_payload_forces_thunk(&arm.payload, &payload) {
             let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+            let previous_lookup =
+                std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
             let payload_result = self.bind_here(payload);
             self.guard_stack = previous;
+            self.lookup_stack = previous_lookup;
             let resume = arm.resume.as_ref().map(|resume| resume.name.clone());
             return match payload_result? {
                 VmResult::Value(payload) => self.continue_handle_payload(
@@ -945,6 +976,7 @@ impl<'m> VmInterpreter<'m> {
                     remaining_arms,
                     env.clone(),
                     handler_guard_stack.clone(),
+                    handler_lookup_stack.clone(),
                     arm.payload.clone(),
                     resume,
                     arm.guard.clone(),
@@ -967,6 +999,7 @@ impl<'m> VmInterpreter<'m> {
             remaining_arms,
             env.clone(),
             handler_guard_stack.clone(),
+            handler_lookup_stack.clone(),
             arm.payload.clone(),
             arm.resume.as_ref().map(|resume| resume.name.clone()),
             arm.guard.clone(),
@@ -984,6 +1017,7 @@ impl<'m> VmInterpreter<'m> {
         arms: Vec<HandleArm>,
         env: Env,
         handler_guard_stack: GuardStack,
+        handler_lookup_stack: GuardStack,
         payload_pattern: Pattern,
         resume: Option<typed_ir::Name>,
         guard: Option<Expr>,
@@ -1003,8 +1037,11 @@ impl<'m> VmInterpreter<'m> {
         }
         if let Some(guard) = &guard {
             let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+            let previous_lookup =
+                std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
             let guard_result = self.eval_expr(guard, &arm_env);
             self.guard_stack = previous;
+            self.lookup_stack = previous_lookup;
             return match guard_result? {
                 VmResult::Value(guard) => self.continue_handle_guard(
                     guard,
@@ -1014,6 +1051,7 @@ impl<'m> VmInterpreter<'m> {
                     arms,
                     env,
                     handler_guard_stack,
+                    handler_lookup_stack,
                     arm_env,
                     body,
                     expected_ty,
@@ -1025,6 +1063,7 @@ impl<'m> VmInterpreter<'m> {
                         request,
                         outer,
                         handler_guard_stack,
+                        handler_lookup_stack,
                         arms,
                         env,
                         arm_env,
@@ -1035,8 +1074,11 @@ impl<'m> VmInterpreter<'m> {
             };
         }
         let previous = std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+        let previous_lookup =
+            std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
         let result = self.eval_expr(&body, &arm_env);
         self.guard_stack = previous;
+        self.lookup_stack = previous_lookup;
         let result = result?;
         self.continue_handle_result_for_type(result, outer, &expected_ty)
     }
@@ -1050,6 +1092,7 @@ impl<'m> VmInterpreter<'m> {
         arms: Vec<HandleArm>,
         env: Env,
         handler_guard_stack: GuardStack,
+        handler_lookup_stack: GuardStack,
         arm_env: Env,
         body: Expr,
         expected_ty: Type,
@@ -1058,14 +1101,23 @@ impl<'m> VmInterpreter<'m> {
             VmValue::Bool(true) => {
                 let previous =
                     std::mem::replace(&mut self.guard_stack, handler_guard_stack.clone());
+                let previous_lookup =
+                    std::mem::replace(&mut self.lookup_stack, handler_lookup_stack.clone());
                 let result = self.eval_expr(&body, &arm_env);
                 self.guard_stack = previous;
+                self.lookup_stack = previous_lookup;
                 let result = result?;
                 self.continue_handle_result_for_type(result, outer, &expected_ty)
             }
-            VmValue::Bool(false) => {
-                self.handle_request(request, id, &arms, &env, &handler_guard_stack, &expected_ty)
-            }
+            VmValue::Bool(false) => self.handle_request(
+                request,
+                id,
+                &arms,
+                &env,
+                &handler_guard_stack,
+                &handler_lookup_stack,
+                &expected_ty,
+            ),
             other => Err(VmError::ExpectedBool(other)),
         }
     }
@@ -1076,6 +1128,8 @@ impl<'m> VmInterpreter<'m> {
         mut value: VmValue,
     ) -> Result<VmResult, VmError> {
         let previous = std::mem::replace(&mut self.guard_stack, continuation.guard_stack.clone());
+        let previous_lookup =
+            std::mem::replace(&mut self.lookup_stack, continuation.lookup_stack.clone());
         self.profile.max_continuation_frames = self
             .profile
             .max_continuation_frames
@@ -1100,6 +1154,7 @@ impl<'m> VmInterpreter<'m> {
             }
         };
         self.guard_stack = previous;
+        self.lookup_stack = previous_lookup;
         result
     }
 
@@ -1150,6 +1205,7 @@ impl<'m> VmInterpreter<'m> {
                 arms,
                 env,
                 guard_stack,
+                lookup_stack,
                 expected_ty,
             } => match value {
                 VmValue::Thunk(thunk) => {
@@ -1160,12 +1216,14 @@ impl<'m> VmInterpreter<'m> {
                         arms,
                         env,
                         guard_stack,
+                        lookup_stack,
                         expected_ty,
                     });
                     Ok(result)
                 }
                 value => {
                     continuation.guard_stack = guard_stack;
+                    continuation.lookup_stack = lookup_stack;
                     self.handle_value(value, &arms, &env, &expected_ty)
                 }
             },
@@ -1174,6 +1232,7 @@ impl<'m> VmInterpreter<'m> {
                 request,
                 outer,
                 handler_guard_stack,
+                handler_lookup_stack,
                 arms,
                 env,
                 arm_env,
@@ -1187,6 +1246,7 @@ impl<'m> VmInterpreter<'m> {
                 arms,
                 env,
                 handler_guard_stack,
+                handler_lookup_stack,
                 arm_env,
                 body,
                 expected_ty,
@@ -1197,12 +1257,26 @@ impl<'m> VmInterpreter<'m> {
                 request.continuation = VmContinuation {
                     frames: Vec::new(),
                     guard_stack: continuation.guard_stack.clone(),
+                    lookup_stack: continuation.lookup_stack.clone(),
                     blocked_ids,
                 };
                 Ok(VmResult::Request(request))
             }
-            Frame::LocalPushId { parent } => {
+            Frame::LocalPushId {
+                parent,
+                lookup_parent,
+                guard_id,
+            } => {
                 continuation.guard_stack = parent;
+                continuation.lookup_stack = lookup_parent;
+                Ok(VmResult::Value(deactivate_vm_value_guard(value, guard_id)))
+            }
+            Frame::RestoreGuardStack {
+                parent,
+                lookup_parent,
+            } => {
+                continuation.guard_stack = parent;
+                continuation.lookup_stack = lookup_parent;
                 Ok(VmResult::Value(value))
             }
             Frame::BlockedEffects { .. } => Ok(VmResult::Value(value)),
@@ -1301,19 +1375,29 @@ impl<'m> VmInterpreter<'m> {
             arms,
             env,
             guard_stack,
+            lookup_stack,
             expected_ty,
         } = &frames[index]
         else {
             unreachable!();
         };
-        let (id, arms, env, handler_guard_stack, expected_ty) = (
+        let (id, arms, env, handler_guard_stack, handler_lookup_stack, expected_ty) = (
             *id,
             arms.clone(),
             env.clone(),
             guard_stack.clone(),
+            lookup_stack.clone(),
             expected_ty.clone(),
         );
-        match self.handle_request(request, id, &arms, &env, &handler_guard_stack, &expected_ty)? {
+        match self.handle_request(
+            request,
+            id,
+            &arms,
+            &env,
+            &handler_guard_stack,
+            &handler_lookup_stack,
+            &expected_ty,
+        )? {
             VmResult::Request(request) => self.propagate_request_before(request, index),
             value => Ok(value),
         }
@@ -1325,20 +1409,68 @@ impl<'m> VmInterpreter<'m> {
             EffectIdRef::Var(var) => self
                 .guard_stack
                 .find_var(var)
+                .or_else(|| self.lookup_stack.find_var(var))
                 .or_else(|| self.guard_stack.peek())
+                .or_else(|| self.lookup_stack.peek())
                 .ok_or(VmError::UnsupportedEffectIdVar(var.0)),
         }
     }
 
     pub(super) fn find_effect_id(&self, id: EffectIdRef) -> Result<bool, VmError> {
         let id = self.eval_effect_id(id)?;
-        Ok(self.guard_stack.contains(id))
+        Ok(self.guard_stack.contains(id) || self.lookup_stack.contains(id))
     }
 
     pub(super) fn fresh_guard_id(&mut self) -> u64 {
         let id = self.next_guard_id;
         self.next_guard_id += 1;
         id
+    }
+}
+
+fn deactivate_vm_value_guard(value: VmValue, guard_id: u64) -> VmValue {
+    match value {
+        VmValue::List(items) => {
+            VmValue::List(ListTree::from_items(items.to_vec().into_iter().map(
+                |item| Rc::new(deactivate_vm_value_guard((*item).clone(), guard_id)),
+            )))
+        }
+        VmValue::Tuple(items) => VmValue::Tuple(
+            items
+                .into_iter()
+                .map(|item| deactivate_vm_value_guard(item, guard_id))
+                .collect(),
+        ),
+        VmValue::Record(fields) => VmValue::Record(
+            fields
+                .into_iter()
+                .map(|(field, value)| (field, deactivate_vm_value_guard(value, guard_id)))
+                .collect(),
+        ),
+        VmValue::Variant { tag, value } => VmValue::Variant {
+            tag,
+            value: value.map(|value| Box::new(deactivate_vm_value_guard(*value, guard_id))),
+        },
+        VmValue::PrimitiveOp(primitive) => {
+            let mut primitive = (*primitive).clone();
+            primitive.args = primitive
+                .args
+                .into_iter()
+                .map(|arg| deactivate_vm_value_guard(arg, guard_id))
+                .collect();
+            VmValue::PrimitiveOp(Rc::new(primitive))
+        }
+        VmValue::Closure(closure) => {
+            let mut closure = (*closure).clone();
+            closure.guard_stack = closure.guard_stack.without_id(guard_id);
+            VmValue::Closure(Rc::new(closure))
+        }
+        VmValue::Thunk(thunk) => {
+            let mut thunk = (*thunk).clone();
+            thunk.guard_stack = thunk.guard_stack.without_id(guard_id);
+            VmValue::Thunk(Rc::new(thunk))
+        }
+        value => value,
     }
 }
 

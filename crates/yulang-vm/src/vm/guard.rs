@@ -33,10 +33,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    pub(super) fn last(&self) -> Option<&T> {
-        self.tail.as_ref().and_then(|chunk| chunk.items.last())
-    }
-
     pub(super) fn any_chunk_newest(&self, mut f: impl FnMut(&[T]) -> bool) -> bool {
         let mut cursor = self.tail.as_ref();
         while let Some(chunk) = cursor {
@@ -80,7 +76,8 @@ impl GuardStack {
     }
 
     pub(super) fn peek(&self) -> Option<u64> {
-        self.0.last().map(|entry| entry.id)
+        self.0
+            .find_map_newest(|chunk| chunk.iter().rev().next().map(|entry| entry.id))
     }
 
     pub(super) fn contains(&self, id: u64) -> bool {
@@ -96,6 +93,26 @@ impl GuardStack {
                 .find(|entry| entry.var == var)
                 .map(|entry| entry.id)
         })
+    }
+
+    pub(super) fn without_id(&self, id: u64) -> Self {
+        let mut changed = false;
+        let entries = self
+            .0
+            .items_oldest()
+            .into_iter()
+            .filter(|entry| {
+                let keep = entry.id != id;
+                changed |= !keep;
+                keep
+            })
+            .collect::<Vec<_>>();
+        if !changed {
+            return self.clone();
+        }
+        entries
+            .into_iter()
+            .fold(GuardStack::default(), |stack, entry| stack.push(entry))
     }
 
     pub(super) fn overlay_newer(&self, newer: &Self) -> Self {
@@ -130,14 +147,20 @@ mod tests {
         assert!(stack.contains(30));
     }
 
+    #[test]
+    fn without_id_removes_var_lookup_and_guard_scope() {
+        let stack = guard_stack(&[(0, 10), (1, 20)]).without_id(20);
+
+        assert_eq!(stack.find_var(EffectIdVar(1)), None);
+        assert_eq!(stack.peek(), Some(10));
+        assert!(!stack.contains(20));
+    }
+
     fn guard_stack(entries: &[(usize, u64)]) -> GuardStack {
         entries
             .iter()
             .fold(GuardStack::default(), |stack, (var, id)| {
-                stack.push(GuardEntry {
-                    var: EffectIdVar(*var),
-                    id: *id,
-                })
+                stack.push(GuardEntry::new(EffectIdVar(*var), *id))
             })
     }
 }
@@ -214,12 +237,20 @@ fn request_has_live_blocker(request: &VmRequest) -> bool {
 fn request_blocker_is_live(request: &VmRequest, blocked: Option<u64>) -> bool {
     blocked.is_some_and(|blocked| {
         request.continuation.guard_stack.contains(blocked)
+            || request.continuation.lookup_stack.contains(blocked)
             || request.continuation.frames.iter().any(|frame| match frame {
-                Frame::Handle { guard_stack, .. } => guard_stack.contains(blocked),
+                Frame::Handle {
+                    guard_stack,
+                    lookup_stack,
+                    ..
+                } => guard_stack.contains(blocked) || lookup_stack.contains(blocked),
                 Frame::HandleGuard {
                     handler_guard_stack,
+                    handler_lookup_stack,
                     ..
-                } => handler_guard_stack.contains(blocked),
+                } => {
+                    handler_guard_stack.contains(blocked) || handler_lookup_stack.contains(blocked)
+                }
                 _ => false,
             })
     })

@@ -180,6 +180,7 @@ pub(super) fn wrap_value_for_type(value: VmValue, expected_ty: &Type) -> VmValue
         body: ThunkBody::Value(value),
         env: Env::new(),
         guard_stack: GuardStack::default(),
+        lookup_stack: GuardStack::default(),
         blocked: Vec::new(),
     }))
 }

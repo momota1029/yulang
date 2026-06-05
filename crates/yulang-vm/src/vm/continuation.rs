@@ -2,10 +2,11 @@ use super::trace::trace_handle_event;
 use super::*;
 
 impl VmContinuation {
-    pub(super) fn new(guard_stack: GuardStack) -> Self {
+    pub(super) fn new_with_lookup(guard_stack: GuardStack, lookup_stack: GuardStack) -> Self {
         Self {
             frames: Vec::new(),
             guard_stack,
+            lookup_stack,
             blocked_ids: Vec::new(),
         }
     }
@@ -31,8 +32,9 @@ impl VmContinuation {
             .iter()
             .rposition(|frame| frame_handle_id(frame) == Some(id))
         {
-            if let Some(guard_stack) = frame_handle_guard_stack(&self.frames[index]) {
+            if let Some((guard_stack, lookup_stack)) = frame_handle_stacks(&self.frames[index]) {
                 self.guard_stack = guard_stack.clone();
+                self.lookup_stack = lookup_stack.clone();
             }
             trace_handle_event("outside_handle.truncate", id, &self.frames);
             self.frames.truncate(index);
@@ -51,9 +53,13 @@ fn frame_handle_id(frame: &Frame) -> Option<u64> {
     }
 }
 
-fn frame_handle_guard_stack(frame: &Frame) -> Option<&GuardStack> {
+fn frame_handle_stacks(frame: &Frame) -> Option<(&GuardStack, &GuardStack)> {
     match frame {
-        Frame::Handle { guard_stack, .. } => Some(guard_stack),
+        Frame::Handle {
+            guard_stack,
+            lookup_stack,
+            ..
+        } => Some((guard_stack, lookup_stack)),
         _ => None,
     }
 }

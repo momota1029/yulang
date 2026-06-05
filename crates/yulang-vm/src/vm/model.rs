@@ -65,6 +65,7 @@ pub struct VmClosure {
     pub(super) ret: Type,
     pub(super) env: Env,
     pub(super) guard_stack: GuardStack,
+    pub(super) lookup_stack: GuardStack,
     pub(super) self_name: Option<typed_ir::Path>,
 }
 
@@ -73,6 +74,7 @@ pub struct VmThunk {
     pub(super) body: ThunkBody,
     pub(super) env: Env,
     pub(super) guard_stack: GuardStack,
+    pub(super) lookup_stack: GuardStack,
     pub(super) blocked: Vec<BlockedEffect>,
 }
 
@@ -95,6 +97,7 @@ pub struct VmResume {
 pub struct VmContinuation {
     pub(super) frames: Vec<Frame>,
     pub(super) guard_stack: GuardStack,
+    pub(super) lookup_stack: GuardStack,
     pub(super) blocked_ids: Vec<u64>,
 }
 
@@ -160,6 +163,12 @@ pub(super) struct GuardEntry {
     pub(super) id: u64,
 }
 
+impl GuardEntry {
+    pub(super) fn new(var: EffectIdVar, id: u64) -> Self {
+        Self { var, id }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PersistentVectorChunk<T> {
     pub(super) items: Rc<[T]>,
@@ -221,6 +230,7 @@ pub(super) enum Frame {
         arms: Vec<HandleArm>,
         env: Env,
         guard_stack: GuardStack,
+        lookup_stack: GuardStack,
         expected_ty: Type,
     },
     HandleGuard {
@@ -228,6 +238,7 @@ pub(super) enum Frame {
         request: VmRequest,
         outer: VmContinuation,
         handler_guard_stack: GuardStack,
+        handler_lookup_stack: GuardStack,
         arms: Vec<HandleArm>,
         env: Env,
         arm_env: Env,
@@ -239,6 +250,12 @@ pub(super) enum Frame {
     },
     LocalPushId {
         parent: GuardStack,
+        lookup_parent: GuardStack,
+        guard_id: u64,
+    },
+    RestoreGuardStack {
+        parent: GuardStack,
+        lookup_parent: GuardStack,
     },
     BlockedEffects {
         blocked: Vec<BlockedEffect>,

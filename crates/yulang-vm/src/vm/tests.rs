@@ -2669,6 +2669,16 @@ shallow(\() -> undet::bool())
     }
 
     #[test]
+    fn vm_catches_param_effect_inside_returned_handler_closure() {
+        assert_returned_handler_closure_param_boundary(eval_source_with_std);
+    }
+
+    #[test]
+    fn control_vm_catches_param_effect_inside_returned_handler_closure() {
+        assert_returned_handler_closure_param_boundary(eval_control_source_with_std);
+    }
+
+    #[test]
     fn vm_std_pipeline_survives_parallel_ref_and_effect_runs() {
         run_parallel_std_pipeline_regression(4, 2, |eval| {
             assert_source_ref_string_range_assignment(eval);
@@ -3672,10 +3682,7 @@ box { width: 3, height: 4 }
         let module = empty_module();
         let mut vm = VmInterpreter::new(&module);
         let handler_stack = guard_stack(&[(0, 1)]);
-        let inner_stack = handler_stack.push(GuardEntry {
-            var: EffectIdVar(1),
-            id: 2,
-        });
+        let inner_stack = handler_stack.push(GuardEntry::new(EffectIdVar(1), 2));
         let request = request(effect_path("undet", "branch"), Some(2), inner_stack);
         let arm = handle_value_arm("undet", "branch", VmValue::Int("7".to_string()));
 
@@ -3685,6 +3692,7 @@ box { width: 3, height: 4 }
                 0,
                 &[arm],
                 &Env::new(),
+                &handler_stack,
                 &handler_stack,
                 &RuntimeType::value(named_type("int")),
             )
@@ -3712,6 +3720,7 @@ box { width: 3, height: 4 }
                 &[arm],
                 &Env::new(),
                 &handler_stack,
+                &handler_stack,
                 &RuntimeType::value(named_type("int")),
             )
             .unwrap();
@@ -3727,6 +3736,7 @@ box { width: 3, height: 4 }
                 arms: vec![handle_value_arm("ref_update", "update", VmValue::Unit)],
                 env: Env::new(),
                 guard_stack: GuardStack::default(),
+                lookup_stack: GuardStack::default(),
                 expected_ty: RuntimeType::value(named_type("unit")),
             }
         }
@@ -3739,6 +3749,7 @@ box { width: 3, height: 4 }
                 Frame::BindHere,
             ],
             guard_stack: GuardStack::default(),
+            lookup_stack: GuardStack::default(),
             blocked_ids: Vec::new(),
         };
 
@@ -3759,15 +3770,15 @@ box { width: 3, height: 4 }
         let module = empty_module();
         let mut vm = VmInterpreter::new(&module);
         let parent = guard_stack(&[(0, 1)]);
-        let child = parent.push(GuardEntry {
-            var: EffectIdVar(1),
-            id: 2,
-        });
+        let child = parent.push(GuardEntry::new(EffectIdVar(1), 2));
         let continuation = VmContinuation {
             frames: vec![Frame::LocalPushId {
                 parent: parent.clone(),
+                lookup_parent: parent.clone(),
+                guard_id: 2,
             }],
             guard_stack: child.clone(),
+            lookup_stack: child.clone(),
             blocked_ids: Vec::new(),
         };
         let cloned = continuation.clone();
@@ -3878,6 +3889,7 @@ box { width: 3, height: 4 }
             body: ThunkBody::Value(VmValue::Unit),
             env: Env::new(),
             guard_stack: GuardStack::default(),
+            lookup_stack: GuardStack::default(),
             blocked: vec![BlockedEffect {
                 guard_id,
                 allowed,
@@ -3894,7 +3906,7 @@ box { width: 3, height: 4 }
         VmRequest {
             effect,
             payload: VmValue::Unit,
-            continuation: VmContinuation::new(guard_stack),
+            continuation: VmContinuation::new_with_lookup(guard_stack.clone(), guard_stack),
             blocked_id,
         }
     }
@@ -3929,10 +3941,7 @@ box { width: 3, height: 4 }
         entries
             .iter()
             .fold(GuardStack::default(), |stack, (var, id)| {
-                stack.push(GuardEntry {
-                    var: EffectIdVar(*var),
-                    id: *id,
-                })
+                stack.push(GuardEntry::new(EffectIdVar(*var), *id))
             })
     }
 
@@ -4009,6 +4018,23 @@ box { width: 3, height: 4 }
                 TestValue::Int("20".to_string()),
             ])]
         );
+    }
+
+    fn assert_returned_handler_closure_param_boundary(eval: fn(&str) -> Vec<TestValue>) {
+        let results = eval(
+            r#"act io:
+  our read: () -> int
+
+my make(x: [io] int) = \() -> catch x:
+  io::read(), _ -> 7
+  v -> v
+
+my run = make (io::read())
+run()
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
     }
 
     fn assert_effectful_payload_redispatch(eval: fn(&str) -> Vec<TestValue>) {
@@ -4417,6 +4443,7 @@ run "old": {
             ),
             Frame::HandlePayload { request } => format!("HandlePayload({:?})", request.effect),
             Frame::LocalPushId { .. } => "LocalPushId".to_string(),
+            Frame::RestoreGuardStack { .. } => "RestoreGuardStack".to_string(),
             Frame::BlockedEffects { .. } => "BlockedEffects".to_string(),
             Frame::Coerce { .. } => "Coerce".to_string(),
             Frame::WrapThunkResult { .. } => "WrapThunkResult".to_string(),
