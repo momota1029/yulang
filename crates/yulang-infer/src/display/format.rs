@@ -2760,15 +2760,120 @@ pub(crate) fn format_compact_role_constraint_arg_with_namer(
 ) -> String {
     let normalized = normalize_format_bounds(arg.clone());
     let arg = &normalized;
-    if let Some(rendered) = format_compact_bounds_with_center(arg, namer) {
+    if let Some(rendered) = format_compact_role_arg_with_center(arg, namer) {
         return rendered;
     }
     match (is_empty_compact(&arg.lower), is_empty_compact(&arg.upper)) {
         (true, true) => "_".to_string(),
-        (false, true) => format_compact_type(&arg.lower, namer, false),
+        (false, true) => format_compact_role_lower_arg(&arg.lower, namer),
         (true, false) => format_compact_type_with_join(&arg.upper, namer, false, " & "),
         (false, false) if arg.lower == arg.upper => format_compact_type(&arg.lower, namer, false),
-        (false, false) => format_compact_interval_arg(&arg.lower, &arg.upper, namer),
+        (false, false) => format_compact_role_interval_arg(&arg.lower, &arg.upper, namer),
+    }
+}
+
+fn format_compact_role_lower_arg(ty: &CompactType, namer: &mut VarNamer<'_>) -> String {
+    if ty.vars.is_empty() || !has_non_var_shape(ty) {
+        return format_compact_type(ty, namer, false);
+    }
+    let mut concrete = ty.clone();
+    concrete.vars.clear();
+    let vars = CompactType {
+        vars: ty.vars.clone(),
+        ..CompactType::default()
+    };
+    format!(
+        "{} | {}",
+        format_compact_type(&concrete, namer, false),
+        format_compact_type(&vars, namer, false)
+    )
+}
+
+fn format_compact_role_interval_arg(
+    lower: &CompactType,
+    upper: &CompactType,
+    namer: &mut VarNamer<'_>,
+) -> String {
+    let mut lower_parts = format_compact_role_type_parts(lower, namer);
+    let upper_parts = format_compact_type_parts(upper, namer);
+    if lower_parts.is_empty() {
+        return upper_parts.join(" & ");
+    }
+    if upper_parts.is_empty() {
+        return lower_parts.join(" | ");
+    }
+
+    let shared = lower_parts
+        .iter()
+        .position(|part| upper_parts.iter().any(|upper| upper == part));
+    if let Some(index) = shared {
+        let shared_part = lower_parts.remove(index);
+        let mut intersection = vec![shared_part.clone()];
+        intersection.extend(upper_parts.into_iter().filter(|part| part != &shared_part));
+        let intersection = if intersection.len() == 1 {
+            shared_part
+        } else {
+            format!("{} & {}", shared_part, intersection[1..].join(" & "))
+        };
+        if lower_parts.is_empty() {
+            intersection
+        } else {
+            format!("{} | {}", intersection, lower_parts.join(" | "))
+        }
+    } else {
+        format!("{} <: {}", lower_parts.join(" | "), upper_parts.join(" & "))
+    }
+}
+
+fn format_compact_role_type_parts(ty: &CompactType, namer: &mut VarNamer<'_>) -> Vec<String> {
+    let mut concrete = ty.clone();
+    concrete.vars.clear();
+    let mut parts = format_compact_type_parts(&concrete, namer);
+
+    let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    parts.extend(vars.into_iter().map(|tv| namer.name(tv.0)));
+    parts
+}
+
+fn format_compact_role_arg_with_center(
+    bounds: &CompactBounds,
+    namer: &mut VarNamer<'_>,
+) -> Option<String> {
+    let shared = shared_center_vars(bounds);
+    if shared.is_empty() {
+        return None;
+    }
+    let mut lower = bounds.lower.clone();
+    let mut upper = bounds.upper.clone();
+    for tv in &shared {
+        lower.vars.remove(tv);
+        upper.vars.remove(tv);
+    }
+
+    let lower_empty = is_empty_compact(&lower);
+    let upper_empty = is_empty_compact(&upper);
+    let center = format_shared_center_vars(&shared, namer);
+
+    match (lower_empty, upper_empty) {
+        (true, true) => Some(center),
+        (false, true) => Some(format!(
+            "{} | {center}",
+            format_compact_role_lower_arg(&lower, namer)
+        )),
+        (true, false) => Some(format!(
+            "{center} & {}",
+            format_compact_type_with_join(&upper, namer, false, " & ")
+        )),
+        (false, false) if lower == upper && has_non_var_shape(&lower) => Some(format!(
+            "{} | {center}",
+            format_compact_role_lower_arg(&lower, namer)
+        )),
+        (false, false) => Some(format!(
+            "{} | {center} & {}",
+            format_compact_role_lower_arg(&lower, namer),
+            format_compact_type_with_join(&upper, namer, false, " & ")
+        )),
     }
 }
 
@@ -2894,42 +2999,6 @@ fn format_compact_type_with_join(
         format!("({joined})")
     } else {
         joined
-    }
-}
-
-fn format_compact_interval_arg(
-    lower: &CompactType,
-    upper: &CompactType,
-    namer: &mut VarNamer<'_>,
-) -> String {
-    let mut lower_parts = format_compact_type_parts(lower, namer);
-    let upper_parts = format_compact_type_parts(upper, namer);
-    if lower_parts.is_empty() {
-        return upper_parts.join(" & ");
-    }
-    if upper_parts.is_empty() {
-        return lower_parts.join(" | ");
-    }
-
-    let shared = lower_parts
-        .iter()
-        .rposition(|part| upper_parts.iter().any(|upper| upper == part));
-    if let Some(index) = shared {
-        let shared_part = lower_parts.remove(index);
-        let mut intersection = vec![shared_part.clone()];
-        intersection.extend(upper_parts.into_iter().filter(|part| part != &shared_part));
-        let intersection = if intersection.len() == 1 {
-            shared_part
-        } else {
-            format!("{} & {}", shared_part, intersection[1..].join(" & "))
-        };
-        if lower_parts.is_empty() {
-            intersection
-        } else {
-            format!("{} | {}", lower_parts.join(" | "), intersection)
-        }
-    } else {
-        format!("{} <: {}", lower_parts.join(" | "), upper_parts.join(" & "))
     }
 }
 

@@ -6,13 +6,14 @@ use crate::lower::builtin_types::{
     join_primitive_type_paths, primitive_numeric_type_family, primitive_type_family,
 };
 use crate::simplify::compact::{
-    CompactBounds, CompactType, CompactTypeScheme, compact_root_fun_body_lower, merge_compact_types,
+    CompactBounds, CompactType, CompactTypeScheme, compact_root_fun_body_lower,
+    merge_compact_bounds, merge_compact_types,
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence_with_role_constraint_inputs,
     coalesce_by_co_occurrence_with_role_constraints, rewrite_scheme_with_subst,
+    role_output_center_replacements,
 };
-use crate::simplify::role_constraints::rewrite_role_constraints_with_role_arg_inputs;
 use crate::solve::effect_row::normalize_rewritten_bounds;
 use crate::solve::selection::{role_candidate_input_subst, select_most_specific_role_candidates};
 use crate::symbols::Path;
@@ -52,18 +53,22 @@ impl MainTypePolarity {
     }
 }
 
-fn role_input_concrete_type(
-    bounds: &CompactBounds,
-    main_polarity: &MainTypePolarity,
-) -> Option<CompactType> {
-    role_input_concrete_type_for_target(bounds, projection_target_var(bounds), main_polarity)
-}
-
 fn role_input_concrete_type_for_target(
     bounds: &CompactBounds,
     target: Option<TypeVar>,
     main_polarity: &MainTypePolarity,
+    allow_expansive_defaulting: bool,
 ) -> Option<CompactType> {
+    if target.is_none() && !allow_expansive_defaulting {
+        let mut vars = HashSet::new();
+        collect_compact_bounds_vars(bounds, &mut vars);
+        if vars
+            .iter()
+            .any(|tv| main_polarity.positive.contains(tv) || main_polarity.negative.contains(tv))
+        {
+            return None;
+        }
+    }
     let (boundary, concrete) = concrete_role_input_boundary(bounds)?;
     if let Some(target) = target
         && !main_polarity.accepts_role_input_boundary(target, boundary)
@@ -74,13 +79,26 @@ fn role_input_concrete_type_for_target(
 }
 
 fn concrete_selected_role_input_types(
-    constraint: &CompactRoleConstraint,
+    original: &CompactRoleConstraint,
+    resolved: &CompactRoleConstraint,
     indices: &[usize],
     main_polarity: &MainTypePolarity,
+    allow_expansive_defaulting: bool,
 ) -> Option<Vec<CompactType>> {
     indices
         .iter()
-        .map(|index| role_input_concrete_type(constraint.args.get(*index)?, main_polarity))
+        .map(|index| {
+            let original_arg = original.args.get(*index)?;
+            let resolved_arg = resolved.args.get(*index)?;
+            let target =
+                projection_target_var(original_arg).or_else(|| projection_target_var(resolved_arg));
+            role_input_concrete_type_for_target(
+                resolved_arg,
+                target,
+                main_polarity,
+                allow_expansive_defaulting,
+            )
+        })
         .collect()
 }
 
@@ -1278,24 +1296,150 @@ fn remove_disappearing_noncenter_role_vars(
         return (scheme.clone(), constraints.to_vec());
     }
 
+    let output_center_replacements = role_output_center_replacements(constraints, role_arg_inputs);
     let subst = disappeared
         .into_iter()
-        .map(|tv| (tv, None))
+        .map(|tv| (tv, output_center_replacements.get(&tv).copied()))
         .collect::<HashMap<_, _>>();
     let rewritten_scheme = rewrite_scheme_with_subst(scheme, &subst);
-    let rewritten_constraints = rewrite_role_constraints_with_role_arg_inputs(
-        &rewritten_scheme,
-        constraints,
-        &subst,
-        role_arg_inputs,
-    );
-    coalesce_by_co_occurrence_with_role_constraint_inputs(
-        &rewritten_scheme,
-        &rewritten_constraints,
-        role_arg_inputs,
-        &HashMap::new(),
-        0,
-    )
+    let rewritten_constraints =
+        rewrite_role_constraints_preserving_explicit_centers(constraints, &subst, role_arg_inputs);
+    (rewritten_scheme, rewritten_constraints)
+}
+
+fn rewrite_role_constraints_preserving_explicit_centers(
+    constraints: &[CompactRoleConstraint],
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
+) -> Vec<CompactRoleConstraint> {
+    let mut out = Vec::new();
+    for constraint in constraints {
+        let rewritten = CompactRoleConstraint {
+            role: constraint.role.clone(),
+            args: constraint
+                .args
+                .iter()
+                .map(|arg| {
+                    let mut rewritten = crate::simplify::cooccur::rewrite_bounds(arg, subst);
+                    if let Some(center) = arg.self_var
+                        && !subst.contains_key(&center)
+                        && !compact_bounds_contains_var(&rewritten, center)
+                    {
+                        rewritten.self_var = Some(center);
+                        rewritten.lower.vars.insert(center);
+                        rewritten.upper.vars.insert(center);
+                    }
+                    rewritten
+                })
+                .collect(),
+        };
+        if !out.contains(&rewritten) {
+            out.push(rewritten);
+        }
+    }
+    coalesce_rewritten_role_constraints(out, role_arg_inputs)
+        .into_iter()
+        .filter(|constraint| !role_constraint_is_observationally_empty(constraint))
+        .collect()
+}
+
+fn coalesce_rewritten_role_constraints(
+    constraints: Vec<CompactRoleConstraint>,
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
+) -> Vec<CompactRoleConstraint> {
+    let mut out = Vec::new();
+    let mut visited = vec![false; constraints.len()];
+    for index in 0..constraints.len() {
+        if visited[index] {
+            continue;
+        }
+        visited[index] = true;
+        let mut component = vec![index];
+        let mut cursor = 0;
+        while cursor < component.len() {
+            let current = component[cursor];
+            cursor += 1;
+            for other in 0..constraints.len() {
+                if visited[other] {
+                    continue;
+                }
+                if role_constraints_share_input_vars(
+                    &constraints[current],
+                    &constraints[other],
+                    role_arg_inputs,
+                ) {
+                    visited[other] = true;
+                    component.push(other);
+                }
+            }
+        }
+        out.push(merge_role_constraint_component(
+            component
+                .into_iter()
+                .map(|index| constraints[index].clone()),
+        ));
+    }
+    out
+}
+
+fn role_constraints_share_input_vars(
+    lhs: &CompactRoleConstraint,
+    rhs: &CompactRoleConstraint,
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
+) -> bool {
+    if lhs.role != rhs.role || lhs.args.len() != rhs.args.len() {
+        return false;
+    }
+    if lhs == rhs {
+        return true;
+    }
+    let input_indices = role_constraint_input_indices(lhs, role_arg_inputs);
+    !input_indices.is_empty()
+        && input_indices.iter().all(|index| {
+            let mut lhs_vars = HashSet::new();
+            let mut rhs_vars = HashSet::new();
+            collect_compact_bounds_vars(&lhs.args[*index], &mut lhs_vars);
+            collect_compact_bounds_vars(&rhs.args[*index], &mut rhs_vars);
+            !lhs_vars.is_disjoint(&rhs_vars)
+        })
+}
+
+fn role_constraint_input_indices(
+    constraint: &CompactRoleConstraint,
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
+) -> Vec<usize> {
+    let Some(flags) = role_arg_inputs(&constraint.role) else {
+        return (0..constraint.args.len()).collect();
+    };
+    if flags.len() != constraint.args.len() {
+        return (0..constraint.args.len()).collect();
+    }
+    let indices = flags
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, is_input)| is_input.then_some(index))
+        .collect::<Vec<_>>();
+    if indices.is_empty() {
+        (0..constraint.args.len()).collect()
+    } else {
+        indices
+    }
+}
+
+fn merge_role_constraint_component(
+    constraints: impl Iterator<Item = CompactRoleConstraint>,
+) -> CompactRoleConstraint {
+    let mut constraints = constraints.peekable();
+    let mut merged = constraints.next().expect("component must not be empty");
+    for constraint in constraints {
+        merged.args = merged
+            .args
+            .into_iter()
+            .zip(constraint.args.into_iter())
+            .map(|(lhs, rhs)| merge_compact_bounds(true, lhs, rhs))
+            .collect();
+    }
+    merged
 }
 
 fn role_constraint_is_observationally_empty(constraint: &CompactRoleConstraint) -> bool {
@@ -1895,7 +2039,7 @@ mod tests {
         let polarity = main_type_polarity(&scheme, &|_, _| Variance::Invariant);
 
         assert!(
-            role_input_concrete_type_for_target(&role_arg, Some(a), &polarity).is_some(),
+            role_input_concrete_type_for_target(&role_arg, Some(a), &polarity, false).is_some(),
             "root int | α is rendered as int, so α does not block lower-bound role resolution",
         );
     }
@@ -1925,7 +2069,8 @@ mod tests {
         let polarity = main_type_polarity(&scheme, &|_, _| Variance::Invariant);
 
         assert!(
-            role_input_concrete_type_for_target(&invariant_arg, Some(a), &polarity).is_none(),
+            role_input_concrete_type_for_target(&invariant_arg, Some(a), &polarity, false)
+                .is_none(),
             "invariant args are read as (lower covariant, upper contravariant), so α in the upper side blocks lower-bound role resolution",
         );
     }

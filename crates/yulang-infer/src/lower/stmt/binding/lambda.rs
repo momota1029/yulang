@@ -2,7 +2,9 @@ use crate::profile::ProfileClock as Instant;
 
 use super::super::lambda_expr_eff_tv;
 use super::arg::ArgPatInfo;
-use crate::ast::expr::{CatchArmKind, ExprKind, RecordSpread, TypedExpr, TypedStmt};
+use crate::ast::expr::{
+    CatchArmKind, ExprKind, Lit, PatKind, RecordSpread, TypedExpr, TypedPat, TypedStmt,
+};
 use crate::ids::DefId;
 use crate::lower::LowerState;
 use crate::solve::EffectSubtractId;
@@ -85,6 +87,13 @@ pub(crate) fn wrap_header_lambdas(
             state
                 .infer
                 .constrain(Pos::Var(param_tv), super::super::neg_prim_type("unit"));
+            state.register_lambda_param_pat(
+                def,
+                TypedPat {
+                    tv: param_tv,
+                    kind: PatKind::Lit(Lit::Unit),
+                },
+            );
         }
         if let Some(pat) = &arg_pat.pat {
             state.infer.constrain(Pos::Var(param_tv), Neg::Var(pat.tv));

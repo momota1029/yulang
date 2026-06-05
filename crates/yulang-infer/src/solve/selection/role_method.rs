@@ -23,7 +23,6 @@ impl Infer {
     pub(crate) fn push_deferred_role_method_call(&self, call: DeferredRoleMethodCall) {
         if let Some(info) = role_method_info_for_call(self, &call)
             && let Some(owner) = call.owner
-            && role_method_value_arg_count(&info).is_none_or(|arity| call.arg_tvs.len() >= arity)
         {
             self.add_role_method_call_constraint_for_owner(
                 &info,
@@ -204,8 +203,12 @@ impl Infer {
                 return false;
             };
             call.cast_coercion
-                || role_method_value_arg_count(&info)
-                    .is_none_or(|arity| call.arg_tvs.len() >= arity)
+                || role_method_value_arg_count(&info).is_none_or(|arity| {
+                    call.arg_tvs.len() >= arity
+                        || partial_role_method_arg_tvs(self, &info, &call.arg_tvs, call.result_tv)
+                            .len()
+                            >= arity
+                })
         })
     }
 
@@ -217,10 +220,11 @@ impl Infer {
         arg_tvs: &[TypeVar],
         result_tv: TypeVar,
     ) {
+        let arg_tvs = partial_role_method_arg_tvs(self, info, arg_tvs, result_tv);
         if role_method_value_arg_count(info).is_some_and(|arity| arg_tvs.len() < arity) {
             return;
         }
-        let Some(constraint) = self.role_method_call_constraint(info, recv_tv, arg_tvs, result_tv)
+        let Some(constraint) = self.role_method_call_constraint(info, recv_tv, &arg_tvs, result_tv)
         else {
             return;
         };
@@ -238,17 +242,14 @@ impl Infer {
         let input_map = role_method_input_tv_map(info, &arg_infos, Some(recv_tv), arg_tvs)?;
         let mut args = Vec::with_capacity(arg_infos.len());
         for arg_info in &arg_infos {
-            let tv = if arg_info.is_input {
-                *input_map.get(&arg_info.name)?.first()?
+            let arg = if arg_info.is_input {
+                role_constraint_arg_for_tvs(self, input_map.get(&arg_info.name)?)?
             } else if info.output_name.as_deref() == Some(arg_info.name.as_str()) {
-                result_tv
+                role_constraint_arg_for_tvs(self, &[result_tv])?
             } else {
                 return None;
             };
-            args.push(RoleConstraintArg {
-                pos: self.alloc_pos(Pos::Var(tv)),
-                neg: self.alloc_neg(Neg::Var(tv)),
-            });
+            args.push(arg);
         }
         Some(RoleConstraint {
             role: info.role.clone(),
@@ -260,6 +261,68 @@ impl Infer {
         let pos = compact_pos_type(&self.arena, output, &CompactTypeScheme::default(), false);
         self.constrain(pos, Neg::Var(result_tv));
     }
+}
+
+fn role_constraint_arg_for_tvs(infer: &Infer, tvs: &[TypeVar]) -> Option<RoleConstraintArg> {
+    let (&first, rest) = tvs.split_first()?;
+    let mut pos = infer.alloc_pos(Pos::Var(first));
+    let mut neg = infer.alloc_neg(Neg::Var(first));
+    for &tv in rest {
+        let rhs_pos = infer.alloc_pos(Pos::Var(tv));
+        pos = infer.alloc_pos(Pos::Union(pos, rhs_pos));
+        let rhs_neg = infer.alloc_neg(Neg::Var(tv));
+        neg = infer.alloc_neg(Neg::Intersection(neg, rhs_neg));
+    }
+    Some(RoleConstraintArg { pos, neg })
+}
+
+fn partial_role_method_arg_tvs(
+    infer: &Infer,
+    info: &RoleMethodInfo,
+    arg_tvs: &[TypeVar],
+    result_tv: TypeVar,
+) -> Vec<TypeVar> {
+    let Some(arity) = role_method_value_arg_count(info) else {
+        return arg_tvs.to_vec();
+    };
+    let mut out = arg_tvs.to_vec();
+    let mut current = result_tv;
+    while out.len() < arity {
+        let Some((param, ret)) = function_value_var_parts(infer, current) else {
+            break;
+        };
+        out.push(param);
+        current = ret;
+    }
+    out
+}
+
+fn function_value_var_parts(infer: &Infer, tv: TypeVar) -> Option<(TypeVar, TypeVar)> {
+    for lower in infer.lower_refs_of(tv) {
+        let Pos::Fun { arg, ret, .. } = infer.arena.get_pos(lower) else {
+            continue;
+        };
+        let Neg::Var(param) = infer.arena.get_neg(arg) else {
+            continue;
+        };
+        let Pos::Var(ret) = infer.arena.get_pos(ret) else {
+            continue;
+        };
+        return Some((param, ret));
+    }
+    for upper in infer.upper_refs_of(tv) {
+        let Neg::Fun { arg, ret, .. } = infer.arena.get_neg(upper) else {
+            continue;
+        };
+        let Pos::Var(param) = infer.arena.get_pos(arg) else {
+            continue;
+        };
+        let Neg::Var(ret) = infer.arena.get_neg(ret) else {
+            continue;
+        };
+        return Some((param, ret));
+    }
+    None
 }
 
 fn role_method_info_for_call(

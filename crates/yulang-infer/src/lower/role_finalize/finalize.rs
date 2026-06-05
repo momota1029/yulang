@@ -151,12 +151,32 @@ impl LowerState {
         }
 
         profile.total = total_start.elapsed();
-        self.resolve_top_level_compact_results_for_defs(&newly_finalized);
+        let top_level_resolution_defs =
+            self.top_level_role_resolution_defs(&finalized, &newly_finalized);
+        self.resolve_top_level_compact_results_for_defs(&top_level_resolution_defs);
         self.inherit_finalized_role_var_alias_schemes(&newly_finalized);
+        let post_alias_resolution_defs = self.top_level_role_resolution_defs(&finalized, &[]);
+        self.resolve_top_level_compact_results_for_defs(&post_alias_resolution_defs);
         FinalizeCompactResults {
             finalized_defs: finalized,
             profile,
         }
+    }
+
+    fn top_level_role_resolution_defs(
+        &self,
+        finalized: &[DefId],
+        newly_finalized: &[DefId],
+    ) -> Vec<DefId> {
+        let mut defs = newly_finalized.to_vec();
+        defs.extend(finalized.iter().copied().filter(|def| {
+            !self.infer.compact_role_constraints_of(*def).is_empty()
+                || self.infer.has_role_constraints(*def)
+                || self.infer.has_deferred_role_method_call_for_owner(*def)
+        }));
+        defs.sort_by_key(|def| def.0);
+        defs.dedup();
+        defs
     }
 
     pub fn compact_scheme_of(&self, def: DefId) -> Option<CompactTypeScheme> {
@@ -175,7 +195,18 @@ impl LowerState {
             let Some(scheme) = self.compact_scheme_of(def) else {
                 continue;
             };
-            let constraints = self.infer.compact_role_constraints_of(def);
+            let has_deferred_role_method_call =
+                self.infer.has_deferred_role_method_call_for_owner(def);
+            let mut constraints = if has_deferred_role_method_call {
+                self.infer
+                    .add_deferred_role_method_constraints_for_owner(def);
+                crate::lower::role::compact_role_constraints(&self.infer, def)
+            } else {
+                self.infer.compact_role_constraints_of(def)
+            };
+            if constraints.is_empty() && self.infer.has_role_constraints(def) {
+                constraints = crate::lower::role::compact_role_constraints(&self.infer, def);
+            }
             if constraints.is_empty() {
                 continue;
             }
@@ -451,6 +482,7 @@ impl LowerState {
                         resolved_arg,
                         Some(target),
                         &main_polarity,
+                        false,
                     ) else {
                         continue;
                     };
@@ -500,9 +532,11 @@ impl LowerState {
                     constructor_arg_variance(&self.infer, path, index)
                 });
                 let Some(concrete_inputs) = concrete_selected_role_input_types(
+                    &constraint,
                     &resolved_constraint,
                     &input_indices,
                     &main_polarity,
+                    options.allow_expansive_defaulting,
                 ) else {
                     if options.allow_expansive_defaulting
                         && role_constraint_is_observationally_empty(&constraint)
@@ -753,7 +787,7 @@ impl LowerState {
     }
 
     fn lambda_has_unit_pat(&self, def: DefId) -> bool {
-        self.lambda_param_pats.get(&def).map_or(true, |pat| {
+        self.lambda_param_pats.get(&def).is_some_and(|pat| {
             matches!(
                 pat.kind,
                 crate::ast::expr::PatKind::Lit(crate::ast::expr::Lit::Unit)

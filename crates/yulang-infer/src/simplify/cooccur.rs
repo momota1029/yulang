@@ -216,6 +216,7 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         apply_polar_variable_removal(&all_vars, &polar_analysis, &rec_vars, &mut subst);
         apply_indistinguishable_unification(&all_vars, &analysis, &mut subst);
         apply_sandwich_flattening(&all_vars, &analysis, &mut subst);
+        promote_role_output_center_substitutions(&current_constraints, role_arg_inputs, &mut subst);
         let representatives = lower_representatives_for_subst(
             &current_scheme,
             &current_constraints,
@@ -364,6 +365,76 @@ fn merge_mutual_co_occurrence_vars(
             merge_equiv_vars(subst, alpha, *beta);
         }
     }
+}
+
+fn promote_role_output_center_substitutions(
+    constraints: &[CompactRoleConstraint],
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
+    subst: &mut HashMap<TypeVar, Option<TypeVar>>,
+) {
+    let replacements = role_output_center_replacements(constraints, role_arg_inputs);
+    let protected = replacements.values().copied().collect::<HashSet<_>>();
+    for center in &protected {
+        subst.remove(center);
+    }
+    for (tv, center) in replacements {
+        if tv == center || protected.contains(&tv) || !subst.contains_key(&tv) {
+            continue;
+        }
+        subst.insert(tv, Some(center));
+    }
+}
+
+pub(crate) fn role_output_center_replacements(
+    constraints: &[CompactRoleConstraint],
+    role_arg_inputs: &dyn Fn(&Path) -> Option<Vec<bool>>,
+) -> HashMap<TypeVar, TypeVar> {
+    let mut replacements = HashMap::<TypeVar, TypeVar>::new();
+    let mut conflicts = HashSet::<TypeVar>::new();
+    for constraint in constraints {
+        let Some(flags) = role_arg_inputs(&constraint.role) else {
+            continue;
+        };
+        if flags.len() != constraint.args.len() {
+            continue;
+        }
+        for (index, arg) in constraint.args.iter().enumerate() {
+            if flags[index] {
+                continue;
+            }
+            let Some(center) = projection_target_var(arg) else {
+                continue;
+            };
+            let mut vars = HashSet::new();
+            collect_vars_in_bounds(arg, &mut vars);
+            for tv in vars {
+                if tv == center {
+                    continue;
+                }
+                match replacements.get(&tv).copied() {
+                    Some(existing) if existing != center => {
+                        replacements.remove(&tv);
+                        conflicts.insert(tv);
+                    }
+                    Some(_) => {}
+                    None if !conflicts.contains(&tv) => {
+                        replacements.insert(tv, center);
+                    }
+                    None => {}
+                }
+            }
+        }
+    }
+    replacements
+}
+
+fn projection_target_var(bounds: &CompactBounds) -> Option<TypeVar> {
+    if let Some(tv) = bounds.self_var {
+        return Some(tv);
+    }
+    let mut shared = bounds.lower.vars.intersection(&bounds.upper.vars).copied();
+    let first = shared.next()?;
+    shared.next().is_none().then_some(first)
 }
 
 /// 論文 4.3.1 の variable sandwich flattening(polar removal の一般化): 変数 v が
@@ -1731,6 +1802,72 @@ mod tests {
     }
 
     #[test]
+    fn coalesce_by_co_occurrence_preserves_role_output_center_in_callback_arg() {
+        let container = fresh_type_var();
+        let item = fresh_type_var();
+        let callback_item = fresh_type_var();
+        let fold = Path {
+            segments: vec![Name("Fold".to_string())],
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: var_type(container),
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: CompactType {
+                            funs: vec![crate::simplify::compact::CompactFun {
+                                arg: CompactType {
+                                    funs: vec![crate::simplify::compact::CompactFun {
+                                        arg: var_type(callback_item),
+                                        arg_eff: CompactType::default(),
+                                        ret_eff: CompactType::default(),
+                                        ret: CompactType::default(),
+                                    }],
+                                    ..CompactType::default()
+                                },
+                                arg_eff: CompactType::default(),
+                                ret_eff: CompactType::default(),
+                                ret: CompactType::default(),
+                            }],
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+        let constraints = vec![CompactRoleConstraint {
+            role: fold.clone(),
+            args: vec![
+                self_bounds(container),
+                CompactBounds {
+                    self_var: Some(item),
+                    lower: var_type(item),
+                    upper: vars_type([item, callback_item]),
+                },
+            ],
+        }];
+
+        let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+            &scheme,
+            &constraints,
+            |role| (role == &fold).then_some(vec![true, false]),
+            &std::collections::HashMap::new(),
+            0,
+        );
+
+        let callback_arg = &coalesced.scheme.cty.lower.funs[0].ret.funs[0].arg.funs[0].arg;
+        assert!(callback_arg.vars.contains(&item));
+        assert!(!callback_arg.vars.contains(&callback_item));
+        assert!(coalesced.constraints[0].args[1].lower.vars.contains(&item));
+    }
+
+    #[test]
     fn coalesce_by_co_occurrence_removes_output_only_exact_alias() {
         let a = fresh_type_var();
         let unit = CompactType {
@@ -2133,16 +2270,30 @@ mod tests {
     }
 
     fn var_bounds(tv: TypeVar) -> CompactBounds {
+        let ty = var_type(tv);
         CompactBounds {
             self_var: None,
-            lower: CompactType {
-                vars: HashSet::from([tv]),
-                ..CompactType::default()
-            },
-            upper: CompactType {
-                vars: HashSet::from([tv]),
-                ..CompactType::default()
-            },
+            lower: ty.clone(),
+            upper: ty,
+        }
+    }
+
+    fn self_bounds(tv: TypeVar) -> CompactBounds {
+        CompactBounds {
+            self_var: Some(tv),
+            lower: var_type(tv),
+            upper: var_type(tv),
+        }
+    }
+
+    fn var_type(tv: TypeVar) -> CompactType {
+        vars_type([tv])
+    }
+
+    fn vars_type(vars: impl IntoIterator<Item = TypeVar>) -> CompactType {
+        CompactType {
+            vars: vars.into_iter().collect(),
+            ..CompactType::default()
         }
     }
 

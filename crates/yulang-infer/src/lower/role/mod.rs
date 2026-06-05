@@ -29,6 +29,7 @@ use crate::solve::{
     RoleArgInfo, RoleConstraint, RoleConstraintArg, RoleImplCandidate, RoleMethodInfo,
 };
 use crate::symbols::{Name, Path};
+use crate::types::{Neg, Pos};
 
 mod decl;
 mod impls;
@@ -114,14 +115,31 @@ pub(crate) fn compact_role_constraints(
             args: constraint
                 .args
                 .into_iter()
-                .map(|arg| CompactBounds {
-                    self_var: None,
-                    lower: compact_pos_expr(infer, arg.pos),
-                    upper: compact_neg_expr(infer, arg.neg),
-                })
+                .map(|arg| compact_role_constraint_arg(infer, arg))
                 .collect(),
         })
         .collect()
+}
+
+fn compact_role_constraint_arg(
+    infer: &crate::solve::Infer,
+    arg: RoleConstraintArg,
+) -> CompactBounds {
+    CompactBounds {
+        self_var: role_constraint_arg_self_var(infer, &arg),
+        lower: compact_pos_expr(infer, arg.pos),
+        upper: compact_neg_expr(infer, arg.neg),
+    }
+}
+
+fn role_constraint_arg_self_var(
+    infer: &crate::solve::Infer,
+    arg: &RoleConstraintArg,
+) -> Option<TypeVar> {
+    match (infer.arena.get_pos(arg.pos), infer.arena.get_neg(arg.neg)) {
+        (Pos::Var(lhs), Neg::Var(rhs)) if lhs == rhs => Some(lhs),
+        _ => None,
+    }
 }
 
 fn path_string(path: &Path) -> String {

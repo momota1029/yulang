@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::profile::ProfileClock as Instant;
 
-use crate::ids::DefId;
+use crate::ids::{DefId, TypeVar};
 use crate::ref_table::{RefTable, ResolvedRef};
 use crate::scheme::{
     close_non_generic_vars_over_compact_scheme, collect_compact_role_constraint_free_vars,
@@ -22,7 +22,8 @@ use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
     coalesce_by_co_occurrence_with_role_constraint_inputs_report,
 };
-use crate::solve::Infer;
+use crate::solve::{Infer, RoleConstraintArg};
+use crate::types::{Neg, Pos};
 
 use super::ready_components;
 
@@ -609,14 +610,25 @@ fn compact_role_constraints(infer: &Infer, def: DefId) -> Vec<CompactRoleConstra
             args: constraint
                 .args
                 .into_iter()
-                .map(|arg| CompactBounds {
-                    self_var: None,
-                    lower: compact_pos_expr(infer, arg.pos),
-                    upper: compact_neg_expr(infer, arg.neg),
-                })
+                .map(|arg| compact_role_constraint_arg(infer, arg))
                 .collect(),
         })
         .collect()
+}
+
+fn compact_role_constraint_arg(infer: &Infer, arg: RoleConstraintArg) -> CompactBounds {
+    CompactBounds {
+        self_var: role_constraint_arg_self_var(infer, &arg),
+        lower: compact_pos_expr(infer, arg.pos),
+        upper: compact_neg_expr(infer, arg.neg),
+    }
+}
+
+fn role_constraint_arg_self_var(infer: &Infer, arg: &RoleConstraintArg) -> Option<TypeVar> {
+    match (infer.arena.get_pos(arg.pos), infer.arena.get_neg(arg.neg)) {
+        (Pos::Var(lhs), Neg::Var(rhs)) if lhs == rhs => Some(lhs),
+        _ => None,
+    }
 }
 
 fn compact_scheme_with_expansive_context(
