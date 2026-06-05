@@ -270,13 +270,7 @@ fn transform_copied_expr_kind(
                 types, scrutinee, def_subst,
             )),
             arms.iter()
-                .map(|arm| crate::ast::expr::TypedMatchArm {
-                    pat: transform_copied_pat(&arm.pat, types, def_subst),
-                    guard: arm.guard.as_ref().map(|guard| {
-                        transform_copied_principal_body_inner(types, guard, def_subst)
-                    }),
-                    body: transform_copied_principal_body_inner(types, &arm.body, def_subst),
-                })
+                .map(|arm| transform_copied_match_arm(types, arm, def_subst))
                 .collect(),
         ),
         ExprKind::Catch(body, arms) => ExprKind::Catch(
@@ -284,34 +278,7 @@ fn transform_copied_expr_kind(
                 types, body, def_subst,
             )),
             arms.iter()
-                .map(|arm| TypedCatchArm {
-                    tv: types.copy_tv(arm.tv),
-                    guard: arm.guard.as_ref().map(|guard| {
-                        transform_copied_principal_body_inner(types, guard, def_subst)
-                    }),
-                    kind: match &arm.kind {
-                        CatchArmKind::Value(pat, body) => CatchArmKind::Value(
-                            transform_copied_pat(pat, types, def_subst),
-                            transform_copied_principal_body_inner(types, body, def_subst),
-                        ),
-                        CatchArmKind::Effect {
-                            op_path,
-                            pat,
-                            k,
-                            body,
-                        } => CatchArmKind::Effect {
-                            op_path: replace_copied_catch_op_path(
-                                op_path,
-                                types.source_path,
-                                types.source_path_aliases,
-                                types.dest_path,
-                            ),
-                            pat: transform_copied_pat(pat, types, def_subst),
-                            k: *k,
-                            body: transform_copied_principal_body_inner(types, body, def_subst),
-                        },
-                    },
-                })
+                .map(|arm| transform_copied_catch_arm(types, arm, def_subst))
                 .collect(),
         ),
         ExprKind::Block(block) => ExprKind::Block(transform_copied_block(block, types, def_subst)),
@@ -337,6 +304,137 @@ fn transform_copied_expr_kind(
                 types, expr, def_subst,
             )),
         ),
+    }
+}
+
+fn transform_copied_match_arm(
+    types: &mut CopiedTypeVars<'_>,
+    arm: &crate::ast::expr::TypedMatchArm,
+    def_subst: &HashMap<DefId, DefId>,
+) -> crate::ast::expr::TypedMatchArm {
+    let pat = transform_copied_pat(&arm.pat, types, def_subst);
+    let source_local_defs = pat_local_defs(&arm.pat);
+    let previous = types.enter_local_defs(source_local_defs.as_slice());
+    let guard = arm
+        .guard
+        .as_ref()
+        .map(|guard| transform_copied_principal_body_inner(types, guard, def_subst));
+    let body = transform_copied_principal_body_inner(types, &arm.body, def_subst);
+    types.restore_local_defs(previous);
+    crate::ast::expr::TypedMatchArm { pat, guard, body }
+}
+
+fn transform_copied_catch_arm(
+    types: &mut CopiedTypeVars<'_>,
+    arm: &TypedCatchArm,
+    def_subst: &HashMap<DefId, DefId>,
+) -> TypedCatchArm {
+    let tv = types.copy_tv(arm.tv);
+    match &arm.kind {
+        CatchArmKind::Value(pat, body) => {
+            let source_local_defs = pat_local_defs(pat);
+            let pat = transform_copied_pat(pat, types, def_subst);
+            let previous = types.enter_local_defs(source_local_defs.as_slice());
+            let guard = arm
+                .guard
+                .as_ref()
+                .map(|guard| transform_copied_principal_body_inner(types, guard, def_subst));
+            let body = transform_copied_principal_body_inner(types, body, def_subst);
+            types.restore_local_defs(previous);
+            TypedCatchArm {
+                tv,
+                guard,
+                kind: CatchArmKind::Value(pat, body),
+            }
+        }
+        CatchArmKind::Effect {
+            op_path,
+            pat,
+            k,
+            body,
+        } => {
+            let mut source_local_defs = pat_local_defs(pat);
+            let pat = transform_copied_pat(pat, types, def_subst);
+            let copied_k = types.copy_local_def(*k);
+            source_local_defs.push(*k);
+            let previous = types.enter_local_defs(source_local_defs.as_slice());
+            let guard = arm
+                .guard
+                .as_ref()
+                .map(|guard| transform_copied_principal_body_inner(types, guard, def_subst));
+            let body = transform_copied_principal_body_inner(types, body, def_subst);
+            types.restore_local_defs(previous);
+            TypedCatchArm {
+                tv,
+                guard,
+                kind: CatchArmKind::Effect {
+                    op_path: replace_copied_catch_op_path(
+                        op_path,
+                        types.source_path,
+                        types.source_path_aliases,
+                        types.dest_path,
+                    ),
+                    pat,
+                    k: copied_k,
+                    body,
+                },
+            }
+        }
+    }
+}
+
+fn pat_local_defs(pat: &TypedPat) -> Vec<DefId> {
+    let mut out = Vec::new();
+    collect_pat_local_defs(pat, &mut out);
+    out
+}
+
+fn collect_pat_local_defs(pat: &TypedPat, out: &mut Vec<DefId>) {
+    match &pat.kind {
+        PatKind::Tuple(items) | PatKind::PolyVariant(_, items) => {
+            for item in items {
+                collect_pat_local_defs(item, out);
+            }
+        }
+        PatKind::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_pat_local_defs(item, out);
+            }
+            if let Some(spread) = spread {
+                collect_pat_local_defs(spread, out);
+            }
+            for item in suffix {
+                collect_pat_local_defs(item, out);
+            }
+        }
+        PatKind::Record { spread, fields } => {
+            if let Some(spread) = spread {
+                match spread {
+                    RecordPatSpread::Head(pat) | RecordPatSpread::Tail(pat) => {
+                        collect_pat_local_defs(pat, out);
+                    }
+                }
+            }
+            for field in fields {
+                collect_pat_local_defs(&field.pat, out);
+            }
+        }
+        PatKind::Con(_, Some(payload)) => collect_pat_local_defs(payload, out),
+        PatKind::Or(lhs, rhs) => {
+            collect_pat_local_defs(lhs, out);
+            collect_pat_local_defs(rhs, out);
+        }
+        PatKind::As(inner, def) => {
+            collect_pat_local_defs(inner, out);
+            if !out.contains(def) {
+                out.push(*def);
+            }
+        }
+        PatKind::Wild | PatKind::Lit(_) | PatKind::Con(_, None) | PatKind::UnresolvedName(_) => {}
     }
 }
 

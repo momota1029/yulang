@@ -1,6 +1,7 @@
 use crate::ids::{NegId, PosId};
 use crate::lower::LowerState;
 use crate::scheme::compact_scheme_from_pos_body_in_arena;
+use crate::simplify::compact::{CompactBounds, subst_compact_bounds};
 use crate::solve::{EffectSubtractFact, EffectSubtractability};
 use crate::symbols::Path;
 use crate::types::arena::TypeArena;
@@ -82,6 +83,7 @@ pub(crate) fn transform_copied_frozen_scheme(
             quantified.contains(&rho).then_some((rho, *id))
         })
         .collect();
+    let effect_atom_arg_bounds = transform_effect_atom_arg_bounds(source, frozen_subst.as_slice());
     let arena = std::rc::Rc::new(TypeArena::new());
     let frozen_body = super::super::clone_replace_effect_path_pos_between_arenas(
         &source.arena,
@@ -98,10 +100,26 @@ pub(crate) fn transform_copied_frozen_scheme(
         body: frozen_body,
         quantified,
         quantified_sources,
-        effect_atom_arg_bounds: Vec::new(),
+        effect_atom_arg_bounds,
         effect_subtracts,
         effect_non_subtracts,
     })
+}
+
+fn transform_effect_atom_arg_bounds(
+    source: &crate::scheme::FrozenScheme,
+    frozen_subst: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+) -> Vec<(crate::ids::TypeVar, CompactBounds)> {
+    source
+        .effect_atom_arg_bounds
+        .iter()
+        .map(|(tv, bounds)| {
+            (
+                lookup_small_subst(frozen_subst, *tv),
+                subst_compact_bounds(bounds, frozen_subst),
+            )
+        })
+        .collect()
 }
 
 fn subst_effect_atom_vars(

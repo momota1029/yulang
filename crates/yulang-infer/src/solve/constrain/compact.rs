@@ -3,9 +3,9 @@ use crate::diagnostic::ConstraintCause;
 use crate::ids::{NegId, TypeVar, fresh_type_var};
 use crate::scheme::{OwnedSchemeInstance, compact_neg_type, compact_pos_type};
 use crate::simplify::compact::{
-    CompactBounds, CompactType, compact_root_fun_body_lower, subst_compact_con, subst_compact_fun,
-    subst_compact_record, subst_compact_record_spread, subst_compact_row, subst_compact_type,
-    subst_compact_variant, subst_lookup_small,
+    CompactBounds, CompactCon, CompactType, compact_root_fun_body_lower, subst_compact_con,
+    subst_compact_fun, subst_compact_record, subst_compact_record_spread, subst_compact_row,
+    subst_compact_type, subst_compact_variant, subst_lookup_small,
 };
 use crate::solve::{EffectSubtractFact, EffectSubtractability};
 use crate::symbols::Path;
@@ -21,6 +21,14 @@ impl Infer {
         cache: &mut StepCache,
     ) {
         let root_body = compact_root_fun_body_lower(&instance.scheme.compact);
+        if root_body
+            .as_ref()
+            .is_some_and(root_fun_effect_rows_have_complex_atom_args)
+        {
+            let body = self.materialize_compact_lower_instance(instance);
+            self.constrain_step_with_hint(body, neg, cause, origin_hint, cache);
+            return;
+        }
         let captured_root_body = root_body.clone().and_then(|mut body| {
             let subtract_paths = subtract_set_paths(instance.scheme.effect_subtracts.as_slice());
             if subtract_paths.is_empty()
@@ -295,6 +303,27 @@ fn compact_neg_parts_with_subst(
         ));
     }
     parts
+}
+
+fn root_fun_effect_rows_have_complex_atom_args(root_body: &CompactType) -> bool {
+    let [fun] = root_body.funs.as_slice() else {
+        return false;
+    };
+    effect_row_has_complex_atom_args(&fun.arg_eff) || effect_row_has_complex_atom_args(&fun.ret_eff)
+}
+
+fn effect_row_has_complex_atom_args(ty: &CompactType) -> bool {
+    ty.cons.iter().any(compact_con_has_complex_atom_args)
+        || ty.rows.iter().any(|row| {
+            row.items.iter().any(effect_row_has_complex_atom_args)
+                || effect_row_has_complex_atom_args(&row.tail)
+        })
+}
+
+fn compact_con_has_complex_atom_args(con: &CompactCon) -> bool {
+    con.args.iter().any(|arg| {
+        single_compact_var(&arg.lower).is_none() || single_compact_var(&arg.upper).is_none()
+    })
 }
 
 fn subtract_set_paths(subtracts: &[(TypeVar, EffectSubtractFact)]) -> Vec<Path> {

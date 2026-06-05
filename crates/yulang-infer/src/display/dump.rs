@@ -3168,7 +3168,7 @@ mod tests {
                 .find(|(name, _)| name == "test")
                 .expect("test should be rendered");
 
-            assert_eq!(test.1, "std::list::list<int | α>");
+            assert_eq!(test.1, "std::list::list<int>");
         });
     }
 
@@ -3199,7 +3199,7 @@ mod tests {
                 .find(|(name, _)| name == "test")
                 .expect("test should be rendered");
 
-            assert_eq!(test.1, "std::list::list<int | α>");
+            assert_eq!(test.1, "std::list::list<int>");
         });
     }
 

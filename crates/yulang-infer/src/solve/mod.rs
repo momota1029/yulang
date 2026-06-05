@@ -306,6 +306,7 @@ pub struct Infer {
     pub origins: RefCell<FxHashMap<TypeVar, TypeOrigin>>,
     pub errors: RefCell<Vec<TypeError>>,
     pub expansive: HashSet<TypeVar>,
+    pub expansive_context_roots: FxHashMap<TypeVar, Vec<TypeVar>>,
     pub variances: HashMap<Path, Vec<Variance>>,
     pub def_tvs: RefCell<FxHashMap<DefId, TypeVar>>,
     pub compact_schemes: RefCell<FxHashMap<DefId, CompactTypeScheme>>,
@@ -365,6 +366,7 @@ impl Infer {
             origins: RefCell::new(FxHashMap::default()),
             errors: RefCell::new(Vec::new()),
             expansive: HashSet::new(),
+            expansive_context_roots: FxHashMap::default(),
             variances: HashMap::new(),
             def_tvs: RefCell::new(FxHashMap::default()),
             compact_schemes: RefCell::new(FxHashMap::default()),
@@ -488,8 +490,29 @@ impl Infer {
         self.expansive.insert(tv);
     }
 
+    pub fn mark_expansive_computation_roots(
+        &mut self,
+        tv: TypeVar,
+        roots: impl IntoIterator<Item = TypeVar>,
+    ) {
+        self.expansive.insert(tv);
+        let entry = self.expansive_context_roots.entry(tv).or_default();
+        for root in roots {
+            if !entry.contains(&root) {
+                entry.push(root);
+            }
+        }
+    }
+
     pub fn is_expansive(&self, tv: TypeVar) -> bool {
         self.expansive.contains(&tv)
+    }
+
+    pub fn expansive_context_roots_of(&self, tv: TypeVar) -> Vec<TypeVar> {
+        self.expansive_context_roots
+            .get(&tv)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn register_def_tv(&self, def: DefId, tv: TypeVar) {

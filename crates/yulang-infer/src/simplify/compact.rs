@@ -187,6 +187,121 @@ pub(crate) fn merge_compact_types(
     lhs
 }
 
+pub(crate) fn finalize_expansive_compact_scheme(scheme: &mut CompactTypeScheme) {
+    let rec_vars = scheme.rec_vars.clone();
+    let mut visiting = HashSet::new();
+    finalize_expansive_compact_bounds(&mut scheme.cty, &rec_vars, &mut visiting, true);
+    for bounds in scheme.rec_vars.values_mut() {
+        let mut visiting = HashSet::new();
+        finalize_expansive_compact_bounds(bounds, &rec_vars, &mut visiting, false);
+    }
+}
+
+fn finalize_expansive_compact_bounds(
+    bounds: &mut CompactBounds,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    visiting: &mut HashSet<TypeVar>,
+    collapse_vars_with_shape: bool,
+) {
+    let finalized =
+        finalized_expansive_bounds_type(bounds, rec_vars, visiting, collapse_vars_with_shape);
+    bounds.lower = finalized.clone();
+    bounds.upper = finalized;
+}
+
+fn finalized_expansive_bounds_type(
+    bounds: &CompactBounds,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    visiting: &mut HashSet<TypeVar>,
+    collapse_vars_with_shape: bool,
+) -> CompactType {
+    let mut lower = bounds.lower.clone();
+    finalize_expansive_compact_type(&mut lower, rec_vars, visiting);
+    let mut upper = bounds.upper.clone();
+    finalize_expansive_compact_type(&mut upper, rec_vars, visiting);
+
+    let mut finalized = if has_non_var_shape(&lower)
+        || (!is_empty_compact_type(&lower) && is_empty_compact_type(&upper))
+    {
+        lower
+    } else if has_non_var_shape(&upper) || is_empty_compact_type(&lower) {
+        upper
+    } else {
+        lower
+    };
+    if collapse_vars_with_shape && has_non_var_shape(&finalized) {
+        finalized.vars.clear();
+    }
+    finalized
+}
+
+fn finalize_expansive_compact_type(
+    ty: &mut CompactType,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    visiting: &mut HashSet<TypeVar>,
+) {
+    let vars = mem::take(&mut ty.vars);
+    for tv in vars {
+        if !visiting.insert(tv) {
+            ty.vars.insert(tv);
+            continue;
+        }
+        if let Some(bounds) = rec_vars.get(&tv) {
+            let replacement = finalized_expansive_bounds_type(bounds, rec_vars, visiting, false);
+            if is_empty_compact_type(&replacement) {
+                ty.vars.insert(tv);
+            } else {
+                let current = mem::take(ty);
+                *ty = merge_compact_types(true, current, replacement);
+            }
+        } else {
+            ty.vars.insert(tv);
+        }
+        visiting.remove(&tv);
+    }
+
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            finalize_expansive_compact_bounds(arg, rec_vars, visiting, false);
+        }
+    }
+    for fun in &mut ty.funs {
+        finalize_expansive_compact_type(&mut fun.arg, rec_vars, visiting);
+        finalize_expansive_compact_type(&mut fun.arg_eff, rec_vars, visiting);
+        finalize_expansive_compact_type(&mut fun.ret_eff, rec_vars, visiting);
+        finalize_expansive_compact_type(&mut fun.ret, rec_vars, visiting);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            finalize_expansive_compact_type(&mut field.value, rec_vars, visiting);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            finalize_expansive_compact_type(&mut field.value, rec_vars, visiting);
+        }
+        finalize_expansive_compact_type(&mut spread.tail, rec_vars, visiting);
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                finalize_expansive_compact_type(payload, rec_vars, visiting);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            finalize_expansive_compact_type(item, rec_vars, visiting);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            finalize_expansive_compact_type(item, rec_vars, visiting);
+        }
+        finalize_expansive_compact_type(&mut row.tail, rec_vars, visiting);
+    }
+}
+
 pub(crate) fn coalesce_function_effect_residual(
     arg_eff: &mut CompactType,
     ret_eff: &mut CompactType,

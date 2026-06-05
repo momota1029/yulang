@@ -3,7 +3,10 @@ use std::collections::HashMap;
 
 use yulang_parser::lex::SyntaxKind;
 
-use crate::ast::expr::{ExprKind, PatKind, TypedExpr, TypedMatchArm, TypedPat, TypedStmt};
+use crate::ast::expr::{
+    CatchArmKind, ExprKind, PatKind, RecordPatSpread, RecordSpread, TypedBlock, TypedCatchArm,
+    TypedExpr, TypedMatchArm, TypedPat, TypedStmt,
+};
 use crate::ids::TypeVar;
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Path;
@@ -132,6 +135,13 @@ pub(crate) fn lower_binding_with_type_scope(
         let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
         if let Some(def) = owner {
             state.insert_principal_body(def, body_expr.clone());
+            if !is_value_restriction_value_expr(&body_expr) {
+                let tv = state.def_tvs.get(&def).copied().unwrap_or(body_expr.tv);
+                state.infer.mark_expansive_computation_roots(
+                    tv,
+                    value_restriction_context_roots(&body_expr),
+                );
+            }
         }
         let self_used = owner
             .map(|owner| state.take_recursive_self_use(owner))
@@ -194,7 +204,218 @@ fn insert_destructured_binding_principal_bodies(
                 }],
             ),
         };
+        if !is_value_restriction_value_expr(&body) {
+            state
+                .infer
+                .mark_expansive_computation_roots(tv, value_restriction_context_roots(&body));
+        }
         state.insert_principal_body(def, body);
+    }
+}
+
+fn is_value_restriction_value_expr(expr: &TypedExpr) -> bool {
+    match &expr.kind {
+        ExprKind::Lit(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Var(_)
+        | ExprKind::Ref(_)
+        | ExprKind::Lam(_, _) => true,
+        ExprKind::Tuple(items) => items.iter().all(is_value_restriction_value_expr),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .all(|(_, value)| is_value_restriction_value_expr(value))
+                && spread.is_none()
+        }
+        ExprKind::PolyVariant(_, payloads, _) => {
+            payloads.iter().all(is_value_restriction_value_expr)
+        }
+        ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {
+            is_value_restriction_value_expr(expr)
+        }
+        ExprKind::BindHere(_)
+        | ExprKind::App { .. }
+        | ExprKind::RefSet { .. }
+        | ExprKind::Select { .. }
+        | ExprKind::Match(_, _)
+        | ExprKind::Catch(_, _)
+        | ExprKind::Block(_) => false,
+    }
+}
+
+fn value_restriction_context_roots(expr: &TypedExpr) -> Vec<TypeVar> {
+    let mut roots = Vec::new();
+    collect_value_restriction_expr_roots(expr, &mut roots);
+    roots
+}
+
+fn push_value_restriction_root(out: &mut Vec<TypeVar>, tv: TypeVar) {
+    if !out.contains(&tv) {
+        out.push(tv);
+    }
+}
+
+fn collect_value_restriction_expr_roots(expr: &TypedExpr, out: &mut Vec<TypeVar>) {
+    push_value_restriction_root(out, expr.tv);
+    push_value_restriction_root(out, expr.eff);
+    match &expr.kind {
+        ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Var(_) | ExprKind::Ref(_) => {}
+        ExprKind::App {
+            callee,
+            arg,
+            expected_callee_tv,
+            expected_arg_tv,
+            ..
+        } => {
+            push_value_restriction_root(out, *expected_callee_tv);
+            push_value_restriction_root(out, *expected_arg_tv);
+            collect_value_restriction_expr_roots(callee, out);
+            collect_value_restriction_expr_roots(arg, out);
+        }
+        ExprKind::RefSet { reference, value } => {
+            collect_value_restriction_expr_roots(reference, out);
+            collect_value_restriction_expr_roots(value, out);
+        }
+        ExprKind::Lam(_, body) => collect_value_restriction_expr_roots(body, out),
+        ExprKind::Tuple(items) => {
+            for item in items {
+                collect_value_restriction_expr_roots(item, out);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for (_, value) in fields {
+                collect_value_restriction_expr_roots(value, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                        collect_value_restriction_expr_roots(expr, out);
+                    }
+                }
+            }
+        }
+        ExprKind::PolyVariant(_, payloads, _) => {
+            for payload in payloads {
+                collect_value_restriction_expr_roots(payload, out);
+            }
+        }
+        ExprKind::Select { recv, .. } => collect_value_restriction_expr_roots(recv, out),
+        ExprKind::Match(scrutinee, arms) => {
+            collect_value_restriction_expr_roots(scrutinee, out);
+            for arm in arms {
+                collect_value_restriction_pat_roots(&arm.pat, out);
+                if let Some(guard) = &arm.guard {
+                    collect_value_restriction_expr_roots(guard, out);
+                }
+                collect_value_restriction_expr_roots(&arm.body, out);
+            }
+        }
+        ExprKind::Catch(comp, arms) => {
+            collect_value_restriction_expr_roots(comp, out);
+            for arm in arms {
+                collect_value_restriction_catch_arm_roots(arm, out);
+            }
+        }
+        ExprKind::Block(block) => collect_value_restriction_block_roots(block, out),
+        ExprKind::BindHere(expr) => collect_value_restriction_expr_roots(expr, out),
+        ExprKind::Coerce {
+            actual_tv,
+            expected_tv,
+            expr,
+            ..
+        } => {
+            push_value_restriction_root(out, *actual_tv);
+            push_value_restriction_root(out, *expected_tv);
+            collect_value_restriction_expr_roots(expr, out);
+        }
+        ExprKind::PackForall(tv, expr) => {
+            push_value_restriction_root(out, *tv);
+            collect_value_restriction_expr_roots(expr, out);
+        }
+    }
+}
+
+fn collect_value_restriction_block_roots(block: &TypedBlock, out: &mut Vec<TypeVar>) {
+    push_value_restriction_root(out, block.tv);
+    push_value_restriction_root(out, block.eff);
+    for stmt in &block.stmts {
+        match stmt {
+            TypedStmt::Let(pat, expr) => {
+                collect_value_restriction_pat_roots(pat, out);
+                collect_value_restriction_expr_roots(expr, out);
+            }
+            TypedStmt::Expr(expr) => collect_value_restriction_expr_roots(expr, out),
+            TypedStmt::Module(_, block) => collect_value_restriction_block_roots(block, out),
+        }
+    }
+    if let Some(tail) = &block.tail {
+        collect_value_restriction_expr_roots(tail, out);
+    }
+}
+
+fn collect_value_restriction_catch_arm_roots(arm: &TypedCatchArm, out: &mut Vec<TypeVar>) {
+    push_value_restriction_root(out, arm.tv);
+    if let Some(guard) = &arm.guard {
+        collect_value_restriction_expr_roots(guard, out);
+    }
+    match &arm.kind {
+        CatchArmKind::Value(pat, body) => {
+            collect_value_restriction_pat_roots(pat, out);
+            collect_value_restriction_expr_roots(body, out);
+        }
+        CatchArmKind::Effect { pat, body, .. } => {
+            collect_value_restriction_pat_roots(pat, out);
+            collect_value_restriction_expr_roots(body, out);
+        }
+    }
+}
+
+fn collect_value_restriction_pat_roots(pat: &TypedPat, out: &mut Vec<TypeVar>) {
+    push_value_restriction_root(out, pat.tv);
+    match &pat.kind {
+        PatKind::Wild | PatKind::Lit(_) | PatKind::UnresolvedName(_) => {}
+        PatKind::Tuple(items) | PatKind::PolyVariant(_, items) => {
+            for item in items {
+                collect_value_restriction_pat_roots(item, out);
+            }
+        }
+        PatKind::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_value_restriction_pat_roots(item, out);
+            }
+            if let Some(spread) = spread {
+                collect_value_restriction_pat_roots(spread, out);
+            }
+            for item in suffix {
+                collect_value_restriction_pat_roots(item, out);
+            }
+        }
+        PatKind::Record { spread, fields } => {
+            if let Some(spread) = spread {
+                match spread {
+                    RecordPatSpread::Head(pat) | RecordPatSpread::Tail(pat) => {
+                        collect_value_restriction_pat_roots(pat, out);
+                    }
+                }
+            }
+            for field in fields {
+                collect_value_restriction_pat_roots(&field.pat, out);
+                if let Some(default) = &field.default {
+                    collect_value_restriction_expr_roots(default, out);
+                }
+            }
+        }
+        PatKind::Con(_, Some(payload)) => collect_value_restriction_pat_roots(payload, out),
+        PatKind::Con(_, None) => {}
+        PatKind::Or(lhs, rhs) => {
+            collect_value_restriction_pat_roots(lhs, out);
+            collect_value_restriction_pat_roots(rhs, out);
+        }
+        PatKind::As(inner, _) => collect_value_restriction_pat_roots(inner, out),
     }
 }
 
