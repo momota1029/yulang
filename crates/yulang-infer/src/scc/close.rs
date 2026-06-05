@@ -7,8 +7,9 @@ use crate::profile::ProfileClock as Instant;
 use crate::ids::DefId;
 use crate::ref_table::{RefTable, ResolvedRef};
 use crate::scheme::{
-    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
-    collect_var_levels, freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+    close_non_generic_vars_over_compact_scheme, collect_compact_role_constraint_free_vars,
+    collect_low_level_vars_in_scheme, collect_var_levels,
+    freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars,
     instantiate_as_view_with_subst_profiled,
 };
 use crate::simplify::compact::coalesce_nested_tail_function_effect_residuals_in_scheme;
@@ -228,29 +229,39 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
     let total_start = Instant::now();
     profile.ready_components += ready.len();
     let mut committed = Vec::new();
-    for &component_idx in ready {
-        let defs = infer.components[component_idx]
-            .iter()
-            .copied()
-            .filter_map(|def| {
-                let has_external_refs =
-                    def_has_external_refs(infer, refs_by_def, component_idx, def)
-                        && !infer.is_frozen_ref_committed(def);
-                let needs_compact = target_defs.contains(&def)
-                    && infer.compact_schemes.borrow().get(&def).is_none();
-                let needs_frozen =
-                    has_external_refs && infer.frozen_schemes.borrow().get(&def).is_none();
-                let def_tv = infer.def_tvs.borrow().get(&def).copied()?;
-                Some(CommitDef {
-                    def,
-                    tv: def_tv,
-                    has_external_refs,
-                    needs_compact,
-                    needs_frozen,
-                })
-            })
-            .collect::<Vec<_>>();
 
+    let components = ready
+        .iter()
+        .copied()
+        .map(|component_idx| {
+            let defs = infer.components[component_idx]
+                .iter()
+                .copied()
+                .filter_map(|def| {
+                    let has_external_refs =
+                        def_has_external_refs(infer, refs_by_def, component_idx, def)
+                            && !infer.is_frozen_ref_committed(def);
+                    let needs_compact = target_defs.contains(&def)
+                        && infer.compact_schemes.borrow().get(&def).is_none();
+                    let needs_frozen =
+                        has_external_refs && infer.frozen_schemes.borrow().get(&def).is_none();
+                    let def_tv = infer.def_tvs.borrow().get(&def).copied()?;
+                    Some(CommitDef {
+                        def,
+                        tv: def_tv,
+                        has_external_refs,
+                        needs_compact,
+                        needs_frozen,
+                    })
+                })
+                .collect::<Vec<_>>();
+            (component_idx, defs)
+        })
+        .collect::<Vec<_>>();
+
+    let compacted_by_def = compact_ready_component_defs(infer, &components, profile);
+
+    for (component_idx, defs) in components.into_iter() {
         if defs
             .iter()
             .all(|item| !(item.needs_compact || item.has_external_refs))
@@ -258,25 +269,6 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
             committed.push(component_idx);
             continue;
         }
-
-        let compact_items = defs
-            .iter()
-            .filter(|item| item.needs_compact || item.has_external_refs)
-            .map(|item| (item.def, item.tv))
-            .collect::<Vec<_>>();
-        let compact_start = Instant::now();
-        let roots = compact_items.iter().map(|(_, tv)| *tv).collect::<Vec<_>>();
-        let (compacted, compact_profile) = compact_type_vars_in_order_profiled(infer, &roots);
-        profile.compact += compact_start.elapsed();
-        profile.compact_var_side += compact_profile.compact_var_side;
-        profile.compact_pos_ref += compact_profile.compact_pos_ref;
-        profile.compact_neg_ref += compact_profile.compact_neg_ref;
-        profile.compact_reachable_rec_vars += compact_profile.compact_reachable_rec_vars;
-        let compacted_by_def = compact_items
-            .into_iter()
-            .zip(compacted)
-            .map(|((def, _), compact)| (def, compact))
-            .collect::<HashMap<_, _>>();
 
         let mut changed = false;
         for item in defs.into_iter() {
@@ -351,7 +343,8 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 if is_expansive {
                     non_generic.extend(collect_low_level_vars_in_scheme(infer, &scheme, u32::MAX));
                 }
-                let new_frozen = freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
+                close_non_generic_vars_over_compact_scheme(&scheme, &mut non_generic);
+                let new_frozen = freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars(
                     infer,
                     scheme.clone(),
                     extra_quantified.as_slice(),
@@ -423,6 +416,40 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
     profile.committed_components += committed.len();
     profile.total += total_start.elapsed();
     committed
+}
+
+fn compact_ready_component_defs(
+    infer: &Infer,
+    components: &[(usize, Vec<CommitDef>)],
+    profile: &mut CommitReadyProfile,
+) -> HashMap<DefId, CompactTypeScheme> {
+    let compact_items = components
+        .iter()
+        .flat_map(|(_, defs)| {
+            defs.iter()
+                .filter(|item| item.needs_compact || item.has_external_refs)
+                .map(|item| (item.def, item.tv))
+        })
+        .collect::<Vec<_>>();
+    if compact_items.is_empty() {
+        return HashMap::new();
+    }
+
+    let compact_start = Instant::now();
+    let roots = compact_items.iter().map(|(_, tv)| *tv).collect::<Vec<_>>();
+    let (compacted, compact_profile) = compact_type_vars_in_order_profiled(infer, &roots);
+    let compact_elapsed = compact_start.elapsed();
+    profile.compact += compact_elapsed;
+    profile.compact_var_side += compact_profile.compact_var_side;
+    profile.compact_pos_ref += compact_profile.compact_pos_ref;
+    profile.compact_neg_ref += compact_profile.compact_neg_ref;
+    profile.compact_reachable_rec_vars += compact_profile.compact_reachable_rec_vars;
+
+    compact_items
+        .into_iter()
+        .zip(compacted)
+        .map(|((def, _), compact)| (def, compact))
+        .collect()
 }
 
 // Keeps SCC close incremental: commit removes sink components, so only their

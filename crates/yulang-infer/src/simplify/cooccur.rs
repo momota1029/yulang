@@ -19,7 +19,10 @@ use super::compact::{
 };
 use super::polar::{apply_polar_variable_removal, rewrite_polar_occurrences};
 use super::role_constraints::rewrite_role_constraints_with_role_arg_inputs;
-use analysis::analyze_co_occurrences_with_role_constraints;
+use analysis::{
+    analyze_co_occurrences_with_role_constraints,
+    analyze_co_occurrences_with_role_constraints_for_vars,
+};
 use polarity::analyze_polar_occurrences_with_role_constraints;
 use representative::lower_representatives_for_subst;
 
@@ -85,6 +88,7 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs(
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
         var_levels,
         boundary,
+        None,
     );
     (output.scheme, output.constraints)
 }
@@ -103,6 +107,26 @@ pub fn coalesce_by_co_occurrence_with_role_constraint_inputs_report(
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
         var_levels,
         boundary,
+        None,
+    )
+}
+
+pub(crate) fn coalesce_by_co_occurrence_with_role_constraint_input_candidates_report(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    role_arg_inputs: impl Fn(&Path) -> Option<Vec<bool>>,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
+    candidates: &HashSet<TypeVar>,
+) -> CoalesceOutput {
+    coalesce_by_co_occurrence_with_role_constraints_report_inner(
+        scheme,
+        constraints,
+        &role_arg_inputs,
+        std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+        var_levels,
+        boundary,
+        Some(candidates),
     )
 }
 
@@ -117,6 +141,7 @@ pub fn coalesce_by_co_occurrence_with_role_constraints_report(
         std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
         &HashMap::new(),
         0,
+        None,
     )
 }
 
@@ -131,7 +156,34 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     use_representatives: bool,
     var_levels: &HashMap<TypeVar, u32>,
     boundary: u32,
+    candidates: Option<&HashSet<TypeVar>>,
 ) -> CoalesceOutput {
+    let boundary_candidates = candidates.map_or_else(
+        || collect_boundary_coalescence_candidates(scheme, constraints, var_levels, boundary),
+        |candidates| {
+            candidates
+                .iter()
+                .copied()
+                .filter(|tv| var_levels.get(tv).copied().unwrap_or(u32::MAX) >= boundary)
+                .collect::<HashSet<_>>()
+        },
+    );
+    if boundary_candidates.is_empty() {
+        let mut scheme = scheme.clone();
+        coalesce_root_function_interval_effect_residuals(&mut scheme);
+        normalize_compact_scheme_rows(&mut scheme);
+        let constraints = rewrite_role_constraints_with_role_arg_inputs(
+            &scheme,
+            constraints,
+            &HashMap::new(),
+            role_arg_inputs,
+        );
+        return CoalesceOutput {
+            scheme,
+            constraints,
+            rounds: Vec::new(),
+        };
+    }
     let current_scheme = scheme.clone();
     let current_constraints = constraints.to_vec();
     let mut rounds = Vec::new();
@@ -139,8 +191,11 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
     loop {
         let mut polar_analysis =
             analyze_polar_occurrences_with_role_constraints(&current_scheme, &current_constraints);
-        let analysis =
-            analyze_co_occurrences_with_role_constraints(&current_scheme, &current_constraints);
+        let analysis = analyze_co_occurrences_with_role_constraints_for_vars(
+            &current_scheme,
+            &current_constraints,
+            Some(&boundary_candidates),
+        );
         let rec_vars = current_scheme.rec_vars.clone();
         let mut all_vars = collect_all_vars(&current_scheme, &analysis);
         all_vars.extend(polar_analysis.positive.iter().copied());
@@ -150,7 +205,10 @@ fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
         // 量化されうる変数（level >= boundary）だけを解析対象に残す。外側スコープの変数は
         // 走査しない。情報(analysis/polar_analysis)は全変数のままなので、極性消去でも
         // (false,false) 扱いにならず、外側変数は消されない。
-        all_vars.retain(|tv| var_levels.get(tv).copied().unwrap_or(u32::MAX) >= boundary);
+        all_vars.retain(|tv| {
+            boundary_candidates.contains(tv)
+                && var_levels.get(tv).copied().unwrap_or(u32::MAX) >= boundary
+        });
         all_vars.sort_by_key(|tv| std::cmp::Reverse(tv.0));
 
         let mut subst = HashMap::<TypeVar, Option<TypeVar>>::new();
@@ -273,33 +331,37 @@ fn apply_indistinguishable_unification(
     analysis: &CoOccurrences,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
+    let all_var_set = all_vars.iter().copied().collect::<HashSet<_>>();
     for &alpha in all_vars {
-        for &beta in all_vars {
-            if beta.0 >= alpha.0 {
-                continue;
-            }
-            if matches!(subst.get(&alpha), Some(None)) || matches!(subst.get(&beta), Some(None)) {
-                continue;
-            }
-            let pos_together = analysis
-                .positive
-                .get(&alpha)
-                .is_some_and(|s| s.contains(&AlongItem::Var(beta)))
-                && analysis
-                    .positive
-                    .get(&beta)
-                    .is_some_and(|s| s.contains(&AlongItem::Var(alpha)));
-            let neg_together = analysis
-                .negative
-                .get(&alpha)
-                .is_some_and(|s| s.contains(&AlongItem::Var(beta)))
-                && analysis
-                    .negative
-                    .get(&beta)
-                    .is_some_and(|s| s.contains(&AlongItem::Var(alpha)));
-            if pos_together || neg_together {
-                merge_equiv_vars(subst, alpha, beta);
-            }
+        merge_mutual_co_occurrence_vars(alpha, &analysis.positive, &all_var_set, subst);
+        merge_mutual_co_occurrence_vars(alpha, &analysis.negative, &all_var_set, subst);
+    }
+}
+
+fn merge_mutual_co_occurrence_vars(
+    alpha: TypeVar,
+    occurrences: &HashMap<TypeVar, HashSet<AlongItem>>,
+    all_vars: &HashSet<TypeVar>,
+    subst: &mut HashMap<TypeVar, Option<TypeVar>>,
+) {
+    let Some(alpha_items) = occurrences.get(&alpha) else {
+        return;
+    };
+    for item in alpha_items {
+        let AlongItem::Var(beta) = item else {
+            continue;
+        };
+        if beta.0 >= alpha.0 || !all_vars.contains(beta) {
+            continue;
+        }
+        if matches!(subst.get(&alpha), Some(None)) || matches!(subst.get(beta), Some(None)) {
+            continue;
+        }
+        if occurrences
+            .get(beta)
+            .is_some_and(|items| items.contains(&AlongItem::Var(alpha)))
+        {
+            merge_equiv_vars(subst, alpha, *beta);
         }
     }
 }
@@ -351,6 +413,111 @@ fn collect_all_vars(scheme: &CompactTypeScheme, analysis: &CoOccurrences) -> Vec
     vars.extend(analysis.positive.keys().copied());
     vars.extend(analysis.negative.keys().copied());
     vars.into_iter().collect()
+}
+
+fn collect_boundary_coalescence_candidates(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
+) -> HashSet<TypeVar> {
+    let mut out = HashSet::new();
+    collect_boundary_coalescence_candidates_in_bounds(&scheme.cty, var_levels, boundary, &mut out);
+    for (&tv, bounds) in &scheme.rec_vars {
+        collect_boundary_coalescence_candidate_var(tv, var_levels, boundary, &mut out);
+        collect_boundary_coalescence_candidates_in_bounds(bounds, var_levels, boundary, &mut out);
+    }
+    for constraint in constraints {
+        for arg in &constraint.args {
+            collect_boundary_coalescence_candidates_in_bounds(arg, var_levels, boundary, &mut out);
+        }
+    }
+    out
+}
+
+fn collect_boundary_coalescence_candidates_in_bounds(
+    bounds: &CompactBounds,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
+    out: &mut HashSet<TypeVar>,
+) {
+    if let Some(tv) = bounds.self_var {
+        collect_boundary_coalescence_candidate_var(tv, var_levels, boundary, out);
+    }
+    collect_boundary_coalescence_candidates_in_type(&bounds.lower, var_levels, boundary, out);
+    collect_boundary_coalescence_candidates_in_type(&bounds.upper, var_levels, boundary, out);
+}
+
+fn collect_boundary_coalescence_candidates_in_type(
+    ty: &CompactType,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
+    out: &mut HashSet<TypeVar>,
+) {
+    for &tv in &ty.vars {
+        collect_boundary_coalescence_candidate_var(tv, var_levels, boundary, out);
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_boundary_coalescence_candidates_in_bounds(arg, var_levels, boundary, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_boundary_coalescence_candidates_in_type(&fun.arg, var_levels, boundary, out);
+        collect_boundary_coalescence_candidates_in_type(&fun.arg_eff, var_levels, boundary, out);
+        collect_boundary_coalescence_candidates_in_type(&fun.ret_eff, var_levels, boundary, out);
+        collect_boundary_coalescence_candidates_in_type(&fun.ret, var_levels, boundary, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_boundary_coalescence_candidates_in_type(
+                &field.value,
+                var_levels,
+                boundary,
+                out,
+            );
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_boundary_coalescence_candidates_in_type(
+                &field.value,
+                var_levels,
+                boundary,
+                out,
+            );
+        }
+        collect_boundary_coalescence_candidates_in_type(&spread.tail, var_levels, boundary, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_boundary_coalescence_candidates_in_type(payload, var_levels, boundary, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in tuple {
+            collect_boundary_coalescence_candidates_in_type(item, var_levels, boundary, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_boundary_coalescence_candidates_in_type(item, var_levels, boundary, out);
+        }
+        collect_boundary_coalescence_candidates_in_type(&row.tail, var_levels, boundary, out);
+    }
+}
+
+fn collect_boundary_coalescence_candidate_var(
+    tv: TypeVar,
+    var_levels: &HashMap<TypeVar, u32>,
+    boundary: u32,
+    out: &mut HashSet<TypeVar>,
+) {
+    if var_levels.get(&tv).copied().unwrap_or(u32::MAX) >= boundary {
+        out.insert(tv);
+    }
 }
 
 fn collect_vars_in_bounds(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
@@ -1045,6 +1212,7 @@ mod tests {
             true,
             &std::collections::HashMap::new(),
             0,
+            None,
         )
         .scheme;
         assert!(coalesced.cty.lower.vars.is_empty());

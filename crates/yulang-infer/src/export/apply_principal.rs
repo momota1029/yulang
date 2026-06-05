@@ -85,6 +85,14 @@ pub(super) fn complete_coerce_principal_evidence(
     }
 }
 
+pub(super) fn lightweight_coerce_principal_evidence() -> typed_ir::CoerceEvidence {
+    typed_ir::CoerceEvidence {
+        source_edge: None,
+        actual: typed_ir::TypeBounds::default(),
+        expected: typed_ir::TypeBounds::default(),
+    }
+}
+
 #[allow(dead_code)]
 pub(super) fn complete_apply_principal_evidence(
     infer: &Infer,

@@ -516,7 +516,6 @@ pub fn export_core_program_for_binding_paths(
         Vec::new()
     };
     let handler_matches = collect_handler_match_evidence(state);
-
     let effect_operations = export_effect_operations(state);
     typed_ir::CoreProgram {
         program: typed_ir::PrincipalModule {

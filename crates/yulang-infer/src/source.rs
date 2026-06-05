@@ -1718,8 +1718,9 @@ pub fn build_compiled_unit_artifacts(
     state: &LowerState,
 ) -> Vec<CompiledUnitArtifact> {
     let syntax_artifacts = source_set.compiled_unit_syntax_artifacts();
-    let typed_artifacts = build_compiled_typed_artifacts(source_set, state);
-    let runtime_surfaces = build_compiled_runtime_surfaces(state, &typed_artifacts);
+    let (typed_artifacts, finalized_state) =
+        build_compiled_typed_artifacts_with_finalized_state(source_set, state);
+    let runtime_surfaces = build_compiled_runtime_surfaces(&finalized_state, &typed_artifacts);
 
     assert_eq!(
         syntax_artifacts.len(),
@@ -1753,14 +1754,25 @@ pub fn build_compiled_typed_artifacts(
     source_set: &SourceSet,
     state: &LowerState,
 ) -> Vec<CompiledUnitTypedArtifact> {
+    build_compiled_typed_artifacts_with_finalized_state(source_set, state).0
+}
+
+fn build_compiled_typed_artifacts_with_finalized_state(
+    source_set: &SourceSet,
+    state: &LowerState,
+) -> (Vec<CompiledUnitTypedArtifact>, LowerState) {
     let mut finalized_state = state.clone();
-    finalized_state.finalize_compact_results();
+    let value_paths = finalized_state.ctx.collect_all_binding_paths();
+    let artifact_defs = value_paths
+        .iter()
+        .map(|(_, def)| *def)
+        .collect::<HashSet<_>>();
+    finalized_state.finalize_compact_results_for_defs(&artifact_defs);
     finalized_state
         .infer
         .prune_resolved_effect_subtract_metadata();
     let state = &finalized_state;
     let namespace_artifacts = build_compiled_namespace_artifacts(source_set, state);
-    let value_paths = state.ctx.collect_all_binding_paths();
     let value_defs_by_path = value_paths
         .iter()
         .map(|(path, def)| (snapshot_path_segments(path), *def))
@@ -1778,7 +1790,7 @@ pub fn build_compiled_typed_artifacts(
     let roles = collect_std_snapshot_roles(state);
     let effects = collect_std_snapshot_effects(state);
 
-    namespace_artifacts
+    let typed_artifacts = namespace_artifacts
         .into_iter()
         .map(|artifact| {
             let unit_value_ids = compiled_unit_value_id_remap(
@@ -1803,7 +1815,8 @@ pub fn build_compiled_typed_artifacts(
                 typed,
             }
         })
-        .collect()
+        .collect();
+    (typed_artifacts, finalized_state)
 }
 
 pub fn import_std_infer_snapshot_data(

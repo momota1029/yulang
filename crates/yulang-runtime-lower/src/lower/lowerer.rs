@@ -492,7 +492,14 @@ impl Lowerer<'_> {
                     fun_parts = function_parts(&lowered_ty).ok();
                     callee = Some(lowered);
                 }
-                let ret_hint = fun_parts.as_ref().map(|parts| parts.ret.clone());
+                let expected_callee_ret_hint = evidence_expected_callee
+                    .as_ref()
+                    .and_then(|ty| function_parts(ty).ok())
+                    .map(|parts| parts.ret);
+                let ret_hint = fun_parts
+                    .as_ref()
+                    .map(|parts| parts.ret.clone())
+                    .or(expected_callee_ret_hint);
                 let ret_hint_needs_callback_boundary = ret_hint
                     .as_ref()
                     .is_some_and(local_callback_boundary_needs_wildcard_effect);

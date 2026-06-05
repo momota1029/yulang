@@ -2,7 +2,6 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yulang_typed_ir as typed_ir;
 
-use crate::ast::expr::TypedExpr;
 use crate::diagnostic::ExpectedEdgeId;
 use crate::ids::{DefId, TypeVar};
 use crate::lower::LowerState;
@@ -12,14 +11,13 @@ use crate::symbols::Path;
 
 use super::apply_principal::CompletePrincipalCache;
 use super::evidence::ExpectedEdgeEvidence;
-use super::expr::{ExprExportProfile, ExprExporter, collect_expr_export_type_vars};
-use super::names::export_path;
+use super::expr::{ExprExportProfile, ExprExporter};
+use super::names::{export_path, path_key};
 use super::paths::collect_canonical_binding_paths;
 use super::timing::{ExportClock, format_core_path_for_export_timing};
 use super::types::{
     collect_core_type_vars, export_frozen_scheme, export_frozen_scheme_body_type_vars,
     export_scheme, export_scheme_body, export_scheme_body_type_vars,
-    extend_export_type_bounds_cache_for_tvs,
 };
 
 pub(super) fn export_bindings_for_paths(
@@ -46,7 +44,9 @@ pub(super) fn export_bindings_for_paths(
     let t_initial = ExportClock::now(export_timing);
     let mut binding_times = Vec::new();
     let mut bindings = Vec::new();
-    for (def, path) in canonical {
+    let mut canonical_items = canonical.into_iter().collect::<Vec<_>>();
+    canonical_items.sort_by_key(|(_, path)| path_key(path));
+    for (def, path) in canonical_items {
         if !target_def_set.contains(&def) {
             continue;
         }
@@ -210,7 +210,10 @@ pub(crate) fn complete_referenced_binding_closure(
         collect_expr_binding_refs(&binding.body, &mut pending_refs);
     }
     while !pending_refs.is_empty() {
-        let pending = std::mem::take(&mut pending_refs);
+        let mut pending = std::mem::take(&mut pending_refs)
+            .into_iter()
+            .collect::<Vec<_>>();
+        pending.sort_by_key(format_core_path_for_export_timing);
         let mut changed = false;
         for path in pending {
             if exported.contains(&path) {
@@ -377,23 +380,23 @@ pub(crate) fn export_principal_binding(
 ) -> Option<typed_ir::PrincipalBinding> {
     let body = state.principal_bodies.get(&def)?;
     let mut profile = profile;
-    prefill_binding_bounds_cache(state, body, base_bounds_cache);
     if let Some(scheme) = state.runtime_export_schemes.get(&def) {
         let relevant_vars = collect_runtime_scheme_body_type_vars(scheme);
+        let body = ExprExporter::new(
+            state,
+            globals,
+            principal_scheme_cache,
+            base_bounds_cache,
+            complete_principal_cache,
+            profile.as_deref_mut(),
+            relevant_vars,
+            edge_evidence,
+        )
+        .export_expr(body);
         return Some(typed_ir::PrincipalBinding {
             name: export_path(path),
             scheme: scheme.clone(),
-            body: ExprExporter::new(
-                state,
-                globals,
-                principal_scheme_cache,
-                base_bounds_cache,
-                complete_principal_cache,
-                profile.as_deref_mut(),
-                relevant_vars,
-                edge_evidence,
-            )
-            .export_expr(body),
+            body,
         });
     }
     let frozen_scheme = state.infer.frozen_schemes.borrow().get(&def).cloned();
@@ -448,32 +451,22 @@ pub(crate) fn export_principal_binding(
             )
         }
     };
+    let body = ExprExporter::new(
+        state,
+        globals,
+        principal_scheme_cache,
+        base_bounds_cache,
+        complete_principal_cache,
+        profile.as_deref_mut(),
+        relevant_vars,
+        edge_evidence,
+    )
+    .export_expr(body);
     Some(typed_ir::PrincipalBinding {
         name: export_path(path),
         scheme,
-        body: ExprExporter::new(
-            state,
-            globals,
-            principal_scheme_cache,
-            base_bounds_cache,
-            complete_principal_cache,
-            profile.as_deref_mut(),
-            relevant_vars,
-            edge_evidence,
-        )
-        .export_expr(body),
+        body,
     })
-}
-
-fn prefill_binding_bounds_cache(
-    state: &LowerState,
-    body: &TypedExpr,
-    base_bounds_cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
-) {
-    let mut vars = HashSet::new();
-    collect_expr_export_type_vars(body, &mut vars);
-    let vars = vars.into_iter().collect::<Vec<_>>();
-    extend_export_type_bounds_cache_for_tvs(&state.infer, &vars, base_bounds_cache);
 }
 
 fn collect_runtime_scheme_body_type_vars(scheme: &typed_ir::Scheme) -> BTreeSet<typed_ir::TypeVar> {

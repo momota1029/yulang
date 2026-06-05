@@ -38,8 +38,7 @@ fn cached_std_compiled_unit_artifact_bundle() -> &'static CompiledUnitArtifactBu
             },
         )
         .expect("std artifact probe source should collect");
-        let mut lowered = lower_source_set(&source_set);
-        lowered.state.finalize_compact_results_profiled();
+        let lowered = lower_source_set(&source_set);
         let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
         let std_artifacts = artifacts
             .into_iter()
@@ -53,7 +52,25 @@ fn cached_std_compiled_unit_semantic_artifact_bundle() -> &'static CompiledUnitS
 {
     static BUNDLE: OnceLock<CompiledUnitSemanticArtifactBundle> = OnceLock::new();
     BUNDLE.get_or_init(|| {
-        CompiledUnitSemanticArtifactBundle::from(cached_std_compiled_unit_artifact_bundle())
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let source_set = collect_virtual_source_files_with_options(
+            "(each 1..3 + each 1..3).list\n",
+            Some(repo_root),
+            yulang_sources::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("std semantic artifact probe source should collect");
+        let lowered = lower_source_set(&source_set);
+        let artifacts = build_compiled_typed_artifacts(&source_set, &lowered.state);
+        let std_artifacts = artifacts
+            .into_iter()
+            .filter(|artifact| artifact.manifest.origin == SourceCompilationUnitOrigin::Std)
+            .collect::<Vec<_>>();
+        build_compiled_unit_semantic_artifact_bundle_from_typed_artifacts(&std_artifacts)
     })
 }
 
@@ -2584,23 +2601,18 @@ fn compiled_std_artifact_import_keeps_effectful_guard_constraints() {
             },
         )
         .unwrap();
-        let bundle = cached_std_compiled_unit_artifact_bundle();
-        let mut imported = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-            &source_set,
-            bundle,
-        );
-        imported.lowered.lowered.state.finalize_compact_results();
+        let bundle = cached_std_compiled_unit_semantic_artifact_bundle();
+        let mut imported =
+            lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+                &source_set,
+                bundle,
+            );
+        imported.lowered.state.finalize_compact_results();
 
         assert!(
-            imported
-                .lowered
-                .lowered
-                .state
-                .infer
-                .type_errors()
-                .is_empty(),
+            imported.lowered.state.infer.type_errors().is_empty(),
             "cached std artifact import should preserve effectful guard constraints: {:?}",
-            imported.lowered.lowered.state.infer.type_errors()
+            imported.lowered.state.infer.type_errors()
         );
     });
 }

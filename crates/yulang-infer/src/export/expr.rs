@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::time::Duration;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -28,8 +27,8 @@ use crate::symbols::{Name, Path};
 use super::apply_principal::{
     ApplySlotBounds, CompletePrincipalCache, CompletePrincipalStepProfile,
     complete_apply_principal_evidence_from_slot_bounds_cached_profiled,
-    complete_coerce_principal_evidence, residual_apply_principal_scheme_cached,
-    substitute_core_type,
+    complete_coerce_principal_evidence, lightweight_coerce_principal_evidence,
+    residual_apply_principal_scheme_cached, substitute_core_type,
 };
 use super::evidence::ExpectedEdgeEvidence;
 use super::names::{export_name, export_path};
@@ -39,7 +38,8 @@ use super::spine::{collect_apply_spine_with_apps, strip_transparent_wrappers};
 use super::type_props::substitution_type_usable;
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds_with_expected_arg,
-    export_compact_type_bounds, export_relevant_type_bounds_for_tv_cached, export_scheme,
+    export_compact_type_bounds, export_direct_upper_fun_bounds_for_tv,
+    export_relevant_type_bounds_for_tv_cached, export_scheme,
 };
 
 pub fn export_expr(
@@ -141,162 +141,6 @@ fn collect_pattern_local_defs(pat: &TypedPat, out: &mut Vec<DefId>) {
             }
         }
         PatKind::Wild | PatKind::Lit(_) | PatKind::UnresolvedName(_) => {}
-    }
-}
-
-pub(super) fn collect_expr_export_type_vars(expr: &TypedExpr, vars: &mut HashSet<TypeVar>) {
-    vars.insert(expr.tv);
-    vars.insert(expr.eff);
-    match &expr.kind {
-        ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Var(_) | ExprKind::Ref(_) => {}
-        ExprKind::App {
-            callee,
-            arg,
-            expected_callee_tv,
-            expected_arg_tv,
-            ..
-        } => {
-            vars.insert(*expected_callee_tv);
-            vars.insert(*expected_arg_tv);
-            collect_expr_export_type_vars(callee, vars);
-            collect_expr_export_type_vars(arg, vars);
-        }
-        ExprKind::RefSet { reference, value } => {
-            collect_expr_export_type_vars(reference, vars);
-            collect_expr_export_type_vars(value, vars);
-        }
-        ExprKind::Lam(_, body) | ExprKind::PackForall(_, body) => {
-            collect_expr_export_type_vars(body, vars);
-        }
-        ExprKind::Tuple(items) | ExprKind::PolyVariant(_, items, _) => {
-            for item in items {
-                collect_expr_export_type_vars(item, vars);
-            }
-        }
-        ExprKind::Record { fields, spread } => {
-            for (_, value) in fields {
-                collect_expr_export_type_vars(value, vars);
-            }
-            if let Some(spread) = spread {
-                match spread {
-                    RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
-                        collect_expr_export_type_vars(expr, vars);
-                    }
-                }
-            }
-        }
-        ExprKind::Select { recv, .. } => collect_expr_export_type_vars(recv, vars),
-        ExprKind::Match(scrutinee, arms) => {
-            collect_expr_export_type_vars(scrutinee, vars);
-            for arm in arms {
-                collect_pat_export_type_vars(&arm.pat, vars);
-                if let Some(guard) = &arm.guard {
-                    collect_expr_export_type_vars(guard, vars);
-                }
-                collect_expr_export_type_vars(&arm.body, vars);
-            }
-        }
-        ExprKind::Catch(body, arms) => {
-            collect_expr_export_type_vars(body, vars);
-            for arm in arms {
-                vars.insert(arm.tv);
-                if let Some(guard) = &arm.guard {
-                    collect_expr_export_type_vars(guard, vars);
-                }
-                match &arm.kind {
-                    CatchArmKind::Value(pat, body) => {
-                        collect_pat_export_type_vars(pat, vars);
-                        collect_expr_export_type_vars(body, vars);
-                    }
-                    CatchArmKind::Effect { pat, body, .. } => {
-                        collect_pat_export_type_vars(pat, vars);
-                        collect_expr_export_type_vars(body, vars);
-                    }
-                }
-            }
-        }
-        ExprKind::Block(block) => collect_block_export_type_vars(block, vars),
-        ExprKind::BindHere(expr) => collect_expr_export_type_vars(expr, vars),
-        ExprKind::Coerce {
-            actual_tv,
-            expected_tv,
-            expr,
-            ..
-        } => {
-            vars.insert(*actual_tv);
-            vars.insert(*expected_tv);
-            collect_expr_export_type_vars(expr, vars);
-        }
-    }
-}
-
-fn collect_block_export_type_vars(block: &TypedBlock, vars: &mut HashSet<TypeVar>) {
-    vars.insert(block.tv);
-    vars.insert(block.eff);
-    for stmt in &block.stmts {
-        match stmt {
-            TypedStmt::Let(pat, value) => {
-                collect_pat_export_type_vars(pat, vars);
-                collect_expr_export_type_vars(value, vars);
-            }
-            TypedStmt::Expr(expr) => collect_expr_export_type_vars(expr, vars),
-            TypedStmt::Module(_, block) => collect_block_export_type_vars(block, vars),
-        }
-    }
-    if let Some(tail) = &block.tail {
-        collect_expr_export_type_vars(tail, vars);
-    }
-}
-
-fn collect_pat_export_type_vars(pat: &TypedPat, vars: &mut HashSet<TypeVar>) {
-    vars.insert(pat.tv);
-    match &pat.kind {
-        PatKind::Wild | PatKind::Lit(_) | PatKind::UnresolvedName(_) => {}
-        PatKind::Tuple(items) | PatKind::PolyVariant(_, items) => {
-            for item in items {
-                collect_pat_export_type_vars(item, vars);
-            }
-        }
-        PatKind::List {
-            prefix,
-            spread,
-            suffix,
-        } => {
-            for item in prefix {
-                collect_pat_export_type_vars(item, vars);
-            }
-            if let Some(spread) = spread {
-                collect_pat_export_type_vars(spread, vars);
-            }
-            for item in suffix {
-                collect_pat_export_type_vars(item, vars);
-            }
-        }
-        PatKind::Record { spread, fields } => {
-            if let Some(spread) = spread {
-                match spread {
-                    RecordPatSpread::Head(pat) | RecordPatSpread::Tail(pat) => {
-                        collect_pat_export_type_vars(pat, vars);
-                    }
-                }
-            }
-            for field in fields {
-                collect_pat_export_type_vars(&field.pat, vars);
-                if let Some(default) = &field.default {
-                    collect_expr_export_type_vars(default, vars);
-                }
-            }
-        }
-        PatKind::Con(_, payload) => {
-            if let Some(payload) = payload {
-                collect_pat_export_type_vars(payload, vars);
-            }
-        }
-        PatKind::Or(left, right) => {
-            collect_pat_export_type_vars(left, vars);
-            collect_pat_export_type_vars(right, vars);
-        }
-        PatKind::As(pat, _) => collect_pat_export_type_vars(pat, vars),
     }
 }
 
@@ -419,6 +263,15 @@ impl<'a> ExprExporter<'a> {
         }
         self.relevant_bounds_cache.insert(tv, bounds.clone());
         bounds
+    }
+
+    fn export_expected_callee_bounds(&mut self, tv: TypeVar) -> (typed_ir::TypeBounds, bool) {
+        if let Some(bounds) =
+            export_direct_upper_fun_bounds_for_tv(&self.state.infer, tv, &self.relevant_vars)
+        {
+            return (bounds, true);
+        }
+        (self.export_relevant_bounds_for_tv(tv), false)
     }
 
     pub(super) fn export_expr(&mut self, expr: &TypedExpr) -> typed_ir::Expr {
@@ -599,79 +452,31 @@ impl<'a> ExprExporter<'a> {
                 actual_tv,
                 expected_tv,
                 expr,
-            } => self
-                .export_user_cast_boundary(*edge_id, *actual_tv, *expected_tv, expr)
-                .unwrap_or_else(|| {
-                    let edge_kind = self.lookup_edge_evidence(*edge_id).map(|edge| edge.kind);
-                    if edge_kind != Some(crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce)
-                    {
-                        let mut evidence = complete_coerce_principal_evidence(
-                            &self.state.infer,
-                            *edge_id,
-                            *actual_tv,
-                            *expected_tv,
-                        );
-                        evidence.source_edge = None;
-                        return typed_ir::Expr::Coerce {
-                            expr: Box::new(self.export_expr(expr)),
-                            evidence: Some(evidence),
-                        };
-                    }
+            } => {
+                let edge_kind = self.lookup_edge_evidence(*edge_id).map(|edge| edge.kind);
+                if edge_kind != Some(crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce) {
                     typed_ir::Expr::Coerce {
                         expr: Box::new(self.export_expr(expr)),
-                        evidence: Some(complete_coerce_principal_evidence(
-                            &self.state.infer,
-                            *edge_id,
-                            *actual_tv,
-                            *expected_tv,
-                        )),
+                        evidence: Some(lightweight_coerce_principal_evidence()),
                     }
-                }),
+                } else {
+                    let evidence = complete_coerce_principal_evidence(
+                        &self.state.infer,
+                        *edge_id,
+                        *actual_tv,
+                        *expected_tv,
+                    );
+                    typed_ir::Expr::Coerce {
+                        expr: Box::new(self.export_expr(expr)),
+                        evidence: Some(evidence),
+                    }
+                }
+            }
             ExprKind::PackForall(var, expr) => typed_ir::Expr::Pack {
                 var: typed_ir::TypeVar(format!("t{}", var.0)),
                 expr: Box::new(self.export_expr(expr)),
             },
         }
-    }
-
-    fn export_user_cast_boundary(
-        &mut self,
-        edge_id: Option<ExpectedEdgeId>,
-        actual_tv: TypeVar,
-        expected_tv: TypeVar,
-        expr: &TypedExpr,
-    ) -> Option<typed_ir::Expr> {
-        let edge = self.lookup_edge_evidence(edge_id)?;
-        if edge.kind == crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce {
-            return None;
-        }
-        let arg_bounds = edge.actual.clone();
-        let result_bounds = edge.expected.clone();
-        let def = self
-            .state
-            .infer
-            .resolve_cast_method_def(actual_tv, expected_tv)?;
-        let def = canonical_runtime_export_def(self.state, def);
-        let callee_tv = self.state.def_tvs.get(&def).copied().unwrap_or(expected_tv);
-        let arg = self.export_expr(expr);
-        Some(typed_ir::Expr::Apply {
-            callee: Box::new(typed_ir::Expr::Var(self.path_for_def(def))),
-            arg: Box::new(arg),
-            evidence: Some(typed_ir::ApplyEvidence {
-                callee_source_edge: None,
-                arg_source_edge: None,
-                callee: self.export_relevant_bounds_for_tv(callee_tv),
-                expected_callee: None,
-                arg: arg_bounds.clone(),
-                expected_arg: Some(arg_bounds),
-                result: result_bounds,
-                principal_callee: None,
-                substitutions: Vec::new(),
-                substitution_candidates: Vec::new(),
-                role_method: true,
-                principal_elaboration: None,
-            }),
-        })
     }
 
     fn export_ref_field_projection(
@@ -788,7 +593,8 @@ impl<'a> ExprExporter<'a> {
             profile.applies += 1;
         }
         let role_method = self.is_role_method_callee(callee);
-        let expected_callee = self.export_relevant_bounds_for_tv(expected_callee_tv);
+        let (expected_callee, expected_callee_is_direct) =
+            self.export_expected_callee_bounds(expected_callee_tv);
         let expected_arg = self.export_relevant_bounds_for_tv(expected_arg_tv);
         let mut evidence = if coalesce_apply_evidence_enabled() {
             let t = ExprExportClock::now(self.profile.is_some());
@@ -822,7 +628,9 @@ impl<'a> ExprExporter<'a> {
             typed_ir::ApplyEvidence {
                 callee_source_edge: callee_source_edge.map(|id| id.0),
                 arg_source_edge: arg_source_edge.map(|id| id.0),
-                callee: if self.relevant_vars.is_empty() && !role_method {
+                callee: if !role_method
+                    && (self.relevant_vars.is_empty() || expected_callee_is_direct)
+                {
                     typed_ir::TypeBounds::default()
                 } else {
                     self.export_relevant_bounds_for_tv(callee.tv)
@@ -830,7 +638,14 @@ impl<'a> ExprExporter<'a> {
                 expected_callee: Some(expected_callee),
                 arg: self.export_relevant_bounds_for_tv(arg.tv),
                 expected_arg: Some(expected_arg),
-                result: self.export_relevant_bounds_for_tv(result.tv),
+                result: {
+                    if !role_method && (self.relevant_vars.is_empty() || expected_callee_is_direct)
+                    {
+                        typed_ir::TypeBounds::default()
+                    } else {
+                        self.export_relevant_bounds_for_tv(result.tv)
+                    }
+                },
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -866,8 +681,13 @@ impl<'a> ExprExporter<'a> {
             }
             if let Some(principal_scheme) = principal_scheme {
                 evidence.principal_callee = Some(principal_scheme.body.clone());
+                let slot_callee = if type_bounds_empty(&evidence.callee) {
+                    evidence.expected_callee.clone().unwrap_or_default()
+                } else {
+                    evidence.callee.clone()
+                };
                 let slot_bounds = ApplySlotBounds {
-                    callee: evidence.callee.clone(),
+                    callee: slot_callee,
                     arg: evidence.arg.clone(),
                     result: evidence.result.clone(),
                 };

@@ -11,9 +11,9 @@ use crate::scc::{
     share_type_vars_within_sccs_with_refs_by_owner,
 };
 use crate::scheme::{
-    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
-    collect_var_levels, compact_pos_type,
-    freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
+    close_non_generic_vars_over_compact_scheme, collect_compact_role_constraint_free_vars,
+    collect_low_level_vars_in_scheme, collect_var_levels, compact_pos_type,
+    freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars,
 };
 use crate::simplify::compact::{
     CompactType, CompactTypeScheme, coalesce_nested_tail_function_effect_residuals_in_scheme,
@@ -21,6 +21,7 @@ use crate::simplify::compact::{
 };
 use crate::simplify::cooccur::{
     CoalesceRound, CompactRoleConstraint,
+    coalesce_by_co_occurrence_with_role_constraint_input_candidates_report,
     coalesce_by_co_occurrence_with_role_constraint_inputs_report, rewrite_scheme_with_subst,
 };
 use crate::simplify::role_constraints::rewrite_role_constraints_with_role_arg_inputs;
@@ -204,7 +205,8 @@ impl LowerState {
         let boundary = self.infer.def_level_of(def);
         let mut non_generic = collect_low_level_vars_in_scheme(&self.infer, &scheme, boundary);
         non_generic.extend(exposed_boundary_vars);
-        let frozen = freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
+        close_non_generic_vars_over_compact_scheme(&scheme, &mut non_generic);
+        let frozen = freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars(
             &self.infer,
             scheme.clone(),
             extra_quantified.as_slice(),
@@ -400,12 +402,14 @@ impl LowerState {
         // (boundary = def_level + 1) では simplify 対象外で残る。ここで boundary 0 の
         // グローバル相当 simplify を一度かけ、共起する変数を中心変数へ畳む。
         {
-            let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
+            let candidate_vars = role_constraint_projection_candidate_vars(&constraints);
+            let coalesced = coalesce_by_co_occurrence_with_role_constraint_input_candidates_report(
                 &scheme,
                 &constraints,
                 |role| self.role_arg_input_flags(role),
                 &std::collections::HashMap::new(),
                 0,
+                &candidate_vars,
             );
             if options.rewrite_effect_metadata {
                 for round in &coalesced.rounds {
@@ -460,13 +464,16 @@ impl LowerState {
                 constraints =
                     apply_role_output_replacements_to_constraints(&constraints, &concretizations);
                 self.apply_role_output_replacements_to_descendant_results(def, &concretizations);
-                let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
-                    &scheme,
-                    &constraints,
-                    |role| self.role_arg_input_flags(role),
-                    &std::collections::HashMap::new(),
-                    0,
-                );
+                let candidate_vars = role_constraint_projection_candidate_vars(&constraints);
+                let rewritten =
+                    coalesce_by_co_occurrence_with_role_constraint_input_candidates_report(
+                        &scheme,
+                        &constraints,
+                        |role| self.role_arg_input_flags(role),
+                        &std::collections::HashMap::new(),
+                        0,
+                        &candidate_vars,
+                    );
                 if options.rewrite_effect_metadata {
                     for round in &rewritten.rounds {
                         self.infer
@@ -658,13 +665,16 @@ impl LowerState {
                 remaining =
                     apply_role_output_replacements_to_constraints(&remaining, &replacements);
                 self.apply_role_output_replacements_to_descendant_results(def, &replacements);
-                let rewritten = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
-                    &scheme,
-                    &remaining,
-                    |role| self.role_arg_input_flags(role),
-                    &std::collections::HashMap::new(),
-                    0,
-                );
+                let candidate_vars = role_constraint_projection_candidate_vars(&remaining);
+                let rewritten =
+                    coalesce_by_co_occurrence_with_role_constraint_input_candidates_report(
+                        &scheme,
+                        &remaining,
+                        |role| self.role_arg_input_flags(role),
+                        &std::collections::HashMap::new(),
+                        0,
+                        &candidate_vars,
+                    );
                 if options.rewrite_effect_metadata {
                     for round in &rewritten.rounds {
                         self.infer
@@ -701,7 +711,19 @@ impl LowerState {
         let stripped = self.strip_transparent_expansive_wrappers(body);
         !self.is_syntactic_value_expr(stripped)
     }
+}
 
+fn role_constraint_projection_candidate_vars(
+    constraints: &[CompactRoleConstraint],
+) -> HashSet<TypeVar> {
+    constraints
+        .iter()
+        .flat_map(|constraint| constraint.args.iter())
+        .filter_map(projection_target_var)
+        .collect()
+}
+
+impl LowerState {
     fn apply_role_output_replacements_to_live_graph(
         &mut self,
         replacements: &[(TypeVar, CompactType)],

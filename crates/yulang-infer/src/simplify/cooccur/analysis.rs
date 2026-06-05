@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::ids::TypeVar;
 use crate::simplify::compact::CompactRecordSpread;
@@ -14,14 +14,25 @@ pub(super) fn analyze_co_occurrences_with_role_constraints(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
 ) -> CoOccurrences {
+    analyze_co_occurrences_with_role_constraints_for_vars(scheme, constraints, None)
+}
+
+pub(super) fn analyze_co_occurrences_with_role_constraints_for_vars(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    record_vars: Option<&HashSet<TypeVar>>,
+) -> CoOccurrences {
     let mut analysis = CoOccurrences::default();
     let mut expanded = HashSet::new();
+    let mut exact_keys = ExactKeyCache::default();
     visit_compact_type(
         scheme,
         &scheme.cty.lower,
         true,
         &mut expanded,
         &mut analysis,
+        &mut exact_keys,
+        record_vars,
     );
     // Root upper vars are not counted as negative occurrences directly.
     // Doing so keeps otherwise-unconstrained root vars alive and renders
@@ -32,10 +43,19 @@ pub(super) fn analyze_co_occurrences_with_role_constraints(
         false,
         &mut expanded,
         &mut analysis,
+        &mut exact_keys,
+        record_vars,
     );
     for constraint in constraints {
         for arg in &constraint.args {
-            visit_bounds(scheme, arg, &mut expanded, &mut analysis);
+            visit_bounds(
+                scheme,
+                arg,
+                &mut expanded,
+                &mut analysis,
+                &mut exact_keys,
+                record_vars,
+            );
         }
     }
     analysis
@@ -46,10 +66,30 @@ fn visit_bounds(
     bounds: &CompactBounds,
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
 ) {
     let centers = center_vars(bounds);
-    visit_compact_type_with_extra_vars(scheme, &bounds.lower, true, &centers, expanded, analysis);
-    visit_compact_type_with_extra_vars(scheme, &bounds.upper, false, &centers, expanded, analysis);
+    visit_compact_type_with_extra_vars(
+        scheme,
+        &bounds.lower,
+        true,
+        &centers,
+        expanded,
+        analysis,
+        exact_keys,
+        record_vars,
+    );
+    visit_compact_type_with_extra_vars(
+        scheme,
+        &bounds.upper,
+        false,
+        &centers,
+        expanded,
+        analysis,
+        exact_keys,
+        record_vars,
+    );
 }
 
 fn visit_compact_type(
@@ -58,13 +98,37 @@ fn visit_compact_type(
     positive: bool,
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
 ) {
-    let group = along_group(ty);
+    let recordable = recordable_type_vars(ty.vars.iter().copied(), record_vars);
+    let group = if recordable.is_empty() {
+        None
+    } else {
+        Some(along_group(ty, exact_keys))
+    };
     for &tv in &ty.vars {
-        record_var_occurrence(scheme, tv, positive, &group, expanded, analysis);
+        visit_var_occurrence(
+            scheme,
+            tv,
+            positive,
+            group.as_ref(),
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
 
-    visit_compact_type_children(scheme, ty, positive, expanded, analysis);
+    visit_compact_type_children(
+        scheme,
+        ty,
+        positive,
+        expanded,
+        analysis,
+        exact_keys,
+        record_vars,
+    );
 }
 
 fn visit_compact_type_with_extra_vars(
@@ -74,14 +138,39 @@ fn visit_compact_type_with_extra_vars(
     extra_vars: &HashSet<TypeVar>,
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
 ) {
-    let mut group = along_group(ty);
-    group.extend(extra_vars.iter().copied().map(AlongItem::Var));
+    let recordable = recordable_type_vars(ty.vars.iter().chain(extra_vars).copied(), record_vars);
+    let group = if recordable.is_empty() {
+        None
+    } else {
+        let mut group = along_group(ty, exact_keys);
+        group.extend(extra_vars.iter().copied().map(AlongItem::Var));
+        Some(group)
+    };
     for &tv in ty.vars.iter().chain(extra_vars.iter()) {
-        record_var_occurrence(scheme, tv, positive, &group, expanded, analysis);
+        visit_var_occurrence(
+            scheme,
+            tv,
+            positive,
+            group.as_ref(),
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
 
-    visit_compact_type_children(scheme, ty, positive, expanded, analysis);
+    visit_compact_type_children(
+        scheme,
+        ty,
+        positive,
+        expanded,
+        analysis,
+        exact_keys,
+        record_vars,
+    );
 }
 
 pub(super) fn visit_compact_type_children(
@@ -90,48 +179,148 @@ pub(super) fn visit_compact_type_children(
     positive: bool,
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
 ) {
     for con in &ty.cons {
         for arg in &con.args {
-            visit_bounds(scheme, arg, expanded, analysis);
+            visit_bounds(scheme, arg, expanded, analysis, exact_keys, record_vars);
         }
     }
     for fun in &ty.funs {
-        visit_compact_type(scheme, &fun.arg, !positive, expanded, analysis);
-        visit_compact_type(scheme, &fun.arg_eff, !positive, expanded, analysis);
-        visit_compact_type(scheme, &fun.ret_eff, positive, expanded, analysis);
-        visit_compact_type(scheme, &fun.ret, positive, expanded, analysis);
+        visit_compact_type(
+            scheme,
+            &fun.arg,
+            !positive,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
+        visit_compact_type(
+            scheme,
+            &fun.arg_eff,
+            !positive,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
+        visit_compact_type(
+            scheme,
+            &fun.ret_eff,
+            positive,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
+        visit_compact_type(
+            scheme,
+            &fun.ret,
+            positive,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
     for record in &ty.records {
         for field in &record.fields {
-            visit_compact_type(scheme, &field.value, positive, expanded, analysis);
+            visit_compact_type(
+                scheme,
+                &field.value,
+                positive,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            visit_compact_type(scheme, &field.value, positive, expanded, analysis);
+            visit_compact_type(
+                scheme,
+                &field.value,
+                positive,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
         }
-        visit_compact_type(scheme, &spread.tail, positive, expanded, analysis);
+        visit_compact_type(
+            scheme,
+            &spread.tail,
+            positive,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                visit_compact_type(scheme, payload, positive, expanded, analysis);
+                visit_compact_type(
+                    scheme,
+                    payload,
+                    positive,
+                    expanded,
+                    analysis,
+                    exact_keys,
+                    record_vars,
+                );
             }
         }
     }
     for tuple in &ty.tuples {
         for item in tuple {
-            visit_compact_type(scheme, item, positive, expanded, analysis);
+            visit_compact_type(
+                scheme,
+                item,
+                positive,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
         }
     }
     for row in &ty.rows {
-        let group = row_along_group(row);
-        visit_row_tail_vars_in_group(scheme, &row.tail, positive, &group, expanded, analysis);
+        let group = row_tail_has_recordable_vars(&row.tail, record_vars)
+            .then(|| row_along_group(row, exact_keys));
+        visit_row_tail_vars(
+            scheme,
+            &row.tail,
+            positive,
+            group.as_ref(),
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
         for item in &row.items {
-            visit_compact_type(scheme, item, positive, expanded, analysis);
+            visit_compact_type(
+                scheme,
+                item,
+                positive,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
         }
-        visit_compact_type(scheme, &row.tail, positive, expanded, analysis);
+        visit_compact_type(
+            scheme,
+            &row.tail,
+            positive,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
 }
 
@@ -149,11 +338,9 @@ fn center_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
 }
 
 fn record_var_occurrence(
-    scheme: &CompactTypeScheme,
     tv: TypeVar,
     positive: bool,
     group: &HashSet<AlongItem>,
-    expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
 ) {
     let map = if positive {
@@ -167,6 +354,23 @@ fn record_var_occurrence(
             map.insert(tv, group.clone());
         }
     }
+}
+
+fn visit_var_occurrence(
+    scheme: &CompactTypeScheme,
+    tv: TypeVar,
+    positive: bool,
+    group: Option<&HashSet<AlongItem>>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
+) {
+    if record_var_is_recordable(tv, record_vars)
+        && let Some(group) = group
+    {
+        record_var_occurrence(tv, positive, group, analysis);
+    }
     if expanded.insert((tv, positive)) {
         if let Some(bounds) = scheme.rec_vars.get(&tv) {
             let recur = if positive {
@@ -174,39 +378,88 @@ fn record_var_occurrence(
             } else {
                 &bounds.upper
             };
-            visit_compact_type(scheme, recur, positive, expanded, analysis);
+            visit_compact_type(
+                scheme,
+                recur,
+                positive,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
         }
     }
 }
 
-fn visit_row_tail_vars_in_group(
+fn visit_row_tail_vars(
     scheme: &CompactTypeScheme,
     ty: &CompactType,
     positive: bool,
-    group: &HashSet<AlongItem>,
+    group: Option<&HashSet<AlongItem>>,
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
 ) {
     for &tv in &ty.vars {
-        record_var_occurrence(scheme, tv, positive, group, expanded, analysis);
+        visit_var_occurrence(
+            scheme,
+            tv,
+            positive,
+            group,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
     for row in &ty.rows {
-        visit_row_tail_vars_in_group(scheme, &row.tail, positive, group, expanded, analysis);
+        visit_row_tail_vars(
+            scheme,
+            &row.tail,
+            positive,
+            group,
+            expanded,
+            analysis,
+            exact_keys,
+            record_vars,
+        );
     }
 }
 
-fn along_group(ty: &CompactType) -> HashSet<AlongItem> {
+fn recordable_type_vars(
+    vars: impl IntoIterator<Item = TypeVar>,
+    record_vars: Option<&HashSet<TypeVar>>,
+) -> Vec<TypeVar> {
+    vars.into_iter()
+        .filter(|tv| record_var_is_recordable(*tv, record_vars))
+        .collect()
+}
+
+fn record_var_is_recordable(tv: TypeVar, record_vars: Option<&HashSet<TypeVar>>) -> bool {
+    record_vars.is_none_or(|vars| vars.contains(&tv))
+}
+
+fn along_group(ty: &CompactType, exact_keys: &mut ExactKeyCache) -> HashSet<AlongItem> {
     let mut out = HashSet::new();
     out.extend(ty.vars.iter().copied().map(AlongItem::Var));
-    out.extend(exact_group(ty).into_iter().map(AlongItem::Exact));
+    out.extend(
+        exact_group(ty, exact_keys)
+            .into_iter()
+            .map(AlongItem::Exact),
+    );
     out
 }
 
-fn row_along_group(row: &CompactRow) -> HashSet<AlongItem> {
+fn row_along_group(row: &CompactRow, exact_keys: &mut ExactKeyCache) -> HashSet<AlongItem> {
     let mut out = HashSet::new();
     collect_row_tail_vars(&row.tail, &mut out);
     for item in &row.items {
-        out.extend(exact_group(item).into_iter().map(AlongItem::Exact));
+        out.extend(
+            exact_group(item, exact_keys)
+                .into_iter()
+                .map(AlongItem::Exact),
+        );
     }
     out
 }
@@ -218,35 +471,86 @@ fn collect_row_tail_vars(ty: &CompactType, out: &mut HashSet<AlongItem>) {
     }
 }
 
-fn exact_group(ty: &CompactType) -> HashSet<ExactKey> {
+fn row_tail_has_recordable_vars(ty: &CompactType, record_vars: Option<&HashSet<TypeVar>>) -> bool {
+    ty.vars
+        .iter()
+        .copied()
+        .any(|tv| record_var_is_recordable(tv, record_vars))
+        || ty
+            .rows
+            .iter()
+            .any(|row| row_tail_has_recordable_vars(&row.tail, record_vars))
+}
+
+#[derive(Default)]
+pub(super) struct ExactKeyCache {
+    types: HashMap<usize, ExactKey>,
+    bounds: HashMap<usize, ExactKey>,
+}
+
+fn exact_group(ty: &CompactType, exact_keys: &mut ExactKeyCache) -> HashSet<ExactKey> {
     let mut out = HashSet::new();
     out.extend(ty.prims.iter().map(compact_prim_exact_key));
-    out.extend(ty.cons.iter().map(compact_con_exact_key));
-    out.extend(ty.funs.iter().map(compact_fun_exact_key));
-    out.extend(ty.records.iter().map(compact_record_exact_key));
+    out.extend(
+        ty.cons
+            .iter()
+            .map(|con| compact_con_exact_key(con, exact_keys)),
+    );
+    out.extend(
+        ty.funs
+            .iter()
+            .map(|fun| compact_fun_exact_key(fun, exact_keys)),
+    );
+    out.extend(
+        ty.records
+            .iter()
+            .map(|record| compact_record_exact_key(record, exact_keys)),
+    );
     out.extend(
         ty.record_spreads
             .iter()
-            .map(compact_record_spread_exact_key),
+            .map(|spread| compact_record_spread_exact_key(spread, exact_keys)),
     );
-    out.extend(ty.variants.iter().map(compact_variant_exact_key));
-    out.extend(ty.tuples.iter().map(|tuple| compact_tuple_exact_key(tuple)));
-    out.extend(ty.rows.iter().map(compact_row_exact_key));
+    out.extend(
+        ty.variants
+            .iter()
+            .map(|variant| compact_variant_exact_key(variant, exact_keys)),
+    );
+    out.extend(
+        ty.tuples
+            .iter()
+            .map(|tuple| compact_tuple_exact_key(tuple, exact_keys)),
+    );
+    out.extend(
+        ty.rows
+            .iter()
+            .map(|row| compact_row_exact_key(row, exact_keys)),
+    );
     out
 }
 
-fn compact_bounds_exact_key(bounds: &CompactBounds) -> ExactKey {
-    exact_key_from_hash(
+fn compact_bounds_exact_key(bounds: &CompactBounds, exact_keys: &mut ExactKeyCache) -> ExactKey {
+    let key = bounds as *const CompactBounds as usize;
+    if let Some(exact) = exact_keys.bounds.get(&key).copied() {
+        return exact;
+    }
+    let exact = exact_key_from_hash(
         ExactKeyKind::Other,
         (
             b'B',
-            compact_type_exact_key(&bounds.lower),
-            compact_type_exact_key(&bounds.upper),
+            compact_type_exact_key(&bounds.lower, exact_keys),
+            compact_type_exact_key(&bounds.upper, exact_keys),
         ),
-    )
+    );
+    exact_keys.bounds.insert(key, exact);
+    exact
 }
 
-fn compact_type_exact_key(ty: &CompactType) -> ExactKey {
+fn compact_type_exact_key(ty: &CompactType, exact_keys: &mut ExactKeyCache) -> ExactKey {
+    let key = ty as *const CompactType as usize;
+    if let Some(exact) = exact_keys.types.get(&key).copied() {
+        return exact;
+    }
     let mut vars = ty.vars.iter().map(|tv| tv.0).collect::<Vec<_>>();
     vars.sort_unstable();
     let mut prims = ty
@@ -258,46 +562,46 @@ fn compact_type_exact_key(ty: &CompactType) -> ExactKey {
     let mut cons = ty
         .cons
         .iter()
-        .map(compact_con_exact_key)
+        .map(|con| compact_con_exact_key(con, exact_keys))
         .collect::<Vec<_>>();
     cons.sort();
     let mut funs = ty
         .funs
         .iter()
-        .map(compact_fun_exact_key)
+        .map(|fun| compact_fun_exact_key(fun, exact_keys))
         .collect::<Vec<_>>();
     funs.sort();
     let mut records = ty
         .records
         .iter()
-        .map(compact_record_exact_key)
+        .map(|record| compact_record_exact_key(record, exact_keys))
         .collect::<Vec<_>>();
     records.sort();
     let mut record_spreads = ty
         .record_spreads
         .iter()
-        .map(compact_record_spread_exact_key)
+        .map(|spread| compact_record_spread_exact_key(spread, exact_keys))
         .collect::<Vec<_>>();
     record_spreads.sort();
     let mut variants = ty
         .variants
         .iter()
-        .map(compact_variant_exact_key)
+        .map(|variant| compact_variant_exact_key(variant, exact_keys))
         .collect::<Vec<_>>();
     variants.sort();
     let mut tuples = ty
         .tuples
         .iter()
-        .map(|tuple| compact_tuple_exact_key(tuple))
+        .map(|tuple| compact_tuple_exact_key(tuple, exact_keys))
         .collect::<Vec<_>>();
     tuples.sort();
     let mut rows = ty
         .rows
         .iter()
-        .map(compact_row_exact_key)
+        .map(|row| compact_row_exact_key(row, exact_keys))
         .collect::<Vec<_>>();
     rows.sort();
-    exact_key_from_hash(
+    let exact = exact_key_from_hash(
         ExactKeyKind::Other,
         (
             b'T',
@@ -311,43 +615,45 @@ fn compact_type_exact_key(ty: &CompactType) -> ExactKey {
             tuples,
             rows,
         ),
-    )
+    );
+    exact_keys.types.insert(key, exact);
+    exact
 }
 
 fn compact_prim_exact_key(path: &Path) -> ExactKey {
     exact_key_from_hash(ExactKeyKind::Other, (b'P', path_key(path)))
 }
 
-fn compact_con_exact_key(con: &CompactCon) -> ExactKey {
+fn compact_con_exact_key(con: &CompactCon, exact_keys: &mut ExactKeyCache) -> ExactKey {
     let args = con
         .args
         .iter()
-        .map(compact_bounds_exact_key)
+        .map(|arg| compact_bounds_exact_key(arg, exact_keys))
         .collect::<Vec<_>>();
     exact_key_from_hash(ExactKeyKind::Other, (b'C', path_key(&con.path), args))
 }
 
-fn compact_fun_exact_key(fun: &CompactFun) -> ExactKey {
+fn compact_fun_exact_key(fun: &CompactFun, exact_keys: &mut ExactKeyCache) -> ExactKey {
     exact_key_from_hash(
         ExactKeyKind::Fun,
         (
             b'F',
-            compact_type_exact_key(&fun.arg),
-            compact_type_exact_key(&fun.arg_eff),
-            compact_type_exact_key(&fun.ret_eff),
-            compact_type_exact_key(&fun.ret),
+            compact_type_exact_key(&fun.arg, exact_keys),
+            compact_type_exact_key(&fun.arg_eff, exact_keys),
+            compact_type_exact_key(&fun.ret_eff, exact_keys),
+            compact_type_exact_key(&fun.ret, exact_keys),
         ),
     )
 }
 
-fn compact_record_exact_key(record: &CompactRecord) -> ExactKey {
+fn compact_record_exact_key(record: &CompactRecord, exact_keys: &mut ExactKeyCache) -> ExactKey {
     let mut fields = record
         .fields
         .iter()
         .map(|field| {
             (
                 format!("{}{}", field.name.0, if field.optional { "?" } else { "" }),
-                compact_type_exact_key(&field.value),
+                compact_type_exact_key(&field.value, exact_keys),
             )
         })
         .collect::<Vec<_>>();
@@ -355,14 +661,17 @@ fn compact_record_exact_key(record: &CompactRecord) -> ExactKey {
     exact_key_from_hash(ExactKeyKind::Other, (b'R', fields))
 }
 
-fn compact_record_spread_exact_key(spread: &CompactRecordSpread) -> ExactKey {
+fn compact_record_spread_exact_key(
+    spread: &CompactRecordSpread,
+    exact_keys: &mut ExactKeyCache,
+) -> ExactKey {
     let mut fields = spread
         .fields
         .iter()
         .map(|field| {
             (
                 format!("{}{}", field.name.0, if field.optional { "?" } else { "" }),
-                compact_type_exact_key(&field.value),
+                compact_type_exact_key(&field.value, exact_keys),
             )
         })
         .collect::<Vec<_>>();
@@ -373,12 +682,12 @@ fn compact_record_spread_exact_key(spread: &CompactRecordSpread) -> ExactKey {
             b'S',
             spread.tail_wins,
             fields,
-            compact_type_exact_key(&spread.tail),
+            compact_type_exact_key(&spread.tail, exact_keys),
         ),
     )
 }
 
-fn compact_variant_exact_key(variant: &CompactVariant) -> ExactKey {
+fn compact_variant_exact_key(variant: &CompactVariant, exact_keys: &mut ExactKeyCache) -> ExactKey {
     let mut items = variant
         .items
         .iter()
@@ -387,7 +696,7 @@ fn compact_variant_exact_key(variant: &CompactVariant) -> ExactKey {
                 name.0.clone(),
                 payloads
                     .iter()
-                    .map(compact_type_exact_key)
+                    .map(|payload| compact_type_exact_key(payload, exact_keys))
                     .collect::<Vec<_>>(),
             )
         })
@@ -396,16 +705,19 @@ fn compact_variant_exact_key(variant: &CompactVariant) -> ExactKey {
     exact_key_from_hash(ExactKeyKind::Other, (b'V', items))
 }
 
-fn compact_tuple_exact_key(tuple: &[CompactType]) -> ExactKey {
-    let items = tuple.iter().map(compact_type_exact_key).collect::<Vec<_>>();
+fn compact_tuple_exact_key(tuple: &[CompactType], exact_keys: &mut ExactKeyCache) -> ExactKey {
+    let items = tuple
+        .iter()
+        .map(|item| compact_type_exact_key(item, exact_keys))
+        .collect::<Vec<_>>();
     exact_key_from_hash(ExactKeyKind::Other, (b'U', items))
 }
 
-fn compact_row_exact_key(row: &CompactRow) -> ExactKey {
+fn compact_row_exact_key(row: &CompactRow, exact_keys: &mut ExactKeyCache) -> ExactKey {
     let mut items = row
         .items
         .iter()
-        .map(compact_type_exact_key)
+        .map(|item| compact_type_exact_key(item, exact_keys))
         .collect::<Vec<_>>();
     items.sort();
     exact_key_from_hash(

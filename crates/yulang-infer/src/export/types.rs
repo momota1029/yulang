@@ -8,7 +8,8 @@ use crate::display::format::{
 };
 use crate::ids::TypeVar;
 use crate::simplify::compact::{
-    CompactBounds, CompactType, CompactTypeScheme, merge_compact_bounds,
+    CompactBounds, CompactType, CompactTypeScheme, compact_neg_expr, compact_pos_expr,
+    merge_compact_bounds,
 };
 use crate::simplify::compact::{compact_type_var, compact_type_vars_in_order};
 use crate::simplify::cooccur::{
@@ -175,6 +176,51 @@ pub fn export_relevant_type_bounds_for_tv_cached(
         }
     };
     project_type_bounds(bounds, relevant_vars)
+}
+
+pub fn export_direct_upper_fun_bounds_for_tv(
+    infer: &Infer,
+    tv: TypeVar,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> Option<typed_ir::TypeBounds> {
+    infer.upper_refs_of(tv).into_iter().find_map(|upper| {
+        let Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } = infer.arena.get_neg(upper)
+        else {
+            return None;
+        };
+        let param = export_required_compact_side_type(&compact_pos_expr(infer, arg), true);
+        let param_effect =
+            export_required_compact_side_type(&compact_pos_expr(infer, arg_eff), true);
+        let ret_effect =
+            export_required_compact_side_type(&compact_neg_expr(infer, ret_eff), false);
+        let ret = export_required_compact_side_type(&compact_neg_expr(infer, ret), false);
+        Some(typed_ir::TypeBounds {
+            lower: None,
+            upper: Some(Box::new(typed_ir::Type::Fun {
+                param: Box::new(project_core_value_type_or_any(param, relevant_vars)),
+                param_effect: Box::new(project_core_effect_type_or_any(
+                    param_effect,
+                    relevant_vars,
+                )),
+                ret_effect: Box::new(project_core_effect_type_or_any(ret_effect, relevant_vars)),
+                ret: Box::new(project_core_value_type_or_any(ret, relevant_vars)),
+            })),
+        })
+    })
+}
+
+fn export_required_compact_side_type(ty: &CompactType, positive: bool) -> typed_ir::Type {
+    let scheme = CompactTypeScheme {
+        cty: CompactBounds::default(),
+        rec_vars: HashMap::new(),
+    };
+    let mut ctx = ExportTypeCtx::new(&scheme);
+    ctx.export_required_compact_side(ty, positive)
 }
 
 pub fn export_coalesced_apply_evidence_bounds(

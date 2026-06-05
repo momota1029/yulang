@@ -99,10 +99,46 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
     extra_quantified: &[TypeVar],
     non_generic_roots: &HashSet<TypeVar>,
 ) -> FrozenScheme {
+    freeze_compact_scheme_owned_with_non_generic_and_extra_vars_inner(
+        infer,
+        scheme,
+        extra_quantified,
+        non_generic_roots,
+        true,
+    )
+}
+
+pub(crate) fn freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars(
+    infer: &Infer,
+    scheme: CompactTypeScheme,
+    extra_quantified: &[TypeVar],
+    non_generic_vars: &HashSet<TypeVar>,
+) -> FrozenScheme {
+    freeze_compact_scheme_owned_with_non_generic_and_extra_vars_inner(
+        infer,
+        scheme,
+        extra_quantified,
+        non_generic_vars,
+        false,
+    )
+}
+
+fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars_inner(
+    infer: &Infer,
+    scheme: CompactTypeScheme,
+    extra_quantified: &[TypeVar],
+    non_generic_roots: &HashSet<TypeVar>,
+    expand_non_generic_roots: bool,
+) -> FrozenScheme {
     let mut quantified = collect_compact_root_body_free_vars(&scheme);
     quantified.extend_from_slice(extra_quantified);
-    let quantification =
-        prepare_freeze_quantification(infer, quantified, extra_quantified, non_generic_roots);
+    let quantification = prepare_freeze_quantification(
+        infer,
+        quantified,
+        extra_quantified,
+        non_generic_roots,
+        expand_non_generic_roots,
+    );
     let mut compact = if quantification.quantified_sources.is_empty() {
         scheme
     } else {
@@ -130,6 +166,25 @@ pub(crate) fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
     )
 }
 
+pub(crate) fn close_non_generic_vars_over_compact_scheme(
+    scheme: &CompactTypeScheme,
+    non_generic: &mut HashSet<TypeVar>,
+) {
+    let mut pending = non_generic.iter().copied().collect::<Vec<_>>();
+    while let Some(tv) = pending.pop() {
+        let Some(bounds) = scheme.rec_vars.get(&tv) else {
+            continue;
+        };
+        let mut free = Vec::new();
+        collect_compact_bounds_free_vars(bounds, &mut free);
+        for var in free {
+            if non_generic.insert(var) {
+                pending.push(var);
+            }
+        }
+    }
+}
+
 pub(crate) fn collect_compact_role_constraint_free_vars(
     constraints: &[CompactRoleConstraint],
 ) -> Vec<TypeVar> {
@@ -154,6 +209,7 @@ fn freeze_live_pos_body_with_non_generic(
         collect_pos_free_vars_in_arena(src_arena, body),
         &[],
         non_generic_roots,
+        true,
     );
     let scheme_arena: FrozenArena = Rc::new(TypeArena::new());
     let frozen_body = clone_pos_between_arenas_with_subst(
@@ -204,12 +260,17 @@ fn prepare_freeze_quantification(
     mut quantified: Vec<TypeVar>,
     forced_quantified: &[TypeVar],
     non_generic_roots: &HashSet<TypeVar>,
+    expand_non_generic_roots: bool,
 ) -> FreezeQuantification {
     infer.prune_resolved_effect_subtract_metadata();
     add_effect_metadata_free_vars(infer, &mut quantified);
     let forced_quantified = forced_quantified.iter().copied().collect::<HashSet<_>>();
     if !non_generic_roots.is_empty() {
-        let non_generic = collect_non_generic_vars(infer, non_generic_roots);
+        let non_generic = if expand_non_generic_roots {
+            collect_non_generic_vars(infer, non_generic_roots)
+        } else {
+            non_generic_roots.clone()
+        };
         quantified.retain(|tv| !non_generic.contains(tv) || forced_quantified.contains(tv));
     }
     quantified.sort_by_key(|tv| tv.0);

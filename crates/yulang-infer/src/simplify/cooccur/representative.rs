@@ -12,15 +12,19 @@ pub(super) fn lower_representatives_for_subst(
     rec_vars: &HashMap<TypeVar, CompactBounds>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
 ) -> HashMap<TypeVar, CompactType> {
-    let candidates = collect_lower_representatives(scheme, constraints, rec_vars);
+    let targets = subst
+        .iter()
+        .filter_map(|(&tv, replacement)| replacement.is_none().then_some(tv))
+        .collect::<HashSet<_>>();
+    if targets.is_empty() {
+        return HashMap::new();
+    }
+    let candidates = collect_lower_representatives(scheme, constraints, rec_vars, &targets);
     let mut representatives = HashMap::new();
-    let mut vars = subst.keys().copied().collect::<Vec<_>>();
+    let mut vars = targets.iter().copied().collect::<Vec<_>>();
     vars.sort_by_key(|tv| tv.0);
     for var in vars {
-        let representative = matches!(subst.get(&var), Some(None))
-            .then(|| candidates.get(&var).cloned())
-            .flatten();
-        if let Some(representative) = representative
+        if let Some(representative) = candidates.get(&var).cloned()
             && !is_empty_compact_type(&representative)
         {
             representatives.insert(var, representative);
@@ -33,10 +37,12 @@ fn collect_lower_representatives(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
     rec_vars: &HashMap<TypeVar, CompactBounds>,
+    targets: &HashSet<TypeVar>,
 ) -> HashMap<TypeVar, CompactType> {
     let mut ctx = RepresentativeContext {
         scheme,
         rec_vars,
+        targets,
         out: HashMap::new(),
         expanded: HashSet::new(),
     };
@@ -52,6 +58,7 @@ fn collect_lower_representatives(
 struct RepresentativeContext<'a> {
     scheme: &'a CompactTypeScheme,
     rec_vars: &'a HashMap<TypeVar, CompactBounds>,
+    targets: &'a HashSet<TypeVar>,
     out: HashMap<TypeVar, CompactType>,
     expanded: HashSet<(TypeVar, bool)>,
 }
@@ -63,11 +70,13 @@ impl RepresentativeContext<'_> {
     }
 
     fn collect_type(&mut self, ty: &CompactType, positive: bool) {
-        if positive {
+        if positive && ty.vars.iter().any(|tv| self.targets.contains(tv)) {
             let representative = concrete_representative_part(ty);
             if !is_empty_compact_type(&representative) {
                 for &tv in &ty.vars {
-                    self.add_representative(tv, representative.clone());
+                    if self.targets.contains(&tv) {
+                        self.add_representative(tv, representative.clone());
+                    }
                 }
             }
         }

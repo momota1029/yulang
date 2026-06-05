@@ -1,8 +1,9 @@
 use crate::ids::DefId;
 use crate::scheme::{
-    SmallSubst, collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
-    collect_var_levels, freeze_compact_scheme_owned_with_non_generic_and_extra_vars,
-    instantiate_as_view_with_subst,
+    SmallSubst, close_non_generic_vars_over_compact_scheme,
+    collect_compact_role_constraint_free_vars, collect_low_level_vars_in_scheme,
+    collect_var_levels, freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars,
+    freeze_compact_scheme_owned_with_non_generic_and_extra_vars, instantiate_as_view_with_subst,
 };
 use crate::simplify::compact::{
     coalesce_nested_tail_function_effect_residuals_in_scheme, compact_type_var,
@@ -98,7 +99,8 @@ impl LowerState {
         let boundary = self.infer.def_level_of(target);
         let mut non_generic = collect_low_level_vars_in_scheme(&self.infer, &scheme, boundary);
         non_generic.extend(exposed_boundary_vars);
-        let frozen = freeze_compact_scheme_owned_with_non_generic_and_extra_vars(
+        close_non_generic_vars_over_compact_scheme(&scheme, &mut non_generic);
+        let frozen = freeze_compact_scheme_owned_with_exact_non_generic_and_extra_vars(
             &self.infer,
             scheme.clone(),
             extra_quantified.as_slice(),
