@@ -244,10 +244,10 @@ fn apply_principal_substitutions_from_parts(
 ) -> Vec<typed_ir::TypeSubstitution> {
     let mut unifier = PrincipalSubstitutionUnifier::new(&params);
     let t = CompletePrincipalClock::now(profile.is_some());
-    if let Some(arg_ty) = monomorphic_type_from_bounds_ref(&slot_bounds.arg) {
+    if let Some(arg_ty) = principal_inference_type_from_bounds_ref(&slot_bounds.arg) {
         unifier.infer_value(param, arg_ty);
     }
-    if let Some(result_ty) = monomorphic_type_from_bounds_ref(&slot_bounds.result) {
+    if let Some(result_ty) = principal_inference_type_from_bounds_ref(&slot_bounds.result) {
         unifier.infer_value(ret, result_ty);
     }
     if let Some(profile) = profile.as_deref_mut() {
@@ -850,17 +850,29 @@ fn apply_slot_bounds(
     }
 }
 
-fn monomorphic_type_from_bounds_ref(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
+fn principal_inference_type_from_bounds_ref(
+    bounds: &typed_ir::TypeBounds,
+) -> Option<&typed_ir::Type> {
     bounds
         .lower
         .as_deref()
-        .filter(|ty| substitution_type_usable(ty, false))
+        .filter(|ty| principal_inference_type_usable(ty))
         .or_else(|| {
             bounds
                 .upper
                 .as_deref()
-                .filter(|ty| substitution_type_usable(ty, false))
+                .filter(|ty| principal_inference_type_usable(ty))
         })
+}
+
+fn principal_inference_type_usable(ty: &typed_ir::Type) -> bool {
+    !matches!(
+        ty,
+        typed_ir::Type::Unknown
+            | typed_ir::Type::Any
+            | typed_ir::Type::Never
+            | typed_ir::Type::Var(_)
+    )
 }
 
 fn collect_candidates_from_bounds(
@@ -1351,7 +1363,7 @@ fn principal_fun_param_ret(ty: &typed_ir::Type) -> Option<(&typed_ir::Type, &typ
     }
 }
 
-fn substitute_core_type(
+pub(super) fn substitute_core_type(
     ty: &typed_ir::Type,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::Type {
@@ -1607,6 +1619,14 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
         match (template, actual) {
             (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
                 self.infer(template, actual, allow_never);
+            }
+            (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(actual)) => {
+                if let Some(actual) = &actual.lower {
+                    self.infer(template, actual, allow_never);
+                }
+                if let Some(actual) = &actual.upper {
+                    self.infer(template, actual, allow_never);
+                }
             }
             (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
                 if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
@@ -1891,14 +1911,34 @@ mod tests {
     }
 
     #[test]
-    fn monomorphic_slot_bounds_keep_closed_union_whole() {
+    fn principal_inference_slot_bounds_keep_closed_union_whole() {
         let union = typed_ir::Type::Union(vec![named("bool"), named("int")]);
         let bounds = typed_ir::TypeBounds {
             lower: Some(Box::new(union.clone())),
             upper: None,
         };
 
-        assert_eq!(monomorphic_type_from_bounds_ref(&bounds), Some(&union));
+        assert_eq!(
+            principal_inference_type_from_bounds_ref(&bounds),
+            Some(&union)
+        );
+    }
+
+    #[test]
+    fn principal_inference_uses_concrete_part_of_bounded_type_arg() {
+        let mut unifier = one_param_unifier();
+        let template = list(typed_ir::TypeArg::Type(typed_ir::Type::Var(tv("t"))));
+        let actual = list(typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+            lower: Some(Box::new(named("int"))),
+            upper: Some(Box::new(typed_ir::Type::Unknown)),
+        }));
+
+        unifier.infer_value(&template, &actual);
+
+        assert_eq!(
+            unifier.into_substitutions().collect::<Vec<_>>(),
+            vec![(tv("t"), named("int"))]
+        );
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -28,15 +29,17 @@ use super::apply_principal::{
     ApplySlotBounds, CompletePrincipalCache, CompletePrincipalStepProfile,
     complete_apply_principal_evidence_from_slot_bounds_cached_profiled,
     complete_coerce_principal_evidence, residual_apply_principal_scheme_cached,
+    substitute_core_type,
 };
 use super::evidence::ExpectedEdgeEvidence;
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine_with_apps, strip_transparent_wrappers};
+use super::type_props::substitution_type_usable;
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds_with_expected_arg,
-    export_relevant_type_bounds_for_tv_cached, export_scheme,
+    export_compact_type_bounds, export_relevant_type_bounds_for_tv_cached, export_scheme,
 };
 
 pub fn export_expr(
@@ -311,6 +314,7 @@ pub(super) struct ExprExporter<'a> {
     relevant_vars: BTreeSet<typed_ir::TypeVar>,
     edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
     prefer_same_path_effect_ops: u32,
+    contextual_result: Option<typed_ir::Type>,
 }
 
 #[derive(Debug, Default)]
@@ -387,6 +391,7 @@ impl<'a> ExprExporter<'a> {
             relevant_vars,
             edge_evidence,
             prefer_same_path_effect_ops: 0,
+            contextual_result: None,
         }
     }
 
@@ -435,10 +440,9 @@ impl<'a> ExprExporter<'a> {
                 expected_callee_tv,
                 arg_edge_id,
                 expected_arg_tv,
-            } => typed_ir::Expr::Apply {
-                callee: Box::new(self.export_apply_callee(callee, expr)),
-                arg: Box::new(self.export_expr(arg)),
-                evidence: Some(self.export_apply_evidence(
+            } => {
+                let exported_callee = self.export_apply_callee(callee, expr);
+                let evidence = self.export_apply_evidence(
                     callee,
                     arg,
                     expr,
@@ -447,8 +451,15 @@ impl<'a> ExprExporter<'a> {
                     *arg_edge_id,
                     *expected_arg_tv,
                     true,
-                )),
-            },
+                );
+                let contextual_arg = contextual_arg_type_from_apply_evidence(&evidence);
+                let arg = self.with_contextual_result(contextual_arg, |this| this.export_expr(arg));
+                typed_ir::Expr::Apply {
+                    callee: Box::new(exported_callee),
+                    arg: Box::new(arg),
+                    evidence: Some(evidence),
+                }
+            }
             ExprKind::RefSet { reference, value } => self.export_ref_set(expr, reference, value),
             ExprKind::Lam(def, body) => {
                 let param = self.local_name_for_def(*def);
@@ -1407,6 +1418,20 @@ impl<'a> ExprExporter<'a> {
         result
     }
 
+    fn with_contextual_result<T>(
+        &mut self,
+        contextual_result: Option<typed_ir::Type>,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let Some(contextual_result) = contextual_result else {
+            return f(self);
+        };
+        let previous = self.contextual_result.replace(contextual_result);
+        let result = f(self);
+        self.contextual_result = previous;
+        result
+    }
+
     fn export_effect_operation_path(&self, op_path: &Path) -> typed_ir::Path {
         let Some(def) = self.state.ctx.resolve_path_value(op_path) else {
             return export_path(op_path);
@@ -1527,7 +1552,7 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn concrete_transparent_role_wrapper_application_def(
-        &self,
+        &mut self,
         def: DefId,
         args: &[&TypedExpr],
     ) -> Option<DefId> {
@@ -1545,6 +1570,71 @@ impl<'a> ExprExporter<'a> {
         self.state
             .infer
             .resolve_concrete_role_method_call_def(info, Some(recv.tv), &role_args)
+            .or_else(|| {
+                self.concrete_transparent_role_wrapper_application_def_from_context(
+                    def,
+                    &method_name,
+                    info,
+                    args.len(),
+                )
+            })
+    }
+
+    fn concrete_transparent_role_wrapper_application_def_from_context(
+        &mut self,
+        def: DefId,
+        method_name: &Name,
+        info: &crate::solve::RoleMethodInfo,
+        applied_arg_count: usize,
+    ) -> Option<DefId> {
+        let contextual_result = self.contextual_result.clone()?;
+        let principal = self.intern_principal_scheme_for_def(def)?;
+        let final_result = principal_spine_result_after_args(&principal.body, applied_arg_count)?;
+        let mut params = BTreeSet::new();
+        collect_core_type_vars(&principal.body, &mut params);
+        for requirement in &principal.requirements {
+            for arg in &requirement.args {
+                match arg {
+                    typed_ir::RoleRequirementArg::Input(bounds)
+                    | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                        collect_type_bounds_type_vars(bounds, &mut params);
+                    }
+                }
+            }
+        }
+        let mut substitutions = BTreeMap::new();
+        infer_contextual_type_substitutions(
+            final_result,
+            &contextual_result,
+            &params,
+            &mut substitutions,
+        );
+        if substitutions.is_empty() {
+            return None;
+        }
+        let role_path = export_path(&info.role);
+        let requirement = principal
+            .requirements
+            .iter()
+            .find(|requirement| requirement.role == role_path)?;
+        let expected_inputs = substituted_role_input_types(requirement, &substitutions);
+        if expected_inputs.is_empty() {
+            return None;
+        }
+        let role_arg_infos = self.state.infer.role_arg_infos_of(&info.role);
+        let mut selected = None;
+        for candidate in self.state.infer.role_impl_candidates_of(&info.role) {
+            let Some(&member_def) = candidate.member_defs.get(method_name) else {
+                continue;
+            };
+            if !role_impl_candidate_matches_inputs(&candidate, &role_arg_infos, &expected_inputs) {
+                continue;
+            }
+            if selected.replace(member_def).is_some() {
+                return None;
+            }
+        }
+        selected
     }
 
     fn export_rewritten_apply(
@@ -1572,9 +1662,12 @@ impl<'a> ExprExporter<'a> {
                 evidence: Some(source_only_apply_evidence(*callee_edge_id, *arg_edge_id)),
             };
         }
+        let contextual_arg = concrete_slot.as_ref().map(|slot| slot.expected_arg.clone());
+        let exported_arg =
+            self.with_contextual_result(contextual_arg, |this| this.export_expr(arg));
         typed_ir::Expr::Apply {
             callee: Box::new(callee_expr),
-            arg: Box::new(self.export_expr(arg)),
+            arg: Box::new(exported_arg),
             evidence: Some(self.rewritten_apply_evidence(
                 callee,
                 arg,
@@ -1661,9 +1754,11 @@ impl<'a> ExprExporter<'a> {
                 profile.principal_evidence_candidates += step_profile.candidates;
             }
         }
+        let contextual_recv = contextual_arg_type_from_apply_evidence(&evidence);
+        let recv = self.with_contextual_result(contextual_recv, |this| this.export_expr(recv));
         typed_ir::Expr::Apply {
             callee: Box::new(callee_expr),
-            arg: Box::new(self.export_expr(recv)),
+            arg: Box::new(recv),
             evidence: Some(evidence),
         }
     }
@@ -1802,6 +1897,337 @@ fn transparent_role_wrapper_method(state: &LowerState, def: DefId) -> Option<(Na
         }
     }
     Some((name.clone(), args.len()))
+}
+
+fn contextual_arg_type_from_apply_evidence(
+    evidence: &typed_ir::ApplyEvidence,
+) -> Option<typed_ir::Type> {
+    if let Some(expected_arg) = evidence
+        .expected_arg
+        .as_ref()
+        .and_then(concrete_type_from_bounds)
+    {
+        return Some(expected_arg);
+    }
+    let principal = evidence.principal_callee.as_ref()?;
+    let substitutions = evidence
+        .substitutions
+        .iter()
+        .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let principal = substitute_core_type(principal, &substitutions);
+    let (param, _) = principal_fun_param_ret(&principal)?;
+    substitution_type_usable(param, false).then(|| param.clone())
+}
+
+fn principal_fun_param_ret(ty: &typed_ir::Type) -> Option<(&typed_ir::Type, &typed_ir::Type)> {
+    let typed_ir::Type::Fun { param, ret, .. } = ty else {
+        return None;
+    };
+    Some((param, ret))
+}
+
+fn principal_spine_result_after_args(
+    ty: &typed_ir::Type,
+    applied_arg_count: usize,
+) -> Option<&typed_ir::Type> {
+    let mut current = ty;
+    for _ in 0..applied_arg_count {
+        let (_, ret) = principal_fun_param_ret(current)?;
+        current = ret;
+    }
+    Some(current)
+}
+
+fn substituted_role_input_types(
+    requirement: &typed_ir::RoleRequirement,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Vec<typed_ir::Type> {
+    requirement
+        .args
+        .iter()
+        .filter_map(|arg| {
+            let typed_ir::RoleRequirementArg::Input(bounds) = arg else {
+                return None;
+            };
+            concrete_type_from_bounds(&substitute_type_bounds(bounds, substitutions))
+        })
+        .collect()
+}
+
+fn role_impl_candidate_matches_inputs(
+    candidate: &crate::solve::RoleImplCandidate,
+    role_arg_infos: &[crate::solve::RoleArgInfo],
+    expected_inputs: &[typed_ir::Type],
+) -> bool {
+    let mut expected = expected_inputs.iter();
+    for (index, arg) in candidate.compact_args.iter().enumerate() {
+        if role_arg_infos.get(index).is_some_and(|info| !info.is_input) {
+            continue;
+        }
+        let Some(expected_ty) = expected.next() else {
+            return false;
+        };
+        let candidate_bounds = export_compact_type_bounds(arg);
+        let Some(candidate_ty) = concrete_type_from_bounds(&candidate_bounds) else {
+            return false;
+        };
+        if &candidate_ty != expected_ty {
+            return false;
+        }
+    }
+    expected.next().is_none()
+}
+
+fn concrete_type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
+    bounds
+        .lower
+        .as_deref()
+        .filter(|ty| substitution_type_usable(ty, false))
+        .or_else(|| {
+            bounds
+                .upper
+                .as_deref()
+                .filter(|ty| substitution_type_usable(ty, false))
+        })
+        .cloned()
+}
+
+fn substitute_type_bounds(
+    bounds: &typed_ir::TypeBounds,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::TypeBounds {
+    typed_ir::TypeBounds {
+        lower: bounds
+            .lower
+            .as_ref()
+            .map(|ty| Box::new(substitute_core_type(ty, substitutions))),
+        upper: bounds
+            .upper
+            .as_ref()
+            .map(|ty| Box::new(substitute_core_type(ty, substitutions))),
+    }
+}
+
+fn collect_type_bounds_type_vars(
+    bounds: &typed_ir::TypeBounds,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    if let Some(lower) = &bounds.lower {
+        collect_core_type_vars(lower, vars);
+    }
+    if let Some(upper) = &bounds.upper {
+        collect_core_type_vars(upper, vars);
+    }
+}
+
+fn infer_contextual_type_substitutions(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    let mut conflicts = BTreeSet::new();
+    infer_contextual_type_substitutions_inner(
+        template,
+        actual,
+        params,
+        substitutions,
+        &mut conflicts,
+    );
+    for conflict in conflicts {
+        substitutions.remove(&conflict);
+    }
+}
+
+fn infer_contextual_type_substitutions_inner(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match (template, actual) {
+        (typed_ir::Type::Var(var), actual) if params.contains(var) => {
+            bind_contextual_substitution(var, actual, substitutions, conflicts);
+        }
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if path == actual_path && args.len() == actual_args.len() => {
+            for (arg, actual_arg) in args.iter().zip(actual_args) {
+                infer_contextual_type_arg_substitutions(
+                    arg,
+                    actual_arg,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        (
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            typed_ir::Type::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+        ) => {
+            infer_contextual_type_substitutions_inner(
+                param,
+                actual_param,
+                params,
+                substitutions,
+                conflicts,
+            );
+            infer_contextual_type_substitutions_inner(
+                param_effect,
+                actual_param_effect,
+                params,
+                substitutions,
+                conflicts,
+            );
+            infer_contextual_type_substitutions_inner(
+                ret_effect,
+                actual_ret_effect,
+                params,
+                substitutions,
+                conflicts,
+            );
+            infer_contextual_type_substitutions_inner(
+                ret,
+                actual_ret,
+                params,
+                substitutions,
+                conflicts,
+            );
+        }
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                infer_contextual_type_substitutions_inner(
+                    item,
+                    actual_item,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
+            for item in items {
+                infer_contextual_type_substitutions_inner(
+                    item,
+                    actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        (typed_ir::Type::Recursive { var, body }, actual) if !params.contains(var) => {
+            infer_contextual_type_substitutions_inner(
+                body,
+                actual,
+                params,
+                substitutions,
+                conflicts,
+            );
+        }
+        _ => {}
+    }
+}
+
+fn infer_contextual_type_arg_substitutions(
+    template: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match (template, actual) {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
+            infer_contextual_type_substitutions_inner(
+                template,
+                actual,
+                params,
+                substitutions,
+                conflicts,
+            );
+        }
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(actual)) => {
+            if let Some(actual) = &actual.lower {
+                infer_contextual_type_substitutions_inner(
+                    template,
+                    actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+            if let Some(actual) = &actual.upper {
+                infer_contextual_type_substitutions_inner(
+                    template,
+                    actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
+            if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
+                infer_contextual_type_substitutions_inner(
+                    template,
+                    actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+            if let (Some(template), Some(actual)) = (&template.upper, &actual.upper) {
+                infer_contextual_type_substitutions_inner(
+                    template,
+                    actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+fn bind_contextual_substitution(
+    var: &typed_ir::TypeVar,
+    actual: &typed_ir::Type,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    if conflicts.contains(var) || !substitution_type_usable(actual, false) {
+        return;
+    }
+    match substitutions.get(var) {
+        Some(existing) if existing == actual => {}
+        Some(_) => {
+            substitutions.remove(var);
+            conflicts.insert(var.clone());
+        }
+        None => {
+            substitutions.insert(var.clone(), actual.clone());
+        }
+    }
 }
 
 fn apply_expr(callee: typed_ir::Expr, arg: typed_ir::Expr) -> typed_ir::Expr {
