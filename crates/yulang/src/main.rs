@@ -3174,7 +3174,7 @@ fn lower_infer_source_set_with_cache(
             source_set,
             &lowered.lowered.state,
             &cache,
-            options.requests_runtime_pipeline(),
+            false,
             &mut pipeline_timings,
         );
     }
@@ -3420,6 +3420,12 @@ fn read_cached_dependency_unit_artifact_bundle(
         return Some(PreparedDependencyBundle::Semantic(semantic_bundle));
     }
     timings.std_artifact_read += InferPipelineTimings::elapsed(read_start);
+
+    // Rebuilding a runtime bundle from unit artifacts exports and merges full
+    // runtime surfaces; on CLI startup that is worse than a cache miss.
+    if needs_runtime_bundle {
+        return None;
+    }
 
     let mut artifacts_by_unit = BTreeMap::new();
     for manifest in &manifests {
@@ -6387,6 +6393,50 @@ mod tests {
     }
 
     #[test]
+    fn runtime_dependency_cache_read_does_not_rebuild_bundle_from_unit_artifacts() {
+        let source_set = test_realm_band_source_set();
+        let manifests = cacheable_dependency_manifests(&source_set);
+        let cache_root = temp_test_cache_root("runtime-cache-unit-rebuild-skip");
+        let cache = CompiledUnitArtifactCache::new(&cache_root);
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results_profiled();
+        for artifact in build_compiled_unit_artifacts(&source_set, &lowered.state)
+            .into_iter()
+            .filter(|artifact| is_cacheable_dependency_manifest(&artifact.manifest))
+        {
+            cache.write(&artifact).expect("write unit artifact");
+        }
+
+        let mut runtime_timings = InferPipelineTimings::new(true);
+        let runtime_bundle = read_cached_dependency_unit_artifact_bundle(
+            &source_set,
+            &cache,
+            true,
+            &mut runtime_timings,
+        );
+        assert!(runtime_bundle.is_none());
+        assert_eq!(runtime_timings.incremental_cache_unit_hits, 0);
+
+        let mut semantic_timings = InferPipelineTimings::new(true);
+        let semantic_bundle = read_cached_dependency_unit_artifact_bundle(
+            &source_set,
+            &cache,
+            false,
+            &mut semantic_timings,
+        );
+        let _ = std::fs::remove_dir_all(cache_root);
+
+        assert!(matches!(
+            semantic_bundle,
+            Some(PreparedDependencyBundle::Semantic(_))
+        ));
+        assert_eq!(
+            semantic_timings.incremental_cache_unit_hits,
+            manifests.len()
+        );
+    }
+
+    #[test]
     fn invalid_token_scan_skips_cached_dependency_files_only() {
         let source_set = yulang_sources::collect_inline_source_files_with_options(
             "use util::*\nmy y = x\n",
@@ -6432,6 +6482,14 @@ mod tests {
         let cached_files = cached_source_file_indices_for_manifests(&entry_invalid, &manifests);
 
         assert!(source_set_has_invalid_tokens(&entry_invalid, &cached_files));
+    }
+
+    fn temp_test_cache_root(name: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        std::env::temp_dir().join(format!("yulang-cli-{name}-{}-{nanos}", std::process::id()))
     }
 
     #[test]

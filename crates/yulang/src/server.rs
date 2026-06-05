@@ -201,7 +201,9 @@ fn lower_lsp_source_with_dependency_cache_paths(
     let source_set = collect_lsp_source_set(source, base_dir, options, module_path)?;
     let mut lowered = lower_source_set(&source_set);
     lowered.state.finalize_compact_results_profiled();
-    write_dependency_unit_artifact_bundle(&source_set, &lowered.state, &cache);
+    if collect_surface_diagnostics(&lowered.state).is_empty() {
+        write_dependency_unit_artifact_bundle(&source_set, &lowered.state, &cache);
+    }
     Ok(LspLoweredDocument {
         lowered,
         runtime_dependencies: None,

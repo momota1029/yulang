@@ -123,6 +123,15 @@ pub fn lowered_runtime_module_from_virtual_source_with_dependency_cache(
     let manifests = cacheable_dependency_manifests(&source_set);
     let mut lowered = yulang_infer::lower_source_set(&source_set);
     lowered.state.finalize_compact_results_profiled();
+    let diagnostics = yulang_infer::collect_surface_diagnostics(&lowered.state);
+    if !diagnostics.is_empty() {
+        return Err(RuntimePipelineError::SurfaceDiagnostics(
+            diagnostics
+                .into_iter()
+                .map(|diagnostic| diagnostic.message)
+                .collect(),
+        ));
+    }
     write_dependency_unit_artifact_bundle(&source_set, &lowered.state, &cache);
     let module =
         lowered_runtime_module_from_lowered_sources_with_runtime_dependencies(&mut lowered, None)?;
