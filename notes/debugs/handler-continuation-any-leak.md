@@ -20,14 +20,20 @@ eff::handle
 ## バグ表
 | | |
 |---|---|
-| 期待値（正）| principal evidence の nested function effect 行に `Any`/top を含まない |
-| 実際値（誤）| `Fun { param: Var(t9), param_effect: Any, ret_effect: Never, ret: Fun{...} }` — 継続 `k` の **param_effect が Any** |
+| 期待値（正）| 継続 `k` は**開いた effect 行**（tail 変数つき）で、**入力型 `bool`・出力型 `'a` がちゃんと出る**形。`Any`/top ではない（テストは「nested fun effect 行に Any/top 無し」を検査）|
+| 実際値（誤）| `Fun { param: Var(t9), param_effect: Any, ret_effect: Never, ret: Fun{...} }` — 継続 `k` の **param_effect が Any**（＝開いた行が top に潰れている）|
 
-## なぜ期待値が正しいか
-継続 `k` の型は `bool -> [eff] 'a`。queue は `list (bool -> [eff] 'a)` で、`cons(k, queue)` が
-通る以上 k の型は queue 要素型と一致するはず。effect 行は `[eff]` であって `Any`(top) ではない。
-nested fun の param_effect に top が乗るのは健全な principal 形ではない（top は「何でも起きうる」で、
-ここは閉じた `[eff]` のはず）。
+## なぜ期待値が正しいか（※ユーザ訂正 2026-06-06）
+**「閉じた `[eff]` になるべき」ではない**。継続 `k` は effect-polymorphic なので、その effect 行は
+**開いた行**（tail 変数つき＝後から effect を足せる）であるのが正しい。そのうえで
+**入力型 `bool`・出力型 `'a` がちゃんと出てくる**べき。
+
+**おかしいのは `Any`(top) だけ**。top は「何でも起きうる＝情報を全部失った」退化形で、これがここに
+乗るのがバグ。期待は「開いた effect 行（入力/出力が正しく出る）」で、それが top に潰れているのを直す
+——**行を閉じて直すのではない**。
+
+cf. ④⑤ と同じテーマ。effect 行はこういう位置では**開いているのが自然**で、退化形に潰れるのが病
+（④⑤＝裸 Con 区間、⑫＝top）。
 
 ## 診断（要 Codex 深掘り）
 `apply_principal_callees_in_module` が拾う evidence の中で、継続 `k`（`bool -> [eff] 'a`）の
@@ -46,9 +52,12 @@ nested fun の param_effect に top が乗るのは健全な principal 形では
 - `crates/yulang-infer/src/solve/effect_row.rs`
 
 ## 修正方針
-継続の param_effect がどこで `Any` になるか dump で追い、`[eff]`(閉じた行)になるべき所が
-top に潰れている地点を特定して塞ぐ。`type_contains_any` を満たす最小の混入点を二分探索的に。
+継続の param_effect がどこで `Any` になるか dump で追い、**開いた effect 行**になるべき所が
+top に潰れている地点を特定して直す（**行を閉じるのではない**——開いた行のまま、top を正しい
+residual/tail 変数に戻す。入力 `bool`・出力 `'a` が出ること）。`type_contains_any` を満たす
+最小の混入点を二分探索的に。
 
-## ⚠️ 改竄防止
-このテストは「top を含まない」という**健全性の検査**。`type_contains_any` の判定や
-assert を緩めて通すのは厳禁。実際の混入を止めること。
+## ⚠️ 改竄防止 / 誤修正防止
+- このテストは「top を含まない」という**健全性の検査**。`type_contains_any` の判定や
+  assert を緩めて通すのは厳禁。実際の top 混入を止めること。
+- **行を閉じて top を消す**のも誤り。開いた effect 行のまま、入力/出力型が出る形で直す。
