@@ -1067,14 +1067,23 @@ println "hello"
 [1, 2, 3].say
 ["a", "b"].say
 (each [1, 2, 3] + each [1, 2]).list.say
+(each 1..2 + each 1..2).list.say
 "#,
         );
 
         assert_eq!(
             results,
-            vec![TestValue::Unit, TestValue::Unit, TestValue::Unit]
+            vec![
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+            ]
         );
-        assert_eq!(stdout, "[1, 2, 3]\n[a, b]\n[2, 3, 3, 4, 4, 5]\n");
+        assert_eq!(
+            stdout,
+            "[1, 2, 3]\n[a, b]\n[2, 3, 3, 4, 4, 5]\n[2, 3, 3, 4]\n"
+        );
     }
 
     #[test]
@@ -1084,14 +1093,23 @@ println "hello"
 [1, 2, 3].say
 ["a", "b"].say
 (each [1, 2, 3] + each [1, 2]).list.say
+(each 1..2 + each 1..2).list.say
 "#,
         );
 
         assert_eq!(
             results,
-            vec![TestValue::Unit, TestValue::Unit, TestValue::Unit]
+            vec![
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+            ]
         );
-        assert_eq!(stdout, "[1, 2, 3]\n[a, b]\n[2, 3, 3, 4, 4, 5]\n");
+        assert_eq!(
+            stdout,
+            "[1, 2, 3]\n[a, b]\n[2, 3, 3, 4, 4, 5]\n[2, 3, 3, 4]\n"
+        );
     }
 
     #[test]

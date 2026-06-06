@@ -144,7 +144,11 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
             _ => {
                 if matches!(expr.ty, RuntimeType::Fun { .. })
                     && !effect_is_empty(effect)
-                    && !can_delay_function_value_for_expected_thunk(expected, source)
+                    && !can_delay_function_value_for_expected_thunk(
+                        expected,
+                        source,
+                        adapter_source.as_ref(),
+                    )
                 {
                     return Err(RuntimeError::ExpectedThunk {
                         ty: runtime_core_type(&expr.ty),
@@ -238,8 +242,13 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
     }
 }
 
-fn can_delay_function_value_for_expected_thunk(expected: &RuntimeType, source: TypeSource) -> bool {
-    apply_arg_source_edge(source)
+fn can_delay_function_value_for_expected_thunk(
+    expected: &RuntimeType,
+    source: TypeSource,
+    adapter_source: Option<&RuntimeAdapterSource>,
+) -> bool {
+    (apply_arg_source_edge(source)
+        || adapter_source.is_some_and(|source| source.has_apply_arg_source_edge))
         && matches!(
             expected,
             RuntimeType::Thunk { value, .. } if matches!(value.as_ref(), RuntimeType::Fun { .. })
