@@ -105,10 +105,10 @@ fn concrete_selected_role_input_types(
 fn concrete_role_input_boundary(
     bounds: &CompactBounds,
 ) -> Option<(RoleInputBoundary, CompactType)> {
-    single_boundary_concrete_type(&bounds.lower)
+    single_boundary_concrete_type(bounds.lower())
         .map(|concrete| (RoleInputBoundary::Lower, concrete))
         .or_else(|| {
-            single_boundary_concrete_type(&bounds.upper)
+            single_boundary_concrete_type(bounds.upper())
                 .map(|concrete| (RoleInputBoundary::Upper, concrete))
         })
 }
@@ -158,7 +158,7 @@ fn main_type_polarity(
         );
     } else {
         collect_type_main_type_polarity(
-            &scheme.cty.lower,
+            scheme.cty.lower(),
             true,
             SurfaceVarMode::DropAtConcreteSurface,
             scheme,
@@ -180,7 +180,7 @@ fn collect_bounds_main_type_polarity(
     polarity: &mut MainTypePolarity,
 ) {
     collect_type_main_type_polarity(
-        &bounds.lower,
+        bounds.lower(),
         positive,
         surface_vars,
         scheme,
@@ -189,7 +189,7 @@ fn collect_bounds_main_type_polarity(
         polarity,
     );
     collect_type_main_type_polarity(
-        &bounds.upper,
+        bounds.upper(),
         !positive,
         surface_vars,
         scheme,
@@ -375,9 +375,9 @@ fn collect_main_type_root_vars(
             && let Some(bounds) = scheme.rec_vars.get(&tv)
         {
             let recur = if positive {
-                &bounds.lower
+                bounds.lower()
             } else {
-                &bounds.upper
+                bounds.upper()
             };
             collect_type_main_type_polarity(
                 recur,
@@ -413,18 +413,18 @@ fn compact_type_has_non_var_surface(ty: &CompactType) -> bool {
 }
 
 fn concrete_bounds_repr(bounds: &CompactBounds, allow_boundary: bool) -> Option<CompactType> {
-    let lower_empty = bounds.lower == CompactType::default();
-    let upper_empty = bounds.upper == CompactType::default();
+    let lower_empty = bounds.lower() == &CompactType::default();
+    let upper_empty = bounds.upper() == &CompactType::default();
     match (lower_empty, upper_empty) {
-        (false, true) => concrete_or_boundary_compact_type(&bounds.lower, allow_boundary),
-        (true, false) => concrete_or_boundary_compact_type(&bounds.upper, allow_boundary),
-        (false, false) if bounds.lower == bounds.upper => {
-            concrete_or_boundary_compact_type(&bounds.lower, allow_boundary)
+        (false, true) => concrete_or_boundary_compact_type(bounds.lower(), allow_boundary),
+        (true, false) => concrete_or_boundary_compact_type(bounds.upper(), allow_boundary),
+        (false, false) if bounds.lower() == bounds.upper() => {
+            concrete_or_boundary_compact_type(bounds.lower(), allow_boundary)
         }
         (false, false) if allow_boundary => {
-            boundary_join_concrete_bounds(&bounds.lower, &bounds.upper)
-                .or_else(|| boundary_concrete_compact_type(&bounds.lower))
-                .or_else(|| boundary_concrete_compact_type(&bounds.upper))
+            boundary_join_concrete_bounds(bounds.lower(), bounds.upper())
+                .or_else(|| boundary_concrete_compact_type(bounds.lower()))
+                .or_else(|| boundary_concrete_compact_type(bounds.upper()))
         }
         _ => None,
     }
@@ -483,10 +483,10 @@ fn strip_compact_type_vars(ty: &CompactType) -> CompactType {
                 args: con
                     .args
                     .iter()
-                    .map(|arg| CompactBounds {
+                    .map(|arg| CompactBounds::Interval {
                         self_var: None,
-                        lower: strip_compact_type_vars(&arg.lower),
-                        upper: strip_compact_type_vars(&arg.upper),
+                        lower: strip_compact_type_vars(arg.lower()),
+                        upper: strip_compact_type_vars(arg.upper()),
                     })
                     .collect(),
             })
@@ -570,7 +570,7 @@ fn is_concrete_compact_type(ty: &CompactType) -> bool {
         && ty.cons.iter().all(|con| {
             con.args
                 .iter()
-                .all(|arg| arg.self_var.is_none() && concrete_bounds_repr(arg, false).is_some())
+                .all(|arg| arg.self_var().is_none() && concrete_bounds_repr(arg, false).is_some())
         })
         && ty.funs.iter().all(|fun| {
             is_concrete_compact_type(&fun.arg)
@@ -610,8 +610,8 @@ fn normalize_builtin_numeric_compact_type(ty: &mut CompactType) {
     normalize_named_compact_type_order(ty);
     for con in &mut ty.cons {
         for arg in &mut con.args {
-            normalize_builtin_numeric_compact_type(&mut arg.lower);
-            normalize_builtin_numeric_compact_type(&mut arg.upper);
+            normalize_builtin_numeric_compact_type(arg.lower_mut());
+            normalize_builtin_numeric_compact_type(arg.upper_mut());
         }
     }
     for fun in &mut ty.funs {
@@ -944,10 +944,10 @@ impl<'a> SchemeBoundsExpansion<'a> {
     }
 
     fn expand_bounds(&mut self, bounds: &CompactBounds) -> CompactBounds {
-        normalize_rewritten_bounds(CompactBounds {
-            self_var: bounds.self_var,
-            lower: self.expand_type(&bounds.lower, true),
-            upper: self.expand_type(&bounds.upper, false),
+        normalize_rewritten_bounds(CompactBounds::Interval {
+            self_var: bounds.self_var(),
+            lower: self.expand_type(bounds.lower(), true),
+            upper: self.expand_type(bounds.upper(), false),
         })
     }
 
@@ -966,9 +966,9 @@ impl<'a> SchemeBoundsExpansion<'a> {
             });
         }
         let expanded = if positive {
-            self.expand_type(&bounds.lower, positive)
+            self.expand_type(bounds.lower(), positive)
         } else {
-            self.expand_type(&bounds.upper, positive)
+            self.expand_type(bounds.upper(), positive)
         };
         self.in_progress.remove(&key);
         self.cache.insert(key, expanded.clone());
@@ -977,7 +977,7 @@ impl<'a> SchemeBoundsExpansion<'a> {
 }
 
 fn render_concrete_compact_type(ty: &CompactType) -> String {
-    crate::display::dump::format_compact_role_constraint_arg(&CompactBounds {
+    crate::display::dump::format_compact_role_constraint_arg(&CompactBounds::Interval {
         self_var: None,
         lower: ty.clone(),
         upper: CompactType::default(),
@@ -1321,13 +1321,13 @@ fn rewrite_role_constraints_preserving_explicit_centers(
                 .iter()
                 .map(|arg| {
                     let mut rewritten = crate::simplify::cooccur::rewrite_bounds(arg, subst);
-                    if let Some(center) = arg.self_var
+                    if let Some(center) = arg.self_var()
                         && !subst.contains_key(&center)
                         && !compact_bounds_contains_var(&rewritten, center)
                     {
-                        rewritten.self_var = Some(center);
-                        rewritten.lower.vars.insert(center);
-                        rewritten.upper.vars.insert(center);
+                        *rewritten.self_var_mut() = Some(center);
+                        rewritten.lower_mut().vars.insert(center);
+                        rewritten.upper_mut().vars.insert(center);
                     }
                     rewritten
                 })
@@ -1446,11 +1446,11 @@ fn role_constraint_is_observationally_empty(constraint: &CompactRoleConstraint) 
     constraint
         .args
         .iter()
-        .all(|arg| arg.self_var.is_none() && is_empty_compact_bounds(arg))
+        .all(|arg| arg.self_var().is_none() && is_empty_compact_bounds(arg))
 }
 
 fn is_empty_compact_bounds(bounds: &CompactBounds) -> bool {
-    is_empty_compact_type(&bounds.lower) && is_empty_compact_type(&bounds.upper)
+    is_empty_compact_type(bounds.lower()) && is_empty_compact_type(bounds.upper())
 }
 
 fn is_empty_compact_type(ty: &CompactType) -> bool {
@@ -1506,10 +1506,10 @@ fn apply_candidate_subst_to_bounds(
     bounds: &CompactBounds,
     subst: &HashMap<TypeVar, CompactType>,
 ) -> CompactBounds {
-    normalize_rewritten_bounds(CompactBounds {
-        self_var: bounds.self_var.filter(|tv| !subst.contains_key(tv)),
-        lower: apply_candidate_subst_to_type(&bounds.lower, subst),
-        upper: apply_candidate_subst_to_type(&bounds.upper, subst),
+    normalize_rewritten_bounds(CompactBounds::Interval {
+        self_var: bounds.self_var().filter(|tv| !subst.contains_key(tv)),
+        lower: apply_candidate_subst_to_type(bounds.lower(), subst),
+        upper: apply_candidate_subst_to_type(bounds.upper(), subst),
     })
 }
 
@@ -1630,9 +1630,9 @@ fn apply_candidate_subst_to_type(
 }
 
 fn projection_target_var(bounds: &CompactBounds) -> Option<TypeVar> {
-    bounds.self_var.or_else(|| {
-        let lower = single_compact_var(&bounds.lower);
-        let upper = single_compact_var(&bounds.upper);
+    bounds.self_var().or_else(|| {
+        let lower = single_compact_var(bounds.lower());
+        let upper = single_compact_var(bounds.upper());
         match (lower, upper) {
             (Some(lhs), Some(rhs)) if lhs == rhs => Some(lhs),
             (Some(tv), None) | (None, Some(tv)) => Some(tv),
@@ -1678,11 +1678,11 @@ fn compact_constraints_vars(constraints: &[CompactRoleConstraint]) -> HashSet<Ty
 }
 
 fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         out.insert(tv);
     }
-    collect_compact_type_vars(&bounds.lower, out);
-    collect_compact_type_vars(&bounds.upper, out);
+    collect_compact_type_vars(bounds.lower(), out);
+    collect_compact_type_vars(bounds.upper(), out);
 }
 
 fn collect_compact_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
@@ -1779,9 +1779,9 @@ fn compact_constraints_contain_var(constraints: &[CompactRoleConstraint], target
 }
 
 fn compact_bounds_contains_var(bounds: &CompactBounds, target: TypeVar) -> bool {
-    bounds.self_var == Some(target)
-        || compact_type_contains_var(&bounds.lower, target)
-        || compact_type_contains_var(&bounds.upper, target)
+    bounds.self_var() == Some(target)
+        || compact_type_contains_var(bounds.lower(), target)
+        || compact_type_contains_var(bounds.upper(), target)
 }
 
 fn compact_type_contains_var(ty: &CompactType, target: TypeVar) -> bool {
@@ -1851,12 +1851,12 @@ fn apply_role_output_replacements_to_bounds(
     bounds: &CompactBounds,
     replacements: &[(TypeVar, CompactType)],
 ) -> CompactBounds {
-    normalize_rewritten_bounds(CompactBounds {
+    normalize_rewritten_bounds(CompactBounds::Interval {
         self_var: bounds
-            .self_var
+            .self_var()
             .filter(|tv| !replacements.iter().any(|(target, _)| target == tv)),
-        lower: apply_role_output_replacements_to_type(&bounds.lower, replacements, true),
-        upper: apply_role_output_replacements_to_type(&bounds.upper, replacements, false),
+        lower: apply_role_output_replacements_to_type(bounds.lower(), replacements, true),
+        upper: apply_role_output_replacements_to_type(bounds.upper(), replacements, false),
     })
 }
 
@@ -2076,7 +2076,7 @@ mod tests {
     }
 
     fn bounds(lower: CompactType, upper: CompactType) -> CompactBounds {
-        CompactBounds {
+        CompactBounds::Interval {
             self_var: None,
             lower,
             upper,

@@ -635,7 +635,7 @@ mod tests {
         let scheme = std::rc::Rc::new(crate::scheme::Scheme {
             arena: scheme_arena,
             compact: crate::simplify::compact::CompactTypeScheme {
-                cty: crate::simplify::compact::CompactBounds {
+                cty: crate::simplify::compact::CompactBounds::Interval {
                     self_var: None,
                     lower: crate::simplify::compact::CompactType {
                         vars: std::collections::HashSet::from([quantified]),

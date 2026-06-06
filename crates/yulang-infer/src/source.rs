@@ -1487,11 +1487,11 @@ fn collect_compact_scheme_max_type_var(scheme: &CompactTypeScheme, max: &mut Opt
 }
 
 fn collect_compact_bounds_max_type_var(bounds: &CompactBounds, max: &mut Option<TypeVar>) {
-    if let Some(var) = bounds.self_var {
+    if let Some(var) = bounds.self_var() {
         push_max_type_var(var, max);
     }
-    collect_compact_type_max_type_var(&bounds.lower, max);
-    collect_compact_type_max_type_var(&bounds.upper, max);
+    collect_compact_type_max_type_var(bounds.lower(), max);
+    collect_compact_type_max_type_var(bounds.upper(), max);
 }
 
 fn collect_compact_type_max_type_var(ty: &CompactType, max: &mut Option<TypeVar>) {
@@ -3305,11 +3305,11 @@ fn collect_compact_scheme_type_vars(scheme: &CompactTypeScheme, out: &mut HashSe
 }
 
 fn collect_compact_bounds_type_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         out.insert(tv);
     }
-    collect_compact_type_type_vars(&bounds.lower, out);
-    collect_compact_type_type_vars(&bounds.upper, out);
+    collect_compact_type_type_vars(bounds.lower(), out);
+    collect_compact_type_type_vars(bounds.upper(), out);
 }
 
 fn collect_compact_type_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {

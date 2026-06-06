@@ -7,8 +7,8 @@ use crate::simplify::compact::{
 use crate::symbols::Path;
 
 pub(crate) fn normalize_rewritten_bounds(mut bounds: CompactBounds) -> CompactBounds {
-    normalize_rewritten_compact_type_in_place(&mut bounds.lower, true);
-    normalize_rewritten_compact_type_in_place(&mut bounds.upper, false);
+    normalize_rewritten_compact_type_in_place(bounds.lower_mut(), true);
+    normalize_rewritten_compact_type_in_place(bounds.upper_mut(), false);
     close_lower_row_tails_covered_by_upper(&mut bounds);
     cancel_shared_vars_with_variable_extras(&mut bounds);
     absorb_upper_vars_from_row_lower(&mut bounds);
@@ -65,15 +65,19 @@ fn normalize_rewritten_compact_type_in_place(ty: &mut CompactType, positive: boo
 }
 
 fn normalize_rewritten_bounds_in_place(bounds: &mut CompactBounds) {
-    normalize_rewritten_compact_type_in_place(&mut bounds.lower, true);
-    normalize_rewritten_compact_type_in_place(&mut bounds.upper, false);
+    normalize_rewritten_compact_type_in_place(bounds.lower_mut(), true);
+    normalize_rewritten_compact_type_in_place(bounds.upper_mut(), false);
     close_lower_row_tails_covered_by_upper(bounds);
     cancel_shared_vars_with_variable_extras(bounds);
     absorb_upper_vars_from_row_lower(bounds);
 }
 
 fn close_lower_row_tails_covered_by_upper(bounds: &mut CompactBounds) {
-    close_lower_row_tails_covered_by_upper_type(&mut bounds.lower, &bounds.upper);
+    // pre-sandwich の効果行整形。lift 変種は行を持たないので no-op。
+    let CompactBounds::Interval { lower, upper, .. } = bounds else {
+        return;
+    };
+    close_lower_row_tails_covered_by_upper_type(lower, upper);
 }
 
 fn close_lower_row_tails_covered_by_upper_type(lower: &mut CompactType, upper: &CompactType) {
@@ -84,7 +88,7 @@ fn close_lower_row_tails_covered_by_upper_type(lower: &mut CompactType, upper: &
             continue;
         }
         for (lower_arg, upper_arg) in lower_con.args.iter_mut().zip(&upper_con.args) {
-            close_lower_row_tails_covered_by_upper_type(&mut lower_arg.lower, &upper_arg.upper);
+            close_lower_row_tails_covered_by_upper_type(lower_arg.lower_mut(), upper_arg.upper());
         }
     }
     for (lower_fun, upper_fun) in lower.funs.iter_mut().zip(&upper.funs) {
@@ -165,7 +169,7 @@ fn path_key(path: &Path) -> String {
 }
 
 fn cancel_shared_vars_with_variable_extras(bounds: &mut CompactBounds) {
-    let (Some(lower), Some(upper)) = (var_only_set(&bounds.lower), var_only_set(&bounds.upper))
+    let (Some(lower), Some(upper)) = (var_only_set(bounds.lower()), var_only_set(bounds.upper()))
     else {
         return;
     };
@@ -175,59 +179,59 @@ fn cancel_shared_vars_with_variable_extras(bounds: &mut CompactBounds) {
     }
 
     for tv in common {
-        if bounds.self_var == Some(tv) {
+        if bounds.self_var() == Some(tv) {
             continue;
         }
-        bounds.lower.vars.remove(&tv);
-        bounds.upper.vars.remove(&tv);
+        bounds.lower_mut().vars.remove(&tv);
+        bounds.upper_mut().vars.remove(&tv);
     }
 }
 
 fn absorb_upper_vars_from_row_lower(bounds: &mut CompactBounds) {
-    let Some(upper) = var_only_set(&bounds.upper) else {
+    let Some(upper) = var_only_set(bounds.upper()) else {
         return;
     };
     if upper.is_empty()
-        || bounds.lower.rows.is_empty()
-        || !bounds.lower.prims.is_empty()
-        || !bounds.lower.cons.is_empty()
-        || !bounds.lower.funs.is_empty()
-        || !bounds.lower.records.is_empty()
-        || !bounds.lower.record_spreads.is_empty()
-        || !bounds.lower.variants.is_empty()
-        || !bounds.lower.tuples.is_empty()
-        || !upper.is_subset(&bounds.lower.vars)
+        || bounds.lower().rows.is_empty()
+        || !bounds.lower().prims.is_empty()
+        || !bounds.lower().cons.is_empty()
+        || !bounds.lower().funs.is_empty()
+        || !bounds.lower().records.is_empty()
+        || !bounds.lower().record_spreads.is_empty()
+        || !bounds.lower().variants.is_empty()
+        || !bounds.lower().tuples.is_empty()
+        || !upper.is_subset(&bounds.lower().vars)
     {
         return;
     }
 
     for tv in upper {
-        if bounds.self_var == Some(tv) {
+        if bounds.self_var() == Some(tv) {
             continue;
         }
-        bounds.lower.vars.remove(&tv);
-        bounds.upper.vars.remove(&tv);
+        bounds.lower_mut().vars.remove(&tv);
+        bounds.upper_mut().vars.remove(&tv);
     }
 }
 
 fn collapse_root_self_alias_if_shaped(bounds: &mut CompactBounds) {
-    let Some(self_var) = bounds.self_var else {
+    let Some(self_var) = bounds.self_var() else {
         return;
     };
-    if !bounds.lower.vars.contains(&self_var) || !bounds.upper.vars.contains(&self_var) {
+    if !bounds.lower().vars.contains(&self_var) || !bounds.upper().vars.contains(&self_var) {
         return;
     }
-    if !is_var_only_type(&bounds.upper) {
+    if !is_var_only_type(bounds.upper()) {
         return;
     }
-    if !has_non_var_shape(&bounds.lower) && !has_non_var_shape(&bounds.upper) {
+    if !has_non_var_shape(bounds.lower()) && !has_non_var_shape(bounds.upper()) {
         return;
     }
 
-    bounds.lower.vars.remove(&self_var);
-    bounds.upper.vars.remove(&self_var);
-    if bounds.lower.vars.is_empty() && bounds.upper.vars.is_empty() {
-        bounds.self_var = None;
+    bounds.lower_mut().vars.remove(&self_var);
+    bounds.upper_mut().vars.remove(&self_var);
+    if bounds.lower().vars.is_empty() && bounds.upper().vars.is_empty() {
+        *bounds.self_var_mut() = None;
     }
 }
 
@@ -242,8 +246,8 @@ fn coalesce_effect_atom_interval_args_in_con(con: &mut CompactCon) {
     let mut effect_equal_sets = Vec::new();
     let mut direct_pairs = HashSet::new();
     for arg in &con.args {
-        collect_effect_atom_interval_pairs(&arg.lower, &mut effect_pairs, &mut effect_equal_sets);
-        collect_effect_atom_interval_pairs(&arg.upper, &mut effect_pairs, &mut effect_equal_sets);
+        collect_effect_atom_interval_pairs(arg.lower(), &mut effect_pairs, &mut effect_equal_sets);
+        collect_effect_atom_interval_pairs(arg.upper(), &mut effect_pairs, &mut effect_equal_sets);
         if let Some(pair) = single_var_interval_pair(arg) {
             direct_pairs.insert(pair);
         }
@@ -330,14 +334,14 @@ fn collect_effect_item_interval_pairs(
 
 fn single_var_interval_pair(bounds: &CompactBounds) -> Option<(TypeVar, TypeVar)> {
     Some((
-        single_var_compact_type(&bounds.lower)?,
-        single_var_compact_type(&bounds.upper)?,
+        single_var_compact_type(bounds.lower())?,
+        single_var_compact_type(bounds.upper())?,
     ))
 }
 
 fn same_var_interval_set(bounds: &CompactBounds) -> Option<HashSet<TypeVar>> {
-    let lower = var_only_set(&bounds.lower)?;
-    let upper = var_only_set(&bounds.upper)?;
+    let lower = var_only_set(bounds.lower())?;
+    let upper = var_only_set(bounds.upper())?;
     (lower.len() > 1 && lower == upper).then_some(lower)
 }
 
@@ -378,11 +382,11 @@ fn rewrite_compact_bounds_vars_in_place(
     bounds: &mut CompactBounds,
     subst: &HashMap<TypeVar, TypeVar>,
 ) {
-    if let Some(self_var) = bounds.self_var {
-        bounds.self_var = Some(rewrite_compact_var(self_var, subst));
+    if let Some(self_var) = bounds.self_var() {
+        *bounds.self_var_mut() = Some(rewrite_compact_var(self_var, subst));
     }
-    rewrite_compact_type_vars_in_place(&mut bounds.lower, subst);
-    rewrite_compact_type_vars_in_place(&mut bounds.upper, subst);
+    rewrite_compact_type_vars_in_place(bounds.lower_mut(), subst);
+    rewrite_compact_type_vars_in_place(bounds.upper_mut(), subst);
 }
 
 fn rewrite_compact_type_vars_in_place(ty: &mut CompactType, subst: &HashMap<TypeVar, TypeVar>) {

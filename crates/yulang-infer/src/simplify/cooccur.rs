@@ -30,24 +30,12 @@ use representative::lower_representatives_for_subst;
 pub struct CoOccurrences {
     pub positive: HashMap<TypeVar, HashSet<AlongItem>>,
     pub negative: HashMap<TypeVar, HashSet<AlongItem>>,
-    pub allowed_positive_unifications: HashSet<(TypeVar, TypeVar)>,
-    pub allowed_negative_unifications: HashSet<(TypeVar, TypeVar)>,
-    pub blocked_positive_unifications: HashSet<(TypeVar, TypeVar)>,
-    pub blocked_negative_unifications: HashSet<(TypeVar, TypeVar)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AlongItem {
     Var(TypeVar),
     Exact(ExactKey),
-}
-
-fn var_pair(lhs: TypeVar, rhs: TypeVar) -> (TypeVar, TypeVar) {
-    if lhs.0 <= rhs.0 {
-        (lhs, rhs)
-    } else {
-        (rhs, lhs)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -346,30 +334,14 @@ fn apply_indistinguishable_unification(
 ) {
     let all_var_set = all_vars.iter().copied().collect::<HashSet<_>>();
     for &alpha in all_vars {
-        merge_mutual_co_occurrence_vars(
-            alpha,
-            &analysis.positive,
-            &analysis.allowed_positive_unifications,
-            &analysis.blocked_positive_unifications,
-            &all_var_set,
-            subst,
-        );
-        merge_mutual_co_occurrence_vars(
-            alpha,
-            &analysis.negative,
-            &analysis.allowed_negative_unifications,
-            &analysis.blocked_negative_unifications,
-            &all_var_set,
-            subst,
-        );
+        merge_mutual_co_occurrence_vars(alpha, &analysis.positive, &all_var_set, subst);
+        merge_mutual_co_occurrence_vars(alpha, &analysis.negative, &all_var_set, subst);
     }
 }
 
 fn merge_mutual_co_occurrence_vars(
     alpha: TypeVar,
     occurrences: &HashMap<TypeVar, HashSet<AlongItem>>,
-    allowed: &HashSet<(TypeVar, TypeVar)>,
-    blocked: &HashSet<(TypeVar, TypeVar)>,
     all_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
@@ -381,10 +353,6 @@ fn merge_mutual_co_occurrence_vars(
             continue;
         };
         if beta.0 >= alpha.0 || !all_vars.contains(beta) {
-            continue;
-        }
-        let pair = var_pair(alpha, *beta);
-        if blocked.contains(&pair) && !allowed.contains(&pair) {
             continue;
         }
         if matches!(subst.get(&alpha), Some(None)) || matches!(subst.get(beta), Some(None)) {
@@ -461,10 +429,14 @@ pub(crate) fn role_output_center_replacements(
 }
 
 fn projection_target_var(bounds: &CompactBounds) -> Option<TypeVar> {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         return Some(tv);
     }
-    let mut shared = bounds.lower.vars.intersection(&bounds.upper.vars).copied();
+    let mut shared = bounds
+        .lower()
+        .vars
+        .intersection(&bounds.upper().vars)
+        .copied();
     let first = shared.next()?;
     shared.next().is_none().then_some(first)
 }
@@ -484,19 +456,9 @@ fn apply_sandwich_flattening(
         let (Some(pos), Some(neg)) = (analysis.positive.get(&v), analysis.negative.get(&v)) else {
             continue;
         };
-        let sandwich = pos.iter().find(|item| {
-            if **item == AlongItem::Var(v) || !neg.contains(item) {
-                return false;
-            }
-            let AlongItem::Var(w) = item else {
-                return true;
-            };
-            let pair = var_pair(v, *w);
-            (!analysis.blocked_positive_unifications.contains(&pair)
-                || analysis.allowed_positive_unifications.contains(&pair))
-                && (!analysis.blocked_negative_unifications.contains(&pair)
-                    || analysis.allowed_negative_unifications.contains(&pair))
-        });
+        let sandwich = pos
+            .iter()
+            .find(|item| **item != AlongItem::Var(v) && neg.contains(item));
         if let Some(item) = sandwich {
             match item {
                 AlongItem::Var(w) => {
@@ -554,11 +516,11 @@ fn collect_boundary_coalescence_candidates_in_bounds(
     boundary: u32,
     out: &mut HashSet<TypeVar>,
 ) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         collect_boundary_coalescence_candidate_var(tv, var_levels, boundary, out);
     }
-    collect_boundary_coalescence_candidates_in_type(&bounds.lower, var_levels, boundary, out);
-    collect_boundary_coalescence_candidates_in_type(&bounds.upper, var_levels, boundary, out);
+    collect_boundary_coalescence_candidates_in_type(bounds.lower(), var_levels, boundary, out);
+    collect_boundary_coalescence_candidates_in_type(bounds.upper(), var_levels, boundary, out);
 }
 
 fn collect_boundary_coalescence_candidates_in_type(
@@ -634,11 +596,11 @@ fn collect_boundary_coalescence_candidate_var(
 }
 
 fn collect_vars_in_bounds(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         out.insert(tv);
     }
-    collect_vars_in_type(&bounds.lower, out);
-    collect_vars_in_type(&bounds.upper, out);
+    collect_vars_in_type(bounds.lower(), out);
+    collect_vars_in_type(bounds.upper(), out);
 }
 
 fn collect_vars_in_type(ty: &CompactType, out: &mut HashSet<TypeVar>) {
@@ -762,10 +724,10 @@ fn rewrite_bounds_with_representatives(
     subst: &HashMap<TypeVar, Option<TypeVar>>,
     representatives: &HashMap<TypeVar, CompactType>,
 ) -> CompactBounds {
-    normalize_rewritten_bounds(CompactBounds {
-        self_var: bounds.self_var.and_then(|tv| rewrite_var(tv, subst)),
-        lower: rewrite_compact_type(&bounds.lower, subst, representatives),
-        upper: rewrite_compact_type(&bounds.upper, subst, representatives),
+    normalize_rewritten_bounds(CompactBounds::Interval {
+        self_var: bounds.self_var().and_then(|tv| rewrite_var(tv, subst)),
+        lower: rewrite_compact_type(bounds.lower(), subst, representatives),
+        upper: rewrite_compact_type(bounds.upper(), subst, representatives),
     })
 }
 
@@ -966,21 +928,21 @@ pub(crate) fn is_effectively_recursive(
 }
 
 fn is_trivial_self_bounds(tv: TypeVar, bounds: &CompactBounds) -> bool {
-    (is_empty_compact_type(&bounds.lower) && is_only_self_var(&bounds.upper, tv))
-        || (is_only_self_var(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
-        || (is_empty_compact_type(&bounds.lower) && is_only_self_empty_row(&bounds.upper, tv))
-        || (is_only_self_empty_row(&bounds.lower, tv) && is_empty_compact_type(&bounds.upper))
-        || (is_empty_compact_type(&bounds.lower)
-            && is_self_with_guarded_self_rows(&bounds.upper, tv))
-        || (is_self_with_guarded_self_rows(&bounds.lower, tv)
-            && is_empty_compact_type(&bounds.upper))
+    (is_empty_compact_type(bounds.lower()) && is_only_self_var(bounds.upper(), tv))
+        || (is_only_self_var(bounds.lower(), tv) && is_empty_compact_type(bounds.upper()))
+        || (is_empty_compact_type(bounds.lower()) && is_only_self_empty_row(bounds.upper(), tv))
+        || (is_only_self_empty_row(bounds.lower(), tv) && is_empty_compact_type(bounds.upper()))
+        || (is_empty_compact_type(bounds.lower())
+            && is_self_with_guarded_self_rows(bounds.upper(), tv))
+        || (is_self_with_guarded_self_rows(bounds.lower(), tv)
+            && is_empty_compact_type(bounds.upper()))
         || is_var_only_self_alias_bounds(tv, bounds)
 }
 
 fn is_var_only_self_alias_bounds(tv: TypeVar, bounds: &CompactBounds) -> bool {
     let mut saw_self = false;
-    compact_type_is_var_only_self_alias(&bounds.lower, tv, &mut saw_self)
-        && compact_type_is_var_only_self_alias(&bounds.upper, tv, &mut saw_self)
+    compact_type_is_var_only_self_alias(bounds.lower(), tv, &mut saw_self)
+        && compact_type_is_var_only_self_alias(bounds.upper(), tv, &mut saw_self)
         && saw_self
 }
 
@@ -1090,7 +1052,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a, b]),
@@ -1119,7 +1081,7 @@ mod tests {
             segments: vec![Name("int".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -1159,46 +1121,6 @@ mod tests {
     }
 
     #[test]
-    fn coalesce_by_co_occurrence_keeps_centered_input_interval_alias_distinct() {
-        let center = fresh_type_var();
-        let captured_in_ref = fresh_type_var();
-        let captured_in_callback = fresh_type_var();
-        let value = fresh_type_var();
-        let scheme = ref_update_like_curried_effect_scheme_with_split_capture(
-            center,
-            captured_in_ref,
-            captured_in_callback,
-            value,
-        );
-
-        let coalesced = coalesce_by_co_occurrence(&scheme);
-        let fun = &coalesced.cty.lower.funs[0];
-        let effect_arg = &fun.arg.cons[0].args[0];
-        assert_eq!(effect_arg.lower.vars, HashSet::from([center]));
-        assert!(effect_arg.upper.vars.contains(&center));
-
-        let captured = effect_arg
-            .upper
-            .vars
-            .difference(&HashSet::from([center]))
-            .copied()
-            .collect::<HashSet<_>>();
-        assert_eq!(captured.len(), 1);
-
-        let update_fun = &fun.ret.funs[0];
-        let callback_fun = &update_fun.arg.funs[0];
-        assert_eq!(callback_fun.ret_eff.vars, captured);
-        assert_eq!(
-            update_fun.ret_eff.vars,
-            captured
-                .iter()
-                .copied()
-                .chain([center])
-                .collect::<HashSet<_>>()
-        );
-    }
-
-    #[test]
     fn coalesce_by_co_occurrence_keeps_ref_update_like_effect_vars_distinct() {
         let residual = fresh_type_var();
         let captured = fresh_type_var();
@@ -1218,13 +1140,13 @@ mod tests {
         assert!(analysis.positive[&captured].contains(&AlongItem::Var(residual)));
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let fun = &coalesced.cty.lower.funs[0];
+        let fun = &coalesced.cty.lower().funs[0];
         assert_eq!(
-            fun.arg.cons[0].args[0].lower.vars,
+            fun.arg.cons[0].args[0].lower().vars,
             HashSet::from([residual])
         );
         assert_eq!(
-            fun.arg.cons[0].args[0].upper.vars,
+            fun.arg.cons[0].args[0].upper().vars,
             HashSet::from([residual, captured])
         );
         assert_eq!(fun.arg.cons[0].args[1], var_bounds(value));
@@ -1244,7 +1166,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1267,9 +1189,9 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert_eq!(coalesced.cty.lower.funs.len(), 1);
-        assert_eq!(coalesced.cty.lower.funs[0].arg.vars.len(), 1);
-        assert_eq!(coalesced.cty.lower.funs[0].ret.vars.len(), 1);
+        assert_eq!(coalesced.cty.lower().funs.len(), 1);
+        assert_eq!(coalesced.cty.lower().funs[0].arg.vars.len(), 1);
+        assert_eq!(coalesced.cty.lower().funs[0].ret.vars.len(), 1);
 
         let report = coalesce_by_co_occurrence_with_role_constraints_report(&scheme, &[]);
         assert_eq!(report.rounds.len(), 1);
@@ -1280,7 +1202,7 @@ mod tests {
     fn coalesce_by_co_occurrence_removes_positive_only_vars() {
         let a = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -1292,7 +1214,7 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert!(coalesced.cty.lower.vars.is_empty());
+        assert!(coalesced.cty.lower().vars.is_empty());
 
         let report = coalesce_by_co_occurrence_with_role_constraints_report(&scheme, &[]);
         assert_eq!(report.rounds.len(), 1);
@@ -1306,7 +1228,7 @@ mod tests {
             segments: vec![Name("int".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -1337,7 +1259,7 @@ mod tests {
             segments: vec![Name("int".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -1368,10 +1290,10 @@ mod tests {
             None,
         )
         .scheme;
-        assert!(coalesced.cty.lower.vars.is_empty());
-        assert_eq!(coalesced.cty.lower.funs.len(), 1);
+        assert!(coalesced.cty.lower().vars.is_empty());
+        assert_eq!(coalesced.cty.lower().funs.len(), 1);
         assert_eq!(
-            coalesced.cty.lower.funs[0].ret,
+            coalesced.cty.lower().funs[0].ret,
             CompactType {
                 prims: HashSet::from([int_path]),
                 ..CompactType::default()
@@ -1413,7 +1335,7 @@ mod tests {
     fn coalesce_by_co_occurrence_removes_negative_only_vars() {
         let a = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1433,15 +1355,15 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert_eq!(coalesced.cty.lower.funs.len(), 1);
-        assert!(coalesced.cty.lower.funs[0].arg.vars.is_empty());
+        assert_eq!(coalesced.cty.lower().funs.len(), 1);
+        assert!(coalesced.cty.lower().funs[0].arg.vars.is_empty());
     }
 
     #[test]
     fn coalesce_by_co_occurrence_removes_positive_only_effect_vars() {
         let a = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1461,15 +1383,15 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert_eq!(coalesced.cty.lower.funs.len(), 1);
-        assert!(coalesced.cty.lower.funs[0].ret_eff.vars.is_empty());
+        assert_eq!(coalesced.cty.lower().funs.len(), 1);
+        assert!(coalesced.cty.lower().funs[0].ret_eff.vars.is_empty());
     }
 
     #[test]
     fn coalesce_by_co_occurrence_removes_negative_only_effect_vars() {
         let a = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1489,8 +1411,8 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert_eq!(coalesced.cty.lower.funs.len(), 1);
-        assert!(coalesced.cty.lower.funs[0].arg_eff.vars.is_empty());
+        assert_eq!(coalesced.cty.lower().funs.len(), 1);
+        assert!(coalesced.cty.lower().funs[0].arg_eff.vars.is_empty());
     }
 
     #[test]
@@ -1512,7 +1434,7 @@ mod tests {
             }),
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1562,7 +1484,7 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let fun = &coalesced.cty.lower.funs[0];
+        let fun = &coalesced.cty.lower().funs[0];
         assert!(
             fun.arg_eff.vars.is_empty(),
             "the mirrored root upper effect input must not keep a negative-only effect variable alive",
@@ -1578,7 +1500,7 @@ mod tests {
             segments: vec![Name("eff".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1588,7 +1510,7 @@ mod tests {
                                 items: vec![CompactType {
                                     cons: vec![CompactCon {
                                         path: eff_path,
-                                        args: vec![CompactBounds {
+                                        args: vec![CompactBounds::Interval {
                                             self_var: None,
                                             lower: CompactType {
                                                 vars: HashSet::from([a]),
@@ -1614,8 +1536,8 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let arg = &coalesced.cty.lower.funs[0].arg_eff.rows[0].items[0].cons[0].args[0];
-        assert!(arg.lower.vars.is_empty());
+        let arg = &coalesced.cty.lower().funs[0].arg_eff.rows[0].items[0].cons[0].args[0];
+        assert!(arg.lower().vars.is_empty());
     }
 
     #[test]
@@ -1625,7 +1547,7 @@ mod tests {
             segments: vec![Name("eff".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1635,7 +1557,7 @@ mod tests {
                                 items: vec![CompactType {
                                     cons: vec![CompactCon {
                                         path: eff_path,
-                                        args: vec![CompactBounds {
+                                        args: vec![CompactBounds::Interval {
                                             self_var: None,
                                             lower: CompactType::default(),
                                             upper: CompactType {
@@ -1661,8 +1583,8 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let arg = &coalesced.cty.lower.funs[0].arg_eff.rows[0].items[0].cons[0].args[0];
-        assert!(arg.upper.vars.is_empty());
+        let arg = &coalesced.cty.lower().funs[0].arg_eff.rows[0].items[0].cons[0].args[0];
+        assert!(arg.upper().vars.is_empty());
     }
 
     #[test]
@@ -1672,7 +1594,7 @@ mod tests {
             segments: vec![Name("int".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -1689,8 +1611,8 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert!(coalesced.cty.lower.vars.is_empty());
-        assert!(coalesced.cty.upper.vars.is_empty());
+        assert!(coalesced.cty.lower().vars.is_empty());
+        assert!(coalesced.cty.upper().vars.is_empty());
     }
 
     #[test]
@@ -1698,7 +1620,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType::default(),
                 upper: CompactType {
@@ -1735,7 +1657,7 @@ mod tests {
             segments: vec![Name("int".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType::default(),
                 upper: CompactType {
@@ -1755,7 +1677,7 @@ mod tests {
     fn analyze_co_occurrences_tracks_record_spread_tail_vars() {
         let a = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     record_spreads: vec![CompactRecordSpread {
@@ -1791,7 +1713,7 @@ mod tests {
             segments: vec![Name("io".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     rows: vec![CompactRow {
@@ -1824,7 +1746,7 @@ mod tests {
             segments: vec![Name("io".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([outer]),
@@ -1860,7 +1782,7 @@ mod tests {
             ret: CompactType::default(),
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -1877,10 +1799,10 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert!(coalesced.cty.lower.vars.is_empty());
-        assert!(coalesced.cty.upper.vars.is_empty());
-        assert_eq!(coalesced.cty.lower.funs.len(), 1);
-        assert_eq!(coalesced.cty.upper.funs.len(), 1);
+        assert!(coalesced.cty.lower().vars.is_empty());
+        assert!(coalesced.cty.upper().vars.is_empty());
+        assert_eq!(coalesced.cty.lower().funs.len(), 1);
+        assert_eq!(coalesced.cty.upper().funs.len(), 1);
     }
 
     #[test]
@@ -1892,7 +1814,7 @@ mod tests {
             segments: vec![Name("Fold".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1927,7 +1849,7 @@ mod tests {
             role: fold.clone(),
             args: vec![
                 self_bounds(container),
-                CompactBounds {
+                CompactBounds::Interval {
                     self_var: Some(item),
                     lower: var_type(item),
                     upper: vars_type([item, callback_item]),
@@ -1943,10 +1865,15 @@ mod tests {
             0,
         );
 
-        let callback_arg = &coalesced.scheme.cty.lower.funs[0].ret.funs[0].arg.funs[0].arg;
+        let callback_arg = &coalesced.scheme.cty.lower().funs[0].ret.funs[0].arg.funs[0].arg;
         assert!(callback_arg.vars.contains(&item));
         assert!(!callback_arg.vars.contains(&callback_item));
-        assert!(coalesced.constraints[0].args[1].lower.vars.contains(&item));
+        assert!(
+            coalesced.constraints[0].args[1]
+                .lower()
+                .vars
+                .contains(&item)
+        );
     }
 
     #[test]
@@ -1959,7 +1886,7 @@ mod tests {
             ..CompactType::default()
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -1994,7 +1921,7 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let ret = &coalesced.cty.lower.funs[0].ret;
+        let ret = &coalesced.cty.lower().funs[0].ret;
         assert!(ret.vars.is_empty());
         assert_eq!(ret.prims, unit.prims);
     }
@@ -2013,7 +1940,7 @@ mod tests {
             ..CompactType::default()
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -2038,7 +1965,7 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let ret = &coalesced.cty.lower.funs[0].ret;
+        let ret = &coalesced.cty.lower().funs[0].ret;
         assert!(ret.vars.contains(&a));
         assert_eq!(ret.prims, int.prims);
     }
@@ -2060,7 +1987,7 @@ mod tests {
             ..CompactType::default()
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -2077,10 +2004,10 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert!(coalesced.cty.lower.vars.is_empty());
-        assert!(coalesced.cty.upper.vars.is_empty());
-        assert_eq!(coalesced.cty.lower.rows.len(), 1);
-        assert_eq!(coalesced.cty.upper.rows.len(), 1);
+        assert!(coalesced.cty.lower().vars.is_empty());
+        assert!(coalesced.cty.upper().vars.is_empty());
+        assert_eq!(coalesced.cty.lower().rows.len(), 1);
+        assert_eq!(coalesced.cty.upper().rows.len(), 1);
     }
 
     #[test]
@@ -2100,7 +2027,7 @@ mod tests {
             tail_wins: true,
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -2117,10 +2044,10 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        assert!(coalesced.cty.lower.vars.is_empty());
-        assert!(coalesced.cty.upper.vars.is_empty());
-        assert_eq!(coalesced.cty.lower.record_spreads.len(), 1);
-        assert_eq!(coalesced.cty.upper.record_spreads.len(), 1);
+        assert!(coalesced.cty.lower().vars.is_empty());
+        assert!(coalesced.cty.upper().vars.is_empty());
+        assert_eq!(coalesced.cty.lower().record_spreads.len(), 1);
+        assert_eq!(coalesced.cty.upper().record_spreads.len(), 1);
     }
 
     #[test]
@@ -2147,12 +2074,12 @@ mod tests {
             ..CompactType::default()
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     cons: vec![CompactCon {
                         path: opt_path.clone(),
-                        args: vec![CompactBounds {
+                        args: vec![CompactBounds::Interval {
                             self_var: None,
                             lower: merge_compact_types(
                                 true,
@@ -2180,11 +2107,11 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let arg = &coalesced.cty.lower.cons[0].args[0];
-        assert!(arg.lower.vars.is_empty());
-        assert!(arg.upper.vars.is_empty());
-        assert_eq!(arg.lower.tuples.len(), 1);
-        assert_eq!(arg.upper.tuples.len(), 1);
+        let arg = &coalesced.cty.lower().cons[0].args[0];
+        assert!(arg.lower().vars.is_empty());
+        assert!(arg.upper().vars.is_empty());
+        assert_eq!(arg.lower().tuples.len(), 1);
+        assert_eq!(arg.upper().tuples.len(), 1);
     }
 
     #[test]
@@ -2198,20 +2125,20 @@ mod tests {
             segments: vec![Name("var".to_string())],
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     cons: vec![CompactCon {
                         path: ref_path,
                         args: vec![
-                            CompactBounds {
+                            CompactBounds::Interval {
                                 self_var: None,
                                 lower: CompactType {
                                     rows: vec![CompactRow {
                                         items: vec![CompactType {
                                             cons: vec![CompactCon {
                                                 path: var_path,
-                                                args: vec![CompactBounds {
+                                                args: vec![CompactBounds::Interval {
                                                     self_var: None,
                                                     lower: CompactType {
                                                         vars: HashSet::from([a, b]),
@@ -2231,7 +2158,7 @@ mod tests {
                                 },
                                 upper: CompactType::default(),
                             },
-                            CompactBounds {
+                            CompactBounds::Interval {
                                 self_var: None,
                                 lower: CompactType {
                                     vars: HashSet::from([a]),
@@ -2252,12 +2179,12 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let con = &coalesced.cty.lower.cons[0];
-        let row_item_con = &con.args[0].lower.rows[0].items[0].cons[0];
-        assert_eq!(row_item_con.args[0].lower.vars, HashSet::from([a]));
-        assert_eq!(row_item_con.args[0].upper.vars, HashSet::from([a]));
-        assert_eq!(con.args[1].lower.vars, HashSet::from([a]));
-        assert_eq!(con.args[1].upper.vars, HashSet::from([a]));
+        let con = &coalesced.cty.lower().cons[0];
+        let row_item_con = &con.args[0].lower().rows[0].items[0].cons[0];
+        assert_eq!(row_item_con.args[0].lower().vars, HashSet::from([a]));
+        assert_eq!(row_item_con.args[0].upper().vars, HashSet::from([a]));
+        assert_eq!(con.args[1].lower().vars, HashSet::from([a]));
+        assert_eq!(con.args[1].upper().vars, HashSet::from([a]));
     }
 
     #[test]
@@ -2286,7 +2213,7 @@ mod tests {
             ..CompactType::default()
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -2303,7 +2230,7 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let fun = &coalesced.cty.lower.funs[0];
+        let fun = &coalesced.cty.lower().funs[0];
         let coalesced_tail = single_var(&fun.arg_eff.rows[0].tail.vars);
         assert!(
             fun.arg_eff.vars.is_empty(),
@@ -2317,7 +2244,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -2340,7 +2267,7 @@ mod tests {
         };
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
-        let fun = &coalesced.cty.lower.funs[0];
+        let fun = &coalesced.cty.lower().funs[0];
         assert_eq!(fun.arg_eff.vars.len(), 1);
         assert_eq!(fun.ret_eff.vars.len(), 1);
         assert_eq!(fun.arg_eff.vars, fun.ret_eff.vars);
@@ -2353,7 +2280,7 @@ mod tests {
 
     fn var_bounds(tv: TypeVar) -> CompactBounds {
         let ty = var_type(tv);
-        CompactBounds {
+        CompactBounds::Interval {
             self_var: None,
             lower: ty.clone(),
             upper: ty,
@@ -2361,7 +2288,7 @@ mod tests {
     }
 
     fn self_bounds(tv: TypeVar) -> CompactBounds {
-        CompactBounds {
+        CompactBounds::Interval {
             self_var: Some(tv),
             lower: var_type(tv),
             upper: var_type(tv),
@@ -2384,7 +2311,7 @@ mod tests {
         upper_arg: TypeVar,
     ) -> CompactTypeScheme {
         CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -2393,7 +2320,7 @@ mod tests {
                                 path: Path {
                                     segments: vec![Name("Box".to_string())],
                                 },
-                                args: vec![CompactBounds {
+                                args: vec![CompactBounds::Interval {
                                     self_var: None,
                                     lower: CompactType {
                                         vars: HashSet::from([lower_arg]),
@@ -2425,7 +2352,7 @@ mod tests {
         value: TypeVar,
     ) -> CompactTypeScheme {
         CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![crate::simplify::compact::CompactFun {
@@ -2435,7 +2362,7 @@ mod tests {
                                     segments: vec![Name("ref".to_string())],
                                 },
                                 args: vec![
-                                    CompactBounds {
+                                    CompactBounds::Interval {
                                         self_var: None,
                                         lower: CompactType {
                                             vars: HashSet::from([residual]),
@@ -2478,65 +2405,6 @@ mod tests {
                                     vars: HashSet::from([residual, captured]),
                                     ..CompactType::default()
                                 },
-                                ret: CompactType::default(),
-                            }],
-                            ..CompactType::default()
-                        },
-                    }],
-                    ..CompactType::default()
-                },
-                upper: CompactType::default(),
-            },
-            rec_vars: Default::default(),
-        }
-    }
-
-    fn ref_update_like_curried_effect_scheme_with_split_capture(
-        residual: TypeVar,
-        captured_in_ref: TypeVar,
-        captured_in_callback: TypeVar,
-        value: TypeVar,
-    ) -> CompactTypeScheme {
-        CompactTypeScheme {
-            cty: CompactBounds {
-                self_var: None,
-                lower: CompactType {
-                    funs: vec![crate::simplify::compact::CompactFun {
-                        arg: CompactType {
-                            cons: vec![CompactCon {
-                                path: Path {
-                                    segments: vec![Name("ref".to_string())],
-                                },
-                                args: vec![
-                                    CompactBounds {
-                                        self_var: None,
-                                        lower: vars_type([residual]),
-                                        upper: vars_type([residual, captured_in_ref]),
-                                    },
-                                    var_bounds(value),
-                                ],
-                            }],
-                            ..CompactType::default()
-                        },
-                        arg_eff: CompactType::default(),
-                        ret_eff: CompactType::default(),
-                        ret: CompactType {
-                            funs: vec![crate::simplify::compact::CompactFun {
-                                arg: CompactType {
-                                    funs: vec![crate::simplify::compact::CompactFun {
-                                        arg: var_type(value),
-                                        arg_eff: CompactType::default(),
-                                        ret_eff: var_type(captured_in_callback),
-                                        ret: var_type(value),
-                                    }],
-                                    ..CompactType::default()
-                                },
-                                arg_eff: CompactType::default(),
-                                ret_eff: vars_type([
-                                    residual,
-                                    captured_in_ref,
-                                    captured_in_callback,
-                                ]),
                                 ret: CompactType::default(),
                             }],
                             ..CompactType::default()

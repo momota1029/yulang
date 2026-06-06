@@ -125,7 +125,7 @@ fn compact_role_constraint_arg(
     infer: &crate::solve::Infer,
     arg: RoleConstraintArg,
 ) -> CompactBounds {
-    CompactBounds {
+    CompactBounds::Interval {
         self_var: role_constraint_arg_self_var(infer, &arg),
         lower: compact_pos_expr(infer, arg.pos),
         upper: compact_neg_expr(infer, arg.neg),
@@ -178,7 +178,7 @@ fn render_impl_arg_pattern(
     scope: &HashMap<String, TypeVar>,
 ) -> String {
     render_concrete_sig_type(sig).unwrap_or_else(|| {
-        crate::display::dump::format_compact_role_constraint_arg(&CompactBounds {
+        crate::display::dump::format_compact_role_constraint_arg(&CompactBounds::Interval {
             self_var: None,
             lower: compact_impl_arg_pattern(state, sig, scope),
             upper: crate::simplify::compact::CompactType::default(),

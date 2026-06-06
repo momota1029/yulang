@@ -1097,7 +1097,7 @@ impl Infer {
         seen: &mut HashSet<TypeVar>,
     ) -> Option<RefFieldProjection> {
         self.resolve_ref_field_projection_from_compact_type(
-            &instance.scheme.compact.cty.lower,
+            instance.scheme.compact.cty.lower(),
             instance.subst.as_slice(),
             name,
             dependent,
@@ -1116,7 +1116,7 @@ impl Infer {
         for con in &ty.cons {
             if self.is_ref_type_path(&con.path) && con.args.len() >= 2 {
                 if let Some(projection) = self.resolve_ref_field_projection_from_compact_inner_type(
-                    &con.args[1].lower,
+                    con.args[1].lower(),
                     subst,
                     name,
                     dependent,
@@ -1125,7 +1125,7 @@ impl Infer {
                     return Some(projection);
                 }
                 if let Some(projection) = self.resolve_ref_field_projection_from_compact_inner_type(
-                    &con.args[1].upper,
+                    con.args[1].upper(),
                     subst,
                     name,
                     dependent,

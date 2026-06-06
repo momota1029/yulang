@@ -1326,7 +1326,7 @@ fn materialize_compact_lower(infer: &Infer, instance: &OwnedSchemeInstance) -> P
 }
 
 fn compact_instance_direct_var(instance: &OwnedSchemeInstance) -> Option<TypeVar> {
-    let ty = &instance.scheme.compact.cty.lower;
+    let ty = instance.scheme.compact.cty.lower();
     if ty.prims.is_empty()
         && ty.cons.is_empty()
         && ty.funs.is_empty()

@@ -122,3 +122,17 @@ tests::row_effect_annotation_clears_subtractability_when_argument_reaches_output
 
 このファイルに「完了・最終 test 結果・気づき」を追記して残すこと。
 次工程（sandwich 実装 = `spec/2026-06-06-invariant-type-sandwich.md` の Step 3 以降）は別担当。
+
+## 完了ログ
+
+2026-06-06:
+
+- `CompactBounds` を `Interval { self_var, lower, upper }` だけを持つ enum に移行した。
+- 既存の field read/write/構築/分解を accessor・mut accessor・`CompactBounds::Interval` へ機械的に移した。
+- sandwich / lift 変種は追加していない。`finalize_expansive_compact_scheme` のロジックも enum 化に必要な accessor 置換のみ。
+- `env RUSTC_WRAPPER= cargo build -p yulang-infer` は成功。`scc/close.rs` の unused helper warning が 2 件出る。
+- `env RUSTC_WRAPPER= cargo test -p yulang-infer --lib --no-fail-fast -- --skip compiled` は想定どおり
+  `481 passed; 16 failed; 0 ignored; 0 measured; 30 filtered out`。
+- 失敗 16 件は上の「検証」節のリストと一致。増減なし。
+- 気づき: `cargo build` では test module 内の `CompactBounds` field access が出ないため、`cargo test --lib --no-run`
+  相当の test target compile まで見る必要があった。

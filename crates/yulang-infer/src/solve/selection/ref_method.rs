@@ -96,7 +96,7 @@ impl Infer {
         allow_global_unique: bool,
     ) -> Option<DefId> {
         self.resolve_ref_selection_def_from_compact_type(
-            &instance.scheme.compact.cty.lower,
+            instance.scheme.compact.cty.lower(),
             instance.subst.as_slice(),
             name,
             seen,
@@ -115,7 +115,7 @@ impl Infer {
         for con in &ty.cons {
             if self.is_ref_type_path(&con.path) && con.args.len() >= 2 {
                 if let Some(def) = self.resolve_ref_inner_selection_def_from_compact_type(
-                    &con.args[1].lower,
+                    con.args[1].lower(),
                     subst,
                     name,
                     seen,
@@ -123,7 +123,7 @@ impl Infer {
                     return Some(def);
                 }
                 if let Some(def) = self.resolve_ref_inner_selection_def_from_compact_type(
-                    &con.args[1].upper,
+                    con.args[1].upper(),
                     subst,
                     name,
                     seen,
@@ -153,7 +153,7 @@ impl Infer {
             || self
                 .compact_lower_instances_of(recv_tv)
                 .into_iter()
-                .any(|instance| self.compact_type_has_ref_type(&instance.scheme.compact.cty.lower))
+                .any(|instance| self.compact_type_has_ref_type(instance.scheme.compact.cty.lower()))
     }
 
     fn pos_has_ref_type_lower(&self, pos: crate::ids::PosId, seen: &mut HashSet<TypeVar>) -> bool {
@@ -255,7 +255,7 @@ impl Infer {
             }
             for instance in self.compact_lower_instances_of(mapped) {
                 if let Some(def) = self.resolve_ref_inner_selection_def_from_compact_type(
-                    &instance.scheme.compact.cty.lower,
+                    instance.scheme.compact.cty.lower(),
                     instance.subst.as_slice(),
                     name,
                     seen,

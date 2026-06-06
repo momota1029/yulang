@@ -16,10 +16,10 @@ pub(super) fn first_fun_arg_var_in_scheme(
 }
 
 fn first_fun_arg_var_in_compact(scheme: &CompactTypeScheme) -> Option<TypeVar> {
-    let [lower_fun] = scheme.cty.lower.funs.as_slice() else {
+    let [lower_fun] = scheme.cty.lower().funs.as_slice() else {
         return None;
     };
-    let [upper_fun] = scheme.cty.upper.funs.as_slice() else {
+    let [upper_fun] = scheme.cty.upper().funs.as_slice() else {
         return single_compact_var(&lower_fun.arg);
     };
     common_compact_var(&lower_fun.arg, &upper_fun.arg)

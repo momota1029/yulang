@@ -90,9 +90,9 @@ fn remove_empty_role_constraints(
 
 fn role_constraint_is_empty(constraint: &CompactRoleConstraint) -> bool {
     constraint.args.iter().all(|arg| {
-        arg.self_var.is_none()
-            && arg.lower == CompactType::default()
-            && arg.upper == CompactType::default()
+        arg.self_var().is_none()
+            && arg.lower() == &CompactType::default()
+            && arg.upper() == &CompactType::default()
     })
 }
 
@@ -174,11 +174,11 @@ fn role_constraint_vars(constraint: &CompactRoleConstraint) -> HashSet<TypeVar> 
 }
 
 fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         out.insert(tv);
     }
-    collect_compact_type_vars(&bounds.lower, out);
-    collect_compact_type_vars(&bounds.upper, out);
+    collect_compact_type_vars(bounds.lower(), out);
+    collect_compact_type_vars(bounds.upper(), out);
 }
 
 fn collect_compact_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
@@ -244,7 +244,7 @@ mod tests {
         let b = fresh_type_var();
         let c = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -273,7 +273,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     vars: HashSet::from([a]),
@@ -378,7 +378,7 @@ mod tests {
     }
 
     fn var_bounds(tv: crate::ids::TypeVar) -> CompactBounds {
-        CompactBounds {
+        CompactBounds::Interval {
             self_var: None,
             lower: CompactType {
                 vars: HashSet::from([tv]),

@@ -218,8 +218,8 @@ fn value_call_shape(state: &LowerState, def: DefId) -> ValueCallShape {
 
 fn frozen_value_call_shape(state: &LowerState, def: DefId) -> ValueCallShape {
     if let Some(scheme) = state.infer.frozen_scheme_of(def) {
-        if compact_type_has_fun(&scheme.compact.cty.lower)
-            || compact_type_has_fun(&scheme.compact.cty.upper)
+        if compact_type_has_fun(scheme.compact.cty.lower())
+            || compact_type_has_fun(scheme.compact.cty.upper())
         {
             return ValueCallShape::Callable;
         }

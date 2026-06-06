@@ -949,7 +949,7 @@ fn lowers_list_literal_from_source_loader() {
         .find(|(name, _)| name == "xs")
         .expect("xs should be rendered");
 
-    assert_eq!(xs.1, "std::list::list<int>");
+    assert_eq!(xs.1, "std::list::list<int | α>");
 
     let _ = fs::remove_dir_all(root);
 }
@@ -4388,7 +4388,7 @@ fn lowers_std_undet_entrypoints_through_implicit_prelude() {
         );
         assert_eq!(
             rendered_type(&rendered, "collected"),
-            "std::list::list<int>"
+            "std::list::list<int | α>"
         );
     });
 }
@@ -4405,7 +4405,7 @@ fn lowers_opt_if_join_keeps_invariant_payload_interval() {
     .unwrap();
     let rendered = render_compact_results(&mut lowered.state);
 
-    assert_eq!(rendered_type(&rendered, "x"), "opt<(α | int, β | int)>");
+    assert_eq!(rendered_type(&rendered, "x"), "opt<(int, int)>");
 }
 
 #[test]
@@ -4421,7 +4421,7 @@ fn lowers_opt_if_join_without_annotation_keeps_open_payload_interval() {
     let rendered = render_compact_results(&mut lowered.state);
 
     assert_eq!(rendered_type(&rendered, "nil_pair"), "opt<α>");
-    assert_eq!(rendered_type(&rendered, "x"), "opt<(α | int, β | int)>");
+    assert_eq!(rendered_type(&rendered, "x"), "opt<(int, int) | α>");
 }
 
 #[test]
@@ -4447,7 +4447,7 @@ fn compact_scheme_keeps_invariant_payload_interval() {
 
     assert_eq!(
         crate::display::format::format_coalesced_scheme(&scheme),
-        "opt<(α | int, β | int)>"
+        "opt<(int, int)>"
     );
 }
 
@@ -5073,13 +5073,16 @@ fn effect_method_list_selection_uses_receiver_effect_row() {
         );
         assert_eq!(
             rendered_type(&rendered, "collected"),
-            "std::list::list<int>"
+            "std::list::list<int | α>"
         );
         assert_eq!(
             rendered_type(&rendered, "logic_value"),
-            "std::list::list<int>"
+            "std::list::list<int | α>"
         );
-        assert_eq!(rendered_type(&rendered, "once_value"), "std::opt::opt<int>");
+        assert_eq!(
+            rendered_type(&rendered, "once_value"),
+            "std::opt::opt<int | α>"
+        );
         assert_eq!(
             rendered_type(&rendered, "direct_list"),
             "std::list::list<int>"

@@ -151,7 +151,7 @@ fn freeze_compact_scheme_owned_with_non_generic_and_extra_vars_inner(
         .unwrap_or_else(|| {
             compact_pos_type_inner(
                 &scheme_arena,
-                &compact.cty.lower,
+                compact.cty.lower(),
                 &compact,
                 false,
                 &mut effect_atom_arg_bounds,
@@ -239,7 +239,7 @@ pub fn compact_scheme_from_pos_body(infer: &Infer, body: PosId) -> CompactTypeSc
 
 pub fn compact_scheme_from_pos_body_in_arena(arena: &TypeArena, body: PosId) -> CompactTypeScheme {
     CompactTypeScheme {
-        cty: CompactBounds {
+        cty: CompactBounds::Interval {
             self_var: None,
             lower: compact_pos_expr_in_arena(arena, body),
             upper: CompactType::default(),
@@ -434,7 +434,7 @@ fn compact_pos_expr_in_arena(arena: &TypeArena, id: PosId) -> CompactType {
         Pos::Con(path, args) => compact_type_from_con(
             path,
             args.into_iter()
-                .map(|(p, n)| CompactBounds {
+                .map(|(p, n)| CompactBounds::Interval {
                     self_var: None,
                     lower: compact_pos_expr_in_arena(arena, p),
                     upper: compact_neg_expr_in_arena(arena, n),
@@ -530,7 +530,7 @@ fn compact_neg_expr_in_arena(arena: &TypeArena, id: NegId) -> CompactType {
         Neg::Con(path, args) => compact_type_from_con(
             path,
             args.into_iter()
-                .map(|(p, n)| CompactBounds {
+                .map(|(p, n)| CompactBounds::Interval {
                     self_var: None,
                     lower: compact_pos_expr_in_arena(arena, p),
                     upper: compact_neg_expr_in_arena(arena, n),
@@ -601,7 +601,7 @@ fn compact_effect_atom(atom: EffectAtom) -> CompactType {
             atom.path,
             atom.args
                 .into_iter()
-                .map(|(pos_tv, neg_tv)| CompactBounds {
+                .map(|(pos_tv, neg_tv)| CompactBounds::Interval {
                     self_var: None,
                     lower: compact_type_from_var(pos_tv),
                     upper: compact_type_from_var(neg_tv),
@@ -952,8 +952,8 @@ pub(crate) fn collect_non_generic_vars(
     for (root, scheme) in roots.into_iter().zip(schemes) {
         out.insert(root);
         let mut free = Vec::new();
-        collect_compact_type_free_vars(&scheme.cty.lower, &mut free);
-        collect_compact_type_free_vars(&scheme.cty.upper, &mut free);
+        collect_compact_type_free_vars(scheme.cty.lower(), &mut free);
+        collect_compact_type_free_vars(scheme.cty.upper(), &mut free);
         for bounds in scheme.rec_vars.values() {
             collect_compact_bounds_free_vars(bounds, &mut free);
         }
@@ -972,8 +972,8 @@ pub(crate) fn collect_low_level_vars_in_scheme(
     boundary: u32,
 ) -> HashSet<TypeVar> {
     let mut all = Vec::new();
-    collect_compact_type_free_vars(&scheme.cty.lower, &mut all);
-    collect_compact_type_free_vars(&scheme.cty.upper, &mut all);
+    collect_compact_type_free_vars(scheme.cty.lower(), &mut all);
+    collect_compact_type_free_vars(scheme.cty.upper(), &mut all);
     for bounds in scheme.rec_vars.values() {
         collect_compact_bounds_free_vars(bounds, &mut all);
     }
@@ -991,8 +991,8 @@ pub(crate) fn collect_var_levels(
     scheme: &CompactTypeScheme,
 ) -> std::collections::HashMap<TypeVar, u32> {
     let mut all = Vec::new();
-    collect_compact_type_free_vars(&scheme.cty.lower, &mut all);
-    collect_compact_type_free_vars(&scheme.cty.upper, &mut all);
+    collect_compact_type_free_vars(scheme.cty.lower(), &mut all);
+    collect_compact_type_free_vars(scheme.cty.upper(), &mut all);
     for bounds in scheme.rec_vars.values() {
         collect_compact_bounds_free_vars(bounds, &mut all);
     }
@@ -1037,8 +1037,8 @@ fn compact_effect_atom_arg(
     effect_atom_arg_bounds: &mut EffectAtomArgBounds,
 ) -> Option<(TypeVar, TypeVar)> {
     if let (Some(pos), Some(neg)) = (
-        single_compact_var(&arg.lower),
-        single_compact_var(&arg.upper),
+        single_compact_var(arg.lower()),
+        single_compact_var(arg.upper()),
     ) {
         return Some((pos, neg));
     }
@@ -1055,12 +1055,12 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
     if let Some(body) = compact_root_fun_body_lower(scheme) {
         collect_compact_type_free_vars(&body, &mut out);
     } else {
-        collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
+        collect_compact_type_free_vars(scheme.cty.lower(), &mut out);
     }
     // Root upper evidence is installed as a use-site upper constraint, not
     // folded into the positive body.  Quantify variables that occur inside
     // upper constructors so that this delayed evidence is freshened too.
-    collect_compact_root_upper_child_free_vars(&scheme.cty.upper, &mut out);
+    collect_compact_root_upper_child_free_vars(scheme.cty.upper(), &mut out);
     out
 }
 
@@ -1074,8 +1074,8 @@ fn collect_compact_bounds_free_vars_inner(
     out: &mut Vec<TypeVar>,
     seen: &mut HashSet<TypeVar>,
 ) {
-    collect_compact_type_free_vars_inner(&bounds.lower, out, seen);
-    collect_compact_type_free_vars_inner(&bounds.upper, out, seen);
+    collect_compact_type_free_vars_inner(bounds.lower(), out, seen);
+    collect_compact_type_free_vars_inner(bounds.upper(), out, seen);
 }
 
 fn collect_compact_root_upper_child_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {
@@ -1267,14 +1267,14 @@ fn compact_pos_type_inner(
                         (
                             compact_pos_type_inner(
                                 arena,
-                                &arg.lower,
+                                arg.lower(),
                                 scheme,
                                 false,
                                 effect_atom_arg_bounds,
                             ),
                             compact_neg_type_inner(
                                 arena,
-                                &arg.upper,
+                                arg.upper(),
                                 scheme,
                                 false,
                                 effect_atom_arg_bounds,
@@ -1446,14 +1446,14 @@ fn compact_neg_type_inner(
                         (
                             compact_pos_type_inner(
                                 arena,
-                                &arg.lower,
+                                arg.lower(),
                                 scheme,
                                 false,
                                 effect_atom_arg_bounds,
                             ),
                             compact_neg_type_inner(
                                 arena,
-                                &arg.upper,
+                                arg.upper(),
                                 scheme,
                                 false,
                                 effect_atom_arg_bounds,

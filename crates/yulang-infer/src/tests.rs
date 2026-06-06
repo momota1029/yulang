@@ -2922,7 +2922,7 @@ fn choice_effect_residual_coalesces_across_open_rows() {
         .surface_compact_scheme_of(choice_def)
         .expect("choice should have a compact scheme");
 
-    let choice_fun = single_compact_fun(&scheme.cty.lower, "choice");
+    let choice_fun = single_compact_fun(scheme.cty.lower(), "choice");
     let p_fun = single_compact_fun(&choice_fun.arg, "p");
     let q_stage = single_compact_fun(&choice_fun.ret, "choice result");
     let q_fun = single_compact_fun(&q_stage.arg, "q");

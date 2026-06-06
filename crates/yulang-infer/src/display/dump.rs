@@ -805,31 +805,54 @@ impl VarNamer {
 }
 
 fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer) -> String {
+    match bounds {
+        CompactBounds::Con { path, args } => {
+            let name = path_string(path);
+            if args.is_empty() {
+                return name;
+            }
+            let args = args
+                .iter()
+                .map(|arg| format_compact_bounds(arg, namer))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("{name}<{args}>");
+        }
+        CompactBounds::Tuple { items } => {
+            let items = items
+                .iter()
+                .map(|item| format_compact_bounds(item, namer))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("({items})");
+        }
+        CompactBounds::Interval { .. } => {}
+    }
     if let Some(rendered) = format_compact_bounds_with_center(bounds, namer) {
         return rendered;
     }
-    let lower_empty = is_empty_compact(&bounds.lower);
-    let upper_empty = is_empty_compact(&bounds.upper);
+    let lower_empty = is_empty_compact(bounds.lower());
+    let upper_empty = is_empty_compact(bounds.upper());
     match (lower_empty, upper_empty) {
         (true, true) => bounds
-            .self_var
+            .self_var()
             .map(|tv| namer.name(tv.0))
             .unwrap_or_else(|| "_".to_string()),
-        (false, true) => format_compact_type(&bounds.lower, namer, false),
-        (true, false) => format!("_ <: {}", format_compact_type(&bounds.upper, namer, false)),
+        (false, true) => format_compact_type(bounds.lower(), namer, false),
+        (true, false) => format!("_ <: {}", format_compact_type(bounds.upper(), namer, false)),
         (false, false) => {
             if let (Some(lower_vars), Some(upper_vars)) = (
-                compact_var_set(&bounds.lower),
-                compact_var_set(&bounds.upper),
+                compact_var_set(bounds.lower()),
+                compact_var_set(bounds.upper()),
             ) {
                 // A var-only upper union that already contains the lower adds no
                 // useful shape information to the rendered constructor argument.
                 if lower_vars.is_subset(&upper_vars) {
-                    return format_compact_type(&bounds.lower, namer, false);
+                    return format_compact_type(bounds.lower(), namer, false);
                 }
             }
-            let lower = format_compact_type(&bounds.lower, namer, false);
-            let upper = format_compact_type(&bounds.upper, namer, false);
+            let lower = format_compact_type(bounds.lower(), namer, false);
+            let upper = format_compact_type(bounds.upper(), namer, false);
             if lower == upper {
                 lower
             } else {
@@ -847,8 +870,8 @@ fn format_compact_bounds_with_center(
     if shared.is_empty() {
         return None;
     }
-    let mut lower = bounds.lower.clone();
-    let mut upper = bounds.upper.clone();
+    let mut lower = bounds.lower().clone();
+    let mut upper = bounds.upper().clone();
     for tv in &shared {
         lower.vars.remove(tv);
         upper.vars.remove(tv);
@@ -882,9 +905,9 @@ fn format_compact_bounds_with_center(
 
 fn shared_center_vars(bounds: &CompactBounds) -> Vec<TypeVar> {
     let mut shared = bounds
-        .lower
+        .lower()
         .vars
-        .intersection(&bounds.upper.vars)
+        .intersection(&bounds.upper().vars)
         .copied()
         .collect::<Vec<_>>();
     shared.sort_by_key(|tv| tv.0);
@@ -1346,12 +1369,14 @@ fn format_role_constraint_arg(arg: &CompactBounds, namer: &mut VarNamer) -> Stri
     if let Some(rendered) = format_compact_bounds_with_center(arg, namer) {
         return rendered;
     }
-    match (is_empty_compact(&arg.lower), is_empty_compact(&arg.upper)) {
+    match (is_empty_compact(arg.lower()), is_empty_compact(arg.upper())) {
         (true, true) => "_".to_string(),
-        (false, true) => format_compact_type(&arg.lower, namer, false),
-        (true, false) => format_compact_type_with_join(&arg.upper, namer, false, " & "),
-        (false, false) if arg.lower == arg.upper => format_compact_type(&arg.lower, namer, false),
-        (false, false) => format_compact_interval_arg(&arg.lower, &arg.upper, namer),
+        (false, true) => format_compact_type(arg.lower(), namer, false),
+        (true, false) => format_compact_type_with_join(arg.upper(), namer, false, " & "),
+        (false, false) if arg.lower() == arg.upper() => {
+            format_compact_type(arg.lower(), namer, false)
+        }
+        (false, false) => format_compact_interval_arg(arg.lower(), arg.upper(), namer),
     }
 }
 
@@ -1751,11 +1776,11 @@ mod tests {
         let f_scheme = state.compact_scheme_of(f_def).unwrap();
         let compose_scheme = state.compact_scheme_of(compose_def).unwrap();
         assert!(
-            !f_scheme.cty.lower.funs.is_empty(),
+            !f_scheme.cty.lower().funs.is_empty(),
             "f should have a function lower bound"
         );
         assert!(
-            !compose_scheme.cty.lower.funs.is_empty(),
+            !compose_scheme.cty.lower().funs.is_empty(),
             "compose should have a function lower bound"
         );
     }
@@ -1780,7 +1805,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![CompactFun {
@@ -1818,7 +1843,7 @@ mod tests {
             },
             rec_vars: HashMap::from([(
                 b,
-                CompactBounds {
+                CompactBounds::Interval {
                     self_var: Some(b),
                     lower: CompactType {
                         records: vec![CompactRecord {
@@ -2157,7 +2182,7 @@ mod tests {
         let list_a = CompactType {
             cons: vec![CompactCon {
                 path: list,
-                args: vec![CompactBounds {
+                args: vec![CompactBounds::Interval {
                     self_var: None,
                     lower: CompactType {
                         vars: HashSet::from([a]),
@@ -2172,7 +2197,7 @@ mod tests {
             ..CompactType::default()
         };
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![CompactFun {
@@ -2211,7 +2236,7 @@ mod tests {
         };
         let constraints = vec![CompactRoleConstraint {
             role: add,
-            args: vec![CompactBounds {
+            args: vec![CompactBounds::Interval {
                 self_var: None,
                 lower: {
                     let mut lower = list_a;
@@ -2615,7 +2640,9 @@ mod tests {
         assert_eq!(add.1, "Add<α> => α -> α -> α");
         assert_eq!(pl.1, "Add<int | α> => α -> α | int");
         assert_eq!(pl2.1, "int");
-        assert_eq!(pl3.1, "int");
+        // pl3 はトップレベルで計算（`Add::add 1: ...`）が挟まり結果 var を量化できないため
+        // 値制限の残差 α が残る（(b) 方針＝正直な主型を出し monomorphize 任せ）。
+        assert_eq!(pl3.1, "α | int");
     }
 
     #[test]
@@ -2809,7 +2836,7 @@ mod tests {
         let c = fresh_type_var();
         let d = fresh_type_var();
         let e = fresh_type_var();
-        let bounds = CompactBounds {
+        let bounds = CompactBounds::Interval {
             self_var: None,
             lower: CompactType {
                 vars: HashSet::from([a, b, c]),
@@ -2835,7 +2862,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let c = fresh_type_var();
-        let bounds = CompactBounds {
+        let bounds = CompactBounds::Interval {
             self_var: Some(b),
             lower: CompactType {
                 vars: HashSet::from([a, b]),
@@ -2861,7 +2888,7 @@ mod tests {
         let a = fresh_type_var();
         let b = fresh_type_var();
         let c = fresh_type_var();
-        let bounds = CompactBounds {
+        let bounds = CompactBounds::Interval {
             self_var: Some(b),
             lower: CompactType {
                 vars: HashSet::from([a, b]),
@@ -3199,7 +3226,7 @@ mod tests {
                 .find(|(name, _)| name == "test")
                 .expect("test should be rendered");
 
-            assert_eq!(test.1, "std::list::list<int>");
+            assert_eq!(test.1, "std::list::list<int | α>");
         });
     }
 

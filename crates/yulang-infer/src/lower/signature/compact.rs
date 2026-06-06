@@ -33,7 +33,7 @@ pub fn compact_concrete_sig_type(sig: &SigType) -> Option<CompactType> {
                     .iter()
                     .map(|arg| {
                         let ty = compact_concrete_sig_type(arg)?;
-                        Some(CompactBounds {
+                        Some(CompactBounds::Interval {
                             self_var: None,
                             lower: ty.clone(),
                             upper: ty,
@@ -133,7 +133,7 @@ pub fn render_concrete_sig_type(sig: &SigType) -> Option<String> {
     let ty = compact_concrete_sig_type(sig)?;
     Some(crate::display::format_coalesced_scheme(
         &crate::simplify::compact::CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: ty,
                 upper: CompactType::default(),
@@ -172,7 +172,7 @@ pub fn compact_sig_pattern_type(
                     .iter()
                     .map(|arg| {
                         let ty = compact_sig_pattern_type(state, arg, vars);
-                        CompactBounds {
+                        CompactBounds::Interval {
                             self_var: None,
                             lower: ty.clone(),
                             upper: ty,

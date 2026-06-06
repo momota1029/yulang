@@ -46,6 +46,12 @@ pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
     compact_scheme_to_type_with_observed_vars(scheme, &HashSet::new())
 }
 
+/// export（typed_ir 生成）用：不変中心の sandwich 畳み込みを行わず Interval 形のまま Type 化する。
+/// monomorphize 側が畳むので artifact は正直な区間を保つ。
+pub fn compact_scheme_to_type_no_sandwich(scheme: &CompactTypeScheme) -> Type {
+    compact_scheme_to_type_inner(scheme, &HashSet::new(), &HashSet::new(), false)
+}
+
 pub(crate) fn compact_scheme_to_type_with_observed_vars(
     scheme: &CompactTypeScheme,
     observed_vars: &HashSet<TypeVar>,
@@ -62,8 +68,25 @@ pub(crate) fn compact_scheme_to_type_with_observed_vars_and_hidden_effects(
     observed_vars: &HashSet<TypeVar>,
     hidden_effect_paths: &HashSet<Path>,
 ) -> Type {
+    compact_scheme_to_type_inner(scheme, observed_vars, hidden_effect_paths, true)
+}
+
+/// `apply_sandwich`: 人間向け display は不変中心を sandwich で畳む（true）。export（typed_ir 生成）は
+/// monomorphize に Interval 形を渡すため畳まない（false）。lift 変種は typed_ir の tuple 成分に
+/// bounds を持てない等の理由でも export には不適。
+pub(crate) fn compact_scheme_to_type_inner(
+    scheme: &CompactTypeScheme,
+    observed_vars: &HashSet<TypeVar>,
+    hidden_effect_paths: &HashSet<Path>,
+    apply_sandwich: bool,
+) -> Type {
     let mut scheme = scheme.clone();
     normalize_compact_scheme_rows(&mut scheme);
+    // 不変中心の畳み込み（sandwich）は display 直前のここで行う。bounds を破壊的に正規化する
+    // 経路（materialize_effect_args 等）は Interval 前提なので、それらが終わったこの地点で lift する。
+    if apply_sandwich {
+        crate::simplify::sandwich::sandwich_scheme(&mut scheme);
+    }
     let mut ctx = CompactToTypeCtx::new(&scheme);
     let root = normalize_render_bounds(scheme.cty.clone());
     if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true, observed_vars) {
@@ -74,7 +97,7 @@ pub(crate) fn compact_scheme_to_type_with_observed_vars_and_hidden_effects(
     {
         return simplify_root_type(fun, hidden_effect_paths);
     }
-    simplify_root_type(ctx.coalesce_type(&root.lower, true), hidden_effect_paths)
+    simplify_root_type(ctx.coalesce_type(root.lower(), true), hidden_effect_paths)
 }
 
 pub fn materialize_effect_args(infer: &Infer, scheme: &mut CompactTypeScheme) {
@@ -90,8 +113,8 @@ fn materialize_effect_args_in_bounds(
     bounds: &mut CompactBounds,
     cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
 ) {
-    materialize_effect_args_in_type(infer, &mut bounds.lower, cache);
-    materialize_effect_args_in_type(infer, &mut bounds.upper, cache);
+    materialize_effect_args_in_type(infer, bounds.lower_mut(), cache);
+    materialize_effect_args_in_type(infer, bounds.upper_mut(), cache);
 }
 
 fn materialize_effect_args_in_type(
@@ -161,8 +184,8 @@ fn materialize_effect_item_args(
     }
     let con = &mut item.cons[0];
     for arg in &mut con.args {
-        let lower_tv = single_compact_var(&arg.lower);
-        let upper_tv = single_compact_var(&arg.upper);
+        let lower_tv = single_compact_var(arg.lower());
+        let upper_tv = single_compact_var(arg.upper());
         let Some((lower_tv, upper_tv)) = lower_tv.zip(upper_tv) else {
             materialize_effect_args_in_bounds(infer, arg, cache);
             continue;
@@ -171,8 +194,8 @@ fn materialize_effect_item_args(
         let upper = materialize_effect_arg_side(infer, upper_tv, false, cache);
         match (lower, upper) {
             (Some(lower), Some(upper)) if lower == upper => {
-                arg.lower = lower;
-                arg.upper = upper;
+                *arg.lower_mut() = lower;
+                *arg.upper_mut() = upper;
             }
             _ => materialize_effect_args_in_bounds(infer, arg, cache),
         }
@@ -192,9 +215,9 @@ fn materialize_effect_arg_side(
     cache.insert(key, None);
     let scheme = compact_type_var(infer, tv);
     let ty = if positive {
-        scheme.cty.lower
+        scheme.cty.lower().clone()
     } else {
-        scheme.cty.upper
+        scheme.cty.upper().clone()
     };
     let projected = compact_type_data_effect_arg_projection(ty);
     cache.insert(key, projected.clone());
@@ -234,8 +257,8 @@ fn compact_type_data_effect_arg_projection(mut ty: CompactType) -> Option<Compac
     ty.vars.clear();
     for con in &mut ty.cons {
         for arg in &mut con.args {
-            arg.lower = compact_type_data_effect_arg_projection(mem::take(&mut arg.lower))?;
-            arg.upper = compact_type_data_effect_arg_projection(mem::take(&mut arg.upper))?;
+            *arg.lower_mut() = compact_type_data_effect_arg_projection(mem::take(arg.lower_mut()))?;
+            *arg.upper_mut() = compact_type_data_effect_arg_projection(mem::take(arg.upper_mut()))?;
         }
     }
     for tuple in &mut ty.tuples {
@@ -434,9 +457,9 @@ impl<'a> CompactToTypeCtx<'a> {
         let rec_tv = fresh_type_var();
         self.in_process_vars.insert(key, rec_tv);
         let body = if positive {
-            self.coalesce_type(&bounds.lower, true)
+            self.coalesce_type(bounds.lower(), true)
         } else {
-            self.coalesce_type(&bounds.upper, false)
+            self.coalesce_type(bounds.upper(), false)
         };
         self.in_process_vars.remove(&key);
 
@@ -775,13 +798,13 @@ fn coalesce_root_fun(
     normalize_fields: bool,
     observed_vars: &HashSet<TypeVar>,
 ) -> Option<Type> {
-    let [lower_fun] = bounds.lower.funs.as_slice() else {
+    let [lower_fun] = bounds.lower().funs.as_slice() else {
         return None;
     };
-    let [upper_fun] = bounds.upper.funs.as_slice() else {
+    let [upper_fun] = bounds.upper().funs.as_slice() else {
         return None;
     };
-    if !root_non_fun_parts_empty(&bounds.lower) || !root_non_fun_parts_empty(&bounds.upper) {
+    if !root_non_fun_parts_empty(bounds.lower()) || !root_non_fun_parts_empty(bounds.upper()) {
         return None;
     }
     let mut lower_fun = lower_fun.clone();
@@ -849,21 +872,21 @@ fn coalesce_root_fun_arg_effect_field(
     lower: &CompactType,
     upper: &CompactType,
 ) -> Type {
-    let mut bounds = CompactBounds {
+    let mut bounds = CompactBounds::Interval {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
     };
     strip_generated_local_effects_from_compact_effect_bounds(&mut bounds);
-    let mut ty = closed_upper_row_with_matching_lower_shape(&bounds.lower, &bounds.upper)
+    let mut ty = closed_upper_row_with_matching_lower_shape(bounds.lower(), bounds.upper())
         .or_else(|| {
-            common_compact_type(&bounds.lower, &bounds.upper).filter(|ty| {
+            common_compact_type(bounds.lower(), bounds.upper()).filter(|ty| {
                 !is_empty_compact(ty)
-                    && (has_non_var_shape(ty) || !has_non_var_shape(&bounds.lower))
+                    && (has_non_var_shape(ty) || !has_non_var_shape(bounds.lower()))
             })
         })
-        .unwrap_or(bounds.lower);
-    remove_upper_covered_row_tail_vars(&mut ty, &bounds.upper);
+        .unwrap_or_else(|| bounds.lower().clone());
+    remove_upper_covered_row_tail_vars(&mut ty, bounds.upper());
 
     if is_empty_compact(&ty) || is_explicit_empty_row_compact(&ty) {
         Type::Bot
@@ -1041,14 +1064,14 @@ fn coalesce_lower_only_root_fun(
     coalesce_effect_residual: bool,
     observed_vars: &HashSet<TypeVar>,
 ) -> Option<Type> {
-    let [lower_fun] = bounds.lower.funs.as_slice() else {
+    let [lower_fun] = bounds.lower().funs.as_slice() else {
         return None;
     };
     let should_coalesce_effect_residual =
         coalesce_effect_residual || lower_fun.ret_eff.vars.len() > 1;
-    if !bounds.upper.funs.is_empty()
-        || !root_non_fun_parts_empty(&bounds.lower)
-        || !root_non_fun_parts_empty(&bounds.upper)
+    if !bounds.upper().funs.is_empty()
+        || !root_non_fun_parts_empty(bounds.lower())
+        || !root_non_fun_parts_empty(bounds.upper())
     {
         return None;
     }
@@ -1108,7 +1131,7 @@ fn coalesce_root_fun_effect_field(
     positive: bool,
     observed_vars: &HashSet<TypeVar>,
 ) -> Type {
-    let bounds = normalize_render_bounds(CompactBounds {
+    let bounds = normalize_render_bounds(CompactBounds::Interval {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
@@ -1118,18 +1141,18 @@ fn coalesce_root_fun_effect_field(
     }
 
     let ty = if positive
-        && (is_empty_compact(&bounds.lower) || is_explicit_empty_row_compact(&bounds.lower))
+        && (is_empty_compact(bounds.lower()) || is_explicit_empty_row_compact(bounds.lower()))
     {
-        bounds.upper
+        bounds.upper().clone()
     } else if positive {
-        bounds.lower
+        bounds.lower().clone()
     } else {
-        common_compact_type(&bounds.lower, &bounds.upper)
+        common_compact_type(bounds.lower(), bounds.upper())
             .filter(|common| {
                 !is_empty_compact(common)
-                    && (has_non_var_shape(common) || !has_non_var_shape(&bounds.lower))
+                    && (has_non_var_shape(common) || !has_non_var_shape(bounds.lower()))
             })
-            .unwrap_or(bounds.lower)
+            .unwrap_or_else(|| bounds.lower().clone())
     };
 
     if is_empty_compact(&ty) || is_explicit_empty_row_compact(&ty) {
@@ -1149,7 +1172,7 @@ fn coalesce_root_fun_field(
     input_vars: &HashSet<TypeVar>,
     observed_vars: &HashSet<TypeVar>,
 ) -> Type {
-    let bounds = normalize_render_bounds(CompactBounds {
+    let bounds = normalize_render_bounds(CompactBounds::Interval {
         self_var: None,
         lower: lower.clone(),
         upper: upper.clone(),
@@ -1159,17 +1182,17 @@ fn coalesce_root_fun_field(
     }
 
     let ty = if positive {
-        common_compact_type(&bounds.lower, &bounds.upper)
+        common_compact_type(bounds.lower(), bounds.upper())
             .filter(|common| {
                 !is_empty_compact(common)
-                    && !has_non_var_shape_outside_common(&bounds.lower, common)
+                    && !has_non_var_shape_outside_common(bounds.lower(), common)
             })
             .map(|common| drop_non_input_vars_when_concrete(common, input_vars))
-            .unwrap_or(bounds.lower)
+            .unwrap_or_else(|| bounds.lower().clone())
     } else {
-        let mut ty = common_compact_type(&bounds.lower, &bounds.upper)
+        let mut ty = common_compact_type(bounds.lower(), bounds.upper())
             .filter(|ty| !is_empty_compact(ty))
-            .unwrap_or(bounds.lower);
+            .unwrap_or_else(|| bounds.lower().clone());
         if has_non_var_shape(&ty) {
             ty.vars.clear();
         }
@@ -1387,8 +1410,22 @@ fn collect_compact_bounds_generated_local_effect_tail_vars(
     bounds: &CompactBounds,
     out: &mut HashSet<TypeVar>,
 ) {
-    collect_compact_type_generated_local_effect_tail_vars(&bounds.lower, out);
-    collect_compact_type_generated_local_effect_tail_vars(&bounds.upper, out);
+    match bounds {
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_compact_bounds_generated_local_effect_tail_vars(arg, out);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_compact_bounds_generated_local_effect_tail_vars(item, out);
+            }
+        }
+        CompactBounds::Interval { .. } => {
+            collect_compact_type_generated_local_effect_tail_vars(bounds.lower(), out);
+            collect_compact_type_generated_local_effect_tail_vars(bounds.upper(), out);
+        }
+    }
 }
 
 fn collect_compact_type_generated_local_effect_tail_vars(
@@ -1515,15 +1552,29 @@ pub(crate) fn collect_compact_bounds_observed_vars(
     bounds: &CompactBounds,
     out: &mut HashSet<TypeVar>,
 ) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         out.insert(tv);
     }
     collect_compact_bounds_vars(bounds, out);
 }
 
 fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    collect_compact_type_vars(&bounds.lower, out);
-    collect_compact_type_vars(&bounds.upper, out);
+    match bounds {
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_compact_bounds_vars(arg, out);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_compact_bounds_vars(item, out);
+            }
+        }
+        CompactBounds::Interval { .. } => {
+            collect_compact_type_vars(bounds.lower(), out);
+            collect_compact_type_vars(bounds.upper(), out);
+        }
+    }
 }
 
 fn collect_compact_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
@@ -1929,8 +1980,8 @@ fn type_contains_generated_local_effect(ty: &Type) -> bool {
 }
 
 fn compact_bounds_contains_generated_local_effect(bounds: &CompactBounds) -> bool {
-    compact_type_contains_generated_local_effect(&bounds.lower)
-        || compact_type_contains_generated_local_effect(&bounds.upper)
+    compact_type_contains_generated_local_effect(bounds.lower())
+        || compact_type_contains_generated_local_effect(bounds.upper())
 }
 
 fn compact_type_contains_generated_local_effect(ty: &CompactType) -> bool {
@@ -1976,10 +2027,10 @@ fn compact_type_contains_generated_local_effect(ty: &CompactType) -> bool {
 
 fn strip_generated_local_effects_from_compact_effect_bounds(bounds: &mut CompactBounds) {
     let mut tainted = HashSet::new();
-    collect_compact_type_generated_local_effect_tail_vars(&bounds.lower, &mut tainted);
-    collect_compact_type_generated_local_effect_tail_vars(&bounds.upper, &mut tainted);
-    strip_generated_local_effects_from_compact_effect_type(&mut bounds.lower, &tainted);
-    strip_generated_local_effects_from_compact_effect_type(&mut bounds.upper, &tainted);
+    collect_compact_type_generated_local_effect_tail_vars(bounds.lower(), &mut tainted);
+    collect_compact_type_generated_local_effect_tail_vars(bounds.upper(), &mut tainted);
+    strip_generated_local_effects_from_compact_effect_type(bounds.lower_mut(), &tainted);
+    strip_generated_local_effects_from_compact_effect_type(bounds.upper_mut(), &tainted);
 }
 
 fn strip_generated_local_effects_from_compact_effect_type(
@@ -2133,8 +2184,8 @@ fn type_contains_var(ty: &Type, var: TypeVar) -> bool {
 }
 
 fn compact_bounds_contains_var(bounds: &CompactBounds, var: TypeVar) -> bool {
-    compact_type_contains_var_for_render(&bounds.lower, var)
-        || compact_type_contains_var_for_render(&bounds.upper, var)
+    compact_type_contains_var_for_render(bounds.lower(), var)
+        || compact_type_contains_var_for_render(bounds.upper(), var)
 }
 
 fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool {
@@ -2193,9 +2244,24 @@ fn collect_lower_witnesses(scheme: &CompactTypeScheme) -> HashMap<TypeVar, Compa
 }
 
 fn collect_bounds_lower_witnesses(bounds: &CompactBounds, out: &mut HashMap<TypeVar, CompactType>) {
-    if let Some(upper_vars) = compact_var_set(&bounds.upper) {
+    match bounds {
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_bounds_lower_witnesses(arg, out);
+            }
+            return;
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_bounds_lower_witnesses(item, out);
+            }
+            return;
+        }
+        CompactBounds::Interval { .. } => {}
+    }
+    if let Some(upper_vars) = compact_var_set(bounds.upper()) {
         for var in upper_vars {
-            let witness = compact_type_without_var(&bounds.lower, var);
+            let witness = compact_type_without_var(bounds.lower(), var);
             if has_non_var_shape(&witness) {
                 out.entry(var)
                     .and_modify(|existing| {
@@ -2209,8 +2275,8 @@ fn collect_bounds_lower_witnesses(bounds: &CompactBounds, out: &mut HashMap<Type
             }
         }
     }
-    collect_type_lower_witnesses(&bounds.lower, out);
-    collect_type_lower_witnesses(&bounds.upper, out);
+    collect_type_lower_witnesses(bounds.lower(), out);
+    collect_type_lower_witnesses(bounds.upper(), out);
 }
 
 fn collect_type_lower_witnesses(ty: &CompactType, out: &mut HashMap<TypeVar, CompactType>) {
@@ -2720,31 +2786,54 @@ fn format_ret_row_inline(ty: &Type, namer: &mut VarNamer<'_>) -> Option<String> 
 }
 
 pub(crate) fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer<'_>) -> String {
+    match bounds {
+        CompactBounds::Con { path, args } => {
+            let name = namer.render_path(path);
+            if args.is_empty() {
+                return name;
+            }
+            let args = args
+                .iter()
+                .map(|arg| format_compact_bounds(arg, namer))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("{name}<{args}>");
+        }
+        CompactBounds::Tuple { items } => {
+            let items = items
+                .iter()
+                .map(|item| format_compact_bounds(item, namer))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("({items})");
+        }
+        CompactBounds::Interval { .. } => {}
+    }
     let normalized = normalize_format_bounds(bounds.clone());
     let bounds = &normalized;
     if let Some(rendered) = format_compact_bounds_with_center(bounds, namer) {
         return rendered;
     }
-    let lower_empty = is_empty_compact(&bounds.lower);
-    let upper_empty = is_empty_compact(&bounds.upper);
+    let lower_empty = is_empty_compact(bounds.lower());
+    let upper_empty = is_empty_compact(bounds.upper());
     match (lower_empty, upper_empty) {
         (true, true) => bounds
-            .self_var
+            .self_var()
             .map(|tv| namer.name(tv.0))
             .unwrap_or_else(|| "_".to_string()),
-        (false, true) => format_compact_type(&bounds.lower, namer, false),
-        (true, false) => format!("_ <: {}", format_compact_type(&bounds.upper, namer, false)),
+        (false, true) => format_compact_type(bounds.lower(), namer, false),
+        (true, false) => format!("_ <: {}", format_compact_type(bounds.upper(), namer, false)),
         (false, false) => {
             if let (Some(lower_vars), Some(upper_vars)) = (
-                compact_var_set(&bounds.lower),
-                compact_var_set(&bounds.upper),
+                compact_var_set(bounds.lower()),
+                compact_var_set(bounds.upper()),
             ) {
                 if lower_vars.is_subset(&upper_vars) {
-                    return format_compact_type(&bounds.lower, namer, false);
+                    return format_compact_type(bounds.lower(), namer, false);
                 }
             }
-            let lower = format_compact_type(&bounds.lower, namer, false);
-            let upper = format_compact_type(&bounds.upper, namer, false);
+            let lower = format_compact_type(bounds.lower(), namer, false);
+            let upper = format_compact_type(bounds.upper(), namer, false);
             if lower == upper {
                 lower
             } else {
@@ -2763,12 +2852,14 @@ pub(crate) fn format_compact_role_constraint_arg_with_namer(
     if let Some(rendered) = format_compact_role_arg_with_center(arg, namer) {
         return rendered;
     }
-    match (is_empty_compact(&arg.lower), is_empty_compact(&arg.upper)) {
+    match (is_empty_compact(arg.lower()), is_empty_compact(arg.upper())) {
         (true, true) => "_".to_string(),
-        (false, true) => format_compact_role_lower_arg(&arg.lower, namer),
-        (true, false) => format_compact_type_with_join(&arg.upper, namer, false, " & "),
-        (false, false) if arg.lower == arg.upper => format_compact_type(&arg.lower, namer, false),
-        (false, false) => format_compact_role_interval_arg(&arg.lower, &arg.upper, namer),
+        (false, true) => format_compact_role_lower_arg(arg.lower(), namer),
+        (true, false) => format_compact_type_with_join(arg.upper(), namer, false, " & "),
+        (false, false) if arg.lower() == arg.upper() => {
+            format_compact_type(arg.lower(), namer, false)
+        }
+        (false, false) => format_compact_role_interval_arg(arg.lower(), arg.upper(), namer),
     }
 }
 
@@ -2844,8 +2935,8 @@ fn format_compact_role_arg_with_center(
     if shared.is_empty() {
         return None;
     }
-    let mut lower = bounds.lower.clone();
-    let mut upper = bounds.upper.clone();
+    let mut lower = bounds.lower().clone();
+    let mut upper = bounds.upper().clone();
     for tv in &shared {
         lower.vars.remove(tv);
         upper.vars.remove(tv);
@@ -2885,8 +2976,8 @@ fn format_compact_bounds_with_center(
     if shared.is_empty() {
         return None;
     }
-    let mut lower = bounds.lower.clone();
-    let mut upper = bounds.upper.clone();
+    let mut lower = bounds.lower().clone();
+    let mut upper = bounds.upper().clone();
     for tv in &shared {
         lower.vars.remove(tv);
         upper.vars.remove(tv);
@@ -2921,9 +3012,9 @@ fn format_compact_bounds_with_center(
 
 fn shared_center_vars(bounds: &CompactBounds) -> Vec<TypeVar> {
     let mut shared = bounds
-        .lower
+        .lower()
         .vars
-        .intersection(&bounds.upper.vars)
+        .intersection(&bounds.upper().vars)
         .copied()
         .collect::<Vec<_>>();
     shared.sort_by_key(|tv| tv.0);
@@ -3194,8 +3285,22 @@ fn format_compact_row_inline(ty: &CompactType, namer: &mut VarNamer<'_>) -> Opti
 }
 
 fn normalize_format_bounds(mut bounds: CompactBounds) -> CompactBounds {
-    normalize_format_compact_type_in_place(&mut bounds.lower);
-    normalize_format_compact_type_in_place(&mut bounds.upper);
+    match &mut bounds {
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                *arg = normalize_format_bounds(std::mem::take(arg));
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                *item = normalize_format_bounds(std::mem::take(item));
+            }
+        }
+        CompactBounds::Interval { .. } => {
+            normalize_format_compact_type_in_place(bounds.lower_mut());
+            normalize_format_compact_type_in_place(bounds.upper_mut());
+        }
+    }
     bounds
 }
 
@@ -3251,28 +3356,33 @@ fn normalize_render_bounds(mut bounds: CompactBounds) -> CompactBounds {
 }
 
 fn render_absorb_upper_vars_from_row_lower(bounds: &mut CompactBounds) {
-    let Some(upper) = compact_var_set(&bounds.upper) else {
+    // lift 変種（Con/Tuple）は row 吸収の対象外（その階層に row/var を持たない）。子は
+    // format_compact_bounds 側の再帰で正規化される。
+    if bounds.is_lifted() {
+        return;
+    }
+    let Some(upper) = compact_var_set(bounds.upper()) else {
         return;
     };
     if upper.is_empty()
-        || bounds.lower.rows.is_empty()
-        || !bounds.lower.prims.is_empty()
-        || !bounds.lower.cons.is_empty()
-        || !bounds.lower.funs.is_empty()
-        || !bounds.lower.records.is_empty()
-        || !bounds.lower.record_spreads.is_empty()
-        || !bounds.lower.variants.is_empty()
-        || !bounds.lower.tuples.is_empty()
-        || !upper.is_subset(&bounds.lower.vars)
+        || bounds.lower().rows.is_empty()
+        || !bounds.lower().prims.is_empty()
+        || !bounds.lower().cons.is_empty()
+        || !bounds.lower().funs.is_empty()
+        || !bounds.lower().records.is_empty()
+        || !bounds.lower().record_spreads.is_empty()
+        || !bounds.lower().variants.is_empty()
+        || !bounds.lower().tuples.is_empty()
+        || !upper.is_subset(&bounds.lower().vars)
     {
         return;
     }
     for tv in upper {
-        if bounds.self_var == Some(tv) {
+        if bounds.self_var() == Some(tv) {
             continue;
         }
-        bounds.lower.vars.remove(&tv);
-        bounds.upper.vars.remove(&tv);
+        bounds.lower_mut().vars.remove(&tv);
+        bounds.upper_mut().vars.remove(&tv);
     }
 }
 
@@ -3339,11 +3449,21 @@ fn compact_type_key(ty: &CompactType) -> String {
 }
 
 fn compact_bounds_key(bounds: &CompactBounds) -> String {
-    format!(
-        "B[{}<:{}]",
-        compact_type_key(&bounds.lower),
-        compact_type_key(&bounds.upper)
-    )
+    match bounds {
+        CompactBounds::Con { path, args } => {
+            let args = args.iter().map(compact_bounds_key).collect::<Vec<_>>();
+            format!("Bcon[{}<{args:?}>]", path_string(path))
+        }
+        CompactBounds::Tuple { items } => {
+            let items = items.iter().map(compact_bounds_key).collect::<Vec<_>>();
+            format!("Btup[{items:?}]")
+        }
+        CompactBounds::Interval { .. } => format!(
+            "B[{}<:{}]",
+            compact_type_key(bounds.lower()),
+            compact_type_key(bounds.upper())
+        ),
+    }
 }
 
 fn compact_con_key(con: &CompactCon) -> String {
@@ -3506,19 +3626,19 @@ fn common_compact_cons(lhs: &[CompactCon], rhs: &[CompactCon]) -> Vec<CompactCon
 }
 
 fn common_compact_bounds(lhs: &CompactBounds, rhs: &CompactBounds) -> CompactBounds {
-    CompactBounds {
-        self_var: (lhs.self_var == rhs.self_var)
-            .then_some(lhs.self_var)
+    CompactBounds::Interval {
+        self_var: (lhs.self_var() == rhs.self_var())
+            .then_some(lhs.self_var())
             .flatten(),
-        lower: common_compact_type(&lhs.lower, &rhs.lower).unwrap_or_default(),
-        upper: common_compact_type(&lhs.upper, &rhs.upper).unwrap_or_default(),
+        lower: common_compact_type(lhs.lower(), rhs.lower()).unwrap_or_default(),
+        upper: common_compact_type(lhs.upper(), rhs.upper()).unwrap_or_default(),
     }
 }
 
 fn compact_bounds_has_surface(bounds: &CompactBounds) -> bool {
-    bounds.self_var.is_some()
-        || !is_empty_compact(&bounds.lower)
-        || !is_empty_compact(&bounds.upper)
+    bounds.self_var().is_some()
+        || !is_empty_compact(bounds.lower())
+        || !is_empty_compact(bounds.upper())
 }
 
 fn is_empty_compact(ty: &CompactType) -> bool {
@@ -3581,8 +3701,8 @@ fn compact_con_covers(common: &CompactCon, item: &CompactCon) -> bool {
 }
 
 fn compact_bounds_cover(common: &CompactBounds, item: &CompactBounds) -> bool {
-    compact_type_covers(&common.lower, &item.lower)
-        && compact_type_covers(&common.upper, &item.upper)
+    compact_type_covers(common.lower(), item.lower())
+        && compact_type_covers(common.upper(), item.upper())
 }
 
 fn compact_type_covers(common: &CompactType, item: &CompactType) -> bool {
@@ -3683,7 +3803,7 @@ mod tests {
         let item = CompactType {
             cons: vec![CompactCon {
                 path: path(&["std", "var", "var"]),
-                args: vec![CompactBounds {
+                args: vec![CompactBounds::Interval {
                     self_var: None,
                     lower: var_type(value),
                     upper: var_type(value),
@@ -3712,7 +3832,7 @@ mod tests {
             }],
             ..CompactType::default()
         };
-        let bounds = CompactBounds {
+        let bounds = CompactBounds::Interval {
             self_var: None,
             lower: merge_var_part(closed_row, effect_tail),
             upper: merge_var_part(open_to_empty_row, effect_tail),
@@ -3748,7 +3868,7 @@ mod tests {
                 &["result"],
                 vec![
                     same_bounds(var_type(value)),
-                    CompactBounds {
+                    CompactBounds::Interval {
                         self_var: None,
                         lower: merge_compact_types(
                             true,
@@ -3772,7 +3892,7 @@ mod tests {
             ret_alias,
         );
         let scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: fun_type(var_type(value), lower_arg_eff, lower_ret),
                 upper: fun_type(var_type(value), upper_arg_eff, upper_ret),
@@ -3818,7 +3938,7 @@ mod tests {
     }
 
     fn same_bounds(ty: CompactType) -> CompactBounds {
-        CompactBounds {
+        CompactBounds::Interval {
             self_var: None,
             lower: ty.clone(),
             upper: ty,

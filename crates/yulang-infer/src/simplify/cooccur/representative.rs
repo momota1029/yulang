@@ -65,8 +65,8 @@ struct RepresentativeContext<'a> {
 
 impl RepresentativeContext<'_> {
     fn collect_bounds(&mut self, bounds: &CompactBounds) {
-        self.collect_type(&bounds.lower, true);
-        self.collect_type(&bounds.upper, false);
+        self.collect_type(bounds.lower(), true);
+        self.collect_type(bounds.upper(), false);
     }
 
     fn collect_type(&mut self, ty: &CompactType, positive: bool) {
@@ -90,9 +90,9 @@ impl RepresentativeContext<'_> {
                     .or_else(|| self.rec_vars.get(&tv))
             {
                 let side = if positive {
-                    &bounds.lower
+                    bounds.lower()
                 } else {
-                    &bounds.upper
+                    bounds.upper()
                 };
                 self.collect_type(side, positive);
             }
@@ -229,9 +229,9 @@ fn concrete_representative_part(ty: &CompactType) -> CompactType {
 }
 
 fn bounds_contains_vars(bounds: &CompactBounds) -> bool {
-    bounds.self_var.is_some()
-        || type_contains_vars(&bounds.lower)
-        || type_contains_vars(&bounds.upper)
+    bounds.self_var().is_some()
+        || type_contains_vars(bounds.lower())
+        || type_contains_vars(bounds.upper())
 }
 
 fn type_contains_vars(ty: &CompactType) -> bool {

@@ -47,7 +47,7 @@ impl Infer {
         let lower = captured_root_body
             .as_ref()
             .or(root_body.as_ref())
-            .unwrap_or(&instance.scheme.compact.cty.lower);
+            .unwrap_or(instance.scheme.compact.cty.lower());
         let parts = compact_pos_parts_with_subst(self, lower, instance.subst.as_slice());
         for part in parts {
             self.constrain_step_with_hint_weighted(
@@ -67,7 +67,7 @@ impl Infer {
     ) -> Vec<NegId> {
         compact_neg_parts_with_subst(
             self,
-            &instance.scheme.compact.cty.upper,
+            instance.scheme.compact.cty.upper(),
             instance.subst.as_slice(),
         )
     }
@@ -330,7 +330,7 @@ fn effect_row_has_complex_atom_args(ty: &CompactType) -> bool {
 
 fn compact_con_has_complex_atom_args(con: &CompactCon) -> bool {
     con.args.iter().any(|arg| {
-        single_compact_var(&arg.lower).is_none() || single_compact_var(&arg.upper).is_none()
+        single_compact_var(arg.lower()).is_none() || single_compact_var(arg.upper()).is_none()
     })
 }
 
@@ -385,7 +385,8 @@ fn erase_complex_subtract_atom_args_in_effect_row(
             continue;
         }
         for arg in &mut con.args {
-            if single_compact_var(&arg.lower).is_some() && single_compact_var(&arg.upper).is_some()
+            if single_compact_var(arg.lower()).is_some()
+                && single_compact_var(arg.upper()).is_some()
             {
                 continue;
             }
@@ -425,7 +426,7 @@ fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
 }
 
 fn exact_compact_var_bounds(tv: TypeVar) -> CompactBounds {
-    CompactBounds {
+    CompactBounds::Interval {
         self_var: None,
         lower: compact_type_from_var(tv),
         upper: compact_type_from_var(tv),
@@ -446,9 +447,9 @@ fn max_level_compact_bounds(
     bounds: &CompactBounds,
     subst: &[(TypeVar, TypeVar)],
 ) -> u32 {
-    max_level_compact_type(infer, &bounds.lower, subst).max(max_level_compact_type(
+    max_level_compact_type(infer, bounds.lower(), subst).max(max_level_compact_type(
         infer,
-        &bounds.upper,
+        bounds.upper(),
         subst,
     ))
 }

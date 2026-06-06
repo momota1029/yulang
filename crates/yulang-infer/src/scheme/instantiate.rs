@@ -189,8 +189,8 @@ fn apply_scheme_effect_atom_arg_bounds(
     for (tv, bounds) in &scheme.effect_atom_arg_bounds {
         let live_tv = subst_lookup_small(subst, *tv);
         let bounds = subst_compact_bounds(bounds, subst);
-        let lower = compact_pos_type(&infer.arena, &bounds.lower, &scheme.compact, false);
-        let upper = compact_neg_type(&infer.arena, &bounds.upper, &scheme.compact, false);
+        let lower = compact_pos_type(&infer.arena, bounds.lower(), &scheme.compact, false);
+        let upper = compact_neg_type(&infer.arena, bounds.upper(), &scheme.compact, false);
         infer.constrain(lower, Neg::Var(live_tv));
         infer.constrain(Pos::Var(live_tv), upper);
     }
@@ -693,7 +693,7 @@ mod tests {
         );
 
         let compact = crate::simplify::compact::CompactTypeScheme {
-            cty: crate::simplify::compact::CompactBounds {
+            cty: crate::simplify::compact::CompactBounds::Interval {
                 self_var: None,
                 lower: crate::simplify::compact::CompactType {
                     vars: std::collections::HashSet::from([source]),
@@ -748,7 +748,7 @@ mod tests {
         infer.record_effect_subtractability(source, EffectSubtractability::Set(vec![io_atom]));
 
         let compact = crate::simplify::compact::CompactTypeScheme {
-            cty: crate::simplify::compact::CompactBounds {
+            cty: crate::simplify::compact::CompactBounds::Interval {
                 self_var: None,
                 lower: crate::simplify::compact::CompactType {
                     vars: std::collections::HashSet::from([source]),

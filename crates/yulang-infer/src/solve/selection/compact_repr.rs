@@ -22,7 +22,7 @@ pub(super) fn concrete_tv_lower_repr(
     allow_boundary: bool,
 ) -> Option<CompactType> {
     let scheme = compact_type_var(infer, tv);
-    concrete_or_boundary_compact_type(&scheme.cty.lower, allow_boundary)
+    concrete_or_boundary_compact_type(scheme.cty.lower(), allow_boundary)
 }
 
 pub(super) fn concrete_tv_lower_join_repr(
@@ -61,7 +61,7 @@ pub(super) fn concrete_lower_bounds_repr(
     bounds: &CompactBounds,
     allow_boundary: bool,
 ) -> Option<CompactType> {
-    concrete_or_boundary_compact_type(&bounds.lower, allow_boundary)
+    concrete_or_boundary_compact_type(bounds.lower(), allow_boundary)
 }
 
 pub(super) fn concrete_tv_upper_repr(
@@ -70,25 +70,25 @@ pub(super) fn concrete_tv_upper_repr(
     allow_boundary: bool,
 ) -> Option<CompactType> {
     let scheme = compact_type_var(infer, tv);
-    concrete_or_boundary_compact_type(&scheme.cty.upper, allow_boundary)
+    concrete_or_boundary_compact_type(scheme.cty.upper(), allow_boundary)
 }
 
 pub(super) fn concrete_bounds_repr(
     bounds: &CompactBounds,
     allow_boundary: bool,
 ) -> Option<CompactType> {
-    let lower_empty = bounds.lower == CompactType::default();
-    let upper_empty = bounds.upper == CompactType::default();
+    let lower_empty = bounds.lower() == &CompactType::default();
+    let upper_empty = bounds.upper() == &CompactType::default();
     match (lower_empty, upper_empty) {
-        (false, true) => concrete_or_boundary_compact_type(&bounds.lower, allow_boundary),
-        (true, false) => concrete_or_boundary_compact_type(&bounds.upper, allow_boundary),
-        (false, false) if bounds.lower == bounds.upper => {
-            concrete_or_boundary_compact_type(&bounds.lower, allow_boundary)
+        (false, true) => concrete_or_boundary_compact_type(bounds.lower(), allow_boundary),
+        (true, false) => concrete_or_boundary_compact_type(bounds.upper(), allow_boundary),
+        (false, false) if bounds.lower() == bounds.upper() => {
+            concrete_or_boundary_compact_type(bounds.lower(), allow_boundary)
         }
         (false, false) if allow_boundary => {
-            boundary_join_concrete_bounds(&bounds.lower, &bounds.upper)
-                .or_else(|| boundary_concrete_compact_type(&bounds.lower))
-                .or_else(|| boundary_concrete_compact_type(&bounds.upper))
+            boundary_join_concrete_bounds(bounds.lower(), bounds.upper())
+                .or_else(|| boundary_concrete_compact_type(bounds.lower()))
+                .or_else(|| boundary_concrete_compact_type(bounds.upper()))
         }
         _ => None,
     }
@@ -158,14 +158,14 @@ fn boundary_lower_bounds(bounds: &CompactBounds) -> CompactBounds {
             return exact_compact_bounds(concrete);
         }
     }
-    if bounds.self_var.is_none() && bounds.lower != CompactType::default() {
-        return exact_compact_bounds(bounds.lower.clone());
+    if bounds.self_var().is_none() && bounds.lower() != &CompactType::default() {
+        return exact_compact_bounds(bounds.lower().clone());
     }
     CompactBounds::default()
 }
 
 fn exact_compact_bounds(ty: CompactType) -> CompactBounds {
-    CompactBounds {
+    CompactBounds::Interval {
         self_var: None,
         lower: ty.clone(),
         upper: ty,
@@ -176,7 +176,7 @@ fn is_concrete_compact_type(ty: &CompactType, allow_boundary: bool) -> bool {
     ty.vars.is_empty()
         && ty.cons.iter().all(|con| {
             con.args.iter().all(|arg| {
-                arg.self_var.is_none()
+                arg.self_var().is_none()
                     && (concrete_bounds_repr(arg, allow_boundary).is_some()
                         || (allow_boundary && *arg == CompactBounds::default()))
             })
@@ -224,8 +224,8 @@ fn normalize_builtin_numeric_compact_type(ty: &mut CompactType) {
     normalize_named_compact_type_order(ty);
     for con in &mut ty.cons {
         for arg in &mut con.args {
-            normalize_builtin_numeric_compact_type(&mut arg.lower);
-            normalize_builtin_numeric_compact_type(&mut arg.upper);
+            normalize_builtin_numeric_compact_type(arg.lower_mut());
+            normalize_builtin_numeric_compact_type(arg.upper_mut());
         }
     }
     for fun in &mut ty.funs {

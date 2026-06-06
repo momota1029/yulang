@@ -14,9 +14,8 @@ use crate::scheme::{
 };
 use crate::simplify::compact::coalesce_nested_tail_function_effect_residuals_in_scheme;
 use crate::simplify::compact::{
-    CompactBounds, CompactType, CompactTypeScheme, compact_neg_expr, compact_pos_expr,
-    compact_type_var, compact_type_vars_in_order, compact_type_vars_in_order_profiled,
-    finalize_expansive_compact_scheme,
+    CompactBounds, CompactTypeScheme, compact_neg_expr, compact_pos_expr,
+    compact_type_vars_in_order, compact_type_vars_in_order_profiled,
 };
 use crate::simplify::cooccur::{
     CompactRoleConstraint, coalesce_by_co_occurrence,
@@ -298,14 +297,15 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
 
                 let cooccur_start = Instant::now();
                 // cooccur は「量化されうる変数(level >= boundary = この def の本体レベル)」だけを
-                // 解析対象にする。外側スコープ由来(level < boundary)の変数は走査しない。
-                let level_boundary = infer.def_level_of(item.def) + 1;
+                // 解析対象にする。ローカル(def_level > 0)は親の制約で変数が推論・消去されるので
+                // 外側スコープ由来(level < boundary)は走査しない。だがトップレベル(def_level 0)は
+                // 最外で、持ち上がった変数や値制限で量化されず level 0 に残った変数の分析を
+                // 放棄すると影武者として残ってしまうため、境界を 0 まで下げて level0 変数も
+                // 極性消去・共起分析の対象にする。
+                let def_level = infer.def_level_of(item.def);
+                let level_boundary = if def_level == 0 { 0 } else { def_level + 1 };
                 let is_expansive = infer.is_expansive(item.tv);
-                let analysis_compact = if is_expansive {
-                    compact_scheme_with_expansive_context(infer, item.tv, &compact)
-                } else {
-                    compact.clone()
-                };
+                let analysis_compact = compact.clone();
                 let var_levels = collect_var_levels(infer, &analysis_compact);
                 let constraints = compact_role_constraints.as_deref().unwrap_or(&[]);
                 let coalesced = coalesce_by_co_occurrence_with_role_constraint_inputs_report(
@@ -322,15 +322,11 @@ fn commit_selected_ready_components_with_refs_by_def_profiled(
                 for round in &coalesced.rounds {
                     infer.rewrite_effect_subtract_metadata_vars(&round.subst);
                 }
-                let mut scheme = if is_expansive {
-                    project_expansive_value_scheme_from_analysis(&compact, &coalesced.scheme)
-                } else {
-                    coalesced.scheme
-                };
+                let scheme = coalesced.scheme;
                 let compact_role_constraints = coalesced.constraints;
-                if is_expansive {
-                    finalize_expansive_compact_scheme(&mut scheme);
-                }
+                // 旧 crutch finalize_expansive_compact_scheme は撤去。不変中心の畳み込みは
+                // render 段（finalize_compact_results）末尾の sandwich に一本化した
+                // （commit 段で lower/upper を潰すと注釈有無の区別が消え sandwich が誤判定するため）。
                 profile.cooccur += cooccur_start.elapsed();
 
                 let freeze_start = Instant::now();
@@ -617,7 +613,7 @@ fn compact_role_constraints(infer: &Infer, def: DefId) -> Vec<CompactRoleConstra
 }
 
 fn compact_role_constraint_arg(infer: &Infer, arg: RoleConstraintArg) -> CompactBounds {
-    CompactBounds {
+    CompactBounds::Interval {
         self_var: role_constraint_arg_self_var(infer, &arg),
         lower: compact_pos_expr(infer, arg.pos),
         upper: compact_neg_expr(infer, arg.neg),
@@ -628,79 +624,6 @@ fn role_constraint_arg_self_var(infer: &Infer, arg: &RoleConstraintArg) -> Optio
     match (infer.arena.get_pos(arg.pos), infer.arena.get_neg(arg.neg)) {
         (Pos::Var(lhs), Neg::Var(rhs)) if lhs == rhs => Some(lhs),
         _ => None,
-    }
-}
-
-fn compact_scheme_with_expansive_context(
-    infer: &Infer,
-    value_tv: crate::ids::TypeVar,
-    value: &CompactTypeScheme,
-) -> CompactTypeScheme {
-    let mut context_schemes = Vec::new();
-    for tv in infer.expansive_context_roots_of(value_tv) {
-        if tv == value_tv {
-            continue;
-        }
-        context_schemes.push(compact_type_var(infer, tv));
-    }
-
-    if context_schemes.is_empty() {
-        return value.clone();
-    }
-
-    let mut rec_vars = value.rec_vars.clone();
-    let mut lower_items = vec![value.cty.lower.clone()];
-    let mut upper_items = vec![value.cty.upper.clone()];
-    for scheme in context_schemes {
-        lower_items.push(scheme.cty.lower);
-        upper_items.push(scheme.cty.upper);
-        for (tv, bounds) in scheme.rec_vars {
-            rec_vars.entry(tv).or_insert(bounds);
-        }
-    }
-    CompactTypeScheme {
-        cty: CompactBounds {
-            self_var: value.cty.self_var,
-            lower: CompactType {
-                tuples: vec![lower_items],
-                ..CompactType::default()
-            },
-            upper: CompactType {
-                tuples: vec![upper_items],
-                ..CompactType::default()
-            },
-        },
-        rec_vars,
-    }
-}
-
-fn project_expansive_value_scheme_from_analysis(
-    value: &CompactTypeScheme,
-    analysis: &CompactTypeScheme,
-) -> CompactTypeScheme {
-    let lower = analysis
-        .cty
-        .lower
-        .tuples
-        .first()
-        .and_then(|items| items.first())
-        .cloned()
-        .unwrap_or_else(|| value.cty.lower.clone());
-    let upper = analysis
-        .cty
-        .upper
-        .tuples
-        .first()
-        .and_then(|items| items.first())
-        .cloned()
-        .unwrap_or_else(|| value.cty.upper.clone());
-    CompactTypeScheme {
-        cty: CompactBounds {
-            self_var: value.cty.self_var,
-            lower,
-            upper,
-        },
-        rec_vars: analysis.rec_vars.clone(),
     }
 }
 

@@ -134,7 +134,7 @@ fn materialize_compact_role_arg(
 ) -> RoleConstraintArg {
     let arg = subst_compact_bounds(arg, subst);
     RoleConstraintArg {
-        pos: compact_pos_type(arena, &arg.lower, &CompactTypeScheme::default(), false),
-        neg: compact_neg_type(arena, &arg.upper, &CompactTypeScheme::default(), false),
+        pos: compact_pos_type(arena, arg.lower(), &CompactTypeScheme::default(), false),
+        neg: compact_neg_type(arena, arg.upper(), &CompactTypeScheme::default(), false),
     }
 }

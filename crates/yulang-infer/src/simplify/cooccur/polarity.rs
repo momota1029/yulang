@@ -15,7 +15,7 @@ pub(super) fn analyze_polar_occurrences_with_role_constraints(
 
     visit_type(
         scheme,
-        &scheme.cty.lower,
+        scheme.cty.lower(),
         true,
         &suppressed,
         &mut expanded,
@@ -23,8 +23,8 @@ pub(super) fn analyze_polar_occurrences_with_role_constraints(
     );
     visit_root_upper_children(
         scheme,
-        &scheme.cty.lower,
-        &scheme.cty.upper,
+        scheme.cty.lower(),
+        scheme.cty.upper(),
         &mut expanded,
         &mut occurrences,
     );
@@ -54,7 +54,7 @@ fn visit_bounds(
     }
     visit_type(
         scheme,
-        &bounds.lower,
+        bounds.lower(),
         true,
         suppressed,
         expanded,
@@ -62,7 +62,7 @@ fn visit_bounds(
     );
     visit_type(
         scheme,
-        &bounds.upper,
+        bounds.upper(),
         false,
         suppressed,
         expanded,
@@ -87,9 +87,9 @@ fn visit_type(
             && let Some(bounds) = scheme.rec_vars.get(&tv)
         {
             let recur = if positive {
-                &bounds.lower
+                bounds.lower()
             } else {
-                &bounds.upper
+                bounds.upper()
             };
             visit_type(scheme, recur, positive, suppressed, expanded, occurrences);
         }
@@ -359,21 +359,21 @@ fn collect_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
 }
 
 fn collect_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var {
+    if let Some(tv) = bounds.self_var() {
         out.insert(tv);
     }
-    collect_type_vars(&bounds.lower, out);
-    collect_type_vars(&bounds.upper, out);
+    collect_type_vars(bounds.lower(), out);
+    collect_type_vars(bounds.upper(), out);
 }
 
 fn center_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
     let mut out = bounds
-        .lower
+        .lower()
         .vars
-        .intersection(&bounds.upper.vars)
+        .intersection(&bounds.upper().vars)
         .copied()
         .collect::<HashSet<_>>();
-    if let Some(self_var) = bounds.self_var {
+    if let Some(self_var) = bounds.self_var() {
         out.insert(self_var);
     }
     out

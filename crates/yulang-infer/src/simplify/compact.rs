@@ -18,11 +18,94 @@ use crate::types::{Neg, Pos};
 
 use crate::solve::{Infer, IntoNegId, IntoPosId};
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct CompactBounds {
-    pub self_var: Option<TypeVar>,
-    pub lower: CompactType,
-    pub upper: CompactType,
+/// 不変型の compact 表現。`Interval` は `(+,-)` 2つ組の葉（中心変数が残った位置）。
+/// sandwich で中心変数が単一コンストラクタ K と全出現で共起すると K が lift され、
+/// `Con`/`Tuple`/… の変種になる（中心変数は消える）。lift 変種は sandwich の出力以降
+/// （display / 最終スキーマ）にのみ現れる。pre-sandwich のコードは `Interval` だけを見る。
+/// 詳細: spec/2026-06-06-invariant-type-sandwich.md
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompactBounds {
+    Interval {
+        self_var: Option<TypeVar>,
+        lower: CompactType,
+        upper: CompactType,
+    },
+    /// lift 済み具体コンストラクタ（`opt<..>`, `ref<..>` 等）。子は各引数の不変区間。
+    Con { path: Path, args: Vec<CompactBounds> },
+    /// lift 済みタプル。
+    Tuple { items: Vec<CompactBounds> },
+}
+
+impl Default for CompactBounds {
+    fn default() -> Self {
+        CompactBounds::Interval {
+            self_var: None,
+            lower: CompactType::default(),
+            upper: CompactType::default(),
+        }
+    }
+}
+
+impl CompactBounds {
+    /// 区間（葉）を作る。enum 化後は `CompactBounds::Interval { .. }`。
+    #[inline]
+    pub fn interval(self_var: Option<TypeVar>, lower: CompactType, upper: CompactType) -> Self {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        }
+    }
+    /// この bounds が lift 済みコンストラクタ（`Interval` 以外）かどうか。
+    #[inline]
+    pub fn is_lifted(&self) -> bool {
+        !matches!(self, CompactBounds::Interval { .. })
+    }
+    /// 共変（正）側の型。**`Interval` 専用**。lift 変種は pre-sandwich のアクセサ経路に
+    /// 来ない不変条件（sandwich/display は変種を直接 match する）。
+    #[inline]
+    pub fn lower(&self) -> &CompactType {
+        match self {
+            CompactBounds::Interval { lower, .. } => lower,
+            _ => unreachable!("lower() called on lifted CompactBounds (only Interval is valid here)"),
+        }
+    }
+    /// 反変（負）側の型。`Interval` 専用。
+    #[inline]
+    pub fn upper(&self) -> &CompactType {
+        match self {
+            CompactBounds::Interval { upper, .. } => upper,
+            _ => unreachable!("upper() called on lifted CompactBounds (only Interval is valid here)"),
+        }
+    }
+    #[inline]
+    pub fn lower_mut(&mut self) -> &mut CompactType {
+        match self {
+            CompactBounds::Interval { lower, .. } => lower,
+            _ => unreachable!("lower_mut() called on lifted CompactBounds"),
+        }
+    }
+    #[inline]
+    pub fn upper_mut(&mut self) -> &mut CompactType {
+        match self {
+            CompactBounds::Interval { upper, .. } => upper,
+            _ => unreachable!("upper_mut() called on lifted CompactBounds"),
+        }
+    }
+    #[inline]
+    pub fn self_var(&self) -> Option<TypeVar> {
+        match self {
+            CompactBounds::Interval { self_var, .. } => *self_var,
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn self_var_mut(&mut self) -> &mut Option<TypeVar> {
+        match self {
+            CompactBounds::Interval { self_var, .. } => self_var,
+            _ => unreachable!("self_var_mut() called on lifted CompactBounds"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -141,10 +224,26 @@ pub(crate) fn merge_compact_bounds(
     lhs: CompactBounds,
     rhs: CompactBounds,
 ) -> CompactBounds {
-    CompactBounds {
-        self_var: lhs.self_var.or(rhs.self_var),
-        lower: merge_compact_types(positive, lhs.lower, rhs.lower),
-        upper: merge_compact_types(!positive, lhs.upper, rhs.upper),
+    // merge は compaction（pre-sandwich）の低レベルプリミティブで、lift 変種は来ない。
+    let (
+        CompactBounds::Interval {
+            self_var: lhs_self_var,
+            lower: lhs_lower,
+            upper: lhs_upper,
+        },
+        CompactBounds::Interval {
+            self_var: rhs_self_var,
+            lower: rhs_lower,
+            upper: rhs_upper,
+        },
+    ) = (lhs, rhs)
+    else {
+        unreachable!("merge_compact_bounds on lifted CompactBounds (pre-sandwich only)");
+    };
+    CompactBounds::Interval {
+        self_var: lhs_self_var.or(rhs_self_var),
+        lower: merge_compact_types(positive, lhs_lower, rhs_lower),
+        upper: merge_compact_types(!positive, lhs_upper, rhs_upper),
     }
 }
 
@@ -185,121 +284,6 @@ pub(crate) fn merge_compact_types(
     lhs.tuples = merge_tuples(positive, lhs.tuples, rhs_tuples);
     lhs.rows = merge_rows(positive, lhs.rows, rhs_rows);
     lhs
-}
-
-pub(crate) fn finalize_expansive_compact_scheme(scheme: &mut CompactTypeScheme) {
-    let rec_vars = scheme.rec_vars.clone();
-    let mut visiting = HashSet::new();
-    finalize_expansive_compact_bounds(&mut scheme.cty, &rec_vars, &mut visiting, true);
-    for bounds in scheme.rec_vars.values_mut() {
-        let mut visiting = HashSet::new();
-        finalize_expansive_compact_bounds(bounds, &rec_vars, &mut visiting, false);
-    }
-}
-
-fn finalize_expansive_compact_bounds(
-    bounds: &mut CompactBounds,
-    rec_vars: &HashMap<TypeVar, CompactBounds>,
-    visiting: &mut HashSet<TypeVar>,
-    collapse_vars_with_shape: bool,
-) {
-    let finalized =
-        finalized_expansive_bounds_type(bounds, rec_vars, visiting, collapse_vars_with_shape);
-    bounds.lower = finalized.clone();
-    bounds.upper = finalized;
-}
-
-fn finalized_expansive_bounds_type(
-    bounds: &CompactBounds,
-    rec_vars: &HashMap<TypeVar, CompactBounds>,
-    visiting: &mut HashSet<TypeVar>,
-    collapse_vars_with_shape: bool,
-) -> CompactType {
-    let mut lower = bounds.lower.clone();
-    finalize_expansive_compact_type(&mut lower, rec_vars, visiting);
-    let mut upper = bounds.upper.clone();
-    finalize_expansive_compact_type(&mut upper, rec_vars, visiting);
-
-    let mut finalized = if has_non_var_shape(&lower)
-        || (!is_empty_compact_type(&lower) && is_empty_compact_type(&upper))
-    {
-        lower
-    } else if has_non_var_shape(&upper) || is_empty_compact_type(&lower) {
-        upper
-    } else {
-        lower
-    };
-    if collapse_vars_with_shape && has_non_var_shape(&finalized) {
-        finalized.vars.clear();
-    }
-    finalized
-}
-
-fn finalize_expansive_compact_type(
-    ty: &mut CompactType,
-    rec_vars: &HashMap<TypeVar, CompactBounds>,
-    visiting: &mut HashSet<TypeVar>,
-) {
-    let vars = mem::take(&mut ty.vars);
-    for tv in vars {
-        if !visiting.insert(tv) {
-            ty.vars.insert(tv);
-            continue;
-        }
-        if let Some(bounds) = rec_vars.get(&tv) {
-            let replacement = finalized_expansive_bounds_type(bounds, rec_vars, visiting, false);
-            if is_empty_compact_type(&replacement) {
-                ty.vars.insert(tv);
-            } else {
-                let current = mem::take(ty);
-                *ty = merge_compact_types(true, current, replacement);
-            }
-        } else {
-            ty.vars.insert(tv);
-        }
-        visiting.remove(&tv);
-    }
-
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
-            finalize_expansive_compact_bounds(arg, rec_vars, visiting, false);
-        }
-    }
-    for fun in &mut ty.funs {
-        finalize_expansive_compact_type(&mut fun.arg, rec_vars, visiting);
-        finalize_expansive_compact_type(&mut fun.arg_eff, rec_vars, visiting);
-        finalize_expansive_compact_type(&mut fun.ret_eff, rec_vars, visiting);
-        finalize_expansive_compact_type(&mut fun.ret, rec_vars, visiting);
-    }
-    for record in &mut ty.records {
-        for field in &mut record.fields {
-            finalize_expansive_compact_type(&mut field.value, rec_vars, visiting);
-        }
-    }
-    for spread in &mut ty.record_spreads {
-        for field in &mut spread.fields {
-            finalize_expansive_compact_type(&mut field.value, rec_vars, visiting);
-        }
-        finalize_expansive_compact_type(&mut spread.tail, rec_vars, visiting);
-    }
-    for variant in &mut ty.variants {
-        for (_, payloads) in &mut variant.items {
-            for payload in payloads {
-                finalize_expansive_compact_type(payload, rec_vars, visiting);
-            }
-        }
-    }
-    for tuple in &mut ty.tuples {
-        for item in tuple {
-            finalize_expansive_compact_type(item, rec_vars, visiting);
-        }
-    }
-    for row in &mut ty.rows {
-        for item in &mut row.items {
-            finalize_expansive_compact_type(item, rec_vars, visiting);
-        }
-        finalize_expansive_compact_type(&mut row.tail, rec_vars, visiting);
-    }
 }
 
 pub(crate) fn coalesce_function_effect_residual(
@@ -405,19 +389,19 @@ fn coalesced_tail_vars(
 }
 
 pub(crate) fn compact_root_fun_body_lower(scheme: &CompactTypeScheme) -> Option<CompactType> {
-    let [lower_fun] = scheme.cty.lower.funs.as_slice() else {
+    let [lower_fun] = scheme.cty.lower().funs.as_slice() else {
         return None;
     };
     let lower_arg_eff = lower_fun.arg_eff.clone();
     let lower_ret_eff = lower_fun.ret_eff.clone();
     let ignorable_root_vars = compact_root_ignorable_vars(&scheme.cty);
-    if !compact_root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
-        || !compact_root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
+    if !compact_root_non_fun_parts_empty(scheme.cty.lower(), &ignorable_root_vars)
+        || !compact_root_non_fun_parts_empty(scheme.cty.upper(), &ignorable_root_vars)
     {
         return None;
     }
 
-    let (arg, mut arg_eff, mut ret_eff, ret) = match scheme.cty.upper.funs.as_slice() {
+    let (arg, mut arg_eff, mut ret_eff, ret) = match scheme.cty.upper().funs.as_slice() {
         [upper_fun] => (
             root_fun_value_compact(&lower_fun.arg, &upper_fun.arg),
             root_fun_arg_eff_compact(&lower_fun.arg_eff, &upper_fun.arg_eff),
@@ -459,15 +443,15 @@ fn has_concrete_effect_row(ty: &CompactType) -> bool {
 
 pub(crate) fn coalesce_root_function_interval_effect_residuals(scheme: &mut CompactTypeScheme) {
     let ignorable_root_vars = compact_root_ignorable_vars(&scheme.cty);
-    if !compact_root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
-        || !compact_root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
+    if !compact_root_non_fun_parts_empty(scheme.cty.lower(), &ignorable_root_vars)
+        || !compact_root_non_fun_parts_empty(scheme.cty.upper(), &ignorable_root_vars)
     {
         return;
     }
-    if !matches!(scheme.cty.upper.funs.as_slice(), [_]) {
+    if !matches!(scheme.cty.upper().funs.as_slice(), [_]) {
         return;
     }
-    let [lower_fun] = scheme.cty.lower.funs.as_mut_slice() else {
+    let [lower_fun] = scheme.cty.lower_mut().funs.as_mut_slice() else {
         return;
     };
 
@@ -585,12 +569,12 @@ fn compact_root_non_fun_parts_empty(
 
 fn compact_root_ignorable_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
     let mut vars = bounds
-        .lower
+        .lower()
         .vars
-        .intersection(&bounds.upper.vars)
+        .intersection(&bounds.upper().vars)
         .copied()
         .collect::<HashSet<_>>();
-    if let Some(self_var) = bounds.self_var {
+    if let Some(self_var) = bounds.self_var() {
         vars.insert(self_var);
     }
     vars
@@ -768,8 +752,8 @@ fn coalesce_nested_tail_function_effect_residuals_in_bounds(
     bounds: &mut CompactBounds,
     exposed: &mut HashSet<TypeVar>,
 ) {
-    coalesce_nested_tail_function_effect_residuals_in_type(&mut bounds.lower, exposed);
-    coalesce_nested_tail_function_effect_residuals_in_type(&mut bounds.upper, exposed);
+    coalesce_nested_tail_function_effect_residuals_in_type(bounds.lower_mut(), exposed);
+    coalesce_nested_tail_function_effect_residuals_in_type(bounds.upper_mut(), exposed);
 }
 
 fn coalesce_nested_tail_function_effect_residuals_in_type(
@@ -881,13 +865,13 @@ fn collect_compact_bounds_rec_var_refs(
     rec_vars: &std::collections::HashMap<TypeVar, CompactBounds>,
     out: &mut Vec<TypeVar>,
 ) {
-    if let Some(tv) = bounds.self_var
+    if let Some(tv) = bounds.self_var()
         && rec_vars.contains_key(&tv)
     {
         out.push(tv);
     }
-    collect_compact_type_rec_var_refs(&bounds.lower, rec_vars, out);
-    collect_compact_type_rec_var_refs(&bounds.upper, rec_vars, out);
+    collect_compact_type_rec_var_refs(bounds.lower(), rec_vars, out);
+    collect_compact_type_rec_var_refs(bounds.upper(), rec_vars, out);
 }
 
 fn collect_compact_type_rec_var_refs(
@@ -983,7 +967,7 @@ impl<'a> CompactContext<'a> {
     }
 
     fn compact_var(&mut self, tv: TypeVar) -> CompactBounds {
-        CompactBounds {
+        CompactBounds::Interval {
             self_var: Some(tv),
             lower: self.compact_var_side(tv, true, &ParentStack::new()),
             upper: self.compact_var_side(tv, false, &ParentStack::new()),
@@ -1006,7 +990,7 @@ impl<'a> CompactContext<'a> {
         let mut stack = Vec::new();
         let mut seen = FxHashSet::default();
 
-        if let Some(tv) = cty.self_var {
+        if let Some(tv) = cty.self_var() {
             stack.push(tv);
         }
         self.collect_referenced_rec_vars_in_bounds(cty, &mut stack);
@@ -1030,13 +1014,13 @@ impl<'a> CompactContext<'a> {
         bounds: &CompactBounds,
         stack: &mut Vec<TypeVar>,
     ) {
-        if let Some(tv) = bounds.self_var {
+        if let Some(tv) = bounds.self_var() {
             if self.rec_vars.contains_key(&tv) {
                 stack.push(tv);
             }
         }
-        self.collect_referenced_rec_vars_in_type(&bounds.lower, stack);
-        self.collect_referenced_rec_vars_in_type(&bounds.upper, stack);
+        self.collect_referenced_rec_vars_in_type(bounds.lower(), stack);
+        self.collect_referenced_rec_vars_in_type(bounds.upper(), stack);
     }
 
     fn collect_referenced_rec_vars_in_type(&self, ty: &CompactType, stack: &mut Vec<TypeVar>) {
@@ -1133,15 +1117,18 @@ impl<'a> CompactContext<'a> {
         self.in_progress.remove(&key);
 
         if self.recursive.remove(&key) {
-            let entry = self.rec_vars.entry(tv).or_insert_with(|| CompactBounds {
-                self_var: Some(tv),
-                lower: CompactType::default(),
-                upper: CompactType::default(),
-            });
+            let entry = self
+                .rec_vars
+                .entry(tv)
+                .or_insert_with(|| CompactBounds::Interval {
+                    self_var: Some(tv),
+                    lower: CompactType::default(),
+                    upper: CompactType::default(),
+                });
             if positive {
-                entry.lower = bound.clone();
+                *entry.lower_mut() = bound.clone();
             } else {
-                entry.upper = bound.clone();
+                *entry.upper_mut() = bound.clone();
             }
             bound = CompactType::from_var(tv);
         }
@@ -1248,7 +1235,7 @@ impl<'a> CompactContext<'a> {
         parents: &ParentStack,
     ) -> CompactType {
         if let Some(tv) = single_substituted_compact_var(
-            &instance.scheme.compact.cty.lower,
+            instance.scheme.compact.cty.lower(),
             instance.subst.as_slice(),
         ) {
             return self.compact_var_side(tv, true, parents);
@@ -1256,7 +1243,7 @@ impl<'a> CompactContext<'a> {
 
         let compact = subst_compact_scheme(&instance.scheme.compact, instance.subst.as_slice());
         let lower =
-            compact_root_fun_body_lower(&compact).unwrap_or_else(|| compact.cty.lower.clone());
+            compact_root_fun_body_lower(&compact).unwrap_or_else(|| compact.cty.lower().clone());
         let lower = self.expand_instantiated_compact_type_vars(lower, true, parents);
         let reachable_rec_vars = reachable_compact_rec_vars_from_type(&lower, &compact.rec_vars);
         for (tv, bounds) in compact.rec_vars {
@@ -1279,10 +1266,18 @@ impl<'a> CompactContext<'a> {
         bounds: CompactBounds,
         parents: &ParentStack,
     ) -> CompactBounds {
-        CompactBounds {
-            self_var: bounds.self_var,
-            lower: self.expand_instantiated_compact_type_vars(bounds.lower, true, parents),
-            upper: self.expand_instantiated_compact_type_vars(bounds.upper, false, parents),
+        let CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } = bounds
+        else {
+            unreachable!("expand_instantiated_compact_bounds_vars on lifted CompactBounds (pre-sandwich only)");
+        };
+        CompactBounds::Interval {
+            self_var,
+            lower: self.expand_instantiated_compact_type_vars(lower, true, parents),
+            upper: self.expand_instantiated_compact_type_vars(upper, false, parents),
         }
     }
 
@@ -2085,7 +2080,7 @@ impl<'a> CompactContext<'a> {
             Pos::Con(path, args) => CompactType::from_con(
                 path,
                 args.iter()
-                    .map(|(p, n)| CompactBounds {
+                    .map(|(p, n)| CompactBounds::Interval {
                         self_var: None,
                         lower: self.compact_pos_id(*p, &ParentStack::new()),
                         upper: self.compact_neg_id(*n, &ParentStack::new()),
@@ -2188,7 +2183,7 @@ impl<'a> CompactContext<'a> {
             Neg::Con(path, args) => CompactType::from_con(
                 path,
                 args.iter()
-                    .map(|(p, n)| CompactBounds {
+                    .map(|(p, n)| CompactBounds::Interval {
                         self_var: None,
                         lower: self.compact_pos_id(*p, &ParentStack::new()),
                         upper: self.compact_neg_id(*n, &ParentStack::new()),
@@ -2265,7 +2260,7 @@ impl<'a> CompactContext<'a> {
                 atom.path.clone(),
                 atom.args
                     .iter()
-                    .map(|(pos_tv, neg_tv)| CompactBounds {
+                    .map(|(pos_tv, neg_tv)| CompactBounds::Interval {
                         self_var: None,
                         lower: merge_compact_types(
                             true,
@@ -2336,10 +2331,10 @@ pub(crate) fn subst_compact_bounds(
     bounds: &CompactBounds,
     subst: &[(TypeVar, TypeVar)],
 ) -> CompactBounds {
-    CompactBounds {
-        self_var: bounds.self_var.map(|tv| subst_lookup_small(subst, tv)),
-        lower: subst_compact_type(&bounds.lower, subst),
-        upper: subst_compact_type(&bounds.upper, subst),
+    CompactBounds::Interval {
+        self_var: bounds.self_var().map(|tv| subst_lookup_small(subst, tv)),
+        lower: subst_compact_type(bounds.lower(), subst),
+        upper: subst_compact_type(bounds.upper(), subst),
     }
 }
 
@@ -2479,8 +2474,8 @@ pub(crate) fn expose_negative_row_tail_vars(scheme: &mut CompactTypeScheme) {
 }
 
 fn normalize_compact_bounds_rows(bounds: &mut CompactBounds) {
-    normalize_compact_type_rows(&mut bounds.lower, true);
-    normalize_compact_type_rows(&mut bounds.upper, false);
+    normalize_compact_type_rows(bounds.lower_mut(), true);
+    normalize_compact_type_rows(bounds.upper_mut(), false);
 }
 
 fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
@@ -2590,8 +2585,8 @@ fn hoist_tail_rows_already_present_in_outer_row(row: &mut CompactRow, positive: 
 }
 
 fn expose_positive_row_tails_in_bounds(bounds: &mut CompactBounds) {
-    expose_positive_row_tails_in_type(&mut bounds.lower, true, false);
-    expose_positive_row_tails_in_type(&mut bounds.upper, false, false);
+    expose_positive_row_tails_in_type(bounds.lower_mut(), true, false);
+    expose_positive_row_tails_in_type(bounds.upper_mut(), false, false);
 }
 
 fn expose_positive_row_tails_in_type(
@@ -2654,8 +2649,8 @@ fn expose_positive_row_tails_in_type(
 }
 
 fn expose_negative_row_tail_vars_in_bounds(bounds: &mut CompactBounds) {
-    expose_negative_row_tail_vars_in_type(&mut bounds.lower, true, false);
-    expose_negative_row_tail_vars_in_type(&mut bounds.upper, false, false);
+    expose_negative_row_tail_vars_in_type(bounds.lower_mut(), true, false);
+    expose_negative_row_tail_vars_in_type(bounds.upper_mut(), false, false);
 }
 
 fn expose_negative_row_tail_vars_in_type(
@@ -3200,8 +3195,8 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        assert_eq!(compact.cty.lower.cons.len(), 1);
-        assert_eq!(compact.cty.lower.funs.len(), 1);
+        assert_eq!(compact.cty.lower().cons.len(), 1);
+        assert_eq!(compact.cty.lower().funs.len(), 1);
     }
 
     #[test]
@@ -3252,7 +3247,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, root);
-        let a_to_rest = compact.cty.lower.funs.first().expect("a -> ...");
+        let a_to_rest = compact.cty.lower().funs.first().expect("a -> ...");
         assert!(compact_type_has_con(&a_to_rest.arg, &int_path));
 
         let b_to_rest = a_to_rest.ret.funs.first().expect("... -> b -> ...");
@@ -3283,7 +3278,7 @@ mod tests {
         let scheme = std::rc::Rc::new(crate::scheme::Scheme {
             arena,
             compact: CompactTypeScheme {
-                cty: CompactBounds {
+                cty: CompactBounds::Interval {
                     self_var: None,
                     lower: CompactType {
                         tuples: vec![vec![CompactType {
@@ -3313,7 +3308,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, root);
-        let item = &compact.cty.lower.tuples[0][0];
+        let item = &compact.cty.lower().tuples[0][0];
         assert!(item.vars.contains(&source));
         assert!(compact_type_has_con(item, &int_path));
     }
@@ -3350,9 +3345,9 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, root);
-        let arg = &compact.cty.lower.rows[0].items[0].cons[0].args[0];
-        assert!(compact_type_has_con(&arg.lower, &int_path));
-        assert!(compact_type_has_con(&arg.upper, &int_path));
+        let arg = &compact.cty.lower().rows[0].items[0].cons[0].args[0];
+        assert!(compact_type_has_con(arg.lower(), &int_path));
+        assert!(compact_type_has_con(arg.upper(), &int_path));
     }
 
     #[test]
@@ -3419,7 +3414,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, root);
-        let fun = compact.cty.lower.funs.first().expect("expanded function");
+        let fun = compact.cty.lower().funs.first().expect("expanded function");
         assert!(fun.arg_eff.vars.contains(&beta));
         assert!(fun.arg_eff.vars.contains(&epsilon));
         assert!(!fun.arg_eff.vars.contains(&eta));
@@ -3480,7 +3475,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let row = &compact.cty.lower.rows[0];
+        let row = &compact.cty.lower().rows[0];
         assert_eq!(row.items.len(), 1);
         assert_eq!(row.items[0].cons.len(), 1);
         assert_eq!(row.items[0].cons[0].args.len(), 1);
@@ -3508,9 +3503,9 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        assert!(compact.cty.upper.rows.is_empty());
-        assert!(!compact.cty.upper.prims.contains(&path));
-        assert!(compact.cty.upper.vars.contains(&tail));
+        assert!(compact.cty.upper().rows.is_empty());
+        assert!(!compact.cty.upper().prims.contains(&path));
+        assert!(compact.cty.upper().vars.contains(&tail));
     }
 
     #[test]
@@ -3537,10 +3532,10 @@ mod tests {
         infer.add_upper(tail, Neg::Var(residual));
 
         let compact = compact_type_var(&infer, tv);
-        assert!(compact.cty.upper.rows.is_empty());
-        assert!(!compact.cty.upper.prims.contains(&path));
-        assert!(compact.cty.upper.vars.contains(&tail));
-        assert!(compact.cty.upper.vars.contains(&residual));
+        assert!(compact.cty.upper().rows.is_empty());
+        assert!(!compact.cty.upper().prims.contains(&path));
+        assert!(compact.cty.upper().vars.contains(&tail));
+        assert!(compact.cty.upper().vars.contains(&residual));
     }
 
     #[test]
@@ -3579,7 +3574,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let row = &compact.cty.lower.rows[0];
+        let row = &compact.cty.lower().rows[0];
         assert!(
             row.items
                 .iter()
@@ -3625,7 +3620,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(fun.ret_eff.vars.contains(&effect));
         assert!(fun.ret_eff.vars.contains(&residual));
         assert!(fun.ret_eff.rows.is_empty());
@@ -3663,7 +3658,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(fun.ret_eff.vars.contains(&effect));
         assert!(fun.ret_eff.vars.contains(&residual));
         assert!(compact_type_has_prim(&fun.ret_eff, &update_path));
@@ -3701,7 +3696,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(compact_type_has_prim(&fun.ret_eff, &undet_path));
     }
 
@@ -3727,7 +3722,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(is_empty_effect_row_compact_type(&fun.ret_eff));
         assert!(fun.ret_eff.vars.is_empty());
     }
@@ -3752,7 +3747,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(is_empty_effect_row_compact_type(&fun.ret_eff));
         assert!(fun.ret_eff.vars.is_empty());
     }
@@ -3786,7 +3781,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(compact_type_has_prim(&fun.ret_eff, &io_path));
         assert!(!fun.ret_eff.vars.contains(&effect));
     }
@@ -3816,7 +3811,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let callback = &compact.cty.lower.funs[0].arg.funs[0];
+        let callback = &compact.cty.lower().funs[0].arg.funs[0];
         assert!(callback.ret_eff.vars.contains(&effect));
     }
 
@@ -3849,7 +3844,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(fun.ret_eff.vars.contains(&effect));
         assert!(compact_type_has_prim(&fun.ret_eff, &io_path));
     }
@@ -3893,7 +3888,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         let row = &fun.ret_eff.rows[0];
         assert!(fun.ret_eff.rows[0].tail.vars.contains(&effect));
         assert!(
@@ -3945,7 +3940,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let fun = &compact.cty.lower.funs[0];
+        let fun = &compact.cty.lower().funs[0];
         assert!(compact_type_has_prim(&fun.ret_eff, &io_path));
         assert!(fun.ret_eff.vars.contains(&effect));
         assert!(!fun.ret_eff.vars.contains(&residual));
@@ -4021,7 +4016,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let arg_fun = &compact.cty.lower.funs[0].arg.funs[0];
+        let arg_fun = &compact.cty.lower().funs[0].arg.funs[0];
         assert!(arg_fun.ret_eff.vars.contains(&effect));
         assert!(arg_fun.ret_eff.vars.contains(&sibling));
         assert!(!compact_type_contains_prim(&arg_fun.ret_eff, &sibling_path));
@@ -4089,7 +4084,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let row = &compact.cty.upper.rows[0];
+        let row = &compact.cty.upper().rows[0];
         assert!(
             row.items
                 .iter()
@@ -4135,7 +4130,7 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        let row = &compact.cty.lower.rows[0];
+        let row = &compact.cty.lower().rows[0];
         assert!(
             row.items
                 .iter()
@@ -4164,7 +4159,7 @@ mod tests {
             ..CompactType::default()
         };
         let mut scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     rows: vec![CompactRow {
@@ -4187,7 +4182,7 @@ mod tests {
 
         normalize_compact_scheme_rows(&mut scheme);
 
-        let row = &scheme.cty.lower.rows[0];
+        let row = &scheme.cty.lower().rows[0];
         assert_eq!(row.tail.vars, std::collections::HashSet::from([tail]));
         assert!(row.tail.rows.is_empty());
     }
@@ -4264,7 +4259,7 @@ mod tests {
             ..CompactType::default()
         };
         let mut scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![CompactFun {
@@ -4318,7 +4313,7 @@ mod tests {
 
         coalesce_root_function_interval_effect_residuals(&mut scheme);
 
-        let lower_fun = &scheme.cty.lower.funs[0];
+        let lower_fun = &scheme.cty.lower().funs[0];
         assert!(lower_fun.arg_eff.vars.is_empty());
         assert_eq!(
             lower_fun.arg_eff.rows[0].tail.vars,
@@ -4338,7 +4333,7 @@ mod tests {
             ..CompactType::default()
         };
         let mut scheme = CompactTypeScheme {
-            cty: CompactBounds {
+            cty: CompactBounds::Interval {
                 self_var: None,
                 lower: CompactType {
                     funs: vec![CompactFun {
@@ -4369,7 +4364,7 @@ mod tests {
 
         coalesce_root_function_interval_effect_residuals(&mut scheme);
 
-        let lower_fun = &scheme.cty.lower.funs[0];
+        let lower_fun = &scheme.cty.lower().funs[0];
         assert_eq!(
             lower_fun.arg_eff.vars,
             std::collections::HashSet::from([residual])
@@ -4436,8 +4431,8 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        assert_eq!(compact.cty.lower.variants.len(), 1);
-        assert_eq!(compact.cty.lower.variants[0].items.len(), 2);
+        assert_eq!(compact.cty.lower().variants.len(), 1);
+        assert_eq!(compact.cty.lower().variants[0].items.len(), 2);
         let rendered = crate::display::format::format_coalesced_scheme(&compact);
         assert!(rendered.contains(":{label β, disabled}"), "{rendered}");
         assert!(!rendered.contains(" & :{disabled}"), "{rendered}");
@@ -4465,8 +4460,8 @@ mod tests {
         );
 
         let compact = compact_type_var(&infer, tv);
-        assert_eq!(compact.cty.upper.variants.len(), 1);
-        assert_eq!(compact.cty.upper.variants[0].items.len(), 2);
+        assert_eq!(compact.cty.upper().variants.len(), 1);
+        assert_eq!(compact.cty.upper().variants[0].items.len(), 2);
     }
 
     #[test]
@@ -4517,8 +4512,8 @@ mod tests {
         ty.prims.contains(path)
             || ty.cons.iter().any(|con| {
                 con.args.iter().any(|arg| {
-                    compact_type_contains_prim(&arg.lower, path)
-                        || compact_type_contains_prim(&arg.upper, path)
+                    compact_type_contains_prim(arg.lower(), path)
+                        || compact_type_contains_prim(arg.upper(), path)
                 })
             })
             || ty.funs.iter().any(|fun| {

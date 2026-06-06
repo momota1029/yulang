@@ -118,7 +118,7 @@ impl Infer {
         out: &mut Vec<Path>,
     ) {
         self.collect_effect_paths_from_compact_type(
-            &instance.scheme.compact.cty.lower,
+            instance.scheme.compact.cty.lower(),
             instance.subst.as_slice(),
             seen,
             out,

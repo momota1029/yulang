@@ -4,7 +4,7 @@ use yulang_typed_ir as typed_ir;
 
 use crate::FrozenScheme;
 use crate::display::format::{
-    Type as DisplayType, compact_scheme_to_type, materialize_effect_args,
+    Type as DisplayType, compact_scheme_to_type_no_sandwich, materialize_effect_args,
 };
 use crate::ids::TypeVar;
 use crate::simplify::compact::{
@@ -24,7 +24,7 @@ use super::names::{export_name, export_path};
 
 pub fn export_scheme_body(scheme: &CompactTypeScheme) -> typed_ir::Type {
     let mut ctx = ExportTypeCtx::new(scheme);
-    let display = compact_scheme_to_type(scheme);
+    let display = compact_scheme_to_type_no_sandwich(scheme);
     ctx.export_display_type(&display)
 }
 
@@ -32,7 +32,7 @@ pub fn export_scheme_body_with_infer(infer: &Infer, scheme: &CompactTypeScheme) 
     let mut scheme = scheme.clone();
     materialize_effect_args(infer, &mut scheme);
     let mut ctx = ExportTypeCtx::new(&scheme);
-    let display = compact_scheme_to_type(&scheme);
+    let display = compact_scheme_to_type_no_sandwich(&scheme);
     ctx.export_display_type(&display)
 }
 
@@ -91,7 +91,7 @@ pub fn export_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> typed_ir::TypeBo
 
 pub fn export_compact_type_bounds(ty: &CompactType) -> typed_ir::TypeBounds {
     let scheme = CompactTypeScheme {
-        cty: CompactBounds {
+        cty: CompactBounds::Interval {
             self_var: None,
             lower: ty.clone(),
             upper: ty.clone(),
@@ -524,8 +524,10 @@ impl ExportTypeCtx {
 
     fn export_compact_bounds(&mut self, bounds: &CompactBounds) -> typed_ir::TypeBounds {
         typed_ir::TypeBounds {
-            lower: self.export_compact_side(&bounds.lower, true).map(Box::new),
-            upper: self.export_compact_side(&bounds.upper, false).map(Box::new),
+            lower: self.export_compact_side(bounds.lower(), true).map(Box::new),
+            upper: self
+                .export_compact_side(bounds.upper(), false)
+                .map(Box::new),
         }
     }
 

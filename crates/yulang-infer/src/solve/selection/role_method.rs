@@ -655,7 +655,7 @@ fn is_nominal_cast_arg(arg: &CompactType) -> bool {
         && arg
             .cons
             .iter()
-            .all(|con| con.args.iter().all(|arg| arg.self_var.is_none()))
+            .all(|con| con.args.iter().all(|arg| arg.self_var().is_none()))
 }
 
 fn same_nominal_cast_head(source: &CompactType, target: &CompactType) -> bool {
@@ -747,9 +747,9 @@ fn compact_type_has_no_open_type_vars(ty: &CompactType) -> bool {
     ty.vars.is_empty()
         && ty.cons.iter().all(|con| {
             con.args.iter().all(|arg| {
-                arg.self_var.is_none()
-                    && compact_type_has_no_open_type_vars(&arg.lower)
-                    && compact_type_has_no_open_type_vars(&arg.upper)
+                arg.self_var().is_none()
+                    && compact_type_has_no_open_type_vars(arg.lower())
+                    && compact_type_has_no_open_type_vars(arg.upper())
             })
         })
         && ty.funs.iter().all(|fun| {
@@ -904,21 +904,21 @@ fn subst_compact_bounds_with_compact(
     bounds: &CompactBounds,
     subst: &HashMap<TypeVar, CompactType>,
 ) -> CompactBounds {
-    if bounds.self_var.is_none()
-        && bounds.lower == bounds.upper
-        && let Some(var) = super::compact_var::single_compact_var(&bounds.lower)
+    if bounds.self_var().is_none()
+        && bounds.lower() == bounds.upper()
+        && let Some(var) = super::compact_var::single_compact_var(bounds.lower())
         && let Some(replacement) = subst.get(&var)
     {
-        return CompactBounds {
+        return CompactBounds::Interval {
             self_var: None,
             lower: replacement.clone(),
             upper: replacement.clone(),
         };
     }
-    CompactBounds {
-        self_var: bounds.self_var,
-        lower: subst_compact_type_with_compact(&bounds.lower, subst),
-        upper: subst_compact_type_with_compact(&bounds.upper, subst),
+    CompactBounds::Interval {
+        self_var: bounds.self_var(),
+        lower: subst_compact_type_with_compact(bounds.lower(), subst),
+        upper: subst_compact_type_with_compact(bounds.upper(), subst),
     }
 }
 
@@ -939,7 +939,7 @@ fn render_concrete_role_args(inputs: &[CompactType]) -> Vec<String> {
 }
 
 fn render_concrete_compact_type(ty: &CompactType) -> String {
-    crate::display::dump::format_compact_role_constraint_arg(&CompactBounds {
+    crate::display::dump::format_compact_role_constraint_arg(&CompactBounds::Interval {
         self_var: None,
         lower: ty.clone(),
         upper: CompactType::default(),
