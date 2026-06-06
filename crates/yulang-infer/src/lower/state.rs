@@ -580,7 +580,7 @@ impl LowerState {
         cause: ConstraintCause,
         preserve_boundary_on_unresolved: bool,
     ) -> (TypedExpr, ExpectedEdgeId) {
-        match self.infer.resolve_cast_method(expr.tv, expected_tv) {
+        match self.resolve_implicit_cast_boundary_method(expr.tv, expected_tv, kind) {
             CastMethodResolution::Concrete(_) => {
                 if let Some((actual_eff, expected_eff)) = effect_constraint {
                     self.infer
@@ -668,6 +668,28 @@ impl LowerState {
                 }
                 return (expr, edge_id);
             }
+        }
+    }
+
+    fn resolve_implicit_cast_boundary_method(
+        &self,
+        source_tv: TypeVar,
+        target_tv: TypeVar,
+        kind: ExpectedEdgeKind,
+    ) -> CastMethodResolution {
+        let resolution = self.infer.resolve_cast_method(source_tv, target_tv);
+        if !matches!(resolution, CastMethodResolution::Unresolved)
+            || !branch_join_cast_target_uses_lower_bound(kind)
+        {
+            return resolution;
+        }
+
+        match self
+            .infer
+            .resolve_cast_method_with_target_lower(source_tv, target_tv)
+        {
+            concrete @ CastMethodResolution::Concrete(_) => concrete,
+            _ => CastMethodResolution::Unresolved,
         }
     }
 
@@ -1631,4 +1653,11 @@ fn expected_boundary_expr(
             expr: Box::new(expr),
         },
     }
+}
+
+fn branch_join_cast_target_uses_lower_bound(kind: ExpectedEdgeKind) -> bool {
+    matches!(
+        kind,
+        ExpectedEdgeKind::IfBranch | ExpectedEdgeKind::MatchBranch
+    )
 }

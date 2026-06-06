@@ -71,7 +71,34 @@ impl Infer {
             return CastMethodResolution::Unresolved;
         };
         let arg_infos = self.role_arg_infos_of(&info.role);
-        let Some(args) = cast_method_args_from_tvs(self, &arg_infos, source_tv, target_tv) else {
+        let Some(args) = cast_method_args_from_tvs(
+            self,
+            &arg_infos,
+            source_tv,
+            target_tv,
+            CastTargetLookup::Upper,
+        ) else {
+            return CastMethodResolution::Unresolved;
+        };
+        resolve_cast_method_from_concrete_args(self, info, args)
+    }
+
+    pub(crate) fn resolve_cast_method_with_target_lower(
+        &self,
+        source_tv: TypeVar,
+        target_tv: TypeVar,
+    ) -> CastMethodResolution {
+        let Some(info) = self.role_methods.get(&Name("cast".to_string())) else {
+            return CastMethodResolution::Unresolved;
+        };
+        let arg_infos = self.role_arg_infos_of(&info.role);
+        let Some(args) = cast_method_args_from_tvs(
+            self,
+            &arg_infos,
+            source_tv,
+            target_tv,
+            CastTargetLookup::Lower,
+        ) else {
             return CastMethodResolution::Unresolved;
         };
         resolve_cast_method_from_concrete_args(self, info, args)
@@ -340,6 +367,7 @@ fn cast_method_args_from_tvs(
     arg_infos: &[RoleArgInfo],
     source_tv: TypeVar,
     target_tv: TypeVar,
+    target_lookup: CastTargetLookup,
 ) -> Option<CastMethodArgs> {
     let mut indices = Vec::new();
     let mut concrete_args = Vec::new();
@@ -359,7 +387,14 @@ fn cast_method_args_from_tvs(
         let concrete = if arg_info.is_input {
             super::compact_repr::concrete_tv_lower_repr(infer, tv, true)
         } else {
-            super::compact_repr::concrete_tv_upper_repr(infer, tv, true)
+            match target_lookup {
+                CastTargetLookup::Upper => {
+                    super::compact_repr::concrete_tv_upper_repr(infer, tv, true)
+                }
+                CastTargetLookup::Lower => {
+                    super::compact_repr::concrete_tv_lower_repr(infer, tv, true)
+                }
+            }
         };
         let Some(concrete) = concrete else {
             return None;
@@ -508,6 +543,12 @@ fn runtime_primitive_coercion_cast_args(args: &CastMethodArgs) -> bool {
         return false;
     };
     can_runtime_coerce_primitive_type_paths(source, target)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CastTargetLookup {
+    Upper,
+    Lower,
 }
 
 struct CastMethodArgs {
