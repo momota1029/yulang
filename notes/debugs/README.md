@@ -22,12 +22,17 @@
 
 | # | ファイル | テスト | 委譲 | risk |
 |---|---|---|---|---|
-| ⑦ | [branch-join-cast](branch-join-cast.md) | `branch_join_uses_implicit_cast_boundary` | ◎ | 中（union 確定・(B') で実装可）|
-| ⑥ | [string-role-toplevel](string-role-toplevel.md) | `lowers_string_role_impls_from_implicit_prelude` | ○ | 中（Task #4）|
+| ✅⑦ | [branch-join-cast](branch-join-cast.md) | `branch_join_uses_implicit_cast_boundary` | — | **済 `1388c03`**（(B') で実装・検証済）|
+| ✅⑥ | [string-role-toplevel](string-role-toplevel.md) | `lowers_string_role_impls_from_implicit_prelude` | — | **済 `c026491`**（apply で deferred selection 先行解決）|
 | ④⑤ | [std-var-ref-effect-annotation](std-var-ref-effect-annotation.md) | `lowers_std_var_ref_*` ×2 | 保留 | **設計未確定**（反変 effect 推論・①と同根・期待値が変わる）|
 | ⑫ | [handler-continuation-any-leak](handler-continuation-any-leak.md) | `handler_continuation_..._avoids_top_in_effect_row` | ○ | 要調査 |
 | ① | [ref-update-cooccur-overmerge](ref-update-cooccur-overmerge.md) | `render_compact_results_handles_ref_update_effect` | △ | **高（cooccur 本丸 2420 行・前科あり）** |
 | ⑧ | [choice-residual-overremoved](choice-residual-overremoved.md) | `choice_effect_residual_coalesces_across_open_rows` | ✗ | 不明（仮説なし・①の後）|
+
+## perf / 状態不明（バグ表とは別カテゴリ）
+
+- [compiled-tests-slow](compiled-tests-slow.md) — `compiled` テスト ~30 件が極端に遅く、
+  普段 `--skip compiled` で飛ばしているため**現在 pass しているか不明**。高速化＋現状把握を依頼。
 
 ## レビュー側（Claude）の運用
 
