@@ -1085,7 +1085,15 @@ fn coalesce_lower_only_root_fun(
         coalesce_function_effect_residual(&mut lower_fun.arg_eff, &mut lower_fun.ret_eff);
     }
     simplify_function_effect_residual_rows_for_render(&mut lower_fun);
-    let arg = coalesce_lower_only_root_fun_field(ctx, &lower_fun.arg, false, &HashSet::new());
+    // 負位置の引数では具体形と並ぶ var を落とすが、出力が**裸の var**（構造を持たない）の
+    // ときだけは、その var が param↔result の唯一の接続なので残す
+    // （`(α & {width?:⊤}) -> α` の α）。出力が関数型などの構造を持つ場合は、その構造が
+    // 接続を担うので引数側の var は冗長＝落とす（`(unit->[β]α) -> unit->[β]α`）。
+    let mut output_vars = HashSet::new();
+    if !has_non_var_shape(&lower_fun.ret) {
+        collect_compact_type_vars(&lower_fun.ret, &mut output_vars);
+    }
+    let arg = coalesce_lower_only_root_fun_field(ctx, &lower_fun.arg, false, &output_vars);
     let mut rendered_input_vars = HashSet::new();
     collect_type_vars(&arg, &mut rendered_input_vars);
     rendered_input_vars.extend(observed_vars.iter().copied());
@@ -1111,11 +1119,10 @@ fn coalesce_lower_only_root_fun_field(
 ) -> Type {
     let mut ty = ty.clone();
     if has_non_var_shape(&ty) {
-        if positive {
-            ty.vars.retain(|var| input_vars.contains(var));
-        } else {
-            ty.vars.clear();
-        }
+        // 具体形と並ぶ var は通常スプリアスな残差なので落とすが、`input_vars`
+        // （positive=入力に出る出力 var／negative=出力に出る接続 var）に含まれるものは
+        // 接続なので残す。
+        ty.vars.retain(|var| input_vars.contains(var));
     }
     if is_var_only_compact(&ty) {
         Type::Var(*ty.vars.iter().next().unwrap())
