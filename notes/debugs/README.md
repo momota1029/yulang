@@ -31,8 +31,8 @@
 
 ## perf / 状態不明（バグ表とは別カテゴリ）
 
-- [compiled-tests-slow](compiled-tests-slow.md) — `compiled` テスト ~30 件が極端に遅く、
-  普段 `--skip compiled` で飛ばしているため**現在 pass しているか不明**。高速化＋現状把握を依頼。
+- [compiled-tests-slow](compiled-tests-slow.md) — `compiled` テスト 30 件は **30/30 pass**（隠れエラー無し）
+  だが **~96s と遅い**（std typed bundle の 1 回ビルド ~90s が支配項・①と同根の可能性）。高速化を依頼。
 
 ## レビュー側（Claude）の運用
 
