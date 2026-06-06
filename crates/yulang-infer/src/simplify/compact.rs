@@ -31,7 +31,10 @@ pub enum CompactBounds {
         upper: CompactType,
     },
     /// lift 済み具体コンストラクタ（`opt<..>`, `ref<..>` 等）。子は各引数の不変区間。
-    Con { path: Path, args: Vec<CompactBounds> },
+    Con {
+        path: Path,
+        args: Vec<CompactBounds>,
+    },
     /// lift 済みタプル。
     Tuple { items: Vec<CompactBounds> },
 }
@@ -67,7 +70,9 @@ impl CompactBounds {
     pub fn lower(&self) -> &CompactType {
         match self {
             CompactBounds::Interval { lower, .. } => lower,
-            _ => unreachable!("lower() called on lifted CompactBounds (only Interval is valid here)"),
+            _ => {
+                unreachable!("lower() called on lifted CompactBounds (only Interval is valid here)")
+            }
         }
     }
     /// 反変（負）側の型。`Interval` 専用。
@@ -75,7 +80,9 @@ impl CompactBounds {
     pub fn upper(&self) -> &CompactType {
         match self {
             CompactBounds::Interval { upper, .. } => upper,
-            _ => unreachable!("upper() called on lifted CompactBounds (only Interval is valid here)"),
+            _ => {
+                unreachable!("upper() called on lifted CompactBounds (only Interval is valid here)")
+            }
         }
     }
     #[inline]
@@ -1272,7 +1279,9 @@ impl<'a> CompactContext<'a> {
             upper,
         } = bounds
         else {
-            unreachable!("expand_instantiated_compact_bounds_vars on lifted CompactBounds (pre-sandwich only)");
+            unreachable!(
+                "expand_instantiated_compact_bounds_vars on lifted CompactBounds (pre-sandwich only)"
+            );
         };
         CompactBounds::Interval {
             self_var,
