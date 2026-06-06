@@ -2103,7 +2103,7 @@ impl<'a> CompactContext<'a> {
                 ret,
             } => CompactType::from_fun(CompactFun {
                 arg: self.compact_neg_id(arg, &ParentStack::new()),
-                arg_eff: self.compact_neg_id(arg_eff, &ParentStack::new()),
+                arg_eff: self.compact_neg_effect_row_id(arg_eff, &ParentStack::new()),
                 ret_eff: self.compact_pos_effect_row_id(ret_eff, &ParentStack::new()),
                 ret: self.compact_pos_id(ret, &ParentStack::new()),
             }),
@@ -2206,7 +2206,7 @@ impl<'a> CompactContext<'a> {
                 ret,
             } => CompactType::from_fun(CompactFun {
                 arg: self.compact_pos_id(arg, &ParentStack::new()),
-                arg_eff: self.compact_pos_id(arg_eff, &ParentStack::new()),
+                arg_eff: self.compact_pos_effect_row_id(arg_eff, &ParentStack::new()),
                 ret_eff: self.compact_neg_effect_row_id(ret_eff, &ParentStack::new()),
                 ret: self.compact_neg_id(ret, &ParentStack::new()),
             }),

@@ -195,9 +195,9 @@ pub fn export_direct_upper_fun_bounds_for_tv(
         };
         let param = export_required_compact_side_type(&compact_pos_expr(infer, arg), true);
         let param_effect =
-            export_required_compact_side_type(&compact_pos_expr(infer, arg_eff), true);
+            export_required_compact_effect_side_type(&compact_pos_expr(infer, arg_eff), true);
         let ret_effect =
-            export_required_compact_side_type(&compact_neg_expr(infer, ret_eff), false);
+            export_required_compact_effect_side_type(&compact_neg_expr(infer, ret_eff), false);
         let ret = export_required_compact_side_type(&compact_neg_expr(infer, ret), false);
         Some(typed_ir::TypeBounds {
             lower: None,
@@ -221,6 +221,15 @@ fn export_required_compact_side_type(ty: &CompactType, positive: bool) -> typed_
     };
     let mut ctx = ExportTypeCtx::new(&scheme);
     ctx.export_required_compact_side(ty, positive)
+}
+
+fn export_required_compact_effect_side_type(ty: &CompactType, positive: bool) -> typed_ir::Type {
+    let scheme = CompactTypeScheme {
+        cty: CompactBounds::default(),
+        rec_vars: HashMap::new(),
+    };
+    let mut ctx = ExportTypeCtx::new(&scheme);
+    ctx.export_required_compact_effect_side(ty, positive)
 }
 
 pub fn export_coalesced_apply_evidence_bounds(
@@ -563,6 +572,18 @@ impl ExportTypeCtx {
             .unwrap_or_else(|| empty_compact_side_type(positive))
     }
 
+    fn export_required_compact_effect_side(
+        &mut self,
+        ty: &CompactType,
+        positive: bool,
+    ) -> typed_ir::Type {
+        if compact_effect_type_is_empty_row(ty) {
+            typed_ir::Type::Never
+        } else {
+            self.export_required_compact_side(ty, positive)
+        }
+    }
+
     fn export_compact_var_side(&mut self, tv: TypeVar, _positive: bool) -> typed_ir::Type {
         typed_ir::Type::Var(export_type_var(tv))
     }
@@ -599,8 +620,10 @@ impl ExportTypeCtx {
 
         parts.extend(ty.funs.iter().map(|fun| typed_ir::Type::Fun {
             param: Box::new(self.export_required_compact_side(&fun.arg, !positive)),
-            param_effect: Box::new(self.export_required_compact_side(&fun.arg_eff, !positive)),
-            ret_effect: Box::new(self.export_required_compact_side(&fun.ret_eff, positive)),
+            param_effect: Box::new(
+                self.export_required_compact_effect_side(&fun.arg_eff, !positive),
+            ),
+            ret_effect: Box::new(self.export_required_compact_effect_side(&fun.ret_eff, positive)),
             ret: Box::new(self.export_required_compact_side(&fun.ret, positive)),
         }));
 
@@ -1194,6 +1217,21 @@ fn compact_type_is_empty(ty: &CompactType) -> bool {
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
+}
+
+fn compact_effect_type_is_empty_row(ty: &CompactType) -> bool {
+    ty.vars.is_empty()
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty
+            .rows
+            .iter()
+            .all(|row| row.items.is_empty() && compact_effect_type_is_empty_row(row.tail.as_ref()))
 }
 
 #[allow(dead_code)]

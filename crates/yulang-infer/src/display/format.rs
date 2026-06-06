@@ -824,8 +824,8 @@ fn coalesce_root_fun(
 
         return Some(Type::Fun {
             arg: Box::new(rendered_arg),
-            arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
-            ret_eff: Box::new(ctx.coalesce_output_effect_type(&lower_fun.ret_eff, true)),
+            arg_eff: Box::new(ctx.coalesce_fun_effect_field(&lower_fun.arg_eff, false)),
+            ret_eff: Box::new(ctx.coalesce_fun_ret_effect_field(&lower_fun.ret_eff, true)),
             ret: Box::new(ctx.coalesce_type(&lower_fun.ret, true)),
         });
     }
@@ -1100,7 +1100,7 @@ fn coalesce_lower_only_root_fun(
 
     Some(Type::Fun {
         arg: Box::new(arg),
-        arg_eff: Box::new(ctx.coalesce_type(&lower_fun.arg_eff, false)),
+        arg_eff: Box::new(ctx.coalesce_fun_effect_field(&lower_fun.arg_eff, false)),
         ret_eff: Box::new(ctx.coalesce_output_effect_type(&lower_fun.ret_eff, true)),
         ret: Box::new(coalesce_lower_only_root_fun_field(
             ctx,
