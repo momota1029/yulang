@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 use yulang_infer::simplify::compact::{
-    CompactBounds, CompactFun, CompactType, CompactTypeScheme, compact_type_var,
+    CompactBounds, CompactCon, CompactFun, CompactType, CompactTypeScheme, compact_type_var,
     compact_type_vars_in_order,
 };
 use yulang_infer::{
@@ -1039,19 +1039,19 @@ fn compact_hover_selection_scheme_from_roots(
     let result_eff = compacted.get(selection_start + 2)?;
     let result = compacted.get(selection_start + 3)?;
     let lower_fun = CompactFun {
-        arg: recv.cty.lower.clone(),
-        arg_eff: recv_eff.cty.lower.clone(),
-        ret_eff: result_eff.cty.lower.clone(),
-        ret: result.cty.lower.clone(),
+        arg: compact_bounds_side_for_hover(&recv.cty, true),
+        arg_eff: compact_bounds_side_for_hover(&recv_eff.cty, true),
+        ret_eff: compact_bounds_side_for_hover(&result_eff.cty, true),
+        ret: compact_bounds_side_for_hover(&result.cty, true),
     };
     let upper_fun = CompactFun {
-        arg: recv.cty.upper.clone(),
-        arg_eff: recv_eff.cty.upper.clone(),
-        ret_eff: result_eff.cty.upper.clone(),
-        ret: result.cty.upper.clone(),
+        arg: compact_bounds_side_for_hover(&recv.cty, false),
+        arg_eff: compact_bounds_side_for_hover(&recv_eff.cty, false),
+        ret_eff: compact_bounds_side_for_hover(&result_eff.cty, false),
+        ret: compact_bounds_side_for_hover(&result.cty, false),
     };
     Some(CompactTypeScheme {
-        cty: CompactBounds {
+        cty: CompactBounds::Interval {
             self_var: None,
             lower: CompactType {
                 funs: vec![lower_fun],
@@ -1064,6 +1064,34 @@ fn compact_hover_selection_scheme_from_roots(
         },
         rec_vars: merge_compact_rec_vars(&compacted),
     })
+}
+
+fn compact_bounds_side_for_hover(bounds: &CompactBounds, positive: bool) -> CompactType {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            if positive {
+                lower.clone()
+            } else {
+                upper.clone()
+            }
+        }
+        CompactBounds::Con { path, args } => CompactType {
+            cons: vec![CompactCon {
+                path: path.clone(),
+                args: args.clone(),
+            }],
+            ..CompactType::default()
+        },
+        CompactBounds::Tuple { items } => CompactType {
+            tuples: vec![
+                items
+                    .iter()
+                    .map(|item| compact_bounds_side_for_hover(item, positive))
+                    .collect(),
+            ],
+            ..CompactType::default()
+        },
+    }
 }
 
 fn push_selection_hover_roots(
@@ -1121,8 +1149,22 @@ fn compact_hover_scheme(
 fn compact_scheme_has_union_surface(
     scheme: &yulang_infer::simplify::compact::CompactTypeScheme,
 ) -> bool {
-    compact_type_has_multiple_alternatives(&scheme.cty.lower)
-        || compact_type_has_multiple_alternatives(&scheme.cty.upper)
+    compact_bounds_has_multiple_alternatives(&scheme.cty)
+}
+
+fn compact_bounds_has_multiple_alternatives(bounds: &CompactBounds) -> bool {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            compact_type_has_multiple_alternatives(lower)
+                || compact_type_has_multiple_alternatives(upper)
+        }
+        CompactBounds::Con { args, .. } => {
+            args.iter().any(compact_bounds_has_multiple_alternatives)
+        }
+        CompactBounds::Tuple { items } => {
+            items.iter().any(compact_bounds_has_multiple_alternatives)
+        }
+    }
 }
 
 fn compact_type_has_multiple_alternatives(
