@@ -2,6 +2,31 @@
 
 設計: `spec/2026-06-06-invariant-type-sandwich.md`。enum 移行（Step6, Codex）は完了済み。
 
+## ★★ 追記（2026-06-06）— collapse 拡張で nested_list `pick` 解決（485/12）
+
+`pick(xs: list (list int))` が `list<list<int>> -> α|int`（戻り α 残り）だったのを **`-> int`** に修正。
+
+**病因**: `int` は `CompactType.prims` ではなく **nullary `Con(int,0)`**（dump で確認：`cons:[CompactCon{path:[int],args:[]}]`,
+`prims:{}`）。旧 sandwich は `Single(Con(int,0))` を **lift 経路**に送っていた。lift は不変区間（con-arg）だけを
+`Con`/`Tuple` 変種に畳むので、**param の要素区間 `(int|α,int|α)` は int 化される**が、**fun.ret の共変位置 `{α}|int` に
+出る同一 α は区間でないため lift が届かず残った**。
+
+**修正**: sandwich に **collapse**（中心 var を主型全体から削除）を追加。`compute_sandwich_verdicts` が
+`VerdictAcc{verdicts, centers}` を集め、**atomic（nullary `Con(_,0)` / `Prim`）かつ「不変区間の中心」**
+（`lower.vars ∩ upper.vars` or `self_var` に出た var）を `collapse` 集合に。`remove_vars_from_bounds/type` で
+cty・rec_vars 全体の `vars`／`self_var` から除去。引数つき Con/Tuple は従来どおり lift。
+
+**区別の核心（ユーザ指摘）**: render は同じ `int|α` 顔でも `(-,+)`（=`(upper,lower)`）組が違う：
+- **xs（値束縛）= `(α, α|int)`**：負側(upper) に **裸 α** → NoLift → 残す（`list<int|α>`）。
+- **pick 要素 = `(α&int, int|α)`**：両側とも int 共起・裸なし → 中心 collapse → 消える。
+- **pl3 等の値束縛残差 `α|int`**：α は **cty.lower の共変位置のみ**（cty.upper 空）に出て**不変区間の中心ではない**
+  → `centers` に入らず collapse されない → 残る。これが「関数は消える／値束縛は残る」を**構造で**分ける鍵
+  （level 情報なしで display 段に判定できる）。
+
+**検証**: `--skip compiled` で **485 pass / 12 fail**（baseline 484/13 から nested_list を解消、新規回帰ゼロ。
+残12は baseline16 の既存失敗）。compiled_typed×7 緑（再帰型 overflow なし＝collapse も rec_vars キーを除外）。
+diff は `simplify/sandwich.rs` のみ（+194/-59）。
+
 ## ★ 着地（2026-06-06）— sandwich Step7/8 完了・クリーン
 
 **結果**: `cargo test -p yulang-infer --lib --skip compiled` = **484 passed / 13 failed**
