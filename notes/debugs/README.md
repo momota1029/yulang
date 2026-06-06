@@ -29,7 +29,7 @@ Codex に渡して直すための、1 件 1 ファイルの診断書。
 | ④⑤ | [std-var-ref-effect-annotation](std-var-ref-effect-annotation.md) | `lowers_std_var_ref_*` ×2 | 保留 | **設計未確定**（反変 effect 推論・①と同根・期待値が変わる）|
 | ① | [ref-update-cooccur-overmerge](ref-update-cooccur-overmerge.md) | `render_compact_results_handles_ref_update_effect` | △ | **高（cooccur 本丸 2420 行・前科あり）** |
 | ⑫b | [handler-queue-continuation-shape](handler-queue-continuation-shape.md) | `render_compact_results_consolidates_queued_handler_continuation` | ✗ | **①の後**（同根の under-merge・新規ピン留め）|
-| ⑧ | [choice-residual-overremoved](choice-residual-overremoved.md) | `choice_effect_residual_coalesces_across_open_rows` | ✗ | 不明（仮説なし・①の後）|
+| ⑧ | [choice-residual-overremoved](choice-residual-overremoved.md) | `choice_preserves_parse_residual_on_callback_and_result_effects` | ✗ | 不明（仮説なし・①の後）|
 
 ## perf / 状態不明（バグ表とは別カテゴリ）
 

@@ -2888,7 +2888,7 @@ pub make(): [parse int str bool unit] int = parse::item()\n",
 }
 
 #[test]
-fn choice_effect_residual_coalesces_across_open_rows() {
+fn choice_preserves_parse_residual_on_callback_and_result_effects() {
     let mut state = parse_and_lower(
         "act parse 'item 'err 'pos 'snap:\n\
              our item: () -> 'item\n\
@@ -2914,6 +2914,9 @@ fn choice_effect_residual_coalesces_across_open_rows() {
         "choice should type-check: {:?}",
         state.infer.type_errors(),
     );
+    let rendered_choice = rendered_compact_type(&state, "choice");
+    assert_choice_render_keeps_callback_parse_effects(&rendered_choice);
+
     let choice_def = state
         .ctx
         .resolve_value(&symbols::Name("choice".to_string()))
@@ -2927,12 +2930,40 @@ fn choice_effect_residual_coalesces_across_open_rows() {
     let q_stage = single_compact_fun(&choice_fun.ret, "choice result");
     let q_fun = single_compact_fun(&q_stage.arg, "q");
 
-    let p_residual = open_row_residual(&p_fun.ret_eff, "p return effect");
-    let q_residual = open_row_residual(&q_fun.ret_eff, "q return effect");
-    let result_residual = closed_row_residual(&q_stage.ret_eff, "choice return effect");
+    let p_residual = callback_parse_residual(&p_fun.ret_eff, "p callback return effect");
+    let q_residual = callback_parse_residual(&q_fun.ret_eff, "q callback return effect");
+    let result_residual = choice_result_parse_residual(&q_stage.ret_eff);
 
-    assert_eq!(p_residual, q_residual);
-    assert_eq!(p_residual, result_residual);
+    assert_eq!(
+        p_residual, q_residual,
+        "p and q callbacks should pass through the same parse residual"
+    );
+    assert_eq!(
+        p_residual, result_residual,
+        "choice should expose the same parse residual as its callbacks"
+    );
+}
+
+fn rendered_compact_type(state: &LowerState, name: &str) -> String {
+    crate::display::dump::collect_compact_results(state)
+        .into_iter()
+        .find(|(rendered_name, _)| rendered_name == name)
+        .map(|(_, scheme)| scheme)
+        .unwrap_or_else(|| panic!("{name} should be rendered"))
+}
+
+fn assert_choice_render_keeps_callback_parse_effects(rendered_choice: &str) {
+    assert!(
+        rendered_choice.contains("parse<"),
+        "choice should mention the parse effect in its rendered type, got {rendered_choice}"
+    );
+    let callback_effect_count = rendered_choice.matches("unit -> [").count();
+    assert_eq!(
+        callback_effect_count, 2,
+        "choice should render both parser callbacks with explicit parse effects; \
+         expected shape `(unit -> [parse<...>; ρ] α) -> (unit -> [parse<...>; ρ] α) -> ...`, \
+         got {rendered_choice}"
+    );
 }
 
 fn single_compact_fun<'a>(
@@ -2943,37 +2974,44 @@ fn single_compact_fun<'a>(
     &ty.funs[0]
 }
 
-fn open_row_residual(
+fn callback_parse_residual(
     ty: &crate::simplify::compact::CompactType,
     label: &str,
 ) -> crate::ids::TypeVar {
-    assert_eq!(ty.rows.len(), 1, "{label} should have one row");
+    assert_eq!(
+        ty.rows.len(),
+        1,
+        "{label} should keep the unhandled parse effect row, got {ty:?}"
+    );
     let row = &ty.rows[0];
     assert_eq!(
         row.items.len(),
         1,
-        "{label} should contain the handled effect"
+        "{label} should contain the parse effect atom after fail is handled"
     );
+    assert_parse_effect_atom(&row.items[0], label);
     let residual = single_compact_var(ty, label);
     assert_eq!(
         single_compact_var(&row.tail, label),
         residual,
-        "{label} should expose the same residual as its row tail",
+        "{label} should expose the same residual both as a surface var and as the row tail",
     );
     residual
 }
 
-fn closed_row_residual(
-    ty: &crate::simplify::compact::CompactType,
-    label: &str,
-) -> crate::ids::TypeVar {
-    assert_eq!(ty.rows.len(), 1, "{label} should have one row");
+fn choice_result_parse_residual(ty: &crate::simplify::compact::CompactType) -> crate::ids::TypeVar {
+    assert_eq!(
+        ty.rows.len(),
+        1,
+        "choice result effect should keep the handled parse effect row, got {ty:?}"
+    );
     let row = &ty.rows[0];
     assert_eq!(
         row.items.len(),
         1,
-        "{label} should contain the handled effect"
+        "choice result effect should contain the parse effect atom after fail is handled"
     );
+    assert_parse_effect_atom(&row.items[0], "choice result effect");
     assert!(
         row.tail.vars.is_empty()
             && row.tail.prims.is_empty()
@@ -2984,9 +3022,22 @@ fn closed_row_residual(
             && row.tail.variants.is_empty()
             && row.tail.tuples.is_empty()
             && row.tail.rows.is_empty(),
-        "{label} should not leave the residual in positive row-tail position",
+        "choice result effect should not leave the residual in positive row-tail position",
     );
-    single_compact_var(ty, label)
+    single_compact_var(ty, "choice result effect")
+}
+
+fn assert_parse_effect_atom(ty: &crate::simplify::compact::CompactType, label: &str) {
+    assert_eq!(
+        ty.cons.len(),
+        1,
+        "{label} should contain a concrete parse effect atom, got {ty:?}"
+    );
+    assert_eq!(
+        ty.cons[0].path.segments.last(),
+        Some(&symbols::Name("parse".to_string())),
+        "{label} should contain the parse effect atom, got {ty:?}"
+    );
 }
 
 fn single_compact_var(
