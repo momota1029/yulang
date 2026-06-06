@@ -134,3 +134,19 @@ right: "ref<α & β, γ> -> (γ -> [β] γ) -> [α, β] unit"
   (`α|β&γ` を `(α|β, β&γ)` と読む中心つき区間) を cooccur が同じ意味で扱うこと。
 - 守るべき変数集合・blocked pair のような保護機構で止める方向ではなく、annotation / projection /
   compact freeze のどこで「同じ effect」として共有されるべき変数が分裂しているかを次に見る。
+
+## 2026-06-07 fix: latent function result の負方向 compact で alias/tail だけ露出する
+
+collapse の直接原因は cooccur の merge 規則そのものではなく、`f(v)` の
+`LatentFunctionResult` effect が負方向 function requirement の compact で完全に変数だけに止まり、
+ref tail 側の alias/tail 変数を co-occurrence analysis が見られないことだった。
+
+修正は `compact_neg_effect_row_var` 側に入れた。latent function result は負方向で concrete row item を
+拾わず、alias/tail 変数だけを露出する。これで `f` の捕捉 effect と ref tail が同じ residual として
+cooccur に届き、`ref::update` は期待値
+`ref<α & β, γ> -> (γ -> [β] γ) -> [α, β] unit` へ戻る。
+
+副作用として exact effect interval が `atom <: [atom;]` の形で残る場合があるため、
+compact row normalization で片側が effect item、もう片側が同じ item の閉じた row なら
+item 側も閉じた row に揃えるようにした。これは `std::var::ref<[std::var::var<α>;], α>` の
+ような不変 effect 引数を中心つき row として読むための正規化で、cooccur に保護集合は足していない。

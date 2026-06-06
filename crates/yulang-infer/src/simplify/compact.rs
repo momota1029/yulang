@@ -1946,11 +1946,6 @@ impl<'a> CompactContext<'a> {
         parents: &ParentStack,
         seen: &mut TailSeen,
     ) -> CompactType {
-        if self.infer.effect_var_is_latent_function_result(tv)
-            && !self.effect_var_has_empty_upper_bound(tv)
-        {
-            return CompactType::from_var(tv);
-        }
         if parents.contains(&tv) {
             return CompactType::from_var(tv);
         }
@@ -1968,8 +1963,18 @@ impl<'a> CompactContext<'a> {
 
         let mut next_parents = parents.clone();
         next_parents.push(tv);
-        let compact =
-            self.compact_neg_effect_row_bounds_ref(bounds.as_slice(), &next_parents, seen);
+        let compact = if self.infer.effect_var_is_latent_function_result(tv) {
+            // Latent call effects need alias/tail variables in negative function requirements so
+            // co-occurrence can see the shared residual, but concrete handled items belong to the
+            // annotation/subtractability surface and must not be pulled into the callback effect.
+            self.compact_neg_tail_bounds_without_row_items_ref(
+                bounds.as_slice(),
+                &next_parents,
+                seen,
+            )
+        } else {
+            self.compact_neg_effect_row_bounds_ref(bounds.as_slice(), &next_parents, seen)
+        };
         if self.effect_var_has_empty_upper_bound(tv) && is_empty_effect_row_compact_type(&compact) {
             CompactType::default()
         } else if is_empty_compact_type(&compact) {
@@ -2522,6 +2527,7 @@ pub(crate) fn expose_negative_row_tail_vars(scheme: &mut CompactTypeScheme) {
 fn normalize_compact_bounds_rows(bounds: &mut CompactBounds) {
     normalize_compact_type_rows(bounds.lower_mut(), true);
     normalize_compact_type_rows(bounds.upper_mut(), false);
+    normalize_exact_effect_row_item_interval(bounds);
 }
 
 fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
@@ -2578,6 +2584,51 @@ fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
         absorb_tail_rows_already_present_in_outer_row(row);
         hoist_tail_rows_already_present_in_outer_row(row, positive);
     }
+}
+
+fn normalize_exact_effect_row_item_interval(bounds: &mut CompactBounds) {
+    let CompactBounds::Interval { lower, upper, .. } = bounds else {
+        return;
+    };
+    normalize_exact_effect_row_item_side(lower, upper, true);
+    normalize_exact_effect_row_item_side(upper, lower, false);
+}
+
+fn normalize_exact_effect_row_item_side(
+    item_side: &mut CompactType,
+    row_side: &CompactType,
+    positive: bool,
+) {
+    if effect_row_item_shape(item_side).is_none() {
+        return;
+    }
+    let item = item_side.clone();
+    let Some(row) = single_closed_effect_row(row_side) else {
+        return;
+    };
+    if row.items.len() != 1 || row.items[0] != item {
+        return;
+    }
+    // An exact effect interval can arrive as `atom <: [atom;]` after alias exposure. Keep the
+    // row structure on both sides so invariant effect arguments render as the centered row.
+    *item_side = CompactType::from_row_with_polarity(positive, vec![item], CompactType::default());
+}
+
+fn single_closed_effect_row(ty: &CompactType) -> Option<&CompactRow> {
+    if !ty.vars.is_empty()
+        || !ty.prims.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.variants.is_empty()
+        || !ty.tuples.is_empty()
+        || ty.rows.len() != 1
+    {
+        return None;
+    }
+    let row = &ty.rows[0];
+    is_empty_compact_type(&row.tail).then_some(row)
 }
 
 fn absorb_tail_rows_already_present_in_outer_row(row: &mut CompactRow) {
@@ -3896,6 +3947,52 @@ mod tests {
     }
 
     #[test]
+    fn compact_type_var_exposes_latent_function_result_alias_but_not_row_items_in_negative_flow() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let effect = fresh_type_var();
+        let alias = fresh_type_var();
+        for current in [tv, effect, alias] {
+            infer.register_level(current, 0);
+        }
+        infer.register_effect_var_kind(effect, EffectVarKind::LatentFunctionResult);
+
+        let io_path = prim_path("io");
+        infer.add_upper(effect, Neg::Var(alias));
+        infer.add_upper(
+            effect,
+            Neg::Row(
+                vec![infer.alloc_neg(Neg::Atom(EffectAtom {
+                    path: io_path.clone(),
+                    args: Vec::new(),
+                }))],
+                infer.arena.empty_neg_row,
+            ),
+        );
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.alloc_neg(Neg::Fun {
+                    arg: infer.arena.bot,
+                    arg_eff: infer.arena.bot,
+                    ret_eff: infer.alloc_neg(Neg::Var(effect)),
+                    ret: infer.arena.top,
+                }),
+                arg_eff: infer.arena.top,
+                ret_eff: infer.arena.bot,
+                ret: infer.alloc_pos(Pos::Tuple(Vec::new())),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let callback = &compact.cty.lower().funs[0].arg.funs[0];
+        assert!(callback.ret_eff.vars.contains(&effect));
+        assert!(callback.ret_eff.vars.contains(&alias));
+        assert!(!compact_type_has_prim(&callback.ret_eff, &io_path));
+        assert!(callback.ret_eff.rows.is_empty());
+    }
+
+    #[test]
     fn compact_type_var_keeps_positive_output_effect_row_tail_sibling_vars_unexpanded() {
         let infer = Infer::new();
         let tv = fresh_type_var();
@@ -4231,6 +4328,33 @@ mod tests {
         let row = &scheme.cty.lower().rows[0];
         assert_eq!(row.tail.vars, std::collections::HashSet::from([tail]));
         assert!(row.tail.rows.is_empty());
+    }
+
+    #[test]
+    fn normalize_compact_scheme_rows_promotes_exact_effect_item_interval_to_row() {
+        let io = CompactType {
+            prims: std::collections::HashSet::from([prim_path("io")]),
+            ..CompactType::default()
+        };
+        let mut scheme = CompactTypeScheme {
+            cty: CompactBounds::Interval {
+                self_var: None,
+                lower: io.clone(),
+                upper: CompactType {
+                    rows: vec![CompactRow {
+                        items: vec![io],
+                        tail: Box::new(CompactType::default()),
+                    }],
+                    ..CompactType::default()
+                },
+            },
+            rec_vars: Default::default(),
+        };
+
+        normalize_compact_scheme_rows(&mut scheme);
+
+        assert_eq!(scheme.cty.lower().rows, scheme.cty.upper().rows);
+        assert!(scheme.cty.lower().prims.is_empty());
     }
 
     #[test]
