@@ -96,3 +96,41 @@ co-occurrence 集合をダンプして規則を2つ試した:
 **現実的判断**: main の OR 規則は①を含む特定ケースだけ over-merge するが他 ~488 件は正しい
 （493/5）。規則変更は ~18 件の under-merge 回帰を招くので、①(＋⑫b)は**既知の難所として据え置き**、
 上流統一の調査は別タスク（研究レベル）に切り出すのが妥当。
+
+## 2026-06-07 続報: `CompactBounds::Fun` 後も collapse 地点は SCC cooccur
+
+`CompactBounds::Fun` を compact bounds / display / role constraints / cooccur / sandwich / selection に
+通した後、⑫b handler queue は期待値で通るようになった。一方で①は次のまま残る。
+
+```text
+left:  "ref<α, β> -> (β -> [α] β) -> [α] unit"
+right: "ref<α & β, γ> -> (γ -> [β] γ) -> [α, β] unit"
+```
+
+追加 trace で分かったこと:
+
+- display/sandwich は犯人ではない。stored compact scheme の時点で既に
+  `ref<α, β> -> (β -> [α] β) -> [α] unit` へ潰れている。
+- collapse は SCC close の commit-ready cooccur で起きる。`DefId(9)` (`ref::update`) は cooccur 直前に
+  ref 第1引数 lower に `{51, 120}`、upper と callback/outer effect に
+  `{51, 120, 57, 70, 73, 96, 99, 129, 132, 139}` の effect cluster を持っていた。
+- nested tail function residual coalescing は原因ではない。tail pass 前から ref 第1引数 lower に
+  `{51, 120}` が入っており、tail pass 後も変わらない。
+- `51 <: 120` と `120 <: 51` は `ConstraintReason::FieldSelection`、span `259..273`
+  (`.update_effect`) から来る。両者とも `(All except ref_update _)-subtractable` な
+  `ref` residual の duplicate に見える。
+- value/effect 変数群 (`57/70/73/96/99/139` など) が residual 側へ潰れる主因は
+  `apply_indistinguishable_unification` の negative mutual co-occurrence。`51/120` duplicate だけでなく、
+  β 相当の effect 変数まで `51` へ吸われる。
+- 「反対極性にも相互共起があるときだけ indist merge」へ一時的に絞ると、
+  `ref<α & β, δ | γ> -> ((γ | δ) -> [ε] γ & δ) -> [α, β, ε] unit` まで近づくが、
+  f effect と ref tail が統合されず under-merge になる。cooccur rule だけの局所調整では足りない。
+
+現在の見立て:
+
+- `51/120` は `.update_effect` projection 由来の同一 residual duplicate として統合されてよい可能性が高い。
+- しかし negative mutual co-occurrence だけで value/effect 側まで residual に統合するのは過剰。
+- 本当に必要なのは、f の effect と ref tail の構造的接続、または不変な中間型
+  (`α|β&γ` を `(α|β, β&γ)` と読む中心つき区間) を cooccur が同じ意味で扱うこと。
+- 守るべき変数集合・blocked pair のような保護機構で止める方向ではなく、annotation / projection /
+  compact freeze のどこで「同じ effect」として共有されるべき変数が分裂しているかを次に見る。
