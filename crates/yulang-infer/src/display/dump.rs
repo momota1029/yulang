@@ -2953,6 +2953,36 @@ mod tests {
         assert_eq!(update.1, "ref<α & β, γ> -> (γ -> [β] γ) -> [α, β] unit");
     }
 
+    // 既知の未解決（cooccur/coalesce 本丸・①の後に直す）。
+    // notes/debugs/handler-queue-continuation-shape.md 参照。
+    // handler が継続を queue に cons する型は、principal 形に単純化されるべき:
+    //   - 継続を1本の `bool -> [β] α` に merge（現状は2本の union に分裂）
+    //   - 余剰変数を cooccur で吸収（現状は `β &` / `γ &` が浮く）
+    //   - 注釈 eff を入力行に残す（現状は `[δ & [; ε]]` で eff が item から落ちる）
+    // 現状 actual: α [δ & [; ε]] -> (β & list<bool -> [δ | eff] α | γ & bool -> [eff] α>)
+    //              -> [ε] β | list<bool -> [δ | eff] α | γ & bool -> [eff] α>
+    // ①（ref_update over-merge）と同根（principal 形への着地失敗、症状は逆）。
+    #[test]
+    fn render_compact_results_consolidates_queued_handler_continuation() {
+        let green = yulang_parser::parse_module_to_green(
+            "type list 'a\npub cons(x: 'a, xs: list 'a): list 'a = xs\n\nmy act eff:\n    our op: () -> bool\n    our handle(x: [eff] 'a, queue: list (bool -> [eff] 'a)) = catch x:\n        op(), k -> cons(k, queue)\n        value -> queue\n\neff::handle\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+
+        let rendered = render_compact_results(&mut state);
+        let handle = rendered
+            .iter()
+            .find(|(name, _)| name == "eff::handle")
+            .expect("eff::handle should be rendered");
+
+        assert_eq!(
+            handle.1,
+            "α [β & [eff; γ]] -> list<bool -> [β] α> -> [γ] list<bool -> [β] α>"
+        );
+    }
+
     #[test]
     fn render_compact_results_preserves_concrete_ref_update_row_items() {
         let green = yulang_parser::parse_module_to_green(
