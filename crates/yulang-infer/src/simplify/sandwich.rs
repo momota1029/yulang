@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ids::TypeVar;
 use crate::symbols::Path;
 
-use super::compact::{CompactBounds, CompactCon, CompactType, CompactTypeScheme};
+use super::compact::{CompactBounds, CompactCon, CompactFun, CompactType, CompactTypeScheme};
 
 /// 中心変数が共起しうる具体型の種。同種（path+arity が一致）なら同じ kind。
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -23,9 +23,11 @@ enum ConKind {
     Con(Path, usize),
     /// lift 可能なタプル。
     Tuple(usize),
+    /// lift 可能な関数型。
+    Fun,
     /// プリミティブ型（int 等）。lift 先が無いので中心を削除（collapse）する。
     Prim(Path),
-    /// Fun/Record/Variant/Row。今は lift も collapse もしない（裸ではない種として共起判定だけ参加）。
+    /// Record/Variant/Row。今は lift も collapse もしない（裸ではない種として共起判定だけ参加）。
     NonLiftable,
 }
 
@@ -38,11 +40,13 @@ fn type_con_kinds(ty: &CompactType) -> Vec<ConKind> {
     for tuple in &ty.tuples {
         kinds.push(ConKind::Tuple(tuple.len()));
     }
+    if !ty.funs.is_empty() {
+        kinds.push(ConKind::Fun);
+    }
     for prim in &ty.prims {
         kinds.push(ConKind::Prim(prim.clone()));
     }
-    if !ty.funs.is_empty()
-        || !ty.records.is_empty()
+    if !ty.records.is_empty()
         || !ty.record_spreads.is_empty()
         || !ty.variants.is_empty()
         || !ty.rows.is_empty()
@@ -134,7 +138,7 @@ fn compute_sandwich_verdicts(scheme: &CompactTypeScheme) -> SandwichVerdicts {
             Verdict::Single(ConKind::Con(_, 0) | ConKind::Prim(_)) if centers.contains(&tv) => {
                 out.collapse.insert(tv);
             }
-            Verdict::Single(kind @ (ConKind::Con(..) | ConKind::Tuple(_))) => {
+            Verdict::Single(kind @ (ConKind::Con(..) | ConKind::Tuple(_) | ConKind::Fun)) => {
                 out.lift.insert(tv, kind);
             }
             _ => {}
@@ -249,6 +253,17 @@ fn visit_bounds_for_verdict(bounds: &CompactBounds, acc: &mut VerdictAcc) {
                 visit_bounds_for_verdict(item, acc);
             }
         }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            visit_bounds_for_verdict(arg, acc);
+            visit_bounds_for_verdict(arg_eff, acc);
+            visit_bounds_for_verdict(ret_eff, acc);
+            visit_bounds_for_verdict(ret, acc);
+        }
     }
 }
 
@@ -314,6 +329,17 @@ fn remove_vars_from_bounds(bounds: &mut CompactBounds, vars: &HashSet<TypeVar>) 
             for item in items {
                 remove_vars_from_bounds(item, vars);
             }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            remove_vars_from_bounds(arg, vars);
+            remove_vars_from_bounds(arg_eff, vars);
+            remove_vars_from_bounds(ret_eff, vars);
+            remove_vars_from_bounds(ret, vars);
         }
     }
 }
@@ -414,7 +440,17 @@ fn try_lift_interval(
                 .collect();
             Some(CompactBounds::Con { path, args })
         }
-        // prim は collapse 側で処理済み（lift map には Con/Tuple しか入らない）。
+        ConKind::Fun => {
+            let l = single_fun(lower)?;
+            let u = single_fun(upper)?;
+            Some(CompactBounds::Fun {
+                arg: Box::new(contravariant_fun_field_bounds(&l.arg, &u.arg)),
+                arg_eff: Box::new(contravariant_fun_field_bounds(&l.arg_eff, &u.arg_eff)),
+                ret_eff: Box::new(covariant_fun_field_bounds(&l.ret_eff, &u.ret_eff)),
+                ret: Box::new(covariant_fun_field_bounds(&l.ret, &u.ret)),
+            })
+        }
+        // prim は collapse 側で処理済み（lift map には Con/Tuple/Fun しか入らない）。
         ConKind::Prim(_) | ConKind::NonLiftable => None,
     }
 }
@@ -445,6 +481,22 @@ fn merge_arg_bounds(l: &CompactBounds, u: &CompactBounds) -> CompactBounds {
     }
 }
 
+fn covariant_fun_field_bounds(lower: &CompactType, upper: &CompactType) -> CompactBounds {
+    CompactBounds::Interval {
+        self_var: None,
+        lower: lower.clone(),
+        upper: upper.clone(),
+    }
+}
+
+fn contravariant_fun_field_bounds(lower: &CompactType, upper: &CompactType) -> CompactBounds {
+    CompactBounds::Interval {
+        self_var: None,
+        lower: upper.clone(),
+        upper: lower.clone(),
+    }
+}
+
 fn single_tuple(ty: &CompactType, n: usize) -> Option<&Vec<CompactType>> {
     if ty.tuples.len() == 1 && ty.tuples[0].len() == n && ty.cons.is_empty() {
         Some(&ty.tuples[0])
@@ -460,6 +512,22 @@ fn single_con<'a>(ty: &'a CompactType, path: &Path, n: usize) -> Option<&'a Vec<
         && ty.tuples.is_empty()
     {
         Some(&ty.cons[0].args)
+    } else {
+        None
+    }
+}
+
+fn single_fun(ty: &CompactType) -> Option<&CompactFun> {
+    if ty.funs.len() == 1
+        && ty.cons.is_empty()
+        && ty.tuples.is_empty()
+        && ty.prims.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.rows.is_empty()
+    {
+        Some(&ty.funs[0])
     } else {
         None
     }
@@ -496,6 +564,17 @@ fn sandwich_spine(
                 .into_iter()
                 .map(|a| sandwich_spine(a, verdicts, changed))
                 .collect(),
+        },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactBounds::Fun {
+            arg: Box::new(sandwich_spine(*arg, verdicts, changed)),
+            arg_eff: Box::new(sandwich_spine(*arg_eff, verdicts, changed)),
+            ret_eff: Box::new(sandwich_spine(*ret_eff, verdicts, changed)),
+            ret: Box::new(sandwich_spine(*ret, verdicts, changed)),
         },
     }
 }
@@ -536,10 +615,21 @@ fn sandwich_bounds(
                 .map(|a| sandwich_bounds(a, verdicts, changed))
                 .collect(),
         },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactBounds::Fun {
+            arg: Box::new(sandwich_bounds(*arg, verdicts, changed)),
+            arg_eff: Box::new(sandwich_bounds(*arg_eff, verdicts, changed)),
+            ret_eff: Box::new(sandwich_bounds(*ret_eff, verdicts, changed)),
+            ret: Box::new(sandwich_bounds(*ret, verdicts, changed)),
+        },
     }
 }
 
-/// CompactType 内のネストした不変位置（con args）を sandwich する。
+/// CompactType 内のネストした不変位置（con args など）を sandwich する。
 fn sandwich_type(
     mut ty: CompactType,
     verdicts: &HashMap<TypeVar, ConKind>,
@@ -557,5 +647,48 @@ fn sandwich_type(
                 .collect(),
         })
         .collect();
+    for fun in &mut ty.funs {
+        fun.arg = sandwich_type(std::mem::take(&mut fun.arg), verdicts, changed);
+        fun.arg_eff = sandwich_type(std::mem::take(&mut fun.arg_eff), verdicts, changed);
+        fun.ret_eff = sandwich_type(std::mem::take(&mut fun.ret_eff), verdicts, changed);
+        fun.ret = sandwich_type(std::mem::take(&mut fun.ret), verdicts, changed);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            field.value = sandwich_type(std::mem::take(&mut field.value), verdicts, changed);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            field.value = sandwich_type(std::mem::take(&mut field.value), verdicts, changed);
+        }
+        spread.tail = Box::new(sandwich_type(
+            *std::mem::take(&mut spread.tail),
+            verdicts,
+            changed,
+        ));
+    }
+    for variant in &mut ty.variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                *payload = sandwich_type(std::mem::take(payload), verdicts, changed);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in tuple {
+            *item = sandwich_type(std::mem::take(item), verdicts, changed);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            *item = sandwich_type(std::mem::take(item), verdicts, changed);
+        }
+        row.tail = Box::new(sandwich_type(
+            *std::mem::take(&mut row.tail),
+            verdicts,
+            changed,
+        ));
+    }
     ty
 }

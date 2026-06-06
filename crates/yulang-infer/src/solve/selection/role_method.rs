@@ -945,21 +945,53 @@ fn subst_compact_bounds_with_compact(
     bounds: &CompactBounds,
     subst: &HashMap<TypeVar, CompactType>,
 ) -> CompactBounds {
-    if bounds.self_var().is_none()
-        && bounds.lower() == bounds.upper()
-        && let Some(var) = super::compact_var::single_compact_var(bounds.lower())
-        && let Some(replacement) = subst.get(&var)
-    {
-        return CompactBounds::Interval {
-            self_var: None,
-            lower: replacement.clone(),
-            upper: replacement.clone(),
-        };
-    }
-    CompactBounds::Interval {
-        self_var: bounds.self_var(),
-        lower: subst_compact_type_with_compact(bounds.lower(), subst),
-        upper: subst_compact_type_with_compact(bounds.upper(), subst),
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            if self_var.is_none()
+                && lower == upper
+                && let Some(var) = super::compact_var::single_compact_var(lower)
+                && let Some(replacement) = subst.get(&var)
+            {
+                return CompactBounds::Interval {
+                    self_var: None,
+                    lower: replacement.clone(),
+                    upper: replacement.clone(),
+                };
+            }
+            CompactBounds::Interval {
+                self_var: *self_var,
+                lower: subst_compact_type_with_compact(lower, subst),
+                upper: subst_compact_type_with_compact(upper, subst),
+            }
+        }
+        CompactBounds::Con { path, args } => CompactBounds::Con {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| subst_compact_bounds_with_compact(arg, subst))
+                .collect(),
+        },
+        CompactBounds::Tuple { items } => CompactBounds::Tuple {
+            items: items
+                .iter()
+                .map(|item| subst_compact_bounds_with_compact(item, subst))
+                .collect(),
+        },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactBounds::Fun {
+            arg: Box::new(subst_compact_bounds_with_compact(arg, subst)),
+            arg_eff: Box::new(subst_compact_bounds_with_compact(arg_eff, subst)),
+            ret_eff: Box::new(subst_compact_bounds_with_compact(ret_eff, subst)),
+            ret: Box::new(subst_compact_bounds_with_compact(ret, subst)),
+        },
     }
 }
 

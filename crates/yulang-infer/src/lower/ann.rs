@@ -305,9 +305,9 @@ fn lower_effect_atom(state: &LowerState, node: &SyntaxNode) -> Option<EffectAtom
         None
     } else {
         Some(EffectAtom {
-            path: state
-                .ctx
-                .canonical_current_type_path(&Path { segments: segs }),
+            path: state.ctx.canonical_current_type_path(
+                &state.rewrite_synthetic_path(&Path { segments: segs }),
+            ),
             args: vec![],
         })
     }

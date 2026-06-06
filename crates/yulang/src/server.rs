@@ -1091,6 +1091,20 @@ fn compact_bounds_side_for_hover(bounds: &CompactBounds, positive: bool) -> Comp
             ],
             ..CompactType::default()
         },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactType {
+            funs: vec![CompactFun {
+                arg: compact_bounds_side_for_hover(arg, positive),
+                arg_eff: compact_bounds_side_for_hover(arg_eff, positive),
+                ret_eff: compact_bounds_side_for_hover(ret_eff, positive),
+                ret: compact_bounds_side_for_hover(ret, positive),
+            }],
+            ..CompactType::default()
+        },
     }
 }
 
@@ -1163,6 +1177,17 @@ fn compact_bounds_has_multiple_alternatives(bounds: &CompactBounds) -> bool {
         }
         CompactBounds::Tuple { items } => {
             items.iter().any(compact_bounds_has_multiple_alternatives)
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            compact_bounds_has_multiple_alternatives(arg)
+                || compact_bounds_has_multiple_alternatives(arg_eff)
+                || compact_bounds_has_multiple_alternatives(ret_eff)
+                || compact_bounds_has_multiple_alternatives(ret)
         }
     }
 }

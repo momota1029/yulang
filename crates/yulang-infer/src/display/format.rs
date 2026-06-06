@@ -113,8 +113,33 @@ fn materialize_effect_args_in_bounds(
     bounds: &mut CompactBounds,
     cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
 ) {
-    materialize_effect_args_in_type(infer, bounds.lower_mut(), cache);
-    materialize_effect_args_in_type(infer, bounds.upper_mut(), cache);
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            materialize_effect_args_in_type(infer, lower, cache);
+            materialize_effect_args_in_type(infer, upper, cache);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                materialize_effect_args_in_bounds(infer, arg, cache);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                materialize_effect_args_in_bounds(infer, item, cache);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            materialize_effect_args_in_bounds(infer, arg, cache);
+            materialize_effect_args_in_bounds(infer, arg_eff, cache);
+            materialize_effect_args_in_bounds(infer, ret_eff, cache);
+            materialize_effect_args_in_bounds(infer, ret, cache);
+        }
+    }
 }
 
 fn materialize_effect_args_in_type(
@@ -1428,6 +1453,17 @@ fn collect_compact_bounds_generated_local_effect_tail_vars(
                 collect_compact_bounds_generated_local_effect_tail_vars(item, out);
             }
         }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_compact_bounds_generated_local_effect_tail_vars(arg, out);
+            collect_compact_bounds_generated_local_effect_tail_vars(arg_eff, out);
+            collect_compact_bounds_generated_local_effect_tail_vars(ret_eff, out);
+            collect_compact_bounds_generated_local_effect_tail_vars(ret, out);
+        }
         CompactBounds::Interval { .. } => {
             collect_compact_type_generated_local_effect_tail_vars(bounds.lower(), out);
             collect_compact_type_generated_local_effect_tail_vars(bounds.upper(), out);
@@ -1576,6 +1612,17 @@ fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar
             for item in items {
                 collect_compact_bounds_vars(item, out);
             }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_compact_bounds_vars(arg, out);
+            collect_compact_bounds_vars(arg_eff, out);
+            collect_compact_bounds_vars(ret_eff, out);
+            collect_compact_bounds_vars(ret, out);
         }
         CompactBounds::Interval { .. } => {
             collect_compact_type_vars(bounds.lower(), out);
@@ -1987,8 +2034,29 @@ fn type_contains_generated_local_effect(ty: &Type) -> bool {
 }
 
 fn compact_bounds_contains_generated_local_effect(bounds: &CompactBounds) -> bool {
-    compact_type_contains_generated_local_effect(bounds.lower())
-        || compact_type_contains_generated_local_effect(bounds.upper())
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            compact_type_contains_generated_local_effect(lower)
+                || compact_type_contains_generated_local_effect(upper)
+        }
+        CompactBounds::Con { args, .. } => args
+            .iter()
+            .any(compact_bounds_contains_generated_local_effect),
+        CompactBounds::Tuple { items } => items
+            .iter()
+            .any(compact_bounds_contains_generated_local_effect),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            compact_bounds_contains_generated_local_effect(arg)
+                || compact_bounds_contains_generated_local_effect(arg_eff)
+                || compact_bounds_contains_generated_local_effect(ret_eff)
+                || compact_bounds_contains_generated_local_effect(ret)
+        }
+    }
 }
 
 fn compact_type_contains_generated_local_effect(ty: &CompactType) -> bool {
@@ -2033,11 +2101,36 @@ fn compact_type_contains_generated_local_effect(ty: &CompactType) -> bool {
 }
 
 fn strip_generated_local_effects_from_compact_effect_bounds(bounds: &mut CompactBounds) {
-    let mut tainted = HashSet::new();
-    collect_compact_type_generated_local_effect_tail_vars(bounds.lower(), &mut tainted);
-    collect_compact_type_generated_local_effect_tail_vars(bounds.upper(), &mut tainted);
-    strip_generated_local_effects_from_compact_effect_type(bounds.lower_mut(), &tainted);
-    strip_generated_local_effects_from_compact_effect_type(bounds.upper_mut(), &tainted);
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            let mut tainted = HashSet::new();
+            collect_compact_type_generated_local_effect_tail_vars(lower, &mut tainted);
+            collect_compact_type_generated_local_effect_tail_vars(upper, &mut tainted);
+            strip_generated_local_effects_from_compact_effect_type(lower, &tainted);
+            strip_generated_local_effects_from_compact_effect_type(upper, &tainted);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                strip_generated_local_effects_from_compact_effect_bounds(arg);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                strip_generated_local_effects_from_compact_effect_bounds(item);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            strip_generated_local_effects_from_compact_effect_bounds(arg);
+            strip_generated_local_effects_from_compact_effect_bounds(arg_eff);
+            strip_generated_local_effects_from_compact_effect_bounds(ret_eff);
+            strip_generated_local_effects_from_compact_effect_bounds(ret);
+        }
+    }
 }
 
 fn strip_generated_local_effects_from_compact_effect_type(
@@ -2086,12 +2179,13 @@ fn is_generated_local_effect_path(path: &Path) -> bool {
 }
 
 fn normalize_root_curried_fun_effect_chain(ty: Type) -> Type {
-    let Some((mut chain, tail)) = collect_root_fun_chain(ty.clone()) else {
+    let Some((mut chain, mut tail)) = collect_root_fun_chain(ty.clone()) else {
         return ty;
     };
 
     clear_prefix_latent_effects_before_effectful_arg(&mut chain);
     clear_unshared_intermediate_ret_effect_vars(&mut chain, &tail);
+    clear_final_param_tail_shadow_var(&mut chain, &mut tail);
     let latent = common_non_empty_root_ret_effect(&chain);
     if let Some(effect) = latent {
         let last = chain.len().saturating_sub(1);
@@ -2105,6 +2199,62 @@ fn normalize_root_curried_fun_effect_chain(ty: Type) -> Type {
     }
 
     rebuild_root_fun_chain(chain, tail)
+}
+
+fn clear_final_param_tail_shadow_var(chain: &mut [RootFunLink], tail: &mut Type) {
+    let last = chain.len().saturating_sub(1);
+    let Some((arg, _, _)) = chain.get(last) else {
+        return;
+    };
+    let Some((var, concrete)) = final_param_tail_shadow_pair(arg, tail) else {
+        return;
+    };
+    if final_shadow_var_is_used_outside_pair(var, chain, last) {
+        return;
+    }
+
+    if let Some((arg, _, _)) = chain.get_mut(last) {
+        *arg = Box::new(concrete.clone());
+    }
+    *tail = concrete;
+}
+
+fn final_param_tail_shadow_pair(arg: &Type, tail: &Type) -> Option<(TypeVar, Type)> {
+    let (arg_var, arg_concrete) = split_shadow_pair(arg, false)?;
+    let (tail_var, tail_concrete) = split_shadow_pair(tail, true)?;
+    (arg_var == tail_var && arg_concrete == tail_concrete).then_some((arg_var, arg_concrete))
+}
+
+fn split_shadow_pair(ty: &Type, positive: bool) -> Option<(TypeVar, Type)> {
+    let items = match (positive, ty) {
+        (true, Type::Union(items)) | (false, Type::Inter(items)) if items.len() == 2 => items,
+        _ => return None,
+    };
+    match (items.first()?, items.get(1)?) {
+        (Type::Var(var), concrete) if !type_contains_var(concrete, *var) => {
+            Some((*var, concrete.clone()))
+        }
+        (concrete, Type::Var(var)) if !type_contains_var(concrete, *var) => {
+            Some((*var, concrete.clone()))
+        }
+        _ => None,
+    }
+}
+
+fn final_shadow_var_is_used_outside_pair(
+    var: TypeVar,
+    chain: &[RootFunLink],
+    shadow_idx: usize,
+) -> bool {
+    for (idx, (arg, arg_eff, ret_eff)) in chain.iter().enumerate() {
+        if idx != shadow_idx && type_contains_var(arg, var) {
+            return true;
+        }
+        if type_contains_var(arg_eff, var) || type_contains_var(ret_eff, var) {
+            return true;
+        }
+    }
+    false
 }
 
 fn clear_unshared_intermediate_ret_effect_vars(chain: &mut [RootFunLink], tail: &Type) {
@@ -2191,8 +2341,29 @@ fn type_contains_var(ty: &Type, var: TypeVar) -> bool {
 }
 
 fn compact_bounds_contains_var(bounds: &CompactBounds, var: TypeVar) -> bool {
-    compact_type_contains_var_for_render(bounds.lower(), var)
-        || compact_type_contains_var_for_render(bounds.upper(), var)
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            compact_type_contains_var_for_render(lower, var)
+                || compact_type_contains_var_for_render(upper, var)
+        }
+        CompactBounds::Con { args, .. } => {
+            args.iter().any(|arg| compact_bounds_contains_var(arg, var))
+        }
+        CompactBounds::Tuple { items } => items
+            .iter()
+            .any(|item| compact_bounds_contains_var(item, var)),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            compact_bounds_contains_var(arg, var)
+                || compact_bounds_contains_var(arg_eff, var)
+                || compact_bounds_contains_var(ret_eff, var)
+                || compact_bounds_contains_var(ret, var)
+        }
+    }
 }
 
 fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool {
@@ -2262,6 +2433,18 @@ fn collect_bounds_lower_witnesses(bounds: &CompactBounds, out: &mut HashMap<Type
             for item in items {
                 collect_bounds_lower_witnesses(item, out);
             }
+            return;
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_bounds_lower_witnesses(arg, out);
+            collect_bounds_lower_witnesses(arg_eff, out);
+            collect_bounds_lower_witnesses(ret_eff, out);
+            collect_bounds_lower_witnesses(ret, out);
             return;
         }
         CompactBounds::Interval { .. } => {}
@@ -2814,6 +2997,14 @@ pub(crate) fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer
                 .join(", ");
             return format!("({items})");
         }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            return format_compact_fun_bounds(arg, arg_eff, ret_eff, ret, namer, false);
+        }
         CompactBounds::Interval { .. } => {}
     }
     let normalized = normalize_format_bounds(bounds.clone());
@@ -2848,6 +3039,71 @@ pub(crate) fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer
             }
         }
     }
+}
+
+fn format_compact_fun_bounds(
+    arg: &CompactBounds,
+    arg_eff: &CompactBounds,
+    ret_eff: &CompactBounds,
+    ret: &CompactBounds,
+    namer: &mut VarNamer<'_>,
+    needs_paren: bool,
+) -> String {
+    let arg = format_compact_bounds_for_fun_field(arg, namer, true);
+    let ret = format_compact_bounds_for_fun_field(ret, namer, false);
+    let arg_eff = format_compact_effect_bounds_inline(arg_eff, namer);
+    let ret_eff = format_compact_effect_bounds_inline(ret_eff, namer);
+    let rendered = match (arg_eff, ret_eff) {
+        (None, None) => format!("{arg} -> {ret}"),
+        (Some(ae), None) => format!("{arg} [{ae}] -> {ret}"),
+        (None, Some(re)) => format!("{arg} -> [{re}] {ret}"),
+        (Some(ae), Some(re)) => format!("{arg} [{ae}] -> [{re}] {ret}"),
+    };
+    if needs_paren {
+        format!("({rendered})")
+    } else {
+        rendered
+    }
+}
+
+fn format_compact_bounds_for_fun_field(
+    bounds: &CompactBounds,
+    namer: &mut VarNamer<'_>,
+    needs_paren: bool,
+) -> String {
+    let rendered = format_compact_bounds(bounds, namer);
+    if needs_paren && matches!(bounds, CompactBounds::Fun { .. }) {
+        format!("({rendered})")
+    } else {
+        rendered
+    }
+}
+
+fn format_compact_effect_bounds_inline(
+    bounds: &CompactBounds,
+    namer: &mut VarNamer<'_>,
+) -> Option<String> {
+    if compact_bounds_is_empty(bounds) {
+        None
+    } else {
+        Some(format_compact_bounds(bounds, namer))
+    }
+}
+
+fn compact_bounds_is_empty(bounds: &CompactBounds) -> bool {
+    matches!(
+        bounds,
+        CompactBounds::Interval {
+            self_var: None,
+            lower,
+            upper,
+        } if compact_effect_bounds_side_is_empty(lower)
+            && compact_effect_bounds_side_is_empty(upper)
+    )
+}
+
+fn compact_effect_bounds_side_is_empty(ty: &CompactType) -> bool {
+    is_empty_compact(ty) || is_explicit_empty_row_compact(ty)
 }
 
 pub(crate) fn format_compact_role_constraint_arg_with_namer(
@@ -3303,6 +3559,17 @@ fn normalize_format_bounds(mut bounds: CompactBounds) -> CompactBounds {
                 *item = normalize_format_bounds(std::mem::take(item));
             }
         }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            *arg = Box::new(normalize_format_bounds(*std::mem::take(arg)));
+            *arg_eff = Box::new(normalize_format_bounds(*std::mem::take(arg_eff)));
+            *ret_eff = Box::new(normalize_format_bounds(*std::mem::take(ret_eff)));
+            *ret = Box::new(normalize_format_bounds(*std::mem::take(ret)));
+        }
         CompactBounds::Interval { .. } => {
             normalize_format_compact_type_in_place(bounds.lower_mut());
             normalize_format_compact_type_in_place(bounds.upper_mut());
@@ -3465,6 +3732,18 @@ fn compact_bounds_key(bounds: &CompactBounds) -> String {
             let items = items.iter().map(compact_bounds_key).collect::<Vec<_>>();
             format!("Btup[{items:?}]")
         }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => format!(
+            "Bfun[{};{};{};{}]",
+            compact_bounds_key(arg),
+            compact_bounds_key(arg_eff),
+            compact_bounds_key(ret_eff),
+            compact_bounds_key(ret)
+        ),
         CompactBounds::Interval { .. } => format!(
             "B[{}<:{}]",
             compact_type_key(bounds.lower()),

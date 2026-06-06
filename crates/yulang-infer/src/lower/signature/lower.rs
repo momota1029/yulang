@@ -51,12 +51,7 @@ pub fn lower_pure_sig_pos_id(
         SigType::Apply { path, args, .. } => {
             let args = args
                 .iter()
-                .map(|arg| {
-                    (
-                        lower_pure_sig_pos_id(state, arg, vars),
-                        lower_pure_sig_neg_id(state, arg, vars),
-                    )
-                })
+                .map(|arg| lower_invariant_sig_arg_ids(state, arg, vars))
                 .collect();
             state
                 .infer
@@ -153,12 +148,7 @@ pub fn lower_pure_sig_neg_id(
         SigType::Apply { path, args, .. } => {
             let args = args
                 .iter()
-                .map(|arg| {
-                    (
-                        lower_pure_sig_pos_id(state, arg, vars),
-                        lower_pure_sig_neg_id(state, arg, vars),
-                    )
-                })
+                .map(|arg| lower_invariant_sig_arg_ids(state, arg, vars))
                 .collect();
             state
                 .infer
@@ -273,6 +263,95 @@ fn split_function_return_effect<'a>(
         return (Some(eff), ret.as_ref());
     }
     (ret_eff, ret)
+}
+
+fn split_function_arg_effect(arg: &SigType) -> (Option<&SigRow>, &SigType) {
+    if let SigType::EffectPrefixed { eff, ret, .. } = arg {
+        return (Some(eff), ret.as_ref());
+    }
+    (None, arg)
+}
+
+fn lower_invariant_sig_arg_ids(
+    state: &mut LowerState,
+    sig: &SigType,
+    vars: &mut HashMap<String, TypeVar>,
+) -> (PosId, NegId) {
+    match sig {
+        SigType::Fun {
+            arg, ret_eff, ret, ..
+        } => lower_invariant_function_sig_ids(state, arg, ret_eff.as_ref(), ret, vars),
+        _ => (
+            lower_pure_sig_pos_id(state, sig, vars),
+            lower_pure_sig_neg_id(state, sig, vars),
+        ),
+    }
+}
+
+fn lower_invariant_function_sig_ids(
+    state: &mut LowerState,
+    arg: &SigType,
+    ret_eff: Option<&SigRow>,
+    ret: &SigType,
+    vars: &mut HashMap<String, TypeVar>,
+) -> (PosId, NegId) {
+    let (arg_eff, arg) = split_function_arg_effect(arg);
+    let (ret_eff, ret) = split_function_return_effect(ret_eff, ret);
+
+    let arg_pos = lower_pure_sig_pos_id(state, arg, vars);
+    let arg_neg = lower_pure_sig_neg_id(state, arg, vars);
+    let ret_pos = lower_pure_sig_pos_id(state, ret, vars);
+    let ret_neg = lower_pure_sig_neg_id(state, ret, vars);
+    let (arg_eff_pos, arg_eff_neg) = lower_invariant_function_arg_effect(state, arg_eff, vars);
+    let (ret_eff_pos, ret_eff_neg) = lower_invariant_function_ret_effect(state, ret_eff, ret, vars);
+
+    (
+        state.infer.alloc_pos(Pos::Fun {
+            arg: arg_neg,
+            arg_eff: arg_eff_neg,
+            ret_eff: ret_eff_pos,
+            ret: ret_pos,
+        }),
+        state.infer.alloc_neg(Neg::Fun {
+            arg: arg_pos,
+            arg_eff: arg_eff_pos,
+            ret_eff: ret_eff_neg,
+            ret: ret_neg,
+        }),
+    )
+}
+
+fn lower_invariant_function_arg_effect(
+    state: &mut LowerState,
+    row: Option<&SigRow>,
+    vars: &mut HashMap<String, TypeVar>,
+) -> (PosId, NegId) {
+    let Some(row) = row else {
+        return (state.infer.arena.bot, state.infer.arena.empty_neg_row);
+    };
+    let (pos, neg, _, _) = lower_function_sig_ret_eff(state, Some(row), vars, row_span(row));
+    (pos, neg)
+}
+
+fn lower_invariant_function_ret_effect(
+    state: &mut LowerState,
+    row: Option<&SigRow>,
+    ret: &SigType,
+    vars: &mut HashMap<String, TypeVar>,
+) -> (PosId, NegId) {
+    let Some(row) = row else {
+        return (state.infer.arena.bot, state.infer.arena.empty_neg_row);
+    };
+    let (pos, neg, _, _) = lower_function_sig_ret_eff(state, Some(row), vars, ret.span());
+    (pos, neg)
+}
+
+fn row_span(row: &SigRow) -> TextRange {
+    row.items
+        .first()
+        .map(SigType::span)
+        .or_else(|| row.tail.as_ref().map(|tail| tail.span))
+        .unwrap_or_else(|| TextRange::new(0.into(), 0.into()))
 }
 
 fn lower_sig_type(

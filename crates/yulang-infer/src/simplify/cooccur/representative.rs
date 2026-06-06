@@ -65,8 +65,33 @@ struct RepresentativeContext<'a> {
 
 impl RepresentativeContext<'_> {
     fn collect_bounds(&mut self, bounds: &CompactBounds) {
-        self.collect_type(bounds.lower(), true);
-        self.collect_type(bounds.upper(), false);
+        match bounds {
+            CompactBounds::Interval { lower, upper, .. } => {
+                self.collect_type(lower, true);
+                self.collect_type(upper, false);
+            }
+            CompactBounds::Con { args, .. } => {
+                for arg in args {
+                    self.collect_bounds(arg);
+                }
+            }
+            CompactBounds::Tuple { items } => {
+                for item in items {
+                    self.collect_bounds(item);
+                }
+            }
+            CompactBounds::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.collect_bounds(arg);
+                self.collect_bounds(arg_eff);
+                self.collect_bounds(ret_eff);
+                self.collect_bounds(ret);
+            }
+        }
     }
 
     fn collect_type(&mut self, ty: &CompactType, positive: bool) {
@@ -229,9 +254,26 @@ fn concrete_representative_part(ty: &CompactType) -> CompactType {
 }
 
 fn bounds_contains_vars(bounds: &CompactBounds) -> bool {
-    bounds.self_var().is_some()
-        || type_contains_vars(bounds.lower())
-        || type_contains_vars(bounds.upper())
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => self_var.is_some() || type_contains_vars(lower) || type_contains_vars(upper),
+        CompactBounds::Con { args, .. } => args.iter().any(bounds_contains_vars),
+        CompactBounds::Tuple { items } => items.iter().any(bounds_contains_vars),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            bounds_contains_vars(arg)
+                || bounds_contains_vars(arg_eff)
+                || bounds_contains_vars(ret_eff)
+                || bounds_contains_vars(ret)
+        }
+    }
 }
 
 fn type_contains_vars(ty: &CompactType) -> bool {

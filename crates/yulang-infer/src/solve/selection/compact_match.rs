@@ -182,13 +182,73 @@ fn match_compact_bounds_pattern(
     concrete: &CompactBounds,
     subst: &mut HashMap<TypeVar, CompactType>,
 ) -> bool {
+    match (pattern, concrete) {
+        (
+            CompactBounds::Con {
+                path: p_path,
+                args: p_args,
+            },
+            CompactBounds::Con {
+                path: c_path,
+                args: c_args,
+            },
+        ) if p_path == c_path && p_args.len() == c_args.len() => {
+            return p_args
+                .iter()
+                .zip(c_args)
+                .all(|(pattern, concrete)| match_compact_bounds_pattern(pattern, concrete, subst));
+        }
+        (CompactBounds::Tuple { items: p_items }, CompactBounds::Tuple { items: c_items })
+            if p_items.len() == c_items.len() =>
+        {
+            return p_items
+                .iter()
+                .zip(c_items)
+                .all(|(pattern, concrete)| match_compact_bounds_pattern(pattern, concrete, subst));
+        }
+        (
+            CompactBounds::Fun {
+                arg: p_arg,
+                arg_eff: p_arg_eff,
+                ret_eff: p_ret_eff,
+                ret: p_ret,
+            },
+            CompactBounds::Fun {
+                arg: c_arg,
+                arg_eff: c_arg_eff,
+                ret_eff: c_ret_eff,
+                ret: c_ret,
+            },
+        ) => {
+            return match_compact_bounds_pattern(p_arg, c_arg, subst)
+                && match_compact_bounds_pattern(p_arg_eff, c_arg_eff, subst)
+                && match_compact_bounds_pattern(p_ret_eff, c_ret_eff, subst)
+                && match_compact_bounds_pattern(p_ret, c_ret, subst);
+        }
+        _ => {}
+    }
     if let Some(var) = exact_compact_bounds_var(pattern) {
         let ty = concrete_lower_bounds_repr(concrete, true).unwrap_or_default();
         return bind_compact_type_var_pattern(var, &ty, subst);
     }
-    if pattern.self_var() == concrete.self_var()
-        && match_compact_type_pattern(pattern.lower(), concrete.lower(), subst)
-        && match_compact_type_pattern(pattern.upper(), concrete.upper(), subst)
+    let (
+        CompactBounds::Interval {
+            self_var: pattern_self,
+            lower: pattern_lower,
+            upper: pattern_upper,
+        },
+        CompactBounds::Interval {
+            self_var: concrete_self,
+            lower: concrete_lower,
+            upper: concrete_upper,
+        },
+    ) = (pattern, concrete)
+    else {
+        return false;
+    };
+    if pattern_self == concrete_self
+        && match_compact_type_pattern(pattern_lower, concrete_lower, subst)
+        && match_compact_type_pattern(pattern_upper, concrete_upper, subst)
     {
         return true;
     }
@@ -196,10 +256,10 @@ fn match_compact_bounds_pattern(
         return false;
     };
     let mut trial = subst.clone();
-    if pattern.self_var().is_none()
-        && concrete.self_var().is_none()
-        && match_compact_type_pattern(pattern.lower(), &concrete_ty, &mut trial)
-        && match_compact_type_pattern(pattern.upper(), &concrete_ty, &mut trial)
+    if pattern_self.is_none()
+        && concrete_self.is_none()
+        && match_compact_type_pattern(pattern_lower, &concrete_ty, &mut trial)
+        && match_compact_type_pattern(pattern_upper, &concrete_ty, &mut trial)
     {
         *subst = trial;
         true
@@ -209,8 +269,16 @@ fn match_compact_bounds_pattern(
 }
 
 fn exact_compact_bounds_var(bounds: &CompactBounds) -> Option<TypeVar> {
-    (bounds.self_var().is_none() && bounds.lower() == bounds.upper())
-        .then(|| single_compact_var(bounds.lower()))
+    let CompactBounds::Interval {
+        self_var: None,
+        lower,
+        upper,
+    } = bounds
+    else {
+        return None;
+    };
+    (lower == upper)
+        .then(|| single_compact_var(lower))
         .flatten()
 }
 

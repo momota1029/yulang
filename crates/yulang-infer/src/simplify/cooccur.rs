@@ -429,14 +429,18 @@ pub(crate) fn role_output_center_replacements(
 }
 
 fn projection_target_var(bounds: &CompactBounds) -> Option<TypeVar> {
-    if let Some(tv) = bounds.self_var() {
-        return Some(tv);
+    let CompactBounds::Interval {
+        self_var,
+        lower,
+        upper,
+    } = bounds
+    else {
+        return None;
+    };
+    if let Some(tv) = self_var {
+        return Some(*tv);
     }
-    let mut shared = bounds
-        .lower()
-        .vars
-        .intersection(&bounds.upper().vars)
-        .copied();
+    let mut shared = lower.vars.intersection(&upper.vars).copied();
     let first = shared.next()?;
     shared.next().is_none().then_some(first)
 }
@@ -516,11 +520,40 @@ fn collect_boundary_coalescence_candidates_in_bounds(
     boundary: u32,
     out: &mut HashSet<TypeVar>,
 ) {
-    if let Some(tv) = bounds.self_var() {
-        collect_boundary_coalescence_candidate_var(tv, var_levels, boundary, out);
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            if let Some(tv) = self_var {
+                collect_boundary_coalescence_candidate_var(*tv, var_levels, boundary, out);
+            }
+            collect_boundary_coalescence_candidates_in_type(lower, var_levels, boundary, out);
+            collect_boundary_coalescence_candidates_in_type(upper, var_levels, boundary, out);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_boundary_coalescence_candidates_in_bounds(arg, var_levels, boundary, out);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_boundary_coalescence_candidates_in_bounds(item, var_levels, boundary, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_boundary_coalescence_candidates_in_bounds(arg, var_levels, boundary, out);
+            collect_boundary_coalescence_candidates_in_bounds(arg_eff, var_levels, boundary, out);
+            collect_boundary_coalescence_candidates_in_bounds(ret_eff, var_levels, boundary, out);
+            collect_boundary_coalescence_candidates_in_bounds(ret, var_levels, boundary, out);
+        }
     }
-    collect_boundary_coalescence_candidates_in_type(bounds.lower(), var_levels, boundary, out);
-    collect_boundary_coalescence_candidates_in_type(bounds.upper(), var_levels, boundary, out);
 }
 
 fn collect_boundary_coalescence_candidates_in_type(
@@ -596,11 +629,40 @@ fn collect_boundary_coalescence_candidate_var(
 }
 
 fn collect_vars_in_bounds(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var() {
-        out.insert(tv);
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            if let Some(tv) = self_var {
+                out.insert(*tv);
+            }
+            collect_vars_in_type(lower, out);
+            collect_vars_in_type(upper, out);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_vars_in_bounds(arg, out);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_vars_in_bounds(item, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_vars_in_bounds(arg, out);
+            collect_vars_in_bounds(arg_eff, out);
+            collect_vars_in_bounds(ret_eff, out);
+            collect_vars_in_bounds(ret, out);
+        }
     }
-    collect_vars_in_type(bounds.lower(), out);
-    collect_vars_in_type(bounds.upper(), out);
 }
 
 fn collect_vars_in_type(ty: &CompactType, out: &mut HashSet<TypeVar>) {
@@ -724,11 +786,57 @@ fn rewrite_bounds_with_representatives(
     subst: &HashMap<TypeVar, Option<TypeVar>>,
     representatives: &HashMap<TypeVar, CompactType>,
 ) -> CompactBounds {
-    normalize_rewritten_bounds(CompactBounds::Interval {
-        self_var: bounds.self_var().and_then(|tv| rewrite_var(tv, subst)),
-        lower: rewrite_compact_type(bounds.lower(), subst, representatives),
-        upper: rewrite_compact_type(bounds.upper(), subst, representatives),
-    })
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => normalize_rewritten_bounds(CompactBounds::Interval {
+            self_var: self_var.and_then(|tv| rewrite_var(tv, subst)),
+            lower: rewrite_compact_type(lower, subst, representatives),
+            upper: rewrite_compact_type(upper, subst, representatives),
+        }),
+        CompactBounds::Con { path, args } => CompactBounds::Con {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| rewrite_bounds_with_representatives(arg, subst, representatives))
+                .collect(),
+        },
+        CompactBounds::Tuple { items } => CompactBounds::Tuple {
+            items: items
+                .iter()
+                .map(|item| rewrite_bounds_with_representatives(item, subst, representatives))
+                .collect(),
+        },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactBounds::Fun {
+            arg: Box::new(rewrite_bounds_with_representatives(
+                arg,
+                subst,
+                representatives,
+            )),
+            arg_eff: Box::new(rewrite_bounds_with_representatives(
+                arg_eff,
+                subst,
+                representatives,
+            )),
+            ret_eff: Box::new(rewrite_bounds_with_representatives(
+                ret_eff,
+                subst,
+                representatives,
+            )),
+            ret: Box::new(rewrite_bounds_with_representatives(
+                ret,
+                subst,
+                representatives,
+            )),
+        },
+    }
 }
 
 fn rewrite_compact_type(

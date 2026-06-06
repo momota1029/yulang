@@ -44,6 +44,33 @@ fn visit_bounds(
     expanded: &mut HashSet<(TypeVar, bool)>,
     occurrences: &mut PolarOccurrences,
 ) {
+    match bounds {
+        CompactBounds::Interval { .. } => {}
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                visit_bounds(scheme, arg, suppressed, expanded, occurrences);
+            }
+            return;
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                visit_bounds(scheme, item, suppressed, expanded, occurrences);
+            }
+            return;
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            visit_bounds(scheme, arg, suppressed, expanded, occurrences);
+            visit_bounds(scheme, arg_eff, suppressed, expanded, occurrences);
+            visit_bounds(scheme, ret_eff, suppressed, expanded, occurrences);
+            visit_bounds(scheme, ret, suppressed, expanded, occurrences);
+            return;
+        }
+    }
     let centers = center_vars(bounds);
     for &center in &centers {
         if suppressed.contains(&center) {
@@ -359,22 +386,58 @@ fn collect_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
 }
 
 fn collect_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var() {
-        out.insert(tv);
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            if let Some(tv) = self_var {
+                out.insert(*tv);
+            }
+            collect_type_vars(lower, out);
+            collect_type_vars(upper, out);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_bounds_vars(arg, out);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_bounds_vars(item, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_bounds_vars(arg, out);
+            collect_bounds_vars(arg_eff, out);
+            collect_bounds_vars(ret_eff, out);
+            collect_bounds_vars(ret, out);
+        }
     }
-    collect_type_vars(bounds.lower(), out);
-    collect_type_vars(bounds.upper(), out);
 }
 
 fn center_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
-    let mut out = bounds
-        .lower()
+    let CompactBounds::Interval {
+        self_var,
+        lower,
+        upper,
+    } = bounds
+    else {
+        return HashSet::new();
+    };
+    let mut out = lower
         .vars
-        .intersection(&bounds.upper().vars)
+        .intersection(&upper.vars)
         .copied()
         .collect::<HashSet<_>>();
-    if let Some(self_var) = bounds.self_var() {
-        out.insert(self_var);
+    if let Some(self_var) = self_var {
+        out.insert(*self_var);
     }
     out
 }

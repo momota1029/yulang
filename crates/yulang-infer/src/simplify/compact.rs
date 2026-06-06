@@ -20,7 +20,7 @@ use crate::solve::{Infer, IntoNegId, IntoPosId};
 
 /// 不変型の compact 表現。`Interval` は `(+,-)` 2つ組の葉（中心変数が残った位置）。
 /// sandwich で中心変数が単一コンストラクタ K と全出現で共起すると K が lift され、
-/// `Con`/`Tuple`/… の変種になる（中心変数は消える）。lift 変種は sandwich の出力以降
+/// `Con`/`Tuple`/`Fun`/… の変種になる（中心変数は消える）。lift 変種は sandwich の出力以降
 /// （display / 最終スキーマ）にのみ現れる。pre-sandwich のコードは `Interval` だけを見る。
 /// 詳細: spec/2026-06-06-invariant-type-sandwich.md
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,6 +37,13 @@ pub enum CompactBounds {
     },
     /// lift 済みタプル。
     Tuple { items: Vec<CompactBounds> },
+    /// lift 済み関数型。`arg`/`arg_eff` は反変、`ret_eff`/`ret` は共変の区間。
+    Fun {
+        arg: Box<CompactBounds>,
+        arg_eff: Box<CompactBounds>,
+        ret_eff: Box<CompactBounds>,
+        ret: Box<CompactBounds>,
+    },
 }
 
 impl Default for CompactBounds {
@@ -2340,10 +2347,40 @@ pub(crate) fn subst_compact_bounds(
     bounds: &CompactBounds,
     subst: &[(TypeVar, TypeVar)],
 ) -> CompactBounds {
-    CompactBounds::Interval {
-        self_var: bounds.self_var().map(|tv| subst_lookup_small(subst, tv)),
-        lower: subst_compact_type(bounds.lower(), subst),
-        upper: subst_compact_type(bounds.upper(), subst),
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => CompactBounds::Interval {
+            self_var: self_var.map(|tv| subst_lookup_small(subst, tv)),
+            lower: subst_compact_type(lower, subst),
+            upper: subst_compact_type(upper, subst),
+        },
+        CompactBounds::Con { path, args } => CompactBounds::Con {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|bounds| subst_compact_bounds(bounds, subst))
+                .collect(),
+        },
+        CompactBounds::Tuple { items } => CompactBounds::Tuple {
+            items: items
+                .iter()
+                .map(|bounds| subst_compact_bounds(bounds, subst))
+                .collect(),
+        },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactBounds::Fun {
+            arg: Box::new(subst_compact_bounds(arg, subst)),
+            arg_eff: Box::new(subst_compact_bounds(arg_eff, subst)),
+            ret_eff: Box::new(subst_compact_bounds(ret_eff, subst)),
+            ret: Box::new(subst_compact_bounds(ret, subst)),
+        },
     }
 }
 

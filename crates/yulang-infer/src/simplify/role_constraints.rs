@@ -174,11 +174,40 @@ fn role_constraint_vars(constraint: &CompactRoleConstraint) -> HashSet<TypeVar> 
 }
 
 fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
-    if let Some(tv) = bounds.self_var() {
-        out.insert(tv);
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            if let Some(tv) = self_var {
+                out.insert(*tv);
+            }
+            collect_compact_type_vars(lower, out);
+            collect_compact_type_vars(upper, out);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_compact_bounds_vars(arg, out);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_compact_bounds_vars(item, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_compact_bounds_vars(arg, out);
+            collect_compact_bounds_vars(arg_eff, out);
+            collect_compact_bounds_vars(ret_eff, out);
+            collect_compact_bounds_vars(ret, out);
+        }
     }
-    collect_compact_type_vars(bounds.lower(), out);
-    collect_compact_type_vars(bounds.upper(), out);
 }
 
 fn collect_compact_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {

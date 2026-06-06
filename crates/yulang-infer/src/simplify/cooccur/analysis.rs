@@ -69,6 +69,33 @@ fn visit_bounds(
     exact_keys: &mut ExactKeyCache,
     record_vars: Option<&HashSet<TypeVar>>,
 ) {
+    match bounds {
+        CompactBounds::Interval { .. } => {}
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                visit_bounds(scheme, arg, expanded, analysis, exact_keys, record_vars);
+            }
+            return;
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                visit_bounds(scheme, item, expanded, analysis, exact_keys, record_vars);
+            }
+            return;
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            visit_bounds(scheme, arg, expanded, analysis, exact_keys, record_vars);
+            visit_bounds(scheme, arg_eff, expanded, analysis, exact_keys, record_vars);
+            visit_bounds(scheme, ret_eff, expanded, analysis, exact_keys, record_vars);
+            visit_bounds(scheme, ret, expanded, analysis, exact_keys, record_vars);
+            return;
+        }
+    }
     let centers = center_vars(bounds);
     visit_compact_type_with_extra_vars(
         scheme,
@@ -325,14 +352,21 @@ pub(super) fn visit_compact_type_children(
 }
 
 fn center_vars(bounds: &CompactBounds) -> HashSet<TypeVar> {
-    let mut out = bounds
-        .lower()
+    let CompactBounds::Interval {
+        self_var,
+        lower,
+        upper,
+    } = bounds
+    else {
+        return HashSet::new();
+    };
+    let mut out = lower
         .vars
-        .intersection(&bounds.upper().vars)
+        .intersection(&upper.vars)
         .copied()
         .collect::<HashSet<_>>();
-    if let Some(self_var) = bounds.self_var() {
-        out.insert(self_var);
+    if let Some(self_var) = self_var {
+        out.insert(*self_var);
     }
     out
 }
@@ -534,14 +568,45 @@ fn compact_bounds_exact_key(bounds: &CompactBounds, exact_keys: &mut ExactKeyCac
     if let Some(exact) = exact_keys.bounds.get(&key).copied() {
         return exact;
     }
-    let exact = exact_key_from_hash(
-        ExactKeyKind::Other,
-        (
-            b'B',
-            compact_type_exact_key(bounds.lower(), exact_keys),
-            compact_type_exact_key(bounds.upper(), exact_keys),
+    let exact = match bounds {
+        CompactBounds::Interval { lower, upper, .. } => exact_key_from_hash(
+            ExactKeyKind::Other,
+            (
+                b'B',
+                compact_type_exact_key(lower, exact_keys),
+                compact_type_exact_key(upper, exact_keys),
+            ),
         ),
-    );
+        CompactBounds::Con { path, args } => {
+            let args = args
+                .iter()
+                .map(|arg| compact_bounds_exact_key(arg, exact_keys))
+                .collect::<Vec<_>>();
+            exact_key_from_hash(ExactKeyKind::Other, (b'C', path_key(path), args))
+        }
+        CompactBounds::Tuple { items } => {
+            let items = items
+                .iter()
+                .map(|item| compact_bounds_exact_key(item, exact_keys))
+                .collect::<Vec<_>>();
+            exact_key_from_hash(ExactKeyKind::Other, (b'U', items))
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => exact_key_from_hash(
+            ExactKeyKind::Fun,
+            (
+                b'F',
+                compact_bounds_exact_key(arg, exact_keys),
+                compact_bounds_exact_key(arg_eff, exact_keys),
+                compact_bounds_exact_key(ret_eff, exact_keys),
+                compact_bounds_exact_key(ret, exact_keys),
+            ),
+        ),
+    };
     exact_keys.bounds.insert(key, exact);
     exact
 }

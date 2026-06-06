@@ -61,7 +61,8 @@ pub(super) fn concrete_lower_bounds_repr(
     bounds: &CompactBounds,
     allow_boundary: bool,
 ) -> Option<CompactType> {
-    concrete_or_boundary_compact_type(bounds.lower(), allow_boundary)
+    let lower = compact_bounds_side(bounds, true);
+    concrete_or_boundary_compact_type(&lower, allow_boundary)
 }
 
 pub(super) fn concrete_tv_upper_repr(
@@ -77,20 +78,64 @@ pub(super) fn concrete_bounds_repr(
     bounds: &CompactBounds,
     allow_boundary: bool,
 ) -> Option<CompactType> {
-    let lower_empty = bounds.lower() == &CompactType::default();
-    let upper_empty = bounds.upper() == &CompactType::default();
+    let CompactBounds::Interval { lower, upper, .. } = bounds else {
+        let ty = compact_bounds_side(bounds, true);
+        return concrete_or_boundary_compact_type(&ty, allow_boundary);
+    };
+    let lower_empty = lower == &CompactType::default();
+    let upper_empty = upper == &CompactType::default();
     match (lower_empty, upper_empty) {
-        (false, true) => concrete_or_boundary_compact_type(bounds.lower(), allow_boundary),
-        (true, false) => concrete_or_boundary_compact_type(bounds.upper(), allow_boundary),
-        (false, false) if bounds.lower() == bounds.upper() => {
-            concrete_or_boundary_compact_type(bounds.lower(), allow_boundary)
+        (false, true) => concrete_or_boundary_compact_type(lower, allow_boundary),
+        (true, false) => concrete_or_boundary_compact_type(upper, allow_boundary),
+        (false, false) if lower == upper => {
+            concrete_or_boundary_compact_type(lower, allow_boundary)
         }
-        (false, false) if allow_boundary => {
-            boundary_join_concrete_bounds(bounds.lower(), bounds.upper())
-                .or_else(|| boundary_concrete_compact_type(bounds.lower()))
-                .or_else(|| boundary_concrete_compact_type(bounds.upper()))
-        }
+        (false, false) if allow_boundary => boundary_join_concrete_bounds(lower, upper)
+            .or_else(|| boundary_concrete_compact_type(lower))
+            .or_else(|| boundary_concrete_compact_type(upper)),
         _ => None,
+    }
+}
+
+fn compact_bounds_side(bounds: &CompactBounds, positive: bool) -> CompactType {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            if positive {
+                lower.clone()
+            } else {
+                upper.clone()
+            }
+        }
+        CompactBounds::Con { path, args } => CompactType {
+            cons: vec![crate::simplify::compact::CompactCon {
+                path: path.clone(),
+                args: args.clone(),
+            }],
+            ..CompactType::default()
+        },
+        CompactBounds::Tuple { items } => CompactType {
+            tuples: vec![
+                items
+                    .iter()
+                    .map(|item| compact_bounds_side(item, positive))
+                    .collect(),
+            ],
+            ..CompactType::default()
+        },
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactType {
+            funs: vec![crate::simplify::compact::CompactFun {
+                arg: compact_bounds_side(arg, positive),
+                arg_eff: compact_bounds_side(arg_eff, positive),
+                ret_eff: compact_bounds_side(ret_eff, positive),
+                ret: compact_bounds_side(ret, positive),
+            }],
+            ..CompactType::default()
+        },
     }
 }
 
@@ -158,8 +203,14 @@ fn boundary_lower_bounds(bounds: &CompactBounds) -> CompactBounds {
             return exact_compact_bounds(concrete);
         }
     }
-    if bounds.self_var().is_none() && bounds.lower() != &CompactType::default() {
-        return exact_compact_bounds(bounds.lower().clone());
+    if let CompactBounds::Interval {
+        self_var: None,
+        lower,
+        ..
+    } = bounds
+        && lower != &CompactType::default()
+    {
+        return exact_compact_bounds(lower.clone());
     }
     CompactBounds::default()
 }

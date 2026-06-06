@@ -105,6 +105,7 @@ fn collect_compact_results_for_paths_impl(
             }
             if let Some(scheme) = state.compact_scheme_of(*def) {
                 let constraints = state.infer.compact_role_constraints_of(*def);
+                let hidden_effect_paths = hidden_effect_paths_for_entry(path, &hidden_effect_paths);
                 return Some((
                     label,
                     format_coalesced_scheme_with_role_constraints_optional_scope(
@@ -128,6 +129,14 @@ fn collect_compact_results_for_paths_impl(
         .collect::<Vec<_>>();
     entries.sort_by(|a, b| a.0.cmp(&b.0));
     entries
+}
+
+fn hidden_effect_paths_for_entry(path: &Path, all_hidden: &HashSet<Path>) -> HashSet<Path> {
+    all_hidden
+        .iter()
+        .filter(|effect_path| !path.segments.starts_with(&effect_path.segments))
+        .cloned()
+        .collect()
 }
 
 fn hidden_effect_paths_for_display(state: &LowerState) -> HashSet<Path> {
@@ -826,6 +835,14 @@ fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer) -> String
                 .join(", ");
             return format!("({items})");
         }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            return format_compact_fun_bounds(arg, arg_eff, ret_eff, ret, namer, false);
+        }
         CompactBounds::Interval { .. } => {}
     }
     if let Some(rendered) = format_compact_bounds_with_center(bounds, namer) {
@@ -860,6 +877,71 @@ fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer) -> String
             }
         }
     }
+}
+
+fn format_compact_fun_bounds(
+    arg: &CompactBounds,
+    arg_eff: &CompactBounds,
+    ret_eff: &CompactBounds,
+    ret: &CompactBounds,
+    namer: &mut VarNamer,
+    needs_paren: bool,
+) -> String {
+    let arg = format_compact_bounds_for_fun_field(arg, namer, true);
+    let ret = format_compact_bounds_for_fun_field(ret, namer, false);
+    let arg_eff = format_compact_effect_bounds_inline(arg_eff, namer);
+    let ret_eff = format_compact_effect_bounds_inline(ret_eff, namer);
+    let rendered = match (arg_eff, ret_eff) {
+        (None, None) => format!("{arg} -> {ret}"),
+        (Some(ae), None) => format!("{arg} [{ae}] -> {ret}"),
+        (None, Some(re)) => format!("{arg} -> [{re}] {ret}"),
+        (Some(ae), Some(re)) => format!("{arg} [{ae}] -> [{re}] {ret}"),
+    };
+    if needs_paren {
+        format!("({rendered})")
+    } else {
+        rendered
+    }
+}
+
+fn format_compact_bounds_for_fun_field(
+    bounds: &CompactBounds,
+    namer: &mut VarNamer,
+    needs_paren: bool,
+) -> String {
+    let rendered = format_compact_bounds(bounds, namer);
+    if needs_paren && matches!(bounds, CompactBounds::Fun { .. }) {
+        format!("({rendered})")
+    } else {
+        rendered
+    }
+}
+
+fn format_compact_effect_bounds_inline(
+    bounds: &CompactBounds,
+    namer: &mut VarNamer,
+) -> Option<String> {
+    if compact_bounds_is_empty(bounds) {
+        None
+    } else {
+        Some(format_compact_bounds(bounds, namer))
+    }
+}
+
+fn compact_bounds_is_empty(bounds: &CompactBounds) -> bool {
+    matches!(
+        bounds,
+        CompactBounds::Interval {
+            self_var: None,
+            lower,
+            upper,
+        } if compact_effect_bounds_side_is_empty(lower)
+            && compact_effect_bounds_side_is_empty(upper)
+    )
+}
+
+fn compact_effect_bounds_side_is_empty(ty: &CompactType) -> bool {
+    is_empty_compact(ty) || is_explicit_empty_row_compact(ty)
 }
 
 fn format_compact_bounds_with_center(
@@ -1599,9 +1681,25 @@ fn is_empty_compact(ty: &CompactType) -> bool {
         && ty.cons.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
+}
+
+fn is_explicit_empty_row_compact(ty: &CompactType) -> bool {
+    ty.vars.is_empty()
+        && ty.prims.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.variants.is_empty()
+        && ty.tuples.is_empty()
+        && matches!(
+            ty.rows.as_slice(),
+            [CompactRow { items, tail }] if items.is_empty() && is_empty_compact(tail)
+        )
 }
 
 fn path_string(path: &Path) -> String {

@@ -65,11 +65,36 @@ fn normalize_rewritten_compact_type_in_place(ty: &mut CompactType, positive: boo
 }
 
 fn normalize_rewritten_bounds_in_place(bounds: &mut CompactBounds) {
-    normalize_rewritten_compact_type_in_place(bounds.lower_mut(), true);
-    normalize_rewritten_compact_type_in_place(bounds.upper_mut(), false);
-    close_lower_row_tails_covered_by_upper(bounds);
-    cancel_shared_vars_with_variable_extras(bounds);
-    absorb_upper_vars_from_row_lower(bounds);
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            normalize_rewritten_compact_type_in_place(lower, true);
+            normalize_rewritten_compact_type_in_place(upper, false);
+            close_lower_row_tails_covered_by_upper(bounds);
+            cancel_shared_vars_with_variable_extras(bounds);
+            absorb_upper_vars_from_row_lower(bounds);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                normalize_rewritten_bounds_in_place(arg);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                normalize_rewritten_bounds_in_place(item);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            normalize_rewritten_bounds_in_place(arg);
+            normalize_rewritten_bounds_in_place(arg_eff);
+            normalize_rewritten_bounds_in_place(ret_eff);
+            normalize_rewritten_bounds_in_place(ret);
+        }
+    }
 }
 
 fn close_lower_row_tails_covered_by_upper(bounds: &mut CompactBounds) {
@@ -382,11 +407,40 @@ fn rewrite_compact_bounds_vars_in_place(
     bounds: &mut CompactBounds,
     subst: &HashMap<TypeVar, TypeVar>,
 ) {
-    if let Some(self_var) = bounds.self_var() {
-        *bounds.self_var_mut() = Some(rewrite_compact_var(self_var, subst));
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            if let Some(tv) = self_var {
+                *tv = rewrite_compact_var(*tv, subst);
+            }
+            rewrite_compact_type_vars_in_place(lower, subst);
+            rewrite_compact_type_vars_in_place(upper, subst);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                rewrite_compact_bounds_vars_in_place(arg, subst);
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                rewrite_compact_bounds_vars_in_place(item, subst);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            rewrite_compact_bounds_vars_in_place(arg, subst);
+            rewrite_compact_bounds_vars_in_place(arg_eff, subst);
+            rewrite_compact_bounds_vars_in_place(ret_eff, subst);
+            rewrite_compact_bounds_vars_in_place(ret, subst);
+        }
     }
-    rewrite_compact_type_vars_in_place(bounds.lower_mut(), subst);
-    rewrite_compact_type_vars_in_place(bounds.upper_mut(), subst);
 }
 
 fn rewrite_compact_type_vars_in_place(ty: &mut CompactType, subst: &HashMap<TypeVar, TypeVar>) {
