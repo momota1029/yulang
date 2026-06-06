@@ -54,3 +54,22 @@ cooccur の極性解析が「正極性でしか共起しない（負側に非対
 ## ⚠️ 改竄防止
 期待値の 3 変数形はテスト本体の長文コメントで根拠付き確定。**コメントごと握り潰して
 2 変数に書き換える（＝典型的な改竄）のは絶対禁止**。3 変数が出ないなら STOP して報告。
+
+## 2026-06-07 bisect 結果（犯人＝indist unification・rule だけでは直らない）
+spec の影武者（apply_group/effect_pairwise/shadow/exact）は**既に main から削除済み**。
+①の over-merge は生き残ってる **3規則のうち `apply_indistinguishable_unification`** が犯人。
+env ゲートで各規則を個別 off にして bisect:
+- polar off → 残骸増（`γ & (β [δ]-> [α] β)` 等）
+- **indist off → `ref<α, β> -> (β -> [γ] β) -> [α, γ] unit`**（effect 残差が `[α, γ]` に分離！）
+- sandwich off → over-merge のまま
+
+現行 indist の規則は「**正で相互共起 OR 負で相互共起**」（`merge_mutual_co_occurrence_vars` を
+positive/negative 別々に呼ぶ）。①の α（正のみ）と β（正＋負、f 型内に非対称負出現）が
+**正極性の相互共起だけ**で誤併合される。
+
+**試した修正**（`vars_are_indistinguishable`＝「同極性プロファイル＋出る各極性で相互共起」に厳格化）:
+→ ①の `α & β` 交差は**正しく出た**が、f の effect が β と統合されず**余分な δ**が残り
+（`ref<α & β, γ> -> (γ -> [δ] γ) -> [α, β, δ]`）、かつ **16件 under-merge 回帰**（477/21）。
+→ **OR=over-merge、profile-match=under-merge。正しい規則は中間**で、polar 除去との順序か
+co-occurrence **analysis の記録粒度**が絡む。未確定。次は「merge rule を直す」か
+「analysis が α~β を正共起と誤記録してるのを直す」かの切り分けが要る。
