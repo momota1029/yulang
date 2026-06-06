@@ -42,6 +42,10 @@ pub fn lower_root_in_module(
 
 pub fn finish_lowering(state: &mut LowerState) {
     state.refresh_selection_environment();
+    // lowering が終われば全 occurrence が確定するので、引数 effect が共変位置に
+    // 出て non-subtract で打ち消された subtract 情報をここで確定的に削除する。
+    // （raw アクセサは prune 前の Set を保持する設計なので、削除はこの境界で行う。）
+    state.infer.prune_resolved_effect_subtract_metadata();
 }
 
 mod act;

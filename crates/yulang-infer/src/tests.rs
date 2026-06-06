@@ -3281,7 +3281,7 @@ fn partial_application_keeps_latent_function_effect_non_subtract_off_outer_effec
 }
 
 #[test]
-fn non_through_lower_clears_through_on_var_propagation() {
+fn plain_var_lower_bound_preserves_all_subtractability() {
     let infer = solve::Infer::new();
     let a = fresh_type_var();
     let b = fresh_type_var();
@@ -3292,9 +3292,11 @@ fn non_through_lower_clears_through_on_var_propagation() {
 
     infer.constrain(Pos::Var(a), Neg::Var(b));
 
+    // 単なる `a <: b` の比較では a から非-through 情報は移ってこない。
+    // b は All-subtractable のまま（消去されない）のが正しい挙動。
     assert!(
-        !infer.effect_is_all_subtractable(b),
-        "through should be cleared by a non-through lower bound"
+        infer.effect_is_all_subtractable(b),
+        "a plain variable lower bound must not clear b's all-subtractability"
     );
 }
 

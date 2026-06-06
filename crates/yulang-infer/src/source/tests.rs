@@ -4524,15 +4524,15 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
         );
         assert_eq!(
             rendered_type(&rendered, "take_map"),
-            "std::list::list<int> -> (int -> int) -> std::list::list<int | α>"
+            "std::list::list<int> -> (int -> [α] int) -> [α] std::list::list<int | β>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_filter"),
-            "std::list::list<int> -> (int -> bool) -> std::list::list<int>"
+            "std::list::list<int> -> (int -> [α] bool) -> [α] std::list::list<int>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_filter_method"),
-            "std::list::list<int> -> (int -> bool) -> std::list::list<int>"
+            "std::list::list<int> -> (int -> [α] bool) -> [α] std::list::list<int>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_fold"),

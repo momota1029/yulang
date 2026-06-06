@@ -74,14 +74,34 @@ impl SandwichVerdicts {
     }
 }
 
-/// 判定走査の累積。`verdicts`＝各変数の共起 kind、`centers`＝**不変区間の中心**（lower∩upper or
-/// self_var）に一度でも出た変数。collapse は「具体 atomic 型と全共起・裸なし」かつ「中心である」
-/// 変数に限る。これで `pick`（param 要素区間の中心 18012）は消え、pl3 のような**共変位置のみに
-/// 出る値束縛の残差 α**（中心ではない）は残る。
+/// 主型全体での極性。`lower`（共変・正）／`upper`（反変・負）から始まり、fun arg で反転する。
+/// con 引数は不変なので極性をリセットして両極（lower=正・upper=負）を独立に拾う。
+#[derive(Clone, Copy, PartialEq)]
+enum Pol {
+    Pos,
+    Neg,
+}
+
+impl Pol {
+    fn flip(self) -> Pol {
+        match self {
+            Pol::Pos => Pol::Neg,
+            Pol::Neg => Pol::Pos,
+        }
+    }
+}
+
+/// 判定走査の累積。`verdicts`＝各変数の共起 kind。`pos_vars`/`neg_vars`＝**主型全体で**その変数が
+/// 正（共変）／負（反変）位置に一度でも出たか。collapse は「具体 atomic 型と全共起・裸なし」かつ
+/// 「pos と neg の双方に出た（＝不変の中心）」変数に限る。中心判定をスキーマ全体で行うのが要点で、
+/// 単一区間の lower∩upper だけ見ると `take_fold` の累算器のように**複数区間にまたがる中心**を
+/// 取りこぼす（z 引数の上界 neg と戻り値の下界 pos が別区間）。これで `pick`/`take_fold` の中心は
+/// 消え、pl3 のような**共変位置のみに出る値束縛の残差 α**（neg に出ない＝中心でない）は残る。
 #[derive(Default)]
 struct VerdictAcc {
     verdicts: HashMap<TypeVar, Verdict>,
-    centers: HashSet<TypeVar>,
+    pos_vars: HashSet<TypeVar>,
+    neg_vars: HashSet<TypeVar>,
 }
 
 /// スキーマ全体を走査し、各型変数が「全出現で同じ単一の具体型と共起し、一度も裸で出ない」かを
@@ -93,7 +113,13 @@ fn compute_sandwich_verdicts(scheme: &CompactTypeScheme) -> SandwichVerdicts {
     for bounds in scheme.rec_vars.values() {
         visit_bounds_for_verdict(bounds, &mut acc);
     }
-    let VerdictAcc { verdicts, centers } = acc;
+    let VerdictAcc {
+        verdicts,
+        pos_vars,
+        neg_vars,
+    } = acc;
+    // 中心 = 主型全体で正と負の双方に出た変数。
+    let centers: HashSet<TypeVar> = pos_vars.intersection(&neg_vars).copied().collect();
     let mut out = SandwichVerdicts::default();
     for (tv, v) in verdicts {
         // μ束縛変数（rec_vars のキー）は触らない。lift すれば再帰型を無限展開し、collapse すれば
@@ -138,52 +164,58 @@ fn record_var_occurrence(verdicts: &mut HashMap<TypeVar, Verdict>, tv: TypeVar, 
     verdicts.insert(tv, merged);
 }
 
-fn visit_type_for_verdict(ty: &CompactType, acc: &mut VerdictAcc) {
+fn visit_type_for_verdict(ty: &CompactType, pol: Pol, acc: &mut VerdictAcc) {
     let kinds = type_con_kinds(ty);
     for &tv in &ty.vars {
         record_var_occurrence(&mut acc.verdicts, tv, &kinds);
+        match pol {
+            Pol::Pos => acc.pos_vars.insert(tv),
+            Pol::Neg => acc.neg_vars.insert(tv),
+        };
     }
-    // ネストした不変位置（con args）も走査。
+    // ネストした不変位置（con args）は不変なので極性をリセットして両極を独立に拾う。
     for con in &ty.cons {
         for arg in &con.args {
             visit_bounds_for_verdict(arg, acc);
         }
     }
-    // tuple 成分・fun・record 等の CompactType もたどる（変数の出現を拾うため）。
+    // tuple 成分（共変）・fun・record 等の CompactType もたどる（変数の出現と極性を拾うため）。
     for tuple in &ty.tuples {
         for item in tuple {
-            visit_type_for_verdict(item, acc);
+            visit_type_for_verdict(item, pol, acc);
         }
     }
     for fun in &ty.funs {
-        visit_type_for_verdict(&fun.arg, acc);
-        visit_type_for_verdict(&fun.arg_eff, acc);
-        visit_type_for_verdict(&fun.ret_eff, acc);
-        visit_type_for_verdict(&fun.ret, acc);
+        // 引数は反変、戻りは共変。eff スロットも arg 側は反変・ret 側は共変に揃える
+        // （effect 変数は具体型 con と共起しないので collapse 判定には実質効かない）。
+        visit_type_for_verdict(&fun.arg, pol.flip(), acc);
+        visit_type_for_verdict(&fun.arg_eff, pol.flip(), acc);
+        visit_type_for_verdict(&fun.ret_eff, pol, acc);
+        visit_type_for_verdict(&fun.ret, pol, acc);
     }
     for record in &ty.records {
         for field in &record.fields {
-            visit_type_for_verdict(&field.value, acc);
+            visit_type_for_verdict(&field.value, pol, acc);
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            visit_type_for_verdict(&field.value, acc);
+            visit_type_for_verdict(&field.value, pol, acc);
         }
-        visit_type_for_verdict(&spread.tail, acc);
+        visit_type_for_verdict(&spread.tail, pol, acc);
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                visit_type_for_verdict(payload, acc);
+                visit_type_for_verdict(payload, pol, acc);
             }
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            visit_type_for_verdict(item, acc);
+            visit_type_for_verdict(item, pol, acc);
         }
-        visit_type_for_verdict(&row.tail, acc);
+        visit_type_for_verdict(&row.tail, pol, acc);
     }
 }
 
@@ -194,21 +226,18 @@ fn visit_bounds_for_verdict(bounds: &CompactBounds, acc: &mut VerdictAcc) {
             lower,
             upper,
         } => {
-            // この区間の「中心」＝ lower.vars ∩ upper.vars（不変位置で両極に出る）∪ self_var。
-            // collapse はこの中心集合に入った変数だけが対象。
-            for tv in lower.vars.intersection(&upper.vars) {
-                acc.centers.insert(*tv);
-            }
             // self_var は共変・反変の両方向に現れる中心として扱う（lower/upper と同じ kind 集合で判定）。
             if let Some(sv) = self_var {
-                acc.centers.insert(*sv);
+                acc.pos_vars.insert(*sv);
+                acc.neg_vars.insert(*sv);
                 let lk = type_con_kinds(lower);
                 let uk = type_con_kinds(upper);
                 record_var_occurrence(&mut acc.verdicts, *sv, &lk);
                 record_var_occurrence(&mut acc.verdicts, *sv, &uk);
             }
-            visit_type_for_verdict(lower, acc);
-            visit_type_for_verdict(upper, acc);
+            // 区間の lower は正（共変）、upper は負（反変）位置。
+            visit_type_for_verdict(lower, Pol::Pos, acc);
+            visit_type_for_verdict(upper, Pol::Neg, acc);
         }
         CompactBounds::Con { args, .. } => {
             for arg in args {
@@ -245,7 +274,11 @@ pub(crate) fn sandwich_scheme(scheme: &mut CompactTypeScheme) {
             changed = true;
         }
         if !verdicts.lift.is_empty() {
-            scheme.cty = sandwich_spine(std::mem::take(&mut scheme.cty), &verdicts.lift, &mut changed);
+            scheme.cty = sandwich_spine(
+                std::mem::take(&mut scheme.cty),
+                &verdicts.lift,
+                &mut changed,
+            );
             let rec_vars = std::mem::take(&mut scheme.rec_vars);
             scheme.rec_vars = rec_vars
                 .into_iter()
