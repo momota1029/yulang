@@ -31,6 +31,10 @@ use yulang_typed_ir as typed_ir;
 type SyntaxNode = rowan::SyntaxNode<YulangLanguage>;
 type SyntaxToken = rowan::SyntaxToken<YulangLanguage>;
 
+// Cold LSP requests can all miss the dependency cache at once. Serialize only
+// that miss path so one request builds std while the rest re-check the cache.
+static LSP_DEPENDENCY_CACHE_BUILD_LOCK: Mutex<()> = Mutex::new(());
+
 struct Backend {
     client: Client,
     std_root: Option<PathBuf>,
@@ -182,32 +186,58 @@ fn lower_lsp_source_with_dependency_cache_paths(
     let cache = yulang_infer::CompiledUnitArtifactCache::from_paths(&cache_paths);
     let manifests = cacheable_dependency_manifests(&source_set);
 
-    if let Some(bundle) = read_dependency_bundle_from_cache(&cache, &manifests) {
-        let mut lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-            &source_set,
-            &bundle,
-        );
-        lowered
-            .lowered
-            .lowered
-            .state
-            .finalize_compact_results_profiled();
+    if !manifests.is_empty() {
+        if let Some(bundle) = read_dependency_bundle_from_cache(&cache, &manifests) {
+            return Ok(lower_lsp_source_with_dependency_bundle(
+                &source_set,
+                &bundle,
+            ));
+        }
+
+        let _guard = LSP_DEPENDENCY_CACHE_BUILD_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(bundle) = read_dependency_bundle_from_cache(&cache, &manifests) {
+            return Ok(lower_lsp_source_with_dependency_bundle(
+                &source_set,
+                &bundle,
+            ));
+        }
+
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results_profiled();
+        if collect_surface_diagnostics(&lowered.state).is_empty() {
+            write_dependency_unit_artifact_bundle(&source_set, &lowered.state, &cache);
+        }
         return Ok(LspLoweredDocument {
-            lowered: lowered.lowered.lowered,
-            runtime_dependencies: Some(lowered.runtime),
+            lowered,
+            runtime_dependencies: None,
         });
     }
 
-    let source_set = collect_lsp_source_set(source, base_dir, options, module_path)?;
     let mut lowered = lower_source_set(&source_set);
     lowered.state.finalize_compact_results_profiled();
-    if collect_surface_diagnostics(&lowered.state).is_empty() {
-        write_dependency_unit_artifact_bundle(&source_set, &lowered.state, &cache);
-    }
     Ok(LspLoweredDocument {
         lowered,
         runtime_dependencies: None,
     })
+}
+
+fn lower_lsp_source_with_dependency_bundle(
+    source_set: &yulang_sources::SourceSet,
+    bundle: &yulang_infer::CompiledUnitArtifactBundle,
+) -> LspLoweredDocument {
+    let mut lowered =
+        lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(source_set, bundle);
+    lowered
+        .lowered
+        .lowered
+        .state
+        .finalize_compact_results_profiled();
+    LspLoweredDocument {
+        lowered: lowered.lowered.lowered,
+        runtime_dependencies: Some(lowered.runtime),
+    }
 }
 
 fn collect_lsp_source_set(
