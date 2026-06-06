@@ -1757,16 +1757,24 @@ pub fn build_compiled_typed_artifacts(
     build_compiled_typed_artifacts_with_finalized_state(source_set, state).0
 }
 
+pub fn compiled_unit_namespace_defs_are_finalized(
+    source_set: &SourceSet,
+    state: &LowerState,
+) -> bool {
+    let artifact_defs = compiled_unit_namespace_value_defs(source_set, state);
+    let compact_schemes = state.infer.compact_schemes.borrow();
+    artifact_defs
+        .iter()
+        .all(|def| compact_schemes.contains_key(def))
+}
+
 fn build_compiled_typed_artifacts_with_finalized_state(
     source_set: &SourceSet,
     state: &LowerState,
 ) -> (Vec<CompiledUnitTypedArtifact>, LowerState) {
     let mut finalized_state = state.clone();
     let value_paths = finalized_state.ctx.collect_all_binding_paths();
-    let artifact_defs = value_paths
-        .iter()
-        .map(|(_, def)| *def)
-        .collect::<HashSet<_>>();
+    let artifact_defs = compiled_unit_namespace_value_defs(source_set, &finalized_state);
     finalized_state.finalize_compact_results_for_defs(&artifact_defs);
     finalized_state
         .infer
@@ -1817,6 +1825,28 @@ fn build_compiled_typed_artifacts_with_finalized_state(
         })
         .collect();
     (typed_artifacts, finalized_state)
+}
+
+fn compiled_unit_namespace_value_defs(
+    source_set: &SourceSet,
+    state: &LowerState,
+) -> HashSet<crate::ids::DefId> {
+    let units = source_set.compilation_units();
+    let mut defs = HashSet::new();
+    for unit in &units.units {
+        let source_modules = unit
+            .files
+            .iter()
+            .map(|&file_idx| source_set.files[file_idx].module_path.clone())
+            .collect::<Vec<_>>();
+        let module_ids = compiled_namespace_module_ids_for_source_modules(state, &source_modules);
+        for module in module_ids {
+            let node = state.ctx.modules.node(module);
+            defs.extend(node.values.values().copied());
+            defs.extend(node.operator_values.values().copied());
+        }
+    }
+    defs
 }
 
 pub fn import_std_infer_snapshot_data(
@@ -3538,16 +3568,7 @@ fn compiled_namespace_surface_for_modules(
     value_paths: &[(Path, crate::ids::DefId)],
     type_paths: &[(Path, crate::ids::DefId)],
 ) -> CompiledNamespaceSurface {
-    let root_module_ids = source_modules
-        .iter()
-        .filter_map(|module_path| module_id_for_core_path(state, module_path))
-        .collect::<Vec<_>>();
-    let mut module_ids = Vec::new();
-    for module in root_module_ids {
-        collect_namespace_surface_module_tree(state, module, &mut module_ids);
-    }
-    module_ids.sort_by_key(|module| module.0);
-    module_ids.dedup();
+    let module_ids = compiled_namespace_module_ids_for_source_modules(state, source_modules);
     let unit_paths = module_ids
         .iter()
         .map(|module| snapshot_path_segments(&state.ctx.module_path(*module)))
@@ -3589,6 +3610,23 @@ fn compiled_namespace_surface_for_modules(
         values,
         types,
     }
+}
+
+fn compiled_namespace_module_ids_for_source_modules(
+    state: &LowerState,
+    source_modules: &[yulang_typed_ir::Path],
+) -> Vec<ModuleId> {
+    let root_module_ids = source_modules
+        .iter()
+        .filter_map(|module_path| module_id_for_core_path(state, module_path))
+        .collect::<Vec<_>>();
+    let mut module_ids = Vec::new();
+    for module in root_module_ids {
+        collect_namespace_surface_module_tree(state, module, &mut module_ids);
+    }
+    module_ids.sort_by_key(|module| module.0);
+    module_ids.dedup();
+    module_ids
 }
 
 fn collect_namespace_surface_module_tree(

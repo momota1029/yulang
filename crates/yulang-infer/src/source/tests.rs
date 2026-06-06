@@ -394,6 +394,45 @@ fn semantic_bundle_from_typed_artifacts_matches_full_artifacts() {
 }
 
 #[test]
+fn compiled_unit_namespace_defs_readiness_does_not_force_std_finalize() {
+    let user_source_set = collect_inline_source_files_with_options(
+        "my one = 1\n",
+        [],
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let mut user_lowered = lower_source_set(&user_source_set);
+    user_lowered.state.finalize_compact_results();
+
+    assert!(compiled_unit_namespace_defs_are_finalized(
+        &user_source_set,
+        &user_lowered.state
+    ));
+
+    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let std_source_set = collect_virtual_source_files_with_options(
+        "(7/3 + 1.2).say\n",
+        Some(repo_root.clone()),
+        SourceOptions {
+            std_root: Some(repo_root.join("lib/std")),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        },
+    )
+    .expect("real std readiness source should collect");
+    let mut std_lowered = lower_source_set(&std_source_set);
+    std_lowered.state.finalize_compact_results();
+
+    assert!(!compiled_unit_namespace_defs_are_finalized(
+        &std_source_set,
+        &std_lowered.state
+    ));
+}
+
+#[test]
 fn std_snapshot_data_validation_rejects_bad_symbol_refs() {
     let source_set = collect_inline_source_files_with_options(
         "use std::prelude::*\none",

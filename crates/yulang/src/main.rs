@@ -40,8 +40,9 @@ use yulang_infer::{
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics,
-    collect_surface_type_errors as collect_infer_surface_type_errors, export_core_program,
-    lower_source_set, lower_source_set_profiled,
+    collect_surface_type_errors as collect_infer_surface_type_errors,
+    compiled_unit_namespace_defs_are_finalized, export_core_program, lower_source_set,
+    lower_source_set_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile,
     lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled,
@@ -3169,7 +3170,9 @@ fn lower_infer_source_set_with_cache(
     lowered.lowered.state.finalize_compact_results_profiled();
     pipeline_timings.std_artifact_prepare_finalize =
         InferPipelineTimings::elapsed(prepare_finalize_start);
-    if !options.no_cache {
+    if !options.no_cache
+        && compiled_unit_namespace_defs_are_finalized(source_set, &lowered.lowered.state)
+    {
         write_dependency_unit_artifact_bundle(
             source_set,
             &lowered.lowered.state,
