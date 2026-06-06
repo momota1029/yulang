@@ -3611,7 +3611,7 @@ fn lowers_std_var_ref_inside_nested_act_module() {
             .find(|(name, _)| name == "make_ref")
             .expect("make_ref should be rendered");
 
-        assert_eq!(make_ref.1, "unit -> std::var::ref<[std::var::var<α>;], α>");
+        assert_eq!(make_ref.1, "unit -> std::var::ref<std::var::var<β> | α, β>");
     });
 }
 
@@ -3638,7 +3638,7 @@ fn lowers_std_var_ref_through_top_level_alias() {
                 .find(|(name, _)| name == "make_ref")
                 .expect("make_ref should be rendered")
                 .1,
-            "unit -> std::var::ref<[std::var::var<α>;], α>",
+            "unit -> std::var::ref<std::var::var<β> | α, β>",
         );
         assert_eq!(
             rendered
@@ -3646,7 +3646,7 @@ fn lowers_std_var_ref_through_top_level_alias() {
                 .find(|(name, _)| name == "make_ref2")
                 .expect("make_ref2 should be rendered")
                 .1,
-            "unit -> std::var::ref<[std::var::var<α>;], α>",
+            "unit -> std::var::ref<std::var::var<β> | α, β>",
         );
     });
 }

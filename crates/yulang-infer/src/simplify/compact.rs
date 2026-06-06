@@ -2527,7 +2527,6 @@ pub(crate) fn expose_negative_row_tail_vars(scheme: &mut CompactTypeScheme) {
 fn normalize_compact_bounds_rows(bounds: &mut CompactBounds) {
     normalize_compact_type_rows(bounds.lower_mut(), true);
     normalize_compact_type_rows(bounds.upper_mut(), false);
-    normalize_exact_effect_row_item_interval(bounds);
 }
 
 fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
@@ -2584,51 +2583,6 @@ fn normalize_compact_type_rows(ty: &mut CompactType, positive: bool) {
         absorb_tail_rows_already_present_in_outer_row(row);
         hoist_tail_rows_already_present_in_outer_row(row, positive);
     }
-}
-
-fn normalize_exact_effect_row_item_interval(bounds: &mut CompactBounds) {
-    let CompactBounds::Interval { lower, upper, .. } = bounds else {
-        return;
-    };
-    normalize_exact_effect_row_item_side(lower, upper, true);
-    normalize_exact_effect_row_item_side(upper, lower, false);
-}
-
-fn normalize_exact_effect_row_item_side(
-    item_side: &mut CompactType,
-    row_side: &CompactType,
-    positive: bool,
-) {
-    if effect_row_item_shape(item_side).is_none() {
-        return;
-    }
-    let item = item_side.clone();
-    let Some(row) = single_closed_effect_row(row_side) else {
-        return;
-    };
-    if row.items.len() != 1 || row.items[0] != item {
-        return;
-    }
-    // An exact effect interval can arrive as `atom <: [atom;]` after alias exposure. Keep the
-    // row structure on both sides so invariant effect arguments render as the centered row.
-    *item_side = CompactType::from_row_with_polarity(positive, vec![item], CompactType::default());
-}
-
-fn single_closed_effect_row(ty: &CompactType) -> Option<&CompactRow> {
-    if !ty.vars.is_empty()
-        || !ty.prims.is_empty()
-        || !ty.cons.is_empty()
-        || !ty.funs.is_empty()
-        || !ty.records.is_empty()
-        || !ty.record_spreads.is_empty()
-        || !ty.variants.is_empty()
-        || !ty.tuples.is_empty()
-        || ty.rows.len() != 1
-    {
-        return None;
-    }
-    let row = &ty.rows[0];
-    is_empty_compact_type(&row.tail).then_some(row)
 }
 
 fn absorb_tail_rows_already_present_in_outer_row(row: &mut CompactRow) {
@@ -4328,33 +4282,6 @@ mod tests {
         let row = &scheme.cty.lower().rows[0];
         assert_eq!(row.tail.vars, std::collections::HashSet::from([tail]));
         assert!(row.tail.rows.is_empty());
-    }
-
-    #[test]
-    fn normalize_compact_scheme_rows_promotes_exact_effect_item_interval_to_row() {
-        let io = CompactType {
-            prims: std::collections::HashSet::from([prim_path("io")]),
-            ..CompactType::default()
-        };
-        let mut scheme = CompactTypeScheme {
-            cty: CompactBounds::Interval {
-                self_var: None,
-                lower: io.clone(),
-                upper: CompactType {
-                    rows: vec![CompactRow {
-                        items: vec![io],
-                        tail: Box::new(CompactType::default()),
-                    }],
-                    ..CompactType::default()
-                },
-            },
-            rec_vars: Default::default(),
-        };
-
-        normalize_compact_scheme_rows(&mut scheme);
-
-        assert_eq!(scheme.cty.lower().rows, scheme.cty.upper().rows);
-        assert!(scheme.cty.lower().prims.is_empty());
     }
 
     #[test]

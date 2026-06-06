@@ -281,11 +281,21 @@ fn lower_invariant_sig_arg_ids(
         SigType::Fun {
             arg, ret_eff, ret, ..
         } => lower_invariant_function_sig_ids(state, arg, ret_eff.as_ref(), ret, vars),
+        SigType::Row { row, .. } => lower_invariant_effect_row_sig_ids(state, row, vars),
         _ => (
             lower_pure_sig_pos_id(state, sig, vars),
             lower_pure_sig_neg_id(state, sig, vars),
         ),
     }
+}
+
+fn lower_invariant_effect_row_sig_ids(
+    state: &mut LowerState,
+    row: &SigRow,
+    vars: &mut HashMap<String, TypeVar>,
+) -> (PosId, NegId) {
+    let (pos, neg, _, _) = lower_function_sig_ret_eff(state, Some(row), vars, row_span(row));
+    (pos, neg)
 }
 
 fn lower_invariant_function_sig_ids(
