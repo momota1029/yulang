@@ -30,12 +30,24 @@ use representative::lower_representatives_for_subst;
 pub struct CoOccurrences {
     pub positive: HashMap<TypeVar, HashSet<AlongItem>>,
     pub negative: HashMap<TypeVar, HashSet<AlongItem>>,
+    pub allowed_positive_unifications: HashSet<(TypeVar, TypeVar)>,
+    pub allowed_negative_unifications: HashSet<(TypeVar, TypeVar)>,
+    pub blocked_positive_unifications: HashSet<(TypeVar, TypeVar)>,
+    pub blocked_negative_unifications: HashSet<(TypeVar, TypeVar)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AlongItem {
     Var(TypeVar),
     Exact(ExactKey),
+}
+
+fn var_pair(lhs: TypeVar, rhs: TypeVar) -> (TypeVar, TypeVar) {
+    if lhs.0 <= rhs.0 {
+        (lhs, rhs)
+    } else {
+        (rhs, lhs)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -334,14 +346,30 @@ fn apply_indistinguishable_unification(
 ) {
     let all_var_set = all_vars.iter().copied().collect::<HashSet<_>>();
     for &alpha in all_vars {
-        merge_mutual_co_occurrence_vars(alpha, &analysis.positive, &all_var_set, subst);
-        merge_mutual_co_occurrence_vars(alpha, &analysis.negative, &all_var_set, subst);
+        merge_mutual_co_occurrence_vars(
+            alpha,
+            &analysis.positive,
+            &analysis.allowed_positive_unifications,
+            &analysis.blocked_positive_unifications,
+            &all_var_set,
+            subst,
+        );
+        merge_mutual_co_occurrence_vars(
+            alpha,
+            &analysis.negative,
+            &analysis.allowed_negative_unifications,
+            &analysis.blocked_negative_unifications,
+            &all_var_set,
+            subst,
+        );
     }
 }
 
 fn merge_mutual_co_occurrence_vars(
     alpha: TypeVar,
     occurrences: &HashMap<TypeVar, HashSet<AlongItem>>,
+    allowed: &HashSet<(TypeVar, TypeVar)>,
+    blocked: &HashSet<(TypeVar, TypeVar)>,
     all_vars: &HashSet<TypeVar>,
     subst: &mut HashMap<TypeVar, Option<TypeVar>>,
 ) {
@@ -353,6 +381,10 @@ fn merge_mutual_co_occurrence_vars(
             continue;
         };
         if beta.0 >= alpha.0 || !all_vars.contains(beta) {
+            continue;
+        }
+        let pair = var_pair(alpha, *beta);
+        if blocked.contains(&pair) && !allowed.contains(&pair) {
             continue;
         }
         if matches!(subst.get(&alpha), Some(None)) || matches!(subst.get(beta), Some(None)) {
@@ -378,7 +410,7 @@ fn promote_role_output_center_substitutions(
         subst.remove(center);
     }
     for (tv, center) in replacements {
-        if tv == center || protected.contains(&tv) || !subst.contains_key(&tv) {
+        if tv == center || protected.contains(&tv) {
             continue;
         }
         subst.insert(tv, Some(center));
@@ -452,9 +484,19 @@ fn apply_sandwich_flattening(
         let (Some(pos), Some(neg)) = (analysis.positive.get(&v), analysis.negative.get(&v)) else {
             continue;
         };
-        let sandwich = pos
-            .iter()
-            .find(|item| **item != AlongItem::Var(v) && neg.contains(item));
+        let sandwich = pos.iter().find(|item| {
+            if **item == AlongItem::Var(v) || !neg.contains(item) {
+                return false;
+            }
+            let AlongItem::Var(w) = item else {
+                return true;
+            };
+            let pair = var_pair(v, *w);
+            (!analysis.blocked_positive_unifications.contains(&pair)
+                || analysis.allowed_positive_unifications.contains(&pair))
+                && (!analysis.blocked_negative_unifications.contains(&pair)
+                    || analysis.allowed_negative_unifications.contains(&pair))
+        });
         if let Some(item) = sandwich {
             match item {
                 AlongItem::Var(w) => {
@@ -1114,6 +1156,46 @@ mod tests {
         );
         assert!(polar.positive.contains(&lower_arg));
         assert!(polar.negative.contains(&upper_arg));
+    }
+
+    #[test]
+    fn coalesce_by_co_occurrence_keeps_centered_input_interval_alias_distinct() {
+        let center = fresh_type_var();
+        let captured_in_ref = fresh_type_var();
+        let captured_in_callback = fresh_type_var();
+        let value = fresh_type_var();
+        let scheme = ref_update_like_curried_effect_scheme_with_split_capture(
+            center,
+            captured_in_ref,
+            captured_in_callback,
+            value,
+        );
+
+        let coalesced = coalesce_by_co_occurrence(&scheme);
+        let fun = &coalesced.cty.lower.funs[0];
+        let effect_arg = &fun.arg.cons[0].args[0];
+        assert_eq!(effect_arg.lower.vars, HashSet::from([center]));
+        assert!(effect_arg.upper.vars.contains(&center));
+
+        let captured = effect_arg
+            .upper
+            .vars
+            .difference(&HashSet::from([center]))
+            .copied()
+            .collect::<HashSet<_>>();
+        assert_eq!(captured.len(), 1);
+
+        let update_fun = &fun.ret.funs[0];
+        let callback_fun = &update_fun.arg.funs[0];
+        assert_eq!(callback_fun.ret_eff.vars, captured);
+        assert_eq!(
+            update_fun.ret_eff.vars,
+            captured
+                .iter()
+                .copied()
+                .chain([center])
+                .collect::<HashSet<_>>()
+        );
     }
 
     #[test]
@@ -2396,6 +2478,65 @@ mod tests {
                                     vars: HashSet::from([residual, captured]),
                                     ..CompactType::default()
                                 },
+                                ret: CompactType::default(),
+                            }],
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        }
+    }
+
+    fn ref_update_like_curried_effect_scheme_with_split_capture(
+        residual: TypeVar,
+        captured_in_ref: TypeVar,
+        captured_in_callback: TypeVar,
+        value: TypeVar,
+    ) -> CompactTypeScheme {
+        CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType {
+                            cons: vec![CompactCon {
+                                path: Path {
+                                    segments: vec![Name("ref".to_string())],
+                                },
+                                args: vec![
+                                    CompactBounds {
+                                        self_var: None,
+                                        lower: vars_type([residual]),
+                                        upper: vars_type([residual, captured_in_ref]),
+                                    },
+                                    var_bounds(value),
+                                ],
+                            }],
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: CompactType {
+                            funs: vec![crate::simplify::compact::CompactFun {
+                                arg: CompactType {
+                                    funs: vec![crate::simplify::compact::CompactFun {
+                                        arg: var_type(value),
+                                        arg_eff: CompactType::default(),
+                                        ret_eff: var_type(captured_in_callback),
+                                        ret: var_type(value),
+                                    }],
+                                    ..CompactType::default()
+                                },
+                                arg_eff: CompactType::default(),
+                                ret_eff: vars_type([
+                                    residual,
+                                    captured_in_ref,
+                                    captured_in_callback,
+                                ]),
                                 ret: CompactType::default(),
                             }],
                             ..CompactType::default()

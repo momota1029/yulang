@@ -7,7 +7,7 @@ use crate::symbols::Path;
 use super::{
     AlongItem, CoOccurrences, CompactBounds, CompactCon, CompactFun, CompactRecord,
     CompactRoleConstraint, CompactRow, CompactType, CompactTypeScheme, CompactVariant, ExactKey,
-    ExactKeyKind, exact_key_from_hash,
+    ExactKeyKind, exact_key_from_hash, var_pair,
 };
 
 pub(super) fn analyze_co_occurrences_with_role_constraints(
@@ -70,11 +70,14 @@ fn visit_bounds(
     record_vars: Option<&HashSet<TypeVar>>,
 ) {
     let centers = center_vars(bounds);
+    let (positive_blocked, negative_blocked) =
+        record_centered_input_interval_blocks(bounds, &centers, analysis);
     visit_compact_type_with_extra_vars(
         scheme,
         &bounds.lower,
         true,
         &centers,
+        &positive_blocked,
         expanded,
         analysis,
         exact_keys,
@@ -85,11 +88,53 @@ fn visit_bounds(
         &bounds.upper,
         false,
         &centers,
+        &negative_blocked,
         expanded,
         analysis,
         exact_keys,
         record_vars,
     );
+}
+
+fn record_centered_input_interval_blocks(
+    bounds: &CompactBounds,
+    centers: &HashSet<TypeVar>,
+    analysis: &mut CoOccurrences,
+) -> (HashSet<(TypeVar, TypeVar)>, HashSet<(TypeVar, TypeVar)>) {
+    if centers.is_empty() {
+        return (HashSet::new(), HashSet::new());
+    }
+
+    let lower_only = bounds
+        .lower
+        .vars
+        .difference(centers)
+        .copied()
+        .collect::<Vec<_>>();
+    let upper_only = bounds
+        .upper
+        .vars
+        .difference(centers)
+        .copied()
+        .collect::<Vec<_>>();
+
+    let mut positive_blocked = HashSet::new();
+    let mut negative_blocked = HashSet::new();
+    for &center in centers {
+        for &lower in &lower_only {
+            positive_blocked.insert(var_pair(center, lower));
+        }
+        for &upper in &upper_only {
+            negative_blocked.insert(var_pair(center, upper));
+        }
+    }
+    analysis
+        .blocked_positive_unifications
+        .extend(positive_blocked.iter().copied());
+    analysis
+        .blocked_negative_unifications
+        .extend(negative_blocked.iter().copied());
+    (positive_blocked, negative_blocked)
 }
 
 fn visit_compact_type(
@@ -102,6 +147,7 @@ fn visit_compact_type(
     record_vars: Option<&HashSet<TypeVar>>,
 ) {
     let recordable = recordable_type_vars(ty.vars.iter().copied(), record_vars);
+    record_allowed_unification_pairs(&recordable, positive, &HashSet::new(), analysis);
     let group = if recordable.is_empty() {
         None
     } else {
@@ -136,12 +182,14 @@ fn visit_compact_type_with_extra_vars(
     ty: &CompactType,
     positive: bool,
     extra_vars: &HashSet<TypeVar>,
+    blocked_pairs: &HashSet<(TypeVar, TypeVar)>,
     expanded: &mut HashSet<(TypeVar, bool)>,
     analysis: &mut CoOccurrences,
     exact_keys: &mut ExactKeyCache,
     record_vars: Option<&HashSet<TypeVar>>,
 ) {
     let recordable = recordable_type_vars(ty.vars.iter().chain(extra_vars).copied(), record_vars);
+    record_allowed_unification_pairs(&recordable, positive, blocked_pairs, analysis);
     let group = if recordable.is_empty() {
         None
     } else {
@@ -171,6 +219,27 @@ fn visit_compact_type_with_extra_vars(
         exact_keys,
         record_vars,
     );
+}
+
+fn record_allowed_unification_pairs(
+    vars: &[TypeVar],
+    positive: bool,
+    blocked_pairs: &HashSet<(TypeVar, TypeVar)>,
+    analysis: &mut CoOccurrences,
+) {
+    let target = if positive {
+        &mut analysis.allowed_positive_unifications
+    } else {
+        &mut analysis.allowed_negative_unifications
+    };
+    for (index, &lhs) in vars.iter().enumerate() {
+        for &rhs in &vars[index + 1..] {
+            let pair = var_pair(lhs, rhs);
+            if !blocked_pairs.contains(&pair) {
+                target.insert(pair);
+            }
+        }
+    }
 }
 
 pub(super) fn visit_compact_type_children(

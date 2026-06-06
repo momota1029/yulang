@@ -275,7 +275,7 @@ fn bind_synthetic_capture(
 
 fn record_expr(state: &mut LowerState, fields: Vec<(Name, TypedExpr)>) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     let record_fields = fields
         .iter()
         .map(|(name, expr)| RecordField::required(name.clone(), Pos::Var(expr.tv)))
@@ -308,7 +308,7 @@ fn block_expr_from_parts(
     tail: TypedExpr,
 ) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     for stmt in &stmts {
         match stmt {
             TypedStmt::Let(_, expr) | TypedStmt::Expr(expr) => {

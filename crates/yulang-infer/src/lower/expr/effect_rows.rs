@@ -18,7 +18,9 @@ pub(crate) fn neg_id_is_pure_row(
                 return false;
             }
             let lowers = state.infer.lower_refs_of(tv);
-            (state.exact_pure_effect_tvs.contains(&tv) || !lowers.is_empty())
+            (state.exact_pure_effect_tvs.contains(&tv)
+                || state.infer.effect_var_is_exact_pure(tv)
+                || !lowers.is_empty())
                 && lowers
                     .iter()
                     .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen.clone()))
@@ -46,7 +48,9 @@ pub(crate) fn pos_id_is_empty_row(
                 return false;
             }
             let lowers = state.infer.lower_refs_of(tv);
-            (state.exact_pure_effect_tvs.contains(&tv) || !lowers.is_empty())
+            (state.exact_pure_effect_tvs.contains(&tv)
+                || state.infer.effect_var_is_exact_pure(tv)
+                || !lowers.is_empty())
                 && lowers
                     .iter()
                     .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen.clone()))

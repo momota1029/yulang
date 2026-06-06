@@ -321,6 +321,7 @@ pub(crate) fn coalesce_function_effect_residual(
         promote_adjacent_effect_residual_vars(arg_eff, &ret_eff.vars);
         return;
     }
+
     let cyclic_tail_surface_count = tail_vars
         .iter()
         .filter(|tail| surface_vars.contains(tail))
@@ -1837,7 +1838,13 @@ impl<'a> CompactContext<'a> {
         if self.effect_var_has_empty_upper_bound(tv) && is_empty_effect_row_compact_type(&compact) {
             CompactType::default()
         } else if is_empty_compact_type(&compact) {
-            CompactType::from_var(tv)
+            if self.infer.effect_var_defaults_to_empty(tv) {
+                CompactType::default()
+            } else {
+                CompactType::from_var(tv)
+            }
+        } else if self.infer.effect_var_defaults_to_empty(tv) {
+            compact
         } else {
             merge_compact_types(true, CompactType::from_var(tv), compact)
         }
@@ -1871,7 +1878,7 @@ impl<'a> CompactContext<'a> {
         seen: &mut TailSeen,
     ) -> CompactType {
         match self.infer.arena.get_pos(id) {
-            Pos::Var(tv) | Pos::Raw(tv) => self.compact_effect_row_bound_var(tv),
+            Pos::Var(tv) | Pos::Raw(tv) => self.compact_pos_effect_row_bound_var(tv, parents, seen),
             Pos::Row(items, tail) => self.compact_pos_effect_row(items, tail, parents, seen),
             Pos::Union(lhs, rhs) => {
                 let lhs = self.compact_pos_effect_row_bound_id(lhs, parents, seen);
@@ -1928,6 +1935,11 @@ impl<'a> CompactContext<'a> {
         parents: &ParentStack,
         seen: &mut TailSeen,
     ) -> CompactType {
+        if self.infer.effect_var_is_latent_function_result(tv)
+            && !self.effect_var_has_empty_upper_bound(tv)
+        {
+            return CompactType::from_var(tv);
+        }
         if parents.contains(&tv) {
             return CompactType::from_var(tv);
         }
@@ -1984,7 +1996,7 @@ impl<'a> CompactContext<'a> {
         seen: &mut TailSeen,
     ) -> CompactType {
         match self.infer.arena.get_neg(id) {
-            Neg::Var(tv) => self.compact_effect_row_bound_var(tv),
+            Neg::Var(tv) => self.compact_neg_effect_row_bound_var(tv, parents, seen),
             Neg::Row(items, tail) => self.compact_neg_effect_row(items, tail, parents, seen),
             Neg::Intersection(lhs, rhs) => {
                 let lhs = self.compact_neg_effect_row_bound_id(lhs, parents, seen);
@@ -2012,7 +2024,29 @@ impl<'a> CompactContext<'a> {
         )
     }
 
-    fn compact_effect_row_bound_var(&self, tv: TypeVar) -> CompactType {
+    fn compact_pos_effect_row_bound_var(
+        &mut self,
+        tv: TypeVar,
+        parents: &ParentStack,
+        seen: &mut TailSeen,
+    ) -> CompactType {
+        if self.effect_var_has_empty_upper_bound(tv) {
+            CompactType::default()
+        } else if self.infer.effect_var_defaults_to_empty(tv)
+            || self.infer.effect_var_is_latent_function_result(tv)
+        {
+            self.compact_pos_effect_row_var(tv, parents, seen)
+        } else {
+            CompactType::from_var(tv)
+        }
+    }
+
+    fn compact_neg_effect_row_bound_var(
+        &mut self,
+        tv: TypeVar,
+        _parents: &ParentStack,
+        _seen: &mut TailSeen,
+    ) -> CompactType {
         if self.effect_var_has_empty_upper_bound(tv) {
             CompactType::default()
         } else {
@@ -3131,7 +3165,7 @@ mod tests {
         compact_type_var, is_empty_effect_row_compact_type, normalize_compact_scheme_rows,
     };
     use crate::fresh_type_var;
-    use crate::solve::{EffectSubtractability, Infer};
+    use crate::solve::{EffectSubtractability, EffectVarKind, Infer};
     use crate::symbols::{Name, Path};
     use crate::types::{EffectAtom, Neg, Pos};
 
@@ -3696,6 +3730,128 @@ mod tests {
         let fun = &compact.cty.lower.funs[0];
         assert!(is_empty_effect_row_compact_type(&fun.ret_eff));
         assert!(fun.ret_eff.vars.is_empty());
+    }
+
+    #[test]
+    fn compact_type_var_drops_unobserved_generated_output_effect_var() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let effect = fresh_type_var();
+        for current in [tv, effect] {
+            infer.register_level(current, 0);
+        }
+        infer.register_effect_var_kind(effect, EffectVarKind::GeneratedExecution);
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.arena.top,
+                arg_eff: infer.arena.top,
+                ret_eff: infer.alloc_pos(Pos::Var(effect)),
+                ret: infer.alloc_pos(Pos::Tuple(Vec::new())),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let fun = &compact.cty.lower.funs[0];
+        assert!(is_empty_effect_row_compact_type(&fun.ret_eff));
+        assert!(fun.ret_eff.vars.is_empty());
+    }
+
+    #[test]
+    fn compact_type_var_keeps_observed_generated_output_effect_evidence() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let effect = fresh_type_var();
+        for current in [tv, effect] {
+            infer.register_level(current, 0);
+        }
+        infer.register_effect_var_kind(effect, EffectVarKind::GeneratedExecution);
+
+        let io_path = prim_path("io");
+        infer.add_lower(
+            effect,
+            Pos::Atom(EffectAtom {
+                path: io_path.clone(),
+                args: Vec::new(),
+            }),
+        );
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.arena.top,
+                arg_eff: infer.arena.top,
+                ret_eff: infer.alloc_pos(Pos::Var(effect)),
+                ret: infer.alloc_pos(Pos::Tuple(Vec::new())),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let fun = &compact.cty.lower.funs[0];
+        assert!(compact_type_has_prim(&fun.ret_eff, &io_path));
+        assert!(!fun.ret_eff.vars.contains(&effect));
+    }
+
+    #[test]
+    fn compact_type_var_keeps_generated_effect_in_negative_function_requirement() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let effect = fresh_type_var();
+        for current in [tv, effect] {
+            infer.register_level(current, 0);
+        }
+        infer.register_effect_var_kind(effect, EffectVarKind::GeneratedExecution);
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.alloc_neg(Neg::Fun {
+                    arg: infer.arena.bot,
+                    arg_eff: infer.arena.bot,
+                    ret_eff: infer.alloc_neg(Neg::Var(effect)),
+                    ret: infer.arena.top,
+                }),
+                arg_eff: infer.arena.top,
+                ret_eff: infer.arena.bot,
+                ret: infer.alloc_pos(Pos::Tuple(Vec::new())),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let callback = &compact.cty.lower.funs[0].arg.funs[0];
+        assert!(callback.ret_eff.vars.contains(&effect));
+    }
+
+    #[test]
+    fn compact_type_var_expands_latent_function_result_effect_in_positive_flow() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let effect = fresh_type_var();
+        for current in [tv, effect] {
+            infer.register_level(current, 0);
+        }
+        infer.register_effect_var_kind(effect, EffectVarKind::LatentFunctionResult);
+
+        let io_path = prim_path("io");
+        infer.add_lower(
+            effect,
+            Pos::Atom(EffectAtom {
+                path: io_path.clone(),
+                args: Vec::new(),
+            }),
+        );
+        infer.add_lower(
+            tv,
+            Pos::Fun {
+                arg: infer.arena.top,
+                arg_eff: infer.arena.top,
+                ret_eff: infer.alloc_pos(Pos::Var(effect)),
+                ret: infer.alloc_pos(Pos::Tuple(Vec::new())),
+            },
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        let fun = &compact.cty.lower.funs[0];
+        assert!(fun.ret_eff.vars.contains(&effect));
+        assert!(compact_type_has_prim(&fun.ret_eff, &io_path));
     }
 
     #[test]

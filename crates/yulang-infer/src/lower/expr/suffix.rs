@@ -98,7 +98,7 @@ pub(super) fn apply_synthetic_field_selection(
     node: &SyntaxNode,
 ) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     push_deferred_selection(
         state,
         acc,
@@ -113,7 +113,7 @@ pub(super) fn apply_synthetic_field_selection(
 
 fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     let field = suffix
         .children_with_tokens()
         .filter_map(|it| it.into_token())
@@ -363,7 +363,7 @@ fn apply_index_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
     let Some(idx_node) = idx_node else { return acc };
     let idx = lower_expr(state, &idx_node);
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     let select = push_deferred_selection(
         state,
         acc,
@@ -470,7 +470,7 @@ fn selection_receiver_eff(state: &mut LowerState, recv: &TypedExpr) -> crate::id
     if source_effs.is_empty() {
         return recv.eff;
     }
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     state.infer.constrain(Pos::Var(recv.eff), Neg::Var(eff));
     for source_eff in source_effs {
         state.infer.constrain(Pos::Var(source_eff), Neg::Var(eff));

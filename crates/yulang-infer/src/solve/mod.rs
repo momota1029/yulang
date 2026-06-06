@@ -108,6 +108,13 @@ pub enum EffectSubtractability {
     Set(Vec<EffectAtom>),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EffectVarKind {
+    ExactPure,
+    GeneratedExecution,
+    LatentFunctionResult,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct EffectSubtractId(pub u32);
 
@@ -381,6 +388,7 @@ pub struct Infer {
     pub handler_matches: RefCell<Vec<HandlerMatchEdge>>,
     pub handler_match_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[usize; 2]>>>,
     pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
+    pub effect_var_kinds: RefCell<FxHashMap<TypeVar, EffectVarKind>>,
     pub effect_subtracts: RefCell<FxHashMap<TypeVar, Vec<EffectSubtractFact>>>,
     pub effect_non_subtracts: RefCell<FxHashMap<TypeVar, FxHashSet<EffectSubtractId>>>,
     pub effect_subtract_call_non_subtract_ids: RefCell<FxHashSet<EffectSubtractId>>,
@@ -449,6 +457,7 @@ impl Infer {
             handler_matches: RefCell::new(Vec::new()),
             handler_match_dependents: RefCell::new(FxHashMap::default()),
             effect_boundary_keeps: RefCell::new(FxHashMap::default()),
+            effect_var_kinds: RefCell::new(FxHashMap::default()),
             effect_subtracts: RefCell::new(FxHashMap::default()),
             effect_non_subtracts: RefCell::new(FxHashMap::default()),
             effect_subtract_call_non_subtract_ids: RefCell::new(FxHashSet::default()),
@@ -522,6 +531,45 @@ impl Infer {
 
     pub fn register_origin(&self, tv: TypeVar, origin: TypeOrigin) {
         self.origins.borrow_mut().insert(tv, origin);
+    }
+
+    pub fn register_effect_var_kind(&self, tv: TypeVar, kind: EffectVarKind) {
+        let mut kinds = self.effect_var_kinds.borrow_mut();
+        match (kinds.get(&tv).copied(), kind) {
+            (Some(EffectVarKind::ExactPure), _) => {}
+            (_, EffectVarKind::ExactPure) => {
+                kinds.insert(tv, EffectVarKind::ExactPure);
+            }
+            (
+                None,
+                kind @ (EffectVarKind::GeneratedExecution | EffectVarKind::LatentFunctionResult),
+            ) => {
+                kinds.insert(tv, kind);
+            }
+            (Some(EffectVarKind::GeneratedExecution), EffectVarKind::GeneratedExecution) => {}
+            (Some(EffectVarKind::GeneratedExecution), EffectVarKind::LatentFunctionResult)
+            | (Some(EffectVarKind::LatentFunctionResult), EffectVarKind::GeneratedExecution)
+            | (Some(EffectVarKind::LatentFunctionResult), EffectVarKind::LatentFunctionResult) => {}
+        }
+    }
+
+    pub fn effect_var_kind(&self, tv: TypeVar) -> Option<EffectVarKind> {
+        self.effect_var_kinds.borrow().get(&tv).copied()
+    }
+
+    pub fn effect_var_is_exact_pure(&self, tv: TypeVar) -> bool {
+        self.effect_var_kind(tv) == Some(EffectVarKind::ExactPure)
+    }
+
+    pub fn effect_var_defaults_to_empty(&self, tv: TypeVar) -> bool {
+        matches!(
+            self.effect_var_kind(tv),
+            Some(EffectVarKind::ExactPure | EffectVarKind::GeneratedExecution)
+        )
+    }
+
+    pub fn effect_var_is_latent_function_result(&self, tv: TypeVar) -> bool {
+        self.effect_var_kind(tv) == Some(EffectVarKind::LatentFunctionResult)
     }
 
     pub fn origin_of(&self, tv: TypeVar) -> Option<TypeOrigin> {

@@ -12,7 +12,7 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
-use crate::solve::{CastMethodResolution, EffectSubtractId, Infer};
+use crate::solve::{CastMethodResolution, EffectSubtractId, EffectVarKind, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
@@ -411,7 +411,7 @@ impl LowerState {
     }
 
     pub fn fresh_computation_ty(&self) -> crate::ast::expr::ComputationTy {
-        crate::ast::expr::ComputationTy::new(self.fresh_tv(), self.fresh_tv())
+        crate::ast::expr::ComputationTy::new(self.fresh_tv(), self.fresh_generated_effect_tv())
     }
 
     pub fn fresh_exact_pure_computation_ty(&mut self) -> crate::ast::expr::ComputationTy {
@@ -1108,12 +1108,28 @@ impl LowerState {
         tv
     }
 
+    pub fn fresh_generated_effect_tv(&self) -> TypeVar {
+        let tv = self.fresh_tv();
+        self.infer
+            .register_effect_var_kind(tv, EffectVarKind::GeneratedExecution);
+        tv
+    }
+
+    pub fn fresh_latent_function_result_effect_tv(&self) -> TypeVar {
+        let tv = self.fresh_tv();
+        self.infer
+            .register_effect_var_kind(tv, EffectVarKind::LatentFunctionResult);
+        tv
+    }
+
     pub fn fresh_exact_pure_eff_tv(&mut self) -> TypeVar {
         let tv = self.fresh_tv();
         // 純粋な effect 変数も def 型変数と同じく MAX で建て、extrude に本体レベルへ
         // 揃えさせる。current_level で建てると level 0 の型変数が生まれ、cooccur の
         // 量化候補(level >= boundary)をすり抜けて型に残ってしまう。
         self.infer.register_level(tv, u32::MAX);
+        self.infer
+            .register_effect_var_kind(tv, EffectVarKind::ExactPure);
         self.exact_pure_effect_tvs.insert(tv);
         self.infer.constrain(self.infer.arena.bot, Neg::Var(tv));
         self.infer.add_upper(tv, self.infer.arena.empty_neg_row);

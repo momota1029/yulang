@@ -112,6 +112,7 @@ fn lower_enum_variant(
         crate::scheme::freeze_pos_scheme(&state.infer, state.infer.alloc_pos(enum_pos.clone()))
     };
 
+    state.enter_let();
     let body = if !payload_sigs.is_empty() {
         let mut pos_scope = type_scope.clone();
         let mut neg_scope = type_scope.clone();
@@ -145,10 +146,14 @@ fn lower_enum_variant(
         state.infer.constrain(Pos::Var(ctor_tv), enum_neg.clone());
         synthetic_enum_nullary_constructor_body(state, &variant_name, enum_pos, enum_neg)
     };
+    state.leave_let();
 
     state.insert_principal_body(ctor_def, body.clone());
     state.infer.constrain(Pos::Var(body.tv), Neg::Var(ctor_tv));
     state.infer.constrain(Pos::Var(ctor_tv), Neg::Var(body.tv));
+    state
+        .infer
+        .store_compact_scheme(ctor_def, frozen_ctor_scheme.compact.clone());
     state
         .infer
         .store_frozen_scheme(ctor_def, frozen_ctor_scheme);

@@ -186,7 +186,7 @@ fn preconstrain_recursive_case_like_shape(
         return;
     };
     let ret_tv = state.fresh_tv();
-    let ret_eff = state.fresh_tv();
+    let ret_eff = state.fresh_generated_effect_tv();
     let fun_tv = state.fresh_tv();
     state.infer.constrain(
         state.pos_fun(
@@ -230,7 +230,7 @@ fn block_expr_from_parts(
     tail: TypedExpr,
 ) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     for stmt in &stmts {
         match stmt {
             TypedStmt::Let(_, expr) | TypedStmt::Expr(expr) => {
@@ -260,7 +260,7 @@ fn lower_case_with_scrutinee(
     scrutinee: TypedExpr,
 ) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
 
     let scrutinee_pattern = scrutinee_case_pattern(state, &scrutinee);
     state
@@ -456,7 +456,7 @@ fn case_payload_pattern_covers_all(pat: &TypedPat) -> bool {
 
 pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
 
     let mut scrutinee = None;
     let mut arms = Vec::new();
@@ -603,7 +603,7 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
 
 fn discard_if_branch_value(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     let unit = unit_expr(state);
     state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
     state.infer.constrain(Pos::Var(unit.tv), Neg::Var(tv));
@@ -691,7 +691,9 @@ fn eff_tv_is_exact_pure_row(state: &LowerState, tv: TypeVar) -> bool {
     seen.insert(tv);
     let lowers = state.infer.lower_refs_of(tv);
     let uppers = state.infer.upper_refs_of(tv);
-    (state.exact_pure_effect_tvs.contains(&tv) || !lowers.is_empty())
+    (state.exact_pure_effect_tvs.contains(&tv)
+        || state.infer.effect_var_is_exact_pure(tv)
+        || !lowers.is_empty())
         && lowers
             .iter()
             .all(|lower| pos_id_is_empty_row(state, *lower, &mut seen))

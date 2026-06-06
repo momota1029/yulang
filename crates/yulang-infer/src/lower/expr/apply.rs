@@ -109,11 +109,15 @@ pub(crate) fn make_app_with_cause(
             kind: TypeOriginKind::ApplicationResult,
             label: None,
         }),
-        state.fresh_tv(),
+        state.fresh_generated_effect_tv(),
     );
     let expected_callee_tv = state.fresh_tv();
     let expected_arg_tv = state.fresh_tv();
-    let call_eff = state.fresh_tv();
+    let call_eff = if callee_uses_latent_result_effect(state, &func) {
+        state.fresh_latent_function_result_effect_tv()
+    } else {
+        state.fresh_generated_effect_tv()
+    };
     let cross_owner = cross_owner_function_ref_owner(state, &func);
     if let Some(owner) = cross_owner {
         state.infer.add_non_generic_var(owner, result_ty.value);
@@ -301,6 +305,10 @@ fn callee_uses_all_subtractable_argument_slot(state: &LowerState, func: &TypedEx
         || callee_is_active_recursive_self(state, func)
 }
 
+fn callee_uses_latent_result_effect(state: &LowerState, func: &TypedExpr) -> bool {
+    matches!(&func.kind, ExprKind::Var(def) if state.is_unannotated_current_or_ancestor_lambda_param(*def))
+}
+
 fn callee_uses_all_subtractable_result_effects(state: &LowerState, func: &TypedExpr) -> bool {
     callee_uses_all_subtractable_argument_slot(state, func)
         || matches!(&func.kind, ExprKind::Select { .. })
@@ -456,7 +464,8 @@ fn argument_effect_for_slot(state: &mut LowerState, arg: &TypedExpr) -> TypeVar 
 }
 
 fn effect_lower_for_flow(state: &LowerState, effect: TypeVar) -> PosId {
-    if state.exact_pure_effect_tvs.contains(&effect) {
+    if state.exact_pure_effect_tvs.contains(&effect) || state.infer.effect_var_is_exact_pure(effect)
+    {
         state.infer.arena.empty_pos_row
     } else {
         state.infer.alloc_pos(Pos::Var(effect))

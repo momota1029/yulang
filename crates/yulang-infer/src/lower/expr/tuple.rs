@@ -10,7 +10,7 @@ pub(super) fn lower_tuple_expr(state: &mut LowerState, items: Vec<SyntaxNode>) -
         .map(|item| lower_expr(state, &item))
         .collect::<Vec<_>>();
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     state.infer.constrain(
         state.pos_tuple(fields.iter().map(|field| Pos::Var(field.tv)).collect()),
         Neg::Var(tv),

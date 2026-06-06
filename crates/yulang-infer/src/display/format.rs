@@ -2196,7 +2196,7 @@ fn collect_bounds_lower_witnesses(bounds: &CompactBounds, out: &mut HashMap<Type
     if let Some(upper_vars) = compact_var_set(&bounds.upper) {
         for var in upper_vars {
             let witness = compact_type_without_var(&bounds.lower, var);
-            if !is_empty_compact(&witness) {
+            if has_non_var_shape(&witness) {
                 out.entry(var)
                     .and_modify(|existing| {
                         *existing = crate::simplify::compact::merge_compact_types(

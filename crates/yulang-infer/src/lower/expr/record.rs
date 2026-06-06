@@ -11,7 +11,7 @@ pub(super) fn lower_record_literal(state: &mut LowerState, node: &SyntaxNode) ->
     let lowered = lower_record_literal_fields(state, node)?;
 
     let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
+    let eff = state.fresh_generated_effect_tv();
     let record_fields = lowered
         .fields
         .iter()

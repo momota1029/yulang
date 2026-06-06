@@ -482,8 +482,8 @@ mod tests {
         let a_idx = infer.def_to_component[&def_a];
         assert_eq!(ready, vec![a_idx]);
         assert!(infer.compact_schemes.borrow().get(&def_a).is_some());
-        assert!(infer.lowers_of(ref_tv_1).contains(&int));
-        assert!(infer.lowers_of(ref_tv_2).contains(&int));
+        assert!(lowers_contain_pos(&infer, ref_tv_1, &int));
+        assert!(lowers_contain_pos(&infer, ref_tv_2, &int));
     }
 
     #[test]
@@ -689,5 +689,26 @@ mod tests {
         assert!(infer.compact_schemes.borrow().get(&def_target).is_some());
         assert!(infer.compact_schemes.borrow().get(&def_helper).is_none());
         assert_eq!(profile.compacted_defs, 1);
+    }
+
+    fn lowers_contain_pos(infer: &Infer, tv: crate::ids::TypeVar, expected: &Pos) -> bool {
+        infer
+            .lowers_of(tv)
+            .iter()
+            .any(|lower| pos_contains(infer, lower, expected))
+    }
+
+    fn pos_contains(infer: &Infer, pos: &Pos, expected: &Pos) -> bool {
+        if pos == expected {
+            return true;
+        }
+        match pos {
+            Pos::Union(lhs, rhs) => {
+                let lhs = infer.arena.get_pos(*lhs);
+                let rhs = infer.arena.get_pos(*rhs);
+                pos_contains(infer, &lhs, expected) || pos_contains(infer, &rhs, expected)
+            }
+            _ => false,
+        }
     }
 }
