@@ -3711,11 +3711,10 @@ fn infer_error_expected_context(
             format_infer_pos(state, error.pos),
         ),
         edge: Some(infer_expected_edge_flow_context(state, edge)),
-        detail: None,
+        detail: infer_error_derived_expected_context(state, error, edge),
     })
 }
 
-#[allow(dead_code)]
 fn infer_error_derived_expected_context(
     state: &InferLowerState,
     error: &InferTypeError,
@@ -4009,20 +4008,52 @@ fn infer_expected_edge_span_len(edge: &InferExpectedEdge) -> u32 {
         .unwrap_or(u32::MAX)
 }
 
-fn infer_expected_edge_flow_context(_state: &InferLowerState, edge: &InferExpectedEdge) -> String {
+fn infer_expected_edge_flow_context(state: &InferLowerState, edge: &InferExpectedEdge) -> String {
     let mut parts = vec![format!(
-        "#{} {} {} ?{} => {} ?{}",
+        "#{} {} {} {} => {} {}",
         edge.id.0,
         format_expected_edge_kind(edge.kind),
         infer_expected_edge_actual_label(edge.kind),
-        edge.actual_tv.0,
+        format_infer_type_var_bounds(state, edge.actual_tv),
         infer_expected_edge_expected_label(edge.kind),
-        edge.expected_tv.0,
+        format_infer_type_var_bounds(state, edge.expected_tv),
     )];
     if let (Some(actual_eff), Some(expected_eff)) = (edge.actual_eff, edge.expected_eff) {
-        parts.push(format!("effect ?{} => ?{}", actual_eff.0, expected_eff.0));
+        parts.push(format!(
+            "effect {} => {}",
+            format_infer_type_var_bounds(state, actual_eff),
+            format_infer_type_var_bounds(state, expected_eff),
+        ));
     }
     parts.join("; ")
+}
+
+fn format_infer_type_var_bounds(state: &InferLowerState, tv: yulang_infer::TypeVar) -> String {
+    let lowers = state
+        .infer
+        .lower_refs_of(tv)
+        .into_iter()
+        .map(|pos| format_infer_pos(state, pos))
+        .collect::<Vec<_>>();
+    let uppers = state
+        .infer
+        .upper_refs_of(tv)
+        .into_iter()
+        .map(|neg| format_infer_neg(state, neg))
+        .collect::<Vec<_>>();
+
+    match (lowers.as_slice(), uppers.as_slice()) {
+        ([lower], [upper]) if lower == upper => lower.clone(),
+        ([], []) => format!("?{}", tv.0),
+        (_, []) => lowers.join(" | "),
+        ([], _) => uppers.join(" & "),
+        _ => format!(
+            "{} <: ?{} <: {}",
+            lowers.join(" | "),
+            tv.0,
+            uppers.join(" & ")
+        ),
+    }
 }
 
 fn infer_expected_edge_actual_label(kind: InferExpectedEdgeKind) -> &'static str {
