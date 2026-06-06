@@ -101,6 +101,7 @@ pub(crate) fn make_app_with_cause(
     arg: TypedExpr,
     cause: ConstraintCause,
 ) -> TypedExpr {
+    resolve_pending_callee_selection(state, &func);
     record_callee_dependency(state, &func);
     let result_ty = crate::ast::expr::ComputationTy::new(
         state.fresh_tv_with_origin(TypeOrigin {
@@ -451,6 +452,13 @@ fn record_callee_dependency(state: &LowerState, func: &TypedExpr) {
     if owner != *def && state.is_let_bound_def(*def) {
         state.infer.add_edge(owner, *def);
     }
+}
+
+fn resolve_pending_callee_selection(state: &LowerState, func: &TypedExpr) {
+    let ExprKind::Select { recv, .. } = &func.kind else {
+        return;
+    };
+    state.infer.resolve_deferred_selections_for(recv.tv);
 }
 
 fn argument_effect_for_slot(state: &mut LowerState, arg: &TypedExpr) -> TypeVar {
