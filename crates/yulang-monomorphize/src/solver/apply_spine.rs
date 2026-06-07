@@ -32,8 +32,8 @@ use yulang_typed_ir as typed_ir;
 use crate::{
     MonomorphizeDiagnostic, MonomorphizeResult, RootGraphInput, RootGraphSolution, TypeGraph,
     graph::{
-        RuntimeBounds, TypeCastOrder, runtime_type_from_core_value,
-        runtime_type_from_core_value_and_effect,
+        RuntimeBounds, TypeCastOrder, normalize_bound_form, normalize_runtime_type,
+        runtime_type_from_core_value, runtime_type_from_core_value_and_effect,
     },
     materialize_runtime_type,
     output::RootGraphRoot,
@@ -705,17 +705,23 @@ pub(crate) fn solve_simple_apply(
     collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
     let mut current = principal.principal_type.clone();
     let mut current_template = principal.principal_type.clone();
+    let mut current_runtime =
+        normalize_bound_form(&super::runtime_type_to_core(spine.callee.ty.clone()));
     let mut current_effect = typed_ir::Type::Never;
     let mut apply_value_vars = BTreeSet::new();
     let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
         let template_param = function_param_template_parts(&current_template);
+        let runtime_param = function_param_template_parts(&current_runtime);
         let instantiated_param = step
-            .closed_instantiation()
+            .closed_instantiation_covers(template_param.as_ref(), &principal)
             .then(|| template_param.clone())
             .flatten();
         let (arg_type, arg_effect) = instantiated_param.unwrap_or_else(|| {
-            let observed = step.arg_type_and_effect_with_policy(local_types, &evidence_policy);
+            let observed = step.principal_compatible_arg_type_and_effect(
+                step.arg_type_and_effect_with_policy(local_types, &evidence_policy),
+            );
+            let observed = runtime_compatible_arg_type_and_effect(runtime_param.as_ref(), observed);
             generic_template_param_for_untrusted_coerce_arg(
                 template_param.as_ref(),
                 &observed.0,
@@ -782,6 +788,9 @@ pub(crate) fn solve_simple_apply(
         current_effect = result_effect;
         current_template =
             function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
+        current_runtime = function_return_template(current_runtime)
+            .map(|ty| normalize_bound_form(&ty))
+            .unwrap_or(typed_ir::Type::Unknown);
     }
     default_spine_evidence_substitutions(&mut graph, &principal, &spine.steps, &evidence_policy)?;
     default_spine_evidence_candidate_bounds(
@@ -823,12 +832,16 @@ pub(crate) fn solve_simple_apply(
             binding: binding_path.clone(),
         });
     }
-    let result_type = solved_apply_result_type(&graph, current, current_effect);
+    let result_type =
+        normalize_runtime_type(solved_apply_result_type(&graph, current, current_effect));
     let callee_type = solved_callee_finalized_type(binding, &principal, &graph);
     let callee_type =
         super::finalized_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
-    let callee_type =
-        super::refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
+    let callee_type = normalize_runtime_type(super::refine_runtime_spine_return(
+        callee_type,
+        spine.steps.len(),
+        result_type.clone(),
+    ));
     let type_substitutions = principal.original_substitutions(&graph);
     let solution = RootGraphSolution {
         root: owner,
@@ -866,11 +879,14 @@ pub(crate) fn solve_monomorphic_contextual_apply(
 ) -> Option<RootGraphSolution> {
     let callee_type =
         contextual_monomorphic_callee_type(&spine.callee.ty, &spine.steps, local_types)?;
-    let result_type = expr_lower_type(expr, local_types);
+    let result_type = normalize_runtime_type(expr_lower_type(expr, local_types));
     let callee_type =
         super::finalized_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
-    let callee_type =
-        super::refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
+    let callee_type = normalize_runtime_type(super::refine_runtime_spine_return(
+        callee_type,
+        spine.steps.len(),
+        result_type.clone(),
+    ));
     Some(RootGraphSolution {
         root: owner,
         occurrence: alias_index,
@@ -1200,8 +1216,9 @@ fn solve_value_arg(
             binding: binding.name.clone(),
         });
     }
-    let callee_type =
-        runtime_type_from_core_value(graph.materialize_core(principal.principal_type.clone()));
+    let callee_type = normalize_runtime_type(runtime_type_from_core_value(
+        graph.materialize_core(principal.principal_type.clone()),
+    ));
     let type_substitutions = principal.original_substitutions(&graph);
     Ok(RootGraphSolution {
         root: owner,
@@ -2154,13 +2171,12 @@ pub(crate) struct ApplyStep<'a> {
 }
 
 impl ApplyStep<'_> {
-    fn closed_instantiation(&self) -> bool {
-        self.instantiation.is_some_and(|instantiation| {
-            instantiation
-                .args
-                .iter()
-                .all(|substitution| super::core_type_is_closed(&substitution.ty))
-        })
+    fn closed_instantiation_covers(
+        &self,
+        template_param: Option<&(typed_ir::Type, typed_ir::Type)>,
+        principal: &crate::PrincipalInstance,
+    ) -> bool {
+        closed_instantiation_covers_template_param(self.instantiation, template_param, principal)
     }
 
     pub(crate) fn arg_type(
@@ -2260,8 +2276,11 @@ impl ApplyStep<'_> {
         let evidence_value_bound = if self.instantiation.is_none()
             && let Some(evidence) = self.evidence
         {
-            let mut constrained =
-                constrain_observed_type_bounds(graph, &result, &evidence.result, policy)?;
+            let mut constrained = if observed_result_bounds_match_principal(evidence) {
+                constrain_observed_type_bounds(graph, &result, &evidence.result, policy)?
+            } else {
+                false
+            };
             constrained |=
                 constrain_expected_callee_return_bounds(graph, &result, &result_effect, evidence)?;
             constrained
@@ -2274,6 +2293,7 @@ impl ApplyStep<'_> {
             RuntimeType::Thunk { value, .. } => {
                 let observed = super::runtime_type_to_core((*value).clone());
                 if policy.trusts_observed_bound(&observed)
+                    && self.observed_result_matches_principal(&observed)
                     && !(evidence_value_bound && runtime_type_value_is_function(&value))
                     && let Some(observed) = policy.project_type(observed)
                 {
@@ -2285,6 +2305,7 @@ impl ApplyStep<'_> {
             ty => {
                 let observed = super::runtime_type_to_core(ty);
                 if policy.trusts_observed_bound(&observed)
+                    && self.observed_result_matches_principal(&observed)
                     && let Some(observed) = policy.project_type(observed)
                 {
                     constrain_observed_upper_bound(graph, &result, &observed)?;
@@ -2293,6 +2314,65 @@ impl ApplyStep<'_> {
             }
         }
     }
+
+    fn principal_compatible_arg_type_and_effect(
+        &self,
+        observed: (typed_ir::Type, typed_ir::Type),
+    ) -> (typed_ir::Type, typed_ir::Type) {
+        let Some(evidence) = self.evidence else {
+            return observed;
+        };
+        let Some((principal_value, principal_effect)) = principal_evidence_param_parts(evidence)
+        else {
+            return observed;
+        };
+        if expected_return_value_bound_is_informative(&principal_value)
+            && !principal_return_shape_matches(&principal_value, &observed.0, ShapePosition::Nested)
+        {
+            return (principal_value, principal_effect);
+        }
+        observed
+    }
+
+    fn observed_result_matches_principal(&self, observed: &typed_ir::Type) -> bool {
+        self.evidence
+            .is_none_or(|evidence| expected_return_value_matches_principal(evidence, observed))
+    }
+}
+
+fn closed_instantiation_covers_template_param(
+    instantiation: Option<&yulang_runtime_ir::TypeInstantiation>,
+    template_param: Option<&(typed_ir::Type, typed_ir::Type)>,
+    principal: &crate::PrincipalInstance,
+) -> bool {
+    let Some(instantiation) = instantiation else {
+        return false;
+    };
+    if !instantiation
+        .args
+        .iter()
+        .all(|substitution| super::core_type_is_closed(&substitution.ty))
+    {
+        return false;
+    }
+    let Some((value, effect)) = template_param else {
+        return true;
+    };
+    let covered = instantiation
+        .args
+        .iter()
+        .map(|substitution| substitution.var.clone())
+        .collect::<BTreeSet<_>>();
+    let mut template_vars = BTreeSet::new();
+    collect_type_vars(value, &mut template_vars);
+    collect_type_vars(effect, &mut template_vars);
+    template_vars.into_iter().all(|fresh| {
+        principal
+            .type_params
+            .iter()
+            .find(|param| param.fresh == fresh)
+            .is_some_and(|param| covered.contains(&param.original))
+    })
 }
 
 fn select_open_runtime_arg_type(
@@ -2341,11 +2421,15 @@ fn constrain_expected_callee_return_bounds(
         .and_then(function_return_template_parts)
     {
         let (lower_result, lower_effect) = lower;
-        if expected_return_value_bound_is_informative(&lower_result) {
+        if expected_return_value_matches_principal(evidence, &lower_result)
+            && expected_return_value_bound_is_informative(&lower_result)
+        {
             graph.constrain_subtype(lower_result, result.clone())?;
             constrained = true;
         }
-        if expected_return_effect_bound_is_informative(&lower_effect) {
+        if expected_return_effect_matches_principal(evidence, &lower_effect)
+            && expected_return_effect_bound_is_informative(&lower_effect)
+        {
             graph.constrain_subtype(lower_effect, result_effect.clone())?;
             constrained = true;
         }
@@ -2356,16 +2440,270 @@ fn constrain_expected_callee_return_bounds(
         .and_then(function_return_template_parts)
     {
         let (upper_result, upper_effect) = upper;
-        if expected_return_value_bound_is_informative(&upper_result) {
+        if expected_return_value_matches_principal(evidence, &upper_result)
+            && expected_return_value_bound_is_informative(&upper_result)
+        {
             graph.constrain_subtype(result.clone(), upper_result)?;
             constrained = true;
         }
-        if expected_return_effect_bound_is_informative(&upper_effect) {
+        if expected_return_effect_matches_principal(evidence, &upper_effect)
+            && expected_return_effect_bound_is_informative(&upper_effect)
+        {
             graph.constrain_subtype(result_effect.clone(), upper_effect)?;
             constrained = true;
         }
     }
     Ok(constrained)
+}
+
+fn expected_return_value_matches_principal(
+    evidence: &typed_ir::ApplyEvidence,
+    value: &typed_ir::Type,
+) -> bool {
+    let Some((principal_value, _)) = principal_evidence_return_parts(evidence) else {
+        return true;
+    };
+    principal_return_shape_matches(&principal_value, value, ShapePosition::Nested)
+}
+
+fn observed_result_bounds_match_principal(evidence: &typed_ir::ApplyEvidence) -> bool {
+    evidence
+        .result
+        .lower
+        .as_deref()
+        .is_none_or(|lower| expected_return_value_matches_principal(evidence, lower))
+        && evidence
+            .result
+            .upper
+            .as_deref()
+            .is_none_or(|upper| expected_return_value_matches_principal(evidence, upper))
+}
+
+fn expected_return_effect_matches_principal(
+    evidence: &typed_ir::ApplyEvidence,
+    effect: &typed_ir::Type,
+) -> bool {
+    let Some((_, principal_effect)) = principal_evidence_return_parts(evidence) else {
+        return true;
+    };
+    type_shape_matches(&principal_effect, effect, ShapePosition::Nested)
+}
+
+fn principal_return_shape_matches(
+    template: &typed_ir::Type,
+    expected: &typed_ir::Type,
+    position: ShapePosition,
+) -> bool {
+    match (template, expected) {
+        (typed_ir::Type::Unknown, _) | (_, typed_ir::Type::Unknown) => {
+            position == ShapePosition::Nested
+        }
+        (typed_ir::Type::Var(_), _) | (_, typed_ir::Type::Var(_)) => true,
+        (typed_ir::Type::Any, typed_ir::Type::Any)
+        | (typed_ir::Type::Never, typed_ir::Type::Never) => true,
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: expected_path,
+                args: expected_args,
+            },
+        ) => {
+            path == expected_path
+                && args.len() == expected_args.len()
+                && args.iter().zip(expected_args).all(|(arg, expected_arg)| {
+                    principal_return_type_arg_shape_matches(arg, expected_arg)
+                })
+        }
+        (
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            typed_ir::Type::Fun {
+                param: expected_param,
+                param_effect: expected_param_effect,
+                ret_effect: expected_ret_effect,
+                ret: expected_ret,
+            },
+        ) => {
+            principal_return_shape_matches(param, expected_param, ShapePosition::Nested)
+                && principal_return_shape_matches(
+                    param_effect,
+                    expected_param_effect,
+                    ShapePosition::Nested,
+                )
+                && principal_return_shape_matches(
+                    ret_effect,
+                    expected_ret_effect,
+                    ShapePosition::Nested,
+                )
+                && principal_return_shape_matches(ret, expected_ret, ShapePosition::Nested)
+        }
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(expected_items)) => {
+            items.len() == expected_items.len()
+                && items
+                    .iter()
+                    .zip(expected_items)
+                    .all(|(item, expected_item)| {
+                        principal_return_shape_matches(item, expected_item, ShapePosition::Nested)
+                    })
+        }
+        (typed_ir::Type::Record(_), typed_ir::Type::Record(_)) => true,
+        (typed_ir::Type::Variant(_), typed_ir::Type::Variant(_)) => true,
+        (
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
+                items: expected_items,
+                tail: expected_tail,
+            },
+        ) => {
+            items.len() == expected_items.len()
+                && items
+                    .iter()
+                    .zip(expected_items)
+                    .all(|(item, expected_item)| {
+                        principal_return_shape_matches(item, expected_item, ShapePosition::Nested)
+                    })
+                && principal_return_shape_matches(tail, expected_tail, ShapePosition::Nested)
+        }
+        (typed_ir::Type::Union(items), expected) => items
+            .iter()
+            .any(|item| principal_return_shape_matches(item, expected, position)),
+        (template, typed_ir::Type::Union(items)) => items
+            .iter()
+            .any(|item| principal_return_shape_matches(template, item, position)),
+        (typed_ir::Type::Inter(items), expected) => items
+            .iter()
+            .any(|item| principal_return_shape_matches(item, expected, position)),
+        (template, typed_ir::Type::Inter(items)) => items
+            .iter()
+            .any(|item| principal_return_shape_matches(template, item, position)),
+        (typed_ir::Type::Recursive { body, .. }, expected) => {
+            principal_return_shape_matches(body, expected, position)
+        }
+        (template, typed_ir::Type::Recursive { body, .. }) => {
+            principal_return_shape_matches(template, body, position)
+        }
+        _ => false,
+    }
+}
+
+fn principal_return_type_arg_shape_matches(
+    template: &typed_ir::TypeArg,
+    expected: &typed_ir::TypeArg,
+) -> bool {
+    match (template, expected) {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(expected)) => {
+            principal_return_shape_matches(template, expected, ShapePosition::Nested)
+        }
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(expected)) => {
+            principal_return_bound_shape_matches(template, expected)
+        }
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Type(expected)) => {
+            principal_return_bounds_shape_matches(template, expected)
+        }
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(expected)) => {
+            principal_return_optional_bound_shape_matches(
+                template.lower.as_deref(),
+                expected.lower.as_deref(),
+            ) && principal_return_optional_bound_shape_matches(
+                template.upper.as_deref(),
+                expected.upper.as_deref(),
+            )
+        }
+    }
+}
+
+fn principal_return_bound_shape_matches(
+    template: &typed_ir::Type,
+    expected: &typed_ir::TypeBounds,
+) -> bool {
+    expected
+        .lower
+        .as_deref()
+        .is_some_and(|lower| principal_return_shape_matches(template, lower, ShapePosition::Nested))
+        || expected.upper.as_deref().is_some_and(|upper| {
+            principal_return_shape_matches(template, upper, ShapePosition::Nested)
+        })
+}
+
+fn principal_return_bounds_shape_matches(
+    template: &typed_ir::TypeBounds,
+    expected: &typed_ir::Type,
+) -> bool {
+    template
+        .lower
+        .as_deref()
+        .is_some_and(|lower| principal_return_shape_matches(lower, expected, ShapePosition::Nested))
+        || template.upper.as_deref().is_some_and(|upper| {
+            principal_return_shape_matches(upper, expected, ShapePosition::Nested)
+        })
+}
+
+fn principal_return_optional_bound_shape_matches(
+    template: Option<&typed_ir::Type>,
+    expected: Option<&typed_ir::Type>,
+) -> bool {
+    match (template, expected) {
+        (Some(template), Some(expected)) => {
+            principal_return_shape_matches(template, expected, ShapePosition::Nested)
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn principal_evidence_return_parts(
+    evidence: &typed_ir::ApplyEvidence,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let principal = principal_evidence_callee(evidence)?;
+    function_return_template_parts(&principal)
+}
+
+fn principal_evidence_param_parts(
+    evidence: &typed_ir::ApplyEvidence,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let principal = principal_evidence_callee(evidence)?;
+    function_param_template_parts(&principal)
+}
+
+fn runtime_compatible_arg_type_and_effect(
+    runtime_param: Option<&(typed_ir::Type, typed_ir::Type)>,
+    observed: (typed_ir::Type, typed_ir::Type),
+) -> (typed_ir::Type, typed_ir::Type) {
+    let Some((runtime_value, runtime_effect)) = runtime_param else {
+        return observed;
+    };
+    if expected_return_value_bound_is_informative(runtime_value)
+        && !principal_return_shape_matches(runtime_value, &observed.0, ShapePosition::Nested)
+    {
+        return (
+            normalize_bound_form(runtime_value),
+            normalize_bound_form(runtime_effect),
+        );
+    }
+    observed
+}
+
+fn principal_evidence_callee(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+    let (callee, substitutions) = if let Some(plan) = &evidence.principal_elaboration {
+        (&plan.principal_callee, &plan.substitutions)
+    } else {
+        (evidence.principal_callee.as_ref()?, &evidence.substitutions)
+    };
+    if substitutions.is_empty() {
+        return Some(callee.clone());
+    }
+    let substitutions = substitutions
+        .iter()
+        .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
+        .collect::<BTreeMap<_, _>>();
+    Some(yulang_runtime_types::types::substitute_type(
+        callee,
+        &substitutions,
+    ))
 }
 
 fn expected_return_value_bound_is_informative(ty: &typed_ir::Type) -> bool {
@@ -2376,7 +2714,10 @@ fn expected_return_effect_bound_is_informative(ty: &typed_ir::Type) -> bool {
     !type_has_non_runtime_choice(ty)
         && !matches!(
             ty,
-            typed_ir::Type::Unknown | typed_ir::Type::Var(_) | typed_ir::Type::Any
+            typed_ir::Type::Unknown
+                | typed_ir::Type::Var(_)
+                | typed_ir::Type::Any
+                | typed_ir::Type::Never
         )
 }
 
@@ -2416,6 +2757,7 @@ fn coerce_preserves_runtime_head(source: &typed_ir::Type, target: &typed_ir::Typ
         (typed_ir::Type::Tuple(source), typed_ir::Type::Tuple(target)) => {
             source.len() == target.len()
         }
+        (typed_ir::Type::Fun { .. }, typed_ir::Type::Fun { .. }) => true,
         _ => false,
     }
 }
@@ -3363,6 +3705,92 @@ mod tests {
     }
 
     #[test]
+    fn partial_closed_instantiation_does_not_cover_remaining_template_vars() {
+        let acc = typed_ir::TypeVar("acc".to_string());
+        let branch = typed_ir::TypeVar("branch".to_string());
+        let acc_fresh = typed_ir::TypeVar("acc#0".to_string());
+        let branch_fresh = typed_ir::TypeVar("branch#1".to_string());
+        let template = (
+            typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Union(vec![
+                    typed_ir::Type::Var(acc_fresh.clone()),
+                    typed_ir::Type::Var(branch_fresh.clone()),
+                ])),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(typed_ir::Type::Inter(vec![
+                    typed_ir::Type::Var(acc_fresh.clone()),
+                    typed_ir::Type::Var(branch_fresh.clone()),
+                ])),
+            },
+            typed_ir::Type::Never,
+        );
+        let principal = crate::PrincipalInstance {
+            original_binding: typed_ir::Path::new(vec![typed_ir::Name("fold".to_string())]),
+            principal_type: typed_ir::Type::Unknown,
+            type_params: vec![
+                crate::PrincipalTypeParam {
+                    original: acc.clone(),
+                    fresh: acc_fresh,
+                },
+                crate::PrincipalTypeParam {
+                    original: branch.clone(),
+                    fresh: branch_fresh,
+                },
+            ],
+        };
+        let partial = yulang_runtime_ir::TypeInstantiation {
+            target: typed_ir::Path::new(vec![typed_ir::Name("fold".to_string())]),
+            args: vec![yulang_runtime_ir::TypeSubstitution {
+                var: acc,
+                ty: named_type("unit"),
+            }],
+        };
+        let complete = yulang_runtime_ir::TypeInstantiation {
+            target: typed_ir::Path::new(vec![typed_ir::Name("fold".to_string())]),
+            args: vec![
+                yulang_runtime_ir::TypeSubstitution {
+                    var: typed_ir::TypeVar("acc".to_string()),
+                    ty: named_type("unit"),
+                },
+                yulang_runtime_ir::TypeSubstitution {
+                    var: branch,
+                    ty: named_type("unit"),
+                },
+            ],
+        };
+
+        assert!(!closed_instantiation_covers_template_param(
+            Some(&partial),
+            Some(&template),
+            &principal
+        ));
+        assert!(closed_instantiation_covers_template_param(
+            Some(&complete),
+            Some(&template),
+            &principal
+        ));
+    }
+
+    #[test]
+    fn function_coerce_source_preserves_runtime_head() {
+        let source = typed_ir::Type::Fun {
+            param: Box::new(named_type("unit")),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(named_type("unit")),
+        };
+        let target = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Unknown),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Unknown),
+            ret: Box::new(typed_ir::Type::Unknown),
+        };
+
+        assert!(coerce_preserves_runtime_head(&source, &target));
+    }
+
+    #[test]
     fn expected_callee_return_constrains_generic_spine_result() {
         let mut graph = TypeGraph::default();
         let effect_var = typed_ir::TypeVar("e#0".to_string());
@@ -3408,6 +3836,214 @@ mod tests {
         );
     }
 
+    #[test]
+    fn principal_callee_allows_matching_expected_callee_return_to_close_result() {
+        let mut graph = TypeGraph::default();
+        let item_var = typed_ir::TypeVar("a#0".to_string());
+        let result = list_type(typed_ir::Type::Var(item_var.clone()));
+        let result_effect = typed_ir::Type::Never;
+        let list_int = list_type(named_type("int"));
+        let principal_item = typed_ir::TypeVar("item".to_string());
+        let evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: Some(typed_ir::TypeBounds {
+                lower: None,
+                upper: Some(Box::new(typed_ir::Type::Fun {
+                    param: Box::new(named_type("unit")),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(typed_ir::Type::Never),
+                    ret: Box::new(list_int.clone()),
+                })),
+            }),
+            arg: typed_ir::TypeBounds::default(),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: Some(typed_ir::Type::Fun {
+                param: Box::new(named_type("unit")),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(list_type(typed_ir::Type::Var(principal_item))),
+            }),
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+
+        assert!(
+            constrain_expected_callee_return_bounds(&mut graph, &result, &result_effect, &evidence)
+                .unwrap()
+        );
+
+        assert_eq!(
+            graph.slot(&item_var).and_then(|slot| slot.solution_ref()),
+            Some(&named_type("int"))
+        );
+    }
+
+    #[test]
+    fn principal_return_shape_accepts_bounded_expected_type_arg() {
+        let principal_item = typed_ir::TypeVar("item".to_string());
+        let bounded_list_int =
+            list_type_with_arg(typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: Some(Box::new(named_type("int"))),
+                upper: None,
+            }));
+        let bounded_list_char =
+            list_type_with_arg(typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: Some(Box::new(named_type("char"))),
+                upper: None,
+            }));
+        let generic_evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::default(),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: Some(typed_ir::Type::Fun {
+                param: Box::new(named_type("unit")),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(list_type(typed_ir::Type::Var(principal_item.clone()))),
+            }),
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+        let concrete_evidence = typed_ir::ApplyEvidence {
+            principal_callee: Some(typed_ir::Type::Fun {
+                param: Box::new(named_type("unit")),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(list_type(typed_ir::Type::Var(principal_item.clone()))),
+            }),
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: principal_item,
+                ty: named_type("int"),
+            }],
+            ..generic_evidence.clone()
+        };
+
+        assert!(expected_return_value_matches_principal(
+            &generic_evidence,
+            &bounded_list_int
+        ));
+        assert!(!expected_return_value_matches_principal(
+            &concrete_evidence,
+            &bounded_list_char
+        ));
+    }
+
+    #[test]
+    fn principal_callee_arg_overrides_stale_observed_arg() {
+        let principal_item = typed_ir::TypeVar("item".to_string());
+        let list_int = list_type(named_type("int"));
+        let stale_list = list_type(typed_ir::Type::Union(vec![
+            named_type("char"),
+            named_type("str"),
+        ]));
+        let evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::default(),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: Some(typed_ir::Type::Fun {
+                param: Box::new(list_type(typed_ir::Type::Var(principal_item))),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(list_type(named_type("unit"))),
+            }),
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: typed_ir::TypeVar("item".to_string()),
+                ty: named_type("int"),
+            }],
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+        let apply = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown);
+        let arg = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown);
+        let step = ApplyStep {
+            index: 0,
+            apply: &apply,
+            arg: &arg,
+            evidence: Some(&evidence),
+            instantiation: None,
+        };
+
+        assert_eq!(
+            step.principal_compatible_arg_type_and_effect((stale_list, typed_ir::Type::Never)),
+            (list_int, typed_ir::Type::Never)
+        );
+    }
+
+    #[test]
+    fn principal_callee_suppresses_stale_expected_callee_return() {
+        let mut graph = TypeGraph::default();
+        let item_var = typed_ir::TypeVar("a#0".to_string());
+        let result = list_type(typed_ir::Type::Var(item_var.clone()));
+        let result_effect = typed_ir::Type::Never;
+        let list_int = list_type(named_type("int"));
+        let list_char = list_type(named_type("char"));
+        let principal_item = typed_ir::TypeVar("item".to_string());
+        graph
+            .constrain_subtype(result.clone(), list_int.clone())
+            .unwrap();
+        let evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: Some(typed_ir::TypeBounds {
+                lower: None,
+                upper: Some(Box::new(typed_ir::Type::Fun {
+                    param: Box::new(named_type("unit")),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(typed_ir::Type::Never),
+                    ret: Box::new(list_char),
+                })),
+            }),
+            arg: typed_ir::TypeBounds::default(),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: Some(typed_ir::Type::Fun {
+                param: Box::new(named_type("unit")),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(list_type(typed_ir::Type::Var(principal_item.clone()))),
+            }),
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: principal_item,
+                ty: named_type("int"),
+            }],
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+
+        assert!(
+            !constrain_expected_callee_return_bounds(
+                &mut graph,
+                &result,
+                &result_effect,
+                &evidence
+            )
+            .unwrap()
+        );
+
+        assert_eq!(
+            graph.slot(&item_var).and_then(|slot| slot.solution_ref()),
+            Some(&named_type("int"))
+        );
+    }
+
     fn ref_type(effect: typed_ir::Type, value: typed_ir::Type) -> typed_ir::Type {
         typed_ir::Type::Named {
             path: typed_ir::Path::new(vec![
@@ -3430,13 +4066,17 @@ mod tests {
     }
 
     fn list_type(item: typed_ir::Type) -> typed_ir::Type {
+        list_type_with_arg(typed_ir::TypeArg::Type(item))
+    }
+
+    fn list_type_with_arg(arg: typed_ir::TypeArg) -> typed_ir::Type {
         typed_ir::Type::Named {
             path: typed_ir::Path::new(vec![
                 typed_ir::Name("std".to_string()),
                 typed_ir::Name("list".to_string()),
                 typed_ir::Name("list".to_string()),
             ]),
-            args: vec![typed_ir::TypeArg::Type(item)],
+            args: vec![arg],
         }
     }
 

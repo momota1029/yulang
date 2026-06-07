@@ -24,7 +24,8 @@ use yulang_typed_ir as typed_ir;
 use crate::{
     CachedMonomorphizeInstance, MonomorphizeDiagnostic, MonomorphizeInstanceCache,
     MonomorphizeInstanceKey, MonomorphizeResult, RootGraphSolution,
-    graph::runtime_type_from_core_value_and_effect, output::RootGraphRoot,
+    graph::{normalize_runtime_type, runtime_type_from_core_value_and_effect},
+    output::RootGraphRoot,
 };
 
 use super::materialize;
@@ -89,6 +90,12 @@ pub(crate) fn append_monomorphic_bindings(
         // Self-targeting instantiations come from the generic body and are
         // stale inside the emitted monomorphic alias.
         clear_binding_instantiations(&mut body, &solution.binding);
+        rewrite_self_recursive_calls(
+            &mut body,
+            &solution.binding,
+            &solution.alias,
+            &solution.callee_type,
+        );
         let body = super::local_types::refresh_local_expr_types(body);
         cache.insert(CachedMonomorphizeInstance {
             key,
@@ -331,11 +338,51 @@ fn clear_binding_instantiations(expr: &mut Expr, binding: &typed_ir::Path) {
     });
 }
 
+fn rewrite_self_recursive_calls(
+    expr: &mut Expr,
+    binding: &typed_ir::Path,
+    alias: &typed_ir::Path,
+    callee_type: &RuntimeType,
+) {
+    if let ExprKind::Var(path) = &mut expr.kind
+        && *path == *binding
+    {
+        *path = alias.clone();
+        expr.ty = callee_type.clone();
+        return;
+    }
+    if matches!(expr.kind, ExprKind::Apply { .. })
+        && apply_spine_binding(expr).is_some_and(|path| path == binding)
+    {
+        rewrite_self_recursive_apply_args(expr, binding, alias, callee_type);
+        replace_apply_spine_binding(expr, alias, callee_type);
+        clear_apply_spine_instantiations(expr, binding);
+        refresh_apply_spine_runtime_types(expr, callee_type.clone());
+        return;
+    }
+    yulang_runtime_ir::walk::walk_children_mut(expr, |child| {
+        rewrite_self_recursive_calls(child, binding, alias, callee_type);
+    });
+}
+
+fn rewrite_self_recursive_apply_args(
+    expr: &mut Expr,
+    binding: &typed_ir::Path,
+    alias: &typed_ir::Path,
+    callee_type: &RuntimeType,
+) {
+    let ExprKind::Apply { callee, arg, .. } = &mut expr.kind else {
+        return;
+    };
+    rewrite_self_recursive_apply_args(callee, binding, alias, callee_type);
+    rewrite_self_recursive_calls(arg, binding, alias, callee_type);
+}
+
 fn solution_instance_key(solution: &RootGraphSolution) -> MonomorphizeInstanceKey {
     MonomorphizeInstanceKey {
         binding: solution.binding.clone(),
         substitutions: solution.type_substitutions.clone(),
-        callee_type: solution.callee_type.clone(),
+        callee_type: normalize_runtime_type(solution.callee_type.clone()),
     }
 }
 
@@ -400,6 +447,45 @@ mod tests {
             panic!("expected arg apply");
         };
         assert!(self_instantiation.is_none());
+    }
+
+    #[test]
+    fn rewrite_self_recursive_calls_targets_current_alias() {
+        let binding = path("loop");
+        let alias = path("loop_mono");
+        let unit = RuntimeType::Value(typed_ir::Type::Tuple(Vec::new()));
+        let callee_type =
+            RuntimeType::fun(unit.clone(), RuntimeType::fun(unit.clone(), unit.clone()));
+        let mut expr = apply(
+            apply(var("loop"), tuple(), Some(instantiation(binding.clone()))),
+            tuple(),
+            Some(instantiation(binding.clone())),
+        );
+
+        rewrite_self_recursive_calls(&mut expr, &binding, &alias, &callee_type);
+
+        assert_eq!(apply_spine_binding(&expr), Some(&alias));
+        assert_eq!(expr.ty, unit);
+        let ExprKind::Apply {
+            callee,
+            instantiation,
+            ..
+        } = &expr.kind
+        else {
+            panic!("expected outer apply");
+        };
+        assert!(instantiation.is_none());
+        let ExprKind::Apply {
+            callee: root,
+            instantiation,
+            ..
+        } = &callee.kind
+        else {
+            panic!("expected inner apply");
+        };
+        assert!(instantiation.is_none());
+        assert!(matches!(&root.kind, ExprKind::Var(path) if *path == alias));
+        assert_eq!(root.ty, callee_type);
     }
 
     fn apply(callee: Expr, arg: Expr, instantiation: Option<TypeInstantiation>) -> Expr {

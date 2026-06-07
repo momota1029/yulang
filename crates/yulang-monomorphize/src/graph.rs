@@ -1152,6 +1152,21 @@ pub fn materialize_runtime_type(
     }
 }
 
+pub(crate) fn normalize_runtime_type(ty: RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Unknown => RuntimeType::Unknown,
+        RuntimeType::Value(ty) => runtime_type_from_core_value(normalize_bound_form(&ty)),
+        RuntimeType::Fun { param, ret } => RuntimeType::Fun {
+            param: Box::new(normalize_runtime_type(*param)),
+            ret: Box::new(normalize_runtime_type(*ret)),
+        },
+        RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
+            effect: normalize_bound_form(&effect),
+            value: Box::new(normalize_runtime_type(*value)),
+        },
+    }
+}
+
 /// Convert a fully materialized typed_ir value type into a VM-shaped runtime
 /// type. Functions become `RuntimeType::Fun` with each side wrapped in
 /// `Thunk` when its effect row is non-empty, so the VM's `expects_thunk_arg`
@@ -2066,7 +2081,7 @@ fn core_type_is_unit_value(ty: &typed_ir::Type) -> bool {
     }
 }
 
-fn normalize_bound_form(ty: &typed_ir::Type) -> typed_ir::Type {
+pub(crate) fn normalize_bound_form(ty: &typed_ir::Type) -> typed_ir::Type {
     normalize_bound_form_inner(ty, false)
 }
 
