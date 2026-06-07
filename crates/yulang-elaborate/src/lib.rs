@@ -7,7 +7,7 @@
 
 #![forbid(unsafe_code)]
 
-use yulang_erased_ir::{InferExport, PrincipalRoot, RefExportTable};
+use yulang_erased_ir::{InferExport, PrincipalRoot, RefCoverageReport, RefExportTable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Elaborator<'a> {
@@ -58,6 +58,15 @@ impl<'a> Elaborator<'a> {
             typeclass_obligations,
         }
     }
+
+    pub fn validate_input(&self) -> Result<(), ElaborateInputError> {
+        let ref_coverage = self.export.erased.ref_coverage();
+        if ref_coverage.is_clean() {
+            Ok(())
+        } else {
+            Err(ElaborateInputError::RefCoverage(ref_coverage))
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +78,11 @@ pub struct ElaborateInputSummary {
     pub resolved_typeclass_refs: usize,
     pub quantified_refs: usize,
     pub typeclass_obligations: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElaborateInputError {
+    RefCoverage(RefCoverageReport),
 }
 
 #[cfg(test)]
@@ -100,6 +114,7 @@ mod tests {
                 typeclass_obligations: 0,
             }
         );
+        assert_eq!(elaborator.validate_input(), Ok(()));
     }
 
     #[test]
@@ -148,5 +163,28 @@ mod tests {
                 typeclass_obligations: 1,
             }
         );
+        assert_eq!(Elaborator::new(&export).validate_input(), Ok(()));
+    }
+
+    #[test]
+    fn elaborator_rejects_uncovered_erased_refs_at_boundary() {
+        let mut export = InferExport::default();
+        export
+            .erased
+            .module
+            .root_exprs
+            .push(yulang_erased_ir::InferredExpr {
+                typ: yulang_erased_ir::TypeBounds::default(),
+                eff: yulang_erased_ir::TypeBounds::default(),
+                ir: yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(99)),
+            });
+
+        let Err(ElaborateInputError::RefCoverage(report)) =
+            Elaborator::new(&export).validate_input()
+        else {
+            panic!("uncovered RefId should be rejected");
+        };
+        assert_eq!(report.uncovered, vec![yulang_erased_ir::RefId(99)]);
+        assert!(report.conflicting.is_empty());
     }
 }
