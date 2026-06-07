@@ -1,9 +1,10 @@
 //! Source-to-finalized-runtime pipeline for Yulang frontends.
 //!
-//! This crate is the outer driver for source-facing frontends. It composes the
-//! lowered-runtime pipeline with monomorphization/finalization. Lower-level
-//! transform crates should depend on the concrete IR/pass crates instead of
-//! depending on this orchestration crate.
+//! This crate is the outer driver for source-facing frontends. Its default
+//! path exports erased inference output, elaborates concrete runtime demands,
+//! and lowers that elaborated IR to finalized runtime IR. Lower-level transform
+//! crates should depend on the concrete IR/pass crates instead of depending on
+//! this orchestration crate.
 
 use std::fmt;
 use std::path::PathBuf;
@@ -61,17 +62,13 @@ pub fn runtime_module_from_virtual_source_with_options(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
-    let module = yulang_runtime_pipeline::lowered_runtime_module_from_virtual_source_with_options(
-        source, base_dir, options,
-    )?;
-    yulang_monomorphize::monomorphize_module(module).map_err(SourceRuntimeError::from)
+    elaborated_runtime_module_from_virtual_source_with_options(source, base_dir, options)
 }
 
 pub fn runtime_module_from_lowered_sources(
     lowered: &mut yulang_infer::LoweredSources,
 ) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
-    let module = yulang_runtime_pipeline::lowered_runtime_module_from_lowered_sources(lowered)?;
-    yulang_monomorphize::monomorphize_module(module).map_err(SourceRuntimeError::from)
+    elaborated_runtime_module_from_lowered_sources(lowered)
 }
 
 pub fn elaborated_runtime_module_from_virtual_source_with_options(
@@ -105,6 +102,8 @@ pub fn elaborated_runtime_module_from_lowered_sources(
         .map_err(SourceRuntimeError::from)
 }
 
+// Compiled dependency cache APIs still expose lowered-runtime artifacts. They
+// stay on the legacy finalization path until compiled erased exports exist.
 pub fn runtime_ir_module_from_virtual_source_with_dependency_cache(
     source: &str,
     base_dir: Option<PathBuf>,
@@ -167,8 +166,8 @@ mod tests {
     }
 
     #[test]
-    fn elaborated_runtime_module_uses_instance_paths() {
-        let module = elaborated_runtime_module_from_virtual_source_with_options(
+    fn default_runtime_module_uses_elaborated_instance_paths() {
+        let module = runtime_module_from_virtual_source_with_options(
             "my id x = x\nid 1\n",
             None,
             SourceOptions {

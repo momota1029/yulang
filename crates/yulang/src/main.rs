@@ -41,8 +41,8 @@ use yulang_infer::{
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics,
     collect_surface_type_errors as collect_infer_surface_type_errors,
-    compiled_unit_namespace_defs_are_finalized, export_core_program, lower_source_set,
-    lower_source_set_profiled,
+    compiled_unit_namespace_defs_are_finalized, export_core_program, export_erased_program,
+    lower_source_set, lower_source_set_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled,
     lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile,
     lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled,
@@ -102,7 +102,7 @@ where
         .expect("join large-stack yulang thread")
 }
 
-const YUIR_SOURCE_CACHE_VERSION: u32 = 10;
+const YUIR_SOURCE_CACHE_VERSION: u32 = 11;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CliOptions {
@@ -1121,6 +1121,14 @@ impl CliOptions {
             || self.control_vm
             || self.control_vm_load.is_some()
     }
+
+    fn requests_legacy_runtime_pipeline(&self) -> bool {
+        self.core_ir || self.runtime_finalize_ir || self.runtime_ir || self.hygiene_ir
+    }
+
+    fn requests_elaborated_runtime_pipeline(&self) -> bool {
+        self.finalized_ir || self.run_interpreter || self.control_vm
+    }
 }
 
 fn run_parser_view(mode: ParserMode, source: &str) {
@@ -1400,22 +1408,36 @@ fn run_infer_views(
     };
     startup_profile.binding_metadata = StartupProfile::elapsed(binding_metadata_start);
 
-    let infer_program =
-        if errors.is_empty() && surface_diagnostics.is_empty() && requests_runtime_pipeline {
-            let core_export_start = pipeline_timings.start();
-            let program = export_core_program(&mut state);
-            pipeline_timings.core_export = InferPipelineTimings::elapsed(core_export_start);
-            startup_profile.core_export = pipeline_timings.core_export;
-            let runtime_dependency_merge_start = pipeline_timings.start();
-            let program =
-                merge_runtime_dependencies_or_exit(program, runtime_dependencies.as_ref());
-            pipeline_timings.runtime_dependency_merge =
-                InferPipelineTimings::elapsed(runtime_dependency_merge_start);
-            startup_profile.runtime_dependency_merge = pipeline_timings.runtime_dependency_merge;
-            Some(program)
-        } else {
-            None
-        };
+    let needs_core_program = options.requests_legacy_runtime_pipeline();
+    let infer_program = if errors.is_empty() && surface_diagnostics.is_empty() && needs_core_program
+    {
+        let core_export_start = pipeline_timings.start();
+        let program = export_core_program(&mut state);
+        pipeline_timings.core_export = InferPipelineTimings::elapsed(core_export_start);
+        startup_profile.core_export = pipeline_timings.core_export;
+        let runtime_dependency_merge_start = pipeline_timings.start();
+        let program = merge_runtime_dependencies_or_exit(program, runtime_dependencies.as_ref());
+        pipeline_timings.runtime_dependency_merge =
+            InferPipelineTimings::elapsed(runtime_dependency_merge_start);
+        startup_profile.runtime_dependency_merge = pipeline_timings.runtime_dependency_merge;
+        Some(program)
+    } else {
+        None
+    };
+    let elaborated_runtime = if errors.is_empty()
+        && surface_diagnostics.is_empty()
+        && options.requests_elaborated_runtime_pipeline()
+    {
+        Some(lower_elaborated_runtime_module_or_exit(
+            &mut state,
+            options.runtime_phase_timings,
+        ))
+    } else {
+        None
+    };
+    if let Some(lowered) = &elaborated_runtime {
+        startup_profile.record_runtime_lower(&lowered.profile);
+    }
 
     if emit_output {
         for error in &errors {
@@ -1498,18 +1520,10 @@ fn run_infer_views(
                 println!();
             }
             println!("finalized-ir:");
-            let lowered = lower_runtime_finalize_module_or_exit(
-                infer_program.as_ref().expect("core program"),
-                options.runtime_phase_timings,
-                &diagnostic_source,
-            );
-            match finalize_runtime_module_with_cache(&source_set, options, lowered.module) {
-                Ok(output) => print_runtime_module(&output.module, options.verbose_ir),
-                Err(err) => {
-                    eprintln!("runtime-finalize error: {err:?}");
-                    process::exit(1);
-                }
-            }
+            let lowered = elaborated_runtime
+                .as_ref()
+                .expect("elaborated runtime module");
+            print_runtime_module(&lowered.module, options.verbose_ir);
         }
         if options.runtime_ir {
             if options.infer
@@ -1560,13 +1574,11 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
-                infer_program.as_ref().expect("core program"),
-                options.runtime_phase_timings,
-                &diagnostic_source,
-            );
+            let lowered = elaborated_runtime
+                .as_ref()
+                .expect("elaborated runtime module");
             let compile_start = Instant::now();
-            let module = match runtime_vm::compile_vm_module(lowered.module) {
+            let module = match runtime_vm::compile_vm_module(lowered.module.clone()) {
                 Ok(module) => module,
                 Err(err) => {
                     eprintln!("failed to compile runtime IR: {err}");
@@ -1617,14 +1629,11 @@ fn run_infer_views(
             {
                 println!();
             }
-            let lowered = lower_runtime_module_or_exit(
-                infer_program.as_ref().expect("core program"),
-                options.runtime_phase_timings,
-                &diagnostic_source,
-            );
-            startup_profile.record_runtime_lower(&lowered.profile);
+            let lowered = elaborated_runtime
+                .as_ref()
+                .expect("elaborated runtime module");
             let compile_start = Instant::now();
-            let module = match runtime_vm::compile_control_vm_module(lowered.module) {
+            let module = match runtime_vm::compile_control_vm_module(lowered.module.clone()) {
                 Ok(module) => module,
                 Err(err) => {
                     eprintln!("failed to compile control VM: {err}");
@@ -1763,7 +1772,7 @@ struct RuntimeFinalizeLowerOutput {
 #[derive(Default)]
 struct RuntimePhaseProfile {
     lower: Duration,
-    lower_profile: runtime::RuntimeLowerProfile,
+    lower_profile: Option<runtime::RuntimeLowerProfile>,
     monomorphize: Duration,
 }
 
@@ -1811,81 +1820,30 @@ fn lower_runtime_finalize_module_or_exit(
     }
 }
 
-fn finalize_runtime_module_with_cache(
-    source_set: &SourceSet,
-    options: &CliOptions,
-    module: runtime_types::ir::LoweredModule,
-) -> yulang_monomorphize::MonomorphizeResult<yulang_monomorphize::MonomorphizeOutput> {
-    if options.no_cache {
-        return yulang_monomorphize::finalize_module(module);
-    }
-
-    let manifests = finalized_instance_cache_manifests(source_set);
-    if manifests.is_empty() {
-        return yulang_monomorphize::finalize_module(module);
-    }
-
-    let paths = yulang_sources::YulangCachePaths::for_project(workspace_root());
-    let artifact_cache = yulang_monomorphize::MonomorphizeInstanceArtifactCache::from_paths(&paths);
-    let mut cache = artifact_cache.read_cache_for_manifests(&manifests);
-    let result = yulang_monomorphize::finalize_module_with_cache(module, &mut cache);
-    let _ = artifact_cache.write_cache_for_manifests(&manifests, &cache);
-    result
-}
-
-fn finalized_instance_cache_manifests(
-    source_set: &SourceSet,
-) -> Vec<yulang_sources::CompiledUnitManifest> {
-    source_set
-        .compiled_unit_syntax_artifacts()
-        .into_iter()
-        .map(|artifact| artifact.manifest)
-        .collect()
-}
-
-fn lower_runtime_module_or_exit(
-    program: &typed_ir::CoreProgram,
-    print_timings: bool,
-    source: &str,
+fn lower_elaborated_runtime_module_or_exit(
+    state: &mut InferLowerState,
+    _print_timings: bool,
 ) -> RuntimeLowerOutput {
     let lower_start = Instant::now();
-    let (module, lower_profile) = if print_timings {
-        match runtime::lower_core_program_profiled(program.clone()) {
-            Ok(output) => (output.module, output.profile),
-            Err(err) => {
-                eprintln!("error: {err}");
-                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
-                    eprint!("{frame}");
-                }
-                process::exit(1);
-            }
-        }
-    } else {
-        match runtime::lower_core_program(program.clone()) {
-            Ok(module) => (module, runtime::RuntimeLowerProfile::default()),
-            Err(err) => {
-                eprintln!("error: {err}");
-                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
-                    eprint!("{frame}");
-                }
-                process::exit(1);
-            }
+    let export = export_erased_program(state);
+    let elaborated = match yulang_elaborate::Elaborator::new(&export).build_program() {
+        Ok(program) => program,
+        Err(err) => {
+            eprintln!("error: {err:?}");
+            process::exit(1);
         }
     };
-    let lower = lower_start.elapsed();
-    let mono_start = Instant::now();
-    let module = match yulang_monomorphize::monomorphize_module(module) {
+    let module = match runtime::lower_elaborated_program(elaborated) {
         Ok(module) => module,
         Err(err) => {
             eprintln!("error: {err}");
             process::exit(1);
         }
     };
-    let monomorphize = mono_start.elapsed();
     let profile = RuntimePhaseProfile {
-        lower,
-        lower_profile,
-        monomorphize,
+        lower: lower_start.elapsed(),
+        lower_profile: None,
+        monomorphize: Duration::ZERO,
     };
     RuntimeLowerOutput { module, profile }
 }
@@ -1931,7 +1889,7 @@ fn lower_legacy_runtime_module_or_exit(
     let monomorphize = mono_start.elapsed();
     let profile = RuntimePhaseProfile {
         lower,
-        lower_profile,
+        lower_profile: Some(lower_profile),
         monomorphize,
     };
     LegacyRuntimeLowerOutput { module, profile }
@@ -2032,7 +1990,17 @@ fn print_runtime_phase_timings(
         "    monomorphize: {}",
         format_duration(profile.monomorphize)
     );
-    let core_shape = &profile.lower_profile.core_shape;
+    let Some(lower_profile) = &profile.lower_profile else {
+        eprintln!("    runtime_source: elaborated-ir");
+        if let Some(duration) = vm_compile {
+            eprintln!("    vm_compile: {}", format_duration(duration));
+        }
+        if let Some(duration) = vm_eval {
+            eprintln!("    vm_eval: {}", format_duration(duration));
+        }
+        return;
+    };
+    let core_shape = &lower_profile.core_shape;
     eprintln!(
         "    core_shape: exprs={}, applies={}, apply_complete={}, apply_partial={}, apply_missing_evidence={}, apply_missing_context={}, apply_missing_principal={}, apply_with_principal={}, apply_with_substitutions={}, apply_with_substitution_candidates={}, apply_with_principal_elaboration={}, apply_principal_elaboration_complete={}, apply_principal_elaboration_incomplete={}",
         core_shape.exprs,
@@ -2049,7 +2017,7 @@ fn print_runtime_phase_timings(
         core_shape.apply_principal_elaboration_complete,
         core_shape.apply_principal_elaboration_incomplete,
     );
-    let expected_arg = &profile.lower_profile.expected_arg_evidence;
+    let expected_arg = &lower_profile.expected_arg_evidence;
     eprintln!(
         "    expected_arg_evidence: present={}, converted={}, usable_by_table={}, usable_by_bounds={}, used_as_arg_type_hint={}, used_as_lowering_expected={}, ignored_no_expected_arg={}, ignored_not_convertible={}, ignored_table_open={}, ignored_table_uninformative={}, ignored_table_not_runtime_usable={}, ignored_bounds_unusable={}, ignored_unusable={}, ignored_no_push={}",
         expected_arg.present,
@@ -2067,7 +2035,7 @@ fn print_runtime_phase_timings(
         expected_arg.ignored_unusable,
         expected_arg.ignored_no_push,
     );
-    let adapters = &profile.lower_profile.runtime_adapters;
+    let adapters = &lower_profile.runtime_adapters;
     eprintln!(
         "    runtime_adapters: value_to_thunk={}, thunk_to_value={}, bind_here={}, apply_evidence_value_to_thunk={}, apply_evidence_thunk_to_value={}, apply_evidence_bind_here={}, apply_evidence_adapter_with_evidence={}, apply_evidence_adapter_with_source_edge={}, apply_evidence_adapter_without_evidence={}, apply_evidence_value_to_thunk_with_source_edge={}, apply_evidence_thunk_to_value_with_source_edge={}, apply_evidence_bind_here_with_source_edge={}, reused_thunk={}, forced_effect_thunk={}",
         adapters.value_to_thunk,
@@ -2101,7 +2069,7 @@ fn print_runtime_phase_timings(
         adapters.apply_prepare_effect_operation_argument_bind_here,
     );
     print_runtime_adapter_event_summary(adapters);
-    let adapter_evidence = &profile.lower_profile.expected_adapter_evidence;
+    let adapter_evidence = &lower_profile.expected_adapter_evidence;
     eprintln!(
         "    expected_adapter_evidence: total={}, runtime_usable={}, closed={}, informative={}, effect_operation_argument={}, value_to_thunk={}, thunk_to_value={}, bind_here={}, handler_residual={}, handler_return={}, resume_argument={}",
         adapter_evidence.total,
@@ -2116,7 +2084,7 @@ fn print_runtime_phase_timings(
         adapter_evidence.handler_return,
         adapter_evidence.resume_argument,
     );
-    let derived_evidence = &profile.lower_profile.derived_expected_evidence;
+    let derived_evidence = &lower_profile.derived_expected_evidence;
     eprintln!(
         "    derived_expected_evidence: total={}, record_field={}, tuple_item={}, variant_payload={}, function_param={}, function_return={}, covariant={}, contravariant={}, invariant={}",
         derived_evidence.total,
@@ -3275,8 +3243,8 @@ fn prepare_infer_cache(source_set: &SourceSet, options: &CliOptions) -> Prepared
     let cache = CompiledUnitArtifactCache::from_paths(
         &yulang_sources::YulangCachePaths::for_project(workspace_root()),
     );
-    let needs_runtime_bundle = options.requests_runtime_pipeline();
-    let bundle = (!options.no_cache)
+    let needs_runtime_bundle = options.requests_legacy_runtime_pipeline();
+    let bundle = (!options.no_cache && !options.requests_elaborated_runtime_pipeline())
         .then(|| {
             read_cached_dependency_unit_artifact_bundle(
                 source_set,
@@ -3307,7 +3275,10 @@ fn can_use_yuir_source_cache(options: &CliOptions) -> bool {
 }
 
 fn can_use_dependency_cache_key_source_collection(options: &CliOptions) -> bool {
-    !options.no_cache && !options.no_prelude && options.requests_semantic_pipeline()
+    !options.no_cache
+        && !options.no_prelude
+        && options.requests_semantic_pipeline()
+        && !options.requests_elaborated_runtime_pipeline()
 }
 
 fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
@@ -3315,7 +3286,7 @@ fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
 }
 
 fn should_write_dependency_cache(options: &CliOptions, namespace_defs_finalized: bool) -> bool {
-    !options.no_cache && namespace_defs_finalized
+    !options.no_cache && namespace_defs_finalized && !options.requests_elaborated_runtime_pipeline()
 }
 
 fn read_yuir_source_cache(
@@ -6447,23 +6418,12 @@ mod tests {
     }
 
     #[test]
-    fn finalized_instance_cache_manifests_include_entry_unit() {
-        let source_set = yulang_sources::collect_virtual_source_files_with_options(
-            "my x = 1\n",
-            None,
-            SourceOptions {
-                std_root: None,
-                implicit_prelude: false,
-                search_paths: Vec::new(),
-            },
-        )
-        .expect("source set");
+    fn elaborated_runtime_pipeline_disables_compiled_dependency_cache_write() {
+        let mut options = test_cli_options();
+        options.infer = false;
+        options.control_vm = true;
 
-        let manifests = finalized_instance_cache_manifests(&source_set);
-
-        assert!(manifests.iter().any(|manifest| {
-            manifest.origin == yulang_sources::SourceCompilationUnitOrigin::Entry
-        }));
+        assert!(!should_write_dependency_cache(&options, true));
     }
 
     #[test]

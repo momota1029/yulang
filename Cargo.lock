@@ -2139,6 +2139,7 @@ dependencies = [
  "tower-lsp",
  "unicode-ident",
  "yulang-editor",
+ "yulang-elaborate",
  "yulang-infer",
  "yulang-monomorphize",
  "yulang-parser",
