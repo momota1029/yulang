@@ -8,6 +8,7 @@ repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
 [dependencies]
+yulang-elaborated-ir = { version = "0.1.0", path = "../yulang-elaborated-ir" }
 yulang-erased-ir = { version = "0.1.0", path = "../yulang-erased-ir" }
 
 [dev-dependencies]

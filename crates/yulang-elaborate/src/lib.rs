@@ -12,6 +12,8 @@ use yulang_erased_ir::{
     ResolvedTypeClassRef, TypeClassObligation,
 };
 
+pub use yulang_elaborated_ir as elaborated_ir;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Elaborator<'a> {
     export: &'a InferExport,

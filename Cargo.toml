@@ -5,6 +5,7 @@ members = [
   "crates/yulang",
   "crates/yulang-sources",
   "crates/yulang-erased-ir",
+  "crates/yulang-elaborated-ir",
   "crates/yulang-elaborate",
   "crates/yulang-typed-ir",
   "crates/yulang-runtime-ir",
