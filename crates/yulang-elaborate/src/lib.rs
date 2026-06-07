@@ -13,7 +13,7 @@ mod constraints;
 mod draft;
 
 use yulang_erased_ir::{
-    DefId, ErasedExpr, InferExport, InferredBinding, InferredExpr, Path, PrincipalRoot,
+    DefId, ErasedExpr, InferExport, InferredBinding, InferredExpr, Name, Path, PrincipalRoot,
     RefCoverageReport, RefExportTable, RefId, ResolvedTypeClassRef, Scheme, Type, TypeBounds,
     TypeClassObligation,
 };
@@ -725,14 +725,29 @@ fn exact_concrete_type(
                 ElaborateProgramError::NonConcreteComputationType { site, field, error }
             });
         }
+        if let Some(candidate) = defaulted_type_bounds_candidate(field, bounds) {
+            return ConcreteType::try_from_type(candidate).map_err(|error| {
+                ElaborateProgramError::NonConcreteComputationType { site, field, error }
+            });
+        }
         return Err(ElaborateProgramError::NonExactComputationBounds {
             site,
             field,
             bounds: bounds.clone(),
         });
     }
-    ConcreteType::try_from_type((**lower).clone())
-        .map_err(|error| ElaborateProgramError::NonConcreteComputationType { site, field, error })
+    let ty = (**lower).clone();
+    match ConcreteType::try_from_type(ty.clone()) {
+        Ok(ty) => Ok(ty),
+        Err(error) => {
+            if let Some(candidate) = unique_defaulted_type_candidate_for_field(field, &ty) {
+                return ConcreteType::try_from_type(candidate).map_err(|error| {
+                    ElaborateProgramError::NonConcreteComputationType { site, field, error }
+                });
+            }
+            Err(ElaborateProgramError::NonConcreteComputationType { site, field, error })
+        }
+    }
 }
 
 fn unique_concrete_candidate(bounds: &TypeBounds) -> Option<Type> {
@@ -747,6 +762,355 @@ fn unique_concrete_candidate(bounds: &TypeBounds) -> Option<Type> {
         candidates.pop()
     } else {
         None
+    }
+}
+
+fn defaulted_type_bounds_candidate(field: ComputationField, bounds: &TypeBounds) -> Option<Type> {
+    let mut candidates = Vec::new();
+    if let Some(lower) = &bounds.lower {
+        collect_defaulted_concrete_candidates(
+            lower,
+            TypeDefaultPosition::for_field(field),
+            &mut candidates,
+        );
+    }
+    if let Some(upper) = &bounds.upper {
+        collect_defaulted_concrete_candidates(
+            upper,
+            TypeDefaultPosition::for_field(field),
+            &mut candidates,
+        );
+    }
+    match candidates.len() {
+        1 => Some(candidates.remove(0)),
+        0 if !type_bounds_contain_unknown(bounds) => {
+            Some(TypeDefaultPosition::for_field(field).default_type())
+        }
+        0 => None,
+        _ => None,
+    }
+}
+
+fn type_bounds_contain_unknown(bounds: &TypeBounds) -> bool {
+    bounds
+        .lower
+        .as_ref()
+        .is_some_and(|ty| type_contains_unknown(ty))
+        || bounds
+            .upper
+            .as_ref()
+            .is_some_and(|ty| type_contains_unknown(ty))
+}
+
+fn type_contains_unknown(ty: &Type) -> bool {
+    match ty {
+        Type::Unknown => true,
+        Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_unknown(param)
+                || type_contains_unknown(param_effect)
+                || type_contains_unknown(ret_effect)
+                || type_contains_unknown(ret)
+        }
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => {
+            items.iter().any(type_contains_unknown)
+        }
+        Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_contains_unknown(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    yulang_erased_ir::RecordSpread::Head(ty)
+                    | yulang_erased_ir::RecordSpread::Tail(ty) => type_contains_unknown(ty),
+                })
+        }
+        Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .flat_map(|case| &case.payloads)
+                .any(type_contains_unknown)
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| type_contains_unknown(tail))
+        }
+        Type::Row { items, tail } => {
+            items.iter().any(type_contains_unknown) || type_contains_unknown(tail)
+        }
+        Type::Recursive { body, .. } => type_contains_unknown(body),
+        Type::Var(_) | Type::Never | Type::Any => false,
+    }
+}
+
+fn type_arg_contains_unknown(arg: &yulang_erased_ir::TypeArg) -> bool {
+    match arg {
+        yulang_erased_ir::TypeArg::Type(ty) => type_contains_unknown(ty),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => type_bounds_contain_unknown(bounds),
+    }
+}
+
+#[derive(Clone, Copy)]
+enum TypeDefaultPosition {
+    Value,
+    Effect,
+}
+
+impl TypeDefaultPosition {
+    fn for_field(field: ComputationField) -> Self {
+        match field {
+            ComputationField::Value => Self::Value,
+            ComputationField::Effect => Self::Effect,
+        }
+    }
+
+    fn default_type(self) -> Type {
+        match self {
+            Self::Value => unit_type(),
+            Self::Effect => Type::Never,
+        }
+    }
+}
+
+fn defaulted_type_candidate_for_field(field: ComputationField, ty: &Type) -> Option<Type> {
+    defaulted_type_candidate(
+        ty,
+        TypeDefaultPosition::for_field(field),
+        &mut BTreeSet::new(),
+    )
+}
+
+fn unique_defaulted_type_candidate_for_field(field: ComputationField, ty: &Type) -> Option<Type> {
+    let mut candidates = Vec::new();
+    collect_defaulted_concrete_candidates(
+        ty,
+        TypeDefaultPosition::for_field(field),
+        &mut candidates,
+    );
+    match candidates.len() {
+        1 => Some(candidates.remove(0)),
+        0 => defaulted_type_candidate_for_field(field, ty),
+        _ => None,
+    }
+}
+
+fn collect_defaulted_concrete_candidates(
+    ty: &Type,
+    position: TypeDefaultPosition,
+    candidates: &mut Vec<Type>,
+) {
+    if ConcreteType::try_from_type(ty.clone()).is_ok() {
+        push_unique_candidate(candidates, ty.clone());
+        return;
+    }
+    match ty {
+        Type::Union(items) | Type::Inter(items) => {
+            for item in items {
+                collect_defaulted_concrete_candidates(item, position, candidates);
+            }
+        }
+        Type::Named { .. }
+        | Type::Fun { .. }
+        | Type::Tuple(_)
+        | Type::Record(_)
+        | Type::Variant(_)
+        | Type::Row { .. }
+        | Type::Recursive { .. } => {
+            if let Some(candidate) = defaulted_type_candidate_for_field_position(ty, position) {
+                push_unique_candidate(candidates, candidate);
+            }
+        }
+        Type::Var(_) | Type::Unknown | Type::Never | Type::Any => {}
+    }
+}
+
+fn defaulted_type_candidate_for_field_position(
+    ty: &Type,
+    position: TypeDefaultPosition,
+) -> Option<Type> {
+    defaulted_type_candidate(ty, position, &mut BTreeSet::new())
+}
+
+fn defaulted_type_candidate(
+    ty: &Type,
+    position: TypeDefaultPosition,
+    bound_vars: &mut BTreeSet<yulang_erased_ir::TypeVar>,
+) -> Option<Type> {
+    if ConcreteType::try_from_type(ty.clone()).is_ok() {
+        return Some(ty.clone());
+    }
+    match ty {
+        Type::Var(var) if bound_vars.contains(var) => Some(ty.clone()),
+        Type::Var(_) => Some(position.default_type()),
+        Type::Named { path, args } => Some(Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| defaulted_type_arg_candidate(arg, position, bound_vars))
+                .collect::<Option<Vec<_>>>()?,
+        }),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => Some(Type::Fun {
+            param: Box::new(defaulted_type_candidate(
+                param,
+                TypeDefaultPosition::Value,
+                bound_vars,
+            )?),
+            param_effect: Box::new(defaulted_type_candidate(
+                param_effect,
+                TypeDefaultPosition::Effect,
+                bound_vars,
+            )?),
+            ret_effect: Box::new(defaulted_type_candidate(
+                ret_effect,
+                TypeDefaultPosition::Effect,
+                bound_vars,
+            )?),
+            ret: Box::new(defaulted_type_candidate(
+                ret,
+                TypeDefaultPosition::Value,
+                bound_vars,
+            )?),
+        }),
+        Type::Tuple(items) => Some(Type::Tuple(
+            items
+                .iter()
+                .map(|item| defaulted_type_candidate(item, TypeDefaultPosition::Value, bound_vars))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Type::Record(record) => Some(Type::Record(yulang_erased_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| {
+                    Some(yulang_erased_ir::RecordField {
+                        name: field.name.clone(),
+                        value: defaulted_type_candidate(
+                            &field.value,
+                            TypeDefaultPosition::Value,
+                            bound_vars,
+                        )?,
+                        optional: field.optional,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+            spread: record.spread.as_ref().map_or(Some(None), |spread| {
+                defaulted_record_spread_candidate(spread, bound_vars).map(Some)
+            })?,
+        })),
+        Type::Variant(variant) => Some(Type::Variant(yulang_erased_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| {
+                    Some(yulang_erased_ir::VariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(|payload| {
+                                defaulted_type_candidate(
+                                    payload,
+                                    TypeDefaultPosition::Value,
+                                    bound_vars,
+                                )
+                            })
+                            .collect::<Option<Vec<_>>>()?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+            tail: variant.tail.as_ref().map_or(Some(None), |tail| {
+                defaulted_type_candidate(tail, TypeDefaultPosition::Value, bound_vars)
+                    .map(Box::new)
+                    .map(Some)
+            })?,
+        })),
+        Type::Row { items, tail } => Some(Type::Row {
+            items: items
+                .iter()
+                .map(|item| defaulted_type_candidate(item, position, bound_vars))
+                .collect::<Option<Vec<_>>>()?,
+            tail: Box::new(defaulted_type_candidate(tail, position, bound_vars)?),
+        }),
+        Type::Union(items) => Some(Type::Union(
+            items
+                .iter()
+                .map(|item| defaulted_type_candidate(item, position, bound_vars))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Type::Inter(items) => Some(Type::Inter(
+            items
+                .iter()
+                .map(|item| defaulted_type_candidate(item, position, bound_vars))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Type::Recursive { var, body } => {
+            let inserted = bound_vars.insert(var.clone());
+            let body = defaulted_type_candidate(body, position, bound_vars);
+            if inserted {
+                bound_vars.remove(var);
+            }
+            Some(Type::Recursive {
+                var: var.clone(),
+                body: Box::new(body?),
+            })
+        }
+        Type::Unknown => None,
+        Type::Never | Type::Any => Some(ty.clone()),
+    }
+}
+
+fn defaulted_type_arg_candidate(
+    arg: &yulang_erased_ir::TypeArg,
+    position: TypeDefaultPosition,
+    bound_vars: &mut BTreeSet<yulang_erased_ir::TypeVar>,
+) -> Option<yulang_erased_ir::TypeArg> {
+    match arg {
+        yulang_erased_ir::TypeArg::Type(ty) => Some(yulang_erased_ir::TypeArg::Type(
+            defaulted_type_candidate(ty, position, bound_vars)?,
+        )),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => Some(yulang_erased_ir::TypeArg::Bounds(
+            yulang_erased_ir::TypeBounds {
+                lower: bounds.lower.as_ref().map_or(Some(None), |lower| {
+                    defaulted_type_candidate(lower, position, bound_vars)
+                        .map(Box::new)
+                        .map(Some)
+                })?,
+                upper: bounds.upper.as_ref().map_or(Some(None), |upper| {
+                    defaulted_type_candidate(upper, position, bound_vars)
+                        .map(Box::new)
+                        .map(Some)
+                })?,
+            },
+        )),
+    }
+}
+
+fn defaulted_record_spread_candidate(
+    spread: &yulang_erased_ir::RecordSpread,
+    bound_vars: &mut BTreeSet<yulang_erased_ir::TypeVar>,
+) -> Option<yulang_erased_ir::RecordSpread> {
+    match spread {
+        yulang_erased_ir::RecordSpread::Head(ty) => {
+            defaulted_type_candidate(ty, TypeDefaultPosition::Value, bound_vars)
+                .map(Box::new)
+                .map(yulang_erased_ir::RecordSpread::Head)
+        }
+        yulang_erased_ir::RecordSpread::Tail(ty) => {
+            defaulted_type_candidate(ty, TypeDefaultPosition::Value, bound_vars)
+                .map(Box::new)
+                .map(yulang_erased_ir::RecordSpread::Tail)
+        }
     }
 }
 
@@ -895,6 +1259,13 @@ fn unique_type_candidate(items: &[Type]) -> Option<Type> {
 fn push_unique_candidate(candidates: &mut Vec<Type>, candidate: Type) {
     if !candidates.iter().any(|existing| existing == &candidate) {
         candidates.push(candidate);
+    }
+}
+
+fn unit_type() -> Type {
+    Type::Named {
+        path: Path::from_name(Name("unit".to_string())),
+        args: Vec::new(),
     }
 }
 
@@ -1766,6 +2137,40 @@ my used = id (1.display)\n",
     }
 
     #[test]
+    fn elaborate_program_accepts_actual_generic_direct_ref_value_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "my id x = x\nid\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("generic direct ref value can default unbounded function shape");
+
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Ref(_)
+        ));
+        assert!(matches!(
+            &program.module.root_exprs[0].comp.value,
+            elaborated_ir::MonoType::Function(boundary)
+                if matches!(&boundary.param, elaborated_ir::MonoType::Value(value)
+                    if value.as_type() == &named_type("unit"))
+                    && matches!(&boundary.ret, elaborated_ir::MonoType::Value(value)
+                    if value.as_type() == &named_type("unit"))
+        ));
+        assert_eq!(
+            program.module.instances.len(),
+            2,
+            "root and defaulted id binding should be materialized",
+        );
+    }
+
+    #[test]
     fn elaborate_program_accepts_actual_record_literal_export() {
         let mut lowered = yulang_infer::lower_virtual_source_with_options(
             "{x: 1, y: 2}\n",
@@ -1908,6 +2313,32 @@ impl Display int:\n  our x.display = \"int\"\n\n\
             .build_program()
         else {
             panic!("Unknown root type must not be used as a concrete elaborated type");
+        };
+    }
+
+    #[test]
+    fn elaborator_does_not_default_unknown_mixed_root_bounds() {
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(InferredExpr {
+            typ: TypeBounds {
+                lower: Some(Box::new(yulang_erased_ir::Type::Unknown)),
+                upper: Some(Box::new(yulang_erased_ir::Type::Var(
+                    yulang_erased_ir::TypeVar("a".to_string()),
+                ))),
+            },
+            eff: TypeBounds::exact(yulang_erased_ir::Type::Never),
+            ir: yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Unit),
+        });
+
+        let Err(ElaborateProgramError::NonExactComputationBounds {
+            site: ElaborateSite::RootExpr(0),
+            field: ComputationField::Value,
+            ..
+        }) = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+        else {
+            panic!("Unknown root bounds must not default to unit");
         };
     }
 

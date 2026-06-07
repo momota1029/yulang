@@ -158,12 +158,15 @@ identity は通常の関数 `DefId`、型クラス impl の `DefId`、erased IR 
 
 同じ identity と同じ具体代入は同じ単相化結果を指す。worklist はこの組で重複を消す。
 
-direct ref の使用箇所では、その `RefId` の主型と、apply の引数・返り値から具体代入を作る。
+direct ref の使用箇所では、その `RefId` の主型と、文脈が要求する computation から具体代入を作る。
+apply callee の場合は、apply の引数・返り値も文脈の一部として使う。
 例えば `id : α -> α` を `id 1 : int` として使う場合、引数 literal と apply result から
 `α := int` を得る。この concrete signature は、参照元 instance 内の `RefId` 解決だけでなく、
 参照先 binding をどの `MonoInstance` として materialize するかにも使う。
 引数が direct ref で、その参照先 scheme がすでに単相 concrete なら、その scheme body も
 同じ use-site の concrete 情報として使える。
+apply されていない direct ref でも、root や関数引数などの文脈が concrete computation を要求する場合は、
+その computation と主型を照合して concrete signature を作る。
 
 使用箇所から境界が十分に得られない fresh 単相変数は、`Any` / `Unknown` で補わず、
 value type なら `unit`、effect row なら `Never` を代入する。
@@ -280,6 +283,9 @@ A | B <: α <: C & D
 どちらの側も複数の具体型の集合でしかなく、束の関係から一つの concrete 型へ畳めないなら、
 `α` へ入れる中間型は存在しない。このとき `Any` や `Unknown` で穴埋めしてはならない。
 境界から候補が一つも出ない場合だけ、変数の kind に応じた default を使う。
+root expression の `TypeBounds` から初期 computation を作る入口でも同じ規則を使う。
+ただし `Union(Var, Fun(...))` のように裸変数と構造を持つ型が混在する場合、裸変数を default 候補として
+混ぜず、まず構造を持つ候補を読む。候補が本当に一つもない場合だけ field の kind に応じた default を使う。
 
 ## 型代入と置換
 

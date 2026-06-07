@@ -336,14 +336,46 @@ impl ConstraintSolver {
             ErasedExpr::Select { base, field } => self.solve_select(draft, id, base, field, env),
             ErasedExpr::BindHere { expr } => self.solve_bind_here(draft, id, expr, env),
             ErasedExpr::Pack { expr, .. } => self.solve_pack(draft, id, expr, env),
-            ErasedExpr::Def(_)
-            | ErasedExpr::Ref(_)
-            | ErasedExpr::PrimitiveOp(_)
-            | ErasedExpr::Lit(_) => self
+            ErasedExpr::Ref(ref_id) => self.solve_ref(draft, id, *ref_id, env),
+            ErasedExpr::Def(_) | ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => self
                 .require_assigned(draft.expr(id).computation)
                 .map(|_| ()),
             _ => Ok(()),
         }
+    }
+
+    fn solve_ref(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        ref_id: RefId,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        let computation = self.require_assigned(slot)?.clone();
+        if let Some((def, scheme)) = env.direct_scheme(ref_id) {
+            if let Some(signature) = self.ref_signature_from_scheme(slot, &computation, scheme)? {
+                self.direct_ref_instances
+                    .insert(ref_id, DirectRefInstanceDemand { def, signature });
+            } else if scheme_needs_instantiation(scheme) {
+                return Err(ConstraintError::GenericDirectRefScheme { def });
+            }
+        } else if let Some((resolved, scheme)) = env.resolved_typeclass_scheme(ref_id) {
+            if let Some(signature) = self.ref_signature_from_scheme(slot, &computation, scheme)? {
+                self.resolved_typeclass_instances.insert(
+                    ref_id,
+                    ResolvedTypeclassInstanceDemand {
+                        resolved: resolved.clone(),
+                        signature,
+                    },
+                );
+            } else if scheme_needs_instantiation(scheme) {
+                return Err(ConstraintError::GenericDirectRefScheme {
+                    def: resolved.impl_member,
+                });
+            }
+        }
+        Ok(())
     }
 
     fn solve_apply(
@@ -773,6 +805,37 @@ impl ConstraintSolver {
             return Ok(None);
         };
         concrete_apply_from_scheme(slot, expected, &instantiated).map(Some)
+    }
+
+    fn ref_signature_from_scheme(
+        &mut self,
+        slot: DraftComputationId,
+        expected: &MonoComputation,
+        scheme: &Scheme,
+    ) -> Result<Option<MonoComputation>, ConstraintError> {
+        if !scheme_needs_instantiation(scheme) {
+            return Ok(None);
+        }
+        if !scheme_can_be_instantiated_locally(scheme) {
+            return Ok(None);
+        }
+        let body = self.freshen_scheme_body(scheme);
+        let expected_value = value_type(slot, &expected.value)?;
+        let expected_effect = expected.effect.row().as_type().clone();
+
+        self.constrain_types(body.clone(), expected_value.clone())?;
+        self.constrain_types(expected_value, body.clone())?;
+        self.constrain_types(Type::Never, expected_effect.clone())?;
+        self.constrain_types(expected_effect, Type::Never)?;
+        self.drain_pending_bounds()?;
+
+        let substitution = self.build_substitution(slot, ConstraintTypeSource::BoundsSelection)?;
+        let body = substitution.apply_type(&body);
+        let value = concrete_type(slot, ConstraintTypeSource::BoundsSelection, body)?;
+        Ok(Some(MonoComputation {
+            value: MonoType::Value(value),
+            effect: pure_effect(),
+        }))
     }
 
     fn instantiate_apply_scheme(
