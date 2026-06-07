@@ -132,6 +132,18 @@ obligation に畳み込む。値制限や量化境界は scheme の metadata と
 monomorphize が注釈を再解釈すると、infer と別の意味で注釈を読む経路が生まれる。これは
 主型から単相化するという API 境界を壊す。
 
+ただし、function boundary hygiene に必要な情報は、注釈履歴とは別分類として infer output に残す。
+`f: () -> [io] _` のような関数 parameter の return effect 境界や、`x: [_] _` のような
+effective thunk parameter の effect 境界は、後段が関数値の producer-consumer 境界で
+`FunctionAdapter` / `LocalPushId` / `AddId` を組むための runtime hygiene 入力である。
+
+この情報は erased expression node の field ではなく、lambda parameter `DefId` で引ける
+`HygieneExportTable` に置く。table は「この場所に注釈があった」という evidence ではなく、
+その lambda parameter を値として受け渡すときに守るべき runtime 境界だけを表す。
+elaboration は主型と erased IR から関数境界を再構築し、この table を補助入力として
+adapter hygiene plan を作る。runtime lower はこの plan を実行表現へ落とすだけで、
+関数型や apply spine から hygiene を推測してはならない。
+
 ## 単相化需要
 
 monomorphize の作業単位は次の組である。

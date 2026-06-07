@@ -50,6 +50,7 @@ pub fn export_erased_program(state: &mut LowerState) -> erased::InferExport {
                 roots,
             },
             refs: exporter.refs,
+            hygiene: exporter.hygiene,
         },
     }
 }
@@ -74,6 +75,7 @@ struct ErasedExporter<'a> {
     current_binding: Option<DefId>,
     pending_typeclass_obligations: HashMap<DefId, Vec<erased::TypeClassObligation>>,
     refs: erased::RefExportTable,
+    hygiene: erased::HygieneExportTable,
 }
 
 impl<'a> ErasedExporter<'a> {
@@ -85,6 +87,7 @@ impl<'a> ErasedExporter<'a> {
             current_binding: None,
             pending_typeclass_obligations: HashMap::new(),
             refs: erased::RefExportTable::default(),
+            hygiene: erased::HygieneExportTable::default(),
         }
     }
 
@@ -176,10 +179,13 @@ impl<'a> ErasedExporter<'a> {
                 reference: Box::new(self.export_expr(reference)),
                 value: Box::new(self.export_expr(value)),
             },
-            ExprKind::Lam(def, body) => self.with_local(*def, |this| erased::ErasedExpr::Lambda {
-                param: export_def_id(*def),
-                body: Box::new(this.export_expr(body)),
-            }),
+            ExprKind::Lam(def, body) => {
+                self.register_lambda_param_hygiene(*def);
+                self.with_local(*def, |this| erased::ErasedExpr::Lambda {
+                    param: export_def_id(*def),
+                    body: Box::new(this.export_expr(body)),
+                })
+            }
             ExprKind::Tuple(items) => {
                 erased::ErasedExpr::Tuple(items.iter().map(|item| self.export_expr(item)).collect())
             }
@@ -635,6 +641,29 @@ impl<'a> ErasedExporter<'a> {
         }
     }
 
+    fn register_lambda_param_hygiene(&mut self, def: DefId) {
+        let effect_boundary = self
+            .state
+            .lambda_param_effect_annotations
+            .get(&def)
+            .map(convert_param_effect_boundary);
+        let function_allowed_effects = self
+            .state
+            .lambda_param_function_allowed_effects
+            .get(&def)
+            .map(convert_function_allowed_effects_boundary);
+        if effect_boundary.is_none() && function_allowed_effects.is_none() {
+            return;
+        }
+        self.hygiene.lambda_params.insert(
+            export_def_id(def),
+            erased::LambdaParamHygiene {
+                effect_boundary,
+                function_allowed_effects,
+            },
+        );
+    }
+
     fn with_current_binding<T>(&mut self, def: DefId, f: impl FnOnce(&mut Self) -> T) -> T {
         let previous = self.current_binding.replace(def);
         let out = f(self);
@@ -855,6 +884,32 @@ fn convert_role_requirement(requirement: typed_ir::RoleRequirement) -> erased::R
                 }
             })
             .collect(),
+    }
+}
+
+fn convert_param_effect_boundary(
+    annotation: &typed_ir::ParamEffectAnnotation,
+) -> erased::ParamEffectBoundary {
+    match annotation {
+        typed_ir::ParamEffectAnnotation::Wildcard => erased::ParamEffectBoundary::Wildcard,
+        typed_ir::ParamEffectAnnotation::Region(name) => {
+            erased::ParamEffectBoundary::Region(convert_typed_name(name.clone()))
+        }
+    }
+}
+
+fn convert_function_allowed_effects_boundary(
+    allowed: &typed_ir::FunctionSigAllowedEffects,
+) -> erased::FunctionAllowedEffectsBoundary {
+    match allowed {
+        typed_ir::FunctionSigAllowedEffects::Wildcard => {
+            erased::FunctionAllowedEffectsBoundary::Wildcard
+        }
+        typed_ir::FunctionSigAllowedEffects::Effects(paths) => {
+            erased::FunctionAllowedEffectsBoundary::Effects(
+                paths.iter().cloned().map(convert_typed_path).collect(),
+            )
+        }
     }
 }
 
@@ -1457,6 +1512,46 @@ my get xs key = xs.index key\n",
         );
     }
 
+    #[test]
+    fn erased_export_keeps_lambda_param_hygiene_metadata() {
+        let mut state = parse_and_lower(
+            "act io:\n  our read: () -> int\n\n\
+my app(f: () -> [io] _) = f\n\
+my h(x: [_] _) = x\n",
+        );
+        let exported = export_erased_program(&mut state).erased;
+
+        let app_hygiene = lambda_param_hygiene_for_binding(&exported, "app");
+        assert!(
+            app_hygiene.effect_boundary.is_none(),
+            "function return effect boundary should not be exported as parameter effect boundary",
+        );
+        let Some(erased::FunctionAllowedEffectsBoundary::Effects(effects)) =
+            &app_hygiene.function_allowed_effects
+        else {
+            panic!(
+                "function parameter return-effect boundary should be preserved, got {app_hygiene:?}",
+            );
+        };
+        assert!(
+            effects
+                .iter()
+                .any(|path| path.segments.last().is_some_and(|name| name.0 == "io")),
+            "allowed effect set should preserve the effect path, got {effects:?}",
+        );
+
+        let h_hygiene = lambda_param_hygiene_for_binding(&exported, "h");
+        assert_eq!(
+            h_hygiene.effect_boundary,
+            Some(erased::ParamEffectBoundary::Wildcard),
+            "param effect boundary should be exported for runtime hygiene",
+        );
+        assert!(
+            h_hygiene.function_allowed_effects.is_none(),
+            "effective-thunk parameter boundary should not be confused with function return effects",
+        );
+    }
+
     fn collect_expr_refs(expr: &erased::ErasedExpr) -> Vec<erased::RefId> {
         let mut refs = Vec::new();
         visit_expr(expr, &mut |expr| {
@@ -1465,6 +1560,35 @@ my get xs key = xs.index key\n",
             }
         });
         refs
+    }
+
+    fn lambda_param_hygiene_for_binding<'a>(
+        exported: &'a erased::ErasedProgram,
+        name: &str,
+    ) -> &'a erased::LambdaParamHygiene {
+        let binding = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.0 == name)
+            })
+            .expect("binding");
+        let erased::ErasedExpr::Lambda { param, .. } = &binding.body.ir else {
+            panic!(
+                "binding should be exported as a lambda: {:?}",
+                binding.body.ir
+            );
+        };
+        exported
+            .hygiene
+            .lambda_params
+            .get(param)
+            .expect("lambda param hygiene")
     }
 
     fn visit_expr(expr: &erased::ErasedExpr, visitor: &mut impl FnMut(&erased::ErasedExpr)) {

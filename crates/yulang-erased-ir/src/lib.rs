@@ -55,6 +55,7 @@ pub struct InferExport {
 pub struct ErasedProgram {
     pub module: ErasedModule,
     pub refs: RefExportTable,
+    pub hygiene: HygieneExportTable,
 }
 
 impl ErasedProgram {
@@ -139,6 +140,29 @@ pub enum PrincipalRoot {
 pub struct RefExportTable {
     pub direct: BTreeMap<RefId, DefId>,
     pub resolved_typeclass: BTreeMap<RefId, ResolvedTypeClassRef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct HygieneExportTable {
+    pub lambda_params: BTreeMap<DefId, LambdaParamHygiene>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LambdaParamHygiene {
+    pub effect_boundary: Option<ParamEffectBoundary>,
+    pub function_allowed_effects: Option<FunctionAllowedEffectsBoundary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ParamEffectBoundary {
+    Wildcard,
+    Region(Name),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FunctionAllowedEffectsBoundary {
+    Wildcard,
+    Effects(Vec<Path>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -576,6 +600,7 @@ mod tests {
                 ..ErasedModule::default()
             },
             refs: RefExportTable::default(),
+            hygiene: HygieneExportTable::default(),
         };
 
         let json = serde_json::to_string(&program).expect("serialize erased program");

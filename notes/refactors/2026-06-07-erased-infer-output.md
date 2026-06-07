@@ -31,6 +31,11 @@ pub struct InferExport {
 diagnostics や language server 向けの情報は `InferExport` に含めない。
 必要なら別 table として出す。monomorphize の入力型は `InferExport` だけに限定する。
 
+`ErasedProgram` は erased expression tree と、後段が runtime identity を復元するための
+side table を持つ。現行の side table は direct / typeclass refs と function hygiene である。
+function hygiene は annotation evidence ではなく、lambda parameter `DefId` に結びついた
+runtime boundary metadata として扱う。
+
 実装上の `ErasedProgram` は、binding / root expression ごとに次の triple を持つ。
 
 ```rust
@@ -48,7 +53,7 @@ computation result である。`ErasedExpr` 自体は型・効果・annotation e
 
 ## `ErasedProgram`
 
-`ErasedProgram` は値の構造だけを持つ。
+`ErasedExpr` は値の構造だけを持つ。
 
 残すもの:
 
@@ -75,6 +80,12 @@ computation result である。`ErasedExpr` 自体は型・効果・annotation e
 後段に annotation evidence を渡してはならない。
 cast/coerce は monomorphize / elaboration が producer-consumer の型差から挿入できるため、
 erased IR に保持しない。
+
+例外として見える function hygiene table は、注釈履歴ではなく runtime boundary metadata である。
+`f: () -> [io] _` の allowed effects や `x: [_] _` の param effect boundary は
+lambda parameter `DefId` keyed table に置き、erased expression node には入れない。
+この table は `FunctionAdapter` の hygiene plan を作るための入力であり、monomorphize が
+注釈位置を再解釈する経路ではない。
 
 ## direct refs と typeclass obligations
 
