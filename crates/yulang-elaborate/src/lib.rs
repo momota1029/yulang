@@ -719,18 +719,135 @@ fn collect_concrete_candidates(ty: &Type, candidates: &mut Vec<Type>) {
                 collect_concrete_candidates(item, candidates);
             }
         }
-        Type::Unknown
-        | Type::Never
-        | Type::Any
-        | Type::Var(_)
-        | Type::Named { .. }
+        Type::Named { .. }
         | Type::Fun { .. }
         | Type::Tuple(_)
         | Type::Record(_)
         | Type::Variant(_)
-        | Type::Row { .. }
-        | Type::Recursive { .. } => {}
+        | Type::Row { .. } => {
+            if let Some(candidate) = concretize_type_candidate(ty) {
+                push_unique_candidate(candidates, candidate);
+            }
+        }
+        Type::Unknown | Type::Never | Type::Any | Type::Var(_) | Type::Recursive { .. } => {}
     }
+}
+
+fn concretize_type_candidate(ty: &Type) -> Option<Type> {
+    if ConcreteType::try_from_type(ty.clone()).is_ok() {
+        return Some(ty.clone());
+    }
+    match ty {
+        Type::Union(items) | Type::Inter(items) => unique_type_candidate(items),
+        Type::Named { path, args } => Some(Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(concretize_type_arg_candidate)
+                .collect::<Option<Vec<_>>>()?,
+        }),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => Some(Type::Fun {
+            param: Box::new(concretize_type_candidate(param)?),
+            param_effect: Box::new(concretize_type_candidate(param_effect)?),
+            ret_effect: Box::new(concretize_type_candidate(ret_effect)?),
+            ret: Box::new(concretize_type_candidate(ret)?),
+        }),
+        Type::Tuple(items) => Some(Type::Tuple(
+            items
+                .iter()
+                .map(concretize_type_candidate)
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Type::Record(record) => Some(Type::Record(yulang_erased_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| {
+                    Some(yulang_erased_ir::RecordField {
+                        name: field.name.clone(),
+                        value: concretize_type_candidate(&field.value)?,
+                        optional: field.optional,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+            spread: record.spread.as_ref().map_or(Some(None), |spread| {
+                concretize_record_spread_candidate(spread).map(Some)
+            })?,
+        })),
+        Type::Variant(variant) => Some(Type::Variant(yulang_erased_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| {
+                    Some(yulang_erased_ir::VariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(concretize_type_candidate)
+                            .collect::<Option<Vec<_>>>()?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+            tail: variant.tail.as_ref().map_or(Some(None), |tail| {
+                concretize_type_candidate(tail).map(Box::new).map(Some)
+            })?,
+        })),
+        Type::Row { items, tail } => Some(Type::Row {
+            items: items
+                .iter()
+                .map(concretize_type_candidate)
+                .collect::<Option<Vec<_>>>()?,
+            tail: Box::new(concretize_type_candidate(tail)?),
+        }),
+        Type::Unknown | Type::Never | Type::Any | Type::Var(_) | Type::Recursive { .. } => None,
+    }
+}
+
+fn concretize_type_arg_candidate(
+    arg: &yulang_erased_ir::TypeArg,
+) -> Option<yulang_erased_ir::TypeArg> {
+    match arg {
+        yulang_erased_ir::TypeArg::Type(ty) => Some(yulang_erased_ir::TypeArg::Type(
+            concretize_type_candidate(ty)?,
+        )),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => Some(yulang_erased_ir::TypeArg::Bounds(
+            yulang_erased_ir::TypeBounds {
+                lower: bounds.lower.as_ref().map_or(Some(None), |lower| {
+                    concretize_type_candidate(lower).map(Box::new).map(Some)
+                })?,
+                upper: bounds.upper.as_ref().map_or(Some(None), |upper| {
+                    concretize_type_candidate(upper).map(Box::new).map(Some)
+                })?,
+            },
+        )),
+    }
+}
+
+fn concretize_record_spread_candidate(
+    spread: &yulang_erased_ir::RecordSpread,
+) -> Option<yulang_erased_ir::RecordSpread> {
+    match spread {
+        yulang_erased_ir::RecordSpread::Head(ty) => concretize_type_candidate(ty)
+            .map(Box::new)
+            .map(yulang_erased_ir::RecordSpread::Head),
+        yulang_erased_ir::RecordSpread::Tail(ty) => concretize_type_candidate(ty)
+            .map(Box::new)
+            .map(yulang_erased_ir::RecordSpread::Tail),
+    }
+}
+
+fn unique_type_candidate(items: &[Type]) -> Option<Type> {
+    let mut candidates = Vec::new();
+    for item in items {
+        collect_concrete_candidates(item, &mut candidates);
+    }
+    (candidates.len() == 1).then(|| candidates.remove(0))
 }
 
 fn push_unique_candidate(candidates: &mut Vec<Type>, candidate: Type) {
@@ -945,6 +1062,94 @@ fn elaborate_expr(
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             )
+        }
+        ErasedExpr::Record { fields, spread } => {
+            let children = draft.expr(id).children.clone();
+            let elaborated_fields = fields
+                .iter()
+                .zip(children.iter().copied())
+                .map(|(field, child_id)| {
+                    Ok(elaborated_ir::RecordExprField {
+                        name: field.name.clone(),
+                        value: elaborate_expr(
+                            site.clone(),
+                            draft,
+                            child_id,
+                            &field.value,
+                            solution,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, ElaborateProgramError>>()?;
+            let elaborated_spread = spread
+                .as_ref()
+                .zip(children.get(fields.len()).copied())
+                .map(|(spread, spread_id)| match spread {
+                    yulang_erased_ir::RecordSpreadExpr::Head(expr) => {
+                        elaborate_expr(site.clone(), draft, spread_id, expr, solution)
+                            .map(Box::new)
+                            .map(elaborated_ir::RecordSpreadExpr::Head)
+                    }
+                    yulang_erased_ir::RecordSpreadExpr::Tail(expr) => {
+                        elaborate_expr(site.clone(), draft, spread_id, expr, solution)
+                            .map(Box::new)
+                            .map(elaborated_ir::RecordSpreadExpr::Tail)
+                    }
+                })
+                .transpose()?;
+            ElaboratedExprKind::Record {
+                fields: elaborated_fields,
+                spread: elaborated_spread,
+            }
+        }
+        ErasedExpr::Variant { tag, value, .. } => {
+            let value = value
+                .as_ref()
+                .zip(draft.expr(id).children.first().copied())
+                .map(|(value, child_id)| {
+                    elaborate_expr(site.clone(), draft, child_id, value, solution).map(Box::new)
+                })
+                .transpose()?;
+            ElaboratedExprKind::Variant {
+                tag: tag.clone(),
+                value,
+            }
+        }
+        ErasedExpr::Select { base, field } => {
+            let [base_id] = draft.expr(id).children.as_slice() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::Select,
+                });
+            };
+            ElaboratedExprKind::Select {
+                base: Box::new(elaborate_expr(
+                    site.clone(),
+                    draft,
+                    *base_id,
+                    base,
+                    solution,
+                )?),
+                field: field.clone(),
+            }
+        }
+        ErasedExpr::Pack { var, expr } => {
+            let [body_id] = draft.expr(id).children.as_slice() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::Pack,
+                });
+            };
+            ElaboratedExprKind::Pack {
+                var: var.clone(),
+                expr: Box::new(elaborate_expr(
+                    site.clone(),
+                    draft,
+                    *body_id,
+                    expr,
+                    solution,
+                )?),
+            }
         }
         _ => {
             return Err(ElaborateProgramError::UnsupportedExpr {
@@ -1373,6 +1578,50 @@ my used = id (1.display)\n",
             "root and instantiated id binding should be materialized, got {:?}",
             program.module.instances,
         );
+    }
+
+    #[test]
+    fn elaborate_program_accepts_actual_record_literal_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "{x: 1, y: 2}\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("record literal should elaborate from actual infer export");
+
+        let elaborated_ir::ElaboratedExprKind::Record { fields, .. } =
+            &program.module.root_exprs[0].kind
+        else {
+            panic!("root should elaborate as record");
+        };
+        assert_eq!(fields.len(), 2);
+    }
+
+    #[test]
+    fn elaborate_program_accepts_actual_record_field_select_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "my r = {x: 1, y: 2}\nr.x\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("record field selection should elaborate from actual infer export");
+
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Select { field, .. } if field.0 == "x"
+        ));
     }
 
     #[test]

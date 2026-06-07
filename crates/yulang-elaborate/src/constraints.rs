@@ -160,6 +160,41 @@ pub enum ConstraintError {
         slot: ConstraintComputationSlot,
         found: MonoType,
     },
+    ExpectedRecord {
+        slot: ConstraintComputationSlot,
+        found: MonoType,
+    },
+    MissingRecordField {
+        slot: ConstraintComputationSlot,
+        field: Name,
+    },
+    MissingRecordSpread {
+        slot: ConstraintComputationSlot,
+    },
+    ExpectedVariant {
+        slot: ConstraintComputationSlot,
+        found: MonoType,
+    },
+    MissingVariantCase {
+        slot: ConstraintComputationSlot,
+        tag: Name,
+    },
+    VariantPayloadMismatch {
+        slot: ConstraintComputationSlot,
+        tag: Name,
+        expected: usize,
+        actual: usize,
+    },
+    SelectFieldMismatch {
+        slot: ConstraintComputationSlot,
+        field: Name,
+        expected: Type,
+        actual: Type,
+    },
+    UnsupportedSelectBase {
+        slot: ConstraintComputationSlot,
+        kind: ErasedExprKind,
+    },
     TupleArityMismatch {
         slot: ConstraintComputationSlot,
         expected: usize,
@@ -207,6 +242,10 @@ pub enum ConstraintError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstraintTypeSource {
     BoundsSelection,
+    RecordField,
+    RecordSpread,
+    SelectBase,
+    VariantPayload,
     TupleItem,
     FunctionParam,
     FunctionParamEffect,
@@ -268,6 +307,14 @@ impl ConstraintSolver {
             ErasedExpr::Apply { callee, arg } => self.solve_apply(draft, id, callee, arg, env),
             ErasedExpr::Lambda { body, .. } => self.solve_lambda(draft, id, body, env),
             ErasedExpr::Tuple(items) => self.solve_tuple(draft, id, items, env),
+            ErasedExpr::Record { fields, spread } => {
+                self.solve_record(draft, id, fields, spread.as_ref(), env)
+            }
+            ErasedExpr::Variant { tag, value, .. } => {
+                self.solve_variant(draft, id, tag, value.as_deref(), env)
+            }
+            ErasedExpr::Select { base, field } => self.solve_select(draft, id, base, field, env),
+            ErasedExpr::Pack { expr, .. } => self.solve_pack(draft, id, expr, env),
             ErasedExpr::Def(_)
             | ErasedExpr::Ref(_)
             | ErasedExpr::PrimitiveOp(_)
@@ -469,6 +516,211 @@ impl ConstraintSolver {
             self.solve_expr(draft, child_id, item, env)?;
         }
         Ok(())
+    }
+
+    fn solve_record(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        fields: &[yulang_erased_ir::RecordExprField],
+        spread: Option<&yulang_erased_ir::RecordSpreadExpr>,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        let computation = self.require_assigned(slot)?;
+        if !effect_is_pure(&computation.effect) {
+            return Err(ConstraintError::NonPureCompoundEffect {
+                slot: slot.into(),
+                kind: ErasedExprKind::Record,
+                effect: computation.effect,
+            });
+        }
+        let MonoType::Value(value) = computation.value else {
+            return Err(ConstraintError::ExpectedRecord {
+                slot: slot.into(),
+                found: computation.value,
+            });
+        };
+        let Type::Record(record) = value.as_type() else {
+            return Err(ConstraintError::ExpectedRecord {
+                slot: slot.into(),
+                found: MonoType::Value(value),
+            });
+        };
+
+        let children = draft.expr(id).children.clone();
+        let field_children = children.iter().copied().take(fields.len());
+        for (child_id, field) in field_children.zip(fields) {
+            let Some(field_type) = record
+                .fields
+                .iter()
+                .find(|record_field| record_field.name == field.name)
+                .map(|record_field| record_field.value.clone())
+            else {
+                return Err(ConstraintError::MissingRecordField {
+                    slot: slot.into(),
+                    field: field.name.clone(),
+                });
+            };
+            let child_slot = draft.expr(child_id).computation;
+            self.assign(
+                child_slot,
+                pure_value_computation(child_slot, ConstraintTypeSource::RecordField, field_type)?,
+            )?;
+            self.solve_expr(draft, child_id, &field.value, env)?;
+        }
+
+        if let Some(spread) = spread {
+            let Some(spread_id) = children.get(fields.len()).copied() else {
+                return Ok(());
+            };
+            let Some(spread_type) = record_spread_type(record.spread.as_ref()) else {
+                return Err(ConstraintError::MissingRecordSpread { slot: slot.into() });
+            };
+            let child_slot = draft.expr(spread_id).computation;
+            self.assign(
+                child_slot,
+                pure_value_computation(
+                    child_slot,
+                    ConstraintTypeSource::RecordSpread,
+                    spread_type,
+                )?,
+            )?;
+            match spread {
+                yulang_erased_ir::RecordSpreadExpr::Head(expr)
+                | yulang_erased_ir::RecordSpreadExpr::Tail(expr) => {
+                    self.solve_expr(draft, spread_id, expr, env)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn solve_variant(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        tag: &Name,
+        value: Option<&ErasedExpr>,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        let computation = self.require_assigned(slot)?;
+        if !effect_is_pure(&computation.effect) {
+            return Err(ConstraintError::NonPureCompoundEffect {
+                slot: slot.into(),
+                kind: ErasedExprKind::Variant,
+                effect: computation.effect,
+            });
+        }
+        let MonoType::Value(value_type) = computation.value else {
+            return Err(ConstraintError::ExpectedVariant {
+                slot: slot.into(),
+                found: computation.value,
+            });
+        };
+        let Type::Variant(variant) = value_type.as_type() else {
+            return Err(ConstraintError::ExpectedVariant {
+                slot: slot.into(),
+                found: MonoType::Value(value_type),
+            });
+        };
+        let Some(case) = variant.cases.iter().find(|case| case.name == *tag) else {
+            return Err(ConstraintError::MissingVariantCase {
+                slot: slot.into(),
+                tag: tag.clone(),
+            });
+        };
+        let expected_expr_payloads = usize::from(!case.payloads.is_empty());
+        let actual_expr_payloads = usize::from(value.is_some());
+        if expected_expr_payloads != actual_expr_payloads {
+            return Err(ConstraintError::VariantPayloadMismatch {
+                slot: slot.into(),
+                tag: tag.clone(),
+                expected: expected_expr_payloads,
+                actual: actual_expr_payloads,
+            });
+        }
+        let Some(payload_expr) = value else {
+            return Ok(());
+        };
+        let Some(payload_id) = draft.expr(id).children.first().copied() else {
+            return Ok(());
+        };
+        let payload_type = if case.payloads.len() == 1 {
+            case.payloads[0].clone()
+        } else {
+            Type::Tuple(case.payloads.clone())
+        };
+        let payload_slot = draft.expr(payload_id).computation;
+        self.assign(
+            payload_slot,
+            pure_value_computation(
+                payload_slot,
+                ConstraintTypeSource::VariantPayload,
+                payload_type,
+            )?,
+        )?;
+        self.solve_expr(draft, payload_id, payload_expr, env)
+    }
+
+    fn solve_select(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        base: &ErasedExpr,
+        field: &Name,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        let computation = self.require_assigned(slot)?;
+        let selected_type = value_type(slot, &computation.value)?;
+        let base_type = if let Some(base_type) = known_value_type(base, env) {
+            base_type
+        } else if let Some(base_type) =
+            inline_record_type_from_select(slot, base, field, &selected_type, env)?
+        {
+            base_type
+        } else {
+            return Err(ConstraintError::UnsupportedSelectBase {
+                slot: slot.into(),
+                kind: ErasedExprKind::from_expr(base),
+            });
+        };
+        let actual_field_type = record_field_value_type(slot, &base_type, field)?;
+        if actual_field_type != &selected_type {
+            return Err(ConstraintError::SelectFieldMismatch {
+                slot: slot.into(),
+                field: field.clone(),
+                expected: selected_type,
+                actual: actual_field_type.clone(),
+            });
+        }
+
+        let Some(base_id) = draft.expr(id).children.first().copied() else {
+            return Ok(());
+        };
+        let base_slot = draft.expr(base_id).computation;
+        self.assign(
+            base_slot,
+            pure_value_computation(base_slot, ConstraintTypeSource::SelectBase, base_type)?,
+        )?;
+        self.solve_expr(draft, base_id, base, env)
+    }
+
+    fn solve_pack(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        expr: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<(), ConstraintError> {
+        let [body_id] = draft.expr(id).children.as_slice() else {
+            return Ok(());
+        };
+        let computation = self.require_assigned(draft.expr(id).computation)?;
+        self.assign(draft.expr(*body_id).computation, computation)?;
+        self.solve_expr(draft, *body_id, expr, env)
     }
 
     fn apply_from_scheme(
@@ -1622,6 +1874,17 @@ fn value_type(slot: DraftComputationId, typ: &MonoType) -> Result<Type, Constrai
     }
 }
 
+fn pure_value_computation(
+    slot: DraftComputationId,
+    source: ConstraintTypeSource,
+    ty: Type,
+) -> Result<MonoComputation, ConstraintError> {
+    Ok(MonoComputation {
+        value: MonoType::Value(concrete_type(slot, source, ty)?),
+        effect: pure_effect(),
+    })
+}
+
 fn literal_computation(
     slot: DraftComputationId,
     expr: &ErasedExpr,
@@ -1661,6 +1924,31 @@ fn known_value_type(expr: &ErasedExpr, env: &ConstraintEnvironment<'_>) -> Optio
             .map(|item| known_value_type(item, env))
             .collect::<Option<Vec<_>>>()
             .map(Type::Tuple),
+        ErasedExpr::Record { fields, spread } => {
+            let fields = fields
+                .iter()
+                .map(|field| {
+                    Some(yulang_erased_ir::RecordField {
+                        name: field.name.clone(),
+                        value: known_value_type(&field.value, env)?,
+                        optional: false,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?;
+            let spread = match spread {
+                Some(spread) => Some(record_spread_expr_type(spread, env)?),
+                None => None,
+            };
+            Some(Type::Record(yulang_erased_ir::RecordType {
+                fields,
+                spread,
+            }))
+        }
+        ErasedExpr::Select { base, field } => {
+            let base_type = known_value_type(base, env)?;
+            record_field_value_type_opt(&base_type, field).cloned()
+        }
+        ErasedExpr::Pack { expr, .. } => known_value_type(expr, env),
         ErasedExpr::Ref(ref_id) => {
             let (_, scheme) = env.direct_scheme(*ref_id)?;
             if scheme_needs_instantiation(scheme)
@@ -1672,6 +1960,106 @@ fn known_value_type(expr: &ErasedExpr, env: &ConstraintEnvironment<'_>) -> Optio
         }
         _ => None,
     }
+}
+
+fn inline_record_type_from_select(
+    _slot: DraftComputationId,
+    base: &ErasedExpr,
+    selected_field: &Name,
+    selected_type: &Type,
+    env: &ConstraintEnvironment<'_>,
+) -> Result<Option<Type>, ConstraintError> {
+    let ErasedExpr::Record { fields, spread } = base else {
+        return Ok(None);
+    };
+    let mut saw_selected = false;
+    let mut record_fields = Vec::new();
+    for field in fields {
+        let value = if field.name == *selected_field {
+            saw_selected = true;
+            selected_type.clone()
+        } else {
+            let Some(value) = known_value_type(&field.value, env) else {
+                return Ok(None);
+            };
+            value
+        };
+        record_fields.push(yulang_erased_ir::RecordField {
+            name: field.name.clone(),
+            value,
+            optional: false,
+        });
+    }
+    if !saw_selected {
+        return Ok(None);
+    }
+    let spread = match spread {
+        Some(spread) => {
+            let Some(spread) = record_spread_expr_type(spread, env) else {
+                return Ok(None);
+            };
+            Some(spread)
+        }
+        None => None,
+    };
+    Ok(Some(Type::Record(yulang_erased_ir::RecordType {
+        fields: record_fields,
+        spread,
+    })))
+}
+
+fn record_spread_expr_type(
+    spread: &yulang_erased_ir::RecordSpreadExpr,
+    env: &ConstraintEnvironment<'_>,
+) -> Option<yulang_erased_ir::RecordSpread> {
+    match spread {
+        yulang_erased_ir::RecordSpreadExpr::Head(expr) => known_value_type(expr, env)
+            .map(Box::new)
+            .map(yulang_erased_ir::RecordSpread::Head),
+        yulang_erased_ir::RecordSpreadExpr::Tail(expr) => known_value_type(expr, env)
+            .map(Box::new)
+            .map(yulang_erased_ir::RecordSpread::Tail),
+    }
+}
+
+fn record_spread_type(spread: Option<&yulang_erased_ir::RecordSpread>) -> Option<Type> {
+    match spread {
+        Some(yulang_erased_ir::RecordSpread::Head(ty))
+        | Some(yulang_erased_ir::RecordSpread::Tail(ty)) => Some((**ty).clone()),
+        None => None,
+    }
+}
+
+fn record_field_value_type<'a>(
+    slot: DraftComputationId,
+    ty: &'a Type,
+    field: &Name,
+) -> Result<&'a Type, ConstraintError> {
+    if !matches!(ty, Type::Record(_)) {
+        return Err(ConstraintError::ExpectedRecord {
+            slot: slot.into(),
+            found: MonoType::Value(concrete_type(
+                slot,
+                ConstraintTypeSource::SelectBase,
+                ty.clone(),
+            )?),
+        });
+    }
+    record_field_value_type_opt(ty, field).ok_or_else(|| ConstraintError::MissingRecordField {
+        slot: slot.into(),
+        field: field.clone(),
+    })
+}
+
+fn record_field_value_type_opt<'a>(ty: &'a Type, field: &Name) -> Option<&'a Type> {
+    let Type::Record(record) = ty else {
+        return None;
+    };
+    record
+        .fields
+        .iter()
+        .find(|record_field| record_field.name == *field)
+        .map(|record_field| &record_field.value)
 }
 
 fn literal_type(lit: &Lit) -> Type {
@@ -1724,18 +2112,135 @@ fn collect_concrete_candidates(ty: &Type, candidates: &mut Vec<Type>) {
                 collect_concrete_candidates(item, candidates);
             }
         }
-        Type::Unknown
-        | Type::Never
-        | Type::Any
-        | Type::Var(_)
-        | Type::Named { .. }
+        Type::Named { .. }
         | Type::Fun { .. }
         | Type::Tuple(_)
         | Type::Record(_)
         | Type::Variant(_)
-        | Type::Row { .. }
-        | Type::Recursive { .. } => {}
+        | Type::Row { .. } => {
+            if let Some(candidate) = concretize_type_candidate(ty) {
+                push_unique_candidate(candidates, candidate);
+            }
+        }
+        Type::Unknown | Type::Never | Type::Any | Type::Var(_) | Type::Recursive { .. } => {}
     }
+}
+
+fn concretize_type_candidate(ty: &Type) -> Option<Type> {
+    if ConcreteType::try_from_type(ty.clone()).is_ok() {
+        return Some(ty.clone());
+    }
+    match ty {
+        Type::Union(items) | Type::Inter(items) => unique_type_candidate(items),
+        Type::Named { path, args } => Some(Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(concretize_type_arg_candidate)
+                .collect::<Option<Vec<_>>>()?,
+        }),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => Some(Type::Fun {
+            param: Box::new(concretize_type_candidate(param)?),
+            param_effect: Box::new(concretize_type_candidate(param_effect)?),
+            ret_effect: Box::new(concretize_type_candidate(ret_effect)?),
+            ret: Box::new(concretize_type_candidate(ret)?),
+        }),
+        Type::Tuple(items) => Some(Type::Tuple(
+            items
+                .iter()
+                .map(concretize_type_candidate)
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Type::Record(record) => Some(Type::Record(yulang_erased_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| {
+                    Some(yulang_erased_ir::RecordField {
+                        name: field.name.clone(),
+                        value: concretize_type_candidate(&field.value)?,
+                        optional: field.optional,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+            spread: record.spread.as_ref().map_or(Some(None), |spread| {
+                concretize_record_spread_candidate(spread).map(Some)
+            })?,
+        })),
+        Type::Variant(variant) => Some(Type::Variant(yulang_erased_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| {
+                    Some(yulang_erased_ir::VariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(concretize_type_candidate)
+                            .collect::<Option<Vec<_>>>()?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+            tail: variant.tail.as_ref().map_or(Some(None), |tail| {
+                concretize_type_candidate(tail).map(Box::new).map(Some)
+            })?,
+        })),
+        Type::Row { items, tail } => Some(Type::Row {
+            items: items
+                .iter()
+                .map(concretize_type_candidate)
+                .collect::<Option<Vec<_>>>()?,
+            tail: Box::new(concretize_type_candidate(tail)?),
+        }),
+        Type::Unknown | Type::Never | Type::Any | Type::Var(_) | Type::Recursive { .. } => None,
+    }
+}
+
+fn concretize_type_arg_candidate(
+    arg: &yulang_erased_ir::TypeArg,
+) -> Option<yulang_erased_ir::TypeArg> {
+    match arg {
+        yulang_erased_ir::TypeArg::Type(ty) => Some(yulang_erased_ir::TypeArg::Type(
+            concretize_type_candidate(ty)?,
+        )),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => Some(yulang_erased_ir::TypeArg::Bounds(
+            yulang_erased_ir::TypeBounds {
+                lower: bounds.lower.as_ref().map_or(Some(None), |lower| {
+                    concretize_type_candidate(lower).map(Box::new).map(Some)
+                })?,
+                upper: bounds.upper.as_ref().map_or(Some(None), |upper| {
+                    concretize_type_candidate(upper).map(Box::new).map(Some)
+                })?,
+            },
+        )),
+    }
+}
+
+fn concretize_record_spread_candidate(
+    spread: &yulang_erased_ir::RecordSpread,
+) -> Option<yulang_erased_ir::RecordSpread> {
+    match spread {
+        yulang_erased_ir::RecordSpread::Head(ty) => concretize_type_candidate(ty)
+            .map(Box::new)
+            .map(yulang_erased_ir::RecordSpread::Head),
+        yulang_erased_ir::RecordSpread::Tail(ty) => concretize_type_candidate(ty)
+            .map(Box::new)
+            .map(yulang_erased_ir::RecordSpread::Tail),
+    }
+}
+
+fn unique_type_candidate(items: &[Type]) -> Option<Type> {
+    let mut candidates = Vec::new();
+    for item in items {
+        collect_concrete_candidates(item, &mut candidates);
+    }
+    (candidates.len() == 1).then(|| candidates.remove(0))
 }
 
 fn push_unique_candidate(candidates: &mut Vec<Type>, candidate: Type) {
