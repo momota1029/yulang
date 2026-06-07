@@ -183,6 +183,10 @@ pub enum ElaborateProgramError {
         source: elaborated_ir::EffectiveThunkType,
         target: MonoComputation,
     },
+    MissingResolvedRef {
+        instance: MonoInstanceId,
+        ref_id: RefId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -306,6 +310,7 @@ impl<'a> ProgramBuilder<'a> {
             .iter()
             .map(|root| self.elaborate_root(root))
             .collect::<Result<Vec<_>, _>>()?;
+        self.resolve_instance_ref_exprs(&mut root_exprs)?;
 
         Ok(ElaboratedProgram {
             module: ElaboratedModule {
@@ -316,6 +321,22 @@ impl<'a> ProgramBuilder<'a> {
             },
             refs: self.refs,
         })
+    }
+
+    fn resolve_instance_ref_exprs(
+        &mut self,
+        root_exprs: &mut [ElaboratedExpr],
+    ) -> Result<(), ElaborateProgramError> {
+        for instance in &mut self.instances {
+            resolve_expr_refs_in_place(instance.id, &self.refs, &mut instance.body)?;
+        }
+        for (index, expr) in root_exprs.iter_mut().enumerate() {
+            let Some(instance) = self.root_instance_by_index.get(&index).copied() else {
+                continue;
+            };
+            resolve_expr_refs_in_place(instance, &self.refs, expr)?;
+        }
+        Ok(())
     }
 
     fn elaborate_root(
@@ -1411,6 +1432,194 @@ fn collect_pattern_refs(pattern: &yulang_erased_ir::Pattern, out: &mut BTreeSet<
     }
 }
 
+fn resolve_expr_refs_in_place(
+    instance: MonoInstanceId,
+    refs: &ResolvedRefTable,
+    expr: &mut ElaboratedExpr,
+) -> Result<(), ElaborateProgramError> {
+    match &mut expr.kind {
+        ElaboratedExprKind::Ref(ref_id) => {
+            let Some(resolved) = refs.entries.get(&ResolvedRefKey {
+                instance,
+                ref_id: *ref_id,
+            }) else {
+                return Err(ElaborateProgramError::MissingResolvedRef {
+                    instance,
+                    ref_id: *ref_id,
+                });
+            };
+            expr.kind = ElaboratedExprKind::InstanceRef(resolved.target);
+        }
+        ElaboratedExprKind::Lambda { body, .. } => {
+            resolve_expr_refs_in_place(instance, refs, body)?;
+        }
+        ElaboratedExprKind::Apply { callee, arg } => {
+            resolve_expr_refs_in_place(instance, refs, callee)?;
+            resolve_expr_refs_in_place(instance, refs, arg)?;
+        }
+        ElaboratedExprKind::RefSet { reference, value } => {
+            resolve_expr_refs_in_place(instance, refs, reference)?;
+            resolve_expr_refs_in_place(instance, refs, value)?;
+        }
+        ElaboratedExprKind::Tuple(items) => {
+            for item in items {
+                resolve_expr_refs_in_place(instance, refs, item)?;
+            }
+        }
+        ElaboratedExprKind::Record { fields, spread } => {
+            for field in fields {
+                resolve_expr_refs_in_place(instance, refs, &mut field.value)?;
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    elaborated_ir::RecordSpreadExpr::Head(expr)
+                    | elaborated_ir::RecordSpreadExpr::Tail(expr) => {
+                        resolve_expr_refs_in_place(instance, refs, expr)?;
+                    }
+                }
+            }
+        }
+        ElaboratedExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                resolve_expr_refs_in_place(instance, refs, value)?;
+            }
+        }
+        ElaboratedExprKind::Select { base, .. } => {
+            resolve_expr_refs_in_place(instance, refs, base)?;
+        }
+        ElaboratedExprKind::Match { scrutinee, arms } => {
+            resolve_expr_refs_in_place(instance, refs, scrutinee)?;
+            for arm in arms {
+                resolve_pattern_default_refs(instance, refs, &mut arm.pattern)?;
+                if let Some(guard) = &mut arm.guard {
+                    resolve_expr_refs_in_place(instance, refs, guard)?;
+                }
+                resolve_expr_refs_in_place(instance, refs, &mut arm.body)?;
+            }
+        }
+        ElaboratedExprKind::Handle { body, arms } => {
+            resolve_expr_refs_in_place(instance, refs, body)?;
+            for arm in arms {
+                resolve_pattern_default_refs(instance, refs, &mut arm.payload)?;
+                if let Some(guard) = &mut arm.guard {
+                    resolve_expr_refs_in_place(instance, refs, guard)?;
+                }
+                resolve_expr_refs_in_place(instance, refs, &mut arm.body)?;
+            }
+        }
+        ElaboratedExprKind::Block(block) => {
+            resolve_block_refs(instance, refs, block)?;
+        }
+        ElaboratedExprKind::MakeThunk { body, .. }
+        | ElaboratedExprKind::LocalPushId { body, .. } => {
+            resolve_expr_refs_in_place(instance, refs, body)?;
+        }
+        ElaboratedExprKind::AddId { thunk, .. } | ElaboratedExprKind::ForceThunk { thunk, .. } => {
+            resolve_expr_refs_in_place(instance, refs, thunk)?;
+        }
+        ElaboratedExprKind::Cast { expr, .. } | ElaboratedExprKind::Pack { expr, .. } => {
+            resolve_expr_refs_in_place(instance, refs, expr)?;
+        }
+        ElaboratedExprKind::FunctionAdapter { function, .. } => {
+            resolve_expr_refs_in_place(instance, refs, function)?;
+        }
+        ElaboratedExprKind::Def(_)
+        | ElaboratedExprKind::InstanceRef(_)
+        | ElaboratedExprKind::PrimitiveOp(_)
+        | ElaboratedExprKind::Lit(_)
+        | ElaboratedExprKind::PeekId
+        | ElaboratedExprKind::FindId { .. } => {}
+    }
+    Ok(())
+}
+
+fn resolve_block_refs(
+    instance: MonoInstanceId,
+    refs: &ResolvedRefTable,
+    block: &mut elaborated_ir::ElaboratedBlock,
+) -> Result<(), ElaborateProgramError> {
+    for stmt in &mut block.stmts {
+        match stmt {
+            elaborated_ir::ElaboratedStmt::Let { pattern, value } => {
+                resolve_pattern_default_refs(instance, refs, pattern)?;
+                resolve_expr_refs_in_place(instance, refs, value)?;
+            }
+            elaborated_ir::ElaboratedStmt::Expr(expr) => {
+                resolve_expr_refs_in_place(instance, refs, expr)?;
+            }
+            elaborated_ir::ElaboratedStmt::Module { body, .. } => {
+                resolve_block_refs(instance, refs, body)?;
+            }
+        }
+    }
+    if let Some(tail) = &mut block.tail {
+        resolve_expr_refs_in_place(instance, refs, tail)?;
+    }
+    Ok(())
+}
+
+fn resolve_pattern_default_refs(
+    instance: MonoInstanceId,
+    refs: &ResolvedRefTable,
+    pattern: &mut elaborated_ir::Pattern,
+) -> Result<(), ElaborateProgramError> {
+    match pattern {
+        elaborated_ir::Pattern::Tuple { items, .. } => {
+            for item in items {
+                resolve_pattern_default_refs(instance, refs, item)?;
+            }
+        }
+        elaborated_ir::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                resolve_pattern_default_refs(instance, refs, item)?;
+            }
+            if let Some(spread) = spread {
+                resolve_pattern_default_refs(instance, refs, spread)?;
+            }
+            for item in suffix {
+                resolve_pattern_default_refs(instance, refs, item)?;
+            }
+        }
+        elaborated_ir::Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                resolve_pattern_default_refs(instance, refs, &mut field.pattern)?;
+                if let Some(default) = &mut field.default {
+                    resolve_expr_refs_in_place(instance, refs, default)?;
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    elaborated_ir::RecordSpreadPattern::Head(pattern)
+                    | elaborated_ir::RecordSpreadPattern::Tail(pattern) => {
+                        resolve_pattern_default_refs(instance, refs, pattern)?;
+                    }
+                }
+            }
+        }
+        elaborated_ir::Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                resolve_pattern_default_refs(instance, refs, value)?;
+            }
+        }
+        elaborated_ir::Pattern::Or { left, right, .. } => {
+            resolve_pattern_default_refs(instance, refs, left)?;
+            resolve_pattern_default_refs(instance, refs, right)?;
+        }
+        elaborated_ir::Pattern::As { pattern, .. } => {
+            resolve_pattern_default_refs(instance, refs, pattern)?;
+        }
+        elaborated_ir::Pattern::Wildcard { .. }
+        | elaborated_ir::Pattern::Bind { .. }
+        | elaborated_ir::Pattern::Lit { .. } => {}
+    }
+    Ok(())
+}
+
 fn elaborate_expr(
     site: ElaborateSite,
     draft: &draft::ElaborationDraft,
@@ -2153,7 +2362,7 @@ my used = id (1.display)\n",
 
         assert!(matches!(
             &program.module.root_exprs[0].kind,
-            elaborated_ir::ElaboratedExprKind::Ref(_)
+            elaborated_ir::ElaboratedExprKind::InstanceRef(elaborated_ir::MonoInstanceId(1))
         ));
         assert!(matches!(
             &program.module.root_exprs[0].comp.value,
@@ -2653,7 +2862,7 @@ impl Display int:\n  our x.display = \"int\"\n\n\
         };
         assert!(matches!(
             &callee.kind,
-            elaborated_ir::ElaboratedExprKind::Ref(yulang_erased_ir::RefId(1))
+            elaborated_ir::ElaboratedExprKind::InstanceRef(elaborated_ir::MonoInstanceId(1))
         ));
         assert!(matches!(
             &arg.kind,
@@ -2780,7 +2989,7 @@ impl Display int:\n  our x.display = \"int\"\n\n\
         };
         assert!(matches!(
             &callee.kind,
-            elaborated_ir::ElaboratedExprKind::Ref(yulang_erased_ir::RefId(1))
+            elaborated_ir::ElaboratedExprKind::InstanceRef(elaborated_ir::MonoInstanceId(1))
         ));
         let elaborated_ir::ElaboratedExprKind::MakeThunk { body, thunk } = &arg.kind else {
             panic!("effectful function argument should be closed with MakeThunk");
@@ -2896,7 +3105,7 @@ impl Display int:\n  our x.display = \"int\"\n\n\
         };
         assert!(matches!(
             &inner_callee.kind,
-            elaborated_ir::ElaboratedExprKind::Ref(yulang_erased_ir::RefId(1))
+            elaborated_ir::ElaboratedExprKind::InstanceRef(elaborated_ir::MonoInstanceId(1))
         ));
         assert!(matches!(
             &inner_arg.kind,

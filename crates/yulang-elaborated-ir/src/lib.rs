@@ -274,6 +274,7 @@ impl Clone for ElaboratedExpr {
 pub enum ElaboratedExprKind {
     Def(DefId),
     Ref(RefId),
+    InstanceRef(MonoInstanceId),
     PrimitiveOp(PrimitiveOp),
     Lit(Lit),
     Lambda {
