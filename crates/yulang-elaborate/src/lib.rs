@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+mod constraints;
 mod draft;
 
 use yulang_erased_ir::{
@@ -242,6 +243,7 @@ fn elaborate_root_expr(
         });
     }
     let comp = concrete_computation(site.clone(), &expr.typ, &expr.eff)?;
+    let _constraints = constraints::ConstraintSet::seed_root(&draft, comp.clone());
     elaborate_leaf_expr(site, &expr.ir, comp)
 }
 
