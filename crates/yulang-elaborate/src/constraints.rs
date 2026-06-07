@@ -389,7 +389,7 @@ impl ConstraintSolver {
         let slot = draft.expr(id).computation;
         let computation = self.require_assigned(slot)?.clone();
         let apply_computation = match callee {
-            ErasedExpr::Lambda { .. } | ErasedExpr::Apply { .. } => {
+            ErasedExpr::Def(_) | ErasedExpr::Lambda { .. } | ErasedExpr::Apply { .. } => {
                 apply_from_known_arg(slot, &computation, arg, env)?.ok_or_else(|| {
                     ConstraintError::UnsupportedApplyArg {
                         slot: slot.into(),
@@ -857,16 +857,16 @@ impl ConstraintSolver {
             return Ok(None);
         };
 
-        let Some(arg_computation) = known_computation(slot, arg, env)? else {
-            return Ok(None);
-        };
         let expected_value = value_type(slot, &expected.value)?;
         let expected_effect = expected.effect.row().as_type().clone();
-        let arg_value = value_type(slot, &arg_computation.value)?;
-        let arg_effect = arg_computation.effect.row().as_type().clone();
+        let arg_computation = known_computation(slot, arg, env)?;
 
-        self.constrain_types(arg_value, (**param).clone())?;
-        self.constrain_types(arg_effect, (**param_effect).clone())?;
+        if let Some(arg_computation) = arg_computation {
+            let arg_value = value_type(slot, &arg_computation.value)?;
+            let arg_effect = arg_computation.effect.row().as_type().clone();
+            self.constrain_types(arg_value, (**param).clone())?;
+            self.constrain_types(arg_effect, (**param_effect).clone())?;
+        }
         self.constrain_types((**ret).clone(), expected_value)?;
         self.constrain_types((**ret_effect).clone(), expected_effect)?;
         self.drain_pending_bounds()?;

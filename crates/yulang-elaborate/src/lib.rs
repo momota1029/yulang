@@ -2171,6 +2171,39 @@ my used = id (1.display)\n",
     }
 
     #[test]
+    fn elaborate_program_accepts_actual_higher_order_generic_ref_arg_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "my call f = f 1\nmy id x = x\ncall id\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("higher-order generic ref arg can be elaborated");
+
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Apply { .. }
+        ));
+        assert!(
+            program.module.instances.iter().any(|instance| matches!(
+                &instance.signature.value,
+                elaborated_ir::MonoType::Function(boundary)
+                    if matches!(&boundary.param, elaborated_ir::MonoType::Value(value)
+                        if value.as_type() == &named_type("int"))
+                        && matches!(&boundary.ret, elaborated_ir::MonoType::Value(value)
+                        if value.as_type() == &named_type("int"))
+            )),
+            "id should be materialized as int -> int, instances={:?}",
+            program.module.instances,
+        );
+    }
+
+    #[test]
     fn elaborate_program_accepts_actual_record_literal_export() {
         let mut lowered = yulang_infer::lower_virtual_source_with_options(
             "{x: 1, y: 2}\n",
@@ -2479,7 +2512,7 @@ impl Display int:\n  our x.display = \"int\"\n\n\
     }
 
     #[test]
-    fn elaborator_rejects_generic_direct_ref_apply_without_concrete_use_site() {
+    fn elaborator_instantiates_generic_direct_ref_apply_from_result_with_unknown_arg() {
         let int = named_type("int");
         let var = yulang_erased_ir::Type::Var(yulang_erased_ir::TypeVar("a".to_string()));
         let fn_type = yulang_erased_ir::Type::Fun {
@@ -2524,7 +2557,7 @@ impl Display int:\n  our x.display = \"int\"\n\n\
                     99,
                 ))),
             },
-            int,
+            int.clone(),
             yulang_erased_ir::Type::Never,
         ));
         export
@@ -2533,14 +2566,22 @@ impl Display int:\n  our x.display = \"int\"\n\n\
             .direct
             .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
 
-        let Err(ElaborateProgramError::Constraint(ConstraintError::GenericDirectRefScheme {
-            def: yulang_erased_ir::DefId(2),
-        })) = Elaborator::try_new(&export)
+        let program = Elaborator::try_new(&export)
             .expect("valid erased export")
             .build_program()
-        else {
-            panic!("generic direct ref apply should wait when the use site is not concrete enough");
-        };
+            .expect("generic direct ref apply should instantiate from result type");
+
+        assert!(program.module.instances.iter().any(|instance| {
+            instance.source == elaborated_ir::DemandSource::Def(yulang_erased_ir::DefId(2))
+                && matches!(
+                    &instance.signature.value,
+                    elaborated_ir::MonoType::Function(boundary)
+                        if matches!(&boundary.param, elaborated_ir::MonoType::Value(value)
+                            if value.as_type() == &int)
+                            && matches!(&boundary.ret, elaborated_ir::MonoType::Value(value)
+                            if value.as_type() == &int)
+                )
+        }));
     }
 
     #[test]
