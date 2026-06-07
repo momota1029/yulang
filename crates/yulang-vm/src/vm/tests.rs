@@ -265,6 +265,24 @@ show 1\n",
     }
 
     #[test]
+    fn vm_runs_elaborated_runtime_pipeline_higher_order_generic_ref_arg() {
+        let module = yulang_pipeline::elaborated_runtime_module_from_virtual_source_with_options(
+            "my call f = f 1\nmy id x = x\ncall id\n",
+            None,
+            SourceOptions {
+                implicit_prelude: false,
+                std_root: None,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("elaborated runtime module");
+        let module = compile_vm_module(module).expect("compiled runtime VM module");
+        let results = test_values(module.eval_roots().expect("vm results"));
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_method_lambda_field_selection() {
         let results = eval_source_with_std("my get_x = \\.x\nget_x { x: 41 }\n");
 
