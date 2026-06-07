@@ -12,7 +12,7 @@ mod draft;
 
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferExport, InferredExpr, PrincipalRoot, RefCoverageReport, RefExportTable,
-    RefId, ResolvedTypeClassRef, TypeBounds, TypeClassObligation,
+    RefId, ResolvedTypeClassRef, Type, TypeBounds, TypeClassObligation,
 };
 
 pub use constraints::ConstraintError;
@@ -239,7 +239,7 @@ fn elaborate_root_expr(
 ) -> Result<ElaboratedExpr, ElaborateProgramError> {
     let site = ElaborateSite::RootExpr(index);
     let draft = draft::ElaborationDraft::from_root_expr(index, &expr.ir);
-    let comp = concrete_computation(site.clone(), &expr.typ, &expr.eff)?;
+    let comp = concrete_computation(site.clone(), &expr.ir, &expr.typ, &expr.eff)?;
     let solution = constraints::ConstraintSet::seed_root(&draft, comp)
         .solve(&draft, &expr.ir)
         .map_err(ElaborateProgramError::Constraint)?;
@@ -257,6 +257,7 @@ fn elaborate_root(root: &PrincipalRoot) -> Result<ElaboratedRoot, ElaborateProgr
 
 fn concrete_computation(
     site: ElaborateSite,
+    expr: &ErasedExpr,
     typ: &TypeBounds,
     eff: &TypeBounds,
 ) -> Result<MonoComputation, ElaborateProgramError> {
@@ -266,8 +267,63 @@ fn concrete_computation(
             ComputationField::Value,
             typ,
         )?),
-        effect: MonoEffect::new(exact_concrete_type(site, ComputationField::Effect, eff)?),
+        effect: MonoEffect::new(concrete_effect_type(site, expr, eff)?),
     })
+}
+
+fn concrete_effect_type(
+    site: ElaborateSite,
+    expr: &ErasedExpr,
+    bounds: &TypeBounds,
+) -> Result<ConcreteType, ElaborateProgramError> {
+    match exact_concrete_type(site.clone(), ComputationField::Effect, bounds) {
+        Err(ElaborateProgramError::NonExactComputationBounds { .. })
+            if syntactically_pure_expr(expr) =>
+        {
+            ConcreteType::try_from_type(Type::Never).map_err(|error| {
+                ElaborateProgramError::NonConcreteComputationType {
+                    site,
+                    field: ComputationField::Effect,
+                    error,
+                }
+            })
+        }
+        other => other,
+    }
+}
+
+fn syntactically_pure_expr(expr: &ErasedExpr) -> bool {
+    match expr {
+        ErasedExpr::Def(_)
+        | ErasedExpr::Ref(_)
+        | ErasedExpr::PrimitiveOp(_)
+        | ErasedExpr::Lit(_)
+        | ErasedExpr::Lambda { .. } => true,
+        ErasedExpr::Tuple(items) => items.iter().all(syntactically_pure_expr),
+        ErasedExpr::Record { fields, spread } => {
+            fields
+                .iter()
+                .all(|field| syntactically_pure_expr(&field.value))
+                && spread.as_ref().is_none_or(|spread| match spread {
+                    yulang_erased_ir::RecordSpreadExpr::Head(expr)
+                    | yulang_erased_ir::RecordSpreadExpr::Tail(expr) => {
+                        syntactically_pure_expr(expr)
+                    }
+                })
+        }
+        ErasedExpr::Variant { value, .. } => value
+            .as_ref()
+            .is_none_or(|value| syntactically_pure_expr(value)),
+        ErasedExpr::Select { base, .. } | ErasedExpr::Pack { expr: base, .. } => {
+            syntactically_pure_expr(base)
+        }
+        ErasedExpr::Apply { .. }
+        | ErasedExpr::RefSet { .. }
+        | ErasedExpr::Match { .. }
+        | ErasedExpr::Handle { .. }
+        | ErasedExpr::Block(_)
+        | ErasedExpr::BindHere { .. } => false,
+    }
 }
 
 fn exact_concrete_type(
@@ -290,6 +346,11 @@ fn exact_concrete_type(
         });
     };
     if lower != upper {
+        if let Some(candidate) = unique_concrete_candidate(bounds) {
+            return ConcreteType::try_from_type(candidate).map_err(|error| {
+                ElaborateProgramError::NonConcreteComputationType { site, field, error }
+            });
+        }
         return Err(ElaborateProgramError::NonExactComputationBounds {
             site,
             field,
@@ -298,6 +359,52 @@ fn exact_concrete_type(
     }
     ConcreteType::try_from_type((**lower).clone())
         .map_err(|error| ElaborateProgramError::NonConcreteComputationType { site, field, error })
+}
+
+fn unique_concrete_candidate(bounds: &TypeBounds) -> Option<Type> {
+    let mut candidates = Vec::new();
+    if let Some(lower) = &bounds.lower {
+        collect_concrete_candidates(lower, &mut candidates);
+    }
+    if let Some(upper) = &bounds.upper {
+        collect_concrete_candidates(upper, &mut candidates);
+    }
+    if candidates.len() == 1 {
+        candidates.pop()
+    } else {
+        None
+    }
+}
+
+fn collect_concrete_candidates(ty: &Type, candidates: &mut Vec<Type>) {
+    if ConcreteType::try_from_type(ty.clone()).is_ok() {
+        push_unique_candidate(candidates, ty.clone());
+        return;
+    }
+    match ty {
+        Type::Union(items) | Type::Inter(items) => {
+            for item in items {
+                collect_concrete_candidates(item, candidates);
+            }
+        }
+        Type::Unknown
+        | Type::Never
+        | Type::Any
+        | Type::Var(_)
+        | Type::Named { .. }
+        | Type::Fun { .. }
+        | Type::Tuple(_)
+        | Type::Record(_)
+        | Type::Variant(_)
+        | Type::Row { .. }
+        | Type::Recursive { .. } => {}
+    }
+}
+
+fn push_unique_candidate(candidates: &mut Vec<Type>, candidate: Type) {
+    if !candidates.iter().any(|existing| existing == &candidate) {
+        candidates.push(candidate);
+    }
 }
 
 fn elaborate_expr(
@@ -316,6 +423,43 @@ fn elaborate_expr(
         ErasedExpr::Ref(ref_id) => ElaboratedExprKind::Ref(*ref_id),
         ErasedExpr::PrimitiveOp(op) => ElaboratedExprKind::PrimitiveOp(*op),
         ErasedExpr::Lit(lit) => ElaboratedExprKind::Lit(lit.clone()),
+        ErasedExpr::Lambda { param, body } => {
+            let [body_id] = draft.expr(id).children.as_slice() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::Lambda,
+                });
+            };
+            ElaboratedExprKind::Lambda {
+                param: *param,
+                param_type: lambda_param_type(&comp),
+                body: Box::new(elaborate_expr(
+                    site.clone(),
+                    draft,
+                    *body_id,
+                    body,
+                    solution,
+                )?),
+            }
+        }
+        ErasedExpr::Apply { callee, arg } => {
+            let [callee_id, arg_id] = draft.expr(id).children.as_slice() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::Apply,
+                });
+            };
+            ElaboratedExprKind::Apply {
+                callee: Box::new(elaborate_expr(
+                    site.clone(),
+                    draft,
+                    *callee_id,
+                    callee,
+                    solution,
+                )?),
+                arg: Box::new(elaborate_expr(site.clone(), draft, *arg_id, arg, solution)?),
+            }
+        }
         ErasedExpr::Tuple(items) => {
             let children = draft.expr(id).children.clone();
             ElaboratedExprKind::Tuple(
@@ -336,6 +480,19 @@ fn elaborate_expr(
         }
     };
     Ok(ElaboratedExpr::new(kind, comp))
+}
+
+fn lambda_param_type(comp: &MonoComputation) -> MonoType {
+    let MonoType::Value(value) = &comp.value else {
+        unreachable!("lambda solver only assigns function value computations to lambdas");
+    };
+    let yulang_erased_ir::Type::Fun { param, .. } = value.as_type() else {
+        unreachable!("lambda solver only assigns function value computations to lambdas");
+    };
+    MonoType::Value(
+        ConcreteType::try_from_type((**param).clone())
+            .expect("lambda function parameter was validated as concrete"),
+    )
 }
 
 impl ErasedExprKind {
@@ -640,6 +797,29 @@ my used = id (1.display)\n",
     }
 
     #[test]
+    fn elaborate_program_accepts_actual_literal_infer_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "1\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("literal root can be elaborated from actual infer export");
+
+        assert_eq!(program.module.root_exprs.len(), 1);
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "1"
+        ));
+    }
+
+    #[test]
     fn elaborator_builds_program_for_concrete_leaf_root() {
         let int = named_type("int");
         let empty_effect = yulang_erased_ir::Type::Never;
@@ -764,15 +944,138 @@ my used = id (1.display)\n",
             .direct
             .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
 
-        let Err(ElaborateProgramError::UnsupportedExpr {
-            site: ElaborateSite::RootExpr(0),
-            kind: ErasedExprKind::Apply,
-        }) = Elaborator::try_new(&export)
+        let Err(ElaborateProgramError::Constraint(ConstraintError::UnsupportedApplyCallee {
+            slot: constraints::ConstraintComputationSlot(0),
+            kind: ErasedExprKind::Ref,
+        })) = Elaborator::try_new(&export)
             .expect("valid erased export")
             .build_program()
         else {
-            panic!("apply needs rebuilt function constraints before elaborated output");
+            panic!("direct ref apply needs ref scheme constraints before elaborated output");
         };
+    }
+
+    #[test]
+    fn elaborator_builds_inline_lambda_apply_from_root_result_type() {
+        let int = named_type("int");
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Apply {
+                callee: Box::new(yulang_erased_ir::ErasedExpr::Lambda {
+                    param: yulang_erased_ir::DefId(1),
+                    body: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                        1,
+                    ))),
+                }),
+                arg: Box::new(yulang_erased_ir::ErasedExpr::Lit(
+                    yulang_erased_ir::Lit::Int("1".to_string()),
+                )),
+            },
+            int.clone(),
+            yulang_erased_ir::Type::Never,
+        ));
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("inline lambda apply can be elaborated");
+
+        let elaborated_ir::ElaboratedExprKind::Apply { callee, arg } =
+            &program.module.root_exprs[0].kind
+        else {
+            panic!("root should elaborate as apply");
+        };
+        assert!(matches!(
+            &callee.kind,
+            elaborated_ir::ElaboratedExprKind::Lambda {
+                param: yulang_erased_ir::DefId(1),
+                ..
+            }
+        ));
+        assert!(matches!(
+            &arg.kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "1"
+        ));
+        assert_eq!(
+            program.module.root_exprs[0].comp.value,
+            elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete")
+            )
+        );
+        let elaborated_ir::ElaboratedExprKind::Lambda {
+            param_type, body, ..
+        } = &callee.kind
+        else {
+            panic!("callee should be lambda");
+        };
+        assert_eq!(
+            param_type,
+            &elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(named_type("int"))
+                    .expect("int is concrete")
+            )
+        );
+        assert!(matches!(
+            &body.kind,
+            elaborated_ir::ElaboratedExprKind::Def(yulang_erased_ir::DefId(1))
+        ));
+        assert_eq!(
+            body.comp.value,
+            elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(named_type("int"))
+                    .expect("int is concrete")
+            )
+        );
+    }
+
+    #[test]
+    fn elaborator_builds_root_lambda_from_exact_function_type() {
+        let int = named_type("int");
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Lambda {
+                param: yulang_erased_ir::DefId(1),
+                body: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                    1,
+                ))),
+            },
+            yulang_erased_ir::Type::Fun {
+                param: Box::new(int.clone()),
+                param_effect: Box::new(yulang_erased_ir::Type::Never),
+                ret_effect: Box::new(yulang_erased_ir::Type::Never),
+                ret: Box::new(int.clone()),
+            },
+            yulang_erased_ir::Type::Never,
+        ));
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("root lambda can be elaborated from exact function type");
+
+        let elaborated_ir::ElaboratedExprKind::Lambda {
+            param_type, body, ..
+        } = &program.module.root_exprs[0].kind
+        else {
+            panic!("root should elaborate as lambda");
+        };
+        assert_eq!(
+            param_type,
+            &elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(int.clone()).expect("int is concrete")
+            )
+        );
+        assert!(matches!(
+            &body.kind,
+            elaborated_ir::ElaboratedExprKind::Def(yulang_erased_ir::DefId(1))
+        ));
+        assert_eq!(
+            body.comp.value,
+            elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete")
+            )
+        );
     }
 
     fn inferred_root(

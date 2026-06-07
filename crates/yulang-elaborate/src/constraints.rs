@@ -6,7 +6,7 @@ use crate::draft::{DraftComputationId, DraftExprId, ElaborationDraft};
 use yulang_elaborated_ir::{
     ConcreteType, ConcreteTypeError, MonoComputation, MonoEffect, MonoType,
 };
-use yulang_erased_ir::{ErasedExpr, Type};
+use yulang_erased_ir::{ErasedExpr, Lit, Name, Path, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstraintSet {
@@ -104,8 +104,9 @@ pub enum ConstraintError {
         expected: usize,
         actual: usize,
     },
-    NonConcreteTupleItem {
+    NonConcreteType {
         slot: ConstraintComputationSlot,
+        source: ConstraintTypeSource,
         error: ConcreteTypeError,
     },
     NonPureCompoundEffect {
@@ -113,6 +114,32 @@ pub enum ConstraintError {
         kind: ErasedExprKind,
         effect: MonoEffect,
     },
+    ExpectedFunction {
+        slot: ConstraintComputationSlot,
+        found: MonoType,
+    },
+    ExpectedValue {
+        slot: ConstraintComputationSlot,
+        found: MonoType,
+    },
+    UnsupportedApplyArg {
+        slot: ConstraintComputationSlot,
+        kind: ErasedExprKind,
+    },
+    UnsupportedApplyCallee {
+        slot: ConstraintComputationSlot,
+        kind: ErasedExprKind,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConstraintTypeSource {
+    TupleItem,
+    FunctionParam,
+    FunctionParamEffect,
+    FunctionReturn,
+    FunctionReturnEffect,
+    Literal,
 }
 
 struct ConstraintSolver {
@@ -143,6 +170,8 @@ impl ConstraintSolver {
         expr: &ErasedExpr,
     ) -> Result<(), ConstraintError> {
         match expr {
+            ErasedExpr::Apply { callee, arg } => self.solve_apply(draft, id, callee, arg),
+            ErasedExpr::Lambda { body, .. } => self.solve_lambda(draft, id, body),
             ErasedExpr::Tuple(items) => self.solve_tuple(draft, id, items),
             ErasedExpr::Def(_)
             | ErasedExpr::Ref(_)
@@ -152,6 +181,105 @@ impl ConstraintSolver {
                 .map(|_| ()),
             _ => Ok(()),
         }
+    }
+
+    fn solve_apply(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        callee: &ErasedExpr,
+        arg: &ErasedExpr,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        let computation = self.require_assigned(slot)?.clone();
+        if !matches!(callee, ErasedExpr::Lambda { .. }) {
+            return Err(ConstraintError::UnsupportedApplyCallee {
+                slot: slot.into(),
+                kind: ErasedExprKind::from_expr(callee),
+            });
+        }
+        let ret_type = value_type(slot, &computation.value)?;
+        let ret_effect = computation.effect.row().as_type().clone();
+        let arg_computation = literal_computation(slot, arg)?.ok_or_else(|| {
+            ConstraintError::UnsupportedApplyArg {
+                slot: slot.into(),
+                kind: ErasedExprKind::from_expr(arg),
+            }
+        })?;
+        let arg_type = value_type(slot, &arg_computation.value)?;
+        let callee_computation = MonoComputation {
+            value: MonoType::Value(concrete_type(
+                slot,
+                ConstraintTypeSource::FunctionParam,
+                Type::Fun {
+                    param: Box::new(arg_type),
+                    param_effect: Box::new(Type::Never),
+                    ret_effect: Box::new(ret_effect),
+                    ret: Box::new(ret_type),
+                },
+            )?),
+            effect: pure_effect(),
+        };
+
+        let children = draft.expr(id).children.clone();
+        let [callee_id, arg_id] = children.as_slice() else {
+            return Ok(());
+        };
+        self.assign(draft.expr(*callee_id).computation, callee_computation)?;
+        self.assign(draft.expr(*arg_id).computation, arg_computation)?;
+        self.solve_expr(draft, *callee_id, callee)?;
+        self.solve_expr(draft, *arg_id, arg)
+    }
+
+    fn solve_lambda(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        body: &ErasedExpr,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        let computation = self.require_assigned(slot)?.clone();
+        if !effect_is_pure(&computation.effect) {
+            return Err(ConstraintError::NonPureCompoundEffect {
+                slot: slot.into(),
+                kind: ErasedExprKind::Lambda,
+                effect: computation.effect,
+            });
+        }
+        let MonoType::Value(value) = computation.value else {
+            return Err(ConstraintError::ExpectedFunction {
+                slot: slot.into(),
+                found: computation.value,
+            });
+        };
+        let Type::Fun {
+            ret_effect, ret, ..
+        } = value.as_type()
+        else {
+            return Err(ConstraintError::ExpectedFunction {
+                slot: slot.into(),
+                found: MonoType::Value(value),
+            });
+        };
+        let body_computation = MonoComputation {
+            value: MonoType::Value(concrete_type(
+                slot,
+                ConstraintTypeSource::FunctionReturn,
+                (**ret).clone(),
+            )?),
+            effect: MonoEffect::new(concrete_type(
+                slot,
+                ConstraintTypeSource::FunctionReturnEffect,
+                (**ret_effect).clone(),
+            )?),
+        };
+
+        let children = draft.expr(id).children.clone();
+        let [body_id] = children.as_slice() else {
+            return Ok(());
+        };
+        self.assign(draft.expr(*body_id).computation, body_computation)?;
+        self.solve_expr(draft, *body_id, body)
     }
 
     fn solve_tuple(
@@ -196,11 +324,10 @@ impl ConstraintSolver {
         for ((child_id, item), item_type) in children.into_iter().zip(items).zip(item_types) {
             let child_slot = draft.expr(child_id).computation;
             let child_computation = MonoComputation {
-                value: MonoType::Value(ConcreteType::try_from_type(item_type.clone()).map_err(
-                    |error| ConstraintError::NonConcreteTupleItem {
-                        slot: child_slot.into(),
-                        error,
-                    },
+                value: MonoType::Value(concrete_type(
+                    child_slot,
+                    ConstraintTypeSource::TupleItem,
+                    item_type.clone(),
                 )?),
                 effect: pure_effect(),
             };
@@ -237,6 +364,62 @@ impl ConstraintSolver {
             .get(&slot)
             .ok_or(ConstraintError::MissingComputation { slot: slot.into() })
     }
+}
+
+fn value_type(slot: DraftComputationId, typ: &MonoType) -> Result<Type, ConstraintError> {
+    match typ {
+        MonoType::Value(value) => Ok(value.as_type().clone()),
+        MonoType::EffectiveThunk(_) => Err(ConstraintError::ExpectedValue {
+            slot: slot.into(),
+            found: typ.clone(),
+        }),
+    }
+}
+
+fn literal_computation(
+    slot: DraftComputationId,
+    expr: &ErasedExpr,
+) -> Result<Option<MonoComputation>, ConstraintError> {
+    let ErasedExpr::Lit(lit) = expr else {
+        return Ok(None);
+    };
+    Ok(Some(MonoComputation {
+        value: MonoType::Value(concrete_type(
+            slot,
+            ConstraintTypeSource::Literal,
+            literal_type(lit),
+        )?),
+        effect: pure_effect(),
+    }))
+}
+
+fn literal_type(lit: &Lit) -> Type {
+    Type::Named {
+        path: match lit {
+            Lit::Int(_) => Path::from_name(Name("int".to_string())),
+            Lit::Float(_) => Path::from_name(Name("float".to_string())),
+            Lit::String(_) => Path::new(vec![
+                Name("std".to_string()),
+                Name("str".to_string()),
+                Name("str".to_string()),
+            ]),
+            Lit::Bool(_) => Path::from_name(Name("bool".to_string())),
+            Lit::Unit => Path::from_name(Name("unit".to_string())),
+        },
+        args: Vec::new(),
+    }
+}
+
+fn concrete_type(
+    slot: DraftComputationId,
+    source: ConstraintTypeSource,
+    ty: Type,
+) -> Result<ConcreteType, ConstraintError> {
+    ConcreteType::try_from_type(ty).map_err(|error| ConstraintError::NonConcreteType {
+        slot: slot.into(),
+        source,
+        error,
+    })
 }
 
 fn effect_is_pure(effect: &MonoEffect) -> bool {
