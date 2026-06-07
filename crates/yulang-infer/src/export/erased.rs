@@ -7,7 +7,7 @@ use crate::ast::expr::{
     CatchArmKind, ExprKind, Lit as LowerLit, PatKind, RecordPatSpread, RecordSpread, TypedBlock,
     TypedCatchArm, TypedExpr, TypedPat, TypedStmt,
 };
-use crate::ids::{DefId, RefId};
+use crate::ids::{DefId, RefId, TypeVar};
 use crate::lower::LowerState;
 use crate::symbols::{Name, Path};
 
@@ -70,6 +70,8 @@ struct ErasedExporter<'a> {
     state: &'a LowerState,
     globals: HashMap<DefId, Path>,
     local_defs: Vec<DefId>,
+    current_binding: Option<DefId>,
+    pending_typeclass_obligations: HashMap<DefId, Vec<erased::TypeClassObligation>>,
     refs: erased::RefExportTable,
 }
 
@@ -79,6 +81,8 @@ impl<'a> ErasedExporter<'a> {
             state,
             globals,
             local_defs: Vec::new(),
+            current_binding: None,
+            pending_typeclass_obligations: HashMap::new(),
             refs: erased::RefExportTable::default(),
         }
     }
@@ -97,10 +101,12 @@ impl<'a> ErasedExporter<'a> {
 
     fn export_binding(&mut self, path: &Path, def: DefId) -> Option<erased::InferredBinding> {
         let body = self.state.principal_bodies.get(&def)?;
+        let body = self.with_current_binding(def, |this| this.export_inferred_expr(body));
+        let scheme = self.export_scheme(def);
         Some(erased::InferredBinding {
             name: export_path(path),
-            scheme: self.export_scheme(def),
-            body: self.export_inferred_expr(body),
+            scheme,
+            body,
         })
     }
 
@@ -147,7 +153,7 @@ impl<'a> ErasedExporter<'a> {
     }
 
     fn export_expr(&mut self, expr: &TypedExpr) -> erased::ErasedExpr {
-        if let Some(expr) = self.export_resolved_role_method_call(expr) {
+        if let Some(expr) = self.export_role_method_call(expr) {
             return expr;
         }
         match &expr.kind {
@@ -232,18 +238,15 @@ impl<'a> ErasedExporter<'a> {
         }
     }
 
-    fn export_resolved_role_method_call(&mut self, expr: &TypedExpr) -> Option<erased::ErasedExpr> {
+    fn export_role_method_call(&mut self, expr: &TypedExpr) -> Option<erased::ErasedExpr> {
         let (head, args) = collect_apply_spine(expr);
         let head = strip_transparent_wrappers(head);
         match &head.kind {
             ExprKind::Select { recv, .. } => {
-                let selection = self
-                    .state
-                    .infer
-                    .resolved_role_method_selection(expr.tv)
-                    .or_else(|| self.state.infer.resolved_role_method_selection(head.tv))?;
-                let mut lowered =
-                    erased::ErasedExpr::Ref(self.register_resolved_role_method_ref(selection));
+                let ref_id = self
+                    .role_method_call_ref(expr.tv)
+                    .or_else(|| self.role_method_call_ref(head.tv))?;
+                let mut lowered = erased::ErasedExpr::Ref(ref_id);
                 lowered = erased::ErasedExpr::Apply {
                     callee: Box::new(lowered),
                     arg: Box::new(self.export_expr(recv)),
@@ -257,9 +260,8 @@ impl<'a> ErasedExporter<'a> {
                 Some(lowered)
             }
             ExprKind::Var(_) | ExprKind::Ref(_) => {
-                let selection = self.state.infer.resolved_role_method_selection(expr.tv)?;
-                let mut lowered =
-                    erased::ErasedExpr::Ref(self.register_resolved_role_method_ref(selection));
+                let ref_id = self.role_method_call_ref(expr.tv)?;
+                let mut lowered = erased::ErasedExpr::Ref(ref_id);
                 for arg in args {
                     lowered = erased::ErasedExpr::Apply {
                         callee: Box::new(lowered),
@@ -270,6 +272,14 @@ impl<'a> ErasedExporter<'a> {
             }
             _ => None,
         }
+    }
+
+    fn role_method_call_ref(&mut self, result_tv: TypeVar) -> Option<erased::RefId> {
+        if let Some(selection) = self.state.infer.resolved_role_method_selection(result_tv) {
+            return Some(self.register_resolved_role_method_ref(selection));
+        }
+        let selection = self.state.infer.role_method_call_selection(result_tv)?;
+        self.register_unresolved_role_method_ref(selection)
     }
 
     fn export_block(&mut self, block: &TypedBlock) -> erased::ErasedBlock {
@@ -471,6 +481,81 @@ impl<'a> ErasedExporter<'a> {
         erased_ref
     }
 
+    fn register_unresolved_role_method_ref(
+        &mut self,
+        selection: crate::solve::RoleMethodCallSelection,
+    ) -> Option<erased::RefId> {
+        let owner = self.current_binding?;
+        let ref_id = crate::ids::fresh_ref_id();
+        let erased_ref = export_ref_id(ref_id);
+        let obligation = self.typeclass_obligation_for_selection(erased_ref, selection)?;
+        self.pending_typeclass_obligations
+            .entry(owner)
+            .or_default()
+            .push(obligation);
+        Some(erased_ref)
+    }
+
+    fn typeclass_obligation_for_selection(
+        &self,
+        ref_id: erased::RefId,
+        selection: crate::solve::RoleMethodCallSelection,
+    ) -> Option<erased::TypeClassObligation> {
+        let info = self
+            .state
+            .infer
+            .role_method_info_for_def(selection.member)?;
+        let arg_infos = self.state.infer.role_arg_infos_of(&selection.role);
+        let input_map = role_method_input_tv_map_for_export(
+            &info,
+            &arg_infos,
+            Some(selection.recv_tv),
+            &selection.arg_tvs,
+        )?;
+        let mut args = Vec::new();
+        let mut associated = Vec::new();
+        for arg_info in arg_infos {
+            if arg_info.is_input {
+                let tvs = input_map.get(&arg_info.name)?;
+                args.push(self.export_typeclass_input_arg(tvs));
+            } else if info.output_name.as_deref() == Some(arg_info.name.as_str()) {
+                associated.push(erased::AssociatedTypeConstraint {
+                    name: erased::Name(arg_info.name),
+                    bounds: convert_type_bounds(export_type_bounds_for_tv(
+                        &self.state.infer,
+                        selection.result_tv,
+                    )),
+                });
+            }
+        }
+        Some(erased::TypeClassObligation {
+            ref_id,
+            class: export_path(&selection.role),
+            member: export_def_id(selection.member),
+            args,
+            associated,
+        })
+    }
+
+    fn export_typeclass_input_arg(&self, tvs: &[TypeVar]) -> erased::Type {
+        let mut items = tvs
+            .iter()
+            .copied()
+            .map(|tv| {
+                type_from_bounds(convert_type_bounds(export_type_bounds_for_tv(
+                    &self.state.infer,
+                    tv,
+                )))
+            })
+            .collect::<Vec<_>>();
+        items.dedup();
+        match items.as_slice() {
+            [] => erased::Type::Unknown,
+            [item] => item.clone(),
+            _ => erased::Type::Union(items),
+        }
+    }
+
     fn ensure_existing_ref(&mut self, ref_id: RefId) {
         if let Some(def) = self.state.ctx.refs.get(ref_id) {
             self.refs
@@ -480,7 +565,7 @@ impl<'a> ErasedExporter<'a> {
         }
     }
 
-    fn export_scheme(&self, def: DefId) -> erased::Scheme {
+    fn export_scheme(&mut self, def: DefId) -> erased::Scheme {
         let frozen = self.state.infer.frozen_scheme_of(def);
         let quantified_types = frozen
             .as_ref()
@@ -494,12 +579,16 @@ impl<'a> ErasedExporter<'a> {
             })
             .unwrap_or_default();
         if let Some(scheme) = self.state.runtime_export_schemes.get(&def) {
-            return convert_scheme(scheme.clone(), quantified_types);
+            let mut scheme = convert_scheme(scheme.clone(), quantified_types);
+            self.attach_pending_typeclass_obligations(def, &mut scheme);
+            return scheme;
         }
         if let Some(scheme) = self.state.compact_scheme_of(def) {
             let constraints = self.state.infer.compact_role_constraints_of(def);
             let scheme = export_scheme(&self.state.infer, &scheme, &constraints);
-            return convert_scheme_with_fallback_quantified(scheme, quantified_types);
+            let mut scheme = convert_scheme_with_fallback_quantified(scheme, quantified_types);
+            self.attach_pending_typeclass_obligations(def, &mut scheme);
+            return scheme;
         }
         if let Some(frozen) = frozen {
             let quantified_types = frozen
@@ -509,16 +598,41 @@ impl<'a> ErasedExporter<'a> {
                 .map(export_type_var)
                 .collect::<Vec<_>>();
             let scheme = export_frozen_scheme(&self.state.infer, &frozen);
-            return convert_scheme(scheme, quantified_types);
+            let mut scheme = convert_scheme(scheme, quantified_types);
+            self.attach_pending_typeclass_obligations(def, &mut scheme);
+            return scheme;
         }
-        erased::Scheme {
+        let mut scheme = erased::Scheme {
             body: erased::Type::Unknown,
             quantified_types: Vec::new(),
             quantified_effects: Vec::new(),
             quantified_refs: Vec::new(),
             typeclass_obligations: Vec::new(),
             requirements: Vec::new(),
+        };
+        self.attach_pending_typeclass_obligations(def, &mut scheme);
+        scheme
+    }
+
+    fn attach_pending_typeclass_obligations(&mut self, def: DefId, scheme: &mut erased::Scheme) {
+        let Some(obligations) = self.pending_typeclass_obligations.remove(&def) else {
+            return;
+        };
+        for obligation in obligations {
+            if !scheme.quantified_refs.contains(&obligation.ref_id) {
+                scheme.quantified_refs.push(obligation.ref_id);
+            }
+            if !scheme.typeclass_obligations.contains(&obligation) {
+                scheme.typeclass_obligations.push(obligation);
+            }
         }
+    }
+
+    fn with_current_binding<T>(&mut self, def: DefId, f: impl FnOnce(&mut Self) -> T) -> T {
+        let previous = self.current_binding.replace(def);
+        let out = f(self);
+        self.current_binding = previous;
+        out
     }
 
     fn with_local<T>(&mut self, def: DefId, f: impl FnOnce(&mut Self) -> T) -> T {
@@ -595,6 +709,46 @@ fn collect_pattern_local_defs(pat: &TypedPat, out: &mut Vec<DefId>) {
             }
         }
         PatKind::Wild | PatKind::Lit(_) | PatKind::UnresolvedName(_) => {}
+    }
+}
+
+fn role_method_input_tv_map_for_export(
+    info: &crate::solve::RoleMethodInfo,
+    arg_infos: &[crate::solve::RoleArgInfo],
+    recv_tv: Option<TypeVar>,
+    arg_tvs: &[TypeVar],
+) -> Option<HashMap<String, Vec<TypeVar>>> {
+    let mut mapped = HashMap::<String, Vec<TypeVar>>::new();
+    let mut remaining_arg_tvs = arg_tvs;
+    if info.has_receiver {
+        let recv_tv = match recv_tv {
+            Some(recv_tv) => recv_tv,
+            None => {
+                let (recv_tv, rest) = arg_tvs.split_first()?;
+                remaining_arg_tvs = rest;
+                *recv_tv
+            }
+        };
+        let recv_name = arg_infos.iter().find(|info| info.is_input)?.name.clone();
+        mapped.entry(recv_name).or_default().push(recv_tv);
+    }
+    for (arg_tv, sig_name) in remaining_arg_tvs.iter().zip(&info.input_names) {
+        if let Some(name) = sig_name {
+            mapped.entry(name.clone()).or_default().push(*arg_tv);
+        }
+    }
+    Some(mapped)
+}
+
+fn type_from_bounds(bounds: erased::TypeBounds) -> erased::Type {
+    match (bounds.lower, bounds.upper) {
+        (Some(lower), Some(upper)) if lower == upper => *lower,
+        (Some(lower), Some(upper)) if matches!(*lower, erased::Type::Never) => *upper,
+        (Some(lower), Some(upper)) if matches!(*upper, erased::Type::Any) => *lower,
+        (Some(lower), Some(upper)) => erased::Type::Inter(vec![*lower, *upper]),
+        (Some(lower), None) => *lower,
+        (None, Some(upper)) => *upper,
+        (None, None) => erased::Type::Unknown,
     }
 }
 
@@ -1092,6 +1246,112 @@ my shown: string = 1.index true\n",
         assert!(
             !exported.refs.direct.contains_key(resolved_ref.0),
             "resolved typeclass ref should not be folded into direct refs",
+        );
+    }
+
+    #[test]
+    fn erased_export_records_unresolved_role_method_obligation() {
+        let mut state =
+            parse_and_lower("role Display 'a:\n  our a.display: string\n\nmy show x = x.display\n");
+        let display_def = state
+            .ctx
+            .resolve_path_value(&Path {
+                segments: vec![Name("Display".to_string()), Name("display".to_string())],
+            })
+            .expect("Display.display member");
+        let exported = export_erased_program(&mut state).erased;
+        let show = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "show")
+            })
+            .expect("show binding");
+        let refs = collect_expr_refs(&show.body.ir);
+        let obligation = show
+            .scheme
+            .typeclass_obligations
+            .iter()
+            .find(|obligation| {
+                refs.contains(&obligation.ref_id)
+                    && obligation
+                        .class
+                        .segments
+                        .last()
+                        .is_some_and(|name| name.0 == "Display")
+            })
+            .expect("Display typeclass obligation");
+
+        assert_eq!(obligation.member, export_def_id(display_def));
+        assert!(
+            show.scheme.quantified_refs.contains(&obligation.ref_id),
+            "unresolved typeclass ref should be quantified by the binding scheme",
+        );
+        assert!(
+            !exported.refs.direct.contains_key(&obligation.ref_id)
+                && !exported
+                    .refs
+                    .resolved_typeclass
+                    .contains_key(&obligation.ref_id),
+            "unresolved typeclass ref should live in scheme obligations, not global ref tables",
+        );
+    }
+
+    #[test]
+    fn erased_export_records_unresolved_role_method_associated_output() {
+        let mut state = parse_and_lower(
+            "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+my get xs key = xs.index key\n",
+        );
+        let index_def = state
+            .ctx
+            .resolve_path_value(&Path {
+                segments: vec![Name("Index".to_string()), Name("index".to_string())],
+            })
+            .expect("Index.index member");
+        let exported = export_erased_program(&mut state).erased;
+        let get = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "get")
+            })
+            .expect("get binding");
+        let obligation = get
+            .scheme
+            .typeclass_obligations
+            .iter()
+            .find(|obligation| {
+                obligation.member == export_def_id(index_def)
+                    && obligation
+                        .class
+                        .segments
+                        .last()
+                        .is_some_and(|name| name.0 == "Index")
+            })
+            .expect("Index typeclass obligation");
+
+        assert_eq!(
+            obligation.args.len(),
+            2,
+            "Index obligation should keep container and key input args",
+        );
+        assert!(
+            obligation
+                .associated
+                .iter()
+                .any(|associated| associated.name.0 == "value"),
+            "Index obligation should keep associated output constraint, got {obligation:?}",
         );
     }
 
