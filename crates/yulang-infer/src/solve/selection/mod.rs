@@ -4,7 +4,7 @@ use crate::scheme::{FrozenScheme, compact_neg_type, compact_pos_type};
 use crate::scheme::SmallSubst;
 use crate::simplify::compact::{CompactBounds, CompactTypeScheme, subst_compact_bounds};
 
-use super::{Infer, RoleConstraint, RoleConstraintArg};
+use super::{Infer, RoleConstraint, RoleConstraintArg, RoleMethodInfo};
 
 mod candidate;
 mod compact_lookup;
@@ -26,6 +26,32 @@ pub(crate) use role_method::CastMethodResolution;
 impl Infer {
     pub(crate) fn resolved_selection_def(&self, result_tv: TypeVar) -> Option<DefId> {
         self.resolved_selections.borrow().get(&result_tv).copied()
+    }
+
+    pub(crate) fn resolved_role_method_selection(
+        &self,
+        result_tv: TypeVar,
+    ) -> Option<super::ResolvedRoleMethodSelection> {
+        self.resolved_role_method_selections
+            .borrow()
+            .get(&result_tv)
+            .cloned()
+    }
+
+    pub(crate) fn record_resolved_role_method_selection(
+        &self,
+        result_tv: TypeVar,
+        info: &RoleMethodInfo,
+        impl_member: DefId,
+    ) {
+        self.resolved_role_method_selections.borrow_mut().insert(
+            result_tv,
+            super::ResolvedRoleMethodSelection {
+                role: info.role.clone(),
+                member: info.def,
+                impl_member,
+            },
+        );
     }
 
     pub(crate) fn resolved_ref_field_projection(

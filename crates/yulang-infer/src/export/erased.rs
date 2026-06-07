@@ -12,6 +12,7 @@ use crate::lower::LowerState;
 use crate::symbols::{Name, Path};
 
 use super::names::path_key;
+use super::spine::{collect_apply_spine, strip_transparent_wrappers};
 use super::types::{export_frozen_scheme, export_scheme, export_type_bounds_for_tv};
 
 pub fn export_erased_program(state: &mut LowerState) -> erased::InferExport {
@@ -146,6 +147,9 @@ impl<'a> ErasedExporter<'a> {
     }
 
     fn export_expr(&mut self, expr: &TypedExpr) -> erased::ErasedExpr {
+        if let Some(expr) = self.export_resolved_role_method_call(expr) {
+            return expr;
+        }
         match &expr.kind {
             ExprKind::PrimitiveOp(op) => erased::ErasedExpr::PrimitiveOp(convert_primitive_op(*op)),
             ExprKind::Lit(lit) => erased::ErasedExpr::Lit(export_lit(lit)),
@@ -225,6 +229,46 @@ impl<'a> ErasedExporter<'a> {
                 var: erased::TypeVar(format!("t{}", var.0)),
                 expr: Box::new(self.export_expr(expr)),
             },
+        }
+    }
+
+    fn export_resolved_role_method_call(&mut self, expr: &TypedExpr) -> Option<erased::ErasedExpr> {
+        let (head, args) = collect_apply_spine(expr);
+        let head = strip_transparent_wrappers(head);
+        match &head.kind {
+            ExprKind::Select { recv, .. } => {
+                let selection = self
+                    .state
+                    .infer
+                    .resolved_role_method_selection(expr.tv)
+                    .or_else(|| self.state.infer.resolved_role_method_selection(head.tv))?;
+                let mut lowered =
+                    erased::ErasedExpr::Ref(self.register_resolved_role_method_ref(selection));
+                lowered = erased::ErasedExpr::Apply {
+                    callee: Box::new(lowered),
+                    arg: Box::new(self.export_expr(recv)),
+                };
+                for arg in args {
+                    lowered = erased::ErasedExpr::Apply {
+                        callee: Box::new(lowered),
+                        arg: Box::new(self.export_expr(arg)),
+                    };
+                }
+                Some(lowered)
+            }
+            ExprKind::Var(_) | ExprKind::Ref(_) => {
+                let selection = self.state.infer.resolved_role_method_selection(expr.tv)?;
+                let mut lowered =
+                    erased::ErasedExpr::Ref(self.register_resolved_role_method_ref(selection));
+                for arg in args {
+                    lowered = erased::ErasedExpr::Apply {
+                        callee: Box::new(lowered),
+                        arg: Box::new(self.export_expr(arg)),
+                    };
+                }
+                Some(lowered)
+            }
+            _ => None,
         }
     }
 
@@ -395,6 +439,27 @@ impl<'a> ErasedExporter<'a> {
     fn export_ref_use(&mut self, ref_id: RefId) -> erased::ErasedExpr {
         self.ensure_existing_ref(ref_id);
         erased::ErasedExpr::Ref(export_ref_id(ref_id))
+    }
+
+    fn register_resolved_role_method_ref(
+        &mut self,
+        selection: crate::solve::ResolvedRoleMethodSelection,
+    ) -> erased::RefId {
+        let ref_id = crate::ids::fresh_ref_id();
+        let erased_ref = export_ref_id(ref_id);
+        self.refs.resolved_typeclass.insert(
+            erased_ref,
+            erased::ResolvedTypeClassRef {
+                class: export_path(&selection.role),
+                member: export_def_id(selection.member),
+                impl_def: self
+                    .state
+                    .def_owner(selection.impl_member)
+                    .map(export_def_id),
+                impl_member: export_def_id(selection.impl_member),
+            },
+        );
+        erased_ref
     }
 
     fn ensure_existing_ref(&mut self, ref_id: RefId) {
@@ -944,6 +1009,51 @@ mod tests {
         assert!(
             id.scheme.typeclass_obligations.is_empty(),
             "direct generic id has no typeclass obligations"
+        );
+    }
+
+    #[test]
+    fn erased_export_records_resolved_role_method_ref() {
+        let mut state = parse_and_lower(
+            "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+impl Index int bool:\n  type value = string\n  our x.index y = \"ok\"\n\n\
+my shown: string = 1.index true\n",
+        );
+        let exported = export_erased_program(&mut state).erased;
+        let shown = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "shown")
+            })
+            .expect("shown binding");
+        let refs = collect_expr_refs(&shown.body.ir);
+        let resolved_ref = exported
+            .refs
+            .resolved_typeclass
+            .iter()
+            .find(|(ref_id, resolved)| {
+                refs.contains(ref_id)
+                    && resolved
+                        .class
+                        .segments
+                        .last()
+                        .is_some_and(|name| name.0 == "Index")
+            })
+            .expect("resolved Index method ref");
+
+        assert_ne!(
+            resolved_ref.1.member, resolved_ref.1.impl_member,
+            "role member and impl member identities should stay distinct when impl supplies a body",
+        );
+        assert!(
+            !exported.refs.direct.contains_key(resolved_ref.0),
+            "resolved typeclass ref should not be folded into direct refs",
         );
     }
 

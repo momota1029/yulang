@@ -23,7 +23,10 @@ pub mod effect_row;
 pub mod role;
 pub mod selection;
 
-pub use role::{RoleArgInfo, RoleConstraint, RoleConstraintArg, RoleImplCandidate, RoleMethodInfo};
+pub use role::{
+    ResolvedRoleMethodSelection, RoleArgInfo, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
+    RoleMethodInfo,
+};
 pub(crate) use selection::CastMethodResolution;
 
 pub trait IntoPosId {
@@ -426,6 +429,7 @@ pub struct Infer {
     pub selection_var_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[TypeVar; 2]>>>,
     pub deferred_role_method_calls: RefCell<Vec<DeferredRoleMethodCall>>,
     pub resolved_selections: RefCell<FxHashMap<TypeVar, DefId>>,
+    pub resolved_role_method_selections: RefCell<FxHashMap<TypeVar, ResolvedRoleMethodSelection>>,
     pub resolved_ref_field_projections: RefCell<FxHashMap<TypeVar, RefFieldProjection>>,
     pub ref_projection_preferred_selections: RefCell<FxHashSet<TypeVar>>,
     pub type_methods: HashMap<Path, HashMap<Name, DefId>>,
@@ -489,6 +493,7 @@ impl Infer {
             selection_var_dependents: RefCell::new(FxHashMap::default()),
             deferred_role_method_calls: RefCell::new(Vec::new()),
             resolved_selections: RefCell::new(FxHashMap::default()),
+            resolved_role_method_selections: RefCell::new(FxHashMap::default()),
             resolved_ref_field_projections: RefCell::new(FxHashMap::default()),
             ref_projection_preferred_selections: RefCell::new(FxHashSet::default()),
             type_methods: HashMap::new(),

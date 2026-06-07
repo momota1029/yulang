@@ -59,3 +59,10 @@ pub struct RoleImplCandidate {
     pub member_defs: HashMap<Name, DefId>,
     pub origins: Vec<TypeOrigin>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedRoleMethodSelection {
+    pub role: Path,
+    pub member: DefId,
+    pub impl_member: DefId,
+}

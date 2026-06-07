@@ -676,8 +676,12 @@ impl Infer {
             }
             _ => {}
         }
-        let resolved_def = method_resolution.concrete_def().unwrap_or(info.def);
+        let resolved_impl_member = method_resolution.concrete_def();
+        let resolved_def = resolved_impl_member.unwrap_or(info.def);
         self.record_resolved_selection(selection, resolved_def);
+        if let Some(impl_member) = resolved_impl_member {
+            self.record_resolved_role_method_selection(selection.result_tv, info, impl_member);
+        }
         self.constrain_selected_method_call(
             method_tv,
             recv_tv,

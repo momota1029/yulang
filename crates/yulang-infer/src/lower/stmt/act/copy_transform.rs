@@ -7,7 +7,8 @@ use crate::ast::expr::{
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::lower::LowerState;
 use crate::solve::{
-    EffectSubtractFact, EffectSubtractId, EffectSubtractability, RefFieldProjection, TypeFieldInfo,
+    EffectSubtractFact, EffectSubtractId, EffectSubtractability, RefFieldProjection,
+    ResolvedRoleMethodSelection, TypeFieldInfo,
 };
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos, RecordField};
@@ -85,6 +86,33 @@ fn copy_resolved_expr_info(
             .resolved_ref_field_projections
             .borrow_mut()
             .insert(dest_tv, subst_ref_field_projection(projection, def_subst));
+    }
+    if let Some(selection) = state.infer.resolved_role_method_selection(source_tv) {
+        state
+            .infer
+            .resolved_role_method_selections
+            .borrow_mut()
+            .insert(
+                dest_tv,
+                subst_resolved_role_method_selection(selection, def_subst),
+            );
+    }
+}
+
+fn subst_resolved_role_method_selection(
+    selection: ResolvedRoleMethodSelection,
+    def_subst: &HashMap<DefId, DefId>,
+) -> ResolvedRoleMethodSelection {
+    ResolvedRoleMethodSelection {
+        role: selection.role,
+        member: def_subst
+            .get(&selection.member)
+            .copied()
+            .unwrap_or(selection.member),
+        impl_member: def_subst
+            .get(&selection.impl_member)
+            .copied()
+            .unwrap_or(selection.impl_member),
     }
 }
 

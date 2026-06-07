@@ -175,6 +175,7 @@ impl Infer {
                 self.resolved_selections
                     .borrow_mut()
                     .insert(call.result_tv, def);
+                self.record_resolved_role_method_selection(call.result_tv, &info, def);
             }
             match resolution {
                 RoleMethodResolution::Missing { args } => {
