@@ -107,21 +107,27 @@ pub(crate) fn collect_root_expr_graphs(
 pub(crate) fn collect_binding_body_graphs(
     module: &Module,
     aliases: &[typed_ir::Path],
+    scanned: &mut HashSet<typed_ir::Path>,
     cast_order: &TypeCastOrder,
     solutions: &mut Vec<RootGraphSolution>,
-) -> MonomorphizeResult<()> {
+) -> MonomorphizeResult<BindingBodyScan> {
     let bindings = module
         .bindings
         .iter()
         .map(|binding| (binding.name.clone(), binding))
         .collect::<HashMap<_, _>>();
+    let mut outcome = BindingBodyScan::default();
     for alias in aliases {
+        if scanned.contains(alias) {
+            continue;
+        }
         let Some(binding) = bindings.get(alias) else {
             return Err(MonomorphizeDiagnostic::MissingBinding {
                 binding: alias.clone(),
             });
         };
-        collect_expr_graphs(
+        let solution_count = solutions.len();
+        match collect_expr_graphs(
             RootGraphRoot::Binding(alias.clone()),
             &binding.body,
             &bindings,
@@ -129,15 +135,31 @@ pub(crate) fn collect_binding_body_graphs(
             &binding_local_types(binding),
             cast_order,
             solutions,
-        )?;
+        ) {
+            Ok(()) if solutions.len() == solution_count => {
+                scanned.insert(alias.clone());
+                outcome.scanned_any = true;
+            }
+            Ok(()) => return Ok(outcome),
+            Err(error @ MonomorphizeDiagnostic::IncompleteGraph { .. }) => {
+                outcome.deferred.get_or_insert(error);
+            }
+            Err(error) => return Err(error),
+        }
     }
-    Ok(())
+    Ok(outcome)
+}
+
+#[derive(Default)]
+pub(crate) struct BindingBodyScan {
+    pub(crate) scanned_any: bool,
+    pub(crate) deferred: Option<MonomorphizeDiagnostic>,
 }
 
 pub(crate) fn next_binding_body_scan_targets(
     module: &Module,
     emitted: &[typed_ir::Path],
-    scanned: &mut HashSet<typed_ir::Path>,
+    scanned: &HashSet<typed_ir::Path>,
 ) -> Vec<typed_ir::Path> {
     let bindings = module
         .bindings
@@ -156,7 +178,7 @@ pub(crate) fn next_binding_body_scan_targets(
         if !bindings.contains_key(path) {
             continue;
         }
-        if scanned.insert(path.clone()) && pushed.insert(path.clone()) {
+        if !scanned.contains(path) && pushed.insert(path.clone()) {
             targets.push(path.clone());
         }
     }
@@ -164,7 +186,7 @@ pub(crate) fn next_binding_body_scan_targets(
         if !bindings.get(path).copied().unwrap_or(false) {
             continue;
         }
-        if scanned.insert(path.clone()) && pushed.insert(path.clone()) {
+        if !scanned.contains(path) && pushed.insert(path.clone()) {
             targets.push(path.clone());
         }
     }

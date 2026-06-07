@@ -139,14 +139,12 @@ fn solve_monomorphic_instances(
 
         let solution_count = root_graph_solutions.len();
         apply_spine::collect_root_expr_graphs(module, &cast_order, &mut root_graph_solutions)?;
-        let scan_targets = apply_spine::next_binding_body_scan_targets(
-            module,
-            &emitted,
-            &mut scanned_binding_bodies,
-        );
-        apply_spine::collect_binding_body_graphs(
+        let scan_targets =
+            apply_spine::next_binding_body_scan_targets(module, &emitted, &scanned_binding_bodies);
+        let scan_outcome = apply_spine::collect_binding_body_graphs(
             module,
             &scan_targets,
+            &mut scanned_binding_bodies,
             &cast_order,
             &mut root_graph_solutions,
         )?;
@@ -155,6 +153,16 @@ fn solve_monomorphic_instances(
             && !role_rewrites
             && root_graph_solutions.len() == solution_count
         {
+            break;
+        }
+        if emitted.is_empty()
+            && !role_rewrites
+            && root_graph_solutions.len() == solution_count
+            && !scan_outcome.scanned_any
+        {
+            if let Some(error) = scan_outcome.deferred {
+                return Err(error);
+            }
             break;
         }
     }
