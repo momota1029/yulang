@@ -4,7 +4,7 @@ use crate::ErasedExprKind;
 use crate::draft::{DraftComputationId, DraftExprId, ElaborationDraft};
 
 use yulang_elaborated_ir::{
-    ConcreteType, ConcreteTypeError, MonoComputation, MonoEffect, MonoType,
+    ConcreteType, ConcreteTypeError, EffectiveThunkType, MonoComputation, MonoEffect, MonoType,
 };
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferredBinding, Lit, Name, Path, RefExportTable, RefId,
@@ -255,6 +255,7 @@ pub enum ConstraintTypeSource {
 }
 
 struct ConstraintSolver {
+    explicit_computations: BTreeMap<DraftComputationId, MonoComputation>,
     bounds: BTreeMap<TypeNode, TypeBoundsGraph>,
     pending_bounds: Vec<PendingBound>,
     subtype_edges: BTreeSet<(TypeNode, TypeNode)>,
@@ -266,6 +267,7 @@ struct ConstraintSolver {
 impl ConstraintSolver {
     fn from_set(set: ConstraintSet) -> Result<Self, ConstraintError> {
         let mut solver = Self {
+            explicit_computations: BTreeMap::new(),
             bounds: BTreeMap::new(),
             pending_bounds: Vec::new(),
             subtype_edges: BTreeSet::new(),
@@ -281,11 +283,12 @@ impl ConstraintSolver {
 
     fn into_solution(self) -> Result<ComputationSolution, ConstraintError> {
         let mut computations = BTreeMap::new();
-        let slots = self
+        let mut slots = self
             .bounds
             .keys()
             .filter_map(TypeNode::computation_slot)
             .collect::<BTreeSet<_>>();
+        slots.extend(self.explicit_computations.keys().copied());
         for slot in slots {
             computations.insert(slot, self.require_assigned(slot)?);
         }
@@ -314,6 +317,7 @@ impl ConstraintSolver {
                 self.solve_variant(draft, id, tag, value.as_deref(), env)
             }
             ErasedExpr::Select { base, field } => self.solve_select(draft, id, base, field, env),
+            ErasedExpr::BindHere { expr } => self.solve_bind_here(draft, id, expr, env),
             ErasedExpr::Pack { expr, .. } => self.solve_pack(draft, id, expr, env),
             ErasedExpr::Def(_)
             | ErasedExpr::Ref(_)
@@ -723,6 +727,29 @@ impl ConstraintSolver {
         self.solve_expr(draft, *body_id, expr, env)
     }
 
+    fn solve_bind_here(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        expr: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<(), ConstraintError> {
+        let target = self.require_assigned(draft.expr(id).computation)?;
+        let [thunk_id] = draft.expr(id).children.as_slice() else {
+            return Ok(());
+        };
+        let source = EffectiveThunkType {
+            effect: target.effect.clone(),
+            value: Box::new(target.value.clone()),
+        };
+        let thunk_computation = MonoComputation {
+            value: MonoType::EffectiveThunk(source),
+            effect: pure_effect(),
+        };
+        self.assign(draft.expr(*thunk_id).computation, thunk_computation)?;
+        self.solve_expr(draft, *thunk_id, expr, env)
+    }
+
     fn apply_from_scheme(
         &mut self,
         slot: DraftComputationId,
@@ -808,8 +835,30 @@ impl ConstraintSolver {
         slot: DraftComputationId,
         computation: MonoComputation,
     ) -> Result<(), ConstraintError> {
+        if matches!(computation.value, MonoType::EffectiveThunk(_)) {
+            return self.add_explicit_computation(slot, computation);
+        }
         self.add_exact_computation(slot, computation)?;
         self.drain_pending_bounds()
+    }
+
+    fn add_explicit_computation(
+        &mut self,
+        slot: DraftComputationId,
+        computation: MonoComputation,
+    ) -> Result<(), ConstraintError> {
+        if let Some(existing) = self.explicit_computations.get(&slot) {
+            if existing != &computation {
+                return Err(ConstraintError::ConflictingComputation {
+                    slot: slot.into(),
+                    existing: existing.clone(),
+                    incoming: computation,
+                });
+            }
+            return Ok(());
+        }
+        self.explicit_computations.insert(slot, computation);
+        Ok(())
     }
 
     fn add_subtype_edge(
@@ -1026,6 +1075,9 @@ impl ConstraintSolver {
         &self,
         slot: DraftComputationId,
     ) -> Result<MonoComputation, ConstraintError> {
+        if let Some(computation) = self.explicit_computations.get(&slot) {
+            return Ok(computation.clone());
+        }
         let mut substitution =
             self.build_substitution(slot, ConstraintTypeSource::BoundsSelection)?;
         let value_node = TypeNode::value(slot);
@@ -2796,6 +2848,7 @@ mod tests {
 
     fn empty_solver() -> ConstraintSolver {
         ConstraintSolver {
+            explicit_computations: BTreeMap::new(),
             bounds: BTreeMap::new(),
             pending_bounds: Vec::new(),
             subtype_edges: BTreeSet::new(),

@@ -164,6 +164,10 @@ pub enum ElaborateProgramError {
         site: ElaborateSite,
         kind: ErasedExprKind,
     },
+    ExpectedEffectiveThunk {
+        site: ElaborateSite,
+        found: MonoType,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1131,6 +1135,29 @@ fn elaborate_expr(
                     solution,
                 )?),
                 field: field.clone(),
+            }
+        }
+        ErasedExpr::BindHere { expr } => {
+            let [thunk_id] = draft.expr(id).children.as_slice() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::BindHere,
+                });
+            };
+            let thunk = elaborate_expr(site.clone(), draft, *thunk_id, expr, solution)?;
+            let source = match &thunk.comp.value {
+                MonoType::EffectiveThunk(source) => source.clone(),
+                found => {
+                    return Err(ElaborateProgramError::ExpectedEffectiveThunk {
+                        site,
+                        found: found.clone(),
+                    });
+                }
+            };
+            ElaboratedExprKind::ForceThunk {
+                thunk: Box::new(thunk),
+                source,
+                target: comp.clone(),
             }
         }
         ErasedExpr::Pack { var, expr } => {
@@ -2164,6 +2191,62 @@ impl Display int:\n  our x.display = \"int\"\n\n\
                 elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete")
             )
         );
+    }
+
+    #[test]
+    fn elaborator_lowers_bind_here_to_force_thunk_boundary() {
+        let int = named_type("int");
+        let io = named_type("io");
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::BindHere {
+                expr: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                    1,
+                ))),
+            },
+            int.clone(),
+            io.clone(),
+        ));
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("bind-here should elaborate as a force-thunk boundary");
+
+        let elaborated_ir::ElaboratedExprKind::ForceThunk {
+            thunk,
+            source,
+            target,
+        } = &program.module.root_exprs[0].kind
+        else {
+            panic!("bind-here should elaborate as ForceThunk");
+        };
+        assert_eq!(
+            source.effect,
+            elaborated_ir::MonoEffect::new(
+                elaborated_ir::ConcreteType::try_from_type(io).expect("io is concrete")
+            )
+        );
+        assert_eq!(
+            source.value.as_ref(),
+            &elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(int.clone()).expect("int is concrete")
+            )
+        );
+        assert_eq!(
+            target.value,
+            elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete")
+            )
+        );
+        assert!(matches!(
+            &thunk.comp.value,
+            elaborated_ir::MonoType::EffectiveThunk(_)
+        ));
+        assert!(matches!(
+            &thunk.kind,
+            elaborated_ir::ElaboratedExprKind::Def(yulang_erased_ir::DefId(1))
+        ));
     }
 
     fn inferred_root(
