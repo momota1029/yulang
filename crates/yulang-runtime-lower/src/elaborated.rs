@@ -1010,11 +1010,7 @@ mod tests {
 
     #[test]
     fn lower_elaborated_program_rewrites_instance_ref_to_runtime_path() {
-        let int = elaborated::ConcreteType::try_from_type(erased::Type::Named {
-            path: erased::Path::from_name(erased::Name("int".to_string())),
-            args: Vec::new(),
-        })
-        .expect("concrete int");
+        let int = concrete_named_type("int");
         let comp = elaborated::MonoComputation {
             value: elaborated::MonoType::Value(int),
             effect: elaborated::MonoEffect::pure(),
@@ -1064,5 +1060,108 @@ mod tests {
             FinalizedExprKind::Var(path) if path.segments == vec![typed_ir::Name("one".to_string())]
         ));
         assert_eq!(module.roots, vec![Root::Expr(0)]);
+    }
+
+    #[test]
+    fn lower_elaborated_program_lowers_function_adapter_hygiene_plan() {
+        let int = elaborated::MonoType::Value(concrete_named_type("int"));
+        let io = elaborated::MonoEffect::new(concrete_named_type("io"));
+        let function = elaborated::FunctionBoundary {
+            param: int.clone(),
+            param_effect: elaborated::MonoEffect::pure(),
+            ret_effect: elaborated::MonoEffect::pure(),
+            ret: int.clone(),
+        };
+        let function_comp = elaborated::MonoComputation {
+            value: elaborated::MonoType::Function(Box::new(function.clone())),
+            effect: elaborated::MonoEffect::pure(),
+        };
+        let target = elaborated::MonoInstanceId(1);
+        let program = elaborated::ElaboratedProgram {
+            module: elaborated::ElaboratedModule {
+                path: erased::Path::default(),
+                instances: vec![elaborated::MonoInstance {
+                    id: target,
+                    name: erased::Path::from_name(erased::Name("f".to_string())),
+                    source: elaborated::DemandSource::Def(erased::DefId(1)),
+                    signature: function_comp.clone(),
+                    body: elaborated::ElaboratedExpr::new(
+                        elaborated::ElaboratedExprKind::Lambda {
+                            param: erased::DefId(10),
+                            param_type: int.clone(),
+                            body: Box::new(elaborated::ElaboratedExpr::new(
+                                elaborated::ElaboratedExprKind::Def(erased::DefId(10)),
+                                elaborated::MonoComputation {
+                                    value: int,
+                                    effect: elaborated::MonoEffect::pure(),
+                                },
+                            )),
+                        },
+                        function_comp.clone(),
+                    ),
+                }],
+                root_exprs: vec![elaborated::ElaboratedExpr::new(
+                    elaborated::ElaboratedExprKind::FunctionAdapter {
+                        function: Box::new(elaborated::ElaboratedExpr::new(
+                            elaborated::ElaboratedExprKind::InstanceRef(target),
+                            function_comp.clone(),
+                        )),
+                        adapter: elaborated::FunctionAdapter {
+                            source: function.clone(),
+                            target: function,
+                            call: elaborated::FunctionAdapterCall {
+                                local_scope: Some(elaborated::EffectIdVar(9)),
+                                result_boundaries: vec![
+                                    elaborated::FunctionResultBoundary::AddId {
+                                        id: elaborated::EffectIdRef::Peek,
+                                        allowed: io,
+                                        active: true,
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    function_comp,
+                )],
+                roots: vec![elaborated::ElaboratedRoot::Expr(0)],
+            },
+            refs: elaborated::ResolvedRefTable::default(),
+        };
+
+        let module = lower_elaborated_program(program).expect("runtime module");
+        let FinalizedExprKind::Lambda { body, .. } = &module.root_exprs[0].kind else {
+            panic!("function adapter should lower to a runtime lambda");
+        };
+        let FinalizedExprKind::LocalPushId { id, body } = &body.kind else {
+            panic!("adapter local_scope should lower to LocalPushId");
+        };
+        assert_eq!(*id, EffectIdVar(9));
+        let FinalizedExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } = &body.kind
+        else {
+            panic!("adapter result boundary should lower to AddId");
+        };
+        assert_eq!(*id, EffectIdRef::Peek);
+        assert_eq!(*active, true);
+        assert_eq!(
+            allowed,
+            &typed_ir::Type::Named {
+                path: typed_ir::Path::from_name(typed_ir::Name("io".to_string())),
+                args: Vec::new(),
+            }
+        );
+        assert!(matches!(thunk.kind, FinalizedExprKind::Apply { .. }));
+    }
+
+    fn concrete_named_type(name: &str) -> elaborated::ConcreteType {
+        elaborated::ConcreteType::try_from_type(erased::Type::Named {
+            path: erased::Path::from_name(erased::Name(name.to_string())),
+            args: Vec::new(),
+        })
+        .expect("concrete named type")
     }
 }
