@@ -9,6 +9,7 @@ use crate::ast::expr::{
 };
 use crate::ids::{DefId, RefId, TypeVar};
 use crate::lower::LowerState;
+use crate::lower::computation::LoweredComputation;
 use crate::symbols::{Name, Path};
 
 use super::names::path_key;
@@ -145,10 +146,15 @@ impl<'a> ErasedExporter<'a> {
     }
 
     fn export_inferred_expr(&mut self, expr: &TypedExpr) -> erased::InferredExpr {
+        let lowered = LoweredComputation::from_parts(expr.tv, expr.eff, self.export_expr(expr));
+        self.export_lowered_computation(lowered)
+    }
+
+    fn export_lowered_computation(&self, lowered: LoweredComputation) -> erased::InferredExpr {
         erased::InferredExpr {
-            typ: convert_type_bounds(export_type_bounds_for_tv(&self.state.infer, expr.tv)),
-            eff: convert_type_bounds(export_type_bounds_for_tv(&self.state.infer, expr.eff)),
-            ir: self.export_expr(expr),
+            typ: convert_type_bounds(export_type_bounds_for_tv(&self.state.infer, lowered.tv)),
+            eff: convert_type_bounds(export_type_bounds_for_tv(&self.state.infer, lowered.eff)),
+            ir: lowered.ir,
         }
     }
 
