@@ -618,24 +618,21 @@ fn direct_ref_apply_effect(
     value: &ConcreteType,
     env: &constraints::ConstraintEnvironment<'_>,
 ) -> Result<Option<ConcreteType>, ElaborateProgramError> {
-    let ErasedExpr::Apply { callee, arg } = expr else {
-        return Ok(None);
-    };
-    let ErasedExpr::Ref(ref_id) = callee.as_ref() else {
+    let Some((ref_id, args)) = direct_ref_apply_spine(expr) else {
         return Ok(None);
     };
     let scheme = env
-        .direct_scheme(*ref_id)
+        .direct_scheme(ref_id)
         .map(|(_, scheme)| scheme)
         .or_else(|| {
-            env.resolved_typeclass_scheme(*ref_id)
+            env.resolved_typeclass_scheme(ref_id)
                 .map(|(_, scheme)| scheme)
         });
     let Some(scheme) = scheme else {
         return Ok(None);
     };
     let Some(ret_effect) =
-        constraints::direct_apply_ret_effect_from_scheme(scheme, value.as_type(), arg, env)
+        constraints::direct_apply_ret_effect_from_scheme_spine(scheme, value.as_type(), &args, env)
     else {
         return Ok(None);
     };
@@ -646,6 +643,27 @@ fn direct_ref_apply_effect(
             field: ComputationField::Effect,
             error,
         })
+}
+
+fn direct_ref_apply_spine(expr: &ErasedExpr) -> Option<(RefId, Vec<&ErasedExpr>)> {
+    let mut cursor = expr;
+    let mut args = Vec::new();
+    loop {
+        let ErasedExpr::Apply { callee, arg } = cursor else {
+            return None;
+        };
+        args.push(arg.as_ref());
+        match callee.as_ref() {
+            ErasedExpr::Ref(ref_id) => {
+                args.reverse();
+                return Some((*ref_id, args));
+            }
+            nested @ ErasedExpr::Apply { .. } => {
+                cursor = nested;
+            }
+            _ => return None,
+        }
+    }
 }
 
 fn syntactically_pure_expr(expr: &ErasedExpr) -> bool {
@@ -1714,6 +1732,37 @@ my used = id (1.display)\n",
             "root and instantiated id binding should be materialized, got {:?}",
             program.module.instances,
         );
+    }
+
+    #[test]
+    fn elaborate_program_accepts_actual_curried_direct_ref_apply_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "my second x y = y\nsecond 1 2\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("curried direct ref apply can be elaborated from actual infer export");
+
+        let elaborated_ir::ElaboratedExprKind::Apply { callee, arg } =
+            &program.module.root_exprs[0].kind
+        else {
+            panic!("root should elaborate as outer apply");
+        };
+        assert!(matches!(
+            &callee.kind,
+            elaborated_ir::ElaboratedExprKind::Apply { .. }
+        ));
+        assert!(matches!(
+            &arg.kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "2"
+        ));
     }
 
     #[test]

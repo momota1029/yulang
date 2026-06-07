@@ -254,11 +254,27 @@ pub enum ConstraintTypeSource {
     Literal,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnboundedTypeDefault {
+    Value,
+    Effect,
+}
+
+impl UnboundedTypeDefault {
+    fn as_type(self) -> Type {
+        match self {
+            Self::Value => unit_type(),
+            Self::Effect => Type::Never,
+        }
+    }
+}
+
 struct ConstraintSolver {
     explicit_computations: BTreeMap<DraftComputationId, MonoComputation>,
     bounds: BTreeMap<TypeNode, TypeBoundsGraph>,
     pending_bounds: Vec<PendingBound>,
     subtype_edges: BTreeSet<(TypeNode, TypeNode)>,
+    type_var_defaults: BTreeMap<TypeVar, UnboundedTypeDefault>,
     next_type_var: u32,
     direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
     resolved_typeclass_instances: BTreeMap<RefId, ResolvedTypeclassInstanceDemand>,
@@ -271,6 +287,7 @@ impl ConstraintSolver {
             bounds: BTreeMap::new(),
             pending_bounds: Vec::new(),
             subtype_edges: BTreeSet::new(),
+            type_var_defaults: BTreeMap::new(),
             next_type_var: 0,
             direct_ref_instances: BTreeMap::new(),
             resolved_typeclass_instances: BTreeMap::new(),
@@ -811,10 +828,12 @@ impl ConstraintSolver {
         instantiation.substitute_type(&scheme.body)
     }
 
-    fn fresh_type_var(&mut self, original: &TypeVar) -> TypeVar {
+    fn fresh_type_var(&mut self, original: &TypeVar, default: UnboundedTypeDefault) -> TypeVar {
         let id = self.next_type_var;
         self.next_type_var += 1;
-        TypeVar(format!("$elab{id}${}", original.0))
+        let var = TypeVar(format!("$elab{id}${}", original.0));
+        self.type_var_defaults.insert(var.clone(), default);
+        var
     }
 
     fn assign(
@@ -1083,12 +1102,14 @@ impl ConstraintSolver {
                 slot,
                 value_bounds,
                 ConstraintTypeSource::BoundsSelection,
+                UnboundedTypeDefault::Value,
                 &mut substitution,
             )?),
             effect: MonoEffect::new(self.select_concrete_type(
                 slot,
                 effect_bounds,
                 ConstraintTypeSource::BoundsSelection,
+                UnboundedTypeDefault::Effect,
                 &mut substitution,
             )?),
         })
@@ -1100,14 +1121,15 @@ impl ConstraintSolver {
         source: ConstraintTypeSource,
     ) -> Result<ElaborationSubstitution, ConstraintError> {
         let mut substitution = ElaborationSubstitution::default();
-        let vars = self
+        let mut vars = self
             .bounds
             .keys()
             .filter_map(|node| match node {
                 TypeNode::Var(var) => Some(var.clone()),
                 TypeNode::Computation { .. } => None,
             })
-            .collect::<Vec<_>>();
+            .collect::<BTreeSet<_>>();
+        vars.extend(self.type_var_defaults.keys().cloned());
         for var in vars {
             self.solve_type_var(slot, &var, source, &mut substitution, &mut BTreeSet::new())?;
         }
@@ -1119,19 +1141,19 @@ impl ConstraintSolver {
         slot: DraftComputationId,
         bounds: &TypeBoundsGraph,
         source: ConstraintTypeSource,
+        default: UnboundedTypeDefault,
         substitution: &mut ElaborationSubstitution,
     ) -> Result<ConcreteType, ConstraintError> {
-        let Some(ty) = self.select_type_candidate_from_bounds(
-            slot,
-            bounds,
-            source,
-            substitution,
-            &mut BTreeSet::new(),
-            &mut BTreeSet::new(),
-        )?
-        else {
-            return Err(ConstraintError::MissingComputation { slot: slot.into() });
-        };
+        let ty = self
+            .select_type_candidate_from_bounds(
+                slot,
+                bounds,
+                source,
+                substitution,
+                &mut BTreeSet::new(),
+                &mut BTreeSet::new(),
+            )?
+            .unwrap_or_else(|| default.as_type());
         concrete_type(slot, source, ty)
     }
 
@@ -1161,7 +1183,12 @@ impl ConstraintSolver {
             )?
         } else {
             None
-        };
+        }
+        .or_else(|| {
+            self.type_var_defaults
+                .get(var)
+                .map(|default| default.as_type())
+        });
         if let Some(solution) = &out {
             substitution.insert(var.clone(), solution.clone());
         }
@@ -1665,11 +1692,17 @@ impl SchemeFreshening {
     fn new(solver: &mut ConstraintSolver, scheme: &Scheme) -> Self {
         let mut substitution = ElaborationSubstitution::default();
         for var in &scheme.quantified_types {
-            substitution.insert(var.clone(), Type::Var(solver.fresh_type_var(var)));
+            substitution.insert(
+                var.clone(),
+                Type::Var(solver.fresh_type_var(var, UnboundedTypeDefault::Value)),
+            );
         }
         for var in &scheme.quantified_effects {
             let var = TypeVar(var.0.clone());
-            substitution.insert(var.clone(), Type::Var(solver.fresh_type_var(&var)));
+            substitution.insert(
+                var.clone(),
+                Type::Var(solver.fresh_type_var(&var, UnboundedTypeDefault::Effect)),
+            );
         }
         Self { substitution }
     }
@@ -1810,37 +1843,67 @@ pub(crate) fn scheme_needs_instantiation(scheme: &Scheme) -> bool {
         || !scheme.requirements.is_empty()
 }
 
-pub(crate) fn direct_apply_ret_effect_from_scheme(
+pub(crate) fn direct_apply_ret_effect_from_scheme_spine(
     scheme: &Scheme,
     result_value: &Type,
-    arg: &ErasedExpr,
+    args: &[&ErasedExpr],
     env: &ConstraintEnvironment<'_>,
 ) -> Option<Type> {
-    let Type::Fun {
-        param,
-        param_effect,
-        ret_effect,
-        ret,
-    } = &scheme.body
-    else {
-        return None;
-    };
-    if !scheme_needs_instantiation(scheme) {
-        return Some((**ret_effect).clone());
-    }
+    let needs_instantiation = scheme_needs_instantiation(scheme);
     if !scheme_can_be_instantiated_locally(scheme) {
         return None;
     }
-    let arg_value = known_value_type(arg, env)?;
     let mut instantiation = TypeInstantiation::new(scheme);
-    if !instantiation.match_type(param, &arg_value)
-        || !instantiation.match_type(param_effect, &Type::Never)
-        || !instantiation.match_type(ret, result_value)
-    {
-        return None;
+
+    let mut current = scheme.body.clone();
+    for (index, arg) in args.iter().enumerate() {
+        let Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } = current
+        else {
+            return None;
+        };
+
+        if needs_instantiation {
+            let arg_value = known_value_type(arg, env)?;
+            if !match_apply_arg_type(&mut instantiation, &param, &arg_value)
+                || !instantiation.match_type(&param_effect, &Type::Never)
+            {
+                return None;
+            }
+        }
+
+        let is_last_arg = index + 1 == args.len();
+        if is_last_arg {
+            if needs_instantiation {
+                if !instantiation.match_type(&ret, result_value) {
+                    return None;
+                }
+                let ret_effect = instantiation.substitute_type_with_defaults(&ret_effect);
+                return (!scheme_quantified_vars_appear_in_type(scheme, &ret_effect))
+                    .then_some(ret_effect);
+            }
+            return (ret.as_ref() == result_value).then_some(*ret_effect);
+        }
+
+        current = if needs_instantiation {
+            instantiation.substitute_type(&ret)
+        } else {
+            *ret
+        };
     }
-    let ret_effect = instantiation.substitute_type(ret_effect);
-    (!scheme_quantified_vars_appear_in_type(scheme, &ret_effect)).then_some(ret_effect)
+    None
+}
+
+fn match_apply_arg_type(
+    instantiation: &mut TypeInstantiation,
+    param: &Type,
+    arg_value: &Type,
+) -> bool {
+    matches!(param, Type::Any) || instantiation.match_type(param, arg_value)
 }
 
 fn type_mentions_type_var(ty: &Type, target: &yulang_erased_ir::TypeVar) -> bool {
@@ -2119,8 +2182,15 @@ fn literal_type(lit: &Lit) -> Type {
                 Name("str".to_string()),
             ]),
             Lit::Bool(_) => Path::from_name(Name("bool".to_string())),
-            Lit::Unit => Path::from_name(Name("unit".to_string())),
+            Lit::Unit => return unit_type(),
         },
+        args: Vec::new(),
+    }
+}
+
+fn unit_type() -> Type {
+    Type::Named {
+        path: Path::from_name(Name("unit".to_string())),
         args: Vec::new(),
     }
 }
@@ -2309,24 +2379,26 @@ fn pure_effect() -> MonoEffect {
 struct TypeInstantiation {
     quantifiable: BTreeSet<yulang_erased_ir::TypeVar>,
     assignments: BTreeMap<yulang_erased_ir::TypeVar, Type>,
+    defaults: BTreeMap<yulang_erased_ir::TypeVar, UnboundedTypeDefault>,
 }
 
 impl TypeInstantiation {
     fn new(scheme: &Scheme) -> Self {
-        let mut quantifiable = scheme
-            .quantified_types
-            .iter()
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        quantifiable.extend(
-            scheme
-                .quantified_effects
-                .iter()
-                .map(|var| yulang_erased_ir::TypeVar(var.0.clone())),
-        );
+        let mut quantifiable = BTreeSet::new();
+        let mut defaults = BTreeMap::new();
+        for var in &scheme.quantified_types {
+            quantifiable.insert(var.clone());
+            defaults.insert(var.clone(), UnboundedTypeDefault::Value);
+        }
+        for var in &scheme.quantified_effects {
+            let var = yulang_erased_ir::TypeVar(var.0.clone());
+            quantifiable.insert(var.clone());
+            defaults.insert(var, UnboundedTypeDefault::Effect);
+        }
         Self {
             quantifiable,
             assignments: BTreeMap::new(),
+            defaults,
         }
     }
 
@@ -2534,17 +2606,30 @@ impl TypeInstantiation {
     }
 
     fn substitute_type(&self, ty: &Type) -> Type {
+        self.substitute_type_inner(ty, false)
+    }
+
+    fn substitute_type_with_defaults(&self, ty: &Type) -> Type {
+        self.substitute_type_inner(ty, true)
+    }
+
+    fn substitute_type_inner(&self, ty: &Type, use_defaults: bool) -> Type {
         match ty {
             Type::Var(var) => self
                 .assignments
                 .get(var)
                 .cloned()
+                .or_else(|| {
+                    use_defaults
+                        .then(|| self.defaults.get(var).map(|default| default.as_type()))
+                        .flatten()
+                })
                 .unwrap_or_else(|| ty.clone()),
             Type::Named { path, args } => Type::Named {
                 path: path.clone(),
                 args: args
                     .iter()
-                    .map(|arg| self.substitute_type_arg(arg))
+                    .map(|arg| self.substitute_type_arg(arg, use_defaults))
                     .collect(),
             },
             Type::Fun {
@@ -2553,15 +2638,15 @@ impl TypeInstantiation {
                 ret_effect,
                 ret,
             } => Type::Fun {
-                param: Box::new(self.substitute_type(param)),
-                param_effect: Box::new(self.substitute_type(param_effect)),
-                ret_effect: Box::new(self.substitute_type(ret_effect)),
-                ret: Box::new(self.substitute_type(ret)),
+                param: Box::new(self.substitute_type_inner(param, use_defaults)),
+                param_effect: Box::new(self.substitute_type_inner(param_effect, use_defaults)),
+                ret_effect: Box::new(self.substitute_type_inner(ret_effect, use_defaults)),
+                ret: Box::new(self.substitute_type_inner(ret, use_defaults)),
             },
             Type::Tuple(items) => Type::Tuple(
                 items
                     .iter()
-                    .map(|item| self.substitute_type(item))
+                    .map(|item| self.substitute_type_inner(item, use_defaults))
                     .collect(),
             ),
             Type::Record(record) => Type::Record(yulang_erased_ir::RecordType {
@@ -2570,16 +2655,20 @@ impl TypeInstantiation {
                     .iter()
                     .map(|field| yulang_erased_ir::RecordField {
                         name: field.name.clone(),
-                        value: self.substitute_type(&field.value),
+                        value: self.substitute_type_inner(&field.value, use_defaults),
                         optional: field.optional,
                     })
                     .collect(),
                 spread: record.spread.as_ref().map(|spread| match spread {
                     yulang_erased_ir::RecordSpread::Head(ty) => {
-                        yulang_erased_ir::RecordSpread::Head(Box::new(self.substitute_type(ty)))
+                        yulang_erased_ir::RecordSpread::Head(Box::new(
+                            self.substitute_type_inner(ty, use_defaults),
+                        ))
                     }
                     yulang_erased_ir::RecordSpread::Tail(ty) => {
-                        yulang_erased_ir::RecordSpread::Tail(Box::new(self.substitute_type(ty)))
+                        yulang_erased_ir::RecordSpread::Tail(Box::new(
+                            self.substitute_type_inner(ty, use_defaults),
+                        ))
                     }
                 }),
             }),
@@ -2592,70 +2681,81 @@ impl TypeInstantiation {
                         payloads: case
                             .payloads
                             .iter()
-                            .map(|payload| self.substitute_type(payload))
+                            .map(|payload| self.substitute_type_inner(payload, use_defaults))
                             .collect(),
                     })
                     .collect(),
                 tail: variant
                     .tail
                     .as_ref()
-                    .map(|tail| Box::new(self.substitute_type(tail))),
+                    .map(|tail| Box::new(self.substitute_type_inner(tail, use_defaults))),
             }),
             Type::Row { items, tail } => Type::Row {
                 items: items
                     .iter()
-                    .map(|item| self.substitute_type(item))
+                    .map(|item| self.substitute_type_inner(item, use_defaults))
                     .collect(),
-                tail: Box::new(self.substitute_type(tail)),
+                tail: Box::new(self.substitute_type_inner(tail, use_defaults)),
             },
             Type::Union(items) => Type::Union(
                 items
                     .iter()
-                    .map(|item| self.substitute_type(item))
+                    .map(|item| self.substitute_type_inner(item, use_defaults))
                     .collect(),
             ),
             Type::Inter(items) => Type::Inter(
                 items
                     .iter()
-                    .map(|item| self.substitute_type(item))
+                    .map(|item| self.substitute_type_inner(item, use_defaults))
                     .collect(),
             ),
             Type::Recursive { var, body } => Type::Recursive {
                 var: var.clone(),
-                body: Box::new(self.substitute_type_under_binder(var, body)),
+                body: Box::new(self.substitute_type_under_binder(var, body, use_defaults)),
             },
             Type::Unknown | Type::Never | Type::Any => ty.clone(),
         }
     }
 
-    fn substitute_type_arg(&self, arg: &yulang_erased_ir::TypeArg) -> yulang_erased_ir::TypeArg {
+    fn substitute_type_arg(
+        &self,
+        arg: &yulang_erased_ir::TypeArg,
+        use_defaults: bool,
+    ) -> yulang_erased_ir::TypeArg {
         match arg {
             yulang_erased_ir::TypeArg::Type(ty) => {
-                yulang_erased_ir::TypeArg::Type(self.substitute_type(ty))
+                yulang_erased_ir::TypeArg::Type(self.substitute_type_inner(ty, use_defaults))
             }
             yulang_erased_ir::TypeArg::Bounds(bounds) => {
                 yulang_erased_ir::TypeArg::Bounds(yulang_erased_ir::TypeBounds {
                     lower: bounds
                         .lower
                         .as_ref()
-                        .map(|lower| Box::new(self.substitute_type(lower))),
+                        .map(|lower| Box::new(self.substitute_type_inner(lower, use_defaults))),
                     upper: bounds
                         .upper
                         .as_ref()
-                        .map(|upper| Box::new(self.substitute_type(upper))),
+                        .map(|upper| Box::new(self.substitute_type_inner(upper, use_defaults))),
                 })
             }
         }
     }
 
-    fn substitute_type_under_binder(&self, var: &yulang_erased_ir::TypeVar, body: &Type) -> Type {
+    fn substitute_type_under_binder(
+        &self,
+        var: &yulang_erased_ir::TypeVar,
+        body: &Type,
+        use_defaults: bool,
+    ) -> Type {
         let mut nested = Self {
             quantifiable: self.quantifiable.clone(),
             assignments: self.assignments.clone(),
+            defaults: self.defaults.clone(),
         };
         nested.quantifiable.remove(var);
         nested.assignments.remove(var);
-        nested.substitute_type(body)
+        nested.defaults.remove(var);
+        nested.substitute_type_inner(body, use_defaults)
     }
 
     fn without_var<T>(
@@ -2665,12 +2765,16 @@ impl TypeInstantiation {
     ) -> T {
         let removed_assignment = self.assignments.remove(var);
         let removed_quantifiable = self.quantifiable.remove(var);
+        let removed_default = self.defaults.remove(var);
         let out = f(self);
         if let Some(assignment) = removed_assignment {
             self.assignments.insert(var.clone(), assignment);
         }
         if removed_quantifiable {
             self.quantifiable.insert(var.clone());
+        }
+        if let Some(default) = removed_default {
+            self.defaults.insert(var.clone(), default);
         }
         out
     }
@@ -2842,12 +2946,105 @@ mod tests {
         );
     }
 
+    #[test]
+    fn unbounded_fresh_vars_default_inside_structural_candidate() {
+        let mut solver = empty_solver();
+        let slot = DraftComputationId(0);
+        let alpha = TypeVar("$elab0$a".to_string());
+        let epsilon = TypeVar("$elab1$e".to_string());
+        solver
+            .type_var_defaults
+            .insert(alpha.clone(), UnboundedTypeDefault::Value);
+        solver
+            .type_var_defaults
+            .insert(epsilon.clone(), UnboundedTypeDefault::Effect);
+        let int = named_type("int");
+
+        solver
+            .add_exact_type(
+                TypeNode::value(slot),
+                Type::Fun {
+                    param: Box::new(Type::Var(alpha)),
+                    param_effect: Box::new(Type::Var(epsilon)),
+                    ret_effect: Box::new(Type::Never),
+                    ret: Box::new(int.clone()),
+                },
+            )
+            .expect("add value bound");
+        solver
+            .add_exact_type(TypeNode::effect(slot), Type::Never)
+            .expect("add effect bound");
+        solver.drain_pending_bounds().expect("drain bounds");
+
+        let computation = solver.require_assigned(slot).expect("solve computation");
+
+        assert_eq!(
+            computation.value,
+            MonoType::Value(
+                ConcreteType::try_from_type(Type::Fun {
+                    param: Box::new(named_type("unit")),
+                    param_effect: Box::new(Type::Never),
+                    ret_effect: Box::new(Type::Never),
+                    ret: Box::new(int),
+                })
+                .expect("function is concrete")
+            )
+        );
+        assert_eq!(computation.effect, pure_effect());
+    }
+
+    #[test]
+    fn unbounded_computation_bounds_default_to_unit_and_never() {
+        let mut solver = empty_solver();
+        let slot = DraftComputationId(0);
+        solver.type_bounds_mut(TypeNode::value(slot));
+        solver.type_bounds_mut(TypeNode::effect(slot));
+
+        let computation = solver.require_assigned(slot).expect("solve computation");
+
+        assert_eq!(
+            computation,
+            MonoComputation {
+                value: MonoType::Value(concrete_named("unit")),
+                effect: pure_effect(),
+            }
+        );
+    }
+
+    #[test]
+    fn direct_apply_ret_effect_defaults_unbounded_effect_var_to_never() {
+        let refs = RefExportTable::default();
+        let env = ConstraintEnvironment::new(&refs, &[]);
+        let effect = yulang_erased_ir::EffectVar("e".to_string());
+        let scheme = Scheme {
+            body: Type::Fun {
+                param: Box::new(named_type("unit")),
+                param_effect: Box::new(Type::Never),
+                ret_effect: Box::new(Type::Var(TypeVar(effect.0.clone()))),
+                ret: Box::new(named_type("int")),
+            },
+            quantified_types: Vec::new(),
+            quantified_effects: vec![effect],
+            quantified_refs: Vec::new(),
+            typeclass_obligations: Vec::new(),
+            requirements: Vec::new(),
+        };
+        let arg = ErasedExpr::Lit(Lit::Unit);
+
+        let ret_effect =
+            direct_apply_ret_effect_from_scheme_spine(&scheme, &named_type("int"), &[&arg], &env)
+                .expect("ret effect");
+
+        assert_eq!(ret_effect, Type::Never);
+    }
+
     fn empty_solver() -> ConstraintSolver {
         ConstraintSolver {
             explicit_computations: BTreeMap::new(),
             bounds: BTreeMap::new(),
             pending_bounds: Vec::new(),
             subtype_edges: BTreeSet::new(),
+            type_var_defaults: BTreeMap::new(),
             next_type_var: 0,
             direct_ref_instances: BTreeMap::new(),
             resolved_typeclass_instances: BTreeMap::new(),

@@ -165,9 +165,11 @@ direct ref の使用箇所では、その `RefId` の主型と、apply の引数
 引数が direct ref で、その参照先 scheme がすでに単相 concrete なら、その scheme body も
 同じ use-site の concrete 情報として使える。
 
-使用箇所から concrete 型が十分に得られない場合は、`Any` / `Unknown` で補わず、未対応の
-generic direct ref として止める。後続では、引数 expression の制約を先に解いてから同じ規則で
-具体代入を作れる範囲を広げる。
+使用箇所から境界が十分に得られない fresh 単相変数は、`Any` / `Unknown` で補わず、
+value type なら `unit`、effect row なら `Never` を代入する。
+ただし未解決 `RefId`、未解決 typeclass obligation、kind の分からない free type variable が
+残る場合は、未対応の generic direct ref として止める。後続では、引数 expression の制約を
+先に解いてから同じ規則で具体代入を作れる範囲を広げる。
 
 ## 初期需要
 
@@ -259,7 +261,8 @@ fresh node `α` の上下界に入れ、concrete selection で `α = int` を読
 4. 両側に候補があり、それらが同じ concrete 型へ正規化されるなら、その型を `α` の型にする。
 5. 両側に候補があり、束の関係によって唯一の concrete 型へまとめられるなら、その型を `α` の型にする。
 6. 両側の候補が互いに矛盾するなら、通常の制約不整合としてエラーにする。
-7. どちらの境界からも一意の concrete 型が得られないなら、「中間の型がなかった」エラーにする。
+7. どちらの境界からも一意の concrete 型が得られないなら、fresh value variable は `unit`、
+   fresh effect variable は `Never` を型にする。
 
 この規則は「より見た目が綺麗な型を選ぶ」規則ではない。
 境界の片側が concrete 型を一つだけ持っているか、束の正規化で一つに畳めるかだけを見る。
@@ -276,6 +279,7 @@ A | B <: α <: C & D
 
 どちらの側も複数の具体型の集合でしかなく、束の関係から一つの concrete 型へ畳めないなら、
 `α` へ入れる中間型は存在しない。このとき `Any` や `Unknown` で穴埋めしてはならない。
+境界から候補が一つも出ない場合だけ、変数の kind に応じた default を使う。
 
 ## 型代入と置換
 
@@ -509,6 +513,7 @@ monomorphize は、すべての単一化と concrete 代入について、それ
   impl member 自身の monomorphize demand を作る。
 - 型注釈の場所や意味を monomorphize evidence として渡さない。
 - concrete 型の選択で `Any` や `Unknown` に逃げない。
-- 「中間の型がなかった」場合は、型を捏造せずエラーにする。
+- 境界がなく concrete 型候補を得られない fresh 変数は、value type なら `unit`、effect row なら
+  `Never` にする。
 - impl 解決は型表示や path 文字列ではなく、`typeclass_obligations` に残った identity と
   concrete 型から行う。
