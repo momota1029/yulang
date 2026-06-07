@@ -7,20 +7,24 @@
 
 #![forbid(unsafe_code)]
 
+use std::collections::{BTreeMap, BTreeSet};
+
 mod constraints;
 mod draft;
 
 use yulang_erased_ir::{
-    DefId, ErasedExpr, InferExport, InferredExpr, PrincipalRoot, RefCoverageReport, RefExportTable,
-    RefId, ResolvedTypeClassRef, Type, TypeBounds, TypeClassObligation,
+    DefId, ErasedExpr, InferExport, InferredBinding, InferredExpr, Path, PrincipalRoot,
+    RefCoverageReport, RefExportTable, RefId, ResolvedTypeClassRef, Scheme, Type, TypeBounds,
+    TypeClassObligation,
 };
 
 pub use constraints::ConstraintError;
 pub use yulang_elaborated_ir as elaborated_ir;
 
 use yulang_elaborated_ir::{
-    ConcreteType, ConcreteTypeError, ElaboratedExpr, ElaboratedExprKind, ElaboratedModule,
-    ElaboratedProgram, ElaboratedRoot, MonoComputation, MonoEffect, MonoType, ResolvedRefTable,
+    ConcreteType, ConcreteTypeError, DemandSource, ElaboratedExpr, ElaboratedExprKind,
+    ElaboratedModule, ElaboratedProgram, ElaboratedRoot, MonoComputation, MonoEffect, MonoInstance,
+    MonoInstanceId, MonoType, ResolvedRef, ResolvedRefKey, ResolvedRefSource, ResolvedRefTable,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -116,36 +120,7 @@ impl<'a> Elaborator<'a> {
     pub fn build_program(&self) -> Result<ElaboratedProgram, ElaborateProgramError> {
         self.validate_input()
             .map_err(ElaborateProgramError::Input)?;
-        let env = constraints::ConstraintEnvironment::new(
-            &self.export.erased.refs,
-            &self.export.erased.module.bindings,
-        );
-        let root_exprs = self
-            .export
-            .erased
-            .module
-            .root_exprs
-            .iter()
-            .enumerate()
-            .map(|(index, expr)| elaborate_root_expr(index, expr, &env))
-            .collect::<Result<Vec<_>, _>>()?;
-        let roots = self
-            .export
-            .erased
-            .module
-            .roots
-            .iter()
-            .map(elaborate_root)
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(ElaboratedProgram {
-            module: ElaboratedModule {
-                path: self.export.erased.module.path.clone(),
-                instances: Vec::new(),
-                root_exprs,
-                roots,
-            },
-            refs: ResolvedRefTable::default(),
-        })
+        ProgramBuilder::new(self.export).build()
     }
 }
 
@@ -182,6 +157,9 @@ pub enum ElaborateProgramError {
     UnsupportedRoot {
         root: PrincipalRoot,
     },
+    MissingBinding {
+        def: DefId,
+    },
     UnsupportedExpr {
         site: ElaborateSite,
         kind: ErasedExprKind,
@@ -191,6 +169,7 @@ pub enum ElaborateProgramError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElaborateSite {
     RootExpr(usize),
+    Binding(DefId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +216,169 @@ impl ElaboratePlan {
     }
 }
 
+struct ProgramBuilder<'a> {
+    export: &'a InferExport,
+    env: constraints::ConstraintEnvironment<'a>,
+    bindings_by_def: BTreeMap<DefId, &'a InferredBinding>,
+    defs_by_path: Vec<(Path, DefId)>,
+    instances: Vec<MonoInstance>,
+    instance_by_def: BTreeMap<DefId, MonoInstanceId>,
+    root_instance_by_index: BTreeMap<usize, MonoInstanceId>,
+    refs: ResolvedRefTable,
+}
+
+impl<'a> ProgramBuilder<'a> {
+    fn new(export: &'a InferExport) -> Self {
+        let bindings_by_def = export
+            .erased
+            .module
+            .bindings
+            .iter()
+            .map(|binding| (binding.def, binding))
+            .collect();
+        let defs_by_path = export
+            .erased
+            .module
+            .bindings
+            .iter()
+            .map(|binding| (binding.name.clone(), binding.def))
+            .collect();
+        Self {
+            export,
+            env: constraints::ConstraintEnvironment::new(
+                &export.erased.refs,
+                &export.erased.module.bindings,
+            ),
+            bindings_by_def,
+            defs_by_path,
+            instances: Vec::new(),
+            instance_by_def: BTreeMap::new(),
+            root_instance_by_index: BTreeMap::new(),
+            refs: ResolvedRefTable::default(),
+        }
+    }
+
+    fn build(mut self) -> Result<ElaboratedProgram, ElaborateProgramError> {
+        let mut root_exprs = Vec::new();
+        for (index, expr) in self.export.erased.module.root_exprs.iter().enumerate() {
+            let body = elaborate_root_expr(index, expr, &self.env)?;
+            let instance = self.push_instance(
+                DemandSource::RootExpr(index),
+                body.comp.clone(),
+                body.clone(),
+            );
+            self.root_instance_by_index.insert(index, instance);
+            self.resolve_direct_refs_for_instance(instance, &expr.ir)?;
+            root_exprs.push(body);
+        }
+
+        let roots = self
+            .export
+            .erased
+            .module
+            .roots
+            .iter()
+            .map(|root| self.elaborate_root(root))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ElaboratedProgram {
+            module: ElaboratedModule {
+                path: self.export.erased.module.path.clone(),
+                instances: self.instances,
+                root_exprs,
+                roots,
+            },
+            refs: self.refs,
+        })
+    }
+
+    fn elaborate_root(
+        &mut self,
+        root: &PrincipalRoot,
+    ) -> Result<ElaboratedRoot, ElaborateProgramError> {
+        match root {
+            PrincipalRoot::Expr(index) => {
+                let Some(instance) = self.root_instance_by_index.get(index).copied() else {
+                    return Err(ElaborateProgramError::UnsupportedRoot { root: root.clone() });
+                };
+                Ok(ElaboratedRoot::Instance(instance))
+            }
+            PrincipalRoot::Binding(path) => {
+                let Some((_, def)) = self
+                    .defs_by_path
+                    .iter()
+                    .find(|(binding_path, _)| binding_path == path)
+                else {
+                    return Err(ElaborateProgramError::UnsupportedRoot { root: root.clone() });
+                };
+                self.ensure_def_instance(*def).map(ElaboratedRoot::Instance)
+            }
+        }
+    }
+
+    fn ensure_def_instance(&mut self, def: DefId) -> Result<MonoInstanceId, ElaborateProgramError> {
+        if let Some(instance) = self.instance_by_def.get(&def).copied() {
+            return Ok(instance);
+        }
+        let binding = self
+            .bindings_by_def
+            .get(&def)
+            .copied()
+            .ok_or(ElaborateProgramError::MissingBinding { def })?;
+        if constraints::scheme_needs_instantiation(&binding.scheme) {
+            return Err(ElaborateProgramError::Constraint(
+                ConstraintError::GenericDirectRefScheme { def },
+            ));
+        }
+        let signature =
+            concrete_computation_from_scheme(ElaborateSite::Binding(def), &binding.scheme)?;
+        let body = elaborate_binding_expr(def, binding, &self.env)?;
+        let instance = self.push_instance(DemandSource::Def(def), signature, body);
+        self.instance_by_def.insert(def, instance);
+        self.resolve_direct_refs_for_instance(instance, &binding.body.ir)?;
+        Ok(instance)
+    }
+
+    fn push_instance(
+        &mut self,
+        source: DemandSource,
+        signature: MonoComputation,
+        body: ElaboratedExpr,
+    ) -> MonoInstanceId {
+        let id = MonoInstanceId(self.instances.len() as u32);
+        self.instances.push(MonoInstance {
+            id,
+            source,
+            signature,
+            body,
+        });
+        id
+    }
+
+    fn resolve_direct_refs_for_instance(
+        &mut self,
+        instance: MonoInstanceId,
+        expr: &ErasedExpr,
+    ) -> Result<(), ElaborateProgramError> {
+        let mut refs = BTreeSet::new();
+        collect_expr_refs(expr, &mut refs);
+        for ref_id in refs {
+            let Some(def) = self.export.erased.refs.direct.get(&ref_id).copied() else {
+                continue;
+            };
+            let target = self.ensure_def_instance(def)?;
+            self.refs.entries.insert(
+                ResolvedRefKey { instance, ref_id },
+                ResolvedRef {
+                    target,
+                    source: ResolvedRefSource::Direct { def },
+                },
+            );
+        }
+        Ok(())
+    }
+}
+
 fn elaborate_root_expr(
     index: usize,
     expr: &InferredExpr,
@@ -251,13 +393,40 @@ fn elaborate_root_expr(
     elaborate_expr(site, &draft, draft.root, &expr.ir, &solution)
 }
 
-fn elaborate_root(root: &PrincipalRoot) -> Result<ElaboratedRoot, ElaborateProgramError> {
-    match root {
-        PrincipalRoot::Expr(index) => Ok(ElaboratedRoot::Expr(*index)),
-        PrincipalRoot::Binding(_) => {
-            Err(ElaborateProgramError::UnsupportedRoot { root: root.clone() })
-        }
-    }
+fn elaborate_binding_expr(
+    def: DefId,
+    binding: &InferredBinding,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<ElaboratedExpr, ElaborateProgramError> {
+    let site = ElaborateSite::Binding(def);
+    let draft = draft::ElaborationDraft::from_root_expr(0, &binding.body.ir);
+    let comp = concrete_computation_from_scheme(site.clone(), &binding.scheme)?;
+    let solution = constraints::ConstraintSet::seed_root(&draft, comp)
+        .solve(&draft, &binding.body.ir, env)
+        .map_err(ElaborateProgramError::Constraint)?;
+    elaborate_expr(site, &draft, draft.root, &binding.body.ir, &solution)
+}
+
+fn concrete_computation_from_scheme(
+    site: ElaborateSite,
+    scheme: &Scheme,
+) -> Result<MonoComputation, ElaborateProgramError> {
+    Ok(MonoComputation {
+        value: MonoType::Value(ConcreteType::try_from_type(scheme.body.clone()).map_err(
+            |error| ElaborateProgramError::NonConcreteComputationType {
+                site: site.clone(),
+                field: ComputationField::Value,
+                error,
+            },
+        )?),
+        effect: MonoEffect::new(ConcreteType::try_from_type(Type::Never).map_err(|error| {
+            ElaborateProgramError::NonConcreteComputationType {
+                site,
+                field: ComputationField::Effect,
+                error,
+            }
+        })?),
+    })
 }
 
 fn concrete_computation(
@@ -447,6 +616,148 @@ fn collect_concrete_candidates(ty: &Type, candidates: &mut Vec<Type>) {
 fn push_unique_candidate(candidates: &mut Vec<Type>, candidate: Type) {
     if !candidates.iter().any(|existing| existing == &candidate) {
         candidates.push(candidate);
+    }
+}
+
+fn collect_expr_refs(expr: &ErasedExpr, out: &mut BTreeSet<RefId>) {
+    match expr {
+        ErasedExpr::Ref(ref_id) => {
+            out.insert(*ref_id);
+        }
+        ErasedExpr::Apply { callee, arg } => {
+            collect_expr_refs(callee, out);
+            collect_expr_refs(arg, out);
+        }
+        ErasedExpr::RefSet { reference, value } => {
+            collect_expr_refs(reference, out);
+            collect_expr_refs(value, out);
+        }
+        ErasedExpr::Lambda { body, .. }
+        | ErasedExpr::BindHere { expr: body }
+        | ErasedExpr::Pack { expr: body, .. } => collect_expr_refs(body, out),
+        ErasedExpr::Tuple(items) => {
+            for item in items {
+                collect_expr_refs(item, out);
+            }
+        }
+        ErasedExpr::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_refs(&field.value, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_erased_ir::RecordSpreadExpr::Head(expr)
+                    | yulang_erased_ir::RecordSpreadExpr::Tail(expr) => {
+                        collect_expr_refs(expr, out);
+                    }
+                }
+            }
+        }
+        ErasedExpr::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_refs(value, out);
+            }
+        }
+        ErasedExpr::Select { base, .. } => collect_expr_refs(base, out),
+        ErasedExpr::Match { scrutinee, arms } => {
+            collect_expr_refs(scrutinee, out);
+            for arm in arms {
+                collect_pattern_refs(&arm.pattern, out);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_refs(guard, out);
+                }
+                collect_expr_refs(&arm.body, out);
+            }
+        }
+        ErasedExpr::Handle { body, arms } => {
+            collect_expr_refs(body, out);
+            for arm in arms {
+                collect_pattern_refs(&arm.payload, out);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_refs(guard, out);
+                }
+                collect_expr_refs(&arm.body, out);
+            }
+        }
+        ErasedExpr::Block(block) => collect_block_refs(block, out),
+        ErasedExpr::Def(_) | ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => {}
+    }
+}
+
+fn collect_block_refs(block: &yulang_erased_ir::ErasedBlock, out: &mut BTreeSet<RefId>) {
+    for stmt in &block.stmts {
+        match stmt {
+            yulang_erased_ir::ErasedStmt::Let { pattern, value } => {
+                collect_pattern_refs(pattern, out);
+                collect_expr_refs(value, out);
+            }
+            yulang_erased_ir::ErasedStmt::Expr(expr) => collect_expr_refs(expr, out),
+            yulang_erased_ir::ErasedStmt::Module { body, .. } => collect_block_refs(body, out),
+        }
+    }
+    if let Some(tail) = &block.tail {
+        collect_expr_refs(tail, out);
+    }
+}
+
+fn collect_pattern_refs(pattern: &yulang_erased_ir::Pattern, out: &mut BTreeSet<RefId>) {
+    match pattern {
+        yulang_erased_ir::Pattern::Tuple(items) => {
+            for item in items {
+                collect_pattern_refs(item, out);
+            }
+        }
+        yulang_erased_ir::Pattern::Or { left, right } => {
+            collect_pattern_refs(left, out);
+            collect_pattern_refs(right, out);
+        }
+        yulang_erased_ir::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_pattern_refs(item, out);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_refs(spread, out);
+            }
+            for item in suffix {
+                collect_pattern_refs(item, out);
+            }
+        }
+        yulang_erased_ir::Pattern::Constructor { ref_id, payload } => {
+            out.insert(*ref_id);
+            if let Some(payload) = payload {
+                collect_pattern_refs(payload, out);
+            }
+        }
+        yulang_erased_ir::Pattern::Record { fields, spread } => {
+            for field in fields {
+                collect_pattern_refs(&field.pattern, out);
+                if let Some(default) = &field.default {
+                    collect_expr_refs(default, out);
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_erased_ir::RecordSpreadPattern::Head(pattern)
+                    | yulang_erased_ir::RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_refs(pattern, out);
+                    }
+                }
+            }
+        }
+        yulang_erased_ir::Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_refs(value, out);
+            }
+        }
+        yulang_erased_ir::Pattern::As { pattern, .. } => collect_pattern_refs(pattern, out),
+        yulang_erased_ir::Pattern::Wildcard
+        | yulang_erased_ir::Pattern::Bind(_)
+        | yulang_erased_ir::Pattern::Lit(_)
+        | yulang_erased_ir::Pattern::UnresolvedName(_) => {}
     }
 }
 
@@ -902,13 +1213,24 @@ my used = id (1.display)\n",
             .build_program()
             .expect("initial elaborated program");
 
+        let root_instance = elaborated_ir::MonoInstanceId(0);
         assert_eq!(
             program.module.roots,
-            vec![elaborated_ir::ElaboratedRoot::Expr(0)]
+            vec![elaborated_ir::ElaboratedRoot::Instance(root_instance)]
+        );
+        assert_eq!(program.module.instances.len(), 1);
+        assert_eq!(
+            program.module.instances[0].source,
+            elaborated_ir::DemandSource::RootExpr(0)
         );
         assert_eq!(program.module.root_exprs.len(), 1);
         assert!(matches!(
             &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "1"
+        ));
+        assert!(matches!(
+            &program.module.instances[0].body.kind,
             elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
                 if value == "1"
         ));
@@ -1108,6 +1430,7 @@ my used = id (1.display)\n",
             int.clone(),
             yulang_erased_ir::Type::Never,
         ));
+        export.erased.module.roots.push(PrincipalRoot::Expr(0));
 
         let program = Elaborator::try_new(&export)
             .expect("valid erased export")
@@ -1133,6 +1456,33 @@ my used = id (1.display)\n",
             elaborated_ir::MonoType::Value(
                 elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete")
             )
+        );
+        assert_eq!(program.module.instances.len(), 2);
+        assert_eq!(
+            program.module.roots,
+            vec![elaborated_ir::ElaboratedRoot::Instance(
+                elaborated_ir::MonoInstanceId(0)
+            )]
+        );
+        assert_eq!(
+            program.module.instances[0].source,
+            elaborated_ir::DemandSource::RootExpr(0)
+        );
+        assert_eq!(
+            program.module.instances[1].source,
+            elaborated_ir::DemandSource::Def(yulang_erased_ir::DefId(2))
+        );
+        assert_eq!(
+            program.refs.entries.get(&elaborated_ir::ResolvedRefKey {
+                instance: elaborated_ir::MonoInstanceId(0),
+                ref_id: yulang_erased_ir::RefId(1),
+            }),
+            Some(&elaborated_ir::ResolvedRef {
+                target: elaborated_ir::MonoInstanceId(1),
+                source: elaborated_ir::ResolvedRefSource::Direct {
+                    def: yulang_erased_ir::DefId(2),
+                },
+            })
         );
     }
 
