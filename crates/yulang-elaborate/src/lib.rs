@@ -550,7 +550,7 @@ fn direct_ref_apply_effect(
         return Ok(None);
     };
     let Some(ret_effect) =
-        constraints::direct_apply_ret_effect_from_scheme(scheme, value.as_type(), arg)
+        constraints::direct_apply_ret_effect_from_scheme(scheme, value.as_type(), arg, env)
     else {
         return Ok(None);
     };
@@ -1289,6 +1289,32 @@ my used = id (1.display)\n",
     }
 
     #[test]
+    fn elaborate_program_accepts_actual_generic_direct_ref_apply_with_ref_arg_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "my one = 1\nmy id x = x\nid one\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("generic direct ref apply should instantiate from monomorphic direct ref arg");
+
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Apply { .. }
+        ));
+        assert!(
+            program.module.instances.len() >= 2,
+            "root and instantiated id binding should be materialized, got {:?}",
+            program.module.instances,
+        );
+    }
+
+    #[test]
     fn elaborator_builds_program_for_concrete_leaf_root() {
         let int = named_type("int");
         let empty_effect = yulang_erased_ir::Type::Never;
@@ -1540,34 +1566,13 @@ my used = id (1.display)\n",
                     yulang_erased_ir::Type::Never,
                 ),
             });
-        export
-            .erased
-            .module
-            .bindings
-            .push(yulang_erased_ir::InferredBinding {
-                def: yulang_erased_ir::DefId(3),
-                name: yulang_erased_ir::Path::from_name(yulang_erased_ir::Name("one".to_string())),
-                scheme: yulang_erased_ir::Scheme {
-                    body: int.clone(),
-                    quantified_types: Vec::new(),
-                    quantified_effects: Vec::new(),
-                    quantified_refs: Vec::new(),
-                    typeclass_obligations: Vec::new(),
-                    requirements: Vec::new(),
-                },
-                body: inferred_root(
-                    yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Int("1".to_string())),
-                    int.clone(),
-                    yulang_erased_ir::Type::Never,
-                ),
-            });
         export.erased.module.root_exprs.push(inferred_root(
             yulang_erased_ir::ErasedExpr::Apply {
                 callee: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
                     1,
                 ))),
-                arg: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
-                    9,
+                arg: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                    99,
                 ))),
             },
             int,
@@ -1578,11 +1583,6 @@ my used = id (1.display)\n",
             .refs
             .direct
             .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
-        export
-            .erased
-            .refs
-            .direct
-            .insert(yulang_erased_ir::RefId(9), yulang_erased_ir::DefId(3));
 
         let Err(ElaborateProgramError::Constraint(ConstraintError::GenericDirectRefScheme {
             def: yulang_erased_ir::DefId(2),

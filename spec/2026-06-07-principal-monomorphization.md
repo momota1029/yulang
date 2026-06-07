@@ -162,6 +162,8 @@ direct ref の使用箇所では、その `RefId` の主型と、apply の引数
 例えば `id : α -> α` を `id 1 : int` として使う場合、引数 literal と apply result から
 `α := int` を得る。この concrete signature は、参照元 instance 内の `RefId` 解決だけでなく、
 参照先 binding をどの `MonoInstance` として materialize するかにも使う。
+引数が direct ref で、その参照先 scheme がすでに単相 concrete なら、その scheme body も
+同じ use-site の concrete 情報として使える。
 
 使用箇所から concrete 型が十分に得られない場合は、`Any` / `Unknown` で補わず、未対応の
 generic direct ref として止める。後続では、引数 expression の制約を先に解いてから同じ規則で

@@ -272,7 +272,7 @@ impl ConstraintSolver {
                 let (def, scheme) = env
                     .direct_scheme(*ref_id)
                     .ok_or(ConstraintError::MissingDirectRefScheme { ref_id: *ref_id })?;
-                let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg)? else {
+                let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg, env)? else {
                     return Err(ConstraintError::GenericDirectRefScheme { def });
                 };
                 self.direct_ref_instances.insert(
@@ -514,6 +514,7 @@ fn apply_from_scheme(
     expected: &MonoComputation,
     scheme: &Scheme,
     arg: &ErasedExpr,
+    env: &ConstraintEnvironment<'_>,
 ) -> Result<Option<ApplyComputation>, ConstraintError> {
     if !scheme_needs_instantiation(scheme) {
         return concrete_apply_from_scheme(slot, expected, scheme).map(Some);
@@ -521,7 +522,7 @@ fn apply_from_scheme(
     if !scheme_can_be_instantiated_locally(scheme) {
         return Ok(None);
     }
-    let Some(instantiated) = instantiate_apply_scheme(slot, expected, scheme, arg)? else {
+    let Some(instantiated) = instantiate_apply_scheme(slot, expected, scheme, arg, env)? else {
         return Ok(None);
     };
     concrete_apply_from_scheme(slot, expected, &instantiated).map(Some)
@@ -538,6 +539,7 @@ fn instantiate_apply_scheme(
     expected: &MonoComputation,
     scheme: &Scheme,
     arg: &ErasedExpr,
+    env: &ConstraintEnvironment<'_>,
 ) -> Result<Option<Scheme>, ConstraintError> {
     let Type::Fun {
         param,
@@ -549,7 +551,7 @@ fn instantiate_apply_scheme(
         return Ok(None);
     };
 
-    let Some(arg_computation) = syntactic_computation(slot, arg)? else {
+    let Some(arg_computation) = known_computation(slot, arg, env)? else {
         return Ok(None);
     };
     let expected_value = value_type(slot, &expected.value)?;
@@ -620,6 +622,7 @@ pub(crate) fn direct_apply_ret_effect_from_scheme(
     scheme: &Scheme,
     result_value: &Type,
     arg: &ErasedExpr,
+    env: &ConstraintEnvironment<'_>,
 ) -> Option<Type> {
     let Type::Fun {
         param,
@@ -636,7 +639,7 @@ pub(crate) fn direct_apply_ret_effect_from_scheme(
     if !scheme_can_be_instantiated_locally(scheme) {
         return None;
     }
-    let arg_value = syntactic_value_type(arg)?;
+    let arg_value = known_value_type(arg, env)?;
     let mut instantiation = TypeInstantiation::new(scheme);
     if !instantiation.match_type(param, &arg_value)
         || !instantiation.match_type(param_effect, &Type::Never)
@@ -757,11 +760,12 @@ fn literal_computation(
     }))
 }
 
-fn syntactic_computation(
+fn known_computation(
     slot: DraftComputationId,
     expr: &ErasedExpr,
+    env: &ConstraintEnvironment<'_>,
 ) -> Result<Option<MonoComputation>, ConstraintError> {
-    let Some(ty) = syntactic_value_type(expr) else {
+    let Some(ty) = known_value_type(expr, env) else {
         return Ok(None);
     };
     Ok(Some(MonoComputation {
@@ -770,14 +774,23 @@ fn syntactic_computation(
     }))
 }
 
-fn syntactic_value_type(expr: &ErasedExpr) -> Option<Type> {
+fn known_value_type(expr: &ErasedExpr, env: &ConstraintEnvironment<'_>) -> Option<Type> {
     match expr {
         ErasedExpr::Lit(lit) => Some(literal_type(lit)),
         ErasedExpr::Tuple(items) => items
             .iter()
-            .map(syntactic_value_type)
+            .map(|item| known_value_type(item, env))
             .collect::<Option<Vec<_>>>()
             .map(Type::Tuple),
+        ErasedExpr::Ref(ref_id) => {
+            let (_, scheme) = env.direct_scheme(*ref_id)?;
+            if scheme_needs_instantiation(scheme)
+                || ConcreteType::try_from_type(scheme.body.clone()).is_err()
+            {
+                return None;
+            }
+            Some(scheme.body.clone())
+        }
         _ => None,
     }
 }
