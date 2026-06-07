@@ -271,6 +271,11 @@ impl<'a> ProgramBuilder<'a> {
             );
             self.root_instance_by_index.insert(index, instance);
             self.resolve_direct_refs_for_instance(instance, &expr.ir, &body.direct_ref_instances)?;
+            self.resolve_typeclass_refs_for_instance(
+                instance,
+                &expr.ir,
+                &body.resolved_typeclass_instances,
+            )?;
             root_exprs.push(body.expr);
         }
 
@@ -373,6 +378,11 @@ impl<'a> ProgramBuilder<'a> {
             &binding.body.ir,
             &body.direct_ref_instances,
         )?;
+        self.resolve_typeclass_refs_for_instance(
+            instance,
+            &binding.body.ir,
+            &body.resolved_typeclass_instances,
+        )?;
         Ok(instance)
     }
 
@@ -419,6 +429,47 @@ impl<'a> ProgramBuilder<'a> {
         }
         Ok(())
     }
+
+    fn resolve_typeclass_refs_for_instance(
+        &mut self,
+        instance: MonoInstanceId,
+        expr: &ErasedExpr,
+        resolved_typeclass_instances: &BTreeMap<
+            RefId,
+            constraints::ResolvedTypeclassInstanceDemand,
+        >,
+    ) -> Result<(), ElaborateProgramError> {
+        let mut refs = BTreeSet::new();
+        collect_expr_refs(expr, &mut refs);
+        for ref_id in refs {
+            let Some(resolved) = self
+                .export
+                .erased
+                .refs
+                .resolved_typeclass
+                .get(&ref_id)
+                .cloned()
+            else {
+                continue;
+            };
+            let target = if let Some(demand) = resolved_typeclass_instances.get(&ref_id) {
+                self.ensure_def_instance_with_signature(
+                    demand.resolved.impl_member,
+                    demand.signature.clone(),
+                )?
+            } else {
+                self.ensure_def_instance(resolved.impl_member)?
+            };
+            self.refs.entries.insert(
+                ResolvedRefKey { instance, ref_id },
+                ResolvedRef {
+                    target,
+                    source: ResolvedRefSource::InferResolvedTypeclass { resolved },
+                },
+            );
+        }
+        Ok(())
+    }
 }
 
 struct SpecializedInstance {
@@ -430,6 +481,7 @@ struct SpecializedInstance {
 struct ElaboratedBody {
     expr: ElaboratedExpr,
     direct_ref_instances: BTreeMap<RefId, constraints::DirectRefInstanceDemand>,
+    resolved_typeclass_instances: BTreeMap<RefId, constraints::ResolvedTypeclassInstanceDemand>,
 }
 
 fn elaborate_root_expr(
@@ -447,6 +499,7 @@ fn elaborate_root_expr(
     Ok(ElaboratedBody {
         expr,
         direct_ref_instances: solution.direct_ref_instances().clone(),
+        resolved_typeclass_instances: solution.resolved_typeclass_instances().clone(),
     })
 }
 
@@ -465,6 +518,7 @@ fn elaborate_binding_expr_with_signature(
     Ok(ElaboratedBody {
         expr,
         direct_ref_instances: solution.direct_ref_instances().clone(),
+        resolved_typeclass_instances: solution.resolved_typeclass_instances().clone(),
     })
 }
 
@@ -546,7 +600,14 @@ fn direct_ref_apply_effect(
     let ErasedExpr::Ref(ref_id) = callee.as_ref() else {
         return Ok(None);
     };
-    let Some((_, scheme)) = env.direct_scheme(*ref_id) else {
+    let scheme = env
+        .direct_scheme(*ref_id)
+        .map(|(_, scheme)| scheme)
+        .or_else(|| {
+            env.resolved_typeclass_scheme(*ref_id)
+                .map(|(_, scheme)| scheme)
+        });
+    let Some(scheme) = scheme else {
         return Ok(None);
     };
     let Some(ret_effect) =
@@ -1312,6 +1373,34 @@ my used = id (1.display)\n",
             "root and instantiated id binding should be materialized, got {:?}",
             program.module.instances,
         );
+    }
+
+    #[test]
+    fn elaborate_program_resolves_actual_infer_resolved_typeclass_ref() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "role Display 'a:\n  our a.display: string\n\n\
+impl Display int:\n  our x.display = \"int\"\n\n\
+1.display\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("infer-resolved typeclass ref should elaborate");
+
+        assert!(program.refs.entries.values().any(|resolved| matches!(
+            &resolved.source,
+            elaborated_ir::ResolvedRefSource::InferResolvedTypeclass { resolved }
+                if resolved
+                    .class
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "Display")
+        )));
     }
 
     #[test]

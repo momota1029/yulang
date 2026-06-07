@@ -7,7 +7,8 @@ use yulang_elaborated_ir::{
     ConcreteType, ConcreteTypeError, MonoComputation, MonoEffect, MonoType,
 };
 use yulang_erased_ir::{
-    DefId, ErasedExpr, InferredBinding, Lit, Name, Path, RefExportTable, RefId, Scheme, Type,
+    DefId, ErasedExpr, InferredBinding, Lit, Name, Path, RefExportTable, RefId,
+    ResolvedTypeClassRef, Scheme, Type,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +72,15 @@ impl<'a> ConstraintEnvironment<'a> {
         let scheme = *self.schemes.get(&def)?;
         Some((def, scheme))
     }
+
+    pub(crate) fn resolved_typeclass_scheme(
+        &self,
+        ref_id: RefId,
+    ) -> Option<(&'a ResolvedTypeClassRef, &'a Scheme)> {
+        let resolved = self.refs.resolved_typeclass.get(&ref_id)?;
+        let scheme = *self.schemes.get(&resolved.impl_member)?;
+        Some((resolved, scheme))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,6 +99,7 @@ pub(crate) struct ForceThunkBoundaryConstraint {
 pub(crate) struct ComputationSolution {
     computations: BTreeMap<DraftComputationId, MonoComputation>,
     direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
+    resolved_typeclass_instances: BTreeMap<RefId, ResolvedTypeclassInstanceDemand>,
 }
 
 impl ComputationSolution {
@@ -106,11 +117,23 @@ impl ComputationSolution {
     pub(crate) fn direct_ref_instances(&self) -> &BTreeMap<RefId, DirectRefInstanceDemand> {
         &self.direct_ref_instances
     }
+
+    pub(crate) fn resolved_typeclass_instances(
+        &self,
+    ) -> &BTreeMap<RefId, ResolvedTypeclassInstanceDemand> {
+        &self.resolved_typeclass_instances
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DirectRefInstanceDemand {
     pub(crate) def: DefId,
+    pub(crate) signature: MonoComputation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedTypeclassInstanceDemand {
+    pub(crate) resolved: ResolvedTypeClassRef,
     pub(crate) signature: MonoComputation,
 }
 
@@ -194,6 +217,7 @@ pub enum ConstraintTypeSource {
 struct ConstraintSolver {
     computations: BTreeMap<DraftComputationId, MonoComputation>,
     direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
+    resolved_typeclass_instances: BTreeMap<RefId, ResolvedTypeclassInstanceDemand>,
 }
 
 impl ConstraintSolver {
@@ -201,6 +225,7 @@ impl ConstraintSolver {
         let mut solver = Self {
             computations: BTreeMap::new(),
             direct_ref_instances: BTreeMap::new(),
+            resolved_typeclass_instances: BTreeMap::new(),
         };
         for seed in set.computation_seeds {
             solver.assign(seed.slot, seed.computation)?;
@@ -212,6 +237,7 @@ impl ConstraintSolver {
         ComputationSolution {
             computations: self.computations,
             direct_ref_instances: self.direct_ref_instances,
+            resolved_typeclass_instances: self.resolved_typeclass_instances,
         }
     }
 
@@ -269,20 +295,37 @@ impl ConstraintSolver {
                 }
             }
             ErasedExpr::Ref(ref_id) => {
-                let (def, scheme) = env
-                    .direct_scheme(*ref_id)
-                    .ok_or(ConstraintError::MissingDirectRefScheme { ref_id: *ref_id })?;
-                let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg, env)? else {
-                    return Err(ConstraintError::GenericDirectRefScheme { def });
-                };
-                self.direct_ref_instances.insert(
-                    *ref_id,
-                    DirectRefInstanceDemand {
-                        def,
-                        signature: apply.callee.clone(),
-                    },
-                );
-                apply
+                if let Some((def, scheme)) = env.direct_scheme(*ref_id) {
+                    let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg, env)?
+                    else {
+                        return Err(ConstraintError::GenericDirectRefScheme { def });
+                    };
+                    self.direct_ref_instances.insert(
+                        *ref_id,
+                        DirectRefInstanceDemand {
+                            def,
+                            signature: apply.callee.clone(),
+                        },
+                    );
+                    apply
+                } else if let Some((resolved, scheme)) = env.resolved_typeclass_scheme(*ref_id) {
+                    let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg, env)?
+                    else {
+                        return Err(ConstraintError::GenericDirectRefScheme {
+                            def: resolved.impl_member,
+                        });
+                    };
+                    self.resolved_typeclass_instances.insert(
+                        *ref_id,
+                        ResolvedTypeclassInstanceDemand {
+                            resolved: resolved.clone(),
+                            signature: apply.callee.clone(),
+                        },
+                    );
+                    apply
+                } else {
+                    return Err(ConstraintError::MissingDirectRefScheme { ref_id: *ref_id });
+                }
             }
             _ => {
                 return Err(ConstraintError::UnsupportedApplyCallee {
