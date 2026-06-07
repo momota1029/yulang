@@ -19,6 +19,12 @@ impl<'a> Elaborator<'a> {
         Self { export }
     }
 
+    pub fn try_new(export: &'a InferExport) -> Result<Self, ElaborateInputError> {
+        let elaborator = Self::new(export);
+        elaborator.validate_input()?;
+        Ok(elaborator)
+    }
+
     pub fn export(&self) -> &'a InferExport {
         self.export
     }
@@ -186,5 +192,6 @@ mod tests {
         };
         assert_eq!(report.uncovered, vec![yulang_erased_ir::RefId(99)]);
         assert!(report.conflicting.is_empty());
+        assert!(Elaborator::try_new(&export).is_err());
     }
 }
