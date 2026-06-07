@@ -49,6 +49,7 @@ pub use export::{
     export_principal_module, export_scheme_body,
 };
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
+pub use lower::computation::LoweredComputation;
 pub use lower::ctx::LowerCtx;
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
 pub use lower::{

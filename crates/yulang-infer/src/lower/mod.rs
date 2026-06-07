@@ -8,6 +8,7 @@
 //! - RefTable に RefId → DefId の対応を記録する（解決できないものは unresolved）
 pub mod ann;
 pub mod builtin_types;
+pub mod computation;
 pub mod ctx;
 pub mod expr;
 pub mod primitives;
