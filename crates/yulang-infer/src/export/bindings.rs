@@ -16,8 +16,8 @@ use super::names::{export_path, path_key};
 use super::paths::collect_canonical_binding_paths;
 use super::timing::{ExportClock, format_core_path_for_export_timing};
 use super::types::{
-    collect_core_type_vars, export_frozen_scheme, export_frozen_scheme_body_type_vars,
-    export_scheme, export_scheme_body, export_scheme_body_type_vars,
+    collect_core_type_vars, export_frozen_scheme, export_frozen_scheme_internal_type_vars,
+    export_scheme, export_scheme_body, export_scheme_internal_type_vars,
 };
 
 pub(super) fn export_bindings_for_paths(
@@ -381,7 +381,16 @@ pub(crate) fn export_principal_binding(
     let body = state.principal_bodies.get(&def)?;
     let mut profile = profile;
     if let Some(scheme) = state.runtime_export_schemes.get(&def) {
-        let relevant_vars = collect_runtime_scheme_body_type_vars(scheme);
+        let frozen_scheme = state.infer.frozen_schemes.borrow().get(&def).cloned();
+        let relevant_vars = state
+            .compact_scheme_of(def)
+            .map(|scheme| export_scheme_internal_type_vars(&scheme))
+            .or_else(|| {
+                frozen_scheme
+                    .as_ref()
+                    .map(|frozen| export_frozen_scheme_internal_type_vars(&state.infer, frozen))
+            })
+            .unwrap_or_else(|| collect_runtime_scheme_body_type_vars(scheme));
         let body = ExprExporter::new(
             state,
             globals,
@@ -401,12 +410,12 @@ pub(crate) fn export_principal_binding(
     }
     let frozen_scheme = state.infer.frozen_schemes.borrow().get(&def).cloned();
     let (scheme, relevant_vars) = if let Some(scheme) = state.compact_scheme_of(def) {
-        let relevant_vars = export_scheme_body_type_vars(&scheme);
+        let relevant_vars = export_scheme_internal_type_vars(&scheme);
         if should_prefer_frozen_runtime_scheme(path, &relevant_vars) {
             if let Some(frozen) = frozen_scheme.as_ref() {
                 (
                     export_frozen_scheme(&state.infer, frozen),
-                    export_frozen_scheme_body_type_vars(&state.infer, frozen),
+                    export_frozen_scheme_internal_type_vars(&state.infer, frozen),
                 )
             } else {
                 let constraints = state.infer.compact_role_constraints_of(def);
@@ -426,7 +435,7 @@ pub(crate) fn export_principal_binding(
         if let Some(frozen) = frozen_scheme.as_ref() {
             (
                 export_frozen_scheme(&state.infer, frozen),
-                export_frozen_scheme_body_type_vars(&state.infer, frozen),
+                export_frozen_scheme_internal_type_vars(&state.infer, frozen),
             )
         } else {
             let fallback_scheme = state
@@ -440,7 +449,7 @@ pub(crate) fn export_principal_binding(
                 .unwrap_or(typed_ir::Type::Unknown);
             let relevant_vars = fallback_scheme
                 .as_ref()
-                .map(export_scheme_body_type_vars)
+                .map(export_scheme_internal_type_vars)
                 .unwrap_or_default();
             (
                 typed_ir::Scheme {

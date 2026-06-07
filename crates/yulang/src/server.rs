@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
+use tokio::sync::Mutex as AsyncMutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -39,6 +40,8 @@ struct Backend {
     client: Client,
     std_root: Option<PathBuf>,
     documents: Mutex<HashMap<Url, String>>,
+    analysis_versions: Mutex<HashMap<Url, u64>>,
+    analysis_locks: Mutex<HashMap<Url, Arc<AsyncMutex<()>>>>,
 }
 
 impl Backend {
@@ -54,6 +57,13 @@ impl Backend {
     }
 
     async fn analyze(&self, uri: &Url) {
+        let analysis_version = self.bump_analysis_version(uri);
+        let analysis_lock = self.analysis_lock(uri);
+        let _analysis_guard = analysis_lock.lock().await;
+        if !self.is_current_analysis_version(uri, analysis_version) {
+            return;
+        }
+
         let path = match uri.to_file_path() {
             Ok(p) => p,
             Err(_) => return,
@@ -92,9 +102,46 @@ impl Backend {
         .await
         .unwrap_or_default();
 
+        if !self.is_current_analysis_version(uri, analysis_version) {
+            return;
+        }
         self.client
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
+    }
+
+    fn analysis_lock(&self, uri: &Url) -> Arc<AsyncMutex<()>> {
+        self.analysis_locks
+            .lock()
+            .unwrap()
+            .entry(uri.clone())
+            .or_insert_with(|| Arc::new(AsyncMutex::new(())))
+            .clone()
+    }
+
+    fn current_analysis_version(&self, uri: &Url) -> u64 {
+        self.analysis_versions
+            .lock()
+            .unwrap()
+            .get(uri)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn bump_analysis_version(&self, uri: &Url) -> u64 {
+        let mut versions = self.analysis_versions.lock().unwrap();
+        let next = versions.get(uri).copied().unwrap_or(0).wrapping_add(1);
+        versions.insert(uri.clone(), next);
+        next
+    }
+
+    fn cancel_analysis(&self, uri: &Url) {
+        self.bump_analysis_version(uri);
+        self.analysis_locks.lock().unwrap().remove(uri);
+    }
+
+    fn is_current_analysis_version(&self, uri: &Url, version: u64) -> bool {
+        self.current_analysis_version(uri) == version
     }
 }
 
@@ -1710,6 +1757,13 @@ fn insert_constructor_path_highlight(
     info.insert_constructor_path(segments);
 }
 
+fn empty_semantic_tokens_result() -> Option<SemanticTokensResult> {
+    Some(SemanticTokensResult::Tokens(SemanticTokens {
+        result_id: None,
+        data: Vec::new(),
+    }))
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
@@ -1792,6 +1846,7 @@ impl LanguageServer for Backend {
             .lock()
             .unwrap()
             .remove(&params.text_document.uri);
+        self.cancel_analysis(&params.text_document.uri);
         self.client
             .publish_diagnostics(params.text_document.uri, Vec::new(), None)
             .await;
@@ -1813,43 +1868,62 @@ impl LanguageServer for Backend {
         });
         let options = self.source_options(base_dir.as_deref());
 
-        let data = tokio::task::spawn_blocking(move || match source {
+        let data = match source {
             Some(source) => {
-                let op_options = options.clone();
-                let lower_options = options;
-                let lower_base_dir = base_dir.clone();
-                let op_table =
-                    collect_virtual_source_files_with_options(&source, base_dir, op_options)
-                        .ok()
-                        .and_then(|source_set| {
-                            source_set
-                                .entry_files()
-                                .next()
-                                .map(|file| file.op_table.clone())
-                        });
-                let highlights = lower_lsp_source_with_dependency_cache(
-                    &source,
-                    lower_base_dir,
-                    lower_options,
-                    None,
-                )
-                .ok()
-                .map(|document| resolved_highlights_from_lower_state(&document.lowered.state));
-                semantic_tokens::compute_with_op_table_and_highlights(
-                    &source,
-                    op_table,
-                    highlights.as_ref(),
-                )
+                let analysis_version = self.current_analysis_version(&uri);
+                let analysis_lock = self.analysis_lock(&uri);
+                let _analysis_guard = analysis_lock.lock().await;
+                if !self.is_current_analysis_version(&uri, analysis_version) {
+                    return Ok(empty_semantic_tokens_result());
+                }
+                let data = tokio::task::spawn_blocking(move || {
+                    let op_options = options.clone();
+                    let lower_options = options;
+                    let lower_base_dir = base_dir.clone();
+                    let op_table =
+                        collect_virtual_source_files_with_options(&source, base_dir, op_options)
+                            .ok()
+                            .and_then(|source_set| {
+                                source_set
+                                    .entry_files()
+                                    .next()
+                                    .map(|file| file.op_table.clone())
+                            });
+                    let highlights = lower_lsp_source_with_dependency_cache(
+                        &source,
+                        lower_base_dir,
+                        lower_options,
+                        None,
+                    )
+                    .ok()
+                    .map(|document| resolved_highlights_from_lower_state(&document.lowered.state));
+                    semantic_tokens::compute_with_op_table_and_highlights(
+                        &source,
+                        op_table,
+                        highlights.as_ref(),
+                    )
+                })
+                .await
+                .unwrap_or_default();
+                if !self.is_current_analysis_version(&uri, analysis_version) {
+                    return Ok(empty_semantic_tokens_result());
+                }
+                data
             }
-            None => uri
-                .to_file_path()
-                .ok()
-                .and_then(|path| std::fs::read_to_string(path).ok())
-                .map(|source| semantic_tokens::compute(&source))
-                .unwrap_or_default(),
-        })
-        .await
-        .unwrap_or_default();
+            None => {
+                let uri_for_task = uri.clone();
+                tokio::task::spawn_blocking(move || {
+                    uri_for_task
+                        .to_file_path()
+                        .ok()
+                        .and_then(|path| std::fs::read_to_string(path).ok())
+                        .map(|source| semantic_tokens::compute(&source))
+                        .unwrap_or_default()
+                })
+                .await
+                .unwrap_or_default()
+            }
+        };
 
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
@@ -1916,11 +1990,20 @@ impl LanguageServer for Backend {
             }
         });
         let options = self.source_options(base_dir.as_deref());
+        let analysis_version = self.current_analysis_version(&uri);
+        let analysis_lock = self.analysis_lock(&uri);
+        let _analysis_guard = analysis_lock.lock().await;
+        if !self.is_current_analysis_version(&uri, analysis_version) {
+            return Ok(None);
+        }
         let hover = tokio::task::spawn_blocking(move || {
             hover_for_source(&source, base_dir, options, position)
         })
         .await
         .unwrap_or_default();
+        if !self.is_current_analysis_version(&uri, analysis_version) {
+            return Ok(None);
+        }
         Ok(hover)
     }
 
@@ -1952,12 +2035,21 @@ impl LanguageServer for Backend {
             }
         });
         let options = self.source_options(base_dir.as_deref());
+        let analysis_version = self.current_analysis_version(&uri);
+        let analysis_lock = self.analysis_lock(&uri);
+        let _analysis_guard = analysis_lock.lock().await;
+        if !self.is_current_analysis_version(&uri, analysis_version) {
+            return Ok(None);
+        }
         let uri_for_task = uri.clone();
         let location = tokio::task::spawn_blocking(move || {
             goto_definition_for_source(uri_for_task, &source, base_dir, options, position)
         })
         .await
         .unwrap_or_default();
+        if !self.is_current_analysis_version(&uri, analysis_version) {
+            return Ok(None);
+        }
         Ok(location.map(GotoDefinitionResponse::Scalar))
     }
 
@@ -1987,6 +2079,12 @@ impl LanguageServer for Backend {
             }
         });
         let options = self.source_options(base_dir.as_deref());
+        let analysis_version = self.current_analysis_version(&uri);
+        let analysis_lock = self.analysis_lock(&uri);
+        let _analysis_guard = analysis_lock.lock().await;
+        if !self.is_current_analysis_version(&uri, analysis_version) {
+            return Ok(None);
+        }
         let uri_for_task = uri.clone();
         let workspace_edit = tokio::task::spawn_blocking(move || {
             rename_for_source(
@@ -2000,6 +2098,9 @@ impl LanguageServer for Backend {
         })
         .await
         .unwrap_or_default();
+        if !self.is_current_analysis_version(&uri, analysis_version) {
+            return Ok(None);
+        }
         Ok(workspace_edit)
     }
 }
@@ -3024,6 +3125,8 @@ async fn serve() {
         client,
         std_root,
         documents: Mutex::new(HashMap::new()),
+        analysis_versions: Mutex::new(HashMap::new()),
+        analysis_locks: Mutex::new(HashMap::new()),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

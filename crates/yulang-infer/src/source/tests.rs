@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -2594,6 +2595,44 @@ fn cached_source_act_template_seed_is_needed_for_act_copy_and_synthetic_act_sour
 fn compiled_std_runtime_bundle_carries_non_unit_runtime_dependencies() {
     run_with_large_stack(|| {
         let runtime = &cached_std_compiled_unit_artifact_bundle().runtime;
+        let graph_bindings = runtime
+            .surface
+            .program
+            .graph
+            .bindings
+            .iter()
+            .map(|node| node.binding.clone())
+            .collect::<HashSet<_>>();
+        let impl_index_bindings = runtime
+            .surface
+            .program
+            .program
+            .bindings
+            .iter()
+            .filter(|binding| {
+                binding
+                    .name
+                    .segments
+                    .iter()
+                    .any(|segment| segment.0.starts_with("&impl#"))
+                    && binding
+                        .name
+                        .segments
+                        .last()
+                        .is_some_and(|segment| segment.0 == "index")
+            })
+            .map(|binding| binding.name.clone())
+            .collect::<Vec<_>>();
+        assert!(
+            !impl_index_bindings.is_empty(),
+            "compiled std bundle should include impl helper index bindings"
+        );
+        for binding in &impl_index_bindings {
+            assert!(
+                graph_bindings.contains(binding),
+                "compiled std bundle should preserve graph bounds for referenced impl helper binding {binding:?}"
+            );
+        }
         let binding_paths = runtime
             .surface
             .program

@@ -1776,10 +1776,9 @@ fn build_compiled_typed_artifacts_with_finalized_state(
     let value_paths = finalized_state.ctx.collect_all_binding_paths();
     let artifact_defs = compiled_unit_namespace_value_defs(source_set, &finalized_state);
     finalized_state.finalize_compact_results_for_defs(&artifact_defs);
-    finalized_state
-        .infer
-        .prune_resolved_effect_subtract_metadata();
-    let state = &finalized_state;
+    let typed_state = finalized_state.clone();
+    typed_state.infer.prune_resolved_effect_subtract_metadata();
+    let state = &typed_state;
     let namespace_artifacts = build_compiled_namespace_artifacts(source_set, state);
     let value_defs_by_path = value_paths
         .iter()
@@ -3682,7 +3681,7 @@ fn build_compiled_runtime_surfaces(
     state: &LowerState,
     typed_artifacts: &[CompiledUnitTypedArtifact],
 ) -> Vec<CompiledRuntimeSurface> {
-    let value_paths = state.ctx.collect_all_binding_paths();
+    let value_paths = compiled_runtime_value_paths(state);
     let unit_runtime_binding_paths = typed_artifacts
         .iter()
         .flat_map(|artifact| {
@@ -4810,6 +4809,20 @@ fn compiled_runtime_binding_paths_for_modules(
         .filter(|(path, _)| path_belongs_to_modules(&snapshot_path_segments(path), unit_paths))
         .cloned()
         .collect()
+}
+
+fn compiled_runtime_value_paths(state: &LowerState) -> Vec<(Path, crate::ids::DefId)> {
+    let mut paths = state.ctx.collect_all_binding_paths();
+    let mut seen = paths
+        .iter()
+        .map(|(path, _)| snapshot_path_segments(path))
+        .collect::<HashSet<_>>();
+    for (def, path) in crate::export::paths::collect_canonical_binding_paths(state) {
+        if seen.insert(snapshot_path_segments(&path)) {
+            paths.push((path, def));
+        }
+    }
+    paths
 }
 
 #[allow(clippy::too_many_arguments)]

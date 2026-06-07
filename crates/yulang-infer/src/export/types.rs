@@ -4,7 +4,8 @@ use yulang_typed_ir as typed_ir;
 
 use crate::FrozenScheme;
 use crate::display::format::{
-    Type as DisplayType, compact_scheme_to_type_no_sandwich, materialize_effect_args,
+    Type as DisplayType, collect_compact_bounds_observed_vars, compact_scheme_to_type_no_sandwich,
+    materialize_effect_args,
 };
 use crate::ids::TypeVar;
 use crate::simplify::compact::{
@@ -40,6 +41,16 @@ pub fn export_scheme_body_type_vars(scheme: &CompactTypeScheme) -> BTreeSet<type
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&export_scheme_body(scheme), &mut vars);
     vars
+}
+
+pub fn export_scheme_internal_type_vars(scheme: &CompactTypeScheme) -> BTreeSet<typed_ir::TypeVar> {
+    let mut vars = HashSet::new();
+    collect_compact_bounds_observed_vars(&scheme.cty, &mut vars);
+    for (var, bounds) in &scheme.rec_vars {
+        vars.insert(*var);
+        collect_compact_bounds_observed_vars(bounds, &mut vars);
+    }
+    vars.into_iter().map(export_type_var).collect()
 }
 
 pub fn export_scheme(
@@ -82,6 +93,13 @@ pub fn export_frozen_scheme_body_type_vars(
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&export_scheme_body(&scheme.compact), &mut vars);
     vars
+}
+
+pub fn export_frozen_scheme_internal_type_vars(
+    _infer: &Infer,
+    scheme: &FrozenScheme,
+) -> BTreeSet<typed_ir::TypeVar> {
+    export_scheme_internal_type_vars(&scheme.compact)
 }
 
 pub fn export_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> typed_ir::TypeBounds {

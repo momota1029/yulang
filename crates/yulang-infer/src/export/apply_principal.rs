@@ -18,8 +18,8 @@ use super::type_props::{
 };
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds,
-    export_coalesced_coerce_evidence_bounds, export_relevant_type_bounds_for_tv_cached,
-    export_type_bounds_for_tv, project_core_value_type_or_any,
+    export_coalesced_coerce_evidence_bounds, export_type_bounds_for_tv,
+    project_core_value_type_or_any,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -861,6 +861,9 @@ fn apply_slot_bounds(
 fn principal_inference_type_from_bounds_ref(
     bounds: &typed_ir::TypeBounds,
 ) -> Option<&typed_ir::Type> {
+    if type_bounds_have_vars(bounds) {
+        return None;
+    }
     bounds
         .lower
         .as_deref()
@@ -880,7 +883,12 @@ fn principal_inference_type_usable(ty: &typed_ir::Type) -> bool {
             | typed_ir::Type::Any
             | typed_ir::Type::Never
             | typed_ir::Type::Var(_)
-    )
+    ) && !type_has_vars(ty)
+}
+
+fn type_bounds_have_vars(bounds: &typed_ir::TypeBounds) -> bool {
+    bounds.lower.as_deref().is_some_and(type_has_vars)
+        || bounds.upper.as_deref().is_some_and(type_has_vars)
 }
 
 fn collect_candidates_from_bounds(
@@ -1492,27 +1500,38 @@ fn substitute_core_type_arg(
 fn export_monomorphic_type_for_tv_cached(
     infer: &Infer,
     tv: TypeVar,
-    base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
+    _base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
     cache: &mut CompletePrincipalCache,
 ) -> Option<typed_ir::Type> {
     if let Some(cached) = cache.monomorphic_types.get(&tv) {
         return cached.clone();
     }
-    let bounds = match base_bounds_cache {
-        Some(cache) => {
-            export_relevant_type_bounds_for_tv_cached(infer, tv, &BTreeSet::new(), cache)
-        }
-        None => export_type_bounds_for_tv(infer, tv),
-    };
-    let ty = bounds
+    let bounds = export_type_bounds_for_tv(infer, tv);
+    let ty = monomorphic_substitution_type_from_bounds(&bounds);
+    cache.monomorphic_types.insert(tv, ty.clone());
+    ty
+}
+
+fn monomorphic_substitution_type_from_bounds(
+    bounds: &typed_ir::TypeBounds,
+) -> Option<typed_ir::Type> {
+    if type_bounds_have_vars(bounds) {
+        return None;
+    }
+    bounds
         .lower
         .as_deref()
         .or(bounds.upper.as_deref())
         .cloned()
-        .map(|ty| project_core_value_type_or_any(ty, &BTreeSet::new()))
-        .filter(|ty| substitution_type_usable(ty, false));
-    cache.monomorphic_types.insert(tv, ty.clone());
-    ty
+        .and_then(monomorphic_substitution_type_from_bound)
+}
+
+fn monomorphic_substitution_type_from_bound(ty: typed_ir::Type) -> Option<typed_ir::Type> {
+    if type_has_vars(&ty) {
+        return None;
+    }
+    let ty = project_core_value_type_or_any(ty, &BTreeSet::new());
+    substitution_type_usable(&ty, false).then_some(ty)
 }
 
 struct PrincipalSubstitutionUnifier<'a> {
@@ -1930,6 +1949,51 @@ mod tests {
             principal_inference_type_from_bounds_ref(&bounds),
             Some(&union)
         );
+    }
+
+    #[test]
+    fn principal_inference_slot_bounds_skip_open_structural_type() {
+        let bounds = typed_ir::TypeBounds {
+            lower: Some(Box::new(list(typed_ir::TypeArg::Type(
+                typed_ir::Type::Union(vec![named("bool"), typed_ir::Type::Var(tv("u"))]),
+            )))),
+            upper: None,
+        };
+
+        assert_eq!(principal_inference_type_from_bounds_ref(&bounds), None);
+    }
+
+    #[test]
+    fn monomorphic_fallback_keeps_closed_union_whole() {
+        let union = typed_ir::Type::Union(vec![named("bool"), named("int")]);
+
+        assert_eq!(
+            monomorphic_substitution_type_from_bound(union.clone()),
+            Some(union)
+        );
+    }
+
+    #[test]
+    fn monomorphic_fallback_rejects_choice_after_losing_open_var() {
+        let choice = typed_ir::Type::Union(vec![named("bool"), typed_ir::Type::Var(tv("u"))]);
+
+        assert_eq!(monomorphic_substitution_type_from_bound(choice), None);
+    }
+
+    #[test]
+    fn monomorphic_fallback_rejects_bounds_with_open_other_side() {
+        let bounds = typed_ir::TypeBounds {
+            lower: Some(Box::new(typed_ir::Type::Union(vec![
+                named("bool"),
+                named("int"),
+            ]))),
+            upper: Some(Box::new(typed_ir::Type::Inter(vec![
+                typed_ir::Type::Var(tv("u")),
+                named("int"),
+            ]))),
+        };
+
+        assert_eq!(monomorphic_substitution_type_from_bounds(&bounds), None);
     }
 
     #[test]

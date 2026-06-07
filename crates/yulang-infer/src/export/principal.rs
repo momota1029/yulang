@@ -618,17 +618,16 @@ fn export_type_graph_view_for_paths(
     paths: &[(Path, DefId)],
     bindings: &[typed_ir::PrincipalBinding],
 ) -> typed_ir::CoreGraphView {
-    let binding_nodes = paths
+    let binding_defs = exported_binding_defs_for_graph(state, paths);
+    let binding_nodes = bindings
         .iter()
-        .filter_map(|(path, def)| {
-            let body_tv = state.def_tvs.get(def).copied()?;
+        .filter_map(|binding| {
+            let def = binding_defs.get(&binding.name).copied()?;
+            let body_tv = state.def_tvs.get(&def).copied()?;
             let body_comp = state
                 .principal_bodies
-                .get(def)
+                .get(&def)
                 .map(|body| body.computation_ty());
-            let binding = bindings
-                .iter()
-                .find(|binding| binding.name == export_path(path))?;
             Some(typed_ir::BindingGraphNode {
                 binding: binding.name.clone(),
                 scheme_body: binding.scheme.body.clone(),
@@ -655,6 +654,23 @@ fn export_type_graph_view_for_paths(
         role_impls,
         primitive_types,
     }
+}
+
+fn exported_binding_defs_for_graph(
+    state: &LowerState,
+    paths: &[(Path, DefId)],
+) -> HashMap<typed_ir::Path, DefId> {
+    let mut defs = HashMap::new();
+    for (path, def) in paths {
+        defs.entry(export_path(path)).or_insert(*def);
+    }
+    for (def, path) in collect_canonical_binding_paths(state) {
+        defs.entry(export_path(&path)).or_insert(def);
+    }
+    for (path, def) in state.ctx.collect_all_binding_paths() {
+        defs.entry(export_path(&path)).or_insert(def);
+    }
+    defs
 }
 
 fn export_enum_variant_graph_nodes(state: &LowerState) -> Vec<typed_ir::EnumVariantGraphNode> {

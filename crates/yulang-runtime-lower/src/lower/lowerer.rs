@@ -469,12 +469,15 @@ impl Lowerer<'_> {
                     )
                     && !matches!(callee_expr.as_ref(), Some(typed_ir::Expr::Apply { .. }))
                 {
-                    let callee_expected =
-                        callee_hint.as_ref().and_then(|callee_ty| match callee_ty {
-                            RuntimeType::Value(typed_ir::Type::Var(_)) => None,
-                            other if hir_type_contains_unknown(other) => None,
-                            other => Some(other),
-                        });
+                    let callee_expected = callee_hint.as_ref().and_then(|callee_ty| {
+                        if matches!(callee_ty, RuntimeType::Value(typed_ir::Type::Var(_)))
+                            || hir_type_contains_unknown(callee_ty)
+                        {
+                            None
+                        } else {
+                            callee_lowering_expected(callee_ty)
+                        }
+                    });
                     let adapter_source = self.runtime_adapter_source_for_apply(
                         RuntimeApplyAdapterPhase::LowerCallee,
                         evidence.as_ref(),
@@ -482,7 +485,7 @@ impl Lowerer<'_> {
                     );
                     let lowered = self.lower_expr_with_runtime_adapter_source(
                         callee_expr.take().expect("callee should be present"),
-                        callee_expected,
+                        callee_expected.as_ref(),
                         locals,
                         TypeSource::ApplyCalleeEvidence,
                         adapter_source,
@@ -689,24 +692,39 @@ impl Lowerer<'_> {
                                         hir_type_compatible(&parts.ret, &result_ty)
                                     }) =>
                             {
-                                Some(ty.clone())
+                                callee_lowering_expected(ty)
                             }
                             Some(ty)
                                 if !hir_type_contains_unknown(ty) && function_parts(ty).is_ok() =>
                             {
-                                Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
+                                synthesized_callee_lowering_expected(
+                                    arg_ty.clone(),
+                                    result_ty.clone(),
+                                )
                             }
                             None if use_polymorphic_arg_hint => {
-                                Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
+                                synthesized_callee_lowering_expected(
+                                    arg_ty.clone(),
+                                    result_ty.clone(),
+                                )
                             }
-                            None => callee_stored_hint.clone().or_else(|| {
-                                Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
-                            }),
+                            None => callee_stored_hint
+                                .as_ref()
+                                .and_then(callee_lowering_expected)
+                                .or_else(|| {
+                                    synthesized_callee_lowering_expected(
+                                        arg_ty.clone(),
+                                        result_ty.clone(),
+                                    )
+                                }),
                             Some(RuntimeType::Value(
                                 typed_ir::Type::Any | typed_ir::Type::Var(_),
-                            )) => Some(erased_fun_type(arg_ty.clone(), result_ty.clone())),
+                            )) => synthesized_callee_lowering_expected(
+                                arg_ty.clone(),
+                                result_ty.clone(),
+                            ),
                             Some(other) if hir_type_contains_unknown(other) => None,
-                            Some(other) => Some(other.clone()),
+                            Some(other) => callee_lowering_expected(other),
                         };
                         let adapter_source = self.runtime_adapter_source_for_apply(
                             RuntimeApplyAdapterPhase::LowerCallee,
@@ -735,6 +753,9 @@ impl Lowerer<'_> {
                         } else {
                             TypeSource::ApplyArgumentEvidence
                         };
+                        let erased_expected_arg;
+                        let erased_lower_arg;
+                        let erased_selected_arg;
                         let expected_arg = if callee_is_effect_operation
                             && matches!(arg_ty, RuntimeType::Thunk { .. })
                         {
@@ -762,6 +783,21 @@ impl Lowerer<'_> {
                             {
                                 self.expected_arg_evidence_profile.used_as_lowering_expected += 1;
                                 Some(expected_arg_ty)
+                            } else if let Some(expected_arg_ty) = evidence_expected_arg
+                                .as_ref()
+                                .filter(|_| {
+                                    self.use_expected_arg_evidence && can_push_expected_evidence
+                                })
+                                .and_then(|ty| {
+                                    structural_lowering_expected_without_value_choices(
+                                        pending_arg,
+                                        ty,
+                                    )
+                                })
+                            {
+                                self.expected_arg_evidence_profile.used_as_lowering_expected += 1;
+                                erased_expected_arg = expected_arg_ty;
+                                Some(&erased_expected_arg)
                             } else {
                                 if self.use_expected_arg_evidence
                                     && evidence_expected_arg.is_some()
@@ -780,10 +816,35 @@ impl Lowerer<'_> {
                                     })
                                 {
                                     Some(lower_arg_ty)
+                                } else if let Some(lower_arg_ty) = evidence_arg_lower
+                                    .as_ref()
+                                    .filter(|_| can_push)
+                                    .filter(|ty| {
+                                        lowering_expected_can_replace_selected_effects(ty, &arg_ty)
+                                    })
+                                    .and_then(|ty| {
+                                        structural_lowering_expected_without_value_choices(
+                                            pending_arg,
+                                            ty,
+                                        )
+                                    })
+                                {
+                                    erased_lower_arg = lower_arg_ty;
+                                    Some(&erased_lower_arg)
                                 } else if hir_type_has_type_vars(&arg_ty) && !can_push
                                     || !runtime_type_can_be_pushed_as_lowering_expected(&arg_ty)
                                 {
-                                    None
+                                    if let Some(selected_arg_ty) =
+                                        structural_lowering_expected_without_value_choices(
+                                            pending_arg,
+                                            &arg_ty,
+                                        )
+                                    {
+                                        erased_selected_arg = selected_arg_ty;
+                                        Some(&erased_selected_arg)
+                                    } else {
+                                        None
+                                    }
                                 } else {
                                     Some(&arg_ty)
                                 }
@@ -3635,6 +3696,131 @@ fn runtime_type_can_be_pushed_as_lowering_expected(ty: &RuntimeType) -> bool {
     !runtime_type_contains_value_choice(ty)
 }
 
+// Value choices are principal surface information, not runtime lowering
+// shapes. Keep the structural shell that carries lambda params, record fields,
+// and callee arity, but erase choice leaves before pushing an expected type.
+fn structural_lowering_expected_without_value_choices(
+    expr: &typed_ir::Expr,
+    ty: &RuntimeType,
+) -> Option<RuntimeType> {
+    if runtime_type_can_be_pushed_as_lowering_expected(ty) {
+        return None;
+    }
+    let erased = erase_runtime_value_choices(ty);
+    structural_expr_accepts_lowering_expected(expr, &erased).then_some(erased)
+}
+
+fn structural_expr_accepts_lowering_expected(expr: &typed_ir::Expr, ty: &RuntimeType) -> bool {
+    let value = value_hir_type(ty);
+    match expr {
+        typed_ir::Expr::Lambda { .. } => {
+            matches!(
+                value,
+                RuntimeType::Fun { .. } | RuntimeType::Value(typed_ir::Type::Fun { .. })
+            )
+        }
+        typed_ir::Expr::Tuple(_) => matches!(value, RuntimeType::Value(typed_ir::Type::Tuple(_))),
+        typed_ir::Expr::Record { .. } => {
+            matches!(value, RuntimeType::Value(typed_ir::Type::Record(_)))
+        }
+        typed_ir::Expr::Variant { .. } => {
+            matches!(value, RuntimeType::Value(typed_ir::Type::Variant(_)))
+        }
+        typed_ir::Expr::Block {
+            tail: Some(tail), ..
+        } => structural_expr_accepts_lowering_expected(tail, ty),
+        typed_ir::Expr::Block { tail: None, .. } => false,
+        _ => false,
+    }
+}
+
+fn erase_runtime_value_choices(ty: &RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Unknown => RuntimeType::Unknown,
+        RuntimeType::Value(ty) => RuntimeType::value(erase_core_value_choices(ty)),
+        RuntimeType::Fun { param, ret } => RuntimeType::fun(
+            erase_runtime_value_choices(param),
+            erase_runtime_value_choices(ret),
+        ),
+        RuntimeType::Thunk { effect, value } => {
+            RuntimeType::thunk(effect.clone(), erase_runtime_value_choices(value))
+        }
+    }
+}
+
+fn erase_core_value_choices(ty: &typed_ir::Type) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => typed_ir::Type::Unknown,
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
+            path: path.clone(),
+            args: args.iter().map(erase_type_arg_value_choices).collect(),
+        },
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(erase_core_value_choices(param)),
+            param_effect: param_effect.clone(),
+            ret_effect: ret_effect.clone(),
+            ret: Box::new(erase_core_value_choices(ret)),
+        },
+        typed_ir::Type::Tuple(items) => {
+            typed_ir::Type::Tuple(items.iter().map(erase_core_value_choices).collect())
+        }
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| typed_ir::RecordField {
+                    name: field.name.clone(),
+                    value: erase_core_value_choices(&field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.as_ref().map(|spread| match spread {
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(erase_core_value_choices(ty)))
+                }
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(erase_core_value_choices(ty)))
+                }
+            }),
+        }),
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| typed_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case.payloads.iter().map(erase_core_value_choices).collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .as_ref()
+                .map(|tail| Box::new(erase_core_value_choices(tail))),
+        }),
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(erase_core_value_choices(body)),
+        },
+        typed_ir::Type::Row { .. }
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => ty.clone(),
+    }
+}
+
+fn erase_type_arg_value_choices(arg: &typed_ir::TypeArg) -> typed_ir::TypeArg {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(erase_core_value_choices(ty)),
+        typed_ir::TypeArg::Bounds(_) => typed_ir::TypeArg::Type(typed_ir::Type::Unknown),
+    }
+}
+
 fn lowering_expected_can_replace_selected_effects(
     expected: &RuntimeType,
     selected: &RuntimeType,
@@ -3921,6 +4107,25 @@ fn apply_callee_expected(expected: Option<&RuntimeType>) -> bool {
         Some(RuntimeType::Thunk { value, .. }) => apply_callee_expected(Some(value)),
         Some(RuntimeType::Unknown | RuntimeType::Value(_)) | None => false,
     }
+}
+
+pub(super) fn callee_lowering_expected(ty: &RuntimeType) -> Option<RuntimeType> {
+    if !apply_callee_expected(Some(ty)) {
+        return None;
+    }
+    if runtime_type_can_be_pushed_as_lowering_expected(ty) {
+        return Some(ty.clone());
+    }
+    let erased = erase_runtime_value_choices(ty);
+    apply_callee_expected(Some(&erased)).then_some(erased)
+}
+
+fn synthesized_callee_lowering_expected(
+    param: RuntimeType,
+    ret: RuntimeType,
+) -> Option<RuntimeType> {
+    let ty = erased_fun_type(param, ret);
+    runtime_type_can_be_pushed_as_lowering_expected(&ty).then_some(ty)
 }
 
 fn handle_body_is_imprecise_local_value(

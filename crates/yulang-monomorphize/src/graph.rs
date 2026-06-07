@@ -1576,6 +1576,15 @@ fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
         (_, typed_ir::Type::Union(items)) => items.iter().any(|item| bound_subtype(sub, item)),
         (typed_ir::Type::Inter(items), _) => items.iter().any(|item| bound_subtype(item, sup)),
         (_, typed_ir::Type::Inter(items)) => items.iter().all(|item| bound_subtype(sub, item)),
+        (
+            typed_ir::Type::Named { path: sub_path, .. },
+            typed_ir::Type::Named {
+                path: sup_path,
+                args: sup_args,
+            },
+        ) if same_erased_synthetic_effect_atom_path(sub_path, sup_path) && sup_args.is_empty() => {
+            true
+        }
         (typed_ir::Type::Recursive { var, body }, _) if !type_body_mentions_var(body, var) => {
             bound_subtype(&normalize_bound_form(body), sup)
         }
@@ -2495,6 +2504,16 @@ fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
     left == right
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
+}
+
+fn same_erased_synthetic_effect_atom_path(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
+    left == right && is_synthetic_var_effect_path(left)
+}
+
+fn is_synthetic_var_effect_path(path: &typed_ir::Path) -> bool {
+    path.segments
+        .first()
+        .is_some_and(|segment| segment.0.starts_with('&') && segment.0.contains('#'))
 }
 
 fn qualified_prefix_effect_paths_match(parent: &typed_ir::Path, child: &typed_ir::Path) -> bool {
@@ -3684,6 +3703,47 @@ mod tests {
         let open_intersection = typed_ir::Type::Inter(vec![read_open, write_open]);
 
         assert!(bound_subtype(&closed, &open_intersection));
+    }
+
+    #[test]
+    fn synthetic_effect_atom_payload_is_below_erased_atom() {
+        let erased = effect_type("&xs#1");
+        let payload = effect_type_arg("&xs#1", int_type());
+
+        assert!(bound_subtype(&payload, &erased));
+        assert!(!bound_subtype(&erased, &payload));
+    }
+
+    #[test]
+    fn upper_bound_prefers_payload_effect_atom_below_erased_atom() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let erased = effect_type("&xs#1");
+        let payload = effect_type_arg("&xs#1", int_type());
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(erased)),
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: None,
+                    upper: Some(RuntimeType::Value(payload.clone())),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(|bounds| bounds.upper.as_ref()),
+            Some(&payload)
+        );
     }
 
     #[test]

@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use super::super::lowerer::callee_lowering_expected;
     use super::super::*;
 
     fn lower_core_program(program: typed_ir::CoreProgram) -> RuntimeResult<Module> {
@@ -1747,6 +1748,130 @@ mod tests {
         };
         assert!(matches!(callee.ty, RuntimeType::Fun { .. }));
         assert_eq!(core_type(&expr.ty), &named_type("int"));
+    }
+
+    #[test]
+    pub(super) fn lower_apply_keeps_structural_record_expected_when_return_has_choice() {
+        let unit = unit_type();
+        let get_ty = typed_ir::Type::Fun {
+            param: Box::new(unit.clone()),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(typed_ir::Type::Union(vec![named_type("int")])),
+        };
+        let record_ty = typed_ir::Type::Record(typed_ir::RecordType {
+            fields: vec![typed_ir::RecordField {
+                name: typed_ir::Name("get".to_string()),
+                value: get_ty,
+                optional: false,
+            }],
+            spread: None,
+        });
+        let record_runtime_ty = RuntimeType::value(record_ty.clone());
+        let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
+        let param = typed_ir::Name("arg".to_string());
+        let param_path = typed_ir::Path::from_name(param.clone());
+        let mut lowerer = Lowerer {
+            env: HashMap::new(),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &typed_ir::CoreGraphView::default(),
+            runtime_symbols: HashMap::new(),
+            effect_op_signatures: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
+            principal_vars: BTreeSet::new(),
+            expected_edges_by_id: HashMap::new(),
+            use_expected_arg_evidence: false,
+            use_principal_elaboration: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
+            current_function_boundary: None,
+            current_binding: None,
+            current_runtime_adapter_source: None,
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let mut locals = HashMap::from([(
+            callee_path.clone(),
+            RuntimeType::fun(record_runtime_ty, RuntimeType::value(unit.clone())),
+        )]);
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(callee_path)),
+            arg: Box::new(typed_ir::Expr::Record {
+                fields: vec![typed_ir::RecordExprField {
+                    name: typed_ir::Name("get".to_string()),
+                    value: typed_ir::Expr::Lambda {
+                        param: param.clone(),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(typed_ir::Expr::Block {
+                            stmts: vec![typed_ir::Stmt::Let {
+                                pattern: typed_ir::Pattern::Lit(typed_ir::Lit::Unit),
+                                value: typed_ir::Expr::Var(param_path),
+                            }],
+                            tail: Some(Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int(
+                                "1".to_string(),
+                            )))),
+                        }),
+                    },
+                }],
+                spread: None,
+            }),
+            evidence: None,
+        };
+
+        let expr = lowerer
+            .lower_expr(
+                expr,
+                Some(&RuntimeType::value(unit.clone())),
+                &mut locals,
+                TypeSource::RootGraph,
+            )
+            .expect("lowered");
+
+        let ExprKind::Apply { arg, .. } = &expr.kind else {
+            panic!("missing apply");
+        };
+        let ExprKind::Record { fields, .. } = &arg.kind else {
+            panic!("missing record arg");
+        };
+        let ExprKind::Lambda { body, .. } = &fields[0].value.kind else {
+            panic!("missing get lambda");
+        };
+        let ExprKind::Block { stmts, .. } = &body.kind else {
+            panic!("missing lambda block");
+        };
+        let Stmt::Let { pattern, .. } = &stmts[0] else {
+            panic!("missing unit pattern let");
+        };
+        let Pattern::Lit {
+            lit: typed_ir::Lit::Unit,
+            ty,
+        } = pattern
+        else {
+            panic!("missing unit literal pattern");
+        };
+        assert_eq!(core_type(ty), &unit);
+    }
+
+    #[test]
+    pub(super) fn callee_lowering_expected_erases_choice_return_but_rejects_bare_choice() {
+        let choice = RuntimeType::value(typed_ir::Type::Inter(vec![named_type("int")]));
+        assert!(callee_lowering_expected(&choice).is_none());
+
+        let expected =
+            callee_lowering_expected(&RuntimeType::fun(RuntimeType::value(unit_type()), choice))
+                .expect("function expected");
+
+        let RuntimeType::Fun { ret, .. } = expected else {
+            panic!("missing function expected");
+        };
+        assert!(matches!(
+            ret.as_ref(),
+            RuntimeType::Value(typed_ir::Type::Unknown)
+        ));
     }
 
     #[test]

@@ -720,12 +720,12 @@ pub(crate) fn solve_simple_apply(
             ret_effect: Box::new(result_effect.clone()),
             ret: Box::new(result.clone()),
         };
-        if std::env::var_os("YULANG_TRACE_APPLY_EFFECT").is_some()
+        let trace_apply_effect = std::env::var_os("YULANG_TRACE_APPLY_EFFECT").is_some()
             && (format!("{current:?}").contains("Any")
                 || step
                     .evidence
-                    .is_some_and(|evidence| format!("{evidence:?}").contains("Any")))
-        {
+                    .is_some_and(|evidence| format!("{evidence:?}").contains("Any")));
+        if trace_apply_effect {
             eprintln!(
                 "TRACE apply binding={binding_path:?}\n  principal={:?}\n  callee_ty={:?}\n  current={current:?}\n  expected={expected:?}\n  evidence={:?}",
                 principal.principal_type, spine.callee.ty, step.evidence
@@ -1569,11 +1569,8 @@ impl<'a> ApplySpine<'a> {
 }
 
 fn apply_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
-    evidence
-        .expected_arg
-        .as_ref()
-        .and_then(type_from_bounds)
-        .or_else(|| type_from_bounds(&evidence.arg))
+    type_from_bounds(&evidence.arg)
+        .or_else(|| evidence.expected_arg.as_ref().and_then(type_from_bounds))
 }
 
 pub(crate) fn apply_observed_arg_type(

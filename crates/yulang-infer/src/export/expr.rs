@@ -673,7 +673,10 @@ impl<'a> ExprExporter<'a> {
             );
         }
         let principal_target = self.principal_callee_target(callee);
-        if include_principal && export_apply_substitutions_enabled() {
+        if include_principal
+            && export_apply_substitutions_enabled()
+            && !self.is_effect_operation_callee(callee)
+        {
             let t = ExprExportClock::now(self.profile.is_some());
             let principal_scheme = self.principal_callee_scheme(callee);
             if let Some(profile) = self.profile.as_deref_mut() {
@@ -801,6 +804,21 @@ impl<'a> ExprExporter<'a> {
         self.principal_callee_scheme_cache
             .insert(expr.tv, Some(scheme.clone()));
         Some(scheme)
+    }
+
+    fn is_effect_operation_callee(&self, expr: &TypedExpr) -> bool {
+        match &strip_transparent_wrappers(expr).kind {
+            ExprKind::Var(def) => self
+                .state
+                .effect_op_args
+                .contains_key(&canonical_runtime_export_def(self.state, *def)),
+            ExprKind::Ref(ref_id) => self.state.ctx.refs.get(*ref_id).is_some_and(|def| {
+                self.state
+                    .effect_op_args
+                    .contains_key(&canonical_runtime_export_def(self.state, def))
+            }),
+            _ => false,
+        }
     }
 
     fn principal_callee_target(&self, expr: &TypedExpr) -> Option<typed_ir::Path> {

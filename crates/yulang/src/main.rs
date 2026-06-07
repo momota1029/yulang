@@ -1503,7 +1503,7 @@ fn run_infer_views(
                 options.runtime_phase_timings,
                 &diagnostic_source,
             );
-            match yulang_monomorphize::finalize_module(lowered.module) {
+            match finalize_runtime_module_with_cache(&source_set, options, lowered.module) {
                 Ok(output) => print_runtime_module(&output.module, options.verbose_ir),
                 Err(err) => {
                     eprintln!("runtime-finalize error: {err:?}");
@@ -1809,6 +1809,38 @@ fn lower_runtime_finalize_module_or_exit(
             lower_profile,
         },
     }
+}
+
+fn finalize_runtime_module_with_cache(
+    source_set: &SourceSet,
+    options: &CliOptions,
+    module: runtime_types::ir::LoweredModule,
+) -> yulang_monomorphize::MonomorphizeResult<yulang_monomorphize::MonomorphizeOutput> {
+    if options.no_cache {
+        return yulang_monomorphize::finalize_module(module);
+    }
+
+    let manifests = finalized_instance_cache_manifests(source_set);
+    if manifests.is_empty() {
+        return yulang_monomorphize::finalize_module(module);
+    }
+
+    let paths = yulang_sources::YulangCachePaths::for_project(workspace_root());
+    let artifact_cache = yulang_monomorphize::MonomorphizeInstanceArtifactCache::from_paths(&paths);
+    let mut cache = artifact_cache.read_cache_for_manifests(&manifests);
+    let result = yulang_monomorphize::finalize_module_with_cache(module, &mut cache);
+    let _ = artifact_cache.write_cache_for_manifests(&manifests, &cache);
+    result
+}
+
+fn finalized_instance_cache_manifests(
+    source_set: &SourceSet,
+) -> Vec<yulang_sources::CompiledUnitManifest> {
+    source_set
+        .compiled_unit_syntax_artifacts()
+        .into_iter()
+        .map(|artifact| artifact.manifest)
+        .collect()
 }
 
 fn lower_runtime_module_or_exit(
@@ -3101,58 +3133,11 @@ fn lower_infer_source_set_with_cache(
         mut pipeline_timings,
     } = prepared_cache.unwrap_or_else(|| prepare_infer_cache(source_set, options));
     if let Some(bundle) = bundle {
-        let import_start = pipeline_timings.start();
-        let (mut lowered, runtime_dependencies, import_profile) = match &bundle {
-            PreparedDependencyBundle::Full(bundle) => {
-                if pipeline_timings.enabled {
-                    let (lowered, import_profile) =
-                        lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile(
-                            source_set, bundle,
-                        );
-                    (lowered.lowered, Some(lowered.runtime), import_profile)
-                } else {
-                    let lowered =
-                        lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
-                            source_set, bundle,
-                        );
-                    (
-                        lowered.lowered,
-                        Some(lowered.runtime),
-                        CompiledUnitImportProfile::default(),
-                    )
-                }
-            }
-            PreparedDependencyBundle::Semantic(bundle) => {
-                if pipeline_timings.enabled {
-                    let (lowered, import_profile) =
-                        lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled_with_import_profile(
-                            source_set, bundle,
-                        );
-                    (lowered, None, import_profile)
-                } else {
-                    (
-                        lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
-                            source_set, bundle,
-                        ),
-                        None,
-                        CompiledUnitImportProfile::default(),
-                    )
-                }
-            }
-        };
-        pipeline_timings.std_artifact_import_profile = import_profile;
-        pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
-        let prepare_finalize_start = pipeline_timings.start();
-        lowered.lowered.state.finalize_compact_results_profiled();
-        pipeline_timings.std_artifact_prepare_finalize =
-            InferPipelineTimings::elapsed(prepare_finalize_start);
-        let mut profile = lowered.profile;
-        profile.collect = collect;
-        return infer_lower_output(
-            lowered.lowered,
+        return lower_infer_source_set_with_prepared_bundle(
+            source_set,
             fallback_diagnostic_source,
-            profile,
-            runtime_dependencies,
+            collect,
+            bundle,
             pipeline_timings,
         );
     }
@@ -3170,16 +3155,27 @@ fn lower_infer_source_set_with_cache(
     lowered.lowered.state.finalize_compact_results_profiled();
     pipeline_timings.std_artifact_prepare_finalize =
         InferPipelineTimings::elapsed(prepare_finalize_start);
-    if !options.no_cache
-        && compiled_unit_namespace_defs_are_finalized(source_set, &lowered.lowered.state)
-    {
-        write_dependency_unit_artifact_bundle(
+    let namespace_defs_finalized =
+        compiled_unit_namespace_defs_are_finalized(source_set, &lowered.lowered.state);
+    if should_write_dependency_cache(options, namespace_defs_finalized) {
+        let written_bundle = write_dependency_unit_artifact_bundle(
             source_set,
             &lowered.lowered.state,
             &cache,
-            false,
+            options.requests_runtime_pipeline(),
             &mut pipeline_timings,
         );
+        if options.requests_runtime_pipeline()
+            && let Some(PreparedDependencyBundle::Full(bundle)) = written_bundle
+        {
+            return lower_infer_source_set_with_prepared_bundle(
+                source_set,
+                fallback_diagnostic_source,
+                collect,
+                PreparedDependencyBundle::Full(bundle),
+                pipeline_timings,
+            );
+        }
     }
     let profile = lowered.profile;
     infer_lower_output(
@@ -3187,6 +3183,68 @@ fn lower_infer_source_set_with_cache(
         fallback_diagnostic_source,
         profile,
         None,
+        pipeline_timings,
+    )
+}
+
+fn lower_infer_source_set_with_prepared_bundle(
+    source_set: &SourceSet,
+    fallback_diagnostic_source: &str,
+    collect: Duration,
+    bundle: PreparedDependencyBundle,
+    mut pipeline_timings: InferPipelineTimings,
+) -> InferLowerOutput {
+    let import_start = pipeline_timings.start();
+    let (mut lowered, runtime_dependencies, import_profile) = match &bundle {
+        PreparedDependencyBundle::Full(bundle) => {
+            if pipeline_timings.enabled {
+                let (lowered, import_profile) =
+                    lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled_with_import_profile(
+                        source_set, bundle,
+                    );
+                (lowered.lowered, Some(lowered.runtime), import_profile)
+            } else {
+                let lowered = lower_source_set_with_trusted_compiled_unit_artifact_bundle_profiled(
+                    source_set, bundle,
+                );
+                (
+                    lowered.lowered,
+                    Some(lowered.runtime),
+                    CompiledUnitImportProfile::default(),
+                )
+            }
+        }
+        PreparedDependencyBundle::Semantic(bundle) => {
+            if pipeline_timings.enabled {
+                let (lowered, import_profile) =
+                    lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled_with_import_profile(
+                        source_set, bundle,
+                    );
+                (lowered, None, import_profile)
+            } else {
+                (
+                    lower_source_set_with_trusted_compiled_unit_semantic_artifact_bundle_profiled(
+                        source_set, bundle,
+                    ),
+                    None,
+                    CompiledUnitImportProfile::default(),
+                )
+            }
+        }
+    };
+    pipeline_timings.std_artifact_import_profile = import_profile;
+    pipeline_timings.std_artifact_import = InferPipelineTimings::elapsed(import_start);
+    let prepare_finalize_start = pipeline_timings.start();
+    lowered.lowered.state.finalize_compact_results_profiled();
+    pipeline_timings.std_artifact_prepare_finalize =
+        InferPipelineTimings::elapsed(prepare_finalize_start);
+    let mut profile = lowered.profile;
+    profile.collect = collect;
+    infer_lower_output(
+        lowered.lowered,
+        fallback_diagnostic_source,
+        profile,
+        runtime_dependencies,
         pipeline_timings,
     )
 }
@@ -3254,6 +3312,10 @@ fn can_use_dependency_cache_key_source_collection(options: &CliOptions) -> bool 
 
 fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
     can_use_yuir_source_cache(options)
+}
+
+fn should_write_dependency_cache(options: &CliOptions, namespace_defs_finalized: bool) -> bool {
+    !options.no_cache && (namespace_defs_finalized || options.requests_runtime_pipeline())
 }
 
 fn read_yuir_source_cache(
@@ -3493,7 +3555,7 @@ fn write_dependency_unit_artifact_bundle(
     cache: &CompiledUnitArtifactCache,
     needs_runtime_bundle: bool,
     timings: &mut InferPipelineTimings,
-) {
+) -> Option<PreparedDependencyBundle> {
     let build_start = timings.start();
     let (artifacts, bundle, semantic_bundle) = if needs_runtime_bundle {
         let artifacts = build_compiled_unit_artifacts(source_set, state)
@@ -3533,23 +3595,28 @@ fn write_dependency_unit_artifact_bundle(
             }
         }
     }
-    if let Some(bundle) = bundle {
+    if let Some(bundle) = &bundle {
         let write_start = timings.start();
-        let _ = cache.write_bundle(&bundle);
+        let _ = cache.write_bundle(bundle);
         timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
         if timings.enabled {
             timings.std_artifact_writes += 1;
             timings.incremental_cache_writes += 1;
         }
     }
-    if let Some(bundle) = semantic_bundle {
+    if let Some(bundle) = &semantic_bundle {
         let write_start = timings.start();
-        let _ = cache.write_semantic_bundle(&bundle);
+        let _ = cache.write_semantic_bundle(bundle);
         timings.std_artifact_write += InferPipelineTimings::elapsed(write_start);
         if timings.enabled {
             timings.std_artifact_writes += 1;
             timings.incremental_cache_writes += 1;
         }
+    }
+    match (bundle, semantic_bundle) {
+        (Some(bundle), _) => Some(PreparedDependencyBundle::Full(bundle)),
+        (None, Some(bundle)) => Some(PreparedDependencyBundle::Semantic(bundle)),
+        (None, None) => None,
     }
 }
 
@@ -6351,6 +6418,54 @@ mod tests {
     }
 
     #[test]
+    fn runtime_pipeline_writes_dependency_cache_even_when_namespace_defs_are_not_finalized() {
+        let mut options = test_cli_options();
+        options.infer = false;
+        options.runtime_finalize_ir = true;
+
+        assert!(should_write_dependency_cache(&options, false));
+    }
+
+    #[test]
+    fn semantic_pipeline_does_not_force_dependency_cache_write_for_unfinalized_namespace_defs() {
+        let options = test_cli_options();
+
+        assert!(!should_write_dependency_cache(&options, false));
+        assert!(should_write_dependency_cache(&options, true));
+    }
+
+    #[test]
+    fn no_cache_disables_dependency_cache_write() {
+        let mut options = test_cli_options();
+        options.infer = false;
+        options.runtime_finalize_ir = true;
+        options.no_cache = true;
+
+        assert!(!should_write_dependency_cache(&options, true));
+        assert!(!should_write_dependency_cache(&options, false));
+    }
+
+    #[test]
+    fn finalized_instance_cache_manifests_include_entry_unit() {
+        let source_set = yulang_sources::collect_virtual_source_files_with_options(
+            "my x = 1\n",
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source set");
+
+        let manifests = finalized_instance_cache_manifests(&source_set);
+
+        assert!(manifests.iter().any(|manifest| {
+            manifest.origin == yulang_sources::SourceCompilationUnitOrigin::Entry
+        }));
+    }
+
+    #[test]
     fn cacheable_dependency_manifests_cover_non_entry_band_sccs() {
         let source_set = test_realm_band_source_set();
         let manifests = cacheable_dependency_manifests(&source_set);
@@ -6468,6 +6583,28 @@ mod tests {
             semantic_timings.incremental_cache_unit_hits,
             manifests.len()
         );
+    }
+
+    #[test]
+    fn runtime_dependency_cache_write_returns_full_bundle_for_same_run_reuse() {
+        let source_set = test_realm_band_source_set();
+        let cache_root = temp_test_cache_root("runtime-cache-write-full-bundle");
+        let cache = CompiledUnitArtifactCache::new(&cache_root);
+        let mut lowered = lower_source_set(&source_set);
+        lowered.state.finalize_compact_results_profiled();
+        let mut timings = InferPipelineTimings::new(true);
+
+        let bundle = write_dependency_unit_artifact_bundle(
+            &source_set,
+            &lowered.state,
+            &cache,
+            true,
+            &mut timings,
+        );
+        let _ = std::fs::remove_dir_all(cache_root);
+
+        assert!(matches!(bundle, Some(PreparedDependencyBundle::Full(_))));
+        assert!(timings.incremental_cache_writes > 0);
     }
 
     #[test]
