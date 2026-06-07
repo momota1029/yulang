@@ -1,0 +1,11 @@
+[package]
+name = "yulang-elaborate"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Principal elaboration from erased inference output for Yulang"
+repository = "https://github.com/momota1029/yulang"
+readme = "../../README.md"
+
+[dependencies]
+yulang-erased-ir = { version = "0.1.0", path = "../yulang-erased-ir" }

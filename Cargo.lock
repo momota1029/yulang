@@ -2160,6 +2160,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang-elaborate"
+version = "0.1.0"
+dependencies = [
+ "yulang-erased-ir",
+]
+
+[[package]]
 name = "yulang-erased-ir"
 version = "0.1.0"
 dependencies = [
