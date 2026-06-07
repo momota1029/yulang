@@ -946,13 +946,26 @@ fn contextual_arg_refines_param(param: &typed_ir::Type, observed: &typed_ir::Typ
     matches!(
         param,
         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never
-    ) && !matches!(
-        observed,
+    ) && contextual_arg_has_runtime_head(observed)
+}
+
+fn contextual_arg_has_runtime_head(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Named { .. }
+        | typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record(_)
+        | typed_ir::Type::Variant(_) => true,
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            items.iter().any(contextual_arg_has_runtime_head)
+        }
+        typed_ir::Type::Recursive { body, .. } => contextual_arg_has_runtime_head(body),
         typed_ir::Type::Unknown
-            | typed_ir::Type::Any
-            | typed_ir::Type::Never
-            | typed_ir::Type::Var(_)
-    ) && super::core_type_is_closed(observed)
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Row { .. } => false,
+    }
 }
 
 fn solved_apply_result_type(
@@ -3167,6 +3180,46 @@ mod tests {
         assert_eq!(
             step.arg_type_and_effect(&local_types),
             (open_list, typed_ir::Type::Never)
+        );
+    }
+
+    #[test]
+    fn contextual_monomorphic_apply_refines_any_param_from_open_named_arg() {
+        let effect = typed_ir::TypeVar("e".to_string());
+        let ref_lines = typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("str".to_string()),
+                typed_ir::Name("ref_lines".to_string()),
+            ]),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(effect))],
+        };
+        let arg_name = typed_ir::Name("xs".to_string());
+        let arg_path = super::super::path_from_name(&arg_name);
+        let arg = Expr::typed(ExprKind::Var(arg_path.clone()), RuntimeType::Unknown);
+        let apply = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown);
+        let step = ApplyStep {
+            index: 0,
+            apply: &apply,
+            arg: &arg,
+            evidence: None,
+            instantiation: None,
+        };
+        let callee = RuntimeType::fun(
+            RuntimeType::value(typed_ir::Type::Any),
+            RuntimeType::value(typed_ir::Type::Never),
+        );
+        let local_types = HashMap::from([(arg_path, RuntimeType::value(ref_lines.clone()))]);
+
+        let refined =
+            contextual_monomorphic_callee_type(&callee, &[step], &local_types).expect("refined");
+
+        assert_eq!(
+            refined,
+            RuntimeType::fun(
+                RuntimeType::value(ref_lines),
+                RuntimeType::value(typed_ir::Type::Never),
+            )
         );
     }
 

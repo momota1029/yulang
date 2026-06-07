@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use super::super::lowerer::callee_lowering_expected;
+    use super::super::lowerer::{
+        callee_lowering_expected, expected_arg_bounds_runtime_type,
+        expected_callee_bounds_runtime_hir_type, merge_effect_op_runtime_type,
+    };
     use super::super::*;
 
     fn lower_core_program(program: typed_ir::CoreProgram) -> RuntimeResult<Module> {
@@ -683,6 +686,129 @@ mod tests {
                 RuntimeType::value(str_ty)
             )
         );
+    }
+
+    #[test]
+    pub(super) fn lower_effect_operation_keeps_signature_var_for_value_choice_expected() {
+        let payload = typed_ir::TypeVar("a".to_string());
+        let value_choice = typed_ir::Type::Inter(vec![named_type("char"), named_type("str")]);
+        let expected = RuntimeType::fun(
+            RuntimeType::value(value_choice.clone()),
+            RuntimeType::value(value_choice),
+        );
+        let sig = RuntimeType::fun(
+            RuntimeType::value(typed_ir::Type::Var(payload.clone())),
+            RuntimeType::value(typed_ir::Type::Var(payload.clone())),
+        );
+
+        let merged = merge_effect_op_runtime_type(&expected, &sig);
+
+        assert_eq!(
+            merged,
+            RuntimeType::fun(
+                RuntimeType::value(typed_ir::Type::Var(payload.clone())),
+                RuntimeType::value(typed_ir::Type::Var(payload))
+            )
+        );
+    }
+
+    #[test]
+    pub(super) fn expected_arg_evidence_uses_concrete_upper_for_value_choice_slots() {
+        let bounds = typed_ir::TypeBounds {
+            lower: Some(Box::new(typed_ir::Type::Tuple(vec![
+                named_type("file_handle"),
+                typed_ir::Type::Union(vec![named_type("char"), named_type("str")]),
+            ]))),
+            upper: Some(Box::new(typed_ir::Type::Tuple(vec![
+                named_type("file_handle"),
+                named_type("str"),
+            ]))),
+        };
+
+        let ty = expected_arg_bounds_runtime_type(&bounds, &BTreeSet::new()).expect("converted");
+
+        assert_eq!(
+            ty,
+            RuntimeType::value(typed_ir::Type::Tuple(vec![
+                named_type("file_handle"),
+                named_type("str"),
+            ]))
+        );
+    }
+
+    #[test]
+    pub(super) fn expected_callee_evidence_erases_value_choice_parameter_slots() {
+        let lower = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Tuple(vec![
+                named_type("file_handle"),
+                typed_ir::Type::Union(vec![named_type("char"), named_type("str")]),
+            ])),
+            param_effect: Box::new(typed_ir::Type::Row {
+                items: vec![named_type("ref_update")],
+                tail: Box::new(typed_ir::Type::Never),
+            }),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(unit_type()),
+        };
+        let upper = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Tuple(vec![
+                named_type("file_handle"),
+                typed_ir::Type::Inter(vec![named_type("char"), named_type("str")]),
+            ])),
+            param_effect: Box::new(typed_ir::Type::Row {
+                items: vec![named_type("ref_update")],
+                tail: Box::new(typed_ir::Type::Never),
+            }),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(unit_type()),
+        };
+        let bounds = typed_ir::TypeBounds {
+            lower: Some(Box::new(lower)),
+            upper: Some(Box::new(upper)),
+        };
+
+        let ty =
+            expected_callee_bounds_runtime_hir_type(&bounds, &BTreeSet::new()).expect("converted");
+
+        assert_eq!(
+            ty,
+            RuntimeType::fun(
+                RuntimeType::thunk(
+                    typed_ir::Type::Row {
+                        items: vec![named_type("ref_update")],
+                        tail: Box::new(typed_ir::Type::Never),
+                    },
+                    RuntimeType::value(typed_ir::Type::Tuple(vec![
+                        named_type("file_handle"),
+                        typed_ir::Type::Unknown,
+                    ])),
+                ),
+                RuntimeType::value(unit_type()),
+            )
+        );
+    }
+
+    #[test]
+    pub(super) fn runtime_type_params_keep_principal_value_vars_erased_from_body_hir() {
+        let container = typed_ir::TypeVar("container".to_string());
+        let item = typed_ir::TypeVar("item".to_string());
+        let principal = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Var(container.clone())),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(typed_ir::Type::Var(item.clone())),
+        };
+        let body_hir = RuntimeType::fun(
+            RuntimeType::value(typed_ir::Type::Var(container.clone())),
+            RuntimeType::thunk(
+                named_type("undet"),
+                RuntimeType::value(typed_ir::Type::Never),
+            ),
+        );
+
+        let params = principal_runtime_type_params(&principal, &body_hir, false);
+
+        assert_eq!(params, vec![container, item]);
     }
 
     #[test]

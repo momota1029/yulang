@@ -545,9 +545,9 @@ pub(super) fn principal_runtime_type_params(
             .into_iter()
             .collect::<BTreeSet<_>>()
     } else {
-        principal_core_type_params(core)
-            .into_iter()
-            .collect::<BTreeSet<_>>()
+        let mut vars = BTreeSet::new();
+        collect_core_value_type_vars(core, &mut vars);
+        vars
     };
     collect_hir_type_vars(hir, &mut vars);
     vars.retain(|var| !is_anonymous_type_var(var));
@@ -624,16 +624,6 @@ fn collect_type_arg_value_type_vars(
     }
 }
 
-pub(super) fn principal_core_type_params(ty: &typed_ir::Type) -> Vec<typed_ir::TypeVar> {
-    if !matches!(ty, typed_ir::Type::Fun { .. }) {
-        return Vec::new();
-    }
-    let mut vars = BTreeSet::new();
-    collect_core_variant_payload_type_vars(ty, &mut vars);
-    vars.retain(|var| !is_anonymous_type_var(var));
-    vars.into_iter().collect()
-}
-
 pub(super) fn principal_core_constructor_type_params(
     ty: &typed_ir::Type,
 ) -> Vec<typed_ir::TypeVar> {
@@ -641,56 +631,6 @@ pub(super) fn principal_core_constructor_type_params(
     collect_type_vars(ty, &mut vars);
     vars.retain(|var| !is_anonymous_type_var(var));
     vars.into_iter().collect()
-}
-
-fn collect_core_variant_payload_type_vars(
-    ty: &typed_ir::Type,
-    vars: &mut BTreeSet<typed_ir::TypeVar>,
-) {
-    match ty {
-        typed_ir::Type::Unknown
-        | typed_ir::Type::Never
-        | typed_ir::Type::Any
-        | typed_ir::Type::Var(_)
-        | typed_ir::Type::Named { .. }
-        | typed_ir::Type::Row { .. } => {}
-        typed_ir::Type::Fun { param, ret, .. } => {
-            collect_core_variant_payload_type_vars(param, vars);
-            collect_core_variant_payload_type_vars(ret, vars);
-        }
-        typed_ir::Type::Tuple(items)
-        | typed_ir::Type::Union(items)
-        | typed_ir::Type::Inter(items) => {
-            for item in items {
-                collect_core_variant_payload_type_vars(item, vars);
-            }
-        }
-        typed_ir::Type::Record(record) => {
-            for field in &record.fields {
-                collect_core_variant_payload_type_vars(&field.value, vars);
-            }
-            if let Some(spread) = &record.spread {
-                match spread {
-                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
-                        collect_core_variant_payload_type_vars(ty, vars);
-                    }
-                }
-            }
-        }
-        typed_ir::Type::Variant(variant) => {
-            for case in &variant.cases {
-                for payload in &case.payloads {
-                    collect_type_vars(payload, vars);
-                }
-            }
-            if let Some(tail) = &variant.tail {
-                collect_core_variant_payload_type_vars(tail, vars);
-            }
-        }
-        typed_ir::Type::Recursive { body, .. } => {
-            collect_core_variant_payload_type_vars(body, vars)
-        }
-    }
 }
 
 pub(super) fn refine_lambda_hir_type(expected: &RuntimeType, actual: &RuntimeType) -> RuntimeType {

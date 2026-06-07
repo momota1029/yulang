@@ -19,13 +19,12 @@ impl Lowerer<'_> {
         self.current_binding = old_binding;
         let body = body_result?;
         require_same_hir_type(&body_ty, &body.ty, TypeSource::BindingScheme)?;
-        let core_type_params = if body_is_constructor_variant {
-            principal_core_constructor_type_params(&binding.scheme.body)
-        } else {
-            principal_core_type_params(&binding.scheme.body)
-        };
-        let core_type_params_empty = core_type_params.is_empty();
-        let stored_ty = if core_type_params_empty {
+        let principal_type_params = principal_runtime_type_params(
+            &binding.scheme.body,
+            &body_ty,
+            body_is_constructor_variant,
+        );
+        let stored_ty = if principal_type_params.is_empty() {
             body.ty.clone()
         } else {
             body_ty.clone()
@@ -35,11 +34,7 @@ impl Lowerer<'_> {
             &stored_ty,
             body_is_constructor_variant,
         );
-        let type_params = if core_type_params_empty {
-            principal_hir_type_params(&stored_ty)
-        } else {
-            core_type_params
-        };
+        let type_params = runtime_type_params.clone();
         let mut scheme = binding.scheme;
         if alias_runtime_ty.is_some() || has_added_wildcard_thunk(&body_ty, &body.ty) {
             scheme.body = runtime_core_type(&body.ty);
@@ -368,7 +363,9 @@ impl Lowerer<'_> {
                 let evidence_expected_callee = evidence
                     .as_ref()
                     .and_then(|evidence| evidence.expected_callee.as_ref())
-                    .and_then(|bounds| self.tir_declared_runtime_hir_type(bounds));
+                    .and_then(|bounds| {
+                        expected_callee_bounds_runtime_hir_type(bounds, &self.principal_vars)
+                    });
                 let evidence_arg = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.arg))
@@ -2537,10 +2534,7 @@ impl Lowerer<'_> {
             return None;
         };
         self.expected_arg_evidence_profile.present += 1;
-        let Some(ty) = self
-            .tir_argument_runtime_type(bounds)
-            .map(RuntimeType::value)
-        else {
+        let Some(ty) = expected_arg_bounds_runtime_type(bounds, &self.principal_vars) else {
             self.expected_arg_evidence_profile.ignored_not_convertible += 1;
             return None;
         };
@@ -3337,6 +3331,242 @@ impl Lowerer<'_> {
     }
 }
 
+pub(super) fn expected_arg_bounds_runtime_type(
+    bounds: &typed_ir::TypeBounds,
+    principal_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> Option<RuntimeType> {
+    let ty = expected_arg_bounds_core_type(bounds)?;
+    Some(RuntimeType::value(project_runtime_hint_type_with_vars(
+        &ty,
+        principal_vars,
+    )))
+}
+
+pub(super) fn expected_callee_bounds_runtime_hir_type(
+    bounds: &typed_ir::TypeBounds,
+    principal_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> Option<RuntimeType> {
+    let ty = expected_arg_bounds_core_type(bounds)?;
+    Some(project_runtime_hir_type_with_vars(&ty, principal_vars))
+}
+
+fn expected_arg_bounds_core_type(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
+    let selected = choose_bounds_type(bounds, BoundsChoice::MonomorphicExpected)?;
+    if !core_type_contains_value_choice(&selected) {
+        return Some(selected);
+    }
+    Some(match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
+        (Some(lower), Some(upper)) => expected_arg_core_without_value_choices(lower, upper),
+        _ => erase_core_value_choices(&selected),
+    })
+}
+
+fn expected_arg_core_without_value_choices(
+    lower: &typed_ir::Type,
+    upper: &typed_ir::Type,
+) -> typed_ir::Type {
+    match lower {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => {
+            if !core_type_contains_value_choice(upper)
+                && !core_type_is_imprecise_runtime_slot(upper)
+            {
+                upper.clone()
+            } else {
+                typed_ir::Type::Unknown
+            }
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            if let typed_ir::Type::Fun {
+                param: upper_param,
+                ret: upper_ret,
+                ..
+            } = upper
+            {
+                typed_ir::Type::Fun {
+                    param: Box::new(expected_arg_core_without_value_choices(param, upper_param)),
+                    param_effect: param_effect.clone(),
+                    ret_effect: ret_effect.clone(),
+                    ret: Box::new(expected_arg_core_without_value_choices(ret, upper_ret)),
+                }
+            } else {
+                erase_core_value_choices(lower)
+            }
+        }
+        typed_ir::Type::Tuple(items) => {
+            if let typed_ir::Type::Tuple(upper_items) = upper
+                && items.len() == upper_items.len()
+            {
+                return typed_ir::Type::Tuple(
+                    items
+                        .iter()
+                        .zip(upper_items)
+                        .map(|(lower, upper)| expected_arg_core_without_value_choices(lower, upper))
+                        .collect(),
+                );
+            }
+            erase_core_value_choices(lower)
+        }
+        typed_ir::Type::Named { path, args } => {
+            if let typed_ir::Type::Named {
+                path: upper_path,
+                args: upper_args,
+            } = upper
+                && path == upper_path
+                && args.len() == upper_args.len()
+            {
+                return typed_ir::Type::Named {
+                    path: path.clone(),
+                    args: args
+                        .iter()
+                        .zip(upper_args)
+                        .map(|(lower, upper)| {
+                            expected_arg_type_arg_without_value_choices(lower, upper)
+                        })
+                        .collect(),
+                };
+            }
+            erase_core_value_choices(lower)
+        }
+        typed_ir::Type::Record(record) => {
+            if let typed_ir::Type::Record(upper_record) = upper {
+                return typed_ir::Type::Record(typed_ir::RecordType {
+                    fields: record
+                        .fields
+                        .iter()
+                        .map(|field| {
+                            let upper_field = upper_record
+                                .fields
+                                .iter()
+                                .find(|upper| upper.name == field.name);
+                            typed_ir::RecordField {
+                                name: field.name.clone(),
+                                value: upper_field.map_or_else(
+                                    || erase_core_value_choices(&field.value),
+                                    |upper| {
+                                        expected_arg_core_without_value_choices(
+                                            &field.value,
+                                            &upper.value,
+                                        )
+                                    },
+                                ),
+                                optional: field.optional,
+                            }
+                        })
+                        .collect(),
+                    spread: erase_record_spread_value_choices(record.spread.as_ref()),
+                });
+            }
+            erase_core_value_choices(lower)
+        }
+        typed_ir::Type::Variant(variant) => {
+            if let typed_ir::Type::Variant(upper_variant) = upper {
+                return typed_ir::Type::Variant(typed_ir::VariantType {
+                    cases: variant
+                        .cases
+                        .iter()
+                        .map(|case| {
+                            let upper_case = upper_variant
+                                .cases
+                                .iter()
+                                .find(|upper| upper.name == case.name);
+                            typed_ir::VariantCase {
+                                name: case.name.clone(),
+                                payloads: upper_case.map_or_else(
+                                    || case.payloads.iter().map(erase_core_value_choices).collect(),
+                                    |upper| {
+                                        case.payloads
+                                            .iter()
+                                            .zip(&upper.payloads)
+                                            .map(|(lower, upper)| {
+                                                expected_arg_core_without_value_choices(
+                                                    lower, upper,
+                                                )
+                                            })
+                                            .collect()
+                                    },
+                                ),
+                            }
+                        })
+                        .collect(),
+                    tail: variant
+                        .tail
+                        .as_ref()
+                        .map(|tail| Box::new(erase_core_value_choices(tail))),
+                });
+            }
+            erase_core_value_choices(lower)
+        }
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(expected_arg_core_without_value_choices(body, upper)),
+        },
+        typed_ir::Type::Row { .. }
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => lower.clone(),
+    }
+}
+
+fn expected_arg_type_arg_without_value_choices(
+    lower: &typed_ir::TypeArg,
+    upper: &typed_ir::TypeArg,
+) -> typed_ir::TypeArg {
+    match (lower, upper) {
+        (typed_ir::TypeArg::Type(lower), typed_ir::TypeArg::Type(upper)) => {
+            typed_ir::TypeArg::Type(expected_arg_core_without_value_choices(lower, upper))
+        }
+        (typed_ir::TypeArg::Bounds(lower), typed_ir::TypeArg::Bounds(upper)) => {
+            typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: lower.lower.as_ref().map(|lower_ty| {
+                    Box::new(match upper.lower.as_deref() {
+                        Some(upper_ty) => {
+                            expected_arg_core_without_value_choices(lower_ty, upper_ty)
+                        }
+                        None => erase_core_value_choices(lower_ty),
+                    })
+                }),
+                upper: lower.upper.as_ref().map(|lower_ty| {
+                    Box::new(match upper.upper.as_deref() {
+                        Some(upper_ty) => {
+                            expected_arg_core_without_value_choices(lower_ty, upper_ty)
+                        }
+                        None => erase_core_value_choices(lower_ty),
+                    })
+                }),
+            })
+        }
+        (typed_ir::TypeArg::Bounds(bounds), _) => {
+            typed_ir::TypeArg::Type(expected_arg_bounds_core_type(bounds).unwrap_or_else(|| {
+                bounds
+                    .lower
+                    .as_deref()
+                    .map(erase_core_value_choices)
+                    .unwrap_or(typed_ir::Type::Unknown)
+            }))
+        }
+        (typed_ir::TypeArg::Type(ty), _) => typed_ir::TypeArg::Type(erase_core_value_choices(ty)),
+    }
+}
+
+fn erase_record_spread_value_choices(
+    spread: Option<&typed_ir::RecordSpread>,
+) -> Option<typed_ir::RecordSpread> {
+    spread.map(|spread| match spread {
+        typed_ir::RecordSpread::Head(ty) => {
+            typed_ir::RecordSpread::Head(Box::new(erase_core_value_choices(ty)))
+        }
+        typed_ir::RecordSpread::Tail(ty) => {
+            typed_ir::RecordSpread::Tail(Box::new(erase_core_value_choices(ty)))
+        }
+    })
+}
+
 fn runtime_type_with_visible_value(base: RuntimeType, visible: typed_ir::Type) -> RuntimeType {
     match base {
         RuntimeType::Thunk { effect, .. } if should_thunk_effect(&effect) => {
@@ -3351,7 +3581,10 @@ fn runtime_type_with_visible_value(base: RuntimeType, visible: typed_ir::Type) -
 /// from the calling context but may have `Unknown` in payload positions; `sig`
 /// carries `Type::Var(..)` payloads but lacks effect info. Walk both in
 /// parallel and prefer the more concrete leaf at each position.
-fn merge_effect_op_runtime_type(expected: &RuntimeType, sig: &RuntimeType) -> RuntimeType {
+pub(super) fn merge_effect_op_runtime_type(
+    expected: &RuntimeType,
+    sig: &RuntimeType,
+) -> RuntimeType {
     match (expected, sig) {
         (RuntimeType::Unknown, other) | (other, RuntimeType::Unknown) => other.clone(),
         (
@@ -3399,6 +3632,9 @@ fn merge_effect_op_core(expected: &typed_ir::Type, sig: &typed_ir::Type) -> type
     match (expected, sig) {
         (typed_ir::Type::Unknown, other) | (other, typed_ir::Type::Unknown) => other.clone(),
         (typed_ir::Type::Var(_), other) => other.clone(),
+        (other, typed_ir::Type::Var(v)) if core_type_contains_value_choice(other) => {
+            typed_ir::Type::Var(v.clone())
+        }
         (other, typed_ir::Type::Var(v)) if !matches!(other, typed_ir::Type::Unknown) => {
             // Sig's Var is the operation's payload type variable; if expected
             // already has something more concrete (not Unknown), keep it.

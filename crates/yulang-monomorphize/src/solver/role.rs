@@ -44,7 +44,26 @@ pub(crate) fn role_required_apply_waiting_for_arguments(
         && spine
             .steps
             .iter()
-            .any(|step| !super::core_type_is_closed(&step.arg_type(local_types)))
+            .any(|step| !role_input_ready(&step.arg_type(local_types)))
+}
+
+fn role_input_ready(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Named { .. }
+        | typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record(_)
+        | typed_ir::Type::Variant(_) => true,
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            items.iter().any(role_input_ready)
+        }
+        typed_ir::Type::Recursive { body, .. } => role_input_ready(body),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Row { .. } => false,
+    }
 }
 
 pub(crate) fn close_role_associated_types(
@@ -167,7 +186,7 @@ fn solved_role_requirement_inputs(
         let bounds = materialize::materialize_type_bounds(bounds.clone(), principal_renames);
         let bounds = materialize::materialize_type_bounds(bounds, solution_substitutions);
         let ty = super::apply_spine::type_from_bounds(&bounds)?;
-        if !super::core_type_is_closed(&ty) {
+        if !role_input_ready(&ty) {
             return None;
         }
         inputs.push(ty);
@@ -1209,6 +1228,78 @@ mod tests {
     use super::*;
 
     use yulang_runtime_ir::{FinalizedModule as Module, Root};
+
+    #[test]
+    fn role_input_ready_accepts_open_named_receiver() {
+        let item = typed_ir::TypeVar("item".to_string());
+        let ref_lines = typed_ir::Type::Named {
+            path: path(&["std", "str", "ref_lines"]),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(item))],
+        };
+
+        assert!(role_input_ready(&ref_lines));
+        assert!(!role_input_ready(&typed_ir::Type::Any));
+        assert!(!role_input_ready(&typed_ir::Type::Var(typed_ir::TypeVar(
+            "a".to_string()
+        ))));
+    }
+
+    #[test]
+    fn role_requirement_inputs_accept_open_named_receiver() {
+        let container = typed_ir::TypeVar("container".to_string());
+        let fresh_container = typed_ir::TypeVar("container0".to_string());
+        let effect = typed_ir::TypeVar("effect".to_string());
+        let ref_lines = typed_ir::Type::Named {
+            path: path(&["std", "str", "ref_lines"]),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(effect.clone()))],
+        };
+        let requirement = typed_ir::RoleRequirement {
+            role: path(&["std", "fold", "Fold"]),
+            args: vec![typed_ir::RoleRequirementArg::Input(
+                typed_ir::TypeBounds::exact(typed_ir::Type::Var(container.clone())),
+            )],
+        };
+
+        let inputs = solved_role_requirement_inputs(
+            &requirement,
+            &[typed_ir::TypeSubstitution {
+                var: container,
+                ty: typed_ir::Type::Var(fresh_container.clone()),
+            }],
+            &[typed_ir::TypeSubstitution {
+                var: fresh_container,
+                ty: ref_lines.clone(),
+            }],
+        )
+        .expect("open named role input");
+
+        assert_eq!(inputs, vec![ref_lines]);
+    }
+
+    #[test]
+    fn role_impl_associated_type_projects_open_input_vars() {
+        let effect = typed_ir::TypeVar("effect".to_string());
+        let ref_lines_template = typed_ir::Type::Named {
+            path: path(&["std", "str", "ref_lines"]),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(effect.clone()))],
+        };
+        let ref_str = typed_ir::Type::Named {
+            path: path(&["std", "var", "ref"]),
+            args: vec![
+                typed_ir::TypeArg::Type(typed_ir::Type::Var(effect.clone())),
+                typed_ir::TypeArg::Type(named("std::str::str")),
+            ],
+        };
+
+        let projected = project_role_impl_associated_type(
+            &[typed_ir::TypeBounds::exact(ref_lines_template.clone())],
+            &[ref_lines_template],
+            &typed_ir::TypeBounds::exact(ref_str.clone()),
+        )
+        .expect("associated type projected from open input");
+
+        assert_eq!(projected, ref_str);
+    }
 
     #[test]
     fn role_rewrite_skips_polymorphic_template_bindings() {
