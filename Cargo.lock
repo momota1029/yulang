@@ -2332,6 +2332,7 @@ dependencies = [
  "unicode-segmentation",
  "yulang-infer",
  "yulang-monomorphize",
+ "yulang-pipeline",
  "yulang-runtime-ir",
  "yulang-runtime-lower",
  "yulang-runtime-pipeline",
