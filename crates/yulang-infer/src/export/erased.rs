@@ -14,7 +14,9 @@ use crate::symbols::{Name, Path};
 
 use super::names::path_key;
 use super::spine::{collect_apply_spine, strip_transparent_wrappers};
-use super::types::{export_frozen_scheme, export_scheme, export_type_bounds_for_tv};
+use super::types::{
+    export_compact_type_bounds, export_frozen_scheme, export_scheme, export_type_bounds_for_tv,
+};
 
 pub fn export_erased_program(state: &mut LowerState) -> erased::InferExport {
     state.refresh_selection_environment();
@@ -37,6 +39,7 @@ pub fn export_erased_program(state: &mut LowerState) -> erased::InferExport {
     let mut exporter = ErasedExporter::new(state, globals);
     let root_exprs = exporter.export_root_exprs();
     let bindings = exporter.export_bindings(&selected_paths);
+    exporter.export_typeclass_impl_candidates();
     let roots = (0..root_exprs.len())
         .map(erased::PrincipalRoot::Expr)
         .collect();
@@ -101,6 +104,127 @@ impl<'a> ErasedExporter<'a> {
             .into_iter()
             .filter_map(|(path, def)| self.export_binding(&path, def))
             .collect()
+    }
+
+    fn export_typeclass_impl_candidates(&mut self) {
+        let mut candidates = self
+            .state
+            .infer
+            .role_impl_candidates()
+            .into_iter()
+            .filter_map(|candidate| self.export_typeclass_impl_candidate(candidate))
+            .collect::<Vec<_>>();
+        candidates.sort_by(|lhs, rhs| {
+            erased_path_key(&lhs.class)
+                .cmp(&erased_path_key(&rhs.class))
+                .then_with(|| lhs.members.cmp(&rhs.members))
+        });
+        self.refs.typeclass_impl_candidates = candidates;
+    }
+
+    fn export_typeclass_impl_candidate(
+        &self,
+        candidate: crate::solve::RoleImplCandidate,
+    ) -> Option<erased::TypeClassImplCandidate> {
+        let role_infos = self.state.infer.role_arg_infos_of(&candidate.role);
+        let methods = self
+            .state
+            .infer
+            .role_method_infos_of(&candidate.role)
+            .into_iter()
+            .filter_map(|info| {
+                candidate
+                    .member_defs
+                    .get(&info.name)
+                    .copied()
+                    .or_else(|| info.has_default_body.then_some(info.def))
+                    .map(|impl_member| erased::TypeClassImplMember {
+                        member: export_def_id(info.def),
+                        impl_member: export_def_id(impl_member),
+                    })
+            })
+            .collect::<Vec<_>>();
+        if methods.is_empty() {
+            return None;
+        }
+
+        let args = if role_infos.is_empty() {
+            candidate
+                .compact_args
+                .iter()
+                .map(|arg| {
+                    erased::RoleRequirementArg::Input(convert_type_bounds(
+                        export_compact_type_bounds(arg),
+                    ))
+                })
+                .collect()
+        } else {
+            role_infos
+                .iter()
+                .zip(candidate.compact_args.iter())
+                .map(|(info, arg)| {
+                    let bounds = convert_type_bounds(export_compact_type_bounds(arg));
+                    if info.is_input {
+                        erased::RoleRequirementArg::Input(bounds)
+                    } else {
+                        erased::RoleRequirementArg::Associated {
+                            name: erased::Name(info.name.clone()),
+                            bounds,
+                        }
+                    }
+                })
+                .collect()
+        };
+        let prerequisites = candidate
+            .prerequisites
+            .iter()
+            .map(|constraint| self.export_typeclass_prerequisite(constraint))
+            .collect();
+
+        Some(erased::TypeClassImplCandidate {
+            class: export_path(&candidate.role),
+            args,
+            prerequisites,
+            members: methods,
+        })
+    }
+
+    fn export_typeclass_prerequisite(
+        &self,
+        constraint: &crate::simplify::cooccur::CompactRoleConstraint,
+    ) -> erased::RoleRequirement {
+        let role_infos = self.state.infer.role_arg_infos_of(&constraint.role);
+        let args = if role_infos.is_empty() {
+            constraint
+                .args
+                .iter()
+                .map(|arg| {
+                    erased::RoleRequirementArg::Input(convert_type_bounds(
+                        export_compact_type_bounds(arg.lower()),
+                    ))
+                })
+                .collect()
+        } else {
+            role_infos
+                .iter()
+                .zip(constraint.args.iter())
+                .map(|(info, arg)| {
+                    let bounds = convert_type_bounds(export_compact_type_bounds(arg.lower()));
+                    if info.is_input {
+                        erased::RoleRequirementArg::Input(bounds)
+                    } else {
+                        erased::RoleRequirementArg::Associated {
+                            name: erased::Name(info.name.clone()),
+                            bounds,
+                        }
+                    }
+                })
+                .collect()
+        };
+        erased::RoleRequirement {
+            role: export_path(&constraint.role),
+            args,
+        }
     }
 
     fn export_binding(&mut self, path: &Path, def: DefId) -> Option<erased::InferredBinding> {
@@ -798,6 +922,14 @@ fn export_path(path: &Path) -> erased::Path {
     }
 }
 
+fn erased_path_key(path: &erased::Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
 fn export_def_id(def: DefId) -> erased::DefId {
     erased::DefId(def.0)
 }
@@ -1394,6 +1526,50 @@ my shown: string = 1.index true\n",
             !exported.refs.direct.contains_key(resolved_ref.0),
             "resolved typeclass ref should not be folded into direct refs",
         );
+    }
+
+    #[test]
+    fn erased_export_records_role_impl_candidates() {
+        let mut state = parse_and_lower(
+            "role Display 'a:\n  our a.display: string\n\n\
+impl Display int:\n  our x.display = \"int\"\n",
+        );
+        let display_def = state
+            .ctx
+            .resolve_path_value(&Path {
+                segments: vec![Name("Display".to_string()), Name("display".to_string())],
+            })
+            .expect("Display.display member");
+        let exported = export_erased_program(&mut state).erased;
+        let candidate = exported
+            .refs
+            .typeclass_impl_candidates
+            .iter()
+            .find(|candidate| {
+                candidate
+                    .class
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "Display")
+            })
+            .expect("Display impl candidate");
+
+        assert!(candidate.args.iter().any(|arg| matches!(
+            arg,
+            erased::RoleRequirementArg::Input(bounds)
+                if matches!(
+                    (&bounds.lower, &bounds.upper),
+                    (Some(lower), Some(upper))
+                        if matches!((&**lower, &**upper), (
+                            erased::Type::Named { path: lower_path, .. },
+                            erased::Type::Named { path: upper_path, .. },
+                        ) if lower_path.segments.last().is_some_and(|name| name.0 == "int")
+                            && upper_path.segments.last().is_some_and(|name| name.0 == "int"))
+                )
+        )));
+        assert!(candidate.members.iter().any(|member| {
+            member.member == export_def_id(display_def) && member.impl_member != member.member
+        }));
     }
 
     #[test]

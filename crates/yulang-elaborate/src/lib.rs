@@ -14,8 +14,8 @@ mod draft;
 
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferExport, InferredBinding, InferredExpr, Name, Path, PrincipalRoot,
-    RefCoverageReport, RefExportTable, RefId, ResolvedTypeClassRef, Scheme, Type, TypeBounds,
-    TypeClassObligation,
+    RefCoverageReport, RefExportTable, RefId, ResolvedTypeClassRef, RoleRequirementArg, Scheme,
+    Type, TypeBounds, TypeClassImplCandidate, TypeClassObligation,
 };
 
 pub use constraints::ConstraintError;
@@ -187,6 +187,19 @@ pub enum ElaborateProgramError {
         instance: MonoInstanceId,
         ref_id: RefId,
     },
+    MissingTypeclassImpl {
+        obligation: TypeClassObligation,
+    },
+    AmbiguousTypeclassImpl {
+        obligation: TypeClassObligation,
+        candidates: usize,
+    },
+    MissingTypeclassImplMember {
+        obligation: TypeClassObligation,
+    },
+    UnsupportedTypeclassImplPrerequisites {
+        obligation: TypeClassObligation,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -298,6 +311,10 @@ impl<'a> ProgramBuilder<'a> {
                 instance,
                 &expr.ir,
                 &body.resolved_typeclass_instances,
+            )?;
+            self.resolve_typeclass_obligation_refs_for_instance(
+                instance,
+                &body.typeclass_obligation_instances,
             )?;
             root_exprs.push(body.expr);
         }
@@ -428,6 +445,10 @@ impl<'a> ProgramBuilder<'a> {
             &binding.body.ir,
             &body.resolved_typeclass_instances,
         )?;
+        self.resolve_typeclass_obligation_refs_for_instance(
+            instance,
+            &body.typeclass_obligation_instances,
+        )?;
         Ok(instance)
     }
 
@@ -515,6 +536,398 @@ impl<'a> ProgramBuilder<'a> {
         }
         Ok(())
     }
+
+    fn resolve_typeclass_obligation_refs_for_instance(
+        &mut self,
+        instance: MonoInstanceId,
+        typeclass_obligation_instances: &BTreeMap<
+            RefId,
+            constraints::TypeclassObligationInstanceDemand,
+        >,
+    ) -> Result<(), ElaborateProgramError> {
+        for (ref_id, demand) in typeclass_obligation_instances {
+            let resolved = self.resolve_typeclass_obligation(&demand.obligation)?;
+            let target = self.ensure_def_instance_with_signature(
+                resolved.impl_member,
+                demand.signature.clone(),
+            )?;
+            self.refs.entries.insert(
+                ResolvedRefKey {
+                    instance,
+                    ref_id: *ref_id,
+                },
+                ResolvedRef {
+                    target,
+                    source: ResolvedRefSource::ElaboratedTypeclass { resolved },
+                },
+            );
+        }
+        Ok(())
+    }
+
+    fn resolve_typeclass_obligation(
+        &self,
+        obligation: &TypeClassObligation,
+    ) -> Result<ResolvedTypeClassRef, ElaborateProgramError> {
+        let role_matches = self
+            .export
+            .erased
+            .refs
+            .typeclass_impl_candidates
+            .iter()
+            .filter(|candidate| candidate.class == obligation.class)
+            .filter(|candidate| typeclass_candidate_matches(candidate, obligation))
+            .collect::<Vec<_>>();
+        let matches = select_most_specific_typeclass_candidates(role_matches);
+        let [candidate] = matches.as_slice() else {
+            return if matches.is_empty() {
+                Err(ElaborateProgramError::MissingTypeclassImpl {
+                    obligation: obligation.clone(),
+                })
+            } else {
+                Err(ElaborateProgramError::AmbiguousTypeclassImpl {
+                    obligation: obligation.clone(),
+                    candidates: matches.len(),
+                })
+            };
+        };
+        if !candidate.prerequisites.is_empty() {
+            return Err(
+                ElaborateProgramError::UnsupportedTypeclassImplPrerequisites {
+                    obligation: obligation.clone(),
+                },
+            );
+        }
+        let Some(member) = candidate
+            .members
+            .iter()
+            .find(|member| member.member == obligation.member)
+        else {
+            return Err(ElaborateProgramError::MissingTypeclassImplMember {
+                obligation: obligation.clone(),
+            });
+        };
+        Ok(ResolvedTypeClassRef {
+            class: obligation.class.clone(),
+            member: obligation.member,
+            impl_def: None,
+            impl_member: member.impl_member,
+        })
+    }
+}
+
+fn typeclass_candidate_matches(
+    candidate: &TypeClassImplCandidate,
+    obligation: &TypeClassObligation,
+) -> bool {
+    let mut matcher = TypePatternMatcher::default();
+    let mut input_index = 0;
+    for arg in &candidate.args {
+        match arg {
+            RoleRequirementArg::Input(bounds) => {
+                let Some(actual) = obligation.args.get(input_index) else {
+                    return false;
+                };
+                input_index += 1;
+                if !matcher.match_bounds_to_exact_type(bounds, actual) {
+                    return false;
+                }
+            }
+            RoleRequirementArg::Associated { name, bounds } => {
+                let Some(actual) = obligation
+                    .associated
+                    .iter()
+                    .find(|associated| associated.name == *name)
+                else {
+                    return false;
+                };
+                if !matcher.match_bounds(bounds, &actual.bounds) {
+                    return false;
+                }
+            }
+        }
+    }
+    input_index == obligation.args.len()
+}
+
+fn select_most_specific_typeclass_candidates(
+    candidates: Vec<&TypeClassImplCandidate>,
+) -> Vec<&TypeClassImplCandidate> {
+    candidates
+        .iter()
+        .copied()
+        .filter(|candidate| {
+            !candidates.iter().copied().any(|other| {
+                !std::ptr::eq(*candidate, other)
+                    && typeclass_candidate_is_more_specific(other, candidate)
+            })
+        })
+        .collect()
+}
+
+fn typeclass_candidate_is_more_specific(
+    lhs: &TypeClassImplCandidate,
+    rhs: &TypeClassImplCandidate,
+) -> bool {
+    typeclass_candidate_input_pattern_matches(rhs, lhs)
+        && !typeclass_candidate_input_pattern_matches(lhs, rhs)
+}
+
+fn typeclass_candidate_input_pattern_matches(
+    pattern_candidate: &TypeClassImplCandidate,
+    concrete_candidate: &TypeClassImplCandidate,
+) -> bool {
+    let pattern_inputs = candidate_input_bounds(pattern_candidate);
+    let concrete_inputs = candidate_input_bounds(concrete_candidate);
+    pattern_inputs.len() == concrete_inputs.len() && {
+        let mut matcher = TypePatternMatcher::default();
+        pattern_inputs
+            .iter()
+            .zip(concrete_inputs.iter())
+            .all(|(pattern, concrete)| matcher.match_bounds(pattern, concrete))
+    }
+}
+
+fn candidate_input_bounds(candidate: &TypeClassImplCandidate) -> Vec<&TypeBounds> {
+    candidate
+        .args
+        .iter()
+        .filter_map(|arg| match arg {
+            RoleRequirementArg::Input(bounds) => Some(bounds),
+            RoleRequirementArg::Associated { .. } => None,
+        })
+        .collect()
+}
+
+#[derive(Default)]
+struct TypePatternMatcher {
+    assignments: BTreeMap<yulang_erased_ir::TypeVar, Type>,
+}
+
+impl TypePatternMatcher {
+    fn match_bounds_to_exact_type(&mut self, pattern: &TypeBounds, actual: &Type) -> bool {
+        let actual = TypeBounds {
+            lower: Some(Box::new(actual.clone())),
+            upper: Some(Box::new(actual.clone())),
+        };
+        self.match_bounds(pattern, &actual)
+    }
+
+    fn match_bounds(&mut self, pattern: &TypeBounds, actual: &TypeBounds) -> bool {
+        match (&pattern.lower, &actual.lower) {
+            (Some(pattern), Some(actual)) if !self.match_type(pattern, actual) => return false,
+            (None, None) | (Some(_), Some(_)) => {}
+            _ => return false,
+        }
+        match (&pattern.upper, &actual.upper) {
+            (Some(pattern), Some(actual)) if !self.match_type(pattern, actual) => return false,
+            (None, None) | (Some(_), Some(_)) => {}
+            _ => return false,
+        }
+        true
+    }
+
+    fn match_type(&mut self, pattern: &Type, actual: &Type) -> bool {
+        match pattern {
+            Type::Var(var) => self.assign(var.clone(), actual.clone()),
+            Type::Named { path, args } => {
+                let Type::Named {
+                    path: actual_path,
+                    args: actual_args,
+                } = actual
+                else {
+                    return false;
+                };
+                path == actual_path
+                    && args.len() == actual_args.len()
+                    && args
+                        .iter()
+                        .zip(actual_args)
+                        .all(|(pattern, actual)| self.match_type_arg(pattern, actual))
+            }
+            Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => {
+                let Type::Fun {
+                    param: actual_param,
+                    param_effect: actual_param_effect,
+                    ret_effect: actual_ret_effect,
+                    ret: actual_ret,
+                } = actual
+                else {
+                    return false;
+                };
+                self.match_type(param, actual_param)
+                    && self.match_type(param_effect, actual_param_effect)
+                    && self.match_type(ret_effect, actual_ret_effect)
+                    && self.match_type(ret, actual_ret)
+            }
+            Type::Tuple(items) => {
+                let Type::Tuple(actual_items) = actual else {
+                    return false;
+                };
+                items.len() == actual_items.len()
+                    && items
+                        .iter()
+                        .zip(actual_items)
+                        .all(|(pattern, actual)| self.match_type(pattern, actual))
+            }
+            Type::Record(record) => {
+                let Type::Record(actual_record) = actual else {
+                    return false;
+                };
+                record.fields.len() == actual_record.fields.len()
+                    && record.spread.is_none() == actual_record.spread.is_none()
+                    && record
+                        .fields
+                        .iter()
+                        .zip(&actual_record.fields)
+                        .all(|(pattern, actual)| {
+                            pattern.name == actual.name
+                                && pattern.optional == actual.optional
+                                && self.match_type(&pattern.value, &actual.value)
+                        })
+                    && match (&record.spread, &actual_record.spread) {
+                        (Some(pattern), Some(actual)) => self.match_record_spread(pattern, actual),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            Type::Variant(variant) => {
+                let Type::Variant(actual_variant) = actual else {
+                    return false;
+                };
+                variant.cases.len() == actual_variant.cases.len()
+                    && variant.tail.is_none() == actual_variant.tail.is_none()
+                    && variant
+                        .cases
+                        .iter()
+                        .zip(&actual_variant.cases)
+                        .all(|(pattern, actual)| {
+                            pattern.name == actual.name
+                                && pattern.payloads.len() == actual.payloads.len()
+                                && pattern
+                                    .payloads
+                                    .iter()
+                                    .zip(&actual.payloads)
+                                    .all(|(pattern, actual)| self.match_type(pattern, actual))
+                        })
+                    && match (&variant.tail, &actual_variant.tail) {
+                        (Some(pattern), Some(actual)) => self.match_type(pattern, actual),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            Type::Row { items, tail } => {
+                let Type::Row {
+                    items: actual_items,
+                    tail: actual_tail,
+                } = actual
+                else {
+                    return false;
+                };
+                items.len() == actual_items.len()
+                    && items
+                        .iter()
+                        .zip(actual_items)
+                        .all(|(pattern, actual)| self.match_type(pattern, actual))
+                    && self.match_type(tail, actual_tail)
+            }
+            Type::Union(items) => self.match_variadic_type(items, actual, TypeVariant::Union),
+            Type::Inter(items) => self.match_variadic_type(items, actual, TypeVariant::Inter),
+            Type::Recursive { var, body } => {
+                let Type::Recursive {
+                    var: actual_var,
+                    body: actual_body,
+                } = actual
+                else {
+                    return false;
+                };
+                var == actual_var
+                    && self.without_var(var, |this| this.match_type(body, actual_body))
+            }
+            Type::Unknown | Type::Never | Type::Any => pattern == actual,
+        }
+    }
+
+    fn match_type_arg(
+        &mut self,
+        pattern: &yulang_erased_ir::TypeArg,
+        actual: &yulang_erased_ir::TypeArg,
+    ) -> bool {
+        match (pattern, actual) {
+            (yulang_erased_ir::TypeArg::Type(pattern), yulang_erased_ir::TypeArg::Type(actual)) => {
+                self.match_type(pattern, actual)
+            }
+            (
+                yulang_erased_ir::TypeArg::Bounds(pattern),
+                yulang_erased_ir::TypeArg::Bounds(actual),
+            ) => self.match_bounds(pattern, actual),
+            _ => false,
+        }
+    }
+
+    fn match_record_spread(
+        &mut self,
+        pattern: &yulang_erased_ir::RecordSpread,
+        actual: &yulang_erased_ir::RecordSpread,
+    ) -> bool {
+        match (pattern, actual) {
+            (
+                yulang_erased_ir::RecordSpread::Head(pattern),
+                yulang_erased_ir::RecordSpread::Head(actual),
+            )
+            | (
+                yulang_erased_ir::RecordSpread::Tail(pattern),
+                yulang_erased_ir::RecordSpread::Tail(actual),
+            ) => self.match_type(pattern, actual),
+            _ => false,
+        }
+    }
+
+    fn match_variadic_type(&mut self, items: &[Type], actual: &Type, variant: TypeVariant) -> bool {
+        let actual_items = match (variant, actual) {
+            (TypeVariant::Union, Type::Union(items)) | (TypeVariant::Inter, Type::Inter(items)) => {
+                items
+            }
+            _ => return false,
+        };
+        items.len() == actual_items.len()
+            && items
+                .iter()
+                .zip(actual_items)
+                .all(|(pattern, actual)| self.match_type(pattern, actual))
+    }
+
+    fn assign(&mut self, var: yulang_erased_ir::TypeVar, actual: Type) -> bool {
+        if let Some(existing) = self.assignments.get(&var) {
+            return existing == &actual;
+        }
+        self.assignments.insert(var, actual);
+        true
+    }
+
+    fn without_var(
+        &mut self,
+        var: &yulang_erased_ir::TypeVar,
+        f: impl FnOnce(&mut Self) -> bool,
+    ) -> bool {
+        let old = self.assignments.remove(var);
+        let matched = f(self);
+        if let Some(old) = old {
+            self.assignments.insert(var.clone(), old);
+        }
+        matched
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TypeVariant {
+    Union,
+    Inter,
 }
 
 struct SpecializedInstance {
@@ -527,6 +940,7 @@ struct ElaboratedBody {
     expr: ElaboratedExpr,
     direct_ref_instances: BTreeMap<RefId, constraints::DirectRefInstanceDemand>,
     resolved_typeclass_instances: BTreeMap<RefId, constraints::ResolvedTypeclassInstanceDemand>,
+    typeclass_obligation_instances: BTreeMap<RefId, constraints::TypeclassObligationInstanceDemand>,
 }
 
 fn elaborate_root_expr(
@@ -545,6 +959,7 @@ fn elaborate_root_expr(
         expr,
         direct_ref_instances: solution.direct_ref_instances().clone(),
         resolved_typeclass_instances: solution.resolved_typeclass_instances().clone(),
+        typeclass_obligation_instances: BTreeMap::new(),
     })
 }
 
@@ -556,14 +971,20 @@ fn elaborate_binding_expr_with_signature(
 ) -> Result<ElaboratedBody, ElaborateProgramError> {
     let site = ElaborateSite::Binding(def);
     let draft = draft::ElaborationDraft::from_root_expr(0, &binding.body.ir);
-    let solution = constraints::ConstraintSet::seed_root(&draft, signature)
+    let solution = constraints::ConstraintSet::seed_root(&draft, signature.clone())
         .solve(&draft, &binding.body.ir, env)
         .map_err(ElaborateProgramError::Constraint)?;
     let expr = elaborate_expr(site, &draft, draft.root, &binding.body.ir, &solution)?;
+    let typeclass_obligation_instances = constraints::instantiate_typeclass_obligation_instances(
+        &binding.scheme,
+        &signature,
+        solution.typeclass_obligation_instances(),
+    );
     Ok(ElaboratedBody {
         expr,
         direct_ref_instances: solution.direct_ref_instances().clone(),
         resolved_typeclass_instances: solution.resolved_typeclass_instances().clone(),
+        typeclass_obligation_instances,
     })
 }
 
@@ -2482,6 +2903,51 @@ impl Display int:\n  our x.display = \"int\"\n\n\
                     .last()
                     .is_some_and(|name| name.0 == "Display")
         )));
+    }
+
+    #[test]
+    fn elaborate_program_resolves_actual_elaborated_typeclass_obligation() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "role Display 'a:\n  our a.display: string\n\n\
+impl Display int:\n  our x.display = \"int\"\n\n\
+my show x = x.display\n\
+show 1\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("elaborate-resolved typeclass obligation should elaborate");
+
+        let (target, impl_member) = program
+            .refs
+            .entries
+            .values()
+            .find_map(|entry| match &entry.source {
+                elaborated_ir::ResolvedRefSource::ElaboratedTypeclass { resolved }
+                    if resolved
+                        .class
+                        .segments
+                        .last()
+                        .is_some_and(|name| name.0 == "Display") =>
+                {
+                    Some((entry.target, resolved.impl_member))
+                }
+                _ => None,
+            })
+            .expect("Display obligation should resolve during elaboration");
+
+        assert!(program.module.instances.iter().any(|instance| {
+            instance.id == target
+                && matches!(
+                    instance.source,
+                    elaborated_ir::DemandSource::Def(def) if def == impl_member
+                )
+        }));
     }
 
     #[test]

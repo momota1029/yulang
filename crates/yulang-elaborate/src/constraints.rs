@@ -8,7 +8,7 @@ use yulang_elaborated_ir::{
 };
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferredBinding, Lit, Name, Path, RefExportTable, RefId,
-    ResolvedTypeClassRef, Scheme, Type, TypeVar,
+    ResolvedTypeClassRef, Scheme, Type, TypeClassObligation, TypeVar,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,16 +54,23 @@ impl ConstraintSet {
 pub(crate) struct ConstraintEnvironment<'a> {
     refs: &'a RefExportTable,
     schemes: BTreeMap<DefId, &'a Scheme>,
+    typeclass_obligations: BTreeMap<RefId, &'a TypeClassObligation>,
 }
 
 impl<'a> ConstraintEnvironment<'a> {
     pub(crate) fn new(refs: &'a RefExportTable, bindings: &'a [InferredBinding]) -> Self {
+        let typeclass_obligations = bindings
+            .iter()
+            .flat_map(|binding| binding.scheme.typeclass_obligations.iter())
+            .map(|obligation| (obligation.ref_id, obligation))
+            .collect();
         Self {
             refs,
             schemes: bindings
                 .iter()
                 .map(|binding| (binding.def, &binding.scheme))
                 .collect(),
+            typeclass_obligations,
         }
     }
 
@@ -80,6 +87,10 @@ impl<'a> ConstraintEnvironment<'a> {
         let resolved = self.refs.resolved_typeclass.get(&ref_id)?;
         let scheme = *self.schemes.get(&resolved.impl_member)?;
         Some((resolved, scheme))
+    }
+
+    pub(crate) fn typeclass_obligation(&self, ref_id: RefId) -> Option<&'a TypeClassObligation> {
+        self.typeclass_obligations.get(&ref_id).copied()
     }
 }
 
@@ -100,6 +111,7 @@ pub(crate) struct ComputationSolution {
     computations: BTreeMap<DraftComputationId, MonoComputation>,
     direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
     resolved_typeclass_instances: BTreeMap<RefId, ResolvedTypeclassInstanceDemand>,
+    typeclass_obligation_instances: BTreeMap<RefId, TypeclassObligationInstanceDemand>,
 }
 
 impl ComputationSolution {
@@ -123,6 +135,12 @@ impl ComputationSolution {
     ) -> &BTreeMap<RefId, ResolvedTypeclassInstanceDemand> {
         &self.resolved_typeclass_instances
     }
+
+    pub(crate) fn typeclass_obligation_instances(
+        &self,
+    ) -> &BTreeMap<RefId, TypeclassObligationInstanceDemand> {
+        &self.typeclass_obligation_instances
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +152,12 @@ pub(crate) struct DirectRefInstanceDemand {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ResolvedTypeclassInstanceDemand {
     pub(crate) resolved: ResolvedTypeClassRef,
+    pub(crate) signature: MonoComputation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TypeclassObligationInstanceDemand {
+    pub(crate) obligation: TypeClassObligation,
     pub(crate) signature: MonoComputation,
 }
 
@@ -276,8 +300,10 @@ struct ConstraintSolver {
     subtype_edges: BTreeSet<(TypeNode, TypeNode)>,
     type_var_defaults: BTreeMap<TypeVar, UnboundedTypeDefault>,
     next_type_var: u32,
+    local_def_computations: Vec<BTreeMap<DefId, MonoComputation>>,
     direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
     resolved_typeclass_instances: BTreeMap<RefId, ResolvedTypeclassInstanceDemand>,
+    typeclass_obligation_instances: BTreeMap<RefId, TypeclassObligationInstanceDemand>,
 }
 
 impl ConstraintSolver {
@@ -289,8 +315,10 @@ impl ConstraintSolver {
             subtype_edges: BTreeSet::new(),
             type_var_defaults: BTreeMap::new(),
             next_type_var: 0,
+            local_def_computations: Vec::new(),
             direct_ref_instances: BTreeMap::new(),
             resolved_typeclass_instances: BTreeMap::new(),
+            typeclass_obligation_instances: BTreeMap::new(),
         };
         for seed in set.computation_seeds {
             solver.assign(seed.slot, seed.computation)?;
@@ -313,6 +341,7 @@ impl ConstraintSolver {
             computations,
             direct_ref_instances: self.direct_ref_instances,
             resolved_typeclass_instances: self.resolved_typeclass_instances,
+            typeclass_obligation_instances: self.typeclass_obligation_instances,
         })
     }
 
@@ -325,7 +354,7 @@ impl ConstraintSolver {
     ) -> Result<(), ConstraintError> {
         match expr {
             ErasedExpr::Apply { callee, arg } => self.solve_apply(draft, id, callee, arg, env),
-            ErasedExpr::Lambda { body, .. } => self.solve_lambda(draft, id, body, env),
+            ErasedExpr::Lambda { param, body } => self.solve_lambda(draft, id, *param, body, env),
             ErasedExpr::Tuple(items) => self.solve_tuple(draft, id, items, env),
             ErasedExpr::Record { fields, spread } => {
                 self.solve_record(draft, id, fields, spread.as_ref(), env)
@@ -337,7 +366,8 @@ impl ConstraintSolver {
             ErasedExpr::BindHere { expr } => self.solve_bind_here(draft, id, expr, env),
             ErasedExpr::Pack { expr, .. } => self.solve_pack(draft, id, expr, env),
             ErasedExpr::Ref(ref_id) => self.solve_ref(draft, id, *ref_id, env),
-            ErasedExpr::Def(_) | ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => self
+            ErasedExpr::Def(def) => self.solve_def(draft, id, *def),
+            ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => self
                 .require_assigned(draft.expr(id).computation)
                 .map(|_| ()),
             _ => Ok(()),
@@ -374,8 +404,35 @@ impl ConstraintSolver {
                     def: resolved.impl_member,
                 });
             }
+        } else if let Some(obligation) = env.typeclass_obligation(ref_id) {
+            self.typeclass_obligation_instances.insert(
+                ref_id,
+                TypeclassObligationInstanceDemand {
+                    obligation: obligation.clone(),
+                    signature: computation,
+                },
+            );
         }
         Ok(())
+    }
+
+    fn solve_def(
+        &mut self,
+        draft: &ElaborationDraft,
+        id: DraftExprId,
+        def: DefId,
+    ) -> Result<(), ConstraintError> {
+        let slot = draft.expr(id).computation;
+        if self.explicit_computations.contains_key(&slot)
+            || self.bounds.contains_key(&TypeNode::value(slot))
+            || self.bounds.contains_key(&TypeNode::effect(slot))
+        {
+            self.require_assigned(slot).map(|_| ())
+        } else if let Some(computation) = self.local_def_computation(def) {
+            self.assign(slot, computation)
+        } else {
+            self.require_assigned(slot).map(|_| ())
+        }
     }
 
     fn solve_apply(
@@ -389,14 +446,12 @@ impl ConstraintSolver {
         let slot = draft.expr(id).computation;
         let computation = self.require_assigned(slot)?.clone();
         let apply_computation = match callee {
-            ErasedExpr::Def(_) | ErasedExpr::Lambda { .. } | ErasedExpr::Apply { .. } => {
-                apply_from_known_arg(slot, &computation, arg, env)?.ok_or_else(|| {
-                    ConstraintError::UnsupportedApplyArg {
-                        slot: slot.into(),
-                        kind: ErasedExprKind::from_expr(arg),
-                    }
-                })?
-            }
+            ErasedExpr::Def(_) | ErasedExpr::Lambda { .. } | ErasedExpr::Apply { .. } => self
+                .apply_from_known_arg(slot, &computation, arg, env)?
+                .ok_or_else(|| ConstraintError::UnsupportedApplyArg {
+                    slot: slot.into(),
+                    kind: ErasedExprKind::from_expr(arg),
+                })?,
             ErasedExpr::Ref(ref_id) => {
                 if let Some((def, scheme)) = env.direct_scheme(*ref_id) {
                     let Some(apply) =
@@ -428,6 +483,22 @@ impl ConstraintSolver {
                         },
                     );
                     apply
+                } else if let Some(obligation) = env.typeclass_obligation(*ref_id) {
+                    let Some(apply) = self.apply_from_known_arg(slot, &computation, arg, env)?
+                    else {
+                        return Err(ConstraintError::UnsupportedApplyArg {
+                            slot: slot.into(),
+                            kind: ErasedExprKind::from_expr(arg),
+                        });
+                    };
+                    self.typeclass_obligation_instances.insert(
+                        *ref_id,
+                        TypeclassObligationInstanceDemand {
+                            obligation: obligation.clone(),
+                            signature: apply.callee.clone(),
+                        },
+                    );
+                    apply
                 } else {
                     return Err(ConstraintError::MissingDirectRefScheme { ref_id: *ref_id });
                 }
@@ -454,6 +525,7 @@ impl ConstraintSolver {
         &mut self,
         draft: &ElaborationDraft,
         id: DraftExprId,
+        param: DefId,
         body: &ErasedExpr,
         env: &ConstraintEnvironment<'_>,
     ) -> Result<(), ConstraintError> {
@@ -473,7 +545,10 @@ impl ConstraintSolver {
             });
         };
         let Type::Fun {
-            ret_effect, ret, ..
+            param: param_type,
+            ret_effect,
+            ret,
+            ..
         } = value.as_type()
         else {
             return Err(ConstraintError::ExpectedFunction {
@@ -493,13 +568,20 @@ impl ConstraintSolver {
                 (**ret_effect).clone(),
             )?),
         };
+        let param_computation = pure_value_computation(
+            slot,
+            ConstraintTypeSource::FunctionParam,
+            (**param_type).clone(),
+        )?;
 
         let children = draft.expr(id).children.clone();
         let [body_id] = children.as_slice() else {
             return Ok(());
         };
         self.assign(draft.expr(*body_id).computation, body_computation)?;
-        self.solve_expr(draft, *body_id, body, env)
+        self.with_local_def(param, param_computation, |this| {
+            this.solve_expr(draft, *body_id, body, env)
+        })
     }
 
     fn solve_tuple(
@@ -797,9 +879,6 @@ impl ConstraintSolver {
         if !scheme_needs_instantiation(scheme) {
             return concrete_apply_from_scheme(slot, expected, scheme).map(Some);
         }
-        if !scheme_can_be_instantiated_locally(scheme) {
-            return Ok(None);
-        }
         let Some(instantiated) = self.instantiate_apply_scheme(slot, expected, scheme, arg, env)?
         else {
             return Ok(None);
@@ -814,9 +893,6 @@ impl ConstraintSolver {
         scheme: &Scheme,
     ) -> Result<Option<MonoComputation>, ConstraintError> {
         if !scheme_needs_instantiation(scheme) {
-            return Ok(None);
-        }
-        if !scheme_can_be_instantiated_locally(scheme) {
             return Ok(None);
         }
         let body = self.freshen_scheme_body(scheme);
@@ -859,7 +935,7 @@ impl ConstraintSolver {
 
         let expected_value = value_type(slot, &expected.value)?;
         let expected_effect = expected.effect.row().as_type().clone();
-        let arg_computation = known_computation(slot, arg, env)?;
+        let arg_computation = self.known_computation(slot, arg, env)?;
 
         if let Some(arg_computation) = arg_computation {
             let arg_value = value_type(slot, &arg_computation.value)?;
@@ -886,6 +962,46 @@ impl ConstraintSolver {
         }))
     }
 
+    fn apply_from_known_arg(
+        &self,
+        slot: DraftComputationId,
+        expected: &MonoComputation,
+        arg: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<Option<ApplyComputation>, ConstraintError> {
+        let Some(arg_computation) = self.known_computation(slot, arg, env)? else {
+            return Ok(None);
+        };
+        let ret_type = value_type(slot, &expected.value)?;
+        let ret_effect = expected.effect.row().as_type().clone();
+        let arg_type = value_type(slot, &arg_computation.value)?;
+        let arg_effect = arg_computation.effect.row().as_type().clone();
+        Ok(Some(ApplyComputation {
+            callee: function_computation(slot, arg_type, arg_effect, ret_effect, ret_type)?,
+            arg: arg_computation,
+        }))
+    }
+
+    fn known_computation(
+        &self,
+        slot: DraftComputationId,
+        expr: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<Option<MonoComputation>, ConstraintError> {
+        if let ErasedExpr::Def(def) = expr
+            && let Some(computation) = self.local_def_computation(*def)
+        {
+            return Ok(Some(computation));
+        }
+        let Some(ty) = known_value_type(expr, env) else {
+            return Ok(None);
+        };
+        Ok(Some(MonoComputation {
+            value: MonoType::Value(concrete_type(slot, ConstraintTypeSource::Literal, ty)?),
+            effect: pure_effect(),
+        }))
+    }
+
     fn freshen_scheme_body(&mut self, scheme: &Scheme) -> Type {
         let instantiation = SchemeFreshening::new(self, scheme);
         instantiation.substitute_type(&scheme.body)
@@ -897,6 +1013,27 @@ impl ConstraintSolver {
         let var = TypeVar(format!("$elab{id}${}", original.0));
         self.type_var_defaults.insert(var.clone(), default);
         var
+    }
+
+    fn local_def_computation(&self, def: DefId) -> Option<MonoComputation> {
+        self.local_def_computations
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(&def).cloned())
+    }
+
+    fn with_local_def<T>(
+        &mut self,
+        def: DefId,
+        computation: MonoComputation,
+        f: impl FnOnce(&mut Self) -> Result<T, ConstraintError>,
+    ) -> Result<T, ConstraintError> {
+        let mut scope = BTreeMap::new();
+        scope.insert(def, computation);
+        self.local_def_computations.push(scope);
+        let out = f(self);
+        self.local_def_computations.pop();
+        out
     }
 
     fn assign(
@@ -1845,31 +1982,6 @@ fn concrete_apply_from_scheme(
     })
 }
 
-fn apply_from_known_arg(
-    slot: DraftComputationId,
-    expected: &MonoComputation,
-    arg: &ErasedExpr,
-    env: &ConstraintEnvironment<'_>,
-) -> Result<Option<ApplyComputation>, ConstraintError> {
-    let Some(arg_computation) = known_computation(slot, arg, env)? else {
-        return Ok(None);
-    };
-    let ret_type = value_type(slot, &expected.value)?;
-    let ret_effect = expected.effect.row().as_type().clone();
-    let arg_type = value_type(slot, &arg_computation.value)?;
-    let arg_effect = arg_computation.effect.row().as_type().clone();
-    Ok(Some(ApplyComputation {
-        callee: function_computation(slot, arg_type, arg_effect, ret_effect, ret_type)?,
-        arg: arg_computation,
-    }))
-}
-
-fn scheme_can_be_instantiated_locally(scheme: &Scheme) -> bool {
-    scheme.quantified_refs.is_empty()
-        && scheme.typeclass_obligations.is_empty()
-        && scheme.requirements.is_empty()
-}
-
 fn function_computation(
     slot: DraftComputationId,
     param: Type,
@@ -1906,6 +2018,43 @@ pub(crate) fn scheme_needs_instantiation(scheme: &Scheme) -> bool {
         || !scheme.requirements.is_empty()
 }
 
+pub(crate) fn instantiate_typeclass_obligation_instances(
+    scheme: &Scheme,
+    signature: &MonoComputation,
+    instances: &BTreeMap<RefId, TypeclassObligationInstanceDemand>,
+) -> BTreeMap<RefId, TypeclassObligationInstanceDemand> {
+    let MonoType::Value(value) = &signature.value else {
+        return instances.clone();
+    };
+    let mut instantiation = TypeInstantiation::new(scheme);
+    if !instantiation.match_type(&scheme.body, value.as_type()) {
+        return instances.clone();
+    }
+
+    instances
+        .iter()
+        .map(|(ref_id, demand)| {
+            let mut demand = demand.clone();
+            demand.obligation.args = demand
+                .obligation
+                .args
+                .iter()
+                .map(|arg| instantiation.substitute_type_with_defaults(arg))
+                .collect();
+            demand.obligation.associated = demand
+                .obligation
+                .associated
+                .iter()
+                .map(|associated| yulang_erased_ir::AssociatedTypeConstraint {
+                    name: associated.name.clone(),
+                    bounds: instantiation.substitute_type_bounds_with_defaults(&associated.bounds),
+                })
+                .collect();
+            (*ref_id, demand)
+        })
+        .collect()
+}
+
 pub(crate) fn direct_apply_ret_effect_from_scheme_spine(
     scheme: &Scheme,
     result_value: &Type,
@@ -1913,9 +2062,6 @@ pub(crate) fn direct_apply_ret_effect_from_scheme_spine(
     env: &ConstraintEnvironment<'_>,
 ) -> Option<Type> {
     let needs_instantiation = scheme_needs_instantiation(scheme);
-    if !scheme_can_be_instantiated_locally(scheme) {
-        return None;
-    }
     let mut instantiation = TypeInstantiation::new(scheme);
 
     let mut current = scheme.body.clone();
@@ -2072,20 +2218,6 @@ fn pure_value_computation(
         value: MonoType::Value(concrete_type(slot, source, ty)?),
         effect: pure_effect(),
     })
-}
-
-fn known_computation(
-    slot: DraftComputationId,
-    expr: &ErasedExpr,
-    env: &ConstraintEnvironment<'_>,
-) -> Result<Option<MonoComputation>, ConstraintError> {
-    let Some(ty) = known_value_type(expr, env) else {
-        return Ok(None);
-    };
-    Ok(Some(MonoComputation {
-        value: MonoType::Value(concrete_type(slot, ConstraintTypeSource::Literal, ty)?),
-        effect: pure_effect(),
-    }))
 }
 
 fn known_value_type(expr: &ErasedExpr, env: &ConstraintEnvironment<'_>) -> Option<Type> {
@@ -2676,6 +2808,22 @@ impl TypeInstantiation {
         self.substitute_type_inner(ty, true)
     }
 
+    fn substitute_type_bounds_with_defaults(
+        &self,
+        bounds: &yulang_erased_ir::TypeBounds,
+    ) -> yulang_erased_ir::TypeBounds {
+        yulang_erased_ir::TypeBounds {
+            lower: bounds
+                .lower
+                .as_ref()
+                .map(|ty| Box::new(self.substitute_type_with_defaults(ty))),
+            upper: bounds
+                .upper
+                .as_ref()
+                .map(|ty| Box::new(self.substitute_type_with_defaults(ty))),
+        }
+    }
+
     fn substitute_type_inner(&self, ty: &Type, use_defaults: bool) -> Type {
         match ty {
             Type::Var(var) => self
@@ -3109,8 +3257,10 @@ mod tests {
             subtype_edges: BTreeSet::new(),
             type_var_defaults: BTreeMap::new(),
             next_type_var: 0,
+            local_def_computations: Vec::new(),
             direct_ref_instances: BTreeMap::new(),
             resolved_typeclass_instances: BTreeMap::new(),
+            typeclass_obligation_instances: BTreeMap::new(),
         }
     }
 

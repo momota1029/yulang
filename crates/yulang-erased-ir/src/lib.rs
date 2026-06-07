@@ -140,6 +140,7 @@ pub enum PrincipalRoot {
 pub struct RefExportTable {
     pub direct: BTreeMap<RefId, DefId>,
     pub resolved_typeclass: BTreeMap<RefId, ResolvedTypeClassRef>,
+    pub typeclass_impl_candidates: Vec<TypeClassImplCandidate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -170,6 +171,20 @@ pub struct ResolvedTypeClassRef {
     pub class: Path,
     pub member: DefId,
     pub impl_def: Option<DefId>,
+    pub impl_member: DefId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypeClassImplCandidate {
+    pub class: Path,
+    pub args: Vec<RoleRequirementArg>,
+    pub prerequisites: Vec<RoleRequirement>,
+    pub members: Vec<TypeClassImplMember>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct TypeClassImplMember {
+    pub member: DefId,
     pub impl_member: DefId,
 }
 

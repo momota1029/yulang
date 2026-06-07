@@ -711,6 +711,15 @@ impl Infer {
             .unwrap_or_default()
     }
 
+    pub fn role_impl_candidates(&self) -> Vec<RoleImplCandidate> {
+        self.role_impl_candidates
+            .borrow()
+            .values()
+            .flatten()
+            .cloned()
+            .collect()
+    }
+
     pub fn register_role_arg_infos(&self, role: Path, infos: Vec<RoleArgInfo>) {
         self.role_arg_infos.borrow_mut().insert(role, infos);
     }
