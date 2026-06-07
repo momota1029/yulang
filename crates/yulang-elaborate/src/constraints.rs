@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ErasedExprKind;
 use crate::draft::{DraftComputationId, DraftExprId, ElaborationDraft};
@@ -88,6 +88,7 @@ pub(crate) struct ForceThunkBoundaryConstraint {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ComputationSolution {
     computations: BTreeMap<DraftComputationId, MonoComputation>,
+    direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
 }
 
 impl ComputationSolution {
@@ -101,6 +102,16 @@ impl ComputationSolution {
             .get(&slot)
             .ok_or(ConstraintError::MissingComputation { slot: slot.into() })
     }
+
+    pub(crate) fn direct_ref_instances(&self) -> &BTreeMap<RefId, DirectRefInstanceDemand> {
+        &self.direct_ref_instances
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DirectRefInstanceDemand {
+    pub(crate) def: DefId,
+    pub(crate) signature: MonoComputation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -182,12 +193,14 @@ pub enum ConstraintTypeSource {
 
 struct ConstraintSolver {
     computations: BTreeMap<DraftComputationId, MonoComputation>,
+    direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
 }
 
 impl ConstraintSolver {
     fn from_set(set: ConstraintSet) -> Result<Self, ConstraintError> {
         let mut solver = Self {
             computations: BTreeMap::new(),
+            direct_ref_instances: BTreeMap::new(),
         };
         for seed in set.computation_seeds {
             solver.assign(seed.slot, seed.computation)?;
@@ -198,6 +211,7 @@ impl ConstraintSolver {
     fn into_solution(self) -> ComputationSolution {
         ComputationSolution {
             computations: self.computations,
+            direct_ref_instances: self.direct_ref_instances,
         }
     }
 
@@ -258,10 +272,17 @@ impl ConstraintSolver {
                 let (def, scheme) = env
                     .direct_scheme(*ref_id)
                     .ok_or(ConstraintError::MissingDirectRefScheme { ref_id: *ref_id })?;
-                if scheme_needs_instantiation(scheme) {
+                let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg)? else {
                     return Err(ConstraintError::GenericDirectRefScheme { def });
-                }
-                concrete_apply_from_scheme(slot, &computation, scheme)?
+                };
+                self.direct_ref_instances.insert(
+                    *ref_id,
+                    DirectRefInstanceDemand {
+                        def,
+                        signature: apply.callee.clone(),
+                    },
+                );
+                apply
             }
             _ => {
                 return Err(ConstraintError::UnsupportedApplyCallee {
@@ -488,6 +509,77 @@ fn concrete_apply_from_scheme(
     })
 }
 
+fn apply_from_scheme(
+    slot: DraftComputationId,
+    expected: &MonoComputation,
+    scheme: &Scheme,
+    arg: &ErasedExpr,
+) -> Result<Option<ApplyComputation>, ConstraintError> {
+    if !scheme_needs_instantiation(scheme) {
+        return concrete_apply_from_scheme(slot, expected, scheme).map(Some);
+    }
+    if !scheme_can_be_instantiated_locally(scheme) {
+        return Ok(None);
+    }
+    let Some(instantiated) = instantiate_apply_scheme(slot, expected, scheme, arg)? else {
+        return Ok(None);
+    };
+    concrete_apply_from_scheme(slot, expected, &instantiated).map(Some)
+}
+
+fn scheme_can_be_instantiated_locally(scheme: &Scheme) -> bool {
+    scheme.quantified_refs.is_empty()
+        && scheme.typeclass_obligations.is_empty()
+        && scheme.requirements.is_empty()
+}
+
+fn instantiate_apply_scheme(
+    slot: DraftComputationId,
+    expected: &MonoComputation,
+    scheme: &Scheme,
+    arg: &ErasedExpr,
+) -> Result<Option<Scheme>, ConstraintError> {
+    let Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = &scheme.body
+    else {
+        return Ok(None);
+    };
+
+    let Some(arg_computation) = syntactic_computation(slot, arg)? else {
+        return Ok(None);
+    };
+    let expected_value = value_type(slot, &expected.value)?;
+    let expected_effect = expected.effect.row().as_type().clone();
+    let arg_value = value_type(slot, &arg_computation.value)?;
+    let arg_effect = arg_computation.effect.row().as_type().clone();
+
+    let mut instantiation = TypeInstantiation::new(scheme);
+    if !instantiation.match_type(param, &arg_value)
+        || !instantiation.match_type(param_effect, &arg_effect)
+        || !instantiation.match_type(ret, &expected_value)
+        || !instantiation.match_type(ret_effect, &expected_effect)
+    {
+        return Ok(None);
+    }
+
+    let body = instantiation.substitute_type(&scheme.body);
+    if scheme_quantified_vars_appear_in_type(scheme, &body) {
+        return Ok(None);
+    }
+    Ok(Some(Scheme {
+        body,
+        quantified_types: Vec::new(),
+        quantified_effects: Vec::new(),
+        quantified_refs: Vec::new(),
+        typeclass_obligations: Vec::new(),
+        requirements: Vec::new(),
+    }))
+}
+
 fn function_computation(
     slot: DraftComputationId,
     param: Type,
@@ -522,6 +614,38 @@ pub(crate) fn scheme_needs_instantiation(scheme: &Scheme) -> bool {
         || !scheme.quantified_refs.is_empty()
         || !scheme.typeclass_obligations.is_empty()
         || !scheme.requirements.is_empty()
+}
+
+pub(crate) fn direct_apply_ret_effect_from_scheme(
+    scheme: &Scheme,
+    result_value: &Type,
+    arg: &ErasedExpr,
+) -> Option<Type> {
+    let Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = &scheme.body
+    else {
+        return None;
+    };
+    if !scheme_needs_instantiation(scheme) {
+        return Some((**ret_effect).clone());
+    }
+    if !scheme_can_be_instantiated_locally(scheme) {
+        return None;
+    }
+    let arg_value = syntactic_value_type(arg)?;
+    let mut instantiation = TypeInstantiation::new(scheme);
+    if !instantiation.match_type(param, &arg_value)
+        || !instantiation.match_type(param_effect, &Type::Never)
+        || !instantiation.match_type(ret, result_value)
+    {
+        return None;
+    }
+    let ret_effect = instantiation.substitute_type(ret_effect);
+    (!scheme_quantified_vars_appear_in_type(scheme, &ret_effect)).then_some(ret_effect)
 }
 
 fn type_mentions_type_var(ty: &Type, target: &yulang_erased_ir::TypeVar) -> bool {
@@ -633,6 +757,31 @@ fn literal_computation(
     }))
 }
 
+fn syntactic_computation(
+    slot: DraftComputationId,
+    expr: &ErasedExpr,
+) -> Result<Option<MonoComputation>, ConstraintError> {
+    let Some(ty) = syntactic_value_type(expr) else {
+        return Ok(None);
+    };
+    Ok(Some(MonoComputation {
+        value: MonoType::Value(concrete_type(slot, ConstraintTypeSource::Literal, ty)?),
+        effect: pure_effect(),
+    }))
+}
+
+fn syntactic_value_type(expr: &ErasedExpr) -> Option<Type> {
+    match expr {
+        ErasedExpr::Lit(lit) => Some(literal_type(lit)),
+        ErasedExpr::Tuple(items) => items
+            .iter()
+            .map(syntactic_value_type)
+            .collect::<Option<Vec<_>>>()
+            .map(Type::Tuple),
+        _ => None,
+    }
+}
+
 fn literal_type(lit: &Lit) -> Type {
     Type::Named {
         path: match lit {
@@ -668,6 +817,394 @@ fn effect_is_pure(effect: &MonoEffect) -> bool {
 
 fn pure_effect() -> MonoEffect {
     MonoEffect::new(ConcreteType::try_from_type(Type::Never).expect("Never is concrete"))
+}
+
+#[derive(Default)]
+struct TypeInstantiation {
+    quantifiable: BTreeSet<yulang_erased_ir::TypeVar>,
+    assignments: BTreeMap<yulang_erased_ir::TypeVar, Type>,
+}
+
+impl TypeInstantiation {
+    fn new(scheme: &Scheme) -> Self {
+        let mut quantifiable = scheme
+            .quantified_types
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        quantifiable.extend(
+            scheme
+                .quantified_effects
+                .iter()
+                .map(|var| yulang_erased_ir::TypeVar(var.0.clone())),
+        );
+        Self {
+            quantifiable,
+            assignments: BTreeMap::new(),
+        }
+    }
+
+    fn match_type(&mut self, pattern: &Type, actual: &Type) -> bool {
+        match pattern {
+            Type::Var(var) if self.quantifiable.contains(var) => {
+                self.assign(var.clone(), actual.clone())
+            }
+            Type::Named { path, args } => {
+                let Type::Named {
+                    path: actual_path,
+                    args: actual_args,
+                } = actual
+                else {
+                    return false;
+                };
+                path == actual_path
+                    && args.len() == actual_args.len()
+                    && args
+                        .iter()
+                        .zip(actual_args)
+                        .all(|(pattern, actual)| self.match_type_arg(pattern, actual))
+            }
+            Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => {
+                let Type::Fun {
+                    param: actual_param,
+                    param_effect: actual_param_effect,
+                    ret_effect: actual_ret_effect,
+                    ret: actual_ret,
+                } = actual
+                else {
+                    return false;
+                };
+                self.match_type(param, actual_param)
+                    && self.match_type(param_effect, actual_param_effect)
+                    && self.match_type(ret_effect, actual_ret_effect)
+                    && self.match_type(ret, actual_ret)
+            }
+            Type::Tuple(items) => {
+                let Type::Tuple(actual_items) = actual else {
+                    return false;
+                };
+                items.len() == actual_items.len()
+                    && items
+                        .iter()
+                        .zip(actual_items)
+                        .all(|(pattern, actual)| self.match_type(pattern, actual))
+            }
+            Type::Record(record) => {
+                let Type::Record(actual_record) = actual else {
+                    return false;
+                };
+                record.fields.len() == actual_record.fields.len()
+                    && record.spread.is_none() == actual_record.spread.is_none()
+                    && record
+                        .fields
+                        .iter()
+                        .zip(&actual_record.fields)
+                        .all(|(pattern, actual)| {
+                            pattern.name == actual.name
+                                && pattern.optional == actual.optional
+                                && self.match_type(&pattern.value, &actual.value)
+                        })
+                    && match (&record.spread, &actual_record.spread) {
+                        (Some(pattern), Some(actual)) => self.match_record_spread(pattern, actual),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            Type::Variant(variant) => {
+                let Type::Variant(actual_variant) = actual else {
+                    return false;
+                };
+                variant.cases.len() == actual_variant.cases.len()
+                    && variant.tail.is_none() == actual_variant.tail.is_none()
+                    && variant
+                        .cases
+                        .iter()
+                        .zip(&actual_variant.cases)
+                        .all(|(pattern, actual)| {
+                            pattern.name == actual.name
+                                && pattern.payloads.len() == actual.payloads.len()
+                                && pattern
+                                    .payloads
+                                    .iter()
+                                    .zip(&actual.payloads)
+                                    .all(|(pattern, actual)| self.match_type(pattern, actual))
+                        })
+                    && match (&variant.tail, &actual_variant.tail) {
+                        (Some(pattern), Some(actual)) => self.match_type(pattern, actual),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            Type::Row { items, tail } => {
+                let Type::Row {
+                    items: actual_items,
+                    tail: actual_tail,
+                } = actual
+                else {
+                    return false;
+                };
+                items.len() == actual_items.len()
+                    && items
+                        .iter()
+                        .zip(actual_items)
+                        .all(|(pattern, actual)| self.match_type(pattern, actual))
+                    && self.match_type(tail, actual_tail)
+            }
+            Type::Union(items) => self.match_variadic_type(items, actual, TypeVariant::Union),
+            Type::Inter(items) => self.match_variadic_type(items, actual, TypeVariant::Inter),
+            Type::Recursive { var, body } => {
+                let Type::Recursive {
+                    var: actual_var,
+                    body: actual_body,
+                } = actual
+                else {
+                    return false;
+                };
+                var == actual_var
+                    && self.without_var(var, |this| this.match_type(body, actual_body))
+            }
+            Type::Unknown | Type::Never | Type::Any | Type::Var(_) => pattern == actual,
+        }
+    }
+
+    fn match_type_arg(
+        &mut self,
+        pattern: &yulang_erased_ir::TypeArg,
+        actual: &yulang_erased_ir::TypeArg,
+    ) -> bool {
+        match (pattern, actual) {
+            (yulang_erased_ir::TypeArg::Type(pattern), yulang_erased_ir::TypeArg::Type(actual)) => {
+                self.match_type(pattern, actual)
+            }
+            (
+                yulang_erased_ir::TypeArg::Bounds(pattern),
+                yulang_erased_ir::TypeArg::Bounds(actual),
+            ) => self.match_type_bounds(pattern, actual),
+            _ => false,
+        }
+    }
+
+    fn match_type_bounds(
+        &mut self,
+        pattern: &yulang_erased_ir::TypeBounds,
+        actual: &yulang_erased_ir::TypeBounds,
+    ) -> bool {
+        match (&pattern.lower, &actual.lower) {
+            (Some(pattern), Some(actual)) if !self.match_type(pattern, actual) => return false,
+            (None, None) | (Some(_), Some(_)) => {}
+            _ => return false,
+        }
+        match (&pattern.upper, &actual.upper) {
+            (Some(pattern), Some(actual)) if !self.match_type(pattern, actual) => return false,
+            (None, None) | (Some(_), Some(_)) => {}
+            _ => return false,
+        }
+        true
+    }
+
+    fn match_record_spread(
+        &mut self,
+        pattern: &yulang_erased_ir::RecordSpread,
+        actual: &yulang_erased_ir::RecordSpread,
+    ) -> bool {
+        match (pattern, actual) {
+            (
+                yulang_erased_ir::RecordSpread::Head(pattern),
+                yulang_erased_ir::RecordSpread::Head(actual),
+            )
+            | (
+                yulang_erased_ir::RecordSpread::Tail(pattern),
+                yulang_erased_ir::RecordSpread::Tail(actual),
+            ) => self.match_type(pattern, actual),
+            _ => false,
+        }
+    }
+
+    fn match_variadic_type(&mut self, items: &[Type], actual: &Type, variant: TypeVariant) -> bool {
+        let actual_items = match (variant, actual) {
+            (TypeVariant::Union, Type::Union(items)) | (TypeVariant::Inter, Type::Inter(items)) => {
+                items
+            }
+            _ => return false,
+        };
+        items.len() == actual_items.len()
+            && items
+                .iter()
+                .zip(actual_items)
+                .all(|(pattern, actual)| self.match_type(pattern, actual))
+    }
+
+    fn assign(&mut self, var: yulang_erased_ir::TypeVar, actual: Type) -> bool {
+        if let Some(existing) = self.assignments.get(&var) {
+            return existing == &actual;
+        }
+        self.assignments.insert(var, actual);
+        true
+    }
+
+    fn substitute_type(&self, ty: &Type) -> Type {
+        match ty {
+            Type::Var(var) => self
+                .assignments
+                .get(var)
+                .cloned()
+                .unwrap_or_else(|| ty.clone()),
+            Type::Named { path, args } => Type::Named {
+                path: path.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.substitute_type_arg(arg))
+                    .collect(),
+            },
+            Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => Type::Fun {
+                param: Box::new(self.substitute_type(param)),
+                param_effect: Box::new(self.substitute_type(param_effect)),
+                ret_effect: Box::new(self.substitute_type(ret_effect)),
+                ret: Box::new(self.substitute_type(ret)),
+            },
+            Type::Tuple(items) => Type::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+            ),
+            Type::Record(record) => Type::Record(yulang_erased_ir::RecordType {
+                fields: record
+                    .fields
+                    .iter()
+                    .map(|field| yulang_erased_ir::RecordField {
+                        name: field.name.clone(),
+                        value: self.substitute_type(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+                spread: record.spread.as_ref().map(|spread| match spread {
+                    yulang_erased_ir::RecordSpread::Head(ty) => {
+                        yulang_erased_ir::RecordSpread::Head(Box::new(self.substitute_type(ty)))
+                    }
+                    yulang_erased_ir::RecordSpread::Tail(ty) => {
+                        yulang_erased_ir::RecordSpread::Tail(Box::new(self.substitute_type(ty)))
+                    }
+                }),
+            }),
+            Type::Variant(variant) => Type::Variant(yulang_erased_ir::VariantType {
+                cases: variant
+                    .cases
+                    .iter()
+                    .map(|case| yulang_erased_ir::VariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(|payload| self.substitute_type(payload))
+                            .collect(),
+                    })
+                    .collect(),
+                tail: variant
+                    .tail
+                    .as_ref()
+                    .map(|tail| Box::new(self.substitute_type(tail))),
+            }),
+            Type::Row { items, tail } => Type::Row {
+                items: items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+                tail: Box::new(self.substitute_type(tail)),
+            },
+            Type::Union(items) => Type::Union(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+            ),
+            Type::Inter(items) => Type::Inter(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+            ),
+            Type::Recursive { var, body } => Type::Recursive {
+                var: var.clone(),
+                body: Box::new(self.substitute_type_under_binder(var, body)),
+            },
+            Type::Unknown | Type::Never | Type::Any => ty.clone(),
+        }
+    }
+
+    fn substitute_type_arg(&self, arg: &yulang_erased_ir::TypeArg) -> yulang_erased_ir::TypeArg {
+        match arg {
+            yulang_erased_ir::TypeArg::Type(ty) => {
+                yulang_erased_ir::TypeArg::Type(self.substitute_type(ty))
+            }
+            yulang_erased_ir::TypeArg::Bounds(bounds) => {
+                yulang_erased_ir::TypeArg::Bounds(yulang_erased_ir::TypeBounds {
+                    lower: bounds
+                        .lower
+                        .as_ref()
+                        .map(|lower| Box::new(self.substitute_type(lower))),
+                    upper: bounds
+                        .upper
+                        .as_ref()
+                        .map(|upper| Box::new(self.substitute_type(upper))),
+                })
+            }
+        }
+    }
+
+    fn substitute_type_under_binder(&self, var: &yulang_erased_ir::TypeVar, body: &Type) -> Type {
+        let mut nested = Self {
+            quantifiable: self.quantifiable.clone(),
+            assignments: self.assignments.clone(),
+        };
+        nested.quantifiable.remove(var);
+        nested.assignments.remove(var);
+        nested.substitute_type(body)
+    }
+
+    fn without_var<T>(
+        &mut self,
+        var: &yulang_erased_ir::TypeVar,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let removed_assignment = self.assignments.remove(var);
+        let removed_quantifiable = self.quantifiable.remove(var);
+        let out = f(self);
+        if let Some(assignment) = removed_assignment {
+            self.assignments.insert(var.clone(), assignment);
+        }
+        if removed_quantifiable {
+            self.quantifiable.insert(var.clone());
+        }
+        out
+    }
+}
+
+#[derive(Clone, Copy)]
+enum TypeVariant {
+    Union,
+    Inter,
+}
+
+fn scheme_quantified_vars_appear_in_type(scheme: &Scheme, ty: &Type) -> bool {
+    scheme
+        .quantified_types
+        .iter()
+        .any(|var| type_mentions_type_var(ty, var))
+        || scheme
+            .quantified_effects
+            .iter()
+            .any(|var| type_mentions_var_name(ty, &var.0))
 }
 
 #[cfg(test)]

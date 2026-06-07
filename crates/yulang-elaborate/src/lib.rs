@@ -223,6 +223,7 @@ struct ProgramBuilder<'a> {
     defs_by_path: Vec<(Path, DefId)>,
     instances: Vec<MonoInstance>,
     instance_by_def: BTreeMap<DefId, MonoInstanceId>,
+    specialized_instances: Vec<SpecializedInstance>,
     root_instance_by_index: BTreeMap<usize, MonoInstanceId>,
     refs: ResolvedRefTable,
 }
@@ -253,6 +254,7 @@ impl<'a> ProgramBuilder<'a> {
             defs_by_path,
             instances: Vec::new(),
             instance_by_def: BTreeMap::new(),
+            specialized_instances: Vec::new(),
             root_instance_by_index: BTreeMap::new(),
             refs: ResolvedRefTable::default(),
         }
@@ -264,12 +266,12 @@ impl<'a> ProgramBuilder<'a> {
             let body = elaborate_root_expr(index, expr, &self.env)?;
             let instance = self.push_instance(
                 DemandSource::RootExpr(index),
-                body.comp.clone(),
-                body.clone(),
+                body.expr.comp.clone(),
+                body.expr.clone(),
             );
             self.root_instance_by_index.insert(index, instance);
-            self.resolve_direct_refs_for_instance(instance, &expr.ir)?;
-            root_exprs.push(body);
+            self.resolve_direct_refs_for_instance(instance, &expr.ir, &body.direct_ref_instances)?;
+            root_exprs.push(body.expr);
         }
 
         let roots = self
@@ -332,10 +334,45 @@ impl<'a> ProgramBuilder<'a> {
         }
         let signature =
             concrete_computation_from_scheme(ElaborateSite::Binding(def), &binding.scheme)?;
-        let body = elaborate_binding_expr(def, binding, &self.env)?;
-        let instance = self.push_instance(DemandSource::Def(def), signature, body);
+        let instance = self.ensure_def_instance_with_signature(def, signature)?;
         self.instance_by_def.insert(def, instance);
-        self.resolve_direct_refs_for_instance(instance, &binding.body.ir)?;
+        Ok(instance)
+    }
+
+    fn ensure_def_instance_with_signature(
+        &mut self,
+        def: DefId,
+        signature: MonoComputation,
+    ) -> Result<MonoInstanceId, ElaborateProgramError> {
+        if let Some(instance) = self
+            .specialized_instances
+            .iter()
+            .find(|instance| instance.def == def && instance.signature == signature)
+            .map(|instance| instance.instance)
+        {
+            return Ok(instance);
+        }
+        let binding = self
+            .bindings_by_def
+            .get(&def)
+            .copied()
+            .ok_or(ElaborateProgramError::MissingBinding { def })?;
+        let body =
+            elaborate_binding_expr_with_signature(def, binding, signature.clone(), &self.env)?;
+        let instance = self.push_instance(DemandSource::Def(def), signature.clone(), body.expr);
+        self.specialized_instances.push(SpecializedInstance {
+            def,
+            signature,
+            instance,
+        });
+        if !constraints::scheme_needs_instantiation(&binding.scheme) {
+            self.instance_by_def.insert(def, instance);
+        }
+        self.resolve_direct_refs_for_instance(
+            instance,
+            &binding.body.ir,
+            &body.direct_ref_instances,
+        )?;
         Ok(instance)
     }
 
@@ -359,6 +396,7 @@ impl<'a> ProgramBuilder<'a> {
         &mut self,
         instance: MonoInstanceId,
         expr: &ErasedExpr,
+        direct_ref_instances: &BTreeMap<RefId, constraints::DirectRefInstanceDemand>,
     ) -> Result<(), ElaborateProgramError> {
         let mut refs = BTreeSet::new();
         collect_expr_refs(expr, &mut refs);
@@ -366,7 +404,11 @@ impl<'a> ProgramBuilder<'a> {
             let Some(def) = self.export.erased.refs.direct.get(&ref_id).copied() else {
                 continue;
             };
-            let target = self.ensure_def_instance(def)?;
+            let target = if let Some(demand) = direct_ref_instances.get(&ref_id) {
+                self.ensure_def_instance_with_signature(demand.def, demand.signature.clone())?
+            } else {
+                self.ensure_def_instance(def)?
+            };
             self.refs.entries.insert(
                 ResolvedRefKey { instance, ref_id },
                 ResolvedRef {
@@ -379,32 +421,51 @@ impl<'a> ProgramBuilder<'a> {
     }
 }
 
+struct SpecializedInstance {
+    def: DefId,
+    signature: MonoComputation,
+    instance: MonoInstanceId,
+}
+
+struct ElaboratedBody {
+    expr: ElaboratedExpr,
+    direct_ref_instances: BTreeMap<RefId, constraints::DirectRefInstanceDemand>,
+}
+
 fn elaborate_root_expr(
     index: usize,
     expr: &InferredExpr,
     env: &constraints::ConstraintEnvironment<'_>,
-) -> Result<ElaboratedExpr, ElaborateProgramError> {
+) -> Result<ElaboratedBody, ElaborateProgramError> {
     let site = ElaborateSite::RootExpr(index);
     let draft = draft::ElaborationDraft::from_root_expr(index, &expr.ir);
     let comp = concrete_computation(site.clone(), &expr.ir, &expr.typ, &expr.eff, env)?;
     let solution = constraints::ConstraintSet::seed_root(&draft, comp)
         .solve(&draft, &expr.ir, env)
         .map_err(ElaborateProgramError::Constraint)?;
-    elaborate_expr(site, &draft, draft.root, &expr.ir, &solution)
+    let expr = elaborate_expr(site, &draft, draft.root, &expr.ir, &solution)?;
+    Ok(ElaboratedBody {
+        expr,
+        direct_ref_instances: solution.direct_ref_instances().clone(),
+    })
 }
 
-fn elaborate_binding_expr(
+fn elaborate_binding_expr_with_signature(
     def: DefId,
     binding: &InferredBinding,
+    signature: MonoComputation,
     env: &constraints::ConstraintEnvironment<'_>,
-) -> Result<ElaboratedExpr, ElaborateProgramError> {
+) -> Result<ElaboratedBody, ElaborateProgramError> {
     let site = ElaborateSite::Binding(def);
     let draft = draft::ElaborationDraft::from_root_expr(0, &binding.body.ir);
-    let comp = concrete_computation_from_scheme(site.clone(), &binding.scheme)?;
-    let solution = constraints::ConstraintSet::seed_root(&draft, comp)
+    let solution = constraints::ConstraintSet::seed_root(&draft, signature)
         .solve(&draft, &binding.body.ir, env)
         .map_err(ElaborateProgramError::Constraint)?;
-    elaborate_expr(site, &draft, draft.root, &binding.body.ir, &solution)
+    let expr = elaborate_expr(site, &draft, draft.root, &binding.body.ir, &solution)?;
+    Ok(ElaboratedBody {
+        expr,
+        direct_ref_instances: solution.direct_ref_instances().clone(),
+    })
 }
 
 fn concrete_computation_from_scheme(
@@ -436,19 +497,17 @@ fn concrete_computation(
     eff: &TypeBounds,
     env: &constraints::ConstraintEnvironment<'_>,
 ) -> Result<MonoComputation, ElaborateProgramError> {
+    let value = exact_concrete_type(site.clone(), ComputationField::Value, typ)?;
     Ok(MonoComputation {
-        value: MonoType::Value(exact_concrete_type(
-            site.clone(),
-            ComputationField::Value,
-            typ,
-        )?),
-        effect: MonoEffect::new(concrete_effect_type(site, expr, eff, env)?),
+        effect: MonoEffect::new(concrete_effect_type(site, expr, &value, eff, env)?),
+        value: MonoType::Value(value),
     })
 }
 
 fn concrete_effect_type(
     site: ElaborateSite,
     expr: &ErasedExpr,
+    value: &ConcreteType,
     bounds: &TypeBounds,
     env: &constraints::ConstraintEnvironment<'_>,
 ) -> Result<ConcreteType, ElaborateProgramError> {
@@ -465,7 +524,7 @@ fn concrete_effect_type(
             })
         }
         Err(error @ ElaborateProgramError::NonExactComputationBounds { .. }) => {
-            if let Some(effect) = direct_ref_apply_effect(site, expr, env)? {
+            if let Some(effect) = direct_ref_apply_effect(site, expr, value, env)? {
                 Ok(effect)
             } else {
                 Err(error)
@@ -478,9 +537,10 @@ fn concrete_effect_type(
 fn direct_ref_apply_effect(
     site: ElaborateSite,
     expr: &ErasedExpr,
+    value: &ConcreteType,
     env: &constraints::ConstraintEnvironment<'_>,
 ) -> Result<Option<ConcreteType>, ElaborateProgramError> {
-    let ErasedExpr::Apply { callee, .. } = expr else {
+    let ErasedExpr::Apply { callee, arg } = expr else {
         return Ok(None);
     };
     let ErasedExpr::Ref(ref_id) = callee.as_ref() else {
@@ -489,13 +549,12 @@ fn direct_ref_apply_effect(
     let Some((_, scheme)) = env.direct_scheme(*ref_id) else {
         return Ok(None);
     };
-    if constraints::scheme_needs_instantiation(scheme) {
-        return Ok(None);
-    }
-    let Type::Fun { ret_effect, .. } = &scheme.body else {
+    let Some(ret_effect) =
+        constraints::direct_apply_ret_effect_from_scheme(scheme, value.as_type(), arg)
+    else {
         return Ok(None);
     };
-    ConcreteType::try_from_type((**ret_effect).clone())
+    ConcreteType::try_from_type(ret_effect)
         .map(Some)
         .map_err(|error| ElaborateProgramError::NonConcreteComputationType {
             site,
@@ -1197,6 +1256,39 @@ my used = id (1.display)\n",
     }
 
     #[test]
+    fn elaborate_program_accepts_actual_generic_direct_ref_apply_export() {
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "my id x = x\nid 1\n",
+            None,
+            yulang_infer::SourceOptions::default(),
+        )
+        .expect("lower virtual source");
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("generic direct ref apply can be instantiated from actual infer export");
+
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Apply { .. }
+        ));
+        assert_eq!(
+            program.module.instances.len(),
+            2,
+            "root and instantiated id binding should both be materialized",
+        );
+        assert!(
+            program
+                .module
+                .instances
+                .iter()
+                .any(|instance| matches!(instance.source, elaborated_ir::DemandSource::Def(_)))
+        );
+    }
+
+    #[test]
     fn elaborator_builds_program_for_concrete_leaf_root() {
         let int = named_type("int");
         let empty_effect = yulang_erased_ir::Type::Never;
@@ -1312,7 +1404,8 @@ my used = id (1.display)\n",
     }
 
     #[test]
-    fn elaborator_rejects_generic_direct_ref_apply_until_instantiation_exists() {
+    fn elaborator_instantiates_generic_direct_ref_apply_from_use_site() {
+        let int = named_type("int");
         let mut export = InferExport::default();
         let var = yulang_erased_ir::Type::Var(yulang_erased_ir::TypeVar("a".to_string()));
         let fn_type = yulang_erased_ir::Type::Fun {
@@ -1365,13 +1458,139 @@ my used = id (1.display)\n",
             .direct
             .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
 
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("generic direct ref apply should instantiate from arg and result");
+
+        let specialized_signature = elaborated_ir::MonoComputation {
+            value: elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(yulang_erased_ir::Type::Fun {
+                    param: Box::new(int.clone()),
+                    param_effect: Box::new(yulang_erased_ir::Type::Never),
+                    ret_effect: Box::new(yulang_erased_ir::Type::Never),
+                    ret: Box::new(int.clone()),
+                })
+                .expect("instantiated function type is concrete"),
+            ),
+            effect: elaborated_ir::MonoEffect::new(
+                elaborated_ir::ConcreteType::try_from_type(yulang_erased_ir::Type::Never)
+                    .expect("Never is concrete"),
+            ),
+        };
+        assert!(
+            program
+                .module
+                .instances
+                .iter()
+                .any(|instance| instance.source
+                    == elaborated_ir::DemandSource::Def(yulang_erased_ir::DefId(2))
+                    && instance.signature == specialized_signature),
+            "generic id should be materialized as int -> int, instances={:?}",
+            program.module.instances,
+        );
+        assert_eq!(
+            program.refs.entries.get(&elaborated_ir::ResolvedRefKey {
+                instance: elaborated_ir::MonoInstanceId(0),
+                ref_id: yulang_erased_ir::RefId(1),
+            }),
+            Some(&elaborated_ir::ResolvedRef {
+                target: elaborated_ir::MonoInstanceId(1),
+                source: elaborated_ir::ResolvedRefSource::Direct {
+                    def: yulang_erased_ir::DefId(2),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn elaborator_rejects_generic_direct_ref_apply_without_concrete_use_site() {
+        let int = named_type("int");
+        let var = yulang_erased_ir::Type::Var(yulang_erased_ir::TypeVar("a".to_string()));
+        let fn_type = yulang_erased_ir::Type::Fun {
+            param: Box::new(var.clone()),
+            param_effect: Box::new(yulang_erased_ir::Type::Never),
+            ret_effect: Box::new(yulang_erased_ir::Type::Never),
+            ret: Box::new(var),
+        };
+        let mut export = InferExport::default();
+        export
+            .erased
+            .module
+            .bindings
+            .push(yulang_erased_ir::InferredBinding {
+                def: yulang_erased_ir::DefId(2),
+                name: yulang_erased_ir::Path::from_name(yulang_erased_ir::Name("id".to_string())),
+                scheme: yulang_erased_ir::Scheme {
+                    body: fn_type.clone(),
+                    quantified_types: vec![yulang_erased_ir::TypeVar("a".to_string())],
+                    quantified_effects: Vec::new(),
+                    quantified_refs: Vec::new(),
+                    typeclass_obligations: Vec::new(),
+                    requirements: Vec::new(),
+                },
+                body: inferred_root(
+                    yulang_erased_ir::ErasedExpr::Lambda {
+                        param: yulang_erased_ir::DefId(10),
+                        body: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                            10,
+                        ))),
+                    },
+                    fn_type,
+                    yulang_erased_ir::Type::Never,
+                ),
+            });
+        export
+            .erased
+            .module
+            .bindings
+            .push(yulang_erased_ir::InferredBinding {
+                def: yulang_erased_ir::DefId(3),
+                name: yulang_erased_ir::Path::from_name(yulang_erased_ir::Name("one".to_string())),
+                scheme: yulang_erased_ir::Scheme {
+                    body: int.clone(),
+                    quantified_types: Vec::new(),
+                    quantified_effects: Vec::new(),
+                    quantified_refs: Vec::new(),
+                    typeclass_obligations: Vec::new(),
+                    requirements: Vec::new(),
+                },
+                body: inferred_root(
+                    yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Int("1".to_string())),
+                    int.clone(),
+                    yulang_erased_ir::Type::Never,
+                ),
+            });
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Apply {
+                callee: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
+                    1,
+                ))),
+                arg: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
+                    9,
+                ))),
+            },
+            int,
+            yulang_erased_ir::Type::Never,
+        ));
+        export
+            .erased
+            .refs
+            .direct
+            .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
+        export
+            .erased
+            .refs
+            .direct
+            .insert(yulang_erased_ir::RefId(9), yulang_erased_ir::DefId(3));
+
         let Err(ElaborateProgramError::Constraint(ConstraintError::GenericDirectRefScheme {
             def: yulang_erased_ir::DefId(2),
         })) = Elaborator::try_new(&export)
             .expect("valid erased export")
             .build_program()
         else {
-            panic!("generic direct ref apply needs instantiation before elaborated output");
+            panic!("generic direct ref apply should wait when the use site is not concrete enough");
         };
     }
 
