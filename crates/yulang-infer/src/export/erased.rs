@@ -1111,6 +1111,11 @@ mod tests {
             .resolve_value(&Name("id".to_string()))
             .expect("id binding");
         let exported = export_erased_program(&mut state).erased;
+        assert!(
+            exported.ref_coverage().is_clean(),
+            "erased export should cover direct refs: {:?}",
+            exported.ref_coverage(),
+        );
 
         let refs = collect_expr_refs(&exported.module.root_exprs[0].ir);
         assert!(
@@ -1212,6 +1217,11 @@ impl Index int bool:\n  type value = string\n  our x.index y = \"ok\"\n\n\
 my shown: string = 1.index true\n",
         );
         let exported = export_erased_program(&mut state).erased;
+        assert!(
+            exported.ref_coverage().is_clean(),
+            "erased export should cover resolved role method refs: {:?}",
+            exported.ref_coverage(),
+        );
         let shown = exported
             .module
             .bindings
@@ -1260,6 +1270,11 @@ my shown: string = 1.index true\n",
             })
             .expect("Display.display member");
         let exported = export_erased_program(&mut state).erased;
+        assert!(
+            exported.ref_coverage().is_clean(),
+            "erased export should cover unresolved role method refs: {:?}",
+            exported.ref_coverage(),
+        );
         let show = exported
             .module
             .bindings
@@ -1315,6 +1330,11 @@ my get xs key = xs.index key\n",
             })
             .expect("Index.index member");
         let exported = export_erased_program(&mut state).erased;
+        assert!(
+            exported.ref_coverage().is_clean(),
+            "erased export should cover unresolved associated role method refs: {:?}",
+            exported.ref_coverage(),
+        );
         let get = exported
             .module
             .bindings

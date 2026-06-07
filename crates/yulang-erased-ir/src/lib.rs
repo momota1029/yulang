@@ -4,7 +4,7 @@
 //! Expression nodes represent value structure only: they do not carry inferred
 //! node types, effects, annotation evidence, apply evidence, or coercion nodes.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -55,6 +55,55 @@ pub struct InferExport {
 pub struct ErasedProgram {
     pub module: ErasedModule,
     pub refs: RefExportTable,
+}
+
+impl ErasedProgram {
+    pub fn ref_coverage(&self) -> RefCoverageReport {
+        let mut used = BTreeSet::new();
+        collect_module_refs(&self.module, &mut used);
+
+        let mut covered = BTreeSet::new();
+        let mut conflicting = BTreeSet::new();
+        for ref_id in self.refs.direct.keys().copied() {
+            if !covered.insert(ref_id) {
+                conflicting.insert(ref_id);
+            }
+        }
+        for ref_id in self.refs.resolved_typeclass.keys().copied() {
+            if !covered.insert(ref_id) {
+                conflicting.insert(ref_id);
+            }
+        }
+        for obligation in self.typeclass_obligations() {
+            if !covered.insert(obligation.ref_id) {
+                conflicting.insert(obligation.ref_id);
+            }
+        }
+
+        RefCoverageReport {
+            uncovered: used.difference(&covered).copied().collect(),
+            conflicting: conflicting.into_iter().collect(),
+        }
+    }
+
+    pub fn typeclass_obligations(&self) -> impl Iterator<Item = &TypeClassObligation> {
+        self.module
+            .bindings
+            .iter()
+            .flat_map(|binding| binding.scheme.typeclass_obligations.iter())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct RefCoverageReport {
+    pub uncovered: Vec<RefId>,
+    pub conflicting: Vec<RefId>,
+}
+
+impl RefCoverageReport {
+    pub fn is_clean(&self) -> bool {
+        self.uncovered.is_empty() && self.conflicting.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -266,6 +315,242 @@ pub enum Lit {
     String(String),
     Bool(bool),
     Unit,
+}
+
+fn collect_module_refs(module: &ErasedModule, out: &mut BTreeSet<RefId>) {
+    for binding in &module.bindings {
+        collect_expr_refs(&binding.body.ir, out);
+    }
+    for root in &module.root_exprs {
+        collect_expr_refs(&root.ir, out);
+    }
+}
+
+fn collect_expr_refs(expr: &ErasedExpr, out: &mut BTreeSet<RefId>) {
+    match expr {
+        ErasedExpr::Ref(ref_id) => {
+            out.insert(*ref_id);
+        }
+        ErasedExpr::Lambda { body, .. }
+        | ErasedExpr::BindHere { expr: body }
+        | ErasedExpr::Pack { expr: body, .. } => collect_expr_refs(body, out),
+        ErasedExpr::Apply { callee, arg } => {
+            collect_expr_refs(callee, out);
+            collect_expr_refs(arg, out);
+        }
+        ErasedExpr::RefSet { reference, value } => {
+            collect_expr_refs(reference, out);
+            collect_expr_refs(value, out);
+        }
+        ErasedExpr::Tuple(items) => {
+            for item in items {
+                collect_expr_refs(item, out);
+            }
+        }
+        ErasedExpr::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_refs(&field.value, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        collect_expr_refs(expr, out);
+                    }
+                }
+            }
+        }
+        ErasedExpr::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_refs(value, out);
+            }
+        }
+        ErasedExpr::Select { base, .. } => collect_expr_refs(base, out),
+        ErasedExpr::Match { scrutinee, arms } => {
+            collect_expr_refs(scrutinee, out);
+            for arm in arms {
+                collect_pattern_refs(&arm.pattern, out);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_refs(guard, out);
+                }
+                collect_expr_refs(&arm.body, out);
+            }
+        }
+        ErasedExpr::Handle { body, arms } => {
+            collect_expr_refs(body, out);
+            for arm in arms {
+                collect_pattern_refs(&arm.payload, out);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_refs(guard, out);
+                }
+                collect_expr_refs(&arm.body, out);
+            }
+        }
+        ErasedExpr::Block(block) => collect_block_refs(block, out),
+        ErasedExpr::Def(_) | ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => {}
+    }
+}
+
+fn collect_block_refs(block: &ErasedBlock, out: &mut BTreeSet<RefId>) {
+    for stmt in &block.stmts {
+        match stmt {
+            ErasedStmt::Let { pattern, value } => {
+                collect_pattern_refs(pattern, out);
+                collect_expr_refs(value, out);
+            }
+            ErasedStmt::Expr(expr) => collect_expr_refs(expr, out),
+            ErasedStmt::Module { body, .. } => collect_block_refs(body, out),
+        }
+    }
+    if let Some(tail) = &block.tail {
+        collect_expr_refs(tail, out);
+    }
+}
+
+fn collect_pattern_refs(pattern: &Pattern, out: &mut BTreeSet<RefId>) {
+    match pattern {
+        Pattern::Tuple(items) => {
+            for item in items {
+                collect_pattern_refs(item, out);
+            }
+        }
+        Pattern::Or { left, right } => {
+            collect_pattern_refs(left, out);
+            collect_pattern_refs(right, out);
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_pattern_refs(item, out);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_refs(spread, out);
+            }
+            for item in suffix {
+                collect_pattern_refs(item, out);
+            }
+        }
+        Pattern::Record { fields, spread } => {
+            for field in fields {
+                collect_pattern_refs(&field.pattern, out);
+                if let Some(default) = &field.default {
+                    collect_expr_refs(default, out);
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_refs(pattern, out);
+                    }
+                }
+            }
+        }
+        Pattern::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_pattern_refs(value, out);
+            }
+        }
+        Pattern::Constructor { ref_id, payload } => {
+            out.insert(*ref_id);
+            if let Some(payload) = payload {
+                collect_pattern_refs(payload, out);
+            }
+        }
+        Pattern::As { pattern, .. } => collect_pattern_refs(pattern, out),
+        Pattern::Wildcard | Pattern::Bind(_) | Pattern::Lit(_) | Pattern::UnresolvedName(_) => {}
+    }
+}
+
+#[cfg(test)]
+mod coverage_tests {
+    use super::*;
+
+    #[test]
+    fn ref_coverage_accepts_direct_resolved_and_obligation_refs() {
+        let mut program = ErasedProgram::default();
+        program.refs.direct.insert(RefId(1), DefId(10));
+        program.refs.resolved_typeclass.insert(
+            RefId(2),
+            ResolvedTypeClassRef {
+                class: Path::from_name(Name("Display".to_string())),
+                member: DefId(20),
+                impl_def: Some(DefId(21)),
+                impl_member: DefId(22),
+            },
+        );
+        program.module.bindings.push(binding_with_ref(
+            "use_refs",
+            ErasedExpr::Tuple(vec![
+                ErasedExpr::Ref(RefId(1)),
+                ErasedExpr::Ref(RefId(2)),
+                ErasedExpr::Ref(RefId(3)),
+            ]),
+            vec![TypeClassObligation {
+                ref_id: RefId(3),
+                class: Path::from_name(Name("Show".to_string())),
+                member: DefId(30),
+                args: Vec::new(),
+                associated: Vec::new(),
+            }],
+        ));
+
+        assert!(program.ref_coverage().is_clean());
+    }
+
+    #[test]
+    fn ref_coverage_reports_uncovered_and_conflicting_refs() {
+        let mut program = ErasedProgram::default();
+        program.refs.direct.insert(RefId(1), DefId(10));
+        program.refs.resolved_typeclass.insert(
+            RefId(1),
+            ResolvedTypeClassRef {
+                class: Path::from_name(Name("Display".to_string())),
+                member: DefId(20),
+                impl_def: Some(DefId(21)),
+                impl_member: DefId(22),
+            },
+        );
+        program
+            .module
+            .root_exprs
+            .push(inferred_expr(ErasedExpr::Ref(RefId(9))));
+
+        let coverage = program.ref_coverage();
+        assert_eq!(coverage.uncovered, vec![RefId(9)]);
+        assert_eq!(coverage.conflicting, vec![RefId(1)]);
+    }
+
+    fn binding_with_ref(
+        name: &str,
+        ir: ErasedExpr,
+        obligations: Vec<TypeClassObligation>,
+    ) -> InferredBinding {
+        InferredBinding {
+            name: Path::from_name(Name(name.to_string())),
+            scheme: Scheme {
+                body: Type::Unknown,
+                quantified_types: Vec::new(),
+                quantified_effects: Vec::new(),
+                quantified_refs: obligations
+                    .iter()
+                    .map(|obligation| obligation.ref_id)
+                    .collect(),
+                typeclass_obligations: obligations,
+                requirements: Vec::new(),
+            },
+            body: inferred_expr(ir),
+        }
+    }
+
+    fn inferred_expr(ir: ErasedExpr) -> InferredExpr {
+        InferredExpr {
+            typ: TypeBounds::default(),
+            eff: TypeBounds::default(),
+            ir,
+        }
+    }
 }
 
 #[cfg(test)]
