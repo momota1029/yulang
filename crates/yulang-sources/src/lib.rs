@@ -331,7 +331,7 @@ fn collect_source_files_with_options_inner(
     ))
 }
 
-pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 31;
+pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 32;
 pub const COMPILED_UNIT_PARSER_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

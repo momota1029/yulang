@@ -36,7 +36,7 @@ pub(super) fn concrete_tv_lower_join_repr(
         out = merge_compact_types(true, out, repr);
     }
     normalize_builtin_numeric_compact_type(&mut out);
-    (out != CompactType::default() && is_concrete_compact_type(&out, allow_boundary)).then_some(out)
+    concrete_joined_lower_repr(out, allow_boundary)
 }
 
 pub(super) fn concrete_pos_repr(
@@ -167,6 +167,16 @@ fn concrete_or_boundary_compact_type(
     } else {
         None
     }
+}
+
+fn concrete_joined_lower_repr(ty: CompactType, allow_boundary: bool) -> Option<CompactType> {
+    if ty == CompactType::default() {
+        return None;
+    }
+    if allow_boundary {
+        return boundary_concrete_compact_type(&ty);
+    }
+    is_concrete_compact_type(&ty, false).then_some(ty)
 }
 
 fn boundary_concrete_compact_type(ty: &CompactType) -> Option<CompactType> {
@@ -388,4 +398,37 @@ fn single_primitive_path(ty: &CompactType) -> Option<&Path> {
     paths.next().is_none().then_some(path).filter(|path| {
         primitive_numeric_type_family(path).is_some() || primitive_type_family(path).is_some()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::simplify::compact::CompactCon;
+    use crate::symbols::Name;
+
+    #[test]
+    fn joined_lower_repr_keeps_boundary_constructor_arguments() {
+        let item = CompactType {
+            vars: [TypeVar(1)].into_iter().collect(),
+            ..CompactType::default()
+        };
+        let ref_lines = CompactType {
+            cons: vec![CompactCon {
+                path: Path {
+                    segments: vec![
+                        Name("std".to_string()),
+                        Name("str".to_string()),
+                        Name("ref_lines".to_string()),
+                    ],
+                },
+                args: vec![exact_compact_bounds(item)],
+            }],
+            ..CompactType::default()
+        };
+
+        assert_eq!(
+            concrete_joined_lower_repr(ref_lines.clone(), true),
+            Some(ref_lines)
+        );
+    }
 }
