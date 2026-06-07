@@ -7,6 +7,8 @@
 
 #![forbid(unsafe_code)]
 
+mod draft;
+
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferExport, InferredExpr, PrincipalRoot, RefCoverageReport, RefExportTable,
     RefId, ResolvedTypeClassRef, TypeBounds, TypeClassObligation,
@@ -232,6 +234,13 @@ fn elaborate_root_expr(
     expr: &InferredExpr,
 ) -> Result<ElaboratedExpr, ElaborateProgramError> {
     let site = ElaborateSite::RootExpr(index);
+    let draft = draft::ElaborationDraft::from_root_expr(index, &expr.ir);
+    if !draft.root_is_leaf() {
+        return Err(ElaborateProgramError::UnsupportedExpr {
+            site,
+            kind: draft.root_kind(),
+        });
+    }
     let comp = concrete_computation(site.clone(), &expr.typ, &expr.eff)?;
     elaborate_leaf_expr(site, &expr.ir, comp)
 }
@@ -311,7 +320,7 @@ fn elaborate_leaf_expr(
 }
 
 impl ErasedExprKind {
-    fn from_expr(expr: &ErasedExpr) -> Self {
+    pub(crate) fn from_expr(expr: &ErasedExpr) -> Self {
         match expr {
             ErasedExpr::Def(_) => Self::Def,
             ErasedExpr::Ref(_) => Self::Ref,
