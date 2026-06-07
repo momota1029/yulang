@@ -398,17 +398,29 @@ ForceThunk {
 関数 cast を呼び出し先に押し付けないのと同様に、thunk を開く責務も、producer-consumer の
 型差が確定した場所で elaborated IR に明示する。
 
-関数値の concrete 型は、runtime shape へ読む段階で effect field を parameter / return の
+関数値の concrete 型は、runtime shape へ読む段階で、effectful な parameter / return 境界を
 effective-thunk に畳む。
+
+`Never` は empty effect row なので、`thunk[Never, a]` は作らない。pure な parameter / return は
+裸の runtime value shape として渡す。effect row が `Never` ではない場合だけ、
+その computation boundary を `effective-thunk` として一級値に持たせる。
 
 ```text
 a [b] -> [c] d
   ~~>
-thunk[b, a] -> thunk[c, d]
+shape(b, a) -> shape(c, d)
+
+shape(Never, x) = runtime-value-shape(x)
+shape(e, x)     = thunk[e, runtime-value-shape(x)]  when e != Never
 ```
 
 `a` や `d` がさらに関数型の場合も、この変換を再帰的に適用する。つまり、高階関数を値として
 渡す場合でも、必要な thunk boundary は関数値の型と一緒に移動できる。
+
+apply では、callee の runtime function boundary を見る。parameter shape が `effective-thunk`
+なら argument computation を `MakeThunk` で閉じ、return shape が `effective-thunk` なら
+inner apply の結果を `ForceThunk` で開く。pure boundary では `MakeThunk` / `ForceThunk` を
+挿入しない。
 
 effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。
 

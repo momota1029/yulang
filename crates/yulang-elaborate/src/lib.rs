@@ -24,7 +24,8 @@ pub use yulang_elaborated_ir as elaborated_ir;
 use yulang_elaborated_ir::{
     ConcreteType, ConcreteTypeError, DemandSource, ElaboratedExpr, ElaboratedExprKind,
     ElaboratedModule, ElaboratedProgram, ElaboratedRoot, MonoComputation, MonoEffect, MonoInstance,
-    MonoInstanceId, MonoType, ResolvedRef, ResolvedRefKey, ResolvedRefSource, ResolvedRefTable,
+    MonoInstanceId, MonoType, MonoTypeConversionError, ResolvedRef, ResolvedRefKey,
+    ResolvedRefSource, ResolvedRefTable,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -154,6 +155,10 @@ pub enum ElaborateProgramError {
         field: ComputationField,
         error: ConcreteTypeError,
     },
+    NonRuntimeShapeComputationType {
+        site: ElaborateSite,
+        error: MonoTypeConversionError,
+    },
     UnsupportedRoot {
         root: PrincipalRoot,
     },
@@ -167,6 +172,16 @@ pub enum ElaborateProgramError {
     ExpectedEffectiveThunk {
         site: ElaborateSite,
         found: MonoType,
+    },
+    FunctionArgumentMismatch {
+        site: ElaborateSite,
+        expected: MonoType,
+        actual: MonoComputation,
+    },
+    FunctionReturnMismatch {
+        site: ElaborateSite,
+        source: elaborated_ir::EffectiveThunkType,
+        target: MonoComputation,
     },
 }
 
@@ -351,12 +366,12 @@ impl<'a> ProgramBuilder<'a> {
     fn ensure_def_instance_with_signature(
         &mut self,
         def: DefId,
-        signature: MonoComputation,
+        solver_signature: MonoComputation,
     ) -> Result<MonoInstanceId, ElaborateProgramError> {
         if let Some(instance) = self
             .specialized_instances
             .iter()
-            .find(|instance| instance.def == def && instance.signature == signature)
+            .find(|instance| instance.def == def && instance.signature == solver_signature)
             .map(|instance| instance.instance)
         {
             return Ok(instance);
@@ -366,12 +381,17 @@ impl<'a> ProgramBuilder<'a> {
             .get(&def)
             .copied()
             .ok_or(ElaborateProgramError::MissingBinding { def })?;
-        let body =
-            elaborate_binding_expr_with_signature(def, binding, signature.clone(), &self.env)?;
-        let instance = self.push_instance(DemandSource::Def(def), signature.clone(), body.expr);
+        let body = elaborate_binding_expr_with_signature(
+            def,
+            binding,
+            solver_signature.clone(),
+            &self.env,
+        )?;
+        let instance_signature = body.expr.comp.clone();
+        let instance = self.push_instance(DemandSource::Def(def), instance_signature, body.expr);
         self.specialized_instances.push(SpecializedInstance {
             def,
-            signature,
+            signature: solver_signature,
             instance,
         });
         if !constraints::scheme_needs_instantiation(&binding.scheme) {
@@ -1009,10 +1029,11 @@ fn elaborate_expr(
     expr: &ErasedExpr,
     solution: &constraints::ComputationSolution,
 ) -> Result<ElaboratedExpr, ElaborateProgramError> {
-    let comp = solution
+    let raw_comp = solution
         .computation_for_expr(draft, id)
         .map_err(ElaborateProgramError::Constraint)?
         .clone();
+    let comp = runtime_shape_computation(site.clone(), raw_comp.clone())?;
     let kind = match expr {
         ErasedExpr::Def(def) => ElaboratedExprKind::Def(*def),
         ErasedExpr::Ref(ref_id) => ElaboratedExprKind::Ref(*ref_id),
@@ -1027,7 +1048,7 @@ fn elaborate_expr(
             };
             ElaboratedExprKind::Lambda {
                 param: *param,
-                param_type: lambda_param_type(&comp),
+                param_type: lambda_param_type(site.clone(), &raw_comp)?,
                 body: Box::new(elaborate_expr(
                     site.clone(),
                     draft,
@@ -1044,16 +1065,9 @@ fn elaborate_expr(
                     kind: ErasedExprKind::Apply,
                 });
             };
-            ElaboratedExprKind::Apply {
-                callee: Box::new(elaborate_expr(
-                    site.clone(),
-                    draft,
-                    *callee_id,
-                    callee,
-                    solution,
-                )?),
-                arg: Box::new(elaborate_expr(site.clone(), draft, *arg_id, arg, solution)?),
-            }
+            let callee = elaborate_expr(site.clone(), draft, *callee_id, callee, solution)?;
+            let arg = elaborate_expr(site.clone(), draft, *arg_id, arg, solution)?;
+            return elaborate_apply_expr(site, comp, callee, arg);
         }
         ErasedExpr::Tuple(items) => {
             let children = draft.expr(id).children.clone();
@@ -1188,17 +1202,112 @@ fn elaborate_expr(
     Ok(ElaboratedExpr::new(kind, comp))
 }
 
-fn lambda_param_type(comp: &MonoComputation) -> MonoType {
+fn elaborate_apply_expr(
+    site: ElaborateSite,
+    target: MonoComputation,
+    callee: ElaboratedExpr,
+    arg: ElaboratedExpr,
+) -> Result<ElaboratedExpr, ElaborateProgramError> {
+    let MonoType::Function(boundary) = &callee.comp.value else {
+        return Ok(ElaboratedExpr::new(
+            ElaboratedExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg),
+            },
+            target,
+        ));
+    };
+    let boundary = boundary.as_ref().clone();
+    let arg = adapt_apply_arg_to_boundary(site.clone(), arg, &boundary)?;
+    let apply = ElaboratedExpr::new(
+        ElaboratedExprKind::Apply {
+            callee: Box::new(callee),
+            arg: Box::new(arg),
+        },
+        MonoComputation {
+            value: boundary.ret.clone(),
+            effect: boundary.ret_effect.clone(),
+        },
+    );
+    let MonoType::EffectiveThunk(source) = &boundary.ret else {
+        return Ok(apply);
+    };
+    if source.value.as_ref() != &target.value || source.effect != target.effect {
+        return Err(ElaborateProgramError::FunctionReturnMismatch {
+            site,
+            source: source.clone(),
+            target,
+        });
+    }
+    Ok(ElaboratedExpr::new(
+        ElaboratedExprKind::ForceThunk {
+            thunk: Box::new(apply),
+            source: source.clone(),
+            target: target.clone(),
+        },
+        target,
+    ))
+}
+
+fn adapt_apply_arg_to_boundary(
+    site: ElaborateSite,
+    arg: ElaboratedExpr,
+    boundary: &elaborated_ir::FunctionBoundary,
+) -> Result<ElaboratedExpr, ElaborateProgramError> {
+    let expected = &boundary.param;
+    let MonoType::EffectiveThunk(thunk) = expected else {
+        if &arg.comp.value == expected && arg.comp.effect == boundary.param_effect {
+            return Ok(arg);
+        }
+        return Err(ElaborateProgramError::FunctionArgumentMismatch {
+            site,
+            expected: expected.clone(),
+            actual: arg.comp,
+        });
+    };
+    if &arg.comp.value != thunk.value.as_ref() || arg.comp.effect != thunk.effect {
+        return Err(ElaborateProgramError::FunctionArgumentMismatch {
+            site,
+            expected: expected.clone(),
+            actual: arg.comp,
+        });
+    }
+    Ok(ElaboratedExpr::new(
+        ElaboratedExprKind::MakeThunk {
+            body: Box::new(arg),
+            thunk: thunk.clone(),
+        },
+        MonoComputation {
+            value: expected.clone(),
+            effect: MonoEffect::pure(),
+        },
+    ))
+}
+
+fn runtime_shape_computation(
+    site: ElaborateSite,
+    comp: MonoComputation,
+) -> Result<MonoComputation, ElaborateProgramError> {
+    comp.into_runtime_shape()
+        .map_err(|error| ElaborateProgramError::NonRuntimeShapeComputationType { site, error })
+}
+
+fn lambda_param_type(
+    site: ElaborateSite,
+    comp: &MonoComputation,
+) -> Result<MonoType, ElaborateProgramError> {
     let MonoType::Value(value) = &comp.value else {
         unreachable!("lambda solver only assigns function value computations to lambdas");
     };
-    let yulang_erased_ir::Type::Fun { param, .. } = value.as_type() else {
+    if !matches!(value.as_type(), yulang_erased_ir::Type::Fun { .. }) {
         unreachable!("lambda solver only assigns function value computations to lambdas");
+    }
+    let function = MonoType::try_from_type(value.as_type().clone())
+        .map_err(|error| ElaborateProgramError::NonRuntimeShapeComputationType { site, error })?;
+    let MonoType::Function(boundary) = function else {
+        unreachable!("function type conversion should produce a function boundary");
     };
-    MonoType::Value(
-        ConcreteType::try_from_type((**param).clone())
-            .expect("lambda function parameter was validated as concrete"),
-    )
+    Ok(boundary.param)
 }
 
 impl ErasedExprKind {
@@ -1855,19 +1964,14 @@ impl Display int:\n  our x.display = \"int\"\n\n\
             .expect("generic direct ref apply should instantiate from arg and result");
 
         let specialized_signature = elaborated_ir::MonoComputation {
-            value: elaborated_ir::MonoType::Value(
-                elaborated_ir::ConcreteType::try_from_type(yulang_erased_ir::Type::Fun {
-                    param: Box::new(int.clone()),
-                    param_effect: Box::new(yulang_erased_ir::Type::Never),
-                    ret_effect: Box::new(yulang_erased_ir::Type::Never),
-                    ret: Box::new(int.clone()),
-                })
-                .expect("instantiated function type is concrete"),
-            ),
-            effect: elaborated_ir::MonoEffect::new(
-                elaborated_ir::ConcreteType::try_from_type(yulang_erased_ir::Type::Never)
-                    .expect("Never is concrete"),
-            ),
+            value: elaborated_ir::MonoType::try_from_type(yulang_erased_ir::Type::Fun {
+                param: Box::new(int.clone()),
+                param_effect: Box::new(yulang_erased_ir::Type::Never),
+                ret_effect: Box::new(yulang_erased_ir::Type::Never),
+                ret: Box::new(int.clone()),
+            })
+            .expect("instantiated function type is runtime-shaped"),
+            effect: elaborated_ir::MonoEffect::pure(),
         };
         assert!(
             program
@@ -2068,6 +2172,106 @@ impl Display int:\n  our x.display = \"int\"\n\n\
                 },
             })
         );
+    }
+
+    #[test]
+    fn elaborator_inserts_thunks_for_effectful_function_apply_boundary() {
+        let int = named_type("int");
+        let io = named_type("io");
+        let fn_type = yulang_erased_ir::Type::Fun {
+            param: Box::new(int.clone()),
+            param_effect: Box::new(io.clone()),
+            ret_effect: Box::new(io.clone()),
+            ret: Box::new(int.clone()),
+        };
+        let mut export = InferExport::default();
+        export
+            .erased
+            .module
+            .bindings
+            .push(yulang_erased_ir::InferredBinding {
+                def: yulang_erased_ir::DefId(2),
+                name: yulang_erased_ir::Path::from_name(yulang_erased_ir::Name(
+                    "effectful_id".to_string(),
+                )),
+                scheme: yulang_erased_ir::Scheme {
+                    body: fn_type.clone(),
+                    quantified_types: Vec::new(),
+                    quantified_effects: Vec::new(),
+                    quantified_refs: Vec::new(),
+                    typeclass_obligations: Vec::new(),
+                    requirements: Vec::new(),
+                },
+                body: inferred_root(
+                    yulang_erased_ir::ErasedExpr::Lambda {
+                        param: yulang_erased_ir::DefId(10),
+                        body: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                            10,
+                        ))),
+                    },
+                    fn_type,
+                    yulang_erased_ir::Type::Never,
+                ),
+            });
+        export
+            .erased
+            .refs
+            .direct
+            .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Apply {
+                callee: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
+                    1,
+                ))),
+                arg: Box::new(yulang_erased_ir::ErasedExpr::Def(yulang_erased_ir::DefId(
+                    99,
+                ))),
+            },
+            int.clone(),
+            io.clone(),
+        ));
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("effectful function apply should elaborate with thunk boundaries");
+
+        let int_mono = elaborated_ir::MonoType::Value(
+            elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete"),
+        );
+        let io_effect = elaborated_ir::MonoEffect::new(
+            elaborated_ir::ConcreteType::try_from_type(io).expect("io is concrete"),
+        );
+        let elaborated_ir::ElaboratedExprKind::ForceThunk {
+            thunk,
+            source,
+            target,
+        } = &program.module.root_exprs[0].kind
+        else {
+            panic!("effectful function return should be opened with ForceThunk");
+        };
+        assert_eq!(source.value.as_ref(), &int_mono);
+        assert_eq!(source.effect, io_effect);
+        assert_eq!(target, &program.module.root_exprs[0].comp);
+
+        let elaborated_ir::ElaboratedExprKind::Apply { callee, arg } = &thunk.kind else {
+            panic!("ForceThunk should open the inner function Apply");
+        };
+        assert!(matches!(
+            &callee.kind,
+            elaborated_ir::ElaboratedExprKind::Ref(yulang_erased_ir::RefId(1))
+        ));
+        let elaborated_ir::ElaboratedExprKind::MakeThunk { body, thunk } = &arg.kind else {
+            panic!("effectful function argument should be closed with MakeThunk");
+        };
+        assert_eq!(thunk.value.as_ref(), &int_mono);
+        assert_eq!(thunk.effect, io_effect);
+        assert!(matches!(
+            &body.kind,
+            elaborated_ir::ElaboratedExprKind::Def(yulang_erased_ir::DefId(99))
+        ));
+        assert_eq!(body.comp.value, int_mono);
+        assert_eq!(body.comp.effect, io_effect);
     }
 
     #[test]

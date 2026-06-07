@@ -110,6 +110,36 @@ impl MonoType {
             value: Box::new(value),
         })
     }
+
+    pub fn effective_thunk_if_needed(effect: MonoEffect, value: Self) -> Self {
+        if effect.is_pure() {
+            value
+        } else {
+            Self::effective_thunk(effect, value)
+        }
+    }
+
+    pub fn into_runtime_shape(self) -> Result<Self, MonoTypeConversionError> {
+        match self {
+            Self::Value(value) => Self::from_concrete_value_type(value),
+            Self::Function(boundary) => {
+                Ok(Self::Function(Box::new(boundary.into_runtime_shape()?)))
+            }
+            Self::EffectiveThunk(thunk) => Ok(Self::EffectiveThunk(EffectiveThunkType {
+                effect: thunk.effect,
+                value: Box::new(thunk.value.into_runtime_shape()?),
+            })),
+        }
+    }
+}
+
+impl MonoComputation {
+    pub fn into_runtime_shape(self) -> Result<Self, MonoTypeConversionError> {
+        Ok(Self {
+            value: self.value.into_runtime_shape()?,
+            effect: self.effect,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -138,6 +168,10 @@ impl MonoEffect {
 
     pub fn row(&self) -> &ConcreteType {
         &self.row
+    }
+
+    pub fn is_pure(&self) -> bool {
+        matches!(self.row.as_type(), Type::Never)
     }
 
     pub fn into_row(self) -> ConcreteType {
@@ -347,9 +381,14 @@ impl FunctionBoundary {
         };
         let param_effect = MonoEffect::try_from_type((**param_effect).clone())?;
         let ret_effect = MonoEffect::try_from_type((**ret_effect).clone())?;
-        let param =
-            MonoType::effective_thunk(param_effect, MonoType::try_from_type((**param).clone())?);
-        let ret = MonoType::effective_thunk(ret_effect, MonoType::try_from_type((**ret).clone())?);
+        let param = MonoType::effective_thunk_if_needed(
+            param_effect,
+            MonoType::try_from_type((**param).clone())?,
+        );
+        let ret = MonoType::effective_thunk_if_needed(
+            ret_effect,
+            MonoType::try_from_type((**ret).clone())?,
+        );
         Ok(Self {
             param,
             param_effect: MonoEffect::pure(),
@@ -361,6 +400,15 @@ impl FunctionBoundary {
     pub fn thunked_from_type(ty: Type) -> Result<Self, MonoTypeConversionError> {
         let concrete = ConcreteType::try_from_type(ty)?;
         Self::thunked_from_concrete_function_type(&concrete)
+    }
+
+    pub fn into_runtime_shape(self) -> Result<Self, MonoTypeConversionError> {
+        Ok(Self {
+            param: self.param.into_runtime_shape()?,
+            param_effect: self.param_effect,
+            ret_effect: self.ret_effect,
+            ret: self.ret.into_runtime_shape()?,
+        })
     }
 }
 
@@ -924,6 +972,26 @@ mod tests {
         assert_eq!(boundary.ret_effect, MonoEffect::pure());
         assert_effective_thunk(&boundary.param, "read", "int");
         assert_effective_thunk(&boundary.ret, "write", "bool");
+    }
+
+    #[test]
+    fn mono_type_conversion_keeps_pure_function_boundaries_as_values() {
+        let function = Type::Fun {
+            param: Box::new(named_type("int")),
+            param_effect: Box::new(Type::Never),
+            ret_effect: Box::new(Type::Never),
+            ret: Box::new(named_type("bool")),
+        };
+
+        let mono = MonoType::try_from_type(function).expect("function type is concrete");
+
+        let MonoType::Function(boundary) = mono else {
+            panic!("function type should become a function-shaped MonoType");
+        };
+        assert_eq!(boundary.param_effect, MonoEffect::pure());
+        assert_eq!(boundary.ret_effect, MonoEffect::pure());
+        assert_eq!(boundary.param, MonoType::Value(named_value_type("int")));
+        assert_eq!(boundary.ret, MonoType::Value(named_value_type("bool")));
     }
 
     #[test]
