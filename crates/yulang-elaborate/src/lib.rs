@@ -459,13 +459,41 @@ impl<'a> ProgramBuilder<'a> {
         body: ElaboratedExpr,
     ) -> MonoInstanceId {
         let id = MonoInstanceId(self.instances.len() as u32);
+        let name = self.instance_name(&source, id);
         self.instances.push(MonoInstance {
             id,
+            name,
             source,
             signature,
             body,
         });
         id
+    }
+
+    fn instance_name(&self, source: &DemandSource, id: MonoInstanceId) -> Path {
+        match source {
+            DemandSource::Def(def) => self
+                .bindings_by_def
+                .get(def)
+                .map(|binding| {
+                    if constraints::scheme_needs_instantiation(&binding.scheme) {
+                        mono_alias_path(&binding.name, id)
+                    } else {
+                        binding.name.clone()
+                    }
+                })
+                .unwrap_or_else(|| synthetic_instance_path(&self.export.erased.module.path, id)),
+            DemandSource::RootExpr(index) => {
+                let mut path = self.export.erased.module.path.clone();
+                path.push(Name(format!("root_expr_{index}")));
+                mono_alias_path(&path, id)
+            }
+            DemandSource::TypeclassRef { ref_id } => {
+                let mut path = self.export.erased.module.path.clone();
+                path.push(Name(format!("typeclass_ref_{}", ref_id.0)));
+                mono_alias_path(&path, id)
+            }
+        }
     }
 
     fn resolve_direct_refs_for_instance(
@@ -614,6 +642,18 @@ impl<'a> ProgramBuilder<'a> {
             impl_member: member.impl_member,
         })
     }
+}
+
+fn mono_alias_path(base: &Path, id: MonoInstanceId) -> Path {
+    let mut path = base.clone();
+    path.push(Name(format!("mono{}", id.0)));
+    path
+}
+
+fn synthetic_instance_path(module_path: &Path, id: MonoInstanceId) -> Path {
+    let mut path = module_path.clone();
+    path.push(Name(format!("mono_instance_{}", id.0)));
+    path
 }
 
 fn typeclass_candidate_matches(

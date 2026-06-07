@@ -2243,9 +2243,11 @@ dependencies = [
 name = "yulang-pipeline"
 version = "0.1.0"
 dependencies = [
+ "yulang-elaborate",
  "yulang-infer",
  "yulang-monomorphize",
  "yulang-runtime-ir",
+ "yulang-runtime-lower",
  "yulang-runtime-pipeline",
  "yulang-sources",
 ]
@@ -2263,6 +2265,8 @@ name = "yulang-runtime-lower"
 version = "0.1.2"
 dependencies = [
  "serde",
+ "yulang-elaborated-ir",
+ "yulang-erased-ir",
  "yulang-runtime-ir",
  "yulang-runtime-refine",
  "yulang-runtime-types",

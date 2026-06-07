@@ -32,6 +32,7 @@ pub struct ElaboratedModule {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MonoInstance {
     pub id: MonoInstanceId,
+    pub name: Path,
     pub source: DemandSource,
     pub signature: MonoComputation,
     pub body: ElaboratedExpr,

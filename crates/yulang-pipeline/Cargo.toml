@@ -9,7 +9,9 @@ readme = "../../README.md"
 
 [dependencies]
 yulang-infer = { version = "0.1.6", path = "../yulang-infer" }
+yulang-elaborate = { version = "0.1.0", path = "../yulang-elaborate" }
 yulang-monomorphize = { version = "0.1.1", path = "../yulang-monomorphize" }
 yulang-runtime-ir = { version = "0.1.0", path = "../yulang-runtime-ir" }
+yulang-runtime-lower = { version = "0.1.2", path = "../yulang-runtime-lower" }
 yulang-runtime-pipeline = { version = "0.1.1", path = "../yulang-runtime-pipeline" }
 yulang-sources = { version = "0.1.5", path = "../yulang-sources" }

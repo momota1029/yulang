@@ -7,8 +7,10 @@
 //! invariant / hygiene live in `yulang-runtime-refine`, and monomorphization
 //! lives in `yulang-monomorphize`.
 
+mod elaborated;
 pub mod lower;
 
+pub use elaborated::lower_elaborated_program;
 pub use lower::{
     CoreShapeProfile, DerivedExpectedEvidenceProfile, ExpectedAdapterEvidenceProfile,
     ExpectedArgEvidenceProfile, ObservedAdapterEvidence, ObservedAdapterEvidenceKind,

@@ -15,6 +15,7 @@ pub type SourceRuntimeResult<T> = Result<T, SourceRuntimeError>;
 #[derive(Debug)]
 pub enum SourceRuntimeError {
     RuntimePipeline(yulang_runtime_pipeline::RuntimePipelineError),
+    RuntimeElaborate(yulang_elaborate::ElaborateProgramError),
     RuntimeFinalize(yulang_monomorphize::MonomorphizeError),
 }
 
@@ -22,6 +23,7 @@ impl fmt::Display for SourceRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SourceRuntimeError::RuntimePipeline(error) => write!(f, "{error}"),
+            SourceRuntimeError::RuntimeElaborate(error) => write!(f, "{error:?}"),
             SourceRuntimeError::RuntimeFinalize(error) => write!(f, "{error}"),
         }
     }
@@ -38,6 +40,12 @@ impl From<yulang_runtime_pipeline::RuntimePipelineError> for SourceRuntimeError 
 impl From<yulang_monomorphize::MonomorphizeError> for SourceRuntimeError {
     fn from(error: yulang_monomorphize::MonomorphizeError) -> Self {
         SourceRuntimeError::RuntimeFinalize(error)
+    }
+}
+
+impl From<yulang_elaborate::ElaborateProgramError> for SourceRuntimeError {
+    fn from(error: yulang_elaborate::ElaborateProgramError) -> Self {
+        SourceRuntimeError::RuntimeElaborate(error)
     }
 }
 
@@ -64,6 +72,37 @@ pub fn runtime_module_from_lowered_sources(
 ) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
     let module = yulang_runtime_pipeline::lowered_runtime_module_from_lowered_sources(lowered)?;
     yulang_monomorphize::monomorphize_module(module).map_err(SourceRuntimeError::from)
+}
+
+pub fn elaborated_runtime_module_from_virtual_source_with_options(
+    source: &str,
+    base_dir: Option<PathBuf>,
+    options: SourceOptions,
+) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
+    let mut lowered = yulang_infer::lower_virtual_source_with_options(source, base_dir, options)
+        .map_err(yulang_runtime_pipeline::RuntimePipelineError::from)?;
+    elaborated_runtime_module_from_lowered_sources(&mut lowered)
+}
+
+pub fn elaborated_runtime_module_from_lowered_sources(
+    lowered: &mut yulang_infer::LoweredSources,
+) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
+    let diagnostics = yulang_infer::collect_surface_diagnostics(&lowered.state);
+    if !diagnostics.is_empty() {
+        return Err(SourceRuntimeError::RuntimePipeline(
+            yulang_runtime_pipeline::RuntimePipelineError::SurfaceDiagnostics(
+                diagnostics
+                    .into_iter()
+                    .map(|diagnostic| diagnostic.message)
+                    .collect(),
+            ),
+        ));
+    }
+    let export = yulang_infer::export_erased_program(&mut lowered.state);
+    let elaborated = yulang_elaborate::Elaborator::new(&export).build_program()?;
+    yulang_runtime_lower::lower_elaborated_program(elaborated)
+        .map_err(yulang_runtime_pipeline::RuntimePipelineError::from)
+        .map_err(SourceRuntimeError::from)
 }
 
 pub fn runtime_ir_module_from_virtual_source_with_dependency_cache(
@@ -125,6 +164,29 @@ mod tests {
         .expect("finalized runtime module");
 
         assert_eq!(module.root_exprs.len(), 1);
+    }
+
+    #[test]
+    fn elaborated_runtime_module_uses_instance_paths() {
+        let module = elaborated_runtime_module_from_virtual_source_with_options(
+            "my id x = x\nid 1\n",
+            None,
+            SourceOptions {
+                implicit_prelude: false,
+                std_root: None,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("elaborated runtime module");
+
+        assert_eq!(module.root_exprs.len(), 1);
+        assert!(module.bindings.iter().any(|binding| {
+            binding
+                .name
+                .segments
+                .last()
+                .is_some_and(|name| name.0.starts_with("mono"))
+        }));
     }
 
     #[test]
