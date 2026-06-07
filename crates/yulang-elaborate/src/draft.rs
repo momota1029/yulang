@@ -22,14 +22,6 @@ impl ElaborationDraft {
         }
     }
 
-    pub(crate) fn root_kind(&self) -> ErasedExprKind {
-        self.expr(self.root).kind
-    }
-
-    pub(crate) fn root_is_leaf(&self) -> bool {
-        self.expr(self.root).children.is_empty()
-    }
-
     pub(crate) fn expr(&self, id: DraftExprId) -> &DraftExpr {
         &self.exprs[id.0 as usize]
     }
@@ -171,7 +163,7 @@ mod tests {
 
         assert_eq!(draft.root_expr, 0);
         assert_eq!(draft.exprs.len(), 3);
-        assert_eq!(draft.root_kind(), ErasedExprKind::Tuple);
+        assert_eq!(draft.expr(draft.root).kind, ErasedExprKind::Tuple);
         assert_eq!(draft.expr(draft.root).children.len(), 2);
         assert_eq!(
             draft
@@ -196,7 +188,7 @@ mod tests {
             },
         );
 
-        assert_eq!(draft.root_kind(), ErasedExprKind::BindHere);
+        assert_eq!(draft.expr(draft.root).kind, ErasedExprKind::BindHere);
         assert_eq!(
             draft.force_thunk_boundaries,
             vec![ForceThunkBoundaryDraft {

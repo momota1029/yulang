@@ -15,7 +15,9 @@ use yulang_erased_ir::{
     RefId, ResolvedTypeClassRef, TypeBounds, TypeClassObligation,
 };
 
+pub use constraints::ConstraintError;
 pub use yulang_elaborated_ir as elaborated_ir;
+
 use yulang_elaborated_ir::{
     ConcreteType, ConcreteTypeError, ElaboratedExpr, ElaboratedExprKind, ElaboratedModule,
     ElaboratedProgram, ElaboratedRoot, MonoComputation, MonoEffect, MonoType, ResolvedRefTable,
@@ -162,6 +164,7 @@ pub enum ElaborateInputError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElaborateProgramError {
     Input(ElaborateInputError),
+    Constraint(ConstraintError),
     NonExactComputationBounds {
         site: ElaborateSite,
         field: ComputationField,
@@ -236,15 +239,11 @@ fn elaborate_root_expr(
 ) -> Result<ElaboratedExpr, ElaborateProgramError> {
     let site = ElaborateSite::RootExpr(index);
     let draft = draft::ElaborationDraft::from_root_expr(index, &expr.ir);
-    if !draft.root_is_leaf() {
-        return Err(ElaborateProgramError::UnsupportedExpr {
-            site,
-            kind: draft.root_kind(),
-        });
-    }
     let comp = concrete_computation(site.clone(), &expr.typ, &expr.eff)?;
-    let _constraints = constraints::ConstraintSet::seed_root(&draft, comp.clone());
-    elaborate_leaf_expr(site, &expr.ir, comp)
+    let solution = constraints::ConstraintSet::seed_root(&draft, comp)
+        .solve(&draft, &expr.ir)
+        .map_err(ElaborateProgramError::Constraint)?;
+    elaborate_expr(site, &draft, draft.root, &expr.ir, &solution)
 }
 
 fn elaborate_root(root: &PrincipalRoot) -> Result<ElaboratedRoot, ElaborateProgramError> {
@@ -301,16 +300,34 @@ fn exact_concrete_type(
         .map_err(|error| ElaborateProgramError::NonConcreteComputationType { site, field, error })
 }
 
-fn elaborate_leaf_expr(
+fn elaborate_expr(
     site: ElaborateSite,
+    draft: &draft::ElaborationDraft,
+    id: draft::DraftExprId,
     expr: &ErasedExpr,
-    comp: MonoComputation,
+    solution: &constraints::ComputationSolution,
 ) -> Result<ElaboratedExpr, ElaborateProgramError> {
+    let comp = solution
+        .computation_for_expr(draft, id)
+        .map_err(ElaborateProgramError::Constraint)?
+        .clone();
     let kind = match expr {
         ErasedExpr::Def(def) => ElaboratedExprKind::Def(*def),
         ErasedExpr::Ref(ref_id) => ElaboratedExprKind::Ref(*ref_id),
         ErasedExpr::PrimitiveOp(op) => ElaboratedExprKind::PrimitiveOp(*op),
         ErasedExpr::Lit(lit) => ElaboratedExprKind::Lit(lit.clone()),
+        ErasedExpr::Tuple(items) => {
+            let children = draft.expr(id).children.clone();
+            ElaboratedExprKind::Tuple(
+                children
+                    .into_iter()
+                    .zip(items)
+                    .map(|(child_id, item)| {
+                        elaborate_expr(site.clone(), draft, child_id, item, solution)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+        }
         _ => {
             return Err(ElaborateProgramError::UnsupportedExpr {
                 site,
@@ -686,7 +703,7 @@ my used = id (1.display)\n",
     }
 
     #[test]
-    fn elaborator_rejects_compound_expr_until_constraints_assign_child_types() {
+    fn elaborator_builds_tuple_program_from_root_tuple_type() {
         let mut export = InferExport::default();
         export.erased.module.root_exprs.push(inferred_root(
             yulang_erased_ir::ErasedExpr::Tuple(vec![
@@ -697,14 +714,64 @@ my used = id (1.display)\n",
             yulang_erased_ir::Type::Never,
         ));
 
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("tuple root can be elaborated from exact root tuple type");
+
+        let elaborated_ir::ElaboratedExprKind::Tuple(items) = &program.module.root_exprs[0].kind
+        else {
+            panic!("tuple root should elaborate as a tuple expression");
+        };
+        assert_eq!(items.len(), 2);
+        assert!(matches!(
+            &items[0].kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "1"
+        ));
+        assert!(matches!(
+            &items[1].kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "2"
+        ));
+        assert_eq!(
+            items[0].comp.value,
+            elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(named_type("int"))
+                    .expect("int is concrete")
+            )
+        );
+    }
+
+    #[test]
+    fn elaborator_rejects_apply_until_function_constraints_are_rebuilt() {
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Apply {
+                callee: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
+                    1,
+                ))),
+                arg: Box::new(yulang_erased_ir::ErasedExpr::Lit(
+                    yulang_erased_ir::Lit::Int("1".to_string()),
+                )),
+            },
+            named_type("int"),
+            yulang_erased_ir::Type::Never,
+        ));
+        export
+            .erased
+            .refs
+            .direct
+            .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
+
         let Err(ElaborateProgramError::UnsupportedExpr {
             site: ElaborateSite::RootExpr(0),
-            kind: ErasedExprKind::Tuple,
+            kind: ErasedExprKind::Apply,
         }) = Elaborator::try_new(&export)
             .expect("valid erased export")
             .build_program()
         else {
-            panic!("compound erased expressions need rebuilt child computation types first");
+            panic!("apply needs rebuilt function constraints before elaborated output");
         };
     }
 
