@@ -2160,6 +2160,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang-erased-ir"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "yulang-infer"
 version = "0.1.6"
 dependencies = [
@@ -2170,6 +2178,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "yulang-erased-ir",
  "yulang-parser",
  "yulang-sources",
  "yulang-typed-ir",

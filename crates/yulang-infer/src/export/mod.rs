@@ -8,6 +8,7 @@
 
 mod apply_principal;
 mod bindings;
+pub mod erased;
 mod evidence;
 pub mod expr;
 pub mod names;
@@ -19,6 +20,7 @@ mod timing;
 mod type_props;
 pub mod types;
 
+pub use erased::export_erased_program;
 pub use evidence::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, collect_derived_expected_edge_evidence,

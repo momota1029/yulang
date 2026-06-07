@@ -16,6 +16,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 postcard = { version = "1", features = ["alloc"] }
 yulang-typed-ir = { version = "0.1.3", path = "../yulang-typed-ir" }
+yulang-erased-ir = { version = "0.1.0", path = "../yulang-erased-ir" }
 yulang-parser = { version = "0.1.3", path = "../yulang-parser" }
 yulang-sources = { version = "0.1.5", path = "../yulang-sources" }
 

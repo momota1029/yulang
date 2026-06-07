@@ -45,8 +45,8 @@ pub use export::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, collect_derived_expected_edge_evidence,
     collect_expected_adapter_edge_evidence, collect_expected_edge_evidence, export_core_program,
-    export_core_program_for_binding_paths, export_principal_bindings, export_principal_module,
-    export_scheme_body,
+    export_core_program_for_binding_paths, export_erased_program, export_principal_bindings,
+    export_principal_module, export_scheme_body,
 };
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 pub use lower::ctx::LowerCtx;
