@@ -2275,6 +2275,129 @@ impl Display int:\n  our x.display = \"int\"\n\n\
     }
 
     #[test]
+    fn elaborator_builds_curried_direct_ref_apply_from_scheme() {
+        let int = named_type("int");
+        let ret_fn_type = yulang_erased_ir::Type::Fun {
+            param: Box::new(int.clone()),
+            param_effect: Box::new(yulang_erased_ir::Type::Never),
+            ret_effect: Box::new(yulang_erased_ir::Type::Never),
+            ret: Box::new(int.clone()),
+        };
+        let fn_type = yulang_erased_ir::Type::Fun {
+            param: Box::new(int.clone()),
+            param_effect: Box::new(yulang_erased_ir::Type::Never),
+            ret_effect: Box::new(yulang_erased_ir::Type::Never),
+            ret: Box::new(ret_fn_type.clone()),
+        };
+        let mut export = InferExport::default();
+        export
+            .erased
+            .module
+            .bindings
+            .push(yulang_erased_ir::InferredBinding {
+                def: yulang_erased_ir::DefId(2),
+                name: yulang_erased_ir::Path::from_name(yulang_erased_ir::Name(
+                    "second".to_string(),
+                )),
+                scheme: yulang_erased_ir::Scheme {
+                    body: fn_type.clone(),
+                    quantified_types: Vec::new(),
+                    quantified_effects: Vec::new(),
+                    quantified_refs: Vec::new(),
+                    typeclass_obligations: Vec::new(),
+                    requirements: Vec::new(),
+                },
+                body: inferred_root(
+                    yulang_erased_ir::ErasedExpr::Lambda {
+                        param: yulang_erased_ir::DefId(10),
+                        body: Box::new(yulang_erased_ir::ErasedExpr::Lambda {
+                            param: yulang_erased_ir::DefId(11),
+                            body: Box::new(yulang_erased_ir::ErasedExpr::Def(
+                                yulang_erased_ir::DefId(11),
+                            )),
+                        }),
+                    },
+                    fn_type,
+                    yulang_erased_ir::Type::Never,
+                ),
+            });
+        export
+            .erased
+            .refs
+            .direct
+            .insert(yulang_erased_ir::RefId(1), yulang_erased_ir::DefId(2));
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Apply {
+                callee: Box::new(yulang_erased_ir::ErasedExpr::Apply {
+                    callee: Box::new(yulang_erased_ir::ErasedExpr::Ref(yulang_erased_ir::RefId(
+                        1,
+                    ))),
+                    arg: Box::new(yulang_erased_ir::ErasedExpr::Lit(
+                        yulang_erased_ir::Lit::Int("1".to_string()),
+                    )),
+                }),
+                arg: Box::new(yulang_erased_ir::ErasedExpr::Lit(
+                    yulang_erased_ir::Lit::Int("2".to_string()),
+                )),
+            },
+            int.clone(),
+            yulang_erased_ir::Type::Never,
+        ));
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("curried direct ref apply should elaborate from nested apply spine");
+
+        let elaborated_ir::ElaboratedExprKind::Apply {
+            callee: outer_callee,
+            arg: outer_arg,
+        } = &program.module.root_exprs[0].kind
+        else {
+            panic!("root should elaborate as outer apply");
+        };
+        assert!(matches!(
+            &outer_arg.kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "2"
+        ));
+        assert!(matches!(
+            &outer_callee.comp.value,
+            elaborated_ir::MonoType::Function(_)
+        ));
+
+        let elaborated_ir::ElaboratedExprKind::Apply {
+            callee: inner_callee,
+            arg: inner_arg,
+        } = &outer_callee.kind
+        else {
+            panic!("outer callee should be the inner apply");
+        };
+        assert!(matches!(
+            &inner_callee.kind,
+            elaborated_ir::ElaboratedExprKind::Ref(yulang_erased_ir::RefId(1))
+        ));
+        assert!(matches!(
+            &inner_arg.kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "1"
+        ));
+        assert_eq!(program.module.instances.len(), 2);
+        assert_eq!(
+            program.refs.entries.get(&elaborated_ir::ResolvedRefKey {
+                instance: elaborated_ir::MonoInstanceId(0),
+                ref_id: yulang_erased_ir::RefId(1),
+            }),
+            Some(&elaborated_ir::ResolvedRef {
+                target: elaborated_ir::MonoInstanceId(1),
+                source: elaborated_ir::ResolvedRefSource::Direct {
+                    def: yulang_erased_ir::DefId(2),
+                },
+            })
+        );
+    }
+
+    #[test]
     fn elaborator_builds_inline_lambda_apply_from_root_result_type() {
         let int = named_type("int");
         let mut export = InferExport::default();

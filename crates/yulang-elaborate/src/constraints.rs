@@ -340,26 +340,13 @@ impl ConstraintSolver {
         let slot = draft.expr(id).computation;
         let computation = self.require_assigned(slot)?.clone();
         let apply_computation = match callee {
-            ErasedExpr::Lambda { .. } => {
-                let ret_type = value_type(slot, &computation.value)?;
-                let ret_effect = computation.effect.row().as_type().clone();
-                let arg_computation = literal_computation(slot, arg)?.ok_or_else(|| {
+            ErasedExpr::Lambda { .. } | ErasedExpr::Apply { .. } => {
+                apply_from_known_arg(slot, &computation, arg, env)?.ok_or_else(|| {
                     ConstraintError::UnsupportedApplyArg {
                         slot: slot.into(),
                         kind: ErasedExprKind::from_expr(arg),
                     }
-                })?;
-                let arg_type = value_type(slot, &arg_computation.value)?;
-                ApplyComputation {
-                    callee: function_computation(
-                        slot,
-                        arg_type,
-                        Type::Never,
-                        ret_effect,
-                        ret_type,
-                    )?,
-                    arg: arg_computation,
-                }
+                })?
             }
             ErasedExpr::Ref(ref_id) => {
                 if let Some((def, scheme)) = env.direct_scheme(*ref_id) {
@@ -1762,6 +1749,25 @@ fn concrete_apply_from_scheme(
     })
 }
 
+fn apply_from_known_arg(
+    slot: DraftComputationId,
+    expected: &MonoComputation,
+    arg: &ErasedExpr,
+    env: &ConstraintEnvironment<'_>,
+) -> Result<Option<ApplyComputation>, ConstraintError> {
+    let Some(arg_computation) = known_computation(slot, arg, env)? else {
+        return Ok(None);
+    };
+    let ret_type = value_type(slot, &expected.value)?;
+    let ret_effect = expected.effect.row().as_type().clone();
+    let arg_type = value_type(slot, &arg_computation.value)?;
+    let arg_effect = arg_computation.effect.row().as_type().clone();
+    Ok(Some(ApplyComputation {
+        callee: function_computation(slot, arg_type, arg_effect, ret_effect, ret_type)?,
+        arg: arg_computation,
+    }))
+}
+
 fn scheme_can_be_instantiated_locally(scheme: &Scheme) -> bool {
     scheme.quantified_refs.is_empty()
         && scheme.typeclass_obligations.is_empty()
@@ -1940,23 +1946,6 @@ fn pure_value_computation(
         value: MonoType::Value(concrete_type(slot, source, ty)?),
         effect: pure_effect(),
     })
-}
-
-fn literal_computation(
-    slot: DraftComputationId,
-    expr: &ErasedExpr,
-) -> Result<Option<MonoComputation>, ConstraintError> {
-    let ErasedExpr::Lit(lit) = expr else {
-        return Ok(None);
-    };
-    Ok(Some(MonoComputation {
-        value: MonoType::Value(concrete_type(
-            slot,
-            ConstraintTypeSource::Literal,
-            literal_type(lit),
-        )?),
-        effect: pure_effect(),
-    }))
 }
 
 fn known_computation(
