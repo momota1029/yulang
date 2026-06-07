@@ -1255,7 +1255,7 @@ fn collect_transparent_role_wrapper_application_def<'a>(
     let def = state
         .infer
         .resolve_concrete_role_method_call_def(info, Some(recv.tv), &role_args)?;
-    Some((canonical_runtime_export_def(state, def), args))
+    Some((def, args))
 }
 
 fn transparent_role_wrapper_method(
