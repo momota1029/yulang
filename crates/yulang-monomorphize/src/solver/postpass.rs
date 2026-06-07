@@ -35,6 +35,7 @@ use yulang_runtime_ir::{
     FinalizedModule as Module, FinalizedPattern as Pattern, FinalizedStmt as Stmt, Root,
     RuntimeType,
 };
+use yulang_runtime_types::types::type_is_effect_like;
 use yulang_typed_ir as typed_ir;
 
 use crate::{RootGraphSolution, graph::should_thunk_effect, materialize_core_type};
@@ -548,23 +549,28 @@ fn reconcile_apply_triple(
         let mut changed = false;
 
         if let Some((param, ret)) = runtime_fun_split(callee_ty) {
-            if !runtime_type_has_unknown(&param) && !runtime_types_equivalent(arg_ty, &param) {
-                *arg_ty = param.clone();
+            let runtime_param = erase_runtime_value_choices(&param);
+            if !runtime_type_has_unknown(&runtime_param)
+                && !runtime_types_equivalent(arg_ty, &runtime_param)
+            {
+                *arg_ty = runtime_param;
                 changed = true;
             }
-            if !runtime_type_has_unknown(&ret) && !runtime_types_equivalent(apply_ty, &ret) {
-                *apply_ty = ret.clone();
+            let runtime_ret = erase_runtime_value_choices(&ret);
+            if !runtime_type_has_unknown(&runtime_ret)
+                && !runtime_types_equivalent(apply_ty, &runtime_ret)
+            {
+                *apply_ty = runtime_ret;
                 changed = true;
             }
         }
 
-        if runtime_type_has_unknown(callee_ty)
-            && !runtime_type_has_unknown(arg_ty)
-            && !runtime_type_has_unknown(apply_ty)
-        {
+        if runtime_type_has_unknown(callee_ty) && !runtime_type_has_unknown(apply_ty) {
+            let runtime_arg = erase_runtime_value_choices(arg_ty);
+            let runtime_ret = erase_runtime_value_choices(apply_ty);
             let new_callee = RuntimeType::Fun {
-                param: Box::new(arg_ty.clone()),
-                ret: Box::new(apply_ty.clone()),
+                param: Box::new(runtime_arg),
+                ret: Box::new(runtime_ret),
             };
             if !runtime_types_equivalent(callee_ty, &new_callee) {
                 *callee_ty = new_callee;
@@ -573,7 +579,8 @@ fn reconcile_apply_triple(
         }
 
         if let Some((param, ret)) = runtime_fun_split(callee_ty) {
-            let merged_param = merge_partial_runtime_type(&param, arg_ty);
+            let runtime_arg = erase_runtime_value_choices(arg_ty);
+            let merged_param = merge_partial_runtime_type(&param, &runtime_arg);
             if let Some(merged) = merged_param {
                 if !runtime_types_equivalent(arg_ty, &merged) {
                     *arg_ty = merged.clone();
@@ -584,7 +591,8 @@ fn reconcile_apply_triple(
                     changed = true;
                 }
             }
-            let merged_ret = merge_partial_runtime_type(&ret, apply_ty);
+            let runtime_apply = erase_runtime_value_choices(apply_ty);
+            let merged_ret = merge_partial_runtime_type(&ret, &runtime_apply);
             if let Some(merged) = merged_ret {
                 if !runtime_types_equivalent(apply_ty, &merged) {
                     *apply_ty = merged.clone();
@@ -601,6 +609,104 @@ fn reconcile_apply_triple(
             break;
         }
     }
+}
+
+// Apply evidence may still carry principal value choices such as `float | int`.
+// Those choices are useful for inference, but they are not a concrete runtime
+// layout for a callee parameter or return slot.
+fn erase_runtime_value_choices(ty: &RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Unknown => RuntimeType::Unknown,
+        RuntimeType::Value(ty) => RuntimeType::Value(erase_core_value_choices(ty)),
+        RuntimeType::Fun { param, ret } => RuntimeType::Fun {
+            param: Box::new(erase_runtime_value_choices(param)),
+            ret: Box::new(erase_runtime_value_choices(ret)),
+        },
+        RuntimeType::Thunk { effect, value } => RuntimeType::Thunk {
+            effect: effect.clone(),
+            value: Box::new(erase_runtime_value_choices(value)),
+        },
+    }
+}
+
+fn erase_core_value_choices(ty: &typed_ir::Type) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => typed_ir::Type::Unknown,
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
+            path: path.clone(),
+            args: args.iter().map(erase_type_arg_value_choices).collect(),
+        },
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(erase_core_value_choices(param)),
+            param_effect: param_effect.clone(),
+            ret_effect: ret_effect.clone(),
+            ret: Box::new(erase_core_value_choices(ret)),
+        },
+        typed_ir::Type::Tuple(items) => {
+            typed_ir::Type::Tuple(items.iter().map(erase_core_value_choices).collect())
+        }
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| typed_ir::RecordField {
+                    name: field.name.clone(),
+                    value: erase_core_value_choices(&field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.as_ref().map(|spread| match spread {
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(erase_core_value_choices(ty)))
+                }
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(erase_core_value_choices(ty)))
+                }
+            }),
+        }),
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| typed_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case.payloads.iter().map(erase_core_value_choices).collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .as_ref()
+                .map(|tail| Box::new(erase_core_value_choices(tail))),
+        }),
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(erase_core_value_choices(body)),
+        },
+        typed_ir::Type::Row { .. }
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => ty.clone(),
+    }
+}
+
+fn erase_type_arg_value_choices(arg: &typed_ir::TypeArg) -> typed_ir::TypeArg {
+    match arg {
+        typed_ir::TypeArg::Type(ty) if type_is_effect_like(ty) => arg.clone(),
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(erase_core_value_choices(ty)),
+        typed_ir::TypeArg::Bounds(bounds) if type_bounds_are_effect_like(bounds) => arg.clone(),
+        typed_ir::TypeArg::Bounds(_) => typed_ir::TypeArg::Type(typed_ir::Type::Unknown),
+    }
+}
+
+fn type_bounds_are_effect_like(bounds: &typed_ir::TypeBounds) -> bool {
+    bounds.lower.as_deref().is_some_and(type_is_effect_like)
+        || bounds.upper.as_deref().is_some_and(type_is_effect_like)
 }
 
 fn runtime_fun_split(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
@@ -1842,6 +1948,36 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn reconcile_apply_triple_erases_value_choice_when_rebuilding_unknown_callee() {
+        let str_ty = named_type("str");
+        let mut callee = RuntimeType::Unknown;
+        let mut arg = value_choice("float", "int");
+        let mut apply = str_ty.clone();
+
+        reconcile_apply_triple(&mut callee, &mut arg, &mut apply);
+
+        let erased_arg = RuntimeType::Value(typed_ir::Type::Unknown);
+        assert_eq!(callee, RuntimeType::fun(erased_arg.clone(), str_ty.clone()));
+        assert_eq!(arg, erased_arg);
+        assert_eq!(apply, str_ty);
+    }
+
+    #[test]
+    fn reconcile_apply_triple_erases_value_choice_against_unknown_param() {
+        let str_ty = named_type("str");
+        let erased_arg = RuntimeType::Value(typed_ir::Type::Unknown);
+        let mut callee = RuntimeType::fun(erased_arg.clone(), str_ty.clone());
+        let mut arg = value_choice("float", "int");
+        let mut apply = str_ty.clone();
+
+        reconcile_apply_triple(&mut callee, &mut arg, &mut apply);
+
+        assert_eq!(callee, RuntimeType::fun(erased_arg.clone(), str_ty.clone()));
+        assert_eq!(arg, erased_arg);
+        assert_eq!(apply, str_ty);
+    }
+
     fn module_with_root(expr: Expr) -> Module {
         Module {
             path: typed_ir::Path::default(),
@@ -1885,10 +2021,21 @@ mod tests {
     }
 
     fn named_type(name: &str) -> RuntimeType {
-        RuntimeType::Value(typed_ir::Type::Named {
+        RuntimeType::Value(core_named_type(name))
+    }
+
+    fn value_choice(left: &str, right: &str) -> RuntimeType {
+        RuntimeType::Value(typed_ir::Type::Union(vec![
+            core_named_type(left),
+            core_named_type(right),
+        ]))
+    }
+
+    fn core_named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: path_from_str(name),
             args: Vec::new(),
-        })
+        }
     }
 
     fn empty_row() -> typed_ir::Type {

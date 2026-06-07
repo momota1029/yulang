@@ -126,20 +126,26 @@ impl Lowerer<'_> {
                             }
                         }
                         Some(typed_ir::RuntimeSymbolKind::RoleMethod) => {
-                            expected.cloned().or_else(|| Some(RuntimeType::unknown()))
+                            Some(role_method_expected_runtime_type(expected))
                         }
                         Some(typed_ir::RuntimeSymbolKind::Value) | None => None,
                     });
                 let is_bound = local_ty.is_some() || self.env.contains_key(&resolved_path);
+                let expected_hint = match runtime_symbol_kind {
+                    Some(typed_ir::RuntimeSymbolKind::RoleMethod) => {
+                        Some(role_method_expected_runtime_type(expected))
+                    }
+                    _ => expected.cloned(),
+                };
                 let ty = if local_ty.is_none()
                     && self
                         .binding_infos
                         .get(&path)
                         .is_some_and(|info| !info.type_params.is_empty())
                 {
-                    choose_polymorphic_binding_type_hint(stored_ty.clone(), expected.cloned())
+                    choose_polymorphic_binding_type_hint(stored_ty.clone(), expected_hint.clone())
                 } else {
-                    choose_local_type_hint(stored_ty.clone(), expected.cloned())
+                    choose_local_type_hint(stored_ty.clone(), expected_hint.clone())
                 }
                 .ok_or_else(|| {
                     if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
@@ -896,6 +902,17 @@ impl Lowerer<'_> {
                     }
                 };
                 let actual_arg_ty = arg.ty.clone();
+                let callee_is_role_method = matches!(
+                    &callee.kind,
+                    ExprKind::Var(path)
+                        if self.runtime_symbol_kind(path)
+                            == Some(typed_ir::RuntimeSymbolKind::RoleMethod)
+                );
+                let actual_arg_runtime_ty = if callee_is_role_method {
+                    erase_runtime_value_choices(&actual_arg_ty)
+                } else {
+                    actual_arg_ty.clone()
+                };
                 if matches!(
                     callee.ty,
                     RuntimeType::Unknown
@@ -909,6 +926,11 @@ impl Lowerer<'_> {
                         actual_arg_ty.clone()
                     } else {
                         arg_ty.clone()
+                    };
+                    let fallback_param = if callee_is_role_method {
+                        erase_runtime_value_choices(&fallback_param)
+                    } else {
+                        fallback_param
                     };
                     callee.ty = erased_fun_type(fallback_param, result_ty.clone());
                 }
@@ -938,9 +960,9 @@ impl Lowerer<'_> {
                 );
                 if runtime_type_is_imprecise_runtime_slot(&final_param)
                     && !matches!(callee.kind, ExprKind::EffectOp(_))
-                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
+                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_runtime_ty)
                 {
-                    final_param = actual_arg_ty.clone();
+                    final_param = actual_arg_runtime_ty.clone();
                 }
                 if matches!(callee.kind, ExprKind::EffectOp(_))
                     && runtime_type_is_irrelevant_unit_value(&final_param)
@@ -961,23 +983,23 @@ impl Lowerer<'_> {
                 if evidence
                     .as_ref()
                     .is_some_and(|evidence| evidence.role_method)
-                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
-                    && !hir_type_contains_unknown(&actual_arg_ty)
-                    && !hir_type_compatible(&final_param, &actual_arg_ty)
+                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_runtime_ty)
+                    && !hir_type_contains_unknown(&actual_arg_runtime_ty)
+                    && !hir_type_compatible(&final_param, &actual_arg_runtime_ty)
                 {
-                    final_param = actual_arg_ty.clone();
+                    final_param = actual_arg_runtime_ty.clone();
                 }
                 if self.use_principal_elaboration
-                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
-                    && !hir_type_contains_unknown(&actual_arg_ty)
-                    && !hir_type_compatible(&final_param, &actual_arg_ty)
+                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_runtime_ty)
+                    && !hir_type_contains_unknown(&actual_arg_runtime_ty)
+                    && !hir_type_compatible(&final_param, &actual_arg_runtime_ty)
                     && widened_apply_arg_evidence_accepts_actual(
                         evidence_expected_arg.as_ref(),
                         evidence_arg_lower.as_ref(),
-                        &actual_arg_ty,
+                        &actual_arg_runtime_ty,
                     )
                 {
-                    final_param = actual_arg_ty.clone();
+                    final_param = actual_arg_runtime_ty.clone();
                     final_fun_parts.param = final_param.clone();
                     callee.ty =
                         erased_fun_type(final_fun_parts.param.clone(), final_fun_parts.ret.clone());
@@ -3175,6 +3197,9 @@ impl Lowerer<'_> {
             &params,
             &mut substitutions,
         );
+        if self.runtime_symbol_kind(&target) == Some(typed_ir::RuntimeSymbolKind::RoleMethod) {
+            substitutions.retain(|_, ty| !core_type_contains_value_choice(ty));
+        }
         close_type_substitution_map_recursively(&mut substitutions);
         let substituted_ty = substitute_hir_type(&template_ty, &substitutions);
         let value_params = hir_value_type_params(&info.ty)
@@ -3911,6 +3936,16 @@ fn runtime_type_contains_value_choice(ty: &RuntimeType) -> bool {
             runtime_type_contains_value_choice(param) || runtime_type_contains_value_choice(ret)
         }
         RuntimeType::Thunk { value, .. } => runtime_type_contains_value_choice(value),
+    }
+}
+
+fn role_method_expected_runtime_type(expected: Option<&RuntimeType>) -> RuntimeType {
+    match expected {
+        Some(expected) if runtime_type_contains_value_choice(expected) => {
+            erase_runtime_value_choices(expected)
+        }
+        Some(expected) => expected.clone(),
+        None => RuntimeType::unknown(),
     }
 }
 

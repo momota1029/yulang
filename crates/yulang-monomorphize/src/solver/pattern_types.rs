@@ -61,3 +61,22 @@ pub(crate) fn record_field_runtime_type(
         .find(|field| field.name == *name)
         .map(|field| RuntimeType::Value(field.value.clone()))
 }
+
+pub(crate) fn variant_payload_runtime_type(
+    scrutinee_ty: Option<&RuntimeType>,
+    pattern_ty: &RuntimeType,
+    tag: &typed_ir::Name,
+) -> Option<RuntimeType> {
+    let preferred = scrutinee_ty
+        .filter(|ty| !super::runtime_type_has_unknown(ty))
+        .or_else(|| (!super::runtime_type_has_unknown(pattern_ty)).then_some(pattern_ty))?;
+    let RuntimeType::Value(typed_ir::Type::Variant(variant)) = preferred else {
+        return None;
+    };
+    let case = variant.cases.iter().find(|case| case.name == *tag)?;
+    match case.payloads.as_slice() {
+        [] => None,
+        [payload] => Some(RuntimeType::Value(payload.clone())),
+        payloads => Some(RuntimeType::Value(typed_ir::Type::Tuple(payloads.to_vec()))),
+    }
+}

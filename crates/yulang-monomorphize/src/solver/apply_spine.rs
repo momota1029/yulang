@@ -40,7 +40,10 @@ use crate::{
 };
 
 use super::{
-    pattern_types::{choose_pattern_ty, record_field_runtime_type, tuple_component_runtime_types},
+    pattern_types::{
+        choose_pattern_ty, record_field_runtime_type, tuple_component_runtime_types,
+        variant_payload_runtime_type,
+    },
     rewrite, role,
 };
 
@@ -3065,9 +3068,10 @@ pub(crate) fn collect_pattern_local_types(
                 }
             }
         }
-        Pattern::Variant { value, .. } => {
+        Pattern::Variant { tag, value, ty } => {
             if let Some(value) = value {
-                collect_pattern_local_types(value, None, local_types);
+                let payload_ty = variant_payload_runtime_type(scrutinee_ty, ty, tag);
+                collect_pattern_local_types(value, payload_ty.as_ref(), local_types);
             }
         }
         Pattern::Or { left, right, .. } => {

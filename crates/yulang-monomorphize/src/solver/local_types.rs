@@ -16,6 +16,7 @@ use yulang_typed_ir as typed_ir;
 use super::materialize::force_core_value_expr;
 use super::pattern_types::{
     choose_pattern_ty, record_field_runtime_type, tuple_component_runtime_types,
+    variant_payload_runtime_type,
 };
 
 pub(crate) fn refresh_local_expr_types(expr: Expr) -> Expr {
@@ -294,9 +295,10 @@ fn refresh_pattern_local_types(
                 }
             }
         }
-        Pattern::Variant { value, .. } => {
+        Pattern::Variant { tag, value, ty } => {
             if let Some(value) = value {
-                refresh_pattern_local_types(value, None, locals);
+                let payload_ty = variant_payload_runtime_type(scrutinee_ty, ty, tag);
+                refresh_pattern_local_types(value, payload_ty.as_ref(), locals);
             }
         }
         Pattern::Or { left, right, .. } => {

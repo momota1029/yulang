@@ -663,7 +663,7 @@ pub(crate) fn rewrite_role_method_calls(module: &mut Module) -> bool {
     let reachable = super::reachable_paths(module);
     let mut changed = false;
     for binding in &mut module.bindings {
-        if !reachable.contains(&binding.name) {
+        if !reachable.contains(&binding.name) || !binding.type_params.is_empty() {
             continue;
         }
         let mut local_types = super::apply_spine::binding_local_types(binding);
@@ -1201,5 +1201,145 @@ fn type_arg_match_score(left: &typed_ir::TypeArg, right: &typed_ir::TypeArg) -> 
             Some(lower + upper)
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use yulang_runtime_ir::{FinalizedModule as Module, Root};
+
+    #[test]
+    fn role_rewrite_skips_polymorphic_template_bindings() {
+        let display = path(&["std", "prelude", "Display"]);
+        let show = path(&["std", "prelude", "Display", "show"]);
+        let int_show = path(&["std", "prelude", "&impl#int", "show"]);
+        let generic = path(&["test", "show_item"]);
+        let item = typed_ir::Name("item".to_string());
+        let var = typed_ir::TypeVar("a".to_string());
+        let str_ty = named("std::str::str");
+        let int_ty = named("int");
+        let var_ty = typed_ir::Type::Var(var.clone());
+
+        let mut module = Module {
+            path: path(&["test"]),
+            bindings: vec![
+                Binding {
+                    name: int_show.clone(),
+                    type_params: Vec::new(),
+                    scheme: typed_ir::Scheme {
+                        requirements: Vec::new(),
+                        body: fun_type(int_ty.clone(), str_ty.clone()),
+                    },
+                    body: Expr::typed(
+                        ExprKind::PrimitiveOp(typed_ir::PrimitiveOp::IntToString),
+                        RuntimeType::fun(
+                            RuntimeType::value(int_ty.clone()),
+                            RuntimeType::value(str_ty.clone()),
+                        ),
+                    ),
+                },
+                Binding {
+                    name: generic.clone(),
+                    type_params: vec![var.clone()],
+                    scheme: typed_ir::Scheme {
+                        requirements: vec![typed_ir::RoleRequirement {
+                            role: display.clone(),
+                            args: vec![typed_ir::RoleRequirementArg::Input(
+                                typed_ir::TypeBounds::exact(var_ty.clone()),
+                            )],
+                        }],
+                        body: fun_type(var_ty.clone(), str_ty.clone()),
+                    },
+                    body: Expr::typed(
+                        ExprKind::Lambda {
+                            param: item.clone(),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(Expr::typed(
+                                ExprKind::Apply {
+                                    callee: Box::new(Expr::typed(
+                                        ExprKind::Var(show.clone()),
+                                        RuntimeType::fun(
+                                            RuntimeType::value(var_ty.clone()),
+                                            RuntimeType::value(str_ty.clone()),
+                                        ),
+                                    )),
+                                    arg: Box::new(Expr::typed(
+                                        ExprKind::Var(typed_ir::Path::from_name(item)),
+                                        RuntimeType::value(var_ty.clone()),
+                                    )),
+                                    evidence: None,
+                                    instantiation: None,
+                                },
+                                RuntimeType::value(str_ty.clone()),
+                            )),
+                        },
+                        RuntimeType::fun(
+                            RuntimeType::value(var_ty.clone()),
+                            RuntimeType::value(str_ty),
+                        ),
+                    ),
+                },
+            ],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(generic.clone())],
+            role_impls: vec![typed_ir::RoleImplGraphNode {
+                role: display,
+                inputs: vec![typed_ir::TypeBounds::exact(int_ty)],
+                associated_types: Vec::new(),
+                members: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("show".to_string()),
+                    value: int_show,
+                    optional: false,
+                }],
+            }],
+        };
+
+        assert!(!rewrite_role_method_calls(&mut module));
+        let generic_body = &module
+            .bindings
+            .iter()
+            .find(|binding| binding.name == generic)
+            .expect("generic binding")
+            .body;
+        assert!(body_contains_var(generic_body, &show));
+    }
+
+    fn body_contains_var(expr: &Expr, target: &typed_ir::Path) -> bool {
+        match &expr.kind {
+            ExprKind::Var(path) => path == target,
+            ExprKind::Lambda { body, .. } => body_contains_var(body, target),
+            ExprKind::Apply { callee, arg, .. } => {
+                body_contains_var(callee, target) || body_contains_var(arg, target)
+            }
+            _ => false,
+        }
+    }
+
+    fn fun_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
+            param: Box::new(param),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(ret),
+        }
+    }
+
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&[name]),
+            args: Vec::new(),
+        }
+    }
+
+    fn path(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path::new(
+            segments
+                .iter()
+                .map(|segment| typed_ir::Name((*segment).to_string()))
+                .collect(),
+        )
     }
 }

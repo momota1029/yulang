@@ -7,7 +7,7 @@ use crate::ids::{DefId, TypeVar};
 use crate::lower::LowerState;
 use crate::simplify::compact::compact_type_var;
 use crate::simplify::cooccur::coalesce_by_co_occurrence;
-use crate::symbols::Path;
+use crate::symbols::{Name, Path};
 
 use super::apply_principal::CompletePrincipalCache;
 use super::evidence::ExpectedEdgeEvidence;
@@ -209,6 +209,7 @@ pub(crate) fn complete_referenced_binding_closure(
     for binding in bindings.iter() {
         collect_expr_binding_refs(state, globals, &binding.body, &mut pending_refs);
     }
+    collect_semantic_cast_role_impl_refs(state, globals, &mut pending_refs);
     while !pending_refs.is_empty() {
         let mut pending = std::mem::take(&mut pending_refs)
             .into_iter()
@@ -286,6 +287,28 @@ pub(crate) fn complete_referenced_binding_closure(
                 );
             }
         }
+    }
+}
+
+fn collect_semantic_cast_role_impl_refs(
+    state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    out: &mut HashSet<typed_ir::Path>,
+) {
+    let Some(info) = state.infer.role_methods.get(&Name("cast".to_string())) else {
+        return;
+    };
+    if info.output_name.is_none() {
+        return;
+    }
+    for candidate in state.infer.role_impl_candidates_of(&info.role) {
+        let Some(def) = candidate.member_defs.get(&info.name) else {
+            continue;
+        };
+        let Some(path) = globals.get(def).map(export_path) else {
+            continue;
+        };
+        out.insert(path);
     }
 }
 

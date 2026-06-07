@@ -481,6 +481,211 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn lower_role_method_var_erases_value_choice_expected_receiver() {
+        let role_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("Display".to_string()),
+            typed_ir::Name("show".to_string()),
+        ]);
+        let stored_ty = RuntimeType::fun(
+            RuntimeType::value(typed_ir::Type::Any),
+            RuntimeType::value(named_type("str")),
+        );
+        let mut lowerer = Lowerer {
+            env: HashMap::from([(role_path.clone(), stored_ty)]),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &typed_ir::CoreGraphView::default(),
+            runtime_symbols: HashMap::from([(
+                role_path.clone(),
+                typed_ir::RuntimeSymbolKind::RoleMethod,
+            )]),
+            effect_op_signatures: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
+            principal_vars: BTreeSet::new(),
+            expected_edges_by_id: HashMap::new(),
+            use_expected_arg_evidence: false,
+            use_principal_elaboration: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
+            current_function_boundary: None,
+            current_binding: None,
+            current_runtime_adapter_source: None,
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let expected_ty = RuntimeType::fun(
+            RuntimeType::value(typed_ir::Type::Union(vec![
+                named_type("float"),
+                named_type("int"),
+            ])),
+            RuntimeType::value(named_type("str")),
+        );
+
+        let expr = lowerer
+            .lower_expr(
+                typed_ir::Expr::Var(role_path.clone()),
+                Some(&expected_ty),
+                &mut HashMap::new(),
+                TypeSource::Expected,
+            )
+            .expect("lowered");
+
+        assert!(matches!(expr.kind, ExprKind::Var(path) if path == role_path));
+        assert_eq!(
+            expr.ty,
+            RuntimeType::fun(
+                RuntimeType::value(typed_ir::Type::Unknown),
+                RuntimeType::value(named_type("str"))
+            )
+        );
+    }
+
+    #[test]
+    pub(super) fn role_method_instantiation_ignores_value_choice_receiver() {
+        let role_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("Display".to_string()),
+            typed_ir::Name("show".to_string()),
+        ]);
+        let var = typed_ir::TypeVar("a".to_string());
+        let str_ty = RuntimeType::value(named_type("str"));
+        let lowerer = Lowerer {
+            env: HashMap::new(),
+            binding_infos: HashMap::from([(
+                role_path.clone(),
+                BindingInfo {
+                    ty: RuntimeType::fun(
+                        RuntimeType::value(typed_ir::Type::Var(var.clone())),
+                        str_ty.clone(),
+                    ),
+                    type_params: vec![var],
+                    requirements: Vec::new(),
+                },
+            )]),
+            aliases: HashMap::new(),
+            graph: &typed_ir::CoreGraphView::default(),
+            runtime_symbols: HashMap::from([(
+                role_path.clone(),
+                typed_ir::RuntimeSymbolKind::RoleMethod,
+            )]),
+            effect_op_signatures: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
+            principal_vars: BTreeSet::new(),
+            expected_edges_by_id: HashMap::new(),
+            use_expected_arg_evidence: false,
+            use_principal_elaboration: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
+            current_function_boundary: None,
+            current_binding: None,
+            current_runtime_adapter_source: None,
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let result_ty = str_ty.clone();
+        let sanitized_ty = RuntimeType::fun(
+            RuntimeType::value(typed_ir::Type::Unknown),
+            result_ty.clone(),
+        );
+        let mut callee = Expr::typed(ExprKind::Var(role_path), sanitized_ty.clone());
+        let value_choice = RuntimeType::value(typed_ir::Type::Union(vec![
+            named_type("float"),
+            named_type("int"),
+        ]));
+
+        let instantiation =
+            lowerer.instantiate_callee(&mut callee, None, &value_choice, &result_ty);
+
+        assert!(instantiation.is_none());
+        assert_eq!(callee.ty, sanitized_ty);
+    }
+
+    #[test]
+    pub(super) fn lower_role_method_apply_fallback_erases_value_choice_receiver() {
+        let role_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("Display".to_string()),
+            typed_ir::Name("show".to_string()),
+        ]);
+        let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
+        let graph = typed_ir::CoreGraphView::default();
+        let mut lowerer = Lowerer {
+            env: HashMap::from([(role_path.clone(), RuntimeType::Unknown)]),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &graph,
+            runtime_symbols: HashMap::from([(
+                role_path.clone(),
+                typed_ir::RuntimeSymbolKind::RoleMethod,
+            )]),
+            effect_op_signatures: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
+            principal_vars: BTreeSet::new(),
+            expected_edges_by_id: HashMap::new(),
+            use_expected_arg_evidence: false,
+            use_principal_elaboration: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
+            current_function_boundary: None,
+            current_binding: None,
+            current_runtime_adapter_source: None,
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let value_choice = typed_ir::Type::Union(vec![named_type("float"), named_type("int")]);
+        let str_ty = named_type("str");
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(role_path.clone())),
+            arg: Box::new(typed_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(typed_ir::ApplyEvidence {
+                callee_source_edge: None,
+                expected_callee: None,
+                arg_source_edge: None,
+                callee: typed_ir::TypeBounds::exact(typed_ir::Type::Unknown),
+                arg: typed_ir::TypeBounds::exact(value_choice),
+                expected_arg: None,
+                result: typed_ir::TypeBounds::exact(str_ty.clone()),
+                principal_callee: None,
+                substitutions: Vec::new(),
+                substitution_candidates: Vec::new(),
+                role_method: true,
+                principal_elaboration: None,
+            }),
+        };
+        let mut locals = HashMap::from([(arg_path, RuntimeType::value(typed_ir::Type::Any))]);
+
+        let expr = lowerer
+            .lower_expr(
+                expr,
+                Some(&RuntimeType::value(str_ty.clone())),
+                &mut locals,
+                TypeSource::RootGraph,
+            )
+            .expect("lowered");
+
+        let ExprKind::Apply { callee, .. } = &expr.kind else {
+            panic!("missing apply");
+        };
+        assert_eq!(
+            callee.ty,
+            RuntimeType::fun(
+                RuntimeType::value(typed_ir::Type::Unknown),
+                RuntimeType::value(str_ty)
+            )
+        );
+    }
+
+    #[test]
     pub(super) fn lower_let_accepts_function_value_pattern() {
         let program = typed_ir::CoreProgram {
             program: typed_ir::PrincipalModule {
