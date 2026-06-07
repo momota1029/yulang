@@ -1,11 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Name, Path};
+use crate::{Name, Path, RefId, TypeClassObligation};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Scheme {
-    pub requirements: Vec<RoleRequirement>,
     pub body: Type,
+    pub quantified_types: Vec<TypeVar>,
+    pub quantified_effects: Vec<EffectVar>,
+    pub quantified_refs: Vec<RefId>,
+    pub typeclass_obligations: Vec<TypeClassObligation>,
+    pub requirements: Vec<RoleRequirement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -59,6 +63,9 @@ pub enum Type {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TypeVar(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct EffectVar(pub String);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RoleRequirement {

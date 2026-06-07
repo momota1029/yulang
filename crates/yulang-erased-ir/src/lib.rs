@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 pub mod types;
 
 pub use types::{
-    PrimitiveOp, RecordField, RecordSpread, RecordType, RoleRequirement, RoleRequirementArg,
-    Scheme, Type, TypeArg, TypeBounds, TypeSubstitution, TypeVar, VariantCase, VariantType,
+    EffectVar, PrimitiveOp, RecordField, RecordSpread, RecordType, RoleRequirement,
+    RoleRequirementArg, Scheme, Type, TypeArg, TypeBounds, TypeSubstitution, TypeVar, VariantCase,
+    VariantType,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -98,7 +99,7 @@ pub struct ResolvedTypeClassRef {
     pub impl_member: DefId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeClassObligation {
     pub ref_id: RefId,
     pub class: Path,
@@ -107,7 +108,7 @@ pub struct TypeClassObligation {
     pub associated: Vec<AssociatedTypeConstraint>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AssociatedTypeConstraint {
     pub name: Name,
     pub bounds: TypeBounds,

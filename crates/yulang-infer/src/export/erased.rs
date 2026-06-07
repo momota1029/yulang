@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yulang_erased_ir as erased;
 use yulang_typed_ir as typed_ir;
@@ -407,19 +407,43 @@ impl<'a> ErasedExporter<'a> {
     }
 
     fn export_scheme(&self, def: DefId) -> erased::Scheme {
+        let frozen = self.state.infer.frozen_scheme_of(def);
+        let quantified_types = frozen
+            .as_ref()
+            .map(|scheme| {
+                scheme
+                    .quantified
+                    .iter()
+                    .copied()
+                    .map(export_type_var)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         if let Some(scheme) = self.state.runtime_export_schemes.get(&def) {
-            return convert_scheme(scheme.clone());
+            return convert_scheme(scheme.clone(), quantified_types);
         }
         if let Some(scheme) = self.state.compact_scheme_of(def) {
             let constraints = self.state.infer.compact_role_constraints_of(def);
-            return convert_scheme(export_scheme(&self.state.infer, &scheme, &constraints));
+            let scheme = export_scheme(&self.state.infer, &scheme, &constraints);
+            return convert_scheme_with_fallback_quantified(scheme, quantified_types);
         }
-        if let Some(frozen) = self.state.infer.frozen_schemes.borrow().get(&def).cloned() {
-            return convert_scheme(export_frozen_scheme(&self.state.infer, &frozen));
+        if let Some(frozen) = frozen {
+            let quantified_types = frozen
+                .quantified
+                .iter()
+                .copied()
+                .map(export_type_var)
+                .collect::<Vec<_>>();
+            let scheme = export_frozen_scheme(&self.state.infer, &frozen);
+            return convert_scheme(scheme, quantified_types);
         }
         erased::Scheme {
-            requirements: Vec::new(),
             body: erased::Type::Unknown,
+            quantified_types: Vec::new(),
+            quantified_effects: Vec::new(),
+            quantified_refs: Vec::new(),
+            typeclass_obligations: Vec::new(),
+            requirements: Vec::new(),
         }
     }
 
@@ -518,6 +542,10 @@ fn export_ref_id(ref_id: RefId) -> erased::RefId {
     erased::RefId(ref_id.0)
 }
 
+fn export_type_var(tv: crate::ids::TypeVar) -> erased::TypeVar {
+    erased::TypeVar(format!("t{}", tv.0))
+}
+
 fn export_lit(lit: &LowerLit) -> erased::Lit {
     match lit {
         LowerLit::Int(value) => erased::Lit::Int(value.clone()),
@@ -528,14 +556,43 @@ fn export_lit(lit: &LowerLit) -> erased::Lit {
     }
 }
 
-fn convert_scheme(scheme: typed_ir::Scheme) -> erased::Scheme {
+fn convert_scheme_with_fallback_quantified(
+    scheme: typed_ir::Scheme,
+    quantified_types: Vec<erased::TypeVar>,
+) -> erased::Scheme {
+    if quantified_types.is_empty() {
+        let body = convert_type(scheme.body);
+        return erased::Scheme {
+            quantified_types: collect_type_vars(&body),
+            body,
+            quantified_effects: Vec::new(),
+            quantified_refs: Vec::new(),
+            typeclass_obligations: Vec::new(),
+            requirements: scheme
+                .requirements
+                .into_iter()
+                .map(convert_role_requirement)
+                .collect(),
+        };
+    }
+    convert_scheme(scheme, quantified_types)
+}
+
+fn convert_scheme(
+    scheme: typed_ir::Scheme,
+    quantified_types: Vec<erased::TypeVar>,
+) -> erased::Scheme {
     erased::Scheme {
+        body: convert_type(scheme.body),
+        quantified_types,
+        quantified_effects: Vec::new(),
+        quantified_refs: Vec::new(),
+        typeclass_obligations: Vec::new(),
         requirements: scheme
             .requirements
             .into_iter()
             .map(convert_role_requirement)
             .collect(),
-        body: convert_type(scheme.body),
     }
 }
 
@@ -642,6 +699,87 @@ fn convert_type_arg(arg: typed_ir::TypeArg) -> erased::TypeArg {
     match arg {
         typed_ir::TypeArg::Type(ty) => erased::TypeArg::Type(convert_type(ty)),
         typed_ir::TypeArg::Bounds(bounds) => erased::TypeArg::Bounds(convert_type_bounds(bounds)),
+    }
+}
+
+fn collect_type_vars(ty: &erased::Type) -> Vec<erased::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_type_vars_inner(ty, &mut vars);
+    vars.into_iter().collect()
+}
+
+fn collect_type_vars_inner(ty: &erased::Type, out: &mut BTreeSet<erased::TypeVar>) {
+    match ty {
+        erased::Type::Var(var) => {
+            out.insert(var.clone());
+        }
+        erased::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_vars(arg, out);
+            }
+        }
+        erased::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_vars_inner(param, out);
+            collect_type_vars_inner(param_effect, out);
+            collect_type_vars_inner(ret_effect, out);
+            collect_type_vars_inner(ret, out);
+        }
+        erased::Type::Tuple(items) | erased::Type::Union(items) | erased::Type::Inter(items) => {
+            for item in items {
+                collect_type_vars_inner(item, out);
+            }
+        }
+        erased::Type::Record(record) => {
+            for field in &record.fields {
+                collect_type_vars_inner(&field.value, out);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    erased::RecordSpread::Head(ty) | erased::RecordSpread::Tail(ty) => {
+                        collect_type_vars_inner(ty, out);
+                    }
+                }
+            }
+        }
+        erased::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_vars_inner(payload, out);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_type_vars_inner(tail, out);
+            }
+        }
+        erased::Type::Row { items, tail } => {
+            for item in items {
+                collect_type_vars_inner(item, out);
+            }
+            collect_type_vars_inner(tail, out);
+        }
+        erased::Type::Recursive { body, .. } => {
+            collect_type_vars_inner(body, out);
+        }
+        erased::Type::Unknown | erased::Type::Never | erased::Type::Any => {}
+    }
+}
+
+fn collect_type_arg_vars(arg: &erased::TypeArg, out: &mut BTreeSet<erased::TypeVar>) {
+    match arg {
+        erased::TypeArg::Type(ty) => collect_type_vars_inner(ty, out),
+        erased::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = &bounds.lower {
+                collect_type_vars_inner(lower, out);
+            }
+            if let Some(upper) = &bounds.upper {
+                collect_type_vars_inner(upper, out);
+            }
+        }
     }
 }
 
@@ -774,6 +912,38 @@ mod tests {
         assert!(
             !format!("{:?}", exported.module).contains("Coerce"),
             "erased IR must not expose coerce nodes or coerce evidence",
+        );
+    }
+
+    #[test]
+    fn erased_scheme_exports_quantified_type_vars() {
+        let mut state = parse_and_lower("my id x = x\n");
+        let exported = export_erased_program(&mut state).erased;
+        let id = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "id")
+            })
+            .expect("id binding");
+
+        assert!(
+            !id.scheme.quantified_types.is_empty(),
+            "generic erased scheme should expose quantified type vars: {:?}",
+            id.scheme,
+        );
+        assert!(
+            id.scheme.quantified_refs.is_empty(),
+            "direct generic id has no typeclass ref obligations"
+        );
+        assert!(
+            id.scheme.typeclass_obligations.is_empty(),
+            "direct generic id has no typeclass obligations"
         );
     }
 
