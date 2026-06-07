@@ -6,7 +6,9 @@ use crate::draft::{DraftComputationId, DraftExprId, ElaborationDraft};
 use yulang_elaborated_ir::{
     ConcreteType, ConcreteTypeError, MonoComputation, MonoEffect, MonoType,
 };
-use yulang_erased_ir::{ErasedExpr, Lit, Name, Path, Type};
+use yulang_erased_ir::{
+    DefId, ErasedExpr, InferredBinding, Lit, Name, Path, RefExportTable, RefId, Scheme, Type,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstraintSet {
@@ -39,10 +41,35 @@ impl ConstraintSet {
         self,
         draft: &ElaborationDraft,
         root_expr: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
     ) -> Result<ComputationSolution, ConstraintError> {
         let mut solver = ConstraintSolver::from_set(self)?;
-        solver.solve_expr(draft, draft.root, root_expr)?;
+        solver.solve_expr(draft, draft.root, root_expr, env)?;
         Ok(solver.into_solution())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ConstraintEnvironment<'a> {
+    refs: &'a RefExportTable,
+    schemes: BTreeMap<DefId, &'a Scheme>,
+}
+
+impl<'a> ConstraintEnvironment<'a> {
+    pub(crate) fn new(refs: &'a RefExportTable, bindings: &'a [InferredBinding]) -> Self {
+        Self {
+            refs,
+            schemes: bindings
+                .iter()
+                .map(|binding| (binding.def, &binding.scheme))
+                .collect(),
+        }
+    }
+
+    pub(crate) fn direct_scheme(&self, ref_id: RefId) -> Option<(DefId, &'a Scheme)> {
+        let def = *self.refs.direct.get(&ref_id)?;
+        let scheme = *self.schemes.get(&def)?;
+        Some((def, scheme))
     }
 }
 
@@ -130,6 +157,17 @@ pub enum ConstraintError {
         slot: ConstraintComputationSlot,
         kind: ErasedExprKind,
     },
+    MissingDirectRefScheme {
+        ref_id: RefId,
+    },
+    GenericDirectRefScheme {
+        def: DefId,
+    },
+    FunctionResultMismatch {
+        slot: ConstraintComputationSlot,
+        expected: MonoComputation,
+        actual: MonoComputation,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,11 +206,12 @@ impl ConstraintSolver {
         draft: &ElaborationDraft,
         id: DraftExprId,
         expr: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
     ) -> Result<(), ConstraintError> {
         match expr {
-            ErasedExpr::Apply { callee, arg } => self.solve_apply(draft, id, callee, arg),
-            ErasedExpr::Lambda { body, .. } => self.solve_lambda(draft, id, body),
-            ErasedExpr::Tuple(items) => self.solve_tuple(draft, id, items),
+            ErasedExpr::Apply { callee, arg } => self.solve_apply(draft, id, callee, arg, env),
+            ErasedExpr::Lambda { body, .. } => self.solve_lambda(draft, id, body, env),
+            ErasedExpr::Tuple(items) => self.solve_tuple(draft, id, items, env),
             ErasedExpr::Def(_)
             | ErasedExpr::Ref(_)
             | ErasedExpr::PrimitiveOp(_)
@@ -189,46 +228,57 @@ impl ConstraintSolver {
         id: DraftExprId,
         callee: &ErasedExpr,
         arg: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
     ) -> Result<(), ConstraintError> {
         let slot = draft.expr(id).computation;
         let computation = self.require_assigned(slot)?.clone();
-        if !matches!(callee, ErasedExpr::Lambda { .. }) {
-            return Err(ConstraintError::UnsupportedApplyCallee {
-                slot: slot.into(),
-                kind: ErasedExprKind::from_expr(callee),
-            });
-        }
-        let ret_type = value_type(slot, &computation.value)?;
-        let ret_effect = computation.effect.row().as_type().clone();
-        let arg_computation = literal_computation(slot, arg)?.ok_or_else(|| {
-            ConstraintError::UnsupportedApplyArg {
-                slot: slot.into(),
-                kind: ErasedExprKind::from_expr(arg),
+        let apply_computation = match callee {
+            ErasedExpr::Lambda { .. } => {
+                let ret_type = value_type(slot, &computation.value)?;
+                let ret_effect = computation.effect.row().as_type().clone();
+                let arg_computation = literal_computation(slot, arg)?.ok_or_else(|| {
+                    ConstraintError::UnsupportedApplyArg {
+                        slot: slot.into(),
+                        kind: ErasedExprKind::from_expr(arg),
+                    }
+                })?;
+                let arg_type = value_type(slot, &arg_computation.value)?;
+                ApplyComputation {
+                    callee: function_computation(
+                        slot,
+                        arg_type,
+                        Type::Never,
+                        ret_effect,
+                        ret_type,
+                    )?,
+                    arg: arg_computation,
+                }
             }
-        })?;
-        let arg_type = value_type(slot, &arg_computation.value)?;
-        let callee_computation = MonoComputation {
-            value: MonoType::Value(concrete_type(
-                slot,
-                ConstraintTypeSource::FunctionParam,
-                Type::Fun {
-                    param: Box::new(arg_type),
-                    param_effect: Box::new(Type::Never),
-                    ret_effect: Box::new(ret_effect),
-                    ret: Box::new(ret_type),
-                },
-            )?),
-            effect: pure_effect(),
+            ErasedExpr::Ref(ref_id) => {
+                let (def, scheme) = env
+                    .direct_scheme(*ref_id)
+                    .ok_or(ConstraintError::MissingDirectRefScheme { ref_id: *ref_id })?;
+                if scheme_needs_instantiation(scheme) {
+                    return Err(ConstraintError::GenericDirectRefScheme { def });
+                }
+                concrete_apply_from_scheme(slot, &computation, scheme)?
+            }
+            _ => {
+                return Err(ConstraintError::UnsupportedApplyCallee {
+                    slot: slot.into(),
+                    kind: ErasedExprKind::from_expr(callee),
+                });
+            }
         };
 
         let children = draft.expr(id).children.clone();
         let [callee_id, arg_id] = children.as_slice() else {
             return Ok(());
         };
-        self.assign(draft.expr(*callee_id).computation, callee_computation)?;
-        self.assign(draft.expr(*arg_id).computation, arg_computation)?;
-        self.solve_expr(draft, *callee_id, callee)?;
-        self.solve_expr(draft, *arg_id, arg)
+        self.assign(draft.expr(*callee_id).computation, apply_computation.callee)?;
+        self.assign(draft.expr(*arg_id).computation, apply_computation.arg)?;
+        self.solve_expr(draft, *callee_id, callee, env)?;
+        self.solve_expr(draft, *arg_id, arg, env)
     }
 
     fn solve_lambda(
@@ -236,6 +286,7 @@ impl ConstraintSolver {
         draft: &ElaborationDraft,
         id: DraftExprId,
         body: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
     ) -> Result<(), ConstraintError> {
         let slot = draft.expr(id).computation;
         let computation = self.require_assigned(slot)?.clone();
@@ -279,7 +330,7 @@ impl ConstraintSolver {
             return Ok(());
         };
         self.assign(draft.expr(*body_id).computation, body_computation)?;
-        self.solve_expr(draft, *body_id, body)
+        self.solve_expr(draft, *body_id, body, env)
     }
 
     fn solve_tuple(
@@ -287,6 +338,7 @@ impl ConstraintSolver {
         draft: &ElaborationDraft,
         id: DraftExprId,
         items: &[ErasedExpr],
+        env: &ConstraintEnvironment<'_>,
     ) -> Result<(), ConstraintError> {
         let slot = draft.expr(id).computation;
         let computation = self.require_assigned(slot)?.clone();
@@ -332,7 +384,7 @@ impl ConstraintSolver {
                 effect: pure_effect(),
             };
             self.assign(child_slot, child_computation)?;
-            self.solve_expr(draft, child_id, item)?;
+            self.solve_expr(draft, child_id, item, env)?;
         }
         Ok(())
     }
@@ -364,6 +416,194 @@ impl ConstraintSolver {
             .get(&slot)
             .ok_or(ConstraintError::MissingComputation { slot: slot.into() })
     }
+}
+
+struct ApplyComputation {
+    callee: MonoComputation,
+    arg: MonoComputation,
+}
+
+fn concrete_apply_from_scheme(
+    slot: DraftComputationId,
+    expected: &MonoComputation,
+    scheme: &Scheme,
+) -> Result<ApplyComputation, ConstraintError> {
+    let Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = &scheme.body
+    else {
+        return Err(ConstraintError::ExpectedFunction {
+            slot: slot.into(),
+            found: MonoType::Value(concrete_type(
+                slot,
+                ConstraintTypeSource::FunctionParam,
+                scheme.body.clone(),
+            )?),
+        });
+    };
+
+    let actual_result = MonoComputation {
+        value: MonoType::Value(concrete_type(
+            slot,
+            ConstraintTypeSource::FunctionReturn,
+            (**ret).clone(),
+        )?),
+        effect: MonoEffect::new(concrete_type(
+            slot,
+            ConstraintTypeSource::FunctionReturnEffect,
+            (**ret_effect).clone(),
+        )?),
+    };
+    if &actual_result != expected {
+        return Err(ConstraintError::FunctionResultMismatch {
+            slot: slot.into(),
+            expected: expected.clone(),
+            actual: actual_result,
+        });
+    }
+
+    Ok(ApplyComputation {
+        callee: function_computation(
+            slot,
+            (**param).clone(),
+            (**param_effect).clone(),
+            (**ret_effect).clone(),
+            (**ret).clone(),
+        )?,
+        arg: MonoComputation {
+            value: MonoType::Value(concrete_type(
+                slot,
+                ConstraintTypeSource::FunctionParam,
+                (**param).clone(),
+            )?),
+            effect: MonoEffect::new(concrete_type(
+                slot,
+                ConstraintTypeSource::FunctionParamEffect,
+                (**param_effect).clone(),
+            )?),
+        },
+    })
+}
+
+fn function_computation(
+    slot: DraftComputationId,
+    param: Type,
+    param_effect: Type,
+    ret_effect: Type,
+    ret: Type,
+) -> Result<MonoComputation, ConstraintError> {
+    Ok(MonoComputation {
+        value: MonoType::Value(concrete_type(
+            slot,
+            ConstraintTypeSource::FunctionParam,
+            Type::Fun {
+                param: Box::new(param),
+                param_effect: Box::new(param_effect),
+                ret_effect: Box::new(ret_effect),
+                ret: Box::new(ret),
+            },
+        )?),
+        effect: pure_effect(),
+    })
+}
+
+pub(crate) fn scheme_needs_instantiation(scheme: &Scheme) -> bool {
+    scheme
+        .quantified_types
+        .iter()
+        .any(|var| type_mentions_type_var(&scheme.body, var))
+        || scheme
+            .quantified_effects
+            .iter()
+            .any(|var| type_mentions_var_name(&scheme.body, &var.0))
+        || !scheme.quantified_refs.is_empty()
+        || !scheme.typeclass_obligations.is_empty()
+        || !scheme.requirements.is_empty()
+}
+
+fn type_mentions_type_var(ty: &Type, target: &yulang_erased_ir::TypeVar) -> bool {
+    match ty {
+        Type::Var(var) => var == target,
+        Type::Named { args, .. } => args
+            .iter()
+            .any(|arg| type_arg_mentions_type_var(arg, target)),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_mentions_type_var(param, target)
+                || type_mentions_type_var(param_effect, target)
+                || type_mentions_type_var(ret_effect, target)
+                || type_mentions_type_var(ret, target)
+        }
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => items
+            .iter()
+            .any(|item| type_mentions_type_var(item, target)),
+        Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_mentions_type_var(&field.value, target))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    yulang_erased_ir::RecordSpread::Head(ty)
+                    | yulang_erased_ir::RecordSpread::Tail(ty) => {
+                        type_mentions_type_var(ty, target)
+                    }
+                })
+        }
+        Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .flat_map(|case| &case.payloads)
+                .any(|payload| type_mentions_type_var(payload, target))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| type_mentions_type_var(tail, target))
+        }
+        Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| type_mentions_type_var(item, target))
+                || type_mentions_type_var(tail, target)
+        }
+        Type::Recursive { var, body } => var != target && type_mentions_type_var(body, target),
+        Type::Unknown | Type::Never | Type::Any => false,
+    }
+}
+
+fn type_arg_mentions_type_var(
+    arg: &yulang_erased_ir::TypeArg,
+    target: &yulang_erased_ir::TypeVar,
+) -> bool {
+    match arg {
+        yulang_erased_ir::TypeArg::Type(ty) => type_mentions_type_var(ty, target),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => type_bounds_mentions_type_var(bounds, target),
+    }
+}
+
+fn type_bounds_mentions_type_var(
+    bounds: &yulang_erased_ir::TypeBounds,
+    target: &yulang_erased_ir::TypeVar,
+) -> bool {
+    bounds
+        .lower
+        .as_ref()
+        .is_some_and(|lower| type_mentions_type_var(lower, target))
+        || bounds
+            .upper
+            .as_ref()
+            .is_some_and(|upper| type_mentions_type_var(upper, target))
+}
+
+fn type_mentions_var_name(ty: &Type, target: &str) -> bool {
+    type_mentions_type_var(ty, &yulang_erased_ir::TypeVar(target.to_string()))
 }
 
 fn value_type(slot: DraftComputationId, typ: &MonoType) -> Result<Type, ConstraintError> {

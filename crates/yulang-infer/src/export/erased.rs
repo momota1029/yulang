@@ -105,6 +105,7 @@ impl<'a> ErasedExporter<'a> {
         let body = self.with_current_binding(def, |this| this.export_inferred_expr(body));
         let scheme = self.export_scheme(def);
         Some(erased::InferredBinding {
+            def: export_def_id(def),
             name: export_path(path),
             scheme,
             body,
@@ -796,17 +797,20 @@ fn convert_scheme_with_fallback_quantified(
 ) -> erased::Scheme {
     if quantified_types.is_empty() {
         let body = convert_type(scheme.body);
+        let requirements = scheme
+            .requirements
+            .into_iter()
+            .map(convert_role_requirement)
+            .collect::<Vec<_>>();
+        let mut quantified_types = collect_type_vars(&body);
+        extend_role_requirement_type_vars(&requirements, &mut quantified_types);
         return erased::Scheme {
-            quantified_types: collect_type_vars(&body),
+            quantified_types,
             body,
             quantified_effects: Vec::new(),
             quantified_refs: Vec::new(),
             typeclass_obligations: Vec::new(),
-            requirements: scheme
-                .requirements
-                .into_iter()
-                .map(convert_role_requirement)
-                .collect(),
+            requirements,
         };
     }
     convert_scheme(scheme, quantified_types)
@@ -816,17 +820,20 @@ fn convert_scheme(
     scheme: typed_ir::Scheme,
     quantified_types: Vec<erased::TypeVar>,
 ) -> erased::Scheme {
+    let body = convert_type(scheme.body);
+    let requirements = scheme
+        .requirements
+        .into_iter()
+        .map(convert_role_requirement)
+        .collect::<Vec<_>>();
+    let quantified_types = filter_used_quantified_types(quantified_types, &body, &requirements);
     erased::Scheme {
-        body: convert_type(scheme.body),
+        body,
         quantified_types,
         quantified_effects: Vec::new(),
         quantified_refs: Vec::new(),
         typeclass_obligations: Vec::new(),
-        requirements: scheme
-            .requirements
-            .into_iter()
-            .map(convert_role_requirement)
-            .collect(),
+        requirements,
     }
 }
 
@@ -936,10 +943,39 @@ fn convert_type_arg(arg: typed_ir::TypeArg) -> erased::TypeArg {
     }
 }
 
+fn filter_used_quantified_types(
+    quantified_types: Vec<erased::TypeVar>,
+    body: &erased::Type,
+    requirements: &[erased::RoleRequirement],
+) -> Vec<erased::TypeVar> {
+    let mut used = BTreeSet::new();
+    collect_type_vars_inner(body, &mut used);
+    for requirement in requirements {
+        collect_role_requirement_vars(requirement, &mut used);
+    }
+    let mut kept = quantified_types
+        .into_iter()
+        .filter(|var| used.remove(var))
+        .collect::<Vec<_>>();
+    kept.extend(used);
+    kept
+}
+
 fn collect_type_vars(ty: &erased::Type) -> Vec<erased::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_type_vars_inner(ty, &mut vars);
     vars.into_iter().collect()
+}
+
+fn extend_role_requirement_type_vars(
+    requirements: &[erased::RoleRequirement],
+    vars: &mut Vec<erased::TypeVar>,
+) {
+    let mut existing = vars.iter().cloned().collect::<BTreeSet<_>>();
+    for requirement in requirements {
+        collect_role_requirement_vars(requirement, &mut existing);
+    }
+    *vars = existing.into_iter().collect();
 }
 
 fn collect_type_vars_inner(ty: &erased::Type, out: &mut BTreeSet<erased::TypeVar>) {
@@ -1006,14 +1042,30 @@ fn collect_type_vars_inner(ty: &erased::Type, out: &mut BTreeSet<erased::TypeVar
 fn collect_type_arg_vars(arg: &erased::TypeArg, out: &mut BTreeSet<erased::TypeVar>) {
     match arg {
         erased::TypeArg::Type(ty) => collect_type_vars_inner(ty, out),
-        erased::TypeArg::Bounds(bounds) => {
-            if let Some(lower) = &bounds.lower {
-                collect_type_vars_inner(lower, out);
-            }
-            if let Some(upper) = &bounds.upper {
-                collect_type_vars_inner(upper, out);
+        erased::TypeArg::Bounds(bounds) => collect_type_bounds_vars(bounds, out),
+    }
+}
+
+fn collect_role_requirement_vars(
+    requirement: &erased::RoleRequirement,
+    out: &mut BTreeSet<erased::TypeVar>,
+) {
+    for arg in &requirement.args {
+        match arg {
+            erased::RoleRequirementArg::Input(bounds)
+            | erased::RoleRequirementArg::Associated { bounds, .. } => {
+                collect_type_bounds_vars(bounds, out);
             }
         }
+    }
+}
+
+fn collect_type_bounds_vars(bounds: &erased::TypeBounds, out: &mut BTreeSet<erased::TypeVar>) {
+    if let Some(lower) = &bounds.lower {
+        collect_type_vars_inner(lower, out);
+    }
+    if let Some(upper) = &bounds.upper {
+        collect_type_vars_inner(upper, out);
     }
 }
 
@@ -1183,6 +1235,30 @@ mod tests {
         assert!(
             id.scheme.typeclass_obligations.is_empty(),
             "direct generic id has no typeclass obligations"
+        );
+    }
+
+    #[test]
+    fn erased_scheme_drops_unused_quantified_type_vars() {
+        let mut state = parse_and_lower("my f(x: int) = x\n");
+        let exported = export_erased_program(&mut state).erased;
+        let f = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "f")
+            })
+            .expect("f binding");
+
+        assert!(
+            f.scheme.quantified_types.is_empty(),
+            "monomorphic erased scheme should not keep unused quantified type vars: {:?}",
+            f.scheme,
         );
     }
 

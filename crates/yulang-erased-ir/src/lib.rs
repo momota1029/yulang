@@ -116,6 +116,7 @@ pub struct ErasedModule {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InferredBinding {
+    pub def: DefId,
     pub name: Path,
     pub scheme: Scheme,
     pub body: InferredExpr,
@@ -528,6 +529,7 @@ mod coverage_tests {
         obligations: Vec<TypeClassObligation>,
     ) -> InferredBinding {
         InferredBinding {
+            def: DefId(0),
             name: Path::from_name(Name(name.to_string())),
             scheme: Scheme {
                 body: Type::Unknown,
