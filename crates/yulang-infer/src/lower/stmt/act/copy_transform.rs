@@ -8,7 +8,7 @@ use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::lower::LowerState;
 use crate::solve::{
     EffectSubtractFact, EffectSubtractId, EffectSubtractability, RefFieldProjection,
-    ResolvedRoleMethodSelection, TypeFieldInfo,
+    ResolvedRoleMethodSelection, RoleMethodCallSelection, TypeFieldInfo,
 };
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos, RecordField};
@@ -50,7 +50,7 @@ fn transform_copied_principal_body_inner(
 ) -> TypedExpr {
     let tv = types.copy_tv(expr.tv);
     let eff = types.copy_tv(expr.eff);
-    copy_resolved_expr_info(types.state, expr.tv, tv, def_subst);
+    copy_resolved_expr_info(types, expr.tv, tv, def_subst);
     match &expr.kind {
         ExprKind::Var(def) => types.link_local_var_ref(*def, tv),
         ExprKind::Ref(ref_id) => {
@@ -68,27 +68,30 @@ fn transform_copied_principal_body_inner(
 }
 
 fn copy_resolved_expr_info(
-    state: &mut LowerState,
+    types: &mut CopiedTypeVars<'_>,
     source_tv: TypeVar,
     dest_tv: TypeVar,
     def_subst: &HashMap<DefId, DefId>,
 ) {
-    if let Some(def) = state.infer.resolved_selection_def(source_tv) {
-        state
+    if let Some(def) = types.state.infer.resolved_selection_def(source_tv) {
+        types
+            .state
             .infer
             .resolved_selections
             .borrow_mut()
             .insert(dest_tv, def_subst.get(&def).copied().unwrap_or(def));
     }
-    if let Some(projection) = state.infer.resolved_ref_field_projection(source_tv) {
-        state
+    if let Some(projection) = types.state.infer.resolved_ref_field_projection(source_tv) {
+        types
+            .state
             .infer
             .resolved_ref_field_projections
             .borrow_mut()
             .insert(dest_tv, subst_ref_field_projection(projection, def_subst));
     }
-    if let Some(selection) = state.infer.resolved_role_method_selection(source_tv) {
-        state
+    if let Some(selection) = types.state.infer.resolved_role_method_selection(source_tv) {
+        types
+            .state
             .infer
             .resolved_role_method_selections
             .borrow_mut()
@@ -96,6 +99,15 @@ fn copy_resolved_expr_info(
                 dest_tv,
                 subst_resolved_role_method_selection(selection, def_subst),
             );
+    }
+    if let Some(selection) = types.state.infer.role_method_call_selection(source_tv) {
+        let selection = subst_role_method_call_selection(selection, types, def_subst, dest_tv);
+        types
+            .state
+            .infer
+            .role_method_call_selections
+            .borrow_mut()
+            .insert(dest_tv, selection);
     }
 }
 
@@ -113,6 +125,28 @@ fn subst_resolved_role_method_selection(
             .get(&selection.impl_member)
             .copied()
             .unwrap_or(selection.impl_member),
+    }
+}
+
+fn subst_role_method_call_selection(
+    selection: RoleMethodCallSelection,
+    types: &mut CopiedTypeVars<'_>,
+    def_subst: &HashMap<DefId, DefId>,
+    dest_tv: TypeVar,
+) -> RoleMethodCallSelection {
+    RoleMethodCallSelection {
+        role: selection.role,
+        member: def_subst
+            .get(&selection.member)
+            .copied()
+            .unwrap_or(selection.member),
+        recv_tv: types.copy_tv(selection.recv_tv),
+        arg_tvs: selection
+            .arg_tvs
+            .into_iter()
+            .map(|tv| types.copy_tv(tv))
+            .collect(),
+        result_tv: dest_tv,
     }
 }
 

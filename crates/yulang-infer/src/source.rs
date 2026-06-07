@@ -2189,6 +2189,7 @@ fn max_state_type_var(state: &LowerState) -> Option<TypeVar> {
         }
     }
     for call in state.infer.deferred_role_method_calls.borrow().iter() {
+        push_max_type_var(call.recv_tv, &mut max);
         for tv in call.arg_tvs.iter().copied() {
             push_max_type_var(tv, &mut max);
         }
@@ -2205,6 +2206,14 @@ fn max_state_type_var(state: &LowerState) -> Option<TypeVar> {
         .copied()
     {
         push_max_type_var(tv, &mut max);
+    }
+    for (tv, selection) in state.infer.role_method_call_selections.borrow().iter() {
+        push_max_type_var(*tv, &mut max);
+        push_max_type_var(selection.recv_tv, &mut max);
+        for arg_tv in selection.arg_tvs.iter().copied() {
+            push_max_type_var(arg_tv, &mut max);
+        }
+        push_max_type_var(selection.result_tv, &mut max);
     }
     max
 }

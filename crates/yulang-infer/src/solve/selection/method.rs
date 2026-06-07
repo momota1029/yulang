@@ -647,6 +647,7 @@ impl Infer {
                 selection.result_tv,
             );
         }
+        self.record_role_method_call_selection(info, recv_tv, &[], selection.result_tv);
         let method_resolution =
             super::role_method::resolve_role_method_call(self, info, Some(recv_tv), &[]);
         match &method_resolution {

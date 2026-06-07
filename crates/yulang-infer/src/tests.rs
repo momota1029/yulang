@@ -1995,6 +1995,81 @@ fn concrete_role_method_call_without_impl_surfaces_missing_impl_during_selection
 }
 
 #[test]
+fn generic_role_method_selection_records_unresolved_call_selection() {
+    let mut state =
+        parse_and_lower("role Display 'a:\n  our a.display: string\n\nmy show x = x.display\n");
+    state.refresh_selection_environment();
+    let display_def = state
+        .ctx
+        .resolve_path_value(&symbols::Path {
+            segments: vec![
+                symbols::Name("Display".to_string()),
+                symbols::Name("display".to_string()),
+            ],
+        })
+        .expect("Display.display member");
+    let selection = state
+        .infer
+        .role_method_call_selections
+        .borrow()
+        .values()
+        .find(|selection| selection.member == display_def && selection.arg_tvs.is_empty())
+        .cloned()
+        .expect("generic display selection should keep role method call metadata");
+
+    assert_eq!(
+        selection.role,
+        symbols::Path {
+            segments: vec![symbols::Name("Display".to_string())],
+        },
+    );
+    assert!(
+        state
+            .infer
+            .resolved_role_method_selection(selection.result_tv)
+            .is_none(),
+        "generic role method selection should not be recorded as concrete impl selection",
+    );
+}
+
+#[test]
+fn generic_role_method_apply_records_unresolved_call_args() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+my get xs key = xs.index key\n",
+    );
+    state.refresh_selection_environment();
+    let index_def = state
+        .ctx
+        .resolve_path_value(&symbols::Path {
+            segments: vec![
+                symbols::Name("Index".to_string()),
+                symbols::Name("index".to_string()),
+            ],
+        })
+        .expect("Index.index member");
+    let selection = state
+        .infer
+        .role_method_call_selections
+        .borrow()
+        .values()
+        .find(|selection| selection.member == index_def && selection.arg_tvs.len() == 1)
+        .cloned()
+        .expect("generic index apply should keep role method call arg metadata");
+
+    assert_eq!(
+        selection.role,
+        symbols::Path {
+            segments: vec![symbols::Name("Index".to_string())],
+        },
+    );
+    assert_ne!(
+        selection.recv_tv, selection.arg_tvs[0],
+        "receiver and explicit role method argument should keep distinct type slots",
+    );
+}
+
+#[test]
 fn struct_with_impl_uses_enclosing_type_as_first_role_arg() {
     let mut state = parse_and_lower(
         "role Display 'a:\n  our a.display: int\n\n\

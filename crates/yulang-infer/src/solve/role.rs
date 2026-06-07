@@ -66,3 +66,12 @@ pub struct ResolvedRoleMethodSelection {
     pub member: DefId,
     pub impl_member: DefId,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleMethodCallSelection {
+    pub role: Path,
+    pub member: DefId,
+    pub recv_tv: TypeVar,
+    pub arg_tvs: Vec<TypeVar>,
+    pub result_tv: TypeVar,
+}

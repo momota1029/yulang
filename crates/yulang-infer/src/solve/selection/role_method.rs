@@ -152,6 +152,12 @@ impl Infer {
                 unresolved.push(call);
                 continue;
             }
+            self.record_role_method_call_selection(
+                &info,
+                call.recv_tv,
+                &call.arg_tvs,
+                call.result_tv,
+            );
             let resolution = if call.cast_coercion {
                 self.resolve_cast_method_def(call.recv_tv, call.result_tv)
                     .map(|def| RoleMethodResolution::Selected {
@@ -269,6 +275,7 @@ impl Infer {
         if role_method_value_arg_count(info).is_some_and(|arity| arg_tvs.len() < arity) {
             return;
         }
+        self.record_role_method_call_selection(info, recv_tv, &arg_tvs, result_tv);
         let Some(constraint) = self.role_method_call_constraint(info, recv_tv, &arg_tvs, result_tv)
         else {
             return;

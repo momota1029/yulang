@@ -54,6 +54,35 @@ impl Infer {
         );
     }
 
+    pub(crate) fn role_method_call_selection(
+        &self,
+        result_tv: TypeVar,
+    ) -> Option<super::RoleMethodCallSelection> {
+        self.role_method_call_selections
+            .borrow()
+            .get(&result_tv)
+            .cloned()
+    }
+
+    pub(crate) fn record_role_method_call_selection(
+        &self,
+        info: &RoleMethodInfo,
+        recv_tv: TypeVar,
+        arg_tvs: &[TypeVar],
+        result_tv: TypeVar,
+    ) {
+        self.role_method_call_selections.borrow_mut().insert(
+            result_tv,
+            super::RoleMethodCallSelection {
+                role: info.role.clone(),
+                member: info.def,
+                recv_tv,
+                arg_tvs: arg_tvs.to_vec(),
+                result_tv,
+            },
+        );
+    }
+
     pub(crate) fn resolved_ref_field_projection(
         &self,
         result_tv: TypeVar,
