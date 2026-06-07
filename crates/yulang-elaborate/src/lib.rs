@@ -8,11 +8,15 @@
 #![forbid(unsafe_code)]
 
 use yulang_erased_ir::{
-    DefId, InferExport, PrincipalRoot, RefCoverageReport, RefExportTable, RefId,
-    ResolvedTypeClassRef, TypeClassObligation,
+    DefId, ErasedExpr, InferExport, InferredExpr, PrincipalRoot, RefCoverageReport, RefExportTable,
+    RefId, ResolvedTypeClassRef, TypeBounds, TypeClassObligation,
 };
 
 pub use yulang_elaborated_ir as elaborated_ir;
+use yulang_elaborated_ir::{
+    ConcreteType, ConcreteTypeError, ElaboratedExpr, ElaboratedExprKind, ElaboratedModule,
+    ElaboratedProgram, ElaboratedRoot, MonoComputation, MonoEffect, MonoType, ResolvedRefTable,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Elaborator<'a> {
@@ -103,6 +107,37 @@ impl<'a> Elaborator<'a> {
             refs,
         })
     }
+
+    pub fn build_program(&self) -> Result<ElaboratedProgram, ElaborateProgramError> {
+        self.validate_input()
+            .map_err(ElaborateProgramError::Input)?;
+        let root_exprs = self
+            .export
+            .erased
+            .module
+            .root_exprs
+            .iter()
+            .enumerate()
+            .map(|(index, expr)| elaborate_root_expr(index, expr))
+            .collect::<Result<Vec<_>, _>>()?;
+        let roots = self
+            .export
+            .erased
+            .module
+            .roots
+            .iter()
+            .map(elaborate_root)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ElaboratedProgram {
+            module: ElaboratedModule {
+                path: self.export.erased.module.path.clone(),
+                instances: Vec::new(),
+                root_exprs,
+                roots,
+            },
+            refs: ResolvedRefTable::default(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,6 +157,59 @@ pub enum ElaborateInputError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElaborateProgramError {
+    Input(ElaborateInputError),
+    NonExactComputationBounds {
+        site: ElaborateSite,
+        field: ComputationField,
+        bounds: TypeBounds,
+    },
+    NonConcreteComputationType {
+        site: ElaborateSite,
+        field: ComputationField,
+        error: ConcreteTypeError,
+    },
+    UnsupportedRoot {
+        root: PrincipalRoot,
+    },
+    UnsupportedExpr {
+        site: ElaborateSite,
+        kind: ErasedExprKind,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElaborateSite {
+    RootExpr(usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComputationField {
+    Value,
+    Effect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErasedExprKind {
+    Def,
+    Ref,
+    PrimitiveOp,
+    Lit,
+    Lambda,
+    Apply,
+    RefSet,
+    Tuple,
+    Record,
+    Variant,
+    Select,
+    Match,
+    Handle,
+    Block,
+    BindHere,
+    Pack,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElaboratePlan {
     pub roots: Vec<PrincipalRoot>,
     pub refs: Vec<RefDemand>,
@@ -136,6 +224,112 @@ impl ElaboratePlan {
                 RefDemand::Direct { .. } | RefDemand::TypeclassObligation { .. } => None,
             })
             .collect()
+    }
+}
+
+fn elaborate_root_expr(
+    index: usize,
+    expr: &InferredExpr,
+) -> Result<ElaboratedExpr, ElaborateProgramError> {
+    let site = ElaborateSite::RootExpr(index);
+    let comp = concrete_computation(site.clone(), &expr.typ, &expr.eff)?;
+    elaborate_leaf_expr(site, &expr.ir, comp)
+}
+
+fn elaborate_root(root: &PrincipalRoot) -> Result<ElaboratedRoot, ElaborateProgramError> {
+    match root {
+        PrincipalRoot::Expr(index) => Ok(ElaboratedRoot::Expr(*index)),
+        PrincipalRoot::Binding(_) => {
+            Err(ElaborateProgramError::UnsupportedRoot { root: root.clone() })
+        }
+    }
+}
+
+fn concrete_computation(
+    site: ElaborateSite,
+    typ: &TypeBounds,
+    eff: &TypeBounds,
+) -> Result<MonoComputation, ElaborateProgramError> {
+    Ok(MonoComputation {
+        value: MonoType::Value(exact_concrete_type(
+            site.clone(),
+            ComputationField::Value,
+            typ,
+        )?),
+        effect: MonoEffect::new(exact_concrete_type(site, ComputationField::Effect, eff)?),
+    })
+}
+
+fn exact_concrete_type(
+    site: ElaborateSite,
+    field: ComputationField,
+    bounds: &TypeBounds,
+) -> Result<ConcreteType, ElaborateProgramError> {
+    let Some(lower) = &bounds.lower else {
+        return Err(ElaborateProgramError::NonExactComputationBounds {
+            site,
+            field,
+            bounds: bounds.clone(),
+        });
+    };
+    let Some(upper) = &bounds.upper else {
+        return Err(ElaborateProgramError::NonExactComputationBounds {
+            site,
+            field,
+            bounds: bounds.clone(),
+        });
+    };
+    if lower != upper {
+        return Err(ElaborateProgramError::NonExactComputationBounds {
+            site,
+            field,
+            bounds: bounds.clone(),
+        });
+    }
+    ConcreteType::try_from_type((**lower).clone())
+        .map_err(|error| ElaborateProgramError::NonConcreteComputationType { site, field, error })
+}
+
+fn elaborate_leaf_expr(
+    site: ElaborateSite,
+    expr: &ErasedExpr,
+    comp: MonoComputation,
+) -> Result<ElaboratedExpr, ElaborateProgramError> {
+    let kind = match expr {
+        ErasedExpr::Def(def) => ElaboratedExprKind::Def(*def),
+        ErasedExpr::Ref(ref_id) => ElaboratedExprKind::Ref(*ref_id),
+        ErasedExpr::PrimitiveOp(op) => ElaboratedExprKind::PrimitiveOp(*op),
+        ErasedExpr::Lit(lit) => ElaboratedExprKind::Lit(lit.clone()),
+        _ => {
+            return Err(ElaborateProgramError::UnsupportedExpr {
+                site,
+                kind: ErasedExprKind::from_expr(expr),
+            });
+        }
+    };
+    Ok(ElaboratedExpr::new(kind, comp))
+}
+
+impl ErasedExprKind {
+    fn from_expr(expr: &ErasedExpr) -> Self {
+        match expr {
+            ErasedExpr::Def(_) => Self::Def,
+            ErasedExpr::Ref(_) => Self::Ref,
+            ErasedExpr::PrimitiveOp(_) => Self::PrimitiveOp,
+            ErasedExpr::Lit(_) => Self::Lit,
+            ErasedExpr::Lambda { .. } => Self::Lambda,
+            ErasedExpr::Apply { .. } => Self::Apply,
+            ErasedExpr::RefSet { .. } => Self::RefSet,
+            ErasedExpr::Tuple(_) => Self::Tuple,
+            ErasedExpr::Record { .. } => Self::Record,
+            ErasedExpr::Variant { .. } => Self::Variant,
+            ErasedExpr::Select { .. } => Self::Select,
+            ErasedExpr::Match { .. } => Self::Match,
+            ErasedExpr::Handle { .. } => Self::Handle,
+            ErasedExpr::Block(_) => Self::Block,
+            ErasedExpr::BindHere { .. } => Self::BindHere,
+            ErasedExpr::Pack { .. } => Self::Pack,
+        }
     }
 }
 
@@ -415,5 +609,110 @@ my used = id (1.display)\n",
             "unresolved role method refs should become elaborate obligation demands: {:?}",
             plan.refs,
         );
+    }
+
+    #[test]
+    fn elaborator_builds_program_for_concrete_leaf_root() {
+        let int = named_type("int");
+        let empty_effect = yulang_erased_ir::Type::Never;
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Int("1".to_string())),
+            int.clone(),
+            empty_effect.clone(),
+        ));
+        export.erased.module.roots.push(PrincipalRoot::Expr(0));
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("initial elaborated program");
+
+        assert_eq!(
+            program.module.roots,
+            vec![elaborated_ir::ElaboratedRoot::Expr(0)]
+        );
+        assert_eq!(program.module.root_exprs.len(), 1);
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Lit(yulang_erased_ir::Lit::Int(value))
+                if value == "1"
+        ));
+        assert_eq!(
+            program.module.root_exprs[0].comp.value,
+            elaborated_ir::MonoType::Value(
+                elaborated_ir::ConcreteType::try_from_type(int).expect("int is concrete")
+            )
+        );
+        assert_eq!(
+            program.module.root_exprs[0].comp.effect,
+            elaborated_ir::MonoEffect::new(
+                elaborated_ir::ConcreteType::try_from_type(empty_effect)
+                    .expect("Never is a concrete empty effect row")
+            )
+        );
+    }
+
+    #[test]
+    fn elaborator_rejects_unknown_root_type_without_fallback() {
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Int("1".to_string())),
+            yulang_erased_ir::Type::Unknown,
+            yulang_erased_ir::Type::Never,
+        ));
+
+        let Err(ElaborateProgramError::NonConcreteComputationType {
+            site: ElaborateSite::RootExpr(0),
+            field: ComputationField::Value,
+            error: elaborated_ir::ConcreteTypeError::Unknown,
+        }) = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+        else {
+            panic!("Unknown root type must not be used as a concrete elaborated type");
+        };
+    }
+
+    #[test]
+    fn elaborator_rejects_compound_expr_until_constraints_assign_child_types() {
+        let mut export = InferExport::default();
+        export.erased.module.root_exprs.push(inferred_root(
+            yulang_erased_ir::ErasedExpr::Tuple(vec![
+                yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Int("1".to_string())),
+                yulang_erased_ir::ErasedExpr::Lit(yulang_erased_ir::Lit::Int("2".to_string())),
+            ]),
+            yulang_erased_ir::Type::Tuple(vec![named_type("int"), named_type("int")]),
+            yulang_erased_ir::Type::Never,
+        ));
+
+        let Err(ElaborateProgramError::UnsupportedExpr {
+            site: ElaborateSite::RootExpr(0),
+            kind: ErasedExprKind::Tuple,
+        }) = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+        else {
+            panic!("compound erased expressions need rebuilt child computation types first");
+        };
+    }
+
+    fn inferred_root(
+        ir: yulang_erased_ir::ErasedExpr,
+        typ: yulang_erased_ir::Type,
+        eff: yulang_erased_ir::Type,
+    ) -> yulang_erased_ir::InferredExpr {
+        yulang_erased_ir::InferredExpr {
+            typ: yulang_erased_ir::TypeBounds::exact(typ),
+            eff: yulang_erased_ir::TypeBounds::exact(eff),
+            ir,
+        }
+    }
+
+    fn named_type(name: &str) -> yulang_erased_ir::Type {
+        yulang_erased_ir::Type::Named {
+            path: yulang_erased_ir::Path::from_name(yulang_erased_ir::Name(name.to_string())),
+            args: Vec::new(),
+        }
     }
 }
