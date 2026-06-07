@@ -8,7 +8,7 @@ use yulang_elaborated_ir::{
 };
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferredBinding, Lit, Name, Path, RefExportTable, RefId,
-    ResolvedTypeClassRef, Scheme, Type,
+    ResolvedTypeClassRef, Scheme, Type, TypeVar,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,7 +46,7 @@ impl ConstraintSet {
     ) -> Result<ComputationSolution, ConstraintError> {
         let mut solver = ConstraintSolver::from_set(self)?;
         solver.solve_expr(draft, draft.root, root_expr, env)?;
-        Ok(solver.into_solution())
+        solver.into_solution()
     }
 }
 
@@ -206,6 +206,7 @@ pub enum ConstraintError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstraintTypeSource {
+    BoundsSelection,
     TupleItem,
     FunctionParam,
     FunctionParamEffect,
@@ -215,7 +216,10 @@ pub enum ConstraintTypeSource {
 }
 
 struct ConstraintSolver {
-    computations: BTreeMap<DraftComputationId, MonoComputation>,
+    bounds: BTreeMap<TypeNode, TypeBoundsGraph>,
+    pending_bounds: Vec<PendingBound>,
+    subtype_edges: BTreeSet<(TypeNode, TypeNode)>,
+    next_type_var: u32,
     direct_ref_instances: BTreeMap<RefId, DirectRefInstanceDemand>,
     resolved_typeclass_instances: BTreeMap<RefId, ResolvedTypeclassInstanceDemand>,
 }
@@ -223,7 +227,10 @@ struct ConstraintSolver {
 impl ConstraintSolver {
     fn from_set(set: ConstraintSet) -> Result<Self, ConstraintError> {
         let mut solver = Self {
-            computations: BTreeMap::new(),
+            bounds: BTreeMap::new(),
+            pending_bounds: Vec::new(),
+            subtype_edges: BTreeSet::new(),
+            next_type_var: 0,
             direct_ref_instances: BTreeMap::new(),
             resolved_typeclass_instances: BTreeMap::new(),
         };
@@ -233,12 +240,21 @@ impl ConstraintSolver {
         Ok(solver)
     }
 
-    fn into_solution(self) -> ComputationSolution {
-        ComputationSolution {
-            computations: self.computations,
+    fn into_solution(self) -> Result<ComputationSolution, ConstraintError> {
+        let mut computations = BTreeMap::new();
+        let slots = self
+            .bounds
+            .keys()
+            .filter_map(TypeNode::computation_slot)
+            .collect::<BTreeSet<_>>();
+        for slot in slots {
+            computations.insert(slot, self.require_assigned(slot)?);
+        }
+        Ok(ComputationSolution {
+            computations,
             direct_ref_instances: self.direct_ref_instances,
             resolved_typeclass_instances: self.resolved_typeclass_instances,
-        }
+        })
     }
 
     fn solve_expr(
@@ -296,7 +312,8 @@ impl ConstraintSolver {
             }
             ErasedExpr::Ref(ref_id) => {
                 if let Some((def, scheme)) = env.direct_scheme(*ref_id) {
-                    let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg, env)?
+                    let Some(apply) =
+                        self.apply_from_scheme(slot, &computation, scheme, arg, env)?
                     else {
                         return Err(ConstraintError::GenericDirectRefScheme { def });
                     };
@@ -309,7 +326,8 @@ impl ConstraintSolver {
                     );
                     apply
                 } else if let Some((resolved, scheme)) = env.resolved_typeclass_scheme(*ref_id) {
-                    let Some(apply) = apply_from_scheme(slot, &computation, scheme, arg, env)?
+                    let Some(apply) =
+                        self.apply_from_scheme(slot, &computation, scheme, arg, env)?
                     else {
                         return Err(ConstraintError::GenericDirectRefScheme {
                             def: resolved.impl_member,
@@ -453,32 +471,803 @@ impl ConstraintSolver {
         Ok(())
     }
 
+    fn apply_from_scheme(
+        &mut self,
+        slot: DraftComputationId,
+        expected: &MonoComputation,
+        scheme: &Scheme,
+        arg: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<Option<ApplyComputation>, ConstraintError> {
+        if !scheme_needs_instantiation(scheme) {
+            return concrete_apply_from_scheme(slot, expected, scheme).map(Some);
+        }
+        if !scheme_can_be_instantiated_locally(scheme) {
+            return Ok(None);
+        }
+        let Some(instantiated) = self.instantiate_apply_scheme(slot, expected, scheme, arg, env)?
+        else {
+            return Ok(None);
+        };
+        concrete_apply_from_scheme(slot, expected, &instantiated).map(Some)
+    }
+
+    fn instantiate_apply_scheme(
+        &mut self,
+        slot: DraftComputationId,
+        expected: &MonoComputation,
+        scheme: &Scheme,
+        arg: &ErasedExpr,
+        env: &ConstraintEnvironment<'_>,
+    ) -> Result<Option<Scheme>, ConstraintError> {
+        let body = self.freshen_scheme_body(scheme);
+        let Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } = &body
+        else {
+            return Ok(None);
+        };
+
+        let Some(arg_computation) = known_computation(slot, arg, env)? else {
+            return Ok(None);
+        };
+        let expected_value = value_type(slot, &expected.value)?;
+        let expected_effect = expected.effect.row().as_type().clone();
+        let arg_value = value_type(slot, &arg_computation.value)?;
+        let arg_effect = arg_computation.effect.row().as_type().clone();
+
+        self.constrain_types(arg_value, (**param).clone())?;
+        self.constrain_types(arg_effect, (**param_effect).clone())?;
+        self.constrain_types((**ret).clone(), expected_value)?;
+        self.constrain_types((**ret_effect).clone(), expected_effect)?;
+        self.drain_pending_bounds()?;
+
+        let body = self.resolve_type(
+            slot,
+            &body,
+            ConstraintTypeSource::BoundsSelection,
+            &mut BTreeSet::new(),
+        )?;
+        if ConcreteType::try_from_type(body.clone()).is_err() {
+            return Ok(None);
+        }
+        Ok(Some(Scheme {
+            body,
+            quantified_types: Vec::new(),
+            quantified_effects: Vec::new(),
+            quantified_refs: Vec::new(),
+            typeclass_obligations: Vec::new(),
+            requirements: Vec::new(),
+        }))
+    }
+
+    fn freshen_scheme_body(&mut self, scheme: &Scheme) -> Type {
+        let mut instantiation = SchemeFreshening::new(self, scheme);
+        instantiation.substitute_type(&scheme.body)
+    }
+
+    fn fresh_type_var(&mut self, original: &TypeVar) -> TypeVar {
+        let id = self.next_type_var;
+        self.next_type_var += 1;
+        TypeVar(format!("$elab{id}${}", original.0))
+    }
+
     fn assign(
         &mut self,
         slot: DraftComputationId,
         computation: MonoComputation,
     ) -> Result<(), ConstraintError> {
-        if let Some(existing) = self.computations.get(&slot) {
-            if existing != &computation {
-                return Err(ConstraintError::ConflictingComputation {
-                    slot: slot.into(),
-                    existing: existing.clone(),
-                    incoming: computation,
-                });
-            }
+        self.add_exact_computation(slot, computation)?;
+        self.drain_pending_bounds()
+    }
+
+    fn add_subtype_edge(
+        &mut self,
+        lower: TypeNode,
+        upper: TypeNode,
+    ) -> Result<(), ConstraintError> {
+        if !self.subtype_edges.insert((lower.clone(), upper.clone())) {
             return Ok(());
         }
-        self.computations.insert(slot, computation);
+
+        let lower_bounds = self.type_bounds(&lower).lower.clone();
+        let upper_bounds = self.type_bounds(&upper).upper.clone();
+        for ty in lower_bounds {
+            self.add_lower_bound(upper.clone(), ty)?;
+        }
+        for ty in upper_bounds {
+            self.add_upper_bound(lower.clone(), ty)?;
+        }
+        self.drain_pending_bounds()
+    }
+
+    fn add_exact_computation(
+        &mut self,
+        slot: DraftComputationId,
+        computation: MonoComputation,
+    ) -> Result<(), ConstraintError> {
+        self.add_exact_type(
+            TypeNode::value(slot),
+            mono_type_to_type(slot, &computation.value)?,
+        )?;
+        self.add_exact_type(
+            TypeNode::effect(slot),
+            computation.effect.row().as_type().clone(),
+        )
+    }
+
+    fn add_exact_type(&mut self, node: TypeNode, ty: Type) -> Result<(), ConstraintError> {
+        self.add_subtype_edge(node.clone(), node.clone())?;
+        self.add_lower_bound(node.clone(), ty.clone())?;
+        self.add_upper_bound(node, ty)
+    }
+
+    fn add_lower_bound(&mut self, node: TypeNode, ty: Type) -> Result<(), ConstraintError> {
+        let bounds = self.type_bounds_mut(node.clone());
+        if bounds.lower.iter().any(|existing| existing == &ty) {
+            return Ok(());
+        }
+        let uppers = bounds.upper.clone();
+        bounds.lower.push(ty.clone());
+        for upper in uppers {
+            self.constrain_types(ty.clone(), upper)?;
+        }
+        self.pending_bounds.push(PendingBound {
+            node,
+            kind: BoundKind::Lower,
+            ty,
+        });
         Ok(())
+    }
+
+    fn add_upper_bound(&mut self, node: TypeNode, ty: Type) -> Result<(), ConstraintError> {
+        let bounds = self.type_bounds_mut(node.clone());
+        if bounds.upper.iter().any(|existing| existing == &ty) {
+            return Ok(());
+        }
+        let lowers = bounds.lower.clone();
+        bounds.upper.push(ty.clone());
+        for lower in lowers {
+            self.constrain_types(lower, ty.clone())?;
+        }
+        self.pending_bounds.push(PendingBound {
+            node,
+            kind: BoundKind::Upper,
+            ty,
+        });
+        Ok(())
+    }
+
+    fn drain_pending_bounds(&mut self) -> Result<(), ConstraintError> {
+        while let Some(bound) = self.pending_bounds.pop() {
+            match bound.kind {
+                BoundKind::Lower => {
+                    let targets = self
+                        .subtype_edges
+                        .iter()
+                        .filter_map(|(lower, upper)| {
+                            (lower == &bound.node).then_some(upper.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    for target in targets {
+                        self.add_lower_bound(target, bound.ty.clone())?;
+                    }
+                }
+                BoundKind::Upper => {
+                    let sources = self
+                        .subtype_edges
+                        .iter()
+                        .filter_map(|(lower, upper)| {
+                            (upper == &bound.node).then_some(lower.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    for source in sources {
+                        self.add_upper_bound(source, bound.ty.clone())?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn constrain_types(&mut self, lower: Type, upper: Type) -> Result<(), ConstraintError> {
+        if lower == upper || matches!(lower, Type::Never) || matches!(upper, Type::Any) {
+            return Ok(());
+        }
+        match (lower, upper) {
+            (Type::Var(lower), Type::Var(upper)) => {
+                self.add_subtype_edge(TypeNode::var(lower), TypeNode::var(upper))
+            }
+            (Type::Var(var), upper) => self.add_upper_bound(TypeNode::var(var), upper),
+            (lower, Type::Var(var)) => self.add_lower_bound(TypeNode::var(var), lower),
+            (Type::Union(items), upper) => {
+                for item in items {
+                    self.constrain_types(item, upper.clone())?;
+                }
+                Ok(())
+            }
+            (lower, Type::Inter(items)) => {
+                for item in items {
+                    self.constrain_types(lower.clone(), item)?;
+                }
+                Ok(())
+            }
+            (
+                Type::Fun {
+                    param: lower_param,
+                    param_effect: lower_param_effect,
+                    ret_effect: lower_ret_effect,
+                    ret: lower_ret,
+                },
+                Type::Fun {
+                    param: upper_param,
+                    param_effect: upper_param_effect,
+                    ret_effect: upper_ret_effect,
+                    ret: upper_ret,
+                },
+            ) => {
+                self.constrain_types(*upper_param, *lower_param)?;
+                self.constrain_types(*upper_param_effect, *lower_param_effect)?;
+                self.constrain_types(*lower_ret_effect, *upper_ret_effect)?;
+                self.constrain_types(*lower_ret, *upper_ret)
+            }
+            (Type::Tuple(lower_items), Type::Tuple(upper_items))
+                if lower_items.len() == upper_items.len() =>
+            {
+                for (lower, upper) in lower_items.into_iter().zip(upper_items) {
+                    self.constrain_types(lower, upper)?;
+                }
+                Ok(())
+            }
+            (
+                Type::Named {
+                    path: lower_path,
+                    args: lower_args,
+                },
+                Type::Named {
+                    path: upper_path,
+                    args: upper_args,
+                },
+            ) if lower_path == upper_path && lower_args.len() == upper_args.len() => {
+                for (lower, upper) in lower_args.into_iter().zip(upper_args) {
+                    self.constrain_type_args(lower, upper)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn constrain_type_args(
+        &mut self,
+        lower: yulang_erased_ir::TypeArg,
+        upper: yulang_erased_ir::TypeArg,
+    ) -> Result<(), ConstraintError> {
+        match (lower, upper) {
+            (yulang_erased_ir::TypeArg::Type(lower), yulang_erased_ir::TypeArg::Type(upper)) => {
+                self.constrain_types(lower, upper)
+            }
+            (
+                yulang_erased_ir::TypeArg::Bounds(lower),
+                yulang_erased_ir::TypeArg::Bounds(upper),
+            ) => {
+                let yulang_erased_ir::TypeBounds {
+                    lower: lower_lower,
+                    upper: lower_upper,
+                } = lower;
+                let yulang_erased_ir::TypeBounds {
+                    lower: upper_lower,
+                    upper: upper_upper,
+                } = upper;
+                if let (Some(lower), Some(upper)) = (lower_lower, upper_lower) {
+                    self.constrain_types(*lower, *upper)?;
+                }
+                if let (Some(lower), Some(upper)) = (lower_upper, upper_upper) {
+                    self.constrain_types(*lower, *upper)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     fn require_assigned(
         &self,
         slot: DraftComputationId,
-    ) -> Result<&MonoComputation, ConstraintError> {
-        self.computations
-            .get(&slot)
-            .ok_or(ConstraintError::MissingComputation { slot: slot.into() })
+    ) -> Result<MonoComputation, ConstraintError> {
+        let value_node = TypeNode::value(slot);
+        let effect_node = TypeNode::effect(slot);
+        let Some(value_bounds) = self.bounds.get(&value_node) else {
+            return Err(ConstraintError::MissingComputation { slot: slot.into() });
+        };
+        let Some(effect_bounds) = self.bounds.get(&effect_node) else {
+            return Err(ConstraintError::MissingComputation { slot: slot.into() });
+        };
+        Ok(MonoComputation {
+            value: MonoType::Value(self.select_concrete_type(
+                slot,
+                value_bounds,
+                ConstraintTypeSource::BoundsSelection,
+            )?),
+            effect: MonoEffect::new(self.select_concrete_type(
+                slot,
+                effect_bounds,
+                ConstraintTypeSource::BoundsSelection,
+            )?),
+        })
+    }
+
+    fn select_concrete_type(
+        &self,
+        slot: DraftComputationId,
+        bounds: &TypeBoundsGraph,
+        source: ConstraintTypeSource,
+    ) -> Result<ConcreteType, ConstraintError> {
+        concrete_type(
+            slot,
+            source,
+            self.select_type_from_bounds(slot, bounds, source)?,
+        )
+    }
+
+    fn select_type_from_bounds(
+        &self,
+        slot: DraftComputationId,
+        bounds: &TypeBoundsGraph,
+        source: ConstraintTypeSource,
+    ) -> Result<Type, ConstraintError> {
+        let mut candidates = Vec::new();
+        for ty in bounds.lower.iter().chain(bounds.upper.iter()) {
+            let ty = self.resolve_type(slot, ty, source, &mut BTreeSet::new())?;
+            collect_concrete_candidates(&ty, &mut candidates);
+        }
+        match candidates.as_slice() {
+            [candidate] => Ok(candidate.clone()),
+            [] => Err(ConstraintError::MissingComputation { slot: slot.into() }),
+            _ => Err(ConstraintError::ConflictingComputation {
+                slot: slot.into(),
+                existing: MonoComputation {
+                    value: MonoType::Value(
+                        concrete_type(slot, source, candidates[0].clone())
+                            .expect("candidate was collected as concrete"),
+                    ),
+                    effect: pure_effect(),
+                },
+                incoming: MonoComputation {
+                    value: MonoType::Value(
+                        concrete_type(slot, source, candidates[1].clone())
+                            .expect("candidate was collected as concrete"),
+                    ),
+                    effect: pure_effect(),
+                },
+            }),
+        }
+    }
+
+    fn resolve_type(
+        &self,
+        slot: DraftComputationId,
+        ty: &Type,
+        source: ConstraintTypeSource,
+        visiting: &mut BTreeSet<TypeVar>,
+    ) -> Result<Type, ConstraintError> {
+        match ty {
+            Type::Var(var) => {
+                if !visiting.insert(var.clone()) {
+                    return Ok(ty.clone());
+                }
+                let resolved = if let Some(bounds) = self.bounds.get(&TypeNode::var(var.clone())) {
+                    self.select_type_from_var_bounds(slot, bounds, source, visiting)?
+                        .unwrap_or_else(|| ty.clone())
+                } else {
+                    ty.clone()
+                };
+                visiting.remove(var);
+                Ok(resolved)
+            }
+            Type::Named { path, args } => Ok(Type::Named {
+                path: path.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.resolve_type_arg(slot, arg, source, visiting))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+            Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => Ok(Type::Fun {
+                param: Box::new(self.resolve_type(slot, param, source, visiting)?),
+                param_effect: Box::new(self.resolve_type(slot, param_effect, source, visiting)?),
+                ret_effect: Box::new(self.resolve_type(slot, ret_effect, source, visiting)?),
+                ret: Box::new(self.resolve_type(slot, ret, source, visiting)?),
+            }),
+            Type::Tuple(items) => Ok(Type::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.resolve_type(slot, item, source, visiting))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Type::Record(record) => Ok(Type::Record(yulang_erased_ir::RecordType {
+                fields: record
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        Ok(yulang_erased_ir::RecordField {
+                            name: field.name.clone(),
+                            value: self.resolve_type(slot, &field.value, source, visiting)?,
+                            optional: field.optional,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, ConstraintError>>()?,
+                spread: record
+                    .spread
+                    .as_ref()
+                    .map(|spread| match spread {
+                        yulang_erased_ir::RecordSpread::Head(ty) => self
+                            .resolve_type(slot, ty, source, visiting)
+                            .map(Box::new)
+                            .map(yulang_erased_ir::RecordSpread::Head),
+                        yulang_erased_ir::RecordSpread::Tail(ty) => self
+                            .resolve_type(slot, ty, source, visiting)
+                            .map(Box::new)
+                            .map(yulang_erased_ir::RecordSpread::Tail),
+                    })
+                    .transpose()?,
+            })),
+            Type::Variant(variant) => Ok(Type::Variant(yulang_erased_ir::VariantType {
+                cases: variant
+                    .cases
+                    .iter()
+                    .map(|case| {
+                        Ok(yulang_erased_ir::VariantCase {
+                            name: case.name.clone(),
+                            payloads: case
+                                .payloads
+                                .iter()
+                                .map(|payload| self.resolve_type(slot, payload, source, visiting))
+                                .collect::<Result<Vec<_>, _>>()?,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, ConstraintError>>()?,
+                tail: variant
+                    .tail
+                    .as_ref()
+                    .map(|tail| {
+                        self.resolve_type(slot, tail, source, visiting)
+                            .map(Box::new)
+                    })
+                    .transpose()?,
+            })),
+            Type::Row { items, tail } => Ok(Type::Row {
+                items: items
+                    .iter()
+                    .map(|item| self.resolve_type(slot, item, source, visiting))
+                    .collect::<Result<Vec<_>, _>>()?,
+                tail: Box::new(self.resolve_type(slot, tail, source, visiting)?),
+            }),
+            Type::Union(items) => Ok(Type::Union(
+                items
+                    .iter()
+                    .map(|item| self.resolve_type(slot, item, source, visiting))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Type::Inter(items) => Ok(Type::Inter(
+                items
+                    .iter()
+                    .map(|item| self.resolve_type(slot, item, source, visiting))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Type::Recursive { var, body } => Ok(Type::Recursive {
+                var: var.clone(),
+                body: Box::new(self.resolve_type_under_binder(slot, var, body, source, visiting)?),
+            }),
+            Type::Unknown | Type::Never | Type::Any => Ok(ty.clone()),
+        }
+    }
+
+    fn select_type_from_var_bounds(
+        &self,
+        slot: DraftComputationId,
+        bounds: &TypeBoundsGraph,
+        source: ConstraintTypeSource,
+        visiting: &mut BTreeSet<TypeVar>,
+    ) -> Result<Option<Type>, ConstraintError> {
+        let mut candidates = Vec::new();
+        for ty in bounds.lower.iter().chain(bounds.upper.iter()) {
+            let ty = self.resolve_type(slot, ty, source, visiting)?;
+            collect_concrete_candidates(&ty, &mut candidates);
+        }
+        match candidates.as_slice() {
+            [candidate] => Ok(Some(candidate.clone())),
+            [] => Ok(None),
+            _ => Err(ConstraintError::ConflictingComputation {
+                slot: slot.into(),
+                existing: MonoComputation {
+                    value: MonoType::Value(
+                        concrete_type(slot, source, candidates[0].clone())
+                            .expect("candidate was collected as concrete"),
+                    ),
+                    effect: pure_effect(),
+                },
+                incoming: MonoComputation {
+                    value: MonoType::Value(
+                        concrete_type(slot, source, candidates[1].clone())
+                            .expect("candidate was collected as concrete"),
+                    ),
+                    effect: pure_effect(),
+                },
+            }),
+        }
+    }
+
+    fn resolve_type_arg(
+        &self,
+        slot: DraftComputationId,
+        arg: &yulang_erased_ir::TypeArg,
+        source: ConstraintTypeSource,
+        visiting: &mut BTreeSet<TypeVar>,
+    ) -> Result<yulang_erased_ir::TypeArg, ConstraintError> {
+        match arg {
+            yulang_erased_ir::TypeArg::Type(ty) => Ok(yulang_erased_ir::TypeArg::Type(
+                self.resolve_type(slot, ty, source, visiting)?,
+            )),
+            yulang_erased_ir::TypeArg::Bounds(bounds) => Ok(yulang_erased_ir::TypeArg::Bounds(
+                yulang_erased_ir::TypeBounds {
+                    lower: bounds
+                        .lower
+                        .as_ref()
+                        .map(|lower| {
+                            self.resolve_type(slot, lower, source, visiting)
+                                .map(Box::new)
+                        })
+                        .transpose()?,
+                    upper: bounds
+                        .upper
+                        .as_ref()
+                        .map(|upper| {
+                            self.resolve_type(slot, upper, source, visiting)
+                                .map(Box::new)
+                        })
+                        .transpose()?,
+                },
+            )),
+        }
+    }
+
+    fn resolve_type_under_binder(
+        &self,
+        slot: DraftComputationId,
+        var: &TypeVar,
+        body: &Type,
+        source: ConstraintTypeSource,
+        visiting: &mut BTreeSet<TypeVar>,
+    ) -> Result<Type, ConstraintError> {
+        let removed = visiting.remove(var);
+        let out = self.resolve_type(slot, body, source, visiting);
+        if removed {
+            visiting.insert(var.clone());
+        }
+        out
+    }
+
+    fn type_bounds(&self, node: &TypeNode) -> TypeBoundsGraph {
+        self.bounds.get(node).cloned().unwrap_or_default()
+    }
+
+    fn type_bounds_mut(&mut self, node: TypeNode) -> &mut TypeBoundsGraph {
+        self.bounds.entry(node).or_default()
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct TypeBoundsGraph {
+    lower: Vec<Type>,
+    upper: Vec<Type>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum TypeNode {
+    Computation {
+        slot: DraftComputationId,
+        kind: TypeNodeKind,
+    },
+    Var(TypeVar),
+}
+
+impl TypeNode {
+    fn value(slot: DraftComputationId) -> Self {
+        Self::Computation {
+            slot,
+            kind: TypeNodeKind::Value,
+        }
+    }
+
+    fn effect(slot: DraftComputationId) -> Self {
+        Self::Computation {
+            slot,
+            kind: TypeNodeKind::Effect,
+        }
+    }
+
+    fn var(var: TypeVar) -> Self {
+        Self::Var(var)
+    }
+
+    fn computation_slot(&self) -> Option<DraftComputationId> {
+        match self {
+            Self::Computation { slot, .. } => Some(*slot),
+            Self::Var(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum TypeNodeKind {
+    Value,
+    Effect,
+}
+
+#[derive(Debug, Clone)]
+struct PendingBound {
+    node: TypeNode,
+    kind: BoundKind,
+    ty: Type,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BoundKind {
+    Lower,
+    Upper,
+}
+
+struct SchemeFreshening {
+    assignments: BTreeMap<TypeVar, TypeVar>,
+}
+
+impl SchemeFreshening {
+    fn new(solver: &mut ConstraintSolver, scheme: &Scheme) -> Self {
+        let mut assignments = BTreeMap::new();
+        for var in &scheme.quantified_types {
+            assignments.insert(var.clone(), solver.fresh_type_var(var));
+        }
+        for var in &scheme.quantified_effects {
+            let var = TypeVar(var.0.clone());
+            assignments.insert(var.clone(), solver.fresh_type_var(&var));
+        }
+        Self { assignments }
+    }
+
+    fn substitute_type(&mut self, ty: &Type) -> Type {
+        match ty {
+            Type::Var(var) => self
+                .assignments
+                .get(var)
+                .cloned()
+                .map(Type::Var)
+                .unwrap_or_else(|| ty.clone()),
+            Type::Named { path, args } => Type::Named {
+                path: path.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.substitute_type_arg(arg))
+                    .collect(),
+            },
+            Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => Type::Fun {
+                param: Box::new(self.substitute_type(param)),
+                param_effect: Box::new(self.substitute_type(param_effect)),
+                ret_effect: Box::new(self.substitute_type(ret_effect)),
+                ret: Box::new(self.substitute_type(ret)),
+            },
+            Type::Tuple(items) => Type::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+            ),
+            Type::Record(record) => Type::Record(yulang_erased_ir::RecordType {
+                fields: record
+                    .fields
+                    .iter()
+                    .map(|field| yulang_erased_ir::RecordField {
+                        name: field.name.clone(),
+                        value: self.substitute_type(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+                spread: record.spread.as_ref().map(|spread| match spread {
+                    yulang_erased_ir::RecordSpread::Head(ty) => {
+                        yulang_erased_ir::RecordSpread::Head(Box::new(self.substitute_type(ty)))
+                    }
+                    yulang_erased_ir::RecordSpread::Tail(ty) => {
+                        yulang_erased_ir::RecordSpread::Tail(Box::new(self.substitute_type(ty)))
+                    }
+                }),
+            }),
+            Type::Variant(variant) => Type::Variant(yulang_erased_ir::VariantType {
+                cases: variant
+                    .cases
+                    .iter()
+                    .map(|case| yulang_erased_ir::VariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(|payload| self.substitute_type(payload))
+                            .collect(),
+                    })
+                    .collect(),
+                tail: variant
+                    .tail
+                    .as_ref()
+                    .map(|tail| Box::new(self.substitute_type(tail))),
+            }),
+            Type::Row { items, tail } => Type::Row {
+                items: items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+                tail: Box::new(self.substitute_type(tail)),
+            },
+            Type::Union(items) => Type::Union(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+            ),
+            Type::Inter(items) => Type::Inter(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect(),
+            ),
+            Type::Recursive { var, body } => Type::Recursive {
+                var: var.clone(),
+                body: Box::new(self.substitute_type_under_binder(var, body)),
+            },
+            Type::Unknown | Type::Never | Type::Any => ty.clone(),
+        }
+    }
+
+    fn substitute_type_arg(
+        &mut self,
+        arg: &yulang_erased_ir::TypeArg,
+    ) -> yulang_erased_ir::TypeArg {
+        match arg {
+            yulang_erased_ir::TypeArg::Type(ty) => {
+                yulang_erased_ir::TypeArg::Type(self.substitute_type(ty))
+            }
+            yulang_erased_ir::TypeArg::Bounds(bounds) => {
+                yulang_erased_ir::TypeArg::Bounds(yulang_erased_ir::TypeBounds {
+                    lower: bounds
+                        .lower
+                        .as_ref()
+                        .map(|lower| Box::new(self.substitute_type(lower))),
+                    upper: bounds
+                        .upper
+                        .as_ref()
+                        .map(|upper| Box::new(self.substitute_type(upper))),
+                })
+            }
+        }
+    }
+
+    fn substitute_type_under_binder(&mut self, var: &TypeVar, body: &Type) -> Type {
+        let removed = self.assignments.remove(var);
+        let out = self.substitute_type(body);
+        if let Some(assignment) = removed {
+            self.assignments.insert(var.clone(), assignment);
+        }
+        out
     }
 }
 
@@ -552,77 +1341,10 @@ fn concrete_apply_from_scheme(
     })
 }
 
-fn apply_from_scheme(
-    slot: DraftComputationId,
-    expected: &MonoComputation,
-    scheme: &Scheme,
-    arg: &ErasedExpr,
-    env: &ConstraintEnvironment<'_>,
-) -> Result<Option<ApplyComputation>, ConstraintError> {
-    if !scheme_needs_instantiation(scheme) {
-        return concrete_apply_from_scheme(slot, expected, scheme).map(Some);
-    }
-    if !scheme_can_be_instantiated_locally(scheme) {
-        return Ok(None);
-    }
-    let Some(instantiated) = instantiate_apply_scheme(slot, expected, scheme, arg, env)? else {
-        return Ok(None);
-    };
-    concrete_apply_from_scheme(slot, expected, &instantiated).map(Some)
-}
-
 fn scheme_can_be_instantiated_locally(scheme: &Scheme) -> bool {
     scheme.quantified_refs.is_empty()
         && scheme.typeclass_obligations.is_empty()
         && scheme.requirements.is_empty()
-}
-
-fn instantiate_apply_scheme(
-    slot: DraftComputationId,
-    expected: &MonoComputation,
-    scheme: &Scheme,
-    arg: &ErasedExpr,
-    env: &ConstraintEnvironment<'_>,
-) -> Result<Option<Scheme>, ConstraintError> {
-    let Type::Fun {
-        param,
-        param_effect,
-        ret_effect,
-        ret,
-    } = &scheme.body
-    else {
-        return Ok(None);
-    };
-
-    let Some(arg_computation) = known_computation(slot, arg, env)? else {
-        return Ok(None);
-    };
-    let expected_value = value_type(slot, &expected.value)?;
-    let expected_effect = expected.effect.row().as_type().clone();
-    let arg_value = value_type(slot, &arg_computation.value)?;
-    let arg_effect = arg_computation.effect.row().as_type().clone();
-
-    let mut instantiation = TypeInstantiation::new(scheme);
-    if !instantiation.match_type(param, &arg_value)
-        || !instantiation.match_type(param_effect, &arg_effect)
-        || !instantiation.match_type(ret, &expected_value)
-        || !instantiation.match_type(ret_effect, &expected_effect)
-    {
-        return Ok(None);
-    }
-
-    let body = instantiation.substitute_type(&scheme.body);
-    if scheme_quantified_vars_appear_in_type(scheme, &body) {
-        return Ok(None);
-    }
-    Ok(Some(Scheme {
-        body,
-        quantified_types: Vec::new(),
-        quantified_effects: Vec::new(),
-        quantified_refs: Vec::new(),
-        typeclass_obligations: Vec::new(),
-        requirements: Vec::new(),
-    }))
 }
 
 fn function_computation(
@@ -865,6 +1587,47 @@ fn concrete_type(
         source,
         error,
     })
+}
+
+fn mono_type_to_type(slot: DraftComputationId, typ: &MonoType) -> Result<Type, ConstraintError> {
+    match typ {
+        MonoType::Value(value) => Ok(value.as_type().clone()),
+        MonoType::EffectiveThunk(_) => Err(ConstraintError::ExpectedValue {
+            slot: slot.into(),
+            found: typ.clone(),
+        }),
+    }
+}
+
+fn collect_concrete_candidates(ty: &Type, candidates: &mut Vec<Type>) {
+    if ConcreteType::try_from_type(ty.clone()).is_ok() {
+        push_unique_candidate(candidates, ty.clone());
+        return;
+    }
+    match ty {
+        Type::Union(items) | Type::Inter(items) => {
+            for item in items {
+                collect_concrete_candidates(item, candidates);
+            }
+        }
+        Type::Unknown
+        | Type::Never
+        | Type::Any
+        | Type::Var(_)
+        | Type::Named { .. }
+        | Type::Fun { .. }
+        | Type::Tuple(_)
+        | Type::Record(_)
+        | Type::Variant(_)
+        | Type::Row { .. }
+        | Type::Recursive { .. } => {}
+    }
+}
+
+fn push_unique_candidate(candidates: &mut Vec<Type>, candidate: Type) {
+    if !candidates.iter().any(|existing| existing == &candidate) {
+        candidates.push(candidate);
+    }
 }
 
 fn effect_is_pure(effect: &MonoEffect) -> bool {
@@ -1309,6 +2072,87 @@ mod tests {
         );
     }
 
+    #[test]
+    fn subtype_edges_propagate_lower_and_upper_bounds() {
+        let mut solver = empty_solver();
+        let alpha = TypeNode::var(TypeVar("alpha".to_string()));
+        let beta = TypeNode::var(TypeVar("beta".to_string()));
+        let int = named_type("int");
+
+        solver
+            .add_subtype_edge(alpha.clone(), beta.clone())
+            .expect("add subtype edge");
+        solver
+            .add_lower_bound(alpha.clone(), int.clone())
+            .expect("add lower bound");
+        solver
+            .add_upper_bound(beta.clone(), int.clone())
+            .expect("add upper bound");
+        solver.drain_pending_bounds().expect("drain bounds");
+
+        assert_eq!(solver.type_bounds(&beta).lower, vec![int.clone()]);
+        assert_eq!(solver.type_bounds(&alpha).upper, vec![int]);
+    }
+
+    #[test]
+    fn generic_apply_instantiation_solves_type_var_from_bounds() {
+        let mut solver = empty_solver();
+        let refs = RefExportTable::default();
+        let env = ConstraintEnvironment::new(&refs, &[]);
+        let var = TypeVar("a".to_string());
+        let int = named_type("int");
+        let scheme = Scheme {
+            body: Type::Fun {
+                param: Box::new(Type::Var(var.clone())),
+                param_effect: Box::new(Type::Never),
+                ret_effect: Box::new(Type::Never),
+                ret: Box::new(Type::Var(var)),
+            },
+            quantified_types: vec![TypeVar("a".to_string())],
+            quantified_effects: Vec::new(),
+            quantified_refs: Vec::new(),
+            typeclass_obligations: Vec::new(),
+            requirements: Vec::new(),
+        };
+        let expected = int_computation();
+
+        let apply = solver
+            .apply_from_scheme(
+                DraftComputationId(0),
+                &expected,
+                &scheme,
+                &ErasedExpr::Lit(Lit::Int("1".to_string())),
+                &env,
+            )
+            .expect("instantiate scheme")
+            .expect("scheme should be concrete enough");
+
+        assert_eq!(
+            apply.callee.value,
+            MonoType::Value(
+                ConcreteType::try_from_type(Type::Fun {
+                    param: Box::new(int.clone()),
+                    param_effect: Box::new(Type::Never),
+                    ret_effect: Box::new(Type::Never),
+                    ret: Box::new(int.clone()),
+                })
+                .expect("function is concrete")
+            )
+        );
+        assert_eq!(apply.arg.value, MonoType::Value(concrete_named("int")));
+    }
+
+    fn empty_solver() -> ConstraintSolver {
+        ConstraintSolver {
+            bounds: BTreeMap::new(),
+            pending_bounds: Vec::new(),
+            subtype_edges: BTreeSet::new(),
+            next_type_var: 0,
+            direct_ref_instances: BTreeMap::new(),
+            resolved_typeclass_instances: BTreeMap::new(),
+        }
+    }
+
     fn int_computation() -> MonoComputation {
         MonoComputation {
             value: MonoType::Value(concrete_named("int")),
@@ -1318,11 +2162,14 @@ mod tests {
         }
     }
 
-    fn concrete_named(name: &str) -> ConcreteType {
-        ConcreteType::try_from_type(Type::Named {
+    fn named_type(name: &str) -> Type {
+        Type::Named {
             path: Path::from_name(Name(name.to_string())),
             args: Vec::new(),
-        })
-        .expect("named type is concrete")
+        }
+    }
+
+    fn concrete_named(name: &str) -> ConcreteType {
+        ConcreteType::try_from_type(named_type(name)).expect("named type is concrete")
     }
 }

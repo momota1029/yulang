@@ -208,6 +208,33 @@ infer-resolved typeclass ref は impl selection をやり直さない。`Resolve
 の scheme を、その `RefId` の use-site で direct ref と同じように制約化し、elaborated ref table には
 `ResolvedRefSource::InferResolvedTypeclass` として残す。
 
+## 制約グラフ
+
+Elaborate の制約解決は、`DraftComputationId -> MonoComputation` の代入表として保持してはならない。
+各 computation slot の value / effect と、scheme instantiate で fresh 化した単相型変数を
+同じ制約グラフの node として扱う。
+
+制約グラフは次を持つ。
+
+- node ごとの lower bounds
+- node ごとの upper bounds
+- `lower_node <: upper_node` の subtype edge
+
+下界 `L` を node `α` に追加したら、既存の各上界 `U` について `L <: U` を制約化し、
+`α <: β` の edge がある各 `β` へ同じ下界を流す。
+上界 `U` を node `α` に追加したら、既存の各下界 `L` について `L <: U` を制約化し、
+`β <: α` の edge がある各 `β` へ同じ上界を流す。
+
+`Type::Var(a) <: Type::Var(b)` は `a <: b` の edge、`T <: Type::Var(a)` は `a` の lower bound、
+`Type::Var(a) <: T` は `a` の upper bound として扱う。
+関数型では引数と引数 effect を反変、返り値と返り値 effect を共変に分解する。
+tuple や同一 constructor の type argument も、構造が一致する範囲で子制約へ分解する。
+
+generic direct ref の instantiate は、量化変数を use-site fresh node に置き換えてから制約を作る。
+例えば `id : α -> α` を `id 1 : int` として使う場合は、`int <: α` と `α <: int` を同じ
+fresh node `α` の上下界に入れ、concrete selection で `α = int` を読む。
+`Any` や `Unknown` による穴埋めは行わない。
+
 ## concrete 型の選択
 
 制約を解いた後でも、需要内の単相変数 `α` には上下界だけが残ることがある。
