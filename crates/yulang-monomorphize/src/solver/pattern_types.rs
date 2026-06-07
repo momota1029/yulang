@@ -43,3 +43,21 @@ pub(crate) fn tuple_component_runtime_types(
     }
     vec![None; arity]
 }
+
+pub(crate) fn record_field_runtime_type(
+    scrutinee_ty: Option<&RuntimeType>,
+    pattern_ty: &RuntimeType,
+    name: &typed_ir::Name,
+) -> Option<RuntimeType> {
+    let preferred = scrutinee_ty
+        .filter(|ty| !super::runtime_type_has_unknown(ty))
+        .or_else(|| (!super::runtime_type_has_unknown(pattern_ty)).then_some(pattern_ty))?;
+    let RuntimeType::Value(typed_ir::Type::Record(record)) = preferred else {
+        return None;
+    };
+    record
+        .fields
+        .iter()
+        .find(|field| field.name == *name)
+        .map(|field| RuntimeType::Value(field.value.clone()))
+}

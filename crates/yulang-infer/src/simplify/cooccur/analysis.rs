@@ -69,6 +69,26 @@ fn visit_bounds(
     exact_keys: &mut ExactKeyCache,
     record_vars: Option<&HashSet<TypeVar>>,
 ) {
+    visit_bounds_with_polarity(
+        scheme,
+        bounds,
+        true,
+        expanded,
+        analysis,
+        exact_keys,
+        record_vars,
+    );
+}
+
+fn visit_bounds_with_polarity(
+    scheme: &CompactTypeScheme,
+    bounds: &CompactBounds,
+    positive: bool,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    analysis: &mut CoOccurrences,
+    exact_keys: &mut ExactKeyCache,
+    record_vars: Option<&HashSet<TypeVar>>,
+) {
     match bounds {
         CompactBounds::Interval { .. } => {}
         CompactBounds::Con { args, .. } => {
@@ -89,10 +109,42 @@ fn visit_bounds(
             ret_eff,
             ret,
         } => {
-            visit_bounds(scheme, arg, expanded, analysis, exact_keys, record_vars);
-            visit_bounds(scheme, arg_eff, expanded, analysis, exact_keys, record_vars);
-            visit_bounds(scheme, ret_eff, expanded, analysis, exact_keys, record_vars);
-            visit_bounds(scheme, ret, expanded, analysis, exact_keys, record_vars);
+            visit_bounds_with_polarity(
+                scheme,
+                arg,
+                false,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
+            visit_bounds_with_polarity(
+                scheme,
+                arg_eff,
+                false,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
+            visit_bounds_with_polarity(
+                scheme,
+                ret_eff,
+                true,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
+            visit_bounds_with_polarity(
+                scheme,
+                ret,
+                true,
+                expanded,
+                analysis,
+                exact_keys,
+                record_vars,
+            );
             return;
         }
     }
@@ -100,7 +152,7 @@ fn visit_bounds(
     visit_compact_type_with_extra_vars(
         scheme,
         bounds.lower(),
-        true,
+        positive,
         &centers,
         expanded,
         analysis,
@@ -110,7 +162,7 @@ fn visit_bounds(
     visit_compact_type_with_extra_vars(
         scheme,
         bounds.upper(),
-        false,
+        !positive,
         &centers,
         expanded,
         analysis,

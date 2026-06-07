@@ -1520,6 +1520,24 @@ impl LowerState {
         }
     }
 
+    pub fn refresh_selection_environment_for_owner_defs(&mut self, owners: &HashSet<DefId>) {
+        if self.ctx.refs.has_unresolved() {
+            self.ctx.resolve_pending_refs();
+        }
+        self.instantiate_late_resolved_refs();
+        if self.selection_lookup_dirty {
+            self.infer.rebuild_type_methods(&self.ctx.modules);
+            self.selection_lookup_dirty = false;
+        }
+        if !self.infer.deferred_selections.borrow().is_empty() {
+            self.infer.resolve_deferred_selections();
+        }
+        if !self.infer.deferred_role_method_calls.borrow().is_empty() {
+            self.infer
+                .resolve_deferred_role_method_calls_for_owners(owners);
+        }
+    }
+
     pub fn mark_resolved_ref_instantiated(&mut self, ref_id: RefId) {
         self.instantiated_resolved_refs.insert(ref_id);
     }

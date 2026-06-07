@@ -65,10 +65,14 @@ struct RepresentativeContext<'a> {
 
 impl RepresentativeContext<'_> {
     fn collect_bounds(&mut self, bounds: &CompactBounds) {
+        self.collect_bounds_with_polarity(bounds, true);
+    }
+
+    fn collect_bounds_with_polarity(&mut self, bounds: &CompactBounds, positive: bool) {
         match bounds {
             CompactBounds::Interval { lower, upper, .. } => {
-                self.collect_type(lower, true);
-                self.collect_type(upper, false);
+                self.collect_type(lower, positive);
+                self.collect_type(upper, !positive);
             }
             CompactBounds::Con { args, .. } => {
                 for arg in args {
@@ -86,10 +90,10 @@ impl RepresentativeContext<'_> {
                 ret_eff,
                 ret,
             } => {
-                self.collect_bounds(arg);
-                self.collect_bounds(arg_eff);
-                self.collect_bounds(ret_eff);
-                self.collect_bounds(ret);
+                self.collect_bounds_with_polarity(arg, false);
+                self.collect_bounds_with_polarity(arg_eff, false);
+                self.collect_bounds_with_polarity(ret_eff, true);
+                self.collect_bounds_with_polarity(ret, true);
             }
         }
     }

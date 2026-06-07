@@ -1566,6 +1566,47 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn add_id_does_not_enter_delayed_thunk_body() {
+        let undet = typed_ir::Type::Row {
+            items: vec![named_type("undet")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let value = RuntimeType::value(named_type("int"));
+        let inner = Expr::typed(
+            ExprKind::Thunk {
+                effect: undet.clone(),
+                value: value.clone(),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+                    value.clone(),
+                )),
+            },
+            RuntimeType::thunk(undet.clone(), value.clone()),
+        );
+        let outer = Expr::typed(
+            ExprKind::Thunk {
+                effect: undet.clone(),
+                value: inner.ty.clone(),
+                expr: Box::new(inner),
+            },
+            RuntimeType::thunk(undet.clone(), RuntimeType::thunk(undet.clone(), value)),
+        );
+
+        let expr = add_id_to_created_thunks(outer);
+
+        let ExprKind::AddId { thunk: outer, .. } = &expr.kind else {
+            panic!("expected add_id around outer thunk");
+        };
+        let ExprKind::Thunk { expr: body, .. } = &outer.kind else {
+            panic!("expected outer thunk");
+        };
+        assert!(
+            !contains_peek_add_id(body),
+            "delayed thunk body must not capture the current function boundary"
+        );
+    }
+
+    #[test]
     pub(super) fn param_allowed_effect_does_not_change_thunk_type() {
         let io_path = typed_ir::Path::from_name(typed_ir::Name("io".to_string()));
         let undet = typed_ir::Type::Row {

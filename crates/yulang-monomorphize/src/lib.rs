@@ -1,9 +1,13 @@
 //! Runtime finalization for Yulang.
 //!
 //! The active rewrite starts from a fresh type graph.  A polymorphic principal
-//! type is first instantiated into that graph, then expression evidence is
-//! collected as lower/upper bounds.  Solving prefers lower bounds and returns a
-//! fully materializable monomorphic view of the graph.
+//! type is first instantiated into that graph, then each apply spine is solved
+//! from the outside in: unify the current callee with the observed argument,
+//! substitute through the callee return, and repeat.  Expression evidence is
+//! collected as lower/upper bounds, and solving prefers lower bounds to return
+//! a materializable monomorphic view of the graph.  When a solved body still
+//! belongs to an outer generic binding, free outer variables are treated as
+//! open runtime structure, not as graph slots owned by the inner instance.
 
 mod cache;
 mod diagnostic;

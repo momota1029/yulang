@@ -204,10 +204,10 @@ pub(crate) fn complete_referenced_binding_closure(
         .collect::<HashSet<_>>();
     let mut pending_refs = HashSet::new();
     for expr in extra_exprs {
-        collect_expr_binding_refs(expr, &mut pending_refs);
+        collect_expr_binding_refs(state, globals, expr, &mut pending_refs);
     }
     for binding in bindings.iter() {
-        collect_expr_binding_refs(&binding.body, &mut pending_refs);
+        collect_expr_binding_refs(state, globals, &binding.body, &mut pending_refs);
     }
     while !pending_refs.is_empty() {
         let mut pending = std::mem::take(&mut pending_refs)
@@ -218,6 +218,12 @@ pub(crate) fn complete_referenced_binding_closure(
         for path in pending {
             if exported.contains(&path) {
                 continue;
+            }
+            for candidate in role_method_candidate_runtime_paths(state, globals, &path) {
+                if !exported.contains(&candidate) {
+                    pending_refs.insert(candidate);
+                    changed = true;
+                }
             }
             let Some((source_path, def)) = all_paths.get(&path).cloned() else {
                 continue;
@@ -241,7 +247,7 @@ pub(crate) fn complete_referenced_binding_closure(
                 binding_times.push((binding.name.clone(), started.elapsed(), expr_profile));
             }
             if exported.insert(binding.name.clone()) {
-                collect_expr_binding_refs(&binding.body, &mut pending_refs);
+                collect_expr_binding_refs(state, globals, &binding.body, &mut pending_refs);
                 bindings.push(binding);
                 changed = true;
             }
@@ -282,21 +288,62 @@ pub(crate) fn complete_referenced_binding_closure(
         }
     }
 }
-fn collect_expr_binding_refs(expr: &typed_ir::Expr, out: &mut HashSet<typed_ir::Path>) {
+
+fn role_method_candidate_runtime_paths(
+    state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    path: &typed_ir::Path,
+) -> Vec<typed_ir::Path> {
+    let Some(info) = role_method_info_for_runtime_path(state, path) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for candidate in state.infer.role_impl_candidates_of(&info.role) {
+        let Some(def) = candidate.member_defs.get(&info.name) else {
+            continue;
+        };
+        let Some(path) = globals.get(def).map(export_path) else {
+            continue;
+        };
+        if !out.contains(&path) {
+            out.push(path);
+        }
+    }
+    out
+}
+
+fn role_method_info_for_runtime_path(
+    state: &LowerState,
+    path: &typed_ir::Path,
+) -> Option<crate::solve::RoleMethodInfo> {
+    state.infer.role_methods.values().find_map(|info| {
+        let mut method_path = info.role.clone();
+        method_path.segments.push(info.name.clone());
+        (export_path(&method_path) == *path).then(|| info.clone())
+    })
+}
+
+fn collect_expr_binding_refs(
+    state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    expr: &typed_ir::Expr,
+    out: &mut HashSet<typed_ir::Path>,
+) {
     match expr {
         typed_ir::Expr::Var(path) => {
             out.insert(path.clone());
+            collect_role_method_candidate_refs(state, globals, path, out);
         }
         typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => {}
         typed_ir::Expr::Lambda { body, .. }
         | typed_ir::Expr::Coerce { expr: body, .. }
         | typed_ir::Expr::BindHere { expr: body }
         | typed_ir::Expr::Pack { expr: body, .. } => {
-            collect_expr_binding_refs(body, out);
+            collect_expr_binding_refs(state, globals, body, out);
         }
         typed_ir::Expr::Apply { callee, arg, .. } => {
-            collect_expr_binding_refs(callee, out);
-            collect_expr_binding_refs(arg, out);
+            collect_expr_binding_refs(state, globals, callee, out);
+            collect_expr_binding_refs(state, globals, arg, out);
         }
         typed_ir::Expr::If {
             cond,
@@ -304,66 +351,106 @@ fn collect_expr_binding_refs(expr: &typed_ir::Expr, out: &mut HashSet<typed_ir::
             else_branch,
             ..
         } => {
-            collect_expr_binding_refs(cond, out);
-            collect_expr_binding_refs(then_branch, out);
-            collect_expr_binding_refs(else_branch, out);
+            collect_expr_binding_refs(state, globals, cond, out);
+            collect_expr_binding_refs(state, globals, then_branch, out);
+            collect_expr_binding_refs(state, globals, else_branch, out);
         }
         typed_ir::Expr::Tuple(items) => {
             for item in items {
-                collect_expr_binding_refs(item, out);
+                collect_expr_binding_refs(state, globals, item, out);
             }
         }
         typed_ir::Expr::Record { fields, spread } => {
             for field in fields {
-                collect_expr_binding_refs(&field.value, out);
+                collect_expr_binding_refs(state, globals, &field.value, out);
             }
             if let Some(spread) = spread {
                 match spread {
                     typed_ir::RecordSpreadExpr::Head(expr)
                     | typed_ir::RecordSpreadExpr::Tail(expr) => {
-                        collect_expr_binding_refs(expr, out);
+                        collect_expr_binding_refs(state, globals, expr, out);
                     }
                 }
             }
         }
         typed_ir::Expr::Variant { value, .. } => {
             if let Some(value) = value {
-                collect_expr_binding_refs(value, out);
+                collect_expr_binding_refs(state, globals, value, out);
             }
         }
-        typed_ir::Expr::Select { base, .. } => collect_expr_binding_refs(base, out),
+        typed_ir::Expr::Select { base, field } => {
+            collect_expr_binding_refs(state, globals, base, out);
+            collect_role_method_candidate_refs_by_name(state, globals, field, out);
+        }
         typed_ir::Expr::Match {
             scrutinee, arms, ..
         } => {
-            collect_expr_binding_refs(scrutinee, out);
+            collect_expr_binding_refs(state, globals, scrutinee, out);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    collect_expr_binding_refs(guard, out);
+                    collect_expr_binding_refs(state, globals, guard, out);
                 }
-                collect_expr_binding_refs(&arm.body, out);
+                collect_expr_binding_refs(state, globals, &arm.body, out);
             }
         }
         typed_ir::Expr::Block { stmts, tail } => {
             for stmt in stmts {
                 match stmt {
                     typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
-                        collect_expr_binding_refs(value, out);
+                        collect_expr_binding_refs(state, globals, value, out);
                     }
-                    typed_ir::Stmt::Module { body, .. } => collect_expr_binding_refs(body, out),
+                    typed_ir::Stmt::Module { body, .. } => {
+                        collect_expr_binding_refs(state, globals, body, out)
+                    }
                 }
             }
             if let Some(tail) = tail {
-                collect_expr_binding_refs(tail, out);
+                collect_expr_binding_refs(state, globals, tail, out);
             }
         }
         typed_ir::Expr::Handle { body, arms, .. } => {
-            collect_expr_binding_refs(body, out);
+            collect_expr_binding_refs(state, globals, body, out);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    collect_expr_binding_refs(guard, out);
+                    collect_expr_binding_refs(state, globals, guard, out);
                 }
-                collect_expr_binding_refs(&arm.body, out);
+                collect_expr_binding_refs(state, globals, &arm.body, out);
             }
+        }
+    }
+}
+
+fn collect_role_method_candidate_refs(
+    state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    path: &typed_ir::Path,
+    out: &mut HashSet<typed_ir::Path>,
+) {
+    for candidate in role_method_candidate_runtime_paths(state, globals, path) {
+        out.insert(candidate);
+    }
+}
+
+fn collect_role_method_candidate_refs_by_name(
+    state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    field: &typed_ir::Name,
+    out: &mut HashSet<typed_ir::Path>,
+) {
+    for info in state
+        .infer
+        .role_methods
+        .values()
+        .filter(|info| info.name.0 == field.0)
+    {
+        for candidate in state.infer.role_impl_candidates_of(&info.role) {
+            let Some(def) = candidate.member_defs.get(&info.name) else {
+                continue;
+            };
+            let Some(path) = globals.get(def).map(export_path) else {
+                continue;
+            };
+            out.insert(path);
         }
     }
 }

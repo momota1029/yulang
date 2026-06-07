@@ -115,10 +115,13 @@ pub(crate) fn lower_struct_decl_with_scope(
     );
     let ctor_body = super::super::synthetic_struct_constructor_body(state, ctor_def);
     state.insert_principal_body(ctor_def, ctor_body.clone());
-    state.infer.store_frozen_scheme(
-        ctor_def,
-        crate::scheme::freeze_type_var(&state.infer, ctor_tv),
-    );
+    let frozen_ctor_scheme = crate::scheme::freeze_type_var(&state.infer, ctor_tv);
+    state
+        .infer
+        .store_compact_scheme(ctor_def, frozen_ctor_scheme.compact.clone());
+    state
+        .infer
+        .store_frozen_scheme(ctor_def, frozen_ctor_scheme);
     state.infer.mark_frozen_ref_committed(ctor_def);
 
     let projection_fields = fields
@@ -135,10 +138,13 @@ pub(crate) fn lower_struct_decl_with_scope(
             &field_name,
         );
         state.insert_principal_body(field_def, body.clone());
-        state.infer.store_frozen_scheme(
-            field_def,
-            crate::scheme::freeze_type_var(&state.infer, field_tv),
-        );
+        let frozen_field_scheme = crate::scheme::freeze_type_var(&state.infer, field_tv);
+        state
+            .infer
+            .store_compact_scheme(field_def, frozen_field_scheme.compact.clone());
+        state
+            .infer
+            .store_frozen_scheme(field_def, frozen_field_scheme);
         state.infer.mark_frozen_ref_committed(field_def);
     }
 

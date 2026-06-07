@@ -40,7 +40,7 @@ use crate::{
 };
 
 use super::{
-    pattern_types::{choose_pattern_ty, tuple_component_runtime_types},
+    pattern_types::{choose_pattern_ty, record_field_runtime_type, tuple_component_runtime_types},
     rewrite, role,
 };
 
@@ -671,10 +671,26 @@ pub(crate) fn solve_simple_apply(
         }
         return Ok(solutions);
     }
-    let mut graph = TypeGraph::with_cast_order(cast_order.clone());
-    let principal = graph.instantiate_principal(binding);
     let role_required_binding = !binding.scheme.requirements.is_empty();
-    if !role_required_binding {
+    let evidence_policy = if role_required_binding {
+        ApplyEvidencePolicy::full()
+    } else {
+        ApplyEvidencePolicy::for_owner_spine(&owner, bindings, &spine, local_types)
+    };
+    let mut graph = TypeGraph::with_cast_order(cast_order.clone());
+    graph.mark_external_vars(evidence_policy.owner_vars.iter().cloned());
+    let principal = graph.instantiate_principal(binding);
+    if !role_required_binding
+        && generic_owner_apply_waits_for_inner_solution(
+            &spine,
+            bindings,
+            local_types,
+            &evidence_policy,
+        )
+    {
+        return Ok(solutions);
+    }
+    if !role_required_binding && evidence_policy.collects_callee_runtime(&spine.callee.ty) {
         graph.collect_runtime_bounds(
             &principal.principal_type,
             &crate::RuntimeBounds {
@@ -683,19 +699,33 @@ pub(crate) fn solve_simple_apply(
             },
         )?;
     }
-    if !role_required_binding {
-        collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
-    }
+    collect_spine_substitutions(&mut graph, &principal, &spine.steps)?;
     let mut current = principal.principal_type.clone();
     let mut current_template = principal.principal_type.clone();
     let mut current_effect = typed_ir::Type::Never;
     let mut apply_value_vars = BTreeSet::new();
     let mut apply_effect_vars = BTreeSet::new();
     for step in &spine.steps {
-        let (arg_type, arg_effect) = step.arg_type_and_effect(local_types);
+        let template_param = function_param_template_parts(&current_template);
+        let instantiated_param = step
+            .closed_instantiation()
+            .then(|| template_param.clone())
+            .flatten();
+        let (arg_type, arg_effect) = instantiated_param.unwrap_or_else(|| {
+            let observed = step.arg_type_and_effect_with_policy(local_types, &evidence_policy);
+            generic_template_param_for_untrusted_coerce_arg(
+                template_param.as_ref(),
+                &observed.0,
+                step.arg,
+                &evidence_policy,
+            )
+            .unwrap_or(observed)
+        });
         let arg_is_never = matches!(arg_type, typed_ir::Type::Never);
         let observed_arg_effect = arg_effect.clone();
-        let template_return = role_required_binding
+        let use_template_return =
+            role_required_binding || !evidence_policy.trusts_all_apply_evidence();
+        let template_return = use_template_return
             .then(|| function_return_template_parts(&current_template))
             .flatten();
         let result = if let Some((result, _)) = &template_return {
@@ -742,6 +772,7 @@ pub(crate) fn solve_simple_apply(
                 result.clone(),
                 result_effect.clone(),
                 local_types,
+                &evidence_policy,
             )?;
         }
         current = result;
@@ -749,8 +780,13 @@ pub(crate) fn solve_simple_apply(
         current_template =
             function_return_template(current_template).unwrap_or(typed_ir::Type::Unknown);
     }
-    default_spine_evidence_substitutions(&mut graph, &principal, &spine.steps)?;
-    default_spine_evidence_candidate_bounds(&mut graph, &principal, &spine.steps)?;
+    default_spine_evidence_substitutions(&mut graph, &principal, &spine.steps, &evidence_policy)?;
+    default_spine_evidence_candidate_bounds(
+        &mut graph,
+        &principal,
+        &spine.steps,
+        &evidence_policy,
+    )?;
     // These holes are introduced by this spine solver for intermediate or
     // discarded apply results. If no caller, evidence, or later apply step
     // observes their value, Bottom is the only closed choice that does not
@@ -820,21 +856,100 @@ pub(crate) fn solve_monomorphic_contextual_apply(
     owner: RootGraphRoot,
     expr: &Expr,
     binding_path: &typed_ir::Path,
-    binding: &Binding,
+    _binding: &Binding,
     spine: &ApplySpine<'_>,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
     alias_index: usize,
 ) -> Option<RootGraphSolution> {
-    let _ = (
-        owner,
-        expr,
-        binding_path,
-        binding,
-        spine,
+    let callee_type =
+        contextual_monomorphic_callee_type(&spine.callee.ty, &spine.steps, local_types)?;
+    let result_type = expr_lower_type(expr, local_types);
+    let callee_type =
+        super::finalized_apply_spine_arg_effects(callee_type, &spine.steps, local_types);
+    let callee_type =
+        super::refine_runtime_spine_return(callee_type, spine.steps.len(), result_type.clone());
+    Some(RootGraphSolution {
+        root: owner,
+        occurrence: alias_index,
+        binding: binding_path.clone(),
+        alias: rewrite::alias_path(binding_path, alias_index),
+        callee_type,
+        result_type,
+        graph: TypeGraph::default().solve(),
+        type_substitutions: Vec::new(),
+    })
+}
+
+fn contextual_monomorphic_callee_type(
+    callee_type: &RuntimeType,
+    steps: &[ApplyStep<'_>],
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<RuntimeType> {
+    let mut changed = false;
+    let core = contextual_monomorphic_callee_core(
+        super::runtime_type_to_core(callee_type.clone()),
+        steps,
         local_types,
-        alias_index,
-    );
-    None
+        &mut changed,
+    )?;
+    changed.then(|| runtime_type_from_core_value(core))
+}
+
+fn contextual_monomorphic_callee_core(
+    ty: typed_ir::Type,
+    steps: &[ApplyStep<'_>],
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    changed: &mut bool,
+) -> Option<typed_ir::Type> {
+    let Some((step, rest)) = steps.split_first() else {
+        return Some(ty);
+    };
+    let typed_ir::Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = ty
+    else {
+        return None;
+    };
+    let (observed_param, observed_effect) = step.arg_type_and_effect(local_types);
+    let (param, param_effect) = if contextual_arg_refines_param(&param, &observed_param) {
+        *changed = true;
+        let effect = if super::core_type_is_closed(&observed_effect) {
+            observed_effect
+        } else {
+            *param_effect
+        };
+        (Box::new(observed_param), Box::new(effect))
+    } else {
+        (param, param_effect)
+    };
+    let ret = Box::new(contextual_monomorphic_callee_core(
+        *ret,
+        rest,
+        local_types,
+        changed,
+    )?);
+    Some(typed_ir::Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    })
+}
+
+fn contextual_arg_refines_param(param: &typed_ir::Type, observed: &typed_ir::Type) -> bool {
+    matches!(
+        param,
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Never
+    ) && !matches!(
+        observed,
+        typed_ir::Type::Unknown
+            | typed_ir::Type::Any
+            | typed_ir::Type::Never
+            | typed_ir::Type::Var(_)
+    ) && super::core_type_is_closed(observed)
 }
 
 fn solved_apply_result_type(
@@ -1119,8 +1234,15 @@ fn default_spine_evidence_substitutions(
     graph: &mut TypeGraph,
     principal: &crate::PrincipalInstance,
     steps: &[ApplyStep<'_>],
+    policy: &ApplyEvidencePolicy,
 ) -> MonomorphizeResult<()> {
+    if !policy.trusts_all_apply_evidence() {
+        return Ok(());
+    }
     for step in steps {
+        if step.instantiation.is_some() {
+            continue;
+        }
         let Some(evidence) = step.evidence else {
             continue;
         };
@@ -1162,10 +1284,17 @@ fn default_spine_evidence_candidate_bounds(
     graph: &mut TypeGraph,
     principal: &crate::PrincipalInstance,
     steps: &[ApplyStep<'_>],
+    policy: &ApplyEvidencePolicy,
 ) -> MonomorphizeResult<()> {
+    if !policy.trusts_all_apply_evidence() {
+        return Ok(());
+    }
     let mut choices =
         BTreeMap::<(typed_ir::TypeVar, CandidateBoundSide), Vec<typed_ir::Type>>::new();
     for step in steps {
+        if step.instantiation.is_some() {
+            continue;
+        }
         let Some(evidence) = step.evidence else {
             continue;
         };
@@ -1266,6 +1395,734 @@ fn function_return_template_parts(ty: &typed_ir::Type) -> Option<(typed_ir::Type
     Some((ret.as_ref().clone(), ret_effect.as_ref().clone()))
 }
 
+fn function_param_template_parts(ty: &typed_ir::Type) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let typed_ir::Type::Fun {
+        param,
+        param_effect,
+        ..
+    } = ty
+    else {
+        return None;
+    };
+    Some((param.as_ref().clone(), param_effect.as_ref().clone()))
+}
+
+fn generic_template_param_for_untrusted_coerce_arg(
+    template_param: Option<&(typed_ir::Type, typed_ir::Type)>,
+    observed: &typed_ir::Type,
+    arg: &Expr,
+    policy: &ApplyEvidencePolicy,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    if policy.trusts_all_apply_evidence() || policy.trusts_type(observed) {
+        return None;
+    }
+    if !generic_arg_uses_untrusted_closed_coerce_source(arg, policy) {
+        return None;
+    }
+    let (template, effect) = template_param?;
+    if !type_has_type_var(template) || !generic_template_param_matches_observed(template, observed)
+    {
+        return None;
+    }
+    Some((template.clone(), effect.clone()))
+}
+
+fn generic_arg_uses_untrusted_closed_coerce_source(
+    arg: &Expr,
+    policy: &ApplyEvidencePolicy,
+) -> bool {
+    let ExprKind::Coerce { from, .. } = &arg.kind else {
+        return false;
+    };
+    super::core_type_is_closed(from) && !policy.trusts_type(from)
+}
+
+fn generic_template_param_matches_observed(
+    template: &typed_ir::Type,
+    observed: &typed_ir::Type,
+) -> bool {
+    match (template, observed) {
+        (
+            typed_ir::Type::Named {
+                path: template_path,
+                args: template_args,
+            },
+            typed_ir::Type::Named {
+                path: observed_path,
+                args: observed_args,
+            },
+        ) => template_path == observed_path && template_args.len() == observed_args.len(),
+        (typed_ir::Type::Fun { .. }, typed_ir::Type::Fun { .. }) => true,
+        (typed_ir::Type::Tuple(template), typed_ir::Type::Tuple(observed)) => {
+            template.len() == observed.len()
+        }
+        (typed_ir::Type::Record(template), typed_ir::Type::Record(observed)) => template
+            .fields
+            .iter()
+            .all(|field| observed.fields.iter().any(|other| other.name == field.name)),
+        (typed_ir::Type::Variant(template), typed_ir::Type::Variant(observed)) => template
+            .cases
+            .iter()
+            .all(|case| observed.cases.iter().any(|other| other.name == case.name)),
+        (typed_ir::Type::Row { .. }, typed_ir::Type::Row { .. }) => true,
+        _ => template == observed,
+    }
+}
+
+fn generic_owner_apply_waits_for_inner_solution(
+    spine: &ApplySpine<'_>,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    policy: &ApplyEvidencePolicy,
+) -> bool {
+    if policy.trusts_all_apply_evidence() {
+        return false;
+    }
+    if spine.steps.iter().any(|step| step.instantiation.is_some()) {
+        return false;
+    }
+    spine.steps.iter().any(|step| {
+        generic_owner_arg_waits_for_inner_solution(step.arg, bindings, local_types, policy)
+    })
+}
+
+fn generic_owner_arg_waits_for_inner_solution(
+    arg: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    policy: &ApplyEvidencePolicy,
+) -> bool {
+    let observed = expr_lower_type(arg, local_types);
+    if runtime_type_mentions_any_var(&observed, &policy.owner_vars) {
+        return false;
+    }
+    expr_mentions_any_owner_var(arg, local_types, &policy.owner_vars)
+        && expr_contains_unsolved_polymorphic_apply(arg, bindings)
+}
+
+fn expr_mentions_any_owner_var(
+    expr: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    owner_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    if runtime_type_mentions_any_var(&expr_lower_type(expr, local_types), owner_vars) {
+        return true;
+    }
+    expr_children(expr)
+        .into_iter()
+        .any(|child| expr_mentions_any_owner_var(child, local_types, owner_vars))
+}
+
+fn expr_contains_unsolved_polymorphic_apply(
+    expr: &Expr,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+) -> bool {
+    if let Some(spine) = ApplySpine::new(expr)
+        && bindings
+            .get(spine.binding)
+            .is_some_and(|binding| !binding.type_params.is_empty())
+    {
+        return true;
+    }
+    expr_children(expr)
+        .into_iter()
+        .any(|child| expr_contains_unsolved_polymorphic_apply(child, bindings))
+}
+
+fn expr_children(expr: &Expr) -> Vec<&Expr> {
+    match &expr.kind {
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => vec![body.as_ref()],
+        ExprKind::Apply { callee, arg, .. } => vec![callee.as_ref(), arg.as_ref()],
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => vec![cond.as_ref(), then_branch.as_ref(), else_branch.as_ref()],
+        ExprKind::Tuple(items) => items.iter().collect(),
+        ExprKind::Record { fields, spread } => {
+            let mut children = fields.iter().map(|field| &field.value).collect::<Vec<_>>();
+            if let Some(spread) = spread {
+                match spread {
+                    yulang_runtime_ir::FinalizedRecordSpreadExpr::Head(expr)
+                    | yulang_runtime_ir::FinalizedRecordSpreadExpr::Tail(expr) => {
+                        children.push(expr.as_ref());
+                    }
+                }
+            }
+            children
+        }
+        ExprKind::Variant { value, .. } => value.iter().map(|value| value.as_ref()).collect(),
+        ExprKind::Select { base, .. } => vec![base.as_ref()],
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            let mut children = vec![scrutinee.as_ref()];
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    children.push(guard);
+                }
+                children.push(&arm.body);
+            }
+            children
+        }
+        ExprKind::Block { stmts, tail } => {
+            let mut children = Vec::new();
+            for stmt in stmts {
+                match stmt {
+                    yulang_runtime_ir::FinalizedStmt::Let { value, .. }
+                    | yulang_runtime_ir::FinalizedStmt::Expr(value)
+                    | yulang_runtime_ir::FinalizedStmt::Module { body: value, .. } => {
+                        children.push(value);
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                children.push(tail.as_ref());
+            }
+            children
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            let mut children = vec![body.as_ref()];
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    children.push(guard);
+                }
+                children.push(&arm.body);
+            }
+            children
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => Vec::new(),
+    }
+}
+
+#[derive(Clone)]
+struct ApplyEvidencePolicy {
+    owner_vars: BTreeSet<typed_ir::TypeVar>,
+    collects_open_callee_runtime: bool,
+}
+
+impl ApplyEvidencePolicy {
+    fn full() -> Self {
+        Self {
+            owner_vars: BTreeSet::new(),
+            collects_open_callee_runtime: true,
+        }
+    }
+
+    fn for_owner(owner: &RootGraphRoot, bindings: &HashMap<typed_ir::Path, &Binding>) -> Self {
+        let owner_vars = owner_binding_free_type_vars(owner, bindings);
+        if !owner_vars.is_empty() {
+            return Self {
+                owner_vars,
+                collects_open_callee_runtime: false,
+            };
+        }
+        Self::full()
+    }
+
+    fn for_owner_spine(
+        owner: &RootGraphRoot,
+        bindings: &HashMap<typed_ir::Path, &Binding>,
+        spine: &ApplySpine<'_>,
+        local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    ) -> Self {
+        let policy = Self::for_owner(owner, bindings);
+        if policy.owner_vars.is_empty()
+            || spine_mentions_any_owner_var(spine, local_types, &policy.owner_vars)
+        {
+            policy
+        } else {
+            Self::full()
+        }
+    }
+
+    fn trusts_all_apply_evidence(&self) -> bool {
+        self.owner_vars.is_empty()
+    }
+
+    fn trusts_type(&self, ty: &typed_ir::Type) -> bool {
+        self.trusts_all_apply_evidence()
+            || (type_mentions_any_var(ty, &self.owner_vars) && !type_has_non_runtime_choice(ty))
+    }
+
+    fn trusts_observed_bound(&self, ty: &typed_ir::Type) -> bool {
+        if self.trusts_all_apply_evidence() {
+            return super::core_type_is_closed(ty) && !type_has_non_runtime_choice(ty);
+        }
+        self.trusts_type(ty)
+    }
+
+    fn project_type(&self, ty: typed_ir::Type) -> Option<typed_ir::Type> {
+        if self.trusts_all_apply_evidence() {
+            return Some(ty);
+        }
+        project_generic_evidence_type(ty)
+    }
+
+    fn collects_callee_runtime(&self, ty: &RuntimeType) -> bool {
+        self.collects_open_callee_runtime
+            || super::runtime_type_is_closed(ty)
+            || self.trusts_open_owner_runtime(ty)
+    }
+
+    fn trusts_open_owner_runtime(&self, ty: &RuntimeType) -> bool {
+        !self.owner_vars.is_empty()
+            && runtime_type_mentions_any_var(ty, &self.owner_vars)
+            && !runtime_type_has_non_runtime_choice(ty)
+    }
+}
+
+fn spine_mentions_any_owner_var(
+    spine: &ApplySpine<'_>,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    owner_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> bool {
+    runtime_type_mentions_any_var(&spine.callee.ty, owner_vars)
+        || spine.steps.iter().any(|step| {
+            runtime_type_mentions_any_var(&expr_lower_type(step.arg, local_types), owner_vars)
+                || runtime_type_mentions_any_var(
+                    &expr_lower_type(step.apply, local_types),
+                    owner_vars,
+                )
+        })
+}
+
+fn owner_binding_free_type_vars(
+    owner: &RootGraphRoot,
+    bindings: &HashMap<typed_ir::Path, &Binding>,
+) -> BTreeSet<typed_ir::TypeVar> {
+    let RootGraphRoot::Binding(owner_path) = owner else {
+        return BTreeSet::new();
+    };
+    let Some(binding) = bindings.get(owner_path) else {
+        return BTreeSet::new();
+    };
+    let mut vars = BTreeSet::new();
+    collect_scheme_type_vars(&binding.scheme, &mut vars);
+    collect_runtime_type_vars(&binding.body.ty, &mut vars);
+    for param in &binding.type_params {
+        vars.remove(param);
+    }
+    vars
+}
+
+fn collect_scheme_type_vars(scheme: &typed_ir::Scheme, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    for requirement in &scheme.requirements {
+        for arg in &requirement.args {
+            match arg {
+                typed_ir::RoleRequirementArg::Input(bounds) => {
+                    collect_type_bounds_vars(bounds, vars);
+                }
+                typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                    collect_type_bounds_vars(bounds, vars);
+                }
+            }
+        }
+    }
+    collect_type_vars(&scheme.body, vars);
+}
+
+fn collect_runtime_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        RuntimeType::Unknown => {}
+        RuntimeType::Value(ty) => collect_type_vars(ty, vars),
+        RuntimeType::Fun { param, ret } => {
+            collect_runtime_type_vars(param, vars);
+            collect_runtime_type_vars(ret, vars);
+        }
+        RuntimeType::Thunk { effect, value } => {
+            collect_type_vars(effect, vars);
+            collect_runtime_type_vars(value, vars);
+        }
+    }
+}
+
+fn runtime_type_mentions_any_var(ty: &RuntimeType, targets: &BTreeSet<typed_ir::TypeVar>) -> bool {
+    let mut vars = BTreeSet::new();
+    collect_runtime_type_vars(ty, &mut vars);
+    vars.iter().any(|var| targets.contains(var))
+}
+
+fn type_mentions_any_var(ty: &typed_ir::Type, targets: &BTreeSet<typed_ir::TypeVar>) -> bool {
+    let mut vars = BTreeSet::new();
+    collect_type_vars(ty, &mut vars);
+    vars.iter().any(|var| targets.contains(var))
+}
+
+fn runtime_type_has_non_runtime_choice(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => false,
+        RuntimeType::Value(ty) => type_has_non_runtime_choice(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_has_non_runtime_choice(param) || runtime_type_has_non_runtime_choice(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            type_has_non_runtime_choice(effect) || runtime_type_has_non_runtime_choice(value)
+        }
+    }
+}
+
+fn collect_type_bounds_vars(bounds: &typed_ir::TypeBounds, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    if let Some(lower) = bounds.lower.as_deref() {
+        collect_type_vars(lower, vars);
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        collect_type_vars(upper, vars);
+    }
+}
+
+fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+        typed_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_vars(param, vars);
+            collect_type_vars(param_effect, vars);
+            collect_type_vars(ret_effect, vars);
+            collect_type_vars(ret, vars);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_type_vars(ty, vars);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_type_vars(tail, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_type_vars(item, vars);
+            }
+            collect_type_vars(tail, vars);
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            let inserted = vars.insert(var.clone());
+            collect_type_vars(body, vars);
+            if inserted {
+                vars.remove(var);
+            }
+        }
+    }
+}
+
+fn collect_type_arg_vars(arg: &typed_ir::TypeArg, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => collect_type_bounds_vars(bounds, vars),
+    }
+}
+
+fn type_has_non_runtime_choice(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => true,
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_non_runtime_choice),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_has_non_runtime_choice(param)
+                || type_has_non_runtime_choice(param_effect)
+                || type_has_non_runtime_choice(ret_effect)
+                || type_has_non_runtime_choice(ret)
+        }
+        typed_ir::Type::Tuple(items) => items.iter().any(type_has_non_runtime_choice),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_has_non_runtime_choice(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_has_non_runtime_choice(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(type_has_non_runtime_choice))
+                || variant
+                    .tail
+                    .as_deref()
+                    .is_some_and(type_has_non_runtime_choice)
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(type_has_non_runtime_choice) || type_has_non_runtime_choice(tail)
+        }
+        typed_ir::Type::Recursive { body, .. } => type_has_non_runtime_choice(body),
+    }
+}
+
+fn type_arg_has_non_runtime_choice(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_has_non_runtime_choice(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .is_some_and(type_has_non_runtime_choice)
+                || bounds
+                    .upper
+                    .as_deref()
+                    .is_some_and(type_has_non_runtime_choice)
+        }
+    }
+}
+
+fn project_generic_evidence_type(ty: typed_ir::Type) -> Option<typed_ir::Type> {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => None,
+        typed_ir::Type::Var(_) => Some(ty),
+        typed_ir::Type::Named { path, args } => Some(typed_ir::Type::Named {
+            path,
+            args: args
+                .into_iter()
+                .map(project_generic_evidence_type_arg)
+                .collect(),
+        }),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => Some(typed_ir::Type::Fun {
+            param: Box::new(
+                project_generic_evidence_type(*param).unwrap_or(typed_ir::Type::Unknown),
+            ),
+            param_effect: Box::new(
+                project_generic_evidence_type(*param_effect).unwrap_or(typed_ir::Type::Never),
+            ),
+            ret_effect: Box::new(
+                project_generic_evidence_type(*ret_effect).unwrap_or(typed_ir::Type::Never),
+            ),
+            ret: Box::new(project_generic_evidence_type(*ret).unwrap_or(typed_ir::Type::Unknown)),
+        }),
+        typed_ir::Type::Tuple(items) => Some(typed_ir::Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| project_generic_evidence_type(item).unwrap_or(typed_ir::Type::Unknown))
+                .collect(),
+        )),
+        typed_ir::Type::Record(record) => {
+            let mut fields = Vec::new();
+            for field in record.fields {
+                fields.push(typed_ir::RecordField {
+                    name: field.name,
+                    value: project_generic_evidence_type(field.value)
+                        .unwrap_or(typed_ir::Type::Unknown),
+                    optional: field.optional,
+                });
+            }
+            let spread = record
+                .spread
+                .and_then(project_generic_evidence_record_spread);
+            Some(typed_ir::Type::Record(typed_ir::RecordType {
+                fields,
+                spread,
+            }))
+        }
+        typed_ir::Type::Variant(variant) => {
+            let mut cases = Vec::new();
+            for case in variant.cases {
+                let payloads = case
+                    .payloads
+                    .into_iter()
+                    .map(|payload| {
+                        project_generic_evidence_type(payload).unwrap_or(typed_ir::Type::Unknown)
+                    })
+                    .collect();
+                cases.push(typed_ir::VariantCase {
+                    name: case.name,
+                    payloads,
+                });
+            }
+            let tail = variant
+                .tail
+                .and_then(|tail| project_generic_evidence_type(*tail).map(Box::new));
+            Some(typed_ir::Type::Variant(typed_ir::VariantType {
+                cases,
+                tail,
+            }))
+        }
+        typed_ir::Type::Row { items, tail } => {
+            let items = items
+                .into_iter()
+                .filter_map(project_generic_evidence_type)
+                .collect::<Vec<_>>();
+            let tail = project_generic_evidence_type(*tail).unwrap_or(typed_ir::Type::Never);
+            if items.is_empty() && matches!(tail, typed_ir::Type::Never) {
+                None
+            } else {
+                Some(typed_ir::Type::Row {
+                    items,
+                    tail: Box::new(tail),
+                })
+            }
+        }
+        typed_ir::Type::Union(items) => {
+            project_generic_evidence_choice(typed_ir::Type::Union, items)
+        }
+        typed_ir::Type::Inter(items) => {
+            project_generic_evidence_choice(typed_ir::Type::Inter, items)
+        }
+        typed_ir::Type::Recursive { var, body } => Some(typed_ir::Type::Recursive {
+            var,
+            body: Box::new(project_generic_evidence_type(*body)?),
+        }),
+    }
+}
+
+fn project_generic_evidence_choice(
+    rebuild: fn(Vec<typed_ir::Type>) -> typed_ir::Type,
+    items: Vec<typed_ir::Type>,
+) -> Option<typed_ir::Type> {
+    let projected = items
+        .into_iter()
+        .filter(|item| type_has_type_var(item))
+        .filter_map(project_generic_evidence_type)
+        .collect::<Vec<_>>();
+    match projected.as_slice() {
+        [] => None,
+        [single] => Some(single.clone()),
+        _ => Some(rebuild(projected)),
+    }
+}
+
+fn project_generic_evidence_type_arg(arg: typed_ir::TypeArg) -> typed_ir::TypeArg {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(
+            project_generic_evidence_type(ty).unwrap_or(typed_ir::Type::Unknown),
+        ),
+        typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+            lower: bounds
+                .lower
+                .and_then(|ty| project_generic_evidence_type(*ty).map(Box::new)),
+            upper: bounds
+                .upper
+                .and_then(|ty| project_generic_evidence_type(*ty).map(Box::new)),
+        }),
+    }
+}
+
+fn project_generic_evidence_record_spread(
+    spread: typed_ir::RecordSpread,
+) -> Option<typed_ir::RecordSpread> {
+    match spread {
+        typed_ir::RecordSpread::Head(ty) => {
+            project_generic_evidence_type(*ty).map(|ty| typed_ir::RecordSpread::Head(Box::new(ty)))
+        }
+        typed_ir::RecordSpread::Tail(ty) => {
+            project_generic_evidence_type(*ty).map(|ty| typed_ir::RecordSpread::Tail(Box::new(ty)))
+        }
+    }
+}
+
+fn type_has_type_var(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
+        typed_ir::Type::Var(_) => true,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_type_var),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_has_type_var(param)
+                || type_has_type_var(param_effect)
+                || type_has_type_var(ret_effect)
+                || type_has_type_var(ret)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(type_has_type_var),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_has_type_var(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        type_has_type_var(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(type_has_type_var))
+                || variant.tail.as_deref().is_some_and(type_has_type_var)
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(type_has_type_var) || type_has_type_var(tail)
+        }
+        typed_ir::Type::Recursive { body, .. } => type_has_type_var(body),
+    }
+}
+
+fn type_arg_has_type_var(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => type_has_type_var(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(type_has_type_var)
+                || bounds.upper.as_deref().is_some_and(type_has_type_var)
+        }
+    }
+}
+
 pub(crate) struct ApplySpine<'a> {
     pub(crate) binding: &'a typed_ir::Path,
     pub(crate) callee: &'a Expr,
@@ -1273,6 +2130,7 @@ pub(crate) struct ApplySpine<'a> {
 }
 
 pub(crate) struct ApplyStep<'a> {
+    pub(crate) index: usize,
     pub(crate) apply: &'a Expr,
     pub(crate) arg: &'a Expr,
     pub(crate) evidence: Option<&'a typed_ir::ApplyEvidence>,
@@ -1280,6 +2138,15 @@ pub(crate) struct ApplyStep<'a> {
 }
 
 impl ApplyStep<'_> {
+    fn closed_instantiation(&self) -> bool {
+        self.instantiation.is_some_and(|instantiation| {
+            instantiation
+                .args
+                .iter()
+                .all(|substitution| super::core_type_is_closed(&substitution.ty))
+        })
+    }
+
     pub(crate) fn arg_type(
         &self,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
@@ -1291,12 +2158,26 @@ impl ApplyStep<'_> {
         &self,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
     ) -> (typed_ir::Type, typed_ir::Type) {
-        if let Some((value, effect)) = bind_here_arg_type_and_effect(self.arg, local_types) {
+        self.arg_type_and_effect_with_policy(local_types, &ApplyEvidencePolicy::full())
+    }
+
+    fn arg_type_and_effect_with_policy(
+        &self,
+        local_types: &HashMap<typed_ir::Path, RuntimeType>,
+        policy: &ApplyEvidencePolicy,
+    ) -> (typed_ir::Type, typed_ir::Type) {
+        if let Some((value, effect)) = bind_here_arg_type_and_effect(self.arg, local_types, policy)
+        {
+            return (value, effect);
+        }
+        if let Some((value, effect)) =
+            open_coerce_source_arg_type_and_effect(self.arg, local_types, policy)
+        {
             return (value, effect);
         }
         let runtime_ty = expr_lower_type(self.arg, local_types);
         if let RuntimeType::Thunk { effect, value } = &runtime_ty {
-            let evidence_arg = self.evidence.and_then(apply_arg_type);
+            let evidence_arg = self.evidence_arg_type(policy);
             let value_is_closed = super::runtime_type_is_closed(value);
             let arg_type = if value_is_closed {
                 let runtime_value = super::runtime_type_to_core((**value).clone());
@@ -1305,7 +2186,7 @@ impl ApplyStep<'_> {
                     .unwrap_or(runtime_value)
             } else {
                 let expr_ty = super::runtime_type_to_core(runtime_ty.clone());
-                evidence_arg.unwrap_or(expr_ty)
+                select_open_runtime_arg_type(expr_ty, evidence_arg, policy)
             };
             let arg_effect = if super::core_type_is_closed(effect)
                 && (value_is_closed || !matches!(effect, typed_ir::Type::Any))
@@ -1316,30 +2197,58 @@ impl ApplyStep<'_> {
             };
             return (arg_type, arg_effect);
         }
-        if let Some((value, effect)) = expr_value_and_effect(self.arg, local_types) {
+        if let Some((value, effect)) = expr_value_and_effect(self.arg, local_types, policy) {
+            let value = if open_runtime_arg_type_is_informative(&value) {
+                select_open_runtime_arg_type(value, self.evidence_arg_type(policy), policy)
+            } else {
+                value
+            };
             return (value, effect);
         }
         let expr_ty = super::runtime_type_to_core(runtime_ty);
-        let evidence_arg = self.evidence.and_then(apply_arg_type);
+        let evidence_arg = self.evidence_arg_type(policy);
         if super::core_type_is_closed(&expr_ty) {
             let arg_type = evidence_arg
                 .filter(|ty| evidence_arg_overrides_imprecise_runtime_value(ty, &expr_ty))
                 .unwrap_or(expr_ty);
             return (arg_type, typed_ir::Type::Never);
         }
+        if open_runtime_arg_type_is_informative(&expr_ty) {
+            return (
+                select_open_runtime_arg_type(expr_ty, evidence_arg, policy),
+                typed_ir::Type::Never,
+            );
+        }
         let fallback = evidence_arg.unwrap_or(expr_ty);
         (fallback, typed_ir::Type::Never)
     }
 
-    pub(crate) fn constrain_result_bounds(
+    fn evidence_arg_type(&self, policy: &ApplyEvidencePolicy) -> Option<typed_ir::Type> {
+        self.instantiation
+            .is_none()
+            .then(|| {
+                self.evidence
+                    .and_then(|evidence| apply_arg_type(evidence, self.index, policy))
+            })
+            .flatten()
+    }
+
+    fn constrain_result_bounds(
         &self,
         graph: &mut TypeGraph,
         result: typed_ir::Type,
-        _result_effect: typed_ir::Type,
+        result_effect: typed_ir::Type,
         local_types: &HashMap<typed_ir::Path, RuntimeType>,
+        policy: &ApplyEvidencePolicy,
     ) -> MonomorphizeResult<()> {
-        let evidence_value_bound = if let Some(evidence) = self.evidence {
-            constrain_observed_type_bounds(graph, &result, &evidence.result)?
+        let evidence_value_bound = if self.instantiation.is_none()
+            && let Some(evidence) = self.evidence
+        {
+            let mut constrained =
+                constrain_observed_type_bounds(graph, &result, &evidence.result, policy)?;
+            constrained |=
+                constrain_expected_callee_return_bounds(graph, &result, &result_effect, evidence)?;
+            constrained
         } else {
             false
         };
@@ -1348,8 +2257,9 @@ impl ApplyStep<'_> {
             RuntimeType::Unknown => Ok(()),
             RuntimeType::Thunk { value, .. } => {
                 let observed = super::runtime_type_to_core((*value).clone());
-                if super::core_type_is_closed(&observed)
+                if policy.trusts_observed_bound(&observed)
                     && !(evidence_value_bound && runtime_type_value_is_function(&value))
+                    && let Some(observed) = policy.project_type(observed)
                 {
                     constrain_observed_upper_bound(graph, &result, &observed)?;
                 }
@@ -1358,12 +2268,165 @@ impl ApplyStep<'_> {
             ty if evidence_value_bound && runtime_type_value_is_function(&ty) => Ok(()),
             ty => {
                 let observed = super::runtime_type_to_core(ty);
-                if super::core_type_is_closed(&observed) {
+                if policy.trusts_observed_bound(&observed)
+                    && let Some(observed) = policy.project_type(observed)
+                {
                     constrain_observed_upper_bound(graph, &result, &observed)?;
                 }
                 Ok(())
             }
         }
+    }
+}
+
+fn select_open_runtime_arg_type(
+    runtime: typed_ir::Type,
+    evidence_arg: Option<typed_ir::Type>,
+    policy: &ApplyEvidencePolicy,
+) -> typed_ir::Type {
+    if let Some(evidence_arg) = evidence_arg
+        .as_ref()
+        .filter(|ty| evidence_arg_refines_open_runtime_arg(ty, &runtime))
+    {
+        return evidence_arg.clone();
+    }
+    if !policy.trusts_all_apply_evidence()
+        && let Some(evidence_arg) = evidence_arg
+    {
+        return evidence_arg;
+    }
+    runtime
+}
+
+fn evidence_arg_refines_open_runtime_arg(
+    evidence: &typed_ir::Type,
+    runtime: &typed_ir::Type,
+) -> bool {
+    evidence != runtime
+        && informative_evidence_type(evidence)
+        && !super::core_type_has_unknown(evidence)
+        && !type_has_non_runtime_choice(evidence)
+        && generic_template_param_matches_observed(evidence, runtime)
+}
+
+fn constrain_expected_callee_return_bounds(
+    graph: &mut TypeGraph,
+    result: &typed_ir::Type,
+    result_effect: &typed_ir::Type,
+    evidence: &typed_ir::ApplyEvidence,
+) -> MonomorphizeResult<bool> {
+    let Some(expected_callee) = evidence.expected_callee.as_ref() else {
+        return Ok(false);
+    };
+    let mut constrained = false;
+    if let Some(lower) = expected_callee
+        .lower
+        .as_deref()
+        .and_then(function_return_template_parts)
+    {
+        let (lower_result, lower_effect) = lower;
+        if expected_return_value_bound_is_informative(&lower_result) {
+            graph.constrain_subtype(lower_result, result.clone())?;
+            constrained = true;
+        }
+        if expected_return_effect_bound_is_informative(&lower_effect) {
+            graph.constrain_subtype(lower_effect, result_effect.clone())?;
+            constrained = true;
+        }
+    }
+    if let Some(upper) = expected_callee
+        .upper
+        .as_deref()
+        .and_then(function_return_template_parts)
+    {
+        let (upper_result, upper_effect) = upper;
+        if expected_return_value_bound_is_informative(&upper_result) {
+            graph.constrain_subtype(result.clone(), upper_result)?;
+            constrained = true;
+        }
+        if expected_return_effect_bound_is_informative(&upper_effect) {
+            graph.constrain_subtype(result_effect.clone(), upper_effect)?;
+            constrained = true;
+        }
+    }
+    Ok(constrained)
+}
+
+fn expected_return_value_bound_is_informative(ty: &typed_ir::Type) -> bool {
+    !type_has_non_runtime_choice(ty) && runtime_arg_type_has_head(ty)
+}
+
+fn expected_return_effect_bound_is_informative(ty: &typed_ir::Type) -> bool {
+    !type_has_non_runtime_choice(ty)
+        && !matches!(
+            ty,
+            typed_ir::Type::Unknown | typed_ir::Type::Var(_) | typed_ir::Type::Any
+        )
+}
+
+fn open_coerce_source_arg_type_and_effect(
+    arg: &Expr,
+    local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    policy: &ApplyEvidencePolicy,
+) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let ExprKind::Coerce { from, expr, .. } = &arg.kind else {
+        return None;
+    };
+    let target = super::runtime_type_to_core(expr_lower_type(arg, local_types));
+    if !super::core_type_is_closed(from) {
+        return None;
+    }
+    if super::core_type_is_closed(&target) && !coerce_preserves_runtime_head(from, &target) {
+        return None;
+    }
+    let effect = expr_value_and_effect(expr, local_types, policy)
+        .map(|(_, effect)| effect)
+        .unwrap_or(typed_ir::Type::Never);
+    Some((from.clone(), effect))
+}
+
+fn coerce_preserves_runtime_head(source: &typed_ir::Type, target: &typed_ir::Type) -> bool {
+    match (source, target) {
+        (
+            typed_ir::Type::Named {
+                path: source_path,
+                args: source_args,
+            },
+            typed_ir::Type::Named {
+                path: target_path,
+                args: target_args,
+            },
+        ) => source_path == target_path && source_args.len() == target_args.len(),
+        (typed_ir::Type::Tuple(source), typed_ir::Type::Tuple(target)) => {
+            source.len() == target.len()
+        }
+        _ => false,
+    }
+}
+
+fn open_runtime_arg_type_is_informative(ty: &typed_ir::Type) -> bool {
+    if super::core_type_is_closed(ty) {
+        return false;
+    }
+    runtime_arg_type_has_head(ty)
+}
+
+fn runtime_arg_type_has_head(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Named { .. } | typed_ir::Type::Fun { .. } => true,
+        typed_ir::Type::Tuple(items) => !items.is_empty(),
+        typed_ir::Type::Record(record) => !record.fields.is_empty() || record.spread.is_some(),
+        typed_ir::Type::Variant(variant) => !variant.cases.is_empty() || variant.tail.is_some(),
+        typed_ir::Type::Row { items, tail } => {
+            !items.is_empty() || !matches!(tail.as_ref(), typed_ir::Type::Never)
+        }
+        typed_ir::Type::Recursive { body, .. } => runtime_arg_type_has_head(body),
+        typed_ir::Type::Var(_)
+        | typed_ir::Type::Union(_)
+        | typed_ir::Type::Inter(_)
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => false,
     }
 }
 
@@ -1399,17 +2462,19 @@ fn informative_evidence_type(ty: &typed_ir::Type) -> bool {
 fn bind_here_arg_type_and_effect(
     arg: &Expr,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    policy: &ApplyEvidencePolicy,
 ) -> Option<(typed_ir::Type, typed_ir::Type)> {
     let ExprKind::BindHere { expr } = &arg.kind else {
         return None;
     };
-    let (value, _) = expr_value_and_effect(expr, local_types)?;
+    let (value, _) = expr_value_and_effect(expr, local_types, policy)?;
     Some((value, typed_ir::Type::Never))
 }
 
 fn expr_value_and_effect(
     expr: &Expr,
     local_types: &HashMap<typed_ir::Path, RuntimeType>,
+    policy: &ApplyEvidencePolicy,
 ) -> Option<(typed_ir::Type, typed_ir::Type)> {
     if let RuntimeType::Thunk { effect, value } = expr_lower_type(expr, local_types) {
         let value = super::runtime_type_to_core(*value);
@@ -1425,19 +2490,19 @@ fn expr_value_and_effect(
         ExprKind::Block {
             tail: Some(tail), ..
         } => {
-            if let Some((value, effect)) = expr_value_and_effect(tail, local_types) {
+            if let Some((value, effect)) = expr_value_and_effect(tail, local_types, policy) {
                 return Some((value, effect));
             }
         }
         ExprKind::LocalPushId { body, .. }
         | ExprKind::AddId { thunk: body, .. }
         | ExprKind::Pack { expr: body, .. } => {
-            if let Some((value, effect)) = expr_value_and_effect(body, local_types) {
+            if let Some((value, effect)) = expr_value_and_effect(body, local_types, policy) {
                 return Some((value, effect));
             }
         }
         ExprKind::Coerce { to, expr, .. } => {
-            if let Some((_, effect)) = expr_value_and_effect(expr, local_types) {
+            if let Some((_, effect)) = expr_value_and_effect(expr, local_types, policy) {
                 return Some((to.clone(), effect));
             }
         }
@@ -1447,13 +2512,13 @@ fn expr_value_and_effect(
         return None;
     };
     let evidence = evidence.as_ref()?;
-    let value = type_from_bounds(&evidence.result)
-        .filter(super::core_type_is_closed)
+    let value = type_from_bounds_with_policy(&evidence.result, policy)
+        .filter(|ty| policy.trusts_observed_bound(ty))
         .or_else(|| {
             let value = super::runtime_type_to_core(expr_lower_type(expr, local_types));
-            super::core_type_is_closed(&value).then_some(value)
+            policy.trusts_observed_bound(&value).then_some(value)
         })?;
-    let effect = apply_evidence_return_effect(evidence)
+    let effect = apply_evidence_return_effect(evidence, policy)
         .map(closed_or_empty_effect)
         .unwrap_or(typed_ir::Type::Never);
     Some((value, effect))
@@ -1471,16 +2536,21 @@ fn constrain_observed_type_bounds(
     graph: &mut TypeGraph,
     template: &typed_ir::Type,
     bounds: &typed_ir::TypeBounds,
+    policy: &ApplyEvidencePolicy,
 ) -> MonomorphizeResult<bool> {
     let mut constrained = false;
     if let Some(lower) = bounds.lower.as_deref() {
-        if super::core_type_is_closed(lower) {
-            constrained |= constrain_observed_lower_bound(graph, template, lower)?;
+        if policy.trusts_observed_bound(lower)
+            && let Some(lower) = policy.project_type(lower.clone())
+        {
+            constrained |= constrain_observed_lower_bound(graph, template, &lower)?;
         }
     }
     if let Some(upper) = bounds.upper.as_deref() {
-        if super::core_type_is_closed(upper) {
-            constrained |= constrain_observed_upper_bound(graph, template, upper)?;
+        if policy.trusts_observed_bound(upper)
+            && let Some(upper) = policy.project_type(upper.clone())
+        {
+            constrained |= constrain_observed_upper_bound(graph, template, &upper)?;
         }
     }
     Ok(constrained)
@@ -1510,19 +2580,25 @@ fn constrain_observed_upper_bound(
     Ok(true)
 }
 
-fn apply_evidence_return_effect(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
-    apply_evidence_return_value(evidence).and_then(|ty| match ty {
+fn apply_evidence_return_effect(
+    evidence: &typed_ir::ApplyEvidence,
+    policy: &ApplyEvidencePolicy,
+) -> Option<typed_ir::Type> {
+    apply_evidence_return_value(evidence, policy).and_then(|ty| match ty {
         typed_ir::Type::Fun { ret_effect, .. } => Some(*ret_effect),
         _ => None,
     })
 }
 
-fn apply_evidence_return_value(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
+fn apply_evidence_return_value(
+    evidence: &typed_ir::ApplyEvidence,
+    policy: &ApplyEvidencePolicy,
+) -> Option<typed_ir::Type> {
     evidence
         .expected_callee
         .as_ref()
-        .and_then(type_from_bounds)
-        .or_else(|| type_from_bounds(&evidence.callee))
+        .and_then(|bounds| type_from_bounds_with_policy(bounds, policy))
+        .or_else(|| type_from_bounds_with_policy(&evidence.callee, policy))
 }
 
 fn runtime_type_value_is_function(ty: &RuntimeType) -> bool {
@@ -1546,6 +2622,7 @@ impl<'a> ApplySpine<'a> {
         } = &current.kind
         {
             steps.push(ApplyStep {
+                index: 0,
                 apply: current,
                 arg: arg.as_ref(),
                 evidence: evidence.as_ref(),
@@ -1557,8 +2634,12 @@ impl<'a> ApplySpine<'a> {
             return None;
         }
         steps.reverse();
-        let ExprKind::Var(binding) = &current.kind else {
-            return None;
+        for (index, step) in steps.iter_mut().enumerate() {
+            step.index = index;
+        }
+        let binding = match &current.kind {
+            ExprKind::Var(binding) | ExprKind::EffectOp(binding) => binding,
+            _ => return None,
         };
         Some(Self {
             binding,
@@ -1568,9 +2649,52 @@ impl<'a> ApplySpine<'a> {
     }
 }
 
-fn apply_arg_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
-    type_from_bounds(&evidence.arg)
-        .or_else(|| evidence.expected_arg.as_ref().and_then(type_from_bounds))
+fn apply_arg_type(
+    evidence: &typed_ir::ApplyEvidence,
+    index: usize,
+    policy: &ApplyEvidencePolicy,
+) -> Option<typed_ir::Type> {
+    if !policy.trusts_all_apply_evidence()
+        && let Some(arg) = principal_elaboration_step_arg_type(evidence, index, policy)
+    {
+        return Some(arg);
+    }
+    type_from_bounds_with_policy(&evidence.arg, policy)
+        .or_else(|| {
+            evidence
+                .expected_arg
+                .as_ref()
+                .and_then(|bounds| type_from_bounds_with_policy(bounds, policy))
+        })
+        .or_else(|| principal_elaboration_step_arg_type(evidence, index, policy))
+}
+
+fn principal_elaboration_step_arg_type(
+    evidence: &typed_ir::ApplyEvidence,
+    index: usize,
+    policy: &ApplyEvidencePolicy,
+) -> Option<typed_ir::Type> {
+    evidence
+        .principal_elaboration
+        .as_ref()
+        .and_then(|plan| plan.args.iter().find(|arg| arg.index == index))
+        .and_then(|arg| principal_elaboration_arg_type(arg, policy))
+}
+
+fn principal_elaboration_arg_type(
+    arg: &typed_ir::PrincipalElaborationArg,
+    policy: &ApplyEvidencePolicy,
+) -> Option<typed_ir::Type> {
+    arg.contextual
+        .as_ref()
+        .and_then(|bounds| type_from_bounds_with_policy(bounds, policy))
+        .or_else(|| type_from_bounds_with_policy(&arg.intrinsic, policy))
+        .or_else(|| {
+            arg.expected_runtime
+                .as_ref()
+                .filter(|ty| policy.trusts_type(ty))
+                .cloned()
+        })
 }
 
 pub(crate) fn apply_observed_arg_type(
@@ -1585,6 +2709,26 @@ pub(crate) fn type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<typed_ir
         .as_deref()
         .cloned()
         .or_else(|| bounds.upper.as_deref().cloned())
+}
+
+fn type_from_bounds_with_policy(
+    bounds: &typed_ir::TypeBounds,
+    policy: &ApplyEvidencePolicy,
+) -> Option<typed_ir::Type> {
+    bounds
+        .lower
+        .as_deref()
+        .filter(|ty| policy.trusts_type(ty))
+        .cloned()
+        .and_then(|ty| policy.project_type(ty))
+        .or_else(|| {
+            bounds
+                .upper
+                .as_deref()
+                .filter(|ty| policy.trusts_type(ty))
+                .cloned()
+                .and_then(|ty| policy.project_type(ty))
+        })
 }
 
 fn collect_record_spread_graphs(
@@ -1907,9 +3051,10 @@ pub(crate) fn collect_pattern_local_types(
                 collect_pattern_local_types(item, None, local_types);
             }
         }
-        Pattern::Record { fields, spread, .. } => {
+        Pattern::Record { fields, spread, ty } => {
             for field in fields {
-                collect_pattern_local_types(&field.pattern, None, local_types);
+                let field_ty = record_field_runtime_type(scrutinee_ty, ty, &field.name);
+                collect_pattern_local_types(&field.pattern, field_ty.as_ref(), local_types);
             }
             if let Some(spread) = spread {
                 match spread {
@@ -1973,4 +3118,291 @@ pub(crate) fn expr_lower_type(
         return expr.ty.clone();
     }
     RuntimeType::Unknown
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn open_structural_runtime_arg_wins_over_closed_apply_evidence() {
+        let item = typed_ir::TypeVar("a".to_string());
+        let open_list = list_type(typed_ir::Type::Var(item));
+        let closed_list = list_type(typed_ir::Type::Union(vec![
+            named_type("char"),
+            named_type("str"),
+        ]));
+        let arg_name = typed_ir::Name("xs".to_string());
+        let arg_path = super::super::path_from_name(&arg_name);
+        let arg = Expr::typed(ExprKind::Var(arg_path.clone()), RuntimeType::Unknown);
+        let apply = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown);
+        let evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::exact(closed_list),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+        let step = ApplyStep {
+            index: 0,
+            apply: &apply,
+            arg: &arg,
+            evidence: Some(&evidence),
+            instantiation: None,
+        };
+        let mut local_types = HashMap::new();
+        local_types.insert(arg_path, RuntimeType::Value(open_list.clone()));
+
+        assert_eq!(
+            step.arg_type_and_effect(&local_types),
+            (open_list, typed_ir::Type::Never)
+        );
+    }
+
+    #[test]
+    fn outer_apply_evidence_refines_inner_open_variant_result() {
+        let ok_variant = variant_type(vec![("ok", vec![named_type("str")])], None);
+        let open_variant = variant_type(
+            vec![
+                (
+                    "ok",
+                    vec![typed_ir::Type::Var(typed_ir::TypeVar("ok#0".to_string()))],
+                ),
+                (
+                    "err",
+                    vec![typed_ir::Type::Var(typed_ir::TypeVar("err#0".to_string()))],
+                ),
+                ("pending", Vec::new()),
+            ],
+            None,
+        );
+        let inner_evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::default(),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::exact(open_variant),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+        let outer_evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: None,
+            arg: typed_ir::TypeBounds::exact(ok_variant.clone()),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+        let inner_apply = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(typed_ir::Path::new(vec![typed_ir::Name(
+                        "make".to_string(),
+                    )])),
+                    RuntimeType::Unknown,
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    RuntimeType::Unknown,
+                )),
+                evidence: Some(inner_evidence),
+                instantiation: None,
+            },
+            RuntimeType::Unknown,
+        );
+        let apply = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown);
+        let step = ApplyStep {
+            index: 0,
+            apply: &apply,
+            arg: &inner_apply,
+            evidence: Some(&outer_evidence),
+            instantiation: None,
+        };
+
+        assert_eq!(
+            step.arg_type_and_effect(&HashMap::new()),
+            (ok_variant, typed_ir::Type::Never)
+        );
+    }
+
+    #[test]
+    fn generic_template_param_wins_over_untrusted_closed_coerce_source() {
+        let owner_var = typed_ir::TypeVar("a".to_string());
+        let fresh_var = typed_ir::TypeVar("a#0".to_string());
+        let owner_list = list_type(typed_ir::Type::Var(owner_var.clone()));
+        let widened_list = list_type(typed_ir::Type::Union(vec![
+            named_type("char"),
+            named_type("str"),
+        ]));
+        let template = (
+            list_type(typed_ir::Type::Var(fresh_var)),
+            typed_ir::Type::Never,
+        );
+        let stale_closed = list_type(named_type("char"));
+        let stale_coerce_arg = Expr::typed(
+            ExprKind::Coerce {
+                from: stale_closed.clone(),
+                to: widened_list.clone(),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    RuntimeType::Unknown,
+                )),
+            },
+            RuntimeType::Value(widened_list),
+        );
+        let plain_arg = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), RuntimeType::Unknown);
+        let mut owner_vars = BTreeSet::new();
+        owner_vars.insert(owner_var);
+        let policy = ApplyEvidencePolicy {
+            owner_vars,
+            collects_open_callee_runtime: false,
+        };
+
+        assert_eq!(
+            generic_template_param_for_untrusted_coerce_arg(
+                Some(&template),
+                &stale_closed,
+                &stale_coerce_arg,
+                &policy
+            ),
+            Some(template.clone())
+        );
+        assert_eq!(
+            generic_template_param_for_untrusted_coerce_arg(
+                Some(&template),
+                &owner_list,
+                &stale_coerce_arg,
+                &policy
+            ),
+            None
+        );
+        assert_eq!(
+            generic_template_param_for_untrusted_coerce_arg(
+                Some(&template),
+                &stale_closed,
+                &plain_arg,
+                &policy
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn expected_callee_return_constrains_generic_spine_result() {
+        let mut graph = TypeGraph::default();
+        let effect_var = typed_ir::TypeVar("e#0".to_string());
+        let value_var = typed_ir::TypeVar("a#0".to_string());
+        let result = ref_type(
+            typed_ir::Type::Var(effect_var.clone()),
+            typed_ir::Type::Var(value_var.clone()),
+        );
+        let result_effect = typed_ir::Type::Never;
+        let list_int = list_type(named_type("int"));
+        let expected_ref = ref_type(local_effect_type("xs", list_int.clone()), list_int.clone());
+        let evidence = typed_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: typed_ir::TypeBounds::default(),
+            expected_callee: Some(typed_ir::TypeBounds {
+                lower: None,
+                upper: Some(Box::new(typed_ir::Type::Fun {
+                    param: Box::new(named_type("unit")),
+                    param_effect: Box::new(typed_ir::Type::Never),
+                    ret_effect: Box::new(local_effect_type("xs", list_int.clone())),
+                    ret: Box::new(expected_ref),
+                })),
+            }),
+            arg: typed_ir::TypeBounds::default(),
+            expected_arg: None,
+            result: typed_ir::TypeBounds::default(),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+
+        assert!(
+            constrain_expected_callee_return_bounds(&mut graph, &result, &result_effect, &evidence)
+                .unwrap()
+        );
+
+        assert_eq!(
+            graph.slot(&value_var).and_then(|slot| slot.solution_ref()),
+            Some(&list_int)
+        );
+    }
+
+    fn ref_type(effect: typed_ir::Type, value: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("var".to_string()),
+                typed_ir::Name("ref".to_string()),
+            ]),
+            args: vec![
+                typed_ir::TypeArg::Type(effect),
+                typed_ir::TypeArg::Type(value),
+            ],
+        }
+    }
+
+    fn local_effect_type(name: &str, value: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![typed_ir::Name(name.to_string())]),
+            args: vec![typed_ir::TypeArg::Type(value)],
+        }
+    }
+
+    fn list_type(item: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("list".to_string()),
+                typed_ir::Name("list".to_string()),
+            ]),
+            args: vec![typed_ir::TypeArg::Type(item)],
+        }
+    }
+
+    fn variant_type(
+        cases: Vec<(&str, Vec<typed_ir::Type>)>,
+        tail: Option<typed_ir::Type>,
+    ) -> typed_ir::Type {
+        typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: cases
+                .into_iter()
+                .map(|(name, payloads)| typed_ir::VariantCase {
+                    name: typed_ir::Name(name.to_string()),
+                    payloads,
+                })
+                .collect(),
+            tail: tail.map(Box::new),
+        })
+    }
+
+    fn named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![typed_ir::Name(name.to_string())]),
+            args: Vec::new(),
+        }
+    }
 }

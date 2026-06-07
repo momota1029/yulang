@@ -44,6 +44,17 @@ fn visit_bounds(
     expanded: &mut HashSet<(TypeVar, bool)>,
     occurrences: &mut PolarOccurrences,
 ) {
+    visit_bounds_with_polarity(scheme, bounds, true, suppressed, expanded, occurrences);
+}
+
+fn visit_bounds_with_polarity(
+    scheme: &CompactTypeScheme,
+    bounds: &CompactBounds,
+    positive: bool,
+    suppressed: &HashSet<TypeVar>,
+    expanded: &mut HashSet<(TypeVar, bool)>,
+    occurrences: &mut PolarOccurrences,
+) {
     match bounds {
         CompactBounds::Interval { .. } => {}
         CompactBounds::Con { args, .. } => {
@@ -64,10 +75,10 @@ fn visit_bounds(
             ret_eff,
             ret,
         } => {
-            visit_bounds(scheme, arg, suppressed, expanded, occurrences);
-            visit_bounds(scheme, arg_eff, suppressed, expanded, occurrences);
-            visit_bounds(scheme, ret_eff, suppressed, expanded, occurrences);
-            visit_bounds(scheme, ret, suppressed, expanded, occurrences);
+            visit_bounds_with_polarity(scheme, arg, false, suppressed, expanded, occurrences);
+            visit_bounds_with_polarity(scheme, arg_eff, false, suppressed, expanded, occurrences);
+            visit_bounds_with_polarity(scheme, ret_eff, true, suppressed, expanded, occurrences);
+            visit_bounds_with_polarity(scheme, ret, true, suppressed, expanded, occurrences);
             return;
         }
     }
@@ -82,7 +93,7 @@ fn visit_bounds(
     visit_type(
         scheme,
         bounds.lower(),
-        true,
+        positive,
         suppressed,
         expanded,
         occurrences,
@@ -90,7 +101,7 @@ fn visit_bounds(
     visit_type(
         scheme,
         bounds.upper(),
-        false,
+        !positive,
         suppressed,
         expanded,
         occurrences,

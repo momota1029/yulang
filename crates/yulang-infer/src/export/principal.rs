@@ -68,7 +68,7 @@ pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
         );
     }
     let t_setup_refresh_after = ExportClock::now(export_timing);
-    state.refresh_selection_environment();
+    state.refresh_selection_environment_for_owner_defs(&target_defs);
     if export_timing {
         eprintln!(
             "  export: setup.refresh_after={:.3}ms",
@@ -888,7 +888,6 @@ fn collect_export_target_defs(
     }
     target_defs.extend(state.top_level_expr_owners.iter().copied());
     target_defs.extend(state.internal_expr_owners.iter().copied());
-    target_defs.extend(collect_hir_role_rewrite_support_defs(state));
 
     while let Some(def) = pending.pop() {
         let Some(body) = state.principal_bodies.get(&def) else {
@@ -942,12 +941,26 @@ fn extend_target_defs_from_expr(
         ExprKind::PrimitiveOp(_) => {}
         ExprKind::Lit(_) => {}
         ExprKind::Var(def) => {
+            extend_target_defs_from_role_method_def(
+                state,
+                *def,
+                exportable_defs,
+                target_defs,
+                pending,
+            );
             if exportable_defs.contains(def) && target_defs.insert(*def) {
                 pending.push(*def);
             }
         }
         ExprKind::Ref(ref_id) => {
             if let Some(def) = state.ctx.refs.get(*ref_id) {
+                extend_target_defs_from_role_method_def(
+                    state,
+                    def,
+                    exportable_defs,
+                    target_defs,
+                    pending,
+                );
                 if exportable_defs.contains(&def) && target_defs.insert(def) {
                     pending.push(def);
                 }
@@ -1082,6 +1095,23 @@ fn extend_target_defs_from_expr(
     }
 }
 
+fn extend_target_defs_from_role_method_def(
+    state: &LowerState,
+    def: DefId,
+    exportable_defs: &HashSet<DefId>,
+    target_defs: &mut HashSet<DefId>,
+    pending: &mut Vec<DefId>,
+) {
+    let Some(info) = state.infer.role_method_info_for_def(def) else {
+        return;
+    };
+    for candidate_def in collect_role_method_candidate_defs(state, &info.name, &info) {
+        if exportable_defs.contains(&candidate_def) && target_defs.insert(candidate_def) {
+            pending.push(candidate_def);
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn _path_key(path: &Path) -> String {
     path_key(path)
@@ -1167,6 +1197,9 @@ fn collect_export_method_defs(state: &LowerState, expr: &TypedExpr) -> Vec<DefId
         return vec![def];
     }
     if let Some(def) = state.infer.resolved_selection_def(expr.tv) {
+        if let Some(info) = state.infer.role_method_info_for_def(def) {
+            return collect_role_method_candidate_defs(state, &info.name, &info);
+        }
         return vec![canonical_runtime_export_def(state, def)];
     }
     let (head, _args) = collect_apply_spine(expr);
@@ -1189,12 +1222,15 @@ fn collect_export_select_defs(
     name: &crate::symbols::Name,
 ) -> Vec<DefId> {
     if let Some(def) = state.infer.resolved_selection_def(select_tv) {
+        if let Some(info) = state.infer.role_method_info_for_def(def) {
+            return collect_role_method_candidate_defs(state, &info.name, &info);
+        }
         return vec![canonical_runtime_export_def(state, def)];
     }
     if let Some(def) = state.infer.resolve_extension_method_def(name) {
         return vec![canonical_runtime_export_def(state, def)];
     }
-    Vec::new()
+    collect_role_method_candidate_defs_by_name(state, name)
 }
 
 fn collect_transparent_role_wrapper_application_def<'a>(
@@ -1261,6 +1297,26 @@ fn collect_hir_role_rewrite_support_defs(state: &LowerState) -> Vec<DefId> {
     let mut defs = Vec::new();
     for info in state.infer.role_methods.values() {
         defs.extend(collect_role_method_candidate_defs(state, &info.name, info));
+    }
+    defs
+}
+
+fn collect_role_method_candidate_defs_by_name(
+    state: &LowerState,
+    name: &crate::symbols::Name,
+) -> Vec<DefId> {
+    let mut defs = Vec::new();
+    for info in state
+        .infer
+        .role_methods
+        .values()
+        .filter(|info| info.name == *name)
+    {
+        for def in collect_role_method_candidate_defs(state, name, info) {
+            if !defs.contains(&def) {
+                defs.push(def);
+            }
+        }
     }
     defs
 }

@@ -9,6 +9,7 @@ use crate::{MonomorphizeDiagnostic, MonomorphizeResult};
 pub struct TypeGraph {
     next_fresh: usize,
     slots: BTreeMap<typed_ir::TypeVar, TypeVarBounds>,
+    external_vars: BTreeSet<typed_ir::TypeVar>,
     constraints: Vec<SubtypeConstraint>,
     cast_order: TypeCastOrder,
 }
@@ -76,6 +77,10 @@ impl TypeGraph {
         typed_ir::Type::Var(var)
     }
 
+    pub fn mark_external_vars(&mut self, vars: impl IntoIterator<Item = typed_ir::TypeVar>) {
+        self.external_vars.extend(vars);
+    }
+
     pub fn constrain_subtype(
         &mut self,
         lower: typed_ir::Type,
@@ -93,15 +98,28 @@ impl TypeGraph {
         vars: BTreeSet<typed_ir::TypeVar>,
         lower: typed_ir::Type,
     ) -> MonomorphizeResult<()> {
+        self.default_unbound_lower_inner(vars, lower)?;
+        self.propagate_constraints()
+    }
+
+    fn default_unbound_lower_inner(
+        &mut self,
+        vars: BTreeSet<typed_ir::TypeVar>,
+        lower: typed_ir::Type,
+    ) -> MonomorphizeResult<bool> {
+        let mut changed = false;
         for var in vars {
+            if self.external_vars.contains(&var) {
+                continue;
+            }
             let Some(slot) = self.slots.get_mut(&var) else {
                 continue;
             };
             if slot.lower.is_none() && slot.upper.is_none() {
-                slot.push_lower(var, lower.clone(), &self.cast_order)?;
+                changed |= slot.push_lower(var, lower.clone(), &self.cast_order)?;
             }
         }
-        self.propagate_constraints()
+        Ok(changed)
     }
 
     pub fn solve(self) -> GraphSolution {
@@ -125,9 +143,13 @@ impl TypeGraph {
     }
 
     fn fresh_var(&mut self, source: &typed_ir::TypeVar) -> typed_ir::TypeVar {
-        let fresh = typed_ir::TypeVar(format!("{}#{}", source.0, self.next_fresh));
-        self.next_fresh += 1;
-        fresh
+        loop {
+            let fresh = typed_ir::TypeVar(format!("{}#{}", source.0, self.next_fresh));
+            self.next_fresh += 1;
+            if !self.slots.contains_key(&fresh) && !self.external_vars.contains(&fresh) {
+                return fresh;
+            }
+        }
     }
 
     fn collect_runtime(
@@ -312,7 +334,27 @@ impl TypeGraph {
         }
         match (lower, upper) {
             (typed_ir::Type::Unknown, _) | (_, typed_ir::Type::Unknown) => Ok(false),
+            (typed_ir::Type::Var(lower), typed_ir::Type::Var(upper))
+                if self.external_vars.contains(&lower) && !self.external_vars.contains(&upper) =>
+            {
+                let mut changed = false;
+                let lower = typed_ir::Type::Var(lower);
+                if let Some(bound) = self
+                    .slots
+                    .get(&upper)
+                    .and_then(|slot| slot.upper.as_ref())
+                    .cloned()
+                    .filter(|bound| !self.upper_bound_chain_reaches(bound, &upper))
+                {
+                    changed |= self.apply_subtype_constraint_inner(lower.clone(), bound, seen)?;
+                }
+                changed |= self.record(upper, lower, BoundSide::Lower)?;
+                Ok(changed)
+            }
             (typed_ir::Type::Var(lower), upper) => {
+                if self.external_vars.contains(&lower) {
+                    return Ok(false);
+                }
                 let mut changed = false;
                 if let Some(bound) = self
                     .slots
@@ -341,6 +383,9 @@ impl TypeGraph {
                 Ok(changed)
             }
             (lower, typed_ir::Type::Var(upper)) => {
+                if self.external_vars.contains(&upper) {
+                    return Ok(false);
+                }
                 let mut changed = false;
                 let lower = self.known_lower_or_self(lower);
                 if let Some(bound) = self
@@ -673,19 +718,26 @@ impl TypeGraph {
                     continue;
                 }
                 for payload in &upper_case.payloads {
-                    changed |= self.apply_subtype_constraint_inner(
-                        typed_ir::Type::Never,
-                        payload.clone(),
-                        seen,
-                    )?;
-                    changed |= self.apply_subtype_constraint_inner(
-                        payload.clone(),
-                        typed_ir::Type::Never,
-                        seen,
-                    )?;
+                    changed |= self.constrain_absent_structural_payload(payload, seen)?;
                 }
             }
         }
+        Ok(changed)
+    }
+
+    fn constrain_absent_structural_payload(
+        &mut self,
+        payload: &typed_ir::Type,
+        seen: &mut Vec<SubtypeConstraint>,
+    ) -> MonomorphizeResult<bool> {
+        let mut changed = false;
+        changed |=
+            self.apply_subtype_constraint_inner(typed_ir::Type::Never, payload.clone(), seen)?;
+        changed |=
+            self.apply_subtype_constraint_inner(payload.clone(), typed_ir::Type::Never, seen)?;
+        let mut vars = BTreeSet::new();
+        collect_type_vars(payload, &mut vars);
+        changed |= self.default_unbound_lower_inner(vars, typed_ir::Type::Never)?;
         Ok(changed)
     }
 
@@ -710,6 +762,21 @@ impl TypeGraph {
                 seen,
             )?;
         }
+        if lower.spread.is_none() {
+            for upper_field in &upper.fields {
+                if lower
+                    .fields
+                    .iter()
+                    .any(|lower| lower.name == upper_field.name)
+                {
+                    continue;
+                }
+                if upper_field.optional {
+                    changed |=
+                        self.constrain_absent_structural_payload(&upper_field.value, seen)?;
+                }
+            }
+        }
         Ok(changed)
     }
 
@@ -719,6 +786,9 @@ impl TypeGraph {
         mut ty: typed_ir::Type,
         side: BoundSide,
     ) -> MonomorphizeResult<bool> {
+        if self.external_vars.contains(&var) {
+            return Ok(false);
+        }
         ty = match side {
             BoundSide::Lower => self.known_lower_or_self(ty),
             BoundSide::Upper => self.known_upper_or_self(ty),
@@ -910,6 +980,7 @@ impl PrincipalInstance {
         &self,
         solution: &GraphSolution,
     ) -> Vec<typed_ir::TypeSubstitution> {
+        let substitutions = solution.substitutions();
         self.type_params
             .iter()
             .filter_map(|param| {
@@ -918,7 +989,7 @@ impl PrincipalInstance {
                     .cloned()
                     .map(|ty| typed_ir::TypeSubstitution {
                         var: param.original.clone(),
-                        ty,
+                        ty: materialize_core_type(ty, &substitutions),
                     })
             })
             .collect()
@@ -1511,6 +1582,8 @@ fn merge_ordered_bounds(
         {
             Some(typed_ir::Type::Any)
         }
+        BoundSide::Lower if bound_subtype(previous, ty) => Some(ty.clone()),
+        BoundSide::Lower if bound_subtype(ty, previous) => Some(previous.clone()),
         BoundSide::Lower if union_supertype_contains(previous, ty) => Some(previous.clone()),
         BoundSide::Lower if union_supertype_contains(ty, previous) => Some(ty.clone()),
         BoundSide::Lower => {
@@ -1565,6 +1638,8 @@ fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
     if lightweight_bounds_equivalent(sub, sup)
         || matches!(sub, typed_ir::Type::Never)
         || matches!(sup, typed_ir::Type::Any)
+        || closed_singleton_row_item(sub).is_some_and(|item| bound_subtype(item, sup))
+        || closed_singleton_row_item(sup).is_some_and(|item| bound_subtype(sub, item))
         || function_bound_subtype(sub, sup)
         || row_bound_subtype(sub, sup)
         || union_supertype_contains(sup, sub)
@@ -1585,6 +1660,19 @@ fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
         ) if same_erased_synthetic_effect_atom_path(sub_path, sup_path) && sup_args.is_empty() => {
             true
         }
+        (
+            typed_ir::Type::Named {
+                path: sub_path,
+                args: sub_args,
+            },
+            typed_ir::Type::Named {
+                path: sup_path,
+                args: sup_args,
+            },
+        ) if sub_path == sup_path && sub_args.len() == sup_args.len() => sub_args
+            .iter()
+            .zip(sup_args)
+            .all(|(sub, sup)| type_arg_bound_subtype(sub, sup)),
         (typed_ir::Type::Recursive { var, body }, _) if !type_body_mentions_var(body, var) => {
             bound_subtype(&normalize_bound_form(body), sup)
         }
@@ -1592,6 +1680,59 @@ fn bound_subtype(sub: &typed_ir::Type, sup: &typed_ir::Type) -> bool {
             bound_subtype(sub, &normalize_bound_form(body))
         }
         _ => false,
+    }
+}
+
+fn type_arg_bound_subtype(sub: &typed_ir::TypeArg, sup: &typed_ir::TypeArg) -> bool {
+    match (sub, sup) {
+        (typed_ir::TypeArg::Type(sub), typed_ir::TypeArg::Type(sup)) => bound_subtype(sub, sup),
+        (typed_ir::TypeArg::Type(sub), typed_ir::TypeArg::Bounds(sup)) => {
+            lower_bound_accepts_type(sup.lower.as_deref(), sub)
+                && upper_bound_accepts_type(sup.upper.as_deref(), sub)
+        }
+        (typed_ir::TypeArg::Bounds(sub), typed_ir::TypeArg::Type(sup)) => {
+            sub.lower
+                .as_deref()
+                .is_some_and(|lower| bound_subtype(lower, sup))
+                || sub
+                    .upper
+                    .as_deref()
+                    .is_some_and(|upper| bound_subtype(upper, sup))
+        }
+        (typed_ir::TypeArg::Bounds(sub), typed_ir::TypeArg::Bounds(sup)) => {
+            lower_bound_accepts_bound(sup.lower.as_deref(), sub.lower.as_deref())
+                && upper_bound_accepts_bound(sup.upper.as_deref(), sub.upper.as_deref())
+        }
+    }
+}
+
+fn lower_bound_accepts_type(lower: Option<&typed_ir::Type>, ty: &typed_ir::Type) -> bool {
+    lower.is_none_or(|lower| bound_subtype(lower, ty))
+}
+
+fn upper_bound_accepts_type(upper: Option<&typed_ir::Type>, ty: &typed_ir::Type) -> bool {
+    upper.is_none_or(|upper| bound_subtype(ty, upper))
+}
+
+fn lower_bound_accepts_bound(
+    sup_lower: Option<&typed_ir::Type>,
+    sub_lower: Option<&typed_ir::Type>,
+) -> bool {
+    match (sup_lower, sub_lower) {
+        (None, _) => true,
+        (Some(sup), Some(sub)) => bound_subtype(sup, sub),
+        (Some(_), None) => false,
+    }
+}
+
+fn upper_bound_accepts_bound(
+    sup_upper: Option<&typed_ir::Type>,
+    sub_upper: Option<&typed_ir::Type>,
+) -> bool {
+    match (sup_upper, sub_upper) {
+        (None, _) => true,
+        (Some(sup), Some(sub)) => bound_subtype(sub, sup),
+        (Some(_), None) => false,
     }
 }
 
@@ -2296,6 +2437,94 @@ struct RowResidual<'a> {
     unmatched_right: Vec<typed_ir::Type>,
 }
 
+fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+        typed_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_vars(param, vars);
+            collect_type_vars(param_effect, vars);
+            collect_type_vars(ret_effect, vars);
+            collect_type_vars(ret, vars);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                collect_record_spread_vars(spread, vars);
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_type_vars(tail, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_type_vars(item, vars);
+            }
+            collect_type_vars(tail, vars);
+        }
+        typed_ir::Type::Recursive { var, body } => {
+            let inserted = vars.insert(var.clone());
+            collect_type_vars(body, vars);
+            if inserted {
+                vars.remove(var);
+            }
+        }
+    }
+}
+
+fn collect_type_arg_vars(arg: &typed_ir::TypeArg, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = bounds.lower.as_deref() {
+                collect_type_vars(lower, vars);
+            }
+            if let Some(upper) = bounds.upper.as_deref() {
+                collect_type_vars(upper, vars);
+            }
+        }
+    }
+}
+
+fn collect_record_spread_vars(
+    spread: &typed_ir::RecordSpread,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match spread {
+        typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+            collect_type_vars(ty, vars);
+        }
+    }
+}
+
 #[derive(Default)]
 struct TypePositionVars {
     value: BTreeSet<typed_ir::TypeVar>,
@@ -2869,6 +3098,70 @@ mod tests {
     }
 
     #[test]
+    fn original_substitutions_chase_solution_chains() {
+        let original = typed_ir::TypeVar("a".into());
+        let fresh = typed_ir::TypeVar("a#0".into());
+        let instance = PrincipalInstance {
+            original_binding: path(&["id"]),
+            principal_type: typed_ir::Type::Var(fresh.clone()),
+            type_params: vec![PrincipalTypeParam {
+                original: original.clone(),
+                fresh: fresh.clone(),
+            }],
+        };
+        let solution = GraphSolution {
+            type_vars: vec![
+                ResolvedTypeVar {
+                    var: original.clone(),
+                    bounds: TypeVarBounds {
+                        lower: None,
+                        upper: Some(int_type()),
+                    },
+                    solution: Some(int_type()),
+                },
+                ResolvedTypeVar {
+                    var: fresh,
+                    bounds: TypeVarBounds {
+                        lower: Some(typed_ir::Type::Var(original.clone())),
+                        upper: None,
+                    },
+                    solution: Some(typed_ir::Type::Var(original.clone())),
+                },
+            ],
+        };
+
+        assert_eq!(
+            instance.original_substitutions(&solution),
+            vec![typed_ir::TypeSubstitution {
+                var: original,
+                ty: int_type(),
+            }]
+        );
+    }
+
+    #[test]
+    fn named_bound_subtype_recurses_into_synthetic_effect_args() {
+        let list_int = list_type(int_type());
+        let precise = ref_type(
+            synthetic_effect_type("&xs#0", vec![typed_ir::TypeArg::Type(list_int.clone())]),
+            list_int.clone(),
+        );
+        let erased = ref_type(synthetic_effect_type("&xs#0", Vec::new()), list_int);
+
+        assert!(bound_subtype(&precise, &erased));
+    }
+
+    #[test]
+    fn singleton_row_bound_subtype_matches_erased_effect_atom() {
+        let list_int = list_type(int_type());
+        let item = synthetic_effect_type("&xs#0", vec![typed_ir::TypeArg::Type(list_int)]);
+        let row = effect_row(vec![item]);
+        let erased = synthetic_effect_type("&xs#0", Vec::new());
+
+        assert!(bound_subtype(&row, &erased));
+    }
+
+    #[test]
     fn subtype_var_upper_chain_propagates_concrete_upper_bound() {
         let mut graph = TypeGraph::default();
         let value = typed_ir::TypeVar("value".into());
@@ -2887,6 +3180,45 @@ mod tests {
         let solution = graph.solve();
 
         assert_eq!(solution.solution_for(&value), Some(&int_type()));
+    }
+
+    #[test]
+    fn external_lower_var_solves_tracked_upper_without_creating_slot() {
+        let mut graph = TypeGraph::default();
+        let external = typed_ir::TypeVar("a".into());
+        let tracked = typed_ir::TypeVar("a#0".into());
+        graph.mark_external_vars([external.clone()]);
+        graph.slots.entry(tracked.clone()).or_default();
+
+        graph
+            .constrain_subtype(
+                typed_ir::Type::Var(external.clone()),
+                typed_ir::Type::Var(tracked.clone()),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(
+            solution.solution_for(&tracked),
+            Some(&typed_ir::Type::Var(external.clone()))
+        );
+        assert_eq!(solution.solution_for(&external), None);
+        assert!(solution.is_complete());
+    }
+
+    #[test]
+    fn instantiate_principal_skips_external_var_names() {
+        let mut graph = TypeGraph::default();
+        graph.mark_external_vars([typed_ir::TypeVar("a#0".into())]);
+
+        let instance = graph.instantiate_principal(&id_binding());
+
+        assert_eq!(
+            instance.type_params[0].fresh,
+            typed_ir::TypeVar("a#1".into())
+        );
+        assert!(graph.slot(&typed_ir::TypeVar("a#0".into())).is_none());
+        assert!(graph.slot(&typed_ir::TypeVar("a#1".into())).is_some());
     }
 
     #[test]
@@ -3407,6 +3739,42 @@ mod tests {
     }
 
     #[test]
+    fn absent_variant_payload_defaults_unbound_intersection_parts_to_bottom() {
+        let mut graph = TypeGraph::default();
+        let observed = typed_ir::TypeVar("observed".into());
+        let residual = typed_ir::TypeVar("residual".into());
+        graph.slots.entry(observed.clone()).or_default();
+        graph.slots.entry(residual.clone()).or_default();
+        graph
+            .constrain_subtype(int_type(), typed_ir::Type::Var(observed.clone()))
+            .unwrap();
+
+        graph
+            .constrain_subtype(
+                variant_type(&[("err", vec![bool_type()])]),
+                variant_type(&[
+                    (
+                        "ok",
+                        vec![typed_ir::Type::Inter(vec![
+                            typed_ir::Type::Var(observed.clone()),
+                            typed_ir::Type::Var(residual.clone()),
+                        ])],
+                    ),
+                    ("err", vec![bool_type()]),
+                ]),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(solution.solution_for(&observed), Some(&int_type()));
+        assert_eq!(
+            solution.solution_for(&residual),
+            Some(&typed_ir::Type::Never)
+        );
+        assert!(solution.is_complete());
+    }
+
+    #[test]
     fn record_subtype_solves_field_type_variables() {
         let mut graph = TypeGraph::default();
         let port_var = typed_ir::TypeVar("port".into());
@@ -3421,6 +3789,34 @@ mod tests {
         let solution = graph.solve();
 
         assert_eq!(solution.solution_for(&port_var), Some(&int_type()));
+        assert!(solution.is_complete());
+    }
+
+    #[test]
+    fn absent_optional_record_field_defaults_unbound_value_to_bottom() {
+        let mut graph = TypeGraph::default();
+        let width_var = typed_ir::TypeVar("width".into());
+        graph.slots.entry(width_var.clone()).or_default();
+
+        graph
+            .constrain_subtype(
+                record_type(&[]),
+                typed_ir::Type::Record(typed_ir::RecordType {
+                    fields: vec![typed_ir::RecordField {
+                        name: typed_ir::Name("width".to_string()),
+                        value: typed_ir::Type::Var(width_var.clone()),
+                        optional: true,
+                    }],
+                    spread: None,
+                }),
+            )
+            .unwrap();
+        let solution = graph.solve();
+
+        assert_eq!(
+            solution.solution_for(&width_var),
+            Some(&typed_ir::Type::Never)
+        );
         assert!(solution.is_complete());
     }
 
@@ -3747,6 +4143,38 @@ mod tests {
     }
 
     #[test]
+    fn lower_bound_prefers_erased_effect_atom_above_payload_atom() {
+        let mut graph = TypeGraph::default();
+        let var = typed_ir::TypeVar("e".into());
+        let erased = effect_type("&xs#1");
+        let payload = effect_type_arg("&xs#1", int_type());
+
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Value(erased.clone())),
+                    upper: None,
+                },
+            )
+            .unwrap();
+        graph
+            .collect_runtime_bounds(
+                &typed_ir::Type::Var(var.clone()),
+                &RuntimeBounds {
+                    lower: Some(RuntimeType::Value(payload)),
+                    upper: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            graph.slot(&var).and_then(|bounds| bounds.lower.as_ref()),
+            Some(&erased)
+        );
+    }
+
+    #[test]
     fn upper_bound_prefers_closed_row_below_open_row_intersection() {
         let mut graph = TypeGraph::default();
         let var = typed_ir::TypeVar("e".into());
@@ -3963,6 +4391,23 @@ mod tests {
         }
     }
 
+    fn list_type(item: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "list", "list"]),
+            args: vec![typed_ir::TypeArg::Type(item)],
+        }
+    }
+
+    fn ref_type(effect: typed_ir::Type, value: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&["std", "var", "ref"]),
+            args: vec![
+                typed_ir::TypeArg::Type(effect),
+                typed_ir::TypeArg::Type(value),
+            ],
+        }
+    }
+
     fn never_type() -> typed_ir::Type {
         typed_ir::Type::Never
     }
@@ -4023,6 +4468,13 @@ mod tests {
         typed_ir::Type::Named {
             path: path(&[name]),
             args: vec![typed_ir::TypeArg::Type(arg)],
+        }
+    }
+
+    fn synthetic_effect_type(name: &str, args: Vec<typed_ir::TypeArg>) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: path(&[name]),
+            args,
         }
     }
 

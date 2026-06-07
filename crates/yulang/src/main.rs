@@ -3315,7 +3315,7 @@ fn can_write_yuir_source_cache(options: &CliOptions) -> bool {
 }
 
 fn should_write_dependency_cache(options: &CliOptions, namespace_defs_finalized: bool) -> bool {
-    !options.no_cache && (namespace_defs_finalized || options.requests_runtime_pipeline())
+    !options.no_cache && namespace_defs_finalized
 }
 
 fn read_yuir_source_cache(
@@ -6418,12 +6418,13 @@ mod tests {
     }
 
     #[test]
-    fn runtime_pipeline_writes_dependency_cache_even_when_namespace_defs_are_not_finalized() {
+    fn runtime_pipeline_does_not_force_dependency_cache_write_for_unfinalized_namespace_defs() {
         let mut options = test_cli_options();
         options.infer = false;
         options.runtime_finalize_ir = true;
 
-        assert!(should_write_dependency_cache(&options, false));
+        assert!(!should_write_dependency_cache(&options, false));
+        assert!(should_write_dependency_cache(&options, true));
     }
 
     #[test]

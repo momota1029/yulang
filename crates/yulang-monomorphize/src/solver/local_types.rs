@@ -14,7 +14,9 @@ use yulang_runtime_ir::{
 use yulang_typed_ir as typed_ir;
 
 use super::materialize::force_core_value_expr;
-use super::pattern_types::{choose_pattern_ty, tuple_component_runtime_types};
+use super::pattern_types::{
+    choose_pattern_ty, record_field_runtime_type, tuple_component_runtime_types,
+};
 
 pub(crate) fn refresh_local_expr_types(expr: Expr) -> Expr {
     let mut locals = HashMap::new();
@@ -278,9 +280,10 @@ fn refresh_pattern_local_types(
                 refresh_pattern_local_types(item, None, locals);
             }
         }
-        Pattern::Record { fields, spread, .. } => {
+        Pattern::Record { fields, spread, ty } => {
             for field in fields {
-                refresh_pattern_local_types(&field.pattern, None, locals);
+                let field_ty = record_field_runtime_type(scrutinee_ty, ty, &field.name);
+                refresh_pattern_local_types(&field.pattern, field_ty.as_ref(), locals);
             }
             if let Some(spread) = spread {
                 match spread {

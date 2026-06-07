@@ -633,12 +633,11 @@ pub(super) fn add_id_to_created_thunks(expr: Expr) -> Expr {
             value,
             expr,
         } => {
-            let inner = add_id_to_created_thunks(*expr);
             let thunk = Expr::typed(
                 ExprKind::Thunk {
                     effect: effect.clone(),
                     value,
-                    expr: Box::new(inner),
+                    expr,
                 },
                 ty,
             );

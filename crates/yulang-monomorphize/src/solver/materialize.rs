@@ -82,6 +82,11 @@ pub(crate) fn materialize_expr_with_expected(
                 .map(|instantiation| materialize_type_instantiation(instantiation, substitutions));
             let callee = materialize_expr(*callee, substitutions);
             let expected_arg = materialized_runtime_callee_arg(&callee.ty)
+                .or_else(|| {
+                    evidence.as_ref().and_then(|evidence| {
+                        materialized_apply_expected_arg_from_result(evidence, expected)
+                    })
+                })
                 .or_else(|| evidence.as_ref().and_then(materialized_apply_expected_arg));
             let kind = ExprKind::Apply {
                 callee: Box::new(callee),
@@ -94,6 +99,7 @@ pub(crate) fn materialize_expr_with_expected(
                 instantiation,
             };
             let ty = materialized_apply_result_type(ty, &kind);
+            let ty = materialized_expected_result_type(ty, expected);
             return Expr::typed(kind, ty);
         }
         ExprKind::Tuple(items) => ExprKind::Tuple(
@@ -126,16 +132,48 @@ pub(crate) fn materialize_expr_with_expected(
                 evidence,
             }
         }
-        ExprKind::Record { fields, spread } => ExprKind::Record {
-            fields: fields
+        ExprKind::Record { fields, spread } => {
+            let expected_record = expected_core_type(expected).and_then(|ty| match ty {
+                typed_ir::Type::Record(record)
+                    if should_materialize_expected_core(&typed_ir::Type::Record(
+                        record.clone(),
+                    )) =>
+                {
+                    Some(record)
+                }
+                _ => None,
+            });
+            let fields = fields
                 .into_iter()
-                .map(|field| yulang_runtime_ir::FinalizedRecordExprField {
-                    name: field.name,
-                    value: materialize_expr(field.value, substitutions),
+                .map(|field| {
+                    let expected_field = expected_record
+                        .as_ref()
+                        .and_then(|record| {
+                            record
+                                .fields
+                                .iter()
+                                .find(|expected| expected.name == field.name)
+                        })
+                        .map(|field| runtime_type_from_core_value(field.value.clone()));
+                    yulang_runtime_ir::FinalizedRecordExprField {
+                        name: field.name,
+                        value: materialize_expr_to_expected(
+                            field.value,
+                            substitutions,
+                            expected_field.as_ref(),
+                        ),
+                    }
                 })
-                .collect(),
-            spread: spread.map(|spread| materialize_record_spread_expr(spread, substitutions)),
-        },
+                .collect();
+            let spread = spread.map(|spread| materialize_record_spread_expr(spread, substitutions));
+            if let Some(record) = expected_record {
+                return Expr::typed(
+                    ExprKind::Record { fields, spread },
+                    RuntimeType::Value(typed_ir::Type::Record(record)),
+                );
+            }
+            ExprKind::Record { fields, spread }
+        }
         ExprKind::Variant { tag, value } => ExprKind::Variant {
             tag,
             value: value.map(|value| Box::new(materialize_expr(*value, substitutions))),
@@ -284,12 +322,14 @@ pub(crate) fn materialize_expr_with_expected(
             return Expr::typed(kind, ty);
         }
         ExprKind::Coerce { from, to, expr } => {
+            let materialized_from = materialize_core_type(from, substitutions);
             let to = expected_core_type(expected)
                 .unwrap_or_else(|| materialize_core_type(to, substitutions));
             let expected_runtime = runtime_type_from_core_value(to.clone());
-            let expr = materialize_expr(*expr, substitutions);
+            let inner_expected = coerce_inner_expected(&materialized_from, &to);
+            let expr =
+                materialize_expr_with_expected(*expr, substitutions, inner_expected.as_ref());
             let expr = adapt_expr_to_expected_runtime(expr, &expected_runtime);
-            let materialized_from = materialize_core_type(from, substitutions);
             let from = match &expr.ty {
                 RuntimeType::Unknown => materialized_from,
                 _ => super::runtime_type_to_core(expr.ty.clone()),
@@ -310,6 +350,30 @@ pub(crate) fn materialize_expr_with_expected(
         },
     };
     Expr::typed(kind, ty)
+}
+
+fn coerce_inner_expected(from: &typed_ir::Type, to: &typed_ir::Type) -> Option<RuntimeType> {
+    if !same_runtime_value_head(from, to) || !should_materialize_expected_core(to) {
+        return None;
+    }
+    Some(runtime_type_from_core_value(to.clone()))
+}
+
+fn same_runtime_value_head(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    match (left, right) {
+        (
+            typed_ir::Type::Named {
+                path: left_path,
+                args: left_args,
+            },
+            typed_ir::Type::Named {
+                path: right_path,
+                args: right_args,
+            },
+        ) => left_path == right_path && left_args.len() == right_args.len(),
+        (typed_ir::Type::Tuple(left), typed_ir::Type::Tuple(right)) => left.len() == right.len(),
+        _ => false,
+    }
 }
 
 fn materialize_type_instantiation(
@@ -660,6 +724,21 @@ fn materialized_apply_expected_arg(evidence: &typed_ir::ApplyEvidence) -> Option
     })
 }
 
+fn materialized_apply_expected_arg_from_result(
+    evidence: &typed_ir::ApplyEvidence,
+    expected: Option<&RuntimeType>,
+) -> Option<RuntimeType> {
+    let expected_result = expected_core_type(expected)?;
+    let typed_ir::Type::Fun { param, ret, .. } = evidence.principal_callee.as_ref()? else {
+        return None;
+    };
+    let mut substitutions = Vec::new();
+    collect_template_substitutions(ret, &expected_result, &mut substitutions)?;
+    let expected_param = materialize_core_type(param.as_ref().clone(), &substitutions);
+    let expected_param = runtime_type_from_core_value(expected_param);
+    should_materialize_expected_runtime(&expected_param).then_some(expected_param)
+}
+
 fn materialized_apply_result_type(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
     if let ExprKind::Apply { callee, .. } = kind
         && let Some(ret) = materialized_runtime_callee_ret(&callee.ty)
@@ -680,6 +759,149 @@ fn materialized_apply_result_type(fallback: RuntimeType, kind: &ExprKind) -> Run
     };
     let effect = materialized_apply_return_effect(evidence).unwrap_or(typed_ir::Type::Never);
     runtime_type_from_core_value_and_effect(value, effect)
+}
+
+fn collect_template_substitutions(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    out: &mut Vec<typed_ir::TypeSubstitution>,
+) -> Option<()> {
+    match (template, actual) {
+        (typed_ir::Type::Var(var), actual) => push_template_substitution(var, actual.clone(), out),
+        (
+            typed_ir::Type::Named {
+                path: template_path,
+                args: template_args,
+            },
+            typed_ir::Type::Named { path, args },
+        ) if template_path == path && template_args.len() == args.len() => {
+            for (template, actual) in template_args.iter().zip(args) {
+                collect_template_type_arg_substitutions(template, actual, out)?;
+            }
+            Some(())
+        }
+        (
+            typed_ir::Type::Fun {
+                param: template_param,
+                param_effect: template_param_effect,
+                ret_effect: template_ret_effect,
+                ret: template_ret,
+            },
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+        ) => {
+            collect_template_substitutions(template_param, param, out)?;
+            collect_template_substitutions(template_param_effect, param_effect, out)?;
+            collect_template_substitutions(template_ret_effect, ret_effect, out)?;
+            collect_template_substitutions(template_ret, ret, out)
+        }
+        (typed_ir::Type::Tuple(template), typed_ir::Type::Tuple(actual))
+            if template.len() == actual.len() =>
+        {
+            for (template, actual) in template.iter().zip(actual) {
+                collect_template_substitutions(template, actual, out)?;
+            }
+            Some(())
+        }
+        (typed_ir::Type::Record(template), typed_ir::Type::Record(actual)) => {
+            for template_field in &template.fields {
+                let actual_field = actual
+                    .fields
+                    .iter()
+                    .find(|field| field.name == template_field.name)?;
+                collect_template_substitutions(&template_field.value, &actual_field.value, out)?;
+            }
+            Some(())
+        }
+        (
+            typed_ir::Type::Row {
+                items: template_items,
+                tail: template_tail,
+            },
+            typed_ir::Type::Row { items, tail },
+        ) => {
+            for (template, actual) in template_items.iter().zip(items) {
+                collect_template_substitutions(template, actual, out)?;
+            }
+            collect_template_substitutions(template_tail, tail, out)
+        }
+        _ if template == actual => Some(()),
+        _ => None,
+    }
+}
+
+fn collect_template_type_arg_substitutions(
+    template: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+    out: &mut Vec<typed_ir::TypeSubstitution>,
+) -> Option<()> {
+    match (template, actual) {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
+            collect_template_substitutions(template, actual, out)
+        }
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
+            if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
+                collect_template_substitutions(template, actual, out)?;
+            }
+            if let (Some(template), Some(actual)) = (&template.upper, &actual.upper) {
+                collect_template_substitutions(template, actual, out)?;
+            }
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+fn push_template_substitution(
+    var: &typed_ir::TypeVar,
+    ty: typed_ir::Type,
+    out: &mut Vec<typed_ir::TypeSubstitution>,
+) -> Option<()> {
+    if let Some(existing) = out.iter().find(|substitution| substitution.var == *var) {
+        return (existing.ty == ty).then_some(());
+    }
+    out.push(typed_ir::TypeSubstitution {
+        var: var.clone(),
+        ty,
+    });
+    Some(())
+}
+
+fn materialized_expected_result_type(
+    inferred: RuntimeType,
+    expected: Option<&RuntimeType>,
+) -> RuntimeType {
+    let Some(expected) = expected.filter(|expected| should_materialize_expected_runtime(expected))
+    else {
+        return inferred;
+    };
+    if super::runtime_type_has_unknown(&inferred) || runtime_result_heads_match(&inferred, expected)
+    {
+        return expected.clone();
+    }
+    inferred
+}
+
+fn runtime_result_heads_match(left: &RuntimeType, right: &RuntimeType) -> bool {
+    match (left, right) {
+        (RuntimeType::Value(left), RuntimeType::Value(right)) => {
+            same_runtime_value_head(left, right)
+        }
+        (
+            RuntimeType::Thunk {
+                value: left_value, ..
+            },
+            RuntimeType::Thunk {
+                value: right_value, ..
+            },
+        ) => runtime_result_heads_match(left_value, right_value),
+        (RuntimeType::Fun { .. }, RuntimeType::Fun { .. }) => true,
+        _ => false,
+    }
 }
 
 fn materialized_apply_return_effect(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
@@ -868,7 +1090,7 @@ fn materialized_runtime_callee_ret(ty: &RuntimeType) -> Option<RuntimeType> {
         ),
         RuntimeType::Unknown | RuntimeType::Value(_) | RuntimeType::Thunk { .. } => return None,
     };
-    super::runtime_type_is_closed(&ret).then_some(ret)
+    (!super::runtime_type_has_unknown(&ret)).then_some(ret)
 }
 
 fn should_materialize_expected_runtime(ty: &RuntimeType) -> bool {

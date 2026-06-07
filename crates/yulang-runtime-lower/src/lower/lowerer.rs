@@ -433,8 +433,24 @@ impl Lowerer<'_> {
                         .get(path)
                         .is_some_and(|info| !info.type_params.is_empty())
                 });
+                let apply_target_is_polymorphic_binding =
+                    apply_target.as_ref().is_some_and(|path| {
+                        self.binding_infos
+                            .get(path)
+                            .is_some_and(|info| !info.type_params.is_empty())
+                    });
+                let polymorphic_apply =
+                    callee_is_polymorphic_binding || apply_target_is_polymorphic_binding;
+                let evidence_callee = (!polymorphic_apply).then_some(evidence_callee).flatten();
+                let evidence_expected_callee = (!polymorphic_apply)
+                    .then_some(evidence_expected_callee)
+                    .flatten();
+                let evidence_result = (!polymorphic_apply).then_some(evidence_result).flatten();
+                let evidence_arg = (!polymorphic_apply).then_some(evidence_arg).flatten();
+                let evidence_arg_lower =
+                    (!polymorphic_apply).then_some(evidence_arg_lower).flatten();
                 let polymorphic_arg_hint = evidence_expected_arg.clone().filter(|hint| {
-                    callee_is_polymorphic_binding
+                    polymorphic_apply
                         && self.use_principal_elaboration
                         && expected_arg_evidence_runtime_usable(hint)
                         && matches!(hint, RuntimeType::Value(typed_ir::Type::Variant(_)))
@@ -444,6 +460,19 @@ impl Lowerer<'_> {
                             .is_none_or(|parts| should_use_polymorphic_arg_hint(&parts.param, hint))
                 });
                 let use_polymorphic_arg_hint = polymorphic_arg_hint.is_some();
+                let evidence_expected_arg_for_selection = if polymorphic_apply {
+                    polymorphic_arg_hint.clone()
+                } else {
+                    evidence_expected_arg.clone()
+                };
+                let apply_result_expected = if polymorphic_apply
+                    && matches!(callee_expr.as_ref(), Some(typed_ir::Expr::Apply { .. }))
+                    && apply_result_expected_source_is_evidence(expected_source)
+                {
+                    None
+                } else {
+                    expected.cloned()
+                };
                 let callee_hint = if polymorphic_arg_hint.is_some() {
                     None
                 } else {
@@ -547,8 +576,8 @@ impl Lowerer<'_> {
                     ret_hint,
                     callee_local_hint.is_some(),
                 )
-                .and_then(|ty| choose_expected_hir_type(ty, expected.cloned()))
-                .or_else(|| expected.cloned())
+                .and_then(|ty| choose_expected_hir_type(ty, apply_result_expected.clone()))
+                .or_else(|| apply_result_expected.clone())
                 .unwrap_or_else(|| RuntimeType::value(self.fresh_type_var("apply_result")));
                 let result_ty = match (expected, structural_result_hint.as_ref()) {
                     (Some(expected), Some(structural))
@@ -616,42 +645,44 @@ impl Lowerer<'_> {
                     })
                     .flatten();
                 let expected_callee_param_hint_for_imprecise = expected_callee_param_hint.clone();
-                let evidence_expected_arg_for_imprecise = evidence_expected_arg
+                let evidence_expected_arg_for_imprecise = evidence_expected_arg_for_selection
                     .clone()
                     .filter(|_| self.use_expected_arg_evidence || self.use_principal_elaboration);
-                let param_or_expected_arg_hint = match (param_hint, evidence_expected_arg.clone()) {
-                    (_, _)
-                        if callee_local_hint.is_some()
-                            && matches!(
-                                expected_callee_param_hint,
-                                Some(RuntimeType::Thunk { .. })
-                            ) =>
-                    {
-                        expected_callee_param_hint
-                    }
-                    (Some(RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))), _) => {
-                        expected_callee_param_hint
-                    }
-                    (Some(param_hint), _)
-                        if runtime_type_is_imprecise_runtime_slot(&param_hint) =>
-                    {
-                        expected_callee_param_hint_for_imprecise
-                            .or(evidence_expected_arg_for_imprecise)
-                            .or(Some(param_hint))
-                    }
-                    (Some(param_hint), Some(expected_arg))
-                        if self.use_principal_elaboration
-                            && should_use_variant_arg_hint(&param_hint, &expected_arg) =>
-                    {
-                        Some(expected_arg)
-                    }
-                    (Some(param_hint), _) => Some(param_hint),
-                    (None, Some(expected_arg)) if self.use_expected_arg_evidence => {
-                        self.expected_arg_evidence_profile.used_as_arg_type_hint += 1;
-                        Some(expected_arg)
-                    }
-                    (None, _) => polymorphic_arg_hint.or(expected_callee_param_hint),
-                };
+                let param_or_expected_arg_hint =
+                    match (param_hint, evidence_expected_arg_for_selection.clone()) {
+                        (_, _)
+                            if callee_local_hint.is_some()
+                                && matches!(
+                                    expected_callee_param_hint,
+                                    Some(RuntimeType::Thunk { .. })
+                                ) =>
+                        {
+                            expected_callee_param_hint
+                        }
+                        (
+                            Some(RuntimeType::Value(typed_ir::Type::Any | typed_ir::Type::Var(_))),
+                            _,
+                        ) => expected_callee_param_hint,
+                        (Some(param_hint), _)
+                            if runtime_type_is_imprecise_runtime_slot(&param_hint) =>
+                        {
+                            expected_callee_param_hint_for_imprecise
+                                .or(evidence_expected_arg_for_imprecise)
+                                .or(Some(param_hint))
+                        }
+                        (Some(param_hint), Some(expected_arg))
+                            if self.use_principal_elaboration
+                                && should_use_variant_arg_hint(&param_hint, &expected_arg) =>
+                        {
+                            Some(expected_arg)
+                        }
+                        (Some(param_hint), _) => Some(param_hint),
+                        (None, Some(expected_arg)) if self.use_expected_arg_evidence => {
+                            self.expected_arg_evidence_profile.used_as_arg_type_hint += 1;
+                            Some(expected_arg)
+                        }
+                        (None, _) => polymorphic_arg_hint.or(expected_callee_param_hint),
+                    };
                 let selected_arg_hint = param_or_expected_arg_hint.clone();
                 let arg_ty = match choose_apply_arg_type(evidence_arg, param_or_expected_arg_hint) {
                     Some(arg_ty) => arg_ty,
@@ -3091,9 +3122,9 @@ impl Lowerer<'_> {
         arg_ty: &RuntimeType,
         result_ty: &RuntimeType,
     ) -> Option<TypeInstantiation> {
-        let (target, template_ty, mut substitutions) = match &callee.kind {
+        let (target, template_ty, mut substitutions, direct_target) = match &callee.kind {
             ExprKind::Var(target) | ExprKind::EffectOp(target) => {
-                (target.clone(), callee.ty.clone(), BTreeMap::new())
+                (target.clone(), callee.ty.clone(), BTreeMap::new(), true)
             }
             ExprKind::Apply {
                 instantiation: Some(instantiation),
@@ -3108,6 +3139,7 @@ impl Lowerer<'_> {
                     instantiation.target.clone(),
                     callee.ty.clone(),
                     substitutions,
+                    false,
                 )
             }
             _ => return None,
@@ -3116,6 +3148,11 @@ impl Lowerer<'_> {
         if info.type_params.is_empty() {
             return None;
         }
+        let template_ty = if direct_target && !hir_type_has_type_vars(&template_ty) {
+            info.ty.clone()
+        } else {
+            template_ty
+        };
         let params = info.type_params.iter().cloned().collect::<BTreeSet<_>>();
         let actual_callee_ty = erased_fun_type(arg_ty.clone(), result_ty.clone());
         infer_hir_type_substitutions_prefer_non_never(
@@ -3854,6 +3891,16 @@ fn should_refine_local_from_argument_expected(
         && runtime_type_is_imprecise_runtime_slot(stored)
         && expected_arg_evidence_runtime_usable(candidate)
         && (hir_type_compatible(candidate, stored) || hir_type_compatible(stored, candidate))
+}
+
+fn apply_result_expected_source_is_evidence(source: TypeSource) -> bool {
+    matches!(
+        source,
+        TypeSource::ApplyEvidence
+            | TypeSource::ApplyCalleeEvidence
+            | TypeSource::ApplyArgumentEvidence
+            | TypeSource::ApplyArgumentSourceEdge
+    )
 }
 
 fn runtime_type_contains_value_choice(ty: &RuntimeType) -> bool {

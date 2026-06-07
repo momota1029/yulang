@@ -276,10 +276,10 @@ pub(crate) fn apply_spine_binding(expr: &Expr) -> Option<&typed_ir::Path> {
     while let ExprKind::Apply { callee, .. } = &current.kind {
         current = callee;
     }
-    let ExprKind::Var(path) = &current.kind else {
-        return None;
-    };
-    Some(path)
+    match &current.kind {
+        ExprKind::Var(path) | ExprKind::EffectOp(path) => Some(path),
+        _ => None,
+    }
 }
 
 pub(crate) fn replace_apply_spine_binding(
@@ -291,6 +291,10 @@ pub(crate) fn replace_apply_spine_binding(
         ExprKind::Apply { callee, .. } => replace_apply_spine_binding(callee, alias, callee_type),
         ExprKind::Var(path) => {
             *path = alias.clone();
+            expr.ty = callee_type.clone();
+        }
+        ExprKind::EffectOp(_) => {
+            expr.kind = ExprKind::Var(alias.clone());
             expr.ty = callee_type.clone();
         }
         _ => {}

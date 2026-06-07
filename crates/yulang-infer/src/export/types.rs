@@ -5,7 +5,7 @@ use yulang_typed_ir as typed_ir;
 use crate::FrozenScheme;
 use crate::display::format::{
     Type as DisplayType, collect_compact_bounds_observed_vars, compact_scheme_to_type_no_sandwich,
-    materialize_effect_args,
+    materialize_effect_args, materialize_effect_args_from_local_bounds,
 };
 use crate::ids::TypeVar;
 use crate::simplify::compact::{
@@ -71,11 +71,12 @@ pub fn export_scheme(
     }
 }
 
-pub fn export_frozen_scheme(infer: &Infer, scheme: &FrozenScheme) -> typed_ir::Scheme {
-    let compact = &scheme.compact;
+pub fn export_frozen_scheme(_infer: &Infer, scheme: &FrozenScheme) -> typed_ir::Scheme {
+    let mut compact = scheme.compact.clone();
+    materialize_effect_args_from_local_bounds(&mut compact, &scheme.effect_atom_arg_bounds);
     typed_ir::Scheme {
         requirements: Vec::new(),
-        body: export_scheme_body_with_infer(infer, compact),
+        body: export_scheme_body(&compact),
     }
 }
 

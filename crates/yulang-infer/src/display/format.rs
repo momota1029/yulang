@@ -102,30 +102,63 @@ pub(crate) fn compact_scheme_to_type_inner(
 
 pub fn materialize_effect_args(infer: &Infer, scheme: &mut CompactTypeScheme) {
     let mut cache = HashMap::new();
-    materialize_effect_args_in_bounds(infer, &mut scheme.cty, &mut cache);
+    let mut project = |tv, positive| {
+        let scheme = compact_type_var(infer, tv);
+        let ty = if positive {
+            scheme.cty.lower().clone()
+        } else {
+            scheme.cty.upper().clone()
+        };
+        compact_type_data_effect_arg_projection(ty)
+    };
+    materialize_effect_args_in_bounds(&mut scheme.cty, &mut cache, &mut project);
     for bounds in scheme.rec_vars.values_mut() {
-        materialize_effect_args_in_bounds(infer, bounds, &mut cache);
+        materialize_effect_args_in_bounds(bounds, &mut cache, &mut project);
+    }
+}
+
+pub fn materialize_effect_args_from_local_bounds(
+    scheme: &mut CompactTypeScheme,
+    extra_bounds: &[(TypeVar, CompactBounds)],
+) {
+    let mut bounds_by_var = scheme.rec_vars.clone();
+    for (tv, bounds) in extra_bounds {
+        bounds_by_var.insert(*tv, bounds.clone());
+    }
+    let mut cache = HashMap::new();
+    let mut project = |tv: TypeVar, positive: bool| {
+        let bounds = bounds_by_var.get(&tv)?;
+        let ty = if positive {
+            bounds.lower().clone()
+        } else {
+            bounds.upper().clone()
+        };
+        compact_type_data_effect_arg_projection(ty)
+    };
+    materialize_effect_args_in_bounds(&mut scheme.cty, &mut cache, &mut project);
+    for bounds in scheme.rec_vars.values_mut() {
+        materialize_effect_args_in_bounds(bounds, &mut cache, &mut project);
     }
 }
 
 fn materialize_effect_args_in_bounds(
-    infer: &Infer,
     bounds: &mut CompactBounds,
     cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+    project: &mut impl FnMut(TypeVar, bool) -> Option<CompactType>,
 ) {
     match bounds {
         CompactBounds::Interval { lower, upper, .. } => {
-            materialize_effect_args_in_type(infer, lower, cache);
-            materialize_effect_args_in_type(infer, upper, cache);
+            materialize_effect_args_in_type(lower, cache, project);
+            materialize_effect_args_in_type(upper, cache, project);
         }
         CompactBounds::Con { args, .. } => {
             for arg in args {
-                materialize_effect_args_in_bounds(infer, arg, cache);
+                materialize_effect_args_in_bounds(arg, cache, project);
             }
         }
         CompactBounds::Tuple { items } => {
             for item in items {
-                materialize_effect_args_in_bounds(infer, item, cache);
+                materialize_effect_args_in_bounds(item, cache, project);
             }
         }
         CompactBounds::Fun {
@@ -134,65 +167,65 @@ fn materialize_effect_args_in_bounds(
             ret_eff,
             ret,
         } => {
-            materialize_effect_args_in_bounds(infer, arg, cache);
-            materialize_effect_args_in_bounds(infer, arg_eff, cache);
-            materialize_effect_args_in_bounds(infer, ret_eff, cache);
-            materialize_effect_args_in_bounds(infer, ret, cache);
+            materialize_effect_args_in_bounds(arg, cache, project);
+            materialize_effect_args_in_bounds(arg_eff, cache, project);
+            materialize_effect_args_in_bounds(ret_eff, cache, project);
+            materialize_effect_args_in_bounds(ret, cache, project);
         }
     }
 }
 
 fn materialize_effect_args_in_type(
-    infer: &Infer,
     ty: &mut CompactType,
     cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+    project: &mut impl FnMut(TypeVar, bool) -> Option<CompactType>,
 ) {
     for con in &mut ty.cons {
         for arg in &mut con.args {
-            materialize_effect_args_in_bounds(infer, arg, cache);
+            materialize_effect_args_in_bounds(arg, cache, project);
         }
     }
     for fun in &mut ty.funs {
-        materialize_effect_args_in_type(infer, &mut fun.arg, cache);
-        materialize_effect_args_in_type(infer, &mut fun.arg_eff, cache);
-        materialize_effect_args_in_type(infer, &mut fun.ret_eff, cache);
-        materialize_effect_args_in_type(infer, &mut fun.ret, cache);
+        materialize_effect_args_in_type(&mut fun.arg, cache, project);
+        materialize_effect_args_in_type(&mut fun.arg_eff, cache, project);
+        materialize_effect_args_in_type(&mut fun.ret_eff, cache, project);
+        materialize_effect_args_in_type(&mut fun.ret, cache, project);
     }
     for record in &mut ty.records {
         for field in &mut record.fields {
-            materialize_effect_args_in_type(infer, &mut field.value, cache);
+            materialize_effect_args_in_type(&mut field.value, cache, project);
         }
     }
     for spread in &mut ty.record_spreads {
         for field in &mut spread.fields {
-            materialize_effect_args_in_type(infer, &mut field.value, cache);
+            materialize_effect_args_in_type(&mut field.value, cache, project);
         }
-        materialize_effect_args_in_type(infer, &mut spread.tail, cache);
+        materialize_effect_args_in_type(&mut spread.tail, cache, project);
     }
     for variant in &mut ty.variants {
         for (_, payloads) in &mut variant.items {
             for payload in payloads {
-                materialize_effect_args_in_type(infer, payload, cache);
+                materialize_effect_args_in_type(payload, cache, project);
             }
         }
     }
     for tuple in &mut ty.tuples {
         for item in tuple {
-            materialize_effect_args_in_type(infer, item, cache);
+            materialize_effect_args_in_type(item, cache, project);
         }
     }
     for row in &mut ty.rows {
         for item in &mut row.items {
-            materialize_effect_item_args(infer, item, cache);
+            materialize_effect_item_args(item, cache, project);
         }
-        materialize_effect_args_in_type(infer, &mut row.tail, cache);
+        materialize_effect_args_in_type(&mut row.tail, cache, project);
     }
 }
 
 fn materialize_effect_item_args(
-    infer: &Infer,
     item: &mut CompactType,
     cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+    project: &mut impl FnMut(TypeVar, bool) -> Option<CompactType>,
 ) {
     if !item.vars.is_empty()
         || !item.prims.is_empty()
@@ -204,7 +237,7 @@ fn materialize_effect_item_args(
         || !item.tuples.is_empty()
         || !item.rows.is_empty()
     {
-        materialize_effect_args_in_type(infer, item, cache);
+        materialize_effect_args_in_type(item, cache, project);
         return;
     }
     let con = &mut item.cons[0];
@@ -212,39 +245,33 @@ fn materialize_effect_item_args(
         let lower_tv = single_compact_var(arg.lower());
         let upper_tv = single_compact_var(arg.upper());
         let Some((lower_tv, upper_tv)) = lower_tv.zip(upper_tv) else {
-            materialize_effect_args_in_bounds(infer, arg, cache);
+            materialize_effect_args_in_bounds(arg, cache, project);
             continue;
         };
-        let lower = materialize_effect_arg_side(infer, lower_tv, true, cache);
-        let upper = materialize_effect_arg_side(infer, upper_tv, false, cache);
+        let lower = materialize_effect_arg_side(lower_tv, true, cache, project);
+        let upper = materialize_effect_arg_side(upper_tv, false, cache, project);
         match (lower, upper) {
             (Some(lower), Some(upper)) if lower == upper => {
                 *arg.lower_mut() = lower;
                 *arg.upper_mut() = upper;
             }
-            _ => materialize_effect_args_in_bounds(infer, arg, cache),
+            _ => materialize_effect_args_in_bounds(arg, cache, project),
         }
     }
 }
 
 fn materialize_effect_arg_side(
-    infer: &Infer,
     tv: TypeVar,
     positive: bool,
     cache: &mut HashMap<(TypeVar, bool), Option<CompactType>>,
+    project: &mut impl FnMut(TypeVar, bool) -> Option<CompactType>,
 ) -> Option<CompactType> {
     let key = (tv, positive);
     if let Some(cached) = cache.get(&key) {
         return cached.clone();
     }
     cache.insert(key, None);
-    let scheme = compact_type_var(infer, tv);
-    let ty = if positive {
-        scheme.cty.lower().clone()
-    } else {
-        scheme.cty.upper().clone()
-    };
-    let projected = compact_type_data_effect_arg_projection(ty);
+    let projected = project(tv, positive);
     cache.insert(key, projected.clone());
     projected
 }
@@ -267,6 +294,9 @@ fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
 }
 
 fn compact_type_data_effect_arg_projection(mut ty: CompactType) -> Option<CompactType> {
+    if !ty.vars.is_empty() {
+        return None;
+    }
     if !ty.funs.is_empty()
         || !ty.records.is_empty()
         || !ty.record_spreads.is_empty()
@@ -279,7 +309,6 @@ fn compact_type_data_effect_arg_projection(mut ty: CompactType) -> Option<Compac
     if !has_data_shape {
         return None;
     }
-    ty.vars.clear();
     for con in &mut ty.cons {
         for arg in &mut con.args {
             *arg.lower_mut() = compact_type_data_effect_arg_projection(mem::take(arg.lower_mut()))?;

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::lower::builtin_types::can_runtime_coerce_primitive_type_paths;
@@ -121,9 +121,26 @@ impl Infer {
     }
 
     pub(crate) fn resolve_deferred_role_method_calls(&self) {
+        self.resolve_deferred_role_method_calls_matching(|_| true);
+    }
+
+    pub(crate) fn resolve_deferred_role_method_calls_for_owners(&self, owners: &HashSet<DefId>) {
+        self.resolve_deferred_role_method_calls_matching(|call| {
+            call.owner.is_some_and(|owner| owners.contains(&owner))
+        });
+    }
+
+    fn resolve_deferred_role_method_calls_matching(
+        &self,
+        should_resolve: impl Fn(&DeferredRoleMethodCall) -> bool,
+    ) {
         let calls = self.deferred_role_method_calls.borrow().clone();
         let mut unresolved = Vec::new();
         for call in calls {
+            if !should_resolve(&call) {
+                unresolved.push(call);
+                continue;
+            }
             let Some(info) = role_method_info_for_call(self, &call) else {
                 unresolved.push(call);
                 continue;
