@@ -225,6 +225,20 @@ pub enum ElaboratedExprKind {
         body: Box<ElaboratedExpr>,
         thunk: EffectiveThunkType,
     },
+    LocalPushId {
+        id: EffectIdVar,
+        body: Box<ElaboratedExpr>,
+    },
+    PeekId,
+    FindId {
+        id: EffectIdRef,
+    },
+    AddId {
+        id: EffectIdRef,
+        allowed: MonoEffect,
+        active: bool,
+        thunk: Box<ElaboratedExpr>,
+    },
     ForceThunk {
         thunk: Box<ElaboratedExpr>,
         source: EffectiveThunkType,
@@ -249,6 +263,7 @@ pub enum ElaboratedExprKind {
 pub struct FunctionAdapter {
     pub source: FunctionBoundary,
     pub target: FunctionBoundary,
+    pub call: FunctionAdapterCall,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -257,6 +272,31 @@ pub struct FunctionBoundary {
     pub param_effect: MonoEffect,
     pub ret_effect: MonoEffect,
     pub ret: MonoType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct FunctionAdapterCall {
+    pub local_scope: Option<EffectIdVar>,
+    pub result_boundaries: Vec<FunctionResultBoundary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FunctionResultBoundary {
+    AddId {
+        id: EffectIdRef,
+        allowed: MonoEffect,
+        active: bool,
+    },
+    FunctionAdapter(Box<FunctionAdapter>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct EffectIdVar(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum EffectIdRef {
+    Var(EffectIdVar),
+    Peek,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -484,6 +524,16 @@ fn clone_expr_without_boundary_spine_recursion(expr: &ElaboratedExpr) -> Elabora
             comp: &'a MonoComputation,
             thunk: &'a EffectiveThunkType,
         },
+        LocalPushId {
+            comp: &'a MonoComputation,
+            id: &'a EffectIdVar,
+        },
+        AddId {
+            comp: &'a MonoComputation,
+            id: &'a EffectIdRef,
+            allowed: &'a MonoEffect,
+            active: bool,
+        },
         ForceThunk {
             comp: &'a MonoComputation,
             source: &'a EffectiveThunkType,
@@ -538,6 +588,27 @@ fn clone_expr_without_boundary_spine_recursion(expr: &ElaboratedExpr) -> Elabora
                     thunk,
                 });
                 current = body;
+            }
+            ElaboratedExprKind::LocalPushId { id, body } => {
+                frames.push(Frame::LocalPushId {
+                    comp: &current.comp,
+                    id,
+                });
+                current = body;
+            }
+            ElaboratedExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
+                frames.push(Frame::AddId {
+                    comp: &current.comp,
+                    id,
+                    allowed,
+                    active: *active,
+                });
+                current = thunk;
             }
             ElaboratedExprKind::ForceThunk {
                 thunk,
@@ -613,6 +684,27 @@ fn clone_expr_without_boundary_spine_recursion(expr: &ElaboratedExpr) -> Elabora
                 kind: ElaboratedExprKind::MakeThunk {
                     body: Box::new(cloned),
                     thunk: thunk.clone(),
+                },
+            },
+            Frame::LocalPushId { comp, id } => ElaboratedExpr {
+                comp: comp.clone(),
+                kind: ElaboratedExprKind::LocalPushId {
+                    id: *id,
+                    body: Box::new(cloned),
+                },
+            },
+            Frame::AddId {
+                comp,
+                id,
+                allowed,
+                active,
+            } => ElaboratedExpr {
+                comp: comp.clone(),
+                kind: ElaboratedExprKind::AddId {
+                    id: *id,
+                    allowed: allowed.clone(),
+                    active,
+                    thunk: Box::new(cloned),
                 },
             },
             Frame::ForceThunk {
@@ -725,6 +817,71 @@ mod tests {
     }
 
     #[test]
+    fn function_adapter_carries_hygiene_plan_for_first_class_function_values() {
+        let int = MonoType::Value(named_value_type("int"));
+        let io = MonoEffect::new(named_value_type("io"));
+        let source = FunctionBoundary {
+            param: int.clone(),
+            param_effect: io.clone(),
+            ret_effect: io.clone(),
+            ret: int.clone(),
+        };
+        let target = FunctionBoundary {
+            param: int.clone(),
+            param_effect: io.clone(),
+            ret_effect: io.clone(),
+            ret: int,
+        };
+        let local = EffectIdVar(0);
+        let adapter = FunctionAdapter {
+            source: source.clone(),
+            target: target.clone(),
+            call: FunctionAdapterCall {
+                local_scope: Some(local),
+                result_boundaries: vec![FunctionResultBoundary::AddId {
+                    id: EffectIdRef::Var(local),
+                    allowed: io.clone(),
+                    active: false,
+                }],
+            },
+        };
+
+        let adapted = ElaboratedExpr::new(
+            ElaboratedExprKind::FunctionAdapter {
+                function: Box::new(ElaboratedExpr::new(
+                    ElaboratedExprKind::Ref(RefId(1)),
+                    MonoComputation {
+                        value: MonoType::Value(function_type(&source)),
+                        effect: MonoEffect::new(
+                            ConcreteType::try_from_type(Type::Never).expect("Never is concrete"),
+                        ),
+                    },
+                )),
+                adapter: adapter.clone(),
+            },
+            MonoComputation {
+                value: MonoType::Value(function_type(&target)),
+                effect: MonoEffect::new(
+                    ConcreteType::try_from_type(Type::Never).expect("Never is concrete"),
+                ),
+            },
+        );
+
+        let ElaboratedExprKind::FunctionAdapter { adapter, .. } = adapted.kind else {
+            panic!("expected function adapter");
+        };
+        assert_eq!(adapter.call.local_scope, Some(local));
+        assert_eq!(
+            adapter.call.result_boundaries,
+            vec![FunctionResultBoundary::AddId {
+                id: EffectIdRef::Var(local),
+                allowed: io,
+                active: false,
+            }]
+        );
+    }
+
+    #[test]
     fn clones_deep_boundary_spine_without_recursing() {
         let int = MonoType::Value(named_value_type("int"));
         let effect = MonoEffect::new(named_value_type("io"));
@@ -762,5 +919,22 @@ mod tests {
             args: Vec::new(),
         })
         .expect("named type is concrete")
+    }
+
+    fn function_type(boundary: &FunctionBoundary) -> ConcreteType {
+        ConcreteType::try_from_type(Type::Fun {
+            param: Box::new(boundary_value_type(&boundary.param)),
+            param_effect: Box::new(boundary.param_effect.row().as_type().clone()),
+            ret_effect: Box::new(boundary.ret_effect.row().as_type().clone()),
+            ret: Box::new(boundary_value_type(&boundary.ret)),
+        })
+        .expect("function boundary is concrete")
+    }
+
+    fn boundary_value_type(typ: &MonoType) -> Type {
+        match typ {
+            MonoType::Value(value) => value.as_type().clone(),
+            MonoType::EffectiveThunk(_) => panic!("test helper only builds value function types"),
+        }
     }
 }

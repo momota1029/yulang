@@ -305,6 +305,40 @@ ForceThunk {
 関数 cast を呼び出し先に押し付けないのと同様に、thunk を開く責務も、producer-consumer の
 型差が確定した場所で elaborated IR に明示する。
 
+effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。
+
+旧 runtime IR の `LocalPushId` / `AddId` は、型上の値 cast ではなく、effect request と
+effective thunk に付く runtime control boundary である。ただし、高階関数をさらに高階関数へ
+渡す場合、呼び出し箇所だけを見て後から `LocalPushId` / `AddId` を挿入する方式では、
+必要な境界が first-class function value と一緒に移動できない。
+
+そのため、関数値が producer-consumer の型境界を越える場所では、関数 cast と同じく
+`FunctionAdapter` を挿入する。`FunctionAdapter` は source / target の関数境界だけでなく、
+その adapter が呼ばれたときに実行する hygiene plan を持つ。
+
+```text
+FunctionAdapter {
+  source: FunctionBoundary,
+  target: FunctionBoundary,
+  call: FunctionAdapterCall {
+    local_scope: Option<EffectIdVar>,
+    result_boundaries: [
+      AddId { id: EffectIdRef, allowed: concrete effect row, active: bool },
+      FunctionAdapter(...), // returned function value にさらに境界が必要な場合
+    ],
+  },
+}
+```
+
+`local_scope` は adapter call body を `LocalPushId` で囲むことを表す。
+`AddId` result boundary は、adapter の実行結果として得た effective thunk / effectful result に
+blocked effect id を付与することを表す。返り値自体が関数値で、その関数値にも hygiene が必要な
+場合は、result boundary に nested `FunctionAdapter` を持たせる。
+
+これにより、`(A -> [e] B)` の関数値をさらに別の高階関数へ渡しても、必要な hygiene boundary は
+adapter と一緒に値として運ばれる。runtime lower は adapter に書かれた plan を実行表現へ落とすだけで、
+関数型や呼び出し spine から `LocalPushId` / `AddId` を推測してはならない。
+
 ## 型クラス impl と impl member demand
 
 型クラス参照には二種類ある。
