@@ -381,11 +381,20 @@ impl<'a> ErasedExporter<'a> {
                         .map(|payload| Box::new(self.export_pat(payload))),
                 }
             }
-            PatKind::UnresolvedName(name) => erased::Pattern::UnresolvedName(export_name(name)),
+            PatKind::UnresolvedName(name) => self
+                .state
+                .ctx
+                .resolve_bound_value(name)
+                .map(export_def_id)
+                .map(erased::Pattern::Bind)
+                .unwrap_or_else(|| erased::Pattern::UnresolvedName(export_name(name))),
             PatKind::Or(lhs, rhs) => erased::Pattern::Or {
                 left: Box::new(self.export_pat(lhs)),
                 right: Box::new(self.export_pat(rhs)),
             },
+            PatKind::As(pattern, def) if matches!(pattern.kind, PatKind::Wild) => {
+                erased::Pattern::Bind(export_def_id(*def))
+            }
             PatKind::As(pattern, def) => erased::Pattern::As {
                 pattern: Box::new(self.export_pat(pattern)),
                 def: export_def_id(*def),
@@ -1009,6 +1018,35 @@ mod tests {
         assert!(
             id.scheme.typeclass_obligations.is_empty(),
             "direct generic id has no typeclass obligations"
+        );
+    }
+
+    #[test]
+    fn erased_export_uses_bind_pattern_for_direct_let() {
+        let mut state = parse_and_lower("my id = { my x = 1\nx }\n");
+        let exported = export_erased_program(&mut state).erased;
+        let id = exported
+            .module
+            .bindings
+            .iter()
+            .find(|binding| {
+                binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "id")
+            })
+            .expect("id binding");
+        let erased::ErasedExpr::Block(block) = &id.body.ir else {
+            panic!("id body should export as a block: {:?}", id.body.ir);
+        };
+        let Some(erased::ErasedStmt::Let { pattern, .. }) = block.stmts.first() else {
+            panic!("block should start with a let statement: {:?}", block.stmts);
+        };
+
+        assert!(
+            matches!(pattern, erased::Pattern::Bind(_)),
+            "direct let binder should keep DefId identity, got {pattern:?}",
         );
     }
 
