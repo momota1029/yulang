@@ -14,6 +14,13 @@ compact 化された型などを monomorphize が覗くと、後段が infer の
 その場合、注釈で一度開いた効果行や、body 側にだけ残った具体型が、単相化の根拠として
 使われたり使われなかったりする。
 
+実装上は、既存 `yulang-monomorphize` をそのまま入口差し替えで流用しない。
+typed IR / apply evidence 前提の処理を残したまま `InferExport` を受ける形にすると、
+境界だけ新しく見えて中身が旧 evidence に戻る。新しい後段 crate を切り、
+作業名を `Elaborate`、crate 名候補を `yulang-elaborate` とする。
+この crate は principal scheme、erased IR、ref table だけから単相化需要、参照解決、
+cast adapter 挿入を作る責務を持つ。
+
 monomorphize の入力として信用してよい型情報は、次の五つだけである。
 
 1. 各定義の主型
