@@ -9,3 +9,6 @@ readme = "../../README.md"
 
 [dependencies]
 yulang-erased-ir = { version = "0.1.0", path = "../yulang-erased-ir" }
+
+[dev-dependencies]
+yulang-infer = { version = "0.1.6", path = "../yulang-infer" }

@@ -2164,6 +2164,7 @@ name = "yulang-elaborate"
 version = "0.1.0"
 dependencies = [
  "yulang-erased-ir",
+ "yulang-infer",
 ]
 
 [[package]]
