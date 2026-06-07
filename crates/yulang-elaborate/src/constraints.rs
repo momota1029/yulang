@@ -835,7 +835,10 @@ impl ConstraintSolver {
         slot: DraftComputationId,
         computation: MonoComputation,
     ) -> Result<(), ConstraintError> {
-        if matches!(computation.value, MonoType::EffectiveThunk(_)) {
+        if matches!(
+            computation.value,
+            MonoType::Function(_) | MonoType::EffectiveThunk(_)
+        ) {
             return self.add_explicit_computation(slot, computation);
         }
         self.add_exact_computation(slot, computation)?;
@@ -1919,10 +1922,12 @@ fn type_mentions_var_name(ty: &Type, target: &str) -> bool {
 fn value_type(slot: DraftComputationId, typ: &MonoType) -> Result<Type, ConstraintError> {
     match typ {
         MonoType::Value(value) => Ok(value.as_type().clone()),
-        MonoType::EffectiveThunk(_) => Err(ConstraintError::ExpectedValue {
-            slot: slot.into(),
-            found: typ.clone(),
-        }),
+        MonoType::Function(_) | MonoType::EffectiveThunk(_) => {
+            Err(ConstraintError::ExpectedValue {
+                slot: slot.into(),
+                found: typ.clone(),
+            })
+        }
     }
 }
 
@@ -2146,10 +2151,12 @@ fn concrete_type(
 fn mono_type_to_type(slot: DraftComputationId, typ: &MonoType) -> Result<Type, ConstraintError> {
     match typ {
         MonoType::Value(value) => Ok(value.as_type().clone()),
-        MonoType::EffectiveThunk(_) => Err(ConstraintError::ExpectedValue {
-            slot: slot.into(),
-            found: typ.clone(),
-        }),
+        MonoType::Function(_) | MonoType::EffectiveThunk(_) => {
+            Err(ConstraintError::ExpectedValue {
+                slot: slot.into(),
+                found: typ.clone(),
+            })
+        }
     }
 }
 

@@ -398,6 +398,18 @@ ForceThunk {
 関数 cast を呼び出し先に押し付けないのと同様に、thunk を開く責務も、producer-consumer の
 型差が確定した場所で elaborated IR に明示する。
 
+関数値の concrete 型は、runtime shape へ読む段階で effect field を parameter / return の
+effective-thunk に畳む。
+
+```text
+a [b] -> [c] d
+  ~~>
+thunk[b, a] -> thunk[c, d]
+```
+
+`a` や `d` がさらに関数型の場合も、この変換を再帰的に適用する。つまり、高階関数を値として
+渡す場合でも、必要な thunk boundary は関数値の型と一緒に移動できる。
+
 effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。
 
 旧 runtime IR の `LocalPushId` / `AddId` は、型上の値 cast ではなく、effect request と

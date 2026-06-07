@@ -86,7 +86,30 @@ pub struct MonoComputation {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MonoType {
     Value(ConcreteType),
+    Function(Box<FunctionBoundary>),
     EffectiveThunk(EffectiveThunkType),
+}
+
+impl MonoType {
+    pub fn from_concrete_value_type(ty: ConcreteType) -> Result<Self, MonoTypeConversionError> {
+        if matches!(ty.as_type(), Type::Fun { .. }) {
+            return Ok(Self::Function(Box::new(
+                FunctionBoundary::thunked_from_concrete_function_type(&ty)?,
+            )));
+        }
+        Ok(Self::Value(ty))
+    }
+
+    pub fn try_from_type(ty: Type) -> Result<Self, MonoTypeConversionError> {
+        Self::from_concrete_value_type(ConcreteType::try_from_type(ty)?)
+    }
+
+    pub fn effective_thunk(effect: MonoEffect, value: Self) -> Self {
+        Self::EffectiveThunk(EffectiveThunkType {
+            effect,
+            value: Box::new(value),
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -103,6 +126,14 @@ pub struct MonoEffect {
 impl MonoEffect {
     pub fn new(row: ConcreteType) -> Self {
         Self { row }
+    }
+
+    pub fn pure() -> Self {
+        Self::new(ConcreteType::try_from_type(Type::Never).expect("Never is concrete"))
+    }
+
+    pub fn try_from_type(row: Type) -> Result<Self, ConcreteTypeError> {
+        ConcreteType::try_from_type(row).map(Self::new)
     }
 
     pub fn row(&self) -> &ConcreteType {
@@ -141,6 +172,18 @@ pub enum ConcreteTypeError {
     FreeVar(TypeVar),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MonoTypeConversionError {
+    NonConcrete(ConcreteTypeError),
+    ExpectedFunction { found: Type },
+}
+
+impl From<ConcreteTypeError> for MonoTypeConversionError {
+    fn from(error: ConcreteTypeError) -> Self {
+        Self::NonConcrete(error)
+    }
+}
+
 impl fmt::Display for ConcreteTypeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -151,6 +194,19 @@ impl fmt::Display for ConcreteTypeError {
 }
 
 impl std::error::Error for ConcreteTypeError {}
+
+impl fmt::Display for MonoTypeConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonConcrete(error) => write!(f, "{error}"),
+            Self::ExpectedFunction { found } => {
+                write!(f, "expected concrete function type, found {found:?}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for MonoTypeConversionError {}
 
 impl<'de> Deserialize<'de> for ConcreteType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -266,12 +322,46 @@ pub struct FunctionAdapter {
     pub call: FunctionAdapterCall,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionBoundary {
     pub param: MonoType,
     pub param_effect: MonoEffect,
     pub ret_effect: MonoEffect,
     pub ret: MonoType,
+}
+
+impl FunctionBoundary {
+    pub fn thunked_from_concrete_function_type(
+        function: &ConcreteType,
+    ) -> Result<Self, MonoTypeConversionError> {
+        let Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } = function.as_type()
+        else {
+            return Err(MonoTypeConversionError::ExpectedFunction {
+                found: function.as_type().clone(),
+            });
+        };
+        let param_effect = MonoEffect::try_from_type((**param_effect).clone())?;
+        let ret_effect = MonoEffect::try_from_type((**ret_effect).clone())?;
+        let param =
+            MonoType::effective_thunk(param_effect, MonoType::try_from_type((**param).clone())?);
+        let ret = MonoType::effective_thunk(ret_effect, MonoType::try_from_type((**ret).clone())?);
+        Ok(Self {
+            param,
+            param_effect: MonoEffect::pure(),
+            ret_effect: MonoEffect::pure(),
+            ret,
+        })
+    }
+
+    pub fn thunked_from_type(ty: Type) -> Result<Self, MonoTypeConversionError> {
+        let concrete = ConcreteType::try_from_type(ty)?;
+        Self::thunked_from_concrete_function_type(&concrete)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -817,6 +907,58 @@ mod tests {
     }
 
     #[test]
+    fn mono_type_conversion_lifts_function_effects_into_thunks() {
+        let function = Type::Fun {
+            param: Box::new(named_type("int")),
+            param_effect: Box::new(named_type("read")),
+            ret_effect: Box::new(named_type("write")),
+            ret: Box::new(named_type("bool")),
+        };
+
+        let mono = MonoType::try_from_type(function).expect("function type is concrete");
+
+        let MonoType::Function(boundary) = mono else {
+            panic!("function type should become a function-shaped MonoType");
+        };
+        assert_eq!(boundary.param_effect, MonoEffect::pure());
+        assert_eq!(boundary.ret_effect, MonoEffect::pure());
+        assert_effective_thunk(&boundary.param, "read", "int");
+        assert_effective_thunk(&boundary.ret, "write", "bool");
+    }
+
+    #[test]
+    fn mono_type_conversion_preserves_higher_order_function_shapes() {
+        let inner = Type::Fun {
+            param: Box::new(named_type("int")),
+            param_effect: Box::new(named_type("read")),
+            ret_effect: Box::new(named_type("write")),
+            ret: Box::new(named_type("bool")),
+        };
+        let outer = Type::Fun {
+            param: Box::new(inner.clone()),
+            param_effect: Box::new(named_type("capture")),
+            ret_effect: Box::new(named_type("yield")),
+            ret: Box::new(inner),
+        };
+
+        let mono = MonoType::try_from_type(outer).expect("higher-order function is concrete");
+
+        let MonoType::Function(boundary) = mono else {
+            panic!("outer function should become a function-shaped MonoType");
+        };
+        let MonoType::EffectiveThunk(param) = &boundary.param else {
+            panic!("outer parameter should be an effective thunk");
+        };
+        assert_eq!(param.effect, MonoEffect::new(named_value_type("capture")));
+        assert!(matches!(param.value.as_ref(), MonoType::Function(_)));
+        let MonoType::EffectiveThunk(ret) = &boundary.ret else {
+            panic!("outer return should be an effective thunk");
+        };
+        assert_eq!(ret.effect, MonoEffect::new(named_value_type("yield")));
+        assert!(matches!(ret.value.as_ref(), MonoType::Function(_)));
+    }
+
+    #[test]
     fn function_adapter_carries_hygiene_plan_for_first_class_function_values() {
         let int = MonoType::Value(named_value_type("int"));
         let io = MonoEffect::new(named_value_type("io"));
@@ -921,6 +1063,24 @@ mod tests {
         .expect("named type is concrete")
     }
 
+    fn named_type(name: &str) -> Type {
+        Type::Named {
+            path: Path::from_name(Name(name.to_string())),
+            args: Vec::new(),
+        }
+    }
+
+    fn assert_effective_thunk(typ: &MonoType, effect: &str, value: &str) {
+        let MonoType::EffectiveThunk(thunk) = typ else {
+            panic!("expected effective thunk");
+        };
+        assert_eq!(thunk.effect, MonoEffect::new(named_value_type(effect)));
+        assert_eq!(
+            thunk.value.as_ref(),
+            &MonoType::Value(named_value_type(value))
+        );
+    }
+
     fn function_type(boundary: &FunctionBoundary) -> ConcreteType {
         ConcreteType::try_from_type(Type::Fun {
             param: Box::new(boundary_value_type(&boundary.param)),
@@ -934,6 +1094,7 @@ mod tests {
     fn boundary_value_type(typ: &MonoType) -> Type {
         match typ {
             MonoType::Value(value) => value.as_type().clone(),
+            MonoType::Function(_) => panic!("test helper only builds core function types"),
             MonoType::EffectiveThunk(_) => panic!("test helper only builds value function types"),
         }
     }
