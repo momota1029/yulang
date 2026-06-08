@@ -4,7 +4,7 @@
 use rowan::{GreenNode, NodeOrToken, SyntaxNode};
 use std::collections::HashMap;
 use yulang_parser::lex::SyntaxKind;
-use yulang_parser::op::{standard_op_table, BpVec, OpDef, OpTable};
+use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
 use yulang_parser::sink::YulangLanguage;
 
 // ── 基礎型（旧 typed-ir から写経。realm/band バージョンは後で足す）─────────────
@@ -38,6 +38,47 @@ pub struct UseDecl {
     pub import: UseImport,
 }
 
+/// 外部 module ファイルを読むきっかけになる構文。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModuleLoadKind {
+    /// `mod foo;`
+    ModDecl,
+    /// `use mod foo::bar`
+    UseMod,
+}
+
+/// header 先読みで取れる module load directive。
+///
+/// header は `use` / `op` だけを先読みする入口なので、ここには `use mod foo::...`
+/// の先頭 module 名だけを残す。`mod foo;` はフルパース後の
+/// [`module_load_requests`] で拾う。実際の親 module path は
+/// `LoadedFile::module_loads` 側で付く。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleLoadDirective {
+    pub name: Name,
+    pub kind: ModuleLoadKind,
+}
+
+/// 外部 module ファイルを読む要求。
+///
+/// `parent` はこの要求が現れた inline module の path、`name` はその直下に生える子 module 名。
+/// たとえば root module 内の `mod foo;` は `parent = []`, `name = foo`。
+/// `mod outer: mod inner;` は `parent = [outer]`, `name = inner`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleLoadRequest {
+    pub parent: Path,
+    pub name: Name,
+    pub kind: ModuleLoadKind,
+}
+
+impl ModuleLoadRequest {
+    pub fn module_path(&self) -> Path {
+        let mut segments = self.parent.segments.clone();
+        segments.push(self.name.clone());
+        Path { segments }
+    }
+}
+
 /// ファイル先頭で宣言された演算子（他ファイルへの export 候補）。
 #[derive(Debug, Clone)]
 pub struct OpExport {
@@ -51,6 +92,7 @@ pub struct OpExport {
 pub struct Header {
     pub uses: Vec<UseDecl>,
     pub ops: Vec<OpExport>,
+    pub module_loads: Vec<ModuleLoadDirective>,
 }
 
 // ── 先読み ──────────────────────────────────────────────────────────────
@@ -68,6 +110,12 @@ pub fn read_header(source: &str) -> Header {
                 for import in use_imports(&node) {
                     header.uses.push(UseDecl { visibility, import });
                 }
+                if let Some(name) = use_mod_load_name(&node) {
+                    header.module_loads.push(ModuleLoadDirective {
+                        name,
+                        kind: ModuleLoadKind::UseMod,
+                    });
+                }
             }
             SyntaxKind::OpDef => {
                 if let Some(op) = op_export(&node) {
@@ -78,6 +126,23 @@ pub fn read_header(source: &str) -> Header {
         }
     }
     header
+}
+
+/// フルパース済み module CST から、外部 module load request を集める。
+///
+/// `mod foo;` と `use mod foo::bar` だけが request を出す。
+///
+/// plain `use foo::bar` は既に存在する module namespace の参照なので、ファイル読み込み
+/// 要求にはしない。`use realm/band::module` 系は manifest / lock に基づく source
+/// dependency import と通常の `use` の合成なので、local module tree を育てる
+/// [`ModuleLoadRequest`] とは別の request として扱う。
+pub fn module_load_requests(
+    module_path: &Path,
+    root: &SyntaxNode<YulangLanguage>,
+) -> Vec<ModuleLoadRequest> {
+    let mut out = Vec::new();
+    collect_module_load_requests(root, module_path, &mut out);
+    out
 }
 
 // ── use 抽出（旧 use_decl_imports の最小版。realm/anchor/without/group は後で）──
@@ -116,6 +181,72 @@ pub fn use_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
     }
     push_alias_import(&mut imports, path, alias);
     imports
+}
+
+fn collect_module_load_requests(
+    block: &SyntaxNode<YulangLanguage>,
+    module_path: &Path,
+    out: &mut Vec<ModuleLoadRequest>,
+) {
+    for node in block.children() {
+        match node.kind() {
+            SyntaxKind::UseDecl => {
+                if let Some(name) = use_mod_load_name(&node) {
+                    out.push(ModuleLoadRequest {
+                        parent: module_path.clone(),
+                        name,
+                        kind: ModuleLoadKind::UseMod,
+                    });
+                }
+            }
+            SyntaxKind::ModDecl => collect_mod_load_request(&node, module_path, out),
+            _ => {}
+        }
+    }
+}
+
+fn collect_mod_load_request(
+    node: &SyntaxNode<YulangLanguage>,
+    module_path: &Path,
+    out: &mut Vec<ModuleLoadRequest>,
+) {
+    let Some(name) = direct_token_text(node, SyntaxKind::Ident).map(Name) else {
+        return;
+    };
+    if has_direct_token(node, SyntaxKind::Semicolon) {
+        out.push(ModuleLoadRequest {
+            parent: module_path.clone(),
+            name,
+            kind: ModuleLoadKind::ModDecl,
+        });
+        return;
+    }
+
+    let mut child_path = module_path.clone();
+    child_path.segments.push(name);
+    for child in node.children() {
+        if matches!(
+            child.kind(),
+            SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+        ) {
+            collect_module_load_requests(&child, &child_path, out);
+        }
+    }
+}
+
+fn use_mod_load_name(node: &SyntaxNode<YulangLanguage>) -> Option<Name> {
+    let mut after_mod = false;
+    for item in node.children_with_tokens() {
+        let NodeOrToken::Token(tok) = item else {
+            continue;
+        };
+        match tok.kind() {
+            SyntaxKind::Mod => after_mod = true,
+            SyntaxKind::Ident if after_mod => return Some(Name(tok.text().to_string())),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn push_alias_import(imports: &mut Vec<UseImport>, path: Vec<Name>, alias: Option<Name>) {
@@ -215,6 +346,11 @@ fn direct_token_text(node: &SyntaxNode<YulangLanguage>, kind: SyntaxKind) -> Opt
     })
 }
 
+fn has_direct_token(node: &SyntaxNode<YulangLanguage>, kind: SyntaxKind) -> bool {
+    node.children_with_tokens()
+        .any(|item| matches!(item, NodeOrToken::Token(tok) if tok.kind() == kind))
+}
+
 // ── 複数ファイルの読み込み ──────────────────────────────────────────────
 // 依存解決 → 実効 export op の不動点 → ファイル別初期テーブル → フルパース。
 // 全段階が順序無関係（先読み独立／不動点収束／フルパース独立）＝SCC は不要。
@@ -230,6 +366,8 @@ pub struct LoadedFile {
     pub module_path: Path,
     pub source: String,
     pub header: Header,
+    /// `mod foo;` と `use mod foo::bar` から出た外部 module load request。
+    pub module_loads: Vec<ModuleLoadRequest>,
     /// このファイルを打つのに使った op テーブル（standard + 輸入 op）。
     pub op_table: OpTable,
     pub cst: GreenNode,
@@ -305,10 +443,13 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
             }
         }
         let cst = yulang_parser::parse_module_to_green_with_ops(&file.source, table.clone());
+        let root = SyntaxNode::<YulangLanguage>::new_root(cst.clone());
+        let module_loads = module_load_requests(&file.module_path, &root);
         loaded.push(LoadedFile {
             module_path: file.module_path,
             source: file.source,
             header,
+            module_loads,
             op_table: table,
             cst,
         });
@@ -420,10 +561,92 @@ mod tests {
         assert!(header.ops[0].op.infix.is_some());
     }
 
+    #[test]
+    fn read_header_tracks_use_mod_load_directive() {
+        let source = "use mod math::*\nmy main = 1\n";
+        let header = read_header(source);
+
+        assert_eq!(
+            header.module_loads,
+            vec![ModuleLoadDirective {
+                name: Name("math".into()),
+                kind: ModuleLoadKind::UseMod,
+            }]
+        );
+        assert!(
+            matches!(
+                &header.uses[0].import,
+                UseImport::Glob { prefix }
+                    if prefix.segments == vec![Name("math".into())]
+            ),
+            "use mod should still behave as a normal use import: {:?}",
+            header.uses[0]
+        );
+    }
+
     fn path(segments: &[&str]) -> Path {
         Path {
             segments: segments.iter().map(|s| Name(s.to_string())).collect(),
         }
+    }
+
+    fn module_cst(source: &str) -> SyntaxNode<YulangLanguage> {
+        SyntaxNode::new_root(yulang_parser::parse_module_to_green(source))
+    }
+
+    #[test]
+    fn module_load_requests_track_external_mod_and_use_mod_only() {
+        let root =
+            module_cst("mod foo;\nuse mod bar::*\nuse baz::qux\nuse repo/realm/band::module\n");
+        let requests = module_load_requests(&path(&["root"]), &root);
+
+        assert_eq!(
+            requests,
+            vec![
+                ModuleLoadRequest {
+                    parent: path(&["root"]),
+                    name: Name("foo".into()),
+                    kind: ModuleLoadKind::ModDecl,
+                },
+                ModuleLoadRequest {
+                    parent: path(&["root"]),
+                    name: Name("bar".into()),
+                    kind: ModuleLoadKind::UseMod,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn module_load_requests_recurse_into_inline_modules() {
+        let root = module_cst("mod outer:\n  mod inner;\nmod inline:\n  my x = 1\n");
+        let requests = module_load_requests(&path(&["root"]), &root);
+
+        assert_eq!(
+            requests,
+            vec![ModuleLoadRequest {
+                parent: path(&["root", "outer"]),
+                name: Name("inner".into()),
+                kind: ModuleLoadKind::ModDecl,
+            }]
+        );
+    }
+
+    #[test]
+    fn load_attaches_module_load_requests_to_loaded_file() {
+        let loaded = load(vec![SourceFile {
+            module_path: path(&["root"]),
+            source: "mod foo;\nuse mod bar::*\nmy x = 1\n".into(),
+        }]);
+
+        assert_eq!(
+            loaded[0]
+                .module_loads
+                .iter()
+                .map(ModuleLoadRequest::module_path)
+                .collect::<Vec<_>>(),
+            vec![path(&["root", "foo"]), path(&["root", "bar"])]
+        );
     }
 
     #[test]
