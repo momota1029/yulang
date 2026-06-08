@@ -128,14 +128,16 @@ impl ConstraintMachine {
         match work {
             ConstraintWork::Subtype(constraint) => self.step_subtype(constraint),
             ConstraintWork::SubtractFact(fact) => {
-                let id = fact.fact.id;
-                if self.subtracts.record(fact.effect, fact.fact) {
-                    self.events.push(ConstraintEvent::SubtractFactAdded {
-                        effect: fact.effect,
-                        id,
-                    });
-                }
+                self.record_subtract_fact(fact.effect, fact.fact);
             }
+        }
+    }
+
+    fn record_subtract_fact(&mut self, effect: TypeVar, fact: SubtractFact) {
+        let id = fact.id;
+        if self.subtracts.record(effect, fact) {
+            self.events
+                .push(ConstraintEvent::SubtractFactAdded { effect, id });
         }
     }
 
@@ -159,6 +161,9 @@ impl ConstraintMachine {
             (Pos::Var(source), Neg::Var(target)) => {
                 self.add_lower_bound(target, constraint.lower, constraint.weights.clone());
                 self.add_upper_bound(source, constraint.upper, constraint.weights);
+            }
+            (Pos::Var(source), Neg::Row(items, tail)) => {
+                self.add_effect_row_upper_bound(source, items, tail, constraint.weights);
             }
             (Pos::Var(source), _) => {
                 self.add_upper_bound(source, constraint.upper, constraint.weights);
@@ -502,6 +507,74 @@ impl ConstraintMachine {
             (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
             _ => self.enqueue_subtype(lower, weights, upper),
         }
+    }
+
+    fn add_effect_row_upper_bound(
+        &mut self,
+        source: TypeVar,
+        items: Vec<NegId>,
+        tail: NegId,
+        weights: ConstraintWeights,
+    ) {
+        let Neg::Var(tail_var) = self.types.neg(tail).clone() else {
+            let row = self.alloc_neg(Neg::Row(items, tail));
+            self.add_upper_bound(source, row, weights);
+            return;
+        };
+
+        let active_facts = self.active_subtract_facts(source, &weights.left);
+        let mut retained_items = items;
+        for fact in &active_facts {
+            retained_items = self
+                .intersect_row_items_with_subtractability(retained_items, &fact.subtractability);
+        }
+
+        for fact in active_facts {
+            self.record_subtract_fact(tail_var, fact);
+        }
+
+        if retained_items.is_empty() {
+            self.add_upper_bound(source, tail, weights);
+        } else {
+            let row = self.alloc_neg(Neg::Row(retained_items, tail));
+            self.add_upper_bound(source, row, weights);
+        }
+    }
+
+    fn active_subtract_facts(
+        &self,
+        var: TypeVar,
+        cancelled: &ConstraintWeight,
+    ) -> Vec<SubtractFact> {
+        self.subtracts
+            .facts(var)
+            .iter()
+            .filter(|fact| !cancelled.contains(fact.id))
+            .cloned()
+            .collect()
+    }
+
+    fn intersect_row_items_with_subtractability(
+        &self,
+        items: Vec<NegId>,
+        subtractability: &Subtractability,
+    ) -> Vec<NegId> {
+        match subtractability {
+            Subtractability::All => items,
+            Subtractability::Empty => Vec::new(),
+            Subtractability::Set(path, _) => items
+                .into_iter()
+                .filter(|item| self.neg_effect_family_matches(*item, path))
+                .collect(),
+            Subtractability::AllExcept(path, _) => items
+                .into_iter()
+                .filter(|item| !self.neg_effect_family_matches(*item, path))
+                .collect(),
+        }
+    }
+
+    fn neg_effect_family_matches(&self, item: NegId, path: &[String]) -> bool {
+        matches!(self.types.neg(item), Neg::Con(item_path, _) if item_path == path)
     }
 
     fn add_lower_bound(&mut self, target: TypeVar, pos: PosId, weights: ConstraintWeights) {
@@ -1487,6 +1560,241 @@ mod tests {
             upper: upper_tail,
             weights: ConstraintWeights::empty(),
         }));
+    }
+
+    #[test]
+    fn pos_row_variable_items_use_subtractable_row_upper_processing() {
+        let mut machine = ConstraintMachine::new();
+        let row_var = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        machine.subtract_fact(
+            row_var,
+            subtract,
+            Subtractability::Set(vec!["io".into()], Vec::new()),
+        );
+        machine.take_events();
+        let row_var_pos = machine.alloc_pos(Pos::Var(row_var));
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Row(vec![row_var_pos]));
+        let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
+        let expected_row_var_upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+
+        machine.subtype(lower, upper);
+
+        let bounds = machine.bounds().of(row_var).expect("row var bounds");
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound {
+                neg: expected_row_var_upper,
+                weights: ConstraintWeights::empty()
+            }]
+        );
+        assert_eq!(
+            machine.subtracts().facts(tail_var),
+            &[SubtractFact {
+                id: subtract,
+                subtractability: Subtractability::Set(vec!["io".into()], Vec::new())
+            }]
+        );
+    }
+
+    #[test]
+    fn pos_row_concrete_effect_items_compare_matching_payloads() {
+        let mut machine = ConstraintMachine::new();
+        let lower_payload_var = TypeVar(10);
+        let upper_payload_var = TypeVar(11);
+        let lower_payload_lower =
+            machine.alloc_pos(Pos::Con(vec!["lower_payload_lower".into()], vec![]));
+        let lower_payload_upper =
+            machine.alloc_neg(Neg::Con(vec!["lower_payload_upper".into()], vec![]));
+        let lower_payload = machine.alloc_neu(Neu::Bounds(
+            lower_payload_lower,
+            lower_payload_var,
+            lower_payload_upper,
+        ));
+        let upper_payload_lower =
+            machine.alloc_pos(Pos::Con(vec!["upper_payload_lower".into()], vec![]));
+        let upper_payload_upper =
+            machine.alloc_neg(Neg::Con(vec!["upper_payload_upper".into()], vec![]));
+        let upper_payload = machine.alloc_neu(Neu::Bounds(
+            upper_payload_lower,
+            upper_payload_var,
+            upper_payload_upper,
+        ));
+        let lower_item =
+            machine.alloc_pos(Pos::Con(vec!["ref_update".into()], vec![lower_payload]));
+        let upper_item =
+            machine.alloc_neg(Neg::Con(vec!["ref_update".into()], vec![upper_payload]));
+        let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(12)));
+        let lower = machine.alloc_pos(Pos::Row(vec![lower_item]));
+        let upper = machine.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
+
+        machine.subtype(lower, upper);
+
+        let lower_payload_var_pos = machine.alloc_pos(Pos::Var(lower_payload_var));
+        let lower_payload_union =
+            machine.alloc_pos(Pos::Union(lower_payload_lower, lower_payload_var_pos));
+        let upper_payload_var_neg = machine.alloc_neg(Neg::Var(upper_payload_var));
+        let upper_payload_intersection = machine.alloc_neg(Neg::Intersection(
+            upper_payload_var_neg,
+            upper_payload_upper,
+        ));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: lower_payload_union,
+            upper: upper_payload_intersection,
+            weights: ConstraintWeights::empty(),
+        }));
+        assert!(!machine.seen.contains(&SubtypeConstraint {
+            lower: lower_item,
+            upper: upper_tail,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_filters_items_by_active_subtract_facts() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        machine.subtract_fact(
+            source,
+            subtract,
+            Subtractability::Set(vec!["io".into()], Vec::new()),
+        );
+        machine.take_events();
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
+        let expected_upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+
+        machine.subtype(lower, upper);
+
+        let bounds = machine.bounds().of(source).expect("source bounds");
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound {
+                neg: expected_upper,
+                weights: ConstraintWeights::empty()
+            }]
+        );
+        assert_eq!(
+            machine.subtracts().facts(tail_var),
+            &[SubtractFact {
+                id: subtract,
+                subtractability: Subtractability::Set(vec!["io".into()], Vec::new())
+            }]
+        );
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_ignores_subtract_facts_cancelled_by_left_weight() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        machine.subtract_fact(
+            source,
+            subtract,
+            Subtractability::Set(vec!["io".into()], Vec::new()),
+        );
+        machine.take_events();
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
+        let weights = ConstraintWeights {
+            left: ConstraintWeight::from_ids([subtract]),
+            right: ConstraintWeight::empty(),
+        };
+
+        machine.weighted_subtype(lower, weights.clone(), upper);
+
+        let bounds = machine.bounds().of(source).expect("source bounds");
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound {
+                neg: upper,
+                weights
+            }]
+        );
+        assert!(machine.subtracts().facts(tail_var).is_empty());
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_stores_tail_when_subtract_intersection_is_empty() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        machine.subtract_fact(source, subtract, Subtractability::Empty);
+        machine.take_events();
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+
+        machine.subtype(lower, upper);
+
+        let bounds = machine.bounds().of(source).expect("source bounds");
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound {
+                neg: tail,
+                weights: ConstraintWeights::empty()
+            }]
+        );
+        assert_eq!(
+            machine.subtracts().facts(tail_var),
+            &[SubtractFact {
+                id: subtract,
+                subtractability: Subtractability::Empty
+            }]
+        );
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_removes_all_except_excluded_effect_family() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        machine.subtract_fact(
+            source,
+            subtract,
+            Subtractability::AllExcept(vec!["io".into()], Vec::new()),
+        );
+        machine.take_events();
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
+        let expected_upper = machine.alloc_neg(Neg::Row(vec![nondet], tail));
+
+        machine.subtype(lower, upper);
+
+        let bounds = machine.bounds().of(source).expect("source bounds");
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound {
+                neg: expected_upper,
+                weights: ConstraintWeights::empty()
+            }]
+        );
+        assert_eq!(
+            machine.subtracts().facts(tail_var),
+            &[SubtractFact {
+                id: subtract,
+                subtractability: Subtractability::AllExcept(vec!["io".into()], Vec::new())
+            }]
+        );
     }
 
     #[test]
