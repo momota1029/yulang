@@ -7,6 +7,7 @@
 use std::collections::VecDeque;
 
 use poly::expr::{Arena as PolyArena, DefId, RefId, SelectId, SelectResolution};
+use poly::types::{Neg, Pos, TypeVar};
 
 use crate::arena::Arena as InferArena;
 use crate::constraints::ConstraintEvent;
@@ -24,6 +25,7 @@ pub struct AnalysisSession {
     pub refs: RefUseTable,
     pub selections: SelectionUseTable,
     pub scc: SccMachine,
+    scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
 }
 
@@ -35,6 +37,7 @@ impl AnalysisSession {
             refs: RefUseTable::new(),
             selections: SelectionUseTable::new(),
             scc: SccMachine::new(),
+            scc_events: Vec::new(),
             work: VecDeque::new(),
         }
     }
@@ -75,7 +78,8 @@ impl AnalysisSession {
     }
 
     pub fn take_scc_events(&mut self) -> Vec<SccEvent> {
-        self.scc.take_events()
+        self.route_scc_events();
+        std::mem::take(&mut self.scc_events)
     }
 
     fn apply_work(&mut self, work: AnalysisWork) {
@@ -116,6 +120,33 @@ impl AnalysisSession {
             }
             AnalysisWork::Scc(input) => self.scc.apply(input),
         }
+        self.route_scc_events();
+    }
+
+    fn route_scc_events(&mut self) {
+        for event in self.scc.take_events() {
+            match event {
+                SccEvent::OpenUse {
+                    target,
+                    target_root,
+                    use_value,
+                } => {
+                    self.constrain_open_use(target_root, use_value);
+                    self.scc_events.push(SccEvent::OpenUse {
+                        target,
+                        target_root,
+                        use_value,
+                    });
+                }
+                other => self.scc_events.push(other),
+            }
+        }
+    }
+
+    fn constrain_open_use(&mut self, target_root: TypeVar, use_value: TypeVar) {
+        let target_pos = self.infer.alloc_pos(Pos::Var(target_root));
+        let use_neg = self.infer.alloc_neg(Neg::Var(use_value));
+        self.infer.subtype(target_pos, use_neg);
     }
 }
 
@@ -266,5 +297,71 @@ mod tests {
                 to: vec![method]
             }]
         );
+    }
+
+    #[test]
+    fn open_scc_use_adds_target_to_use_constraint() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let a = DefId(1);
+        let b = DefId(2);
+        let a_root = TypeVar(10);
+        let b_root = TypeVar(20);
+        let a_to_b_use = TypeVar(12);
+        let b_to_a_use = TypeVar(21);
+        let a_to_b_ref = session.poly.add_ref();
+        let b_to_a_ref = session.poly.add_ref();
+        session.refs.insert(
+            a_to_b_ref,
+            RefUse {
+                parent: a,
+                value: a_to_b_use,
+            },
+        );
+        session.refs.insert(
+            b_to_a_ref,
+            RefUse {
+                parent: b,
+                value: b_to_a_use,
+            },
+        );
+
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: a,
+            root: a_root,
+        }));
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: b,
+            root: b_root,
+        }));
+        session.enqueue(AnalysisWork::ApplyRefResolution {
+            ref_id: a_to_b_ref,
+            target: b,
+        });
+        session.enqueue(AnalysisWork::ApplyRefResolution {
+            ref_id: b_to_a_ref,
+            target: a,
+        });
+        session.drain_work();
+
+        let b_root_pos = session.infer.alloc_pos(Pos::Var(b_root));
+        let a_to_b_neg = session.infer.alloc_neg(Neg::Var(a_to_b_use));
+        let bounds = session.infer.constraints().bounds();
+        let use_bounds = bounds.of(a_to_b_use).expect("use bounds");
+        assert!(use_bounds.lowers().iter().any(|bound| bound.pos == b_root_pos
+            && bound.weights == ConstraintWeights::empty()));
+        let target_bounds = bounds.of(b_root).expect("target root bounds");
+        assert!(target_bounds.uppers().iter().any(|bound| bound.neg == a_to_b_neg
+            && bound.weights == ConstraintWeights::empty()));
+
+        assert!(session.take_scc_events().iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::OpenUse {
+                    target,
+                    target_root,
+                    use_value,
+                } if *target == b && *target_root == b_root && *use_value == a_to_b_use
+            )
+        }));
     }
 }

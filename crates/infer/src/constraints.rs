@@ -10,7 +10,8 @@
 use std::collections::VecDeque;
 
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SubtractId, Subtractability, TypeArena,
+    TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -24,6 +25,7 @@ pub struct ConstraintMachine {
     queue: VecDeque<ConstraintWork>,
     bounds: TypeBounds,
     subtracts: SubtractTable,
+    levels: TypeLevels,
     seen: FxHashSet<SubtypeConstraint>,
     events: Vec<ConstraintEvent>,
 }
@@ -35,6 +37,7 @@ impl ConstraintMachine {
             queue: VecDeque::new(),
             bounds: TypeBounds::new(),
             subtracts: SubtractTable::new(),
+            levels: TypeLevels::new(),
             seen: FxHashSet::default(),
             events: Vec::new(),
         }
@@ -62,6 +65,14 @@ impl ConstraintMachine {
 
     pub fn subtracts(&self) -> &SubtractTable {
         &self.subtracts
+    }
+
+    pub fn register_type_var(&mut self, var: TypeVar, level: TypeLevel) {
+        self.levels.register(var, level);
+    }
+
+    pub fn level_of(&self, var: TypeVar) -> TypeLevel {
+        self.levels.level_of(var)
     }
 
     pub fn events(&self) -> &[ConstraintEvent] {
@@ -183,10 +194,30 @@ impl ConstraintMachine {
                 self.enqueue_subtype(ret_eff, constraint.weights.clone(), upper_ret_eff);
                 self.enqueue_subtype(ret, constraint.weights, upper_ret);
             }
+            (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args))
+                if lower_path == upper_path && lower_args.len() == upper_args.len() =>
+            {
+                self.enqueue_invariant_neu_args(lower_args, upper_args, constraint.weights);
+            }
+            (Pos::Record(lower_fields), Neg::Record(upper_fields)) => {
+                self.enqueue_record_fields(lower_fields, upper_fields, constraint.weights);
+            }
+            (Pos::RecordTailSpread { fields, tail }, Neg::Record(upper_fields)) => {
+                self.enqueue_record_tail_spread(fields, tail, upper_fields, constraint.weights);
+            }
+            (Pos::RecordHeadSpread { tail, fields }, Neg::Record(upper_fields)) => {
+                self.enqueue_record_head_spread(tail, fields, upper_fields, constraint.weights);
+            }
+            (Pos::PolyVariant(lower_items), Neg::PolyVariant(upper_items)) => {
+                self.enqueue_variant_items(lower_items, upper_items, constraint.weights);
+            }
             (Pos::Tuple(lowers), Neg::Tuple(uppers)) if lowers.len() == uppers.len() => {
                 for (lower, upper) in lowers.into_iter().zip(uppers) {
                     self.enqueue_subtype(lower, constraint.weights.clone(), upper);
                 }
+            }
+            (Pos::Row(items), Neg::Row(upper_items, upper_tail)) => {
+                self.enqueue_row_items(items, upper_items, upper_tail, constraint.weights);
             }
             (Pos::Union(left, right), _) => {
                 self.enqueue_subtype(left, constraint.weights.clone(), constraint.upper);
@@ -200,7 +231,281 @@ impl ConstraintMachine {
         }
     }
 
+    fn enqueue_invariant_neu_args(
+        &mut self,
+        lower_args: Vec<NeuId>,
+        upper_args: Vec<NeuId>,
+        weights: ConstraintWeights,
+    ) {
+        for (lower, upper) in lower_args.into_iter().zip(upper_args) {
+            self.enqueue_invariant_neu(lower, upper, weights.clone());
+        }
+    }
+
+    fn enqueue_invariant_neu(&mut self, lower: NeuId, upper: NeuId, weights: ConstraintWeights) {
+        let (lower_pos, lower_neg) = self.neu_bounds(lower);
+        let (upper_pos, upper_neg) = self.neu_bounds(upper);
+        self.enqueue_subtype(lower_pos, weights.clone(), upper_neg);
+        self.enqueue_subtype(upper_pos, weights.swapped(), lower_neg);
+    }
+
+    fn neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {
+        match self.types.neu(id).clone() {
+            Neu::Bounds(lower, var, upper) => {
+                let var_pos = self.alloc_pos(Pos::Var(var));
+                let var_neg = self.alloc_neg(Neg::Var(var));
+                (
+                    self.alloc_pos(Pos::Union(lower, var_pos)),
+                    self.alloc_neg(Neg::Intersection(var_neg, upper)),
+                )
+            }
+            Neu::Con(path, args) => (
+                self.alloc_pos(Pos::Con(path.clone(), args.clone())),
+                self.alloc_neg(Neg::Con(path, args)),
+            ),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let (arg_pos, arg_neg) = self.neu_bounds(arg);
+                let (arg_eff_pos, arg_eff_neg) = self.neu_bounds(arg_eff);
+                let (ret_eff_pos, ret_eff_neg) = self.neu_bounds(ret_eff);
+                let (ret_pos, ret_neg) = self.neu_bounds(ret);
+                (
+                    self.alloc_pos(Pos::Fun {
+                        arg: arg_neg,
+                        arg_eff: arg_eff_neg,
+                        ret_eff: ret_eff_pos,
+                        ret: ret_pos,
+                    }),
+                    self.alloc_neg(Neg::Fun {
+                        arg: arg_pos,
+                        arg_eff: arg_eff_pos,
+                        ret_eff: ret_eff_neg,
+                        ret: ret_neg,
+                    }),
+                )
+            }
+            Neu::Record(fields) => {
+                let (pos, neg) = self.neu_record_fields(fields);
+                (
+                    self.alloc_pos(Pos::Record(pos)),
+                    self.alloc_neg(Neg::Record(neg)),
+                )
+            }
+            Neu::PolyVariant(items) => {
+                let (pos, neg) = self.neu_variant_items(items);
+                (
+                    self.alloc_pos(Pos::PolyVariant(pos)),
+                    self.alloc_neg(Neg::PolyVariant(neg)),
+                )
+            }
+            Neu::Tuple(items) => {
+                let mut pos = Vec::with_capacity(items.len());
+                let mut neg = Vec::with_capacity(items.len());
+                for item in items {
+                    let (lower, upper) = self.neu_bounds(item);
+                    pos.push(lower);
+                    neg.push(upper);
+                }
+                (
+                    self.alloc_pos(Pos::Tuple(pos)),
+                    self.alloc_neg(Neg::Tuple(neg)),
+                )
+            }
+        }
+    }
+
+    fn neu_record_fields(
+        &mut self,
+        fields: Vec<RecordField<NeuId>>,
+    ) -> (Vec<RecordField<PosId>>, Vec<RecordField<NegId>>) {
+        let mut pos = Vec::with_capacity(fields.len());
+        let mut neg = Vec::with_capacity(fields.len());
+        for field in fields {
+            let (lower, upper) = self.neu_bounds(field.value);
+            pos.push(RecordField {
+                name: field.name.clone(),
+                value: lower,
+                optional: field.optional,
+            });
+            neg.push(RecordField {
+                name: field.name,
+                value: upper,
+                optional: field.optional,
+            });
+        }
+        (pos, neg)
+    }
+
+    fn neu_variant_items(
+        &mut self,
+        items: Vec<(String, Vec<NeuId>)>,
+    ) -> (Vec<(String, Vec<PosId>)>, Vec<(String, Vec<NegId>)>) {
+        let mut pos = Vec::with_capacity(items.len());
+        let mut neg = Vec::with_capacity(items.len());
+        for (name, payloads) in items {
+            let mut pos_payloads = Vec::with_capacity(payloads.len());
+            let mut neg_payloads = Vec::with_capacity(payloads.len());
+            for payload in payloads {
+                let (lower, upper) = self.neu_bounds(payload);
+                pos_payloads.push(lower);
+                neg_payloads.push(upper);
+            }
+            pos.push((name.clone(), pos_payloads));
+            neg.push((name, neg_payloads));
+        }
+        (pos, neg)
+    }
+
+    fn enqueue_record_fields(
+        &mut self,
+        lower_fields: Vec<RecordField<PosId>>,
+        upper_fields: Vec<RecordField<NegId>>,
+        weights: ConstraintWeights,
+    ) {
+        for upper in upper_fields {
+            let Some(lower) = find_record_field(&lower_fields, &upper.name) else {
+                continue;
+            };
+            if lower.optional && !upper.optional {
+                continue;
+            }
+            self.enqueue_subtype(lower.value, weights.clone(), upper.value);
+        }
+    }
+
+    fn enqueue_record_tail_spread(
+        &mut self,
+        fields: Vec<RecordField<PosId>>,
+        tail: PosId,
+        upper_fields: Vec<RecordField<NegId>>,
+        weights: ConstraintWeights,
+    ) {
+        for upper in upper_fields {
+            if let Some(lower) = find_record_field(&fields, &upper.name) {
+                if !lower.optional || upper.optional {
+                    self.enqueue_subtype(lower.value, weights.clone(), upper.value);
+                }
+                let tail_upper = self.singleton_neg_record(optionalized_neg_field(upper));
+                self.enqueue_subtype(tail, weights.clone(), tail_upper);
+            } else {
+                let tail_upper = self.singleton_neg_record(upper);
+                self.enqueue_subtype(tail, weights.clone(), tail_upper);
+            }
+        }
+    }
+
+    fn enqueue_record_head_spread(
+        &mut self,
+        tail: PosId,
+        fields: Vec<RecordField<PosId>>,
+        upper_fields: Vec<RecordField<NegId>>,
+        weights: ConstraintWeights,
+    ) {
+        for upper in upper_fields {
+            if let Some(lower) = find_record_field(&fields, &upper.name) {
+                if !lower.optional || upper.optional {
+                    self.enqueue_subtype(lower.value, weights.clone(), upper.value);
+                }
+            } else {
+                let tail_upper = self.singleton_neg_record(upper);
+                self.enqueue_subtype(tail, weights.clone(), tail_upper);
+            }
+        }
+    }
+
+    fn singleton_neg_record(&mut self, field: RecordField<NegId>) -> NegId {
+        self.alloc_neg(Neg::Record(vec![field]))
+    }
+
+    fn enqueue_variant_items(
+        &mut self,
+        lower_items: Vec<(String, Vec<PosId>)>,
+        upper_items: Vec<(String, Vec<NegId>)>,
+        weights: ConstraintWeights,
+    ) {
+        for (name, lower_payloads) in lower_items {
+            let Some((_, upper_payloads)) = upper_items
+                .iter()
+                .find(|(upper_name, _)| upper_name == &name)
+            else {
+                continue;
+            };
+            if lower_payloads.len() != upper_payloads.len() {
+                continue;
+            }
+            for (lower, upper) in lower_payloads
+                .into_iter()
+                .zip(upper_payloads.iter().copied())
+            {
+                self.enqueue_subtype(lower, weights.clone(), upper);
+            }
+        }
+    }
+
+    fn enqueue_row_items(
+        &mut self,
+        items: Vec<PosId>,
+        upper_items: Vec<NegId>,
+        upper_tail: NegId,
+        weights: ConstraintWeights,
+    ) {
+        for item in items {
+            self.enqueue_row_item(item, &upper_items, upper_tail, weights.clone());
+        }
+    }
+
+    fn enqueue_row_item(
+        &mut self,
+        item: PosId,
+        upper_items: &[NegId],
+        upper_tail: NegId,
+        weights: ConstraintWeights,
+    ) {
+        if let Some(upper) = upper_items
+            .iter()
+            .copied()
+            .find(|upper| self.row_items_can_match(item, *upper))
+        {
+            self.enqueue_row_item_match(item, upper, weights);
+            return;
+        }
+
+        if matches!(self.types.pos(item), Pos::Var(_)) {
+            let upper = self.alloc_neg(Neg::Row(upper_items.to_vec(), upper_tail));
+            self.enqueue_subtype(item, weights, upper);
+        } else {
+            self.enqueue_subtype(item, weights, upper_tail);
+        }
+    }
+
+    fn row_items_can_match(&self, lower: PosId, upper: NegId) -> bool {
+        match (self.types.pos(lower), self.types.neg(upper)) {
+            (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args)) => {
+                lower_path == upper_path && lower_args.len() == upper_args.len()
+            }
+            (Pos::Var(lower), Neg::Var(upper)) => lower == upper,
+            _ => false,
+        }
+    }
+
+    fn enqueue_row_item_match(&mut self, lower: PosId, upper: NegId, weights: ConstraintWeights) {
+        match (self.types.pos(lower).clone(), self.types.neg(upper).clone()) {
+            (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args))
+                if lower_path == upper_path && lower_args.len() == upper_args.len() =>
+            {
+                self.enqueue_invariant_neu_args(lower_args, upper_args, weights);
+            }
+            (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
+            _ => self.enqueue_subtype(lower, weights, upper),
+        }
+    }
+
     fn add_lower_bound(&mut self, target: TypeVar, pos: PosId, weights: ConstraintWeights) {
+        let pos = self.extrude_pos(pos, self.level_of(target));
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
@@ -221,6 +526,7 @@ impl ConstraintMachine {
     }
 
     fn add_upper_bound(&mut self, source: TypeVar, neg: NegId, weights: ConstraintWeights) {
+        let neg = self.extrude_neg(neg, self.level_of(source));
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
@@ -237,6 +543,239 @@ impl ConstraintMachine {
             .unwrap_or_default();
         for lower in lowers {
             self.enqueue_subtype(lower.pos, lower.weights.union(&weights), neg);
+        }
+    }
+
+    fn extrude_pos(&mut self, pos: PosId, target: TypeLevel) -> PosId {
+        let mut ctx = ExtrudeCtx::new(target);
+        self.extrude_pos_id(pos, &mut ctx);
+        pos
+    }
+
+    fn extrude_neg(&mut self, neg: NegId, target: TypeLevel) -> NegId {
+        let mut ctx = ExtrudeCtx::new(target);
+        self.extrude_neg_id(neg, &mut ctx);
+        neg
+    }
+
+    fn extrude_pos_id(&mut self, id: PosId, ctx: &mut ExtrudeCtx) {
+        match self.types.pos(id).clone() {
+            Pos::Bot => {}
+            Pos::Var(var) => self.extrude_type_var(var, ctx),
+            Pos::Con(_, args) => self.extrude_neu_ids(args, ctx),
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.extrude_neg_id(arg, ctx);
+                self.extrude_neg_id(arg_eff, ctx);
+                self.extrude_pos_id(ret_eff, ctx);
+                self.extrude_pos_id(ret, ctx);
+            }
+            Pos::Record(fields) => {
+                for field in fields {
+                    self.extrude_pos_id(field.value, ctx);
+                }
+            }
+            Pos::RecordTailSpread { fields, tail } => {
+                for field in fields {
+                    self.extrude_pos_id(field.value, ctx);
+                }
+                self.extrude_pos_id(tail, ctx);
+            }
+            Pos::RecordHeadSpread { tail, fields } => {
+                self.extrude_pos_id(tail, ctx);
+                for field in fields {
+                    self.extrude_pos_id(field.value, ctx);
+                }
+            }
+            Pos::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.extrude_pos_id(payload, ctx);
+                    }
+                }
+            }
+            Pos::Tuple(items) | Pos::Row(items) => {
+                for item in items {
+                    self.extrude_pos_id(item, ctx);
+                }
+            }
+            Pos::NonSubtract(pos, _) => self.extrude_pos_id(pos, ctx),
+            Pos::Union(left, right) => {
+                self.extrude_pos_id(left, ctx);
+                self.extrude_pos_id(right, ctx);
+            }
+        }
+    }
+
+    fn extrude_neg_id(&mut self, id: NegId, ctx: &mut ExtrudeCtx) {
+        match self.types.neg(id).clone() {
+            Neg::Top | Neg::Bot => {}
+            Neg::Var(var) => self.extrude_type_var(var, ctx),
+            Neg::Con(_, args) => self.extrude_neu_ids(args, ctx),
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.extrude_pos_id(arg, ctx);
+                self.extrude_pos_id(arg_eff, ctx);
+                self.extrude_neg_id(ret_eff, ctx);
+                self.extrude_neg_id(ret, ctx);
+            }
+            Neg::Record(fields) => {
+                for field in fields {
+                    self.extrude_neg_id(field.value, ctx);
+                }
+            }
+            Neg::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.extrude_neg_id(payload, ctx);
+                    }
+                }
+            }
+            Neg::Tuple(items) => {
+                for item in items {
+                    self.extrude_neg_id(item, ctx);
+                }
+            }
+            Neg::Row(items, tail) => {
+                for item in items {
+                    self.extrude_neg_id(item, ctx);
+                }
+                self.extrude_neg_id(tail, ctx);
+            }
+            Neg::Intersection(left, right) => {
+                self.extrude_neg_id(left, ctx);
+                self.extrude_neg_id(right, ctx);
+            }
+        }
+    }
+
+    fn extrude_neu_ids(&mut self, ids: Vec<NeuId>, ctx: &mut ExtrudeCtx) {
+        for id in ids {
+            self.extrude_neu_id(id, ctx);
+        }
+    }
+
+    fn extrude_neu_id(&mut self, id: NeuId, ctx: &mut ExtrudeCtx) {
+        match self.types.neu(id).clone() {
+            Neu::Bounds(lower, var, upper) => {
+                self.extrude_pos_id(lower, ctx);
+                self.extrude_type_var(var, ctx);
+                self.extrude_neg_id(upper, ctx);
+            }
+            Neu::Con(_, args) => self.extrude_neu_ids(args, ctx),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.extrude_neu_id(arg, ctx);
+                self.extrude_neu_id(arg_eff, ctx);
+                self.extrude_neu_id(ret_eff, ctx);
+                self.extrude_neu_id(ret, ctx);
+            }
+            Neu::Record(fields) => {
+                for field in fields {
+                    self.extrude_neu_id(field.value, ctx);
+                }
+            }
+            Neu::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.extrude_neu_id(payload, ctx);
+                    }
+                }
+            }
+            Neu::Tuple(items) => self.extrude_neu_ids(items, ctx),
+        }
+    }
+
+    fn extrude_type_var(&mut self, var: TypeVar, ctx: &mut ExtrudeCtx) {
+        if self.level_of(var) <= ctx.target {
+            return;
+        }
+        if !ctx.visited.insert(var) {
+            return;
+        }
+        self.levels.lower_to(var, ctx.target);
+        let bounds = self.bounds.of(var).cloned();
+        if let Some(bounds) = bounds {
+            for lower in bounds.lowers {
+                self.extrude_pos_id(lower.pos, ctx);
+            }
+            for upper in bounds.uppers {
+                self.extrude_neg_id(upper.neg, ctx);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// let / lambda nesting の深さ。
+///
+/// root level より深い変数が浅い変数の bound に入ると、bound 登録前の extrusion で浅い level へ
+/// 老化させる。未登録の手書き `TypeVar` は root として扱う。
+pub struct TypeLevel(u32);
+
+impl TypeLevel {
+    pub fn root() -> Self {
+        Self(0)
+    }
+
+    pub fn child(self) -> Self {
+        Self(self.0 + 1)
+    }
+
+    pub fn depth(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct TypeLevels {
+    vars: FxHashMap<TypeVar, TypeLevel>,
+}
+
+impl TypeLevels {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn register(&mut self, var: TypeVar, level: TypeLevel) {
+        self.vars.entry(var).or_insert(level);
+    }
+
+    fn level_of(&self, var: TypeVar) -> TypeLevel {
+        self.vars.get(&var).copied().unwrap_or_else(TypeLevel::root)
+    }
+
+    fn lower_to(&mut self, var: TypeVar, target: TypeLevel) {
+        let level = self.vars.entry(var).or_insert_with(TypeLevel::root);
+        if target < *level {
+            *level = target;
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ExtrudeCtx {
+    target: TypeLevel,
+    visited: FxHashSet<TypeVar>,
+}
+
+impl ExtrudeCtx {
+    fn new(target: TypeLevel) -> Self {
+        Self {
+            target,
+            visited: FxHashSet::default(),
         }
     }
 }
@@ -479,6 +1018,21 @@ pub struct SubtractFact {
     pub subtractability: Subtractability,
 }
 
+fn find_record_field<'a, T>(
+    fields: &'a [RecordField<T>],
+    name: &str,
+) -> Option<&'a RecordField<T>> {
+    fields.iter().find(|field| field.name == name)
+}
+
+fn optionalized_neg_field(field: RecordField<NegId>) -> RecordField<NegId> {
+    RecordField {
+        name: field.name,
+        value: field.value,
+        optional: true,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -532,6 +1086,83 @@ mod tests {
                 id: subtract
             }]
         );
+    }
+
+    #[test]
+    fn lower_bound_extrudes_deeper_positive_variables_to_target_level() {
+        let mut machine = ConstraintMachine::new();
+        let target = TypeVar(0);
+        let inner = TypeVar(1);
+        let root = TypeLevel::root();
+        let child = root.child();
+        machine.register_type_var(target, root);
+        machine.register_type_var(inner, child);
+        let lower = machine.alloc_pos(Pos::Var(inner));
+        let upper = machine.alloc_neg(Neg::Var(target));
+
+        machine.subtype(lower, upper);
+
+        assert_eq!(machine.level_of(inner), root);
+        let bounds = machine.bounds().of(target).expect("target bounds");
+        assert_eq!(
+            bounds.lowers(),
+            &[WeightedLowerBound {
+                pos: lower,
+                weights: ConstraintWeights::empty()
+            }]
+        );
+    }
+
+    #[test]
+    fn upper_bound_extrudes_deeper_negative_variables_to_source_level() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let inner = TypeVar(1);
+        let root = TypeLevel::root();
+        let child = root.child();
+        machine.register_type_var(source, root);
+        machine.register_type_var(inner, child);
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(inner));
+
+        machine.subtype(lower, upper);
+
+        assert_eq!(machine.level_of(inner), root);
+        let bounds = machine.bounds().of(source).expect("source bounds");
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound {
+                neg: upper,
+                weights: ConstraintWeights::empty()
+            }]
+        );
+    }
+
+    #[test]
+    fn extrusion_recurses_through_neutral_constructor_args_and_existing_bounds() {
+        let mut machine = ConstraintMachine::new();
+        let target = TypeVar(0);
+        let inner = TypeVar(1);
+        let bound_var = TypeVar(2);
+        let root = TypeLevel::root();
+        let child = root.child();
+        machine.register_type_var(target, root);
+        machine.register_type_var(inner, child);
+        machine.register_type_var(bound_var, child);
+        let inner_as_lower = machine.alloc_pos(Pos::Var(inner));
+        let bound_var_as_upper = machine.alloc_neg(Neg::Var(bound_var));
+        machine.subtype(inner_as_lower, bound_var_as_upper);
+
+        let arg_lower = machine.alloc_pos(Pos::Con(vec!["lower".into()], vec![]));
+        let arg_upper = machine.alloc_neg(Neg::Con(vec!["upper".into()], vec![]));
+        let arg = machine.alloc_neu(Neu::Bounds(arg_lower, inner, arg_upper));
+        let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![arg]));
+        let upper = machine.alloc_neg(Neg::Var(target));
+
+        machine.subtype(lower, upper);
+
+        assert_eq!(machine.level_of(inner), root);
+        assert_eq!(machine.level_of(bound_var), root);
     }
 
     #[test]
@@ -659,6 +1290,202 @@ mod tests {
             lower: lhs_ret,
             upper: rhs_ret,
             weights,
+        }));
+    }
+
+    #[test]
+    fn constructor_args_propagate_invariant_neutral_bounds() {
+        let mut machine = ConstraintMachine::new();
+        let lower_arg_var = TypeVar(10);
+        let upper_arg_var = TypeVar(11);
+        let lower_arg_lower = machine.alloc_pos(Pos::Con(vec!["lower_arg_lower".into()], vec![]));
+        let lower_arg_upper = machine.alloc_neg(Neg::Con(vec!["lower_arg_upper".into()], vec![]));
+        let lower_arg =
+            machine.alloc_neu(Neu::Bounds(lower_arg_lower, lower_arg_var, lower_arg_upper));
+        let upper_arg_lower = machine.alloc_pos(Pos::Con(vec!["upper_arg_lower".into()], vec![]));
+        let upper_arg_upper = machine.alloc_neg(Neg::Con(vec!["upper_arg_upper".into()], vec![]));
+        let upper_arg =
+            machine.alloc_neu(Neu::Bounds(upper_arg_lower, upper_arg_var, upper_arg_upper));
+        let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
+        let upper = machine.alloc_neg(Neg::Con(vec!["box".into()], vec![upper_arg]));
+        let weights = ConstraintWeights {
+            left: ConstraintWeight::from_ids([SubtractId(0)]),
+            right: ConstraintWeight::from_ids([SubtractId(1)]),
+        };
+
+        machine.weighted_subtype(lower, weights.clone(), upper);
+
+        let lower_arg_var_pos = machine.alloc_pos(Pos::Var(lower_arg_var));
+        let upper_arg_var_neg = machine.alloc_neg(Neg::Var(upper_arg_var));
+        let lower_arg_union = machine.alloc_pos(Pos::Union(lower_arg_lower, lower_arg_var_pos));
+        let upper_arg_intersection =
+            machine.alloc_neg(Neg::Intersection(upper_arg_var_neg, upper_arg_upper));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: lower_arg_union,
+            upper: upper_arg_intersection,
+            weights: weights.clone(),
+        }));
+
+        let upper_arg_var_pos = machine.alloc_pos(Pos::Var(upper_arg_var));
+        let lower_arg_var_neg = machine.alloc_neg(Neg::Var(lower_arg_var));
+        let upper_arg_union = machine.alloc_pos(Pos::Union(upper_arg_lower, upper_arg_var_pos));
+        let lower_arg_intersection =
+            machine.alloc_neg(Neg::Intersection(lower_arg_var_neg, lower_arg_upper));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: upper_arg_union,
+            upper: lower_arg_intersection,
+            weights: weights.swapped(),
+        }));
+    }
+
+    #[test]
+    fn neutral_structures_build_regular_upper_and_lower_bounds() {
+        let mut machine = ConstraintMachine::new();
+        let lower_item_var = TypeVar(10);
+        let upper_item_var = TypeVar(11);
+        let lower_item_lower = machine.alloc_pos(Pos::Con(vec!["lower_item_lower".into()], vec![]));
+        let lower_item_upper = machine.alloc_neg(Neg::Con(vec!["lower_item_upper".into()], vec![]));
+        let lower_item = machine.alloc_neu(Neu::Bounds(
+            lower_item_lower,
+            lower_item_var,
+            lower_item_upper,
+        ));
+        let upper_item_lower = machine.alloc_pos(Pos::Con(vec!["upper_item_lower".into()], vec![]));
+        let upper_item_upper = machine.alloc_neg(Neg::Con(vec!["upper_item_upper".into()], vec![]));
+        let upper_item = machine.alloc_neu(Neu::Bounds(
+            upper_item_lower,
+            upper_item_var,
+            upper_item_upper,
+        ));
+        let lower_arg = machine.alloc_neu(Neu::Tuple(vec![lower_item]));
+        let upper_arg = machine.alloc_neu(Neu::Tuple(vec![upper_item]));
+        let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
+        let upper = machine.alloc_neg(Neg::Con(vec!["box".into()], vec![upper_arg]));
+
+        machine.subtype(lower, upper);
+
+        let lower_item_var_pos = machine.alloc_pos(Pos::Var(lower_item_var));
+        let upper_item_var_neg = machine.alloc_neg(Neg::Var(upper_item_var));
+        let lower_item_union = machine.alloc_pos(Pos::Union(lower_item_lower, lower_item_var_pos));
+        let upper_item_intersection =
+            machine.alloc_neg(Neg::Intersection(upper_item_var_neg, upper_item_upper));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: lower_item_union,
+            upper: upper_item_intersection,
+            weights: ConstraintWeights::empty(),
+        }));
+
+        let upper_item_var_pos = machine.alloc_pos(Pos::Var(upper_item_var));
+        let lower_item_var_neg = machine.alloc_neg(Neg::Var(lower_item_var));
+        let upper_item_union = machine.alloc_pos(Pos::Union(upper_item_lower, upper_item_var_pos));
+        let lower_item_intersection =
+            machine.alloc_neg(Neg::Intersection(lower_item_var_neg, lower_item_upper));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: upper_item_union,
+            upper: lower_item_intersection,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
+    fn record_fields_propagate_matching_field_constraints() {
+        let mut machine = ConstraintMachine::new();
+        let lower_x = machine.alloc_pos(Pos::Con(vec!["lower_x".into()], vec![]));
+        let upper_x = machine.alloc_neg(Neg::Con(vec!["upper_x".into()], vec![]));
+        let lower = machine.alloc_pos(Pos::Record(vec![RecordField {
+            name: "x".into(),
+            value: lower_x,
+            optional: false,
+        }]));
+        let upper = machine.alloc_neg(Neg::Record(vec![RecordField {
+            name: "x".into(),
+            value: upper_x,
+            optional: false,
+        }]));
+
+        machine.subtype(lower, upper);
+
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: lower_x,
+            upper: upper_x,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
+    fn record_tail_spread_sends_missing_fields_to_tail() {
+        let mut machine = ConstraintMachine::new();
+        let tail = machine.alloc_pos(Pos::Var(TypeVar(0)));
+        let upper_y = machine.alloc_neg(Neg::Con(vec!["upper_y".into()], vec![]));
+        let upper = machine.alloc_neg(Neg::Record(vec![RecordField {
+            name: "y".into(),
+            value: upper_y,
+            optional: false,
+        }]));
+        let lower = machine.alloc_pos(Pos::RecordTailSpread {
+            fields: Vec::new(),
+            tail,
+        });
+        let expected_tail_upper = machine.alloc_neg(Neg::Record(vec![RecordField {
+            name: "y".into(),
+            value: upper_y,
+            optional: false,
+        }]));
+
+        machine.subtype(lower, upper);
+
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: tail,
+            upper: expected_tail_upper,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
+    fn variant_payloads_propagate_matching_tag_constraints() {
+        let mut machine = ConstraintMachine::new();
+        let lower_payload = machine.alloc_pos(Pos::Con(vec!["lower_payload".into()], vec![]));
+        let upper_payload = machine.alloc_neg(Neg::Con(vec!["upper_payload".into()], vec![]));
+        let lower = machine.alloc_pos(Pos::PolyVariant(vec![("some".into(), vec![lower_payload])]));
+        let upper = machine.alloc_neg(Neg::PolyVariant(vec![("some".into(), vec![upper_payload])]));
+
+        machine.subtype(lower, upper);
+
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: lower_payload,
+            upper: upper_payload,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
+    fn row_items_use_regular_upper_rows_for_variables_and_tail_for_unmatched_atoms() {
+        let mut machine = ConstraintMachine::new();
+        let io_pos = machine.alloc_pos(Pos::Con(vec!["io".into()], vec![]));
+        let io_neg = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let fs_pos = machine.alloc_pos(Pos::Con(vec!["fs".into()], vec![]));
+        let row_var = machine.alloc_pos(Pos::Var(TypeVar(0)));
+        let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(1)));
+        let lower = machine.alloc_pos(Pos::Row(vec![io_pos, fs_pos, row_var]));
+        let upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
+        let expected_row_var_upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
+
+        machine.subtype(lower, upper);
+
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: fs_pos,
+            upper: upper_tail,
+            weights: ConstraintWeights::empty(),
+        }));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: row_var,
+            upper: expected_row_var_upper,
+            weights: ConstraintWeights::empty(),
+        }));
+        assert!(!machine.seen.contains(&SubtypeConstraint {
+            lower: io_pos,
+            upper: upper_tail,
+            weights: ConstraintWeights::empty(),
         }));
     }
 

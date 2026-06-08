@@ -7,15 +7,15 @@ use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeIds, TypeVar,
 };
 
-use crate::constraints::{ConstraintMachine, ConstraintWeights};
+use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
 
 /// lowering / inference run ごとの作業状態。
 ///
-/// fresh `TypeVar` / `SubtractId` はここから発行する。solver 側が勝手に fresh var を作ると
-/// 出自が追いにくくなるため、lowering が必要な slot を作り、constraint machine はその slot へ
-/// 上下界と event を蓄積する。
+/// fresh `TypeVar` / `SubtractId` はここから発行する。`TypeVar` には current level を付けておき、
+/// constraint machine は浅い bound に深い変数が漏れる直前で extrusion をかける。
 pub struct Arena {
     type_ids: TypeIds,
+    current_level: TypeLevel,
     constraints: ConstraintMachine,
 }
 
@@ -23,16 +23,33 @@ impl Arena {
     pub fn new() -> Self {
         Self {
             type_ids: TypeIds::new(),
+            current_level: TypeLevel::root(),
             constraints: ConstraintMachine::new(),
         }
     }
 
     pub fn fresh_type_var(&mut self) -> TypeVar {
-        self.type_ids.fresh_type_var()
+        let var = self.type_ids.fresh_type_var();
+        self.constraints.register_type_var(var, self.current_level);
+        var
     }
 
     pub fn fresh_subtract_id(&mut self) -> SubtractId {
         self.type_ids.fresh_subtract_id()
+    }
+
+    pub fn current_level(&self) -> TypeLevel {
+        self.current_level
+    }
+
+    pub fn enter_child_level(&mut self) -> TypeLevel {
+        let previous = self.current_level;
+        self.current_level = self.current_level.child();
+        previous
+    }
+
+    pub fn restore_level(&mut self, previous: TypeLevel) {
+        self.current_level = previous;
     }
 
     pub fn alloc_pos(&mut self, pos: Pos) -> PosId {

@@ -178,6 +178,13 @@ impl BodyLowerer {
             });
             return;
         };
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(decl.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: decl.def,
+                root,
+            }));
 
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
@@ -191,7 +198,7 @@ impl BodyLowerer {
         match lowered {
             Ok(computation) => {
                 match self.connect_binding_annotation(node, module, decl.order, computation) {
-                    Ok(()) => self.finish_binding(decl.def, name, computation),
+                    Ok(()) => self.finish_binding(decl.def, name, root, computation),
                     Err(error) => self.errors.push(BodyLoweringError::Expr {
                         def: decl.def,
                         name,
@@ -233,7 +240,13 @@ impl BodyLowerer {
         Ok(())
     }
 
-    fn finish_binding(&mut self, def: poly::expr::DefId, name: Name, computation: Computation) {
+    fn finish_binding(
+        &mut self,
+        def: poly::expr::DefId,
+        name: Name,
+        root: TypeVar,
+        computation: Computation,
+    ) {
         let Some(current) = self.session.poly.defs.get_mut(def) else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
             return;
@@ -244,14 +257,19 @@ impl BodyLowerer {
         };
 
         *body = Some(computation.expr);
-        self.typing.set_def(def, computation.value);
-        self.session
-            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
-                def,
-                root: computation.value,
-            }));
+        self.constrain_def_body(root, computation.value);
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    }
+
+    fn constrain_def_body(&mut self, root: TypeVar, body: TypeVar) {
+        let body_pos = self.session.infer.alloc_pos(Pos::Var(body));
+        let root_neg = self.session.infer.alloc_neg(Neg::Var(root));
+        self.session.infer.subtype(body_pos, root_neg);
+
+        let root_pos = self.session.infer.alloc_pos(Pos::Var(root));
+        let body_neg = self.session.infer.alloc_neg(Neg::Var(body));
+        self.session.infer.subtype(root_pos, body_neg);
     }
 
     fn next_value_decl(&mut self, module: ModuleId, name: &Name) -> Option<crate::ModuleValueDecl> {
@@ -463,13 +481,16 @@ impl<'a> ExprLowerer<'a> {
         let pat = self.lower_lambda_pattern(pattern, param_value, annotation.call_return_effect)?;
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
-        let body =
-            self.lower_lambda_params(rest, body, lambda_scope, ann_builder, ann_solver_vars)?;
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result =
+            self.lower_lambda_params(rest, body, lambda_scope, ann_builder, ann_solver_vars);
+        self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
             .pop()
             .expect("lambda predicate frame should be balanced");
         self.locals.truncate(before_locals);
+        let body = body_result?;
 
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
@@ -1624,6 +1645,56 @@ mod tests {
         let body = binding_body_id(&output, owner);
         let reference = expr_ref(&output.session, body);
         assert_eq!(output.session.poly.ref_target(reference), Some(target));
+    }
+
+    #[test]
+    fn body_lowering_opens_self_recursion_from_registered_root() {
+        let root = parse("my f = \\x -> f\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let mut output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let def_root = output.typing.def(def).expect("def root");
+        let body = binding_body_id(&output, def);
+        let lambda_body = match output.session.poly.expr(body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected lambda body"),
+        };
+        let reference = expr_ref(&output.session, lambda_body);
+        let use_value = output
+            .session
+            .refs
+            .value(reference)
+            .expect("self ref use value");
+        let events = output.session.take_scc_events();
+        assert!(events.iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::OpenUse {
+                    target,
+                    target_root,
+                    use_value: event_use,
+                } if *target == def && *target_root == def_root && *event_use == use_value
+            )
+        }));
+
+        let root_pos = output.session.infer.alloc_pos(Pos::Var(def_root));
+        let use_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(use_value)
+            .expect("self ref use bounds");
+        assert!(
+            use_bounds
+                .lowers()
+                .iter()
+                .any(|bound| bound.pos == root_pos)
+        );
     }
 
     #[test]

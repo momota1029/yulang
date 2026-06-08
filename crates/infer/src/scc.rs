@@ -59,7 +59,10 @@ impl SccMachine {
         }
 
         let component = self.graph.ensure_component(def);
-        self.graph.register_def(def, root);
+        let open_uses = self.graph.register_def_and_open_uses(def, root);
+        for open_use in open_uses {
+            self.events.push(open_use.into_event());
+        }
         self.settle_components([component]);
     }
 
@@ -105,6 +108,11 @@ impl SccMachine {
         let from = self.graph.ensure_component(parent);
         let to = self.graph.ensure_component(target);
         if from == to {
+            let edge = UseEdge { target, use_value };
+            if let Some(open_use) = self.graph.add_internal_use(from, edge) {
+                self.events.push(open_use.into_event());
+            }
+            self.settle_components([from]);
             return;
         }
 
@@ -121,6 +129,9 @@ impl SccMachine {
                 components: merged.components,
                 merged: merged.members,
             });
+            for open_use in merged.open_uses {
+                self.events.push(open_use.into_event());
+            }
             self.settle_components([merged.id]);
         } else {
             self.events.push(SccEvent::ComponentEdgeAdded {
@@ -198,6 +209,7 @@ pub enum SccInput {
 ///
 /// `ComponentEdgeAdded` は非循環 edge の追加。
 /// `MergeComponents` は新 edge が cycle を閉じ、複数 component が1つになったことを表す。
+/// `OpenUse` は target が同じ未量化 SCC 内に入ったため、use-site と target root を直接つなぐ命令。
 /// `QuantifyComponent` はこの component を generalize してよいという命令。
 /// `InstantiateUse` は target が量化済みになったため、use-site に scheme を展開してよいという命令。
 pub enum SccEvent {
@@ -208,6 +220,11 @@ pub enum SccEvent {
     MergeComponents {
         components: Vec<Vec<DefId>>,
         merged: Vec<DefId>,
+    },
+    OpenUse {
+        target: DefId,
+        target_root: TypeVar,
+        use_value: TypeVar,
     },
     InstantiateUse {
         target: DefId,
@@ -276,6 +293,12 @@ impl ComponentGraph {
             .insert(def, root);
     }
 
+    fn register_def_and_open_uses(&mut self, def: DefId, root: TypeVar) -> Vec<OpenUse> {
+        let component = self.ensure_component(def);
+        self.register_def(def, root);
+        self.open_pending_uses_for(component, def)
+    }
+
     fn finish_def(&mut self, def: DefId) {
         let component = self.ensure_component(def);
         self.components
@@ -304,6 +327,66 @@ impl ComponentGraph {
         sort_use_edges(uses);
         self.reverse_edges.entry(to).or_default().insert(from);
         edge_was_new
+    }
+
+    fn add_internal_use(&mut self, component: ComponentId, edge: UseEdge) -> Option<OpenUse> {
+        let component = self
+            .components
+            .get_mut(&component)
+            .expect("component must exist before adding internal use");
+        if let Some(root) = component.roots.get(&edge.target).copied() {
+            return Some(OpenUse {
+                target: edge.target,
+                target_root: root,
+                use_value: edge.use_value,
+            });
+        }
+        push_unique_use(&mut component.pending_open_uses, edge);
+        None
+    }
+
+    fn open_pending_uses_for(&mut self, component: ComponentId, target: DefId) -> Vec<OpenUse> {
+        let Some(component) = self.components.get_mut(&component) else {
+            return Vec::new();
+        };
+        let Some(root) = component.roots.get(&target).copied() else {
+            return Vec::new();
+        };
+
+        let mut still_pending = Vec::new();
+        let mut open_uses = Vec::new();
+        for edge in component.pending_open_uses.drain(..) {
+            if edge.target == target {
+                open_uses.push(OpenUse {
+                    target,
+                    target_root: root,
+                    use_value: edge.use_value,
+                });
+            } else {
+                still_pending.push(edge);
+            }
+        }
+        component.pending_open_uses = still_pending;
+        sort_open_uses(&mut open_uses);
+        open_uses
+    }
+
+    fn open_resolved_pending_uses(&mut self, component: ComponentId) -> Vec<OpenUse> {
+        let targets = self
+            .components
+            .get(&component)
+            .map(|component| {
+                let mut targets = component.roots.keys().copied().collect::<Vec<_>>();
+                sort_defs(&mut targets);
+                targets
+            })
+            .unwrap_or_default();
+        let mut open_uses = Vec::new();
+        for target in targets {
+            open_uses.extend(self.open_pending_uses_for(component, target));
+        }
+        sort_open_uses(&mut open_uses);
+        open_uses
     }
 
     fn can_reach(&self, start: ComponentId, target: ComponentId) -> bool {
@@ -397,12 +480,20 @@ impl ComponentGraph {
         let merged_members = merged_component.members.clone();
         self.components.insert(merged_id, merged_component);
 
-        self.rebuild_edges_after_merge(merged_id, &merge_set);
+        let internal_uses = self.rebuild_edges_after_merge(merged_id, &merge_set);
+        let mut open_uses = self.open_resolved_pending_uses(merged_id);
+        for use_edge in internal_uses {
+            if let Some(open_use) = self.add_internal_use(merged_id, use_edge) {
+                open_uses.push(open_use);
+            }
+        }
+        sort_open_uses(&mut open_uses);
 
         MergedComponent {
             id: merged_id,
             components: event_components,
             members: merged_members,
+            open_uses,
         }
     }
 
@@ -410,9 +501,10 @@ impl ComponentGraph {
         &mut self,
         merged_id: ComponentId,
         merge_set: &FxHashSet<ComponentId>,
-    ) {
+    ) -> Vec<UseEdge> {
         let old_edges = std::mem::take(&mut self.edges);
         self.reverse_edges.clear();
+        let mut internal_uses = Vec::new();
 
         for (from, targets) in old_edges {
             let new_from = if merge_set.contains(&from) {
@@ -427,6 +519,7 @@ impl ComponentGraph {
                     to
                 };
                 if new_from == new_to {
+                    internal_uses.append(&mut uses);
                     continue;
                 }
                 let entry = self
@@ -443,6 +536,8 @@ impl ComponentGraph {
                     .insert(new_from);
             }
         }
+        sort_use_edges(&mut internal_uses);
+        internal_uses
     }
 
     fn remove_ready_component(&mut self, component: ComponentId) -> Option<RemovedComponent> {
@@ -555,6 +650,7 @@ struct Component {
     members: Vec<DefId>,
     roots: FxHashMap<DefId, TypeVar>,
     finished: FxHashSet<DefId>,
+    pending_open_uses: Vec<UseEdge>,
     method_dependencies: usize,
 }
 
@@ -564,6 +660,7 @@ impl Component {
             members: vec![def],
             roots: FxHashMap::default(),
             finished: FxHashSet::default(),
+            pending_open_uses: Vec::new(),
             method_dependencies: 0,
         }
     }
@@ -573,6 +670,7 @@ impl Component {
             members: Vec::new(),
             roots: FxHashMap::default(),
             finished: FxHashSet::default(),
+            pending_open_uses: Vec::new(),
             method_dependencies: 0,
         }
     }
@@ -581,6 +679,7 @@ impl Component {
         self.members.extend(component.members);
         self.roots.extend(component.roots);
         self.finished.extend(component.finished);
+        self.pending_open_uses.extend(component.pending_open_uses);
         self.method_dependencies += component.method_dependencies;
     }
 }
@@ -598,12 +697,30 @@ struct UseEdge {
     use_value: TypeVar,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OpenUse {
+    target: DefId,
+    target_root: TypeVar,
+    use_value: TypeVar,
+}
+
+impl OpenUse {
+    fn into_event(self) -> SccEvent {
+        SccEvent::OpenUse {
+            target: self.target,
+            target_root: self.target_root,
+            use_value: self.use_value,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// merge event を作るために、merge 後の ID と表示用 member list を一緒に返す値。
 struct MergedComponent {
     id: ComponentId,
     components: Vec<Vec<DefId>>,
     members: Vec<DefId>,
+    open_uses: Vec<OpenUse>,
 }
 
 #[derive(Debug, Clone)]
@@ -629,6 +746,23 @@ fn sort_components(components: &mut [ComponentId]) {
 
 fn sort_use_edges(edges: &mut [UseEdge]) {
     edges.sort_by_key(|edge| (edge.target.0, edge.use_value.0));
+}
+
+fn sort_open_uses(uses: &mut [OpenUse]) {
+    uses.sort_by_key(|use_site| {
+        (
+            use_site.target.0,
+            use_site.target_root.0,
+            use_site.use_value.0,
+        )
+    });
+}
+
+fn push_unique_use(uses: &mut Vec<UseEdge>, edge: UseEdge) {
+    if !uses.contains(&edge) {
+        uses.push(edge);
+        sort_use_edges(uses);
+    }
 }
 
 #[cfg(test)]
@@ -707,6 +841,94 @@ mod tests {
             vec![SccEvent::MergeComponents {
                 components: vec![vec![DefId(1)], vec![DefId(2)], vec![DefId(3)]],
                 merged: vec![DefId(1), DefId(2), DefId(3)],
+            }]
+        );
+    }
+
+    #[test]
+    fn cycle_merge_opens_internal_uses_when_roots_are_known() {
+        let mut machine = SccMachine::new();
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.register_def(DefId(2), TypeVar(20));
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(1),
+            target: DefId(2),
+            use_value: TypeVar(12),
+        });
+        machine.take_events();
+
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(2),
+            target: DefId(1),
+            use_value: TypeVar(21),
+        });
+
+        assert_eq!(
+            machine.take_events(),
+            vec![
+                SccEvent::MergeComponents {
+                    components: vec![vec![DefId(1)], vec![DefId(2)]],
+                    merged: vec![DefId(1), DefId(2)],
+                },
+                SccEvent::OpenUse {
+                    target: DefId(1),
+                    target_root: TypeVar(10),
+                    use_value: TypeVar(21),
+                },
+                SccEvent::OpenUse {
+                    target: DefId(2),
+                    target_root: TypeVar(20),
+                    use_value: TypeVar(12),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn internal_use_waits_until_target_root_is_registered() {
+        let mut machine = SccMachine::new();
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(1),
+            target: DefId(2),
+            use_value: TypeVar(12),
+        });
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(2),
+            target: DefId(1),
+            use_value: TypeVar(21),
+        });
+
+        assert_eq!(
+            machine.take_events(),
+            vec![
+                SccEvent::ComponentEdgeAdded {
+                    from: vec![DefId(1)],
+                    to: vec![DefId(2)],
+                },
+                SccEvent::MergeComponents {
+                    components: vec![vec![DefId(1)], vec![DefId(2)]],
+                    merged: vec![DefId(1), DefId(2)],
+                },
+            ]
+        );
+
+        machine.register_def(DefId(2), TypeVar(20));
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::OpenUse {
+                target: DefId(2),
+                target_root: TypeVar(20),
+                use_value: TypeVar(12),
+            }]
+        );
+
+        machine.register_def(DefId(1), TypeVar(10));
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::OpenUse {
+                target: DefId(1),
+                target_root: TypeVar(10),
+                use_value: TypeVar(21),
             }]
         );
     }
