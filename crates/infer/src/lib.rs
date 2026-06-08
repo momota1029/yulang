@@ -18,10 +18,9 @@ pub mod uses;
 
 pub use arena::Arena;
 
-use std::collections::HashMap;
-
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::SyntaxNode;
+use rustc_hash::FxHashMap;
 use sources::{Name, UseImport};
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
@@ -30,21 +29,96 @@ type Cst = SyntaxNode<YulangLanguage>;
 
 // ── モジュールツリー（infer 作業用。名前解決が済めば poly には残さない）──────
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 /// pass1 / pass2 の作業用 module ID。
 ///
 /// `poly` の最終 IR へは残さない。名前解決中に「今どの module scope にいるか」を持つための
 /// infer-local な ID。
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ModuleId(usize);
 
+/// module 内の宣言位置。
+///
+/// 同じ module の中で、宣言が source 上のどの順に現れたかを表す。
+/// resolver はこの order を基準に「上に同名宣言があれば最後、なければ下の直近」を選ぶ。
+/// binding body は header の後を解決しているので、同じ order の宣言も既に見えているものとして扱う。
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct ModuleOrder(u32);
+
+impl ModuleOrder {
+    pub fn from_index(index: u32) -> Self {
+        Self(index)
+    }
+
+    pub fn index(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct ModuleParent {
+    module: ModuleId,
+    order: ModuleOrder,
+}
+
 struct ModuleNode {
-    /// 親モジュール。pass2 のスコープ外探索（上→下）で使う予定。
-    #[allow(dead_code)]
-    parent: Option<ModuleId>,
-    values: HashMap<Name, DefId>,
-    modules: HashMap<Name, ModuleId>,
-    /// この場で宣言された use（エイリアス）。解決は pass2 で「集めながら」行う。
-    aliases: Vec<(UseImport, Vis)>,
+    /// 親モジュールと、親の宣言列におけるこの module 宣言の order。
+    parent: Option<ModuleParent>,
+    decls: Vec<ModuleDecl>,
+    values: FxHashMap<Name, Vec<ModuleDeclId>>,
+    modules: FxHashMap<Name, Vec<ModuleDeclId>>,
+    /// この場で宣言された use（エイリアス）。解決は pass2 で不動点を回して import view にする。
+    aliases: Vec<AliasDecl>,
+    next_order: u32,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+struct ModuleDeclId(usize);
+
+#[derive(Debug, Clone)]
+struct ModuleDecl {
+    name: Name,
+    vis: Vis,
+    order: ModuleOrder,
+    kind: ModuleDeclKind,
+}
+
+/// module 内の値宣言を外へ見せるための summary。
+///
+/// resolver 本体は `value_at` を使うが、import view や diagnostics は宣言名・visibility・order も
+/// 必要になるため、`DefId` だけを返す API に閉じない。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleValueDecl {
+    pub name: Name,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub def: DefId,
+}
+
+/// module 内の子 module 宣言を外へ見せるための summary。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleChildDecl {
+    pub name: Name,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub module: ModuleId,
+    pub def: DefId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ModuleDeclKind {
+    Value { def: DefId },
+    Module { module: ModuleId, def: DefId },
+}
+
+/// module 内の `use` 宣言。
+///
+/// alias も source order を持つ。今は import view 構築前なので lookup には使わないが、
+/// Rust 風の不動点 import 解決へ進む時に、どの地点にある use かを失わないために残す。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AliasDecl {
+    pub import: UseImport,
+    pub vis: Vis,
+    pub order: ModuleOrder,
 }
 
 /// pass1 が作る module scope table。
@@ -61,42 +135,189 @@ impl ModuleTable {
         Self {
             nodes: vec![ModuleNode {
                 parent: None,
-                values: HashMap::new(),
-                modules: HashMap::new(),
+                decls: Vec::new(),
+                values: FxHashMap::default(),
+                modules: FxHashMap::default(),
                 aliases: Vec::new(),
+                next_order: 0,
             }],
         }
     }
     pub fn root_id(&self) -> ModuleId {
         ModuleId(0)
     }
-    fn new_module(&mut self, parent: ModuleId) -> ModuleId {
+    fn new_module(&mut self) -> ModuleId {
         let id = ModuleId(self.nodes.len());
         self.nodes.push(ModuleNode {
-            parent: Some(parent),
-            values: HashMap::new(),
-            modules: HashMap::new(),
+            parent: None,
+            decls: Vec::new(),
+            values: FxHashMap::default(),
+            modules: FxHashMap::default(),
             aliases: Vec::new(),
+            next_order: 0,
         });
         id
     }
-    fn insert_value(&mut self, module: ModuleId, name: Name, def: DefId) {
-        self.nodes[module.0].values.insert(name, def);
+    fn insert_value(&mut self, module: ModuleId, name: Name, def: DefId, vis: Vis) {
+        let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Value { def });
+        self.nodes[module.0]
+            .values
+            .entry(name)
+            .or_default()
+            .push(decl);
     }
-    fn insert_module(&mut self, module: ModuleId, name: Name, sub: ModuleId) {
-        self.nodes[module.0].modules.insert(name, sub);
+    fn insert_module(&mut self, module: ModuleId, name: Name, sub: ModuleId, def: DefId, vis: Vis) {
+        let decl = self.push_decl(
+            module,
+            name.clone(),
+            vis,
+            ModuleDeclKind::Module { module: sub, def },
+        );
+        let order = self.nodes[module.0].decls[decl.0].order;
+        self.nodes[module.0]
+            .modules
+            .entry(name)
+            .or_default()
+            .push(decl);
+        self.nodes[sub.0].parent = Some(ModuleParent { module, order });
     }
     fn add_alias(&mut self, module: ModuleId, import: UseImport, vis: Vis) {
-        self.nodes[module.0].aliases.push((import, vis));
+        let order = self.next_order(module);
+        self.nodes[module.0]
+            .aliases
+            .push(AliasDecl { import, vis, order });
     }
-    pub fn aliases(&self, module: ModuleId) -> &[(UseImport, Vis)] {
+    pub fn aliases(&self, module: ModuleId) -> &[AliasDecl] {
         &self.nodes[module.0].aliases
     }
-    pub fn value(&self, module: ModuleId, name: &Name) -> Option<DefId> {
-        self.nodes[module.0].values.get(name).copied()
+    pub fn value_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<DefId> {
+        let decl = self.select_decl(module, self.nodes[module.0].values.get(name)?, site)?;
+        match decl.kind {
+            ModuleDeclKind::Value { def } => Some(def),
+            ModuleDeclKind::Module { .. } => None,
+        }
     }
-    pub fn module(&self, module: ModuleId, name: &Name) -> Option<ModuleId> {
-        self.nodes[module.0].modules.get(name).copied()
+    pub fn module_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<ModuleId> {
+        let decl = self.select_decl(module, self.nodes[module.0].modules.get(name)?, site)?;
+        match decl.kind {
+            ModuleDeclKind::Module { module, .. } => Some(module),
+            ModuleDeclKind::Value { .. } => None,
+        }
+    }
+    pub fn lexical_value_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<DefId> {
+        loop {
+            if let Some(def) = self.value_at(module, name, site) {
+                return Some(def);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    pub fn lexical_module_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        loop {
+            if let Some(found) = self.module_at(module, name, site) {
+                return Some(found);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    pub fn value_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleValueDecl> {
+        self.nodes[module.0]
+            .values
+            .get(name)
+            .into_iter()
+            .flat_map(|decls| decls.iter())
+            .filter_map(|decl| {
+                let decl = &self.nodes[module.0].decls[decl.0];
+                match decl.kind {
+                    ModuleDeclKind::Value { def } => Some(ModuleValueDecl {
+                        name: decl.name.clone(),
+                        vis: decl.vis,
+                        order: decl.order,
+                        def,
+                    }),
+                    ModuleDeclKind::Module { .. } => None,
+                }
+            })
+            .collect()
+    }
+    pub fn module_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleChildDecl> {
+        self.nodes[module.0]
+            .modules
+            .get(name)
+            .into_iter()
+            .flat_map(|decls| decls.iter())
+            .filter_map(|decl| {
+                let decl = &self.nodes[module.0].decls[decl.0];
+                match decl.kind {
+                    ModuleDeclKind::Module { module, def } => Some(ModuleChildDecl {
+                        name: decl.name.clone(),
+                        vis: decl.vis,
+                        order: decl.order,
+                        module,
+                        def,
+                    }),
+                    ModuleDeclKind::Value { .. } => None,
+                }
+            })
+            .collect()
+    }
+    fn push_decl(
+        &mut self,
+        module: ModuleId,
+        name: Name,
+        vis: Vis,
+        kind: ModuleDeclKind,
+    ) -> ModuleDeclId {
+        let order = self.next_order(module);
+        let node = &mut self.nodes[module.0];
+        let id = ModuleDeclId(node.decls.len());
+        node.decls.push(ModuleDecl {
+            name,
+            vis,
+            order,
+            kind,
+        });
+        id
+    }
+    fn next_order(&mut self, module: ModuleId) -> ModuleOrder {
+        let node = &mut self.nodes[module.0];
+        let order = ModuleOrder(node.next_order);
+        node.next_order += 1;
+        order
+    }
+    fn select_decl(
+        &self,
+        module: ModuleId,
+        decls: &[ModuleDeclId],
+        site: ModuleOrder,
+    ) -> Option<&ModuleDecl> {
+        let node = &self.nodes[module.0];
+        decls
+            .iter()
+            .map(|decl| &node.decls[decl.0])
+            .filter(|decl| decl.order <= site)
+            .max_by_key(|decl| decl.order)
+            .or_else(|| {
+                decls
+                    .iter()
+                    .map(|decl| &node.decls[decl.0])
+                    .filter(|decl| decl.order > site)
+                    .min_by_key(|decl| decl.order)
+            })
     }
 }
 
@@ -140,7 +361,7 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        self.modules.insert_value(module, name, def);
+                        self.modules.insert_value(module, name, def, vis);
                         children.push(def);
                     }
                 }
@@ -149,7 +370,7 @@ impl Lower {
                         let vis = vis_of(&child);
                         // 先に DefId を採番してから子を登録し、最後に完成版を set する。
                         let def = self.arena.defs.fresh();
-                        let sub = self.modules.new_module(module);
+                        let sub = self.modules.new_module();
                         let sub_children = self.register_mod_body(&child, sub);
                         self.arena.defs.set(
                             def,
@@ -158,7 +379,7 @@ impl Lower {
                                 children: sub_children,
                             },
                         );
-                        self.modules.insert_module(module, name, sub);
+                        self.modules.insert_module(module, name, sub, def, vis);
                         children.push(def);
                     }
                 }
@@ -258,8 +479,10 @@ mod tests {
         let cst = parse("my f = 1\npub g = 2\n");
         let lower = lower_module_map(&cst);
         let root = lower.modules.root_id();
-        assert!(lower.modules.value(root, &Name("f".into())).is_some());
-        assert!(lower.modules.value(root, &Name("g".into())).is_some());
+        let f = lower.modules.value_decls(root, &Name("f".into()));
+        let g = lower.modules.value_decls(root, &Name("g".into()));
+        assert_eq!(f.len(), 1);
+        assert_eq!(g.len(), 1);
         assert_eq!(lower.arena.roots.len(), 2);
     }
 
@@ -270,7 +493,7 @@ mod tests {
         let root = lower.modules.root_id();
         // alias c と glob x::y の 2 本が溜まる（解決は pass2）
         assert_eq!(lower.modules.aliases(root).len(), 2);
-        assert!(lower.modules.value(root, &Name("f".into())).is_some());
+        assert_eq!(lower.modules.value_decls(root, &Name("f".into())).len(), 1);
     }
 
     #[test]
@@ -278,10 +501,75 @@ mod tests {
         let cst = parse("mod m:\n  my x = 1\n");
         let lower = lower_module_map(&cst);
         let root = lower.modules.root_id();
-        let m = lower
-            .modules
-            .module(root, &Name("m".into()))
-            .expect("module m registered");
-        assert!(lower.modules.value(m, &Name("x".into())).is_some());
+        let module_decls = lower.modules.module_decls(root, &Name("m".into()));
+        let [m_decl] = module_decls.as_slice() else {
+            panic!("module m should be registered once");
+        };
+        assert_eq!(m_decl.order, ModuleOrder(0));
+        let m = m_decl.module;
+        assert_eq!(lower.modules.value_decls(m, &Name("x".into())).len(), 1);
+    }
+
+    #[test]
+    fn ordered_lookup_prefers_last_previous_decl() {
+        let cst = parse("my a = 1\nmy b = a\nmy a = 2\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let a_decls = lower.modules.value_decls(root, &Name("a".into()));
+        let b_order = lower.modules.value_decls(root, &Name("b".into()))[0].order;
+
+        assert_eq!(a_decls.len(), 2);
+        assert_eq!(
+            lower.modules.value_at(root, &Name("a".into()), b_order),
+            Some(a_decls[0].def)
+        );
+    }
+
+    #[test]
+    fn ordered_lookup_uses_nearest_following_decl_when_no_previous_decl_exists() {
+        let cst = parse("my b = a\nmy a = 1\nmy a = 2\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let a_decls = lower.modules.value_decls(root, &Name("a".into()));
+        let b_order = lower.modules.value_decls(root, &Name("b".into()))[0].order;
+
+        assert_eq!(
+            lower.modules.value_at(root, &Name("a".into()), b_order),
+            Some(a_decls[0].def)
+        );
+    }
+
+    #[test]
+    fn lexical_lookup_converts_child_site_to_parent_module_order() {
+        let cst = parse("mod m:\n  my y = x\nmy x = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let m = lower.modules.module_decls(root, &Name("m".into()))[0].module;
+        let y_order = lower.modules.value_decls(m, &Name("y".into()))[0].order;
+        let x = lower.modules.value_decls(root, &Name("x".into()))[0].def;
+
+        assert_eq!(
+            lower
+                .modules
+                .lexical_value_at(m, &Name("x".into()), y_order),
+            Some(x)
+        );
+    }
+
+    #[test]
+    fn lexical_lookup_prefers_parent_decl_before_child_module_over_later_parent_decl() {
+        let cst = parse("my x = 0\nmod m:\n  my y = x\nmy x = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let m = lower.modules.module_decls(root, &Name("m".into()))[0].module;
+        let y_order = lower.modules.value_decls(m, &Name("y".into()))[0].order;
+        let x_decls = lower.modules.value_decls(root, &Name("x".into()));
+
+        assert_eq!(
+            lower
+                .modules
+                .lexical_value_at(m, &Name("x".into()), y_order),
+            Some(x_decls[0].def)
+        );
     }
 }
