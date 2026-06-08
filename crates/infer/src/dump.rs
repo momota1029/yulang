@@ -1,15 +1,16 @@
-//! `sources::LoadedFile` から `poly` dump までをつなぐ debug 用入口。
+//! source / `sources::LoadedFile` から `poly` dump までをつなぐ debug 用入口。
 //!
-//! この module は FS 探索を持たない。local module file を読む層は `sources` 側で
-//! `LoadedFile` を揃え、ここへ渡す。まずは単一 file の縦断 route を固定し、
-//! 後で multi-file module 接続や scheme 化をこの入口の内側へ足していく。
+//! FS 探索そのものは呼び出し側に置き、この module は集まった `LoadedFile` を infer の
+//! module tree と `poly` dump へ接続する。scheme 化はまだ未接続なので、現時点の dump は
+//! body / ref resolution / constraint session を見るための debug footing。
 
 use rowan::SyntaxNode;
 use sources::{LoadedFile, Path, SourceFile};
 use yulang_parser::sink::YulangLanguage;
 
+use crate::LoadedFilesError;
 use crate::lower_module_map;
-use crate::lowering::{BodyLowering, lower_binding_bodies};
+use crate::lowering::{BodyLowering, lower_binding_bodies, lower_loaded_files};
 
 /// poly dump と、その dump を作った lowering state。
 ///
@@ -19,6 +20,12 @@ use crate::lowering::{BodyLowering, lower_binding_bodies};
 pub struct PolyDumpOutput {
     pub text: String,
     pub lowering: BodyLowering,
+}
+
+/// 複数 loaded files を1つの module tree として lower し、`poly` compact dump を返す。
+pub fn dump_loaded_files(files: &[LoadedFile]) -> Result<PolyDumpOutput, LoadedFilesError> {
+    let lowering = lower_loaded_files(files)?;
+    Ok(dump_lowering(lowering))
 }
 
 /// 1つの loaded file を lower し、`poly` compact dump を返す。
@@ -58,6 +65,15 @@ pub fn dump_lowering(lowering: BodyLowering) -> PolyDumpOutput {
 mod tests {
     use super::*;
 
+    fn path(segments: &[&str]) -> Path {
+        Path {
+            segments: segments
+                .iter()
+                .map(|s| sources::Name((*s).into()))
+                .collect(),
+        }
+    }
+
     #[test]
     fn dumps_single_source_with_def_and_ref_labels() {
         let output = dump_source("my a = 1\nmy b = a\n");
@@ -66,6 +82,48 @@ mod tests {
         assert_eq!(
             output.text,
             "roots d0:a d1:b\nmy d0:a = e0:1\nmy d1:b = e1:r0:a->d0:a\n"
+        );
+    }
+
+    #[test]
+    fn dumps_loaded_files_as_connected_module_tree() {
+        let files = sources::load(vec![
+            SourceFile {
+                module_path: path(&[]),
+                source: "mod foo;\nmy x = 1\n".into(),
+            },
+            SourceFile {
+                module_path: path(&["foo"]),
+                source: "my y = 2\n".into(),
+            },
+        ]);
+        let output = dump_loaded_files(&files).unwrap();
+
+        assert_eq!(output.lowering.errors, Vec::new());
+        assert_eq!(
+            output.text,
+            "roots d0:foo d1:x\nd0:foo mod {\n  my d2:\"foo.y\" = e1:2\n}\nmy d1:x = e0:1\n"
+        );
+    }
+
+    #[test]
+    fn dumps_use_mod_loaded_file_as_module_tree() {
+        let files = sources::load(vec![
+            SourceFile {
+                module_path: path(&[]),
+                source: "use mod foo::*\n".into(),
+            },
+            SourceFile {
+                module_path: path(&["foo"]),
+                source: "my y = 2\n".into(),
+            },
+        ]);
+        let output = dump_loaded_files(&files).unwrap();
+
+        assert_eq!(output.lowering.errors, Vec::new());
+        assert_eq!(
+            output.text,
+            "roots d0:foo\nd0:foo mod {\n  my d1:\"foo.y\" = e0:2\n}\n"
         );
     }
 }

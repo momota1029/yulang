@@ -24,7 +24,8 @@ use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::SyntaxNode;
 use rustc_hash::FxHashMap;
-use sources::{Name, UseImport};
+use sources::{LoadedFile, Name, Path as ModulePath, UseImport};
+use std::fmt;
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
@@ -105,6 +106,12 @@ pub struct ModuleChildDecl {
     pub order: ModuleOrder,
     pub module: ModuleId,
     pub def: DefId,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct ModulePathTarget {
+    pub module: ModuleId,
+    pub def: Option<DefId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +244,13 @@ impl ModuleTable {
             site = parent.order;
         }
     }
+    pub fn module_by_path(&self, path: &ModulePath) -> Option<ModuleId> {
+        let mut module = self.root_id();
+        for segment in &path.segments {
+            module = self.first_module_decl(module, segment)?.module;
+        }
+        Some(module)
+    }
     pub fn value_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleValueDecl> {
         self.nodes[module.0]
             .values
@@ -277,6 +291,9 @@ impl ModuleTable {
                 }
             })
             .collect()
+    }
+    fn first_module_decl(&self, module: ModuleId, name: &Name) -> Option<ModuleChildDecl> {
+        self.module_decls(module, name).into_iter().next()
     }
     /// dump 用の source label table を作る。
     ///
@@ -407,23 +424,22 @@ impl Lower {
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
                         let vis = vis_of(&child);
-                        // 先に DefId を採番してから子を登録し、最後に完成版を set する。
-                        let def = self.arena.defs.fresh();
-                        let sub = self.modules.new_module();
+                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
                         let sub_children = self.register_mod_body(&child, sub);
-                        self.arena.defs.set(
-                            def,
-                            Def::Mod {
-                                vis,
-                                children: sub_children,
-                            },
-                        );
-                        self.modules.insert_module(module, name, sub, def, vis);
-                        children.push(def);
+                        self.set_module_children(def, sub_children);
+                        if created {
+                            children.push(def);
+                        }
                     }
                 }
                 SyntaxKind::UseDecl => {
                     let vis = vis_of(&child);
+                    if let Some(name) = use_mod_name(&child) {
+                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        if created {
+                            children.push(def);
+                        }
+                    }
                     for import in sources::use_imports(&child) {
                         self.modules.add_alias(module, import, vis);
                     }
@@ -448,6 +464,51 @@ impl Lower {
         }
         Vec::new()
     }
+
+    fn ensure_child_module(
+        &mut self,
+        module: ModuleId,
+        name: Name,
+        vis: Vis,
+    ) -> (DefId, ModuleId, bool) {
+        if let Some(existing) = self.modules.first_module_decl(module, &name) {
+            return (existing.def, existing.module, false);
+        }
+
+        let def = self.arena.defs.fresh();
+        let sub = self.modules.new_module();
+        self.arena.defs.set(
+            def,
+            Def::Mod {
+                vis,
+                children: Vec::new(),
+            },
+        );
+        self.modules.insert_module(module, name, sub, def, vis);
+        (def, sub, true)
+    }
+
+    fn set_module_children(&mut self, def: DefId, children: Vec<DefId>) {
+        let Some(Def::Mod { children: slot, .. }) = self.arena.defs.get_mut(def) else {
+            return;
+        };
+        *slot = children;
+    }
+
+    pub(crate) fn module_path_target(&self, path: &ModulePath) -> Option<ModulePathTarget> {
+        let mut target = ModulePathTarget {
+            module: self.modules.root_id(),
+            def: None,
+        };
+        for segment in &path.segments {
+            let decl = self.modules.first_module_decl(target.module, segment)?;
+            target = ModulePathTarget {
+                module: decl.module,
+                def: Some(decl.def),
+            };
+        }
+        Some(target)
+    }
 }
 
 /// pass1 の入口。フルパース済み CST のモジュールマップを作る。
@@ -457,6 +518,136 @@ pub fn lower_module_map(root: &Cst) -> Lower {
     let roots = lower.register_block(root, root_module);
     lower.arena.roots = roots;
     lower
+}
+
+/// 複数 `LoadedFile` から1つの module map を作る。
+///
+/// root file を先に登録し、`mod foo;` / `use mod foo::*` が作った module skeleton に
+/// child file の block を差し込む。file path 解決や op table 確定は `sources` 側の責務。
+pub fn lower_loaded_files_module_map(files: &[LoadedFile]) -> Result<Lower, LoadedFilesError> {
+    let loaded = LoadedFileCsts::new(files)?;
+    lower_loaded_file_csts_module_map(&loaded)
+}
+
+pub(crate) fn lower_loaded_file_csts_module_map(
+    loaded: &LoadedFileCsts,
+) -> Result<Lower, LoadedFilesError> {
+    let mut lower = Lower::new();
+
+    let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
+    let roots = lower.register_block(&root.cst, lower.modules.root_id());
+    lower.arena.roots = roots;
+
+    for file in loaded.non_root_by_depth() {
+        let Some(target) = lower.module_path_target(&file.module_path) else {
+            return Err(LoadedFilesError::MissingModulePath {
+                module_path: file.module_path.clone(),
+            });
+        };
+        let Some(def) = target.def else {
+            continue;
+        };
+        let children = lower.register_block(&file.cst, target.module);
+        lower.set_module_children(def, children);
+    }
+
+    Ok(lower)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoadedFilesError {
+    MissingRoot,
+    DuplicateModulePath { module_path: ModulePath },
+    MissingModulePath { module_path: ModulePath },
+}
+
+impl fmt::Display for LoadedFilesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingRoot => write!(f, "loaded files do not contain a root module"),
+            Self::DuplicateModulePath { module_path } => write!(
+                f,
+                "loaded files contain duplicate module `{}`",
+                format_module_path(module_path)
+            ),
+            Self::MissingModulePath { module_path } => write!(
+                f,
+                "loaded module `{}` has no module declaration in its parent",
+                format_module_path(module_path)
+            ),
+        }
+    }
+}
+
+impl std::error::Error for LoadedFilesError {}
+
+pub(crate) struct LoadedFileCsts {
+    files: Vec<LoadedFileCst>,
+}
+
+pub(crate) struct LoadedFileCst {
+    pub module_path: ModulePath,
+    pub cst: Cst,
+}
+
+impl LoadedFileCsts {
+    pub(crate) fn new(files: &[LoadedFile]) -> Result<Self, LoadedFilesError> {
+        let mut seen = FxHashMap::default();
+        let mut indexed = Vec::with_capacity(files.len());
+        for file in files {
+            if seen.insert(file.module_path.clone(), ()).is_some() {
+                return Err(LoadedFilesError::DuplicateModulePath {
+                    module_path: file.module_path.clone(),
+                });
+            }
+            indexed.push(LoadedFileCst {
+                module_path: file.module_path.clone(),
+                cst: SyntaxNode::<YulangLanguage>::new_root(file.cst.clone()),
+            });
+        }
+        indexed.sort_by_key(|file| {
+            (
+                file.module_path.segments.len(),
+                module_path_sort_key(&file.module_path),
+            )
+        });
+        Ok(Self { files: indexed })
+    }
+
+    pub(crate) fn root(&self) -> Option<&LoadedFileCst> {
+        self.files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+    }
+
+    pub(crate) fn by_depth(&self) -> impl Iterator<Item = &LoadedFileCst> {
+        self.files.iter()
+    }
+
+    fn non_root_by_depth(&self) -> impl Iterator<Item = &LoadedFileCst> {
+        self.files
+            .iter()
+            .filter(|file| !file.module_path.segments.is_empty())
+    }
+}
+
+fn module_path_sort_key(path: &ModulePath) -> String {
+    path.segments
+        .iter()
+        .map(|name| name.0.as_str())
+        .collect::<Vec<_>>()
+        .join("\0")
+}
+
+fn format_module_path(path: &ModulePath) -> String {
+    if path.segments.is_empty() {
+        return "<root>".to_string();
+    }
+    path.segments
+        .iter()
+        .map(|name| name.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 // ── CST ヘルパ ───────────────────────────────────────────────────────────
@@ -490,6 +681,25 @@ fn binding_vis(node: &Cst) -> Vis {
 /// ModDecl の最初の Ident がモジュール名。
 fn mod_name(node: &Cst) -> Option<Name> {
     first_ident(node)
+}
+
+/// `use mod foo::...` の `foo`。
+///
+/// parser の設計では `use mod path` は `mod path_head; use path` の sugar なので、
+/// pass1 でも先頭 module を module skeleton として登録する。
+fn use_mod_name(node: &Cst) -> Option<Name> {
+    let mut after_mod = false;
+    for item in node.children_with_tokens() {
+        let Some(token) = item.into_token() else {
+            continue;
+        };
+        match token.kind() {
+            SyntaxKind::Mod => after_mod = true,
+            SyntaxKind::Ident if after_mod => return Some(Name(token.text().to_string())),
+            _ => {}
+        }
+    }
+    None
 }
 
 /// 直下の My/Our/Pub トークンを読む。無ければ Our（省略時の既定）。

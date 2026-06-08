@@ -2393,6 +2393,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang2"
+version = "0.1.0"
+dependencies = [
+ "infer",
+ "sources",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -20,6 +20,7 @@ members = [
   "crates/yulang-wasm",
   "crates/yulang-infer",
   "crates/yulang-lsp",
+  "crates/yulang2",
   "crates/poly",
   "crates/infer",
   "crates/sources",

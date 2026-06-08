@@ -1,0 +1,8 @@
+[package]
+name = "yulang2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+infer = { path = "../infer" }
+sources = { path = "../sources" }

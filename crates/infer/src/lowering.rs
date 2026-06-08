@@ -9,7 +9,7 @@
 //! event routing 側に残る。
 
 use rowan::{NodeOrToken, SyntaxNode};
-use sources::Name;
+use sources::{LoadedFile, Name};
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
@@ -22,7 +22,10 @@ use crate::analysis::{AnalysisSession, AnalysisWork};
 use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::RefUse;
-use crate::{Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable};
+use crate::{
+    LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable,
+    lower_loaded_file_csts_module_map,
+};
 
 type Cst = SyntaxNode<YulangLanguage>;
 
@@ -48,6 +51,29 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
     lowerer.lower_block(root, lowerer.modules.root_id());
     lowerer.session.drain_work();
     lowerer.finish()
+}
+
+/// 複数 `LoadedFile` を1つの module tree として body lowering する。
+///
+/// pass1 は root file から `mod` / `use mod` の module skeleton を作り、child file の
+/// top-level block を対応する module に差し込む。pass2 は全 file の binding を走査してから
+/// work queue を drain するため、file をまたぐ forward ref / cycle も同じ SCC machine に乗る。
+pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFilesError> {
+    let loaded = LoadedFileCsts::new(files)?;
+    let lower = lower_loaded_file_csts_module_map(&loaded)?;
+    let mut lowerer = BodyLowerer::new(lower);
+
+    for file in loaded.by_depth() {
+        let Some(module) = lowerer.modules.module_by_path(&file.module_path) else {
+            return Err(LoadedFilesError::MissingModulePath {
+                module_path: file.module_path.clone(),
+            });
+        };
+        lowerer.lower_block(&file.cst, module);
+    }
+
+    lowerer.session.drain_work();
+    Ok(lowerer.finish())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
