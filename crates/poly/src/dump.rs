@@ -12,6 +12,9 @@ use crate::expr::{
     SelectResolution, Stmt, Vis,
 };
 
+mod type_format;
+pub use self::type_format::{format_neg, format_neu, format_pos, format_scheme};
+
 /// `poly::Arena` を compact dump として返す。
 ///
 /// source 名は `poly` 単体には残らないため、標準の dump は arena-local ID だけを使う。
@@ -134,22 +137,18 @@ impl<'a> Dumper<'a> {
             }
             Def::Let {
                 vis,
+                scheme,
                 body,
                 children,
-                ..
             } => {
                 let expr = body
                     .map(|body| self.expr(body))
                     .unwrap_or_else(|| "<missing>".to_string());
+                let head = self.let_head(*vis, id, scheme.as_ref());
                 if children.is_empty() {
-                    let _ = writeln!(self.out, "{}{} = {expr}", vis_prefix(*vis), self.def_id(id));
+                    let _ = writeln!(self.out, "{head} = {expr}");
                 } else {
-                    let _ = writeln!(
-                        self.out,
-                        "{}{} = {expr} {{",
-                        vis_prefix(*vis),
-                        self.def_id(id)
-                    );
+                    let _ = writeln!(self.out, "{head} = {expr} {{");
                     self.write_children(children, indent + 1);
                     self.write_indent(indent);
                     let _ = writeln!(self.out, "}}");
@@ -158,6 +157,14 @@ impl<'a> Dumper<'a> {
             Def::Arg => {
                 let _ = writeln!(self.out, "{} arg", self.def_id(id));
             }
+        }
+    }
+
+    fn let_head(&self, vis: Vis, id: DefId, scheme: Option<&crate::types::Scheme>) -> String {
+        let head = format!("{}{}", vis_prefix(vis), self.def_id(id));
+        match scheme {
+            Some(scheme) => format!("{head}: {}", format_scheme(&self.arena.typ, scheme)),
+            None => head,
         }
     }
 
@@ -479,6 +486,7 @@ fn is_plain_name(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{Pos, Scheme, TypeVar};
 
     #[test]
     fn dumps_let_body_on_one_line() {
@@ -497,6 +505,31 @@ mod tests {
         arena.roots.push(def);
 
         assert_eq!(dump_arena(&arena), "roots d0\nd0 = e0:1\n");
+    }
+
+    #[test]
+    fn dumps_let_scheme_before_body() {
+        let mut arena = Arena::new();
+        let def = arena.defs.fresh();
+        let body = arena.add_expr(Expr::Lit(Lit::Int(1)));
+        let var = TypeVar(0);
+        let predicate = arena.typ.alloc_pos(Pos::Var(var));
+        arena.defs.set(
+            def,
+            Def::Let {
+                vis: Vis::Our,
+                scheme: Some(Scheme {
+                    quantifiers: vec![var],
+                    predicate,
+                    subtracts: Vec::new(),
+                }),
+                body: Some(body),
+                children: Vec::new(),
+            },
+        );
+        arena.roots.push(def);
+
+        assert_eq!(dump_arena(&arena), "roots d0\nd0: 'a = e0:1\n");
     }
 
     #[test]
