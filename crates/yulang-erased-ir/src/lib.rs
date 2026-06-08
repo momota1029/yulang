@@ -88,10 +88,12 @@ impl ErasedProgram {
     }
 
     pub fn typeclass_obligations(&self) -> impl Iterator<Item = &TypeClassObligation> {
-        self.module
-            .bindings
-            .iter()
-            .flat_map(|binding| binding.scheme.typeclass_obligations.iter())
+        self.refs.typeclass_obligations.values().chain(
+            self.module
+                .bindings
+                .iter()
+                .flat_map(|binding| binding.scheme.typeclass_obligations.iter()),
+        )
     }
 }
 
@@ -113,6 +115,16 @@ pub struct ErasedModule {
     pub bindings: Vec<InferredBinding>,
     pub root_exprs: Vec<InferredExpr>,
     pub roots: Vec<PrincipalRoot>,
+    #[serde(default)]
+    pub enum_variants: Vec<EnumVariantGraphNode>,
+    #[serde(default)]
+    pub effect_operations: Vec<EffectOperationDecl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EffectOperationDecl {
+    pub path: Path,
+    pub scheme: Scheme,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -136,10 +148,20 @@ pub enum PrincipalRoot {
     Expr(usize),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnumVariantGraphNode {
+    pub enum_path: Path,
+    pub tag: Name,
+    pub type_params: Vec<TypeVar>,
+    pub payload: Option<Type>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct RefExportTable {
     pub direct: BTreeMap<RefId, DefId>,
     pub resolved_typeclass: BTreeMap<RefId, ResolvedTypeClassRef>,
+    #[serde(default)]
+    pub typeclass_obligations: BTreeMap<RefId, TypeClassObligation>,
     pub typeclass_impl_candidates: Vec<TypeClassImplCandidate>,
 }
 
@@ -207,6 +229,7 @@ pub struct AssociatedTypeConstraint {
 pub enum ErasedExpr {
     Def(DefId),
     Ref(RefId),
+    EffectOp(Path),
     PrimitiveOp(PrimitiveOp),
     Lit(Lit),
     Lambda {
@@ -426,7 +449,10 @@ fn collect_expr_refs(expr: &ErasedExpr, out: &mut BTreeSet<RefId>) {
             }
         }
         ErasedExpr::Block(block) => collect_block_refs(block, out),
-        ErasedExpr::Def(_) | ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => {}
+        ErasedExpr::Def(_)
+        | ErasedExpr::EffectOp(_)
+        | ErasedExpr::PrimitiveOp(_)
+        | ErasedExpr::Lit(_) => {}
     }
 }
 

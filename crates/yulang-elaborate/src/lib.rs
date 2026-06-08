@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod constraints;
 mod draft;
+pub mod solver;
 
 use yulang_erased_ir::{
     DefId, ErasedExpr, InferExport, InferredBinding, InferredExpr, Name, Path, PrincipalRoot,
@@ -65,14 +66,7 @@ impl<'a> Elaborator<'a> {
             .iter()
             .map(|binding| binding.scheme.quantified_refs.len())
             .sum();
-        let typeclass_obligations = self
-            .export
-            .erased
-            .module
-            .bindings
-            .iter()
-            .map(|binding| binding.scheme.typeclass_obligations.len())
-            .sum();
+        let typeclass_obligations = self.export.erased.typeclass_obligations().count();
         ElaborateInputSummary {
             bindings: self.export.erased.module.bindings.len(),
             root_exprs: self.export.erased.module.root_exprs.len(),
@@ -183,6 +177,20 @@ pub enum ElaborateProgramError {
         source: elaborated_ir::EffectiveThunkType,
         target: MonoComputation,
     },
+    ExpectedVariantPattern {
+        site: ElaborateSite,
+        found: MonoType,
+    },
+    MissingVariantPatternCase {
+        site: ElaborateSite,
+        tag: Name,
+    },
+    VariantPatternPayloadMismatch {
+        site: ElaborateSite,
+        tag: Name,
+        expected: usize,
+        actual: usize,
+    },
     MissingResolvedRef {
         instance: MonoInstanceId,
         ref_id: RefId,
@@ -218,6 +226,7 @@ pub enum ComputationField {
 pub enum ErasedExprKind {
     Def,
     Ref,
+    EffectOp,
     PrimitiveOp,
     Lit,
     Lambda,
@@ -285,6 +294,8 @@ impl<'a> ProgramBuilder<'a> {
             env: constraints::ConstraintEnvironment::new(
                 &export.erased.refs,
                 &export.erased.module.bindings,
+                &export.erased.module.enum_variants,
+                &export.erased.module.effect_operations,
             ),
             bindings_by_def,
             defs_by_path,
@@ -574,9 +585,8 @@ impl<'a> ProgramBuilder<'a> {
         >,
     ) -> Result<(), ElaborateProgramError> {
         for (ref_id, demand) in typeclass_obligation_instances {
-            let resolved = self.resolve_typeclass_obligation(&demand.obligation)?;
             let target = self.ensure_def_instance_with_signature(
-                resolved.impl_member,
+                demand.resolved.impl_member,
                 demand.signature.clone(),
             )?;
             self.refs.entries.insert(
@@ -586,7 +596,9 @@ impl<'a> ProgramBuilder<'a> {
                 },
                 ResolvedRef {
                     target,
-                    source: ResolvedRefSource::ElaboratedTypeclass { resolved },
+                    source: ResolvedRefSource::ElaboratedTypeclass {
+                        resolved: demand.resolved.clone(),
+                    },
                 },
             );
         }
@@ -669,7 +681,12 @@ fn typeclass_candidate_matches(
                     return false;
                 };
                 input_index += 1;
-                if !matcher.match_bounds_to_exact_type(bounds, actual) {
+                let actual =
+                    unique_concrete_candidate_from_type(actual).unwrap_or_else(|| actual.clone());
+                if !typeclass_input_is_ready(&actual) {
+                    return false;
+                }
+                if !matcher.match_bounds_to_exact_type(bounds, &actual) {
                     return false;
                 }
             }
@@ -679,7 +696,7 @@ fn typeclass_candidate_matches(
                     .iter()
                     .find(|associated| associated.name == *name)
                 else {
-                    return false;
+                    continue;
                 };
                 if !matcher.match_bounds(bounds, &actual.bounds) {
                     return false;
@@ -754,6 +771,14 @@ impl TypePatternMatcher {
     }
 
     fn match_bounds(&mut self, pattern: &TypeBounds, actual: &TypeBounds) -> bool {
+        let actual_is_exact = actual
+            .lower
+            .as_deref()
+            .zip(actual.upper.as_deref())
+            .is_some_and(|(lower, upper)| lower == upper);
+        if !actual_is_exact && let Some(actual) = unique_concrete_candidate(actual) {
+            return self.match_bounds_to_exact_type(pattern, &actual);
+        }
         match (&pattern.lower, &actual.lower) {
             (Some(pattern), Some(actual)) if !self.match_type(pattern, actual) => return false,
             (None, None) | (Some(_), Some(_)) => {}
@@ -994,12 +1019,12 @@ fn elaborate_root_expr(
     let solution = constraints::ConstraintSet::seed_root(&draft, comp)
         .solve(&draft, &expr.ir, env)
         .map_err(ElaborateProgramError::Constraint)?;
-    let expr = elaborate_expr(site, &draft, draft.root, &expr.ir, &solution)?;
+    let expr = elaborate_expr(site, &draft, draft.root, &expr.ir, &solution, env)?;
     Ok(ElaboratedBody {
         expr,
         direct_ref_instances: solution.direct_ref_instances().clone(),
         resolved_typeclass_instances: solution.resolved_typeclass_instances().clone(),
-        typeclass_obligation_instances: BTreeMap::new(),
+        typeclass_obligation_instances: solution.typeclass_obligation_instances().clone(),
     })
 }
 
@@ -1011,20 +1036,28 @@ fn elaborate_binding_expr_with_signature(
 ) -> Result<ElaboratedBody, ElaborateProgramError> {
     let site = ElaborateSite::Binding(def);
     let draft = draft::ElaborationDraft::from_root_expr(0, &binding.body.ir);
-    let solution = constraints::ConstraintSet::seed_root(&draft, signature.clone())
-        .solve(&draft, &binding.body.ir, env)
-        .map_err(ElaborateProgramError::Constraint)?;
-    let expr = elaborate_expr(site, &draft, draft.root, &binding.body.ir, &solution)?;
-    let typeclass_obligation_instances = constraints::instantiate_typeclass_obligation_instances(
+    let local_obligations = constraints::instantiate_typeclass_obligations_for_signature(
         &binding.scheme,
         &signature,
-        solution.typeclass_obligation_instances(),
+        env,
     );
+    let local_env = env.with_typeclass_obligation_overrides(local_obligations);
+    let solution = constraints::ConstraintSet::seed_root(&draft, signature.clone())
+        .solve(&draft, &binding.body.ir, &local_env)
+        .map_err(ElaborateProgramError::Constraint)?;
+    let expr = elaborate_expr(
+        site,
+        &draft,
+        draft.root,
+        &binding.body.ir,
+        &solution,
+        &local_env,
+    )?;
     Ok(ElaboratedBody {
         expr,
         direct_ref_instances: solution.direct_ref_instances().clone(),
         resolved_typeclass_instances: solution.resolved_typeclass_instances().clone(),
-        typeclass_obligation_instances,
+        typeclass_obligation_instances: solution.typeclass_obligation_instances().clone(),
     })
 }
 
@@ -1152,6 +1185,7 @@ fn syntactically_pure_expr(expr: &ErasedExpr) -> bool {
     match expr {
         ErasedExpr::Def(_)
         | ErasedExpr::Ref(_)
+        | ErasedExpr::EffectOp(_)
         | ErasedExpr::PrimitiveOp(_)
         | ErasedExpr::Lit(_)
         | ErasedExpr::Lambda { .. } => true,
@@ -1244,6 +1278,84 @@ fn unique_concrete_candidate(bounds: &TypeBounds) -> Option<Type> {
         candidates.pop()
     } else {
         None
+    }
+}
+
+fn unique_concrete_candidate_from_type(ty: &Type) -> Option<Type> {
+    if let Type::Union(items) | Type::Inter(items) = ty {
+        let mut candidates = Vec::new();
+        for item in items {
+            collect_concrete_candidates(item, &mut candidates);
+        }
+        return (candidates.len() == 1).then(|| candidates.remove(0));
+    }
+    let mut candidates = Vec::new();
+    collect_concrete_candidates(ty, &mut candidates);
+    (candidates.len() == 1).then(|| candidates.remove(0))
+}
+
+fn typeclass_input_is_ready(ty: &Type) -> bool {
+    match ty {
+        Type::Unknown | Type::Var(_) => false,
+        Type::Named { args, .. } => args.iter().all(typeclass_input_arg_is_ready),
+        Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            typeclass_input_is_ready(param)
+                && typeclass_input_is_ready(param_effect)
+                && typeclass_input_is_ready(ret_effect)
+                && typeclass_input_is_ready(ret)
+        }
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => {
+            items.iter().all(typeclass_input_is_ready)
+        }
+        Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .all(|field| typeclass_input_is_ready(&field.value))
+                && record.spread.as_ref().is_none_or(|spread| match spread {
+                    yulang_erased_ir::RecordSpread::Head(ty)
+                    | yulang_erased_ir::RecordSpread::Tail(ty) => typeclass_input_is_ready(ty),
+                })
+        }
+        Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .flat_map(|case| &case.payloads)
+                .all(typeclass_input_is_ready)
+                && variant
+                    .tail
+                    .as_ref()
+                    .is_none_or(|tail| typeclass_input_is_ready(tail))
+        }
+        Type::Row { items, tail } => {
+            items.iter().all(typeclass_input_is_ready) && typeclass_input_is_ready(tail)
+        }
+        Type::Recursive { .. } => false,
+        Type::Never | Type::Any => true,
+    }
+}
+
+fn typeclass_input_arg_is_ready(arg: &yulang_erased_ir::TypeArg) -> bool {
+    match arg {
+        yulang_erased_ir::TypeArg::Type(ty) => typeclass_input_is_ready(ty),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => {
+            if let Some(candidate) = unique_concrete_candidate(bounds) {
+                return typeclass_input_is_ready(&candidate);
+            }
+            let Some(lower) = bounds.lower.as_deref() else {
+                return false;
+            };
+            let Some(upper) = bounds.upper.as_deref() else {
+                return false;
+            };
+            lower == upper && typeclass_input_is_ready(lower)
+        }
     }
 }
 
@@ -1704,17 +1816,22 @@ fn concretize_type_arg_candidate(
         yulang_erased_ir::TypeArg::Type(ty) => Some(yulang_erased_ir::TypeArg::Type(
             concretize_type_candidate(ty)?,
         )),
-        yulang_erased_ir::TypeArg::Bounds(bounds) => Some(yulang_erased_ir::TypeArg::Bounds(
-            yulang_erased_ir::TypeBounds {
-                lower: bounds.lower.as_ref().map_or(Some(None), |lower| {
-                    concretize_type_candidate(lower).map(Box::new).map(Some)
-                })?,
-                upper: bounds.upper.as_ref().map_or(Some(None), |upper| {
-                    concretize_type_candidate(upper).map(Box::new).map(Some)
-                })?,
-            },
-        )),
+        yulang_erased_ir::TypeArg::Bounds(bounds) => {
+            let candidate = type_bounds_concrete_candidate(bounds)?;
+            Some(yulang_erased_ir::TypeArg::Type(candidate))
+        }
     }
+}
+
+fn type_bounds_concrete_candidate(bounds: &TypeBounds) -> Option<Type> {
+    let mut candidates = Vec::new();
+    if let Some(lower) = &bounds.lower {
+        collect_concrete_candidates(lower, &mut candidates);
+    }
+    if let Some(upper) = &bounds.upper {
+        collect_concrete_candidates(upper, &mut candidates);
+    }
+    (candidates.len() == 1).then(|| candidates.remove(0))
 }
 
 fn concretize_record_spread_candidate(
@@ -1812,7 +1929,10 @@ fn collect_expr_refs(expr: &ErasedExpr, out: &mut BTreeSet<RefId>) {
             }
         }
         ErasedExpr::Block(block) => collect_block_refs(block, out),
-        ErasedExpr::Def(_) | ErasedExpr::PrimitiveOp(_) | ErasedExpr::Lit(_) => {}
+        ErasedExpr::Def(_)
+        | ErasedExpr::EffectOp(_)
+        | ErasedExpr::PrimitiveOp(_)
+        | ErasedExpr::Lit(_) => {}
     }
 }
 
@@ -1986,6 +2106,7 @@ fn resolve_expr_refs_in_place(
         }
         ElaboratedExprKind::Def(_)
         | ElaboratedExprKind::InstanceRef(_)
+        | ElaboratedExprKind::EffectOp(_)
         | ElaboratedExprKind::PrimitiveOp(_)
         | ElaboratedExprKind::Lit(_)
         | ElaboratedExprKind::PeekId
@@ -2087,6 +2208,7 @@ fn elaborate_expr(
     id: draft::DraftExprId,
     expr: &ErasedExpr,
     solution: &constraints::ComputationSolution,
+    env: &constraints::ConstraintEnvironment<'_>,
 ) -> Result<ElaboratedExpr, ElaborateProgramError> {
     let raw_comp = solution
         .computation_for_expr(draft, id)
@@ -2096,6 +2218,7 @@ fn elaborate_expr(
     let kind = match expr {
         ErasedExpr::Def(def) => ElaboratedExprKind::Def(*def),
         ErasedExpr::Ref(ref_id) => ElaboratedExprKind::Ref(*ref_id),
+        ErasedExpr::EffectOp(path) => ElaboratedExprKind::EffectOp(path.clone()),
         ErasedExpr::PrimitiveOp(op) => ElaboratedExprKind::PrimitiveOp(*op),
         ErasedExpr::Lit(lit) => ElaboratedExprKind::Lit(lit.clone()),
         ErasedExpr::Lambda { param, body } => {
@@ -2114,6 +2237,7 @@ fn elaborate_expr(
                     *body_id,
                     body,
                     solution,
+                    env,
                 )?),
             }
         }
@@ -2124,8 +2248,8 @@ fn elaborate_expr(
                     kind: ErasedExprKind::Apply,
                 });
             };
-            let callee = elaborate_expr(site.clone(), draft, *callee_id, callee, solution)?;
-            let arg = elaborate_expr(site.clone(), draft, *arg_id, arg, solution)?;
+            let callee = elaborate_expr(site.clone(), draft, *callee_id, callee, solution, env)?;
+            let arg = elaborate_expr(site.clone(), draft, *arg_id, arg, solution, env)?;
             return elaborate_apply_expr(site, comp, callee, arg);
         }
         ErasedExpr::Tuple(items) => {
@@ -2135,7 +2259,7 @@ fn elaborate_expr(
                     .into_iter()
                     .zip(items)
                     .map(|(child_id, item)| {
-                        elaborate_expr(site.clone(), draft, child_id, item, solution)
+                        elaborate_expr(site.clone(), draft, child_id, item, solution, env)
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             )
@@ -2154,6 +2278,7 @@ fn elaborate_expr(
                             child_id,
                             &field.value,
                             solution,
+                            env,
                         )?,
                     })
                 })
@@ -2163,12 +2288,12 @@ fn elaborate_expr(
                 .zip(children.get(fields.len()).copied())
                 .map(|(spread, spread_id)| match spread {
                     yulang_erased_ir::RecordSpreadExpr::Head(expr) => {
-                        elaborate_expr(site.clone(), draft, spread_id, expr, solution)
+                        elaborate_expr(site.clone(), draft, spread_id, expr, solution, env)
                             .map(Box::new)
                             .map(elaborated_ir::RecordSpreadExpr::Head)
                     }
                     yulang_erased_ir::RecordSpreadExpr::Tail(expr) => {
-                        elaborate_expr(site.clone(), draft, spread_id, expr, solution)
+                        elaborate_expr(site.clone(), draft, spread_id, expr, solution, env)
                             .map(Box::new)
                             .map(elaborated_ir::RecordSpreadExpr::Tail)
                     }
@@ -2184,7 +2309,8 @@ fn elaborate_expr(
                 .as_ref()
                 .zip(draft.expr(id).children.first().copied())
                 .map(|(value, child_id)| {
-                    elaborate_expr(site.clone(), draft, child_id, value, solution).map(Box::new)
+                    elaborate_expr(site.clone(), draft, child_id, value, solution, env)
+                        .map(Box::new)
                 })
                 .transpose()?;
             ElaboratedExprKind::Variant {
@@ -2206,10 +2332,162 @@ fn elaborate_expr(
                     *base_id,
                     base,
                     solution,
+                    env,
                 )?),
                 field: field.clone(),
             }
         }
+        ErasedExpr::Match { scrutinee, arms } => {
+            let children = draft.expr(id).children.clone();
+            let Some((&scrutinee_id, mut rest)) = children.split_first() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::Match,
+                });
+            };
+            let scrutinee_expr =
+                elaborate_expr(site.clone(), draft, scrutinee_id, scrutinee, solution, env)?;
+            let scrutinee_raw = solution
+                .computation_for_expr(draft, scrutinee_id)
+                .map_err(ElaborateProgramError::Constraint)?
+                .clone();
+            let arms = arms
+                .iter()
+                .map(|arm| {
+                    let guard_id = if arm.guard.is_some() {
+                        let (guard_id, tail) = rest.split_first().ok_or_else(|| {
+                            ElaborateProgramError::UnsupportedExpr {
+                                site: site.clone(),
+                                kind: ErasedExprKind::Match,
+                            }
+                        })?;
+                        rest = tail;
+                        Some(*guard_id)
+                    } else {
+                        None
+                    };
+                    let (body_id, tail) = rest.split_first().ok_or_else(|| {
+                        ElaborateProgramError::UnsupportedExpr {
+                            site: site.clone(),
+                            kind: ErasedExprKind::Match,
+                        }
+                    })?;
+                    rest = tail;
+                    Ok(elaborated_ir::MatchArm {
+                        pattern: elaborate_pattern(
+                            site.clone(),
+                            &arm.pattern,
+                            &scrutinee_raw,
+                            env,
+                        )?,
+                        guard: arm
+                            .guard
+                            .as_ref()
+                            .zip(guard_id)
+                            .map(|(guard, guard_id)| {
+                                elaborate_expr(site.clone(), draft, guard_id, guard, solution, env)
+                            })
+                            .transpose()?,
+                        body: elaborate_expr(
+                            site.clone(),
+                            draft,
+                            *body_id,
+                            &arm.body,
+                            solution,
+                            env,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, ElaborateProgramError>>()?;
+            ElaboratedExprKind::Match {
+                scrutinee: Box::new(scrutinee_expr),
+                arms,
+            }
+        }
+        ErasedExpr::Handle { body, arms } => {
+            let children = draft.expr(id).children.clone();
+            let Some((&body_id, mut rest)) = children.split_first() else {
+                return Err(ElaborateProgramError::UnsupportedExpr {
+                    site,
+                    kind: ErasedExprKind::Handle,
+                });
+            };
+            let body_expr = elaborate_expr(site.clone(), draft, body_id, body, solution, env)?;
+            let body_raw = solution
+                .computation_for_expr(draft, body_id)
+                .map_err(ElaborateProgramError::Constraint)?
+                .clone();
+            let arms = arms
+                .iter()
+                .map(|arm| {
+                    let guard_id = if arm.guard.is_some() {
+                        let (guard_id, tail) = rest.split_first().ok_or_else(|| {
+                            ElaborateProgramError::UnsupportedExpr {
+                                site: site.clone(),
+                                kind: ErasedExprKind::Handle,
+                            }
+                        })?;
+                        rest = tail;
+                        Some(*guard_id)
+                    } else {
+                        None
+                    };
+                    let (arm_body_id, tail) = rest.split_first().ok_or_else(|| {
+                        ElaborateProgramError::UnsupportedExpr {
+                            site: site.clone(),
+                            kind: ErasedExprKind::Handle,
+                        }
+                    })?;
+                    rest = tail;
+                    let payload =
+                        handle_payload_elaboration_computation(&arm.effect, &body_raw, env)?;
+                    Ok(elaborated_ir::HandleArm {
+                        effect: arm.effect.clone(),
+                        payload: elaborate_pattern(site.clone(), &arm.payload, &payload, env)?,
+                        resume: arm
+                            .resume
+                            .map(|def| {
+                                handle_resume_elaboration_binding(
+                                    site.clone(),
+                                    def,
+                                    &arm.effect,
+                                    &body_raw,
+                                    env,
+                                )
+                            })
+                            .transpose()?,
+                        guard: arm
+                            .guard
+                            .as_ref()
+                            .zip(guard_id)
+                            .map(|(guard, guard_id)| {
+                                elaborate_expr(site.clone(), draft, guard_id, guard, solution, env)
+                            })
+                            .transpose()?,
+                        body: elaborate_expr(
+                            site.clone(),
+                            draft,
+                            *arm_body_id,
+                            &arm.body,
+                            solution,
+                            env,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, ElaborateProgramError>>()?;
+            ElaboratedExprKind::Handle {
+                body: Box::new(body_expr),
+                arms,
+            }
+        }
+        ErasedExpr::Block(block) => ElaboratedExprKind::Block(elaborate_block(
+            site.clone(),
+            draft,
+            block,
+            draft.expr(id).children.iter().copied(),
+            solution,
+            env,
+        )?),
         ErasedExpr::BindHere { expr } => {
             let [thunk_id] = draft.expr(id).children.as_slice() else {
                 return Err(ElaborateProgramError::UnsupportedExpr {
@@ -2217,7 +2495,7 @@ fn elaborate_expr(
                     kind: ErasedExprKind::BindHere,
                 });
             };
-            let thunk = elaborate_expr(site.clone(), draft, *thunk_id, expr, solution)?;
+            let thunk = elaborate_expr(site.clone(), draft, *thunk_id, expr, solution, env)?;
             let source = match &thunk.comp.value {
                 MonoType::EffectiveThunk(source) => source.clone(),
                 found => {
@@ -2248,6 +2526,7 @@ fn elaborate_expr(
                     *body_id,
                     expr,
                     solution,
+                    env,
                 )?),
             }
         }
@@ -2259,6 +2538,406 @@ fn elaborate_expr(
         }
     };
     Ok(ElaboratedExpr::new(kind, comp))
+}
+
+fn elaborate_block(
+    site: ElaborateSite,
+    draft: &draft::ElaborationDraft,
+    block: &yulang_erased_ir::ErasedBlock,
+    child_ids: impl Iterator<Item = draft::DraftExprId>,
+    solution: &constraints::ComputationSolution,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<elaborated_ir::ElaboratedBlock, ElaborateProgramError> {
+    let mut child_ids = child_ids;
+    elaborate_block_inner(site, draft, block, &mut child_ids, solution, env)
+}
+
+fn elaborate_block_inner(
+    site: ElaborateSite,
+    draft: &draft::ElaborationDraft,
+    block: &yulang_erased_ir::ErasedBlock,
+    child_ids: &mut impl Iterator<Item = draft::DraftExprId>,
+    solution: &constraints::ComputationSolution,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<elaborated_ir::ElaboratedBlock, ElaborateProgramError> {
+    let mut stmts = Vec::new();
+    for stmt in &block.stmts {
+        match stmt {
+            yulang_erased_ir::ErasedStmt::Let { pattern, value } => {
+                let child_id =
+                    child_ids
+                        .next()
+                        .ok_or_else(|| ElaborateProgramError::UnsupportedExpr {
+                            site: site.clone(),
+                            kind: ErasedExprKind::Block,
+                        })?;
+                let raw = solution
+                    .computation_for_expr(draft, child_id)
+                    .map_err(ElaborateProgramError::Constraint)?
+                    .clone();
+                stmts.push(elaborated_ir::ElaboratedStmt::Let {
+                    pattern: elaborate_pattern(site.clone(), pattern, &raw, env)?,
+                    value: elaborate_expr(site.clone(), draft, child_id, value, solution, env)?,
+                });
+            }
+            yulang_erased_ir::ErasedStmt::Expr(expr) => {
+                let child_id =
+                    child_ids
+                        .next()
+                        .ok_or_else(|| ElaborateProgramError::UnsupportedExpr {
+                            site: site.clone(),
+                            kind: ErasedExprKind::Block,
+                        })?;
+                stmts.push(elaborated_ir::ElaboratedStmt::Expr(elaborate_expr(
+                    site.clone(),
+                    draft,
+                    child_id,
+                    expr,
+                    solution,
+                    env,
+                )?));
+            }
+            yulang_erased_ir::ErasedStmt::Module { def, body } => {
+                stmts.push(elaborated_ir::ElaboratedStmt::Module {
+                    def: *def,
+                    body: elaborate_block_inner(
+                        site.clone(),
+                        draft,
+                        body,
+                        child_ids,
+                        solution,
+                        env,
+                    )?,
+                });
+            }
+        }
+    }
+    let tail = block
+        .tail
+        .as_ref()
+        .map(|tail| {
+            let child_id =
+                child_ids
+                    .next()
+                    .ok_or_else(|| ElaborateProgramError::UnsupportedExpr {
+                        site: site.clone(),
+                        kind: ErasedExprKind::Block,
+                    })?;
+            elaborate_expr(site.clone(), draft, child_id, tail, solution, env).map(Box::new)
+        })
+        .transpose()?;
+    Ok(elaborated_ir::ElaboratedBlock { stmts, tail })
+}
+
+fn elaborate_pattern(
+    site: ElaborateSite,
+    pattern: &yulang_erased_ir::Pattern,
+    computation: &MonoComputation,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<elaborated_ir::Pattern, ElaborateProgramError> {
+    let typ = runtime_shape_mono_type(site.clone(), computation.value.clone())?;
+    Ok(match pattern {
+        yulang_erased_ir::Pattern::Wildcard => elaborated_ir::Pattern::Wildcard { typ },
+        yulang_erased_ir::Pattern::Bind(def) => elaborated_ir::Pattern::Bind { def: *def, typ },
+        yulang_erased_ir::Pattern::Lit(lit) => elaborated_ir::Pattern::Lit {
+            lit: lit.clone(),
+            typ,
+        },
+        yulang_erased_ir::Pattern::Tuple(items) => {
+            let item_computations = tuple_pattern_item_computations(computation, items.len());
+            elaborated_ir::Pattern::Tuple {
+                items: items
+                    .iter()
+                    .zip(item_computations.iter())
+                    .map(|(item, item_comp)| elaborate_pattern(site.clone(), item, item_comp, env))
+                    .collect::<Result<Vec<_>, _>>()?,
+                typ,
+            }
+        }
+        yulang_erased_ir::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+        } => elaborated_ir::Pattern::List {
+            prefix: prefix
+                .iter()
+                .map(|item| elaborate_pattern(site.clone(), item, computation, env))
+                .collect::<Result<Vec<_>, _>>()?,
+            spread: spread
+                .as_ref()
+                .map(|spread| {
+                    elaborate_pattern(site.clone(), spread, computation, env).map(Box::new)
+                })
+                .transpose()?,
+            suffix: suffix
+                .iter()
+                .map(|item| elaborate_pattern(site.clone(), item, computation, env))
+                .collect::<Result<Vec<_>, _>>()?,
+            typ,
+        },
+        yulang_erased_ir::Pattern::Record { fields, spread } => elaborated_ir::Pattern::Record {
+            fields: fields
+                .iter()
+                .map(|field| {
+                    let field_comp = record_pattern_field_computation(computation, &field.name)
+                        .unwrap_or_else(|| computation.clone());
+                    Ok(elaborated_ir::RecordPatternField {
+                        name: field.name.clone(),
+                        pattern: elaborate_pattern(site.clone(), &field.pattern, &field_comp, env)?,
+                        default: field
+                            .default
+                            .as_ref()
+                            .map(|_| {
+                                Err(ElaborateProgramError::UnsupportedExpr {
+                                    site: site.clone(),
+                                    kind: ErasedExprKind::Block,
+                                })
+                            })
+                            .transpose()?,
+                    })
+                })
+                .collect::<Result<Vec<_>, ElaborateProgramError>>()?,
+            spread: spread
+                .as_ref()
+                .map(|spread| match spread {
+                    yulang_erased_ir::RecordSpreadPattern::Head(pattern) => {
+                        elaborate_pattern(site.clone(), pattern, computation, env)
+                            .map(Box::new)
+                            .map(elaborated_ir::RecordSpreadPattern::Head)
+                    }
+                    yulang_erased_ir::RecordSpreadPattern::Tail(pattern) => {
+                        elaborate_pattern(site.clone(), pattern, computation, env)
+                            .map(Box::new)
+                            .map(elaborated_ir::RecordSpreadPattern::Tail)
+                    }
+                })
+                .transpose()?,
+            typ,
+        },
+        yulang_erased_ir::Pattern::Variant { tag, value } => elaborated_ir::Pattern::Variant {
+            tag: tag.clone(),
+            value: value
+                .as_ref()
+                .map(|value| {
+                    let payload = variant_pattern_payload_computation(
+                        site.clone(),
+                        computation,
+                        tag,
+                        1,
+                        env,
+                    )?;
+                    elaborate_pattern(site.clone(), value, &payload, env).map(Box::new)
+                })
+                .transpose()?,
+            typ,
+        },
+        yulang_erased_ir::Pattern::Or { left, right } => elaborated_ir::Pattern::Or {
+            left: Box::new(elaborate_pattern(site.clone(), left, computation, env)?),
+            right: Box::new(elaborate_pattern(site.clone(), right, computation, env)?),
+            typ,
+        },
+        yulang_erased_ir::Pattern::As { pattern, def } => elaborated_ir::Pattern::As {
+            pattern: Box::new(elaborate_pattern(site, pattern, computation, env)?),
+            def: *def,
+            typ,
+        },
+        yulang_erased_ir::Pattern::Constructor { .. }
+        | yulang_erased_ir::Pattern::UnresolvedName(_) => {
+            return Err(ElaborateProgramError::UnsupportedExpr {
+                site,
+                kind: ErasedExprKind::Block,
+            });
+        }
+    })
+}
+
+fn tuple_pattern_item_computations(
+    computation: &MonoComputation,
+    arity: usize,
+) -> Vec<MonoComputation> {
+    let MonoType::Value(value) = &computation.value else {
+        return vec![computation.clone(); arity];
+    };
+    let Type::Tuple(items) = value.as_type() else {
+        return vec![computation.clone(); arity];
+    };
+    items.iter().map(pure_raw_value_computation).collect()
+}
+
+fn record_pattern_field_computation(
+    computation: &MonoComputation,
+    name: &Name,
+) -> Option<MonoComputation> {
+    let MonoType::Value(value) = &computation.value else {
+        return None;
+    };
+    let Type::Record(record) = value.as_type() else {
+        return None;
+    };
+    record
+        .fields
+        .iter()
+        .find(|field| field.name == *name)
+        .map(|field| pure_raw_value_computation(&field.value))
+}
+
+fn variant_pattern_payload_computation(
+    site: ElaborateSite,
+    computation: &MonoComputation,
+    tag: &Name,
+    actual_expr_payloads: usize,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<MonoComputation, ElaborateProgramError> {
+    let MonoType::Value(value_type) = &computation.value else {
+        return Err(ElaborateProgramError::ExpectedVariantPattern {
+            site,
+            found: computation.value.clone(),
+        });
+    };
+    let payload = match value_type.as_type() {
+        Type::Variant(variant) => {
+            let Some(case) = variant.cases.iter().find(|case| case.name == *tag) else {
+                return Err(ElaborateProgramError::MissingVariantPatternCase {
+                    site,
+                    tag: tag.clone(),
+                });
+            };
+            variant_case_payload_type(&case.payloads)
+        }
+        Type::Named { path, args } => {
+            env.named_variant_payload_type(path, args, tag)
+                .ok_or_else(|| ElaborateProgramError::MissingVariantPatternCase {
+                    site: site.clone(),
+                    tag: tag.clone(),
+                })?
+        }
+        _ => {
+            return Err(ElaborateProgramError::ExpectedVariantPattern {
+                site,
+                found: computation.value.clone(),
+            });
+        }
+    };
+    let expected_expr_payloads = usize::from(payload.is_some());
+    if expected_expr_payloads != actual_expr_payloads {
+        return Err(ElaborateProgramError::VariantPatternPayloadMismatch {
+            site,
+            tag: tag.clone(),
+            expected: expected_expr_payloads,
+            actual: actual_expr_payloads,
+        });
+    }
+    let Some(payload_type) = payload else {
+        return Err(ElaborateProgramError::VariantPatternPayloadMismatch {
+            site,
+            tag: tag.clone(),
+            expected: 0,
+            actual: actual_expr_payloads,
+        });
+    };
+    pure_checked_value_computation(site, &payload_type)
+}
+
+fn variant_case_payload_type(payloads: &[Type]) -> Option<Type> {
+    match payloads {
+        [] => None,
+        [payload] => Some(payload.clone()),
+        payloads => Some(Type::Tuple(payloads.to_vec())),
+    }
+}
+
+fn handle_payload_elaboration_computation(
+    effect: &Path,
+    body: &MonoComputation,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<MonoComputation, ElaborateProgramError> {
+    if effect.segments.is_empty() {
+        return Ok(MonoComputation {
+            value: body.value.clone(),
+            effect: MonoEffect::pure(),
+        });
+    }
+    let payload = env
+        .effect_operation_scheme(effect)
+        .and_then(|scheme| operation_payload_type(&scheme.body))
+        .unwrap_or_else(unit_type);
+    Ok(pure_raw_value_computation(&payload))
+}
+
+fn handle_resume_elaboration_binding(
+    site: ElaborateSite,
+    def: DefId,
+    effect: &Path,
+    body: &MonoComputation,
+    env: &constraints::ConstraintEnvironment<'_>,
+) -> Result<elaborated_ir::ResumeBinding, ElaborateProgramError> {
+    let resume_param = env
+        .effect_operation_scheme(effect)
+        .and_then(|scheme| operation_resume_type(&scheme.body))
+        .unwrap_or_else(unit_type);
+    let MonoType::Value(body_value) = &body.value else {
+        return Err(ElaborateProgramError::NonRuntimeShapeComputationType {
+            site,
+            error: MonoTypeConversionError::ExpectedFunction { found: unit_type() },
+        });
+    };
+    let function = Type::Fun {
+        param: Box::new(resume_param),
+        param_effect: Box::new(Type::Never),
+        ret_effect: Box::new(body.effect.row().as_type().clone()),
+        ret: Box::new(body_value.as_type().clone()),
+    };
+    Ok(elaborated_ir::ResumeBinding {
+        def,
+        typ: runtime_shape_mono_type(
+            site,
+            MonoType::try_from_type(function).map_err(|error| {
+                ElaborateProgramError::NonRuntimeShapeComputationType {
+                    site: ElaborateSite::Binding(def),
+                    error,
+                }
+            })?,
+        )?,
+    })
+}
+
+fn operation_payload_type(ty: &Type) -> Option<Type> {
+    let Type::Fun { param, .. } = ty else {
+        return None;
+    };
+    Some((**param).clone())
+}
+
+fn operation_resume_type(ty: &Type) -> Option<Type> {
+    let Type::Fun { ret, .. } = ty else {
+        return None;
+    };
+    Some((**ret).clone())
+}
+
+fn pure_raw_value_computation(ty: &Type) -> MonoComputation {
+    MonoComputation {
+        value: MonoType::Value(ConcreteType::try_from_type(ty.clone()).unwrap_or_else(|_| {
+            ConcreteType::try_from_type(unit_type()).expect("unit is concrete")
+        })),
+        effect: MonoEffect::pure(),
+    }
+}
+
+fn pure_checked_value_computation(
+    site: ElaborateSite,
+    ty: &Type,
+) -> Result<MonoComputation, ElaborateProgramError> {
+    Ok(MonoComputation {
+        value: MonoType::Value(ConcreteType::try_from_type(ty.clone()).map_err(|error| {
+            ElaborateProgramError::NonConcreteComputationType {
+                site,
+                field: ComputationField::Value,
+                error,
+            }
+        })?),
+        effect: MonoEffect::pure(),
+    })
 }
 
 fn elaborate_apply_expr(
@@ -2351,6 +3030,14 @@ fn runtime_shape_computation(
         .map_err(|error| ElaborateProgramError::NonRuntimeShapeComputationType { site, error })
 }
 
+fn runtime_shape_mono_type(
+    site: ElaborateSite,
+    typ: MonoType,
+) -> Result<MonoType, ElaborateProgramError> {
+    typ.into_runtime_shape()
+        .map_err(|error| ElaborateProgramError::NonRuntimeShapeComputationType { site, error })
+}
+
 fn lambda_param_type(
     site: ElaborateSite,
     comp: &MonoComputation,
@@ -2374,6 +3061,7 @@ impl ErasedExprKind {
         match expr {
             ErasedExpr::Def(_) => Self::Def,
             ErasedExpr::Ref(_) => Self::Ref,
+            ErasedExpr::EffectOp(_) => Self::EffectOp,
             ErasedExpr::PrimitiveOp(_) => Self::PrimitiveOp,
             ErasedExpr::Lit(_) => Self::Lit,
             ErasedExpr::Lambda { .. } => Self::Lambda,
@@ -2631,6 +3319,7 @@ my used = id (1.display)\n",
             yulang_infer::SourceOptions::default(),
         )
         .expect("lower virtual source");
+        lowered.state.finalize_compact_results_profiled();
         let export = yulang_infer::export_erased_program(&mut lowered.state);
         let plan = Elaborator::try_new(&export)
             .expect("valid erased export")
@@ -2680,6 +3369,7 @@ my used = id (1.display)\n",
             yulang_infer::SourceOptions::default(),
         )
         .expect("lower virtual source");
+        lowered.state.finalize_compact_results_profiled();
         let export = yulang_infer::export_erased_program(&mut lowered.state);
 
         let program = Elaborator::try_new(&export)
@@ -2703,6 +3393,7 @@ my used = id (1.display)\n",
             yulang_infer::SourceOptions::default(),
         )
         .expect("lower virtual source");
+        lowered.state.finalize_compact_results_profiled();
         let export = yulang_infer::export_erased_program(&mut lowered.state);
 
         let program = Elaborator::try_new(&export)
@@ -2914,6 +3605,34 @@ my used = id (1.display)\n",
         assert!(matches!(
             &program.module.root_exprs[0].kind,
             elaborated_ir::ElaboratedExprKind::Select { field, .. } if field.0 == "x"
+        ));
+    }
+
+    #[test]
+    fn elaborate_program_accepts_actual_resolved_method_select_chain_export() {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = yulang_infer::lower_virtual_source_with_options(
+            "(each 1..20 + each 1..20).list.say\n",
+            Some(repo_root),
+            yulang_infer::SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("lower virtual source");
+        lowered.state.finalize_compact_results_profiled();
+        let export = yulang_infer::export_erased_program(&mut lowered.state);
+
+        let program = Elaborator::try_new(&export)
+            .expect("valid erased export")
+            .build_program()
+            .expect("resolved method select chain should elaborate");
+
+        assert!(matches!(
+            &program.module.root_exprs[0].kind,
+            elaborated_ir::ElaboratedExprKind::Apply { .. }
         ));
     }
 

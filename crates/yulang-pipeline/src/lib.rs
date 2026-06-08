@@ -84,6 +84,7 @@ pub fn elaborated_runtime_module_from_virtual_source_with_options(
 pub fn elaborated_runtime_module_from_lowered_sources(
     lowered: &mut yulang_infer::LoweredSources,
 ) -> SourceRuntimeResult<yulang_runtime_ir::FinalizedModule> {
+    lowered.state.finalize_compact_results_profiled();
     let diagnostics = yulang_infer::collect_surface_diagnostics(&lowered.state);
     if !diagnostics.is_empty() {
         return Err(SourceRuntimeError::RuntimePipeline(

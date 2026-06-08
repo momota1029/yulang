@@ -12,7 +12,8 @@ use crate::lower::LowerState;
 use crate::lower::computation::LoweredComputation;
 use crate::symbols::{Name, Path};
 
-use super::names::path_key;
+use super::names::{export_path as export_typed_path, path_key};
+use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine, strip_transparent_wrappers};
 use super::types::{
     export_compact_type_bounds, export_frozen_scheme, export_scheme, export_type_bounds_for_tv,
@@ -39,6 +40,8 @@ pub fn export_erased_program(state: &mut LowerState) -> erased::InferExport {
     let mut exporter = ErasedExporter::new(state, globals);
     let root_exprs = exporter.export_root_exprs();
     let bindings = exporter.export_bindings(&selected_paths);
+    let enum_variants = export_enum_variant_graph_nodes(state);
+    let effect_operations = export_effect_operation_decls(state, &binding_paths);
     exporter.export_typeclass_impl_candidates();
     let roots = (0..root_exprs.len())
         .map(erased::PrincipalRoot::Expr)
@@ -51,6 +54,8 @@ pub fn export_erased_program(state: &mut LowerState) -> erased::InferExport {
                 bindings,
                 root_exprs,
                 roots,
+                enum_variants,
+                effect_operations,
             },
             refs: exporter.refs,
             hygiene: exporter.hygiene,
@@ -69,6 +74,106 @@ fn collect_erased_target_defs(
     target_defs.extend(state.top_level_expr_owners.iter().copied());
     target_defs.extend(state.internal_expr_owners.iter().copied());
     target_defs
+}
+
+fn export_effect_operation_decls(
+    state: &LowerState,
+    binding_paths: &[(Path, DefId)],
+) -> Vec<erased::EffectOperationDecl> {
+    let canonical_paths = state.ctx.canonical_value_paths();
+    let mut seen = HashSet::new();
+    let mut decls = state
+        .effect_op_args
+        .keys()
+        .copied()
+        .filter_map(|def| {
+            let path = canonical_paths.get(&def).cloned().or_else(|| {
+                binding_paths
+                    .iter()
+                    .find_map(|(path, current)| (*current == def).then(|| path.clone()))
+            })?;
+            let pos_sig = *state.effect_op_pos_sigs.get(&def)?;
+            let exported_path = export_path(&path);
+            if !seen.insert(exported_path.clone()) {
+                return None;
+            }
+            let frozen = crate::scheme::freeze_pos_scheme(&state.infer, pos_sig);
+            let quantified_types = frozen
+                .quantified
+                .iter()
+                .copied()
+                .map(export_type_var)
+                .collect::<Vec<_>>();
+            let scheme = export_frozen_scheme(&state.infer, &frozen);
+            Some(erased::EffectOperationDecl {
+                path: exported_path,
+                scheme: convert_scheme(scheme, quantified_types),
+            })
+        })
+        .collect::<Vec<_>>();
+    decls.sort_by(|left, right| left.path.segments.cmp(&right.path.segments));
+    decls
+}
+
+fn export_enum_variant_graph_nodes(state: &LowerState) -> Vec<erased::EnumVariantGraphNode> {
+    let mut nodes = state
+        .enum_variant_patterns
+        .iter()
+        .filter_map(|(def, shape)| {
+            let tag = state.enum_variant_tags.get(def)?;
+            let scheme = state.infer.frozen_scheme_of(*def)?;
+            let scheme_body = export_frozen_scheme(&state.infer, &scheme).body;
+            let (type_params, payload) =
+                enum_variant_surface_from_constructor_type(&scheme_body, &shape.enum_path)?;
+            Some(erased::EnumVariantGraphNode {
+                enum_path: export_path(&shape.enum_path),
+                tag: export_name(tag),
+                type_params: type_params
+                    .into_iter()
+                    .map(|var| erased::TypeVar(var.0))
+                    .collect(),
+                payload: payload.map(convert_type),
+            })
+        })
+        .collect::<Vec<_>>();
+    nodes.sort_by(|left, right| {
+        left.enum_path
+            .segments
+            .cmp(&right.enum_path.segments)
+            .then_with(|| left.tag.cmp(&right.tag))
+    });
+    nodes
+}
+
+fn enum_variant_surface_from_constructor_type(
+    ty: &typed_ir::Type,
+    enum_path: &Path,
+) -> Option<(Vec<typed_ir::TypeVar>, Option<typed_ir::Type>)> {
+    let mut params = Vec::new();
+    let mut current = ty;
+    while let typed_ir::Type::Fun { param, ret, .. } = current {
+        params.push((**param).clone());
+        current = ret;
+    }
+    let typed_ir::Type::Named { path, args } = current else {
+        return None;
+    };
+    if path != &export_typed_path(enum_path) {
+        return None;
+    }
+    let type_params = args
+        .iter()
+        .filter_map(|arg| match arg {
+            typed_ir::TypeArg::Type(typed_ir::Type::Var(var)) => Some(var.clone()),
+            _ => None,
+        })
+        .collect();
+    let payload = match params.as_slice() {
+        [] => None,
+        [param] => Some(param.clone()),
+        params => Some(typed_ir::Type::Tuple(params.to_vec())),
+    };
+    Some((type_params, payload))
 }
 
 struct ErasedExporter<'a> {
@@ -380,9 +485,14 @@ impl<'a> ErasedExporter<'a> {
         let head = strip_transparent_wrappers(head);
         match &head.kind {
             ExprKind::Select { recv, .. } => {
+                let arg_tvs = args.iter().map(|arg| arg.tv).collect::<Vec<_>>();
                 let ref_id = self
                     .role_method_call_ref(expr.tv)
-                    .or_else(|| self.role_method_call_ref(head.tv))?;
+                    .or_else(|| self.role_method_call_ref(head.tv))
+                    .or_else(|| self.role_method_selection_ref(expr.tv, recv.tv, &arg_tvs, expr.tv))
+                    .or_else(|| self.role_method_selection_ref(head.tv, recv.tv, &arg_tvs, expr.tv))
+                    .or_else(|| self.resolved_non_role_selection_ref(expr.tv))
+                    .or_else(|| self.resolved_non_role_selection_ref(head.tv))?;
                 let mut lowered = erased::ErasedExpr::Ref(ref_id);
                 lowered = erased::ErasedExpr::Apply {
                     callee: Box::new(lowered),
@@ -409,6 +519,36 @@ impl<'a> ErasedExporter<'a> {
             }
             _ => None,
         }
+    }
+
+    fn resolved_non_role_selection_ref(&mut self, result_tv: TypeVar) -> Option<erased::RefId> {
+        let def = self.state.infer.resolved_selection_def(result_tv)?;
+        let def = canonical_runtime_export_def(self.state, def);
+        if self.state.infer.is_role_method_def(def) {
+            return None;
+        }
+        let ref_id = crate::ids::fresh_ref_id();
+        let erased_ref = export_ref_id(ref_id);
+        self.refs.direct.insert(erased_ref, export_def_id(def));
+        Some(erased_ref)
+    }
+
+    fn role_method_selection_ref(
+        &mut self,
+        selection_tv: TypeVar,
+        recv_tv: TypeVar,
+        arg_tvs: &[TypeVar],
+        result_tv: TypeVar,
+    ) -> Option<erased::RefId> {
+        let def = self.state.infer.resolved_selection_def(selection_tv)?;
+        let info = self.state.infer.role_method_info_for_def(def)?;
+        self.register_unresolved_role_method_ref(crate::solve::RoleMethodCallSelection {
+            role: info.role,
+            member: info.def,
+            recv_tv,
+            arg_tvs: arg_tvs.to_vec(),
+            result_tv,
+        })
     }
 
     fn role_method_call_ref(&mut self, result_tv: TypeVar) -> Option<erased::RefId> {
@@ -519,15 +659,17 @@ impl<'a> ErasedExporter<'a> {
                 tag: export_name(name),
                 value: self.export_variant_pattern_payload(items),
             },
-            PatKind::Con(ref_id, payload) => {
-                self.ensure_existing_ref(*ref_id);
-                erased::Pattern::Constructor {
-                    ref_id: export_ref_id(*ref_id),
-                    payload: payload
-                        .as_ref()
-                        .map(|payload| Box::new(self.export_pat(payload))),
-                }
+            PatKind::Con(ref_id, payload)
+                if self.is_struct_constructor_pattern_ref(*ref_id) && payload.is_some() =>
+            {
+                self.export_pat(payload.as_ref().expect("payload checked"))
             }
+            PatKind::Con(ref_id, payload) => erased::Pattern::Variant {
+                tag: self.constructor_pattern_tag(*ref_id),
+                value: payload
+                    .as_ref()
+                    .map(|payload| Box::new(self.export_pat(payload))),
+            },
             PatKind::UnresolvedName(name) => self
                 .state
                 .ctx
@@ -582,6 +724,9 @@ impl<'a> ErasedExporter<'a> {
     }
 
     fn export_def_use(&mut self, def: DefId) -> erased::ErasedExpr {
+        if let Some(effect_op) = self.export_effect_op_for_def(def) {
+            return effect_op;
+        }
         if self.is_local_def(def) || !self.globals.contains_key(&def) {
             return erased::ErasedExpr::Def(export_def_id(def));
         }
@@ -593,8 +738,84 @@ impl<'a> ErasedExporter<'a> {
     }
 
     fn export_ref_use(&mut self, ref_id: RefId) -> erased::ErasedExpr {
+        if let Some(def) = self.state.ctx.refs.get(ref_id) {
+            if let Some(effect_op) = self.export_effect_op_for_def(def) {
+                return effect_op;
+            }
+        } else if let Some(effect_op) = self.export_unresolved_effect_op_ref(ref_id) {
+            return effect_op;
+        }
         self.ensure_existing_ref(ref_id);
         erased::ErasedExpr::Ref(export_ref_id(ref_id))
+    }
+
+    fn export_unresolved_effect_op_ref(&self, ref_id: RefId) -> Option<erased::ErasedExpr> {
+        let unresolved = self.state.ctx.refs.unresolved_info(ref_id)?;
+        let def = self
+            .state
+            .ctx
+            .resolve_path_value_candidates_via_snapshot(unresolved.module, &unresolved.path)
+            .into_iter()
+            .find(|def| self.effect_op_def(*def))?;
+        self.export_effect_op_for_def(def)
+    }
+
+    fn export_effect_op_for_def(&self, def: DefId) -> Option<erased::ErasedExpr> {
+        let def = canonical_runtime_export_def(self.state, def);
+        self.effect_op_def(def)
+            .then(|| erased::ErasedExpr::EffectOp(self.effect_operation_path_for_def(def)))
+    }
+
+    fn effect_op_def(&self, def: DefId) -> bool {
+        self.state.effect_op_args.contains_key(&def)
+    }
+
+    fn effect_operation_path_for_def(&self, def: DefId) -> erased::Path {
+        self.erased_path_for_def(def)
+    }
+
+    fn erased_path_for_def(&self, def: DefId) -> erased::Path {
+        self.state
+            .ctx
+            .canonical_value_paths()
+            .get(&def)
+            .cloned()
+            .or_else(|| self.globals.get(&def).cloned())
+            .or_else(|| {
+                self.state.def_name(def).map(|name| Path {
+                    segments: vec![name.clone()],
+                })
+            })
+            .map(|path| export_path(&path))
+            .unwrap_or_else(|| erased::Path::from_name(erased::Name(format!("local_{}", def.0))))
+    }
+
+    fn constructor_pattern_tag(&self, ref_id: RefId) -> erased::Name {
+        if let Some(resolved) = self.state.ctx.refs.resolved().get(&ref_id) {
+            if let Some(tag) = self.state.enum_variant_tags.get(&resolved.def_id) {
+                return export_name(tag);
+            }
+            if let Some(last) = self.erased_path_for_def(resolved.def_id).segments.last() {
+                return last.clone();
+            }
+        }
+        if let Some(unresolved) = self.state.ctx.refs.unresolved_info(ref_id)
+            && let Some(last) = unresolved.path.segments.last()
+        {
+            return export_name(last);
+        }
+        erased::Name("unknown".to_string())
+    }
+
+    fn is_struct_constructor_pattern_ref(&self, ref_id: RefId) -> bool {
+        let Some(resolved) = self.state.ctx.refs.resolved().get(&ref_id) else {
+            return false;
+        };
+        self.state
+            .infer
+            .type_field_sets
+            .values()
+            .any(|field_set| field_set.constructor == resolved.def_id)
     }
 
     fn register_resolved_role_method_ref(
@@ -622,14 +843,19 @@ impl<'a> ErasedExporter<'a> {
         &mut self,
         selection: crate::solve::RoleMethodCallSelection,
     ) -> Option<erased::RefId> {
-        let owner = self.current_binding?;
         let ref_id = crate::ids::fresh_ref_id();
         let erased_ref = export_ref_id(ref_id);
         let obligation = self.typeclass_obligation_for_selection(erased_ref, selection)?;
-        self.pending_typeclass_obligations
-            .entry(owner)
-            .or_default()
-            .push(obligation);
+        if let Some(owner) = self.current_binding {
+            self.pending_typeclass_obligations
+                .entry(owner)
+                .or_default()
+                .push(obligation);
+        } else {
+            self.refs
+                .typeclass_obligations
+                .insert(erased_ref, obligation);
+        }
         Some(erased_ref)
     }
 
@@ -1835,6 +2061,7 @@ my h(x: [_] _) = x\n",
                 }
             }
             erased::ErasedExpr::Def(_)
+            | erased::ErasedExpr::EffectOp(_)
             | erased::ErasedExpr::Ref(_)
             | erased::ErasedExpr::PrimitiveOp(_)
             | erased::ErasedExpr::Lit(_) => {}

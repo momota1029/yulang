@@ -172,11 +172,19 @@ impl MonoEffect {
     }
 
     pub fn is_pure(&self) -> bool {
-        matches!(self.row.as_type(), Type::Never)
+        effect_row_is_empty(self.row.as_type())
     }
 
     pub fn into_row(self) -> ConcreteType {
         self.row
+    }
+}
+
+fn effect_row_is_empty(row: &Type) -> bool {
+    match row {
+        Type::Never => true,
+        Type::Row { items, tail } => items.is_empty() && effect_row_is_empty(tail),
+        _ => false,
     }
 }
 
@@ -276,6 +284,7 @@ pub enum ElaboratedExprKind {
     Def(DefId),
     Ref(RefId),
     InstanceRef(MonoInstanceId),
+    EffectOp(Path),
     PrimitiveOp(PrimitiveOp),
     Lit(Lit),
     Lambda {

@@ -135,6 +135,9 @@ impl ElaboratedRuntimeLower {
                     .ok_or_else(|| invariant("missing elaborated referenced instance name"))?;
                 FinalizedExprKind::Var(name)
             }
+            elaborated::ElaboratedExprKind::EffectOp(path) => {
+                FinalizedExprKind::EffectOp(convert_path(&path))
+            }
             elaborated::ElaboratedExprKind::PrimitiveOp(op) => {
                 FinalizedExprKind::PrimitiveOp(convert_primitive_op(op))
             }

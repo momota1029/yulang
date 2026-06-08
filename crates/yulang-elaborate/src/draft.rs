@@ -68,6 +68,7 @@ impl DraftBuilder {
         let children = match expr {
             ErasedExpr::Def(_)
             | ErasedExpr::Ref(_)
+            | ErasedExpr::EffectOp(_)
             | ErasedExpr::PrimitiveOp(_)
             | ErasedExpr::Lit(_) => Vec::new(),
             ErasedExpr::Lambda { body, .. } | ErasedExpr::Pack { expr: body, .. } => {
