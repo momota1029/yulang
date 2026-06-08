@@ -4,10 +4,9 @@
 //! use-site 型 table、selection watcher、open SCC graph はここに置く。`poly` 側は最終的に
 //! 読まれる構造と解決結果だけを保持する。
 //!
-//! 現在の入口は pass1: CST を走査してモジュールマップを作る段階。
-//! ここでは DefId 採番と名前空間登録だけを行い、body lowering や型制約には踏み込まない。
-//! pass2 で、式 lower・名前解決・weighted subtype constraint seed・selection/SCC event routing を
-//! 同じ作業 arena の上へ載せる。
+//! 現在の入口は pass1: CST を走査してモジュールマップを作る段階と、pass2 first cut:
+//! binding body を `ExprLowerer` で lower して `Def::Let.body` と `DefId` 型 slot を埋める段階。
+//! 型定義系、import view、lambda / pattern local scope はまだこの足場へ接続していない。
 
 pub mod analysis;
 pub mod arena;
@@ -35,7 +34,7 @@ type Cst = SyntaxNode<YulangLanguage>;
 ///
 /// `poly` の最終 IR へは残さない。名前解決中に「今どの module scope にいるか」を持つための
 /// infer-local な ID。
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct ModuleId(usize);
 
 /// module 内の宣言位置。

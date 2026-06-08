@@ -1,8 +1,8 @@
-//! CST expression を `poly` IR と推論用 computation slot へ落とす。
+//! CST binding body / expression を `poly` IR と推論用 computation slot へ落とす。
 //!
-//! この module は pass2 の小さな入口として、式 node から `ExprId` と
-//! `typing::Computation` を同時に作る。式そのものに型 table は残さず、lowering 中に必要な
-//! value/effect slot だけを `Computation` として返す。
+//! この module は pass2 の小さな入口として、pass1 が採番した `DefId` に body を書き戻しながら、
+//! 式 node から `ExprId` と `typing::Computation` を同時に作る。式そのものに型 table は
+//! 残さず、lowering 中に必要な value/effect slot だけを `Computation` として返す。
 //!
 //! 名前参照は `RefId` を発行して `AnalysisSession` の queue に解決結果を渡す。これにより、
 //! `poly` への `RefId -> DefId` 書き戻しと SCC edge 追加は、lowering 本体から分離された
@@ -13,14 +13,195 @@ use sources::Name;
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
-use poly::expr::{Expr, Lit};
+use poly::expr::{Def, Expr, Lit};
 use poly::types::{Neg, NegId, Pos, TypeVar};
+use rustc_hash::FxHashMap;
 
 use crate::analysis::{AnalysisSession, AnalysisWork};
+use crate::scc::SccInput;
+use crate::typing::Typing;
 use crate::uses::RefUse;
-use crate::{ModuleId, ModuleOrder, ModuleTable};
+use crate::{Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable};
 
 type Cst = SyntaxNode<YulangLanguage>;
+
+/// binding body lowering の出力。
+///
+/// `session` は body を持つ `poly::Arena` と制約/SCC machine を所有する。
+/// `typing` は `DefId -> TypeVar` だけを保持し、式や pattern の永続型 table は作らない。
+pub struct BodyLowering {
+    pub session: AnalysisSession,
+    pub modules: ModuleTable,
+    pub typing: Typing,
+    pub errors: Vec<BodyLoweringError>,
+}
+
+/// pass1 の結果へ binding body を書き戻す。
+///
+/// body lowering は全 binding を走査してから `AnalysisSession` の queue を drain する。
+/// 先に drain すると、source 上で後に現れる binding への forward ref が SCC graph に入る前に
+/// earlier binding が量化されることがあるため。
+pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
+    let mut lowerer = BodyLowerer::new(lower);
+    lowerer.lower_block(root, lowerer.modules.root_id());
+    lowerer.session.drain_work();
+    lowerer.finish()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// binding body lowering が構造化して返す失敗。
+pub enum BodyLoweringError {
+    MissingBindingDecl {
+        name: Name,
+    },
+    MissingModuleDecl {
+        name: Name,
+    },
+    MissingBody {
+        def: poly::expr::DefId,
+        name: Name,
+    },
+    NonLetDef {
+        def: poly::expr::DefId,
+        name: Name,
+    },
+    Expr {
+        def: poly::expr::DefId,
+        name: Name,
+        error: LoweringError,
+    },
+}
+
+struct BodyLowerer {
+    session: AnalysisSession,
+    modules: ModuleTable,
+    typing: Typing,
+    errors: Vec<BodyLoweringError>,
+    value_cursors: FxHashMap<(ModuleId, Name), usize>,
+    module_cursors: FxHashMap<(ModuleId, Name), usize>,
+}
+
+impl BodyLowerer {
+    fn new(lower: Lower) -> Self {
+        Self {
+            session: AnalysisSession::new(lower.arena),
+            modules: lower.modules,
+            typing: Typing::new(),
+            errors: Vec::new(),
+            value_cursors: FxHashMap::default(),
+            module_cursors: FxHashMap::default(),
+        }
+    }
+
+    fn finish(self) -> BodyLowering {
+        BodyLowering {
+            session: self.session,
+            modules: self.modules,
+            typing: self.typing,
+            errors: self.errors,
+        }
+    }
+
+    fn lower_block(&mut self, block: &Cst, module: ModuleId) {
+        for child in block.children() {
+            match child.kind() {
+                SyntaxKind::Binding => self.lower_binding(&child, module),
+                SyntaxKind::ModDecl => self.lower_mod_decl(&child, module),
+                _ => {}
+            }
+        }
+    }
+
+    fn lower_mod_decl(&mut self, node: &Cst, module: ModuleId) {
+        let Some(name) = crate::mod_name(node) else {
+            return;
+        };
+        let Some(decl) = self.next_module_decl(module, &name) else {
+            self.errors
+                .push(BodyLoweringError::MissingModuleDecl { name });
+            return;
+        };
+        if let Some(body) = module_body(node) {
+            self.lower_block(&body, decl.module);
+        }
+    }
+
+    fn lower_binding(&mut self, node: &Cst, module: ModuleId) {
+        let Some(name) = crate::binding_name(node) else {
+            return;
+        };
+        let Some(decl) = self.next_value_decl(module, &name) else {
+            self.errors
+                .push(BodyLoweringError::MissingBindingDecl { name });
+            return;
+        };
+        let Some(expr) = binding_body_expr(node) else {
+            self.errors.push(BodyLoweringError::MissingBody {
+                def: decl.def,
+                name,
+            });
+            return;
+        };
+
+        let lowered = ExprLowerer::new(
+            &mut self.session,
+            &self.modules,
+            module,
+            decl.order,
+            decl.def,
+        )
+        .lower_expr(&expr);
+        match lowered {
+            Ok(computation) => self.finish_binding(decl.def, name, computation),
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: decl.def,
+                name,
+                error,
+            }),
+        }
+    }
+
+    fn finish_binding(&mut self, def: poly::expr::DefId, name: Name, computation: Computation) {
+        let Some(current) = self.session.poly.defs.get_mut(def) else {
+            self.errors.push(BodyLoweringError::NonLetDef { def, name });
+            return;
+        };
+        let Def::Let { body, .. } = current else {
+            self.errors.push(BodyLoweringError::NonLetDef { def, name });
+            return;
+        };
+
+        *body = Some(computation.expr);
+        self.typing.set_def(def, computation.value);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def,
+                root: computation.value,
+            }));
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    }
+
+    fn next_value_decl(&mut self, module: ModuleId, name: &Name) -> Option<crate::ModuleValueDecl> {
+        let key = (module, name.clone());
+        let cursor = self.value_cursors.entry(key).or_default();
+        let decl = self.modules.value_decls(module, name).get(*cursor).cloned();
+        *cursor += usize::from(decl.is_some());
+        decl
+    }
+
+    fn next_module_decl(&mut self, module: ModuleId, name: &Name) -> Option<ModuleChildDecl> {
+        let key = (module, name.clone());
+        let cursor = self.module_cursors.entry(key).or_default();
+        let decl = self
+            .modules
+            .module_decls(module, name)
+            .get(*cursor)
+            .cloned();
+        *cursor += usize::from(decl.is_some());
+        decl
+    }
+}
 
 /// expression lowering の入口。
 ///
@@ -326,32 +507,42 @@ fn primitive_type(name: &str) -> Pos {
     Pos::Con(vec![name.into()], Vec::new())
 }
 
+fn binding_body_expr(binding: &Cst) -> Option<Cst> {
+    crate::child_node(binding, SyntaxKind::BindingBody)?
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
+fn module_body(module: &Cst) -> Option<Cst> {
+    module.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::lower_module_map;
     use crate::scc::SccEvent;
-    use poly::expr::{DefId, RefId};
+    use poly::expr::{DefId, ExprId, RefId};
 
     fn parse(src: &str) -> Cst {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
     }
 
     fn binding_expr(root: &Cst, name: &str) -> Cst {
-        root.children()
-            .find(|child| {
-                child.kind() == SyntaxKind::Binding && binding_name(child).as_deref() == Some(name)
-            })
-            .and_then(|binding| {
-                binding
-                    .children()
-                    .find(|child| child.kind() == SyntaxKind::BindingBody)
-            })
-            .and_then(|body| {
-                body.children()
-                    .find(|child| child.kind() == SyntaxKind::Expr)
-            })
+        binding_node(root, name)
+            .and_then(|binding| binding_body_expr(&binding))
             .expect("binding body expr")
+    }
+
+    fn binding_node(root: &Cst, name: &str) -> Option<Cst> {
+        root.children().find(|child| {
+            child.kind() == SyntaxKind::Binding && binding_name(child).as_deref() == Some(name)
+        })
     }
 
     fn binding_name(binding: &Cst) -> Option<String> {
@@ -373,6 +564,15 @@ mod tests {
     ) -> (DefId, ModuleOrder) {
         let decl = modules.value_decls(module, &Name(name.into()))[0].clone();
         (decl.def, decl.order)
+    }
+
+    fn binding_body_id(output: &BodyLowering, def: DefId) -> ExprId {
+        match output.session.poly.defs.get(def) {
+            Some(Def::Let {
+                body: Some(body), ..
+            }) => *body,
+            _ => panic!("expected lowered let body"),
+        }
     }
 
     #[test]
@@ -480,5 +680,64 @@ mod tests {
             Expr::Var(reference) => *reference,
             _ => panic!("expected var expr"),
         }
+    }
+
+    #[test]
+    fn body_lowering_writes_let_body_and_def_type() {
+        let root = parse("my a = 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "a");
+
+        let mut output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let body = binding_body_id(&output, def);
+        assert!(matches!(
+            output.session.poly.expr(body),
+            Expr::Lit(Lit::Int(1))
+        ));
+        assert!(output.typing.def(def).is_some());
+        assert!(output
+            .session
+            .take_scc_events()
+            .iter()
+            .any(|event| matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![def])));
+    }
+
+    #[test]
+    fn body_lowering_resolves_references_after_queue_drain() {
+        let root = parse("my a = 1\nmy b = a\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (target, _) = binding_def_and_order(&lower.modules, module, "a");
+        let (owner, _) = binding_def_and_order(&lower.modules, module, "b");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let body = binding_body_id(&output, owner);
+        let reference = expr_ref(&output.session, body);
+        assert_eq!(output.session.poly.ref_target(reference), Some(target));
+    }
+
+    #[test]
+    fn body_lowering_keeps_forward_cycle_in_one_scc() {
+        let root = parse("my a = b\nmy b = a\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (a, _) = binding_def_and_order(&lower.modules, module, "a");
+        let (b, _) = binding_def_and_order(&lower.modules, module, "b");
+
+        let mut output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let events = output.session.take_scc_events();
+        assert!(events.iter().any(|event| {
+            matches!(event, SccEvent::MergeComponents { merged, .. } if merged == &vec![a, b] || merged == &vec![b, a])
+        }));
+        assert!(events.iter().any(|event| {
+            matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![a, b] || component == &vec![b, a])
+        }));
     }
 }

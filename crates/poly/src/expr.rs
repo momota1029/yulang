@@ -171,6 +171,13 @@ impl DefArena {
     pub fn get(&self, id: DefId) -> Option<&Def> {
         self.map.get(&id)
     }
+    /// 既存 def を in-place に更新する。
+    ///
+    /// pass2 で `Def::Let.body` だけを埋めるように、scheme / visibility / children を保ったまま
+    /// 小さい field 更新を行うための入口。
+    pub fn get_mut(&mut self, id: DefId) -> Option<&mut Def> {
+        self.map.get_mut(&id)
+    }
     pub fn iter(&self) -> impl Iterator<Item = (DefId, &Def)> {
         self.map.iter().map(|(id, def)| (*id, def))
     }
