@@ -62,6 +62,9 @@ impl Context {
 struct Rendered {
     text: String,
     prec: Prec,
+    // 表示全体を外側の括弧で守らないと top-level に空白が出るか。
+    // constructor の子にこれがある場合だけ、ML 適用ではなく C call 表記に切り替える。
+    has_bare_space: bool,
 }
 
 impl Rendered {
@@ -69,13 +72,23 @@ impl Rendered {
         Self {
             text: text.into(),
             prec: Prec::Atom,
+            has_bare_space: false,
         }
     }
 
-    fn apply(text: impl Into<String>) -> Self {
+    fn apply_ml(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             prec: Prec::Apply,
+            has_bare_space: true,
+        }
+    }
+
+    fn apply_c(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            prec: Prec::Atom,
+            has_bare_space: false,
         }
     }
 
@@ -83,6 +96,7 @@ impl Rendered {
         Self {
             text: text.into(),
             prec: Prec::Union,
+            has_bare_space: true,
         }
     }
 
@@ -90,6 +104,7 @@ impl Rendered {
         Self {
             text: text.into(),
             prec: Prec::Intersection,
+            has_bare_space: true,
         }
     }
 
@@ -97,6 +112,7 @@ impl Rendered {
         Self {
             text: text.into(),
             prec: Prec::Arrow,
+            has_bare_space: true,
         }
     }
 
@@ -247,10 +263,24 @@ impl<'a> TypeFormatter<'a> {
         if args.is_empty() {
             return Rendered::atom(name);
         }
-        let mut parts = Vec::with_capacity(args.len() + 1);
-        parts.push(name);
-        parts.extend(args.iter().map(|arg| self.neu(*arg, Context::MlArg)));
-        Rendered::apply(parts.join(" "))
+
+        let args = args
+            .iter()
+            .map(|arg| self.render_neu(*arg))
+            .collect::<Vec<_>>();
+        if args.iter().any(|arg| arg.has_bare_space) {
+            let args = args
+                .into_iter()
+                .map(|arg| arg.text)
+                .collect::<Vec<_>>()
+                .join(", ");
+            Rendered::apply_c(format!("{name}({args})"))
+        } else {
+            let mut parts = Vec::with_capacity(args.len() + 1);
+            parts.push(name);
+            parts.extend(args.into_iter().map(|arg| arg.in_context(Context::MlArg)));
+            Rendered::apply_ml(parts.join(" "))
+        }
     }
 
     fn render_pos_fun(
@@ -657,7 +687,7 @@ mod tests {
     }
 
     #[test]
-    fn parenthesizes_ml_application_arguments_only_when_needed() {
+    fn uses_c_call_when_type_argument_has_bare_space() {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);
         let pos_a = arena.alloc_pos(Pos::Var(a));
@@ -666,7 +696,20 @@ mod tests {
         let list_a = arena.alloc_neu(Neu::Con(vec!["list".into()], vec![neu_a]));
         let outer = arena.alloc_pos(Pos::Con(vec!["box".into()], vec![list_a]));
 
-        assert_eq!(format_pos(&arena, outer), "box (list 'a)");
+        assert_eq!(format_pos(&arena, outer), "box(list 'a)");
+    }
+
+    #[test]
+    fn uses_c_call_for_nested_same_constructor_application() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let neg_a = arena.alloc_neg(Neg::Var(a));
+        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, a, neg_a));
+        let inner = arena.alloc_neu(Neu::Con(vec!["list".into()], vec![neu_a]));
+        let outer = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![inner]));
+
+        assert_eq!(format_pos(&arena, outer), "list(list 'a)");
     }
 
     #[test]
