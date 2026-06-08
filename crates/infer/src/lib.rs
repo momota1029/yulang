@@ -6,9 +6,10 @@
 //!
 //! 現在の入口は pass1: CST を走査してモジュールマップを作る段階と、pass2 first cut:
 //! binding body を `ExprLowerer` で lower して `Def::Let.body` と `DefId` 型 slot を埋める段階。
-//! 型定義系、import view、lambda / pattern local scope はまだこの足場へ接続していない。
+//! 型定義系の本体 lowering はまだこの足場へ接続していない。
 
 pub mod analysis;
+pub mod annotation;
 pub mod arena;
 pub mod constraints;
 pub mod dump;
@@ -69,14 +70,25 @@ struct ModuleNode {
     parent: Option<ModuleParent>,
     decls: Vec<ModuleDecl>,
     values: FxHashMap<Name, Vec<ModuleDeclId>>,
+    types: FxHashMap<Name, Vec<ModuleDeclId>>,
     modules: FxHashMap<Name, Vec<ModuleDeclId>>,
     /// この場で宣言された use（エイリアス）。解決は pass2 で不動点を回して import view にする。
     aliases: Vec<AliasDecl>,
+    import_values: FxHashMap<Name, Vec<ImportedValueDecl>>,
+    import_types: FxHashMap<Name, Vec<ImportedTypeDecl>>,
+    import_modules: FxHashMap<Name, Vec<ImportedModuleDecl>>,
     next_order: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 struct ModuleDeclId(usize);
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+/// 型名前空間の宣言 identity。
+///
+/// `poly::DefId` は値・module の IR node を指すため、型名だけの first cut では infer-local な
+/// ID を使う。型宣言本体を lower する段階で、必要なら別の永続 identity へ写す。
+pub struct TypeDeclId(u32);
 
 #[derive(Debug, Clone)]
 struct ModuleDecl {
@@ -98,6 +110,17 @@ pub struct ModuleValueDecl {
     pub def: DefId,
 }
 
+/// module 内の型宣言を外へ見せるための summary。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleTypeDecl {
+    pub name: Name,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub module: ModuleId,
+    pub id: TypeDeclId,
+    pub kind: ModuleTypeKind,
+}
+
 /// module 内の子 module 宣言を外へ見せるための summary。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleChildDecl {
@@ -115,9 +138,29 @@ pub(crate) struct ModulePathTarget {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 型名前空間に登録される宣言の種類。
+pub enum ModuleTypeKind {
+    TypeAlias,
+    Struct,
+    Enum,
+    Error,
+    Role,
+    Act,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ModuleDeclKind {
-    Value { def: DefId },
-    Module { module: ModuleId, def: DefId },
+    Value {
+        def: DefId,
+    },
+    Type {
+        id: TypeDeclId,
+        kind: ModuleTypeKind,
+    },
+    Module {
+        module: ModuleId,
+        def: DefId,
+    },
 }
 
 /// module 内の `use` 宣言。
@@ -131,6 +174,30 @@ pub struct AliasDecl {
     pub order: ModuleOrder,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ImportedValueDecl {
+    order: ModuleOrder,
+    def: DefId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ImportedTypeDecl {
+    order: ModuleOrder,
+    decl: ModuleTypeDecl,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ImportedModuleDecl {
+    order: ModuleOrder,
+    module: ModuleId,
+}
+
+struct ImportPathTarget {
+    value: Option<DefId>,
+    ty: Option<ModuleTypeDecl>,
+    module: Option<ModuleId>,
+}
+
 /// pass1 が作る module scope table。
 ///
 /// 値名・子 module 名・use alias を module ごとに保持する。これは名前解決のための作業 table で、
@@ -138,6 +205,7 @@ pub struct AliasDecl {
 /// `SelectId -> SelectResolution` として `poly` に書き戻す。
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
+    next_type_id: u32,
 }
 
 impl ModuleTable {
@@ -147,10 +215,15 @@ impl ModuleTable {
                 parent: None,
                 decls: Vec::new(),
                 values: FxHashMap::default(),
+                types: FxHashMap::default(),
                 modules: FxHashMap::default(),
                 aliases: Vec::new(),
+                import_values: FxHashMap::default(),
+                import_types: FxHashMap::default(),
+                import_modules: FxHashMap::default(),
                 next_order: 0,
             }],
+            next_type_id: 0,
         }
     }
     pub fn root_id(&self) -> ModuleId {
@@ -162,8 +235,12 @@ impl ModuleTable {
             parent: None,
             decls: Vec::new(),
             values: FxHashMap::default(),
+            types: FxHashMap::default(),
             modules: FxHashMap::default(),
             aliases: Vec::new(),
+            import_values: FxHashMap::default(),
+            import_types: FxHashMap::default(),
+            import_modules: FxHashMap::default(),
             next_order: 0,
         });
         id
@@ -175,6 +252,22 @@ impl ModuleTable {
             .entry(name)
             .or_default()
             .push(decl);
+    }
+    fn insert_type(
+        &mut self,
+        module: ModuleId,
+        name: Name,
+        kind: ModuleTypeKind,
+        vis: Vis,
+    ) -> TypeDeclId {
+        let id = self.next_type_decl_id();
+        let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Type { id, kind });
+        self.nodes[module.0]
+            .types
+            .entry(name)
+            .or_default()
+            .push(decl);
+        id
     }
     fn insert_module(&mut self, module: ModuleId, name: Name, sub: ModuleId, def: DefId, vis: Vis) {
         let decl = self.push_decl(
@@ -200,18 +293,46 @@ impl ModuleTable {
     pub fn aliases(&self, module: ModuleId) -> &[AliasDecl] {
         &self.nodes[module.0].aliases
     }
+    fn build_import_views(&mut self) {
+        for module_index in 0..self.nodes.len() {
+            let module = ModuleId(module_index);
+            let aliases = self.nodes[module_index].aliases.clone();
+            for alias in aliases {
+                self.import_alias(module, &alias);
+            }
+        }
+    }
     pub fn value_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<DefId> {
         let decl = self.select_decl(module, self.nodes[module.0].values.get(name)?, site)?;
         match decl.kind {
             ModuleDeclKind::Value { def } => Some(def),
-            ModuleDeclKind::Module { .. } => None,
+            ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
+        }
+    }
+    pub fn type_at(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        let decl = self.select_decl(module, self.nodes[module.0].types.get(name)?, site)?;
+        match decl.kind {
+            ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
+                name: decl.name.clone(),
+                vis: decl.vis,
+                order: decl.order,
+                module,
+                id,
+                kind,
+            }),
+            ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
         }
     }
     pub fn module_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<ModuleId> {
         let decl = self.select_decl(module, self.nodes[module.0].modules.get(name)?, site)?;
         match decl.kind {
             ModuleDeclKind::Module { module, .. } => Some(module),
-            ModuleDeclKind::Value { .. } => None,
+            ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
         }
     }
     pub fn lexical_value_at(
@@ -223,6 +344,27 @@ impl ModuleTable {
         loop {
             if let Some(def) = self.value_at(module, name, site) {
                 return Some(def);
+            }
+            if let Some(def) = self.imported_value_at(module, name, site) {
+                return Some(def);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    pub fn lexical_type_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        loop {
+            if let Some(found) = self.type_at(module, name, site) {
+                return Some(found);
+            }
+            if let Some(found) = self.imported_type_at(module, name, site) {
+                return Some(found);
             }
             let parent = self.nodes[module.0].parent?;
             module = parent.module;
@@ -239,6 +381,9 @@ impl ModuleTable {
             if let Some(found) = self.module_at(module, name, site) {
                 return Some(found);
             }
+            if let Some(found) = self.imported_module_at(module, name, site) {
+                return Some(found);
+            }
             let parent = self.nodes[module.0].parent?;
             module = parent.module;
             site = parent.order;
@@ -250,6 +395,252 @@ impl ModuleTable {
             module = self.first_module_decl(module, segment)?.module;
         }
         Some(module)
+    }
+    pub fn module_path(&self, mut module: ModuleId) -> ModulePath {
+        let mut segments = Vec::new();
+        while let Some(parent) = self.nodes[module.0].parent {
+            let parent_node = &self.nodes[parent.module.0];
+            let Some(decl) = parent_node.decls.iter().find(|decl| {
+                decl.order == parent.order
+                    && matches!(
+                        decl.kind,
+                        ModuleDeclKind::Module { module: child, .. } if child == module
+                    )
+            }) else {
+                break;
+            };
+            segments.push(decl.name.clone());
+            module = parent.module;
+        }
+        segments.reverse();
+        ModulePath { segments }
+    }
+    pub fn type_decl_path(&self, decl: &ModuleTypeDecl) -> ModulePath {
+        let mut path = self.module_path(decl.module);
+        path.segments.push(decl.name.clone());
+        path
+    }
+    pub fn type_decl_by_id(&self, id: TypeDeclId) -> Option<ModuleTypeDecl> {
+        for module_index in 0..self.nodes.len() {
+            let module = ModuleId(module_index);
+            for decl in &self.nodes[module_index].decls {
+                if let ModuleDeclKind::Type { id: decl_id, kind } = decl.kind
+                    && decl_id == id
+                {
+                    return Some(ModuleTypeDecl {
+                        name: decl.name.clone(),
+                        vis: decl.vis,
+                        order: decl.order,
+                        module,
+                        id: decl_id,
+                        kind,
+                    });
+                }
+            }
+        }
+        None
+    }
+    fn import_alias(&mut self, module: ModuleId, alias: &AliasDecl) {
+        match &alias.import {
+            UseImport::Alias { name, path } => {
+                let Some(target) = self.import_path_target(module, path, alias.order) else {
+                    return;
+                };
+                if let Some(def) = target.value {
+                    self.nodes[module.0]
+                        .import_values
+                        .entry(name.clone())
+                        .or_default()
+                        .push(ImportedValueDecl {
+                            order: alias.order,
+                            def,
+                        });
+                }
+                if let Some(decl) = target.ty {
+                    self.nodes[module.0]
+                        .import_types
+                        .entry(name.clone())
+                        .or_default()
+                        .push(ImportedTypeDecl {
+                            order: alias.order,
+                            decl,
+                        });
+                }
+                if let Some(found) = target.module {
+                    self.nodes[module.0]
+                        .import_modules
+                        .entry(name.clone())
+                        .or_default()
+                        .push(ImportedModuleDecl {
+                            order: alias.order,
+                            module: found,
+                        });
+                }
+            }
+            UseImport::Glob { prefix } => {
+                let Some(target) = self.raw_module_path_from(module, &prefix.segments, alias.order)
+                else {
+                    return;
+                };
+                for decl in self.module_value_imports(target) {
+                    self.nodes[module.0]
+                        .import_values
+                        .entry(decl.name.clone())
+                        .or_default()
+                        .push(ImportedValueDecl {
+                            order: alias.order,
+                            def: decl.def,
+                        });
+                }
+                for decl in self.module_type_imports(target) {
+                    self.nodes[module.0]
+                        .import_types
+                        .entry(decl.name.clone())
+                        .or_default()
+                        .push(ImportedTypeDecl {
+                            order: alias.order,
+                            decl,
+                        });
+                }
+                for decl in self.module_module_imports(target) {
+                    self.nodes[module.0]
+                        .import_modules
+                        .entry(decl.name.clone())
+                        .or_default()
+                        .push(ImportedModuleDecl {
+                            order: alias.order,
+                            module: decl.module,
+                        });
+                }
+            }
+        }
+    }
+    fn import_path_target(
+        &self,
+        module: ModuleId,
+        path: &ModulePath,
+        site: ModuleOrder,
+    ) -> Option<ImportPathTarget> {
+        let Some((last, prefix)) = path.segments.split_last() else {
+            return None;
+        };
+        if prefix.is_empty() {
+            return Some(ImportPathTarget {
+                value: self.raw_lexical_value_at(module, last, site),
+                ty: self.raw_lexical_type_at(module, last, site),
+                module: self.raw_lexical_module_at(module, last, site),
+            });
+        }
+
+        let target = self.raw_module_path_from(module, prefix, site)?;
+        Some(ImportPathTarget {
+            value: self.value_at(target, last, module_path_site()),
+            ty: self.type_at(target, last, module_path_site()),
+            module: self.module_at(target, last, module_path_site()),
+        })
+    }
+    fn raw_module_path_from(
+        &self,
+        module: ModuleId,
+        path: &[Name],
+        site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        let Some((first, rest)) = path.split_first() else {
+            return Some(module);
+        };
+        let mut current = self.raw_lexical_module_at(module, first, site)?;
+        for segment in rest {
+            current = self.module_at(current, segment, module_path_site())?;
+        }
+        Some(current)
+    }
+    fn raw_lexical_value_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<DefId> {
+        loop {
+            if let Some(def) = self.value_at(module, name, site) {
+                return Some(def);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    fn raw_lexical_type_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        loop {
+            if let Some(found) = self.type_at(module, name, site) {
+                return Some(found);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    fn raw_lexical_module_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        loop {
+            if let Some(found) = self.module_at(module, name, site) {
+                return Some(found);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
+    }
+    fn imported_value_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<DefId> {
+        self.select_import(self.nodes[module.0].import_values.get(name)?, site)
+            .map(|decl| decl.def)
+    }
+    fn imported_type_at(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        self.select_import(self.nodes[module.0].import_types.get(name)?, site)
+            .map(|decl| decl.decl.clone())
+    }
+    fn imported_module_at(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        self.select_import(self.nodes[module.0].import_modules.get(name)?, site)
+            .map(|decl| decl.module)
+    }
+    fn module_value_imports(&self, module: ModuleId) -> Vec<ModuleValueDecl> {
+        self.nodes[module.0]
+            .values
+            .keys()
+            .flat_map(|name| self.value_decls(module, name))
+            .collect()
+    }
+    fn module_type_imports(&self, module: ModuleId) -> Vec<ModuleTypeDecl> {
+        self.nodes[module.0]
+            .types
+            .keys()
+            .flat_map(|name| self.type_decls(module, name))
+            .collect()
+    }
+    fn module_module_imports(&self, module: ModuleId) -> Vec<ModuleChildDecl> {
+        self.nodes[module.0]
+            .modules
+            .keys()
+            .flat_map(|name| self.module_decls(module, name))
+            .collect()
     }
     pub fn value_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleValueDecl> {
         self.nodes[module.0]
@@ -266,7 +657,29 @@ impl ModuleTable {
                         order: decl.order,
                         def,
                     }),
-                    ModuleDeclKind::Module { .. } => None,
+                    ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
+                }
+            })
+            .collect()
+    }
+    pub fn type_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleTypeDecl> {
+        self.nodes[module.0]
+            .types
+            .get(name)
+            .into_iter()
+            .flat_map(|decls| decls.iter())
+            .filter_map(|decl| {
+                let decl = &self.nodes[module.0].decls[decl.0];
+                match decl.kind {
+                    ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
+                        name: decl.name.clone(),
+                        vis: decl.vis,
+                        order: decl.order,
+                        module,
+                        id,
+                        kind,
+                    }),
+                    ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
                 }
             })
             .collect()
@@ -287,7 +700,7 @@ impl ModuleTable {
                         module,
                         def,
                     }),
-                    ModuleDeclKind::Value { .. } => None,
+                    ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
                 }
             })
             .collect()
@@ -328,6 +741,11 @@ impl ModuleTable {
         node.next_order += 1;
         order
     }
+    fn next_type_decl_id(&mut self) -> TypeDeclId {
+        let id = TypeDeclId(self.next_type_id);
+        self.next_type_id += 1;
+        id
+    }
     fn select_decl(
         &self,
         module: ModuleId,
@@ -348,6 +766,21 @@ impl ModuleTable {
                     .min_by_key(|decl| decl.order)
             })
     }
+    fn select_import<'a, T>(&self, imports: &'a [T], site: ModuleOrder) -> Option<&'a T>
+    where
+        T: ImportOrder,
+    {
+        imports
+            .iter()
+            .filter(|decl| decl.order() <= site)
+            .max_by_key(|decl| decl.order())
+            .or_else(|| {
+                imports
+                    .iter()
+                    .filter(|decl| decl.order() > site)
+                    .min_by_key(|decl| decl.order())
+            })
+    }
     fn add_dump_labels(&self, module: ModuleId, prefix: &mut Vec<String>, labels: &mut DumpLabels) {
         for decl in &self.nodes[module.0].decls {
             let label = qualified_label(prefix, &decl.name);
@@ -361,8 +794,31 @@ impl ModuleTable {
                     self.add_dump_labels(module, prefix, labels);
                     prefix.pop();
                 }
+                ModuleDeclKind::Type { .. } => {}
             }
         }
+    }
+}
+
+trait ImportOrder {
+    fn order(&self) -> ModuleOrder;
+}
+
+impl ImportOrder for ImportedValueDecl {
+    fn order(&self) -> ModuleOrder {
+        self.order
+    }
+}
+
+impl ImportOrder for ImportedTypeDecl {
+    fn order(&self) -> ModuleOrder {
+        self.order
+    }
+}
+
+impl ImportOrder for ImportedModuleDecl {
+    fn order(&self) -> ModuleOrder {
+        self.order
     }
 }
 
@@ -444,7 +900,20 @@ impl Lower {
                         self.modules.add_alias(module, import, vis);
                     }
                 }
-                // 型定義系（Type/Struct/Enum/Role/Impl/Act/Cast/Error）・OpDef は後で。
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl
+                | SyntaxKind::RoleDecl
+                | SyntaxKind::ActDecl => {
+                    if let (Some(name), Some(kind)) =
+                        (type_decl_name(&child), module_type_kind(child.kind()))
+                    {
+                        let vis = vis_of(&child);
+                        self.modules.insert_type(module, name, kind, vis);
+                    }
+                }
+                // 型定義系の本体、Impl/Act/Cast/OpDef は後で。
                 _ => {}
             }
         }
@@ -517,6 +986,7 @@ pub fn lower_module_map(root: &Cst) -> Lower {
     let root_module = lower.modules.root_id();
     let roots = lower.register_block(root, root_module);
     lower.arena.roots = roots;
+    lower.modules.build_import_views();
     lower
 }
 
@@ -551,6 +1021,7 @@ pub(crate) fn lower_loaded_file_csts_module_map(
         lower.set_module_children(def, children);
     }
 
+    lower.modules.build_import_views();
     Ok(lower)
 }
 
@@ -650,6 +1121,10 @@ fn format_module_path(path: &ModulePath) -> String {
         .join("::")
 }
 
+fn module_path_site() -> ModuleOrder {
+    ModuleOrder::from_index(u32::MAX)
+}
+
 // ── CST ヘルパ ───────────────────────────────────────────────────────────
 
 fn child_node(node: &Cst, kind: SyntaxKind) -> Option<Cst> {
@@ -681,6 +1156,27 @@ fn binding_vis(node: &Cst) -> Vis {
 /// ModDecl の最初の Ident がモジュール名。
 fn mod_name(node: &Cst) -> Option<Name> {
     first_ident(node)
+}
+
+/// 型名前空間に登録する宣言名。
+fn type_decl_name(node: &Cst) -> Option<Name> {
+    if node.kind() == SyntaxKind::RoleDecl {
+        return child_node(node, SyntaxKind::TypeExpr)
+            .and_then(|type_expr| first_ident(&type_expr));
+    }
+    first_ident(node)
+}
+
+fn module_type_kind(kind: SyntaxKind) -> Option<ModuleTypeKind> {
+    match kind {
+        SyntaxKind::TypeDecl => Some(ModuleTypeKind::TypeAlias),
+        SyntaxKind::StructDecl => Some(ModuleTypeKind::Struct),
+        SyntaxKind::EnumDecl => Some(ModuleTypeKind::Enum),
+        SyntaxKind::ErrorDecl => Some(ModuleTypeKind::Error),
+        SyntaxKind::RoleDecl => Some(ModuleTypeKind::Role),
+        SyntaxKind::ActDecl => Some(ModuleTypeKind::Act),
+        _ => None,
+    }
 }
 
 /// `use mod foo::...` の `foo`。
@@ -740,9 +1236,94 @@ mod tests {
         let cst = parse("use a::b as c\nuse x::y::*\nmy f = 1\n");
         let lower = lower_module_map(&cst);
         let root = lower.modules.root_id();
-        // alias c と glob x::y の 2 本が溜まる（解決は pass2）
+        // alias c と glob x::y の 2 本が溜まり、pass1 完了後に import view へ展開される。
         assert_eq!(lower.modules.aliases(root).len(), 2);
         assert_eq!(lower.modules.value_decls(root, &Name("f".into())).len(), 1);
+    }
+
+    #[test]
+    fn import_view_resolves_aliases_across_namespaces() {
+        let cst = parse(
+            "mod m:\n  type T\n  my value = 1\n  mod n:\n    type U\nuse m::T as AliasT\nuse m::value as imported_value\nuse m::n as imported_n\nmy site = imported_value\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let m = lower.modules.module_decls(root, &Name("m".into()))[0].module;
+        let n = lower.modules.module_decls(m, &Name("n".into()))[0].module;
+        let value = lower.modules.value_decls(m, &Name("value".into()))[0].def;
+        let site_order = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+        let alias_t = lower
+            .modules
+            .lexical_type_at(root, &Name("AliasT".into()), site_order)
+            .expect("type alias import should resolve");
+
+        assert_eq!(
+            lower.modules.type_decl_path(&alias_t).segments,
+            vec![Name("m".into()), Name("T".into())]
+        );
+        assert_eq!(
+            lower
+                .modules
+                .lexical_value_at(root, &Name("imported_value".into()), site_order),
+            Some(value)
+        );
+        assert_eq!(
+            lower
+                .modules
+                .lexical_module_at(root, &Name("imported_n".into()), site_order),
+            Some(n)
+        );
+    }
+
+    #[test]
+    fn import_view_resolves_globs_across_namespaces() {
+        let cst = parse(
+            "mod m:\n  type T\n  my value = 1\n  mod n:\n    type U\nuse m::*\nmy site = value\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let m = lower.modules.module_decls(root, &Name("m".into()))[0].module;
+        let n = lower.modules.module_decls(m, &Name("n".into()))[0].module;
+        let value = lower.modules.value_decls(m, &Name("value".into()))[0].def;
+        let site_order = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+        let imported_t = lower
+            .modules
+            .lexical_type_at(root, &Name("T".into()), site_order)
+            .expect("glob type import should resolve");
+
+        assert_eq!(
+            lower.modules.type_decl_path(&imported_t).segments,
+            vec![Name("m".into()), Name("T".into())]
+        );
+        assert_eq!(
+            lower
+                .modules
+                .lexical_value_at(root, &Name("value".into()), site_order),
+            Some(value)
+        );
+        assert_eq!(
+            lower
+                .modules
+                .lexical_module_at(root, &Name("n".into()), site_order),
+            Some(n)
+        );
+    }
+
+    #[test]
+    fn direct_type_decl_shadows_glob_import() {
+        let cst = parse("mod m:\n  type T\nuse m::*\ntype T\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let site_order = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+        let found = lower
+            .modules
+            .lexical_type_at(root, &Name("T".into()), site_order)
+            .expect("local type should resolve");
+
+        assert_eq!(
+            lower.modules.type_decl_path(&found).segments,
+            vec![Name("T".into())]
+        );
     }
 
     #[test]
@@ -757,6 +1338,58 @@ mod tests {
         assert_eq!(m_decl.order, ModuleOrder(0));
         let m = m_decl.module;
         assert_eq!(lower.modules.value_decls(m, &Name("x".into())).len(), 1);
+    }
+
+    #[test]
+    fn registers_type_namespace_decls_without_poly_roots() {
+        let cst = parse(
+            "type Alias\nstruct Record { x: int }\nenum Choice { A }\nerror Failure:\n  bad str\nrole Eq;\nact Console;\nmy value = 1\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+
+        assert_eq!(lower.arena.roots.len(), 1);
+        assert_eq!(
+            lower.modules.type_decls(root, &Name("Alias".into()))[0].kind,
+            ModuleTypeKind::TypeAlias
+        );
+        assert_eq!(
+            lower.modules.type_decls(root, &Name("Record".into()))[0].kind,
+            ModuleTypeKind::Struct
+        );
+        assert_eq!(
+            lower.modules.type_decls(root, &Name("Choice".into()))[0].kind,
+            ModuleTypeKind::Enum
+        );
+        assert_eq!(
+            lower.modules.type_decls(root, &Name("Failure".into()))[0].kind,
+            ModuleTypeKind::Error
+        );
+        assert_eq!(
+            lower.modules.type_decls(root, &Name("Eq".into()))[0].kind,
+            ModuleTypeKind::Role
+        );
+        assert_eq!(
+            lower.modules.type_decls(root, &Name("Console".into()))[0].kind,
+            ModuleTypeKind::Act
+        );
+    }
+
+    #[test]
+    fn lexical_type_lookup_converts_child_site_to_parent_module_order() {
+        let cst = parse("type User\nmod m:\n  my y = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let m = lower.modules.module_decls(root, &Name("m".into()))[0].module;
+        let y_order = lower.modules.value_decls(m, &Name("y".into()))[0].order;
+
+        assert_eq!(
+            lower
+                .modules
+                .lexical_type_at(m, &Name("User".into()), y_order)
+                .map(|decl| decl.kind),
+            Some(ModuleTypeKind::TypeAlias)
+        );
     }
 
     #[test]

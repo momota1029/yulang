@@ -17,6 +17,36 @@ pub struct Scheme {
     pub subtracts: Vec<(TypeVar, SubtractId)>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// 言語コアが直接知っている builtin 型。
+///
+/// これは std module 内の `DefId` ではない。literal や unit argument のように std/prelude を
+/// 読まなくても必要になる型 identity を、source path 文字列から切り離して扱うための小さな核。
+pub enum BuiltinType {
+    Int,
+    Float,
+    Unit,
+}
+
+impl BuiltinType {
+    pub fn from_surface_name(name: &str) -> Option<Self> {
+        match name {
+            "int" => Some(Self::Int),
+            "float" => Some(Self::Float),
+            "unit" => Some(Self::Unit),
+            _ => None,
+        }
+    }
+
+    pub fn surface_name(self) -> &'static str {
+        match self {
+            Self::Int => "int",
+            Self::Float => "float",
+            Self::Unit => "unit",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 /// 型変数と SubtractId の採番器。
 ///
@@ -169,6 +199,8 @@ pub enum Pos {
     },
     PolyVariant(Vec<(String, Vec<PosId>)>),
     Tuple(Vec<PosId>),
+    /// エフェクト行の lower bound。positive 側は tail を分けず、row item を列として持つ。
+    Row(Vec<PosId>),
     NonSubtract(PosId, SubtractId),
     Union(PosId, PosId),
 }
@@ -180,6 +212,7 @@ pub enum Pos {
 /// 関数型では引数が正側、戻り値が負側になるよう polarity を反転して持つ。
 pub enum Neg {
     Top,
+    Bot,
     Var(TypeVar),
     Con(Vec<String>, Vec<NeuId>),
     Fun {

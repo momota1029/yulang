@@ -138,6 +138,13 @@ impl ConstraintMachine {
             self.types.neg(constraint.upper).clone(),
         ) {
             (Pos::Bot, _) | (_, Neg::Top) => {}
+            (Pos::NonSubtract(pos, subtract), _) => {
+                self.enqueue_subtype(
+                    pos,
+                    constraint.weights.with_left(subtract),
+                    constraint.upper,
+                );
+            }
             (Pos::Var(source), Neg::Var(target)) => {
                 self.add_lower_bound(target, constraint.lower, constraint.weights.clone());
                 self.add_upper_bound(source, constraint.upper, constraint.weights);
@@ -164,7 +171,15 @@ impl ConstraintMachine {
             ) => {
                 let swapped = constraint.weights.swapped();
                 self.enqueue_subtype(upper_arg, swapped.clone(), arg);
-                self.enqueue_subtype(upper_arg_eff, swapped, arg_eff);
+                if matches!(self.types.neg(arg_eff), Neg::Bot) {
+                    self.enqueue_subtype(
+                        upper_arg_eff,
+                        constraint.weights.both_from_right(),
+                        upper_ret_eff,
+                    );
+                } else {
+                    self.enqueue_subtype(upper_arg_eff, swapped, arg_eff);
+                }
                 self.enqueue_subtype(ret_eff, constraint.weights.clone(), upper_ret_eff);
                 self.enqueue_subtype(ret, constraint.weights, upper_ret);
             }
@@ -423,6 +438,20 @@ impl ConstraintWeights {
         }
     }
 
+    pub fn with_left(&self, id: SubtractId) -> Self {
+        Self {
+            left: self.left.union(&ConstraintWeight::from_ids([id])),
+            right: self.right.clone(),
+        }
+    }
+
+    pub fn both_from_right(&self) -> Self {
+        Self {
+            left: self.right.clone(),
+            right: self.right.clone(),
+        }
+    }
+
     pub fn union(&self, other: &Self) -> Self {
         Self {
             left: self.left.union(&other.left),
@@ -631,5 +660,81 @@ mod tests {
             upper: rhs_ret,
             weights,
         }));
+    }
+
+    #[test]
+    fn pure_function_argument_effect_passes_through_with_right_side_weights() {
+        let mut machine = ConstraintMachine::new();
+        let lhs_arg = machine.alloc_neg(Neg::Con(vec!["lhs_arg".into()], vec![]));
+        let lhs_arg_eff = machine.alloc_neg(Neg::Bot);
+        let lhs_ret_eff = machine.alloc_pos(Pos::Con(vec!["lhs_ret_eff".into()], vec![]));
+        let lhs_ret = machine.alloc_pos(Pos::Con(vec!["lhs_ret".into()], vec![]));
+        let lower = machine.alloc_pos(Pos::Fun {
+            arg: lhs_arg,
+            arg_eff: lhs_arg_eff,
+            ret_eff: lhs_ret_eff,
+            ret: lhs_ret,
+        });
+
+        let rhs_arg = machine.alloc_pos(Pos::Con(vec!["rhs_arg".into()], vec![]));
+        let rhs_arg_eff = machine.alloc_pos(Pos::Con(vec!["rhs_arg_eff".into()], vec![]));
+        let rhs_ret_eff = machine.alloc_neg(Neg::Con(vec!["rhs_ret_eff".into()], vec![]));
+        let rhs_ret = machine.alloc_neg(Neg::Con(vec!["rhs_ret".into()], vec![]));
+        let upper = machine.alloc_neg(Neg::Fun {
+            arg: rhs_arg,
+            arg_eff: rhs_arg_eff,
+            ret_eff: rhs_ret_eff,
+            ret: rhs_ret,
+        });
+        let weights = ConstraintWeights {
+            left: ConstraintWeight::from_ids([SubtractId(0)]),
+            right: ConstraintWeight::from_ids([SubtractId(1)]),
+        };
+        let expected_passthrough_weights = ConstraintWeights {
+            left: ConstraintWeight::from_ids([SubtractId(1)]),
+            right: ConstraintWeight::from_ids([SubtractId(1)]),
+        };
+
+        machine.weighted_subtype(lower, weights.clone(), upper);
+
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: rhs_arg_eff,
+            upper: rhs_ret_eff,
+            weights: expected_passthrough_weights,
+        }));
+        assert!(!machine.seen.contains(&SubtypeConstraint {
+            lower: rhs_arg_eff,
+            upper: rhs_ret_eff,
+            weights: ConstraintWeights::empty(),
+        }));
+        assert!(!machine.seen.contains(&SubtypeConstraint {
+            lower: rhs_arg_eff,
+            upper: rhs_ret_eff,
+            weights,
+        }));
+    }
+
+    #[test]
+    fn non_subtract_adds_left_weight_before_continuing() {
+        let mut machine = ConstraintMachine::new();
+        let target = TypeVar(0);
+        let inner = machine.alloc_pos(Pos::Con(vec!["io".into()], vec![]));
+        let subtract = SubtractId(0);
+        let lower = machine.alloc_pos(Pos::NonSubtract(inner, subtract));
+        let upper = machine.alloc_neg(Neg::Var(target));
+
+        machine.subtype(lower, upper);
+
+        let bounds = machine.bounds().of(target).expect("target bounds");
+        assert_eq!(
+            bounds.lowers(),
+            &[WeightedLowerBound {
+                pos: inner,
+                weights: ConstraintWeights {
+                    left: ConstraintWeight::from_ids([subtract]),
+                    right: ConstraintWeight::empty()
+                }
+            }]
+        );
     }
 }

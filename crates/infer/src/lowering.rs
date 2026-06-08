@@ -14,11 +14,15 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
-use poly::expr::{Def, Expr, Lit};
-use poly::types::{Neg, NegId, Pos, TypeVar};
+use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId};
+use poly::types::{Neg, NegId, Pos, PosId, SubtractId, Subtractability, TypeVar};
 use rustc_hash::FxHashMap;
 
 use crate::analysis::{AnalysisSession, AnalysisWork};
+use crate::annotation::{
+    AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnType,
+    AnnTypeBuilder, AnnTypeVarId,
+};
 use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::RefUse;
@@ -183,15 +187,50 @@ impl BodyLowerer {
             decl.def,
             &mut self.labels,
         )
-        .lower_expr(&expr);
+        .lower_binding_body_expr(&expr);
         match lowered {
-            Ok(computation) => self.finish_binding(decl.def, name, computation),
+            Ok(computation) => {
+                match self.connect_binding_annotation(node, module, decl.order, computation) {
+                    Ok(()) => self.finish_binding(decl.def, name, computation),
+                    Err(error) => self.errors.push(BodyLoweringError::Expr {
+                        def: decl.def,
+                        name,
+                        error,
+                    }),
+                }
+            }
             Err(error) => self.errors.push(BodyLoweringError::Expr {
                 def: decl.def,
                 name,
                 error,
             }),
         }
+    }
+
+    fn connect_binding_annotation(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        site: ModuleOrder,
+        computation: Computation,
+    ) -> Result<(), LoweringError> {
+        let Some(type_expr) = binding_type_expr(node) else {
+            return Ok(());
+        };
+        let mut builder = AnnTypeBuilder::new(&self.modules, module, site);
+        let ann = builder
+            .build_type_expr(&type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        AnnConstraintLowerer::new(&mut self.session.infer, &self.modules)
+            .connect_computation(
+                AnnComputationTarget {
+                    value: computation.value,
+                    effect: computation.effect,
+                },
+                &ann,
+            )
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        Ok(())
     }
 
     fn finish_binding(&mut self, def: poly::expr::DefId, name: Name, computation: Computation) {
@@ -247,6 +286,8 @@ pub struct ExprLowerer<'a> {
     site: ModuleOrder,
     parent: poly::expr::DefId,
     labels: Option<&'a mut DumpLabels>,
+    locals: Vec<LocalBinding>,
+    function_frames: Vec<FunctionPredicateFrame>,
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -264,6 +305,8 @@ impl<'a> ExprLowerer<'a> {
             site,
             parent,
             labels: None,
+            locals: Vec::new(),
+            function_frames: Vec::new(),
         }
     }
 
@@ -282,6 +325,8 @@ impl<'a> ExprLowerer<'a> {
             site,
             parent,
             labels: Some(labels),
+            locals: Vec::new(),
+            function_frames: Vec::new(),
         }
     }
 
@@ -290,13 +335,29 @@ impl<'a> ExprLowerer<'a> {
     /// まだ対応していない suffix / atom は `LoweringError::UnsupportedSyntax` として返す。
     /// fallback の unit 化で IR を捏造しないため、未対応範囲は呼び出し側が診断へ変換する。
     pub fn lower_expr(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        self.lower_expr_with_lambda_scope(node, LambdaScope::Anonymous)
+    }
+
+    pub fn lower_binding_body_expr(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        self.lower_expr_with_lambda_scope(node, LambdaScope::Defined)
+    }
+
+    fn lower_expr_with_lambda_scope(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         match node.kind() {
-            SyntaxKind::Expr => self.lower_expr_chain(node),
-            _ => self.lower_atom(node),
+            SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
+            _ => self.lower_atom_with_lambda_scope(node, lambda_scope),
         }
     }
 
-    fn lower_expr_chain(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_expr_chain(
+        &mut self,
+        node: &Cst,
+        head_lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         let mut items = node
             .children_with_tokens()
             .filter(|item| !item_is_trivia(item));
@@ -304,7 +365,7 @@ impl<'a> ExprLowerer<'a> {
             return Ok(self.unit_expr());
         };
 
-        let mut acc = self.lower_head(head)?;
+        let mut acc = self.lower_head(head, head_lambda_scope)?;
         for item in items {
             match item {
                 NodeOrToken::Node(child)
@@ -326,6 +387,7 @@ impl<'a> ExprLowerer<'a> {
     fn lower_head(
         &mut self,
         head: NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>,
+        lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
         match head {
             NodeOrToken::Token(token) => match token.kind() {
@@ -333,27 +395,160 @@ impl<'a> ExprLowerer<'a> {
                 SyntaxKind::Number => self.lower_number(token.text()),
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
             },
-            NodeOrToken::Node(node) => self.lower_atom(&node),
+            NodeOrToken::Node(node) => self.lower_atom_with_lambda_scope(&node, lambda_scope),
         }
     }
 
-    fn lower_atom(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_atom_with_lambda_scope(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         match node.kind() {
-            SyntaxKind::Expr => self.lower_expr_chain(node),
+            SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
+            SyntaxKind::LambdaExpr => self.lower_lambda(node, lambda_scope),
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
-            SyntaxKind::Paren => self.lower_paren(node),
+            SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
             _ => Err(LoweringError::UnsupportedSyntax { kind: node.kind() }),
         }
     }
 
-    fn lower_paren(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    fn lower_lambda(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let patterns = node
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::Pattern)
+            .collect::<Vec<_>>();
+        let Some(body) = node
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::Expr)
+            .last()
+        else {
+            return Err(LoweringError::MissingLambdaBody);
+        };
+        let mut ann_builder = AnnTypeBuilder::new(self.modules, self.module, self.site);
+        let mut ann_solver_vars = FxHashMap::default();
+        self.lower_lambda_params(
+            patterns.as_slice(),
+            &body,
+            lambda_scope,
+            &mut ann_builder,
+            &mut ann_solver_vars,
+        )
+    }
+
+    fn lower_lambda_params(
+        &mut self,
+        patterns: &[Cst],
+        body: &Cst,
+        lambda_scope: LambdaScope,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<Computation, LoweringError> {
+        let Some((pattern, rest)) = patterns.split_first() else {
+            return self.lower_expr(body);
+        };
+
+        let param_value = self.fresh_type_var();
+        let annotation = self.connect_lambda_pattern_annotation(
+            pattern,
+            param_value,
+            ann_builder,
+            ann_solver_vars,
+        )?;
+        let before_locals = self.locals.len();
+        let pat = self.lower_lambda_pattern(pattern, param_value, annotation.call_return_effect)?;
+        self.function_frames
+            .push(FunctionPredicateFrame::new(lambda_scope));
+        let body =
+            self.lower_lambda_params(rest, body, lambda_scope, ann_builder, ann_solver_vars)?;
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param_value));
+        let arg_eff = annotation.arg_eff;
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(lambda_scope, annotation.subtracts, frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn connect_lambda_pattern_annotation(
+        &mut self,
+        pattern: &Cst,
+        value: TypeVar,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<LambdaPatternAnnotation, LoweringError> {
+        let Some(type_expr) = pattern_type_expr(pattern) else {
+            return Ok(LambdaPatternAnnotation {
+                arg_eff: self.never_neg(),
+                subtracts: Vec::new(),
+                call_return_effect: LocalCallReturnEffect::Unannotated,
+            });
+        };
+        let ann = ann_builder
+            .build_type_expr(&type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let (effect, arg_eff) = self.lambda_param_effect_slot(&ann);
+        let vars = std::mem::take(ann_solver_vars);
+        let mut lowerer =
+            AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let result = lowerer
+            .connect_computation(AnnComputationTarget { value, effect }, &ann)
+            .map(|subtracts| LambdaPatternAnnotation {
+                arg_eff,
+                subtracts,
+                call_return_effect: LocalCallReturnEffect::Annotated,
+            })
+            .map_err(|error| LoweringError::AnnotationConstraint { error });
+        *ann_solver_vars = lowerer.into_vars();
+        result
+    }
+
+    fn lambda_param_effect_slot(&mut self, ann: &AnnType) -> (TypeVar, NegId) {
+        if matches!(ann, AnnType::Effectful { .. }) {
+            let effect = self.fresh_type_var();
+            return (effect, self.alloc_neg(Neg::Var(effect)));
+        }
+
+        (self.fresh_exact_pure_effect(), self.never_neg())
+    }
+
+    fn lower_paren(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         let exprs = node
             .children()
             .filter(|child| child.kind() == SyntaxKind::Expr)
             .collect::<Vec<_>>();
         match exprs.as_slice() {
             [] => Ok(self.unit_expr()),
-            [expr] => self.lower_expr(expr),
+            [expr] => self.lower_expr_with_lambda_scope(expr, lambda_scope),
             _ => {
                 let item_lowers = exprs
                     .iter()
@@ -396,21 +591,7 @@ impl<'a> ExprLowerer<'a> {
     fn lower_number(&mut self, text: &str) -> Result<Computation, LoweringError> {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
-        let (lit, primitive) = if integer_number_token(text) {
-            let parsed = text
-                .parse::<i64>()
-                .map_err(|_| LoweringError::InvalidNumber {
-                    text: text.to_string(),
-                })?;
-            (Lit::Int(parsed), "int")
-        } else {
-            let parsed = text
-                .parse::<f64>()
-                .map_err(|_| LoweringError::InvalidNumber {
-                    text: text.to_string(),
-                })?;
-            (Lit::Float(parsed), "float")
-        };
+        let (lit, primitive) = parse_number_lit(text)?;
 
         self.constrain_lower(value, primitive_type(primitive));
         let expr = self.session.poly.add_expr(Expr::Lit(lit));
@@ -418,6 +599,10 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_name(&mut self, name: Name) -> Result<Computation, LoweringError> {
+        if let Some(local) = self.local_binding(&name) {
+            return Ok(self.lower_local_name(name, local));
+        }
+
         let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
             return Err(LoweringError::UnresolvedName { name });
         };
@@ -442,6 +627,33 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Var(reference));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_local_name(&mut self, name: Name, local: LocalBinding) -> Computation {
+        let effect = self.fresh_exact_pure_effect();
+        let reference = self.session.poly.add_ref();
+        self.session.poly.resolve_ref(reference, local.def);
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_ref_label(reference, name.0);
+        }
+        self.session.refs.insert(
+            reference,
+            RefUse {
+                parent: self.parent,
+                value: local.value,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Var(reference));
+        Computation::value(expr, local.value, effect)
+    }
+
+    fn local_binding(&self, name: &Name) -> Option<LocalBinding> {
+        self.locals
+            .iter()
+            .rev()
+            .find(|local| &local.name == name)
+            .cloned()
     }
 
     fn apply_arguments(
@@ -483,6 +695,7 @@ impl<'a> ExprLowerer<'a> {
         self.subtype_var_to_var(callee.effect, result_effect);
         self.subtype_var_to_var(arg.effect, result_effect);
         self.subtype_var_to_var(call_effect, result_effect);
+        self.record_unannotated_local_callee_return_effect(&callee, call_effect);
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
@@ -496,8 +709,147 @@ impl<'a> ExprLowerer<'a> {
         Computation::value(expr, value, effect)
     }
 
+    fn lower_lambda_pattern(
+        &mut self,
+        node: &Cst,
+        value: TypeVar,
+        call_return_effect: LocalCallReturnEffect,
+    ) -> Result<PatId, LoweringError> {
+        match single_pattern_item(node)? {
+            PatternItem::Ident(name) if name.0 == "_" => Ok(self.session.poly.add_pat(Pat::Wild)),
+            PatternItem::Ident(name) => Ok(self.bind_lambda_param(name, value, call_return_effect)),
+            PatternItem::Number(text) => self.lower_number_pattern(&text, value),
+            PatternItem::Paren(group) => {
+                self.lower_paren_pattern(&group, value, call_return_effect)
+            }
+            PatternItem::Unsupported(kind) => Err(LoweringError::UnsupportedPatternSyntax { kind }),
+        }
+    }
+
+    fn bind_lambda_param(
+        &mut self,
+        name: Name,
+        value: TypeVar,
+        call_return_effect: LocalCallReturnEffect,
+    ) -> PatId {
+        let def = self.session.poly.defs.fresh();
+        self.session.poly.defs.set(def, Def::Arg);
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_def_label(def, name.0.clone());
+        }
+        self.locals.push(LocalBinding {
+            name,
+            def,
+            value,
+            call_return_effect,
+        });
+        self.session.poly.add_pat(Pat::Var(def))
+    }
+
+    fn lower_number_pattern(&mut self, text: &str, value: TypeVar) -> Result<PatId, LoweringError> {
+        let (lit, primitive) = parse_number_lit(text)?;
+        self.constrain_exact_primitive(value, primitive);
+        Ok(self.session.poly.add_pat(Pat::Lit(lit)))
+    }
+
+    fn lower_paren_pattern(
+        &mut self,
+        group: &Cst,
+        value: TypeVar,
+        call_return_effect: LocalCallReturnEffect,
+    ) -> Result<PatId, LoweringError> {
+        let children = group
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::Pattern)
+            .collect::<Vec<_>>();
+        match children.as_slice() {
+            [] => {
+                self.constrain_exact_primitive(value, "unit");
+                Ok(self.session.poly.add_pat(Pat::Lit(Lit::Unit)))
+            }
+            [child] => self.lower_lambda_pattern(child, value, call_return_effect),
+            _ => {
+                let mut pats = Vec::with_capacity(children.len());
+                let mut pos_items = Vec::with_capacity(children.len());
+                let mut neg_items = Vec::with_capacity(children.len());
+                for child in children {
+                    let item_value = self.fresh_type_var();
+                    pats.push(self.lower_lambda_pattern(
+                        &child,
+                        item_value,
+                        LocalCallReturnEffect::Annotated,
+                    )?);
+                    pos_items.push(self.alloc_pos(Pos::Var(item_value)));
+                    neg_items.push(self.alloc_neg(Neg::Var(item_value)));
+                }
+                self.constrain_lower(value, Pos::Tuple(pos_items));
+                self.constrain_upper(value, Neg::Tuple(neg_items));
+                Ok(self.session.poly.add_pat(Pat::Tuple(pats)))
+            }
+        }
+    }
+
     fn fresh_type_var(&mut self) -> TypeVar {
         self.session.infer.fresh_type_var()
+    }
+
+    fn record_unannotated_local_callee_return_effect(
+        &mut self,
+        callee: &Computation,
+        call_effect: TypeVar,
+    ) {
+        if !self
+            .function_frames
+            .last()
+            .is_some_and(|frame| frame.scope == LambdaScope::Defined)
+        {
+            return;
+        }
+        let Some(def) = self.local_callee_def(callee) else {
+            return;
+        };
+        let Some(local) = self.local_binding_by_def(def) else {
+            return;
+        };
+        if local.call_return_effect != LocalCallReturnEffect::Unannotated {
+            return;
+        }
+
+        let subtract = self.session.infer.fresh_subtract_id();
+        self.session
+            .infer
+            .subtract_fact(call_effect, subtract, Subtractability::Empty);
+        let frame = self
+            .function_frames
+            .last_mut()
+            .expect("checked that function frame exists");
+        frame.subtracts.push(subtract);
+    }
+
+    fn local_callee_def(&self, callee: &Computation) -> Option<DefId> {
+        let Expr::Var(reference) = self.session.poly.expr(callee.expr) else {
+            return None;
+        };
+        self.session.poly.ref_target(*reference)
+    }
+
+    fn local_binding_by_def(&self, def: DefId) -> Option<&LocalBinding> {
+        self.locals.iter().rev().find(|local| local.def == def)
+    }
+
+    fn lambda_predicate_subtracts(
+        &mut self,
+        lambda_scope: LambdaScope,
+        mut annotation_subtracts: Vec<SubtractId>,
+        mut frame: FunctionPredicateFrame,
+    ) -> Vec<SubtractId> {
+        if lambda_scope != LambdaScope::Defined {
+            return Vec::new();
+        }
+        annotation_subtracts.append(&mut frame.subtracts);
+        annotation_subtracts.sort_by_key(|id| id.0);
+        annotation_subtracts.dedup();
+        annotation_subtracts
     }
 
     fn fresh_exact_pure_effect(&mut self) -> TypeVar {
@@ -516,10 +868,25 @@ impl<'a> ExprLowerer<'a> {
         self.alloc_neg(Neg::Row(Vec::new(), top))
     }
 
+    fn never_neg(&mut self) -> NegId {
+        self.alloc_neg(Neg::Bot)
+    }
+
     fn constrain_lower(&mut self, var: TypeVar, lower: Pos) {
         let lower = self.alloc_pos(lower);
         let upper = self.alloc_neg(Neg::Var(var));
         self.session.infer.subtype(lower, upper);
+    }
+
+    fn constrain_upper(&mut self, var: TypeVar, upper: Neg) {
+        let lower = self.alloc_pos(Pos::Var(var));
+        let upper = self.alloc_neg(upper);
+        self.session.infer.subtype(lower, upper);
+    }
+
+    fn constrain_exact_primitive(&mut self, var: TypeVar, name: &str) {
+        self.constrain_lower(var, primitive_type(name));
+        self.constrain_upper(var, primitive_neg_type(name));
     }
 
     fn subtype_var_to_var(&mut self, lower: TypeVar, upper: TypeVar) {
@@ -532,6 +899,12 @@ impl<'a> ExprLowerer<'a> {
         self.session.infer.subtype(lower, upper);
     }
 
+    fn wrap_pos_with_subtracts(&mut self, pos: PosId, subtracts: &[SubtractId]) -> PosId {
+        subtracts.iter().fold(pos, |inner, subtract| {
+            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
+        })
+    }
+
     fn alloc_pos(&mut self, pos: Pos) -> poly::types::PosId {
         self.session.infer.alloc_pos(pos)
     }
@@ -541,14 +914,65 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
+#[derive(Clone)]
+struct LocalBinding {
+    name: Name,
+    def: DefId,
+    value: TypeVar,
+    call_return_effect: LocalCallReturnEffect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LocalCallReturnEffect {
+    Unannotated,
+    Annotated,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LambdaScope {
+    Defined,
+    Anonymous,
+}
+
+struct FunctionPredicateFrame {
+    scope: LambdaScope,
+    subtracts: Vec<SubtractId>,
+}
+
+impl FunctionPredicateFrame {
+    fn new(scope: LambdaScope) -> Self {
+        Self {
+            scope,
+            subtracts: Vec::new(),
+        }
+    }
+}
+
+struct LambdaPatternAnnotation {
+    arg_eff: NegId,
+    subtracts: Vec<SubtractId>,
+    call_return_effect: LocalCallReturnEffect,
+}
+
+enum PatternItem {
+    Ident(Name),
+    Number(String),
+    Paren(Cst),
+    Unsupported(SyntaxKind),
+}
+
 pub use crate::typing::{Computation, Evaluation};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// expression lowering が構造化して返す失敗。
 pub enum LoweringError {
     UnsupportedSyntax { kind: SyntaxKind },
+    UnsupportedPatternSyntax { kind: SyntaxKind },
     UnresolvedName { name: Name },
     InvalidNumber { text: String },
+    MissingLambdaBody,
+    AnnotationBuild { error: AnnBuildError },
+    AnnotationConstraint { error: AnnConstraintError },
 }
 
 fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
@@ -560,14 +984,100 @@ fn integer_number_token(text: &str) -> bool {
     text.chars().all(|ch| ch.is_ascii_digit())
 }
 
+fn parse_number_lit(text: &str) -> Result<(Lit, &'static str), LoweringError> {
+    if integer_number_token(text) {
+        let parsed = text
+            .parse::<i64>()
+            .map_err(|_| LoweringError::InvalidNumber {
+                text: text.to_string(),
+            })?;
+        Ok((Lit::Int(parsed), "int"))
+    } else {
+        let parsed = text
+            .parse::<f64>()
+            .map_err(|_| LoweringError::InvalidNumber {
+                text: text.to_string(),
+            })?;
+        Ok((Lit::Float(parsed), "float"))
+    }
+}
+
 fn primitive_type(name: &str) -> Pos {
     Pos::Con(vec![name.into()], Vec::new())
+}
+
+fn primitive_neg_type(name: &str) -> Neg {
+    Neg::Con(vec![name.into()], Vec::new())
+}
+
+fn single_pattern_item(node: &Cst) -> Result<PatternItem, LoweringError> {
+    let items = node
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .filter(
+            |item| !matches!(item, NodeOrToken::Node(child) if child.kind() == SyntaxKind::TypeAnn),
+        )
+        .collect::<Vec<_>>();
+    let Some(item) = items.first() else {
+        return Err(LoweringError::UnsupportedPatternSyntax { kind: node.kind() });
+    };
+    if items.len() != 1 {
+        return Ok(PatternItem::Unsupported(node.kind()));
+    }
+
+    match item {
+        NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
+            Ok(PatternItem::Ident(Name(token.text().to_string())))
+        }
+        NodeOrToken::Token(token) if token.kind() == SyntaxKind::Number => {
+            Ok(PatternItem::Number(token.text().to_string()))
+        }
+        NodeOrToken::Token(token) => Ok(PatternItem::Unsupported(token.kind())),
+        NodeOrToken::Node(child) if child.kind() == SyntaxKind::PatParenGroup => {
+            Ok(PatternItem::Paren(child.clone()))
+        }
+        NodeOrToken::Node(child) => Ok(PatternItem::Unsupported(child.kind())),
+    }
 }
 
 fn binding_body_expr(binding: &Cst) -> Option<Cst> {
     crate::child_node(binding, SyntaxKind::BindingBody)?
         .children()
         .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
+fn binding_type_expr(binding: &Cst) -> Option<Cst> {
+    let header = crate::child_node(binding, SyntaxKind::BindingHeader)?;
+    let pattern = crate::child_node(&header, SyntaxKind::Pattern)?;
+    pattern_type_expr(&pattern)
+}
+
+fn pattern_type_expr(pattern: &Cst) -> Option<Cst> {
+    if let Some(type_expr) = pattern
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeAnn)
+        .and_then(|ann| {
+            ann.children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+        })
+    {
+        return Some(type_expr);
+    }
+    if !matches!(
+        pattern.kind(),
+        SyntaxKind::Pattern | SyntaxKind::PatParenGroup
+    ) {
+        return None;
+    }
+    pattern
+        .children()
+        .find(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Pattern | SyntaxKind::PatParenGroup
+            )
+        })
+        .and_then(|child| pattern_type_expr(&child))
 }
 
 fn module_body(module: &Cst) -> Option<Cst> {
@@ -584,7 +1094,7 @@ mod tests {
     use super::*;
     use crate::lower_module_map;
     use crate::scc::SccEvent;
-    use poly::expr::{DefId, ExprId, RefId};
+    use poly::expr::{DefId, ExprId, Pat, RefId};
 
     fn parse(src: &str) -> Cst {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
@@ -732,10 +1242,331 @@ mod tests {
         }));
     }
 
+    #[test]
+    fn local_arg_application_records_empty_subtract_for_defined_lambda_predicate() {
+        let root = parse("my h = \\f -> f 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "h");
+        let expr = binding_expr(&root, "h");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let types = session.infer.constraints().types();
+        let (ret_eff, ret) = lambda_output(&session, computation.value);
+        let (result_effect, subtract) = match types.pos(ret_eff) {
+            Pos::NonSubtract(inner, subtract) => match types.pos(*inner) {
+                Pos::Var(effect) => (*effect, *subtract),
+                other => panic!("expected wrapped body effect var, got {other:?}"),
+            },
+            other => panic!("expected non-subtract return effect, got {other:?}"),
+        };
+        assert!(matches!(
+            types.pos(ret),
+            Pos::NonSubtract(_, ret_subtract) if *ret_subtract == subtract
+        ));
+
+        let result_bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(result_effect)
+            .expect("application result effect should receive flow lower bounds");
+        let call_effect = result_bounds
+            .lowers()
+            .iter()
+            .find_map(|bound| match types.pos(bound.pos) {
+                Pos::Var(effect)
+                    if session
+                        .infer
+                        .constraints()
+                        .subtracts()
+                        .facts(*effect)
+                        .iter()
+                        .any(|fact| {
+                            fact.id == subtract && fact.subtractability == Subtractability::Empty
+                        }) =>
+                {
+                    Some(*effect)
+                }
+                _ => None,
+            })
+            .expect("call effect should carry Empty-subtract fact");
+
+        assert_eq!(
+            session
+                .infer
+                .constraints()
+                .subtracts()
+                .facts(call_effect)
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn module_callee_application_does_not_record_empty_subtract_for_defined_lambda() {
+        let root = parse("my f = 1\nmy h = \\x -> f x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "h");
+        let expr = binding_expr(&root, "h");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let types = session.infer.constraints().types();
+        let (ret_eff, ret) = lambda_output(&session, computation.value);
+
+        assert!(matches!(types.pos(ret_eff), Pos::Var(_)));
+        assert!(matches!(types.pos(ret), Pos::Var(_)));
+    }
+
+    #[test]
+    fn anonymous_lambda_application_does_not_climb_to_outer_defined_predicate() {
+        let root = parse("my outer = \\x -> \\f -> f 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "outer");
+        let expr = binding_expr(&root, "outer");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let types = session.infer.constraints().types();
+        let (ret_eff, ret) = lambda_output(&session, computation.value);
+
+        assert!(matches!(types.pos(ret_eff), Pos::Var(_)));
+        assert!(matches!(types.pos(ret), Pos::Var(_)));
+    }
+
+    #[test]
+    fn lambda_lowering_binds_local_param_and_constrains_function_value() {
+        let root = parse("my id = \\x -> x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "id");
+        let expr = binding_expr(&root, "id");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+        let (pat, body) = match session.poly.expr(computation.expr) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected lambda expr"),
+        };
+        let param = match session.poly.pat(pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected lambda param binding"),
+        };
+        let body_ref = expr_ref(&session, body);
+        let param_value = session.refs.value(body_ref).expect("local ref value slot");
+
+        assert_eq!(session.poly.ref_target(body_ref), Some(param));
+
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(computation.value)
+            .expect("lambda value should receive a function lower bound");
+        let types = session.infer.constraints().types();
+        let (arg, arg_eff, ret) = bounds
+            .lowers()
+            .iter()
+            .find_map(|bound| match types.pos(bound.pos) {
+                Pos::Fun {
+                    arg, arg_eff, ret, ..
+                } => Some((*arg, *arg_eff, *ret)),
+                _ => None,
+            })
+            .expect("lambda lower bound should be a function");
+
+        assert!(matches!(types.neg(arg), Neg::Var(var) if *var == param_value));
+        assert_neg_bottom(types, arg_eff);
+        assert!(matches!(types.pos(ret), Pos::Var(var) if *var == param_value));
+    }
+
+    #[test]
+    fn lambda_multiple_params_lower_to_nested_lambdas() {
+        let root = parse("my f = \\() x -> x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+        let (first_pat, inner) = match session.poly.expr(computation.expr) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected outer lambda"),
+        };
+        assert!(matches!(session.poly.pat(first_pat), Pat::Lit(Lit::Unit)));
+
+        let (second_pat, body) = match session.poly.expr(inner) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected inner lambda"),
+        };
+        let param = match session.poly.pat(second_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected second parameter binding"),
+        };
+        let body_ref = expr_ref(&session, body);
+
+        assert_eq!(session.poly.ref_target(body_ref), Some(param));
+    }
+
+    #[test]
+    fn lambda_param_effect_annotation_adds_subtract_fact_and_wraps_output() {
+        let root = parse("type handled\nmy f = \\x: [handled] 'a -> x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(computation.value)
+            .expect("lambda value should receive a function lower bound");
+        let types = session.infer.constraints().types();
+        let (arg_eff, ret_eff, ret) = bounds
+            .lowers()
+            .iter()
+            .find_map(|bound| match types.pos(bound.pos) {
+                Pos::Fun {
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                    ..
+                } => Some((*arg_eff, *ret_eff, *ret)),
+                _ => None,
+            })
+            .expect("lambda lower bound should be a function");
+        let param_effect = match types.neg(arg_eff) {
+            Neg::Var(var) => *var,
+            other => panic!("expected arg effect var, got {other:?}"),
+        };
+
+        assert_eq!(
+            session
+                .infer
+                .constraints()
+                .subtracts()
+                .facts(param_effect)
+                .len(),
+            1
+        );
+        assert!(matches!(types.pos(ret_eff), Pos::NonSubtract(_, _)));
+        assert!(matches!(types.pos(ret), Pos::NonSubtract(_, _)));
+    }
+
+    #[test]
+    fn lambda_param_value_annotation_keeps_outer_arg_effect_bottom() {
+        let root = parse("my f = \\x: int -> x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(computation.value)
+            .expect("lambda value should receive a function lower bound");
+        let types = session.infer.constraints().types();
+        let (arg_eff, ret_eff, ret) = bounds
+            .lowers()
+            .iter()
+            .find_map(|bound| match types.pos(bound.pos) {
+                Pos::Fun {
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                    ..
+                } => Some((*arg_eff, *ret_eff, *ret)),
+                _ => None,
+            })
+            .expect("lambda lower bound should be a function");
+
+        assert_neg_bottom(types, arg_eff);
+        assert!(matches!(types.pos(ret_eff), Pos::Var(_)));
+        assert!(matches!(types.pos(ret), Pos::Var(_)));
+    }
+
+    #[test]
+    fn body_lowering_keeps_lambda_local_refs_out_of_scc_edges() {
+        let root = parse("my id = \\x -> x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "id");
+
+        let mut output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let events = output.session.take_scc_events();
+        assert!(events
+            .iter()
+            .any(|event| matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![def])));
+        assert!(!events.iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::ComponentEdgeAdded { .. } | SccEvent::MergeComponents { .. }
+            )
+        }));
+    }
+
     fn expr_ref(session: &AnalysisSession, expr: poly::expr::ExprId) -> RefId {
         match session.poly.expr(expr) {
             Expr::Var(reference) => *reference,
             _ => panic!("expected var expr"),
+        }
+    }
+
+    fn lambda_output(session: &AnalysisSession, value: TypeVar) -> (PosId, PosId) {
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(value)
+            .expect("lambda value should receive a function lower bound");
+        let types = session.infer.constraints().types();
+        bounds
+            .lowers()
+            .iter()
+            .find_map(|bound| match types.pos(bound.pos) {
+                Pos::Fun { ret_eff, ret, .. } => Some((*ret_eff, *ret)),
+                _ => None,
+            })
+            .expect("lambda lower bound should be a function")
+    }
+
+    fn assert_neg_bottom(types: &poly::types::TypeArena, row: NegId) {
+        match types.neg(row) {
+            Neg::Bot => {}
+            other => panic!("expected negative bottom, got {other:?}"),
         }
     }
 
@@ -769,6 +1600,23 @@ mod tests {
         let module = lower.modules.root_id();
         let (target, _) = binding_def_and_order(&lower.modules, module, "a");
         let (owner, _) = binding_def_and_order(&lower.modules, module, "b");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let body = binding_body_id(&output, owner);
+        let reference = expr_ref(&output.session, body);
+        assert_eq!(output.session.poly.ref_target(reference), Some(target));
+    }
+
+    #[test]
+    fn body_lowering_resolves_import_alias_references_after_queue_drain() {
+        let root = parse("mod m:\n  my a = 1\nuse m::a as imported\nmy b = imported\n");
+        let lower = lower_module_map(&root);
+        let root_module = lower.modules.root_id();
+        let m = lower.modules.module_decls(root_module, &Name("m".into()))[0].module;
+        let target = lower.modules.value_decls(m, &Name("a".into()))[0].def;
+        let (owner, _) = binding_def_and_order(&lower.modules, root_module, "b");
 
         let output = lower_binding_bodies(&root, lower);
 

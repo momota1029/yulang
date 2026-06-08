@@ -188,6 +188,7 @@ impl<'a> TypeFormatter<'a> {
             Pos::Tuple(items) => {
                 Rendered::atom(self.tuple(items, |this, id| this.pos(id, Context::Free)))
             }
+            Pos::Row(items) => Rendered::atom(format!("'{}", self.pos_row_items(items))),
             Pos::NonSubtract(pos, subtract) => Rendered::atom(format!(
                 "non-subtract({}, {})",
                 self.pos(*pos, Context::Free),
@@ -203,6 +204,7 @@ impl<'a> TypeFormatter<'a> {
     fn render_neg(&mut self, id: NegId) -> Rendered {
         match self.arena.neg(id) {
             Neg::Top => Rendered::atom("any"),
+            Neg::Bot => Rendered::atom("never"),
             Neg::Var(var) => Rendered::atom(self.namer.name(*var)),
             Neg::Con(path, args) => self.render_con(path, args),
             Neg::Fun {
@@ -416,6 +418,7 @@ impl<'a> TypeFormatter<'a> {
     fn neg_row_inline(&mut self, id: NegId) -> Option<String> {
         match self.arena.neg(id) {
             Neg::Top => None,
+            Neg::Bot => None,
             Neg::Row(items, tail) => self.neg_row_inline_items(items, *tail),
             Neg::Intersection(left, right) => {
                 let mut parts = Vec::new();
@@ -471,18 +474,35 @@ impl<'a> TypeFormatter<'a> {
                 PosRowPart::Tail(tail) => tails.push(tail),
             }
         }
-        match tails.len() {
-            0 => Some(items.join(", ")),
-            1 if items.is_empty() => Some(tails.remove(0)),
-            1 => Some(format!("{}; {}", items.join(", "), tails.remove(0))),
-            _ if items.is_empty() => Some(tails.join(" | ")),
-            _ => Some(format!("{}; {}", items.join(", "), tails.join(" | "))),
+        items.extend(tails);
+        Some(items.join(", "))
+    }
+
+    fn pos_row_items(&mut self, items: &[PosId]) -> String {
+        let items = items
+            .iter()
+            .flat_map(|item| self.collect_pos_row_parts(*item))
+            .map(|part| match part {
+                PosRowPart::Item(item) | PosRowPart::Tail(item) => item,
+            })
+            .collect::<Vec<_>>();
+        if items.is_empty() {
+            "[]".to_string()
+        } else {
+            format!("[{}]", items.join(", "))
         }
     }
 
     fn collect_pos_row_parts(&mut self, id: PosId) -> Vec<PosRowPart> {
         match self.arena.pos(id) {
             Pos::Bot => Vec::new(),
+            Pos::Row(items) => {
+                let mut parts = Vec::new();
+                for item in items.clone() {
+                    parts.extend(self.collect_pos_row_parts(item));
+                }
+                parts
+            }
             Pos::Union(left, right) => {
                 let mut parts = self.collect_pos_row_parts(*left);
                 parts.extend(self.collect_pos_row_parts(*right));
@@ -670,9 +690,58 @@ mod tests {
         let mut arena = TypeArena::new();
         let never = arena.alloc_pos(Pos::Bot);
         let any = arena.alloc_neg(Neg::Top);
+        let neg_never = arena.alloc_neg(Neg::Bot);
 
         assert_eq!(format_pos(&arena, never), "never");
         assert_eq!(format_neg(&arena, any), "any");
+        assert_eq!(format_neg(&arena, neg_never), "never");
+    }
+
+    #[test]
+    fn omits_negative_bottom_function_argument_effect() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let b = TypeVar(1);
+        let arg = arena.alloc_neg(Neg::Var(a));
+        let arg_eff = arena.alloc_neg(Neg::Bot);
+        let ret_eff = arena.alloc_pos(Pos::Var(b));
+        let ret = arena.alloc_pos(Pos::Var(a));
+        let predicate = arena.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        let scheme = Scheme {
+            quantifiers: vec![a, b],
+            predicate,
+            subtracts: Vec::new(),
+        };
+
+        assert_eq!(format_scheme(&arena, &scheme), "'a -> ['b] 'a");
+    }
+
+    #[test]
+    fn omits_bottom_function_return_effect() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let arg = arena.alloc_neg(Neg::Var(a));
+        let arg_eff = arena.alloc_neg(Neg::Bot);
+        let ret_eff = arena.alloc_pos(Pos::Bot);
+        let ret = arena.alloc_pos(Pos::Var(a));
+        let predicate = arena.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        let scheme = Scheme {
+            quantifiers: vec![a],
+            predicate,
+            subtracts: Vec::new(),
+        };
+
+        assert_eq!(format_scheme(&arena, &scheme), "'a -> 'a");
     }
 
     #[test]
@@ -684,6 +753,17 @@ mod tests {
         let row = arena.alloc_neg(Neg::Row(vec![item], tail));
 
         assert_eq!(format_neg(&arena, row), "'[nondet; 'a]");
+    }
+
+    #[test]
+    fn formats_positive_effect_row_items_without_tail_separator() {
+        let mut arena = TypeArena::new();
+        let e = TypeVar(0);
+        let nondet = arena.alloc_pos(Pos::Con(vec!["nondet".into()], Vec::new()));
+        let tail = arena.alloc_pos(Pos::Var(e));
+        let row = arena.alloc_pos(Pos::Row(vec![nondet, tail]));
+
+        assert_eq!(format_pos(&arena, row), "'[nondet, 'a]");
     }
 
     #[test]

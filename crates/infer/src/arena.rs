@@ -3,7 +3,9 @@
 //! `poly::Arena` は最終 IR の器なので、constraint propagation の都合で揺れる state を入れない。
 //! この `infer::Arena` が fresh ID と `ConstraintMachine` を所有し、lowering が制約を投げる入口になる。
 
-use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, TypeIds, TypeVar};
+use poly::types::{
+    Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeIds, TypeVar,
+};
 
 use crate::constraints::{ConstraintMachine, ConstraintWeights};
 
@@ -51,6 +53,15 @@ impl Arena {
 
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
         self.constraints.weighted_subtype(lower, weights, upper);
+    }
+
+    pub fn subtract_fact(
+        &mut self,
+        effect: TypeVar,
+        id: SubtractId,
+        subtractability: Subtractability,
+    ) {
+        self.constraints.subtract_fact(effect, id, subtractability);
     }
 
     pub fn constraints(&self) -> &ConstraintMachine {
