@@ -121,6 +121,12 @@ pub struct ModuleTypeDecl {
     pub kind: ModuleTypeKind,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActOperationDecl {
+    pub effect: ModuleTypeDecl,
+    pub name: Name,
+}
+
 /// module 内の子 module 宣言を外へ見せるための summary。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleChildDecl {
@@ -205,6 +211,7 @@ struct ImportPathTarget {
 /// `SelectId -> SelectResolution` として `poly` に書き戻す。
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
+    act_ops: FxHashMap<TypeDeclId, Vec<Name>>,
     next_type_id: u32,
 }
 
@@ -223,6 +230,7 @@ impl ModuleTable {
                 import_modules: FxHashMap::default(),
                 next_order: 0,
             }],
+            act_ops: FxHashMap::default(),
             next_type_id: 0,
         }
     }
@@ -268,6 +276,9 @@ impl ModuleTable {
             .or_default()
             .push(decl);
         id
+    }
+    fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<Name>) {
+        self.act_ops.insert(id, ops);
     }
     fn insert_module(&mut self, module: ModuleId, name: Name, sub: ModuleId, def: DefId, vis: Vis) {
         let decl = self.push_decl(
@@ -352,6 +363,62 @@ impl ModuleTable {
             module = parent.module;
             site = parent.order;
         }
+    }
+    pub fn value_path_at(
+        &self,
+        module: ModuleId,
+        path: &[Name],
+        site: ModuleOrder,
+    ) -> Option<DefId> {
+        let Some((last, prefix)) = path.split_last() else {
+            return None;
+        };
+        if prefix.is_empty() {
+            return self.lexical_value_at(module, last, site);
+        }
+
+        let target = self.raw_module_path_from(module, prefix, site)?;
+        self.value_at(target, last, module_path_site())
+    }
+    pub fn type_path_at(
+        &self,
+        module: ModuleId,
+        path: &[Name],
+        site: ModuleOrder,
+    ) -> Option<ModuleTypeDecl> {
+        let Some((last, prefix)) = path.split_last() else {
+            return None;
+        };
+        if prefix.is_empty() {
+            return self.lexical_type_at(module, last, site);
+        }
+
+        let target = self.raw_module_path_from(module, prefix, site)?;
+        self.type_at(target, last, module_path_site())
+    }
+    pub fn act_operation_decls_at(
+        &self,
+        module: ModuleId,
+        effect_path: &[Name],
+        site: ModuleOrder,
+    ) -> Vec<ActOperationDecl> {
+        let Some(effect) = self
+            .type_path_at(module, effect_path, site)
+            .filter(|decl| decl.kind == ModuleTypeKind::Act)
+        else {
+            return Vec::new();
+        };
+
+        self.act_ops
+            .get(&effect.id)
+            .into_iter()
+            .flat_map(|ops| ops.iter())
+            .cloned()
+            .map(|name| ActOperationDecl {
+                effect: effect.clone(),
+                name,
+            })
+            .collect()
     }
     pub fn lexical_type_at(
         &self,
@@ -910,7 +977,10 @@ impl Lower {
                         (type_decl_name(&child), module_type_kind(child.kind()))
                     {
                         let vis = vis_of(&child);
-                        self.modules.insert_type(module, name, kind, vis);
+                        let id = self.modules.insert_type(module, name, kind, vis);
+                        if kind == ModuleTypeKind::Act {
+                            self.modules.set_act_ops(id, act_operation_names(&child));
+                        }
                     }
                 }
                 // 型定義系の本体、Impl/Act/Cast/OpDef は後で。
@@ -1167,6 +1237,20 @@ fn type_decl_name(node: &Cst) -> Option<Name> {
     first_ident(node)
 }
 
+fn act_operation_names(node: &Cst) -> Vec<Name> {
+    node.children()
+        .filter(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+            )
+        })
+        .flat_map(|body| body.children())
+        .filter(|child| child.kind() == SyntaxKind::Binding)
+        .filter_map(|binding| binding_name(&binding))
+        .collect()
+}
+
 fn module_type_kind(kind: SyntaxKind) -> Option<ModuleTypeKind> {
     match kind {
         SyntaxKind::TypeDecl => Some(ModuleTypeKind::TypeAlias),
@@ -1373,6 +1457,23 @@ mod tests {
             lower.modules.type_decls(root, &Name("Console".into()))[0].kind,
             ModuleTypeKind::Act
         );
+    }
+
+    #[test]
+    fn registers_act_operation_names_for_coverage() {
+        let cst =
+            parse("act out:\n  our say: int -> unit\n  our write: int -> unit\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+        let ops = lower
+            .modules
+            .act_operation_decls_at(root, &[Name("out".into())], site)
+            .into_iter()
+            .map(|op| op.name)
+            .collect::<Vec<_>>();
+
+        assert_eq!(ops, vec![Name("say".into()), Name("write".into())]);
     }
 
     #[test]
