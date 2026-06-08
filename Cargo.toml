@@ -20,6 +20,9 @@ members = [
   "crates/yulang-wasm",
   "crates/yulang-infer",
   "crates/yulang-lsp",
+  "crates/poly",
+  "crates/infer",
+  "crates/sources",
 ]
 
 [profile.test.package.yulang-infer]

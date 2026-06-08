@@ -1,0 +1,226 @@
+//! 型表現の最終寄りデータ構造。
+//!
+//! `Pos` / `Neg` / `Neu` は polarity を分けた Simple-sub 系の型表現。
+//! 制約を解く途中の上下界 table は `infer` に置き、ここには型そのものと scheme だけを置く。
+//! `TypeArena` は同じ型構造を ID で共有するための hash-cons arena。
+
+use rustc_hash::FxHashMap;
+
+/// generalize 済みの多相型。
+///
+/// `predicate` は scheme 本体の正側型、`quantifiers` はこの scheme が束縛する型変数。
+/// `subtracts` は effect row の引き算に使う `S-subtract(α, #a)` の事実を、scheme と一緒に
+/// 外へ持ち出すための table。
+pub struct Scheme {
+    pub quantifiers: Vec<TypeVar>,
+    pub predicate: PosId,
+    pub subtracts: Vec<(TypeVar, SubtractId)>,
+}
+
+#[derive(Debug, Clone, Default)]
+/// 型変数と SubtractId の採番器。
+///
+/// ID は Arena-local。グローバル counter にすると cache や差分推論の境界で意味が揺れるため、
+/// `poly::Arena` / `infer::Arena` のような作業単位ごとに 0 から採番する。
+pub struct TypeIds {
+    next_type_var: u32,
+    next_subtract_id: u32,
+}
+
+impl TypeIds {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn fresh_type_var(&mut self) -> TypeVar {
+        let id = TypeVar(self.next_type_var);
+        self.next_type_var += 1;
+        id
+    }
+
+    pub fn fresh_subtract_id(&mut self) -> SubtractId {
+        let id = SubtractId(self.next_subtract_id);
+        self.next_subtract_id += 1;
+        id
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 型変数。
+///
+/// 未解決の placeholder を表す ID だが、`Any` のような top 型ではない。
+/// 上下界や量化の意味は `infer` 側の constraint / scheme が与える。
+pub struct TypeVar(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// effect row の引き算を追跡するための ID。
+///
+/// weighted subtype edge の左右に集合として載せ、どの `S-subtract` を通ってきた制約かを表す。
+/// 「subtract してはいけない」事実を別 table で守るのではなく、この ID の集合を重みとして伝播する。
+pub struct SubtractId(pub u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// `S-subtract(α, #a)` が、その effect row から何を引けるかを表す。
+///
+/// subtype constraint そのものではなく、effect 変数に付随する事実として `infer` 側の
+/// `SubtractTable` に入る。型表現としては、scheme へ外出しできるようここに定義する。
+pub enum Subtractability {
+    Empty,
+    All,
+    AllExcept(Vec<String>, Vec<NeuId>),
+    Set(Vec<String>, Vec<NeuId>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 正側型を指す `TypeArena` 内 ID。
+pub struct PosId(pub u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 負側型を指す `TypeArena` 内 ID。
+pub struct NegId(pub u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 中立型を指す `TypeArena` 内 ID。
+pub struct NeuId(pub u32);
+
+/// 極性分離した型 node を hash-cons する Arena。
+///
+/// `PosId` / `NegId` / `NeuId` はこの Arena の中だけで意味を持つ。構造を直接 clone して
+/// 持ち回るのではなく ID 化することで、制約伝播や scheme freeze の途中で同じ型を共有する。
+pub struct TypeArena {
+    pos: Vec<Pos>,
+    neg: Vec<Neg>,
+    neu: Vec<Neu>,
+    pos_id: FxHashMap<Pos, PosId>,
+    neg_id: FxHashMap<Neg, NegId>,
+    neu_id: FxHashMap<Neu, NeuId>,
+}
+
+impl TypeArena {
+    pub fn new() -> Self {
+        Self {
+            pos: Vec::new(),
+            neg: Vec::new(),
+            neu: Vec::new(),
+            pos_id: FxHashMap::default(),
+            neg_id: FxHashMap::default(),
+            neu_id: FxHashMap::default(),
+        }
+    }
+    pub fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        if let Some(id) = self.pos_id.get(&pos) {
+            return *id;
+        }
+        let id = PosId(self.pos.len() as u32);
+        self.pos.push(pos.clone());
+        self.pos_id.insert(pos, id);
+        id
+    }
+    pub fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        if let Some(id) = self.neg_id.get(&neg) {
+            return *id;
+        }
+        let id = NegId(self.neg.len() as u32);
+        self.neg.push(neg.clone());
+        self.neg_id.insert(neg, id);
+        id
+    }
+    pub fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        if let Some(id) = self.neu_id.get(&neu) {
+            return *id;
+        }
+        let id = NeuId(self.neu.len() as u32);
+        self.neu.push(neu.clone());
+        self.neu_id.insert(neu, id);
+        id
+    }
+    pub fn pos(&self, id: PosId) -> &Pos {
+        &self.pos[id.0 as usize]
+    }
+    pub fn neg(&self, id: NegId) -> &Neg {
+        &self.neg[id.0 as usize]
+    }
+    pub fn neu(&self, id: NeuId) -> &Neu {
+        &self.neu[id.0 as usize]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 正側の型。
+///
+/// lower bound として現れる型を表す。`Bot` は bottom 型であり、エラーや未解決 placeholder ではない。
+/// 関数型では引数が負側、戻り値が正側になるよう polarity を明示する。
+pub enum Pos {
+    Bot,
+    Var(TypeVar),
+    Con(Vec<String>, Vec<NeuId>),
+    Fun {
+        arg: NegId,
+        arg_eff: NegId,
+        ret_eff: PosId,
+        ret: PosId,
+    },
+    Record(Vec<RecordField<PosId>>),
+    RecordTailSpread {
+        fields: Vec<RecordField<PosId>>,
+        tail: PosId,
+    },
+    RecordHeadSpread {
+        tail: PosId,
+        fields: Vec<RecordField<PosId>>,
+    },
+    PolyVariant(Vec<(String, Vec<PosId>)>),
+    Tuple(Vec<PosId>),
+    NonSubtract(PosId, SubtractId),
+    Union(PosId, PosId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 負側の型。
+///
+/// upper bound として現れる型を表す。`Top` は top 型であり、曖昧さの fallback ではない。
+/// 関数型では引数が正側、戻り値が負側になるよう polarity を反転して持つ。
+pub enum Neg {
+    Top,
+    Var(TypeVar),
+    Con(Vec<String>, Vec<NeuId>),
+    Fun {
+        arg: PosId,
+        arg_eff: PosId,
+        ret_eff: NegId,
+        ret: NegId,
+    },
+    Record(Vec<RecordField<NegId>>),
+    PolyVariant(Vec<(String, Vec<NegId>)>),
+    Tuple(Vec<NegId>),
+    /// エフェクト行。items は要求する具体部分、tail は残差を受ける負側 row。
+    Row(Vec<NegId>, NegId),
+    Intersection(NegId, NegId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 正負の上下界を挟んだ中立型。
+///
+/// `Neu::Bounds(lower, var, upper)` は、変数を中心に下界と上界を sandwich として持つ形。
+/// finalize / scheme 化で極性をまたぐ情報を残すために使う。
+pub enum Neu {
+    Bounds(PosId, TypeVar, NegId),
+    Con(Vec<String>, Vec<NeuId>),
+    Fun {
+        arg: NeuId,
+        arg_eff: NeuId,
+        ret_eff: NeuId,
+        ret: NeuId,
+    },
+    Record(Vec<RecordField<NeuId>>),
+    PolyVariant(Vec<(String, Vec<NeuId>)>),
+    Tuple(Vec<NeuId>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// record field の共通表現。
+///
+/// 値の polarity だけを型引数で差し替え、field 名と optional flag の扱いを揃える。
+pub struct RecordField<T> {
+    pub name: String,
+    pub value: T,
+    pub optional: bool,
+}

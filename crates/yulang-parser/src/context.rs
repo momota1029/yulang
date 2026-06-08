@@ -45,6 +45,8 @@ pub struct Env<'a, S: EventSink> {
     pub yumark_option: YumarkOption,
     pub inline: bool,
     pub ml_arg: bool,
+    /// ヘッダ先読みモード。op_def の body を読み捨てる。
+    pub header_only: bool,
     #[reborrow(clone)]
     pub stop: HashSet<SyntaxKind>,
 }
@@ -65,6 +67,7 @@ impl<'a, S: EventSink> Env<'a, S> {
             },
             ml_arg: false,
             inline: false,
+            header_only: false,
             stop,
         }
     }

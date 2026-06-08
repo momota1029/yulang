@@ -1,0 +1,11 @@
+[package]
+name = "infer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+poly = { path = "../poly" }
+sources = { path = "../sources" }
+yulang-parser = { path = "../yulang-parser" }
+rowan = "0.15"
+rustc-hash = "2"

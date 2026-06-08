@@ -177,9 +177,18 @@ fn parse_op_def_stmt_inner<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&eq_tok);
     i.env.state.sink.finish(); // OpDefHeader
 
+    let after_eq = eq_tok.trailing_trivia_info();
+
+    // ヘッダ先読み: body には踏み込まない（輸入 op がまだ無く誤パースするため）。
+    // 境界まで読み捨てて OpDef を閉じる。op 情報は update_op_table で取得済み。
+    if i.env.header_only {
+        let result = skip_op_def_body(i.rb(), after_eq);
+        i.env.state.sink.finish(); // OpDef
+        return result;
+    }
+
     // OpDefBody
     i.env.state.sink.start(SyntaxKind::OpDefBody);
-    let after_eq = eq_tok.trailing_trivia_info();
     let result = parse_op_def_body(i.rb(), after_eq)?;
     i.env.state.sink.finish(); // OpDefBody
     i.env.state.sink.finish(); // OpDef
@@ -198,6 +207,38 @@ fn parse_op_def_body<I: EventInput, S: EventSink>(
         }
         TriviaInfo::Newline { .. } => Some(Either::Left(leading_info)),
         _ => parse_expr(leading_info, i.rb()),
+    }
+}
+
+/// ヘッダ先読み用: op_def の body を式としてパースせず、次のトップレベル境界
+/// （括弧深さ 0 で base_indent 以下のインデントの改行）までトークンを読み捨てる。
+/// CST には body を残さない（ヘッダは op 情報と use だけ取れればよい）。
+fn skip_op_def_body<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+) -> Option<Either<TriviaInfo, Lex>> {
+    let base_indent = i.env.indent;
+    let mut depth: i32 = 0;
+    let mut info = leading_info;
+    loop {
+        if depth == 0 {
+            if let TriviaInfo::Newline { indent, .. } = info {
+                if indent <= base_indent {
+                    return Some(Either::Left(info));
+                }
+            }
+        }
+        let Some(tok) = scan_stmt_lex(info, i.rb()) else {
+            return Some(Either::Left(info));
+        };
+        match tok.kind {
+            SyntaxKind::ParenL | SyntaxKind::BraceL | SyntaxKind::BracketL => depth += 1,
+            SyntaxKind::ParenR | SyntaxKind::BraceR | SyntaxKind::BracketR => {
+                depth = (depth - 1).max(0);
+            }
+            _ => {}
+        }
+        info = tok.trailing_trivia_info();
     }
 }
 

@@ -1,0 +1,8 @@
+[package]
+name = "sources"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+yulang-parser = { path = "../yulang-parser" }
+rowan = "0.15"

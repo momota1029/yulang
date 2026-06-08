@@ -169,3 +169,66 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
     // Atom 等（パターンの先頭）→ parse_pattern_from_nud で pat を構築してから binding へ
     binding::parse_binding_stmt_from_nud(i, vis_kw, nud)
 }
+
+/// ヘッダ先読みの 1 ステップの結果。
+pub enum HeaderStep {
+    /// use / op_def を読み終えた。次の leading_info で継続。
+    Continue(TriviaInfo),
+    /// 式、または use/op 以外の宣言が現れた。ヘッダはここで終了。
+    Stop,
+}
+
+fn header_step(result: Option<Either<TriviaInfo, Lex>>) -> Option<HeaderStep> {
+    match result? {
+        Either::Left(next) => Some(HeaderStep::Continue(next)),
+        Either::Right(_) => Some(HeaderStep::Stop),
+    }
+}
+
+/// ヘッダ先読み: 先頭の use / op_def だけを読み、それ以外（式・定義）が来たら
+/// 止まる。`parse_statement` の派生。op_def の body は読み捨てられる（呼び出し側で
+/// `Env::header_only` を立てておく前提）。
+pub fn parse_header_statement<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> Option<HeaderStep> {
+    match parse_expr(leading_info, i.rb())? {
+        Either::Left(_) => Some(HeaderStep::Stop),
+        Either::Right(stop) => match stop.kind {
+            SyntaxKind::Use => header_step(use_decl::parse_use_decl(i, None, stop)),
+            SyntaxKind::Lazy => header_step(op_def::parse_lazy_op_def_stmt(i, None, stop)),
+            SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
+                header_step(op_def::parse_op_def_stmt(i, None, stop))
+            }
+            SyntaxKind::My | SyntaxKind::Our | SyntaxKind::Pub => {
+                parse_header_visibility(i, stop)
+            }
+            _ => Some(HeaderStep::Stop),
+        },
+    }
+}
+
+/// `pub use` / `pub infix …` のような visibility 付き宣言をヘッダで拾う。
+/// 中身が use/op_def なら継続、それ以外（定義・束縛）なら止まる。
+fn parse_header_visibility<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    vis_kw: Lex,
+) -> Option<HeaderStep> {
+    let next_info = vis_kw.trailing_trivia_info();
+    let Some(nud) = scan_pat_nud(next_info, i.rb()) else {
+        return Some(HeaderStep::Stop);
+    };
+    use crate::pat::scan::PatNudTag;
+    if matches!(nud.tag, PatNudTag::Stop) {
+        let vis = Some(vis_kw);
+        return match nud.lex.kind {
+            SyntaxKind::Use => header_step(use_decl::parse_use_decl(i, vis, nud.lex)),
+            SyntaxKind::Lazy => header_step(op_def::parse_lazy_op_def_stmt(i, vis, nud.lex)),
+            SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
+                header_step(op_def::parse_op_def_stmt(i, vis, nud.lex))
+            }
+            _ => Some(HeaderStep::Stop),
+        };
+    }
+    Some(HeaderStep::Stop)
+}
