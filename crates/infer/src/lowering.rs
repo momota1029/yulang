@@ -13,6 +13,7 @@ use sources::Name;
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
+use poly::dump::DumpLabels;
 use poly::expr::{Def, Expr, Lit};
 use poly::types::{Neg, NegId, Pos, TypeVar};
 use rustc_hash::FxHashMap;
@@ -33,6 +34,7 @@ pub struct BodyLowering {
     pub session: AnalysisSession,
     pub modules: ModuleTable,
     pub typing: Typing,
+    pub labels: DumpLabels,
     pub errors: Vec<BodyLoweringError>,
 }
 
@@ -76,6 +78,7 @@ struct BodyLowerer {
     session: AnalysisSession,
     modules: ModuleTable,
     typing: Typing,
+    labels: DumpLabels,
     errors: Vec<BodyLoweringError>,
     value_cursors: FxHashMap<(ModuleId, Name), usize>,
     module_cursors: FxHashMap<(ModuleId, Name), usize>,
@@ -83,10 +86,12 @@ struct BodyLowerer {
 
 impl BodyLowerer {
     fn new(lower: Lower) -> Self {
+        let labels = lower.modules.dump_labels();
         Self {
             session: AnalysisSession::new(lower.arena),
             modules: lower.modules,
             typing: Typing::new(),
+            labels,
             errors: Vec::new(),
             value_cursors: FxHashMap::default(),
             module_cursors: FxHashMap::default(),
@@ -98,6 +103,7 @@ impl BodyLowerer {
             session: self.session,
             modules: self.modules,
             typing: self.typing,
+            labels: self.labels,
             errors: self.errors,
         }
     }
@@ -143,12 +149,13 @@ impl BodyLowerer {
             return;
         };
 
-        let lowered = ExprLowerer::new(
+        let lowered = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
             module,
             decl.order,
             decl.def,
+            &mut self.labels,
         )
         .lower_expr(&expr);
         match lowered {
@@ -213,6 +220,7 @@ pub struct ExprLowerer<'a> {
     module: ModuleId,
     site: ModuleOrder,
     parent: poly::expr::DefId,
+    labels: Option<&'a mut DumpLabels>,
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -229,6 +237,25 @@ impl<'a> ExprLowerer<'a> {
             module,
             site,
             parent,
+            labels: None,
+        }
+    }
+
+    pub fn with_labels(
+        session: &'a mut AnalysisSession,
+        modules: &'a ModuleTable,
+        module: ModuleId,
+        site: ModuleOrder,
+        parent: poly::expr::DefId,
+        labels: &'a mut DumpLabels,
+    ) -> Self {
+        Self {
+            session,
+            modules,
+            module,
+            site,
+            parent,
+            labels: Some(labels),
         }
     }
 
@@ -368,9 +395,13 @@ impl<'a> ExprLowerer<'a> {
         let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
             return Err(LoweringError::UnresolvedName { name });
         };
+        let label = name.0.clone();
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let reference = self.session.poly.add_ref();
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_ref_label(reference, label);
+        }
         self.session.refs.insert(
             reference,
             RefUse {

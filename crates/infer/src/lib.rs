@@ -11,6 +11,7 @@
 pub mod analysis;
 pub mod arena;
 pub mod constraints;
+pub mod dump;
 pub mod lowering;
 pub mod patterns;
 pub mod scc;
@@ -19,6 +20,7 @@ pub mod uses;
 
 pub use arena::Arena;
 
+use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::SyntaxNode;
 use rustc_hash::FxHashMap;
@@ -276,6 +278,15 @@ impl ModuleTable {
             })
             .collect()
     }
+    /// dump 用の source label table を作る。
+    ///
+    /// `poly` は source 名を本体に持たないため、名前を読める dump が必要な時だけ
+    /// infer-local の module table から `DefId -> source path` を投影する。
+    pub fn dump_labels(&self) -> DumpLabels {
+        let mut labels = DumpLabels::new();
+        self.add_dump_labels(self.root_id(), &mut Vec::new(), &mut labels);
+        labels
+    }
     fn push_decl(
         &mut self,
         module: ModuleId,
@@ -320,6 +331,33 @@ impl ModuleTable {
                     .min_by_key(|decl| decl.order)
             })
     }
+    fn add_dump_labels(&self, module: ModuleId, prefix: &mut Vec<String>, labels: &mut DumpLabels) {
+        for decl in &self.nodes[module.0].decls {
+            let label = qualified_label(prefix, &decl.name);
+            match decl.kind {
+                ModuleDeclKind::Value { def } => {
+                    labels.set_def_label(def, label);
+                }
+                ModuleDeclKind::Module { module, def } => {
+                    labels.set_def_label(def, label);
+                    prefix.push(decl.name.0.clone());
+                    self.add_dump_labels(module, prefix, labels);
+                    prefix.pop();
+                }
+            }
+        }
+    }
+}
+
+fn qualified_label(prefix: &[String], name: &Name) -> String {
+    if prefix.is_empty() {
+        return name.0.clone();
+    }
+
+    let mut label = prefix.join(".");
+    label.push('.');
+    label.push_str(&name.0);
+    label
 }
 
 // ── pass1 ────────────────────────────────────────────────────────────────
