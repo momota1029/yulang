@@ -12,6 +12,7 @@
 pub mod analysis;
 pub mod arena;
 pub mod constraints;
+pub mod patterns;
 pub mod scc;
 pub mod typing;
 pub mod uses;
