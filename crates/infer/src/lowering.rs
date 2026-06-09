@@ -339,6 +339,12 @@ impl BodyLowerer {
 
     fn lower_type_constructors(&mut self, node: &Cst, module: ModuleId, decl: &ModuleTypeDecl) {
         match decl.kind {
+            ModuleTypeKind::TypeAlias => {
+                if let Some(self_struct) = crate::type_self_struct_node(node) {
+                    let payload = ConstructorPayload::from_struct(&self_struct);
+                    self.lower_constructor_def(node, module, decl, decl.name.clone(), payload);
+                }
+            }
             ModuleTypeKind::Struct => {
                 let payload = ConstructorPayload::from_struct(node);
                 self.lower_constructor_def(node, module, decl, decl.name.clone(), payload);
@@ -352,7 +358,7 @@ impl BodyLowerer {
                     self.lower_constructor_def(node, module, decl, name, payload);
                 }
             }
-            ModuleTypeKind::TypeAlias | ModuleTypeKind::Role | ModuleTypeKind::Act => {}
+            ModuleTypeKind::Role | ModuleTypeKind::Act => {}
         }
     }
 
@@ -4082,6 +4088,28 @@ mod tests {
             panic!("expected constructor return type");
         };
         assert_eq!(path, &vec!["Box".to_string()]);
+        assert_eq!(args.len(), 1);
+    }
+
+    #[test]
+    fn type_with_self_struct_lowers_outer_constructor_scheme() {
+        let root = parse("type t 'a with:\n  struct self:\n    field: 'a\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let constructor = lower.modules.value_decls(module, &Name("t".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let scheme = def_scheme(&output, constructor);
+        assert_eq!(scheme.quantifiers.len(), 1);
+        let Pos::Fun { ret, .. } = output.session.poly.typ.pos(scheme.predicate) else {
+            panic!("expected self struct constructor function");
+        };
+        let Pos::Con(path, args) = output.session.poly.typ.pos(*ret) else {
+            panic!("expected outer type constructor return");
+        };
+        assert_eq!(path, &vec!["t".to_string()]);
         assert_eq!(args.len(), 1);
     }
 

@@ -406,6 +406,17 @@ type T = Int;
 type Box 't impl Eq int via Ord;
 ```
 
+`type ... with` の中に direct child として `struct self` を書いた場合、その `struct self` は
+nested type 宣言ではなく、外側 `type` の constructor payload として読む。
+
+```yu
+type t 'a with:
+  struct self:
+    field: 'a
+```
+
+これは `t: { field: 'a } -> t 'a` 相当の constructor を外側 module の value namespace に作る。
+
 ### `struct`
 
 ```text

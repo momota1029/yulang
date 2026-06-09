@@ -1303,6 +1303,10 @@ impl Lower {
         children: &mut Vec<DefId>,
     ) {
         match kind {
+            ModuleTypeKind::TypeAlias if type_self_struct_node(node).is_some() => {
+                let def = self.register_synthetic_value(module, name, vis);
+                children.push(def);
+            }
             ModuleTypeKind::Struct => {
                 let def = self.register_synthetic_value(module, name, vis);
                 children.push(def);
@@ -1624,6 +1628,8 @@ impl Lower {
                         self.modules.add_alias(module, import, vis);
                     }
                 }
+                SyntaxKind::StructDecl
+                    if type_decl_name(&child).is_some_and(|name| name.0 == "self") => {}
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
@@ -2127,6 +2133,13 @@ pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
     None
 }
 
+pub(crate) fn type_self_struct_node(node: &Cst) -> Option<Cst> {
+    type_with_body(node)?.children().find(|child| {
+        child.kind() == SyntaxKind::StructDecl
+            && type_decl_name(child).is_some_and(|name| name.0 == "self")
+    })
+}
+
 pub(crate) fn role_decl_body(node: &Cst) -> Option<Cst> {
     for item in node.children_with_tokens() {
         match item {
@@ -2497,6 +2510,26 @@ mod tests {
         assert_eq!(methods[1].name, Name("update".into()));
         assert_eq!(methods[1].receiver, Name("&x".into()));
         assert_eq!(methods[1].receiver_kind, TypeMethodReceiver::Ref);
+    }
+
+    #[test]
+    fn registers_type_with_self_struct_as_outer_constructor() {
+        let cst = parse("type t 'a with:\n  struct self:\n    field: 'a\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let t_type = lower.modules.type_decls(root, &Name("t".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(t_type.id)
+            .expect("type with should create companion module");
+
+        assert_eq!(lower.modules.value_decls(root, &Name("t".into())).len(), 1);
+        assert!(
+            lower
+                .modules
+                .type_decls(companion, &Name("self".into()))
+                .is_empty()
+        );
     }
 
     #[test]
