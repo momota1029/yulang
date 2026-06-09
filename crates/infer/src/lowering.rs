@@ -18,7 +18,9 @@ use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
 use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Vis};
-use poly::types::{Neg, NegId, Neu, Pos, PosId, SubtractId, Subtractability, TypeVar};
+use poly::types::{
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeVar,
+};
 use rustc_hash::FxHashMap;
 
 use crate::analysis::{AnalysisSession, AnalysisWork};
@@ -26,8 +28,11 @@ use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
     AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
+use crate::compact::{CompactBounds, CompactFun, CompactType, compact_type_var};
 use crate::constraints::TypeLevel;
-use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleImplCandidate};
+use crate::roles::{
+    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
+};
 use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::{RefUse, SelectionUse};
@@ -457,16 +462,14 @@ impl BodyLowerer {
         if let Some(first) = role_inputs.first() {
             builder.add_bare_type_var_alias("self", first.clone());
         }
-        let ann = builder
-            .build_type_expr(&type_expr)
+        let signature = build_signature_type_expr(&mut builder, &type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
-        let ann = role_method_ann_with_receiver(
-            &mut builder,
+        let signature = role_method_signature_with_receiver(
             method.receiver.as_ref(),
             role_inputs.first(),
-            &ann,
+            signature,
         );
-        Ok(Some(RoleMethodRequirement { ann }))
+        Ok(Some(RoleMethodRequirement { signature }))
     }
 
     fn lower_role_impl_decl(&mut self, node: &Cst, module: ModuleId) {
@@ -612,8 +615,11 @@ impl BodyLowerer {
             role: spec.role,
             target_ann: spec.target,
             input_names: role_input_names,
-            input_anns: spec.inputs,
-            associated_anns,
+            input_signatures: spec.inputs.iter().map(signature_from_ann_type).collect(),
+            associated_signatures: associated_anns
+                .iter()
+                .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
+                .collect(),
             type_var_bindings: ann_builder.type_var_bindings(),
             ann_solver_vars,
         })
@@ -623,14 +629,14 @@ impl BodyLowerer {
         &self,
         context: &RoleImplLoweringContext,
         name: Name,
-    ) -> Option<AnnType> {
+    ) -> Option<SignatureType> {
         let method = self
             .modules
             .role_methods(context.role)
             .iter()
             .find(|method| method.name == name)?;
         let requirement = self.role_requirements.get(&method.def)?;
-        Some(substitute_role_requirement_ann(requirement, context))
+        Some(substitute_role_requirement_signature(requirement, context))
     }
 
     fn lower_role_impl_method_binding(
@@ -642,7 +648,7 @@ impl BodyLowerer {
         target_ann: &AnnType,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-        requirement: Option<AnnType>,
+        requirement: Option<SignatureType>,
     ) {
         let Some(expr) = binding_body_expr(node) else {
             self.errors.push(BodyLoweringError::MissingBody {
@@ -753,37 +759,40 @@ impl BodyLowerer {
         if let Some(first) = role_inputs.first() {
             builder.add_bare_type_var_alias("self", first.clone());
         }
-        let ann = builder
-            .build_type_expr(&type_expr)
+        let signature = build_signature_type_expr(&mut builder, &type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
-        let ann = role_method_ann_with_receiver(
-            &mut builder,
+        let signature = role_method_signature_with_receiver(
             method.receiver.as_ref(),
             role_inputs.first(),
-            &ann,
+            signature,
         );
         let role_arg_names = role_inputs
             .iter()
             .chain(role_associated.iter())
             .cloned()
             .collect::<Vec<_>>();
-        let role_arg_anns = role_arg_names
+        let role_arg_signatures = role_arg_names
             .iter()
-            .map(|name| AnnType::Var(builder.ann_type_var_for_role(name)))
+            .map(|name| SignatureType::Var(SignatureVar { name: name.clone() }))
             .collect::<Vec<_>>();
 
-        let mut lowerer = AnnConstraintLowerer::new(&mut self.session.infer, &self.modules);
-        lowerer
-            .connect_value(root, &ann)
-            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        let mut role_args = Vec::with_capacity(role_arg_anns.len());
-        for ann in &role_arg_anns {
-            role_args.push(
-                lowerer
-                    .lower_role_arg(ann)
-                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
-            );
-        }
+        let (pos, role_args) = {
+            let mut lowerer = SignatureLowerer::new(&mut self.session.infer, &self.modules);
+            let pos = lowerer
+                .lower_pos(&signature)
+                .map_err(|error| LoweringError::SignatureConstraint { error })?;
+            let mut role_args = Vec::with_capacity(role_arg_signatures.len());
+            for signature in &role_arg_signatures {
+                role_args.push(
+                    lowerer
+                        .lower_role_arg(signature)
+                        .map_err(|error| LoweringError::SignatureConstraint { error })?,
+                );
+            }
+            (pos, role_args)
+        };
+        let upper = self.session.infer.alloc_neg(Neg::Var(root));
+        self.session.infer.subtype(pos, upper);
 
         let path = self
             .modules
@@ -1208,18 +1217,28 @@ fn ann_type_builder(
     }
 }
 
-fn role_method_ann_with_receiver(
+fn build_signature_type_expr(
     builder: &mut AnnTypeBuilder,
+    type_expr: &Cst,
+) -> Result<SignatureType, AnnBuildError> {
+    builder
+        .build_type_expr(type_expr)
+        .map(|ann| signature_from_ann_type(&ann))
+}
+
+fn role_method_signature_with_receiver(
     receiver: Option<&Name>,
     receiver_type: Option<&String>,
-    ann: &AnnType,
-) -> AnnType {
+    signature: SignatureType,
+) -> SignatureType {
     let (Some(_receiver), Some(receiver_type)) = (receiver, receiver_type) else {
-        return ann.clone();
+        return signature;
     };
-    let param = AnnType::Var(builder.ann_type_var_for_role(receiver_type));
-    let (ret_eff, ret) = split_effectful_ann(ann.clone());
-    AnnType::Function {
+    let param = SignatureType::Var(SignatureVar {
+        name: receiver_type.clone(),
+    });
+    let (ret_eff, ret) = split_effectful_signature(signature);
+    SignatureType::Function {
         param: Box::new(param),
         arg_eff: None,
         ret_eff,
@@ -1227,10 +1246,60 @@ fn role_method_ann_with_receiver(
     }
 }
 
-fn split_effectful_ann(ann: AnnType) -> (Option<crate::annotation::AnnEffectRow>, AnnType) {
+fn split_effectful_signature(
+    signature: SignatureType,
+) -> (Option<SignatureEffectRow>, SignatureType) {
+    match signature {
+        SignatureType::Effectful { eff, ret } => (Some(eff), *ret),
+        signature => (None, signature),
+    }
+}
+
+fn signature_from_ann_type(ann: &AnnType) -> SignatureType {
     match ann {
-        AnnType::Effectful { eff, ret } => (Some(eff), *ret),
-        ann => (None, ann),
+        AnnType::Builtin(builtin) => SignatureType::Builtin(*builtin),
+        AnnType::Named(id) => SignatureType::Named(*id),
+        AnnType::Var(var) => SignatureType::Var(SignatureVar {
+            name: var.name.clone(),
+        }),
+        AnnType::EffectRow(row) => SignatureType::EffectRow(signature_effect_row_from_ann(row)),
+        AnnType::Effectful { eff, ret } => SignatureType::Effectful {
+            eff: signature_effect_row_from_ann(eff),
+            ret: Box::new(signature_from_ann_type(ret)),
+        },
+        AnnType::Apply { callee, args } => SignatureType::Apply {
+            callee: Box::new(signature_from_ann_type(callee)),
+            args: args.iter().map(signature_from_ann_type).collect(),
+        },
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => SignatureType::Function {
+            param: Box::new(signature_from_ann_type(param)),
+            arg_eff: arg_eff.as_ref().map(signature_effect_row_from_ann),
+            ret_eff: ret_eff.as_ref().map(signature_effect_row_from_ann),
+            ret: Box::new(signature_from_ann_type(ret)),
+        },
+    }
+}
+
+fn signature_effect_row_from_ann(row: &crate::annotation::AnnEffectRow) -> SignatureEffectRow {
+    SignatureEffectRow {
+        items: row
+            .items
+            .iter()
+            .map(|atom| match atom {
+                crate::annotation::AnnEffectAtom::Type(ty) => {
+                    SignatureEffectAtom::Type(signature_from_ann_type(ty))
+                }
+                crate::annotation::AnnEffectAtom::Wildcard => SignatureEffectAtom::Wildcard,
+            })
+            .collect(),
+        tail: row.tail.as_ref().map(|tail| SignatureVar {
+            name: tail.name.clone(),
+        }),
     }
 }
 
@@ -1595,7 +1664,7 @@ impl<'a> ExprLowerer<'a> {
         result_type_expr: Option<Cst>,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-        requirement: Option<&AnnType>,
+        requirement: Option<&SignatureType>,
     ) -> Result<Computation, LoweringError> {
         let mut ann_builder = ann_type_builder(
             self.modules,
@@ -1616,7 +1685,12 @@ impl<'a> ExprLowerer<'a> {
                 )?;
             }
             if let Some(requirement) = requirement {
-                self.connect_impl_method_requirement(body.value, requirement, ann_solver_vars)?;
+                self.connect_impl_method_requirement(
+                    body.value,
+                    requirement,
+                    type_var_bindings,
+                    ann_solver_vars,
+                )?;
             }
             return Ok(body);
         };
@@ -1667,7 +1741,12 @@ impl<'a> ExprLowerer<'a> {
             },
         );
         if let Some(requirement) = requirement {
-            self.connect_impl_method_requirement(value, requirement, ann_solver_vars)?;
+            self.connect_impl_method_requirement(
+                value,
+                requirement,
+                type_var_bindings,
+                ann_solver_vars,
+            )?;
         }
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
@@ -1677,21 +1756,116 @@ impl<'a> ExprLowerer<'a> {
     fn connect_impl_method_requirement(
         &mut self,
         value: TypeVar,
-        requirement: &AnnType,
+        requirement: &SignatureType,
+        type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> Result<(), LoweringError> {
-        let vars = std::mem::take(ann_solver_vars);
-        let mut lowerer = AnnConstraintLowerer::with_vars_at_level(
-            &mut self.session.infer,
-            self.modules,
-            vars,
-            TypeLevel::root(),
-        );
-        lowerer
-            .connect_value_upper(value, requirement)
-            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        *ann_solver_vars = lowerer.into_vars();
+        self.check_impl_method_requirement_shape(value, requirement)?;
+        self.check_impl_method_requirement_concrete_type(value, requirement)?;
+        let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
+        let upper = {
+            let mut lowerer = SignatureLowerer::with_vars_at_level(
+                &mut self.session.infer,
+                self.modules,
+                seed,
+                TypeLevel::root(),
+            );
+            lowerer
+                .lower_neg(requirement)
+                .map_err(|error| LoweringError::SignatureConstraint { error })?
+        };
+        let lower = self.session.infer.alloc_pos(Pos::Var(value));
+        self.session.infer.subtype(lower, upper);
         Ok(())
+    }
+
+    fn check_impl_method_requirement_concrete_type(
+        &self,
+        value: TypeVar,
+        requirement: &SignatureType,
+    ) -> Result<(), LoweringError> {
+        let compact = compact_type_var(self.session.infer.constraints(), value);
+        if compact_type_matches_signature(&compact.root, requirement, self.modules) {
+            return Ok(());
+        }
+        Err(LoweringError::SignatureTypeMismatch {
+            expected: SignatureShape::of(requirement),
+        })
+    }
+
+    fn check_impl_method_requirement_shape(
+        &self,
+        value: TypeVar,
+        requirement: &SignatureType,
+    ) -> Result<(), LoweringError> {
+        let mut visited = Vec::new();
+        if self.var_has_signature_shape(value, requirement, &mut visited) {
+            return Ok(());
+        }
+        Err(LoweringError::SignatureShapeMismatch {
+            expected: SignatureShape::of(requirement),
+        })
+    }
+
+    fn var_has_signature_shape(
+        &self,
+        var: TypeVar,
+        requirement: &SignatureType,
+        visited: &mut Vec<TypeVar>,
+    ) -> bool {
+        if visited.contains(&var) {
+            return true;
+        }
+        visited.push(var);
+        let Some(bounds) = self.session.infer.constraints().bounds().of(var) else {
+            return true;
+        };
+        let lowers = bounds.lowers();
+        lowers.is_empty()
+            || lowers
+                .iter()
+                .any(|bound| self.pos_has_signature_shape(bound.pos, requirement, visited))
+    }
+
+    fn pos_has_signature_shape(
+        &self,
+        pos: PosId,
+        requirement: &SignatureType,
+        visited: &mut Vec<TypeVar>,
+    ) -> bool {
+        let required_shape = SignatureShape::of(requirement);
+        match self.session.infer.constraints().types().pos(pos) {
+            Pos::Bot => true,
+            Pos::Var(var) => self.var_has_signature_shape(*var, requirement, visited),
+            Pos::Con(_, _) => required_shape != SignatureShape::Function,
+            Pos::Fun { ret, .. } => match requirement {
+                SignatureType::Function { ret: expected, .. }
+                    if SignatureShape::of(expected) == SignatureShape::Function =>
+                {
+                    self.pos_has_signature_shape(*ret, expected, visited)
+                }
+                SignatureType::Function { .. } | SignatureType::Var(_) => true,
+                _ => false,
+            },
+            Pos::Record(_) => true,
+            Pos::RecordTailSpread { .. } | Pos::RecordHeadSpread { .. } => true,
+            Pos::PolyVariant(_) => required_shape != SignatureShape::Function,
+            Pos::Tuple(items) => match requirement {
+                SignatureType::Var(_) => true,
+                _ => items.is_empty() && required_shape != SignatureShape::Function,
+            },
+            Pos::Row(_) => matches!(
+                required_shape,
+                SignatureShape::Any | SignatureShape::EffectRow
+            ),
+            Pos::NonSubtract(inner, _) => {
+                self.pos_has_signature_shape(*inner, requirement, visited)
+            }
+            Pos::Union(left, right) => {
+                self.pos_has_signature_shape(*left, requirement, visited)
+                    || self.pos_has_signature_shape(*right, requirement, visited)
+            }
+        }
     }
 
     fn connect_role_method_receiver_and_constraint(
@@ -2475,6 +2649,9 @@ pub enum LoweringError {
     MissingFieldName,
     AnnotationBuild { error: AnnBuildError },
     AnnotationConstraint { error: AnnConstraintError },
+    SignatureConstraint { error: SignatureConstraintError },
+    SignatureShapeMismatch { expected: SignatureShape },
+    SignatureTypeMismatch { expected: SignatureShape },
 }
 
 fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
@@ -2586,15 +2763,623 @@ struct RoleImplLoweringContext {
     role: TypeDeclId,
     target_ann: AnnType,
     input_names: Vec<String>,
-    input_anns: Vec<AnnType>,
-    associated_anns: Vec<(String, AnnType)>,
+    input_signatures: Vec<SignatureType>,
+    associated_signatures: Vec<(String, SignatureType)>,
     type_var_bindings: Vec<(String, AnnTypeVarId)>,
     ann_solver_vars: FxHashMap<AnnTypeVarId, TypeVar>,
 }
 
 #[derive(Clone)]
 struct RoleMethodRequirement {
-    ann: AnnType,
+    signature: SignatureType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SignatureType {
+    Builtin(BuiltinType),
+    Named(TypeDeclId),
+    Var(SignatureVar),
+    EffectRow(SignatureEffectRow),
+    Effectful {
+        eff: SignatureEffectRow,
+        ret: Box<SignatureType>,
+    },
+    Apply {
+        callee: Box<SignatureType>,
+        args: Vec<SignatureType>,
+    },
+    Function {
+        param: Box<SignatureType>,
+        arg_eff: Option<SignatureEffectRow>,
+        ret_eff: Option<SignatureEffectRow>,
+        ret: Box<SignatureType>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignatureEffectRow {
+    items: Vec<SignatureEffectAtom>,
+    tail: Option<SignatureVar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SignatureEffectAtom {
+    Type(SignatureType),
+    Wildcard,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignatureVar {
+    name: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignatureShape {
+    Any,
+    Constructor,
+    EffectRow,
+    Function,
+}
+
+impl SignatureShape {
+    fn of(signature: &SignatureType) -> Self {
+        match signature {
+            SignatureType::Builtin(_) | SignatureType::Named(_) | SignatureType::Apply { .. } => {
+                Self::Constructor
+            }
+            SignatureType::EffectRow(_) => Self::EffectRow,
+            SignatureType::Effectful { ret, .. } => Self::of(ret),
+            SignatureType::Function { .. } => Self::Function,
+            SignatureType::Var(_) => Self::Any,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SignatureConstraintError {
+    MissingTypeDecl { id: TypeDeclId },
+    InvalidConstructorCallee { ty: SignatureType },
+    WildcardEffectRowInTypePosition,
+}
+
+fn compact_type_matches_signature(
+    actual: &CompactType,
+    expected: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    if actual.never {
+        return true;
+    }
+    match expected {
+        SignatureType::Var(_) => true,
+        SignatureType::Effectful { ret, .. } => {
+            compact_type_matches_signature(actual, ret, modules)
+        }
+        SignatureType::Function { ret, .. } => {
+            compact_type_matches_function_signature(actual, ret, modules)
+        }
+        SignatureType::EffectRow(_) => compact_type_matches_effect_row_signature(actual),
+        SignatureType::Builtin(_) | SignatureType::Named(_) | SignatureType::Apply { .. } => {
+            let Some(expected) = expected_constructor_signature(expected, modules) else {
+                return true;
+            };
+            compact_type_matches_constructor_signature(actual, &expected, modules)
+        }
+    }
+}
+
+fn compact_type_matches_function_signature(
+    actual: &CompactType,
+    expected_ret: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    if compact_type_has_concrete_non_function(actual) {
+        return false;
+    }
+    actual
+        .funs
+        .iter()
+        .all(|fun| compact_fun_matches_signature(fun, expected_ret, modules))
+}
+
+fn compact_fun_matches_signature(
+    actual: &CompactFun,
+    expected_ret: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    compact_type_matches_signature(&actual.ret, expected_ret, modules)
+}
+
+fn compact_type_matches_effect_row_signature(actual: &CompactType) -> bool {
+    !actual.never
+        && actual.builtins.is_empty()
+        && actual.cons.is_empty()
+        && actual.funs.is_empty()
+        && actual.records.is_empty()
+        && actual.record_spreads.is_empty()
+        && actual.poly_variants.is_empty()
+        && actual.tuples.is_empty()
+}
+
+fn compact_type_matches_constructor_signature(
+    actual: &CompactType,
+    expected: &ExpectedConstructorSignature,
+    modules: &ModuleTable,
+) -> bool {
+    if compact_type_has_concrete_non_constructor(actual) {
+        return false;
+    }
+    let expected_builtin = expected.builtin();
+    actual
+        .builtins
+        .iter()
+        .all(|builtin| Some(*builtin) == expected_builtin)
+        && actual.cons.iter().all(|con| {
+            con.path == expected.path
+                && con.args.len() == expected.args.len()
+                && con
+                    .args
+                    .iter()
+                    .zip(&expected.args)
+                    .all(|(actual, expected)| {
+                        compact_bounds_matches_signature(actual, expected, modules)
+                    })
+        })
+}
+
+fn compact_type_has_concrete_non_function(actual: &CompactType) -> bool {
+    !actual.builtins.is_empty()
+        || !actual.cons.is_empty()
+        || !actual.records.is_empty()
+        || !actual.record_spreads.is_empty()
+        || !actual.poly_variants.is_empty()
+        || !actual.tuples.is_empty()
+        || !actual.rows.is_empty()
+}
+
+fn compact_type_has_concrete_non_constructor(actual: &CompactType) -> bool {
+    !actual.funs.is_empty()
+        || !actual.records.is_empty()
+        || !actual.record_spreads.is_empty()
+        || !actual.poly_variants.is_empty()
+        || !actual.tuples.is_empty()
+        || !actual.rows.is_empty()
+}
+
+fn compact_bounds_matches_signature(
+    actual: &CompactBounds,
+    expected: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    match actual {
+        CompactBounds::Interval { lower, upper, .. } => {
+            compact_type_matches_signature(lower, expected, modules)
+                && compact_type_matches_signature(upper, expected, modules)
+        }
+        CompactBounds::Con { path, args } => {
+            let Some(expected) = expected_constructor_signature(expected, modules) else {
+                return true;
+            };
+            path == &expected.path
+                && args.len() == expected.args.len()
+                && args.iter().zip(&expected.args).all(|(actual, expected)| {
+                    compact_bounds_matches_signature(actual, expected, modules)
+                })
+        }
+        CompactBounds::Fun { ret, .. } => match expected {
+            SignatureType::Function {
+                ret: expected_ret, ..
+            } => compact_bounds_matches_signature(ret, expected_ret, modules),
+            SignatureType::Var(_) => true,
+            SignatureType::Effectful { ret: expected, .. } => {
+                compact_bounds_matches_signature(actual, expected, modules)
+            }
+            _ => false,
+        },
+        CompactBounds::Tuple { items } => match expected {
+            SignatureType::Var(_) => true,
+            _ => items.is_empty(),
+        },
+        CompactBounds::Record { .. } | CompactBounds::PolyVariant { .. } => {
+            matches!(expected, SignatureType::Var(_))
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ExpectedConstructorSignature {
+    path: Vec<String>,
+    args: Vec<SignatureType>,
+}
+
+impl ExpectedConstructorSignature {
+    fn builtin(&self) -> Option<BuiltinType> {
+        match self.path.as_slice() {
+            [name] if self.args.is_empty() => BuiltinType::from_surface_name(name),
+            _ => None,
+        }
+    }
+}
+
+fn expected_constructor_signature(
+    expected: &SignatureType,
+    modules: &ModuleTable,
+) -> Option<ExpectedConstructorSignature> {
+    match expected {
+        SignatureType::Builtin(builtin) => Some(ExpectedConstructorSignature {
+            path: vec![builtin.surface_name().to_string()],
+            args: Vec::new(),
+        }),
+        SignatureType::Named(id) => Some(ExpectedConstructorSignature {
+            path: signature_type_decl_path(*id, modules)?,
+            args: Vec::new(),
+        }),
+        SignatureType::Apply { callee, args } => {
+            let mut expected = expected_constructor_signature(callee, modules)?;
+            expected.args.extend(args.iter().cloned());
+            Some(expected)
+        }
+        SignatureType::Effectful { ret, .. } => expected_constructor_signature(ret, modules),
+        SignatureType::Var(_) => None,
+        SignatureType::EffectRow(_) | SignatureType::Function { .. } => None,
+    }
+}
+
+fn signature_type_decl_path(id: TypeDeclId, modules: &ModuleTable) -> Option<Vec<String>> {
+    let decl = modules.type_decl_by_id(id)?;
+    Some(
+        modules
+            .type_decl_path(&decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect(),
+    )
+}
+
+struct SignatureLowerer<'a> {
+    infer: &'a mut crate::Arena,
+    modules: &'a ModuleTable,
+    vars: FxHashMap<String, TypeVar>,
+    new_var_level: Option<TypeLevel>,
+}
+
+impl<'a> SignatureLowerer<'a> {
+    fn new(infer: &'a mut crate::Arena, modules: &'a ModuleTable) -> Self {
+        Self {
+            infer,
+            modules,
+            vars: FxHashMap::default(),
+            new_var_level: None,
+        }
+    }
+
+    fn with_vars_at_level(
+        infer: &'a mut crate::Arena,
+        modules: &'a ModuleTable,
+        vars: FxHashMap<String, TypeVar>,
+        new_var_level: TypeLevel,
+    ) -> Self {
+        Self {
+            infer,
+            modules,
+            vars,
+            new_var_level: Some(new_var_level),
+        }
+    }
+
+    fn lower_role_arg(
+        &mut self,
+        signature: &SignatureType,
+    ) -> Result<RoleConstraintArg, SignatureConstraintError> {
+        Ok(RoleConstraintArg {
+            lower: self.lower_pos(signature)?,
+            upper: self.lower_neg(signature)?,
+        })
+    }
+
+    fn lower_pos(&mut self, signature: &SignatureType) -> Result<PosId, SignatureConstraintError> {
+        match signature {
+            SignatureType::Builtin(builtin) => {
+                let path = vec![builtin.surface_name().to_string()];
+                Ok(self.alloc_pos(Pos::Con(path, Vec::new())))
+            }
+            SignatureType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.alloc_pos(Pos::Con(path, Vec::new())))
+            }
+            SignatureType::Var(var) => {
+                let var = self.signature_var(var);
+                Ok(self.alloc_pos(Pos::Var(var)))
+            }
+            SignatureType::EffectRow(row) => self.lower_effect_row_pos(row),
+            SignatureType::Effectful { ret, .. } => self.lower_pos(ret),
+            SignatureType::Apply { callee, args } => {
+                let (path, head_args) = self.constructor_path(callee)?;
+                let mut neu_args = head_args;
+                for arg in args {
+                    neu_args.push(self.lower_invariant_arg(arg)?);
+                }
+                Ok(self.alloc_pos(Pos::Con(path, neu_args)))
+            }
+            SignatureType::Function {
+                param,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let arg = self.lower_neg(param)?;
+                let arg_eff = self.lower_arg_effect_neg(arg_eff.as_ref())?;
+                let ret_eff = self.lower_ret_effect_pos(ret_eff.as_ref())?;
+                let ret = self.lower_pos(ret)?;
+                Ok(self.alloc_pos(Pos::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                }))
+            }
+        }
+    }
+
+    fn lower_neg(&mut self, signature: &SignatureType) -> Result<NegId, SignatureConstraintError> {
+        match signature {
+            SignatureType::Builtin(builtin) => {
+                let path = vec![builtin.surface_name().to_string()];
+                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
+            }
+            SignatureType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
+            }
+            SignatureType::Var(var) => {
+                let var = self.signature_var(var);
+                Ok(self.alloc_neg(Neg::Var(var)))
+            }
+            SignatureType::EffectRow(row) => self.lower_subtractable_effect_row_neg(row),
+            SignatureType::Effectful { ret, .. } => self.lower_neg(ret),
+            SignatureType::Apply { callee, args } => {
+                let (path, head_args) = self.constructor_path(callee)?;
+                let mut neu_args = head_args;
+                for arg in args {
+                    neu_args.push(self.lower_invariant_arg(arg)?);
+                }
+                Ok(self.alloc_neg(Neg::Con(path, neu_args)))
+            }
+            SignatureType::Function {
+                param,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let arg = self.lower_pos(param)?;
+                let arg_eff = self.lower_arg_effect_pos(arg_eff.as_ref())?;
+                let ret_eff = self.lower_ret_effect_neg(ret_eff.as_ref())?;
+                let ret = self.lower_neg(ret)?;
+                Ok(self.alloc_neg(Neg::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                }))
+            }
+        }
+    }
+
+    fn lower_arg_effect_pos(
+        &mut self,
+        row: Option<&SignatureEffectRow>,
+    ) -> Result<PosId, SignatureConstraintError> {
+        row.map(|row| self.lower_effect_row_pos(row))
+            .unwrap_or_else(|| Ok(self.alloc_pos(Pos::Bot)))
+    }
+
+    fn lower_arg_effect_neg(
+        &mut self,
+        row: Option<&SignatureEffectRow>,
+    ) -> Result<NegId, SignatureConstraintError> {
+        row.map(|row| self.lower_subtractable_effect_row_neg(row))
+            .unwrap_or_else(|| {
+                let top = self.alloc_neg(Neg::Top);
+                Ok(self.alloc_neg(Neg::Row(Vec::new(), top)))
+            })
+    }
+
+    fn lower_ret_effect_pos(
+        &mut self,
+        row: Option<&SignatureEffectRow>,
+    ) -> Result<PosId, SignatureConstraintError> {
+        row.map(|row| self.lower_effect_row_pos(row))
+            .unwrap_or_else(|| Ok(self.alloc_pos(Pos::Bot)))
+    }
+
+    fn lower_ret_effect_neg(
+        &mut self,
+        row: Option<&SignatureEffectRow>,
+    ) -> Result<NegId, SignatureConstraintError> {
+        row.map(|row| self.lower_subtractable_effect_row_neg(row))
+            .unwrap_or_else(|| {
+                let top = self.alloc_neg(Neg::Top);
+                Ok(self.alloc_neg(Neg::Row(Vec::new(), top)))
+            })
+    }
+
+    fn lower_effect_row_pos(
+        &mut self,
+        row: &SignatureEffectRow,
+    ) -> Result<PosId, SignatureConstraintError> {
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
+        }
+        let mut items = Vec::with_capacity(row.items.len() + usize::from(row.tail.is_some()));
+        for atom in &row.items {
+            let SignatureEffectAtom::Type(ty) = atom else {
+                unreachable!("wildcard checked above");
+            };
+            items.push(self.lower_pos(ty)?);
+        }
+        if let Some(tail) = &row.tail {
+            let tail = self.signature_var(tail);
+            items.push(self.alloc_pos(Pos::Var(tail)));
+        }
+        Ok(self.alloc_pos(Pos::Row(items)))
+    }
+
+    fn lower_subtractable_effect_row_neg(
+        &mut self,
+        row: &SignatureEffectRow,
+    ) -> Result<NegId, SignatureConstraintError> {
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.signature_var(tail);
+            return Ok(self.alloc_neg(Neg::Var(tail)));
+        }
+
+        let effect = self.fresh_type_var();
+        self.connect_effect_tail_lower(effect, row);
+        self.record_effect_row_subtractability(effect, row)?;
+        Ok(self.alloc_neg(Neg::Var(effect)))
+    }
+
+    fn connect_effect_tail_lower(&mut self, effect: TypeVar, row: &SignatureEffectRow) {
+        if let Some(tail) = &row.tail {
+            let tail = self.signature_var(tail);
+            let tail = self.alloc_pos(Pos::Var(tail));
+            let effect = self.alloc_neg(Neg::Var(effect));
+            self.infer.subtype(tail, effect);
+        }
+    }
+
+    fn record_effect_row_subtractability(
+        &mut self,
+        effect: TypeVar,
+        row: &SignatureEffectRow,
+    ) -> Result<(), SignatureConstraintError> {
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            let id = self.infer.fresh_subtract_id();
+            self.infer.subtract_fact(effect, id, Subtractability::All);
+            return Ok(());
+        }
+
+        let atoms = row
+            .items
+            .iter()
+            .map(|atom| self.effect_atom_con(atom))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        if atoms.is_empty() {
+            if row.tail.is_none() {
+                let id = self.infer.fresh_subtract_id();
+                self.infer.subtract_fact(effect, id, Subtractability::Empty);
+            }
+            return Ok(());
+        }
+
+        for (path, args) in atoms {
+            let id = self.infer.fresh_subtract_id();
+            self.infer
+                .subtract_fact(effect, id, Subtractability::Set(path, args));
+        }
+        Ok(())
+    }
+
+    fn effect_atom_con(
+        &mut self,
+        atom: &SignatureEffectAtom,
+    ) -> Result<Option<(Vec<String>, Vec<NeuId>)>, SignatureConstraintError> {
+        match atom {
+            SignatureEffectAtom::Type(SignatureType::Var(_)) => Ok(None),
+            SignatureEffectAtom::Type(ty) => self.constructor_path(ty).map(Some),
+            SignatureEffectAtom::Wildcard => Ok(None),
+        }
+    }
+
+    fn lower_invariant_arg(
+        &mut self,
+        signature: &SignatureType,
+    ) -> Result<NeuId, SignatureConstraintError> {
+        let lower = self.lower_pos(signature)?;
+        let upper = self.lower_neg(signature)?;
+        let var = match signature {
+            SignatureType::Var(var) => self.signature_var(var),
+            _ => self.fresh_type_var(),
+        };
+        Ok(self.alloc_neu(Neu::Bounds(lower, var, upper)))
+    }
+
+    fn constructor_path(
+        &mut self,
+        signature: &SignatureType,
+    ) -> Result<(Vec<String>, Vec<NeuId>), SignatureConstraintError> {
+        match signature {
+            SignatureType::Builtin(builtin) => {
+                Ok((vec![builtin.surface_name().to_string()], Vec::new()))
+            }
+            SignatureType::Named(id) => Ok((self.type_decl_path(*id)?, Vec::new())),
+            SignatureType::Apply { callee, args } => {
+                let (path, mut head_args) = self.constructor_path(callee)?;
+                for arg in args {
+                    head_args.push(self.lower_invariant_arg(arg)?);
+                }
+                Ok((path, head_args))
+            }
+            ty => Err(SignatureConstraintError::InvalidConstructorCallee { ty: ty.clone() }),
+        }
+    }
+
+    fn type_decl_path(&self, id: TypeDeclId) -> Result<Vec<String>, SignatureConstraintError> {
+        let decl = self
+            .modules
+            .type_decl_by_id(id)
+            .ok_or(SignatureConstraintError::MissingTypeDecl { id })?;
+        Ok(self
+            .modules
+            .type_decl_path(&decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect())
+    }
+
+    fn signature_var(&mut self, var: &SignatureVar) -> TypeVar {
+        if let Some(found) = self.vars.get(&var.name) {
+            return *found;
+        }
+        let ty = self.fresh_type_var();
+        self.vars.insert(var.name.clone(), ty);
+        ty
+    }
+
+    fn fresh_type_var(&mut self) -> TypeVar {
+        if let Some(level) = self.new_var_level {
+            self.infer.fresh_type_var_at(level)
+        } else {
+            self.infer.fresh_type_var()
+        }
+    }
+
+    fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        self.infer.alloc_pos(pos)
+    }
+
+    fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        self.infer.alloc_neg(neg)
+    }
+
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        self.infer.alloc_neu(neu)
+    }
 }
 
 struct RoleImplAnnSpec {
@@ -2646,87 +3431,95 @@ fn ann_type_is_role(modules: &ModuleTable, id: TypeDeclId) -> bool {
         .is_some_and(|decl| decl.kind == ModuleTypeKind::Role)
 }
 
-fn substitute_role_requirement_ann(
+fn substitute_role_requirement_signature(
     requirement: &RoleMethodRequirement,
     context: &RoleImplLoweringContext,
-) -> AnnType {
+) -> SignatureType {
     let substitutions = context
         .input_names
         .iter()
         .cloned()
-        .zip(context.input_anns.iter().cloned())
-        .chain(context.associated_anns.iter().cloned())
+        .zip(context.input_signatures.iter().cloned())
+        .chain(context.associated_signatures.iter().cloned())
         .collect::<FxHashMap<_, _>>();
-    substitute_ann_type_vars(&requirement.ann, &substitutions)
+    substitute_signature_vars(&requirement.signature, &substitutions)
 }
 
-fn substitute_ann_type_vars(ann: &AnnType, substitutions: &FxHashMap<String, AnnType>) -> AnnType {
-    match ann {
-        AnnType::Builtin(_) | AnnType::Named(_) => ann.clone(),
-        AnnType::Var(var) => substitutions
+fn substitute_signature_vars(
+    signature: &SignatureType,
+    substitutions: &FxHashMap<String, SignatureType>,
+) -> SignatureType {
+    match signature {
+        SignatureType::Builtin(_) | SignatureType::Named(_) => signature.clone(),
+        SignatureType::Var(var) => substitutions
             .get(&var.name)
             .cloned()
-            .unwrap_or_else(|| ann.clone()),
-        AnnType::EffectRow(row) => {
-            AnnType::EffectRow(substitute_ann_effect_row(row, substitutions))
+            .unwrap_or_else(|| signature.clone()),
+        SignatureType::EffectRow(row) => {
+            SignatureType::EffectRow(substitute_signature_effect_row(row, substitutions))
         }
-        AnnType::Effectful { eff, ret } => AnnType::Effectful {
-            eff: substitute_ann_effect_row(eff, substitutions),
-            ret: Box::new(substitute_ann_type_vars(ret, substitutions)),
+        SignatureType::Effectful { eff, ret } => SignatureType::Effectful {
+            eff: substitute_signature_effect_row(eff, substitutions),
+            ret: Box::new(substitute_signature_vars(ret, substitutions)),
         },
-        AnnType::Apply { callee, args } => AnnType::Apply {
-            callee: Box::new(substitute_ann_type_vars(callee, substitutions)),
+        SignatureType::Apply { callee, args } => SignatureType::Apply {
+            callee: Box::new(substitute_signature_vars(callee, substitutions)),
             args: args
                 .iter()
-                .map(|arg| substitute_ann_type_vars(arg, substitutions))
+                .map(|arg| substitute_signature_vars(arg, substitutions))
                 .collect(),
         },
-        AnnType::Function {
+        SignatureType::Function {
             param,
             arg_eff,
             ret_eff,
             ret,
-        } => AnnType::Function {
-            param: Box::new(substitute_ann_type_vars(param, substitutions)),
+        } => SignatureType::Function {
+            param: Box::new(substitute_signature_vars(param, substitutions)),
             arg_eff: arg_eff
                 .as_ref()
-                .map(|row| substitute_ann_effect_row(row, substitutions)),
+                .map(|row| substitute_signature_effect_row(row, substitutions)),
             ret_eff: ret_eff
                 .as_ref()
-                .map(|row| substitute_ann_effect_row(row, substitutions)),
-            ret: Box::new(substitute_ann_type_vars(ret, substitutions)),
+                .map(|row| substitute_signature_effect_row(row, substitutions)),
+            ret: Box::new(substitute_signature_vars(ret, substitutions)),
         },
     }
 }
 
-fn substitute_ann_effect_row(
-    row: &crate::annotation::AnnEffectRow,
-    substitutions: &FxHashMap<String, AnnType>,
-) -> crate::annotation::AnnEffectRow {
-    crate::annotation::AnnEffectRow {
+fn substitute_signature_effect_row(
+    row: &SignatureEffectRow,
+    substitutions: &FxHashMap<String, SignatureType>,
+) -> SignatureEffectRow {
+    SignatureEffectRow {
         items: row
             .items
             .iter()
             .map(|atom| match atom {
-                crate::annotation::AnnEffectAtom::Type(ty) => {
-                    crate::annotation::AnnEffectAtom::Type(substitute_ann_type_vars(
-                        ty,
-                        substitutions,
-                    ))
+                SignatureEffectAtom::Type(ty) => {
+                    SignatureEffectAtom::Type(substitute_signature_vars(ty, substitutions))
                 }
-                crate::annotation::AnnEffectAtom::Wildcard => {
-                    crate::annotation::AnnEffectAtom::Wildcard
-                }
+                SignatureEffectAtom::Wildcard => SignatureEffectAtom::Wildcard,
             })
             .collect(),
         tail: row
             .tail
             .as_ref()
             .map(|tail| match substitutions.get(&tail.name) {
-                Some(AnnType::Var(var)) => var.clone(),
+                Some(SignatureType::Var(var)) => var.clone(),
                 _ => tail.clone(),
             }),
     }
+}
+
+fn signature_vars_from_ann_vars(
+    bindings: &[(String, AnnTypeVarId)],
+    vars: &FxHashMap<AnnTypeVarId, TypeVar>,
+) -> FxHashMap<String, TypeVar> {
+    bindings
+        .iter()
+        .filter_map(|(name, id)| vars.get(id).copied().map(|var| (name.clone(), var)))
+        .collect()
 }
 
 fn impl_head_type_expr(node: &Cst) -> Option<Cst> {
@@ -3112,7 +3905,7 @@ mod tests {
     #[test]
     fn role_impl_method_receiver_is_constrained_to_impl_target() {
         let root = parse(
-            "struct User;\nrole Box 'a:\n  our x.get: int\nimpl User: Box {\n  our x.get = x\n}\n",
+            "struct User;\nrole Box 'a:\n  our x.get: 'a\nimpl User: Box {\n  our x.get = x\n}\n",
         );
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -3133,6 +3926,28 @@ mod tests {
             .value(reference)
             .expect("receiver ref should have a value slot");
         assert_var_has_exact_con_bound(&output.session, receiver_value, "User");
+    }
+
+    #[test]
+    fn role_impl_method_requirement_rejects_concrete_return_mismatch() {
+        let root = parse(
+            "struct User;\nrole Box 'a:\n  our x.get: int\nimpl User: Box {\n  our x.get = x\n}\n",
+        );
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    error: LoweringError::SignatureTypeMismatch {
+                        expected: SignatureShape::Function,
+                    },
+                    ..
+                }
+            )
+        }));
     }
 
     #[test]
@@ -3161,6 +3976,111 @@ mod tests {
             other => panic!("expected associated lower var, got {other:?}"),
         };
         assert_var_has_lower_con_bound(&output.session, associated_var, "User");
+    }
+
+    #[test]
+    fn role_impl_method_requirement_ret_effect_records_subtractable_effect() {
+        let root = parse(
+            "act nondet:\nstruct User;\nrole Box 'a:\n  our x.run: [nondet; 'e] unit\nimpl User: Box {\n  our x.run = ()\n}\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let method = lower.modules.role_impls(module)[0].methods[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let root = output.typing.def(method).expect("impl method root");
+        let (_, _, ret_eff, _) = function_lower_bound(&output.session, root);
+        let body_effect = match output.session.infer.constraints().types().pos(ret_eff) {
+            Pos::Var(var) => *var,
+            other => panic!("expected body effect var, got {other:?}"),
+        };
+        let bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(body_effect)
+            .expect("body effect should be constrained by requirement");
+        let types = output.session.infer.constraints().types();
+        assert!(bounds.uppers().iter().any(|bound| {
+            let Neg::Var(requirement_effect) = types.neg(bound.neg) else {
+                return false;
+            };
+            output
+                .session
+                .infer
+                .constraints()
+                .subtracts()
+                .facts(*requirement_effect)
+                .iter()
+                .any(|fact| match &fact.subtractability {
+                    Subtractability::Set(path, args) => {
+                        path == &vec!["nondet".to_string()] && args.is_empty()
+                    }
+                    _ => false,
+                })
+        }));
+    }
+
+    #[test]
+    fn role_method_signature_arg_effect_does_not_lower_to_plain_neg_row() {
+        let root = parse("act nondet:\nrole Box 'a:\n  our x.run: unit [nondet; 'e] -> unit\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let role = lower.modules.type_decls(module, &Name("Box".into()))[0].clone();
+        let method = lower.modules.role_methods(role.id)[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let root = output.typing.def(method).expect("role method root");
+        let (_, _, _, ret) = function_lower_bound(&output.session, root);
+        let arg_eff = match output.session.infer.constraints().types().pos(ret) {
+            Pos::Fun { arg_eff, .. } => *arg_eff,
+            other => panic!("expected inner function lower bound, got {other:?}"),
+        };
+        let arg_effect = match output.session.infer.constraints().types().neg(arg_eff) {
+            Neg::Var(var) => *var,
+            other => panic!("expected subtractable arg effect var, got {other:?}"),
+        };
+        assert!(
+            output
+                .session
+                .infer
+                .constraints()
+                .subtracts()
+                .facts(arg_effect)
+                .iter()
+                .any(|fact| matches!(
+                    &fact.subtractability,
+                    Subtractability::Set(path, args)
+                        if path == &vec!["nondet".to_string()] && args.is_empty()
+                ))
+        );
+    }
+
+    #[test]
+    fn role_impl_method_requirement_checks_receiver_function_shape() {
+        let root = parse(
+            "struct User;\nrole Box 'a:\n  our x.get: unit\nimpl User: Box {\n  our get: unit = ()\n}\n",
+        );
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    error: LoweringError::SignatureShapeMismatch {
+                        expected: SignatureShape::Function,
+                    },
+                    ..
+                }
+            )
+        }));
     }
 
     #[test]
@@ -3434,6 +4354,45 @@ mod tests {
         assert_eq!(
             output.session.poly.select(select).resolution,
             Some(SelectResolution::TypeclassMethod { member: method })
+        );
+    }
+
+    #[test]
+    fn role_method_signature_is_lowered_as_positive_shape() {
+        let root = parse("role Display 'a:\n  our x.display: unit\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let display = lower.modules.type_decls(module, &Name("Display".into()))[0].clone();
+        let method = lower.modules.role_methods(display.id)[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let root = output.typing.def(method).expect("role method root");
+        let bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(root)
+            .expect("role method signature should constrain root");
+        let types = output.session.infer.constraints().types();
+        assert!(bounds.lowers().iter().any(|bound| {
+            matches!(
+                types.pos(bound.pos),
+                Pos::Fun { ret, .. }
+                    if matches!(
+                        types.pos(*ret),
+                        Pos::Con(path, args)
+                            if path == &vec!["unit".to_string()] && args.is_empty()
+                    )
+            )
+        }));
+        assert!(
+            !bounds
+                .uppers()
+                .iter()
+                .any(|bound| matches!(types.neg(bound.neg), Neg::Fun { .. }))
         );
     }
 
