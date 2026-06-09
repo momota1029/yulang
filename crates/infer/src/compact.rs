@@ -2093,6 +2093,43 @@ mod tests {
     }
 
     #[test]
+    fn polar_elimination_keeps_interval_center_as_bipolar() {
+        let machine = ConstraintMachine::new();
+        let center = TypeVar(1);
+        let one_sided = TypeVar(2);
+        let mut root = CompactRoot {
+            root: CompactType::default(),
+            rec_vars: vec![CompactRecursiveVar {
+                var: center,
+                bounds: CompactBounds::Interval {
+                    self_var: center,
+                    lower: CompactType::from_var(CompactVar::plain(one_sided)),
+                    upper: CompactType::default(),
+                },
+            }],
+        };
+
+        let substitutions = eliminate_polar_variables(&machine, TypeLevel::root(), &mut root);
+
+        assert_eq!(root.rec_vars[0].var, center);
+        assert!(matches!(
+            &root.rec_vars[0].bounds,
+            CompactBounds::Interval {
+                self_var,
+                lower,
+                ..
+            } if *self_var == center && lower.vars.is_empty()
+        ));
+        assert_eq!(
+            substitutions,
+            vec![CompactVarSubstitution {
+                source: one_sided,
+                target: None
+            }]
+        );
+    }
+
+    #[test]
     fn co_occurrence_unifies_indistinguishable_vars() {
         let machine = ConstraintMachine::new();
         let mut root = CompactRoot {
@@ -2117,6 +2154,51 @@ mod tests {
                 target: Some(TypeVar(10))
             }]
         );
+    }
+
+    #[test]
+    fn co_occurrence_links_interval_center_with_lower_and_upper() {
+        let machine = ConstraintMachine::new();
+        let center = TypeVar(1);
+        let lower_var = TypeVar(2);
+        let upper_var = TypeVar(3);
+        let mut root = CompactRoot {
+            root: CompactType::default(),
+            rec_vars: vec![CompactRecursiveVar {
+                var: center,
+                bounds: CompactBounds::Interval {
+                    self_var: center,
+                    lower: CompactType::from_var(CompactVar::plain(lower_var)),
+                    upper: CompactType::from_var(CompactVar::plain(upper_var)),
+                },
+            }],
+        };
+
+        let substitutions = coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
+
+        assert_eq!(
+            substitutions,
+            vec![
+                CompactVarSubstitution {
+                    source: lower_var,
+                    target: Some(center)
+                },
+                CompactVarSubstitution {
+                    source: upper_var,
+                    target: Some(center)
+                }
+            ]
+        );
+        assert!(matches!(
+            &root.rec_vars[0].bounds,
+            CompactBounds::Interval {
+                self_var,
+                lower,
+                upper,
+            } if *self_var == center
+                && lower.vars == vec![CompactVar::plain(center)]
+                && upper.vars == vec![CompactVar::plain(center)]
+        ));
     }
 
     #[test]
