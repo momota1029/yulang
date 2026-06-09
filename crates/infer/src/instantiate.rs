@@ -4,8 +4,8 @@
 //! predicate を infer arena へ fresh clone してから通常の subtype 制約として戻す。
 
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId, Subtractability,
-    TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate, Scheme,
+    SubtractId, Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::FxHashMap;
 
@@ -20,6 +20,22 @@ pub(crate) fn instantiate_scheme(
 ) -> PosId {
     let mut instantiator = SchemeInstantiator::new(source, target, level);
     instantiator.instantiate_scheme(scheme)
+}
+
+pub(crate) fn instantiate_scheme_with_roles(
+    source: &TypeArena,
+    target: &mut InferArena,
+    level: TypeLevel,
+    scheme: &Scheme,
+) -> InstantiatedScheme {
+    let mut instantiator = SchemeInstantiator::new(source, target, level);
+    instantiator.instantiate_scheme_with_roles(scheme)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InstantiatedScheme {
+    pub(crate) predicate: PosId,
+    pub(crate) role_predicates: Vec<RolePredicate>,
 }
 
 struct SchemeInstantiator<'a> {
@@ -42,6 +58,10 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn instantiate_scheme(&mut self, scheme: &Scheme) -> PosId {
+        self.instantiate_scheme_with_roles(scheme).predicate
+    }
+
+    fn instantiate_scheme_with_roles(&mut self, scheme: &Scheme) -> InstantiatedScheme {
         for var in &scheme.quantifiers {
             self.fresh_var(*var);
         }
@@ -50,7 +70,35 @@ impl<'a> SchemeInstantiator<'a> {
         }
         self.clone_scheme_subtract_facts(scheme);
         self.clone_recursive_bounds(scheme);
-        self.clone_pos(scheme.predicate)
+        let predicate = self.clone_pos(scheme.predicate);
+        let role_predicates = scheme
+            .role_predicates
+            .iter()
+            .map(|predicate| self.clone_role_predicate(predicate))
+            .collect();
+        InstantiatedScheme {
+            predicate,
+            role_predicates,
+        }
+    }
+
+    fn clone_role_predicate(&mut self, predicate: &RolePredicate) -> RolePredicate {
+        RolePredicate {
+            role: predicate.role.clone(),
+            inputs: predicate
+                .inputs
+                .iter()
+                .map(|input| self.clone_neu(*input))
+                .collect(),
+            associated: predicate
+                .associated
+                .iter()
+                .map(|associated| RoleAssociatedType {
+                    name: associated.name.clone(),
+                    value: self.clone_neu(associated.value),
+                })
+                .collect(),
+        }
     }
 
     fn fresh_var(&mut self, source: TypeVar) -> TypeVar {

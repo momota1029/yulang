@@ -4110,6 +4110,23 @@ mod tests {
     }
 
     #[test]
+    fn role_impl_member_residual_role_is_collected_as_impl_prerequisite() {
+        let root = parse(
+            "role Eq 'a:\n  our x.eq: unit\nrole Box 'a:\n  our x.get: unit\nimpl 'a: Box {\n  our x.get = x.eq\n}\n",
+        );
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let candidates = output.session.role_impls.candidates(&["Box".to_string()]);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].prerequisites.len(), 1);
+        assert_eq!(candidates[0].prerequisites[0].role, vec!["Eq".to_string()]);
+        assert_eq!(candidates[0].prerequisites[0].inputs.len(), 1);
+    }
+
+    #[test]
     fn reference_lowering_queues_resolution_and_scc_edge() {
         let root = parse("my a = 1\nmy b = a\n");
         let lower = lower_module_map(&root);

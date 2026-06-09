@@ -8,7 +8,8 @@ use std::collections::VecDeque;
 
 use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, Subtractability, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, Subtractability,
+    TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -25,7 +26,7 @@ use crate::generalize::{
     GeneralizedCompactRoot, finalize_generalized_compact_root_with_ancestors,
     generalize_prepared_compact_root_with_roles,
 };
-use crate::instantiate::instantiate_scheme;
+use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
 use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
     TypeMethodTable,
@@ -63,6 +64,7 @@ pub struct AnalysisSession {
     role_impl_members: FxHashMap<DefId, DefId>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
+    use_value_owners: FxHashMap<TypeVar, DefId>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
 }
@@ -85,6 +87,7 @@ impl AnalysisSession {
             role_impl_members: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
+            use_value_owners: FxHashMap::default(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
         }
@@ -282,6 +285,7 @@ impl AnalysisSession {
             AnalysisWork::ApplyRefResolution { ref_id, target } => {
                 self.poly.resolve_ref(ref_id, target);
                 if let Some(use_site) = self.refs.get(ref_id).copied() {
+                    self.record_use_value_owner(use_site.parent, use_site.value);
                     self.scc.use_resolved(SccInput::UseResolved {
                         parent: use_site.parent,
                         target,
@@ -306,6 +310,7 @@ impl AnalysisSession {
                         self.constrain_record_field_selection(use_site.method_value, &name);
                     }
                     SelectionTarget::Method { def } => {
+                        self.record_use_value_owner(use_site.parent, use_site.method_value);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
@@ -313,6 +318,7 @@ impl AnalysisSession {
                         });
                     }
                     SelectionTarget::EffectMethod { def } => {
+                        self.record_use_value_owner(use_site.parent, use_site.method_value);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
@@ -320,6 +326,7 @@ impl AnalysisSession {
                         });
                     }
                     SelectionTarget::TypeclassMethod { member } => {
+                        self.record_use_value_owner(use_site.parent, use_site.method_value);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: member,
@@ -930,14 +937,193 @@ impl AnalysisSession {
         let Some(scheme) = self.def_scheme(target).cloned() else {
             return;
         };
-        let predicate = instantiate_scheme(
+        let instantiated = instantiate_scheme_with_roles(
             &self.poly.typ,
             &mut self.infer,
             TypeLevel::secondary(),
             &scheme,
         );
         let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
-        self.infer.subtype(predicate, use_upper);
+        self.infer.subtype(instantiated.predicate, use_upper);
+        if let Some(parent) = self.use_value_owners.get(&use_value).copied() {
+            self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
+        }
+    }
+
+    fn record_use_value_owner(&mut self, parent: DefId, use_value: TypeVar) {
+        self.use_value_owners.entry(use_value).or_insert(parent);
+    }
+
+    fn insert_instantiated_role_predicates(
+        &mut self,
+        owner: DefId,
+        predicates: &[RolePredicate],
+    ) {
+        let mut inserted = Vec::new();
+        for predicate in predicates {
+            let constraint = self.role_constraint_from_predicate(predicate);
+            self.roles.insert(owner, constraint.clone());
+            inserted.push(constraint);
+        }
+        self.collect_late_role_impl_member_prerequisites(owner, inserted);
+    }
+
+    fn collect_late_role_impl_member_prerequisites(
+        &mut self,
+        owner: DefId,
+        constraints: Vec<RoleConstraint>,
+    ) {
+        let Some(impl_def) = self.role_impl_members.get(&owner).copied() else {
+            return;
+        };
+        let Some(scheme) = self.schemes.get(&owner) else {
+            return;
+        };
+        let quantifiers = scheme.quantifiers.iter().copied().collect::<FxHashSet<_>>();
+        let prerequisites = constraints
+            .into_iter()
+            .filter(|constraint| {
+                let vars = constraint.raw_vars(self.infer.constraints().types());
+                vars.iter().any(|var| !quantifiers.contains(var))
+            })
+            .collect::<Vec<_>>();
+        self.role_impls
+            .extend_prerequisites_for_impl(impl_def, prerequisites);
+    }
+
+    fn role_constraint_from_predicate(&mut self, predicate: &RolePredicate) -> RoleConstraint {
+        RoleConstraint {
+            role: predicate.role.clone(),
+            inputs: predicate
+                .inputs
+                .iter()
+                .map(|input| self.role_arg_from_neu(*input))
+                .collect(),
+            associated: predicate
+                .associated
+                .iter()
+                .map(|associated| RoleAssociatedConstraint {
+                    name: associated.name.clone(),
+                    value: self.role_arg_from_neu(associated.value),
+                })
+                .collect(),
+        }
+    }
+
+    fn role_arg_from_neu(&mut self, id: NeuId) -> RoleConstraintArg {
+        match self.infer.constraints().types().neu(id).clone() {
+            Neu::Bounds(lower, _, upper) => RoleConstraintArg { lower, upper },
+            neu => RoleConstraintArg {
+                lower: self.pos_from_neu(neu.clone()),
+                upper: self.neg_from_neu(neu),
+            },
+        }
+    }
+
+    fn pos_from_neu(&mut self, neu: Neu) -> PosId {
+        let pos = match neu {
+            Neu::Bounds(lower, _, _) => return lower,
+            Neu::Con(path, args) => Pos::Con(path, args),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => Pos::Fun {
+                arg: self.neg_from_neu_id(arg),
+                arg_eff: self.neg_from_neu_id(arg_eff),
+                ret_eff: self.pos_from_neu_id(ret_eff),
+                ret: self.pos_from_neu_id(ret),
+            },
+            Neu::Record(fields) => Pos::Record(
+                fields
+                    .into_iter()
+                    .map(|field| RecordField {
+                        name: field.name,
+                        value: self.pos_from_neu_id(field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            ),
+            Neu::PolyVariant(items) => Pos::PolyVariant(
+                items
+                    .into_iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name,
+                            payloads
+                                .into_iter()
+                                .map(|payload| self.pos_from_neu_id(payload))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            Neu::Tuple(items) => Pos::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.pos_from_neu_id(item))
+                    .collect(),
+            ),
+        };
+        self.infer.alloc_pos(pos)
+    }
+
+    fn neg_from_neu(&mut self, neu: Neu) -> NegId {
+        let neg = match neu {
+            Neu::Bounds(_, _, upper) => return upper,
+            Neu::Con(path, args) => Neg::Con(path, args),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => Neg::Fun {
+                arg: self.pos_from_neu_id(arg),
+                arg_eff: self.pos_from_neu_id(arg_eff),
+                ret_eff: self.neg_from_neu_id(ret_eff),
+                ret: self.neg_from_neu_id(ret),
+            },
+            Neu::Record(fields) => Neg::Record(
+                fields
+                    .into_iter()
+                    .map(|field| RecordField {
+                        name: field.name,
+                        value: self.neg_from_neu_id(field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            ),
+            Neu::PolyVariant(items) => Neg::PolyVariant(
+                items
+                    .into_iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name,
+                            payloads
+                                .into_iter()
+                                .map(|payload| self.neg_from_neu_id(payload))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            Neu::Tuple(items) => Neg::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.neg_from_neu_id(item))
+                    .collect(),
+            ),
+        };
+        self.infer.alloc_neg(neg)
+    }
+
+    fn pos_from_neu_id(&mut self, id: NeuId) -> PosId {
+        self.pos_from_neu(self.infer.constraints().types().neu(id).clone())
+    }
+
+    fn neg_from_neu_id(&mut self, id: NeuId) -> NegId {
+        self.neg_from_neu(self.infer.constraints().types().neu(id).clone())
     }
 
     fn generalize_root_with_prepasses(
