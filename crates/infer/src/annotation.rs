@@ -13,7 +13,9 @@ use sources::Name;
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
-use crate::{Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, TypeDeclId};
+use crate::{
+    Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, TypeDeclId, constraints::TypeLevel,
+};
 
 type Cst = SyntaxNode<YulangLanguage>;
 type CstItem = NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>;
@@ -120,6 +122,7 @@ pub struct AnnConstraintLowerer<'a> {
     infer: &'a mut InferArena,
     modules: &'a ModuleTable,
     vars: FxHashMap<AnnTypeVarId, TypeVar>,
+    new_var_level: Option<TypeLevel>,
 }
 
 impl<'a> AnnConstraintLowerer<'a> {
@@ -128,6 +131,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             infer,
             modules,
             vars: FxHashMap::default(),
+            new_var_level: None,
         }
     }
 
@@ -140,6 +144,21 @@ impl<'a> AnnConstraintLowerer<'a> {
             infer,
             modules,
             vars,
+            new_var_level: None,
+        }
+    }
+
+    pub fn with_vars_at_level(
+        infer: &'a mut InferArena,
+        modules: &'a ModuleTable,
+        vars: FxHashMap<AnnTypeVarId, TypeVar>,
+        new_var_level: TypeLevel,
+    ) -> Self {
+        Self {
+            infer,
+            modules,
+            vars,
+            new_var_level: Some(new_var_level),
         }
     }
 
@@ -156,6 +175,17 @@ impl<'a> AnnConstraintLowerer<'a> {
         let target_upper = self.alloc_neg(Neg::Var(target));
         let target_lower = self.alloc_pos(Pos::Var(target));
         self.infer.subtype(bounds.pos, target_upper);
+        self.infer.subtype(target_lower, bounds.neg);
+        Ok(bounds.output_subtracts)
+    }
+
+    pub fn connect_value_upper(
+        &mut self,
+        target: TypeVar,
+        ann: &AnnType,
+    ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+        let bounds = self.lower_value_bounds(ann)?;
+        let target_lower = self.alloc_pos(Pos::Var(target));
         self.infer.subtype(target_lower, bounds.neg);
         Ok(bounds.output_subtracts)
     }
@@ -519,7 +549,11 @@ impl<'a> AnnConstraintLowerer<'a> {
         if let Some(found) = self.vars.get(&var.id) {
             return *found;
         }
-        let ty = self.infer.fresh_type_var();
+        let ty = if let Some(level) = self.new_var_level {
+            self.infer.fresh_type_var_at(level)
+        } else {
+            self.infer.fresh_type_var()
+        };
         self.vars.insert(var.id, ty);
         ty
     }
@@ -622,6 +656,20 @@ impl<'a> AnnTypeBuilder<'a> {
 
     pub fn ann_type_var_for_role(&mut self, name: &str) -> AnnTypeVar {
         self.ann_type_var(name)
+    }
+
+    pub fn type_var_bindings(&self) -> Vec<(String, AnnTypeVarId)> {
+        self.type_vars
+            .iter()
+            .map(|(name, id)| (name.clone(), *id))
+            .collect()
+    }
+
+    pub fn seed_type_var_bindings(&mut self, bindings: &[(String, AnnTypeVarId)]) {
+        for (name, id) in bindings {
+            self.type_vars.insert(name.clone(), *id);
+            self.next_type_var = self.next_type_var.max(id.0.saturating_add(1));
+        }
     }
 
     pub fn self_alias_type(&mut self) -> Option<AnnType> {

@@ -393,6 +393,7 @@ pub enum SyntaxKind {
     ForLabel = 631,
     ExprSpread = 632,
     ErrorDecl = 634,
+    ImplDescription = 639,
 }
 
 #[derive(Debug, Clone)]

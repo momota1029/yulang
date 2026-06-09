@@ -31,41 +31,51 @@ pub(super) fn parse_impl_decl<I: EventInput, S: EventSink>(
 
 pub(super) fn parse_impl_after_impl_kw<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
-    mut leading_info: TriviaInfo,
+    leading_info: TriviaInfo,
 ) -> Option<Either<TriviaInfo, Lex>> {
-    loop {
-        let stop = match parse_type_with_stops(
-            i.rb(),
-            leading_info,
-            &[
-                SyntaxKind::Comma,
-                SyntaxKind::Via,
-                SyntaxKind::Colon,
-                SyntaxKind::BraceL,
-                SyntaxKind::Semicolon,
-            ],
-        )? {
-            Either::Right(stop) => stop,
-            Either::Left(info) => {
-                return parse_role_body_from_info(i.rb(), info);
-            }
-        };
-
-        match stop.kind {
-            SyntaxKind::Comma => {
-                i.env.state.sink.start(SyntaxKind::Separator);
-                i.env.state.sink.lex(&stop);
-                i.env.state.sink.finish();
-                leading_info = stop.trailing_trivia_info();
-            }
-            SyntaxKind::Via => {
-                i.env.state.sink.lex(&stop);
-                return parse_via_after_kw(i.rb(), stop.trailing_trivia_info());
-            }
-            _ => {
-                return parse_role_body_from_stop(i.rb(), Some(stop));
-            }
+    let stop = match parse_type_with_stops(
+        i.rb(),
+        leading_info,
+        &[
+            SyntaxKind::Via,
+            SyntaxKind::Colon,
+            SyntaxKind::BraceL,
+            SyntaxKind::Semicolon,
+        ],
+    )? {
+        Either::Right(stop) => stop,
+        Either::Left(info) => {
+            return parse_role_body_from_info(i.rb(), info);
         }
+    };
+
+    match stop.kind {
+        SyntaxKind::Via => {
+            i.env.state.sink.lex(&stop);
+            parse_via_after_kw(i.rb(), stop.trailing_trivia_info())
+        }
+        SyntaxKind::Colon if !matches!(stop.trailing_trivia_info(), TriviaInfo::Newline { .. }) => {
+            parse_impl_description_after_colon(i.rb(), stop)
+        }
+        _ => parse_role_body_from_stop(i.rb(), Some(stop)),
+    }
+}
+
+fn parse_impl_description_after_colon<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    colon: Lex,
+) -> Option<Either<TriviaInfo, Lex>> {
+    i.env.state.sink.start(SyntaxKind::ImplDescription);
+    i.env.state.sink.lex(&colon);
+    let parsed = parse_type_with_stops(
+        i.rb(),
+        colon.trailing_trivia_info(),
+        &[SyntaxKind::Semicolon, SyntaxKind::Colon, SyntaxKind::BraceL],
+    )?;
+    i.env.state.sink.finish();
+    match parsed {
+        Either::Right(stop) => parse_role_body_from_stop(i.rb(), Some(stop)),
+        Either::Left(info) => parse_role_body_from_info(i.rb(), info),
     }
 }
 

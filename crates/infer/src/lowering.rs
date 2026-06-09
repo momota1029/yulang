@@ -17,7 +17,7 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
-use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId};
+use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Vis};
 use poly::types::{Neg, NegId, Neu, Pos, PosId, SubtractId, Subtractability, TypeVar};
 use rustc_hash::FxHashMap;
 
@@ -26,13 +26,15 @@ use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
     AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
-use crate::roles::{RoleAssociatedConstraint, RoleConstraint};
+use crate::constraints::TypeLevel;
+use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleImplCandidate};
 use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder,
-    ModuleTable, ModuleTypeDecl, RoleMethodDecl, TypeDeclId, TypeMethodDecl, TypeMethodReceiver,
+    ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl,
+    TypeDeclId, TypeMethodDecl, TypeMethodReceiver, binding_type_expr,
     lower_loaded_file_csts_module_map,
 };
 
@@ -124,6 +126,8 @@ struct BodyLowerer {
     value_cursors: FxHashMap<(ModuleId, Name), usize>,
     module_cursors: FxHashMap<(ModuleId, Name), usize>,
     type_cursors: FxHashMap<(ModuleId, Name), usize>,
+    impl_cursors: FxHashMap<ModuleId, usize>,
+    role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
     local_method_scope: Option<ModuleId>,
 }
 
@@ -135,7 +139,7 @@ impl BodyLowerer {
         register_declared_act_methods(&mut session, &lower.modules);
         register_declared_role_methods(&mut session, &lower.modules);
         register_declared_companion_local_methods(&mut session, &lower.modules);
-        Self {
+        let mut lowerer = Self {
             session,
             modules: lower.modules,
             typing: Typing::new(),
@@ -144,8 +148,12 @@ impl BodyLowerer {
             value_cursors: FxHashMap::default(),
             module_cursors: FxHashMap::default(),
             type_cursors: FxHashMap::default(),
+            impl_cursors: FxHashMap::default(),
+            role_requirements: FxHashMap::default(),
             local_method_scope: None,
-        }
+        };
+        lowerer.collect_declared_role_requirements();
+        lowerer
     }
 
     fn finish(self) -> BodyLowering {
@@ -169,6 +177,7 @@ impl BodyLowerer {
                 | SyntaxKind::ErrorDecl => self.lower_type_decl_with_body(&child, module),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, module),
+                SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, module),
                 _ => {}
             }
         }
@@ -410,6 +419,279 @@ impl BodyLowerer {
             }
         }
         self.local_method_scope = previous_scope;
+    }
+
+    fn collect_declared_role_requirements(&mut self) {
+        let methods = self.modules.all_role_methods().cloned().collect::<Vec<_>>();
+        for method in methods {
+            match self.build_role_method_requirement(&method) {
+                Ok(Some(requirement)) => {
+                    self.role_requirements.insert(method.def, requirement);
+                }
+                Ok(None) => {}
+                Err(error) => self.errors.push(BodyLoweringError::Expr {
+                    def: method.def,
+                    name: method.name,
+                    error,
+                }),
+            }
+        }
+    }
+
+    fn build_role_method_requirement(
+        &self,
+        method: &RoleMethodDecl,
+    ) -> Result<Option<RoleMethodRequirement>, LoweringError> {
+        let Some(type_expr) = method.signature.clone() else {
+            return Ok(None);
+        };
+        let Some(companion) = self.modules.type_companion(method.owner) else {
+            return Ok(None);
+        };
+        let role_inputs = self.modules.role_inputs(method.owner);
+        let role_associated = self.modules.role_associated(method.owner);
+        let mut builder = ann_type_builder(&self.modules, companion, method.order, None);
+        for name in role_inputs.iter().chain(role_associated.iter()) {
+            builder.add_bare_type_var(name.clone());
+        }
+        if let Some(first) = role_inputs.first() {
+            builder.add_bare_type_var_alias("self", first.clone());
+        }
+        let ann = builder
+            .build_type_expr(&type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let ann = role_method_ann_with_receiver(
+            &mut builder,
+            method.receiver.as_ref(),
+            role_inputs.first(),
+            &ann,
+        );
+        Ok(Some(RoleMethodRequirement { ann }))
+    }
+
+    fn lower_role_impl_decl(&mut self, node: &Cst, module: ModuleId) {
+        let Some(impl_decl) = self.next_role_impl_decl(module) else {
+            return;
+        };
+        let mut context =
+            match self.register_role_impl_candidate(node, impl_decl.def, module, impl_decl.order) {
+                Ok(context) => context,
+                Err(_) => return,
+            };
+
+        let Some(body) = crate::role_impl_body(node) else {
+            return;
+        };
+        let previous_scope = self.local_method_scope.replace(impl_decl.body_module);
+        let mut method_cursor = 0usize;
+        for child in body.children() {
+            match child.kind() {
+                SyntaxKind::Binding if crate::role_method_binding(&child).is_some() => {
+                    let method_info =
+                        crate::role_method_binding(&child).expect("checked role method binding");
+                    let decl = self.next_value_decl(impl_decl.body_module, &method_info.name);
+                    if let Some(decl) = decl {
+                        let impl_method = impl_decl.methods.get(method_cursor).cloned();
+                        method_cursor += usize::from(
+                            impl_method
+                                .as_ref()
+                                .is_some_and(|method| method.def == decl.def),
+                        );
+                        let requirement =
+                            self.role_impl_method_requirement(&context, method_info.name.clone());
+                        self.lower_role_impl_method_binding(
+                            &child,
+                            impl_decl.def,
+                            impl_decl.body_module,
+                            &RoleImplMethodDecl {
+                                name: method_info.name,
+                                receiver: method_info.receiver,
+                                def: decl.def,
+                                vis: impl_method
+                                    .as_ref()
+                                    .map(|method| method.vis)
+                                    .unwrap_or(poly::expr::Vis::My),
+                                order: decl.order,
+                            },
+                            &context.target_ann,
+                            &context.type_var_bindings,
+                            &mut context.ann_solver_vars,
+                            requirement,
+                        );
+                    }
+                }
+                SyntaxKind::Binding => self.lower_binding(&child, impl_decl.body_module),
+                SyntaxKind::ModDecl => self.lower_mod_decl(&child, impl_decl.body_module),
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl => {
+                    self.lower_type_decl_with_body(&child, impl_decl.body_module)
+                }
+                SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, impl_decl.body_module),
+                SyntaxKind::ActDecl => self.lower_act_decl_body(&child, impl_decl.body_module),
+                _ => {}
+            }
+        }
+        self.local_method_scope = previous_scope;
+    }
+
+    fn register_role_impl_candidate(
+        &mut self,
+        node: &Cst,
+        impl_def: DefId,
+        module: ModuleId,
+        site: ModuleOrder,
+    ) -> Result<RoleImplLoweringContext, LoweringError> {
+        let Some(head) = impl_head_type_expr(node) else {
+            return Err(LoweringError::UnsupportedSyntax { kind: node.kind() });
+        };
+        let mut ann_builder = ann_type_builder(&self.modules, module, site, None);
+        let head_ann = ann_builder
+            .build_type_expr(&head)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let description_ann = impl_description_type_expr(node)
+            .map(|type_expr| ann_builder.build_type_expr(&type_expr))
+            .transpose()
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let spec = role_impl_ann_spec(&self.modules, head_ann, description_ann)
+            .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
+        let role_input_names = self.modules.role_inputs(spec.role).to_vec();
+        let role_associated_names = self.modules.role_associated(spec.role).to_vec();
+        let associated_anns = role_associated_names
+            .iter()
+            .map(|name| {
+                (
+                    name.clone(),
+                    AnnType::Var(ann_builder.ann_type_var_for_role(name)),
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut ann_solver_vars = FxHashMap::default();
+        let vars = std::mem::take(&mut ann_solver_vars);
+        let mut lowerer =
+            AnnConstraintLowerer::with_vars(&mut self.session.infer, &self.modules, vars);
+        let mut inputs = Vec::with_capacity(spec.inputs.len());
+        for input in &spec.inputs {
+            inputs.push(
+                lowerer
+                    .lower_role_arg(input)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+            );
+        }
+        let mut associated = Vec::with_capacity(associated_anns.len());
+        for (name, ann) in &associated_anns {
+            associated.push(RoleAssociatedConstraint {
+                name: name.clone(),
+                value: lowerer
+                    .lower_role_arg(ann)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+            });
+        }
+        ann_solver_vars = lowerer.into_vars();
+        let role = self
+            .modules
+            .type_decl_by_id(spec.role)
+            .map(|role| {
+                self.modules
+                    .type_decl_path(&role)
+                    .segments
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+            })
+            .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
+        self.session.role_impls.insert(RoleImplCandidate {
+            impl_def: Some(impl_def),
+            role,
+            inputs,
+            associated,
+            prerequisites: Vec::new(),
+        });
+        Ok(RoleImplLoweringContext {
+            role: spec.role,
+            target_ann: spec.target,
+            input_names: role_input_names,
+            input_anns: spec.inputs,
+            associated_anns,
+            type_var_bindings: ann_builder.type_var_bindings(),
+            ann_solver_vars,
+        })
+    }
+
+    fn role_impl_method_requirement(
+        &self,
+        context: &RoleImplLoweringContext,
+        name: Name,
+    ) -> Option<AnnType> {
+        let method = self
+            .modules
+            .role_methods(context.role)
+            .iter()
+            .find(|method| method.name == name)?;
+        let requirement = self.role_requirements.get(&method.def)?;
+        Some(substitute_role_requirement_ann(requirement, context))
+    }
+
+    fn lower_role_impl_method_binding(
+        &mut self,
+        node: &Cst,
+        impl_def: DefId,
+        module: ModuleId,
+        method: &RoleImplMethodDecl,
+        target_ann: &AnnType,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        requirement: Option<AnnType>,
+    ) {
+        let Some(expr) = binding_body_expr(node) else {
+            self.errors.push(BodyLoweringError::MissingBody {
+                def: method.def,
+                name: method.name.clone(),
+            });
+            return;
+        };
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(method.def, root);
+        if method.vis != Vis::My {
+            self.session.register_role_impl_member(method.def, impl_def);
+        }
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: method.def,
+                root,
+            }));
+
+        let lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            method.order,
+            method.def,
+            &mut self.labels,
+        )
+        .with_local_method_scope(self.local_method_scope)
+        .lower_impl_method_body_expr(
+            &expr,
+            method.receiver.clone(),
+            target_ann,
+            binding_type_expr(node),
+            type_var_bindings,
+            ann_solver_vars,
+            requirement.as_ref(),
+        );
+        match lowered {
+            Ok(computation) => {
+                self.finish_binding(method.def, method.name.clone(), root, computation)
+            }
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: method.def,
+                name: method.name.clone(),
+                error,
+            }),
+        }
+        self.session.infer.restore_level(previous_level);
     }
 
     fn lower_role_method_signature(
@@ -774,6 +1056,13 @@ impl BodyLowerer {
         let key = (module, name.clone());
         let cursor = self.type_cursors.entry(key).or_default();
         let decl = self.modules.type_decls(module, name).get(*cursor).cloned();
+        *cursor += usize::from(decl.is_some());
+        decl
+    }
+
+    fn next_role_impl_decl(&mut self, module: ModuleId) -> Option<RoleImplDecl> {
+        let cursor = self.impl_cursors.entry(module).or_default();
+        let decl = self.modules.role_impls(module).get(*cursor).cloned();
         *cursor += usize::from(decl.is_some());
         decl
     }
@@ -1296,6 +1585,113 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_impl_method_body_expr(
+        &mut self,
+        node: &Cst,
+        receiver: Option<Name>,
+        receiver_ann: &AnnType,
+        result_type_expr: Option<Cst>,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        requirement: Option<&AnnType>,
+    ) -> Result<Computation, LoweringError> {
+        let mut ann_builder = ann_type_builder(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+        );
+        ann_builder.seed_type_var_bindings(type_var_bindings);
+
+        let Some(receiver) = receiver else {
+            let body = self.lower_expr_with_lambda_scope(node, LambdaScope::Defined)?;
+            if let Some(type_expr) = result_type_expr {
+                self.connect_type_method_result_annotation(
+                    body,
+                    &type_expr,
+                    &mut ann_builder,
+                    ann_solver_vars,
+                )?;
+            }
+            if let Some(requirement) = requirement {
+                self.connect_impl_method_requirement(body.value, requirement, ann_solver_vars)?;
+            }
+            return Ok(body);
+        };
+
+        let receiver_value = self.fresh_type_var();
+        self.connect_type_method_value_annotation(receiver_value, receiver_ann, ann_solver_vars)?;
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(receiver, receiver_value, LocalCallReturnEffect::Annotated);
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_expr_with_lambda_scope(node, LambdaScope::Defined);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("impl method predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        if let Some(type_expr) = result_type_expr {
+            self.connect_type_method_result_annotation(
+                body,
+                &type_expr,
+                &mut ann_builder,
+                ann_solver_vars,
+            )?;
+        }
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(receiver_value));
+        let arg_eff = self.never_neg();
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        if let Some(requirement) = requirement {
+            self.connect_impl_method_requirement(value, requirement, ann_solver_vars)?;
+        }
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn connect_impl_method_requirement(
+        &mut self,
+        value: TypeVar,
+        requirement: &AnnType,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<(), LoweringError> {
+        let vars = std::mem::take(ann_solver_vars);
+        let mut lowerer = AnnConstraintLowerer::with_vars_at_level(
+            &mut self.session.infer,
+            self.modules,
+            vars,
+            TypeLevel::root(),
+        );
+        lowerer
+            .connect_value_upper(value, requirement)
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        *ann_solver_vars = lowerer.into_vars();
+        Ok(())
     }
 
     fn connect_role_method_receiver_and_constraint(
@@ -2156,14 +2552,8 @@ fn collect_binding_arg_patterns(node: &Cst, out: &mut Vec<Cst>) {
     }
 }
 
-fn binding_type_expr(binding: &Cst) -> Option<Cst> {
-    let header = crate::child_node(binding, SyntaxKind::BindingHeader)?;
-    let pattern = crate::child_node(&header, SyntaxKind::Pattern)?;
-    direct_pattern_type_expr(&pattern)
-}
-
 fn pattern_type_expr(pattern: &Cst) -> Option<Cst> {
-    if let Some(type_expr) = direct_pattern_type_expr(pattern) {
+    if let Some(type_expr) = crate::direct_pattern_type_expr(pattern) {
         return Some(type_expr);
     }
     if !matches!(
@@ -2183,16 +2573,6 @@ fn pattern_type_expr(pattern: &Cst) -> Option<Cst> {
         .and_then(|child| pattern_type_expr(&child))
 }
 
-fn direct_pattern_type_expr(pattern: &Cst) -> Option<Cst> {
-    pattern
-        .children()
-        .find(|child| child.kind() == SyntaxKind::TypeAnn)
-        .and_then(|ann| {
-            ann.children()
-                .find(|child| child.kind() == SyntaxKind::TypeExpr)
-        })
-}
-
 fn module_body(module: &Cst) -> Option<Cst> {
     module.children().find(|child| {
         matches!(
@@ -2200,6 +2580,164 @@ fn module_body(module: &Cst) -> Option<Cst> {
             SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
         )
     })
+}
+
+struct RoleImplLoweringContext {
+    role: TypeDeclId,
+    target_ann: AnnType,
+    input_names: Vec<String>,
+    input_anns: Vec<AnnType>,
+    associated_anns: Vec<(String, AnnType)>,
+    type_var_bindings: Vec<(String, AnnTypeVarId)>,
+    ann_solver_vars: FxHashMap<AnnTypeVarId, TypeVar>,
+}
+
+#[derive(Clone)]
+struct RoleMethodRequirement {
+    ann: AnnType,
+}
+
+struct RoleImplAnnSpec {
+    role: TypeDeclId,
+    target: AnnType,
+    inputs: Vec<AnnType>,
+}
+
+fn role_impl_ann_spec(
+    modules: &ModuleTable,
+    head: AnnType,
+    description: Option<AnnType>,
+) -> Option<RoleImplAnnSpec> {
+    if let Some(description) = description {
+        let (role, mut inputs) = role_ann_application(modules, description)?;
+        let mut all_inputs = Vec::with_capacity(inputs.len() + 1);
+        all_inputs.push(head.clone());
+        all_inputs.append(&mut inputs);
+        return Some(RoleImplAnnSpec {
+            role,
+            target: head,
+            inputs: all_inputs,
+        });
+    }
+
+    let (role, inputs) = role_ann_application(modules, head.clone())?;
+    let target = inputs.first().cloned().unwrap_or(head);
+    Some(RoleImplAnnSpec {
+        role,
+        target,
+        inputs,
+    })
+}
+
+fn role_ann_application(modules: &ModuleTable, ann: AnnType) -> Option<(TypeDeclId, Vec<AnnType>)> {
+    match ann {
+        AnnType::Named(id) if ann_type_is_role(modules, id) => Some((id, Vec::new())),
+        AnnType::Apply { callee, args } => match *callee {
+            AnnType::Named(id) if ann_type_is_role(modules, id) => Some((id, args)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn ann_type_is_role(modules: &ModuleTable, id: TypeDeclId) -> bool {
+    modules
+        .type_decl_by_id(id)
+        .is_some_and(|decl| decl.kind == ModuleTypeKind::Role)
+}
+
+fn substitute_role_requirement_ann(
+    requirement: &RoleMethodRequirement,
+    context: &RoleImplLoweringContext,
+) -> AnnType {
+    let substitutions = context
+        .input_names
+        .iter()
+        .cloned()
+        .zip(context.input_anns.iter().cloned())
+        .chain(context.associated_anns.iter().cloned())
+        .collect::<FxHashMap<_, _>>();
+    substitute_ann_type_vars(&requirement.ann, &substitutions)
+}
+
+fn substitute_ann_type_vars(ann: &AnnType, substitutions: &FxHashMap<String, AnnType>) -> AnnType {
+    match ann {
+        AnnType::Builtin(_) | AnnType::Named(_) => ann.clone(),
+        AnnType::Var(var) => substitutions
+            .get(&var.name)
+            .cloned()
+            .unwrap_or_else(|| ann.clone()),
+        AnnType::EffectRow(row) => {
+            AnnType::EffectRow(substitute_ann_effect_row(row, substitutions))
+        }
+        AnnType::Effectful { eff, ret } => AnnType::Effectful {
+            eff: substitute_ann_effect_row(eff, substitutions),
+            ret: Box::new(substitute_ann_type_vars(ret, substitutions)),
+        },
+        AnnType::Apply { callee, args } => AnnType::Apply {
+            callee: Box::new(substitute_ann_type_vars(callee, substitutions)),
+            args: args
+                .iter()
+                .map(|arg| substitute_ann_type_vars(arg, substitutions))
+                .collect(),
+        },
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => AnnType::Function {
+            param: Box::new(substitute_ann_type_vars(param, substitutions)),
+            arg_eff: arg_eff
+                .as_ref()
+                .map(|row| substitute_ann_effect_row(row, substitutions)),
+            ret_eff: ret_eff
+                .as_ref()
+                .map(|row| substitute_ann_effect_row(row, substitutions)),
+            ret: Box::new(substitute_ann_type_vars(ret, substitutions)),
+        },
+    }
+}
+
+fn substitute_ann_effect_row(
+    row: &crate::annotation::AnnEffectRow,
+    substitutions: &FxHashMap<String, AnnType>,
+) -> crate::annotation::AnnEffectRow {
+    crate::annotation::AnnEffectRow {
+        items: row
+            .items
+            .iter()
+            .map(|atom| match atom {
+                crate::annotation::AnnEffectAtom::Type(ty) => {
+                    crate::annotation::AnnEffectAtom::Type(substitute_ann_type_vars(
+                        ty,
+                        substitutions,
+                    ))
+                }
+                crate::annotation::AnnEffectAtom::Wildcard => {
+                    crate::annotation::AnnEffectAtom::Wildcard
+                }
+            })
+            .collect(),
+        tail: row
+            .tail
+            .as_ref()
+            .map(|tail| match substitutions.get(&tail.name) {
+                Some(AnnType::Var(var)) => var.clone(),
+                _ => tail.clone(),
+            }),
+    }
+}
+
+fn impl_head_type_expr(node: &Cst) -> Option<Cst> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::TypeExpr)
+}
+
+fn impl_description_type_expr(node: &Cst) -> Option<Cst> {
+    crate::child_node(node, SyntaxKind::ImplDescription)?
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeExpr)
 }
 
 #[cfg(test)]
@@ -2553,6 +3091,102 @@ mod tests {
                 Neg::Con(path, args) if path == &vec!["float".to_string()] && args.is_empty()
             )
         }));
+    }
+
+    #[test]
+    fn role_impl_head_and_colon_description_register_same_candidate_shape() {
+        let root = parse("role Eq 'a;\nimpl Eq int;\nimpl int: Eq;\n");
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let candidates = output.session.role_impls.candidates(&["Eq".to_string()]);
+        assert_eq!(candidates.len(), 2);
+        for candidate in candidates {
+            assert_eq!(candidate.inputs.len(), 1);
+            assert_role_arg_is_exact_con(&output.session, &candidate.inputs[0], "int");
+        }
+    }
+
+    #[test]
+    fn role_impl_method_receiver_is_constrained_to_impl_target() {
+        let root = parse(
+            "struct User;\nrole Box 'a:\n  our x.get: int\nimpl User: Box {\n  our x.get = x\n}\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let method = lower.modules.role_impls(module)[0].methods[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, method);
+        let lambda_body = match output.session.poly.expr(body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected impl method receiver lambda"),
+        };
+        let reference = expr_ref(&output.session, lambda_body);
+        let receiver_value = output
+            .session
+            .refs
+            .value(reference)
+            .expect("receiver ref should have a value slot");
+        assert_var_has_exact_con_bound(&output.session, receiver_value, "User");
+    }
+
+    #[test]
+    fn role_impl_method_requirement_clamps_associated_type_from_return() {
+        let root = parse(
+            "struct User;\nrole Box 'a:\n  type item\n  our x.get: item\nimpl User: Box {\n  our x.get = x\n}\n",
+        );
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let candidates = output.session.role_impls.candidates(&["Box".to_string()]);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].associated.len(), 1);
+        assert_eq!(candidates[0].associated[0].name, "item");
+        let associated = candidates[0].associated[0].value;
+        let associated_var = match output
+            .session
+            .infer
+            .constraints()
+            .types()
+            .pos(associated.lower)
+        {
+            Pos::Var(var) => *var,
+            other => panic!("expected associated lower var, got {other:?}"),
+        };
+        assert_var_has_lower_con_bound(&output.session, associated_var, "User");
+    }
+
+    #[test]
+    fn role_impl_method_requirement_is_available_before_role_body_lowering() {
+        let root = parse(
+            "struct User;\nimpl User: Box {\n  our x.get = x\n}\nrole Box 'a:\n  type item\n  our x.get: item\n",
+        );
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let candidates = output.session.role_impls.candidates(&["Box".to_string()]);
+        assert_eq!(candidates.len(), 1);
+        let associated = candidates[0].associated[0].value;
+        let associated_var = match output
+            .session
+            .infer
+            .constraints()
+            .types()
+            .pos(associated.lower)
+        {
+            Pos::Var(var) => *var,
+            other => panic!("expected associated lower var, got {other:?}"),
+        };
+        assert_var_has_lower_con_bound(&output.session, associated_var, "User");
     }
 
     #[test]
@@ -3406,6 +4040,60 @@ mod tests {
             Neg::Bot => {}
             other => panic!("expected negative bottom, got {other:?}"),
         }
+    }
+
+    fn assert_role_arg_is_exact_con(
+        session: &AnalysisSession,
+        arg: &crate::roles::RoleConstraintArg,
+        name: &str,
+    ) {
+        let types = session.infer.constraints().types();
+        assert!(matches!(
+            types.pos(arg.lower),
+            Pos::Con(path, args) if path == &vec![name.to_string()] && args.is_empty()
+        ));
+        assert!(matches!(
+            types.neg(arg.upper),
+            Neg::Con(path, args) if path == &vec![name.to_string()] && args.is_empty()
+        ));
+    }
+
+    fn assert_var_has_exact_con_bound(session: &AnalysisSession, var: TypeVar, name: &str) {
+        let types = session.infer.constraints().types();
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(var)
+            .expect("variable should receive bounds");
+        assert!(bounds.lowers().iter().any(|bound| {
+            matches!(
+                types.pos(bound.pos),
+                Pos::Con(path, args) if path == &vec![name.to_string()] && args.is_empty()
+            )
+        }));
+        assert!(bounds.uppers().iter().any(|bound| {
+            matches!(
+                types.neg(bound.neg),
+                Neg::Con(path, args) if path == &vec![name.to_string()] && args.is_empty()
+            )
+        }));
+    }
+
+    fn assert_var_has_lower_con_bound(session: &AnalysisSession, var: TypeVar, name: &str) {
+        let types = session.infer.constraints().types();
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(var)
+            .expect("variable should receive bounds");
+        assert!(bounds.lowers().iter().any(|bound| {
+            matches!(
+                types.pos(bound.pos),
+                Pos::Con(path, args) if path == &vec![name.to_string()] && args.is_empty()
+            )
+        }));
     }
 
     fn effect_has_lower_source_with_row_upper(

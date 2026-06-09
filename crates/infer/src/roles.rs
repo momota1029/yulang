@@ -50,10 +50,34 @@ impl RoleImplTable {
     pub fn candidates(&self, role: &[String]) -> &[RoleImplCandidate] {
         self.candidates.get(role).map(Vec::as_slice).unwrap_or(&[])
     }
+
+    pub fn extend_prerequisites_for_impl(
+        &mut self,
+        impl_def: DefId,
+        prerequisites: impl IntoIterator<Item = RoleConstraint>,
+    ) {
+        let prerequisites = prerequisites.into_iter().collect::<Vec<_>>();
+        if prerequisites.is_empty() {
+            return;
+        }
+        for candidates in self.candidates.values_mut() {
+            for candidate in candidates {
+                if candidate.impl_def != Some(impl_def) {
+                    continue;
+                }
+                for prerequisite in &prerequisites {
+                    if !candidate.prerequisites.contains(prerequisite) {
+                        candidate.prerequisites.push(prerequisite.clone());
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoleImplCandidate {
+    pub impl_def: Option<DefId>,
     pub role: Vec<String>,
     pub inputs: Vec<RoleConstraintArg>,
     pub associated: Vec<RoleAssociatedConstraint>,

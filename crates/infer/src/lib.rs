@@ -163,6 +163,25 @@ pub struct RoleMethodDecl {
     pub def: DefId,
     pub vis: Vis,
     pub order: ModuleOrder,
+    pub signature: Option<SyntaxNode<YulangLanguage>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleImplDecl {
+    pub def: DefId,
+    pub module: ModuleId,
+    pub body_module: ModuleId,
+    pub order: ModuleOrder,
+    pub methods: Vec<RoleImplMethodDecl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleImplMethodDecl {
+    pub name: Name,
+    pub receiver: Option<Name>,
+    pub def: DefId,
+    pub vis: Vis,
+    pub order: ModuleOrder,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -259,6 +278,7 @@ pub struct ModuleTable {
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
+    role_impls: FxHashMap<ModuleId, Vec<RoleImplDecl>>,
     role_methods: FxHashMap<TypeDeclId, Vec<RoleMethodDecl>>,
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
@@ -284,6 +304,7 @@ impl ModuleTable {
             act_methods: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
+            role_impls: FxHashMap::default(),
             role_methods: FxHashMap::default(),
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
@@ -308,6 +329,14 @@ impl ModuleTable {
             next_order: 0,
         });
         id
+    }
+    fn new_anonymous_child_module(&mut self, parent: ModuleId, order: ModuleOrder) -> ModuleId {
+        let module = self.new_module();
+        self.nodes[module.0].parent = Some(ModuleParent {
+            module: parent,
+            order,
+        });
+        module
     }
     fn insert_value(&mut self, module: ModuleId, name: Name, def: DefId, vis: Vis) -> ModuleOrder {
         let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Value { def });
@@ -362,6 +391,18 @@ impl ModuleTable {
     pub fn role_associated(&self, id: TypeDeclId) -> &[String] {
         self.role_associated
             .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+    fn insert_role_impl(&mut self, impl_decl: RoleImplDecl) {
+        self.role_impls
+            .entry(impl_decl.module)
+            .or_default()
+            .push(impl_decl);
+    }
+    pub fn role_impls(&self, module: ModuleId) -> &[RoleImplDecl] {
+        self.role_impls
+            .get(&module)
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -1094,11 +1135,129 @@ impl Lower {
                 | SyntaxKind::ActDecl => {
                     self.register_type_namespace_decl(&child, module, &mut children);
                 }
-                // 型定義系の本体、Impl/Act/Cast/OpDef は後で。
+                // 型定義系の本体、Cast/OpDef は後で。
+                SyntaxKind::ImplDecl => {
+                    if let Some(def) = self.register_role_impl_decl(&child, module) {
+                        children.push(def);
+                    }
+                }
                 _ => {}
             }
         }
         children
+    }
+
+    fn register_role_impl_decl(&mut self, node: &Cst, module: ModuleId) -> Option<DefId> {
+        let order = self.modules.next_order(module);
+        let def = self.arena.defs.fresh();
+        self.arena.defs.set(
+            def,
+            Def::Mod {
+                vis: Vis::My,
+                children: Vec::new(),
+            },
+        );
+        let body_module = self.modules.new_anonymous_child_module(module, order);
+        let (children, methods) = role_impl_body(node)
+            .map(|body| self.register_role_impl_block(&body, body_module))
+            .unwrap_or_default();
+        self.set_module_children(def, children);
+        self.modules.insert_role_impl(RoleImplDecl {
+            def,
+            module,
+            body_module,
+            order,
+            methods,
+        });
+        Some(def)
+    }
+
+    fn register_role_impl_block(
+        &mut self,
+        block: &Cst,
+        module: ModuleId,
+    ) -> (Vec<DefId>, Vec<RoleImplMethodDecl>) {
+        let mut children = Vec::new();
+        let mut methods = Vec::new();
+        for child in block.children() {
+            match child.kind() {
+                SyntaxKind::Binding => {
+                    if let Some(method) = role_method_binding(&child) {
+                        let vis = binding_vis(&child);
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        let order =
+                            self.modules
+                                .insert_value(module, method.name.clone(), def, vis);
+                        children.push(def);
+                        if vis != Vis::My {
+                            methods.push(RoleImplMethodDecl {
+                                name: method.name,
+                                receiver: method.receiver,
+                                def,
+                                vis,
+                                order,
+                            });
+                        }
+                    } else if let Some(name) = binding_name(&child) {
+                        let vis = binding_vis(&child);
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        self.modules.insert_value(module, name, def, vis);
+                        children.push(def);
+                    }
+                }
+                SyntaxKind::ModDecl => {
+                    if let Some(name) = mod_name(&child) {
+                        let vis = vis_of(&child);
+                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                        let sub_children = self.register_mod_body(&child, sub);
+                        self.append_module_children(def, sub_children);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                }
+                SyntaxKind::UseDecl => {
+                    let vis = vis_of(&child);
+                    if let Some(name) = use_mod_name(&child) {
+                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                    for import in sources::use_imports(&child) {
+                        self.modules.add_alias(module, import, vis);
+                    }
+                }
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl
+                | SyntaxKind::RoleDecl
+                | SyntaxKind::ActDecl => {
+                    self.register_type_namespace_decl(&child, module, &mut children);
+                }
+                _ => {}
+            }
+        }
+        (children, methods)
     }
 
     fn register_type_namespace_decl(
@@ -1186,6 +1345,7 @@ impl Lower {
                             def,
                             vis,
                             order,
+                            signature: binding_type_expr(&child),
                         });
                         children.push(def);
                     } else if let Some(name) = binding_name(&child) {
@@ -1761,6 +1921,22 @@ pub(crate) fn role_method_binding(node: &Cst) -> Option<RoleMethodBindingInfo> {
     }
 }
 
+pub(crate) fn binding_type_expr(binding: &Cst) -> Option<Cst> {
+    let header = child_node(binding, SyntaxKind::BindingHeader)?;
+    let pattern = child_node(&header, SyntaxKind::Pattern)?;
+    direct_pattern_type_expr(&pattern)
+}
+
+pub(crate) fn direct_pattern_type_expr(pattern: &Cst) -> Option<Cst> {
+    pattern
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeAnn)
+        .and_then(|ann| {
+            ann.children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+        })
+}
+
 fn pattern_field_name(pattern: &Cst) -> Option<Name> {
     pattern
         .children()
@@ -1855,6 +2031,23 @@ pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
 }
 
 pub(crate) fn role_decl_body(node: &Cst) -> Option<Cst> {
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Node(child)
+                if matches!(
+                    child.kind(),
+                    SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+                ) =>
+            {
+                return Some(child);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+pub(crate) fn role_impl_body(node: &Cst) -> Option<Cst> {
     for item in node.children_with_tokens() {
         match item {
             NodeOrToken::Node(child)
@@ -1967,6 +2160,30 @@ mod tests {
         assert_eq!(f.len(), 1);
         assert_eq!(g.len(), 1);
         assert_eq!(lower.arena.roots.len(), 2);
+    }
+
+    #[test]
+    fn role_impl_body_gets_poly_module_identity() {
+        let cst = parse("role Eq 'a;\nimpl int: Eq {\n  our x.eq = x\n  my helper = x\n}\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let [impl_decl] = lower.modules.role_impls(root) else {
+            panic!("impl should be registered once");
+        };
+        let Some(Def::Mod { children, .. }) = lower.arena.defs.get(impl_decl.def) else {
+            panic!("impl should have a poly module def");
+        };
+
+        assert!(lower.arena.roots.contains(&impl_decl.def));
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0], impl_decl.methods[0].def);
+        assert_eq!(
+            lower
+                .modules
+                .value_decls(impl_decl.body_module, &Name("helper".into()))
+                .len(),
+            1
+        );
     }
 
     #[test]

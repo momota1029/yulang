@@ -60,6 +60,7 @@ pub struct AnalysisSession {
     pub role_methods: RoleMethodTable,
     pub local_methods: CompanionMethodTable,
     pub scc: SccMachine,
+    role_impl_members: FxHashMap<DefId, DefId>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     scc_events: Vec<SccEvent>,
@@ -81,6 +82,7 @@ impl AnalysisSession {
             role_methods: RoleMethodTable::new(),
             local_methods: CompanionMethodTable::new(),
             scc: SccMachine::new(),
+            role_impl_members: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
             scc_events: Vec::new(),
@@ -137,6 +139,10 @@ impl AnalysisSession {
         def: DefId,
     ) {
         self.role_methods.insert(role, method, def);
+    }
+
+    pub fn register_role_impl_member(&mut self, member: DefId, impl_def: DefId) {
+        self.role_impl_members.insert(member, impl_def);
     }
 
     pub fn register_local_value_type_method(
@@ -878,6 +884,7 @@ impl AnalysisSession {
         let mut generalized = Vec::with_capacity(component.len());
         for (def, root) in component.iter().copied().zip(roots.iter().copied()) {
             let scheme = self.generalize_root_with_prepasses(def, root);
+            self.collect_role_impl_member_prerequisites(def, &scheme);
             generalized.push((def, scheme));
         }
 
@@ -896,6 +903,27 @@ impl AnalysisSession {
             );
             self.set_def_scheme(def, finalized.scheme);
         }
+    }
+
+    fn collect_role_impl_member_prerequisites(
+        &mut self,
+        def: DefId,
+        scheme: &GeneralizedCompactRoot,
+    ) {
+        let Some(impl_def) = self.role_impl_members.get(&def).copied() else {
+            return;
+        };
+        let quantifiers = scheme.quantifiers.iter().copied().collect::<FxHashSet<_>>();
+        let mut prerequisites = Vec::new();
+        for role in &scheme.role_predicates {
+            let prerequisite = self.finalize_compact_role_constraint(role);
+            let vars = prerequisite.raw_vars(self.infer.constraints().types());
+            if vars.iter().any(|var| !quantifiers.contains(var)) {
+                prerequisites.push(prerequisite);
+            }
+        }
+        self.role_impls
+            .extend_prerequisites_for_impl(impl_def, prerequisites);
     }
 
     fn instantiate_use(&mut self, target: DefId, use_value: TypeVar) {
@@ -2058,6 +2086,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role,
             inputs: vec![role_exact_arg(&mut session.infer, unit)],
             associated: vec![RoleAssociatedConstraint {
@@ -2131,6 +2160,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role,
             inputs: vec![role_exact_arg(&mut session.infer, int.clone())],
             associated: vec![RoleAssociatedConstraint {
@@ -2325,6 +2355,75 @@ mod tests {
                 } if component == &vec![def] && roots == &vec![root]
             )
         }));
+    }
+
+    #[test]
+    fn role_impl_member_residual_roles_become_impl_prerequisites() {
+        let mut poly = PolyArena::new();
+        let impl_def = poly.defs.fresh();
+        poly.defs.set(
+            impl_def,
+            Def::Mod {
+                vis: Vis::My,
+                children: Vec::new(),
+            },
+        );
+        let member = poly.defs.fresh();
+        poly.defs.set(
+            member,
+            Def::Let {
+                vis: Vis::Our,
+                scheme: None,
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        let mut session = AnalysisSession::new(poly);
+        let box_role = vec!["Box".to_string()];
+        let eq_role = vec!["Eq".to_string()];
+        let list_path = vec!["list".to_string()];
+        let item = session.infer.fresh_type_var_at(TypeLevel::root());
+        let member_root = session.infer.fresh_type_var_at(TypeLevel::root().child());
+
+        session.role_impls.insert(RoleImplCandidate {
+            impl_def: Some(impl_def),
+            role: box_role.clone(),
+            inputs: vec![role_unary_con_var_arg(&mut session.infer, list_path, item)],
+            associated: Vec::new(),
+            prerequisites: Vec::new(),
+        });
+        session.register_role_impl_member(member, impl_def);
+        session.roles.insert(
+            member,
+            RoleConstraint {
+                role: eq_role.clone(),
+                inputs: vec![role_var_arg(&mut session.infer, item)],
+                associated: Vec::new(),
+            },
+        );
+        let root_lower = session.infer.alloc_pos(Pos::Var(item));
+        let root_upper = session.infer.alloc_neg(Neg::Var(member_root));
+        session.infer.subtype(root_lower, root_upper);
+
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: member,
+            root: member_root,
+        }));
+        session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: member }));
+        session.drain_work();
+
+        let candidates = session.role_impls.candidates(&box_role);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].prerequisites.len(), 1);
+        assert_eq!(candidates[0].prerequisites[0].role, eq_role);
+        assert!(matches!(
+            session
+                .infer
+                .constraints()
+                .types()
+                .pos(candidates[0].prerequisites[0].inputs[0].lower),
+            Pos::Var(var) if *var == item
+        ));
     }
 
     #[test]
@@ -2613,6 +2712,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role,
             inputs: vec![int_arg.clone(), int_arg],
             associated: vec![RoleAssociatedConstraint {
@@ -2688,6 +2788,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role,
             inputs: vec![int_arg.clone(), int_arg],
             associated: vec![RoleAssociatedConstraint {
@@ -2737,6 +2838,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role,
             inputs: vec![int_arg.clone(), int_arg],
             associated: vec![RoleAssociatedConstraint {
@@ -2794,6 +2896,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role: wrap_role,
             inputs: vec![role_unary_con_var_arg(
                 &mut session.infer,
@@ -2814,6 +2917,7 @@ mod tests {
             }],
         });
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role: ready_role.clone(),
             inputs: vec![role_exact_arg(&mut session.infer, int_path.clone())],
             associated: vec![RoleAssociatedConstraint {
@@ -2862,6 +2966,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role: wrap_role,
             inputs: vec![role_unary_con_var_arg(&mut session.infer, box_path, item)],
             associated: vec![RoleAssociatedConstraint {
@@ -2919,6 +3024,7 @@ mod tests {
             },
         );
         session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
             role: wrap_role,
             inputs: vec![role_unary_con_var_arg(&mut session.infer, box_path, item)],
             associated: vec![RoleAssociatedConstraint {

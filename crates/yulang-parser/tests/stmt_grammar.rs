@@ -832,6 +832,27 @@ fn stmt_impl_decl_via_semicolon() {
 }
 
 #[test]
+fn stmt_impl_decl_colon_description() {
+    let got = parse_stmt_once("impl int: Eq;");
+    let expected = vec![
+        "(ImplDecl",
+        "  Impl \"impl\"",
+        "  (TypeExpr",
+        "    Ident \"int\"",
+        "  )",
+        "  (ImplDescription",
+        "    Colon \":\"",
+        "    (TypeExpr",
+        "      Ident \"Eq\"",
+        "    )",
+        "  )",
+        "  Semicolon \";\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_cast_decl_inline_body() {
     let got = parse_stmt_once("cast(x: user_id): int = x.raw");
     let expected = vec![
@@ -2177,6 +2198,49 @@ fn stmt_impl_decl_brace_body() {
         "      (BindingBody",
         "        (Expr",
         "          Ident \"id\"",
+        "        )",
+        "      )",
+        "    )",
+        "    (Separator",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_impl_decl_colon_description_brace_body() {
+    let got = parse_stmt_once("impl User: Box {\n  our x.get = x\n}");
+    let expected = vec![
+        "(ImplDecl",
+        "  Impl \"impl\"",
+        "  (TypeExpr",
+        "    Ident \"User\"",
+        "  )",
+        "  (ImplDescription",
+        "    Colon \":\"",
+        "    (TypeExpr",
+        "      Ident \"Box\"",
+        "    )",
+        "  )",
+        "  (BraceGroup",
+        "    BraceL \"{\"",
+        "    (Binding",
+        "      (BindingHeader",
+        "        Our \"our\"",
+        "        (Pattern",
+        "          Ident \"x\"",
+        "          (Field",
+        "            DotField \".get\"",
+        "          )",
+        "        )",
+        "        Equal \"=\"",
+        "      )",
+        "      (BindingBody",
+        "        (Expr",
+        "          Ident \"x\"",
         "        )",
         "      )",
         "    )",
