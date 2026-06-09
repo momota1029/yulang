@@ -18,6 +18,7 @@ pub mod dump;
 pub mod generalize;
 pub mod instantiate;
 pub mod lowering;
+pub mod methods;
 pub mod patterns;
 mod role_solve;
 pub mod roles;
@@ -29,7 +30,7 @@ pub use arena::Arena;
 
 use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
-use rowan::SyntaxNode;
+use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::FxHashMap;
 use sources::{LoadedFile, Name, Path as ModulePath, UseImport};
 use std::fmt;
@@ -133,6 +134,22 @@ pub struct ActOperationDecl {
     pub name: Name,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeMethodDecl {
+    pub owner: TypeDeclId,
+    pub name: Name,
+    pub receiver: Name,
+    pub receiver_kind: TypeMethodReceiver,
+    pub def: DefId,
+    pub order: ModuleOrder,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeMethodReceiver {
+    Value,
+    Ref,
+}
+
 /// module 内の子 module 宣言を外へ見せるための summary。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleChildDecl {
@@ -218,6 +235,8 @@ struct ImportPathTarget {
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
     act_ops: FxHashMap<TypeDeclId, Vec<Name>>,
+    type_companions: FxHashMap<TypeDeclId, ModuleId>,
+    type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     next_type_id: u32,
 }
 
@@ -237,6 +256,8 @@ impl ModuleTable {
                 next_order: 0,
             }],
             act_ops: FxHashMap::default(),
+            type_companions: FxHashMap::default(),
+            type_methods: FxHashMap::default(),
             next_type_id: 0,
         }
     }
@@ -259,13 +280,15 @@ impl ModuleTable {
         });
         id
     }
-    fn insert_value(&mut self, module: ModuleId, name: Name, def: DefId, vis: Vis) {
+    fn insert_value(&mut self, module: ModuleId, name: Name, def: DefId, vis: Vis) -> ModuleOrder {
         let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Value { def });
+        let order = self.nodes[module.0].decls[decl.0].order;
         self.nodes[module.0]
             .values
             .entry(name)
             .or_default()
             .push(decl);
+        order
     }
     fn insert_type(
         &mut self,
@@ -285,6 +308,26 @@ impl ModuleTable {
     }
     fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<Name>) {
         self.act_ops.insert(id, ops);
+    }
+    fn set_type_companion(&mut self, id: TypeDeclId, module: ModuleId) {
+        self.type_companions.insert(id, module);
+    }
+    pub fn type_companion(&self, id: TypeDeclId) -> Option<ModuleId> {
+        self.type_companions.get(&id).copied()
+    }
+    fn insert_type_method(&mut self, method: TypeMethodDecl) {
+        self.type_methods
+            .entry(method.owner)
+            .or_default()
+            .push(method);
+    }
+    pub fn type_methods(&self, id: TypeDeclId) -> &[TypeMethodDecl] {
+        self.type_methods.get(&id).map(Vec::as_slice).unwrap_or(&[])
+    }
+    pub fn all_type_methods(&self) -> impl Iterator<Item = &TypeMethodDecl> {
+        self.type_methods
+            .values()
+            .flat_map(|methods| methods.iter())
     }
     fn insert_module(&mut self, module: ModuleId, name: Name, sub: ModuleId, def: DefId, vis: Vis) {
         let decl = self.push_decl(
@@ -979,17 +1022,141 @@ impl Lower {
                 | SyntaxKind::ErrorDecl
                 | SyntaxKind::RoleDecl
                 | SyntaxKind::ActDecl => {
-                    if let (Some(name), Some(kind)) =
-                        (type_decl_name(&child), module_type_kind(child.kind()))
-                    {
+                    self.register_type_namespace_decl(&child, module, &mut children);
+                }
+                // 型定義系の本体、Impl/Act/Cast/OpDef は後で。
+                _ => {}
+            }
+        }
+        children
+    }
+
+    fn register_type_namespace_decl(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        children: &mut Vec<DefId>,
+    ) {
+        let (Some(name), Some(kind)) = (type_decl_name(node), module_type_kind(node.kind())) else {
+            return;
+        };
+        let vis = vis_of(node);
+        let id = self.modules.insert_type(module, name.clone(), kind, vis);
+        if kind == ModuleTypeKind::Act {
+            self.modules.set_act_ops(id, act_operation_names(node));
+        }
+        if matches!(
+            kind,
+            ModuleTypeKind::TypeAlias
+                | ModuleTypeKind::Struct
+                | ModuleTypeKind::Enum
+                | ModuleTypeKind::Error
+        ) {
+            self.register_type_companion(node, module, name, id, vis, children);
+        }
+    }
+
+    fn register_type_companion(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        name: Name,
+        owner: TypeDeclId,
+        vis: Vis,
+        children: &mut Vec<DefId>,
+    ) {
+        let Some(body) = type_with_body(node) else {
+            return;
+        };
+        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        self.modules.set_type_companion(owner, companion);
+        let companion_children = self.register_type_companion_block(&body, companion, owner);
+        self.append_module_children(def, companion_children);
+        if created {
+            children.push(def);
+        }
+    }
+
+    fn register_type_companion_block(
+        &mut self,
+        block: &Cst,
+        module: ModuleId,
+        owner: TypeDeclId,
+    ) -> Vec<DefId> {
+        let mut children = Vec::new();
+        for child in block.children() {
+            match child.kind() {
+                SyntaxKind::Binding => {
+                    if let Some(method) = type_method_binding(&child) {
+                        let vis = binding_vis(&child);
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        let value_name = type_method_value_name(&method.name, method.receiver_kind);
+                        let order = self.modules.insert_value(module, value_name, def, vis);
+                        self.modules.insert_type_method(TypeMethodDecl {
+                            owner,
+                            name: method.name,
+                            receiver: method.receiver,
+                            receiver_kind: method.receiver_kind,
+                            def,
+                            order,
+                        });
+                        children.push(def);
+                    } else if let Some(name) = binding_name(&child) {
+                        let vis = binding_vis(&child);
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        self.modules.insert_value(module, name, def, vis);
+                        children.push(def);
+                    }
+                }
+                SyntaxKind::ModDecl => {
+                    if let Some(name) = mod_name(&child) {
                         let vis = vis_of(&child);
-                        let id = self.modules.insert_type(module, name, kind, vis);
-                        if kind == ModuleTypeKind::Act {
-                            self.modules.set_act_ops(id, act_operation_names(&child));
+                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                        let sub_children = self.register_mod_body(&child, sub);
+                        self.append_module_children(def, sub_children);
+                        if created {
+                            children.push(def);
                         }
                     }
                 }
-                // 型定義系の本体、Impl/Act/Cast/OpDef は後で。
+                SyntaxKind::UseDecl => {
+                    let vis = vis_of(&child);
+                    if let Some(name) = use_mod_name(&child) {
+                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                    for import in sources::use_imports(&child) {
+                        self.modules.add_alias(module, import, vis);
+                    }
+                }
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl
+                | SyntaxKind::RoleDecl
+                | SyntaxKind::ActDecl => {
+                    self.register_type_namespace_decl(&child, module, &mut children);
+                }
                 _ => {}
             }
         }
@@ -1038,6 +1205,13 @@ impl Lower {
             return;
         };
         *slot = children;
+    }
+
+    fn append_module_children(&mut self, def: DefId, children: Vec<DefId>) {
+        let Some(Def::Mod { children: slot, .. }) = self.arena.defs.get_mut(def) else {
+            return;
+        };
+        slot.extend(children);
     }
 
     pub(crate) fn module_path_target(&self, path: &ModulePath) -> Option<ModulePathTarget> {
@@ -1214,12 +1388,19 @@ fn first_ident(node: &Cst) -> Option<Name> {
         .map(|t| Name(t.text().to_string()))
 }
 
+fn first_ident_or_sigil(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|it| it.into_token())
+        .find(|t| matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent))
+        .map(|t| Name(t.text().to_string()))
+}
+
 /// `Binding → BindingHeader → Pattern` の最初の Ident が束縛名。
 /// （`my (a, b) = …` のような分解束縛は後で対応。今は最初の Ident を返す）
 fn binding_name(node: &Cst) -> Option<Name> {
     let header = child_node(node, SyntaxKind::BindingHeader)?;
     let pattern = child_node(&header, SyntaxKind::Pattern)?;
-    first_ident(&pattern)
+    first_ident_or_sigil(&pattern)
 }
 
 fn binding_vis(node: &Cst) -> Vis {
@@ -1235,12 +1416,95 @@ fn mod_name(node: &Cst) -> Option<Name> {
 }
 
 /// 型名前空間に登録する宣言名。
-fn type_decl_name(node: &Cst) -> Option<Name> {
+pub(crate) fn type_decl_name(node: &Cst) -> Option<Name> {
     if node.kind() == SyntaxKind::RoleDecl {
         return child_node(node, SyntaxKind::TypeExpr)
             .and_then(|type_expr| first_ident(&type_expr));
     }
     first_ident(node)
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TypeMethodBindingInfo {
+    pub(crate) name: Name,
+    pub(crate) receiver: Name,
+    pub(crate) receiver_kind: TypeMethodReceiver,
+}
+
+pub(crate) fn type_method_binding(node: &Cst) -> Option<TypeMethodBindingInfo> {
+    let header = child_node(node, SyntaxKind::BindingHeader)?;
+    let pattern = child_node(&header, SyntaxKind::Pattern)?;
+    let method = pattern_field_name(&pattern)?;
+    let receiver = first_ident_or_sigil(&pattern)?;
+    let receiver_kind = if receiver.0.starts_with('&') {
+        TypeMethodReceiver::Ref
+    } else {
+        TypeMethodReceiver::Value
+    };
+    Some(TypeMethodBindingInfo {
+        name: method,
+        receiver,
+        receiver_kind,
+    })
+}
+
+fn pattern_field_name(pattern: &Cst) -> Option<Name> {
+    pattern
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Field)?
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::DotField)
+        .map(|token| Name(token.text().trim_start_matches('.').to_string()))
+}
+
+fn type_method_value_name(name: &Name, receiver: TypeMethodReceiver) -> Name {
+    match receiver {
+        TypeMethodReceiver::Value => name.clone(),
+        TypeMethodReceiver::Ref => Name(format!("{}!", name.0)),
+    }
+}
+
+pub(crate) fn type_var_names(node: &Cst) -> Vec<String> {
+    let Some(vars) = child_node(node, SyntaxKind::TypeVars) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for token in vars
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
+        if !matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) {
+            continue;
+        }
+        let name = token.text().trim_start_matches('\'').to_string();
+        if !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    out
+}
+
+pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
+    let mut seen_with = false;
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::With => {
+                seen_with = true;
+            }
+            NodeOrToken::Node(child)
+                if seen_with
+                    && matches!(
+                        child.kind(),
+                        SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+                    ) =>
+            {
+                return Some(child);
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn act_operation_names(node: &Cst) -> Vec<Name> {
@@ -1463,6 +1727,46 @@ mod tests {
             lower.modules.type_decls(root, &Name("Console".into()))[0].kind,
             ModuleTypeKind::Act
         );
+    }
+
+    #[test]
+    fn registers_type_with_body_as_companion_module_methods() {
+        let cst =
+            parse("type box 'a with:\n  our x.value = x\n  our &x.update = &x\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let box_type = lower.modules.type_decls(root, &Name("box".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(box_type.id)
+            .expect("type with should create a companion module");
+        let methods = lower.modules.type_methods(box_type.id);
+
+        assert_eq!(
+            lower.modules.module_decls(root, &Name("box".into()))[0].module,
+            companion
+        );
+        assert_eq!(
+            lower
+                .modules
+                .value_decls(companion, &Name("value".into()))
+                .len(),
+            1
+        );
+        assert_eq!(
+            lower
+                .modules
+                .value_decls(companion, &Name("update!".into()))
+                .len(),
+            1
+        );
+        assert_eq!(methods.len(), 2);
+        assert_eq!(methods[0].name, Name("value".into()));
+        assert_eq!(methods[0].receiver, Name("x".into()));
+        assert_eq!(methods[0].receiver_kind, TypeMethodReceiver::Value);
+        assert_eq!(methods[1].name, Name("update".into()));
+        assert_eq!(methods[1].receiver, Name("&x".into()));
+        assert_eq!(methods[1].receiver_kind, TypeMethodReceiver::Ref);
     }
 
     #[test]

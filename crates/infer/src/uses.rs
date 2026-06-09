@@ -94,6 +94,10 @@ impl SelectionUseTable {
         self.uses.get(&id)
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (SelectId, &SelectionUse)> {
+        self.uses.iter().map(|(id, use_site)| (*id, use_site))
+    }
+
     pub fn watch_receiver(&mut self, var: TypeVar, select: SelectId) {
         push_unique(self.pending_by_receiver.entry(var).or_default(), select);
     }

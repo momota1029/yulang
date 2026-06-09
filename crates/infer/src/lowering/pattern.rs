@@ -208,7 +208,9 @@ pub(super) fn single_pattern_item(node: &Cst) -> Result<PatternItem, LoweringErr
     }
 
     match item {
-        NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
+        NodeOrToken::Token(token)
+            if matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) =>
+        {
             Ok(PatternItem::Ident(Name(token.text().to_string())))
         }
         NodeOrToken::Token(token) if token.kind() == SyntaxKind::Number => {

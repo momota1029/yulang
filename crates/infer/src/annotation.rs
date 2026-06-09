@@ -75,6 +75,16 @@ pub struct AnnTypeVar {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// type `with` body の中だけで有効な `self` 型 alias。
+///
+/// `self` は annotation builder ごとに、その builder の型変数 scope を使って
+/// `owner 'a 'b ...` へ展開される。
+pub struct AnnSelfAlias {
+    pub owner: TypeDeclId,
+    pub type_vars: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// 注釈 builder が構造化して返す失敗。
 pub enum AnnBuildError {
     ExpectedTypeExpr { kind: SyntaxKind },
@@ -554,6 +564,7 @@ pub struct AnnTypeBuilder<'a> {
     modules: &'a ModuleTable,
     module: ModuleId,
     site: ModuleOrder,
+    self_alias: Option<AnnSelfAlias>,
     type_vars: FxHashMap<String, AnnTypeVarId>,
     next_type_var: u32,
 }
@@ -564,8 +575,44 @@ impl<'a> AnnTypeBuilder<'a> {
             modules,
             module,
             site,
+            self_alias: None,
             type_vars: FxHashMap::default(),
             next_type_var: 0,
+        }
+    }
+
+    pub fn with_self_alias(
+        modules: &'a ModuleTable,
+        module: ModuleId,
+        site: ModuleOrder,
+        self_alias: AnnSelfAlias,
+    ) -> Self {
+        let mut builder = Self::new(modules, module, site);
+        builder.self_alias = Some(self_alias);
+        builder
+    }
+
+    pub fn set_self_alias(&mut self, self_alias: AnnSelfAlias) {
+        self.self_alias = Some(self_alias);
+    }
+
+    pub fn self_alias_type(&mut self) -> Option<AnnType> {
+        let alias = self.self_alias.clone()?;
+        Some(self.type_decl_application(alias.owner, &alias.type_vars))
+    }
+
+    pub fn type_decl_application(&mut self, owner: TypeDeclId, type_vars: &[String]) -> AnnType {
+        let args = type_vars
+            .iter()
+            .map(|name| AnnType::Var(self.ann_type_var(name)))
+            .collect::<Vec<_>>();
+        if args.is_empty() {
+            AnnType::Named(owner)
+        } else {
+            AnnType::Apply {
+                callee: Box::new(AnnType::Named(owner)),
+                args,
+            }
         }
     }
 
@@ -786,8 +833,13 @@ impl<'a> AnnTypeBuilder<'a> {
         Ok(AnnEffectRow { items, tail })
     }
 
-    fn resolve_ann_path(&self, path: Vec<Name>) -> Result<AnnType, AnnBuildError> {
+    fn resolve_ann_path(&mut self, path: Vec<Name>) -> Result<AnnType, AnnBuildError> {
         if let [name] = path.as_slice() {
+            if name.0 == "self"
+                && let Some(ty) = self.self_alias_type()
+            {
+                return Ok(ty);
+            }
             if let Some(builtin) = BuiltinType::from_surface_name(name.0.as_str()) {
                 return Ok(AnnType::Builtin(builtin));
             }
@@ -1146,6 +1198,29 @@ mod tests {
 
         assert_eq!(builder.build_type_expr(&left), Ok(ann_var_id("a", 0)));
         assert_eq!(builder.build_type_expr(&right), Ok(ann_var_id("a", 0)));
+    }
+
+    #[test]
+    fn self_alias_expands_in_builder_type_var_scope() {
+        let root = parse("type box 'a\nmy site: self = 1\n");
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].order;
+        let owner = lower.modules.type_decls(module, &Name("box".into()))[0].id;
+        let mut builder = AnnTypeBuilder::with_self_alias(
+            &lower.modules,
+            module,
+            site,
+            AnnSelfAlias {
+                owner,
+                type_vars: vec!["a".into()],
+            },
+        );
+
+        assert_eq!(
+            builder.build_type_expr(&first_type_expr(&root)),
+            Ok(ann_apply(AnnType::Named(owner), vec![ann_var_id("a", 0)]))
+        );
     }
 
     #[test]

@@ -18,19 +18,20 @@ use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
 use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId};
-use poly::types::{Neg, NegId, Pos, PosId, SubtractId, Subtractability, TypeVar};
+use poly::types::{Neg, NegId, Neu, Pos, PosId, SubtractId, Subtractability, TypeVar};
 use rustc_hash::FxHashMap;
 
 use crate::analysis::{AnalysisSession, AnalysisWork};
 use crate::annotation::{
-    AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnType,
-    AnnTypeBuilder, AnnTypeVarId,
+    AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
+    AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
 use crate::scc::SccInput;
 use crate::typing::Typing;
-use crate::uses::RefUse;
+use crate::uses::{RefUse, SelectionUse};
 use crate::{
     LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable,
+    ModuleTypeDecl, TypeDeclId, TypeMethodDecl, TypeMethodReceiver,
     lower_loaded_file_csts_module_map,
 };
 
@@ -57,6 +58,9 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
     let mut lowerer = BodyLowerer::new(lower);
     lowerer.lower_block(root, lowerer.modules.root_id());
     lowerer.session.drain_work();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
     lowerer.finish()
 }
 
@@ -80,6 +84,9 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
     }
 
     lowerer.session.drain_work();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
     Ok(lowerer.finish())
 }
 
@@ -115,19 +122,23 @@ struct BodyLowerer {
     errors: Vec<BodyLoweringError>,
     value_cursors: FxHashMap<(ModuleId, Name), usize>,
     module_cursors: FxHashMap<(ModuleId, Name), usize>,
+    type_cursors: FxHashMap<(ModuleId, Name), usize>,
 }
 
 impl BodyLowerer {
     fn new(lower: Lower) -> Self {
         let labels = lower.modules.dump_labels();
+        let mut session = AnalysisSession::new(lower.arena);
+        register_declared_type_methods(&mut session, &lower.modules);
         Self {
-            session: AnalysisSession::new(lower.arena),
+            session,
             modules: lower.modules,
             typing: Typing::new(),
             labels,
             errors: Vec::new(),
             value_cursors: FxHashMap::default(),
             module_cursors: FxHashMap::default(),
+            type_cursors: FxHashMap::default(),
         }
     }
 
@@ -146,6 +157,10 @@ impl BodyLowerer {
             match child.kind() {
                 SyntaxKind::Binding => self.lower_binding(&child, module),
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, module),
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl => self.lower_type_decl_with_body(&child, module),
                 _ => {}
             }
         }
@@ -166,6 +181,15 @@ impl BodyLowerer {
     }
 
     fn lower_binding(&mut self, node: &Cst, module: ModuleId) {
+        self.lower_binding_with_self_alias(node, module, None);
+    }
+
+    fn lower_binding_with_self_alias(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        self_alias: Option<AnnSelfAlias>,
+    ) {
         let Some(name) = crate::binding_name(node) else {
             return;
         };
@@ -198,10 +222,17 @@ impl BodyLowerer {
             decl.def,
             &mut self.labels,
         )
+        .with_self_alias(self_alias.clone())
         .lower_binding_body_expr(&expr);
         match lowered {
             Ok(computation) => {
-                match self.connect_binding_annotation(node, module, decl.order, computation) {
+                match self.connect_binding_annotation(
+                    node,
+                    module,
+                    decl.order,
+                    self_alias,
+                    computation,
+                ) {
                     Ok(()) => self.finish_binding(decl.def, name, root, computation),
                     Err(error) => self.errors.push(BodyLoweringError::Expr {
                         def: decl.def,
@@ -219,17 +250,119 @@ impl BodyLowerer {
         self.session.infer.restore_level(previous_level);
     }
 
+    fn lower_type_decl_with_body(&mut self, node: &Cst, module: ModuleId) {
+        let Some(name) = crate::type_decl_name(node) else {
+            return;
+        };
+        let Some(decl) = self.next_type_decl(module, &name) else {
+            return;
+        };
+        let Some(body) = crate::type_with_body(node) else {
+            return;
+        };
+        let Some(companion) = self.modules.type_companion(decl.id) else {
+            return;
+        };
+        let self_alias = AnnSelfAlias {
+            owner: decl.id,
+            type_vars: crate::type_var_names(node),
+        };
+        let type_vars = self_alias.type_vars.clone();
+        let mut method_cursor = 0usize;
+        for child in body.children() {
+            match child.kind() {
+                SyntaxKind::Binding if crate::type_method_binding(&child).is_some() => {
+                    let method = self
+                        .modules
+                        .type_methods(decl.id)
+                        .get(method_cursor)
+                        .cloned();
+                    method_cursor += usize::from(method.is_some());
+                    if let Some(method) = method {
+                        self.lower_type_method_binding(
+                            &child, companion, &decl, &method, &type_vars,
+                        );
+                    }
+                }
+                SyntaxKind::Binding => {
+                    self.lower_binding_with_self_alias(&child, companion, Some(self_alias.clone()));
+                }
+                SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
+                _ => {}
+            }
+        }
+    }
+
+    fn lower_type_method_binding(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        owner: &ModuleTypeDecl,
+        method: &TypeMethodDecl,
+        type_vars: &[String],
+    ) {
+        let Some(expr) = binding_body_expr(node) else {
+            self.errors.push(BodyLoweringError::MissingBody {
+                def: method.def,
+                name: method.name.clone(),
+            });
+            return;
+        };
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(method.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: method.def,
+                root,
+            }));
+
+        let self_alias = AnnSelfAlias {
+            owner: owner.id,
+            type_vars: type_vars.to_vec(),
+        };
+        let lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            method.order,
+            method.def,
+            &mut self.labels,
+        )
+        .with_self_alias(Some(self_alias.clone()))
+        .lower_type_method_body_expr(
+            &expr,
+            method.receiver.clone(),
+            method.receiver_kind,
+            owner.id,
+            &self_alias.type_vars,
+            binding_type_expr(node),
+        );
+        match lowered {
+            Ok(computation) => {
+                self.finish_binding(method.def, method.name.clone(), root, computation);
+            }
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: method.def,
+                name: method.name.clone(),
+                error,
+            }),
+        }
+        self.session.infer.restore_level(previous_level);
+    }
+
     fn connect_binding_annotation(
         &mut self,
         node: &Cst,
         module: ModuleId,
         site: ModuleOrder,
+        self_alias: Option<AnnSelfAlias>,
         computation: Computation,
     ) -> Result<(), LoweringError> {
         let Some(type_expr) = binding_type_expr(node) else {
             return Ok(());
         };
-        let mut builder = AnnTypeBuilder::new(&self.modules, module, site);
+        let mut builder = ann_type_builder(&self.modules, module, site, self_alias);
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
@@ -296,6 +429,48 @@ impl BodyLowerer {
         *cursor += usize::from(decl.is_some());
         decl
     }
+
+    fn next_type_decl(&mut self, module: ModuleId, name: &Name) -> Option<ModuleTypeDecl> {
+        let key = (module, name.clone());
+        let cursor = self.type_cursors.entry(key).or_default();
+        let decl = self.modules.type_decls(module, name).get(*cursor).cloned();
+        *cursor += usize::from(decl.is_some());
+        decl
+    }
+}
+
+fn register_declared_type_methods(session: &mut AnalysisSession, modules: &ModuleTable) {
+    for method in modules.all_type_methods() {
+        let Some(owner) = modules.type_decl_by_id(method.owner) else {
+            continue;
+        };
+        let receiver = modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        match method.receiver_kind {
+            TypeMethodReceiver::Value => {
+                session.register_value_type_method(receiver, method.name.0.clone(), method.def);
+            }
+            TypeMethodReceiver::Ref => {
+                session.register_ref_type_method(receiver, method.name.0.clone(), method.def);
+            }
+        }
+    }
+}
+
+fn ann_type_builder(
+    modules: &ModuleTable,
+    module: ModuleId,
+    site: ModuleOrder,
+    self_alias: Option<AnnSelfAlias>,
+) -> AnnTypeBuilder<'_> {
+    match self_alias {
+        Some(self_alias) => AnnTypeBuilder::with_self_alias(modules, module, site, self_alias),
+        None => AnnTypeBuilder::new(modules, module, site),
+    }
 }
 
 /// expression lowering の入口。
@@ -309,6 +484,7 @@ pub struct ExprLowerer<'a> {
     site: ModuleOrder,
     parent: poly::expr::DefId,
     labels: Option<&'a mut DumpLabels>,
+    self_alias: Option<AnnSelfAlias>,
     locals: Vec<LocalBinding>,
     function_frames: Vec<FunctionPredicateFrame>,
 }
@@ -328,6 +504,7 @@ impl<'a> ExprLowerer<'a> {
             site,
             parent,
             labels: None,
+            self_alias: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
         }
@@ -348,9 +525,15 @@ impl<'a> ExprLowerer<'a> {
             site,
             parent,
             labels: Some(labels),
+            self_alias: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
         }
+    }
+
+    pub fn with_self_alias(mut self, self_alias: Option<AnnSelfAlias>) -> Self {
+        self.self_alias = self_alias;
+        self
     }
 
     /// CST expression を `poly::Expr` と `Computation` に lower する。
@@ -363,6 +546,160 @@ impl<'a> ExprLowerer<'a> {
 
     pub fn lower_binding_body_expr(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
         self.lower_expr_with_lambda_scope(node, LambdaScope::Defined)
+    }
+
+    fn lower_type_method_body_expr(
+        &mut self,
+        node: &Cst,
+        receiver: Name,
+        receiver_kind: TypeMethodReceiver,
+        owner: TypeDeclId,
+        type_vars: &[String],
+        result_type_expr: Option<Cst>,
+    ) -> Result<Computation, LoweringError> {
+        let mut ann_builder = ann_type_builder(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+        );
+        let self_ann = ann_builder.type_decl_application(owner, type_vars);
+        let mut ann_solver_vars = FxHashMap::default();
+
+        let receiver_value = self.fresh_type_var();
+        self.connect_type_method_receiver(
+            receiver_value,
+            receiver_kind,
+            &self_ann,
+            &mut ann_solver_vars,
+        )?;
+
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(receiver, receiver_value, LocalCallReturnEffect::Annotated);
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_expr_with_lambda_scope(node, LambdaScope::Defined);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("method predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        if let Some(type_expr) = result_type_expr {
+            self.connect_type_method_result_annotation(
+                body,
+                &type_expr,
+                &mut ann_builder,
+                &mut ann_solver_vars,
+            )?;
+        }
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(receiver_value));
+        let arg_eff = self.never_neg();
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn connect_type_method_receiver(
+        &mut self,
+        receiver_value: TypeVar,
+        receiver_kind: TypeMethodReceiver,
+        self_ann: &AnnType,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<(), LoweringError> {
+        match receiver_kind {
+            TypeMethodReceiver::Value => {
+                self.connect_type_method_value_annotation(receiver_value, self_ann, ann_solver_vars)
+            }
+            TypeMethodReceiver::Ref => {
+                let payload = self.fresh_type_var();
+                self.connect_type_method_value_annotation(payload, self_ann, ann_solver_vars)?;
+                let effect = self.fresh_type_var();
+                let effect_arg = self.invariant_var_arg(effect);
+                let payload_arg = self.invariant_var_arg(payload);
+                self.constrain_lower(
+                    receiver_value,
+                    Pos::Con(vec!["ref".into()], vec![effect_arg, payload_arg]),
+                );
+                self.constrain_upper(
+                    receiver_value,
+                    Neg::Con(vec!["ref".into()], vec![effect_arg, payload_arg]),
+                );
+                Ok(())
+            }
+        }
+    }
+
+    fn connect_type_method_value_annotation(
+        &mut self,
+        value: TypeVar,
+        ann: &AnnType,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<(), LoweringError> {
+        let vars = std::mem::take(ann_solver_vars);
+        let mut lowerer =
+            AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let result = lowerer
+            .connect_value(value, ann)
+            .map(|_| ())
+            .map_err(|error| LoweringError::AnnotationConstraint { error });
+        *ann_solver_vars = lowerer.into_vars();
+        result
+    }
+
+    fn connect_type_method_result_annotation(
+        &mut self,
+        body: Computation,
+        type_expr: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<(), LoweringError> {
+        let ann = ann_builder
+            .build_type_expr(type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let vars = std::mem::take(ann_solver_vars);
+        let mut lowerer =
+            AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let result = lowerer
+            .connect_computation(
+                AnnComputationTarget {
+                    value: body.value,
+                    effect: body.effect,
+                },
+                &ann,
+            )
+            .map(|_| ())
+            .map_err(|error| LoweringError::AnnotationConstraint { error });
+        *ann_solver_vars = lowerer.into_vars();
+        result
+    }
+
+    fn invariant_var_arg(&mut self, var: TypeVar) -> poly::types::NeuId {
+        let lower = self.alloc_pos(Pos::Var(var));
+        let upper = self.alloc_neg(Neg::Var(var));
+        self.session.infer.alloc_neu(Neu::Bounds(lower, var, upper))
     }
 
     fn lower_expr_with_lambda_scope(
@@ -396,6 +733,9 @@ impl<'a> ExprLowerer<'a> {
                 {
                     acc = self.apply_arguments(acc, &child)?;
                 }
+                NodeOrToken::Node(child) if child.kind() == SyntaxKind::Field => {
+                    acc = self.lower_field_selection(acc, &child)?;
+                }
                 NodeOrToken::Node(child) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: child.kind() });
                 }
@@ -414,7 +754,9 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         match head {
             NodeOrToken::Token(token) => match token.kind() {
-                SyntaxKind::Ident => self.lower_name(Name(token.text().to_string())),
+                SyntaxKind::Ident | SyntaxKind::SigilIdent => {
+                    self.lower_name(Name(token.text().to_string()))
+                }
                 SyntaxKind::Number => self.lower_number(token.text()),
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
             },
@@ -454,7 +796,12 @@ impl<'a> ExprLowerer<'a> {
         else {
             return Err(LoweringError::MissingLambdaBody);
         };
-        let mut ann_builder = AnnTypeBuilder::new(self.modules, self.module, self.site);
+        let mut ann_builder = ann_type_builder(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+        );
         let mut ann_solver_vars = FxHashMap::default();
         self.lower_lambda_params(
             patterns.as_slice(),
@@ -704,6 +1051,34 @@ impl<'a> ExprLowerer<'a> {
         Ok(callee)
     }
 
+    fn lower_field_selection(
+        &mut self,
+        receiver: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let name = field_name(node).ok_or(LoweringError::MissingFieldName)?;
+        let result_value = self.fresh_type_var();
+        let select = self.session.poly.add_select(name);
+        self.session.register_selection_use(
+            select,
+            SelectionUse {
+                parent: self.parent,
+                receiver_value: receiver.value,
+                method_value: result_value,
+            },
+        );
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::Select(receiver.expr, select));
+        Ok(Computation::new(
+            expr,
+            result_value,
+            receiver.effect,
+            receiver.evaluation,
+        ))
+    }
+
     fn make_app(&mut self, callee: Computation, arg: Computation) -> Computation {
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
@@ -918,6 +1293,7 @@ pub enum LoweringError {
     MissingCatchScrutinee,
     MissingCatchArmPattern,
     MissingCatchArmBody,
+    MissingFieldName,
     AnnotationBuild { error: AnnBuildError },
     AnnotationConstraint { error: AnnConstraintError },
 }
@@ -925,6 +1301,14 @@ pub enum LoweringError {
 fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
     item.as_token()
         .is_some_and(|token| matches!(token.kind(), SyntaxKind::Space | SyntaxKind::LineComment))
+}
+
+fn field_name(node: &Cst) -> Option<String> {
+    let token = node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::DotField)?;
+    Some(token.text().trim_start_matches('.').to_string())
 }
 
 fn integer_number_token(text: &str) -> bool {
@@ -1011,7 +1395,7 @@ mod tests {
     use super::*;
     use crate::lower_module_map;
     use crate::scc::SccEvent;
-    use poly::expr::{DefId, ExprId, Pat, RefId};
+    use poly::expr::{DefId, ExprId, Pat, RefId, SelectResolution};
 
     fn parse(src: &str) -> Cst {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
@@ -1057,6 +1441,21 @@ mod tests {
             }) => *body,
             _ => panic!("expected lowered let body"),
         }
+    }
+
+    fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId) {
+        let body = binding_body_id(output, method);
+        let (pat, body) = match output.session.poly.expr(body) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected method receiver lambda"),
+        };
+        let receiver = match output.session.poly.pat(pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected receiver var pattern"),
+        };
+        let reference = expr_ref(&output.session, body);
+
+        assert_eq!(output.session.poly.ref_target(reference), Some(receiver));
     }
 
     #[test]
@@ -1157,6 +1556,81 @@ mod tests {
                 Neg::Fun { .. }
             )
         }));
+    }
+
+    #[test]
+    fn field_tail_lowers_to_deferred_selection_and_final_record_fallback() {
+        let root = parse("my get = \\x -> x.foo\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, _) = binding_def_and_order(&lower.modules, module, "get");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, owner);
+        let lambda_body = match output.session.poly.expr(body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected lambda body"),
+        };
+        let select = match output.session.poly.expr(lambda_body) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(select).resolution,
+            Some(SelectResolution::RecordField)
+        );
+    }
+
+    #[test]
+    fn type_with_value_method_lowers_in_companion_and_resolves_selection() {
+        let root = parse("type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let user = lower.modules.type_decls(module, &Name("User".into()))[0].clone();
+        let method = lower.modules.type_methods(user.id)[0].def;
+        let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_method_body_is_receiver_identity(&output, method);
+        let got_body = binding_body_id(&output, got);
+        let select = match output.session.poly.expr(got_body) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
+    fn type_with_ref_method_keeps_ampersand_receiver_name_and_resolves_ref_selection() {
+        let root = parse(
+            "type ref 'e 'a\ntype User with:\n  our &x.id = &x\nmy r: ref 'e User = 1\nmy got = r.id\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let user = lower.modules.type_decls(module, &Name("User".into()))[0].clone();
+        let method = lower.modules.type_methods(user.id)[0].def;
+        let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_method_body_is_receiver_identity(&output, method);
+        let got_body = binding_body_id(&output, got);
+        let select = match output.session.poly.expr(got_body) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
     }
 
     #[test]

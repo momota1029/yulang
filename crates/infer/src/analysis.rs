@@ -7,7 +7,7 @@
 use std::collections::VecDeque;
 
 use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
-use poly::types::{Neg, NegId, Pos, PosId, Scheme, TypeVar};
+use poly::types::{Neg, NegId, Neu, Pos, PosId, RecordField, Scheme, TypeVar};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::arena::Arena as InferArena;
@@ -23,6 +23,7 @@ use crate::generalize::{
     generalize_prepared_compact_root_with_roles,
 };
 use crate::instantiate::instantiate_scheme;
+use crate::methods::TypeMethodTable;
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
 };
@@ -30,7 +31,7 @@ use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleImplTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
-use crate::uses::{RefUseTable, SelectionUseTable};
+use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
 
 /// 推論中の複数 machine を束ねる session。
 ///
@@ -45,6 +46,7 @@ pub struct AnalysisSession {
     pub roles: RoleConstraintTable,
     pub role_impls: RoleImplTable,
     pub casts: CastTable,
+    pub methods: TypeMethodTable,
     pub scc: SccMachine,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     scc_events: Vec<SccEvent>,
@@ -61,6 +63,7 @@ impl AnalysisSession {
             roles: RoleConstraintTable::new(),
             role_impls: RoleImplTable::new(),
             casts: CastTable::new(),
+            methods: TypeMethodTable::new(),
             scc: SccMachine::new(),
             schemes: FxHashMap::default(),
             scc_events: Vec::new(),
@@ -70,6 +73,36 @@ impl AnalysisSession {
 
     pub fn enqueue(&mut self, work: AnalysisWork) {
         self.work.push_back(work);
+    }
+
+    pub fn register_selection_use(&mut self, select_id: SelectId, use_site: SelectionUse) {
+        self.selections.insert(select_id, use_site);
+        self.selections
+            .watch_receiver(use_site.receiver_value, select_id);
+        self.enqueue(AnalysisWork::ProbeSelect(select_id));
+        self.enqueue(AnalysisWork::Scc(SccInput::MethodDependencyAdded {
+            parent: use_site.parent,
+        }));
+    }
+
+    pub fn register_value_type_method(
+        &mut self,
+        receiver: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.methods.insert_value(receiver, method, def);
+        self.enqueue_unresolved_selection_probes();
+    }
+
+    pub fn register_ref_type_method(
+        &mut self,
+        receiver: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.methods.insert_ref(receiver, method, def);
+        self.enqueue_unresolved_selection_probes();
     }
 
     pub fn work(&self) -> &VecDeque<AnalysisWork> {
@@ -107,6 +140,45 @@ impl AnalysisSession {
         while self.step() {}
     }
 
+    pub fn resolve_unresolved_selections_as_record_fields(&mut self) {
+        self.drain_work();
+        let unresolved = self
+            .selections
+            .iter()
+            .filter_map(|(select_id, _)| {
+                self.poly
+                    .select(select_id)
+                    .resolution
+                    .is_none()
+                    .then_some(select_id)
+            })
+            .collect::<Vec<_>>();
+        for select_id in unresolved {
+            self.enqueue(AnalysisWork::ApplySelectionResolution {
+                select_id,
+                target: SelectionTarget::RecordField,
+            });
+        }
+        self.drain_work();
+    }
+
+    fn enqueue_unresolved_selection_probes(&mut self) {
+        let unresolved = self
+            .selections
+            .iter()
+            .filter_map(|(select_id, _)| {
+                self.poly
+                    .select(select_id)
+                    .resolution
+                    .is_none()
+                    .then_some(select_id)
+            })
+            .collect::<Vec<_>>();
+        for select_id in unresolved {
+            self.enqueue(AnalysisWork::ProbeSelect(select_id));
+        }
+    }
+
     pub fn step(&mut self) -> bool {
         self.route_constraint_events();
         let Some(work) = self.work.pop_front() else {
@@ -123,7 +195,8 @@ impl AnalysisSession {
 
     fn apply_work(&mut self, work: AnalysisWork) {
         match work {
-            AnalysisWork::ResolveRef(_) | AnalysisWork::ProbeSelect(_) => {}
+            AnalysisWork::ResolveRef(_) => {}
+            AnalysisWork::ProbeSelect(select_id) => self.probe_select(select_id),
             AnalysisWork::ApplyRefResolution { ref_id, target } => {
                 self.poly.resolve_ref(ref_id, target);
                 if let Some(use_site) = self.refs.get(ref_id).copied() {
@@ -135,24 +208,39 @@ impl AnalysisSession {
                 }
             }
             AnalysisWork::ApplySelectionResolution { select_id, target } => {
+                if self.poly.select(select_id).resolution.is_some() {
+                    return;
+                }
+                let name = self.poly.select(select_id).name.clone();
                 self.poly.resolve_select(select_id, target.resolution());
                 let Some(use_site) = self.selections.get(select_id).copied() else {
                     return;
                 };
+                self.scc.apply(SccInput::MethodDependencyResolved {
+                    parent: use_site.parent,
+                });
                 match target {
-                    SelectionTarget::RecordField => {}
+                    SelectionTarget::RecordField => {
+                        self.constrain_record_field_selection(
+                            use_site.receiver_value,
+                            &name,
+                            use_site.method_value,
+                        );
+                    }
                     SelectionTarget::Method { def } => {
+                        let method_value = self.fresh_method_use(use_site);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
-                            use_value: use_site.method_value,
+                            use_value: method_value,
                         });
                     }
                     SelectionTarget::TypeclassMethod { member } => {
+                        let method_value = self.fresh_method_use(use_site);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: member,
-                            use_value: use_site.method_value,
+                            use_value: method_value,
                         });
                     }
                 }
@@ -160,6 +248,212 @@ impl AnalysisSession {
             AnalysisWork::Scc(input) => self.scc.apply(input),
         }
         self.route_scc_events();
+    }
+
+    fn probe_select(&mut self, select_id: SelectId) {
+        if self.poly.select(select_id).resolution.is_some() {
+            return;
+        }
+        let Some(use_site) = self.selections.get(select_id).copied() else {
+            return;
+        };
+        let name = self.poly.select(select_id).name.clone();
+        let Some(target) = self.probe_select_var(
+            select_id,
+            use_site.receiver_value,
+            &name,
+            &mut FxHashSet::default(),
+        ) else {
+            return;
+        };
+        self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+    }
+
+    fn probe_select_var(
+        &mut self,
+        select_id: SelectId,
+        var: TypeVar,
+        name: &str,
+        visited: &mut FxHashSet<TypeVar>,
+    ) -> Option<SelectionTarget> {
+        if !visited.insert(var) {
+            return None;
+        }
+        let lowers = self
+            .infer
+            .constraints()
+            .bounds()
+            .of(var)?
+            .lowers()
+            .iter()
+            .map(|bound| bound.pos)
+            .collect::<Vec<_>>();
+        for lower in lowers {
+            if let Some(target) = self.probe_select_pos(select_id, lower, name, visited) {
+                return Some(target);
+            }
+        }
+        None
+    }
+
+    fn probe_select_pos(
+        &mut self,
+        select_id: SelectId,
+        pos: PosId,
+        name: &str,
+        visited: &mut FxHashSet<TypeVar>,
+    ) -> Option<SelectionTarget> {
+        match self.infer.constraints().types().pos(pos).clone() {
+            Pos::Var(var) => self.probe_select_var(select_id, var, name, visited),
+            Pos::Con(path, args) if is_ref_path(&path) => {
+                let payload = self.ref_payload_probe(&args)?;
+                self.selections.watch_ref_payload(payload.var, select_id);
+                self.probe_ref_select_pos(select_id, payload.lower, name, visited)
+                    .or_else(|| self.probe_ref_select_var(select_id, payload.var, name, visited))
+            }
+            Pos::Con(path, _) => self.value_method_for_receiver(&path, name),
+            Pos::Union(left, right) => self
+                .probe_select_pos(select_id, left, name, visited)
+                .or_else(|| self.probe_select_pos(select_id, right, name, visited)),
+            Pos::NonSubtract(pos, _) => self.probe_select_pos(select_id, pos, name, visited),
+            Pos::Bot
+            | Pos::Fun { .. }
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_)
+            | Pos::Row(_) => None,
+        }
+    }
+
+    fn probe_ref_select_var(
+        &mut self,
+        select_id: SelectId,
+        var: TypeVar,
+        name: &str,
+        visited: &mut FxHashSet<TypeVar>,
+    ) -> Option<SelectionTarget> {
+        if !visited.insert(var) {
+            return None;
+        }
+        let lowers = self
+            .infer
+            .constraints()
+            .bounds()
+            .of(var)?
+            .lowers()
+            .iter()
+            .map(|bound| bound.pos)
+            .collect::<Vec<_>>();
+        for lower in lowers {
+            if let Some(target) = self.probe_ref_select_pos(select_id, lower, name, visited) {
+                return Some(target);
+            }
+        }
+        None
+    }
+
+    fn probe_ref_select_pos(
+        &mut self,
+        select_id: SelectId,
+        pos: PosId,
+        name: &str,
+        visited: &mut FxHashSet<TypeVar>,
+    ) -> Option<SelectionTarget> {
+        match self.infer.constraints().types().pos(pos).clone() {
+            Pos::Var(var) => self.probe_ref_select_var(select_id, var, name, visited),
+            Pos::Con(path, _) => self.ref_method_for_receiver(&path, name),
+            Pos::Union(left, right) => self
+                .probe_ref_select_pos(select_id, left, name, visited)
+                .or_else(|| self.probe_ref_select_pos(select_id, right, name, visited)),
+            Pos::NonSubtract(pos, _) => self.probe_ref_select_pos(select_id, pos, name, visited),
+            Pos::Bot
+            | Pos::Fun { .. }
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_)
+            | Pos::Row(_) => None,
+        }
+    }
+
+    fn value_method_for_receiver(
+        &self,
+        receiver: &[String],
+        name: &str,
+    ) -> Option<SelectionTarget> {
+        let candidates = self.methods.value_candidates(receiver, name);
+        method_target_from_candidates(candidates)
+    }
+
+    fn ref_method_for_receiver(&self, receiver: &[String], name: &str) -> Option<SelectionTarget> {
+        let candidates = self.methods.ref_candidates(receiver, name);
+        method_target_from_candidates(candidates)
+    }
+
+    fn ref_payload_probe(&self, args: &[poly::types::NeuId]) -> Option<RefPayloadProbe> {
+        let payload = args.get(1)?;
+        match self.infer.constraints().types().neu(*payload) {
+            Neu::Bounds(lower, var, _) => Some(RefPayloadProbe {
+                lower: *lower,
+                var: *var,
+            }),
+            Neu::Con(_, _)
+            | Neu::Fun { .. }
+            | Neu::Record(_)
+            | Neu::PolyVariant(_)
+            | Neu::Tuple(_) => None,
+        }
+    }
+
+    fn constrain_record_field_selection(
+        &mut self,
+        receiver_value: TypeVar,
+        name: &str,
+        result_value: TypeVar,
+    ) {
+        let result = self.infer.alloc_neg(Neg::Var(result_value));
+        let field = RecordField {
+            name: name.to_string(),
+            value: result,
+            optional: false,
+        };
+        let record = self.infer.alloc_neg(Neg::Record(vec![field]));
+        let receiver = self.infer.alloc_pos(Pos::Var(receiver_value));
+        self.infer.subtype(receiver, record);
+    }
+
+    fn constrain_method_selection_call(
+        &mut self,
+        method_value: TypeVar,
+        receiver_value: TypeVar,
+        result_value: TypeVar,
+    ) {
+        let receiver = self.infer.alloc_pos(Pos::Var(receiver_value));
+        let result = self.infer.alloc_neg(Neg::Var(result_value));
+        let arg_eff = self.infer.alloc_pos(Pos::Bot);
+        let ret_eff_tail = self.infer.alloc_neg(Neg::Top);
+        let ret_eff = self.infer.alloc_neg(Neg::Row(Vec::new(), ret_eff_tail));
+        let method = self.infer.alloc_pos(Pos::Var(method_value));
+        let upper = self.infer.alloc_neg(Neg::Fun {
+            arg: receiver,
+            arg_eff,
+            ret_eff,
+            ret: result,
+        });
+        self.infer.subtype(method, upper);
+    }
+
+    fn fresh_method_use(&mut self, use_site: SelectionUse) -> TypeVar {
+        let method_value = self.infer.fresh_type_var();
+        self.constrain_method_selection_call(
+            method_value,
+            use_site.receiver_value,
+            use_site.method_value,
+        );
+        method_value
     }
 
     fn route_scc_events(&mut self) {
@@ -493,6 +787,25 @@ fn def_parent_map(poly: &PolyArena) -> FxHashMap<DefId, DefId> {
     parents
 }
 
+fn is_ref_path(path: &[String]) -> bool {
+    matches!(path, [name] if name == "ref")
+}
+
+fn method_target_from_candidates(
+    candidates: &[crate::methods::TypeMethodCandidate],
+) -> Option<SelectionTarget> {
+    match candidates {
+        [candidate] => Some(SelectionTarget::Method { def: candidate.def }),
+        [] | [_, ..] => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RefPayloadProbe {
+    lower: PosId,
+    var: TypeVar,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// `AnalysisSession` の work queue に積む作業。
 ///
@@ -699,6 +1012,166 @@ mod tests {
     }
 
     #[test]
+    fn method_selection_resolves_when_receiver_lower_bound_has_method() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("display");
+        let parent = DefId(1);
+        let method = DefId(2);
+        let receiver = TypeVar(3);
+        let method_value = TypeVar(4);
+        session.register_selection_use(
+            select,
+            SelectionUse {
+                parent,
+                receiver_value: receiver,
+                method_value,
+            },
+        );
+        session
+            .methods
+            .insert_value(vec!["int".to_string()], "display", method);
+
+        let lower = session
+            .infer
+            .alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let upper = session.infer.alloc_neg(Neg::Var(receiver));
+        session.infer.subtype(lower, upper);
+        session.drain_work();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+        assert!(session.take_scc_events().iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::ComponentEdgeAdded {
+                    from,
+                    to,
+                } if from == &vec![parent] && to == &vec![method]
+            )
+        }));
+    }
+
+    #[test]
+    fn method_registration_probes_existing_receiver_lower_bounds() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("display");
+        let parent = DefId(1);
+        let method = DefId(2);
+        let receiver = TypeVar(3);
+        let method_value = TypeVar(4);
+        session.register_selection_use(
+            select,
+            SelectionUse {
+                parent,
+                receiver_value: receiver,
+                method_value,
+            },
+        );
+        let lower = session
+            .infer
+            .alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let upper = session.infer.alloc_neg(Neg::Var(receiver));
+        session.infer.subtype(lower, upper);
+        session.drain_work();
+
+        assert_eq!(session.poly.select(select).resolution, None);
+
+        session.register_value_type_method(vec!["int".to_string()], "display", method);
+        session.drain_work();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
+    fn method_selection_probes_ref_payload_lower_bounds() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("display");
+        let parent = DefId(1);
+        let method = DefId(2);
+        let receiver = TypeVar(3);
+        let method_value = TypeVar(4);
+        let payload = TypeVar(5);
+        let effect = TypeVar(6);
+        session.register_selection_use(
+            select,
+            SelectionUse {
+                parent,
+                receiver_value: receiver,
+                method_value,
+            },
+        );
+        session
+            .methods
+            .insert_ref(vec!["int".to_string()], "display", method);
+
+        let int = session
+            .infer
+            .alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let payload_upper = session.infer.alloc_neg(Neg::Var(payload));
+        session.infer.subtype(int, payload_upper);
+        let effect_arg = infer_bounds_neu(&mut session.infer, effect);
+        let payload_arg = infer_bounds_neu(&mut session.infer, payload);
+        let ref_lower = session
+            .infer
+            .alloc_pos(Pos::Con(vec!["ref".into()], vec![effect_arg, payload_arg]));
+        let receiver_upper = session.infer.alloc_neg(Neg::Var(receiver));
+        session.infer.subtype(ref_lower, receiver_upper);
+        session.drain_work();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
+    fn unresolved_selection_falls_back_to_record_field_constraint_in_final_phase() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("size");
+        let parent = DefId(1);
+        let receiver = TypeVar(2);
+        let result = TypeVar(3);
+        session.register_selection_use(
+            select,
+            SelectionUse {
+                parent,
+                receiver_value: receiver,
+                method_value: result,
+            },
+        );
+
+        session.resolve_unresolved_selections_as_record_fields();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::RecordField)
+        );
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(receiver)
+            .expect("record fallback should constrain receiver");
+        assert!(bounds.uppers().iter().any(|bound| {
+            matches!(
+                session.infer.constraints().types().neg(bound.neg),
+                Neg::Record(fields)
+                    if fields.len() == 1
+                        && fields[0].name == "size"
+                        && matches!(
+                            session.infer.constraints().types().neg(fields[0].value),
+                            Neg::Var(var) if *var == result
+                        )
+            )
+        }));
+    }
+
+    #[test]
     fn open_scc_use_adds_target_to_use_constraint() {
         let mut session = AnalysisSession::new(PolyArena::new());
         let a = DefId(1);
@@ -746,11 +1219,15 @@ mod tests {
         let a_to_b_neg = session.infer.alloc_neg(Neg::Var(a_to_b_use));
         let bounds = session.infer.constraints().bounds();
         let use_bounds = bounds.of(a_to_b_use).expect("use bounds");
-        assert!(use_bounds.lowers().iter().any(|bound| bound.pos == b_root_pos
-            && bound.weights == ConstraintWeights::empty()));
+        assert!(use_bounds
+            .lowers()
+            .iter()
+            .any(|bound| bound.pos == b_root_pos && bound.weights == ConstraintWeights::empty()));
         let target_bounds = bounds.of(b_root).expect("target root bounds");
-        assert!(target_bounds.uppers().iter().any(|bound| bound.neg == a_to_b_neg
-            && bound.weights == ConstraintWeights::empty()));
+        assert!(target_bounds
+            .uppers()
+            .iter()
+            .any(|bound| bound.neg == a_to_b_neg && bound.weights == ConstraintWeights::empty()));
 
         assert!(session.take_scc_events().iter().any(|event| {
             matches!(
