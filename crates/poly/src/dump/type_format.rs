@@ -7,8 +7,8 @@
 use rustc_hash::FxHashMap;
 
 use crate::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, SubtractId, TypeArena,
-    TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, SchemeSubtractFact,
+    SubtractId, Subtractability, TypeArena, TypeVar,
 };
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
@@ -138,22 +138,16 @@ impl<'a> TypeFormatter<'a> {
 
     fn format_scheme(mut self, scheme: &Scheme) -> String {
         let mut body = self.pos(scheme.predicate, Context::Free);
-        if !scheme.role_predicates.is_empty() {
-            let predicates = scheme
+        let mut predicates = Vec::new();
+        predicates.extend(
+            scheme
                 .role_predicates
                 .iter()
-                .map(|predicate| self.role_predicate(predicate))
-                .collect::<Vec<_>>()
-                .join(", ");
-            body = format!("{predicates} => {body}");
-        }
-        if !scheme.subtracts.is_empty() {
-            let facts = scheme
-                .subtracts
-                .iter()
-                .map(|(var, subtract)| self.subtract_fact(*var, *subtract))
-                .collect::<Vec<_>>()
-                .join(", ");
+                .map(|predicate| self.role_predicate(predicate)),
+        );
+        predicates.extend(scheme.subtracts.iter().map(|fact| self.subtract_fact(fact)));
+        if !predicates.is_empty() {
+            let facts = predicates.join(", ");
             body.push_str(" where ");
             body.push_str(&facts);
         }
@@ -161,19 +155,103 @@ impl<'a> TypeFormatter<'a> {
     }
 
     fn role_predicate(&mut self, predicate: &RolePredicate) -> String {
-        let mut args = predicate
+        let role = path_name(&predicate.role);
+        let mut inputs = predicate
             .inputs
             .iter()
-            .map(|arg| self.neu(*arg, Context::Free))
+            .map(|arg| self.render_neu(*arg))
             .collect::<Vec<_>>();
-        args.extend(predicate.associated.iter().map(|associated| {
-            format!(
-                "{} = {}",
-                associated.name,
-                self.neu(associated.value, Context::Free)
-            )
-        }));
-        format!("{}({})", path_name(&predicate.role), args.join(", "))
+        let associated = predicate
+            .associated
+            .iter()
+            .map(|associated| {
+                format!(
+                    "{} = {}",
+                    associated.name,
+                    self.neu(associated.value, Context::Free)
+                )
+            })
+            .collect::<Vec<_>>();
+
+        if inputs.is_empty() {
+            return self.role_call(role, inputs, associated);
+        }
+
+        let subject = inputs.remove(0).in_context(Context::FunctionArg);
+        let role = self.role_call(role, inputs, associated);
+        format!("{subject}: {role}")
+    }
+
+    fn role_call(&mut self, role: String, args: Vec<Rendered>, associated: Vec<String>) -> String {
+        if args.is_empty() && associated.is_empty() {
+            return role;
+        }
+
+        if associated.is_empty() && !args.iter().any(|arg| arg.has_bare_space) {
+            let mut parts = vec![role];
+            parts.extend(args.into_iter().map(|arg| arg.in_context(Context::MlArg)));
+            return parts.join(" ");
+        }
+
+        let mut parts = args.into_iter().map(|arg| arg.text).collect::<Vec<_>>();
+        parts.extend(associated);
+        format!("{}({})", role, parts.join(", "))
+    }
+
+    fn subtract_fact(&mut self, fact: &SchemeSubtractFact) -> String {
+        format!(
+            "{}: {}{}",
+            self.namer.name(fact.var),
+            self.subtractability_name(&fact.subtractability),
+            self.subtract_id(fact.id)
+        )
+    }
+
+    fn subtractability_name(&mut self, subtractability: &Subtractability) -> String {
+        match subtractability {
+            Subtractability::Empty => "empty-subtract".to_string(),
+            Subtractability::All => "all-subtract".to_string(),
+            Subtractability::AllExcept(path, args) => {
+                format!("{}-except-subtract", self.subtractability_head(path, args))
+            }
+            Subtractability::Set(path, args) => {
+                format!("{}-subtract", self.subtractability_head(path, args))
+            }
+        }
+    }
+
+    fn subtractability_head(&mut self, path: &[String], args: &[NeuId]) -> String {
+        let rendered = self.render_subtractability_con(path, args);
+        if rendered.has_bare_space || rendered.text.chars().any(char::is_whitespace) {
+            format!("[{}]", rendered.in_context(Context::Free))
+        } else {
+            rendered.in_context(Context::Free)
+        }
+    }
+
+    fn render_subtractability_con(&mut self, path: &[String], args: &[NeuId]) -> Rendered {
+        let name = subtractability_path_name(path);
+        if args.is_empty() {
+            return Rendered::atom(name);
+        }
+
+        let args = args
+            .iter()
+            .map(|arg| self.render_neu(*arg))
+            .collect::<Vec<_>>();
+        if args.iter().any(|arg| arg.has_bare_space) {
+            let args = args
+                .into_iter()
+                .map(|arg| arg.text)
+                .collect::<Vec<_>>()
+                .join(", ");
+            Rendered::apply_c(format!("{name}({args})"))
+        } else {
+            let mut parts = Vec::with_capacity(args.len() + 1);
+            parts.push(name);
+            parts.extend(args.into_iter().map(|arg| arg.in_context(Context::MlArg)));
+            Rendered::apply_ml(parts.join(" "))
+        }
     }
 
     fn pos(&mut self, id: PosId, context: Context) -> String {
@@ -215,11 +293,15 @@ impl<'a> TypeFormatter<'a> {
                 Rendered::atom(self.tuple(items, |this, id| this.pos(id, Context::Free)))
             }
             Pos::Row(items) => Rendered::atom(format!("'{}", self.pos_row_items(items))),
-            Pos::NonSubtract(pos, subtract) => Rendered::atom(format!(
-                "non-subtract({}, {})",
-                self.pos(*pos, Context::Free),
-                self.subtract_id(*subtract)
-            )),
+            Pos::NonSubtract(pos, subtract) => {
+                let inner = self.render_pos(*pos);
+                let inner = if inner.prec == Prec::Atom && !inner.has_bare_space {
+                    inner.text
+                } else {
+                    format!("({})", inner.text)
+                };
+                Rendered::atom(format!("{}{}", inner, self.subtract_id(*subtract)))
+            }
             Pos::Union(left, right) => {
                 let parts = self.flatten_pos_union(*left, *right);
                 Rendered::union(parts.join(" | "))
@@ -579,14 +661,6 @@ impl<'a> TypeFormatter<'a> {
                 && matches!(self.arena.neg(upper), Neg::Var(upper_var) if *upper_var == var)
     }
 
-    fn subtract_fact(&mut self, var: TypeVar, subtract: SubtractId) -> String {
-        format!(
-            "subtract({}, {})",
-            self.namer.name(var),
-            self.subtract_id(subtract)
-        )
-    }
-
     fn subtract_id(&self, subtract: SubtractId) -> String {
         format!("#{}", subtract.0)
     }
@@ -644,8 +718,23 @@ fn path_name(path: &[String]) -> String {
         .join("::")
 }
 
+fn subtractability_path_name(path: &[String]) -> String {
+    path.iter()
+        .map(|segment| subtractability_surface_name(segment))
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
 fn surface_name(name: &str) -> String {
     if is_plain_name(name) {
+        name.to_string()
+    } else {
+        format!("{name:?}")
+    }
+}
+
+fn subtractability_surface_name(name: &str) -> String {
+    if is_plain_name(name) || is_sigil_name(name) {
         name.to_string()
     } else {
         format!("{name:?}")
@@ -659,6 +748,14 @@ fn is_plain_name(name: &str) -> bool {
     };
     (first == '_' || first.is_ascii_alphabetic())
         && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
+fn is_sigil_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    matches!(first, '&' | '$') && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
 }
 
 fn letter_name(mut index: usize) -> String {
@@ -702,6 +799,7 @@ mod tests {
         let scheme = Scheme {
             quantifiers: vec![a, b],
             role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -742,6 +840,7 @@ mod tests {
         let scheme = Scheme {
             quantifiers: vec![a, b],
             role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -766,6 +865,7 @@ mod tests {
         let scheme = Scheme {
             quantifiers: vec![a],
             role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -829,15 +929,50 @@ mod tests {
         let scheme = Scheme {
             quantifiers: vec![a],
             role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
             predicate,
-            subtracts: vec![(a, SubtractId(2))],
+            subtracts: vec![crate::types::SchemeSubtractFact {
+                var: a,
+                id: SubtractId(2),
+                subtractability: crate::types::Subtractability::Empty,
+            }],
         };
 
-        assert_eq!(format_scheme(&arena, &scheme), "'a where subtract('a, #2)");
+        assert_eq!(
+            format_scheme(&arena, &scheme),
+            "'a where 'a: empty-subtract#2"
+        );
     }
 
     #[test]
-    fn formats_role_predicates_before_scheme_body() {
+    fn brackets_subtractability_head_with_bare_space() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let neu_a = plain_neu(&mut arena, a);
+        let predicate = arena.alloc_pos(Pos::Var(a));
+        let scheme = Scheme {
+            quantifiers: vec![a],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            predicate,
+            subtracts: vec![crate::types::SchemeSubtractFact {
+                var: a,
+                id: SubtractId(2),
+                subtractability: crate::types::Subtractability::Set(
+                    vec!["&var".into()],
+                    vec![neu_a],
+                ),
+            }],
+        };
+
+        assert_eq!(
+            format_scheme(&arena, &scheme),
+            "'a where 'a: [&var 'a]-subtract#2"
+        );
+    }
+
+    #[test]
+    fn formats_role_predicates_as_scheme_where_suffix() {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);
         let b = TypeVar(1);
@@ -856,14 +991,25 @@ mod tests {
                     value: neu_c,
                 }],
             }],
+            recursive_bounds: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
 
         assert_eq!(
             format_scheme(&arena, &scheme),
-            "Mul('a, 'b, out = 'c) => 'c"
+            "'c where 'a: Mul('b, out = 'c)"
         );
+    }
+
+    #[test]
+    fn formats_non_subtract_as_weight_suffix() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, SubtractId(1)));
+
+        assert_eq!(format_pos(&arena, weighted), "'a#1");
     }
 
     fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {

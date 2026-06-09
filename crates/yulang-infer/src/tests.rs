@@ -2299,6 +2299,29 @@ fn where_clause_in_binding_body_adds_role_constraint_from_header_type_scope() {
 }
 
 #[test]
+fn where_clause_direct_form_adds_role_constraint_from_header_type_scope() {
+    let state = parse_and_lower(
+        "role Add 'a:\n  our a.add: 'a -> 'a\n\n\
+             my twice(x: 'a) =\n  where Add 'a\n  x.add x\n",
+    );
+    let twice_def = state
+        .ctx
+        .resolve_value(&symbols::Name("twice".to_string()))
+        .unwrap();
+    let constraints = state.infer.role_constraints_of(twice_def);
+    assert!(
+        constraints.iter().any(|constraint| {
+            constraint.role
+                == symbols::Path {
+                    segments: vec![symbols::Name("Add".to_string())],
+                }
+                && constraint.args.len() == 1
+        }),
+        "direct where predicate should add Add<'a> to the binding owner, got {constraints:?}",
+    );
+}
+
+#[test]
 fn where_clause_in_role_body_is_inherited_by_role_methods() {
     let state = parse_and_lower(
         "role Display 'a:\n  our a.display: string\n\n\

@@ -214,6 +214,7 @@ impl AnalysisSession {
             let ancestors = ancestors.iter().collect::<Vec<_>>();
             let finalized = finalize_generalized_compact_root_with_ancestors(
                 &mut self.poly.typ,
+                self.infer.constraints(),
                 &scheme,
                 &ancestors,
             );
@@ -542,7 +543,10 @@ mod tests {
     };
     use crate::uses::{RefUse, SelectionUse};
     use poly::expr::{Arena as PolyArena, Expr, Lit, Vis};
-    use poly::types::{Neg, Neu, NeuId, Pos, Scheme, SubtractId, TypeVar};
+    use poly::types::{
+        Neg, Neu, NeuId, Pos, Scheme, SchemeRecursiveBound, SchemeSubtractFact, SubtractId,
+        Subtractability, TypeVar,
+    };
 
     #[test]
     fn lower_bound_events_route_receiver_and_ref_payload_select_watchers() {
@@ -603,6 +607,7 @@ mod tests {
             Scheme {
                 quantifiers: vec![result],
                 role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
                 predicate: cast_predicate,
                 subtracts: Vec::new(),
             },
@@ -812,6 +817,7 @@ mod tests {
                 scheme: Some(Scheme {
                     quantifiers: vec![quantified],
                     role_predicates: Vec::new(),
+                    recursive_bounds: Vec::new(),
                     predicate,
                     subtracts: Vec::new(),
                 }),
@@ -848,6 +854,138 @@ mod tests {
             session.infer.constraints().level_of(fresh),
             TypeLevel::root()
         );
+    }
+
+    #[test]
+    fn instantiate_use_freshens_non_subtract_weight_ids() {
+        let mut poly = PolyArena::new();
+        let def = poly.defs.fresh();
+        let quantified = TypeVar(42);
+        let source_subtract = SubtractId(99);
+        let inner = poly.typ.alloc_pos(Pos::Var(quantified));
+        let predicate = poly.typ.alloc_pos(Pos::NonSubtract(inner, source_subtract));
+        poly.defs.set(
+            def,
+            Def::Let {
+                vis: Vis::My,
+                scheme: Some(Scheme {
+                    quantifiers: vec![quantified],
+                    role_predicates: Vec::new(),
+                    recursive_bounds: Vec::new(),
+                    predicate,
+                    subtracts: vec![SchemeSubtractFact {
+                        var: quantified,
+                        id: source_subtract,
+                        subtractability: Subtractability::Empty,
+                    }],
+                }),
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        let mut session = AnalysisSession::new(poly);
+        let use_value = TypeVar(10);
+        session
+            .infer
+            .constraints_mut()
+            .register_type_var(use_value, TypeLevel::root());
+
+        session.instantiate_use(def, use_value);
+
+        let use_bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(use_value)
+            .expect("use value should receive instantiated lower bound");
+        let (fresh_var, fresh_subtract) = use_bounds
+            .lowers()
+            .iter()
+            .find_map(
+                |bound| match session.infer.constraints().types().pos(bound.pos) {
+                    Pos::Var(var) if !bound.weights.left.is_empty() => {
+                        Some((*var, bound.weights.left.iter().next().unwrap()))
+                    }
+                    _ => None,
+                },
+            )
+            .expect("non-subtract should add a fresh left weight to the instantiated bound");
+        assert_ne!(fresh_var, quantified);
+        assert_ne!(fresh_subtract, source_subtract);
+        assert!(
+            session
+                .infer
+                .constraints()
+                .subtracts()
+                .facts(fresh_var)
+                .iter()
+                .any(|fact| fact.id == fresh_subtract
+                    && matches!(fact.subtractability, Subtractability::Empty))
+        );
+    }
+
+    #[test]
+    fn instantiate_use_restores_recursive_bounds_for_fresh_quantifier() {
+        let mut poly = PolyArena::new();
+        let def = poly.defs.fresh();
+        let quantified = TypeVar(42);
+        let predicate = poly.typ.alloc_pos(Pos::Var(quantified));
+        let int = poly.typ.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let top = poly.typ.alloc_neg(Neg::Top);
+        let bounds = poly.typ.alloc_neu(Neu::Bounds(int, quantified, top));
+        poly.defs.set(
+            def,
+            Def::Let {
+                vis: Vis::My,
+                scheme: Some(Scheme {
+                    quantifiers: vec![quantified],
+                    role_predicates: Vec::new(),
+                    recursive_bounds: vec![SchemeRecursiveBound {
+                        var: quantified,
+                        bounds,
+                    }],
+                    predicate,
+                    subtracts: Vec::new(),
+                }),
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        let mut session = AnalysisSession::new(poly);
+        let use_value = TypeVar(10);
+        session
+            .infer
+            .constraints_mut()
+            .register_type_var(use_value, TypeLevel::root());
+
+        session.instantiate_use(def, use_value);
+
+        let use_bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(use_value)
+            .expect("use value should receive instantiated lower bound");
+        let fresh = use_bounds
+            .lowers()
+            .iter()
+            .find_map(
+                |bound| match session.infer.constraints().types().pos(bound.pos) {
+                    Pos::Var(var) if *var != quantified => Some(*var),
+                    _ => None,
+                },
+            )
+            .expect("scheme quantifier should be freshened");
+        let fresh_bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(fresh)
+            .expect("recursive bounds should be restored onto the fresh var");
+        assert!(fresh_bounds.lowers().iter().any(|bound| matches!(
+            session.infer.constraints().types().pos(bound.pos),
+            Pos::Con(path, args) if path.len() == 1 && path[0] == "int" && args.is_empty()
+        )));
     }
 
     #[test]
@@ -1326,6 +1464,7 @@ mod tests {
         Scheme {
             quantifiers: Vec::new(),
             role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         }
@@ -1352,6 +1491,7 @@ mod tests {
         Scheme {
             quantifiers: vec![quantified],
             role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         }

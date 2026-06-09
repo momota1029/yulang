@@ -78,6 +78,7 @@ mod tests {
             Scheme {
                 quantifiers: Vec::new(),
                 role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
                 predicate: PosId(0),
                 subtracts: Vec::new(),
             },

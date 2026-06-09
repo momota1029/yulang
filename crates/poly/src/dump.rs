@@ -521,6 +521,7 @@ mod tests {
                 scheme: Some(Scheme {
                     quantifiers: vec![var],
                     role_predicates: Vec::new(),
+                    recursive_bounds: Vec::new(),
                     predicate,
                     subtracts: Vec::new(),
                 }),

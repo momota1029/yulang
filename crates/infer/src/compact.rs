@@ -11,7 +11,8 @@
 use std::mem;
 
 use poly::types::{
-    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, TypeArena, TypeVar,
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SchemeRecursiveBound, TypeArena,
+    TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -88,13 +89,7 @@ pub(crate) struct CompactRoleAssociatedType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FinalizedCompactRoot {
     pub(crate) root: PosId,
-    pub(crate) rec_vars: Vec<FinalizedCompactRecursiveVar>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct FinalizedCompactRecursiveVar {
-    pub(crate) var: TypeVar,
-    pub(crate) bounds: NeuId,
+    pub(crate) rec_vars: Vec<SchemeRecursiveBound>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -614,7 +609,7 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
         let rec_vars = root
             .rec_vars
             .iter()
-            .map(|rec| FinalizedCompactRecursiveVar {
+            .map(|rec| SchemeRecursiveBound {
                 var: rec.var,
                 bounds: self.finalize_bounds(&rec.bounds),
             })

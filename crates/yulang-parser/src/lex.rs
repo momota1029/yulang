@@ -301,7 +301,7 @@ pub enum SyntaxKind {
     OpDefHeader = 562,
     OpDefBody = 563,
     Root = 564,
-    WhereConstraint = 565,
+    WherePredicate = 565,
     TypeVars = 566,
     TypePolyVariant = 567,
     TypePolyVariantItem = 568,

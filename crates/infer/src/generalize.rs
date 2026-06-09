@@ -6,7 +6,8 @@
 #![allow(dead_code)]
 
 use poly::types::{
-    Neu, NeuId, RoleAssociatedType, RolePredicate, Scheme, SubtractId, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate, Scheme,
+    SchemeRecursiveBound, SchemeSubtractFact, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -14,9 +15,9 @@ use crate::compact::{
     CompactBounds, CompactCon, CompactFun, CompactPolyVariant, CompactRecord, CompactRecordSpread,
     CompactRecursiveVar, CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactRow,
     CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
-    CompactVar, CompactVarSubstitution, FinalizedCompactRecursiveVar, compact_type_var,
-    finalize_compact_bounds, finalize_compact_root, finalize_compact_type,
-    finalize_compact_type_to_neg, merge_compact_types, simplify_compact_root_with_roles,
+    CompactVar, CompactVarSubstitution, compact_type_var, finalize_compact_bounds,
+    finalize_compact_root, finalize_compact_type, finalize_compact_type_to_neg,
+    merge_compact_types, simplify_compact_root_with_roles,
 };
 use crate::constraints::{ConstraintMachine, ConstraintWeight, TypeLevel};
 
@@ -32,7 +33,7 @@ pub(crate) struct GeneralizedCompactRoot {
 
 pub(crate) struct FinalizedGeneralizedCompactRoot {
     pub(crate) scheme: Scheme,
-    pub(crate) rec_vars: Vec<FinalizedCompactRecursiveVar>,
+    pub(crate) rec_vars: Vec<SchemeRecursiveBound>,
 }
 
 pub(crate) fn generalize_type_var(
@@ -122,16 +123,19 @@ fn generalize_compact_root_with_simplification(
 
 pub(crate) fn finalize_generalized_compact_root(
     types: &mut TypeArena,
+    machine: &ConstraintMachine,
     root: &GeneralizedCompactRoot,
 ) -> FinalizedGeneralizedCompactRoot {
     let finalized = finalize_compact_root(types, &root.compact);
     let role_predicates = finalize_compact_role_predicates(types, &root.role_predicates);
+    let subtracts = finalize_scheme_subtracts(types, machine, &root.subtracts);
     FinalizedGeneralizedCompactRoot {
         scheme: Scheme {
             quantifiers: root.quantifiers.clone(),
             role_predicates,
+            recursive_bounds: finalized.rec_vars.clone(),
             predicate: finalized.root,
-            subtracts: root.subtracts.clone(),
+            subtracts,
         },
         rec_vars: finalized.rec_vars,
     }
@@ -173,6 +177,262 @@ fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> Neu
     let lower = finalize_compact_type(types, &arg.lower);
     let upper = finalize_compact_type_to_neg(types, &arg.upper);
     types.alloc_neu(Neu::Bounds(lower, self_var, upper))
+}
+
+fn finalize_scheme_subtracts(
+    types: &mut TypeArena,
+    machine: &ConstraintMachine,
+    subtracts: &[(TypeVar, SubtractId)],
+) -> Vec<SchemeSubtractFact> {
+    subtracts
+        .iter()
+        .map(|(var, id)| {
+            let fact = machine
+                .subtracts()
+                .facts(*var)
+                .iter()
+                .find(|fact| fact.id == *id)
+                .or_else(|| machine.subtracts().fact_by_id(*id))
+                .expect("generalized subtract fact should exist in the source machine");
+            SchemeSubtractFact {
+                var: *var,
+                id: *id,
+                subtractability: clone_subtractability(
+                    machine.types(),
+                    types,
+                    &fact.subtractability,
+                ),
+            }
+        })
+        .collect()
+}
+
+fn clone_subtractability(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    subtractability: &Subtractability,
+) -> Subtractability {
+    match subtractability {
+        Subtractability::Empty => Subtractability::Empty,
+        Subtractability::All => Subtractability::All,
+        Subtractability::AllExcept(path, args) => Subtractability::AllExcept(
+            path.clone(),
+            args.iter()
+                .map(|arg| clone_neu_between_arenas(source, target, *arg))
+                .collect(),
+        ),
+        Subtractability::Set(path, args) => Subtractability::Set(
+            path.clone(),
+            args.iter()
+                .map(|arg| clone_neu_between_arenas(source, target, *arg))
+                .collect(),
+        ),
+    }
+}
+
+fn clone_pos_between_arenas(source: &TypeArena, target: &mut TypeArena, id: PosId) -> PosId {
+    let pos = match source.pos(id).clone() {
+        Pos::Bot => Pos::Bot,
+        Pos::Var(var) => Pos::Var(var),
+        Pos::Con(path, args) => Pos::Con(
+            path,
+            args.into_iter()
+                .map(|arg| clone_neu_between_arenas(source, target, arg))
+                .collect(),
+        ),
+        Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Pos::Fun {
+            arg: clone_neg_between_arenas(source, target, arg),
+            arg_eff: clone_neg_between_arenas(source, target, arg_eff),
+            ret_eff: clone_pos_between_arenas(source, target, ret_eff),
+            ret: clone_pos_between_arenas(source, target, ret),
+        },
+        Pos::Record(fields) => Pos::Record(clone_fields_between_arenas(
+            source,
+            target,
+            fields,
+            clone_pos_between_arenas,
+        )),
+        Pos::RecordTailSpread { fields, tail } => Pos::RecordTailSpread {
+            fields: clone_fields_between_arenas(source, target, fields, clone_pos_between_arenas),
+            tail: clone_pos_between_arenas(source, target, tail),
+        },
+        Pos::RecordHeadSpread { tail, fields } => Pos::RecordHeadSpread {
+            tail: clone_pos_between_arenas(source, target, tail),
+            fields: clone_fields_between_arenas(source, target, fields, clone_pos_between_arenas),
+        },
+        Pos::PolyVariant(items) => Pos::PolyVariant(
+            items
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| clone_pos_between_arenas(source, target, payload))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Pos::Tuple(items) => Pos::Tuple(
+            items
+                .into_iter()
+                .map(|item| clone_pos_between_arenas(source, target, item))
+                .collect(),
+        ),
+        Pos::Row(items) => Pos::Row(
+            items
+                .into_iter()
+                .map(|item| clone_pos_between_arenas(source, target, item))
+                .collect(),
+        ),
+        Pos::NonSubtract(pos, subtract) => {
+            Pos::NonSubtract(clone_pos_between_arenas(source, target, pos), subtract)
+        }
+        Pos::Union(left, right) => Pos::Union(
+            clone_pos_between_arenas(source, target, left),
+            clone_pos_between_arenas(source, target, right),
+        ),
+    };
+    target.alloc_pos(pos)
+}
+
+fn clone_neg_between_arenas(source: &TypeArena, target: &mut TypeArena, id: NegId) -> NegId {
+    let neg = match source.neg(id).clone() {
+        Neg::Top => Neg::Top,
+        Neg::Bot => Neg::Bot,
+        Neg::Var(var) => Neg::Var(var),
+        Neg::Con(path, args) => Neg::Con(
+            path,
+            args.into_iter()
+                .map(|arg| clone_neu_between_arenas(source, target, arg))
+                .collect(),
+        ),
+        Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Neg::Fun {
+            arg: clone_pos_between_arenas(source, target, arg),
+            arg_eff: clone_pos_between_arenas(source, target, arg_eff),
+            ret_eff: clone_neg_between_arenas(source, target, ret_eff),
+            ret: clone_neg_between_arenas(source, target, ret),
+        },
+        Neg::Record(fields) => Neg::Record(clone_fields_between_arenas(
+            source,
+            target,
+            fields,
+            clone_neg_between_arenas,
+        )),
+        Neg::PolyVariant(items) => Neg::PolyVariant(
+            items
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| clone_neg_between_arenas(source, target, payload))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Neg::Tuple(items) => Neg::Tuple(
+            items
+                .into_iter()
+                .map(|item| clone_neg_between_arenas(source, target, item))
+                .collect(),
+        ),
+        Neg::Row(items, tail) => Neg::Row(
+            items
+                .into_iter()
+                .map(|item| clone_neg_between_arenas(source, target, item))
+                .collect(),
+            clone_neg_between_arenas(source, target, tail),
+        ),
+        Neg::Intersection(left, right) => Neg::Intersection(
+            clone_neg_between_arenas(source, target, left),
+            clone_neg_between_arenas(source, target, right),
+        ),
+    };
+    target.alloc_neg(neg)
+}
+
+fn clone_neu_between_arenas(source: &TypeArena, target: &mut TypeArena, id: NeuId) -> NeuId {
+    let neu = match source.neu(id).clone() {
+        Neu::Bounds(lower, var, upper) => Neu::Bounds(
+            clone_pos_between_arenas(source, target, lower),
+            var,
+            clone_neg_between_arenas(source, target, upper),
+        ),
+        Neu::Con(path, args) => Neu::Con(
+            path,
+            args.into_iter()
+                .map(|arg| clone_neu_between_arenas(source, target, arg))
+                .collect(),
+        ),
+        Neu::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Neu::Fun {
+            arg: clone_neu_between_arenas(source, target, arg),
+            arg_eff: clone_neu_between_arenas(source, target, arg_eff),
+            ret_eff: clone_neu_between_arenas(source, target, ret_eff),
+            ret: clone_neu_between_arenas(source, target, ret),
+        },
+        Neu::Record(fields) => Neu::Record(clone_fields_between_arenas(
+            source,
+            target,
+            fields,
+            clone_neu_between_arenas,
+        )),
+        Neu::PolyVariant(items) => Neu::PolyVariant(
+            items
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| clone_neu_between_arenas(source, target, payload))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Neu::Tuple(items) => Neu::Tuple(
+            items
+                .into_iter()
+                .map(|item| clone_neu_between_arenas(source, target, item))
+                .collect(),
+        ),
+    };
+    target.alloc_neu(neu)
+}
+
+fn clone_fields_between_arenas<Id: Copy>(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    fields: Vec<RecordField<Id>>,
+    clone_value: fn(&TypeArena, &mut TypeArena, Id) -> Id,
+) -> Vec<RecordField<Id>> {
+    fields
+        .into_iter()
+        .map(|field| RecordField {
+            name: field.name,
+            value: clone_value(source, target, field.value),
+            optional: field.optional,
+        })
+        .collect()
 }
 
 fn exact_compact_role_arg_bounds(arg: &CompactRoleArg) -> Option<CompactBounds> {
@@ -271,6 +531,7 @@ fn single_var_in_type(ty: &CompactType) -> Option<TypeVar> {
 
 pub(crate) fn finalize_generalized_compact_root_with_ancestors(
     types: &mut TypeArena,
+    machine: &ConstraintMachine,
     root: &GeneralizedCompactRoot,
     ancestors: &[&GeneralizedCompactRoot],
 ) -> FinalizedGeneralizedCompactRoot {
@@ -278,7 +539,7 @@ pub(crate) fn finalize_generalized_compact_root_with_ancestors(
     apply_ancestor_simplifications(&mut root, ancestors);
     prune_dead_quantifiers(&mut root);
     prune_existing_subtracts(&mut root);
-    finalize_generalized_compact_root(types, &root)
+    finalize_generalized_compact_root(types, machine, &root)
 }
 
 pub(crate) fn quantified_vars(
@@ -1656,6 +1917,38 @@ mod tests {
     }
 
     #[test]
+    fn finalized_scheme_keeps_subtractability_in_poly_scheme() {
+        let mut machine = ConstraintMachine::new();
+        let effect = TypeVar(2);
+        let subtract = SubtractId(3);
+        machine.register_type_var(effect, TypeLevel::root().child());
+        machine.subtract_fact(
+            effect,
+            subtract,
+            Subtractability::Set(vec!["io".into()], Vec::new()),
+        );
+        let root = CompactRoot {
+            root: CompactType::from_var(CompactVar::plain(effect)),
+            rec_vars: Vec::new(),
+        };
+        let generalized =
+            generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        let mut types = TypeArena::new();
+
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+
+        assert_eq!(finalized.scheme.subtracts.len(), 1);
+        let fact = &finalized.scheme.subtracts[0];
+        assert_eq!(fact.var, effect);
+        assert_eq!(fact.id, subtract);
+        assert!(matches!(
+            &fact.subtractability,
+            Subtractability::Set(path, args)
+                if path == &vec!["io".to_string()] && args.is_empty()
+        ));
+    }
+
+    #[test]
     fn subtract_is_pruned_when_every_covariant_position_is_non_subtract() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
@@ -1877,11 +2170,48 @@ mod tests {
             generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
         let mut types = TypeArena::new();
 
-        let finalized = finalize_generalized_compact_root(&mut types, &generalized);
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
         assert_eq!(finalized.scheme.quantifiers, vec![var]);
         assert!(pos_contains_var(&types, finalized.scheme.predicate, var));
         assert!(compact_type_contains_var(&generalized.compact.root, var));
+    }
+
+    #[test]
+    fn finalized_generalized_root_moves_recursive_bounds_into_scheme() {
+        let mut machine = ConstraintMachine::new();
+        let var = TypeVar(1);
+        machine.register_type_var(var, TypeLevel::root().child());
+        let root = CompactRoot {
+            root: CompactType::from_var(CompactVar::plain(var)),
+            rec_vars: vec![CompactRecursiveVar {
+                var,
+                bounds: CompactBounds::Interval {
+                    self_var: var,
+                    lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
+                    upper: CompactType::default(),
+                },
+            }],
+        };
+        let generalized =
+            generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        let mut types = TypeArena::new();
+
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+
+        assert_eq!(finalized.scheme.recursive_bounds, finalized.rec_vars);
+        assert_eq!(finalized.scheme.recursive_bounds.len(), 1);
+        assert_eq!(finalized.scheme.recursive_bounds[0].var, var);
+        assert!(matches!(
+            types.neu(finalized.scheme.recursive_bounds[0].bounds),
+            poly::types::Neu::Bounds(lower, self_var, _)
+                if *self_var == var
+                    && matches!(
+                        types.pos(*lower),
+                        poly::types::Pos::Con(path, args)
+                            if path.len() == 1 && path[0] == "int" && args.is_empty()
+                    )
+        ));
     }
 
     #[test]
@@ -1910,7 +2240,7 @@ mod tests {
             &FxHashSet::default(),
         );
         let mut types = TypeArena::new();
-        let finalized = finalize_generalized_compact_root(&mut types, &generalized);
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
         assert_eq!(finalized.scheme.quantifiers, vec![role_var]);
         assert_eq!(finalized.scheme.role_predicates.len(), 1);
@@ -1992,8 +2322,13 @@ mod tests {
         };
         let mut types = TypeArena::new();
 
-        let finalized =
-            finalize_generalized_compact_root_with_ancestors(&mut types, &child, &[&ancestor]);
+        let machine = ConstraintMachine::new();
+        let finalized = finalize_generalized_compact_root_with_ancestors(
+            &mut types,
+            &machine,
+            &child,
+            &[&ancestor],
+        );
 
         assert!(finalized.scheme.quantifiers.is_empty());
         assert!(matches!(

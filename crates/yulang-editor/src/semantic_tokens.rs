@@ -256,7 +256,7 @@ fn classify_ident(
     let parent_kind = parent.kind();
 
     // Type variable list: 'a, 'b, ...
-    if parent_kind == SyntaxKind::TypeVars || parent_kind == SyntaxKind::WhereConstraint {
+    if parent_kind == SyntaxKind::TypeVars || parent_kind == SyntaxKind::WherePredicate {
         return Some((start, len, TYPE_PARAMETER));
     }
 

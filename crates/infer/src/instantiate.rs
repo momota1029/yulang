@@ -45,10 +45,11 @@ impl<'a> SchemeInstantiator<'a> {
         for var in &scheme.quantifiers {
             self.fresh_var(*var);
         }
-        for (_, subtract) in &scheme.subtracts {
-            self.fresh_subtract(*subtract);
+        for fact in &scheme.subtracts {
+            self.fresh_subtract(fact.id);
         }
         self.clone_scheme_subtract_facts(scheme);
+        self.clone_recursive_bounds(scheme);
         self.clone_pos(scheme.predicate)
     }
 
@@ -218,31 +219,13 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn clone_scheme_subtract_facts(&mut self, scheme: &Scheme) {
-        for (source_var, source_id) in &scheme.subtracts {
-            let Some(subtractability) = self.source_subtractability(*source_var, *source_id) else {
-                continue;
-            };
-            let target_var = self.clone_var(*source_var);
-            let target_id = self.clone_subtract(*source_id);
-            let subtractability = self.clone_subtractability(subtractability);
+        for fact in &scheme.subtracts {
+            let target_var = self.clone_var(fact.var);
+            let target_id = self.clone_subtract(fact.id);
+            let subtractability = self.clone_subtractability(fact.subtractability.clone());
             self.target
                 .subtract_fact(target_var, target_id, subtractability);
         }
-    }
-
-    fn source_subtractability(
-        &self,
-        source_var: TypeVar,
-        source_id: SubtractId,
-    ) -> Option<Subtractability> {
-        self.target
-            .constraints()
-            .subtracts()
-            .facts(source_var)
-            .iter()
-            .find(|fact| fact.id == source_id)
-            .or_else(|| self.target.constraints().subtracts().fact_by_id(source_id))
-            .map(|fact| fact.subtractability.clone())
     }
 
     fn clone_subtractability(&mut self, subtractability: Subtractability) -> Subtractability {
@@ -257,6 +240,113 @@ impl<'a> SchemeInstantiator<'a> {
                 names,
                 types.into_iter().map(|ty| self.clone_neu(ty)).collect(),
             ),
+        }
+    }
+
+    fn clone_recursive_bounds(&mut self, scheme: &Scheme) {
+        for bound in &scheme.recursive_bounds {
+            let target_var = self.clone_var(bound.var);
+            let target_bounds = self.clone_neu(bound.bounds);
+            let (lower, upper) = self.project_neu_bounds(target_bounds);
+            let target_neg = self.target.alloc_neg(Neg::Var(target_var));
+            self.target.subtype(lower, target_neg);
+            let target_pos = self.target.alloc_pos(Pos::Var(target_var));
+            self.target.subtype(target_pos, upper);
+        }
+    }
+
+    fn project_neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {
+        match self.target.constraints().types().neu(id).clone() {
+            Neu::Bounds(lower, var, upper) => {
+                let var_pos = self.target.alloc_pos(Pos::Var(var));
+                let var_neg = self.target.alloc_neg(Neg::Var(var));
+                (
+                    self.target.alloc_pos(Pos::Union(lower, var_pos)),
+                    self.target.alloc_neg(Neg::Intersection(var_neg, upper)),
+                )
+            }
+            Neu::Con(path, args) => (
+                self.target.alloc_pos(Pos::Con(path.clone(), args.clone())),
+                self.target.alloc_neg(Neg::Con(path, args)),
+            ),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let (arg_pos, arg_neg) = self.project_neu_bounds(arg);
+                let (arg_eff_pos, arg_eff_neg) = self.project_neu_bounds(arg_eff);
+                let (ret_eff_pos, ret_eff_neg) = self.project_neu_bounds(ret_eff);
+                let (ret_pos, ret_neg) = self.project_neu_bounds(ret);
+                (
+                    self.target.alloc_pos(Pos::Fun {
+                        arg: arg_neg,
+                        arg_eff: arg_eff_neg,
+                        ret_eff: ret_eff_pos,
+                        ret: ret_pos,
+                    }),
+                    self.target.alloc_neg(Neg::Fun {
+                        arg: arg_pos,
+                        arg_eff: arg_eff_pos,
+                        ret_eff: ret_eff_neg,
+                        ret: ret_neg,
+                    }),
+                )
+            }
+            Neu::Record(fields) => {
+                let mut pos = Vec::with_capacity(fields.len());
+                let mut neg = Vec::with_capacity(fields.len());
+                for field in fields {
+                    let (lower, upper) = self.project_neu_bounds(field.value);
+                    pos.push(RecordField {
+                        name: field.name.clone(),
+                        value: lower,
+                        optional: field.optional,
+                    });
+                    neg.push(RecordField {
+                        name: field.name,
+                        value: upper,
+                        optional: field.optional,
+                    });
+                }
+                (
+                    self.target.alloc_pos(Pos::Record(pos)),
+                    self.target.alloc_neg(Neg::Record(neg)),
+                )
+            }
+            Neu::PolyVariant(items) => {
+                let mut pos = Vec::with_capacity(items.len());
+                let mut neg = Vec::with_capacity(items.len());
+                for (name, payloads) in items {
+                    let mut pos_payloads = Vec::with_capacity(payloads.len());
+                    let mut neg_payloads = Vec::with_capacity(payloads.len());
+                    for payload in payloads {
+                        let (lower, upper) = self.project_neu_bounds(payload);
+                        pos_payloads.push(lower);
+                        neg_payloads.push(upper);
+                    }
+                    pos.push((name.clone(), pos_payloads));
+                    neg.push((name, neg_payloads));
+                }
+                (
+                    self.target.alloc_pos(Pos::PolyVariant(pos)),
+                    self.target.alloc_neg(Neg::PolyVariant(neg)),
+                )
+            }
+            Neu::Tuple(items) => {
+                let mut pos = Vec::with_capacity(items.len());
+                let mut neg = Vec::with_capacity(items.len());
+                for item in items {
+                    let (lower, upper) = self.project_neu_bounds(item);
+                    pos.push(lower);
+                    neg.push(upper);
+                }
+                (
+                    self.target.alloc_pos(Pos::Tuple(pos)),
+                    self.target.alloc_neg(Neg::Tuple(neg)),
+                )
+            }
         }
     }
 
