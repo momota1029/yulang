@@ -19,7 +19,8 @@ use yulang_parser::sink::YulangLanguage;
 use poly::dump::DumpLabels;
 use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Vis};
 use poly::types::{
-    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeVar,
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SubtractId, Subtractability,
+    TypeVar,
 };
 use rustc_hash::FxHashMap;
 
@@ -179,7 +180,7 @@ impl BodyLowerer {
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
-                | SyntaxKind::ErrorDecl => self.lower_type_decl_with_body(&child, module),
+                | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, module),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, module),
                 SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, module),
@@ -286,13 +287,18 @@ impl BodyLowerer {
         self.session.infer.restore_level(previous_level);
     }
 
-    fn lower_type_decl_with_body(&mut self, node: &Cst, module: ModuleId) {
+    fn lower_type_decl(&mut self, node: &Cst, module: ModuleId) {
         let Some(name) = crate::type_decl_name(node) else {
             return;
         };
         let Some(decl) = self.next_type_decl(module, &name) else {
             return;
         };
+        self.lower_type_constructors(node, module, &decl);
+        self.lower_type_decl_with_body(node, &decl);
+    }
+
+    fn lower_type_decl_with_body(&mut self, node: &Cst, decl: &ModuleTypeDecl) {
         let Some(body) = crate::type_with_body(node) else {
             return;
         };
@@ -329,6 +335,213 @@ impl BodyLowerer {
             }
         }
         self.local_method_scope = previous_scope;
+    }
+
+    fn lower_type_constructors(&mut self, node: &Cst, module: ModuleId, decl: &ModuleTypeDecl) {
+        match decl.kind {
+            ModuleTypeKind::Struct => {
+                let payload = ConstructorPayload::from_struct(node);
+                self.lower_constructor_def(node, module, decl, decl.name.clone(), payload);
+            }
+            ModuleTypeKind::Enum | ModuleTypeKind::Error => {
+                for variant in crate::enum_variant_nodes(node) {
+                    let Some(name) = crate::enum_variant_name(&variant) else {
+                        continue;
+                    };
+                    let payload = ConstructorPayload::from_enum_variant(&variant);
+                    self.lower_constructor_def(node, module, decl, name, payload);
+                }
+            }
+            ModuleTypeKind::TypeAlias | ModuleTypeKind::Role | ModuleTypeKind::Act => {}
+        }
+    }
+
+    fn lower_constructor_def(
+        &mut self,
+        owner_node: &Cst,
+        module: ModuleId,
+        owner: &ModuleTypeDecl,
+        name: Name,
+        payload: ConstructorPayload,
+    ) {
+        let Some(constructor) = self.next_value_decl(module, &name) else {
+            self.errors
+                .push(BodyLoweringError::MissingBindingDecl { name });
+            return;
+        };
+
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(constructor.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: constructor.def,
+                root,
+            }));
+
+        let lowered = self.lower_constructor_type(owner_node, module, owner, payload);
+        match lowered {
+            Ok(predicate) => {
+                let root_upper = self.session.infer.alloc_neg(Neg::Var(root));
+                self.session.infer.subtype(predicate, root_upper);
+                self.session
+                    .enqueue(AnalysisWork::Scc(SccInput::DefFinished {
+                        def: constructor.def,
+                    }));
+            }
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: constructor.def,
+                name,
+                error,
+            }),
+        }
+
+        self.session.infer.restore_level(previous_level);
+    }
+
+    fn lower_constructor_type(
+        &mut self,
+        owner_node: &Cst,
+        module: ModuleId,
+        owner: &ModuleTypeDecl,
+        payload: ConstructorPayload,
+    ) -> Result<PosId, LoweringError> {
+        let type_vars = crate::type_var_names(owner_node);
+        let owner_arg_vars = type_vars
+            .iter()
+            .map(|_| self.session.infer.fresh_type_var())
+            .collect::<Vec<_>>();
+        let mut ann_builder = AnnTypeBuilder::with_self_alias(
+            &self.modules,
+            module,
+            owner.order,
+            AnnSelfAlias {
+                owner: owner.id,
+                type_vars: type_vars.clone(),
+            },
+        );
+        let mut ann_solver_vars = FxHashMap::default();
+        for (name, solver_var) in type_vars.iter().zip(owner_arg_vars.iter().copied()) {
+            let ann_var = ann_builder.ann_type_var_for_role(name);
+            ann_solver_vars.insert(ann_var.id, solver_var);
+        }
+
+        let payload = build_constructor_payload_annotations(payload, &mut ann_builder)?;
+        drop(ann_builder);
+
+        let owner_args = owner_arg_vars
+            .into_iter()
+            .map(|var| self.invariant_var_arg(var))
+            .collect::<Vec<_>>();
+        let args = self.prepare_constructor_args(payload);
+        let vars = std::mem::take(&mut ann_solver_vars);
+        let mut ann_lowerer =
+            AnnConstraintLowerer::with_vars(&mut self.session.infer, &self.modules, vars);
+        connect_constructor_arg_annotations(&mut ann_lowerer, &args)?;
+        let _ = ann_lowerer.into_vars();
+
+        self.constrain_constructor_arg_shapes(&args);
+        let path = self
+            .modules
+            .type_decl_path(owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let ret = self.session.infer.alloc_pos(Pos::Con(path, owner_args));
+        Ok(self.constructor_function_type(args, ret))
+    }
+
+    fn prepare_constructor_args(
+        &mut self,
+        payload: AnnotatedConstructorPayload,
+    ) -> Vec<ConstructorArg> {
+        match payload {
+            AnnotatedConstructorPayload::Unit => Vec::new(),
+            AnnotatedConstructorPayload::Tuple(items) => items
+                .into_iter()
+                .map(|item| self.prepare_constructor_value_arg(item))
+                .collect(),
+            AnnotatedConstructorPayload::Record(fields) => {
+                let record = self.session.infer.fresh_type_var();
+                let fields = fields
+                    .into_iter()
+                    .map(|field| {
+                        let value = self.session.infer.fresh_type_var();
+                        ConstructorRecordField {
+                            name: field.name.0,
+                            value,
+                            ann: field.ann,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                vec![ConstructorArg::Record {
+                    value: record,
+                    fields,
+                }]
+            }
+        }
+    }
+
+    fn prepare_constructor_value_arg(
+        &mut self,
+        item: AnnotatedConstructorPayloadItem,
+    ) -> ConstructorArg {
+        let value = self.session.infer.fresh_type_var();
+        ConstructorArg::Value {
+            value,
+            ann: item.ann,
+        }
+    }
+
+    fn constrain_constructor_arg_shapes(&mut self, args: &[ConstructorArg]) {
+        for arg in args {
+            let ConstructorArg::Record { value, fields } = arg else {
+                continue;
+            };
+            let lower_fields = fields
+                .iter()
+                .map(|field| RecordField {
+                    name: field.name.clone(),
+                    value: self.session.infer.alloc_pos(Pos::Var(field.value)),
+                    optional: false,
+                })
+                .collect();
+            let upper_fields = fields
+                .iter()
+                .map(|field| RecordField {
+                    name: field.name.clone(),
+                    value: self.session.infer.alloc_neg(Neg::Var(field.value)),
+                    optional: false,
+                })
+                .collect();
+            let lower = self.session.infer.alloc_pos(Pos::Record(lower_fields));
+            let upper = self.session.infer.alloc_neg(Neg::Record(upper_fields));
+            let value_upper = self.session.infer.alloc_neg(Neg::Var(*value));
+            let value_lower = self.session.infer.alloc_pos(Pos::Var(*value));
+            self.session.infer.subtype(lower, value_upper);
+            self.session.infer.subtype(value_lower, upper);
+        }
+    }
+
+    fn constructor_function_type(&mut self, args: Vec<ConstructorArg>, ret: PosId) -> PosId {
+        args.into_iter().rev().fold(ret, |ret, arg| {
+            let arg = self.session.infer.alloc_neg(Neg::Var(arg.value()));
+            let arg_eff = self.session.infer.alloc_neg(Neg::Bot);
+            let ret_eff = self.session.infer.alloc_pos(Pos::Bot);
+            self.session.infer.alloc_pos(Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            })
+        })
+    }
+
+    fn invariant_var_arg(&mut self, var: TypeVar) -> NeuId {
+        let lower = self.session.infer.alloc_pos(Pos::Var(var));
+        let upper = self.session.infer.alloc_neg(Neg::Var(var));
+        self.session.infer.alloc_neu(Neu::Bounds(lower, var, upper))
     }
 
     fn lower_act_decl_body(&mut self, node: &Cst, module: ModuleId) {
@@ -528,9 +741,7 @@ impl BodyLowerer {
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
-                | SyntaxKind::ErrorDecl => {
-                    self.lower_type_decl_with_body(&child, impl_decl.body_module)
-                }
+                | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, impl_decl.body_module),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, impl_decl.body_module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, impl_decl.body_module),
                 _ => {}
@@ -2610,6 +2821,176 @@ enum LambdaScope {
     Anonymous,
 }
 
+enum ConstructorPayload {
+    Unit,
+    Tuple(Vec<ConstructorPayloadItem>),
+    Record(Vec<ConstructorRecordPayloadField>),
+}
+
+impl ConstructorPayload {
+    fn from_struct(node: &Cst) -> Self {
+        let fields = crate::struct_field_nodes(node);
+        payload_from_fields(fields)
+    }
+
+    fn from_enum_variant(node: &Cst) -> Self {
+        let fields = crate::enum_variant_field_nodes(node);
+        if !fields.is_empty() {
+            return payload_from_fields(fields);
+        }
+        let items = crate::enum_variant_direct_type_exprs(node)
+            .into_iter()
+            .map(|ty| ConstructorPayloadItem { ty: Some(ty) })
+            .collect::<Vec<_>>();
+        if items.is_empty() {
+            Self::Unit
+        } else {
+            Self::Tuple(items)
+        }
+    }
+}
+
+struct ConstructorPayloadItem {
+    ty: Option<Cst>,
+}
+
+struct ConstructorRecordPayloadField {
+    name: Name,
+    ty: Option<Cst>,
+}
+
+enum AnnotatedConstructorPayload {
+    Unit,
+    Tuple(Vec<AnnotatedConstructorPayloadItem>),
+    Record(Vec<AnnotatedConstructorRecordPayloadField>),
+}
+
+struct AnnotatedConstructorPayloadItem {
+    ann: Option<AnnType>,
+}
+
+struct AnnotatedConstructorRecordPayloadField {
+    name: Name,
+    ann: Option<AnnType>,
+}
+
+enum ConstructorArg {
+    Value {
+        value: TypeVar,
+        ann: Option<AnnType>,
+    },
+    Record {
+        value: TypeVar,
+        fields: Vec<ConstructorRecordField>,
+    },
+}
+
+impl ConstructorArg {
+    fn value(&self) -> TypeVar {
+        match self {
+            ConstructorArg::Value { value, .. } | ConstructorArg::Record { value, .. } => *value,
+        }
+    }
+}
+
+struct ConstructorRecordField {
+    name: String,
+    value: TypeVar,
+    ann: Option<AnnType>,
+}
+
+fn build_constructor_payload_annotations(
+    payload: ConstructorPayload,
+    ann_builder: &mut AnnTypeBuilder,
+) -> Result<AnnotatedConstructorPayload, LoweringError> {
+    match payload {
+        ConstructorPayload::Unit => Ok(AnnotatedConstructorPayload::Unit),
+        ConstructorPayload::Tuple(items) => items
+            .into_iter()
+            .map(|item| {
+                let ann = item
+                    .ty
+                    .map(|ty| ann_builder.build_type_expr(&ty))
+                    .transpose()
+                    .map_err(|error| LoweringError::AnnotationBuild { error })?;
+                Ok(AnnotatedConstructorPayloadItem { ann })
+            })
+            .collect::<Result<Vec<_>, LoweringError>>()
+            .map(AnnotatedConstructorPayload::Tuple),
+        ConstructorPayload::Record(fields) => fields
+            .into_iter()
+            .map(|field| {
+                let ann = field
+                    .ty
+                    .map(|ty| ann_builder.build_type_expr(&ty))
+                    .transpose()
+                    .map_err(|error| LoweringError::AnnotationBuild { error })?;
+                Ok(AnnotatedConstructorRecordPayloadField {
+                    name: field.name,
+                    ann,
+                })
+            })
+            .collect::<Result<Vec<_>, LoweringError>>()
+            .map(AnnotatedConstructorPayload::Record),
+    }
+}
+
+fn payload_from_fields(fields: Vec<Cst>) -> ConstructorPayload {
+    if fields.is_empty() {
+        return ConstructorPayload::Unit;
+    }
+
+    let mut record = Vec::new();
+    let mut tuple = Vec::new();
+    for field in fields {
+        if let Some(name) = crate::struct_field_name(&field) {
+            record.push(ConstructorRecordPayloadField {
+                name,
+                ty: crate::field_type_expr(&field),
+            });
+        } else {
+            tuple.push(ConstructorPayloadItem {
+                ty: crate::field_type_expr(&field),
+            });
+        }
+    }
+
+    if !record.is_empty() {
+        ConstructorPayload::Record(record)
+    } else {
+        ConstructorPayload::Tuple(tuple)
+    }
+}
+
+fn connect_constructor_arg_annotations(
+    lowerer: &mut AnnConstraintLowerer,
+    args: &[ConstructorArg],
+) -> Result<(), LoweringError> {
+    for arg in args {
+        match arg {
+            ConstructorArg::Value {
+                value,
+                ann: Some(ann),
+            } => {
+                lowerer
+                    .connect_value(*value, ann)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+            }
+            ConstructorArg::Value { ann: None, .. } => {}
+            ConstructorArg::Record { fields, .. } => {
+                for field in fields {
+                    if let Some(ann) = &field.ann {
+                        lowerer
+                            .connect_value(field.value, ann)
+                            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 struct FunctionPredicateFrame {
     scope: LambdaScope,
     subtracts: Vec<SubtractId>,
@@ -3586,6 +3967,16 @@ mod tests {
         }
     }
 
+    fn def_scheme(output: &BodyLowering, def: DefId) -> &poly::types::Scheme {
+        match output.session.poly.defs.get(def) {
+            Some(Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) => scheme,
+            _ => panic!("expected def scheme"),
+        }
+    }
+
     fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId) {
         let body = binding_body_id(output, method);
         let (pat, body) = match output.session.poly.expr(body) {
@@ -3670,6 +4061,76 @@ mod tests {
             Pos::NonSubtract(_, found) if *found == subtract => {}
             other => panic!("expected non-subtract #{:?}, got {other:?}", subtract),
         }
+    }
+
+    #[test]
+    fn struct_constructor_lowers_to_scheme() {
+        let root = parse("struct Box 'a { value: 'a }\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let constructor = lower.modules.value_decls(module, &Name("Box".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let scheme = def_scheme(&output, constructor);
+        assert_eq!(scheme.quantifiers.len(), 1);
+        let Pos::Fun { ret, .. } = output.session.poly.typ.pos(scheme.predicate) else {
+            panic!("expected unary constructor function");
+        };
+        let Pos::Con(path, args) = output.session.poly.typ.pos(*ret) else {
+            panic!("expected constructor return type");
+        };
+        assert_eq!(path, &vec!["Box".to_string()]);
+        assert_eq!(args.len(), 1);
+    }
+
+    #[test]
+    fn enum_variant_constructor_lowers_to_scheme() {
+        let root = parse("enum opt 'a = none | some 'a\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let none = lower.modules.value_decls(module, &Name("none".into()))[0].def;
+        let some = lower.modules.value_decls(module, &Name("some".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let none_scheme = def_scheme(&output, none);
+        let Pos::Con(path, args) = output.session.poly.typ.pos(none_scheme.predicate) else {
+            panic!("expected nullary enum constructor value");
+        };
+        assert_eq!(path, &vec!["opt".to_string()]);
+        assert_eq!(args.len(), 1);
+
+        let some_scheme = def_scheme(&output, some);
+        let Pos::Fun { ret, .. } = output.session.poly.typ.pos(some_scheme.predicate) else {
+            panic!("expected unary enum constructor function");
+        };
+        let Pos::Con(path, args) = output.session.poly.typ.pos(*ret) else {
+            panic!("expected enum constructor return type");
+        };
+        assert_eq!(path, &vec!["opt".to_string()]);
+        assert_eq!(args.len(), 1);
+    }
+
+    #[test]
+    fn enum_constructor_expression_resolves_reference() {
+        let root = parse("enum opt 'a = some 'a\nmy x = some 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let constructor = lower.modules.value_decls(module, &Name("some".into()))[0].def;
+        let (x, _) = binding_def_and_order(&lower.modules, module, "x");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, x);
+        let Expr::App(callee, _) = output.session.poly.expr(body) else {
+            panic!("expected constructor application");
+        };
+        let reference = expr_ref(&output.session, *callee);
+        assert_eq!(output.session.poly.ref_target(reference), Some(constructor));
     }
 
     #[test]

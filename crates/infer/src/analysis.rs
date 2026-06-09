@@ -1002,11 +1002,7 @@ impl AnalysisSession {
         self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
     }
 
-    fn insert_instantiated_role_predicates(
-        &mut self,
-        owner: DefId,
-        predicates: &[RolePredicate],
-    ) {
+    fn insert_instantiated_role_predicates(&mut self, owner: DefId, predicates: &[RolePredicate]) {
         for predicate in predicates {
             let constraint = self.role_constraint_from_predicate(predicate);
             self.roles.insert(owner, constraint);

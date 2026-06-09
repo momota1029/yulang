@@ -1288,8 +1288,51 @@ impl Lower {
                 | ModuleTypeKind::Enum
                 | ModuleTypeKind::Error
         ) {
+            self.register_type_constructors(node, module, kind, name.clone(), vis, children);
             self.register_type_companion(node, module, name, id, vis, children);
         }
+    }
+
+    fn register_type_constructors(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        kind: ModuleTypeKind,
+        name: Name,
+        vis: Vis,
+        children: &mut Vec<DefId>,
+    ) {
+        match kind {
+            ModuleTypeKind::Struct => {
+                let def = self.register_synthetic_value(module, name, vis);
+                children.push(def);
+            }
+            ModuleTypeKind::Enum | ModuleTypeKind::Error => {
+                for variant in enum_variant_nodes(node) {
+                    let Some(name) = enum_variant_name(&variant) else {
+                        continue;
+                    };
+                    let def = self.register_synthetic_value(module, name, vis);
+                    children.push(def);
+                }
+            }
+            ModuleTypeKind::TypeAlias | ModuleTypeKind::Role | ModuleTypeKind::Act => {}
+        }
+    }
+
+    fn register_synthetic_value(&mut self, module: ModuleId, name: Name, vis: Vis) -> DefId {
+        let def = self.arena.defs.fresh();
+        self.arena.defs.set(
+            def,
+            Def::Let {
+                vis,
+                scheme: None,
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        self.modules.insert_value(module, name, def, vis);
+        def
     }
 
     fn register_role_companion(
@@ -1978,6 +2021,60 @@ pub(crate) fn type_var_names(node: &Cst) -> Vec<String> {
     out
 }
 
+pub(crate) fn struct_field_nodes(node: &Cst) -> Vec<Cst> {
+    let mut out = Vec::new();
+    collect_pre_with_descendants(node, SyntaxKind::StructField, &mut out);
+    out
+}
+
+pub(crate) fn struct_field_name(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::Ident)
+        .map(|token| Name(token.text().to_string()))
+}
+
+pub(crate) fn field_type_expr(node: &Cst) -> Option<Cst> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::TypeExpr)
+}
+
+pub(crate) fn enum_variant_nodes(node: &Cst) -> Vec<Cst> {
+    let mut out = Vec::new();
+    collect_pre_with_descendants(node, SyntaxKind::EnumVariant, &mut out);
+    out
+}
+
+pub(crate) fn enum_variant_name(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::Ident)
+        .map(|token| Name(token.text().to_string()))
+}
+
+pub(crate) fn enum_variant_field_nodes(node: &Cst) -> Vec<Cst> {
+    node.descendants()
+        .filter(|child| child.kind() == SyntaxKind::StructField)
+        .collect()
+}
+
+pub(crate) fn enum_variant_direct_type_exprs(node: &Cst) -> Vec<Cst> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+        .collect()
+}
+
+fn collect_pre_with_descendants(node: &Cst, kind: SyntaxKind, out: &mut Vec<Cst>) {
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::With => break,
+            NodeOrToken::Node(child) if child.kind() == kind => out.push(child),
+            NodeOrToken::Node(child) => collect_pre_with_descendants(&child, kind, out),
+            NodeOrToken::Token(_) => {}
+        }
+    }
+}
+
 fn role_input_names(node: &Cst) -> Vec<String> {
     let Some(type_expr) = child_node(node, SyntaxKind::TypeExpr) else {
         return Vec::new();
@@ -2163,6 +2260,26 @@ mod tests {
     }
 
     #[test]
+    fn registers_struct_and_enum_constructors_as_values() {
+        let cst = parse("struct Box 'a { value: 'a }\nenum opt 'a = none | some 'a\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+
+        assert_eq!(
+            lower.modules.value_decls(root, &Name("Box".into())).len(),
+            1
+        );
+        assert_eq!(
+            lower.modules.value_decls(root, &Name("none".into())).len(),
+            1
+        );
+        assert_eq!(
+            lower.modules.value_decls(root, &Name("some".into())).len(),
+            1
+        );
+    }
+
+    #[test]
     fn role_impl_body_gets_poly_module_identity() {
         let cst = parse("role Eq 'a;\nimpl int: Eq {\n  our x.eq = x\n  my helper = x\n}\n");
         let lower = lower_module_map(&cst);
@@ -2296,14 +2413,26 @@ mod tests {
     }
 
     #[test]
-    fn registers_type_namespace_decls_without_poly_roots() {
+    fn registers_type_namespace_decls_and_constructor_roots() {
         let cst = parse(
             "type Alias\nstruct Record { x: int }\nenum Choice { A }\nerror Failure:\n  bad str\nrole Eq;\nact Console;\nmy value = 1\n",
         );
         let lower = lower_module_map(&cst);
         let root = lower.modules.root_id();
 
-        assert_eq!(lower.arena.roots.len(), 1);
+        assert_eq!(lower.arena.roots.len(), 4);
+        assert_eq!(
+            lower
+                .modules
+                .value_decls(root, &Name("Record".into()))
+                .len(),
+            1
+        );
+        assert_eq!(lower.modules.value_decls(root, &Name("A".into())).len(), 1);
+        assert_eq!(
+            lower.modules.value_decls(root, &Name("bad".into())).len(),
+            1
+        );
         assert_eq!(
             lower.modules.type_decls(root, &Name("Alias".into()))[0].kind,
             ModuleTypeKind::TypeAlias

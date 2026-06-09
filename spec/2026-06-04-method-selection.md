@@ -3,6 +3,13 @@
 
 methodが解決されるまでそのSCCは「method依存である」として解かれることがない。
 
+# impl候補の有効範囲
+`impl`は、その`impl`を含むファイルが読み込まれたときにだけ候補として効く。未読込ファイルに書かれた`impl`は、method選択やrole解決のcandidate tableに入らない。
+
+したがって、method選択とrole解決は、現在のfile SCCから到達して読み込まれたファイル集合を候補集合の境界として扱う。これにより、別file SCCの解析では、そのSCCが読み込んだ`impl`だけを見て解決できる。
+
+`impl`が読み込まれた後の可視性は、通常のmodule visibility / realm visibilityに従う。
+
 # 可変参照のmethod選択について
 - `x.meth`で`x`が`ref<'e,'a>`であった場合、`'a`に対して同様に下界を調べてmethodを探す。
 
