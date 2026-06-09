@@ -8,7 +8,7 @@ use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::op::BpVec;
 use crate::parse::emit_invalid;
 use crate::scan::trivia::scan_trivia;
-use crate::scan::{scan_ident_or_keyword, scan_sigil_ident};
+use crate::scan::{scan_name, scan_sigil_ident};
 use crate::sink::EventSink;
 use crate::stmt::{parse_indent_stmt_block, parse_statement};
 use crate::typ::parse::parse_type;
@@ -301,16 +301,7 @@ fn parse_apply_colon_inline_args<I: EventInput, S: EventSink>(
 }
 
 fn is_path_segment(token: &Token<ExprNudTag>) -> bool {
-    matches!(
-        token.lex.kind,
-        SyntaxKind::Ident
-            | SyntaxKind::SigilIdent
-            | SyntaxKind::Prefix
-            | SyntaxKind::Infix
-            | SyntaxKind::Suffix
-            | SyntaxKind::Nullfix
-            | SyntaxKind::Mod
-    )
+    matches!(token.lex.kind, SyntaxKind::Ident | SyntaxKind::SigilIdent)
 }
 
 fn scan_path_segment_nud<I: EventInput, S: EventSink>(
@@ -320,7 +311,7 @@ fn scan_path_segment_nud<I: EventInput, S: EventSink>(
     let (kind, text) = if let Some(item) = i.maybe_fn(scan_sigil_ident)? {
         item
     } else {
-        i.maybe_fn(scan_ident_or_keyword)??
+        i.maybe_fn(scan_name)??
     };
     let trailing_trivia = i.run(scan_trivia)?;
     Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(ExprNudTag::Atom))

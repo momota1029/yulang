@@ -5,8 +5,8 @@ use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::scan::trivia::scan_trivia;
 use crate::scan::{
-    scan_dot_field, scan_ident_or_keyword, scan_number, scan_punct_pat, scan_sigil_ident,
-    scan_symbol, scan_unknown,
+    scan_dot_field, scan_number, scan_pat_led_word, scan_pat_nud_word, scan_punct_pat,
+    scan_sigil_ident, scan_symbol, scan_unknown, scan_visibility_word,
 };
 use crate::sink::EventSink;
 use crate::string::scan::scan_string_start;
@@ -38,17 +38,39 @@ pub enum PatLedTag {
 
 pub fn scan_pat_nud<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> Option<Token<PatNudTag>> {
+    scan_pat_nud_with_words(leading_info, i, PatWordMode::Pattern)
+}
+
+pub fn scan_visibility_pat_nud<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> Option<Token<PatNudTag>> {
+    scan_pat_nud_with_words(leading_info, i, PatWordMode::Visibility)
+}
+
+#[derive(Debug, Clone, Copy)]
+enum PatWordMode {
+    Pattern,
+    Visibility,
+}
+
+fn scan_pat_nud_with_words<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
     mut i: In<I, S>,
+    word_mode: PatWordMode,
 ) -> Option<Token<PatNudTag>> {
     if let Some(lex) = i.maybe_fn(|i| scan_string_start(leading_info, i))? {
         return Some(lex.tag(PatNudTag::StringStart));
     }
 
     let stop = i.env.stop.clone();
+    let word_stop = stop.clone();
     let (tag, (kind, text)) = i.choice((
         (value(PatNudTag::Atom), scan_number),
         (value(PatNudTag::Atom), scan_sigil_ident),
-        scan_ident_or_keyword.map(|(kind, text)| {
+        from_fn(move |i| scan_nud_word(word_mode, i, &word_stop)).map(|(kind, text)| {
             let tag = match kind {
                 SyntaxKind::Rule => PatNudTag::Rule,
                 kind if !stop.contains(&kind) && matches!(kind, SyntaxKind::Ident) => {
@@ -71,6 +93,17 @@ pub fn scan_pat_nud<I: EventInput, S: EventSink>(
     Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(tag))
 }
 
+fn scan_nud_word<I: EventInput, S: EventSink>(
+    mode: PatWordMode,
+    i: In<I, S>,
+    stop: &im::HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    match mode {
+        PatWordMode::Pattern => scan_pat_nud_word(i, stop),
+        PatWordMode::Visibility => scan_visibility_word(i),
+    }
+}
+
 pub fn scan_pat_led<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
@@ -80,14 +113,16 @@ pub fn scan_pat_led<I: EventInput, S: EventSink>(
     let stop_for_punct = stop.clone();
     let (tag, (kind, text)) = i.choice((
         (value(PatLedTag::DotField), scan_dot_field),
-        scan_ident_or_keyword.map(move |(kind, text)| match kind {
-            SyntaxKind::As => (PatLedTag::KwAs, (kind, text)),
-            kind if stop_for_ident.contains(&kind) => (PatLedTag::Stop, (kind, text)),
-            kind if matches!(kind, SyntaxKind::Ident) => {
-                (PatLedTag::MlNud(PatNudTag::Atom), (kind, text))
-            }
-            _ => (PatLedTag::Stop, (kind, text)),
-        }),
+        from_fn(move |i| scan_pat_led_word(i, &stop_for_ident)).map(
+            move |(kind, text)| match kind {
+                SyntaxKind::As => (PatLedTag::KwAs, (kind, text)),
+                kind if stop.contains(&kind) => (PatLedTag::Stop, (kind, text)),
+                kind if matches!(kind, SyntaxKind::Ident) => {
+                    (PatLedTag::MlNud(PatNudTag::Atom), (kind, text))
+                }
+                _ => (PatLedTag::Stop, (kind, text)),
+            },
+        ),
         from_fn(|i| scan_symbol(leading_info, false, i))
             .map(|(kind, text)| (PatLedTag::MlNud(PatNudTag::Atom), (kind, text))),
         scan_sigil_ident.map(|(kind, text)| (PatLedTag::MlNud(PatNudTag::Atom), (kind, text))),

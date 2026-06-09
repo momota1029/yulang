@@ -4,10 +4,10 @@ use reborrow_generic::Reborrow as _;
 use crate::EventInput;
 use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, TriviaInfo};
-use crate::parse::{DelimitedListMachine, IndentListMachine, emit_invalid};
+use crate::parse::{DelimitedListMachine, IndentListMachine};
 use crate::sink::EventSink;
 
-use super::common::{peek_stmt_lex, scan_stmt_lex};
+use super::common::{peek_stmt_lex, scan_name_lex, scan_stmt_lex};
 use super::role_decl::parse_type_with_stops;
 use super::type_decl::{finish_with_or_stmt_stop, scan_decl_type_vars};
 
@@ -23,16 +23,11 @@ pub(super) fn parse_struct_decl<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&decl_kw);
 
     let mut leading_info = decl_kw.trailing_trivia_info();
-    let Some(name) = scan_stmt_lex(leading_info, i.rb()) else {
+    let Some(name) = scan_name_lex(leading_info, i.rb()) else {
         i.env.state.sink.finish();
         return Some(Either::Left(leading_info));
     };
     leading_info = name.trailing_trivia_info();
-    if name.kind != SyntaxKind::Ident {
-        emit_invalid(i.rb(), name);
-        i.env.state.sink.finish();
-        return Some(Either::Left(leading_info));
-    }
     i.env.state.sink.lex(&name);
 
     let vars = scan_decl_type_vars(i.rb(), leading_info, false)?;
@@ -110,7 +105,7 @@ fn parse_struct_named_field<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     leading_info: TriviaInfo,
 ) -> Option<(TriviaInfo, Option<Lex>)> {
-    let Some(name) = scan_stmt_lex(leading_info, i.rb()) else {
+    let Some(name) = scan_name_lex(leading_info, i.rb()) else {
         return Some((leading_info, None));
     };
     let info = name.trailing_trivia_info();
@@ -118,11 +113,6 @@ fn parse_struct_named_field<I: EventInput, S: EventSink>(
         return Some((info, Some(name)));
     }
     i.env.state.sink.start(SyntaxKind::StructField);
-    if name.kind != SyntaxKind::Ident {
-        emit_invalid(i.rb(), name);
-        i.env.state.sink.finish();
-        return Some((info, None));
-    }
     i.env.state.sink.lex(&name);
 
     if matches!(info, TriviaInfo::Newline { .. }) {

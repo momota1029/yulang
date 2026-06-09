@@ -1,7 +1,7 @@
 use std::str::*
 use std::char::*
 pub use std::ops::*
-pub use std::error::*
+pub use std::control::throw::*
 
 pub nullfix (..) = std::range::full()
 

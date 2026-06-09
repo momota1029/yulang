@@ -34,7 +34,7 @@ pub(crate) fn parse_expr_bp<I: EventInput, S: EventSink>(
     parse_expr_from_nud(min_bp, i, nud)
 }
 
-pub(super) fn parse_expr_from_nud<I: EventInput, S: EventSink>(
+pub(crate) fn parse_expr_from_nud<I: EventInput, S: EventSink>(
     min_bp: Option<&BpVec>,
     mut i: In<I, S>,
     nud: Token<ExprNudTag>,

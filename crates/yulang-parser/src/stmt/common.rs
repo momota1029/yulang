@@ -6,8 +6,8 @@ use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, TriviaInfo};
 use crate::scan::trivia::scan_trivia;
 use crate::scan::{
-    scan_doc_comment_token, scan_ident_or_keyword, scan_number, scan_punct_expr, scan_sigil_ident,
-    scan_unknown,
+    scan_doc_comment_token, scan_ident_or_keyword, scan_name, scan_number, scan_punct_expr,
+    scan_sigil_ident, scan_unknown,
 };
 use crate::sink::EventSink;
 
@@ -23,6 +23,15 @@ pub(crate) fn scan_stmt_lex<I: EventInput, S: EventSink>(
         scan_punct_expr,
         scan_unknown,
     ))?;
+    let trailing = i.run(scan_trivia)?;
+    Some(Lex::new(leading_info, kind, text, trailing))
+}
+
+pub(crate) fn scan_name_lex<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> Option<Lex> {
+    let (kind, text) = scan_name(i.rb())?;
     let trailing = i.run(scan_trivia)?;
     Some(Lex::new(leading_info, kind, text, trailing))
 }

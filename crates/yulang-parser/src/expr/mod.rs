@@ -10,4 +10,4 @@ mod tail;
 
 pub mod scan;
 pub use core::parse_expr;
-pub(crate) use core::parse_expr_bp;
+pub(crate) use core::{parse_expr_bp, parse_expr_from_nud};

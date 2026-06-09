@@ -4,10 +4,9 @@ use reborrow_generic::Reborrow as _;
 use crate::EventInput;
 use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, TriviaInfo};
-use crate::parse::emit_invalid;
 use crate::sink::EventSink;
 
-use super::common::{peek_stmt_lex, scan_stmt_lex};
+use super::common::{peek_stmt_lex, scan_name_lex, scan_stmt_lex};
 use super::type_decl::{finish_with_or_stmt_stop, scan_decl_type_vars};
 
 pub(super) fn parse_error_decl<I: EventInput, S: EventSink>(
@@ -22,16 +21,11 @@ pub(super) fn parse_error_decl<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&decl_kw);
 
     let mut leading_info = decl_kw.trailing_trivia_info();
-    let Some(name) = scan_stmt_lex(leading_info, i.rb()) else {
+    let Some(name) = scan_name_lex(leading_info, i.rb()) else {
         i.env.state.sink.finish();
         return Some(Either::Left(leading_info));
     };
     leading_info = name.trailing_trivia_info();
-    if name.kind != SyntaxKind::Ident {
-        emit_invalid(i.rb(), name);
-        i.env.state.sink.finish();
-        return Some(Either::Left(leading_info));
-    }
     i.env.state.sink.lex(&name);
 
     let vars = scan_decl_type_vars(i.rb(), leading_info, false)?;

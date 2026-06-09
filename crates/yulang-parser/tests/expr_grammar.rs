@@ -115,6 +115,13 @@ fn expr_prefix_not() {
 }
 
 #[test]
+fn expr_contextual_error_is_identifier() {
+    let got = parse_expression("error");
+    let expected = vec!["(Expr", "  Ident \"error\"", ")"];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_loop_control_nullfix_last() {
     let got = parse_expression_with_word_ops("last");
     let expected = vec!["(Expr", "  Nullfix \"last\"", ")"];

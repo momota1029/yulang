@@ -3,12 +3,12 @@ use reborrow_generic::Reborrow as _;
 
 use crate::EventInput;
 use crate::context::In;
-use crate::expr::parse_expr;
+use crate::expr::{parse_expr_from_nud, scan::scan_stmt_head_nud};
 use crate::lex::{Lex, SyntaxKind, TriviaInfo};
 use crate::mark::parse::{parse_doc_body_pub, parse_inline};
 use crate::mark::scan::{BlockNudTag, MarkNudTag};
 use crate::parse::emit_invalid;
-use crate::pat::scan::scan_pat_nud;
+use crate::pat::scan::{scan_pat_nud, scan_visibility_pat_nud};
 use crate::scan::trivia::scan_trivia;
 use crate::sink::EventSink;
 
@@ -39,9 +39,11 @@ pub fn parse_statement<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
 ) -> Option<Either<TriviaInfo, Lex>> {
-    match parse_expr(leading_info, i.rb())? {
-        Either::Left(next_info) => Some(Either::Left(next_info)),
-        Either::Right(stop) => parse_statement_from_stop(i, stop),
+    let nud = scan_stmt_head_nud(leading_info, i.rb())?;
+    match parse_expr_from_nud(None, i.rb(), nud)? {
+        Ok(Either::Left(next_info)) => Some(Either::Left(next_info)),
+        Ok(Either::Right(stop)) => parse_statement_from_stop(i, stop),
+        Err(led) => Some(Either::Right(led.lex)),
     }
 }
 
@@ -136,7 +138,11 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
 ) -> Option<Either<TriviaInfo, Lex>> {
     let next_info = vis_kw.trailing_trivia_info();
 
-    let nud = scan_pat_nud(next_info, i.rb());
+    let nud = if vis_kw.kind == SyntaxKind::My {
+        scan_pat_nud(next_info, i.rb())
+    } else {
+        scan_visibility_pat_nud(next_info, i.rb())
+    };
 
     let Some(nud) = nud else {
         return binding::parse_binding_stmt(i, vis_kw);
@@ -192,9 +198,10 @@ pub fn parse_header_statement<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
 ) -> Option<HeaderStep> {
-    match parse_expr(leading_info, i.rb())? {
-        Either::Left(_) => Some(HeaderStep::Stop),
-        Either::Right(stop) => match stop.kind {
+    let nud = scan_stmt_head_nud(leading_info, i.rb())?;
+    match parse_expr_from_nud(None, i.rb(), nud)? {
+        Ok(Either::Left(_)) => Some(HeaderStep::Stop),
+        Ok(Either::Right(stop)) => match stop.kind {
             SyntaxKind::Use => header_step(use_decl::parse_use_decl(i, None, stop)),
             SyntaxKind::Lazy => header_step(op_def::parse_lazy_op_def_stmt(i, None, stop)),
             SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
@@ -203,6 +210,7 @@ pub fn parse_header_statement<I: EventInput, S: EventSink>(
             SyntaxKind::My | SyntaxKind::Our | SyntaxKind::Pub => parse_header_visibility(i, stop),
             _ => Some(HeaderStep::Stop),
         },
+        Err(_) => Some(HeaderStep::Stop),
     }
 }
 
@@ -213,7 +221,11 @@ fn parse_header_visibility<I: EventInput, S: EventSink>(
     vis_kw: Lex,
 ) -> Option<HeaderStep> {
     let next_info = vis_kw.trailing_trivia_info();
-    let Some(nud) = scan_pat_nud(next_info, i.rb()) else {
+    let Some(nud) = (if vis_kw.kind == SyntaxKind::My {
+        scan_pat_nud(next_info, i.rb())
+    } else {
+        scan_visibility_pat_nud(next_info, i.rb())
+    }) else {
         return Some(HeaderStep::Stop);
     };
     use crate::pat::scan::PatNudTag;

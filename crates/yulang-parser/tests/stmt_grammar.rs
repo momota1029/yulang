@@ -1405,6 +1405,41 @@ fn stmt_error_decl_from_variant() {
 }
 
 #[test]
+fn stmt_contextual_error_can_be_binding_name() {
+    let got = parse_stmt_once("my error = 1");
+    let expected = vec![
+        "(Binding",
+        "  (BindingHeader",
+        "    My \"my\"",
+        "    (Pattern",
+        "      Ident \"error\"",
+        "    )",
+        "    Equal \"=\"",
+        "  )",
+        "  (BindingBody",
+        "    (Expr",
+        "      Number \"1\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_contextual_keyword_can_be_module_name() {
+    let got = parse_stmt_once("mod error;");
+    let expected = vec![
+        "(ModDecl",
+        "  Mod \"mod\"",
+        "  Ident \"error\"",
+        "  Semicolon \";\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_error_decl_four_space_final_underscore_variant() {
     let got = parse_stmt_all(
         "pub error fs_err:\n    not_found str\n    denied str\n    invalid_path str\n\n// comment\npub read_text_or_throw path = x",

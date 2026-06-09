@@ -94,8 +94,8 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
         source: include_str!("../std/char.yu"),
     },
     EmbeddedStdFile {
-        name: "error.yu",
-        source: include_str!("../std/error.yu"),
+        name: "control.yu",
+        source: include_str!("../std/control.yu"),
     },
     EmbeddedStdFile {
         name: "flow.yu",

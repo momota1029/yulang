@@ -1,4 +1,5 @@
 use chasa::prelude::*;
+use im::HashSet;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::EventInput;
@@ -13,6 +14,79 @@ pub fn scan_ident_or_keyword<I: EventInput, S: EventSink>(
 ) -> Option<(SyntaxKind, Box<str>)> {
     let ((), text) = i.run(ident.with_seq())?;
     let kind = keyword_kind(text.as_ref()).unwrap_or(SyntaxKind::Ident);
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_name<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    Some((SyntaxKind::Ident, text.as_ref().into()))
+}
+
+pub fn scan_stmt_head_word<I: EventInput, S: EventSink>(
+    i: In<I, S>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    scan_ident_or_keyword(i)
+}
+
+pub fn scan_visibility_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = visibility_word_kind(text.as_ref());
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_expr_nud_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: &HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = contextual_word_kind(text.as_ref(), stop, is_expr_nud_keyword);
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_expr_led_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: &HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = contextual_word_kind(text.as_ref(), stop, is_expr_led_keyword);
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_pat_nud_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: &HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = contextual_word_kind(text.as_ref(), stop, is_pat_nud_keyword);
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_pat_led_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: &HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = contextual_word_kind(text.as_ref(), stop, is_pat_led_keyword);
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_typ_nud_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: &HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = contextual_word_kind(text.as_ref(), stop, is_typ_nud_keyword);
+    Some((kind, text.as_ref().into()))
+}
+
+pub fn scan_typ_led_word<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: &HashSet<SyntaxKind>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = contextual_word_kind(text.as_ref(), stop, |_| false);
     Some((kind, text.as_ref().into()))
 }
 
@@ -194,4 +268,72 @@ fn keyword_kind(text: &str) -> Option<SyntaxKind> {
         "lazy" => Some(SyntaxKind::Lazy),
         _ => None,
     }
+}
+
+fn contextual_word_kind(
+    text: &str,
+    stop: &HashSet<SyntaxKind>,
+    is_syntax_keyword: impl Fn(SyntaxKind) -> bool,
+) -> SyntaxKind {
+    let Some(kind) = keyword_kind(text) else {
+        return SyntaxKind::Ident;
+    };
+    if stop.contains(&kind) || is_syntax_keyword(kind) {
+        kind
+    } else {
+        SyntaxKind::Ident
+    }
+}
+
+fn visibility_word_kind(text: &str) -> SyntaxKind {
+    match text {
+        "use" => SyntaxKind::Use,
+        "mod" => SyntaxKind::Mod,
+        "type" => SyntaxKind::Type,
+        "struct" => SyntaxKind::Struct,
+        "enum" => SyntaxKind::Enum,
+        "error" => SyntaxKind::Error,
+        "role" => SyntaxKind::Role,
+        "impl" => SyntaxKind::Impl,
+        "cast" => SyntaxKind::Cast,
+        "act" => SyntaxKind::Act,
+        "prefix" => SyntaxKind::Prefix,
+        "infix" => SyntaxKind::Infix,
+        "suffix" => SyntaxKind::Suffix,
+        "nullfix" => SyntaxKind::Nullfix,
+        "lazy" => SyntaxKind::Lazy,
+        _ => SyntaxKind::Ident,
+    }
+}
+
+fn is_expr_nud_keyword(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Do
+            | SyntaxKind::If
+            | SyntaxKind::Else
+            | SyntaxKind::Elsif
+            | SyntaxKind::Case
+            | SyntaxKind::Catch
+            | SyntaxKind::Rule
+    )
+}
+
+fn is_expr_led_keyword(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Do | SyntaxKind::Else | SyntaxKind::Elsif | SyntaxKind::As | SyntaxKind::With
+    )
+}
+
+fn is_pat_nud_keyword(kind: SyntaxKind) -> bool {
+    matches!(kind, SyntaxKind::Rule)
+}
+
+fn is_pat_led_keyword(kind: SyntaxKind) -> bool {
+    matches!(kind, SyntaxKind::As)
+}
+
+fn is_typ_nud_keyword(kind: SyntaxKind) -> bool {
+    matches!(kind, SyntaxKind::For)
 }

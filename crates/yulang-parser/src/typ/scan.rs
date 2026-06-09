@@ -5,7 +5,8 @@ use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::scan::trivia::scan_trivia;
 use crate::scan::{
-    scan_ident_or_keyword, scan_number, scan_punct_typ, scan_sigil_ident, scan_unknown,
+    scan_number, scan_punct_typ, scan_sigil_ident, scan_typ_led_word, scan_typ_nud_word,
+    scan_unknown,
 };
 use crate::sink::EventSink;
 
@@ -41,10 +42,10 @@ pub fn scan_typ_nud<I: EventInput, S: EventSink>(
     let (tag, (kind, text)) = i.choice((
         (value(TypNudTag::Atom), scan_sigil_ident),
         (value(TypNudTag::Atom), scan_number),
-        scan_ident_or_keyword.map(move |(kind, text)| {
+        from_fn(move |i| scan_typ_nud_word(i, &stop_for_ident)).map(move |(kind, text)| {
             let tag = if kind == SyntaxKind::For {
                 TypNudTag::Forall
-            } else if stop_for_ident.contains(&kind) {
+            } else if stop.contains(&kind) {
                 TypNudTag::Stop
             } else {
                 TypNudTag::Atom
@@ -67,6 +68,7 @@ pub fn scan_typ_led<I: EventInput, S: EventSink>(
 ) -> Option<Token<TypLedTag>> {
     let stop = i.env.stop.clone();
     let stop_for_ident = stop.clone();
+    let stop_for_word = stop.clone();
     let stop_for_punct = stop.clone();
     let (tag, (kind, text)) = i.choice((
         (value(TypLedTag::MlNud(TypNudTag::Atom)), scan_sigil_ident),
@@ -75,7 +77,7 @@ pub fn scan_typ_led<I: EventInput, S: EventSink>(
             let tag = read_typ_led_punct(kind, leading_info, &stop_for_punct);
             (tag, (kind, text))
         }),
-        scan_ident_or_keyword.map(move |(kind, text)| {
+        from_fn(move |i| scan_typ_led_word(i, &stop_for_word)).map(move |(kind, text)| {
             let tag = if stop_for_ident.contains(&kind) {
                 TypLedTag::Stop
             } else {

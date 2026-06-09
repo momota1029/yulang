@@ -1,4 +1,4 @@
-use std::error::Throw
+use std::control::throw::Throw
 use std::range::*
 use std::path::*
 use std::var::*

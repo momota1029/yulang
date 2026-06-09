@@ -1,0 +1,4 @@
+pub mod throw:
+    pub role Throw 'e:
+        type throws
+        our e.throw: [throws] never

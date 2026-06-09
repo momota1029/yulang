@@ -8,7 +8,7 @@ use crate::parse::emit_invalid;
 use crate::sink::EventSink;
 
 use super::block::{parse_brace_stmt_block, parse_decl_body_after_colon};
-use super::common::{peek_stmt_lex, scan_stmt_lex};
+use super::common::{peek_stmt_lex, scan_name_lex, scan_stmt_lex};
 use super::impl_decl::parse_impl_after_impl_kw;
 use super::role_decl::{parse_role_like_body, parse_type_with_stops};
 
@@ -30,16 +30,11 @@ pub(super) fn parse_type_decl<I: EventInput, S: EventSink>(
     i.env.state.sink.lex(&decl_kw);
 
     let mut leading_info = decl_kw.trailing_trivia_info();
-    let Some(name) = scan_stmt_lex(leading_info, i.rb()) else {
+    let Some(name) = scan_name_lex(leading_info, i.rb()) else {
         i.env.state.sink.finish();
         return Some(Either::Left(leading_info));
     };
     leading_info = name.trailing_trivia_info();
-    if name.kind != SyntaxKind::Ident {
-        emit_invalid(i.rb(), name);
-        i.env.state.sink.finish();
-        return Some(Either::Left(leading_info));
-    }
     i.env.state.sink.lex(&name);
 
     let mut vars = scan_decl_type_vars(i.rb(), leading_info, true)?;
