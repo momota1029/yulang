@@ -62,9 +62,9 @@ pub struct AnalysisSession {
     pub local_methods: CompanionMethodTable,
     pub scc: SccMachine,
     role_impl_members: FxHashMap<DefId, DefId>,
+    role_impl_member_sets: FxHashMap<DefId, Vec<DefId>>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
-    use_value_owners: FxHashMap<TypeVar, DefId>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
 }
@@ -85,9 +85,9 @@ impl AnalysisSession {
             local_methods: CompanionMethodTable::new(),
             scc: SccMachine::new(),
             role_impl_members: FxHashMap::default(),
+            role_impl_member_sets: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
-            use_value_owners: FxHashMap::default(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
         }
@@ -146,6 +146,11 @@ impl AnalysisSession {
 
     pub fn register_role_impl_member(&mut self, member: DefId, impl_def: DefId) {
         self.role_impl_members.insert(member, impl_def);
+        let members = self.role_impl_member_sets.entry(impl_def).or_default();
+        if !members.contains(&member) {
+            members.push(member);
+            members.sort_by_key(|def| def.0);
+        }
     }
 
     pub fn register_local_value_type_method(
@@ -285,7 +290,6 @@ impl AnalysisSession {
             AnalysisWork::ApplyRefResolution { ref_id, target } => {
                 self.poly.resolve_ref(ref_id, target);
                 if let Some(use_site) = self.refs.get(ref_id).copied() {
-                    self.record_use_value_owner(use_site.parent, use_site.value);
                     self.scc.use_resolved(SccInput::UseResolved {
                         parent: use_site.parent,
                         target,
@@ -302,15 +306,11 @@ impl AnalysisSession {
                 let Some(use_site) = self.selections.remove(select_id) else {
                     return;
                 };
-                self.scc.apply(SccInput::MethodDependencyResolved {
-                    parent: use_site.parent,
-                });
                 match target {
                     SelectionTarget::RecordField => {
                         self.constrain_record_field_selection(use_site.method_value, &name);
                     }
                     SelectionTarget::Method { def } => {
-                        self.record_use_value_owner(use_site.parent, use_site.method_value);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
@@ -318,7 +318,6 @@ impl AnalysisSession {
                         });
                     }
                     SelectionTarget::EffectMethod { def } => {
-                        self.record_use_value_owner(use_site.parent, use_site.method_value);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
@@ -326,7 +325,6 @@ impl AnalysisSession {
                         });
                     }
                     SelectionTarget::TypeclassMethod { member } => {
-                        self.record_use_value_owner(use_site.parent, use_site.method_value);
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: member,
@@ -334,10 +332,59 @@ impl AnalysisSession {
                         });
                     }
                 }
+                self.apply_scc_input(SccInput::MethodDependencyResolved {
+                    parent: use_site.parent,
+                });
             }
-            AnalysisWork::Scc(input) => self.scc.apply(input),
+            AnalysisWork::Scc(input) => self.apply_scc_input(input),
         }
         self.route_scc_events();
+    }
+
+    fn apply_scc_input(&mut self, input: SccInput) {
+        match &input {
+            SccInput::DefFinished { def } => self.add_unready_role_impl_dependencies(*def),
+            SccInput::MethodDependencyResolved { parent } => {
+                self.add_unready_role_impl_dependencies(*parent)
+            }
+            SccInput::UseResolved { .. }
+            | SccInput::DependencyAdded { .. }
+            | SccInput::RegisterDef { .. }
+            | SccInput::MethodDependencyAdded { .. } => {}
+        }
+        self.scc.apply(input);
+    }
+
+    fn add_unready_role_impl_dependencies(&mut self, parent: DefId) {
+        let roles = self
+            .roles
+            .for_owner(parent)
+            .iter()
+            .map(|role| role.role.clone())
+            .collect::<FxHashSet<_>>();
+        for role in roles {
+            let candidates = self.role_impls.candidates(&role).to_vec();
+            for candidate in candidates {
+                let Some(impl_def) = candidate.impl_def else {
+                    continue;
+                };
+                for member in self.unready_role_impl_members(impl_def) {
+                    self.scc.apply(SccInput::DependencyAdded {
+                        parent,
+                        target: member,
+                    });
+                }
+            }
+        }
+    }
+
+    fn unready_role_impl_members(&self, impl_def: DefId) -> Vec<DefId> {
+        self.role_impl_member_sets
+            .get(&impl_def)
+            .into_iter()
+            .flat_map(|members| members.iter().copied())
+            .filter(|member| !self.schemes.contains_key(member))
+            .collect()
     }
 
     fn probe_select(&mut self, select_id: SelectId) {
@@ -871,10 +918,17 @@ impl AnalysisSession {
                     self.scc_events
                         .push(SccEvent::QuantifyComponent { component, roots });
                 }
-                SccEvent::InstantiateUse { target, use_value } => {
-                    self.instantiate_use(target, use_value);
-                    self.scc_events
-                        .push(SccEvent::InstantiateUse { target, use_value });
+                SccEvent::InstantiateUse {
+                    parent,
+                    target,
+                    use_value,
+                } => {
+                    self.instantiate_use(parent, target, use_value);
+                    self.scc_events.push(SccEvent::InstantiateUse {
+                        parent,
+                        target,
+                        use_value,
+                    });
                 }
                 other => self.scc_events.push(other),
             }
@@ -933,7 +987,7 @@ impl AnalysisSession {
             .extend_prerequisites_for_impl(impl_def, prerequisites);
     }
 
-    fn instantiate_use(&mut self, target: DefId, use_value: TypeVar) {
+    fn instantiate_use(&mut self, parent: DefId, target: DefId, use_value: TypeVar) {
         let Some(scheme) = self.def_scheme(target).cloned() else {
             return;
         };
@@ -945,13 +999,7 @@ impl AnalysisSession {
         );
         let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
         self.infer.subtype(instantiated.predicate, use_upper);
-        if let Some(parent) = self.use_value_owners.get(&use_value).copied() {
-            self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
-        }
-    }
-
-    fn record_use_value_owner(&mut self, parent: DefId, use_value: TypeVar) {
-        self.use_value_owners.entry(use_value).or_insert(parent);
+        self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
     }
 
     fn insert_instantiated_role_predicates(
@@ -959,36 +1007,10 @@ impl AnalysisSession {
         owner: DefId,
         predicates: &[RolePredicate],
     ) {
-        let mut inserted = Vec::new();
         for predicate in predicates {
             let constraint = self.role_constraint_from_predicate(predicate);
-            self.roles.insert(owner, constraint.clone());
-            inserted.push(constraint);
+            self.roles.insert(owner, constraint);
         }
-        self.collect_late_role_impl_member_prerequisites(owner, inserted);
-    }
-
-    fn collect_late_role_impl_member_prerequisites(
-        &mut self,
-        owner: DefId,
-        constraints: Vec<RoleConstraint>,
-    ) {
-        let Some(impl_def) = self.role_impl_members.get(&owner).copied() else {
-            return;
-        };
-        let Some(scheme) = self.schemes.get(&owner) else {
-            return;
-        };
-        let quantifiers = scheme.quantifiers.iter().copied().collect::<FxHashSet<_>>();
-        let prerequisites = constraints
-            .into_iter()
-            .filter(|constraint| {
-                let vars = constraint.raw_vars(self.infer.constraints().types());
-                vars.iter().any(|var| !quantifiers.contains(var))
-            })
-            .collect::<Vec<_>>();
-        self.role_impls
-            .extend_prerequisites_for_impl(impl_def, prerequisites);
     }
 
     fn role_constraint_from_predicate(&mut self, predicate: &RolePredicate) -> RoleConstraint {
@@ -2640,7 +2662,7 @@ mod tests {
             .constraints_mut()
             .register_type_var(use_value, TypeLevel::root());
 
-        session.instantiate_use(def, use_value);
+        session.instantiate_use(DefId(99), def, use_value);
 
         let use_bounds = session
             .infer
@@ -2698,7 +2720,7 @@ mod tests {
             .constraints_mut()
             .register_type_var(use_value, TypeLevel::root());
 
-        session.instantiate_use(def, use_value);
+        session.instantiate_use(DefId(99), def, use_value);
 
         let use_bounds = session
             .infer
@@ -2766,7 +2788,7 @@ mod tests {
             .constraints_mut()
             .register_type_var(use_value, TypeLevel::root());
 
-        session.instantiate_use(def, use_value);
+        session.instantiate_use(DefId(99), def, use_value);
 
         let use_bounds = session
             .infer

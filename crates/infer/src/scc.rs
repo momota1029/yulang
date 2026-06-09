@@ -41,6 +41,7 @@ impl SccMachine {
                 target,
                 use_value,
             } => self.add_use(parent, target, use_value),
+            SccInput::DependencyAdded { parent, target } => self.add_dependency(parent, target),
             SccInput::RegisterDef { def, root } => self.register_def(def, root),
             SccInput::DefFinished { def } => self.finish_def(def),
             SccInput::MethodDependencyAdded { parent } => self.add_method_dependency(parent),
@@ -103,8 +104,11 @@ impl SccMachine {
 
     fn add_use(&mut self, parent: DefId, target: DefId, use_value: TypeVar) {
         if self.quantified.contains_key(&target) {
-            self.events
-                .push(SccEvent::InstantiateUse { target, use_value });
+            self.events.push(SccEvent::InstantiateUse {
+                parent,
+                target,
+                use_value,
+            });
             self.settle_def(parent);
             return;
         }
@@ -112,7 +116,11 @@ impl SccMachine {
         let from = self.graph.ensure_component(parent);
         let to = self.graph.ensure_component(target);
         if from == to {
-            let edge = UseEdge { target, use_value };
+            let edge = UseEdge {
+                parent,
+                target,
+                use_value: Some(use_value),
+            };
             if let Some(open_use) = self.graph.add_internal_use(from, edge) {
                 self.events.push(open_use.into_event());
             }
@@ -120,7 +128,11 @@ impl SccMachine {
             return;
         }
 
-        let edge = UseEdge { target, use_value };
+        let edge = UseEdge {
+            parent,
+            target,
+            use_value: Some(use_value),
+        };
         let edge_was_new = self.graph.add_use_edge(from, to, edge);
         if !edge_was_new {
             return;
@@ -170,13 +182,58 @@ impl SccMachine {
             });
 
             for use_edge in removed.incoming_uses {
-                self.events.push(SccEvent::InstantiateUse {
-                    target: use_edge.target,
-                    use_value: use_edge.use_value,
-                });
+                if let Some(use_value) = use_edge.use_value {
+                    self.events.push(SccEvent::InstantiateUse {
+                        parent: use_edge.parent,
+                        target: use_edge.target,
+                        use_value,
+                    });
+                }
             }
 
             queue.extend(removed.predecessors);
+        }
+    }
+
+    fn add_dependency(&mut self, parent: DefId, target: DefId) {
+        if self.quantified.contains_key(&target) {
+            self.settle_def(parent);
+            return;
+        }
+
+        let from = self.graph.ensure_component(parent);
+        let to = self.graph.ensure_component(target);
+        if from == to {
+            self.settle_components([from]);
+            return;
+        }
+
+        let edge = UseEdge {
+            parent,
+            target,
+            use_value: None,
+        };
+        let edge_was_new = self.graph.add_use_edge(from, to, edge);
+        if !edge_was_new {
+            return;
+        }
+
+        if self.graph.can_reach(to, from) {
+            let cycle = self.graph.cycle_closed_by(from, to);
+            let merged = self.graph.merge_components(cycle);
+            self.events.push(SccEvent::MergeComponents {
+                components: merged.components,
+                merged: merged.members,
+            });
+            for open_use in merged.open_uses {
+                self.events.push(open_use.into_event());
+            }
+            self.settle_components([merged.id]);
+        } else {
+            self.events.push(SccEvent::ComponentEdgeAdded {
+                from: self.graph.members(from),
+                to: self.graph.members(to),
+            });
         }
     }
 }
@@ -192,6 +249,10 @@ pub enum SccInput {
         parent: DefId,
         target: DefId,
         use_value: TypeVar,
+    },
+    DependencyAdded {
+        parent: DefId,
+        target: DefId,
     },
     RegisterDef {
         def: DefId,
@@ -231,6 +292,7 @@ pub enum SccEvent {
         use_value: TypeVar,
     },
     InstantiateUse {
+        parent: DefId,
         target: DefId,
         use_value: TypeVar,
     },
@@ -343,11 +405,14 @@ impl ComponentGraph {
             .components
             .get_mut(&component)
             .expect("component must exist before adding internal use");
+        let Some(use_value) = edge.use_value else {
+            return None;
+        };
         if let Some(root) = component.roots.get(&edge.target).copied() {
             return Some(OpenUse {
                 target: edge.target,
                 target_root: root,
-                use_value: edge.use_value,
+                use_value,
             });
         }
         push_unique_use(&mut component.pending_open_uses, edge);
@@ -366,10 +431,13 @@ impl ComponentGraph {
         let mut open_uses = Vec::new();
         for edge in component.pending_open_uses.drain(..) {
             if edge.target == target {
+                let Some(use_value) = edge.use_value else {
+                    continue;
+                };
                 open_uses.push(OpenUse {
                     target,
                     target_root: root,
-                    use_value: edge.use_value,
+                    use_value,
                 });
             } else {
                 still_pending.push(edge);
@@ -702,8 +770,9 @@ struct ComponentId(u32);
 ///
 /// edge の target component が量化されたとき、この情報から use-site instantiation event を作る。
 struct UseEdge {
+    parent: DefId,
     target: DefId,
-    use_value: TypeVar,
+    use_value: Option<TypeVar>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -754,7 +823,13 @@ fn sort_components(components: &mut [ComponentId]) {
 }
 
 fn sort_use_edges(edges: &mut [UseEdge]) {
-    edges.sort_by_key(|edge| (edge.target.0, edge.use_value.0));
+    edges.sort_by_key(|edge| {
+        (
+            edge.parent.0,
+            edge.target.0,
+            edge.use_value.map(|value| value.0).unwrap_or(u32::MAX),
+        )
+    });
 }
 
 fn sort_open_uses(uses: &mut [OpenUse]) {
@@ -813,6 +888,7 @@ mod tests {
         assert_eq!(
             machine.take_events(),
             vec![SccEvent::InstantiateUse {
+                parent: DefId(1),
                 target: DefId(2),
                 use_value: TypeVar(3),
             }]
@@ -986,8 +1062,39 @@ mod tests {
                     roots: vec![TypeVar(20)],
                 },
                 SccEvent::InstantiateUse {
+                    parent: DefId(1),
                     target: DefId(2),
                     use_value: TypeVar(12),
+                },
+                SccEvent::QuantifyComponent {
+                    component: vec![DefId(1)],
+                    roots: vec![TypeVar(10)],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn non_instantiating_dependency_blocks_without_instantiate_event() {
+        let mut machine = SccMachine::new();
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.register_def(DefId(2), TypeVar(20));
+        machine.apply(SccInput::DependencyAdded {
+            parent: DefId(1),
+            target: DefId(2),
+        });
+        machine.take_events();
+
+        machine.finish_def(DefId(1));
+        assert_eq!(machine.take_events(), vec![]);
+
+        machine.finish_def(DefId(2));
+        assert_eq!(
+            machine.take_events(),
+            vec![
+                SccEvent::QuantifyComponent {
+                    component: vec![DefId(2)],
+                    roots: vec![TypeVar(20)],
                 },
                 SccEvent::QuantifyComponent {
                     component: vec![DefId(1)],
