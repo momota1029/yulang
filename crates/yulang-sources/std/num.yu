@@ -1,0 +1,71 @@
+pub mod frac;
+
+pub role Add 'a:
+    our a.add: 'a -> 'a
+
+pub role Sub 'a:
+    our a.sub: 'a -> 'a
+
+pub role Mul 'a:
+    our a.mul: 'a -> 'a
+
+pub role Div 'a:
+    type out
+    our a.div: 'a -> out
+
+pub role LowerHex 'a:
+    our a.lower_hex: str
+
+pub role UpperHex 'a:
+    our a.upper_hex: str
+
+impl Add int:
+    our x.add y = std::int::add x y
+
+impl Sub int:
+    our x.sub y = std::int::sub x y
+
+impl Mul int:
+    our x.mul y = std::int::mul x y
+
+impl Div int:
+    type out = frac
+    our x.div y = std::num::frac::new x y
+
+impl LowerHex int:
+    our x.lower_hex = std::int::to_hex x
+
+impl UpperHex int:
+    our x.upper_hex = std::int::to_upper_hex x
+
+impl Add float:
+    our x.add y = std::float::add x y
+
+impl Sub float:
+    our x.sub y = std::float::sub x y
+
+impl Mul float:
+    our x.mul y = std::float::mul x y
+
+impl Div float:
+    type out = float
+    our x.div y = std::float::div x y
+
+impl Add frac:
+    our x.add y = std::num::frac::add x y
+
+impl Sub frac:
+    our x.sub y = std::num::frac::sub x y
+
+impl Mul frac:
+    our x.mul y = std::num::frac::mul x y
+
+impl Div frac:
+    type out = frac
+    our x.div y = std::num::frac::div x y
+
+impl Add str:
+    our x.add y = std::text::str::concat x y
+
+impl Add (list 'a):
+    our xs.add ys = std::data::list::merge xs ys

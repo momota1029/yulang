@@ -1,0 +1,4 @@
+type path with:
+    our p.to_bytes = std::text::path::to_bytes p
+
+pub of_bytes(b: bytes): path = std::text::path::of_bytes_raw b

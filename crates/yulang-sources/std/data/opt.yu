@@ -1,0 +1,3 @@
+pub enum opt 'a = nil | just 'a
+
+pub use std::data::opt::opt::*

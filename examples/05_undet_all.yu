@@ -1,7 +1,6 @@
 // Nondeterminism: collect every result.
-// The playground imports `std::undet::*` implicitly, but files should import it.
+// Files that use nondeterministic extension methods should import the module.
 
-use std::undet::*
+use std::control::nondet::*
 
 (each [1, 2, 3] + each [4, 5, 6]).list
-

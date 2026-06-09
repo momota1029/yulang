@@ -13,6 +13,7 @@ use std::path::{Path as FsPath, PathBuf};
 use sources::{ModuleLoadRequest, Name, Path, SourceFile};
 
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
+const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
 const YULANG_STD_ENV: &str = "YULANG_STD";
 
 /// entry file から local module file を読み、1つの module tree として poly dump を返す。
@@ -20,10 +21,10 @@ pub fn dump_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput,
     dump_poly_from_sources(collect_local_sources(entry)?)
 }
 
-/// entry file と近場の `lib/std` を読み、implicit prelude 付きで poly dump を返す。
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
 ///
 /// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
-/// `lib/std` を優先する。
+/// `lib/std.yu` を優先する。
 pub fn dump_poly_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpPolyOutput, RouteError> {
@@ -37,7 +38,7 @@ pub fn collect_local_sources(
     Collector::new().collect_entry(entry.as_ref(), false)
 }
 
-/// 近場の `lib/std` と local module file を集め、root source に implicit prelude を足す。
+/// 近場の `lib/std.yu` と local module file を集め、root source に implicit prelude を足す。
 pub fn collect_local_sources_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<Vec<CollectedSource>, RouteError> {
@@ -52,10 +53,10 @@ pub fn collect_local_sources_with_std(
     collector.collect_entry(entry, true)
 }
 
-/// `base` から上へ辿って、デバッグ用の近場 std root を探す。
+/// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
 pub fn find_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
     for ancestor in base.ancestors() {
-        let candidate = ancestor.join("lib").join("std");
+        let candidate = ancestor.join("lib");
         if is_std_root(&candidate) {
             return Some(candidate);
         }
@@ -164,7 +165,6 @@ struct Collector {
     seen_files: HashSet<PathBuf>,
     module_files: HashMap<Path, PathBuf>,
     files: Vec<CollectedSource>,
-    std_modules: Vec<Name>,
 }
 
 impl Collector {
@@ -173,40 +173,16 @@ impl Collector {
             seen_files: HashSet::new(),
             module_files: HashMap::new(),
             files: Vec::new(),
-            std_modules: Vec::new(),
         }
     }
 
     fn collect_std_root(&mut self, std_root: &FsPath) -> Result<(), RouteError> {
-        let mut files = fs::read_dir(std_root)
-            .map_err(|error| RouteError::Io {
-                path: std_root.to_path_buf(),
-                error,
-            })?
-            .map(|entry| {
-                entry
-                    .map(|entry| entry.path())
-                    .map_err(|error| RouteError::Io {
-                        path: std_root.to_path_buf(),
-                        error,
-                    })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        files.retain(|path| path.extension().is_some_and(|ext| ext == "yu"));
-        files.sort();
-
-        for path in files {
-            let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
-                continue;
-            };
-            let module_path = Path {
-                segments: vec![Name("std".to_string()), Name(stem.to_string())],
-            };
-            self.std_modules.push(Name(stem.to_string()));
-            self.collect_fixed_module_file(path, module_path)?;
-        }
-
-        Ok(())
+        self.collect_module_tree(
+            std_root.join("std.yu"),
+            Path {
+                segments: vec![Name("std".to_string())],
+            },
+        )
     }
 
     fn collect_entry(
@@ -227,10 +203,7 @@ impl Collector {
                 error,
             })?;
             if implicit_prelude && module_path.segments.is_empty() {
-                source = format!(
-                    "{}{IMPLICIT_PRELUDE_IMPORT}{source}",
-                    self.synthetic_std_module_source()
-                );
+                source = format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}");
             }
 
             let requests = discover_module_loads(&module_path, &source);
@@ -252,41 +225,40 @@ impl Collector {
         Ok(self.files)
     }
 
-    fn collect_fixed_module_file(
+    fn collect_module_tree(
         &mut self,
-        path: PathBuf,
-        module_path: Path,
+        entry: PathBuf,
+        entry_module_path: Path,
     ) -> Result<(), RouteError> {
-        let canonical = canonicalize_for_dedupe(&path);
-        self.record_module_file(&module_path, &canonical)?;
-        if !self.seen_files.insert(canonical) {
-            return Ok(());
-        }
+        let mut queue = VecDeque::from([(entry, entry_module_path)]);
+        while let Some((path, module_path)) = queue.pop_front() {
+            let canonical = canonicalize_for_dedupe(&path);
+            self.record_module_file(&module_path, &canonical)?;
+            if !self.seen_files.insert(canonical) {
+                continue;
+            }
 
-        let source = fs::read_to_string(&path).map_err(|error| RouteError::Io {
-            path: path.clone(),
-            error,
-        })?;
-        self.files.push(CollectedSource {
-            path,
-            module_path,
-            source,
-        });
+            let source = fs::read_to_string(&path).map_err(|error| RouteError::Io {
+                path: path.clone(),
+                error,
+            })?;
+            let requests = discover_module_loads(&module_path, &source);
+            self.files.push(CollectedSource {
+                path: path.clone(),
+                module_path: module_path.clone(),
+                source,
+            });
+
+            for request in requests {
+                let requested_module = request.module_path();
+                if self.module_files.contains_key(&requested_module) {
+                    continue;
+                }
+                let child_path = resolve_module_file(&path, &module_path, &request)?;
+                queue.push_back((child_path, requested_module));
+            }
+        }
         Ok(())
-    }
-
-    fn synthetic_std_module_source(&self) -> String {
-        if self.std_modules.is_empty() {
-            return String::new();
-        }
-
-        let mut source = String::from("mod std:\n");
-        for module in &self.std_modules {
-            source.push_str("  mod ");
-            source.push_str(&module.0);
-            source.push_str(";\n");
-        }
-        source
     }
 
     fn record_module_file(&mut self, module: &Path, file: &FsPath) -> Result<(), RouteError> {
@@ -334,7 +306,7 @@ fn env_std_root() -> Option<PathBuf> {
 }
 
 fn is_std_root(path: &FsPath) -> bool {
-    path.join("prelude.yu").is_file()
+    path.join("std.yu").is_file()
 }
 
 fn discover_module_loads(module_path: &Path, source: &str) -> Vec<ModuleLoadRequest> {
@@ -473,11 +445,17 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("lib").join("std")).unwrap();
         fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+        fs::write(root.join("lib").join("std.yu"), "mod prelude;\nmod var;\n").unwrap();
         fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
         fs::write(root.join("lib").join("std").join("var.yu"), "my y = 2\n").unwrap();
 
         let files = collect_local_sources_with_std(root.join("main.yu")).unwrap();
 
+        assert!(
+            files
+                .iter()
+                .any(|file| file.module_path.segments == vec![Name("std".into())])
+        );
         assert!(
             files.iter().any(|file| file.module_path.segments
                 == vec![Name("std".into()), Name("prelude".into())])
@@ -492,7 +470,7 @@ mod tests {
             .iter()
             .find(|file| file.module_path.segments.is_empty())
             .unwrap();
-        assert!(root_source.source.starts_with("mod std:\n"));
+        assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
         assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
     }
 
@@ -502,11 +480,12 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("lib").join("std")).unwrap();
         fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+        fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
         fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
 
         let output = dump_poly_from_entry_with_std(root.join("main.yu")).unwrap();
 
-        assert_eq!(output.file_count, 2);
+        assert_eq!(output.file_count, 3);
         assert!(output.text.contains("my d"));
         assert!(output.text.contains(": int = "));
     }

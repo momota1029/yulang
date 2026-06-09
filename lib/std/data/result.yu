@@ -1,0 +1,22 @@
+pub enum result 'ok 'err:
+    ok 'ok
+    err 'err
+
+type result 'ok 'err with:
+    our r.map f = std::data::result::map r f
+    our r.and_then f = std::data::result::and_then r f
+    our r.unwrap_or fallback = std::data::result::unwrap_or r fallback
+
+pub map(r: result 'ok 'err, f: 'ok -> 'next): result 'next 'err = case r:
+    result::ok value -> result::ok (f value)
+    result::err err -> result::err err
+
+pub and_then(r: result 'ok 'err, f: 'ok -> result 'next 'err): result 'next 'err = case r:
+    result::ok value -> f value
+    result::err err -> result::err err
+
+pub unwrap_or(r: result 'ok 'err, fallback: 'ok): 'ok = case r:
+    result::ok value -> value
+    result::err _ -> fallback
+
+pub use std::data::result::result::*

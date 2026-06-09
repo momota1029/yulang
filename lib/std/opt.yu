@@ -1,3 +1,0 @@
-pub enum opt 'a = nil | just 'a
-
-pub use std::opt::opt::*

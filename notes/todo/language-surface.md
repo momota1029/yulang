@@ -18,7 +18,7 @@
 - `not` / `return` / `last` / `next` / `redo` は parser builtin ではなく prelude の operator export として扱う。
 - list の末尾取得は `xs.last` を優先し、`last xs` という関数呼び出し互換は持たない。
 - `die` / `warn` / `say` は Perl/Raku 系の scripting convenience として別枠で扱う。
-- `std::undet` の分岐破棄は `reject` に寄せ、error の `fail` と分ける。
+- `std::control::nondet` の分岐破棄は `reject` に寄せ、error の `fail` と分ける。
 - `from` entry は広い error family への cast / wrapper を生成する。`error` 専用ではなく、ordinary enum でも使える方向にする。
 - `variant from source_type` は ordinary enum / error の単一 payload variant として parse され、`Cast source_type -> enum_type` impl を生成する。
 - `std::result::result 'ok 'err` は入っている。

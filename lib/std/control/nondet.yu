@@ -1,0 +1,44 @@
+use std::core::ops::*
+use std::control::flow::*
+use std::data::fold::*
+
+pub act nondet:
+    pub branch: () -> bool
+    pub reject: () -> never
+    pub guard b = if b { () } else { reject() }
+    pub each xs = sub::sub {
+        xs.fold (): \() x -> if branch() { sub::return x } else ()
+        reject()
+    }
+    pub list(x: [_] _) = catch x:
+        branch(), k -> std::data::list::merge list(k true) list(k false)
+        reject(), _ -> []
+        v -> [v]
+
+    pub logic(x: [_] _) = loop x [] [] with:
+        our loop(x: [_] _, queue, res) = catch x:
+            branch(), k -> loop(k true, std::data::list::append queue [k], res)
+            reject(), _ -> case std::data::list::uncons queue:
+                std::data::opt::opt::nil -> res
+                std::data::opt::opt::just (k, queue) -> loop(k false, queue, res)
+            v -> case std::data::list::uncons queue:
+                std::data::opt::opt::nil -> std::data::list::append res [v]
+                std::data::opt::opt::just (k, queue) -> loop(k false, queue, std::data::list::append res [v])
+
+
+    // 何個も解が要らないときにつかう
+    pub once(x: [_] _) = loop x [] with:
+        our loop(x: [_] _, queue) = catch x:
+            branch(), k -> loop(k true, std::data::list::append queue [k])
+            reject(), _ -> case std::data::list::uncons queue:
+                std::data::opt::opt::nil -> std::data::opt::opt::nil
+                std::data::opt::opt::just (k, queue) -> loop(k false, queue)
+            v -> std::data::opt::opt::just v
+
+
+    pub (x: [_] _).list = list x
+    pub (x: [_] _).logic = logic x
+    pub (x: [_] _).once = once x
+    pub (x: [_] _).guard f = { guard: f x; x }
+
+pub use std::control::nondet::nondet::*

@@ -1,0 +1,5 @@
+type char with:
+    our c.to_string = std::text::char::to_string c
+    our c.is_whitespace = std::text::char::is_whitespace c
+    our c.is_punctuation = std::text::char::is_punctuation c
+    our c.is_word = std::text::char::is_word c

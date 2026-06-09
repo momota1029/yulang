@@ -1,6 +1,6 @@
 // Nondeterminism: search for the first Pythagorean triple.
 
-use std::undet::*
+use std::control::nondet::*
 
 once:
     my a = each 1..

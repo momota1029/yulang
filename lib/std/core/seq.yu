@@ -1,0 +1,22 @@
+pub role Len 'a:
+    our a.len: int
+
+pub role IsEmpty 'a:
+    our a.is_empty: bool
+
+impl Len str:
+    our s.len = std::text::str::len s
+
+impl Len (list 'a):
+    our xs.len = std::data::list::len xs
+
+impl IsEmpty str:
+    our s.is_empty = std::int::eq(std::text::str::len s, 0)
+
+impl IsEmpty (list 'a):
+    our xs.is_empty = std::int::eq(std::data::list::len xs, 0)
+
+impl IsEmpty bytes:
+    our b.is_empty = std::int::eq(std::text::bytes::len b, 0)
+
+pub len x = x.len

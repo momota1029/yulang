@@ -1,4 +1,0 @@
-type path with:
-    our p.to_bytes = std::path::to_bytes p
-
-pub of_bytes(b: bytes): path = std::path::of_bytes_raw b

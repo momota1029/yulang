@@ -1,0 +1,102 @@
+use std::core::ops::*
+use std::data::index::*
+use std::data::fold::*
+use std::data::range::*
+use std::control::var::*
+
+type lines with:
+    struct self:
+        source: str
+
+type ref_lines 'e with:
+    struct self:
+        source: ref 'e str
+
+pub str_line_view(source: str): lines =
+    lines { source: source }
+
+pub line_view(source: ref 'e str): ref_lines 'e =
+    ref_lines { source: source }
+
+impl Index lines int:
+    type value = str
+    our ls.index i =
+        my line_range = std::text::str::line_range ls.source i
+        std::text::str::index_range ls.source line_range
+
+impl Index (ref_lines 'e) int:
+    type value = ref 'e str
+    our ls.index i = ref {
+        get: \() ->
+            my line_range = std::text::str::line_range (ls.source.get()) i
+            std::text::str::index_range (ls.source.get()) line_range
+        update_effect: \() ->
+            my line_range = std::text::str::line_range (ls.source.get()) i
+            (ls.source[line_range]).update_effect()
+    }
+
+my fold_lines(ls: lines, i: int, end: int, acc, f) =
+    if i < end:
+        fold_lines(ls, i + 1, end, f acc (ls.index i), f)
+    else:
+        acc
+
+my fold_ref_lines(ls: ref_lines 'e, i: int, end: int, acc, f) =
+    if i < end:
+        fold_ref_lines(ls, i + 1, end, f acc (ls.index i), f)
+    else:
+        acc
+
+impl Fold lines:
+    type item = str
+    our ls.fold z f = fold_lines(ls, 0, std::text::str::line_count ls.source, z, f)
+
+impl Fold (ref_lines 'e):
+    type item = ref 'e str
+    our ls.fold z f = fold_ref_lines(ls, 0, std::text::str::line_count (ls.source.get()), z, f)
+
+type str with:
+    our s.splice r insert = std::text::str::splice s r insert
+    our s.len = std::text::str::len s
+    our s.is_empty = std::text::str::is_empty s
+    our s.lines: lines = str_line_view s
+    our &s.lines = line_view &s
+    our s.print = std::io::print s
+    our s.println = std::io::println s
+    our s.eprint = std::io::eprint s
+    our s.eprintln = std::io::eprintln s
+
+pub is_empty(s: str): bool = std::int::eq(std::text::str::len s, 0)
+
+impl Index str int:
+    type value = char
+    our s.index i = std::text::str::index_raw s i
+
+impl Index str range:
+    type value = str
+    our s.index r = std::text::str::index_range s r
+
+impl Index (ref 'e str) range:
+    type value = ref 'e str
+    our r.index i = ref {
+        get: \() -> std::text::str::index_range (r.get()) i,
+        update_effect: \() ->
+            my loop(x: [_] _) = catch x:
+                ref_update::update old, k ->
+                    my new_item = ref_update::update (std::text::str::index_range old i)
+                    loop(k(std::text::str::splice old i new_item))
+            loop:r.update_effect()
+    }
+
+impl Index (ref 'e str) int:
+    type value = ref 'e char
+    our r.index i = ref {
+        get: \() -> std::text::str::index_raw (r.get()) i,
+        update_effect: \() ->
+            my loop(x: [_] _) = catch x:
+                ref_update::update old, k ->
+                    my new_item = ref_update::update (std::text::str::index_raw old i)
+                    my replacement = std::text::char::to_string new_item
+                    loop(k(std::text::str::splice old (range i (i + 1)) replacement))
+            loop:r.update_effect()
+    }
