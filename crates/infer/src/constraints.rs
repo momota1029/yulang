@@ -1779,10 +1779,14 @@ mod tests {
             upper_payload_var,
             upper_payload_upper,
         ));
-        let lower_item =
-            machine.alloc_pos(Pos::Con(vec!["ref_update".into()], vec![lower_payload]));
-        let upper_item =
-            machine.alloc_neg(Neg::Con(vec!["ref_update".into()], vec![upper_payload]));
+        let lower_item = machine.alloc_pos(Pos::Con(
+            crate::std_paths::control_var_ref_update_effect(),
+            vec![lower_payload],
+        ));
+        let upper_item = machine.alloc_neg(Neg::Con(
+            crate::std_paths::control_var_ref_update_effect(),
+            vec![upper_payload],
+        ));
         let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(12)));
         let lower = machine.alloc_pos(Pos::Row(vec![lower_item]));
         let upper = machine.alloc_neg(Neg::Row(vec![upper_item], upper_tail));

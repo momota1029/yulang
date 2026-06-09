@@ -205,6 +205,7 @@ mod tests {
         let raw = typed_ir::Type::Named {
             path: typed_ir::Path::new(vec![
                 typed_ir::Name("std".to_string()),
+                typed_ir::Name("control".to_string()),
                 typed_ir::Name("var".to_string()),
                 typed_ir::Name("ref".to_string()),
             ]),
@@ -221,6 +222,7 @@ mod tests {
             typed_ir::Type::Named {
                 path: typed_ir::Path::new(vec![
                     typed_ir::Name("std".to_string()),
+                    typed_ir::Name("control".to_string()),
                     typed_ir::Name("var".to_string()),
                     typed_ir::Name("ref".to_string()),
                 ]),

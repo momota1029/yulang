@@ -667,7 +667,7 @@ impl AnalysisSession {
     ) -> Option<SelectionTarget> {
         match self.infer.constraints().types().pos(pos).clone() {
             Pos::Var(var) => self.probe_select_var(select_id, var, name, visited),
-            Pos::Con(path, args) if is_ref_path(&path) => {
+            Pos::Con(path, args) if crate::std_paths::is_control_var_ref_type(&path) => {
                 let payload = self.ref_payload_probe(&args)?;
                 self.selections.watch_ref_payload(payload.var, select_id);
                 self.probe_ref_select_pos(select_id, payload.lower, name, visited)
@@ -1405,10 +1405,6 @@ fn def_parent_map(poly: &PolyArena) -> FxHashMap<DefId, DefId> {
     parents
 }
 
-fn is_ref_path(path: &[String]) -> bool {
-    matches!(path, [name] if name == "ref")
-}
-
 fn method_target_from_candidates(
     candidates: &[crate::methods::TypeMethodCandidate],
 ) -> Option<SelectionTarget> {
@@ -1836,7 +1832,7 @@ mod tests {
 
         let lower = session
             .infer
-            .alloc_pos(Pos::Con(vec!["ref".into()], vec![]));
+            .alloc_pos(Pos::Con(crate::std_paths::control_var_ref_type(), vec![]));
         let upper = session.infer.alloc_neg(Neg::Var(watched));
         session.infer.weighted_subtype(
             lower,
@@ -2131,9 +2127,10 @@ mod tests {
         session.infer.subtype(int, payload_upper);
         let effect_arg = infer_bounds_neu(&mut session.infer, effect);
         let payload_arg = infer_bounds_neu(&mut session.infer, payload);
-        let ref_lower = session
-            .infer
-            .alloc_pos(Pos::Con(vec!["ref".into()], vec![effect_arg, payload_arg]));
+        let ref_lower = session.infer.alloc_pos(Pos::Con(
+            crate::std_paths::control_var_ref_type(),
+            vec![effect_arg, payload_arg],
+        ));
         let receiver_upper = session.infer.alloc_neg(Neg::Var(receiver));
         session.infer.subtype(ref_lower, receiver_upper);
         session.drain_work();

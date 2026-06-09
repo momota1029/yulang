@@ -23,6 +23,7 @@ pub mod patterns;
 mod role_solve;
 pub mod roles;
 pub mod scc;
+mod std_paths;
 pub mod typing;
 pub mod uses;
 

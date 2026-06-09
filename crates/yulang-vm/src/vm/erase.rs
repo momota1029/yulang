@@ -296,7 +296,7 @@ fn binding_is_var_ref_constructor(binding: &Binding) -> bool {
     let typed_ir::Type::Named { path, .. } = ret.as_ref() else {
         return false;
     };
-    path_has_suffix(path, &["std", "var", "ref"]) || path_has_suffix(path, &["var", "ref"])
+    path_has_suffix(path, &["std", "control", "var", "ref"])
 }
 
 fn path_has_suffix(path: &typed_ir::Path, suffix: &[&str]) -> bool {

@@ -2176,11 +2176,17 @@ impl<'a> ExprLowerer<'a> {
                 let payload_arg = self.invariant_var_arg(payload);
                 self.constrain_lower(
                     receiver_value,
-                    Pos::Con(vec!["ref".into()], vec![effect_arg, payload_arg]),
+                    Pos::Con(
+                        crate::std_paths::control_var_ref_type(),
+                        vec![effect_arg, payload_arg],
+                    ),
                 );
                 self.constrain_upper(
                     receiver_value,
-                    Neg::Con(vec!["ref".into()], vec![effect_arg, payload_arg]),
+                    Neg::Con(
+                        crate::std_paths::control_var_ref_type(),
+                        vec![effect_arg, payload_arg],
+                    ),
                 );
                 Ok(())
             }
@@ -4735,9 +4741,16 @@ mod tests {
 
     #[test]
     fn type_with_ref_method_keeps_ampersand_receiver_name_and_resolves_ref_selection() {
-        let root = parse(
-            "type ref 'e 'a\ntype User with:\n  our &x.id = &x\nmy r: ref 'e User = 1\nmy got = r.id\n",
-        );
+        let root = parse(concat!(
+            "mod std:\n",
+            "  mod control:\n",
+            "    mod var:\n",
+            "      type ref 'e 'a\n",
+            "type User with:\n",
+            "  our &x.id = &x\n",
+            "my r: std::control::var::ref 'e User = 1\n",
+            "my got = r.id\n",
+        ));
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
         let user = lower.modules.type_decls(module, &Name("User".into()))[0].clone();
@@ -4756,6 +4769,31 @@ mod tests {
         assert_eq!(
             output.session.poly.select(select).resolution,
             Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
+    fn local_type_named_ref_does_not_resolve_ref_selection() {
+        let root = parse(
+            "type ref 'e 'a\n\
+             type User with:\n  our &x.id = &x\n\
+             my r: ref 'e User = 1\nmy got = r.id\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let got_body = binding_body_id(&output, got);
+        let select = match output.session.poly.expr(got_body) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(select).resolution,
+            Some(SelectResolution::RecordField)
         );
     }
 
