@@ -1,11 +1,11 @@
 pub role Eq 'a:
-    our a.eq: 'a -> bool
+    pub a.eq: 'a -> bool
 
 pub role Ord 'a:
-    our a.lt: 'a -> bool
-    our a.le: 'a -> bool
-    our a.gt: 'a -> bool
-    our a.ge: 'a -> bool
+    pub a.lt: 'a -> bool
+    pub a.le: 'a -> bool
+    pub a.gt: 'a -> bool
+    pub a.ge: 'a -> bool
 
 impl Eq int:
     our x.eq y = std::int::eq x y

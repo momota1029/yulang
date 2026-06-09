@@ -8,6 +8,7 @@
 //! binding body を `ExprLowerer` で lower して `Def::Let.body` と `DefId` 型 slot を埋める段階。
 //! 型定義系の本体 lowering はまだこの足場へ接続していない。
 
+mod act_resolve;
 pub mod analysis;
 pub mod annotation;
 pub mod arena;
@@ -29,6 +30,7 @@ pub mod uses;
 
 pub use arena::Arena;
 
+use crate::act_resolve::{ActTypeExpr, ActTypeResolver};
 use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::{NodeOrToken, SyntaxNode};
@@ -275,6 +277,9 @@ struct ImportPathTarget {
 /// `SelectId -> SelectResolution` として `poly` に書き戻す。
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
+    act_templates: FxHashMap<TypeDeclId, Cst>,
+    act_copies: FxHashMap<TypeDeclId, ActCopyDecl>,
+    resolved_act_copies: FxHashMap<TypeDeclId, ResolvedActCopyDecl>,
     act_ops: FxHashMap<TypeDeclId, Vec<Name>>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
@@ -284,6 +289,17 @@ pub struct ModuleTable {
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     next_type_id: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActCopyDecl {
+    pub source: Cst,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedActCopyDecl {
+    pub source: TypeDeclId,
+    pub type_var_aliases: Vec<(String, String)>,
 }
 
 impl ModuleTable {
@@ -301,6 +317,9 @@ impl ModuleTable {
                 import_modules: FxHashMap::default(),
                 next_order: 0,
             }],
+            act_templates: FxHashMap::default(),
+            act_copies: FxHashMap::default(),
+            resolved_act_copies: FxHashMap::default(),
             act_ops: FxHashMap::default(),
             act_methods: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
@@ -367,6 +386,24 @@ impl ModuleTable {
     }
     fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<Name>) {
         self.act_ops.insert(id, ops);
+    }
+    fn set_act_template(&mut self, id: TypeDeclId, node: Cst) {
+        self.act_templates.insert(id, node);
+    }
+    pub(crate) fn act_template(&self, id: TypeDeclId) -> Option<&Cst> {
+        self.act_templates.get(&id)
+    }
+    fn set_act_copy(&mut self, id: TypeDeclId, copy: ActCopyDecl) {
+        self.act_copies.insert(id, copy);
+    }
+    pub(crate) fn act_copy(&self, id: TypeDeclId) -> Option<&ActCopyDecl> {
+        self.act_copies.get(&id)
+    }
+    fn set_resolved_act_copy(&mut self, id: TypeDeclId, copy: ResolvedActCopyDecl) {
+        self.resolved_act_copies.insert(id, copy);
+    }
+    pub(crate) fn resolved_act_copy(&self, id: TypeDeclId) -> Option<&ResolvedActCopyDecl> {
+        self.resolved_act_copies.get(&id)
     }
     fn insert_act_method(&mut self, method: ActMethodDecl) {
         self.act_methods
@@ -642,6 +679,20 @@ impl ModuleTable {
         }
         segments.reverse();
         ModulePath { segments }
+    }
+    fn module_def(&self, module: ModuleId) -> Option<DefId> {
+        let parent = self.nodes[module.0].parent?;
+        let parent_node = &self.nodes[parent.module.0];
+        parent_node.decls.iter().find_map(|decl| {
+            (decl.order == parent.order)
+                .then_some(decl)
+                .and_then(|decl| match decl.kind {
+                    ModuleDeclKind::Module { module: child, def } if child == module => Some(def),
+                    ModuleDeclKind::Value { .. }
+                    | ModuleDeclKind::Type { .. }
+                    | ModuleDeclKind::Module { .. } => None,
+                })
+        })
     }
     pub fn type_decl_path(&self, decl: &ModuleTypeDecl) -> ModulePath {
         let mut path = self.module_path(decl.module);
@@ -1273,8 +1324,15 @@ impl Lower {
         let vis = vis_of(node);
         let id = self.modules.insert_type(module, name.clone(), kind, vis);
         if kind == ModuleTypeKind::Act {
-            self.modules.set_act_ops(id, act_operation_names(node));
-            self.register_act_companion(node, module, name.clone(), id, vis, children);
+            self.modules.set_act_template(id, node.clone());
+            let copy = act_copy_decl(node);
+            if let Some(copy) = copy {
+                self.modules.set_act_copy(id, copy);
+                self.modules.set_act_ops(id, act_operation_names(node));
+            } else {
+                self.modules.set_act_ops(id, act_operation_names(node));
+                self.register_act_companion(node, module, name.clone(), id, vis, children);
+            }
         }
         if kind == ModuleTypeKind::Role {
             self.modules.set_role_inputs(id, role_input_names(node));
@@ -1529,6 +1587,26 @@ impl Lower {
                         }
                     }
                 }
+                SyntaxKind::UseDecl => {
+                    let vis = vis_of(&child);
+                    if let Some(name) = use_mod_name(&child) {
+                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                    for import in sources::use_imports(&child) {
+                        self.modules.add_alias(module, import, vis);
+                    }
+                }
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl
+                | SyntaxKind::RoleDecl
+                | SyntaxKind::ActDecl => {
+                    self.register_type_namespace_decl(&child, module, &mut children);
+                }
                 _ => {}
             }
         }
@@ -1696,6 +1774,81 @@ impl Lower {
         slot.extend(children);
     }
 
+    fn append_created_module_to_parent(&mut self, module: ModuleId, def: DefId) {
+        if module == self.modules.root_id() {
+            self.arena.roots.push(def);
+            return;
+        }
+        let Some(parent_def) = self.modules.module_def(module) else {
+            return;
+        };
+        self.append_module_children(parent_def, vec![def]);
+    }
+
+    fn finalize_act_copies(&mut self) {
+        let ids = self.modules.act_copies.keys().copied().collect::<Vec<_>>();
+        for id in ids {
+            self.finalize_act_copy(id);
+        }
+    }
+
+    fn finalize_act_copy(&mut self, id: TypeDeclId) {
+        let Some(dest) = self.modules.type_decl_by_id(id) else {
+            return;
+        };
+        let Some(resolved) = self.resolve_act_copy(&dest) else {
+            return;
+        };
+        let Some(source_body) = self
+            .modules
+            .act_template(resolved.source)
+            .and_then(act_decl_body)
+        else {
+            return;
+        };
+        self.modules.set_resolved_act_copy(id, resolved);
+
+        let mut ops = act_operation_names_from_body(&source_body);
+        push_unique_names(
+            &mut ops,
+            self.modules.act_ops.get(&id).cloned().unwrap_or_default(),
+        );
+        self.modules.set_act_ops(id, ops);
+
+        let (def, companion, created) =
+            self.ensure_child_module(dest.module, dest.name.clone(), dest.vis);
+        self.modules.set_type_companion(id, companion);
+        let mut companion_children = self.register_act_companion_block(&source_body, companion, id);
+        if let Some(own_body) = self.modules.act_template(id).and_then(act_decl_body) {
+            companion_children.extend(self.register_act_companion_block(&own_body, companion, id));
+        }
+        self.append_module_children(def, companion_children);
+        if created {
+            self.append_created_module_to_parent(dest.module, def);
+        }
+    }
+
+    fn resolve_act_copy(&self, dest: &ModuleTypeDecl) -> Option<ResolvedActCopyDecl> {
+        let copy = self.modules.act_copy(dest.id)?;
+        let resolver = ActTypeResolver::new(&self.modules, dest.module, dest.order);
+        let source_use = resolver.resolve_act_use(&copy.source).ok()?;
+        let source_decl = source_use.decl;
+        let source_type_vars = self
+            .modules
+            .act_template(source_decl.id)
+            .map(act_type_var_names)
+            .unwrap_or_default();
+        let type_var_aliases = source_type_vars
+            .into_iter()
+            .zip(source_use.args.iter())
+            .filter_map(|(source, arg)| act_type_var_arg_name(arg).map(|target| (source, target)))
+            .collect();
+        Some(ResolvedActCopyDecl {
+            source: source_decl.id,
+            type_var_aliases,
+        })
+    }
+
     pub(crate) fn module_path_target(&self, path: &ModulePath) -> Option<ModulePathTarget> {
         let mut target = ModulePathTarget {
             module: self.modules.root_id(),
@@ -1719,6 +1872,7 @@ pub fn lower_module_map(root: &Cst) -> Lower {
     let roots = lower.register_block(root, root_module);
     lower.arena.roots = roots;
     lower.modules.build_import_views();
+    lower.finalize_act_copies();
     lower
 }
 
@@ -1754,6 +1908,7 @@ pub(crate) fn lower_loaded_file_csts_module_map(
     }
 
     lower.modules.build_import_views();
+    lower.finalize_act_copies();
     Ok(lower)
 }
 
@@ -2028,6 +2183,47 @@ pub(crate) fn type_var_names(node: &Cst) -> Vec<String> {
     out
 }
 
+pub(crate) fn act_type_var_names(node: &Cst) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen_act_name = false;
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident && !seen_act_name => {
+                seen_act_name = true;
+            }
+            NodeOrToken::Token(token)
+                if matches!(
+                    token.kind(),
+                    SyntaxKind::Equal
+                        | SyntaxKind::With
+                        | SyntaxKind::Colon
+                        | SyntaxKind::BraceL
+                        | SyntaxKind::Semicolon
+                ) =>
+            {
+                break;
+            }
+            NodeOrToken::Node(child)
+                if matches!(
+                    child.kind(),
+                    SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+                ) =>
+            {
+                break;
+            }
+            NodeOrToken::Node(child) if seen_act_name && child.kind() == SyntaxKind::TypeExpr => {
+                if let Some(name) = bare_type_var_expr(&child)
+                    && !out.contains(&name)
+                {
+                    out.push(name);
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 pub(crate) fn struct_field_nodes(node: &Cst) -> Vec<Cst> {
     let mut out = Vec::new();
     collect_pre_with_descendants(node, SyntaxKind::StructField, &mut out);
@@ -2203,10 +2399,71 @@ pub(crate) fn act_operation_binding(node: &Cst) -> bool {
 fn act_operation_names(node: &Cst) -> Vec<Name> {
     act_decl_body(node)
         .into_iter()
-        .flat_map(|body| body.children())
+        .flat_map(|body| act_operation_names_from_body(&body))
+        .collect()
+}
+
+fn act_operation_names_from_body(body: &Cst) -> Vec<Name> {
+    body.children()
         .filter(|child| child.kind() == SyntaxKind::Binding && act_operation_binding(child))
         .filter_map(|binding| binding_name(&binding))
         .collect()
+}
+
+fn act_copy_decl(node: &Cst) -> Option<ActCopyDecl> {
+    let source = act_copy_source_type_expr(node)?;
+    Some(ActCopyDecl { source })
+}
+
+fn act_copy_source_type_expr(node: &Cst) -> Option<Cst> {
+    let mut after_equal = false;
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Equal => {
+                after_equal = true;
+            }
+            NodeOrToken::Node(child) if after_equal && child.kind() == SyntaxKind::TypeExpr => {
+                return Some(child);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn bare_type_var_expr(type_expr: &Cst) -> Option<String> {
+    let items = type_expr
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .collect::<Vec<_>>();
+    let [NodeOrToken::Token(token)] = items.as_slice() else {
+        return None;
+    };
+    (token.kind() == SyntaxKind::SigilIdent)
+        .then(|| token.text().trim_start_matches('\'').to_string())
+}
+
+fn act_type_var_arg_name(arg: &ActTypeExpr) -> Option<String> {
+    match arg {
+        ActTypeExpr::Var(name) => Some(name.clone()),
+        ActTypeExpr::Builtin(_)
+        | ActTypeExpr::Named(_)
+        | ActTypeExpr::Apply { .. }
+        | ActTypeExpr::Function { .. } => None,
+    }
+}
+
+fn push_unique_names(out: &mut Vec<Name>, names: Vec<Name>) {
+    for name in names {
+        if !out.contains(&name) {
+            out.push(name);
+        }
+    }
+}
+
+fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
+    item.as_token()
+        .is_some_and(|token| matches!(token.kind(), SyntaxKind::Space | SyntaxKind::LineComment))
 }
 
 fn module_type_kind(kind: SyntaxKind) -> Option<ModuleTypeKind> {
@@ -2549,6 +2806,118 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(ops, vec![Name("say".into()), Name("write".into())]);
+    }
+
+    #[test]
+    fn registers_act_copy_body_in_destination_companion() {
+        let cst = parse(
+            "act loop:\n  my act last:\n    our break: () -> never\n  my act next = last\nmy site = 1\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let loop_act = lower.modules.type_decls(root, &Name("loop".into()))[0].clone();
+        let loop_companion = lower
+            .modules
+            .type_companion(loop_act.id)
+            .expect("outer act should create companion");
+        let next = lower
+            .modules
+            .type_decls(loop_companion, &Name("next".into()))[0]
+            .clone();
+        let next_companion = lower
+            .modules
+            .type_companion(next.id)
+            .expect("copied act should create companion");
+        let ops = lower
+            .modules
+            .act_operation_decls_at(loop_companion, &[Name("next".into())], module_path_site())
+            .into_iter()
+            .map(|op| op.name)
+            .collect::<Vec<_>>();
+
+        assert_eq!(ops, vec![Name("break".into())]);
+        assert!(lower.modules.module_path(next_companion).segments.len() >= 2);
+    }
+
+    #[test]
+    fn registers_act_copy_from_qualified_source_path() {
+        let cst = parse(
+            "mod effects:\n  act base:\n    our tick: () -> never\nact local = effects::base\nmy site = 1\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let local = lower.modules.type_decls(root, &Name("local".into()))[0].clone();
+        let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+        let ops = lower
+            .modules
+            .act_operation_decls_at(root, &[Name("local".into())], site)
+            .into_iter()
+            .map(|op| op.name)
+            .collect::<Vec<_>>();
+
+        assert_eq!(ops, vec![Name("tick".into())]);
+        assert!(lower.modules.type_companion(local.id).is_some());
+    }
+
+    #[test]
+    fn registers_act_copy_from_import_alias_after_import_view() {
+        let cst = parse(
+            "mod effects:\n  act base:\n    our tick: () -> never\nuse effects::base as copied\nact local = copied\nmy site = 1\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+        let ops = lower
+            .modules
+            .act_operation_decls_at(root, &[Name("local".into())], site)
+            .into_iter()
+            .map(|op| op.name)
+            .collect::<Vec<_>>();
+
+        assert_eq!(ops, vec![Name("tick".into())]);
+    }
+
+    #[test]
+    fn resolves_act_copy_type_arg_aliases() {
+        let cst = parse("act source 'a:\n  our tick: 'a -> never\nact local 't = source 't\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let local = lower.modules.type_decls(root, &Name("local".into()))[0].clone();
+        let resolved = lower
+            .modules
+            .resolved_act_copy(local.id)
+            .expect("act copy type should resolve");
+
+        assert_eq!(
+            resolved.type_var_aliases,
+            vec![("a".to_string(), "t".to_string())]
+        );
+    }
+
+    #[test]
+    fn act_resolution_accepts_strict_function_type_args_without_aliasing() {
+        let cst = parse(
+            "type a\ntype b\ntype c\nact source 'f:\n  our tick: unit -> never\nact local = source (a -> b -> c)\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let local = lower.modules.type_decls(root, &Name("local".into()))[0].clone();
+        let resolved = lower
+            .modules
+            .resolved_act_copy(local.id)
+            .expect("strict act use should resolve");
+
+        assert!(resolved.type_var_aliases.is_empty());
+    }
+
+    #[test]
+    fn act_resolution_rejects_non_act_head() {
+        let cst = parse("type source\nact local = source\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let local = lower.modules.type_decls(root, &Name("local".into()))[0].clone();
+
+        assert!(lower.modules.resolved_act_copy(local.id).is_none());
     }
 
     #[test]

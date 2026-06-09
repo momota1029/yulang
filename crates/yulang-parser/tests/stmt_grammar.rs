@@ -981,6 +981,66 @@ fn stmt_act_decl_copy_with_type_arg() {
 }
 
 #[test]
+fn stmt_act_decl_copy_with_qualified_source_type() {
+    let got = parse_stmt_once("act local 't = std::control::var::var 't");
+    let expected = vec![
+        "(ActDecl",
+        "  Act \"act\"",
+        "  Ident \"local\"",
+        "  (TypeExpr",
+        "    SigilIdent \"'t\"",
+        "  )",
+        "  Equal \"=\"",
+        "  (TypeExpr",
+        "    Ident \"std\"",
+        "    (PathSep",
+        "      ColonColon \"::\"",
+        "      Ident \"control\"",
+        "    )",
+        "    (PathSep",
+        "      ColonColon \"::\"",
+        "      Ident \"var\"",
+        "    )",
+        "    (PathSep",
+        "      ColonColon \"::\"",
+        "      Ident \"var\"",
+        "    )",
+        "    (TypeApply",
+        "      (TypeExpr",
+        "        SigilIdent \"'t\"",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_act_decl_copy() {
+    let got = parse_stmt_once("my act next = last");
+    let expected = vec![
+        "(ActDecl",
+        "  My \"my\"",
+        "  Act \"act\"",
+        "  Ident \"next\"",
+        "  Equal \"=\"",
+        "  (TypeExpr",
+        "    Ident \"last\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_my_act_binding_still_allowed() {
+    let got = parse_stmt_once("my act = 1");
+    assert!(got.iter().any(|line| line.contains("(Binding")));
+    assert!(!got.iter().any(|line| line.contains("(ActDecl")));
+}
+
+#[test]
 fn stmt_where_clause_block() {
     let got = parse_stmt_once("where:\n    Self: Sized\n    Int: Add Int");
     let expected = vec![

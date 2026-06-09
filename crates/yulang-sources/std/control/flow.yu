@@ -16,9 +16,9 @@ pub act label_sub 'a:
         a -> a
 
 pub act loop:
-    our last: () -> never
-    our next: () -> never
-    our redo: () -> never
+    pub last: () -> never
+    pub next: () -> never
+    pub redo: () -> never
 
     my act last:
         our break: () -> never
@@ -27,7 +27,7 @@ pub act loop:
     my act next = last
     my act redo = last
 
-    our for_in(xs, f: _ -> [loop] _) =
+    pub for_in(xs, f: _ -> [loop] _) =
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f x:
                 last(), _ -> last::break()
@@ -38,14 +38,14 @@ pub act loop:
                 loop::redo(), _ -> redo::break()
 
 pub role LoopLabel 'a:
-    our a.last: () -> [_] never
-    our a.next: () -> [_] never
-    our a.redo: () -> [_] never
+    pub a.last: () -> [_] never
+    pub a.next: () -> [_] never
+    pub a.redo: () -> [_] never
 
 pub act label_loop:
-    our last: () -> never
-    our next: () -> never
-    our redo: () -> never
+    pub last: () -> never
+    pub next: () -> never
+    pub redo: () -> never
 
     pub struct label {
         last: () -> [label_loop] never,
@@ -71,7 +71,7 @@ pub act label_loop:
         our x.next = label::next(x)
         our x.redo = label::redo(x)
 
-    our for_in(xs: 'container, f: label -> 'item -> [label_loop, loop] _) =
+    pub for_in(xs: 'container, f: label -> 'item -> [label_loop, loop] _) =
         where 'container: std::data::fold::Fold 'item
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f control_label x:

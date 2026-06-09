@@ -1,9 +1,9 @@
 use std::core::ops::*
 use std::data::fold::*
 
-enum bound = unbounded | included int | excluded int
+pub enum bound = unbounded | included int | excluded int
 
-enum range = within (bound, bound)
+pub enum range = within (bound, bound)
 
 pub range(start: int, end: int): range =
     range::within (bound::included start, bound::excluded end)

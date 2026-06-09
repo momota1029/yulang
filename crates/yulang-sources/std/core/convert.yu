@@ -1,7 +1,7 @@
 pub role Cast 'from:
     type to
-    our from.cast: to
+    pub from.cast: to
 
-cast(p: path): bytes = std::text::path::to_bytes p
-cast(x: int): frac = std::num::frac::new x 1
-cast(x: frac): float = std::num::frac::to_float x
+pub cast(p: path): bytes = std::text::path::to_bytes p
+pub cast(x: int): frac = std::num::frac::new x 1
+pub cast(x: frac): float = std::num::frac::to_float x

@@ -17,7 +17,7 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
-use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Vis};
+use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Stmt, Vis};
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SubtractId, Subtractability,
     TypeVar,
@@ -213,6 +213,16 @@ impl BodyLowerer {
         module: ModuleId,
         self_alias: Option<AnnSelfAlias>,
     ) {
+        self.lower_binding_with_context(node, module, self_alias, &[]);
+    }
+
+    fn lower_binding_with_context(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        self_alias: Option<AnnSelfAlias>,
+        type_var_aliases: &[(String, String)],
+    ) {
         let Some(name) = crate::binding_name(node) else {
             return;
         };
@@ -250,6 +260,7 @@ impl BodyLowerer {
         )
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
+        .with_type_var_aliases(type_var_aliases)
         .lower_binding_body_with_args(
             arg_patterns.as_slice(),
             &expr,
@@ -265,6 +276,7 @@ impl BodyLowerer {
                         module,
                         decl.order,
                         self_alias,
+                        type_var_aliases,
                         root,
                         computation,
                     )
@@ -557,14 +569,34 @@ impl BodyLowerer {
         let Some(decl) = self.next_type_decl(module, &name) else {
             return;
         };
-        let Some(body) = crate::act_decl_body(node) else {
-            return;
-        };
         let Some(companion) = self.modules.type_companion(decl.id) else {
             return;
         };
         let mut method_cursor = 0usize;
         let previous_scope = self.local_method_scope.replace(companion);
+        if let Some(copy) = self.act_copy_lowering_context(module, &decl) {
+            self.lower_act_body_contents(
+                &copy.body,
+                companion,
+                &decl,
+                &mut method_cursor,
+                copy.type_var_aliases.as_slice(),
+            );
+        }
+        if let Some(body) = crate::act_decl_body(node) {
+            self.lower_act_body_contents(&body, companion, &decl, &mut method_cursor, &[]);
+        }
+        self.local_method_scope = previous_scope;
+    }
+
+    fn lower_act_body_contents(
+        &mut self,
+        body: &Cst,
+        companion: ModuleId,
+        decl: &ModuleTypeDecl,
+        method_cursor: &mut usize,
+        type_var_aliases: &[(String, String)],
+    ) {
         for child in body.children() {
             match child.kind() {
                 SyntaxKind::Binding if crate::act_operation_binding(&child) => {}
@@ -572,19 +604,46 @@ impl BodyLowerer {
                     let method = self
                         .modules
                         .act_methods(decl.id)
-                        .get(method_cursor)
+                        .get(*method_cursor)
                         .cloned();
-                    method_cursor += usize::from(method.is_some());
+                    *method_cursor += usize::from(method.is_some());
                     if let Some(method) = method {
-                        self.lower_act_method_binding(&child, companion, &method);
+                        self.lower_act_method_binding_with_aliases(
+                            &child,
+                            companion,
+                            &method,
+                            type_var_aliases,
+                        );
                     }
                 }
-                SyntaxKind::Binding => self.lower_binding(&child, companion),
+                SyntaxKind::Binding => {
+                    self.lower_binding_with_context(&child, companion, None, type_var_aliases)
+                }
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
+                SyntaxKind::ActDecl => self.lower_act_decl_body(&child, companion),
+                SyntaxKind::TypeDecl
+                | SyntaxKind::StructDecl
+                | SyntaxKind::EnumDecl
+                | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, companion),
+                SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, companion),
+                SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, companion),
                 _ => {}
             }
         }
-        self.local_method_scope = previous_scope;
+    }
+
+    fn act_copy_lowering_context(
+        &self,
+        _module: ModuleId,
+        decl: &ModuleTypeDecl,
+    ) -> Option<ActCopyLoweringContext> {
+        let copy = self.modules.resolved_act_copy(decl.id)?;
+        let source_node = self.modules.act_template(copy.source)?;
+        let body = crate::act_decl_body(source_node)?;
+        Some(ActCopyLoweringContext {
+            body,
+            type_var_aliases: copy.type_var_aliases.clone(),
+        })
     }
 
     fn lower_role_decl_body(&mut self, node: &Cst, module: ModuleId) {
@@ -1098,7 +1157,13 @@ impl BodyLowerer {
         self.session.infer.restore_level(previous_level);
     }
 
-    fn lower_act_method_binding(&mut self, node: &Cst, module: ModuleId, method: &ActMethodDecl) {
+    fn lower_act_method_binding_with_aliases(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        method: &ActMethodDecl,
+        type_var_aliases: &[(String, String)],
+    ) {
         let Some(expr) = binding_body_expr(node) else {
             self.errors.push(BodyLoweringError::MissingBody {
                 def: method.def,
@@ -1124,6 +1189,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_local_method_scope(self.local_method_scope)
+        .with_type_var_aliases(type_var_aliases)
         .lower_act_method_body_expr(
             &expr,
             method.receiver.clone(),
@@ -1208,6 +1274,7 @@ impl BodyLowerer {
         module: ModuleId,
         site: ModuleOrder,
         self_alias: Option<AnnSelfAlias>,
+        type_var_aliases: &[(String, String)],
         root: TypeVar,
         computation: Computation,
     ) -> Result<(), LoweringError> {
@@ -1215,6 +1282,7 @@ impl BodyLowerer {
             return Ok(());
         };
         let mut builder = ann_type_builder(&self.modules, module, site, self_alias);
+        add_type_var_aliases(&mut builder, type_var_aliases);
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
@@ -1434,6 +1502,24 @@ fn ann_type_builder(
     }
 }
 
+fn add_type_var_aliases(builder: &mut AnnTypeBuilder<'_>, aliases: &[(String, String)]) {
+    for (alias, target) in aliases {
+        builder.add_bare_type_var_alias(alias.clone(), target.clone());
+    }
+}
+
+fn ann_type_builder_with_aliases<'a>(
+    modules: &'a ModuleTable,
+    module: ModuleId,
+    site: ModuleOrder,
+    self_alias: Option<AnnSelfAlias>,
+    aliases: &[(String, String)],
+) -> AnnTypeBuilder<'a> {
+    let mut builder = ann_type_builder(modules, module, site, self_alias);
+    add_type_var_aliases(&mut builder, aliases);
+    builder
+}
+
 fn build_signature_type_expr(
     builder: &mut AnnTypeBuilder,
     type_expr: &Cst,
@@ -1520,6 +1606,11 @@ fn signature_effect_row_from_ann(row: &crate::annotation::AnnEffectRow) -> Signa
     }
 }
 
+struct ActCopyLoweringContext {
+    body: Cst,
+    type_var_aliases: Vec<(String, String)>,
+}
+
 /// expression lowering の入口。
 ///
 /// 1つの owner def の body を lower する間だけ作る。`module` / `site` は module-level lookup の
@@ -1532,6 +1623,7 @@ pub struct ExprLowerer<'a> {
     parent: poly::expr::DefId,
     labels: Option<&'a mut DumpLabels>,
     self_alias: Option<AnnSelfAlias>,
+    type_var_aliases: Vec<(String, String)>,
     local_method_scope: Option<ModuleId>,
     locals: Vec<LocalBinding>,
     function_frames: Vec<FunctionPredicateFrame>,
@@ -1553,6 +1645,7 @@ impl<'a> ExprLowerer<'a> {
             parent,
             labels: None,
             self_alias: None,
+            type_var_aliases: Vec::new(),
             local_method_scope: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
@@ -1575,6 +1668,7 @@ impl<'a> ExprLowerer<'a> {
             parent,
             labels: Some(labels),
             self_alias: None,
+            type_var_aliases: Vec::new(),
             local_method_scope: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
@@ -1583,6 +1677,11 @@ impl<'a> ExprLowerer<'a> {
 
     pub fn with_self_alias(mut self, self_alias: Option<AnnSelfAlias>) -> Self {
         self.self_alias = self_alias;
+        self
+    }
+
+    pub fn with_type_var_aliases(mut self, aliases: &[(String, String)]) -> Self {
+        self.type_var_aliases = aliases.to_vec();
         self
     }
 
@@ -1612,11 +1711,12 @@ impl<'a> ExprLowerer<'a> {
         if arg_patterns.is_empty() {
             return self.lower_binding_body_expr(body);
         }
-        let mut ann_builder = ann_type_builder(
+        let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
             self.site,
             self.self_alias.clone(),
+            &self.type_var_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         self.lower_lambda_params(
@@ -1638,11 +1738,12 @@ impl<'a> ExprLowerer<'a> {
         type_vars: &[String],
         result_type_expr: Option<Cst>,
     ) -> Result<Computation, LoweringError> {
-        let mut ann_builder = ann_type_builder(
+        let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
             self.site,
             self.self_alias.clone(),
+            &self.type_var_aliases,
         );
         let self_ann = ann_builder.type_decl_application(owner, type_vars);
         let mut ann_solver_vars = FxHashMap::default();
@@ -1710,11 +1811,12 @@ impl<'a> ExprLowerer<'a> {
         owner: TypeDeclId,
         result_type_expr: Option<Cst>,
     ) -> Result<Computation, LoweringError> {
-        let mut ann_builder = ann_type_builder(
+        let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
             self.site,
             self.self_alias.clone(),
+            &self.type_var_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
 
@@ -1778,11 +1880,12 @@ impl<'a> ExprLowerer<'a> {
         role_associated: &[String],
         result_type_expr: Option<Cst>,
     ) -> Result<Computation, LoweringError> {
-        let mut ann_builder = ann_type_builder(
+        let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
             self.site,
             self.self_alias.clone(),
+            &self.type_var_aliases,
         );
         for name in role_inputs.iter().chain(role_associated.iter()) {
             ann_builder.add_bare_type_var(name.clone());
@@ -1883,11 +1986,12 @@ impl<'a> ExprLowerer<'a> {
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         requirement: Option<&SignatureType>,
     ) -> Result<Computation, LoweringError> {
-        let mut ann_builder = ann_type_builder(
+        let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
             self.site,
             self.self_alias.clone(),
+            &self.type_var_aliases,
         );
         ann_builder.seed_type_var_bindings(type_var_bindings);
 
@@ -2269,17 +2373,7 @@ impl<'a> ExprLowerer<'a> {
         let mut acc = self.lower_head(head, head_lambda_scope)?;
         for item in items {
             match item {
-                NodeOrToken::Node(child)
-                    if matches!(child.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC) =>
-                {
-                    acc = self.apply_arguments(acc, &child)?;
-                }
-                NodeOrToken::Node(child) if child.kind() == SyntaxKind::Field => {
-                    acc = self.lower_field_selection(acc, &child)?;
-                }
-                NodeOrToken::Node(child) => {
-                    return Err(LoweringError::UnsupportedSyntax { kind: child.kind() });
-                }
+                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, &child)?,
                 NodeOrToken::Token(token) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
                 }
@@ -2295,9 +2389,8 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         match head {
             NodeOrToken::Token(token) => match token.kind() {
-                SyntaxKind::Ident | SyntaxKind::SigilIdent => {
-                    self.lower_name(Name(token.text().to_string()))
-                }
+                SyntaxKind::Ident => self.lower_name(Name(token.text().to_string())),
+                SyntaxKind::SigilIdent => self.lower_sigil_name(token.text()),
                 SyntaxKind::Number => self.lower_number(token.text()),
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
             },
@@ -2313,10 +2406,12 @@ impl<'a> ExprLowerer<'a> {
         match node.kind() {
             SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
             SyntaxKind::LambdaExpr => self.lower_lambda(node, lambda_scope),
+            SyntaxKind::MethodLambdaExpr => self.lower_method_lambda(node, lambda_scope),
             SyntaxKind::CaseExpr => self.lower_case(node),
             SyntaxKind::CatchExpr => self.lower_catch(node),
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
             SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
+            SyntaxKind::IndentBlock | SyntaxKind::BraceGroup => self.lower_expr_block(node),
             _ => Err(LoweringError::UnsupportedSyntax { kind: node.kind() }),
         }
     }
@@ -2337,11 +2432,12 @@ impl<'a> ExprLowerer<'a> {
         else {
             return Err(LoweringError::MissingLambdaBody);
         };
-        let mut ann_builder = ann_type_builder(
+        let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
             self.module,
             self.site,
             self.self_alias.clone(),
+            &self.type_var_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         self.lower_lambda_params(
@@ -2352,6 +2448,72 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_solver_vars,
             None,
         )
+    }
+
+    fn lower_method_lambda(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let receiver_name = Name("#method-receiver".to_string());
+        let receiver_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat = self.bind_pattern_local(
+            receiver_name.clone(),
+            receiver_value,
+            LocalCallReturnEffect::Annotated,
+        );
+        let receiver = self
+            .locals
+            .last()
+            .cloned()
+            .expect("method lambda receiver should be the last local");
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(lambda_scope));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_method_lambda_body(node, receiver);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("method lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(receiver_value));
+        let arg_eff = self.never_neg();
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_method_lambda_body(
+        &mut self,
+        node: &Cst,
+        receiver: LocalBinding,
+    ) -> Result<Computation, LoweringError> {
+        let mut acc = self.lower_local_name(receiver.name.clone(), receiver);
+        for child in node.children() {
+            acc = self.lower_tail_node(acc, &child)?;
+        }
+        Ok(acc)
     }
 
     fn lower_lambda_params(
@@ -2521,6 +2683,286 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
+    fn lower_expr_block(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let items = block_lowering_items(node);
+        let result = self.lower_block_items(items.as_slice());
+        self.locals.truncate(before_locals);
+        result
+    }
+
+    fn lower_block_items(&mut self, items: &[Cst]) -> Result<Computation, LoweringError> {
+        let Some((head, rest)) = items.split_first() else {
+            return Ok(self.unit_expr());
+        };
+
+        match head.kind() {
+            SyntaxKind::Binding if local_var_binding_source(head).is_some() => {
+                self.lower_local_var_binding(head, rest)
+            }
+            SyntaxKind::Binding => {
+                let lowered = self.lower_local_binding_stmt(head)?;
+                let tail = self.lower_block_items(rest)?;
+                Ok(self.prepend_block(lowered, tail))
+            }
+            SyntaxKind::Expr => {
+                let head = self.lower_expr(head)?;
+                if rest.is_empty() {
+                    Ok(head)
+                } else {
+                    let stmt = LoweredLocalStmt {
+                        stmt: Stmt::Expr(head.expr),
+                        effect: head.effect,
+                    };
+                    let tail = self.lower_block_items(rest)?;
+                    Ok(self.prepend_block(stmt, tail))
+                }
+            }
+            kind => Err(LoweringError::UnsupportedSyntax { kind }),
+        }
+    }
+
+    fn lower_local_binding_stmt(&mut self, node: &Cst) -> Result<LoweredLocalStmt, LoweringError> {
+        let name = crate::binding_name(node).ok_or(LoweringError::MissingLocalBindingName)?;
+        let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
+        let value = self.fresh_type_var();
+        let body = self.lower_local_binding_body(node, &body)?;
+        self.subtype_var_to_var(body.value, value);
+        self.connect_local_binding_annotation(node, value, body)?;
+
+        let pat = self.bind_let_local(
+            name,
+            value,
+            LocalCallReturnEffect::Unannotated,
+            Some(body.expr),
+        );
+        Ok(LoweredLocalStmt {
+            stmt: Stmt::Let(Vis::My, pat, body.expr),
+            effect: body.effect,
+        })
+    }
+
+    fn lower_local_var_binding(
+        &mut self,
+        node: &Cst,
+        rest: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let source =
+            local_var_binding_source(node).ok_or(LoweringError::MissingLocalBindingName)?;
+        let init_name = var_init_name(&source).ok_or(LoweringError::MissingLocalBindingName)?;
+        let reference_name =
+            var_reference_name(&source).ok_or(LoweringError::MissingLocalBindingName)?;
+        let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
+        let init_value = self.fresh_type_var();
+        let init = self.lower_local_binding_body(node, &body)?;
+        self.subtype_var_to_var(init.value, init_value);
+
+        let init_pat = self.bind_let_local(
+            init_name.clone(),
+            init_value,
+            LocalCallReturnEffect::Annotated,
+            Some(init.expr),
+        );
+        let init_stmt = LoweredLocalStmt {
+            stmt: Stmt::Let(Vis::My, init_pat, init.expr),
+            effect: init.effect,
+        };
+
+        let reference = self.lower_var_ref_constructor(init_value)?;
+        let reference_value = self.fresh_type_var();
+        self.subtype_var_to_var(reference.value, reference_value);
+        self.constrain_local_ref_value(reference_value, init_value);
+        let reference_pat = self.bind_let_local(
+            reference_name,
+            reference_value,
+            LocalCallReturnEffect::Annotated,
+            Some(reference.expr),
+        );
+        let reference_stmt = LoweredLocalStmt {
+            stmt: Stmt::Let(Vis::My, reference_pat, reference.expr),
+            effect: reference.effect,
+        };
+
+        let tail = self.lower_block_items(rest)?;
+        let wrapped = self.wrap_var_binding_run(init_name, init_value, tail)?;
+        let with_reference = self.prepend_block(reference_stmt, wrapped);
+        Ok(self.prepend_block(init_stmt, with_reference))
+    }
+
+    fn lower_local_binding_body(
+        &mut self,
+        binding: &Cst,
+        body: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let arg_patterns = binding_arg_patterns(binding);
+        if arg_patterns.is_empty() {
+            return self.lower_expr(body);
+        }
+        let mut ann_builder = ann_type_builder_with_aliases(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+            &self.type_var_aliases,
+        );
+        let mut ann_solver_vars = FxHashMap::default();
+        let result_type_expr = binding_type_expr(binding);
+        self.lower_lambda_params(
+            arg_patterns.as_slice(),
+            body,
+            LambdaScope::Defined,
+            &mut ann_builder,
+            &mut ann_solver_vars,
+            result_type_expr.as_ref(),
+        )
+    }
+
+    fn connect_local_binding_annotation(
+        &mut self,
+        node: &Cst,
+        value: TypeVar,
+        computation: Computation,
+    ) -> Result<(), LoweringError> {
+        let Some(type_expr) = binding_type_expr(node) else {
+            return Ok(());
+        };
+        let mut builder = ann_type_builder_with_aliases(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+            &self.type_var_aliases,
+        );
+        let ann = builder
+            .build_type_expr(&type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
+            .connect_computation(
+                AnnComputationTarget {
+                    value,
+                    effect: computation.effect,
+                },
+                &ann,
+            )
+            .map(|_| ())
+            .map_err(|error| LoweringError::AnnotationConstraint { error })
+    }
+
+    fn lower_var_ref_constructor(
+        &mut self,
+        payload: TypeVar,
+    ) -> Result<Computation, LoweringError> {
+        let var_ref = self.lower_std_var_member("var_ref")?;
+        let unit = self.unit_expr();
+        let reference = self.make_app(var_ref, unit);
+        self.constrain_local_ref_value(reference.value, payload);
+        Ok(reference)
+    }
+
+    fn wrap_var_binding_run(
+        &mut self,
+        init_name: Name,
+        init_value: TypeVar,
+        body: Computation,
+    ) -> Result<Computation, LoweringError> {
+        let run = self.lower_std_var_member("run")?;
+        let init = self.lower_name(init_name)?;
+        self.subtype_var_to_var(init.value, init_value);
+        let run_with_init = self.make_app(run, init);
+        Ok(self.make_app(run_with_init, body))
+    }
+
+    fn lower_std_var_member(&mut self, member: &str) -> Result<Computation, LoweringError> {
+        self.lower_path_value(crate::std_paths::control_var_var_member(member))
+    }
+
+    fn lower_path_value(&mut self, path: Vec<String>) -> Result<Computation, LoweringError> {
+        let path = path.into_iter().map(Name).collect::<Vec<_>>();
+        let Some(target) = self.modules.value_path_at(self.module, &path, self.site) else {
+            return Err(LoweringError::UnresolvedName {
+                name: Name(path_label(&path)),
+            });
+        };
+        let label = path_label(&path);
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let reference = self.session.poly.add_ref();
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_ref_label(reference, label);
+        }
+        self.session.refs.insert(
+            reference,
+            RefUse {
+                parent: self.parent,
+                value,
+            },
+        );
+        self.session.enqueue(AnalysisWork::ApplyRefResolution {
+            ref_id: reference,
+            target,
+        });
+
+        let expr = self.session.poly.add_expr(Expr::Var(reference));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn constrain_local_ref_value(&mut self, reference: TypeVar, payload: TypeVar) {
+        let effect = self.fresh_type_var();
+        let effect_arg = self.invariant_var_arg(effect);
+        let payload_arg = self.invariant_var_arg(payload);
+        let args = vec![effect_arg, payload_arg];
+        self.constrain_lower(
+            reference,
+            Pos::Con(crate::std_paths::control_var_ref_type(), args.clone()),
+        );
+        self.constrain_upper(
+            reference,
+            Neg::Con(crate::std_paths::control_var_ref_type(), args),
+        );
+    }
+
+    fn bind_let_local(
+        &mut self,
+        name: Name,
+        value: TypeVar,
+        call_return_effect: LocalCallReturnEffect,
+        body: Option<poly::expr::ExprId>,
+    ) -> PatId {
+        let def = self.session.poly.defs.fresh();
+        self.session.poly.defs.set(
+            def,
+            Def::Let {
+                vis: Vis::My,
+                scheme: None,
+                body,
+                children: Vec::new(),
+            },
+        );
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_def_label(def, name.0.clone());
+        }
+        self.locals.push(LocalBinding {
+            name,
+            def,
+            value,
+            call_return_effect,
+        });
+        self.session.poly.add_pat(Pat::Var(def))
+    }
+
+    fn prepend_block(&mut self, head: LoweredLocalStmt, tail: Computation) -> Computation {
+        let value = self.fresh_type_var();
+        let effect = self.fresh_type_var();
+        self.subtype_var_to_var(head.effect, effect);
+        self.subtype_var_to_var(tail.effect, effect);
+        self.subtype_var_to_var(tail.value, value);
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::Block(vec![head.stmt], Some(tail.expr)));
+        Computation::computation(expr, value, effect)
+    }
+
     fn lower_number(&mut self, text: &str) -> Result<Computation, LoweringError> {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
@@ -2562,6 +3004,16 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
+    fn lower_sigil_name(&mut self, text: &str) -> Result<Computation, LoweringError> {
+        let Some(reference_name) = var_read_reference_name(text) else {
+            return self.lower_name(Name(text.to_string()));
+        };
+        let reference = self.lower_name(reference_name)?;
+        let get = self.lower_synthetic_selection(reference, "get".to_string());
+        let unit = self.unit_expr();
+        Ok(self.make_app(get, unit))
+    }
+
     fn lower_local_name(&mut self, name: Name, local: LocalBinding) -> Computation {
         let effect = self.fresh_exact_pure_effect();
         let reference = self.session.poly.add_ref();
@@ -2587,6 +3039,20 @@ impl<'a> ExprLowerer<'a> {
             .rev()
             .find(|local| &local.name == name)
             .cloned()
+    }
+
+    fn lower_tail_node(
+        &mut self,
+        acc: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        match node.kind() {
+            SyntaxKind::ApplyML | SyntaxKind::ApplyC => self.apply_arguments(acc, node),
+            SyntaxKind::Field => self.lower_field_selection(acc, node),
+            SyntaxKind::Index => self.lower_index_selection(acc, node),
+            SyntaxKind::Assign => self.lower_ref_assignment(acc, node),
+            kind => Err(LoweringError::UnsupportedSyntax { kind }),
+        }
     }
 
     fn apply_arguments(
@@ -2615,6 +3081,64 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
         let name = field_name(node).ok_or(LoweringError::MissingFieldName)?;
+        Ok(self.lower_synthetic_selection(receiver, name))
+    }
+
+    fn lower_index_selection(
+        &mut self,
+        receiver: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let arg_node = index_expr(node).ok_or(LoweringError::MissingIndexArgument)?;
+        let index = self.lower_expr(&arg_node)?;
+        let selection = self.lower_synthetic_selection(receiver, "index".to_string());
+        Ok(self.make_app(selection, index))
+    }
+
+    fn lower_ref_assignment(
+        &mut self,
+        reference: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let value = match assignment_value_expr(node) {
+            Some(expr) => self.lower_expr(&expr)?,
+            None => self.unit_expr(),
+        };
+        Ok(self.make_ref_set(reference, value))
+    }
+
+    fn make_ref_set(&mut self, reference: Computation, value: Computation) -> Computation {
+        let result_value = self.fresh_type_var();
+        let result_effect = self.fresh_type_var();
+        let ref_effect = self.fresh_type_var();
+        let expected_value = self.fresh_type_var();
+
+        self.constrain_exact_primitive(result_value, "unit");
+        self.subtype_var_to_var(reference.effect, result_effect);
+        self.subtype_var_to_var(value.effect, result_effect);
+        self.subtype_var_to_var(ref_effect, result_effect);
+        self.subtype_var_to_var(value.value, expected_value);
+
+        let effect_arg = self.invariant_var_arg(ref_effect);
+        let value_arg = self.invariant_var_arg(expected_value);
+        let args = vec![effect_arg, value_arg];
+        self.constrain_lower(
+            reference.value,
+            Pos::Con(crate::std_paths::control_var_ref_type(), args.clone()),
+        );
+        self.constrain_upper(
+            reference.value,
+            Neg::Con(crate::std_paths::control_var_ref_type(), args),
+        );
+
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::RefSet(reference.expr, value.expr));
+        Computation::computation(expr, result_value, result_effect)
+    }
+
+    fn lower_synthetic_selection(&mut self, receiver: Computation, name: String) -> Computation {
         let method_value = self.fresh_type_var();
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
@@ -2647,12 +3171,7 @@ impl<'a> ExprLowerer<'a> {
             .session
             .poly
             .add_expr(Expr::Select(receiver.expr, select));
-        Ok(Computation::new(
-            expr,
-            result_value,
-            result_effect,
-            receiver.evaluation,
-        ))
+        Computation::new(expr, result_value, result_effect, receiver.evaluation)
     }
 
     fn make_app(&mut self, callee: Computation, arg: Computation) -> Computation {
@@ -2819,6 +3338,11 @@ struct LocalBinding {
     def: DefId,
     value: TypeVar,
     call_return_effect: LocalCallReturnEffect,
+}
+
+struct LoweredLocalStmt {
+    stmt: Stmt,
+    effect: TypeVar,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3040,6 +3564,9 @@ pub enum LoweringError {
     MissingCatchArmPattern,
     MissingCatchArmBody,
     MissingFieldName,
+    MissingIndexArgument,
+    MissingLocalBindingName,
+    MissingLocalBindingBody,
     AnnotationBuild { error: AnnBuildError },
     AnnotationConstraint { error: AnnConstraintError },
     SignatureConstraint { error: SignatureConstraintError },
@@ -3058,6 +3585,59 @@ fn field_name(node: &Cst) -> Option<String> {
         .filter_map(|item| item.into_token())
         .find(|token| token.kind() == SyntaxKind::DotField)?;
     Some(token.text().trim_start_matches('.').to_string())
+}
+
+fn block_lowering_items(node: &Cst) -> Vec<Cst> {
+    node.children()
+        .filter(|child| matches!(child.kind(), SyntaxKind::Binding | SyntaxKind::Expr))
+        .collect()
+}
+
+fn index_expr(node: &Cst) -> Option<Cst> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
+        .or_else(|| {
+            node.children()
+                .find(|child| child.kind() == SyntaxKind::Bracket)
+                .and_then(|bracket| {
+                    bracket
+                        .children()
+                        .find(|child| child.kind() == SyntaxKind::Expr)
+                })
+        })
+}
+
+fn assignment_value_expr(node: &Cst) -> Option<Cst> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::Expr)
+        .last()
+}
+
+fn var_read_reference_name(text: &str) -> Option<Name> {
+    let raw = text.strip_prefix('$')?;
+    (!raw.is_empty()).then(|| Name(format!("&{raw}")))
+}
+
+fn local_var_binding_source(node: &Cst) -> Option<Name> {
+    let source = crate::binding_name(node)?;
+    source.0.starts_with('$').then_some(source)
+}
+
+fn var_init_name(source: &Name) -> Option<Name> {
+    let raw = source.0.strip_prefix('$')?;
+    (!raw.is_empty()).then(|| Name(format!("#{raw}")))
+}
+
+fn var_reference_name(source: &Name) -> Option<Name> {
+    let raw = source.0.strip_prefix('$')?;
+    (!raw.is_empty()).then(|| Name(format!("&{raw}")))
+}
+
+fn path_label(path: &[Name]) -> String {
+    path.iter()
+        .map(|name| name.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn integer_number_token(text: &str) -> bool {
@@ -3093,7 +3673,12 @@ fn primitive_neg_type(name: &str) -> Neg {
 fn binding_body_expr(binding: &Cst) -> Option<Cst> {
     crate::child_node(binding, SyntaxKind::BindingBody)?
         .children()
-        .find(|child| child.kind() == SyntaxKind::Expr)
+        .find(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+            )
+        })
 }
 
 fn binding_arg_patterns(binding: &Cst) -> Vec<Cst> {
@@ -4691,6 +5276,226 @@ mod tests {
     }
 
     #[test]
+    fn index_tail_lowers_to_index_selection_application() {
+        let root = parse("my xs = 1\nmy i = 0\nmy got = xs[i]\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "got");
+        let expr = binding_expr(&root, "got");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (callee, arg) = match session.poly.expr(computation.expr) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected index desugar to application"),
+        };
+        let select = match session.poly.expr(callee) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected index callee to be a selection"),
+        };
+        assert_eq!(session.poly.select(select).name, "index");
+        assert!(matches!(session.poly.expr(arg), Expr::Var(_)));
+    }
+
+    #[test]
+    fn method_lambda_lowers_to_receiver_lambda_with_selection_body() {
+        let root = parse("my display = \\.display\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "display");
+        let expr = binding_expr(&root, "display");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (pat, body) = match session.poly.expr(computation.expr) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected method lambda to lower to lambda"),
+        };
+        let receiver = match session.poly.pat(pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected implicit receiver pattern"),
+        };
+        let (receiver_expr, select) = match session.poly.expr(body) {
+            Expr::Select(receiver_expr, select) => (*receiver_expr, *select),
+            _ => panic!("expected method lambda body to be a selection"),
+        };
+        let receiver_ref = expr_ref(&session, receiver_expr);
+
+        assert_eq!(session.poly.ref_target(receiver_ref), Some(receiver));
+        assert_eq!(session.poly.select(select).name, "display");
+    }
+
+    #[test]
+    fn dollar_sigil_read_lowers_to_ref_get_call() {
+        let root = parse("my &x = 1\nmy got = $x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (target, _) = binding_def_and_order(&lower.modules, module, "&x");
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "got");
+        let expr = binding_expr(&root, "got");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+        session.drain_work();
+
+        let (callee, unit) = match session.poly.expr(computation.expr) {
+            Expr::App(callee, unit) => (*callee, *unit),
+            _ => panic!("expected var read to apply get to unit"),
+        };
+        let (receiver_expr, select) = match session.poly.expr(callee) {
+            Expr::Select(receiver_expr, select) => (*receiver_expr, *select),
+            _ => panic!("expected var read callee to be get selection"),
+        };
+        let receiver_ref = expr_ref(&session, receiver_expr);
+
+        assert_eq!(session.poly.ref_target(receiver_ref), Some(target));
+        assert_eq!(session.poly.select(select).name, "get");
+        assert!(matches!(session.poly.expr(unit), Expr::Lit(Lit::Unit)));
+    }
+
+    #[test]
+    fn assign_tail_lowers_to_ref_set() {
+        let root = parse("my &x = 1\nmy set = &x = 2\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (target, _) = binding_def_and_order(&lower.modules, module, "&x");
+        let (set, _) = binding_def_and_order(&lower.modules, module, "set");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, set);
+        let (reference_expr, value_expr) = match output.session.poly.expr(body) {
+            Expr::RefSet(reference_expr, value_expr) => (*reference_expr, *value_expr),
+            _ => panic!("expected assignment to lower to ref set"),
+        };
+        let reference = expr_ref(&output.session, reference_expr);
+
+        assert_eq!(output.session.poly.ref_target(reference), Some(target));
+        assert!(matches!(
+            output.session.poly.expr(value_expr),
+            Expr::Lit(Lit::Int(2))
+        ));
+    }
+
+    #[test]
+    fn block_lowers_local_binding_and_tail_reference() {
+        let root = parse("my f =\n  my x = 1\n  x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, f);
+        let (stmts, tail) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected block body"),
+        };
+        let [Stmt::Let(_, pat, value)] = stmts.as_slice() else {
+            panic!("expected one local let");
+        };
+        let local = match output.session.poly.pat(*pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected local binding pattern"),
+        };
+        assert!(matches!(
+            output.session.poly.expr(*value),
+            Expr::Lit(Lit::Int(1))
+        ));
+        let tail_ref = expr_ref(&output.session, tail);
+
+        assert_eq!(output.session.poly.ref_target(tail_ref), Some(local));
+    }
+
+    #[test]
+    fn dollar_binding_lowers_to_var_ref_and_run_wrapper() {
+        let root = parse(concat!(
+            "mod std:\n",
+            "  mod control:\n",
+            "    mod var:\n",
+            "      type ref 'e 'a with:\n",
+            "        our r.get = r\n",
+            "      act var 't:\n",
+            "        my var_ref() = 0\n",
+            "        my run v x = x\n",
+            "my f =\n",
+            "  my $x = 1\n",
+            "  $x\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let std = lower.modules.module_decls(module, &Name("std".into()))[0].module;
+        let control = lower.modules.module_decls(std, &Name("control".into()))[0].module;
+        let var_module = lower.modules.module_decls(control, &Name("var".into()))[0].module;
+        let var_companion = lower.modules.module_decls(var_module, &Name("var".into()))[0].module;
+        let var_ref = lower
+            .modules
+            .value_decls(var_companion, &Name("var_ref".into()))[0]
+            .def;
+        let run = lower
+            .modules
+            .value_decls(var_companion, &Name("run".into()))[0]
+            .def;
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, f);
+        let (first_stmts, after_init) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected outer block"),
+        };
+        let [Stmt::Let(_, init_pat, init_expr)] = first_stmts.as_slice() else {
+            panic!("expected init let");
+        };
+        assert!(matches!(output.session.poly.pat(*init_pat), Pat::Var(_)));
+        assert!(matches!(
+            output.session.poly.expr(*init_expr),
+            Expr::Lit(Lit::Int(1))
+        ));
+
+        let (second_stmts, wrapped) = match output.session.poly.expr(after_init) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected reference block"),
+        };
+        let [Stmt::Let(_, reference_pat, reference_expr)] = second_stmts.as_slice() else {
+            panic!("expected reference let");
+        };
+        assert!(matches!(
+            output.session.poly.pat(*reference_pat),
+            Pat::Var(_)
+        ));
+        let (var_ref_callee, _) = match output.session.poly.expr(*reference_expr) {
+            Expr::App(callee, unit) => (*callee, *unit),
+            _ => panic!("expected var_ref call"),
+        };
+        let var_ref_ref = expr_ref(&output.session, var_ref_callee);
+        assert_eq!(output.session.poly.ref_target(var_ref_ref), Some(var_ref));
+
+        let (run_with_init, _) = match output.session.poly.expr(wrapped) {
+            Expr::App(callee, body) => (*callee, *body),
+            _ => panic!("expected run application"),
+        };
+        let (run_expr, _) = match output.session.poly.expr(run_with_init) {
+            Expr::App(callee, init) => (*callee, *init),
+            _ => panic!("expected run init application"),
+        };
+        let run_ref = expr_ref(&output.session, run_expr);
+        assert_eq!(output.session.poly.ref_target(run_ref), Some(run));
+    }
+
+    #[test]
     fn field_tail_lowers_to_deferred_selection_and_final_record_fallback() {
         let root = parse("my get = \\x -> x.foo\n");
         let lower = lower_module_map(&root);
@@ -4855,6 +5660,43 @@ mod tests {
             output.session.effect_methods.candidates("flip")[0].def,
             method
         );
+    }
+
+    #[test]
+    fn act_copy_lowers_source_method_body_as_destination_method() {
+        let root = parse(
+            "act outer:\n  my act last:\n    our x.flip = x\n  my act next = last\nmy got = 1\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let outer = lower.modules.type_decls(module, &Name("outer".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(outer.id)
+            .expect("outer companion");
+        let next = lower.modules.type_decls(companion, &Name("next".into()))[0].clone();
+        let method = lower.modules.act_methods(next.id)[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_method_body_is_receiver_identity(&output, method);
+    }
+
+    #[test]
+    fn act_copy_lowers_qualified_source_method_body() {
+        let root = parse(
+            "mod source:\n  act box 'a:\n    our x.flip: 'a = x\nact local 't = source::box 't\nmy got = 1\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let local = lower.modules.type_decls(module, &Name("local".into()))[0].clone();
+        let method = lower.modules.act_methods(local.id)[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_method_body_is_receiver_identity(&output, method);
     }
 
     #[test]

@@ -1,12 +1,12 @@
 use std::data::index::*
 use std::data::range::*
 
-type bytes with:
-    our b.len = std::text::bytes::len b
-    our b.is_empty = std::text::bytes::is_empty b
-    our b.concat other = std::text::bytes::concat b other
-    our b.to_utf8_raw = std::text::bytes::to_utf8_raw b
-    our b.to_utf8_lossy = std::text::bytes::to_utf8_lossy b
+pub type bytes with:
+    pub b.len = std::text::bytes::len b
+    pub b.is_empty = std::text::bytes::is_empty b
+    pub b.concat other = std::text::bytes::concat b other
+    pub b.to_utf8_raw = std::text::bytes::to_utf8_raw b
+    pub b.to_utf8_lossy = std::text::bytes::to_utf8_lossy b
 
 pub is_empty(b: bytes): bool = std::int::eq(std::text::bytes::len b, 0)
 

@@ -1,8 +1,8 @@
 pub role Len 'a:
-    our a.len: int
+    pub a.len: int
 
 pub role IsEmpty 'a:
-    our a.is_empty: bool
+    pub a.is_empty: bool
 
 impl Len str:
     our s.len = std::text::str::len s

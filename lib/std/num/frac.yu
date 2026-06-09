@@ -1,4 +1,4 @@
-struct frac { num: int, den: int }
+pub struct frac { num: int, den: int }
 
 my abs(x: int): int =
     if std::int::lt x 0:

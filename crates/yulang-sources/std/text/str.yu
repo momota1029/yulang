@@ -4,11 +4,11 @@ use std::data::fold::*
 use std::data::range::*
 use std::control::var::*
 
-type lines with:
+pub type lines with:
     struct self:
         source: str
 
-type ref_lines 'e with:
+pub type ref_lines 'e with:
     struct self:
         source: ref 'e str
 
@@ -55,16 +55,16 @@ impl Fold (ref_lines 'e):
     type item = ref 'e str
     our ls.fold z f = fold_ref_lines(ls, 0, std::text::str::line_count (ls.source.get()), z, f)
 
-type str with:
-    our s.splice r insert = std::text::str::splice s r insert
-    our s.len = std::text::str::len s
-    our s.is_empty = std::text::str::is_empty s
-    our s.lines: lines = str_line_view s
-    our &s.lines = line_view &s
-    our s.print = std::io::print s
-    our s.println = std::io::println s
-    our s.eprint = std::io::eprint s
-    our s.eprintln = std::io::eprintln s
+pub type str with:
+    pub s.splice r insert = std::text::str::splice s r insert
+    pub s.len = std::text::str::len s
+    pub s.is_empty = std::text::str::is_empty s
+    pub s.lines: lines = str_line_view s
+    pub &s.lines = line_view &s
+    pub s.print = std::io::print s
+    pub s.println = std::io::println s
+    pub s.eprint = std::io::eprint s
+    pub s.eprintln = std::io::eprintln s
 
 pub is_empty(s: str): bool = std::int::eq(std::text::str::len s, 0)
 

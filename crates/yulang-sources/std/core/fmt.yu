@@ -1,13 +1,13 @@
 use std::core::ops::*
 
 pub role Display 'a:
-    our a.show: str
-    our a.say = std::io::out::write: a.show + "\n"
-    our a.note = std::io::err::write: a.show + "\n"
+    pub a.show: str
+    pub a.say = std::io::out::write: a.show + "\n"
+    pub a.note = std::io::err::write: a.show + "\n"
 
 pub role Debug 'a:
-    our a.debug: str
-    our a.dd = std::io::err::write: a.debug + "\n"
+    pub a.debug: str
+    pub a.dd = std::io::err::write: a.debug + "\n"
 
 impl Display int:
     our x.show = std::int::to_string x

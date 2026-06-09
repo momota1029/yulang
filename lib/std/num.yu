@@ -1,23 +1,23 @@
 pub mod frac;
 
 pub role Add 'a:
-    our a.add: 'a -> 'a
+    pub a.add: 'a -> 'a
 
 pub role Sub 'a:
-    our a.sub: 'a -> 'a
+    pub a.sub: 'a -> 'a
 
 pub role Mul 'a:
-    our a.mul: 'a -> 'a
+    pub a.mul: 'a -> 'a
 
 pub role Div 'a:
     type out
-    our a.div: 'a -> out
+    pub a.div: 'a -> out
 
 pub role LowerHex 'a:
-    our a.lower_hex: str
+    pub a.lower_hex: str
 
 pub role UpperHex 'a:
-    our a.upper_hex: str
+    pub a.upper_hex: str
 
 impl Add int:
     our x.add y = std::int::add x y

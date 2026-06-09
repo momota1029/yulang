@@ -1,3 +1,4 @@
+use chasa::Back as _;
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -138,6 +139,19 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
 ) -> Option<Either<TriviaInfo, Lex>> {
     let next_info = vis_kw.trailing_trivia_info();
 
+    if vis_kw.kind == SyntaxKind::My {
+        let checkpoint = i.checkpoint();
+        if let Some(nud) = scan_visibility_pat_nud(next_info, i.rb()) {
+            if matches!(nud.tag, crate::pat::scan::PatNudTag::Stop)
+                && nud.lex.kind == SyntaxKind::Act
+                && my_contextual_act_decl_after_keyword(nud.lex.trailing_trivia_info(), i.rb())
+            {
+                return act_decl::parse_act_decl(i, Some(vis_kw), nud.lex);
+            }
+        }
+        i.rollback(checkpoint);
+    }
+
     let nud = if vis_kw.kind == SyntaxKind::My {
         scan_pat_nud(next_info, i.rb())
     } else {
@@ -174,6 +188,14 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
 
     // Atom 等（パターンの先頭）→ parse_pattern_from_nud で pat を構築してから binding へ
     binding::parse_binding_stmt_from_nud(i, vis_kw, nud)
+}
+
+fn my_contextual_act_decl_after_keyword<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> bool {
+    peek_stmt_lex(leading_info, i)
+        .is_some_and(|next| matches!(next.kind, SyntaxKind::Ident | SyntaxKind::SigilIdent))
 }
 
 /// ヘッダ先読みの 1 ステップの結果。
