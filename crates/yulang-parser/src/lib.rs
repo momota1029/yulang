@@ -95,7 +95,12 @@ pub fn parse_header_to_green(source: &str) -> rowan::GreenNode {
         let mut errors = LatestSink::new();
         let mut cut_flag = false;
         let base_in = chasa::prelude::In::new(&mut input, &mut errors, IsCut::new(&mut cut_flag));
-        let mut env = Env::new(&mut state, crate::op::standard_op_table(), 0, HashSet::new());
+        let mut env = Env::new(
+            &mut state,
+            crate::op::standard_op_table(),
+            0,
+            HashSet::new(),
+        );
         env.header_only = true;
         let mut i = base_in.set_env(env);
 

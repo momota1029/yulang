@@ -200,9 +200,7 @@ pub fn parse_header_statement<I: EventInput, S: EventSink>(
             SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
                 header_step(op_def::parse_op_def_stmt(i, None, stop))
             }
-            SyntaxKind::My | SyntaxKind::Our | SyntaxKind::Pub => {
-                parse_header_visibility(i, stop)
-            }
+            SyntaxKind::My | SyntaxKind::Our | SyntaxKind::Pub => parse_header_visibility(i, stop),
             _ => Some(HeaderStep::Stop),
         },
     }
