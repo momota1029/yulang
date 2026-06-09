@@ -31,11 +31,27 @@ fn main() {
                 }
             }
         }
+        Some("dump-poly-std") => {
+            let Some(path) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            if args.next().is_some() {
+                print_usage_and_exit(&program);
+            }
+            match yulang2::dump_poly_from_entry_with_std(PathBuf::from(path)) {
+                Ok(output) => print!("{}", output.text),
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
         _ => print_usage_and_exit(&program),
     }
 }
 
 fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("usage: {program} dump-poly <path>");
+    eprintln!("       {program} dump-poly-std <path>");
     process::exit(2);
 }
