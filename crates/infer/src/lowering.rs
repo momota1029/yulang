@@ -26,12 +26,13 @@ use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
     AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
+use crate::roles::{RoleAssociatedConstraint, RoleConstraint};
 use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder,
-    ModuleTable, ModuleTypeDecl, TypeDeclId, TypeMethodDecl, TypeMethodReceiver,
+    ModuleTable, ModuleTypeDecl, RoleMethodDecl, TypeDeclId, TypeMethodDecl, TypeMethodReceiver,
     lower_loaded_file_csts_module_map,
 };
 
@@ -131,6 +132,7 @@ impl BodyLowerer {
         let mut session = AnalysisSession::new(lower.arena);
         register_declared_type_methods(&mut session, &lower.modules);
         register_declared_act_methods(&mut session, &lower.modules);
+        register_declared_role_methods(&mut session, &lower.modules);
         Self {
             session,
             modules: lower.modules,
@@ -162,6 +164,7 @@ impl BodyLowerer {
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
                 | SyntaxKind::ErrorDecl => self.lower_type_decl_with_body(&child, module),
+                SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, module),
                 _ => {}
             }
@@ -329,6 +332,164 @@ impl BodyLowerer {
                 _ => {}
             }
         }
+    }
+
+    fn lower_role_decl_body(&mut self, node: &Cst, module: ModuleId) {
+        let Some(name) = crate::type_decl_name(node) else {
+            return;
+        };
+        let Some(decl) = self.next_type_decl(module, &name) else {
+            return;
+        };
+        let Some(body) = crate::role_decl_body(node) else {
+            return;
+        };
+        let Some(companion) = self.modules.type_companion(decl.id) else {
+            return;
+        };
+        let role_inputs = self.modules.role_inputs(decl.id).to_vec();
+        let role_associated = self.modules.role_associated(decl.id).to_vec();
+        let mut method_cursor = 0usize;
+        for child in body.children() {
+            match child.kind() {
+                SyntaxKind::Binding if crate::role_method_binding(&child).is_some() => {
+                    let method = self
+                        .modules
+                        .role_methods(decl.id)
+                        .get(method_cursor)
+                        .cloned();
+                    method_cursor += usize::from(method.is_some());
+                    if let Some(method) = method {
+                        self.lower_role_method_signature(
+                            &child,
+                            companion,
+                            &decl,
+                            &method,
+                            &role_inputs,
+                            &role_associated,
+                        );
+                    }
+                }
+                SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
+                _ => {}
+            }
+        }
+    }
+
+    fn lower_role_method_signature(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        role: &ModuleTypeDecl,
+        method: &RoleMethodDecl,
+        role_inputs: &[String],
+        role_associated: &[String],
+    ) {
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(method.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: method.def,
+                root,
+            }));
+
+        let result = self.connect_role_method_signature(
+            node,
+            module,
+            role,
+            method,
+            role_inputs,
+            role_associated,
+            root,
+        );
+        if let Err(error) = result {
+            self.errors.push(BodyLoweringError::Expr {
+                def: method.def,
+                name: method.name.clone(),
+                error,
+            });
+        }
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: method.def }));
+        self.session.infer.restore_level(previous_level);
+    }
+
+    fn connect_role_method_signature(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        role: &ModuleTypeDecl,
+        method: &RoleMethodDecl,
+        role_inputs: &[String],
+        role_associated: &[String],
+        root: TypeVar,
+    ) -> Result<(), LoweringError> {
+        let Some(type_expr) = binding_type_expr(node) else {
+            return Ok(());
+        };
+        let mut builder = ann_type_builder(&self.modules, module, method.order, None);
+        for name in role_inputs.iter().chain(role_associated.iter()) {
+            builder.add_bare_type_var(name.clone());
+        }
+        if let Some(first) = role_inputs.first() {
+            builder.add_bare_type_var_alias("self", first.clone());
+        }
+        let ann = builder
+            .build_type_expr(&type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let ann = role_method_ann_with_receiver(
+            &mut builder,
+            method.receiver.as_ref(),
+            role_inputs.first(),
+            &ann,
+        );
+        let role_arg_names = role_inputs
+            .iter()
+            .chain(role_associated.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+        let role_arg_anns = role_arg_names
+            .iter()
+            .map(|name| AnnType::Var(builder.ann_type_var_for_role(name)))
+            .collect::<Vec<_>>();
+
+        let mut lowerer = AnnConstraintLowerer::new(&mut self.session.infer, &self.modules);
+        lowerer
+            .connect_value(root, &ann)
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        let mut role_args = Vec::with_capacity(role_arg_anns.len());
+        for ann in &role_arg_anns {
+            role_args.push(
+                lowerer
+                    .lower_role_arg(ann)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+            );
+        }
+
+        let path = self
+            .modules
+            .type_decl_path(role)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let inputs = role_args[..role_inputs.len()].to_vec();
+        let associated = role_associated
+            .iter()
+            .cloned()
+            .zip(role_args[role_inputs.len()..].iter().copied())
+            .map(|(name, value)| RoleAssociatedConstraint { name, value })
+            .collect();
+        self.session.roles.insert(
+            method.def,
+            RoleConstraint {
+                role: path,
+                inputs,
+                associated,
+            },
+        );
+        Ok(())
     }
 
     fn lower_act_method_binding(&mut self, node: &Cst, module: ModuleId, method: &ActMethodDecl) {
@@ -555,6 +716,24 @@ fn register_declared_act_methods(session: &mut AnalysisSession, modules: &Module
     }
 }
 
+fn register_declared_role_methods(session: &mut AnalysisSession, modules: &ModuleTable) {
+    for method in modules.all_role_methods() {
+        if method.vis == poly::expr::Vis::My {
+            continue;
+        }
+        let Some(owner) = modules.type_decl_by_id(method.owner) else {
+            continue;
+        };
+        let role = modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        session.register_role_method(role, method.name.0.clone(), method.def);
+    }
+}
+
 fn ann_type_builder(
     modules: &ModuleTable,
     module: ModuleId,
@@ -564,6 +743,32 @@ fn ann_type_builder(
     match self_alias {
         Some(self_alias) => AnnTypeBuilder::with_self_alias(modules, module, site, self_alias),
         None => AnnTypeBuilder::new(modules, module, site),
+    }
+}
+
+fn role_method_ann_with_receiver(
+    builder: &mut AnnTypeBuilder,
+    receiver: Option<&Name>,
+    receiver_type: Option<&String>,
+    ann: &AnnType,
+) -> AnnType {
+    let (Some(_receiver), Some(receiver_type)) = (receiver, receiver_type) else {
+        return ann.clone();
+    };
+    let param = AnnType::Var(builder.ann_type_var_for_role(receiver_type));
+    let (ret_eff, ret) = split_effectful_ann(ann.clone());
+    AnnType::Function {
+        param: Box::new(param),
+        arg_eff: None,
+        ret_eff,
+        ret: Box::new(ret),
+    }
+}
+
+fn split_effectful_ann(ann: AnnType) -> (Option<crate::annotation::AnnEffectRow>, AnnType) {
+    match ann {
+        AnnType::Effectful { eff, ret } => (Some(eff), *ret),
+        ann => (None, ann),
     }
 }
 
@@ -1597,7 +1802,7 @@ mod tests {
     use super::*;
     use crate::lower_module_map;
     use crate::scc::SccEvent;
-    use poly::expr::{DefId, ExprId, Pat, RefId, SelectResolution};
+    use poly::expr::{DefId, ExprId, Pat, RefId, SelectResolution, Vis};
 
     fn parse(src: &str) -> Cst {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
@@ -1984,6 +2189,78 @@ mod tests {
         assert_eq!(
             output.session.effect_methods.candidates("flip")[0].def,
             method
+        );
+    }
+
+    #[test]
+    fn role_method_signature_lowers_to_typeclass_method_selection() {
+        let root = parse("role Display 'a:\n  our x.display: unit\nmy show = \\x -> x.display\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let display = lower.modules.type_decls(module, &Name("Display".into()))[0].clone();
+        let method = lower.modules.role_methods(display.id)[0].def;
+        let (show, _) = binding_def_and_order(&lower.modules, module, "show");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_eq!(
+            output.session.role_methods.candidates("display")[0].def,
+            method
+        );
+        let method_scheme = match output.session.poly.defs.get(method) {
+            Some(Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) => scheme,
+            _ => panic!("role method should have a generalized scheme"),
+        };
+        assert_eq!(method_scheme.role_predicates.len(), 1);
+        assert_eq!(
+            method_scheme.role_predicates[0].role,
+            vec!["Display".to_string()]
+        );
+
+        let show_body = binding_body_id(&output, show);
+        let lambda_body = match output.session.poly.expr(show_body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected show lambda"),
+        };
+        let select = match output.session.poly.expr(lambda_body) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(select).resolution,
+            Some(SelectResolution::TypeclassMethod { member: method })
+        );
+    }
+
+    #[test]
+    fn private_role_method_is_not_registered_for_selection_fallback() {
+        let root = parse("role Hidden 'a:\n  my x.secret: unit\nmy show = \\x -> x.secret\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let hidden = lower.modules.type_decls(module, &Name("Hidden".into()))[0].clone();
+        assert_eq!(lower.modules.role_methods(hidden.id)[0].vis, Vis::My);
+        let (show, _) = binding_def_and_order(&lower.modules, module, "show");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(output.session.role_methods.candidates("secret").is_empty());
+        let show_body = binding_body_id(&output, show);
+        let lambda_body = match output.session.poly.expr(show_body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected show lambda"),
+        };
+        let select = match output.session.poly.expr(lambda_body) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(select).resolution,
+            Some(SelectResolution::RecordField)
         );
     }
 

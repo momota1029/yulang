@@ -12,12 +12,13 @@ use crate::compact::{
 };
 use crate::constraints::ConstraintMachine;
 use crate::roles::{RoleConstraint, RoleImplCandidate, RoleImplTable};
+use poly::expr::SelectId;
 use poly::types::{BuiltinType, RecordField, TypeVar};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct RoleResolutionKey {
-    demand: CompactRoleConstraint,
-    candidate: CompactRoleConstraint,
+    pub(crate) demand: CompactRoleConstraint,
+    pub(crate) candidate: CompactRoleConstraint,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,6 +71,24 @@ pub(crate) fn resolve_role_constraints(
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
 ) -> Vec<RoleResolution> {
+    resolve_role_constraints_with_method_taint(
+        machine,
+        main,
+        constraints,
+        impls,
+        applied,
+        &FxHashMap::default(),
+    )
+}
+
+pub(crate) fn resolve_role_constraints_with_method_taint(
+    machine: &ConstraintMachine,
+    main: &CompactRoot,
+    constraints: &[CompactRoleConstraint],
+    impls: &RoleImplTable,
+    applied: &FxHashSet<RoleResolutionKey>,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> Vec<RoleResolution> {
     let mut out = Vec::new();
     let main_polarity = MainPolarity::collect(main);
     for constraint in constraints {
@@ -82,6 +101,7 @@ pub(crate) fn resolve_role_constraints(
                     constraint,
                     candidate,
                     &main_polarity,
+                    method_taint,
                     impls,
                     &mut FxHashSet::default(),
                 )
@@ -127,6 +147,7 @@ fn resolve_role_candidate(
     constraint: &CompactRoleConstraint,
     candidate: &RoleImplCandidate,
     main_polarity: &MainPolarity,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
     impls: &RoleImplTable,
     stack: &mut FxHashSet<RoleResolutionKey>,
 ) -> Option<ResolvedCandidate> {
@@ -137,7 +158,7 @@ fn resolve_role_candidate(
     let candidate = compact_role_constraint(machine, &raw_candidate.as_constraint());
     let mut subst = TypeSubst::default();
     for (demand, candidate) in constraint.inputs.iter().zip(&candidate.inputs) {
-        let demand = role_arg_concrete_type(demand, main_polarity)?;
+        let demand = role_arg_concrete_type(demand, main_polarity, method_taint)?;
         if !match_role_arg_candidate(candidate, &demand, &mut subst) {
             return None;
         }
@@ -157,6 +178,7 @@ fn resolve_role_candidate(
         &subst,
         impls,
         main_polarity,
+        method_taint,
         stack,
     );
     stack.remove(&key);
@@ -174,6 +196,7 @@ fn resolve_candidate_prerequisites(
     subst: &TypeSubst,
     impls: &RoleImplTable,
     main_polarity: &MainPolarity,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
     stack: &mut FxHashSet<RoleResolutionKey>,
 ) -> ResolvedPrerequisites {
     let mut solved_prerequisites = Vec::new();
@@ -190,6 +213,7 @@ fn resolve_candidate_prerequisites(
                     &prerequisite,
                     candidate,
                     main_polarity,
+                    method_taint,
                     impls,
                     stack,
                 )
@@ -1028,13 +1052,20 @@ fn merge_role_arg(lhs: CompactRoleArg, rhs: CompactRoleArg) -> CompactRoleArg {
 fn role_arg_concrete_type(
     arg: &CompactRoleArg,
     main_polarity: &MainPolarity,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> Option<CompactType> {
     let lower = single_concrete_type(&arg.lower);
-    if lower.is_some() && role_arg_allowed_by_main_polarity(arg, true, main_polarity) {
+    if lower.is_some()
+        && role_arg_allowed_by_main_polarity(arg, true, main_polarity)
+        && !compact_type_has_method_taint(&arg.lower, method_taint)
+    {
         return lower;
     }
     let upper = single_concrete_type(&arg.upper);
-    if upper.is_some() && role_arg_allowed_by_main_polarity(arg, false, main_polarity) {
+    if upper.is_some()
+        && role_arg_allowed_by_main_polarity(arg, false, main_polarity)
+        && !compact_type_has_method_taint(&arg.upper, method_taint)
+    {
         return upper;
     }
     None
@@ -1064,6 +1095,94 @@ fn single_concrete_type(ty: &CompactType) -> Option<CompactType> {
     found.extend(ty.tuples.iter().cloned().map(CompactType::from_tuple));
     found.extend(ty.rows.iter().cloned().map(CompactType::from_row));
     (found.len() == 1).then(|| found.remove(0))
+}
+
+fn compact_type_has_method_taint(
+    ty: &CompactType,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> bool {
+    ty.vars.iter().any(|var| {
+        method_taint
+            .get(&var.var)
+            .is_some_and(|selects| !selects.is_empty())
+    }) || ty.cons.iter().any(|con| {
+        con.args
+            .iter()
+            .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
+    }) || ty.funs.iter().any(|fun| {
+        compact_type_has_method_taint(&fun.arg, method_taint)
+            || compact_type_has_method_taint(&fun.arg_eff, method_taint)
+            || compact_type_has_method_taint(&fun.ret_eff, method_taint)
+            || compact_type_has_method_taint(&fun.ret, method_taint)
+    }) || ty.records.iter().any(|record| {
+        record
+            .fields
+            .iter()
+            .any(|field| compact_type_has_method_taint(&field.value, method_taint))
+    }) || ty.record_spreads.iter().any(|spread| {
+        spread
+            .fields
+            .iter()
+            .any(|field| compact_type_has_method_taint(&field.value, method_taint))
+            || compact_type_has_method_taint(&spread.tail, method_taint)
+    }) || ty.poly_variants.iter().any(|variant| {
+        variant.items.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(|payload| compact_type_has_method_taint(payload, method_taint))
+        })
+    }) || ty.tuples.iter().any(|tuple| {
+        tuple
+            .items
+            .iter()
+            .any(|item| compact_type_has_method_taint(item, method_taint))
+    }) || ty.rows.iter().any(|row| {
+        row.items
+            .iter()
+            .any(|item| compact_type_has_method_taint(item, method_taint))
+            || compact_type_has_method_taint(&row.tail, method_taint)
+    })
+}
+
+fn compact_bounds_has_method_taint(
+    bounds: &CompactBounds,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> bool {
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            method_taint
+                .get(self_var)
+                .is_some_and(|selects| !selects.is_empty())
+                || compact_type_has_method_taint(lower, method_taint)
+                || compact_type_has_method_taint(upper, method_taint)
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args
+            .iter()
+            .any(|arg| compact_bounds_has_method_taint(arg, method_taint)),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            compact_bounds_has_method_taint(arg, method_taint)
+                || compact_bounds_has_method_taint(arg_eff, method_taint)
+                || compact_bounds_has_method_taint(ret_eff, method_taint)
+                || compact_bounds_has_method_taint(ret, method_taint)
+        }
+        CompactBounds::Record { fields } => fields
+            .iter()
+            .any(|field| compact_bounds_has_method_taint(&field.value, method_taint)),
+        CompactBounds::PolyVariant { items } => items.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(|payload| compact_bounds_has_method_taint(payload, method_taint))
+        }),
+    }
 }
 
 fn role_arg_allowed_by_main_polarity(

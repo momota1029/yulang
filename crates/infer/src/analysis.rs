@@ -7,15 +7,18 @@
 use std::collections::VecDeque;
 
 use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
-use poly::types::{Neg, NegId, Neu, Pos, PosId, RecordField, Scheme, Subtractability, TypeVar};
+use poly::types::{
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, Subtractability, TypeVar,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::arena::Arena as InferArena;
 use crate::casts::CastTable;
 use crate::compact::{
-    CompactCastApplication, CompactCastKey, CompactRoleArg, compact_reachable_role_constraints,
-    compact_type_var, finalize_compact_type_to_neg_constraint,
-    finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
+    CompactBounds, CompactCastApplication, CompactCastKey, CompactRoleArg, CompactRoleConstraint,
+    CompactType, compact_reachable_role_constraints, compact_role_constraint, compact_type_var,
+    finalize_compact_type_to_neg_constraint, finalize_compact_type_to_pos_constraint,
+    find_next_compact_cast, normalize_compact_casts,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
@@ -23,15 +26,18 @@ use crate::generalize::{
     generalize_prepared_compact_root_with_roles,
 };
 use crate::instantiate::instantiate_scheme;
-use crate::methods::{EffectMethodCandidate, EffectMethodTable, TypeMethodTable};
+use crate::methods::{EffectMethodCandidate, EffectMethodTable, RoleMethodTable, TypeMethodTable};
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
+    resolve_role_constraints_with_method_taint,
 };
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleImplTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
+
+type MethodTaintIndex = FxHashMap<TypeVar, Vec<SelectId>>;
 
 /// 推論中の複数 machine を束ねる session。
 ///
@@ -48,7 +54,9 @@ pub struct AnalysisSession {
     pub casts: CastTable,
     pub methods: TypeMethodTable,
     pub effect_methods: EffectMethodTable,
+    pub role_methods: RoleMethodTable,
     pub scc: SccMachine,
+    applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
@@ -66,7 +74,9 @@ impl AnalysisSession {
             casts: CastTable::new(),
             methods: TypeMethodTable::new(),
             effect_methods: EffectMethodTable::new(),
+            role_methods: RoleMethodTable::new(),
             scc: SccMachine::new(),
+            applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
@@ -115,6 +125,15 @@ impl AnalysisSession {
         self.enqueue_unresolved_selection_probes();
     }
 
+    pub fn register_role_method(
+        &mut self,
+        role: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.role_methods.insert(role, method, def);
+    }
+
     pub fn work(&self) -> &VecDeque<AnalysisWork> {
         &self.work
     }
@@ -151,7 +170,12 @@ impl AnalysisSession {
     }
 
     pub fn drain_work(&mut self) {
-        while self.step() {}
+        loop {
+            while self.step() {}
+            if !self.resolve_roles_for_unresolved_methods() {
+                break;
+            }
+        }
     }
 
     pub fn resolve_unresolved_selections_as_record_fields(&mut self) {
@@ -162,10 +186,11 @@ impl AnalysisSession {
             .map(|(select_id, _)| select_id)
             .collect::<Vec<_>>();
         for select_id in unresolved {
-            self.enqueue(AnalysisWork::ApplySelectionResolution {
-                select_id,
-                target: SelectionTarget::RecordField,
-            });
+            let name = self.poly.select(select_id).name.clone();
+            let target = self
+                .role_method_for_name(&name)
+                .unwrap_or(SelectionTarget::RecordField);
+            self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
         }
         self.drain_work();
     }
@@ -269,6 +294,110 @@ impl AnalysisSession {
         );
         let Some(target) = target else { return };
         self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+    }
+
+    fn method_taint_index(&self) -> MethodTaintIndex {
+        let mut index = MethodTaintIndex::default();
+        let mut selects = self.selections.unresolved().collect::<Vec<_>>();
+        selects.sort_by_key(|select| select.0);
+        for select in selects {
+            let Some(use_site) = self.selections.get(select) else {
+                continue;
+            };
+            let mut builder = MethodTaintBuilder {
+                session: self,
+                select,
+                index: &mut index,
+                visited: FxHashSet::default(),
+            };
+            builder.visit_var(use_site.method_value, TaintPolarity::Positive);
+        }
+        index
+    }
+
+    fn resolve_roles_for_unresolved_methods(&mut self) -> bool {
+        let mut parents = self
+            .selections
+            .iter()
+            .map(|(_, use_site)| use_site.parent)
+            .collect::<Vec<_>>();
+        parents.sort_by_key(|def| def.0);
+        parents.dedup();
+        if parents.is_empty() {
+            return false;
+        }
+
+        let method_taint = self.method_taint_index();
+        if method_taint.is_empty() {
+            return false;
+        }
+
+        let mut progressed = false;
+        for def in parents {
+            let Some(root) = self.scc.root_of(def) else {
+                continue;
+            };
+            if self.resolve_method_tainted_roles_for_def(def, root, &method_taint) {
+                progressed = true;
+            }
+        }
+
+        if progressed {
+            self.route_constraint_events();
+            self.enqueue_unresolved_selection_probes();
+        }
+        progressed
+    }
+
+    fn resolve_method_tainted_roles_for_def(
+        &mut self,
+        def: DefId,
+        root: TypeVar,
+        method_taint: &MethodTaintIndex,
+    ) -> bool {
+        let mut progressed = false;
+        loop {
+            let mut compact = compact_type_var(self.infer.constraints(), root);
+            normalize_compact_casts(&mut compact, &FxHashSet::default());
+            let roles = self.method_tainted_role_constraints(def, method_taint);
+            let resolutions = resolve_role_constraints_with_method_taint(
+                self.infer.constraints(),
+                &compact,
+                &roles,
+                &self.role_impls,
+                &self.applied_method_role_resolutions,
+                method_taint,
+            );
+            if resolutions.is_empty() {
+                break;
+            }
+
+            for resolution in resolutions {
+                self.applied_method_role_resolutions
+                    .insert(resolution.key.clone());
+                self.constrain_role_resolution(def, &resolution);
+                progressed = true;
+            }
+            self.route_constraint_events();
+        }
+        progressed
+    }
+
+    fn method_tainted_role_constraints(
+        &self,
+        def: DefId,
+        method_taint: &MethodTaintIndex,
+    ) -> Vec<CompactRoleConstraint> {
+        coalesce_role_constraints(
+            self.roles
+                .for_owner(def)
+                .iter()
+                .map(|constraint| compact_role_constraint(self.infer.constraints(), constraint))
+                .filter(|constraint| {
+                    compact_role_constraint_has_method_taint(constraint, method_taint)
+                })
+                .collect(),
+        )
     }
 
     fn probe_method_value(
@@ -531,6 +660,15 @@ impl AnalysisSession {
         effect_method_target_from_candidates(&candidates)
     }
 
+    fn role_method_for_name(&self, name: &str) -> Option<SelectionTarget> {
+        match self.role_methods.candidates(name) {
+            [candidate] => Some(SelectionTarget::TypeclassMethod {
+                member: candidate.def,
+            }),
+            [] | [_, ..] => None,
+        }
+    }
+
     fn ref_payload_probe(&self, args: &[poly::types::NeuId]) -> Option<RefPayloadProbe> {
         let payload = args.get(1)?;
         match self.infer.constraints().types().neu(*payload) {
@@ -681,8 +819,12 @@ impl AnalysisSession {
         root: TypeVar,
     ) -> GeneralizedCompactRoot {
         let mut applied_casts = FxHashSet::<CompactCastKey>::default();
-        let mut applied_roles = FxHashSet::<RoleResolutionKey>::default();
-        let mut applied_role_demands = FxHashSet::default();
+        let mut applied_roles = self.applied_method_role_resolutions.clone();
+        let mut applied_role_demands = self
+            .applied_method_role_resolutions
+            .iter()
+            .map(|key| key.demand.clone())
+            .collect::<FxHashSet<_>>();
         let mut compact;
         loop {
             compact = compact_type_var(self.infer.constraints(), root);
@@ -1019,6 +1161,320 @@ impl SelectionTarget {
             Self::EffectMethod { def } => SelectResolution::Method { def },
             Self::TypeclassMethod { member } => SelectResolution::TypeclassMethod { member },
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum TaintPolarity {
+    Positive,
+    Negative,
+}
+
+impl TaintPolarity {
+    fn flipped(self) -> Self {
+        match self {
+            Self::Positive => Self::Negative,
+            Self::Negative => Self::Positive,
+        }
+    }
+}
+
+struct MethodTaintBuilder<'a, 'b> {
+    session: &'a AnalysisSession,
+    select: SelectId,
+    index: &'b mut MethodTaintIndex,
+    visited: FxHashSet<(TypeVar, TaintPolarity)>,
+}
+
+impl<'a, 'b> MethodTaintBuilder<'a, 'b> {
+    fn visit_var(&mut self, var: TypeVar, polarity: TaintPolarity) {
+        push_unique_select(self.index.entry(var).or_default(), self.select);
+        if !self.visited.insert((var, polarity)) {
+            return;
+        }
+        let Some(bounds) = self.session.infer.constraints().bounds().of(var) else {
+            return;
+        };
+        match polarity {
+            TaintPolarity::Positive => {
+                let uppers = bounds
+                    .uppers()
+                    .iter()
+                    .map(|bound| bound.neg)
+                    .collect::<Vec<_>>();
+                for upper in uppers {
+                    self.visit_neg(upper, polarity);
+                }
+            }
+            TaintPolarity::Negative => {
+                let lowers = bounds
+                    .lowers()
+                    .iter()
+                    .map(|bound| bound.pos)
+                    .collect::<Vec<_>>();
+                for lower in lowers {
+                    self.visit_pos(lower, polarity);
+                }
+            }
+        }
+    }
+
+    fn visit_pos(&mut self, pos: PosId, polarity: TaintPolarity) {
+        match self.session.infer.constraints().types().pos(pos).clone() {
+            Pos::Var(var) => self.visit_var(var, polarity),
+            Pos::Con(_, args) => {
+                for arg in args {
+                    self.visit_neu(arg);
+                }
+            }
+            Pos::Tuple(items) => {
+                for item in items {
+                    self.visit_pos(item, polarity);
+                }
+            }
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.visit_neg(arg, polarity.flipped());
+                self.visit_neg(arg_eff, polarity.flipped());
+                self.visit_pos(ret_eff, polarity);
+                self.visit_pos(ret, polarity);
+            }
+            Pos::Record(fields) => {
+                for field in fields {
+                    self.visit_pos(field.value, polarity);
+                }
+            }
+            Pos::RecordTailSpread { fields, tail } | Pos::RecordHeadSpread { fields, tail } => {
+                for field in fields {
+                    self.visit_pos(field.value, polarity);
+                }
+                self.visit_pos(tail, polarity);
+            }
+            Pos::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.visit_pos(payload, polarity);
+                    }
+                }
+            }
+            Pos::Row(items) => {
+                for item in items {
+                    self.visit_pos(item, polarity);
+                }
+            }
+            Pos::NonSubtract(pos, _) => self.visit_pos(pos, polarity),
+            Pos::Union(left, right) => {
+                self.visit_pos(left, polarity);
+                self.visit_pos(right, polarity);
+            }
+            Pos::Bot => {}
+        }
+    }
+
+    fn visit_neg(&mut self, neg: NegId, polarity: TaintPolarity) {
+        match self.session.infer.constraints().types().neg(neg).clone() {
+            Neg::Var(var) => self.visit_var(var, polarity),
+            Neg::Con(_, args) => {
+                for arg in args {
+                    self.visit_neu(arg);
+                }
+            }
+            Neg::Tuple(items) => {
+                for item in items {
+                    self.visit_neg(item, polarity);
+                }
+            }
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.visit_pos(arg, polarity.flipped());
+                self.visit_pos(arg_eff, polarity.flipped());
+                self.visit_neg(ret_eff, polarity);
+                self.visit_neg(ret, polarity);
+            }
+            Neg::Record(fields) => {
+                for field in fields {
+                    self.visit_neg(field.value, polarity);
+                }
+            }
+            Neg::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.visit_neg(payload, polarity);
+                    }
+                }
+            }
+            Neg::Row(items, tail) => {
+                for item in items {
+                    self.visit_neg(item, polarity);
+                }
+                self.visit_neg(tail, polarity);
+            }
+            Neg::Intersection(left, right) => {
+                self.visit_neg(left, polarity);
+                self.visit_neg(right, polarity);
+            }
+            Neg::Top | Neg::Bot => {}
+        }
+    }
+
+    fn visit_neu(&mut self, neu: NeuId) {
+        match self.session.infer.constraints().types().neu(neu).clone() {
+            Neu::Bounds(lower, var, upper) => {
+                self.visit_var(var, TaintPolarity::Positive);
+                self.visit_var(var, TaintPolarity::Negative);
+                self.visit_pos(lower, TaintPolarity::Positive);
+                self.visit_neg(upper, TaintPolarity::Negative);
+            }
+            Neu::Con(_, args) | Neu::Tuple(args) => {
+                for arg in args {
+                    self.visit_neu(arg);
+                }
+            }
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                self.visit_neu(arg);
+                self.visit_neu(arg_eff);
+                self.visit_neu(ret_eff);
+                self.visit_neu(ret);
+            }
+            Neu::Record(fields) => {
+                for field in fields {
+                    self.visit_neu(field.value);
+                }
+            }
+            Neu::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    for payload in payloads {
+                        self.visit_neu(payload);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn push_unique_select(items: &mut Vec<SelectId>, select: SelectId) {
+    if !items.contains(&select) {
+        items.push(select);
+    }
+}
+
+fn compact_role_constraint_has_method_taint(
+    constraint: &CompactRoleConstraint,
+    method_taint: &MethodTaintIndex,
+) -> bool {
+    constraint
+        .inputs
+        .iter()
+        .any(|arg| compact_role_arg_has_method_taint(arg, method_taint))
+        || constraint
+            .associated
+            .iter()
+            .any(|associated| compact_role_arg_has_method_taint(&associated.value, method_taint))
+}
+
+fn compact_role_arg_has_method_taint(
+    arg: &CompactRoleArg,
+    method_taint: &MethodTaintIndex,
+) -> bool {
+    compact_type_has_method_taint(&arg.lower, method_taint)
+        || compact_type_has_method_taint(&arg.upper, method_taint)
+}
+
+fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintIndex) -> bool {
+    ty.vars.iter().any(|var| {
+        method_taint
+            .get(&var.var)
+            .is_some_and(|selects| !selects.is_empty())
+    }) || ty.cons.iter().any(|con| {
+        con.args
+            .iter()
+            .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
+    }) || ty.funs.iter().any(|fun| {
+        compact_type_has_method_taint(&fun.arg, method_taint)
+            || compact_type_has_method_taint(&fun.arg_eff, method_taint)
+            || compact_type_has_method_taint(&fun.ret_eff, method_taint)
+            || compact_type_has_method_taint(&fun.ret, method_taint)
+    }) || ty.records.iter().any(|record| {
+        record
+            .fields
+            .iter()
+            .any(|field| compact_type_has_method_taint(&field.value, method_taint))
+    }) || ty.record_spreads.iter().any(|spread| {
+        spread
+            .fields
+            .iter()
+            .any(|field| compact_type_has_method_taint(&field.value, method_taint))
+            || compact_type_has_method_taint(&spread.tail, method_taint)
+    }) || ty.poly_variants.iter().any(|variant| {
+        variant.items.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(|payload| compact_type_has_method_taint(payload, method_taint))
+        })
+    }) || ty.tuples.iter().any(|tuple| {
+        tuple
+            .items
+            .iter()
+            .any(|item| compact_type_has_method_taint(item, method_taint))
+    }) || ty.rows.iter().any(|row| {
+        row.items
+            .iter()
+            .any(|item| compact_type_has_method_taint(item, method_taint))
+            || compact_type_has_method_taint(&row.tail, method_taint)
+    })
+}
+
+fn compact_bounds_has_method_taint(
+    bounds: &CompactBounds,
+    method_taint: &MethodTaintIndex,
+) -> bool {
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            method_taint
+                .get(self_var)
+                .is_some_and(|selects| !selects.is_empty())
+                || compact_type_has_method_taint(lower, method_taint)
+                || compact_type_has_method_taint(upper, method_taint)
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args
+            .iter()
+            .any(|arg| compact_bounds_has_method_taint(arg, method_taint)),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            compact_bounds_has_method_taint(arg, method_taint)
+                || compact_bounds_has_method_taint(arg_eff, method_taint)
+                || compact_bounds_has_method_taint(ret_eff, method_taint)
+                || compact_bounds_has_method_taint(ret, method_taint)
+        }
+        CompactBounds::Record { fields } => fields
+            .iter()
+            .any(|field| compact_bounds_has_method_taint(&field.value, method_taint)),
+        CompactBounds::PolyVariant { items } => items.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(|payload| compact_bounds_has_method_taint(payload, method_taint))
+        }),
     }
 }
 
@@ -1468,6 +1924,138 @@ mod tests {
             session.poly.select(select).resolution,
             Some(SelectResolution::Method { def: method })
         );
+    }
+
+    #[test]
+    fn unresolved_method_selection_forces_tainted_role_resolution() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let owner = DefId(1);
+        let method = DefId(2);
+        let root = TypeVar(0);
+        let receiver = TypeVar(3);
+        let method_value = TypeVar(4);
+        let receiver_effect = TypeVar(5);
+        let result = TypeVar(6);
+        let result_effect = TypeVar(7);
+        let select = session.poly.add_select("display");
+        let role = vec!["HasDisplay".to_string()];
+        let unit = vec!["unit".to_string()];
+        let int = vec!["int".to_string()];
+
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: owner,
+            root,
+        }));
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: role.clone(),
+                inputs: vec![role_exact_arg(&mut session.infer, unit.clone())],
+                associated: vec![RoleAssociatedConstraint {
+                    name: "out".to_string(),
+                    value: role_var_arg(&mut session.infer, receiver),
+                }],
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            role,
+            inputs: vec![role_exact_arg(&mut session.infer, unit)],
+            associated: vec![RoleAssociatedConstraint {
+                name: "out".to_string(),
+                value: role_exact_arg(&mut session.infer, int.clone()),
+            }],
+            prerequisites: Vec::new(),
+        });
+        register_test_selection_use(
+            &mut session,
+            select,
+            owner,
+            method_value,
+            receiver,
+            receiver_effect,
+            result,
+            result_effect,
+        );
+        session.register_value_type_method(int, "display", method);
+        session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: owner }));
+
+        session.drain_work();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+        assert!(session.take_scc_events().iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::ComponentEdgeAdded { from, to }
+                    if from == &vec![owner] && to == &vec![method]
+            )
+        }));
+    }
+
+    #[test]
+    fn unresolved_method_selection_does_not_use_tainted_role_endpoint() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let owner = DefId(1);
+        let method = DefId(2);
+        let root = TypeVar(0);
+        let receiver = TypeVar(3);
+        let method_value = TypeVar(4);
+        let receiver_effect = TypeVar(5);
+        let result = TypeVar(6);
+        let result_effect = TypeVar(7);
+        let output = TypeVar(8);
+        let select = session.poly.add_select("display");
+        let role = vec!["Box".to_string()];
+        let int = vec!["int".to_string()];
+        let unit = vec!["unit".to_string()];
+
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: owner,
+            root,
+        }));
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: role.clone(),
+                inputs: vec![role_left_concrete_var_arg(
+                    &mut session.infer,
+                    int.clone(),
+                    receiver,
+                )],
+                associated: vec![RoleAssociatedConstraint {
+                    name: "out".to_string(),
+                    value: role_var_arg(&mut session.infer, output),
+                }],
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            role,
+            inputs: vec![role_exact_arg(&mut session.infer, int.clone())],
+            associated: vec![RoleAssociatedConstraint {
+                name: "out".to_string(),
+                value: role_exact_arg(&mut session.infer, unit.clone()),
+            }],
+            prerequisites: Vec::new(),
+        });
+        register_test_selection_use(
+            &mut session,
+            select,
+            owner,
+            method_value,
+            receiver,
+            receiver_effect,
+            result,
+            result_effect,
+        );
+        session.register_value_type_method(int, "display", method);
+        session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: owner }));
+
+        session.drain_work();
+
+        assert_eq!(session.poly.select(select).resolution, None);
+        assert_var_lacks_exact_bound(&session, output, &unit);
     }
 
     #[test]

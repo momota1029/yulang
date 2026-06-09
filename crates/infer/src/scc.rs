@@ -97,6 +97,10 @@ impl SccMachine {
         std::mem::take(&mut self.events)
     }
 
+    pub fn root_of(&self, def: DefId) -> Option<TypeVar> {
+        self.graph.root_of(def)
+    }
+
     fn add_use(&mut self, parent: DefId, target: DefId, use_value: TypeVar) {
         if self.quantified.contains_key(&target) {
             self.events
@@ -275,6 +279,11 @@ impl ComponentGraph {
 
     fn component_of(&self, def: DefId) -> Option<ComponentId> {
         self.def_to_component.get(&def).copied()
+    }
+
+    fn root_of(&self, def: DefId) -> Option<TypeVar> {
+        let component = self.component_of(def)?;
+        self.components.get(&component)?.roots.get(&def).copied()
     }
 
     fn members(&self, component: ComponentId) -> Vec<DefId> {

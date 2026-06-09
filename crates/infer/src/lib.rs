@@ -153,6 +153,16 @@ pub struct ActMethodDecl {
     pub order: ModuleOrder,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleMethodDecl {
+    pub owner: TypeDeclId,
+    pub name: Name,
+    pub receiver: Option<Name>,
+    pub def: DefId,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeMethodReceiver {
     Value,
@@ -245,6 +255,9 @@ pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
     act_ops: FxHashMap<TypeDeclId, Vec<Name>>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
+    role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
+    role_associated: FxHashMap<TypeDeclId, Vec<String>>,
+    role_methods: FxHashMap<TypeDeclId, Vec<RoleMethodDecl>>,
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     next_type_id: u32,
@@ -267,6 +280,9 @@ impl ModuleTable {
             }],
             act_ops: FxHashMap::default(),
             act_methods: FxHashMap::default(),
+            role_inputs: FxHashMap::default(),
+            role_associated: FxHashMap::default(),
+            role_methods: FxHashMap::default(),
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
             next_type_id: 0,
@@ -331,6 +347,35 @@ impl ModuleTable {
     }
     pub fn all_act_methods(&self) -> impl Iterator<Item = &ActMethodDecl> {
         self.act_methods.values().flat_map(|methods| methods.iter())
+    }
+    fn set_role_inputs(&mut self, id: TypeDeclId, inputs: Vec<String>) {
+        self.role_inputs.insert(id, inputs);
+    }
+    pub fn role_inputs(&self, id: TypeDeclId) -> &[String] {
+        self.role_inputs.get(&id).map(Vec::as_slice).unwrap_or(&[])
+    }
+    fn set_role_associated(&mut self, id: TypeDeclId, associated: Vec<String>) {
+        self.role_associated.insert(id, associated);
+    }
+    pub fn role_associated(&self, id: TypeDeclId) -> &[String] {
+        self.role_associated
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+    fn insert_role_method(&mut self, method: RoleMethodDecl) {
+        self.role_methods
+            .entry(method.owner)
+            .or_default()
+            .push(method);
+    }
+    pub fn role_methods(&self, id: TypeDeclId) -> &[RoleMethodDecl] {
+        self.role_methods.get(&id).map(Vec::as_slice).unwrap_or(&[])
+    }
+    pub fn all_role_methods(&self) -> impl Iterator<Item = &RoleMethodDecl> {
+        self.role_methods
+            .values()
+            .flat_map(|methods| methods.iter())
     }
     fn set_type_companion(&mut self, id: TypeDeclId, module: ModuleId) {
         self.type_companions.insert(id, module);
@@ -1069,6 +1114,12 @@ impl Lower {
             self.modules.set_act_ops(id, act_operation_names(node));
             self.register_act_companion(node, module, name.clone(), id, vis, children);
         }
+        if kind == ModuleTypeKind::Role {
+            self.modules.set_role_inputs(id, role_input_names(node));
+            self.modules
+                .set_role_associated(id, role_associated_names(node));
+            self.register_role_companion(node, module, name.clone(), id, vis, children);
+        }
         if matches!(
             kind,
             ModuleTypeKind::TypeAlias
@@ -1078,6 +1129,94 @@ impl Lower {
         ) {
             self.register_type_companion(node, module, name, id, vis, children);
         }
+    }
+
+    fn register_role_companion(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        name: Name,
+        owner: TypeDeclId,
+        vis: Vis,
+        children: &mut Vec<DefId>,
+    ) {
+        let Some(body) = role_decl_body(node) else {
+            return;
+        };
+        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        self.modules.set_type_companion(owner, companion);
+        let companion_children = self.register_role_companion_block(&body, companion, owner);
+        self.append_module_children(def, companion_children);
+        if created {
+            children.push(def);
+        }
+    }
+
+    fn register_role_companion_block(
+        &mut self,
+        block: &Cst,
+        module: ModuleId,
+        owner: TypeDeclId,
+    ) -> Vec<DefId> {
+        let mut children = Vec::new();
+        for child in block.children() {
+            match child.kind() {
+                SyntaxKind::Binding => {
+                    let Some(method) = role_method_binding(&child) else {
+                        continue;
+                    };
+                    let vis = binding_vis(&child);
+                    let def = self.arena.defs.fresh();
+                    self.arena.defs.set(
+                        def,
+                        Def::Let {
+                            vis,
+                            scheme: None,
+                            body: None,
+                            children: Vec::new(),
+                        },
+                    );
+                    let order = self
+                        .modules
+                        .insert_value(module, method.name.clone(), def, vis);
+                    self.modules.insert_role_method(RoleMethodDecl {
+                        owner,
+                        name: method.name,
+                        receiver: method.receiver,
+                        def,
+                        vis,
+                        order,
+                    });
+                    children.push(def);
+                }
+                SyntaxKind::ModDecl => {
+                    if let Some(name) = mod_name(&child) {
+                        let vis = vis_of(&child);
+                        let (def, sub, created) = self.ensure_child_module(module, name, vis);
+                        let sub_children = self.register_mod_body(&child, sub);
+                        self.append_module_children(def, sub_children);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                }
+                SyntaxKind::UseDecl => {
+                    let vis = vis_of(&child);
+                    if let Some(name) = use_mod_name(&child) {
+                        let (def, _, created) = self.ensure_child_module(module, name, vis);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                    for import in sources::use_imports(&child) {
+                        self.modules.add_alias(module, import, vis);
+                    }
+                }
+                SyntaxKind::TypeDecl => {}
+                _ => {}
+            }
+        }
+        children
     }
 
     fn register_act_companion(
@@ -1563,6 +1702,12 @@ pub(crate) struct TypeMethodBindingInfo {
     pub(crate) receiver_kind: TypeMethodReceiver,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct RoleMethodBindingInfo {
+    pub(crate) name: Name,
+    pub(crate) receiver: Option<Name>,
+}
+
 pub(crate) fn type_method_binding(node: &Cst) -> Option<TypeMethodBindingInfo> {
     let header = child_node(node, SyntaxKind::BindingHeader)?;
     let pattern = child_node(&header, SyntaxKind::Pattern)?;
@@ -1578,6 +1723,25 @@ pub(crate) fn type_method_binding(node: &Cst) -> Option<TypeMethodBindingInfo> {
         receiver,
         receiver_kind,
     })
+}
+
+pub(crate) fn role_method_binding(node: &Cst) -> Option<RoleMethodBindingInfo> {
+    let header = child_node(node, SyntaxKind::BindingHeader)?;
+    let pattern = child_node(&header, SyntaxKind::Pattern)?;
+    let annotated = contains_node_kind(&pattern, SyntaxKind::TypeAnn);
+    let receiver = first_ident_or_sigil(&pattern);
+    let method = pattern_field_name(&pattern);
+    match (method, receiver, annotated) {
+        (Some(method), receiver, _) => Some(RoleMethodBindingInfo {
+            name: method,
+            receiver,
+        }),
+        (None, Some(name), true) => Some(RoleMethodBindingInfo {
+            name,
+            receiver: None,
+        }),
+        _ => None,
+    }
 }
 
 fn pattern_field_name(pattern: &Cst) -> Option<Name> {
@@ -1621,6 +1785,36 @@ pub(crate) fn type_var_names(node: &Cst) -> Vec<String> {
     out
 }
 
+fn role_input_names(node: &Cst) -> Vec<String> {
+    let Some(type_expr) = child_node(node, SyntaxKind::TypeExpr) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for token in type_expr
+        .descendants_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
+        if token.kind() != SyntaxKind::SigilIdent {
+            continue;
+        }
+        let name = token.text().trim_start_matches('\'').to_string();
+        if !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    out
+}
+
+fn role_associated_names(node: &Cst) -> Vec<String> {
+    role_decl_body(node)
+        .into_iter()
+        .flat_map(|body| body.children())
+        .filter(|child| child.kind() == SyntaxKind::TypeDecl)
+        .filter_map(|child| type_decl_name(&child))
+        .map(|name| name.0)
+        .collect()
+}
+
 pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
     let mut seen_with = false;
     for item in node.children_with_tokens() {
@@ -1634,6 +1828,23 @@ pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
                         child.kind(),
                         SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
                     ) =>
+            {
+                return Some(child);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+pub(crate) fn role_decl_body(node: &Cst) -> Option<Cst> {
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Node(child)
+                if matches!(
+                    child.kind(),
+                    SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+                ) =>
             {
                 return Some(child);
             }
@@ -1968,6 +2179,40 @@ mod tests {
                 .value_decls(companion, &Name("say".into()))
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn registers_role_body_as_companion_module_role_methods() {
+        let cst = parse("role Display 'a:\n  type out\n  our x.display: out\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let display = lower.modules.type_decls(root, &Name("Display".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(display.id)
+            .expect("role body should create a companion module");
+        let methods = lower.modules.role_methods(display.id);
+
+        assert_eq!(lower.modules.role_inputs(display.id), &["a".to_string()]);
+        assert_eq!(
+            lower.modules.role_associated(display.id),
+            &["out".to_string()]
+        );
+        assert_eq!(
+            lower.modules.module_decls(root, &Name("Display".into()))[0].module,
+            companion
+        );
+        assert_eq!(
+            lower
+                .modules
+                .value_decls(companion, &Name("display".into()))
+                .len(),
+            1
+        );
+        assert_eq!(methods.len(), 1);
+        assert_eq!(methods[0].name, Name("display".into()));
+        assert_eq!(methods[0].receiver, Some(Name("x".into())));
+        assert_eq!(methods[0].vis, Vis::Our);
     }
 
     #[test]

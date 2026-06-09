@@ -8,7 +8,7 @@ use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeVar,
 };
 use rowan::{NodeOrToken, SyntaxNode};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use sources::Name;
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
@@ -178,6 +178,17 @@ impl<'a> AnnConstraintLowerer<'a> {
                 Ok(subtracts)
             }
         }
+    }
+
+    pub fn lower_role_arg(
+        &mut self,
+        ann: &AnnType,
+    ) -> Result<crate::roles::RoleConstraintArg, AnnConstraintError> {
+        let bounds = self.lower_value_bounds(ann)?;
+        Ok(crate::roles::RoleConstraintArg {
+            lower: bounds.pos,
+            upper: bounds.neg,
+        })
     }
 
     fn lower_value_bounds(&mut self, ann: &AnnType) -> Result<AnnValueBounds, AnnConstraintError> {
@@ -565,6 +576,8 @@ pub struct AnnTypeBuilder<'a> {
     module: ModuleId,
     site: ModuleOrder,
     self_alias: Option<AnnSelfAlias>,
+    bare_type_vars: FxHashSet<String>,
+    bare_type_var_aliases: FxHashMap<String, String>,
     type_vars: FxHashMap<String, AnnTypeVarId>,
     next_type_var: u32,
 }
@@ -576,6 +589,8 @@ impl<'a> AnnTypeBuilder<'a> {
             module,
             site,
             self_alias: None,
+            bare_type_vars: FxHashSet::default(),
+            bare_type_var_aliases: FxHashMap::default(),
             type_vars: FxHashMap::default(),
             next_type_var: 0,
         }
@@ -594,6 +609,19 @@ impl<'a> AnnTypeBuilder<'a> {
 
     pub fn set_self_alias(&mut self, self_alias: AnnSelfAlias) {
         self.self_alias = Some(self_alias);
+    }
+
+    pub fn add_bare_type_var(&mut self, name: impl Into<String>) {
+        self.bare_type_vars.insert(name.into());
+    }
+
+    pub fn add_bare_type_var_alias(&mut self, alias: impl Into<String>, target: impl Into<String>) {
+        self.bare_type_var_aliases
+            .insert(alias.into(), target.into());
+    }
+
+    pub fn ann_type_var_for_role(&mut self, name: &str) -> AnnTypeVar {
+        self.ann_type_var(name)
     }
 
     pub fn self_alias_type(&mut self) -> Option<AnnType> {
@@ -842,6 +870,12 @@ impl<'a> AnnTypeBuilder<'a> {
             }
             if let Some(builtin) = BuiltinType::from_surface_name(name.0.as_str()) {
                 return Ok(AnnType::Builtin(builtin));
+            }
+            if let Some(target) = self.bare_type_var_aliases.get(&name.0).cloned() {
+                return Ok(AnnType::Var(self.ann_type_var(&target)));
+            }
+            if self.bare_type_vars.contains(&name.0) {
+                return Ok(AnnType::Var(self.ann_type_var(&name.0)));
             }
             if let Some(decl) = self.modules.lexical_type_at(self.module, name, self.site) {
                 return Ok(AnnType::Named(decl.id));

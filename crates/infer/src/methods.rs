@@ -139,6 +139,41 @@ pub struct EffectMethodCandidate {
     pub def: DefId,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct RoleMethodTable {
+    methods: FxHashMap<String, Vec<RoleMethodCandidate>>,
+}
+
+impl RoleMethodTable {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&mut self, role: impl Into<Vec<String>>, method: impl Into<String>, def: DefId) {
+        let role = role.into();
+        let method = method.into();
+        self.methods
+            .entry(method.clone())
+            .or_default()
+            .push(RoleMethodCandidate { role, method, def });
+    }
+
+    pub fn candidates(&self, method: &str) -> &[RoleMethodCandidate] {
+        self.methods.get(method).map(Vec::as_slice).unwrap_or(&[])
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.methods.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleMethodCandidate {
+    pub role: Vec<String>,
+    pub method: String,
+    pub def: DefId,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,6 +222,18 @@ mod tests {
 
         assert_eq!(table.candidates("choose")[0].effect, vec!["nondet"]);
         assert_eq!(table.candidates("choose")[0].def, method);
+        assert!(table.candidates("other").is_empty());
+    }
+
+    #[test]
+    fn stores_role_method_candidates_by_name() {
+        let mut table = RoleMethodTable::new();
+        let method = DefId(1);
+
+        table.insert(vec!["Display".into()], "display", method);
+
+        assert_eq!(table.candidates("display")[0].role, vec!["Display"]);
+        assert_eq!(table.candidates("display")[0].def, method);
         assert!(table.candidates("other").is_empty());
     }
 }
