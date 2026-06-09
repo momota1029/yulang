@@ -520,6 +520,7 @@ mod tests {
                 vis: Vis::Our,
                 scheme: Some(Scheme {
                     quantifiers: vec![var],
+                    role_predicates: Vec::new(),
                     predicate,
                     subtracts: Vec::new(),
                 }),

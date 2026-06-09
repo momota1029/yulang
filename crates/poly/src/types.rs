@@ -9,13 +9,32 @@ use rustc_hash::FxHashMap;
 /// generalize 済みの多相型。
 ///
 /// `predicate` は scheme 本体の正側型、`quantifiers` はこの scheme が束縛する型変数。
+/// `role_predicates` は型クラス相当の未解決 role 制約を、通常の型本体から分けて残す。
 /// `subtracts` は effect row の引き算に使う `S-subtract(α, #a)` の事実を、scheme と一緒に
 /// 外へ持ち出すための table。
 #[derive(Clone)]
 pub struct Scheme {
     pub quantifiers: Vec<TypeVar>,
+    pub role_predicates: Vec<RolePredicate>,
     pub predicate: PosId,
     pub subtracts: Vec<(TypeVar, SubtractId)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// scheme に残る role predicate。
+///
+/// `inputs` は通常引数、`associated` は `out = ...` のような関連型を表す。
+/// role 引数は不変なので、final 表現では `NeuId` として持つ。
+pub struct RolePredicate {
+    pub role: Vec<String>,
+    pub inputs: Vec<NeuId>,
+    pub associated: Vec<RoleAssociatedType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleAssociatedType {
+    pub name: String,
+    pub value: NeuId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

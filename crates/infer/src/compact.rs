@@ -16,11 +16,18 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::constraints::{ConstraintMachine, ConstraintWeight, VarBounds};
+use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 
 mod analysis;
+#[cfg(test)]
 pub(crate) use analysis::simplify_compact_root;
+pub(crate) use analysis::simplify_compact_root_with_roles;
+mod casts;
 #[cfg(test)]
 use analysis::{coalesce_by_co_occurrence, eliminate_polar_variables, sandwich_compact_root};
+pub(crate) use casts::{
+    CompactCastApplication, CompactCastKey, find_next_compact_cast, normalize_compact_casts,
+};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct CompactRoot {
@@ -59,6 +66,25 @@ pub(crate) enum CompactSandwichKind {
     Fun,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactRoleConstraint {
+    pub(crate) role: Vec<String>,
+    pub(crate) inputs: Vec<CompactRoleArg>,
+    pub(crate) associated: Vec<CompactRoleAssociatedType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactRoleArg {
+    pub(crate) lower: CompactType,
+    pub(crate) upper: CompactType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactRoleAssociatedType {
+    pub(crate) name: String,
+    pub(crate) value: CompactRoleArg,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FinalizedCompactRoot {
     pub(crate) root: PosId,
@@ -71,7 +97,7 @@ pub(crate) struct FinalizedCompactRecursiveVar {
     pub(crate) bounds: NeuId,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub(crate) struct CompactType {
     pub(crate) vars: Vec<CompactVar>,
     pub(crate) never: bool,
@@ -157,30 +183,56 @@ impl CompactType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactVar {
     pub(crate) var: TypeVar,
     pub(crate) weight: ConstraintWeight,
+    pub(crate) origin: CompactVarOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum CompactVarOrigin {
+    Primary,
+    Secondary,
+}
+
+impl CompactVarOrigin {
+    pub(crate) fn merged(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Secondary, _) | (_, Self::Secondary) => Self::Secondary,
+            (Self::Primary, Self::Primary) => Self::Primary,
+        }
+    }
 }
 
 impl CompactVar {
     pub(crate) fn covariant(var: TypeVar, weight: ConstraintWeight) -> Self {
-        Self { var, weight }
+        Self {
+            var,
+            weight,
+            origin: CompactVarOrigin::Primary,
+        }
     }
 
     pub(crate) fn contravariant(var: TypeVar) -> Self {
         Self {
             var,
             weight: ConstraintWeight::empty(),
+            origin: CompactVarOrigin::Primary,
         }
     }
 
     pub(crate) fn plain(var: TypeVar) -> Self {
         Self::contravariant(var)
     }
+
+    pub(crate) fn secondary(mut self) -> Self {
+        self.origin = CompactVarOrigin::Secondary;
+        self
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum CompactBounds {
     Interval {
         self_var: TypeVar,
@@ -208,13 +260,13 @@ pub(crate) enum CompactBounds {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactCon {
     pub(crate) path: Vec<String>,
     pub(crate) args: Vec<CompactBounds>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactFun {
     pub(crate) arg: CompactType,
     pub(crate) arg_eff: CompactType,
@@ -222,29 +274,29 @@ pub(crate) struct CompactFun {
     pub(crate) ret: CompactType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactRecord {
     pub(crate) fields: Vec<RecordField<CompactType>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactRecordSpread {
     pub(crate) fields: Vec<RecordField<CompactType>>,
     pub(crate) tail: Box<CompactType>,
     pub(crate) tail_wins: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactPolyVariant {
     pub(crate) items: Vec<(String, Vec<CompactType>)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactTuple {
     pub(crate) items: Vec<CompactType>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactRow {
     pub(crate) items: Vec<CompactType>,
     pub(crate) tail: Box<CompactType>,
@@ -273,6 +325,21 @@ pub(crate) fn compact_type_var(machine: &ConstraintMachine, root: TypeVar) -> Co
     CompactCollector::new(machine).compact_root(root)
 }
 
+pub(crate) fn compact_reachable_role_constraints(
+    machine: &ConstraintMachine,
+    seed: &CompactRoot,
+    constraints: &[RoleConstraint],
+) -> Vec<CompactRoleConstraint> {
+    CompactCollector::new(machine).compact_reachable_role_constraints(seed, constraints)
+}
+
+pub(crate) fn compact_role_constraint(
+    machine: &ConstraintMachine,
+    constraint: &RoleConstraint,
+) -> CompactRoleConstraint {
+    CompactCollector::new(machine).compact_role_constraint(constraint)
+}
+
 pub(crate) fn finalize_compact_root(
     types: &mut TypeArena,
     root: &CompactRoot,
@@ -282,6 +349,24 @@ pub(crate) fn finalize_compact_root(
 
 pub(crate) fn finalize_compact_type(types: &mut TypeArena, ty: &CompactType) -> PosId {
     CompactFinalizer::new(types).finalize_pos_type(ty)
+}
+
+pub(crate) fn finalize_compact_type_to_neg(types: &mut TypeArena, ty: &CompactType) -> NegId {
+    CompactFinalizer::new(types).finalize_neg_type(ty)
+}
+
+pub(crate) fn finalize_compact_type_to_pos_constraint(
+    machine: &mut ConstraintMachine,
+    ty: &CompactType,
+) -> PosId {
+    CompactFinalizer::new(machine).finalize_pos_type(ty)
+}
+
+pub(crate) fn finalize_compact_type_to_neg_constraint(
+    machine: &mut ConstraintMachine,
+    ty: &CompactType,
+) -> NegId {
+    CompactFinalizer::new(machine).finalize_neg_type(ty)
 }
 
 pub(crate) fn finalize_compact_bounds(types: &mut TypeArena, bounds: &CompactBounds) -> NeuId {
@@ -349,12 +434,178 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
         && ty.rows.is_empty()
 }
 
-struct CompactFinalizer<'a> {
-    types: &'a mut TypeArena,
+fn free_vars_in_root(root: &CompactRoot) -> FxHashSet<TypeVar> {
+    let mut vars = FxHashSet::default();
+    collect_free_vars_in_type(&root.root, &mut vars);
+    for rec in &root.rec_vars {
+        vars.insert(rec.var);
+        collect_free_vars_in_bounds(&rec.bounds, &mut vars);
+    }
+    vars
 }
 
-impl<'a> CompactFinalizer<'a> {
-    fn new(types: &'a mut TypeArena) -> Self {
+fn free_vars_in_role_constraint(constraint: &CompactRoleConstraint) -> FxHashSet<TypeVar> {
+    let mut vars = FxHashSet::default();
+    for input in &constraint.inputs {
+        collect_free_vars_in_role_arg(input, &mut vars);
+    }
+    for associated in &constraint.associated {
+        collect_free_vars_in_role_arg(&associated.value, &mut vars);
+    }
+    vars
+}
+
+fn collect_free_vars_in_role_arg(arg: &CompactRoleArg, vars: &mut FxHashSet<TypeVar>) {
+    collect_free_vars_in_type(&arg.lower, vars);
+    collect_free_vars_in_type(&arg.upper, vars);
+}
+
+fn collect_free_vars_in_type(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
+    for var in &ty.vars {
+        vars.insert(var.var);
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_free_vars_in_bounds(arg, vars);
+        }
+    }
+    for fun in &ty.funs {
+        collect_free_vars_in_type(&fun.arg, vars);
+        collect_free_vars_in_type(&fun.arg_eff, vars);
+        collect_free_vars_in_type(&fun.ret_eff, vars);
+        collect_free_vars_in_type(&fun.ret, vars);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_free_vars_in_type(&field.value, vars);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_free_vars_in_type(&field.value, vars);
+        }
+        collect_free_vars_in_type(&spread.tail, vars);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_free_vars_in_type(payload, vars);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_free_vars_in_type(item, vars);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_free_vars_in_type(item, vars);
+        }
+        collect_free_vars_in_type(&row.tail, vars);
+    }
+}
+
+fn collect_free_vars_in_bounds(bounds: &CompactBounds, vars: &mut FxHashSet<TypeVar>) {
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            vars.insert(*self_var);
+            collect_free_vars_in_type(lower, vars);
+            collect_free_vars_in_type(upper, vars);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                collect_free_vars_in_bounds(arg, vars);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_free_vars_in_bounds(arg, vars);
+            collect_free_vars_in_bounds(arg_eff, vars);
+            collect_free_vars_in_bounds(ret_eff, vars);
+            collect_free_vars_in_bounds(ret, vars);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_free_vars_in_bounds(&field.value, vars);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_free_vars_in_bounds(payload, vars);
+                }
+            }
+        }
+    }
+}
+
+trait CompactTypeStore {
+    fn pos(&self, id: PosId) -> &Pos;
+    fn neg(&self, id: NegId) -> &Neg;
+    fn alloc_pos(&mut self, pos: Pos) -> PosId;
+    fn alloc_neg(&mut self, neg: Neg) -> NegId;
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId;
+}
+
+impl CompactTypeStore for TypeArena {
+    fn pos(&self, id: PosId) -> &Pos {
+        TypeArena::pos(self, id)
+    }
+
+    fn neg(&self, id: NegId) -> &Neg {
+        TypeArena::neg(self, id)
+    }
+
+    fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        TypeArena::alloc_pos(self, pos)
+    }
+
+    fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        TypeArena::alloc_neg(self, neg)
+    }
+
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        TypeArena::alloc_neu(self, neu)
+    }
+}
+
+impl CompactTypeStore for ConstraintMachine {
+    fn pos(&self, id: PosId) -> &Pos {
+        self.types().pos(id)
+    }
+
+    fn neg(&self, id: NegId) -> &Neg {
+        self.types().neg(id)
+    }
+
+    fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        ConstraintMachine::alloc_pos(self, pos)
+    }
+
+    fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        ConstraintMachine::alloc_neg(self, neg)
+    }
+
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        ConstraintMachine::alloc_neu(self, neu)
+    }
+}
+
+struct CompactFinalizer<'a, T> {
+    types: &'a mut T,
+}
+
+impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
+    fn new(types: &'a mut T) -> Self {
         Self { types }
     }
 
@@ -1107,6 +1358,73 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
+    fn compact_reachable_role_constraints(
+        mut self,
+        seed: &CompactRoot,
+        constraints: &[RoleConstraint],
+    ) -> Vec<CompactRoleConstraint> {
+        let mut reachable = free_vars_in_root(seed);
+        let mut selected = vec![false; constraints.len()];
+        let mut out = Vec::new();
+
+        loop {
+            let mut changed = false;
+            for (index, constraint) in constraints.iter().enumerate() {
+                if selected[index] {
+                    continue;
+                }
+                let raw_vars = constraint.raw_vars(self.machine.types());
+                if !raw_vars.is_empty() && raw_vars.is_disjoint(&reachable) {
+                    continue;
+                }
+
+                selected[index] = true;
+                let compact = self.compact_role_constraint(constraint);
+                for var in free_vars_in_role_constraint(&compact) {
+                    reachable.insert(var);
+                }
+                out.push(compact);
+                changed = true;
+            }
+            if !changed {
+                return out;
+            }
+        }
+    }
+
+    fn compact_role_constraint(&mut self, constraint: &RoleConstraint) -> CompactRoleConstraint {
+        CompactRoleConstraint {
+            role: constraint.role.clone(),
+            inputs: constraint
+                .inputs
+                .iter()
+                .map(|arg| self.compact_role_arg(arg))
+                .collect(),
+            associated: constraint
+                .associated
+                .iter()
+                .map(|associated| self.compact_role_associated(associated))
+                .collect(),
+        }
+    }
+
+    fn compact_role_associated(
+        &mut self,
+        associated: &RoleAssociatedConstraint,
+    ) -> CompactRoleAssociatedType {
+        CompactRoleAssociatedType {
+            name: associated.name.clone(),
+            value: self.compact_role_arg(&associated.value),
+        }
+    }
+
+    fn compact_role_arg(&mut self, arg: &RoleConstraintArg) -> CompactRoleArg {
+        CompactRoleArg {
+            lower: self.compact_pos_id(arg.lower, ConstraintWeight::empty()),
+            upper: self.compact_neg_id(arg.upper, ConstraintWeight::empty()),
+        }
+    }
+
     fn compact_var_side(
         &mut self,
         var: TypeVar,
@@ -1533,6 +1851,7 @@ mod tests {
 
     use super::*;
     use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
+    use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 
     #[test]
     fn covariant_vars_keep_weight() {
@@ -1663,6 +1982,56 @@ mod tests {
     }
 
     #[test]
+    fn reachable_role_collect_pulls_roles_from_main_type_frontier() {
+        let mut machine = ConstraintMachine::new();
+        let root_var = TypeVar(0);
+        let output_var = TypeVar(1);
+        let next_var = TypeVar(2);
+        let unrelated_var = TypeVar(3);
+        let seed = CompactRoot {
+            root: CompactType::from_var(CompactVar::plain(root_var)),
+            rec_vars: Vec::new(),
+        };
+        let constraints = vec![
+            RoleConstraint {
+                role: vec!["First".into()],
+                inputs: vec![role_arg(&mut machine, root_var)],
+                associated: vec![RoleAssociatedConstraint {
+                    name: "out".into(),
+                    value: role_arg(&mut machine, output_var),
+                }],
+            },
+            RoleConstraint {
+                role: vec!["Second".into()],
+                inputs: vec![role_arg(&mut machine, output_var)],
+                associated: vec![RoleAssociatedConstraint {
+                    name: "out".into(),
+                    value: role_arg(&mut machine, next_var),
+                }],
+            },
+            RoleConstraint {
+                role: vec!["Unrelated".into()],
+                inputs: vec![role_arg(&mut machine, unrelated_var)],
+                associated: Vec::new(),
+            },
+        ];
+
+        let roles = compact_reachable_role_constraints(&machine, &seed, &constraints);
+
+        assert_eq!(roles.len(), 2);
+        assert_eq!(roles[0].role, vec!["First".to_string()]);
+        assert_eq!(roles[1].role, vec!["Second".to_string()]);
+        assert!(
+            roles[0].associated[0]
+                .value
+                .lower
+                .vars
+                .iter()
+                .any(|var| var.var == output_var)
+        );
+    }
+
+    #[test]
     fn polar_elimination_removes_one_sided_vars() {
         let machine = ConstraintMachine::new();
         let mut root = CompactRoot {
@@ -1741,6 +2110,34 @@ mod tests {
 
         assert_eq!(root.root.vars.len(), 1);
         assert_eq!(root.root.vars[0].var, TypeVar(10));
+        assert_eq!(
+            substitutions,
+            vec![CompactVarSubstitution {
+                source: TypeVar(11),
+                target: Some(TypeVar(10))
+            }]
+        );
+    }
+
+    #[test]
+    fn co_occurrence_ignores_secondary_marker_for_representative() {
+        let machine = ConstraintMachine::new();
+        let mut root = CompactRoot {
+            root: CompactType {
+                vars: vec![
+                    CompactVar::plain(TypeVar(10)).secondary(),
+                    CompactVar::plain(TypeVar(11)),
+                ],
+                ..CompactType::default()
+            },
+            rec_vars: Vec::new(),
+        };
+
+        let substitutions = coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
+
+        assert_eq!(root.root.vars.len(), 1);
+        assert_eq!(root.root.vars[0].var, TypeVar(10));
+        assert_eq!(root.root.vars[0].origin, CompactVarOrigin::Secondary);
         assert_eq!(
             substitutions,
             vec![CompactVarSubstitution {
@@ -2250,5 +2647,12 @@ mod tests {
                 args: vec![payload],
             }),
         )
+    }
+
+    fn role_arg(machine: &mut ConstraintMachine, var: TypeVar) -> RoleConstraintArg {
+        RoleConstraintArg {
+            lower: machine.alloc_pos(Pos::Var(var)),
+            upper: machine.alloc_neg(Neg::Var(var)),
+        }
     }
 }

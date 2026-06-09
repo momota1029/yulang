@@ -7,7 +7,8 @@
 use rustc_hash::FxHashMap;
 
 use crate::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, SubtractId, TypeArena,
+    TypeVar,
 };
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
@@ -137,6 +138,15 @@ impl<'a> TypeFormatter<'a> {
 
     fn format_scheme(mut self, scheme: &Scheme) -> String {
         let mut body = self.pos(scheme.predicate, Context::Free);
+        if !scheme.role_predicates.is_empty() {
+            let predicates = scheme
+                .role_predicates
+                .iter()
+                .map(|predicate| self.role_predicate(predicate))
+                .collect::<Vec<_>>()
+                .join(", ");
+            body = format!("{predicates} => {body}");
+        }
         if !scheme.subtracts.is_empty() {
             let facts = scheme
                 .subtracts
@@ -148,6 +158,22 @@ impl<'a> TypeFormatter<'a> {
             body.push_str(&facts);
         }
         body
+    }
+
+    fn role_predicate(&mut self, predicate: &RolePredicate) -> String {
+        let mut args = predicate
+            .inputs
+            .iter()
+            .map(|arg| self.neu(*arg, Context::Free))
+            .collect::<Vec<_>>();
+        args.extend(predicate.associated.iter().map(|associated| {
+            format!(
+                "{} = {}",
+                associated.name,
+                self.neu(associated.value, Context::Free)
+            )
+        }));
+        format!("{}({})", path_name(&predicate.role), args.join(", "))
     }
 
     fn pos(&mut self, id: PosId, context: Context) -> String {
@@ -675,6 +701,7 @@ mod tests {
         });
         let scheme = Scheme {
             quantifiers: vec![a, b],
+            role_predicates: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -714,6 +741,7 @@ mod tests {
         });
         let scheme = Scheme {
             quantifiers: vec![a, b],
+            role_predicates: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -737,6 +765,7 @@ mod tests {
         });
         let scheme = Scheme {
             quantifiers: vec![a],
+            role_predicates: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -799,10 +828,47 @@ mod tests {
         let predicate = arena.alloc_pos(Pos::Var(a));
         let scheme = Scheme {
             quantifiers: vec![a],
+            role_predicates: Vec::new(),
             predicate,
             subtracts: vec![(a, SubtractId(2))],
         };
 
         assert_eq!(format_scheme(&arena, &scheme), "'a where subtract('a, #2)");
+    }
+
+    #[test]
+    fn formats_role_predicates_before_scheme_body() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let b = TypeVar(1);
+        let c = TypeVar(2);
+        let neu_a = plain_neu(&mut arena, a);
+        let neu_b = plain_neu(&mut arena, b);
+        let neu_c = plain_neu(&mut arena, c);
+        let predicate = arena.alloc_pos(Pos::Var(c));
+        let scheme = Scheme {
+            quantifiers: vec![a, b, c],
+            role_predicates: vec![RolePredicate {
+                role: vec!["Mul".into()],
+                inputs: vec![neu_a, neu_b],
+                associated: vec![crate::types::RoleAssociatedType {
+                    name: "out".into(),
+                    value: neu_c,
+                }],
+            }],
+            predicate,
+            subtracts: Vec::new(),
+        };
+
+        assert_eq!(
+            format_scheme(&arena, &scheme),
+            "Mul('a, 'b, out = 'c) => 'c"
+        );
+    }
+
+    fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {
+        let pos = arena.alloc_pos(Pos::Var(var));
+        let neg = arena.alloc_neg(Neg::Var(var));
+        arena.alloc_neu(Neu::Bounds(pos, var, neg))
     }
 }

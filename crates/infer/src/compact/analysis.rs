@@ -10,8 +10,17 @@ pub(crate) fn eliminate_polar_variables(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactVarSubstitution> {
-    let polarity = collect_var_polarities(root);
-    rewrite_root_vars(root, |var| {
+    eliminate_polar_variables_with_roles(machine, boundary, root, &mut [])
+}
+
+pub(crate) fn eliminate_polar_variables_with_roles(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactVarSubstitution> {
+    let polarity = collect_var_polarities(root, roles);
+    rewrite_root_and_role_vars(root, roles, |var| {
         if !is_simplification_candidate(machine, boundary, var) || polarity.is_bipolar(var) {
             Some(var)
         } else {
@@ -25,12 +34,21 @@ pub(crate) fn coalesce_by_co_occurrence(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactVarSubstitution> {
-    let co_occurrences = collect_co_occurrences(root);
+    coalesce_by_co_occurrence_with_roles(machine, boundary, root, &mut [])
+}
+
+pub(crate) fn coalesce_by_co_occurrence_with_roles(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactVarSubstitution> {
+    let co_occurrences = collect_co_occurrences(root, roles);
     let subst = co_occurrences.substitution(machine, boundary);
     if subst.is_empty() {
         return Vec::new();
     }
-    rewrite_root_vars(root, |var| Some(subst.representative(var)))
+    rewrite_root_and_role_vars(root, roles, |var| Some(subst.representative(var)))
 }
 
 pub(crate) fn simplify_compact_root(
@@ -38,11 +56,26 @@ pub(crate) fn simplify_compact_root(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> CompactSimplification {
+    simplify_compact_root_with_roles(machine, boundary, root, &mut [])
+}
+
+pub(crate) fn simplify_compact_root_with_roles(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> CompactSimplification {
     let mut substitutions = Vec::new();
-    substitutions.extend(eliminate_polar_variables(machine, boundary, root));
-    substitutions.extend(coalesce_by_co_occurrence(machine, boundary, root));
+    substitutions.extend(eliminate_polar_variables_with_roles(
+        machine, boundary, root, roles,
+    ));
+    substitutions.extend(coalesce_by_co_occurrence_with_roles(
+        machine, boundary, root, roles,
+    ));
     let sandwiches = sandwich_compact_root(machine, boundary, root);
-    substitutions.extend(eliminate_polar_variables(machine, boundary, root));
+    substitutions.extend(eliminate_polar_variables_with_roles(
+        machine, boundary, root, roles,
+    ));
     CompactSimplification {
         substitutions: normalize_var_substitutions(substitutions),
         sandwiches,
@@ -927,13 +960,30 @@ impl VarPolarities {
     }
 }
 
-fn collect_var_polarities(root: &CompactRoot) -> VarPolarities {
+fn collect_var_polarities(root: &CompactRoot, roles: &[CompactRoleConstraint]) -> VarPolarities {
     let mut out = VarPolarities::default();
     visit_type_polarity(&root.root, Polarity::Positive, &mut out);
     for rec in &root.rec_vars {
         visit_bounds_polarity(&rec.bounds, Polarity::Positive, &mut out);
     }
+    for role in roles {
+        visit_role_polarity(role, &mut out);
+    }
     out
+}
+
+fn visit_role_polarity(role: &CompactRoleConstraint, out: &mut VarPolarities) {
+    for input in &role.inputs {
+        visit_role_arg_polarity(input, out);
+    }
+    for associated in &role.associated {
+        visit_role_arg_polarity(&associated.value, out);
+    }
+}
+
+fn visit_role_arg_polarity(arg: &CompactRoleArg, out: &mut VarPolarities) {
+    visit_type_polarity(&arg.lower, Polarity::Positive, out);
+    visit_type_polarity(&arg.upper, Polarity::Negative, out);
 }
 
 fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mut VarPolarities) {
@@ -1105,13 +1155,30 @@ fn register_co_occurrence_table(
     }
 }
 
-fn collect_co_occurrences(root: &CompactRoot) -> CoOccurrences {
+fn collect_co_occurrences(root: &CompactRoot, roles: &[CompactRoleConstraint]) -> CoOccurrences {
     let mut out = CoOccurrences::default();
     visit_type_co_occurrence(&root.root, Polarity::Positive, &[], &mut out);
     for rec in &root.rec_vars {
         visit_bounds_co_occurrence(&rec.bounds, Polarity::Positive, &mut out);
     }
+    for role in roles {
+        visit_role_co_occurrence(role, &mut out);
+    }
     out
+}
+
+fn visit_role_co_occurrence(role: &CompactRoleConstraint, out: &mut CoOccurrences) {
+    for input in &role.inputs {
+        visit_role_arg_co_occurrence(input, out);
+    }
+    for associated in &role.associated {
+        visit_role_arg_co_occurrence(&associated.value, out);
+    }
+}
+
+fn visit_role_arg_co_occurrence(arg: &CompactRoleArg, out: &mut CoOccurrences) {
+    visit_type_co_occurrence(&arg.lower, Polarity::Positive, &[], out);
+    visit_type_co_occurrence(&arg.upper, Polarity::Negative, &[], out);
 }
 
 fn visit_type_co_occurrence(
@@ -1270,6 +1337,14 @@ impl VarSubstitution {
 
 fn rewrite_root_vars(
     root: &mut CompactRoot,
+    rewrite: impl FnMut(TypeVar) -> Option<TypeVar>,
+) -> Vec<CompactVarSubstitution> {
+    rewrite_root_and_role_vars(root, &mut [], rewrite)
+}
+
+fn rewrite_root_and_role_vars(
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
     mut rewrite: impl FnMut(TypeVar) -> Option<TypeVar>,
 ) -> Vec<CompactVarSubstitution> {
     let mut substitutions = FxHashMap::default();
@@ -1282,7 +1357,32 @@ fn rewrite_root_vars(
         }
         rewrite_bounds_vars(&mut rec.bounds, &mut rewrite, &mut substitutions);
     }
+    for role in roles {
+        rewrite_role_vars(role, &mut rewrite, &mut substitutions);
+    }
     sorted_var_substitutions(substitutions)
+}
+
+fn rewrite_role_vars(
+    role: &mut CompactRoleConstraint,
+    rewrite: &mut impl FnMut(TypeVar) -> Option<TypeVar>,
+    substitutions: &mut FxHashMap<TypeVar, Option<TypeVar>>,
+) {
+    for input in &mut role.inputs {
+        rewrite_role_arg_vars(input, rewrite, substitutions);
+    }
+    for associated in &mut role.associated {
+        rewrite_role_arg_vars(&mut associated.value, rewrite, substitutions);
+    }
+}
+
+fn rewrite_role_arg_vars(
+    arg: &mut CompactRoleArg,
+    rewrite: &mut impl FnMut(TypeVar) -> Option<TypeVar>,
+    substitutions: &mut FxHashMap<TypeVar, Option<TypeVar>>,
+) {
+    rewrite_type_vars(&mut arg.lower, rewrite, substitutions);
+    rewrite_type_vars(&mut arg.upper, rewrite, substitutions);
 }
 
 fn rewrite_type_vars(
@@ -1348,6 +1448,7 @@ fn rewrite_type_vars(
 fn push_compact_var_with_unioned_weight(vars: &mut Vec<CompactVar>, var: CompactVar) {
     if let Some(existing) = vars.iter_mut().find(|existing| existing.var == var.var) {
         existing.weight = existing.weight.union(&var.weight);
+        existing.origin = existing.origin.merged(var.origin);
     } else {
         vars.push(var);
     }

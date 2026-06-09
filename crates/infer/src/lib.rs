@@ -11,6 +11,7 @@
 pub mod analysis;
 pub mod annotation;
 pub mod arena;
+pub mod casts;
 pub mod compact;
 pub mod constraints;
 pub mod dump;
@@ -18,6 +19,8 @@ pub mod generalize;
 pub mod instantiate;
 pub mod lowering;
 pub mod patterns;
+mod role_solve;
+pub mod roles;
 pub mod scc;
 pub mod typing;
 pub mod uses;

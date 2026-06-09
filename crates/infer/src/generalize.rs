@@ -5,21 +5,25 @@
 
 #![allow(dead_code)]
 
-use poly::types::{Scheme, SubtractId, TypeArena, TypeVar};
+use poly::types::{
+    Neu, NeuId, RoleAssociatedType, RolePredicate, Scheme, SubtractId, TypeArena, TypeVar,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compact::{
     CompactBounds, CompactCon, CompactFun, CompactPolyVariant, CompactRecord, CompactRecordSpread,
-    CompactRecursiveVar, CompactRoot, CompactRow, CompactSandwich, CompactSandwichKind,
-    CompactSimplification, CompactTuple, CompactType, CompactVar, CompactVarSubstitution,
-    FinalizedCompactRecursiveVar, compact_type_var, finalize_compact_root, merge_compact_types,
-    simplify_compact_root,
+    CompactRecursiveVar, CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactRow,
+    CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
+    CompactVar, CompactVarSubstitution, FinalizedCompactRecursiveVar, compact_type_var,
+    finalize_compact_bounds, finalize_compact_root, finalize_compact_type,
+    finalize_compact_type_to_neg, merge_compact_types, simplify_compact_root_with_roles,
 };
 use crate::constraints::{ConstraintMachine, ConstraintWeight, TypeLevel};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneralizedCompactRoot {
     pub(crate) compact: CompactRoot,
+    pub(crate) role_predicates: Vec<CompactRoleConstraint>,
     pub(crate) quantifiers: Vec<TypeVar>,
     pub(crate) subtracts: Vec<(TypeVar, SubtractId)>,
     pub(crate) substitutions: Vec<CompactVarSubstitution>,
@@ -37,12 +41,37 @@ pub(crate) fn generalize_type_var(
     boundary: TypeLevel,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    let mut compact = compact_type_var(machine, root);
-    let simplification = simplify_compact_root(machine, boundary.child(), &mut compact);
+    let compact = compact_type_var(machine, root);
+    generalize_prepared_compact_root(machine, boundary, compact, non_generic)
+}
+
+pub(crate) fn generalize_prepared_compact_root(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    compact: CompactRoot,
+    non_generic: &FxHashSet<TypeVar>,
+) -> GeneralizedCompactRoot {
+    generalize_prepared_compact_root_with_roles(machine, boundary, compact, Vec::new(), non_generic)
+}
+
+pub(crate) fn generalize_prepared_compact_root_with_roles(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    mut compact: CompactRoot,
+    mut role_predicates: Vec<CompactRoleConstraint>,
+    non_generic: &FxHashSet<TypeVar>,
+) -> GeneralizedCompactRoot {
+    let simplification = simplify_compact_root_with_roles(
+        machine,
+        boundary.child(),
+        &mut compact,
+        &mut role_predicates,
+    );
     generalize_compact_root_with_simplification(
         machine,
         boundary,
         compact,
+        role_predicates,
         non_generic,
         simplification,
     )
@@ -58,6 +87,7 @@ pub(crate) fn generalize_compact_root(
         machine,
         boundary,
         root,
+        Vec::new(),
         non_generic,
         CompactSimplification::default(),
     )
@@ -67,18 +97,22 @@ fn generalize_compact_root_with_simplification(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     mut root: CompactRoot,
+    mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
     simplification: CompactSimplification,
 ) -> GeneralizedCompactRoot {
-    let quantifiers = quantified_vars(machine, boundary, &root, non_generic);
+    let quantifiers =
+        quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
     let subtracts = prepare_quantified_subtracts(
         machine,
         &quantifiers,
         &simplification.substitutions,
         &mut root,
+        &mut role_predicates,
     );
     GeneralizedCompactRoot {
         compact: root,
+        role_predicates,
         quantifiers,
         subtracts,
         substitutions: simplification.substitutions,
@@ -91,14 +125,148 @@ pub(crate) fn finalize_generalized_compact_root(
     root: &GeneralizedCompactRoot,
 ) -> FinalizedGeneralizedCompactRoot {
     let finalized = finalize_compact_root(types, &root.compact);
+    let role_predicates = finalize_compact_role_predicates(types, &root.role_predicates);
     FinalizedGeneralizedCompactRoot {
         scheme: Scheme {
             quantifiers: root.quantifiers.clone(),
+            role_predicates,
             predicate: finalized.root,
             subtracts: root.subtracts.clone(),
         },
         rec_vars: finalized.rec_vars,
     }
+}
+
+fn finalize_compact_role_predicates(
+    types: &mut TypeArena,
+    predicates: &[CompactRoleConstraint],
+) -> Vec<RolePredicate> {
+    predicates
+        .iter()
+        .map(|predicate| RolePredicate {
+            role: predicate.role.clone(),
+            inputs: predicate
+                .inputs
+                .iter()
+                .map(|arg| finalize_compact_role_arg(types, arg))
+                .collect(),
+            associated: predicate
+                .associated
+                .iter()
+                .map(|associated| RoleAssociatedType {
+                    name: associated.name.clone(),
+                    value: finalize_compact_role_arg(types, &associated.value),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> NeuId {
+    if let Some(bounds) = exact_compact_role_arg_bounds(arg) {
+        return finalize_compact_bounds(types, &bounds);
+    }
+    let self_var = common_var_in_types(&arg.lower, &arg.upper)
+        .or_else(|| single_var_in_type(&arg.lower))
+        .or_else(|| single_var_in_type(&arg.upper))
+        .expect("compact role arg should be exact or retain a shared variable");
+    let lower = finalize_compact_type(types, &arg.lower);
+    let upper = finalize_compact_type_to_neg(types, &arg.upper);
+    types.alloc_neu(Neu::Bounds(lower, self_var, upper))
+}
+
+fn exact_compact_role_arg_bounds(arg: &CompactRoleArg) -> Option<CompactBounds> {
+    let lower = exact_compact_type_bounds(&arg.lower)?;
+    let upper = exact_compact_type_bounds(&arg.upper)?;
+    (lower == upper).then_some(lower)
+}
+
+fn exact_compact_type_bounds(ty: &CompactType) -> Option<CompactBounds> {
+    if ty.builtins.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        return Some(CompactBounds::Con {
+            path: vec![ty.builtins[0].surface_name().into()],
+            args: Vec::new(),
+        });
+    }
+    if ty.cons.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        let con = ty.cons[0].clone();
+        return Some(CompactBounds::Con {
+            path: con.path,
+            args: con.args,
+        });
+    }
+    if ty.funs.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        let fun = &ty.funs[0];
+        return Some(CompactBounds::Fun {
+            arg: Box::new(exact_compact_type_bounds(&fun.arg)?),
+            arg_eff: Box::new(exact_compact_type_bounds(&fun.arg_eff)?),
+            ret_eff: Box::new(exact_compact_type_bounds(&fun.ret_eff)?),
+            ret: Box::new(exact_compact_type_bounds(&fun.ret)?),
+        });
+    }
+    if ty.tuples.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.rows.is_empty()
+    {
+        return ty.tuples[0]
+            .items
+            .iter()
+            .map(exact_compact_type_bounds)
+            .collect::<Option<Vec<_>>>()
+            .map(|items| CompactBounds::Tuple { items });
+    }
+    None
+}
+
+fn single_var_in_type(ty: &CompactType) -> Option<TypeVar> {
+    (ty.vars.len() == 1
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty())
+    .then_some(ty.vars[0].var)
 }
 
 pub(crate) fn finalize_generalized_compact_root_with_ancestors(
@@ -119,8 +287,21 @@ pub(crate) fn quantified_vars(
     root: &CompactRoot,
     non_generic: &FxHashSet<TypeVar>,
 ) -> Vec<TypeVar> {
+    quantified_vars_in_root_and_roles(machine, boundary, root, &[], non_generic)
+}
+
+fn quantified_vars_in_root_and_roles(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
+    non_generic: &FxHashSet<TypeVar>,
+) -> Vec<TypeVar> {
     let mut vars = Vec::new();
     collect_root_free_vars(root, &mut vars);
+    for role in role_predicates {
+        collect_role_free_vars(role, &mut vars);
+    }
     vars.retain(|var| machine.level_of(*var) > boundary && !non_generic.contains(var));
     vars.sort_by_key(|var| var.0);
     vars.dedup();
@@ -168,6 +349,7 @@ fn prepare_quantified_subtracts(
     quantifiers: &[TypeVar],
     substitutions: &[CompactVarSubstitution],
     root: &mut CompactRoot,
+    role_predicates: &mut [CompactRoleConstraint],
 ) -> Vec<(TypeVar, SubtractId)> {
     let candidates = quantified_subtracts(machine, quantifiers, substitutions);
     if candidates.is_empty() {
@@ -180,13 +362,13 @@ fn prepare_quantified_subtracts(
         .collect::<FxHashSet<_>>();
     // A subtract id stays useful if at least one covariant occurrence is not
     // protected by the corresponding non-subtract weight.
-    let live_ids = live_subtract_ids(root, &candidate_ids);
+    let live_ids = live_subtract_ids(root, role_predicates, &candidate_ids);
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
         .collect::<FxHashSet<_>>();
     if !dead_ids.is_empty() {
-        prune_dead_subtract_weights(root, &dead_ids);
+        prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids);
     }
 
     candidates
@@ -201,7 +383,11 @@ fn apply_ancestor_simplifications(
 ) {
     for ancestor in ancestors {
         apply_var_substitutions(root, &ancestor.substitutions);
-        apply_sandwiches(&mut root.compact, &ancestor.sandwiches);
+        apply_sandwiches_to_root_and_roles(
+            &mut root.compact,
+            &mut root.role_predicates,
+            &ancestor.sandwiches,
+        );
     }
 }
 
@@ -217,6 +403,7 @@ fn apply_var_substitutions(
         .map(|substitution| (substitution.source, substitution.target))
         .collect::<FxHashMap<_, _>>();
     rewrite_root_vars(&mut root.compact, &map);
+    rewrite_role_predicates_vars(&mut root.role_predicates, &map);
     let quantifier_set = root.quantifiers.iter().copied().collect::<FxHashSet<_>>();
     root.subtracts = root
         .subtracts
@@ -241,6 +428,35 @@ fn rewrite_root_vars(root: &mut CompactRoot, substitutions: &FxHashMap<TypeVar, 
         }
         rewrite_bounds_vars(&mut rec.bounds, substitutions);
     }
+}
+
+fn rewrite_role_predicates_vars(
+    roles: &mut [CompactRoleConstraint],
+    substitutions: &FxHashMap<TypeVar, Option<TypeVar>>,
+) {
+    for role in roles {
+        rewrite_role_vars(role, substitutions);
+    }
+}
+
+fn rewrite_role_vars(
+    role: &mut CompactRoleConstraint,
+    substitutions: &FxHashMap<TypeVar, Option<TypeVar>>,
+) {
+    for input in &mut role.inputs {
+        rewrite_role_arg_vars(input, substitutions);
+    }
+    for associated in &mut role.associated {
+        rewrite_role_arg_vars(&mut associated.value, substitutions);
+    }
+}
+
+fn rewrite_role_arg_vars(
+    arg: &mut CompactRoleArg,
+    substitutions: &FxHashMap<TypeVar, Option<TypeVar>>,
+) {
+    rewrite_type_vars(&mut arg.lower, substitutions);
+    rewrite_type_vars(&mut arg.upper, substitutions);
 }
 
 fn rewrite_type_vars(ty: &mut CompactType, substitutions: &FxHashMap<TypeVar, Option<TypeVar>>) {
@@ -299,6 +515,7 @@ fn rewrite_type_vars(ty: &mut CompactType, substitutions: &FxHashMap<TypeVar, Op
 fn push_compact_var_with_unioned_weight(vars: &mut Vec<CompactVar>, var: CompactVar) {
     if let Some(existing) = vars.iter_mut().find(|existing| existing.var == var.var) {
         existing.weight = existing.weight.union(&var.weight);
+        existing.origin = existing.origin.merged(var.origin);
     } else {
         vars.push(var);
     }
@@ -370,6 +587,14 @@ fn resolve_rewrite_target(
 }
 
 fn apply_sandwiches(root: &mut CompactRoot, sandwiches: &[CompactSandwich]) {
+    apply_sandwiches_to_root_and_roles(root, &mut [], sandwiches);
+}
+
+fn apply_sandwiches_to_root_and_roles(
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    sandwiches: &[CompactSandwich],
+) {
     if sandwiches.is_empty() {
         return;
     }
@@ -394,10 +619,39 @@ fn apply_sandwiches(root: &mut CompactRoot, sandwiches: &[CompactSandwich]) {
                 &mut changed,
             );
         }
+        for role in &mut *roles {
+            apply_sandwiches_to_role(role, &sandwiches, &mut fresh, &mut changed);
+        }
         if !changed {
             return;
         }
     }
+}
+
+fn apply_sandwiches_to_role(
+    role: &mut CompactRoleConstraint,
+    sandwiches: &FxHashMap<TypeVar, CompactSandwichKind>,
+    fresh: &mut FreshCompactVars,
+    changed: &mut bool,
+) {
+    for input in &mut role.inputs {
+        apply_sandwiches_to_role_arg(input, sandwiches, fresh, changed);
+    }
+    for associated in &mut role.associated {
+        apply_sandwiches_to_role_arg(&mut associated.value, sandwiches, fresh, changed);
+    }
+}
+
+fn apply_sandwiches_to_role_arg(
+    arg: &mut CompactRoleArg,
+    sandwiches: &FxHashMap<TypeVar, CompactSandwichKind>,
+    fresh: &mut FreshCompactVars,
+    changed: &mut bool,
+) {
+    arg.lower =
+        apply_sandwiches_to_type(std::mem::take(&mut arg.lower), sandwiches, fresh, changed);
+    arg.upper =
+        apply_sandwiches_to_type(std::mem::take(&mut arg.upper), sandwiches, fresh, changed);
 }
 
 fn apply_sandwiches_to_type(
@@ -627,6 +881,9 @@ fn try_apply_sandwich(
 fn prune_dead_quantifiers(root: &mut GeneralizedCompactRoot) {
     let mut free = Vec::new();
     collect_root_free_vars(&root.compact, &mut free);
+    for role in &root.role_predicates {
+        collect_role_free_vars(role, &mut free);
+    }
     let free = free.into_iter().collect::<FxHashSet<_>>();
     root.quantifiers.retain(|var| free.contains(var));
 }
@@ -643,13 +900,17 @@ fn prune_existing_subtracts(root: &mut GeneralizedCompactRoot) {
         return;
     }
 
-    let live_ids = live_subtract_ids(&root.compact, &candidate_ids);
+    let live_ids = live_subtract_ids(&root.compact, &root.role_predicates, &candidate_ids);
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
         .collect::<FxHashSet<_>>();
     if !dead_ids.is_empty() {
-        prune_dead_subtract_weights(&mut root.compact, &dead_ids);
+        prune_dead_subtract_weights_in_root_and_roles(
+            &mut root.compact,
+            &mut root.role_predicates,
+            &dead_ids,
+        );
     }
     root.subtracts
         .retain(|(_, subtract)| live_ids.contains(subtract));
@@ -902,6 +1163,7 @@ fn update_max_type_var(var: TypeVar, max: &mut Option<TypeVar>) {
 
 fn live_subtract_ids(
     root: &CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
     candidate_ids: &FxHashSet<SubtractId>,
 ) -> FxHashSet<SubtractId> {
     let mut live = FxHashSet::default();
@@ -909,7 +1171,32 @@ fn live_subtract_ids(
     for rec in &root.rec_vars {
         collect_live_subtract_ids_in_bounds(&rec.bounds, candidate_ids, &mut live);
     }
+    for role in role_predicates {
+        collect_live_subtract_ids_in_role(role, candidate_ids, &mut live);
+    }
     live
+}
+
+fn collect_live_subtract_ids_in_role(
+    role: &CompactRoleConstraint,
+    candidate_ids: &FxHashSet<SubtractId>,
+    live: &mut FxHashSet<SubtractId>,
+) {
+    for input in &role.inputs {
+        collect_live_subtract_ids_in_role_arg(input, candidate_ids, live);
+    }
+    for associated in &role.associated {
+        collect_live_subtract_ids_in_role_arg(&associated.value, candidate_ids, live);
+    }
+}
+
+fn collect_live_subtract_ids_in_role_arg(
+    arg: &CompactRoleArg,
+    candidate_ids: &FxHashSet<SubtractId>,
+    live: &mut FxHashSet<SubtractId>,
+) {
+    collect_live_subtract_ids_in_type(&arg.lower, true, candidate_ids, live);
+    collect_live_subtract_ids_in_type(&arg.upper, false, candidate_ids, live);
 }
 
 fn collect_live_subtract_ids_in_type(
@@ -1012,10 +1299,41 @@ fn collect_live_subtract_ids_in_bounds(
 }
 
 fn prune_dead_subtract_weights(root: &mut CompactRoot, dead_ids: &FxHashSet<SubtractId>) {
+    prune_dead_subtract_weights_in_root_and_roles(root, &mut [], dead_ids)
+}
+
+fn prune_dead_subtract_weights_in_root_and_roles(
+    root: &mut CompactRoot,
+    role_predicates: &mut [CompactRoleConstraint],
+    dead_ids: &FxHashSet<SubtractId>,
+) {
     prune_dead_subtract_weights_in_type(&mut root.root, dead_ids);
     for rec in &mut root.rec_vars {
         prune_dead_subtract_weights_in_bounds(&mut rec.bounds, dead_ids);
     }
+    for role in role_predicates {
+        prune_dead_subtract_weights_in_role(role, dead_ids);
+    }
+}
+
+fn prune_dead_subtract_weights_in_role(
+    role: &mut CompactRoleConstraint,
+    dead_ids: &FxHashSet<SubtractId>,
+) {
+    for input in &mut role.inputs {
+        prune_dead_subtract_weights_in_role_arg(input, dead_ids);
+    }
+    for associated in &mut role.associated {
+        prune_dead_subtract_weights_in_role_arg(&mut associated.value, dead_ids);
+    }
+}
+
+fn prune_dead_subtract_weights_in_role_arg(
+    arg: &mut CompactRoleArg,
+    dead_ids: &FxHashSet<SubtractId>,
+) {
+    prune_dead_subtract_weights_in_type(&mut arg.lower, dead_ids);
+    prune_dead_subtract_weights_in_type(&mut arg.upper, dead_ids);
 }
 
 fn prune_dead_subtract_weights_in_type(ty: &mut CompactType, dead_ids: &FxHashSet<SubtractId>) {
@@ -1110,6 +1428,20 @@ fn collect_root_free_vars(root: &CompactRoot, out: &mut Vec<TypeVar>) {
     for rec in &root.rec_vars {
         collect_recursive_var_free_vars(rec, out);
     }
+}
+
+fn collect_role_free_vars(role: &CompactRoleConstraint, out: &mut Vec<TypeVar>) {
+    for input in &role.inputs {
+        collect_role_arg_free_vars(input, out);
+    }
+    for associated in &role.associated {
+        collect_role_arg_free_vars(&associated.value, out);
+    }
+}
+
+fn collect_role_arg_free_vars(arg: &CompactRoleArg, out: &mut Vec<TypeVar>) {
+    collect_type_free_vars(&arg.lower, out);
+    collect_type_free_vars(&arg.upper, out);
 }
 
 fn collect_recursive_var_free_vars(rec: &CompactRecursiveVar, out: &mut Vec<TypeVar>) {
@@ -1242,6 +1574,7 @@ mod tests {
 
     use super::*;
     use crate::compact::CompactSandwichKind;
+    use crate::compact::simplify_compact_root;
     use crate::compact::{CompactFun, CompactVar, merge_compact_types};
 
     #[test]
@@ -1390,6 +1723,7 @@ mod tests {
             &machine,
             TypeLevel::root(),
             root,
+            Vec::new(),
             &FxHashSet::default(),
             CompactSimplification {
                 substitutions: vec![CompactVarSubstitution {
@@ -1551,6 +1885,49 @@ mod tests {
     }
 
     #[test]
+    fn finalizing_keeps_role_predicates_and_quantifies_their_vars() {
+        let mut machine = ConstraintMachine::new();
+        let role_var = TypeVar(2);
+        machine.register_type_var(role_var, TypeLevel::root().child());
+        let root = CompactRoot {
+            root: CompactType::default(),
+            rec_vars: Vec::new(),
+        };
+        let roles = vec![CompactRoleConstraint {
+            role: vec!["Ready".into()],
+            inputs: vec![CompactRoleArg {
+                lower: CompactType::from_var(CompactVar::plain(role_var)),
+                upper: CompactType::from_var(CompactVar::plain(role_var)),
+            }],
+            associated: Vec::new(),
+        }];
+
+        let generalized = generalize_prepared_compact_root_with_roles(
+            &machine,
+            TypeLevel::root(),
+            root,
+            roles,
+            &FxHashSet::default(),
+        );
+        let mut types = TypeArena::new();
+        let finalized = finalize_generalized_compact_root(&mut types, &generalized);
+
+        assert_eq!(finalized.scheme.quantifiers, vec![role_var]);
+        assert_eq!(finalized.scheme.role_predicates.len(), 1);
+        assert_eq!(
+            finalized.scheme.role_predicates[0].role,
+            vec!["Ready".to_string()]
+        );
+        assert!(matches!(
+            types.neu(finalized.scheme.role_predicates[0].inputs[0]),
+            poly::types::Neu::Bounds(lower, var, upper)
+                if *var == role_var
+                    && matches!(types.pos(*lower), poly::types::Pos::Var(v) if *v == role_var)
+                    && matches!(types.neg(*upper), poly::types::Neg::Var(v) if *v == role_var)
+        ));
+    }
+
+    #[test]
     fn generalized_compact_root_keeps_simplification_substitutions() {
         let mut machine = ConstraintMachine::new();
         let var = TypeVar(1);
@@ -1576,6 +1953,7 @@ mod tests {
             &machine,
             TypeLevel::root(),
             root,
+            Vec::new(),
             &FxHashSet::default(),
             CompactSimplification {
                 substitutions: substitutions.clone(),
@@ -1592,6 +1970,7 @@ mod tests {
         let child_var = TypeVar(1);
         let ancestor = GeneralizedCompactRoot {
             compact: CompactRoot::default(),
+            role_predicates: Vec::new(),
             quantifiers: Vec::new(),
             subtracts: Vec::new(),
             substitutions: vec![CompactVarSubstitution {
@@ -1605,6 +1984,7 @@ mod tests {
                 root: CompactType::from_var(CompactVar::plain(child_var)),
                 rec_vars: Vec::new(),
             },
+            role_predicates: Vec::new(),
             quantifiers: vec![child_var],
             subtracts: Vec::new(),
             substitutions: Vec::new(),

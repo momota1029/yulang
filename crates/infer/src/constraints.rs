@@ -204,6 +204,15 @@ impl ConstraintMachine {
             {
                 self.enqueue_invariant_neu_args(lower_args, upper_args, constraint.weights);
             }
+            (Pos::Con(source, _), Neg::Con(target, _)) if source != target => {
+                self.events.push(ConstraintEvent::NominalCastNeeded {
+                    lower: constraint.lower,
+                    upper: constraint.upper,
+                    source,
+                    target,
+                    weights: constraint.weights,
+                });
+            }
             (Pos::Record(lower_fields), Neg::Record(upper_fields)) => {
                 self.enqueue_record_fields(lower_fields, upper_fields, constraint.weights);
             }
@@ -803,8 +812,12 @@ impl TypeLevel {
         Self(0)
     }
 
+    pub fn secondary() -> Self {
+        Self(u32::MAX)
+    }
+
     pub fn child(self) -> Self {
-        Self(self.0 + 1)
+        Self(self.0.saturating_add(1))
     }
 
     pub fn depth(self) -> u32 {
@@ -872,6 +885,13 @@ pub enum ConstraintEvent {
     SubtractFactAdded {
         effect: TypeVar,
         id: SubtractId,
+    },
+    NominalCastNeeded {
+        lower: PosId,
+        upper: NegId,
+        source: Vec<String>,
+        target: Vec<String>,
+        weights: ConstraintWeights,
     },
 }
 
@@ -1194,6 +1214,22 @@ mod tests {
     }
 
     #[test]
+    fn lower_bound_extrudes_secondary_level_variables_to_target_level() {
+        let mut machine = ConstraintMachine::new();
+        let target = TypeVar(0);
+        let inner = TypeVar(1);
+        let root = TypeLevel::root();
+        machine.register_type_var(target, root);
+        machine.register_type_var(inner, TypeLevel::secondary());
+        let lower = machine.alloc_pos(Pos::Var(inner));
+        let upper = machine.alloc_neg(Neg::Var(target));
+
+        machine.subtype(lower, upper);
+
+        assert_eq!(machine.level_of(inner), root);
+    }
+
+    #[test]
     fn upper_bound_extrudes_deeper_negative_variables_to_source_level() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
@@ -1416,6 +1452,26 @@ mod tests {
             upper: lower_arg_intersection,
             weights: weights.swapped(),
         }));
+    }
+
+    #[test]
+    fn mismatched_constructors_emit_nominal_cast_event() {
+        let mut machine = ConstraintMachine::new();
+        let lower = machine.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let upper = machine.alloc_neg(Neg::Con(vec!["user_id".into()], Vec::new()));
+
+        machine.subtype(lower, upper);
+
+        assert_eq!(
+            machine.events(),
+            &[ConstraintEvent::NominalCastNeeded {
+                lower,
+                upper,
+                source: vec!["int".into()],
+                target: vec!["user_id".into()],
+                weights: ConstraintWeights::empty()
+            }]
+        );
     }
 
     #[test]
