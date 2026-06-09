@@ -214,6 +214,14 @@ impl<'a> TypeFormatter<'a> {
             Subtractability::AllExcept(path, args) => {
                 format!("{}-except-subtract", self.subtractability_head(path, args))
             }
+            Subtractability::AllExceptMany(families) => {
+                let heads = families
+                    .iter()
+                    .map(|(path, args)| self.subtractability_head(path, args))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("[{}]-except-subtract", heads)
+            }
             Subtractability::Set(path, args) => {
                 format!("{}-subtract", self.subtractability_head(path, args))
             }

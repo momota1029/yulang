@@ -144,6 +144,15 @@ pub struct TypeMethodDecl {
     pub order: ModuleOrder,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActMethodDecl {
+    pub owner: TypeDeclId,
+    pub name: Name,
+    pub receiver: Name,
+    pub def: DefId,
+    pub order: ModuleOrder,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeMethodReceiver {
     Value,
@@ -235,6 +244,7 @@ struct ImportPathTarget {
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
     act_ops: FxHashMap<TypeDeclId, Vec<Name>>,
+    act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     next_type_id: u32,
@@ -256,6 +266,7 @@ impl ModuleTable {
                 next_order: 0,
             }],
             act_ops: FxHashMap::default(),
+            act_methods: FxHashMap::default(),
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
             next_type_id: 0,
@@ -308,6 +319,18 @@ impl ModuleTable {
     }
     fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<Name>) {
         self.act_ops.insert(id, ops);
+    }
+    fn insert_act_method(&mut self, method: ActMethodDecl) {
+        self.act_methods
+            .entry(method.owner)
+            .or_default()
+            .push(method);
+    }
+    pub fn act_methods(&self, id: TypeDeclId) -> &[ActMethodDecl] {
+        self.act_methods.get(&id).map(Vec::as_slice).unwrap_or(&[])
+    }
+    pub fn all_act_methods(&self) -> impl Iterator<Item = &ActMethodDecl> {
+        self.act_methods.values().flat_map(|methods| methods.iter())
     }
     fn set_type_companion(&mut self, id: TypeDeclId, module: ModuleId) {
         self.type_companions.insert(id, module);
@@ -1044,6 +1067,7 @@ impl Lower {
         let id = self.modules.insert_type(module, name.clone(), kind, vis);
         if kind == ModuleTypeKind::Act {
             self.modules.set_act_ops(id, act_operation_names(node));
+            self.register_act_companion(node, module, name.clone(), id, vis, children);
         }
         if matches!(
             kind,
@@ -1054,6 +1078,98 @@ impl Lower {
         ) {
             self.register_type_companion(node, module, name, id, vis, children);
         }
+    }
+
+    fn register_act_companion(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        name: Name,
+        owner: TypeDeclId,
+        vis: Vis,
+        children: &mut Vec<DefId>,
+    ) {
+        let Some(body) = act_decl_body(node) else {
+            return;
+        };
+        let (def, companion, created) = self.ensure_child_module(module, name, vis);
+        self.modules.set_type_companion(owner, companion);
+        let companion_children = self.register_act_companion_block(&body, companion, owner);
+        self.append_module_children(def, companion_children);
+        if created {
+            children.push(def);
+        }
+    }
+
+    fn register_act_companion_block(
+        &mut self,
+        block: &Cst,
+        module: ModuleId,
+        owner: TypeDeclId,
+    ) -> Vec<DefId> {
+        let mut children = Vec::new();
+        for child in block.children() {
+            match child.kind() {
+                SyntaxKind::Binding if act_operation_binding(&child) => {}
+                SyntaxKind::Binding if type_method_binding(&child).is_some() => {
+                    let Some(method) = type_method_binding(&child) else {
+                        continue;
+                    };
+                    let vis = binding_vis(&child);
+                    let def = self.arena.defs.fresh();
+                    self.arena.defs.set(
+                        def,
+                        Def::Let {
+                            vis,
+                            scheme: None,
+                            body: None,
+                            children: Vec::new(),
+                        },
+                    );
+                    let value_name = act_method_value_name(&method.name, def);
+                    let order = self.modules.insert_value(module, value_name, def, vis);
+                    self.modules.insert_act_method(ActMethodDecl {
+                        owner,
+                        name: method.name,
+                        receiver: method.receiver,
+                        def,
+                        order,
+                    });
+                    children.push(def);
+                }
+                SyntaxKind::Binding => {
+                    let Some(name) = binding_name(&child) else {
+                        continue;
+                    };
+                    let vis = binding_vis(&child);
+                    let def = self.arena.defs.fresh();
+                    self.arena.defs.set(
+                        def,
+                        Def::Let {
+                            vis,
+                            scheme: None,
+                            body: None,
+                            children: Vec::new(),
+                        },
+                    );
+                    self.modules.insert_value(module, name, def, vis);
+                    children.push(def);
+                }
+                SyntaxKind::ModDecl => {
+                    if let Some(name) = mod_name(&child) {
+                        let (def, sub, created) =
+                            self.ensure_child_module(module, name, vis_of(&child));
+                        let sub_children = self.register_mod_body(&child, sub);
+                        self.set_module_children(def, sub_children);
+                        if created {
+                            children.push(def);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        children
     }
 
     fn register_type_companion(
@@ -1381,6 +1497,22 @@ fn child_node(node: &Cst, kind: SyntaxKind) -> Option<Cst> {
     node.children().find(|c| c.kind() == kind)
 }
 
+fn contains_node_kind(node: &Cst, kind: SyntaxKind) -> bool {
+    node.children().any(|child| {
+        child.kind() == kind
+            || matches!(
+                child.kind(),
+                SyntaxKind::BindingHeader
+                    | SyntaxKind::Pattern
+                    | SyntaxKind::TypeAnn
+                    | SyntaxKind::TypeExpr
+                    | SyntaxKind::TypeApply
+                    | SyntaxKind::TypeArrow
+                    | SyntaxKind::TypeEffectRow
+            ) && contains_node_kind(&child, kind)
+    })
+}
+
 fn first_ident(node: &Cst) -> Option<Name> {
     node.children_with_tokens()
         .filter_map(|it| it.into_token())
@@ -1465,6 +1597,10 @@ fn type_method_value_name(name: &Name, receiver: TypeMethodReceiver) -> Name {
     }
 }
 
+fn act_method_value_name(name: &Name, def: DefId) -> Name {
+    Name(format!("#act-method:{}:{}", name.0, def.0))
+}
+
 pub(crate) fn type_var_names(node: &Cst) -> Vec<String> {
     let Some(vars) = child_node(node, SyntaxKind::TypeVars) else {
         return Vec::new();
@@ -1507,16 +1643,36 @@ pub(crate) fn type_with_body(node: &Cst) -> Option<Cst> {
     None
 }
 
+pub(crate) fn act_decl_body(node: &Cst) -> Option<Cst> {
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Node(child)
+                if matches!(
+                    child.kind(),
+                    SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
+                ) =>
+            {
+                return Some(child);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+pub(crate) fn act_operation_binding(node: &Cst) -> bool {
+    if type_method_binding(node).is_some() || child_node(node, SyntaxKind::BindingBody).is_some() {
+        return false;
+    }
+    child_node(node, SyntaxKind::BindingHeader)
+        .is_some_and(|header| contains_node_kind(&header, SyntaxKind::TypeAnn))
+}
+
 fn act_operation_names(node: &Cst) -> Vec<Name> {
-    node.children()
-        .filter(|child| {
-            matches!(
-                child.kind(),
-                SyntaxKind::BraceGroup | SyntaxKind::IndentBlock
-            )
-        })
+    act_decl_body(node)
+        .into_iter()
         .flat_map(|body| body.children())
-        .filter(|child| child.kind() == SyntaxKind::Binding)
+        .filter(|child| child.kind() == SyntaxKind::Binding && act_operation_binding(child))
         .filter_map(|binding| binding_name(&binding))
         .collect()
 }
@@ -1771,8 +1927,9 @@ mod tests {
 
     #[test]
     fn registers_act_operation_names_for_coverage() {
-        let cst =
-            parse("act out:\n  our say: int -> unit\n  our write: int -> unit\nmy site = 1\n");
+        let cst = parse(
+            "act out:\n  our say: int -> unit\n  our write: int -> unit\n  our x.clear = x\nmy site = 1\n",
+        );
         let lower = lower_module_map(&cst);
         let root = lower.modules.root_id();
         let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
@@ -1784,6 +1941,33 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(ops, vec![Name("say".into()), Name("write".into())]);
+    }
+
+    #[test]
+    fn registers_act_body_as_companion_module_effect_methods() {
+        let cst = parse("act out:\n  our say: int -> unit\n  our x.clear = x\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let out = lower.modules.type_decls(root, &Name("out".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(out.id)
+            .expect("act body should create a companion module");
+        let methods = lower.modules.act_methods(out.id);
+
+        assert_eq!(
+            lower.modules.module_decls(root, &Name("out".into()))[0].module,
+            companion
+        );
+        assert_eq!(methods.len(), 1);
+        assert_eq!(methods[0].name, Name("clear".into()));
+        assert_eq!(methods[0].receiver, Name("x".into()));
+        assert!(
+            lower
+                .modules
+                .value_decls(companion, &Name("say".into()))
+                .is_empty()
+        );
     }
 
     #[test]

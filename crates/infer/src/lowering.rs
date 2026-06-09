@@ -30,8 +30,8 @@ use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
-    LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable,
-    ModuleTypeDecl, TypeDeclId, TypeMethodDecl, TypeMethodReceiver,
+    ActMethodDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder,
+    ModuleTable, ModuleTypeDecl, TypeDeclId, TypeMethodDecl, TypeMethodReceiver,
     lower_loaded_file_csts_module_map,
 };
 
@@ -130,6 +130,7 @@ impl BodyLowerer {
         let labels = lower.modules.dump_labels();
         let mut session = AnalysisSession::new(lower.arena);
         register_declared_type_methods(&mut session, &lower.modules);
+        register_declared_act_methods(&mut session, &lower.modules);
         Self {
             session,
             modules: lower.modules,
@@ -161,6 +162,7 @@ impl BodyLowerer {
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
                 | SyntaxKind::ErrorDecl => self.lower_type_decl_with_body(&child, module),
+                SyntaxKind::ActDecl => self.lower_act_decl_body(&child, module),
                 _ => {}
             }
         }
@@ -231,6 +233,7 @@ impl BodyLowerer {
                     module,
                     decl.order,
                     self_alias,
+                    root,
                     computation,
                 ) {
                     Ok(()) => self.finish_binding(decl.def, name, root, computation),
@@ -291,6 +294,85 @@ impl BodyLowerer {
                 _ => {}
             }
         }
+    }
+
+    fn lower_act_decl_body(&mut self, node: &Cst, module: ModuleId) {
+        let Some(name) = crate::type_decl_name(node) else {
+            return;
+        };
+        let Some(decl) = self.next_type_decl(module, &name) else {
+            return;
+        };
+        let Some(body) = crate::act_decl_body(node) else {
+            return;
+        };
+        let Some(companion) = self.modules.type_companion(decl.id) else {
+            return;
+        };
+        let mut method_cursor = 0usize;
+        for child in body.children() {
+            match child.kind() {
+                SyntaxKind::Binding if crate::act_operation_binding(&child) => {}
+                SyntaxKind::Binding if crate::type_method_binding(&child).is_some() => {
+                    let method = self
+                        .modules
+                        .act_methods(decl.id)
+                        .get(method_cursor)
+                        .cloned();
+                    method_cursor += usize::from(method.is_some());
+                    if let Some(method) = method {
+                        self.lower_act_method_binding(&child, companion, &method);
+                    }
+                }
+                SyntaxKind::Binding => self.lower_binding(&child, companion),
+                SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
+                _ => {}
+            }
+        }
+    }
+
+    fn lower_act_method_binding(&mut self, node: &Cst, module: ModuleId, method: &ActMethodDecl) {
+        let Some(expr) = binding_body_expr(node) else {
+            self.errors.push(BodyLoweringError::MissingBody {
+                def: method.def,
+                name: method.name.clone(),
+            });
+            return;
+        };
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(method.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: method.def,
+                root,
+            }));
+
+        let lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            method.order,
+            method.def,
+            &mut self.labels,
+        )
+        .lower_act_method_body_expr(
+            &expr,
+            method.receiver.clone(),
+            method.owner,
+            binding_type_expr(node),
+        );
+        match lowered {
+            Ok(computation) => {
+                self.finish_binding(method.def, method.name.clone(), root, computation);
+            }
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: method.def,
+                name: method.name.clone(),
+                error,
+            }),
+        }
+        self.session.infer.restore_level(previous_level);
     }
 
     fn lower_type_method_binding(
@@ -357,6 +439,7 @@ impl BodyLowerer {
         module: ModuleId,
         site: ModuleOrder,
         self_alias: Option<AnnSelfAlias>,
+        root: TypeVar,
         computation: Computation,
     ) -> Result<(), LoweringError> {
         let Some(type_expr) = binding_type_expr(node) else {
@@ -369,7 +452,7 @@ impl BodyLowerer {
         AnnConstraintLowerer::new(&mut self.session.infer, &self.modules)
             .connect_computation(
                 AnnComputationTarget {
-                    value: computation.value,
+                    value: root,
                     effect: computation.effect,
                 },
                 &ann,
@@ -404,10 +487,6 @@ impl BodyLowerer {
         let body_pos = self.session.infer.alloc_pos(Pos::Var(body));
         let root_neg = self.session.infer.alloc_neg(Neg::Var(root));
         self.session.infer.subtype(body_pos, root_neg);
-
-        let root_pos = self.session.infer.alloc_pos(Pos::Var(root));
-        let body_neg = self.session.infer.alloc_neg(Neg::Var(body));
-        self.session.infer.subtype(root_pos, body_neg);
     }
 
     fn next_value_decl(&mut self, module: ModuleId, name: &Name) -> Option<crate::ModuleValueDecl> {
@@ -458,6 +537,21 @@ fn register_declared_type_methods(session: &mut AnalysisSession, modules: &Modul
                 session.register_ref_type_method(receiver, method.name.0.clone(), method.def);
             }
         }
+    }
+}
+
+fn register_declared_act_methods(session: &mut AnalysisSession, modules: &ModuleTable) {
+    for method in modules.all_act_methods() {
+        let Some(owner) = modules.type_decl_by_id(method.owner) else {
+            continue;
+        };
+        let effect = modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        session.register_effect_method(effect, method.name.0.clone(), method.def);
     }
 }
 
@@ -620,6 +714,97 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_act_method_body_expr(
+        &mut self,
+        node: &Cst,
+        receiver: Name,
+        owner: TypeDeclId,
+        result_type_expr: Option<Cst>,
+    ) -> Result<Computation, LoweringError> {
+        let mut ann_builder = ann_type_builder(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+        );
+        let mut ann_solver_vars = FxHashMap::default();
+
+        let receiver_value = self.fresh_type_var();
+        let receiver_effect = self.fresh_type_var();
+        let receiver_subtract = self.connect_act_method_receiver_effect(receiver_effect, owner)?;
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(receiver, receiver_value, LocalCallReturnEffect::Annotated);
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_expr_with_lambda_scope(node, LambdaScope::Defined);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("method predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        if let Some(type_expr) = result_type_expr {
+            self.connect_type_method_result_annotation(
+                body,
+                &type_expr,
+                &mut ann_builder,
+                &mut ann_solver_vars,
+            )?;
+        }
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(receiver_value));
+        let arg_eff = self.alloc_neg(Neg::Var(receiver_effect));
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Defined, vec![receiver_subtract], frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn connect_act_method_receiver_effect(
+        &mut self,
+        effect: TypeVar,
+        owner: TypeDeclId,
+    ) -> Result<SubtractId, LoweringError> {
+        let owner =
+            self.modules
+                .type_decl_by_id(owner)
+                .ok_or(LoweringError::AnnotationConstraint {
+                    error: AnnConstraintError::MissingTypeDecl { id: owner },
+                })?;
+        let path = self
+            .modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let subtract = self.session.infer.fresh_subtract_id();
+        self.session
+            .infer
+            .subtract_fact(effect, subtract, Subtractability::Set(path, Vec::new()));
+        Ok(subtract)
     }
 
     fn connect_type_method_receiver(
@@ -1057,14 +1242,31 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
         let name = field_name(node).ok_or(LoweringError::MissingFieldName)?;
+        let method_value = self.fresh_type_var();
         let result_value = self.fresh_type_var();
+        let result_effect = self.fresh_type_var();
+        let call_effect = self.fresh_type_var();
+        let method = self.alloc_pos(Pos::Var(method_value));
+        let receiver_value = self.alloc_pos(Pos::Var(receiver.value));
+        let receiver_effect = self.alloc_pos(Pos::Var(receiver.effect));
+        let ret_eff = self.alloc_neg(Neg::Var(call_effect));
+        let ret = self.alloc_neg(Neg::Var(result_value));
+        let method_upper = self.alloc_neg(Neg::Fun {
+            arg: receiver_value,
+            arg_eff: receiver_effect,
+            ret_eff,
+            ret,
+        });
+        self.session.infer.subtype(method, method_upper);
+        self.subtype_var_to_var(receiver.effect, result_effect);
+        self.subtype_var_to_var(call_effect, result_effect);
+
         let select = self.session.poly.add_select(name);
         self.session.register_selection_use(
             select,
             SelectionUse {
                 parent: self.parent,
-                receiver_value: receiver.value,
-                method_value: result_value,
+                method_value,
             },
         );
         let expr = self
@@ -1074,7 +1276,7 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::new(
             expr,
             result_value,
-            receiver.effect,
+            result_effect,
             receiver.evaluation,
         ))
     }
@@ -1458,6 +1660,77 @@ mod tests {
         assert_eq!(output.session.poly.ref_target(reference), Some(receiver));
     }
 
+    fn assert_act_method_receiver_has_self_subtract(
+        output: &BodyLowering,
+        method: DefId,
+        effect_name: &str,
+    ) {
+        let root = output
+            .typing
+            .def(method)
+            .expect("method def should have a root type");
+        let (_, arg_eff, ret_eff, ret) = function_lower_bound(&output.session, root);
+        let effect = match output.session.infer.constraints().types().neg(arg_eff) {
+            Neg::Var(effect) => *effect,
+            other => panic!("expected receiver arg effect var, got {other:?}"),
+        };
+        let fact = output
+            .session
+            .infer
+            .constraints()
+            .subtracts()
+            .facts(effect)
+            .iter()
+            .find(|fact| {
+                matches!(
+                    &fact.subtractability,
+                    Subtractability::Set(path, args)
+                        if path == &vec![effect_name.to_string()] && args.is_empty()
+                )
+            })
+            .expect("receiver effect should record self-subtract");
+
+        assert_pos_non_subtract(&output.session, ret_eff, fact.id);
+        assert_pos_non_subtract(&output.session, ret, fact.id);
+    }
+
+    fn function_lower_bound(
+        session: &AnalysisSession,
+        var: TypeVar,
+    ) -> (NegId, NegId, PosId, PosId) {
+        let mut stack = vec![var];
+        let mut visited = Vec::new();
+        while let Some(var) = stack.pop() {
+            if visited.contains(&var) {
+                continue;
+            }
+            visited.push(var);
+            let Some(bounds) = session.infer.constraints().bounds().of(var) else {
+                continue;
+            };
+            for lower in bounds.lowers() {
+                match session.infer.constraints().types().pos(lower.pos) {
+                    Pos::Fun {
+                        arg,
+                        arg_eff,
+                        ret_eff,
+                        ret,
+                    } => return (*arg, *arg_eff, *ret_eff, *ret),
+                    Pos::Var(next) => stack.push(*next),
+                    _ => {}
+                }
+            }
+        }
+        panic!("expected function lower bound");
+    }
+
+    fn assert_pos_non_subtract(session: &AnalysisSession, pos: PosId, subtract: SubtractId) {
+        match session.infer.constraints().types().pos(pos) {
+            Pos::NonSubtract(_, found) if *found == subtract => {}
+            other => panic!("expected non-subtract #{:?}, got {other:?}", subtract),
+        }
+    }
+
     #[test]
     fn lowers_int_literal_with_primitive_lower_bound() {
         let root = parse("my a = 1\n");
@@ -1487,6 +1760,68 @@ mod tests {
                 Pos::Con(path, args) if path == &vec!["int".to_string()] && args.is_empty()
             )
         }));
+    }
+
+    #[test]
+    fn binding_annotation_constrains_def_above_body() {
+        let root = parse("my a: float = 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "a");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let root = output.typing.def(def).expect("def should have a root type");
+        assert!(matches!(
+            output.session.poly.expr(binding_body_id(&output, def)),
+            Expr::Lit(Lit::Int(_))
+        ));
+        let body = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(root)
+            .expect("root should receive bounds")
+            .lowers()
+            .iter()
+            .find_map(
+                |bound| match output.session.infer.constraints().types().pos(bound.pos) {
+                    Pos::Var(body) => Some(*body),
+                    _ => None,
+                },
+            )
+            .expect("body should flow into def root");
+
+        let types = output.session.infer.constraints().types();
+        let root_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(root)
+            .expect("root should receive bounds");
+        assert!(root_bounds.uppers().iter().any(|bound| {
+            matches!(
+                types.neg(bound.neg),
+                Neg::Con(path, args) if path == &vec!["float".to_string()] && args.is_empty()
+            )
+        }));
+
+        let body_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(body)
+            .expect("body should receive bounds");
+        assert!(
+            body_bounds
+                .uppers()
+                .iter()
+                .any(|bound| { matches!(types.neg(bound.neg), Neg::Var(var) if *var == root) })
+        );
     }
 
     #[test]
@@ -1630,6 +1965,25 @@ mod tests {
         assert_eq!(
             output.session.poly.select(select).resolution,
             Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
+    fn act_method_lowers_in_companion_and_registers_effect_method() {
+        let root = parse("act nondet:\n  our x.flip = x\nmy got = 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let nondet = lower.modules.type_decls(module, &Name("nondet".into()))[0].clone();
+        let method = lower.modules.act_methods(nondet.id)[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_method_body_is_receiver_identity(&output, method);
+        assert_act_method_receiver_has_self_subtract(&output, method, "nondet");
+        assert_eq!(
+            output.session.effect_methods.candidates("flip")[0].def,
+            method
         );
     }
 

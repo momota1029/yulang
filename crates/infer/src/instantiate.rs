@@ -236,6 +236,17 @@ impl<'a> SchemeInstantiator<'a> {
                 names,
                 types.into_iter().map(|ty| self.clone_neu(ty)).collect(),
             ),
+            Subtractability::AllExceptMany(families) => Subtractability::AllExceptMany(
+                families
+                    .into_iter()
+                    .map(|(names, types)| {
+                        (
+                            names,
+                            types.into_iter().map(|ty| self.clone_neu(ty)).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
             Subtractability::Set(names, types) => Subtractability::Set(
                 names,
                 types.into_iter().map(|ty| self.clone_neu(ty)).collect(),

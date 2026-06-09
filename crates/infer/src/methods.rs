@@ -1,8 +1,8 @@
-//! Type method selection candidates.
+//! Method selection candidates.
 //!
 //! Method lookup is driven by type information, not by the surface method name alone.
 //! Lowering records a pending selection, and analysis probes this table only after the
-//! receiver has a concrete lower bound.
+//! receiver has a concrete lower bound or effect information.
 
 use poly::expr::DefId;
 use rustc_hash::FxHashMap;
@@ -95,6 +95,50 @@ pub struct TypeMethodCandidate {
     pub def: DefId,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct EffectMethodTable {
+    methods: FxHashMap<String, Vec<EffectMethodCandidate>>,
+}
+
+impl EffectMethodTable {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(
+        &mut self,
+        effect: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        let effect = effect.into();
+        let method = method.into();
+        self.methods
+            .entry(method.clone())
+            .or_default()
+            .push(EffectMethodCandidate {
+                effect,
+                method,
+                def,
+            });
+    }
+
+    pub fn candidates(&self, method: &str) -> &[EffectMethodCandidate] {
+        self.methods.get(method).map(Vec::as_slice).unwrap_or(&[])
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.methods.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectMethodCandidate {
+    pub effect: Vec<String>,
+    pub method: String,
+    pub def: DefId,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +176,17 @@ mod tests {
             table.ref_candidates(&["str".into()], "lines")[0].def,
             ref_method
         );
+    }
+
+    #[test]
+    fn stores_effect_method_candidates_by_name() {
+        let mut table = EffectMethodTable::new();
+        let method = DefId(1);
+
+        table.insert(vec!["nondet".into()], "choose", method);
+
+        assert_eq!(table.candidates("choose")[0].effect, vec!["nondet"]);
+        assert_eq!(table.candidates("choose")[0].def, method);
+        assert!(table.candidates("other").is_empty());
     }
 }

@@ -141,6 +141,7 @@ pub enum Subtractability {
     Empty,
     All,
     AllExcept(Vec<String>, Vec<NeuId>),
+    AllExceptMany(Vec<(Vec<String>, Vec<NeuId>)>),
     Set(Vec<String>, Vec<NeuId>),
 }
 

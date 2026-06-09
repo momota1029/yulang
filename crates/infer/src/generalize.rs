@@ -221,6 +221,19 @@ fn clone_subtractability(
                 .map(|arg| clone_neu_between_arenas(source, target, *arg))
                 .collect(),
         ),
+        Subtractability::AllExceptMany(families) => Subtractability::AllExceptMany(
+            families
+                .iter()
+                .map(|(path, args)| {
+                    (
+                        path.clone(),
+                        args.iter()
+                            .map(|arg| clone_neu_between_arenas(source, target, *arg))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
         Subtractability::Set(path, args) => Subtractability::Set(
             path.clone(),
             args.iter()

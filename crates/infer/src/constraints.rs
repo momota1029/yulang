@@ -531,6 +531,7 @@ impl ConstraintMachine {
             return;
         };
 
+        let handled_families = self.neg_effect_families(&items);
         let active_facts = self.active_subtract_facts(source, &weights.left);
         let mut retained_items = items;
         for fact in &active_facts {
@@ -539,7 +540,16 @@ impl ConstraintMachine {
         }
 
         for fact in active_facts {
-            self.record_subtract_fact(tail_var, fact);
+            self.record_subtract_fact(
+                tail_var,
+                SubtractFact {
+                    id: fact.id,
+                    subtractability: subtractability_minus_families(
+                        fact.subtractability,
+                        &handled_families,
+                    ),
+                },
+            );
         }
 
         if retained_items.is_empty() {
@@ -579,11 +589,36 @@ impl ConstraintMachine {
                 .into_iter()
                 .filter(|item| !self.neg_effect_family_matches(*item, path))
                 .collect(),
+            Subtractability::AllExceptMany(families) => items
+                .into_iter()
+                .filter(|item| {
+                    !families
+                        .iter()
+                        .any(|(path, _)| self.neg_effect_family_matches(*item, path))
+                })
+                .collect(),
         }
     }
 
     fn neg_effect_family_matches(&self, item: NegId, path: &[String]) -> bool {
         matches!(self.types.neg(item), Neg::Con(item_path, _) if item_path == path)
+    }
+
+    fn neg_effect_families(&self, items: &[NegId]) -> Vec<EffectFamily> {
+        let mut families = Vec::new();
+        for item in items {
+            let Neg::Con(path, _) = self.types.neg(*item) else {
+                continue;
+            };
+            push_unique_effect_family(
+                &mut families,
+                EffectFamily {
+                    path: path.clone(),
+                    args: Vec::new(),
+                },
+            );
+        }
+        families
     }
 
     fn add_lower_bound(&mut self, target: TypeVar, pos: PosId, weights: ConstraintWeights) {
@@ -1116,6 +1151,63 @@ pub struct SubtypeConstraint {
 pub struct SubtractFact {
     pub id: SubtractId,
     pub subtractability: Subtractability,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EffectFamily {
+    path: Vec<String>,
+    args: Vec<NeuId>,
+}
+
+fn subtractability_minus_families(
+    subtractability: Subtractability,
+    handled: &[EffectFamily],
+) -> Subtractability {
+    if handled.is_empty() {
+        return subtractability;
+    }
+    match subtractability {
+        Subtractability::Empty => Subtractability::Empty,
+        Subtractability::All => all_except_families(handled.iter().cloned()),
+        Subtractability::Set(path, args) => {
+            if handled.iter().any(|family| family.path == path) {
+                Subtractability::Empty
+            } else {
+                Subtractability::Set(path, args)
+            }
+        }
+        Subtractability::AllExcept(path, args) => all_except_families(
+            std::iter::once(EffectFamily { path, args }).chain(handled.iter().cloned()),
+        ),
+        Subtractability::AllExceptMany(families) => all_except_families(
+            families
+                .into_iter()
+                .map(|(path, args)| EffectFamily { path, args })
+                .chain(handled.iter().cloned()),
+        ),
+    }
+}
+
+fn all_except_families(families: impl IntoIterator<Item = EffectFamily>) -> Subtractability {
+    let mut out = Vec::new();
+    for family in families {
+        push_unique_effect_family(&mut out, family);
+    }
+    match out.as_slice() {
+        [] => Subtractability::All,
+        [family] => Subtractability::AllExcept(family.path.clone(), family.args.clone()),
+        _ => Subtractability::AllExceptMany(
+            out.into_iter()
+                .map(|family| (family.path, family.args))
+                .collect(),
+        ),
+    }
+}
+
+fn push_unique_effect_family(families: &mut Vec<EffectFamily>, family: EffectFamily) {
+    if !families.iter().any(|existing| existing.path == family.path) {
+        families.push(family);
+    }
 }
 
 fn find_record_field<'a, T>(
@@ -1659,7 +1751,7 @@ mod tests {
             machine.subtracts().facts(tail_var),
             &[SubtractFact {
                 id: subtract,
-                subtractability: Subtractability::Set(vec!["io".into()], Vec::new())
+                subtractability: Subtractability::Empty
             }]
         );
     }
@@ -1750,7 +1842,7 @@ mod tests {
             machine.subtracts().facts(tail_var),
             &[SubtractFact {
                 id: subtract,
-                subtractability: Subtractability::Set(vec!["io".into()], Vec::new())
+                subtractability: Subtractability::Empty
             }]
         );
     }
@@ -1855,7 +1947,38 @@ mod tests {
             machine.subtracts().facts(tail_var),
             &[SubtractFact {
                 id: subtract,
-                subtractability: Subtractability::AllExcept(vec!["io".into()], Vec::new())
+                subtractability: Subtractability::AllExceptMany(vec![
+                    (vec!["io".into()], Vec::new()),
+                    (vec!["nondet".into()], Vec::new())
+                ])
+            }]
+        );
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_moves_all_subtract_to_tail_minus_handled_families() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        machine.subtract_fact(source, subtract, Subtractability::All);
+        machine.take_events();
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
+
+        machine.subtype(lower, upper);
+
+        assert_eq!(
+            machine.subtracts().facts(tail_var),
+            &[SubtractFact {
+                id: subtract,
+                subtractability: Subtractability::AllExceptMany(vec![
+                    (vec!["io".into()], Vec::new()),
+                    (vec!["nondet".into()], Vec::new())
+                ])
             }]
         );
     }
