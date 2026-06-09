@@ -181,6 +181,7 @@ impl BodyLowerer {
             });
             return;
         };
+        let previous_level = self.session.infer.enter_child_level();
         let root = self.session.infer.fresh_type_var();
         self.typing.set_def(decl.def, root);
         self.session
@@ -215,6 +216,7 @@ impl BodyLowerer {
                 error,
             }),
         }
+        self.session.infer.restore_level(previous_level);
     }
 
     fn connect_binding_annotation(

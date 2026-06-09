@@ -11,6 +11,7 @@ use rustc_hash::FxHashMap;
 /// `predicate` は scheme 本体の正側型、`quantifiers` はこの scheme が束縛する型変数。
 /// `subtracts` は effect row の引き算に使う `S-subtract(α, #a)` の事実を、scheme と一緒に
 /// 外へ持ち出すための table。
+#[derive(Clone)]
 pub struct Scheme {
     pub quantifiers: Vec<TypeVar>,
     pub predicate: PosId,

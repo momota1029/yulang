@@ -34,6 +34,12 @@ impl Arena {
         var
     }
 
+    pub fn fresh_type_var_at(&mut self, level: TypeLevel) -> TypeVar {
+        let var = self.type_ids.fresh_type_var();
+        self.constraints.register_type_var(var, level);
+        var
+    }
+
     pub fn fresh_subtract_id(&mut self) -> SubtractId {
         self.type_ids.fresh_subtract_id()
     }

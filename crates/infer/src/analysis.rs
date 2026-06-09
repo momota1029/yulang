@@ -6,11 +6,16 @@
 
 use std::collections::VecDeque;
 
-use poly::expr::{Arena as PolyArena, DefId, RefId, SelectId, SelectResolution};
-use poly::types::{Neg, Pos, TypeVar};
+use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
+use poly::types::{Neg, Pos, Scheme, TypeVar};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::arena::Arena as InferArena;
 use crate::constraints::ConstraintEvent;
+use crate::generalize::{
+    GeneralizedCompactRoot, finalize_generalized_compact_root_with_ancestors, generalize_type_var,
+};
+use crate::instantiate::instantiate_scheme;
 use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::uses::{RefUseTable, SelectionUseTable};
 
@@ -25,6 +30,7 @@ pub struct AnalysisSession {
     pub refs: RefUseTable,
     pub selections: SelectionUseTable,
     pub scc: SccMachine,
+    schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
 }
@@ -37,6 +43,7 @@ impl AnalysisSession {
             refs: RefUseTable::new(),
             selections: SelectionUseTable::new(),
             scc: SccMachine::new(),
+            schemes: FxHashMap::default(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
         }
@@ -138,6 +145,16 @@ impl AnalysisSession {
                         use_value,
                     });
                 }
+                SccEvent::QuantifyComponent { component, roots } => {
+                    self.quantify_component(&component, &roots);
+                    self.scc_events
+                        .push(SccEvent::QuantifyComponent { component, roots });
+                }
+                SccEvent::InstantiateUse { target, use_value } => {
+                    self.instantiate_use(target, use_value);
+                    self.scc_events
+                        .push(SccEvent::InstantiateUse { target, use_value });
+                }
                 other => self.scc_events.push(other),
             }
         }
@@ -148,6 +165,94 @@ impl AnalysisSession {
         let use_neg = self.infer.alloc_neg(Neg::Var(use_value));
         self.infer.subtype(target_pos, use_neg);
     }
+
+    fn quantify_component(&mut self, component: &[DefId], roots: &[TypeVar]) {
+        let generalized = component
+            .iter()
+            .copied()
+            .zip(roots.iter().copied())
+            .map(|(def, root)| {
+                (
+                    def,
+                    generalize_type_var(
+                        self.infer.constraints(),
+                        root,
+                        crate::constraints::TypeLevel::root(),
+                        &FxHashSet::default(),
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        for (def, scheme) in &generalized {
+            self.schemes.insert(*def, scheme.clone());
+        }
+
+        for (def, scheme) in generalized {
+            let ancestors = self.scheme_ancestors(def);
+            let ancestors = ancestors.iter().collect::<Vec<_>>();
+            let finalized = finalize_generalized_compact_root_with_ancestors(
+                &mut self.poly.typ,
+                &scheme,
+                &ancestors,
+            );
+            self.set_def_scheme(def, finalized.scheme);
+        }
+    }
+
+    fn instantiate_use(&mut self, target: DefId, use_value: TypeVar) {
+        let Some(scheme) = self.def_scheme(target).cloned() else {
+            return;
+        };
+        let use_level = self.infer.constraints().level_of(use_value);
+        let predicate = instantiate_scheme(&self.poly.typ, &mut self.infer, use_level, &scheme);
+        let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
+        self.infer.subtype(predicate, use_upper);
+    }
+
+    fn def_scheme(&self, def: DefId) -> Option<&Scheme> {
+        let Some(Def::Let { scheme, .. }) = self.poly.defs.get(def) else {
+            return None;
+        };
+        scheme.as_ref()
+    }
+
+    fn scheme_ancestors(&self, def: DefId) -> Vec<GeneralizedCompactRoot> {
+        let parents = def_parent_map(&self.poly);
+        let mut chain = Vec::new();
+        let mut current = def;
+        while let Some(parent) = parents.get(&current).copied() {
+            chain.push(parent);
+            current = parent;
+        }
+        chain.reverse();
+        chain
+            .into_iter()
+            .filter_map(|ancestor| self.schemes.get(&ancestor).cloned())
+            .collect()
+    }
+
+    fn set_def_scheme(&mut self, def: DefId, scheme: poly::types::Scheme) {
+        let Some(Def::Let { scheme: target, .. }) = self.poly.defs.get_mut(def) else {
+            return;
+        };
+        *target = Some(scheme);
+    }
+}
+
+fn def_parent_map(poly: &PolyArena) -> FxHashMap<DefId, DefId> {
+    let mut parents = FxHashMap::default();
+    for (parent, def) in poly.defs.iter() {
+        match def {
+            Def::Mod { children, .. } | Def::Let { children, .. } => {
+                for child in children {
+                    parents.insert(*child, parent);
+                }
+            }
+            Def::Arg => {}
+        }
+    }
+    parents
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,7 +301,7 @@ mod tests {
     use super::*;
     use crate::constraints::{ConstraintWeight, ConstraintWeights};
     use crate::uses::{RefUse, SelectionUse};
-    use poly::expr::{Arena as PolyArena, Expr, Lit};
+    use poly::expr::{Arena as PolyArena, Expr, Lit, Vis};
     use poly::types::{Neg, Pos, SubtractId, TypeVar};
 
     #[test]
@@ -361,6 +466,46 @@ mod tests {
                     target_root,
                     use_value,
                 } if *target == b && *target_root == b_root && *use_value == a_to_b_use
+            )
+        }));
+    }
+
+    #[test]
+    fn quantify_component_writes_scheme_to_poly_def() {
+        let mut poly = PolyArena::new();
+        let def = poly.defs.fresh();
+        poly.defs.set(
+            def,
+            Def::Let {
+                vis: Vis::My,
+                scheme: None,
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        let mut session = AnalysisSession::new(poly);
+        let root = session.infer.fresh_type_var();
+
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
+        session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+        session.drain_work();
+
+        let Some(Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = session.poly.defs.get(def)
+        else {
+            panic!("ready SCC should write a scheme to Def::Let");
+        };
+        assert_eq!(scheme.quantifiers, Vec::new());
+        assert!(session.schemes.contains_key(&def));
+        assert!(session.take_scc_events().iter().any(|event| {
+            matches!(
+                event,
+                SccEvent::QuantifyComponent {
+                    component,
+                    roots,
+                } if component == &vec![def] && roots == &vec![root]
             )
         }));
     }

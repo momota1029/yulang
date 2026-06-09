@@ -977,6 +977,13 @@ impl SubtractTable {
         self.facts.get(&effect).map(Vec::as_slice).unwrap_or(&[])
     }
 
+    pub fn fact_by_id(&self, id: SubtractId) -> Option<&SubtractFact> {
+        self.facts
+            .values()
+            .flat_map(|facts| facts.iter())
+            .find(|fact| fact.id == id)
+    }
+
     fn record(&mut self, effect: TypeVar, fact: SubtractFact) -> bool {
         let facts = self.facts.entry(effect).or_default();
         if facts.contains(&fact) {

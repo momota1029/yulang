@@ -81,7 +81,7 @@ mod tests {
         assert_eq!(output.lowering.errors, Vec::new());
         assert_eq!(
             output.text,
-            "roots d0:a d1:b\nmy d0:a = e0:1\nmy d1:b = e1:r0:a->d0:a\n"
+            "roots d0:a d1:b\nmy d0:a: int = e0:1\nmy d1:b: int = e1:r0:a->d0:a\n"
         );
     }
 
@@ -102,7 +102,7 @@ mod tests {
         assert_eq!(output.lowering.errors, Vec::new());
         assert_eq!(
             output.text,
-            "roots d0:foo d1:x\nd0:foo mod {\n  my d2:\"foo.y\" = e1:2\n}\nmy d1:x = e0:1\n"
+            "roots d0:foo d1:x\nd0:foo mod {\n  my d2:\"foo.y\": int = e1:2\n}\nmy d1:x: int = e0:1\n"
         );
     }
 
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(output.lowering.errors, Vec::new());
         assert_eq!(
             output.text,
-            "roots d0:foo\nd0:foo mod {\n  my d1:\"foo.y\" = e0:2\n}\n"
+            "roots d0:foo\nd0:foo mod {\n  my d1:\"foo.y\": int = e0:2\n}\n"
         );
     }
 }

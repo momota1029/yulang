@@ -11,8 +11,11 @@
 pub mod analysis;
 pub mod annotation;
 pub mod arena;
+pub mod compact;
 pub mod constraints;
 pub mod dump;
+pub mod generalize;
+pub mod instantiate;
 pub mod lowering;
 pub mod patterns;
 pub mod scc;

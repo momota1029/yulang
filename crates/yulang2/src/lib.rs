@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(output.file_count, 2);
         assert_eq!(
             output.text,
-            "roots d0:child d1:x\nd0:child mod {\n  my d2:\"child.y\" = e1:2\n}\nmy d1:x = e0:1\n"
+            "roots d0:child d1:x\nd0:child mod {\n  my d2:\"child.y\": int = e1:2\n}\nmy d1:x: int = e0:1\n"
         );
     }
 
