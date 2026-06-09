@@ -45,6 +45,7 @@ use crate::{
 };
 
 type Cst = SyntaxNode<YulangLanguage>;
+type CstItem = NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>;
 
 /// binding body lowering の出力。
 ///
@@ -429,34 +430,33 @@ impl BodyLowerer {
             .iter()
             .map(|_| self.session.infer.fresh_type_var())
             .collect::<Vec<_>>();
-        let mut ann_builder = AnnTypeBuilder::with_self_alias(
+        let signature_builder = NegSignatureBuilder::with_self_alias(
             &self.modules,
             module,
             owner.order,
-            AnnSelfAlias {
+            SignatureSelfAlias {
                 owner: owner.id,
                 type_vars: type_vars.clone(),
             },
         );
-        let mut ann_solver_vars = FxHashMap::default();
-        for (name, solver_var) in type_vars.iter().zip(owner_arg_vars.iter().copied()) {
-            let ann_var = ann_builder.ann_type_var_for_role(name);
-            ann_solver_vars.insert(ann_var.id, solver_var);
-        }
-
-        let payload = build_constructor_payload_annotations(payload, &mut ann_builder)?;
-        drop(ann_builder);
+        let signature_vars = type_vars
+            .iter()
+            .cloned()
+            .zip(owner_arg_vars.iter().copied())
+            .collect::<FxHashMap<_, _>>();
+        let payload = build_constructor_payload_signatures(payload, &signature_builder)?;
 
         let owner_args = owner_arg_vars
             .into_iter()
             .map(|var| self.invariant_var_arg(var))
             .collect::<Vec<_>>();
         let args = self.prepare_constructor_args(payload);
-        let vars = std::mem::take(&mut ann_solver_vars);
-        let mut ann_lowerer =
-            AnnConstraintLowerer::with_vars(&mut self.session.infer, &self.modules, vars);
-        connect_constructor_arg_annotations(&mut ann_lowerer, &args)?;
-        let _ = ann_lowerer.into_vars();
+        connect_constructor_arg_signatures(
+            &mut self.session.infer,
+            &self.modules,
+            signature_vars,
+            &args,
+        )?;
 
         self.constrain_constructor_arg_shapes(&args);
         let path = self
@@ -472,15 +472,15 @@ impl BodyLowerer {
 
     fn prepare_constructor_args(
         &mut self,
-        payload: AnnotatedConstructorPayload,
+        payload: ConstructorSignaturePayload,
     ) -> Vec<ConstructorArg> {
         match payload {
-            AnnotatedConstructorPayload::Unit => Vec::new(),
-            AnnotatedConstructorPayload::Tuple(items) => items
+            ConstructorSignaturePayload::Unit => Vec::new(),
+            ConstructorSignaturePayload::Tuple(items) => items
                 .into_iter()
                 .map(|item| self.prepare_constructor_value_arg(item))
                 .collect(),
-            AnnotatedConstructorPayload::Record(fields) => {
+            ConstructorSignaturePayload::Record(fields) => {
                 let record = self.session.infer.fresh_type_var();
                 let fields = fields
                     .into_iter()
@@ -489,7 +489,7 @@ impl BodyLowerer {
                         ConstructorRecordField {
                             name: field.name.0,
                             value,
-                            ann: field.ann,
+                            signature: field.signature,
                         }
                     })
                     .collect::<Vec<_>>();
@@ -503,12 +503,12 @@ impl BodyLowerer {
 
     fn prepare_constructor_value_arg(
         &mut self,
-        item: AnnotatedConstructorPayloadItem,
+        item: ConstructorSignaturePayloadItem,
     ) -> ConstructorArg {
         let value = self.session.infer.fresh_type_var();
         ConstructorArg::Value {
             value,
-            ann: item.ann,
+            signature: item.signature,
         }
     }
 
@@ -1604,6 +1604,394 @@ fn signature_effect_row_from_ann(row: &crate::annotation::AnnEffectRow) -> Signa
             name: tail.name.clone(),
         }),
     }
+}
+
+struct NegSignatureBuilder<'a> {
+    modules: &'a ModuleTable,
+    module: ModuleId,
+    site: ModuleOrder,
+    self_alias: Option<SignatureSelfAlias>,
+}
+
+impl<'a> NegSignatureBuilder<'a> {
+    fn with_self_alias(
+        modules: &'a ModuleTable,
+        module: ModuleId,
+        site: ModuleOrder,
+        self_alias: SignatureSelfAlias,
+    ) -> Self {
+        Self {
+            modules,
+            module,
+            site,
+            self_alias: Some(self_alias),
+        }
+    }
+
+    fn build_type_expr(&self, type_expr: &Cst) -> Result<NegSignature, NegSignatureBuildError> {
+        self.build_signature_type_expr(type_expr)
+            .map(NegSignature::new)
+    }
+
+    fn build_signature_type_expr(
+        &self,
+        type_expr: &Cst,
+    ) -> Result<SignatureType, NegSignatureBuildError> {
+        if type_expr.kind() != SyntaxKind::TypeExpr {
+            return Err(NegSignatureBuildError::ExpectedTypeExpr {
+                kind: type_expr.kind(),
+            });
+        }
+        if let Some(arrow) = type_expr
+            .children()
+            .find(|child| child.kind() == SyntaxKind::TypeArrow)
+        {
+            let param = self.build_type_head(type_expr)?;
+            let arg_eff = arrow
+                .children()
+                .find(|child| child.kind() == SyntaxKind::TypeRow)
+                .map(|row| self.build_effect_row(&row))
+                .transpose()?;
+            let ret = arrow
+                .children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+                .ok_or(NegSignatureBuildError::MissingFunctionReturn)?;
+            let (ret_eff, ret) = split_effectful_signature(self.build_signature_type_expr(&ret)?);
+            return Ok(SignatureType::Function {
+                param: Box::new(param),
+                arg_eff,
+                ret_eff,
+                ret: Box::new(ret),
+            });
+        }
+
+        self.build_type_head(type_expr)
+    }
+
+    fn build_type_head(&self, type_expr: &Cst) -> Result<SignatureType, NegSignatureBuildError> {
+        let items = type_expr
+            .children_with_tokens()
+            .filter(|item| !item_is_trivia(item))
+            .filter(|item| {
+                !matches!(item, NodeOrToken::Node(node) if node.kind() == SyntaxKind::TypeArrow)
+            })
+            .collect::<Vec<_>>();
+
+        let Some(first) = items.first() else {
+            return Err(NegSignatureBuildError::EmptyTypeExpr);
+        };
+
+        if let NodeOrToken::Node(row) = first
+            && row.kind() == SyntaxKind::TypeRow
+        {
+            let ret_items = &items[1..];
+            let Some(ret_first) = ret_items.first() else {
+                return Err(NegSignatureBuildError::EmptyEffectfulType);
+            };
+            let (ret, next) = self.build_type_base(ret_items, ret_first)?;
+            return Ok(SignatureType::Effectful {
+                eff: self.build_effect_row(row)?,
+                ret: Box::new(self.build_type_applications(ret, &ret_items[next..])?),
+            });
+        }
+
+        let (base, next) = self.build_type_base(&items, first)?;
+        self.build_type_applications(base, &items[next..])
+    }
+
+    fn build_type_base(
+        &self,
+        items: &[CstItem],
+        first: &CstItem,
+    ) -> Result<(SignatureType, usize), NegSignatureBuildError> {
+        match first {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
+                let (path, next) = parse_signature_path_prefix(items)?;
+                Ok((self.resolve_signature_path(path)?, next))
+            }
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::SigilIdent => {
+                Ok((SignatureType::Var(signature_var(token.text())), 1))
+            }
+            NodeOrToken::Token(token) => {
+                Err(NegSignatureBuildError::UnsupportedSyntax { kind: token.kind() })
+            }
+            NodeOrToken::Node(node) if node.kind() == SyntaxKind::TypeParenGroup => {
+                Ok((self.build_type_paren_group(node)?, 1))
+            }
+            NodeOrToken::Node(node) if node.kind() == SyntaxKind::TypeEffectRow => Ok((
+                SignatureType::EffectRow(self.build_type_effect_row(node)?),
+                1,
+            )),
+            NodeOrToken::Node(node) => {
+                Err(NegSignatureBuildError::UnsupportedSyntax { kind: node.kind() })
+            }
+        }
+    }
+
+    fn build_type_applications(
+        &self,
+        base: SignatureType,
+        suffixes: &[CstItem],
+    ) -> Result<SignatureType, NegSignatureBuildError> {
+        let mut args = Vec::new();
+        for item in suffixes {
+            let NodeOrToken::Node(node) = item else {
+                let kind = item
+                    .as_token()
+                    .map(|token| token.kind())
+                    .unwrap_or(SyntaxKind::TypeExpr);
+                return Err(NegSignatureBuildError::UnsupportedSyntax { kind });
+            };
+            match node.kind() {
+                SyntaxKind::TypeApply => args.push(self.build_single_type_arg(node)?),
+                SyntaxKind::TypeCall => {
+                    let call_args = node
+                        .children()
+                        .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+                        .map(|child| self.build_signature_type_expr(&child))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    if call_args.is_empty() {
+                        return Err(NegSignatureBuildError::UnsupportedSyntax {
+                            kind: node.kind(),
+                        });
+                    }
+                    args.extend(call_args);
+                }
+                _ => {
+                    return Err(NegSignatureBuildError::UnsupportedSyntax { kind: node.kind() });
+                }
+            }
+        }
+
+        if args.is_empty() {
+            Ok(base)
+        } else {
+            Ok(SignatureType::Apply {
+                callee: Box::new(base),
+                args,
+            })
+        }
+    }
+
+    fn build_single_type_arg(&self, apply: &Cst) -> Result<SignatureType, NegSignatureBuildError> {
+        let children = apply
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+            .collect::<Vec<_>>();
+        let [child] = children.as_slice() else {
+            return Err(NegSignatureBuildError::UnsupportedSyntax { kind: apply.kind() });
+        };
+        self.build_signature_type_expr(child)
+    }
+
+    fn build_type_paren_group(&self, group: &Cst) -> Result<SignatureType, NegSignatureBuildError> {
+        let children = group
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+            .collect::<Vec<_>>();
+        match children.as_slice() {
+            [] => Ok(SignatureType::Builtin(BuiltinType::Unit)),
+            [child] => self.build_signature_type_expr(child),
+            _ => Err(NegSignatureBuildError::UnsupportedSyntax { kind: group.kind() }),
+        }
+    }
+
+    fn build_type_effect_row(
+        &self,
+        effect_row: &Cst,
+    ) -> Result<SignatureEffectRow, NegSignatureBuildError> {
+        let row = effect_row
+            .children()
+            .find(|child| child.kind() == SyntaxKind::TypeRow)
+            .ok_or(NegSignatureBuildError::MissingEffectRow)?;
+        self.build_effect_row(&row)
+    }
+
+    fn build_effect_row(&self, row: &Cst) -> Result<SignatureEffectRow, NegSignatureBuildError> {
+        let mut items = Vec::new();
+        let mut tail = None;
+        let mut seen_tail_separator = false;
+
+        for item in row
+            .children_with_tokens()
+            .filter(|item| !item_is_trivia(item))
+        {
+            match item {
+                NodeOrToken::Node(node) if node.kind() == SyntaxKind::TypeExpr => {
+                    if !seen_tail_separator && is_wildcard_type_expr(&node) {
+                        items.push(SignatureEffectAtom::Wildcard);
+                        continue;
+                    }
+                    let ty = self.build_signature_type_expr(&node)?;
+                    if seen_tail_separator {
+                        let SignatureType::Var(var) = ty else {
+                            return Err(NegSignatureBuildError::InvalidEffectRowTail { ty });
+                        };
+                        tail = Some(var);
+                    } else {
+                        items.push(SignatureEffectAtom::Type(ty));
+                    }
+                }
+                NodeOrToken::Node(node) if node.kind() == SyntaxKind::Separator => {
+                    seen_tail_separator = true;
+                }
+                NodeOrToken::Node(node) => {
+                    return Err(NegSignatureBuildError::UnsupportedSyntax { kind: node.kind() });
+                }
+                NodeOrToken::Token(token) => match token.kind() {
+                    SyntaxKind::BracketL | SyntaxKind::BracketR | SyntaxKind::Comma => {}
+                    SyntaxKind::Semicolon => seen_tail_separator = true,
+                    kind => return Err(NegSignatureBuildError::UnsupportedSyntax { kind }),
+                },
+            }
+        }
+
+        if !seen_tail_separator
+            && tail.is_none()
+            && items.len() == 1
+            && let SignatureEffectAtom::Type(SignatureType::Var(var)) = &items[0]
+        {
+            return Ok(SignatureEffectRow {
+                items: Vec::new(),
+                tail: Some(var.clone()),
+            });
+        }
+
+        Ok(SignatureEffectRow { items, tail })
+    }
+
+    fn resolve_signature_path(
+        &self,
+        path: Vec<Name>,
+    ) -> Result<SignatureType, NegSignatureBuildError> {
+        if let [name] = path.as_slice() {
+            if name.0 == "self"
+                && let Some(ty) = self.self_alias_type()
+            {
+                return Ok(ty);
+            }
+            if let Some(builtin) = BuiltinType::from_surface_name(name.0.as_str()) {
+                return Ok(SignatureType::Builtin(builtin));
+            }
+            if let Some(decl) = self.modules.lexical_type_at(self.module, name, self.site) {
+                return Ok(SignatureType::Named(decl.id));
+            }
+            return Err(NegSignatureBuildError::UnresolvedTypeName { path });
+        }
+
+        let Some((last, prefix)) = path.split_last() else {
+            return Err(NegSignatureBuildError::EmptyTypeExpr);
+        };
+        let Some(module) = self.resolve_module_prefix(prefix) else {
+            return Err(NegSignatureBuildError::UnresolvedTypeName { path });
+        };
+        let Some(decl) = self
+            .modules
+            .type_at(module, last, signature_module_path_site())
+        else {
+            return Err(NegSignatureBuildError::UnresolvedTypeName { path });
+        };
+        Ok(SignatureType::Named(decl.id))
+    }
+
+    fn self_alias_type(&self) -> Option<SignatureType> {
+        let alias = self.self_alias.as_ref()?;
+        let args = alias
+            .type_vars
+            .iter()
+            .map(|name| SignatureType::Var(SignatureVar { name: name.clone() }))
+            .collect::<Vec<_>>();
+        if args.is_empty() {
+            Some(SignatureType::Named(alias.owner))
+        } else {
+            Some(SignatureType::Apply {
+                callee: Box::new(SignatureType::Named(alias.owner)),
+                args,
+            })
+        }
+    }
+
+    fn resolve_module_prefix(&self, path: &[Name]) -> Option<ModuleId> {
+        let (first, rest) = path.split_first()?;
+        let mut current = self
+            .modules
+            .lexical_module_at(self.module, first, self.site)?;
+        for segment in rest {
+            current = self
+                .modules
+                .module_at(current, segment, signature_module_path_site())?;
+        }
+        Some(current)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NegSignatureBuildError {
+    ExpectedTypeExpr { kind: SyntaxKind },
+    EmptyTypeExpr,
+    EmptyEffectfulType,
+    MissingFunctionReturn,
+    MissingEffectRow,
+    InvalidEffectRowTail { ty: SignatureType },
+    UnresolvedTypeName { path: Vec<Name> },
+    UnsupportedSyntax { kind: SyntaxKind },
+}
+
+fn parse_signature_path_prefix(
+    items: &[CstItem],
+) -> Result<(Vec<Name>, usize), NegSignatureBuildError> {
+    let Some(NodeOrToken::Token(head)) = items.first() else {
+        return Err(NegSignatureBuildError::EmptyTypeExpr);
+    };
+    if head.kind() != SyntaxKind::Ident {
+        return Err(NegSignatureBuildError::UnsupportedSyntax { kind: head.kind() });
+    }
+
+    let mut segments = vec![Name(head.text().to_string())];
+    let mut next = 1;
+    for item in &items[1..] {
+        let NodeOrToken::Node(path_sep) = item else {
+            break;
+        };
+        if path_sep.kind() != SyntaxKind::PathSep {
+            break;
+        }
+
+        let Some(segment) = path_sep
+            .children_with_tokens()
+            .filter_map(|item| item.into_token())
+            .find(|token| token.kind() == SyntaxKind::Ident)
+        else {
+            return Err(NegSignatureBuildError::UnsupportedSyntax {
+                kind: path_sep.kind(),
+            });
+        };
+        segments.push(Name(segment.text().to_string()));
+        next += 1;
+    }
+
+    Ok((segments, next))
+}
+
+fn signature_var(text: &str) -> SignatureVar {
+    SignatureVar {
+        name: text.trim_start_matches('\'').to_string(),
+    }
+}
+
+fn is_wildcard_type_expr(node: &Cst) -> bool {
+    let items = node
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .collect::<Vec<_>>();
+    let [NodeOrToken::Token(token)] = items.as_slice() else {
+        return false;
+    };
+    token.kind() == SyntaxKind::Ident && token.text() == "_"
+}
+
+fn signature_module_path_site() -> ModuleOrder {
+    ModuleOrder::from_index(u32::MAX)
 }
 
 struct ActCopyLoweringContext {
@@ -3395,25 +3783,25 @@ struct ConstructorRecordPayloadField {
     ty: Option<Cst>,
 }
 
-enum AnnotatedConstructorPayload {
+enum ConstructorSignaturePayload {
     Unit,
-    Tuple(Vec<AnnotatedConstructorPayloadItem>),
-    Record(Vec<AnnotatedConstructorRecordPayloadField>),
+    Tuple(Vec<ConstructorSignaturePayloadItem>),
+    Record(Vec<ConstructorSignatureRecordPayloadField>),
 }
 
-struct AnnotatedConstructorPayloadItem {
-    ann: Option<AnnType>,
+struct ConstructorSignaturePayloadItem {
+    signature: Option<NegSignature>,
 }
 
-struct AnnotatedConstructorRecordPayloadField {
+struct ConstructorSignatureRecordPayloadField {
     name: Name,
-    ann: Option<AnnType>,
+    signature: Option<NegSignature>,
 }
 
 enum ConstructorArg {
     Value {
         value: TypeVar,
-        ann: Option<AnnType>,
+        signature: Option<NegSignature>,
     },
     Record {
         value: TypeVar,
@@ -3432,42 +3820,42 @@ impl ConstructorArg {
 struct ConstructorRecordField {
     name: String,
     value: TypeVar,
-    ann: Option<AnnType>,
+    signature: Option<NegSignature>,
 }
 
-fn build_constructor_payload_annotations(
+fn build_constructor_payload_signatures(
     payload: ConstructorPayload,
-    ann_builder: &mut AnnTypeBuilder,
-) -> Result<AnnotatedConstructorPayload, LoweringError> {
+    builder: &NegSignatureBuilder,
+) -> Result<ConstructorSignaturePayload, LoweringError> {
     match payload {
-        ConstructorPayload::Unit => Ok(AnnotatedConstructorPayload::Unit),
+        ConstructorPayload::Unit => Ok(ConstructorSignaturePayload::Unit),
         ConstructorPayload::Tuple(items) => items
             .into_iter()
             .map(|item| {
-                let ann = item
+                let signature = item
                     .ty
-                    .map(|ty| ann_builder.build_type_expr(&ty))
+                    .map(|ty| builder.build_type_expr(&ty))
                     .transpose()
-                    .map_err(|error| LoweringError::AnnotationBuild { error })?;
-                Ok(AnnotatedConstructorPayloadItem { ann })
+                    .map_err(|error| LoweringError::NegSignatureBuild { error })?;
+                Ok(ConstructorSignaturePayloadItem { signature })
             })
             .collect::<Result<Vec<_>, LoweringError>>()
-            .map(AnnotatedConstructorPayload::Tuple),
+            .map(ConstructorSignaturePayload::Tuple),
         ConstructorPayload::Record(fields) => fields
             .into_iter()
             .map(|field| {
-                let ann = field
+                let signature = field
                     .ty
-                    .map(|ty| ann_builder.build_type_expr(&ty))
+                    .map(|ty| builder.build_type_expr(&ty))
                     .transpose()
-                    .map_err(|error| LoweringError::AnnotationBuild { error })?;
-                Ok(AnnotatedConstructorRecordPayloadField {
+                    .map_err(|error| LoweringError::NegSignatureBuild { error })?;
+                Ok(ConstructorSignatureRecordPayloadField {
                     name: field.name,
-                    ann,
+                    signature,
                 })
             })
             .collect::<Result<Vec<_>, LoweringError>>()
-            .map(AnnotatedConstructorPayload::Record),
+            .map(ConstructorSignaturePayload::Record),
     }
 }
 
@@ -3498,27 +3886,36 @@ fn payload_from_fields(fields: Vec<Cst>) -> ConstructorPayload {
     }
 }
 
-fn connect_constructor_arg_annotations(
-    lowerer: &mut AnnConstraintLowerer,
+fn connect_constructor_arg_signatures(
+    infer: &mut crate::Arena,
+    modules: &ModuleTable,
+    vars: FxHashMap<String, TypeVar>,
     args: &[ConstructorArg],
 ) -> Result<(), LoweringError> {
+    let mut lowerer = SignatureLowerer::with_vars(infer, modules, vars);
     for arg in args {
         match arg {
             ConstructorArg::Value {
                 value,
-                ann: Some(ann),
+                signature: Some(signature),
             } => {
-                lowerer
-                    .connect_value(*value, ann)
-                    .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+                let lower = lowerer.alloc_pos(Pos::Var(*value));
+                let upper = lowerer
+                    .lower_neg(signature.as_type())
+                    .map_err(|error| LoweringError::SignatureConstraint { error })?;
+                lowerer.infer.subtype(lower, upper);
             }
-            ConstructorArg::Value { ann: None, .. } => {}
+            ConstructorArg::Value {
+                signature: None, ..
+            } => {}
             ConstructorArg::Record { fields, .. } => {
                 for field in fields {
-                    if let Some(ann) = &field.ann {
-                        lowerer
-                            .connect_value(field.value, ann)
-                            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+                    if let Some(signature) = &field.signature {
+                        let lower = lowerer.alloc_pos(Pos::Var(field.value));
+                        let upper = lowerer
+                            .lower_neg(signature.as_type())
+                            .map_err(|error| LoweringError::SignatureConstraint { error })?;
+                        lowerer.infer.subtype(lower, upper);
                     }
                 }
             }
@@ -3569,6 +3966,7 @@ pub enum LoweringError {
     MissingLocalBindingBody,
     AnnotationBuild { error: AnnBuildError },
     AnnotationConstraint { error: AnnConstraintError },
+    NegSignatureBuild { error: NegSignatureBuildError },
     SignatureConstraint { error: SignatureConstraintError },
     SignatureShapeMismatch { expected: SignatureShape },
     SignatureTypeMismatch { expected: SignatureShape },
@@ -3750,6 +4148,27 @@ struct RoleImplLoweringContext {
 #[derive(Clone)]
 struct RoleMethodRequirement {
     signature: SignatureType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NegSignature {
+    signature: SignatureType,
+}
+
+impl NegSignature {
+    fn new(signature: SignatureType) -> Self {
+        Self { signature }
+    }
+
+    fn as_type(&self) -> &SignatureType {
+        &self.signature
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SignatureSelfAlias {
+    owner: TypeDeclId,
+    type_vars: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -4028,6 +4447,19 @@ impl<'a> SignatureLowerer<'a> {
             infer,
             modules,
             vars: FxHashMap::default(),
+            new_var_level: None,
+        }
+    }
+
+    fn with_vars(
+        infer: &'a mut crate::Arena,
+        modules: &'a ModuleTable,
+        vars: FxHashMap<String, TypeVar>,
+    ) -> Self {
+        Self {
+            infer,
+            modules,
+            vars,
             new_var_level: None,
         }
     }
@@ -4574,6 +5006,106 @@ mod tests {
         }
     }
 
+    fn build_neg_signature_field_type(
+        src: &str,
+        type_name: &str,
+        field_name: &str,
+    ) -> SignatureType {
+        let root = parse(src);
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let expected_type_name = Name(type_name.into());
+        let expected_field_name = Name(field_name.into());
+        let owner_decl = lower.modules.type_decls(module, &expected_type_name)[0].clone();
+        let struct_decl = root
+            .children()
+            .find(|child| {
+                child.kind() == SyntaxKind::StructDecl
+                    && crate::type_decl_name(child).as_ref() == Some(&expected_type_name)
+            })
+            .expect("struct declaration should exist");
+        let type_vars = crate::type_var_names(&struct_decl);
+        let type_expr = crate::struct_field_nodes(&struct_decl)
+            .into_iter()
+            .find(|field| crate::struct_field_name(field).as_ref() == Some(&expected_field_name))
+            .and_then(|field| crate::field_type_expr(&field))
+            .expect("field should contain a type expression");
+        let builder = NegSignatureBuilder::with_self_alias(
+            &lower.modules,
+            module,
+            owner_decl.order,
+            SignatureSelfAlias {
+                owner: owner_decl.id,
+                type_vars,
+            },
+        );
+        builder
+            .build_type_expr(&type_expr)
+            .expect("negative signature should build")
+            .signature
+    }
+
+    #[test]
+    fn neg_signature_builder_preserves_effect_row_tail_for_data_representation() {
+        let signature = build_neg_signature_field_type(
+            "act ref_update 'a;\nstruct Box 'e 'a { update_effect: () -> [ref_update 'a; 'e] () }\n",
+            "Box",
+            "update_effect",
+        );
+
+        let SignatureType::Function {
+            param,
+            ret_eff: Some(row),
+            ret,
+            ..
+        } = signature
+        else {
+            panic!("expected function signature with return effect row");
+        };
+
+        assert!(matches!(*param, SignatureType::Builtin(BuiltinType::Unit)));
+        assert!(matches!(*ret, SignatureType::Builtin(BuiltinType::Unit)));
+        assert_eq!(row.tail, Some(SignatureVar { name: "e".into() }));
+        let [SignatureEffectAtom::Type(effect)] = row.items.as_slice() else {
+            panic!("expected one concrete effect atom");
+        };
+        let SignatureType::Apply { callee, args } = effect else {
+            panic!("expected parameterized effect atom");
+        };
+        assert!(matches!(callee.as_ref(), SignatureType::Named(_)));
+        assert_eq!(
+            args,
+            &vec![SignatureType::Var(SignatureVar { name: "a".into() })]
+        );
+    }
+
+    #[test]
+    fn struct_constructor_field_signature_records_subtractability() {
+        let root = parse(
+            "act ref_update 'a;\nstruct Box 'e 'a { update_effect: () -> [ref_update 'a; 'e] () }\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let constructor = lower.modules.value_decls(module, &Name("Box".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let update_effect = constructor_record_field_var(&output, constructor, "update_effect");
+        let effect = function_upper_bound_ret_effect_var(&output.session, update_effect);
+        let facts = output.session.infer.constraints().subtracts().facts(effect);
+        assert!(
+            facts.iter().any(|fact| {
+                matches!(
+                    &fact.subtractability,
+                    Subtractability::Set(path, args)
+                        if path == &vec!["ref_update".to_string()] && args.len() == 1
+                )
+            }),
+            "expected ref_update-subtract fact on constructor field return effect, got {facts:?}"
+        );
+    }
+
     fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId) {
         let body = binding_body_id(output, method);
         let (pat, body) = match output.session.poly.expr(body) {
@@ -4651,6 +5183,56 @@ mod tests {
             }
         }
         panic!("expected function lower bound");
+    }
+
+    fn constructor_record_field_var(
+        output: &BodyLowering,
+        constructor: DefId,
+        field_name: &str,
+    ) -> TypeVar {
+        let root = output
+            .typing
+            .def(constructor)
+            .expect("constructor def should have a root type");
+        let (arg, _, _, _) = function_lower_bound(&output.session, root);
+        let Neg::Var(record) = output.session.infer.constraints().types().neg(arg) else {
+            panic!("expected constructor record argument var");
+        };
+        let Some(bounds) = output.session.infer.constraints().bounds().of(*record) else {
+            panic!("expected record argument bounds");
+        };
+        for upper in bounds.uppers() {
+            let Neg::Record(fields) = output.session.infer.constraints().types().neg(upper.neg)
+            else {
+                continue;
+            };
+            let Some(field) = fields.iter().find(|field| field.name == field_name) else {
+                continue;
+            };
+            let Neg::Var(value) = output.session.infer.constraints().types().neg(field.value)
+            else {
+                panic!("expected constructor field value var");
+            };
+            return *value;
+        }
+        panic!("expected constructor record field {field_name}");
+    }
+
+    fn function_upper_bound_ret_effect_var(session: &AnalysisSession, var: TypeVar) -> TypeVar {
+        let Some(bounds) = session.infer.constraints().bounds().of(var) else {
+            panic!("expected function upper bound");
+        };
+        for upper in bounds.uppers() {
+            let Neg::Fun { ret_eff, .. } = session.infer.constraints().types().neg(upper.neg)
+            else {
+                continue;
+            };
+            let Neg::Var(effect) = session.infer.constraints().types().neg(*ret_eff) else {
+                panic!("expected function return effect var");
+            };
+            return *effect;
+        }
+        panic!("expected function upper bound");
     }
 
     fn assert_pos_non_subtract(session: &AnalysisSession, pos: PosId, subtract: SubtractId) {
