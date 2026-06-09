@@ -221,6 +221,9 @@ impl BodyLowerer {
                 def: decl.def,
                 root,
             }));
+        let arg_patterns = binding_arg_patterns(node);
+        let has_header_args = !arg_patterns.is_empty();
+        let result_type_expr = has_header_args.then(|| binding_type_expr(node)).flatten();
 
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
@@ -232,17 +235,26 @@ impl BodyLowerer {
         )
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
-        .lower_binding_body_expr(&expr);
+        .lower_binding_body_with_args(
+            arg_patterns.as_slice(),
+            &expr,
+            result_type_expr.as_ref(),
+        );
         match lowered {
             Ok(computation) => {
-                match self.connect_binding_annotation(
-                    node,
-                    module,
-                    decl.order,
-                    self_alias,
-                    root,
-                    computation,
-                ) {
+                let connected = if has_header_args {
+                    Ok(())
+                } else {
+                    self.connect_binding_annotation(
+                        node,
+                        module,
+                        decl.order,
+                        self_alias,
+                        root,
+                        computation,
+                    )
+                };
+                match connected {
                     Ok(()) => self.finish_binding(decl.def, name, root, computation),
                     Err(error) => self.errors.push(BodyLoweringError::Expr {
                         def: decl.def,
@@ -1016,6 +1028,32 @@ impl<'a> ExprLowerer<'a> {
         self.lower_expr_with_lambda_scope(node, LambdaScope::Defined)
     }
 
+    pub fn lower_binding_body_with_args(
+        &mut self,
+        arg_patterns: &[Cst],
+        body: &Cst,
+        result_type_expr: Option<&Cst>,
+    ) -> Result<Computation, LoweringError> {
+        if arg_patterns.is_empty() {
+            return self.lower_binding_body_expr(body);
+        }
+        let mut ann_builder = ann_type_builder(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+        );
+        let mut ann_solver_vars = FxHashMap::default();
+        self.lower_lambda_params(
+            arg_patterns,
+            body,
+            LambdaScope::Defined,
+            &mut ann_builder,
+            &mut ann_solver_vars,
+            result_type_expr,
+        )
+    }
+
     fn lower_type_method_body_expr(
         &mut self,
         node: &Cst,
@@ -1519,6 +1557,7 @@ impl<'a> ExprLowerer<'a> {
             lambda_scope,
             &mut ann_builder,
             &mut ann_solver_vars,
+            None,
         )
     }
 
@@ -1529,9 +1568,19 @@ impl<'a> ExprLowerer<'a> {
         lambda_scope: LambdaScope,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        body_type_expr: Option<&Cst>,
     ) -> Result<Computation, LoweringError> {
         let Some((pattern, rest)) = patterns.split_first() else {
-            return self.lower_expr(body);
+            let body = self.lower_expr(body)?;
+            if let Some(type_expr) = body_type_expr {
+                self.connect_type_method_result_annotation(
+                    body,
+                    type_expr,
+                    ann_builder,
+                    ann_solver_vars,
+                )?;
+            }
+            return Ok(body);
         };
 
         let param_value = self.fresh_type_var();
@@ -1546,8 +1595,14 @@ impl<'a> ExprLowerer<'a> {
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
         let previous_level = self.session.infer.enter_child_level();
-        let body_result =
-            self.lower_lambda_params(rest, body, lambda_scope, ann_builder, ann_solver_vars);
+        let body_result = self.lower_lambda_params(
+            rest,
+            body,
+            lambda_scope,
+            ann_builder,
+            ann_solver_vars,
+            body_type_expr,
+        );
         self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
@@ -2075,21 +2130,40 @@ fn binding_body_expr(binding: &Cst) -> Option<Cst> {
         .find(|child| child.kind() == SyntaxKind::Expr)
 }
 
+fn binding_arg_patterns(binding: &Cst) -> Vec<Cst> {
+    let Some(header) = crate::child_node(binding, SyntaxKind::BindingHeader) else {
+        return Vec::new();
+    };
+    let Some(pattern) = crate::child_node(&header, SyntaxKind::Pattern) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    collect_binding_arg_patterns(&pattern, &mut out);
+    out
+}
+
+fn collect_binding_arg_patterns(node: &Cst, out: &mut Vec<Cst>) {
+    for child in node.children() {
+        if !matches!(child.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC) {
+            continue;
+        }
+        collect_binding_arg_patterns(&child, out);
+        out.extend(
+            child
+                .children()
+                .filter(|item| item.kind() == SyntaxKind::Pattern),
+        );
+    }
+}
+
 fn binding_type_expr(binding: &Cst) -> Option<Cst> {
     let header = crate::child_node(binding, SyntaxKind::BindingHeader)?;
     let pattern = crate::child_node(&header, SyntaxKind::Pattern)?;
-    pattern_type_expr(&pattern)
+    direct_pattern_type_expr(&pattern)
 }
 
 fn pattern_type_expr(pattern: &Cst) -> Option<Cst> {
-    if let Some(type_expr) = pattern
-        .children()
-        .find(|child| child.kind() == SyntaxKind::TypeAnn)
-        .and_then(|ann| {
-            ann.children()
-                .find(|child| child.kind() == SyntaxKind::TypeExpr)
-        })
-    {
+    if let Some(type_expr) = direct_pattern_type_expr(pattern) {
         return Some(type_expr);
     }
     if !matches!(
@@ -2107,6 +2181,16 @@ fn pattern_type_expr(pattern: &Cst) -> Option<Cst> {
             )
         })
         .and_then(|child| pattern_type_expr(&child))
+}
+
+fn direct_pattern_type_expr(pattern: &Cst) -> Option<Cst> {
+    pattern
+        .children()
+        .find(|child| child.kind() == SyntaxKind::TypeAnn)
+        .and_then(|ann| {
+            ann.children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+        })
 }
 
 fn module_body(module: &Cst) -> Option<Cst> {
@@ -2348,6 +2432,127 @@ mod tests {
                 .iter()
                 .any(|bound| { matches!(types.neg(bound.neg), Neg::Var(var) if *var == root) })
         );
+    }
+
+    #[test]
+    fn binding_header_arg_lowers_to_lambda_and_local_ref() {
+        let root = parse("my id x = x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "id");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, def);
+        let (pat, lambda_body) = match output.session.poly.expr(body) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected header arg lambda"),
+        };
+        let arg = match output.session.poly.pat(pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected arg var pattern"),
+        };
+        let reference = expr_ref(&output.session, lambda_body);
+        assert_eq!(output.session.poly.ref_target(reference), Some(arg));
+    }
+
+    #[test]
+    fn binding_header_arg_annotation_constrains_arg_not_def() {
+        let root = parse("my f(x: int) = x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, def);
+        let lambda_body = match output.session.poly.expr(body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected header arg lambda"),
+        };
+        let reference = expr_ref(&output.session, lambda_body);
+        let arg_value = output
+            .session
+            .refs
+            .value(reference)
+            .expect("arg ref should have a value slot");
+        let types = output.session.infer.constraints().types();
+        let arg_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(arg_value)
+            .expect("arg annotation should constrain arg value");
+        assert!(arg_bounds.lowers().iter().any(|bound| {
+            matches!(
+                types.pos(bound.pos),
+                Pos::Con(path, args) if path == &vec!["int".to_string()] && args.is_empty()
+            )
+        }));
+
+        let root = output.typing.def(def).expect("def should have a root type");
+        let root_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(root)
+            .expect("def root should receive bounds");
+        assert!(!root_bounds.uppers().iter().any(|bound| {
+            matches!(
+                types.neg(bound.neg),
+                Neg::Con(path, args) if path == &vec!["int".to_string()] && args.is_empty()
+            )
+        }));
+    }
+
+    #[test]
+    fn binding_header_result_annotation_constrains_body_not_def() {
+        let root = parse("my f(x: int): float = 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (def, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let root = output.typing.def(def).expect("def should have a root type");
+        let (_, _, _, ret) = function_lower_bound(&output.session, root);
+        let ret_value = match output.session.infer.constraints().types().pos(ret) {
+            Pos::Var(var) => *var,
+            _ => panic!("expected function return value var"),
+        };
+        let types = output.session.infer.constraints().types();
+        let ret_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(ret_value)
+            .expect("result annotation should constrain body value");
+        assert!(ret_bounds.uppers().iter().any(|bound| {
+            matches!(
+                types.neg(bound.neg),
+                Neg::Con(path, args) if path == &vec!["float".to_string()] && args.is_empty()
+            )
+        }));
+
+        let root_bounds = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(root)
+            .expect("def root should receive bounds");
+        assert!(!root_bounds.uppers().iter().any(|bound| {
+            matches!(
+                types.neg(bound.neg),
+                Neg::Con(path, args) if path == &vec!["float".to_string()] && args.is_empty()
+            )
+        }));
     }
 
     #[test]
