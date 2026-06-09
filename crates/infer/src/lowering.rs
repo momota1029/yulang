@@ -124,6 +124,7 @@ struct BodyLowerer {
     value_cursors: FxHashMap<(ModuleId, Name), usize>,
     module_cursors: FxHashMap<(ModuleId, Name), usize>,
     type_cursors: FxHashMap<(ModuleId, Name), usize>,
+    local_method_scope: Option<ModuleId>,
 }
 
 impl BodyLowerer {
@@ -133,6 +134,7 @@ impl BodyLowerer {
         register_declared_type_methods(&mut session, &lower.modules);
         register_declared_act_methods(&mut session, &lower.modules);
         register_declared_role_methods(&mut session, &lower.modules);
+        register_declared_companion_local_methods(&mut session, &lower.modules);
         Self {
             session,
             modules: lower.modules,
@@ -142,6 +144,7 @@ impl BodyLowerer {
             value_cursors: FxHashMap::default(),
             module_cursors: FxHashMap::default(),
             type_cursors: FxHashMap::default(),
+            local_method_scope: None,
         }
     }
 
@@ -227,6 +230,7 @@ impl BodyLowerer {
             decl.def,
             &mut self.labels,
         )
+        .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
         .lower_binding_body_expr(&expr);
         match lowered {
@@ -275,6 +279,7 @@ impl BodyLowerer {
         };
         let type_vars = self_alias.type_vars.clone();
         let mut method_cursor = 0usize;
+        let previous_scope = self.local_method_scope.replace(companion);
         for child in body.children() {
             match child.kind() {
                 SyntaxKind::Binding if crate::type_method_binding(&child).is_some() => {
@@ -297,6 +302,7 @@ impl BodyLowerer {
                 _ => {}
             }
         }
+        self.local_method_scope = previous_scope;
     }
 
     fn lower_act_decl_body(&mut self, node: &Cst, module: ModuleId) {
@@ -313,6 +319,7 @@ impl BodyLowerer {
             return;
         };
         let mut method_cursor = 0usize;
+        let previous_scope = self.local_method_scope.replace(companion);
         for child in body.children() {
             match child.kind() {
                 SyntaxKind::Binding if crate::act_operation_binding(&child) => {}
@@ -332,6 +339,7 @@ impl BodyLowerer {
                 _ => {}
             }
         }
+        self.local_method_scope = previous_scope;
     }
 
     fn lower_role_decl_body(&mut self, node: &Cst, module: ModuleId) {
@@ -350,6 +358,7 @@ impl BodyLowerer {
         let role_inputs = self.modules.role_inputs(decl.id).to_vec();
         let role_associated = self.modules.role_associated(decl.id).to_vec();
         let mut method_cursor = 0usize;
+        let previous_scope = self.local_method_scope.replace(companion);
         for child in body.children() {
             match child.kind() {
                 SyntaxKind::Binding if crate::role_method_binding(&child).is_some() => {
@@ -360,20 +369,35 @@ impl BodyLowerer {
                         .cloned();
                     method_cursor += usize::from(method.is_some());
                     if let Some(method) = method {
-                        self.lower_role_method_signature(
-                            &child,
-                            companion,
-                            &decl,
-                            &method,
-                            &role_inputs,
-                            &role_associated,
-                        );
+                        if binding_body_expr(&child).is_some() {
+                            self.lower_role_method_binding(
+                                &child,
+                                companion,
+                                &decl,
+                                &method,
+                                &role_inputs,
+                                &role_associated,
+                            );
+                        } else {
+                            self.lower_role_method_signature(
+                                &child,
+                                companion,
+                                &decl,
+                                &method,
+                                &role_inputs,
+                                &role_associated,
+                            );
+                        }
                     }
+                }
+                SyntaxKind::Binding => {
+                    self.lower_binding(&child, companion);
                 }
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
                 _ => {}
             }
         }
+        self.local_method_scope = previous_scope;
     }
 
     fn lower_role_method_signature(
@@ -492,6 +516,68 @@ impl BodyLowerer {
         Ok(())
     }
 
+    fn lower_role_method_binding(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        role: &ModuleTypeDecl,
+        method: &RoleMethodDecl,
+        role_inputs: &[String],
+        role_associated: &[String],
+    ) {
+        let Some(expr) = binding_body_expr(node) else {
+            self.errors.push(BodyLoweringError::MissingBody {
+                def: method.def,
+                name: method.name.clone(),
+            });
+            return;
+        };
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(method.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: method.def,
+                root,
+            }));
+
+        let role_path = self
+            .modules
+            .type_decl_path(role)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            method.order,
+            method.def,
+            &mut self.labels,
+        )
+        .with_local_method_scope(self.local_method_scope)
+        .lower_role_method_body_expr(
+            &expr,
+            method.receiver.clone(),
+            role_path,
+            role_inputs,
+            role_associated,
+            binding_type_expr(node),
+        );
+        match lowered {
+            Ok(computation) => {
+                self.finish_binding(method.def, method.name.clone(), root, computation);
+            }
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: method.def,
+                name: method.name.clone(),
+                error,
+            }),
+        }
+        self.session.infer.restore_level(previous_level);
+    }
+
     fn lower_act_method_binding(&mut self, node: &Cst, module: ModuleId, method: &ActMethodDecl) {
         let Some(expr) = binding_body_expr(node) else {
             self.errors.push(BodyLoweringError::MissingBody {
@@ -517,6 +603,7 @@ impl BodyLowerer {
             method.def,
             &mut self.labels,
         )
+        .with_local_method_scope(self.local_method_scope)
         .lower_act_method_body_expr(
             &expr,
             method.receiver.clone(),
@@ -572,6 +659,7 @@ impl BodyLowerer {
             method.def,
             &mut self.labels,
         )
+        .with_local_method_scope(self.local_method_scope)
         .with_self_alias(Some(self_alias.clone()))
         .lower_type_method_body_expr(
             &expr,
@@ -681,6 +769,9 @@ impl BodyLowerer {
 
 fn register_declared_type_methods(session: &mut AnalysisSession, modules: &ModuleTable) {
     for method in modules.all_type_methods() {
+        if method.vis == poly::expr::Vis::My {
+            continue;
+        }
         let Some(owner) = modules.type_decl_by_id(method.owner) else {
             continue;
         };
@@ -703,6 +794,9 @@ fn register_declared_type_methods(session: &mut AnalysisSession, modules: &Modul
 
 fn register_declared_act_methods(session: &mut AnalysisSession, modules: &ModuleTable) {
     for method in modules.all_act_methods() {
+        if method.vis == poly::expr::Vis::My {
+            continue;
+        }
         let Some(owner) = modules.type_decl_by_id(method.owner) else {
             continue;
         };
@@ -713,6 +807,73 @@ fn register_declared_act_methods(session: &mut AnalysisSession, modules: &Module
             .map(|name| name.0)
             .collect::<Vec<_>>();
         session.register_effect_method(effect, method.name.0.clone(), method.def);
+    }
+}
+
+fn register_declared_companion_local_methods(session: &mut AnalysisSession, modules: &ModuleTable) {
+    for method in modules.all_type_methods() {
+        let Some(scope) = modules.type_companion(method.owner) else {
+            continue;
+        };
+        let Some(owner) = modules.type_decl_by_id(method.owner) else {
+            continue;
+        };
+        let receiver = modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        match method.receiver_kind {
+            TypeMethodReceiver::Value => {
+                session.register_local_value_type_method(
+                    scope,
+                    receiver,
+                    method.name.0.clone(),
+                    method.def,
+                );
+            }
+            TypeMethodReceiver::Ref => {
+                session.register_local_ref_type_method(
+                    scope,
+                    receiver,
+                    method.name.0.clone(),
+                    method.def,
+                );
+            }
+        }
+    }
+
+    for method in modules.all_act_methods() {
+        let Some(scope) = modules.type_companion(method.owner) else {
+            continue;
+        };
+        let Some(owner) = modules.type_decl_by_id(method.owner) else {
+            continue;
+        };
+        let effect = modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        session.register_local_effect_method(scope, effect, method.name.0.clone(), method.def);
+    }
+
+    for method in modules.all_role_methods() {
+        let Some(scope) = modules.type_companion(method.owner) else {
+            continue;
+        };
+        let Some(owner) = modules.type_decl_by_id(method.owner) else {
+            continue;
+        };
+        let role = modules
+            .type_decl_path(&owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        session.register_local_role_method(scope, role, method.name.0.clone(), method.def);
     }
 }
 
@@ -784,6 +945,7 @@ pub struct ExprLowerer<'a> {
     parent: poly::expr::DefId,
     labels: Option<&'a mut DumpLabels>,
     self_alias: Option<AnnSelfAlias>,
+    local_method_scope: Option<ModuleId>,
     locals: Vec<LocalBinding>,
     function_frames: Vec<FunctionPredicateFrame>,
 }
@@ -804,6 +966,7 @@ impl<'a> ExprLowerer<'a> {
             parent,
             labels: None,
             self_alias: None,
+            local_method_scope: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
         }
@@ -825,6 +988,7 @@ impl<'a> ExprLowerer<'a> {
             parent,
             labels: Some(labels),
             self_alias: None,
+            local_method_scope: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
         }
@@ -832,6 +996,11 @@ impl<'a> ExprLowerer<'a> {
 
     pub fn with_self_alias(mut self, self_alias: Option<AnnSelfAlias>) -> Self {
         self.self_alias = self_alias;
+        self
+    }
+
+    pub fn with_local_method_scope(mut self, scope: Option<ModuleId>) -> Self {
+        self.local_method_scope = scope;
         self
     }
 
@@ -985,6 +1154,157 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_role_method_body_expr(
+        &mut self,
+        node: &Cst,
+        receiver: Option<Name>,
+        role_path: Vec<String>,
+        role_inputs: &[String],
+        role_associated: &[String],
+        result_type_expr: Option<Cst>,
+    ) -> Result<Computation, LoweringError> {
+        let mut ann_builder = ann_type_builder(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+        );
+        for name in role_inputs.iter().chain(role_associated.iter()) {
+            ann_builder.add_bare_type_var(name.clone());
+        }
+        if let Some(first) = role_inputs.first() {
+            ann_builder.add_bare_type_var_alias("self", first.clone());
+        }
+        let role_arg_names = role_inputs
+            .iter()
+            .chain(role_associated.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+        let role_arg_anns = role_arg_names
+            .iter()
+            .map(|name| AnnType::Var(ann_builder.ann_type_var_for_role(name)))
+            .collect::<Vec<_>>();
+
+        let mut ann_solver_vars = FxHashMap::default();
+        let receiver_value = self.fresh_type_var();
+        self.connect_role_method_receiver_and_constraint(
+            receiver.as_ref(),
+            receiver_value,
+            role_path,
+            role_inputs,
+            role_associated,
+            &role_arg_anns,
+            &mut ann_solver_vars,
+        )?;
+
+        let Some(receiver) = receiver else {
+            let body = self.lower_expr_with_lambda_scope(node, LambdaScope::Defined)?;
+            if let Some(type_expr) = result_type_expr {
+                self.connect_type_method_result_annotation(
+                    body,
+                    &type_expr,
+                    &mut ann_builder,
+                    &mut ann_solver_vars,
+                )?;
+            }
+            return Ok(body);
+        };
+
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(receiver, receiver_value, LocalCallReturnEffect::Annotated);
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_expr_with_lambda_scope(node, LambdaScope::Defined);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("role method predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        if let Some(type_expr) = result_type_expr {
+            self.connect_type_method_result_annotation(
+                body,
+                &type_expr,
+                &mut ann_builder,
+                &mut ann_solver_vars,
+            )?;
+        }
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(receiver_value));
+        let arg_eff = self.never_neg();
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn connect_role_method_receiver_and_constraint(
+        &mut self,
+        receiver: Option<&Name>,
+        receiver_value: TypeVar,
+        role_path: Vec<String>,
+        role_inputs: &[String],
+        role_associated: &[String],
+        role_arg_anns: &[AnnType],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<(), LoweringError> {
+        let receiver_ann = receiver.and_then(|_| role_arg_anns.first());
+        let vars = std::mem::take(ann_solver_vars);
+        let mut lowerer =
+            AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        if let Some(receiver_ann) = receiver_ann.as_ref() {
+            lowerer
+                .connect_value(receiver_value, receiver_ann)
+                .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        }
+        let mut role_args = Vec::with_capacity(role_arg_anns.len());
+        for ann in role_arg_anns {
+            role_args.push(
+                lowerer
+                    .lower_role_arg(ann)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+            );
+        }
+        *ann_solver_vars = lowerer.into_vars();
+
+        let inputs = role_args[..role_inputs.len()].to_vec();
+        let associated = role_associated
+            .iter()
+            .cloned()
+            .zip(role_args[role_inputs.len()..].iter().copied())
+            .map(|(name, value)| RoleAssociatedConstraint { name, value })
+            .collect();
+        self.session.roles.insert(
+            self.parent,
+            RoleConstraint {
+                role: role_path,
+                inputs,
+                associated,
+            },
+        );
+        Ok(())
     }
 
     fn connect_act_method_receiver_effect(
@@ -1472,6 +1792,7 @@ impl<'a> ExprLowerer<'a> {
             SelectionUse {
                 parent: self.parent,
                 method_value,
+                local_method_scope: self.local_method_scope,
             },
         );
         let expr = self
@@ -2174,6 +2495,47 @@ mod tests {
     }
 
     #[test]
+    fn private_type_method_is_available_only_inside_companion_scope() {
+        let root = parse(
+            "type User with:\n  my x.secret = x\n  my u: User = 1\n  my inside = u.secret\nmy outside_u: User = 1\nmy outside = outside_u.secret\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let user = lower.modules.type_decls(module, &Name("User".into()))[0].clone();
+        let companion = lower.modules.type_companion(user.id).unwrap();
+        let method = lower.modules.type_methods(user.id)[0].def;
+        let inside = lower.modules.value_decls(companion, &Name("inside".into()))[0].def;
+        let (outside, _) = binding_def_and_order(&lower.modules, module, "outside");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(
+            output
+                .session
+                .methods
+                .value_candidates(&["User".into()], "secret")
+                .is_empty()
+        );
+        let inside_select = match output.session.poly.expr(binding_body_id(&output, inside)) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected inside select"),
+        };
+        assert_eq!(
+            output.session.poly.select(inside_select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+        let outside_select = match output.session.poly.expr(binding_body_id(&output, outside)) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected outside select"),
+        };
+        assert_eq!(
+            output.session.poly.select(outside_select).resolution,
+            Some(SelectResolution::RecordField)
+        );
+    }
+
+    #[test]
     fn act_method_lowers_in_companion_and_registers_effect_method() {
         let root = parse("act nondet:\n  our x.flip = x\nmy got = 1\n");
         let lower = lower_module_map(&root);
@@ -2260,6 +2622,49 @@ mod tests {
         };
         assert_eq!(
             output.session.poly.select(select).resolution,
+            Some(SelectResolution::RecordField)
+        );
+    }
+
+    #[test]
+    fn private_role_method_is_available_inside_role_companion_scope() {
+        let root = parse(
+            "role Hidden 'a:\n  my x.secret = x\n  my inside = \\x -> x.secret\nmy outside = \\x -> x.secret\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let hidden = lower.modules.type_decls(module, &Name("Hidden".into()))[0].clone();
+        let companion = lower.modules.type_companion(hidden.id).unwrap();
+        let method = lower.modules.role_methods(hidden.id)[0].def;
+        let inside = lower.modules.value_decls(companion, &Name("inside".into()))[0].def;
+        let (outside, _) = binding_def_and_order(&lower.modules, module, "outside");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(output.session.role_methods.candidates("secret").is_empty());
+        let inside_body = binding_body_id(&output, inside);
+        let inside_select = match output.session.poly.expr(inside_body) {
+            Expr::Lambda(_, body) => match output.session.poly.expr(*body) {
+                Expr::Select(_, select) => *select,
+                _ => panic!("expected inside select"),
+            },
+            _ => panic!("expected inside lambda"),
+        };
+        assert_eq!(
+            output.session.poly.select(inside_select).resolution,
+            Some(SelectResolution::TypeclassMethod { member: method })
+        );
+        let outside_body = binding_body_id(&output, outside);
+        let outside_select = match output.session.poly.expr(outside_body) {
+            Expr::Lambda(_, body) => match output.session.poly.expr(*body) {
+                Expr::Select(_, select) => *select,
+                _ => panic!("expected outside select"),
+            },
+            _ => panic!("expected outside lambda"),
+        };
+        assert_eq!(
+            output.session.poly.select(outside_select).resolution,
             Some(SelectResolution::RecordField)
         );
     }

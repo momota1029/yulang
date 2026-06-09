@@ -141,6 +141,7 @@ pub struct TypeMethodDecl {
     pub receiver: Name,
     pub receiver_kind: TypeMethodReceiver,
     pub def: DefId,
+    pub vis: Vis,
     pub order: ModuleOrder,
 }
 
@@ -150,6 +151,7 @@ pub struct ActMethodDecl {
     pub name: Name,
     pub receiver: Name,
     pub def: DefId,
+    pub vis: Vis,
     pub order: ModuleOrder,
 }
 
@@ -1162,32 +1164,45 @@ impl Lower {
         for child in block.children() {
             match child.kind() {
                 SyntaxKind::Binding => {
-                    let Some(method) = role_method_binding(&child) else {
-                        continue;
-                    };
-                    let vis = binding_vis(&child);
-                    let def = self.arena.defs.fresh();
-                    self.arena.defs.set(
-                        def,
-                        Def::Let {
+                    if let Some(method) = role_method_binding(&child) {
+                        let vis = binding_vis(&child);
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        let order =
+                            self.modules
+                                .insert_value(module, method.name.clone(), def, vis);
+                        self.modules.insert_role_method(RoleMethodDecl {
+                            owner,
+                            name: method.name,
+                            receiver: method.receiver,
+                            def,
                             vis,
-                            scheme: None,
-                            body: None,
-                            children: Vec::new(),
-                        },
-                    );
-                    let order = self
-                        .modules
-                        .insert_value(module, method.name.clone(), def, vis);
-                    self.modules.insert_role_method(RoleMethodDecl {
-                        owner,
-                        name: method.name,
-                        receiver: method.receiver,
-                        def,
-                        vis,
-                        order,
-                    });
-                    children.push(def);
+                            order,
+                        });
+                        children.push(def);
+                    } else if let Some(name) = binding_name(&child) {
+                        let vis = binding_vis(&child);
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        self.modules.insert_value(module, name, def, vis);
+                        children.push(def);
+                    }
                 }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
@@ -1272,6 +1287,7 @@ impl Lower {
                         name: method.name,
                         receiver: method.receiver,
                         def,
+                        vis,
                         order,
                     });
                     children.push(def);
@@ -1362,6 +1378,7 @@ impl Lower {
                             receiver: method.receiver,
                             receiver_kind: method.receiver_kind,
                             def,
+                            vis,
                             order,
                         });
                         children.push(def);

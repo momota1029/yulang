@@ -7,6 +7,8 @@
 use poly::expr::DefId;
 use rustc_hash::FxHashMap;
 
+use crate::ModuleId;
+
 #[derive(Debug, Clone, Default)]
 pub struct TypeMethodTable {
     value_methods: FxHashMap<TypeMethodKey, Vec<TypeMethodCandidate>>,
@@ -174,6 +176,109 @@ pub struct RoleMethodCandidate {
     pub def: DefId,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct CompanionMethodTable {
+    type_methods: FxHashMap<ModuleId, TypeMethodTable>,
+    effect_methods: FxHashMap<ModuleId, EffectMethodTable>,
+    role_methods: FxHashMap<ModuleId, RoleMethodTable>,
+}
+
+impl CompanionMethodTable {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert_value_type_method(
+        &mut self,
+        scope: ModuleId,
+        receiver: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.type_methods
+            .entry(scope)
+            .or_default()
+            .insert_value(receiver, method, def);
+    }
+
+    pub fn insert_ref_type_method(
+        &mut self,
+        scope: ModuleId,
+        receiver: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.type_methods
+            .entry(scope)
+            .or_default()
+            .insert_ref(receiver, method, def);
+    }
+
+    pub fn insert_effect_method(
+        &mut self,
+        scope: ModuleId,
+        effect: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.effect_methods
+            .entry(scope)
+            .or_default()
+            .insert(effect, method, def);
+    }
+
+    pub fn insert_role_method(
+        &mut self,
+        scope: ModuleId,
+        role: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.role_methods
+            .entry(scope)
+            .or_default()
+            .insert(role, method, def);
+    }
+
+    pub fn value_type_candidates(
+        &self,
+        scope: ModuleId,
+        receiver: &[String],
+        method: &str,
+    ) -> &[TypeMethodCandidate] {
+        self.type_methods
+            .get(&scope)
+            .map(|methods| methods.value_candidates(receiver, method))
+            .unwrap_or(&[])
+    }
+
+    pub fn ref_type_candidates(
+        &self,
+        scope: ModuleId,
+        receiver: &[String],
+        method: &str,
+    ) -> &[TypeMethodCandidate] {
+        self.type_methods
+            .get(&scope)
+            .map(|methods| methods.ref_candidates(receiver, method))
+            .unwrap_or(&[])
+    }
+
+    pub fn effect_candidates(&self, scope: ModuleId, method: &str) -> &[EffectMethodCandidate] {
+        self.effect_methods
+            .get(&scope)
+            .map(|methods| methods.candidates(method))
+            .unwrap_or(&[])
+    }
+
+    pub fn role_candidates(&self, scope: ModuleId, method: &str) -> &[RoleMethodCandidate] {
+        self.role_methods
+            .get(&scope)
+            .map(|methods| methods.candidates(method))
+            .unwrap_or(&[])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,5 +340,26 @@ mod tests {
         assert_eq!(table.candidates("display")[0].role, vec!["Display"]);
         assert_eq!(table.candidates("display")[0].def, method);
         assert!(table.candidates("other").is_empty());
+    }
+
+    #[test]
+    fn stores_companion_local_method_candidates_by_scope() {
+        let mut table = CompanionMethodTable::new();
+        let first_scope = ModuleId(1);
+        let second_scope = ModuleId(2);
+        let first = DefId(3);
+        let second = DefId(4);
+
+        table.insert_value_type_method(first_scope, vec!["User".into()], "name", first);
+        table.insert_value_type_method(second_scope, vec!["User".into()], "name", second);
+
+        assert_eq!(
+            table.value_type_candidates(first_scope, &["User".into()], "name")[0].def,
+            first
+        );
+        assert_eq!(
+            table.value_type_candidates(second_scope, &["User".into()], "name")[0].def,
+            second
+        );
     }
 }

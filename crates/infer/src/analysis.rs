@@ -26,7 +26,10 @@ use crate::generalize::{
     generalize_prepared_compact_root_with_roles,
 };
 use crate::instantiate::instantiate_scheme;
-use crate::methods::{EffectMethodCandidate, EffectMethodTable, RoleMethodTable, TypeMethodTable};
+use crate::methods::{
+    CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
+    TypeMethodTable,
+};
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
     resolve_role_constraints_with_method_taint,
@@ -55,6 +58,7 @@ pub struct AnalysisSession {
     pub methods: TypeMethodTable,
     pub effect_methods: EffectMethodTable,
     pub role_methods: RoleMethodTable,
+    pub local_methods: CompanionMethodTable,
     pub scc: SccMachine,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
@@ -75,6 +79,7 @@ impl AnalysisSession {
             methods: TypeMethodTable::new(),
             effect_methods: EffectMethodTable::new(),
             role_methods: RoleMethodTable::new(),
+            local_methods: CompanionMethodTable::new(),
             scc: SccMachine::new(),
             applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
@@ -134,6 +139,50 @@ impl AnalysisSession {
         self.role_methods.insert(role, method, def);
     }
 
+    pub fn register_local_value_type_method(
+        &mut self,
+        scope: crate::ModuleId,
+        receiver: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.local_methods
+            .insert_value_type_method(scope, receiver, method, def);
+    }
+
+    pub fn register_local_ref_type_method(
+        &mut self,
+        scope: crate::ModuleId,
+        receiver: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.local_methods
+            .insert_ref_type_method(scope, receiver, method, def);
+    }
+
+    pub fn register_local_effect_method(
+        &mut self,
+        scope: crate::ModuleId,
+        effect: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.local_methods
+            .insert_effect_method(scope, effect, method, def);
+    }
+
+    pub fn register_local_role_method(
+        &mut self,
+        scope: crate::ModuleId,
+        role: impl Into<Vec<String>>,
+        method: impl Into<String>,
+        def: DefId,
+    ) {
+        self.local_methods
+            .insert_role_method(scope, role, method, def);
+    }
+
     pub fn work(&self) -> &VecDeque<AnalysisWork> {
         &self.work
     }
@@ -188,7 +237,7 @@ impl AnalysisSession {
         for select_id in unresolved {
             let name = self.poly.select(select_id).name.clone();
             let target = self
-                .role_method_for_name(&name)
+                .role_method_for_select(select_id, &name)
                 .unwrap_or(SelectionTarget::RecordField);
             self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
         }
@@ -458,7 +507,7 @@ impl AnalysisSession {
     ) -> Option<SelectionTarget> {
         let mut paths = Vec::new();
         self.collect_effect_paths_from_pos(select_id, pos, visited, &mut paths);
-        self.effect_method_for_paths(&paths, name)
+        self.effect_method_for_paths(select_id, &paths, name)
     }
 
     fn collect_effect_paths_from_pos(
@@ -564,7 +613,7 @@ impl AnalysisSession {
                 self.probe_ref_select_pos(select_id, payload.lower, name, visited)
                     .or_else(|| self.probe_ref_select_var(select_id, payload.var, name, visited))
             }
-            Pos::Con(path, _) => self.value_method_for_receiver(&path, name),
+            Pos::Con(path, _) => self.value_method_for_receiver(select_id, &path, name),
             Pos::Union(left, right) => self
                 .probe_select_pos(select_id, left, name, visited)
                 .or_else(|| self.probe_select_pos(select_id, right, name, visited)),
@@ -616,7 +665,7 @@ impl AnalysisSession {
     ) -> Option<SelectionTarget> {
         match self.infer.constraints().types().pos(pos).clone() {
             Pos::Var(var) => self.probe_ref_select_var(select_id, var, name, visited),
-            Pos::Con(path, _) => self.ref_method_for_receiver(&path, name),
+            Pos::Con(path, _) => self.ref_method_for_receiver(select_id, &path, name),
             Pos::Union(left, right) => self
                 .probe_ref_select_pos(select_id, left, name, visited)
                 .or_else(|| self.probe_ref_select_pos(select_id, right, name, visited)),
@@ -634,23 +683,57 @@ impl AnalysisSession {
 
     fn value_method_for_receiver(
         &self,
+        select_id: SelectId,
         receiver: &[String],
         name: &str,
     ) -> Option<SelectionTarget> {
+        if let Some(scope) = self.local_method_scope(select_id) {
+            let candidates = self
+                .local_methods
+                .value_type_candidates(scope, receiver, name);
+            if let Some(target) = method_target_from_candidates(candidates) {
+                return Some(target);
+            }
+        }
         let candidates = self.methods.value_candidates(receiver, name);
         method_target_from_candidates(candidates)
     }
 
-    fn ref_method_for_receiver(&self, receiver: &[String], name: &str) -> Option<SelectionTarget> {
+    fn ref_method_for_receiver(
+        &self,
+        select_id: SelectId,
+        receiver: &[String],
+        name: &str,
+    ) -> Option<SelectionTarget> {
+        if let Some(scope) = self.local_method_scope(select_id) {
+            let candidates = self
+                .local_methods
+                .ref_type_candidates(scope, receiver, name);
+            if let Some(target) = method_target_from_candidates(candidates) {
+                return Some(target);
+            }
+        }
         let candidates = self.methods.ref_candidates(receiver, name);
         method_target_from_candidates(candidates)
     }
 
     fn effect_method_for_paths(
         &self,
+        select_id: SelectId,
         effects: &[Vec<String>],
         name: &str,
     ) -> Option<SelectionTarget> {
+        if let Some(scope) = self.local_method_scope(select_id) {
+            let candidates = self
+                .local_methods
+                .effect_candidates(scope, name)
+                .iter()
+                .filter(|candidate| effects.iter().any(|effect| effect == &candidate.effect))
+                .collect::<Vec<_>>();
+            if let Some(target) = effect_method_target_from_candidates(&candidates) {
+                return Some(target);
+            }
+        }
         let candidates = self
             .effect_methods
             .candidates(name)
@@ -660,13 +743,29 @@ impl AnalysisSession {
         effect_method_target_from_candidates(&candidates)
     }
 
-    fn role_method_for_name(&self, name: &str) -> Option<SelectionTarget> {
+    fn role_method_for_select(&self, select_id: SelectId, name: &str) -> Option<SelectionTarget> {
+        if let Some(scope) = self.local_method_scope(select_id) {
+            match self.local_methods.role_candidates(scope, name) {
+                [candidate] => {
+                    return Some(SelectionTarget::TypeclassMethod {
+                        member: candidate.def,
+                    });
+                }
+                [] | [_, ..] => {}
+            }
+        }
         match self.role_methods.candidates(name) {
             [candidate] => Some(SelectionTarget::TypeclassMethod {
                 member: candidate.def,
             }),
             [] | [_, ..] => None,
         }
+    }
+
+    fn local_method_scope(&self, select_id: SelectId) -> Option<crate::ModuleId> {
+        self.selections
+            .get(select_id)
+            .and_then(|use_site| use_site.local_method_scope)
     }
 
     fn ref_payload_probe(&self, args: &[poly::types::NeuId]) -> Option<RefPayloadProbe> {
@@ -1556,6 +1655,7 @@ mod tests {
             SelectionUse {
                 parent,
                 method_value,
+                local_method_scope: None,
             },
         );
     }

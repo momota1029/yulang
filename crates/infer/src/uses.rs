@@ -8,6 +8,8 @@ use poly::expr::{DefId, RefId, SelectId};
 use poly::types::TypeVar;
 use rustc_hash::FxHashMap;
 
+use crate::ModuleId;
+
 #[derive(Debug, Clone, Default)]
 /// `DefId` に対応する型 slot。
 ///
@@ -157,6 +159,7 @@ impl SelectionUseTable {
 pub struct SelectionUse {
     pub parent: DefId,
     pub method_value: TypeVar,
+    pub local_method_scope: Option<ModuleId>,
 }
 
 fn push_unique<T: Copy + PartialEq>(items: &mut Vec<T>, item: T) {
@@ -193,6 +196,7 @@ mod tests {
             SelectionUse {
                 parent: DefId(1),
                 method_value: TypeVar(4),
+                local_method_scope: None,
             },
         );
         table.watch_receiver(TypeVar(2), select);
