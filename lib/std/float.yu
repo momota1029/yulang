@@ -1,12 +1,14 @@
-pub eq(x: float, y: float): bool
-pub lt(x: float, y: float): bool
-pub le(x: float, y: float): bool
-pub gt(x: float, y: float): bool
-pub ge(x: float, y: float): bool
+use std::text::str::str
 
-pub add(x: float, y: float): float
-pub sub(x: float, y: float): float
-pub mul(x: float, y: float): float
-pub div(x: float, y: float): float
+pub eq: float -> float -> bool = builtin_op::float_eq
+pub lt: float -> float -> bool = builtin_op::float_lt
+pub le: float -> float -> bool = builtin_op::float_le
+pub gt: float -> float -> bool = builtin_op::float_gt
+pub ge: float -> float -> bool = builtin_op::float_ge
 
-pub to_string(x: float): str
+pub add: float -> float -> float = builtin_op::float_add
+pub sub: float -> float -> float = builtin_op::float_sub
+pub mul: float -> float -> float = builtin_op::float_mul
+pub div: float -> float -> float = builtin_op::float_div
+
+pub to_string: float -> str = builtin_op::float_to_string

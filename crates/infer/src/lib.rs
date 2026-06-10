@@ -12,6 +12,7 @@ mod act_resolve;
 pub mod analysis;
 pub mod annotation;
 pub mod arena;
+mod builtin_ops;
 pub mod casts;
 pub mod compact;
 pub mod constraints;

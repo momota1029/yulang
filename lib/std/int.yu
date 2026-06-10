@@ -1,15 +1,17 @@
-pub eq(x: int, y: int): bool
-pub lt(x: int, y: int): bool
-pub le(x: int, y: int): bool
-pub gt(x: int, y: int): bool
-pub ge(x: int, y: int): bool
+use std::text::str::str
 
-pub add(x: int, y: int): int
-pub sub(x: int, y: int): int
-pub mul(x: int, y: int): int
-pub div(x: int, y: int): int
-pub (mod)(x: int, y: int): int
+pub eq: int -> int -> bool = builtin_op::int_eq
+pub lt: int -> int -> bool = builtin_op::int_lt
+pub le: int -> int -> bool = builtin_op::int_le
+pub gt: int -> int -> bool = builtin_op::int_gt
+pub ge: int -> int -> bool = builtin_op::int_ge
 
-pub to_string(x: int): str
-pub to_hex(x: int): str
-pub to_upper_hex(x: int): str
+pub add: int -> int -> int = builtin_op::int_add
+pub sub: int -> int -> int = builtin_op::int_sub
+pub mul: int -> int -> int = builtin_op::int_mul
+pub div: int -> int -> int = builtin_op::int_div
+pub (mod): int -> int -> int = builtin_op::int_mod
+
+pub to_string: int -> str = builtin_op::int_to_string
+pub to_hex: int -> str = builtin_op::int_to_hex
+pub to_upper_hex: int -> str = builtin_op::int_to_upper_hex

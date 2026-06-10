@@ -68,6 +68,7 @@ pub struct RoleAssociatedType {
 pub enum BuiltinType {
     Int,
     Float,
+    Bool,
     Unit,
     Never,
 }
@@ -77,6 +78,7 @@ impl BuiltinType {
         match name {
             "int" => Some(Self::Int),
             "float" => Some(Self::Float),
+            "bool" => Some(Self::Bool),
             "unit" => Some(Self::Unit),
             "never" => Some(Self::Never),
             _ => None,
@@ -87,6 +89,7 @@ impl BuiltinType {
         match self {
             Self::Int => "int",
             Self::Float => "float",
+            Self::Bool => "bool",
             Self::Unit => "unit",
             Self::Never => "never",
         }

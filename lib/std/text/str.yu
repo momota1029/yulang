@@ -3,6 +3,19 @@ use std::data::index::*
 use std::data::fold::*
 use std::data::range::*
 use std::control::var::*
+use std::text::bytes::bytes
+use std::text::char::char
+
+pub concat: str -> str -> str = builtin_op::string_concat
+pub len: str -> int = builtin_op::string_len
+pub line_count: str -> int = builtin_op::string_line_count
+pub line_range: str -> int -> range = builtin_op::string_line_range
+pub index_raw: str -> int -> char = builtin_op::string_index
+pub index_range: str -> range -> str = builtin_op::string_index_range
+pub index_range_raw: str -> int -> int -> str = builtin_op::string_index_range_raw
+pub splice: str -> range -> str -> str = builtin_op::string_splice
+pub splice_raw: str -> int -> int -> str -> str = builtin_op::string_splice_raw
+pub to_bytes: str -> bytes = builtin_op::string_to_bytes
 
 pub type lines with:
     struct self:

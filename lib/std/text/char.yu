@@ -1,3 +1,11 @@
+use std::text::str::str
+
+pub eq: char -> char -> bool = builtin_op::char_eq
+pub to_string: char -> str = builtin_op::char_to_string
+pub is_whitespace: char -> bool = builtin_op::char_is_whitespace
+pub is_punctuation: char -> bool = builtin_op::char_is_punctuation
+pub is_word: char -> bool = builtin_op::char_is_word
+
 pub type char with:
     pub c.to_string = std::text::char::to_string c
     pub c.is_whitespace = std::text::char::is_whitespace c

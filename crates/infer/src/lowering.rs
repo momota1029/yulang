@@ -29,6 +29,7 @@ use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
     AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
+use crate::builtin_ops::{BuiltinOp, BuiltinOpSig, resolve_builtin_op};
 use crate::compact::{CompactBounds, CompactFun, CompactType, compact_type_var};
 use crate::constraints::TypeLevel;
 use crate::roles::{
@@ -1977,6 +1978,12 @@ fn signature_from_ann_type(ann: &AnnType) -> SignatureType {
             eff: signature_effect_row_from_ann(eff),
             ret: Box::new(signature_from_ann_type(ret)),
         },
+        AnnType::Tuple(items) => SignatureType::Tuple(
+            items
+                .iter()
+                .map(signature_from_ann_type)
+                .collect::<Vec<_>>(),
+        ),
         AnnType::Apply { callee, args } => SignatureType::Apply {
             callee: Box::new(signature_from_ann_type(callee)),
             args: args.iter().map(signature_from_ann_type).collect(),
@@ -2199,7 +2206,11 @@ impl<'a> NegSignatureBuilder<'a> {
         match children.as_slice() {
             [] => Ok(SignatureType::Builtin(BuiltinType::Unit)),
             [child] => self.build_signature_type_expr(child),
-            _ => Err(NegSignatureBuildError::UnsupportedSyntax { kind: group.kind() }),
+            _ => children
+                .iter()
+                .map(|child| self.build_signature_type_expr(child))
+                .collect::<Result<Vec<_>, _>>()
+                .map(SignatureType::Tuple),
         }
     }
 
@@ -2425,6 +2436,11 @@ pub struct ExprLowerer<'a> {
     locals: Vec<LocalBinding>,
     function_frames: Vec<FunctionPredicateFrame>,
     local_generalize_boundary: TypeLevel,
+}
+
+enum BuiltinOpTypePath {
+    Builtin(BuiltinType),
+    Named(Vec<String>),
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -4102,12 +4118,178 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_path_name(&mut self, path: &[Name]) -> Result<Computation, LoweringError> {
+        if let Some(builtin) = builtin_op_from_path(path) {
+            return self.lower_builtin_op(builtin);
+        }
+
         let Some(target) = self.modules.value_path_at(self.module, path, self.site) else {
             return Err(LoweringError::UnresolvedName {
                 name: Name(path_label(path)),
             });
         };
         Ok(self.lower_resolved_value_ref(path_label(path), target))
+    }
+
+    fn lower_builtin_op(&mut self, builtin: BuiltinOp) -> Result<Computation, LoweringError> {
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        self.constrain_builtin_op_sig(value, builtin.sig)?;
+        let expr = self.session.poly.add_expr(Expr::PrimitiveOp(builtin.op));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn constrain_builtin_op_sig(
+        &mut self,
+        value: TypeVar,
+        sig: BuiltinOpSig,
+    ) -> Result<(), LoweringError> {
+        let lower = self.builtin_op_pos_sig(sig)?;
+        let upper = self.builtin_op_neg_sig(sig)?;
+        self.constrain_lower(value, lower);
+        self.constrain_upper(value, upper);
+        Ok(())
+    }
+
+    fn builtin_op_pos_sig(&mut self, sig: BuiltinOpSig) -> Result<Pos, LoweringError> {
+        match sig {
+            BuiltinOpSig::Nullary { ret } => self.builtin_op_pos_type(ret),
+            BuiltinOpSig::Unary { param, ret } => self.curried_pos_fun(&[param], ret),
+            BuiltinOpSig::Binary { param, ret } => self.curried_pos_fun(&[param, param], ret),
+            BuiltinOpSig::BinaryPredicate { param } => {
+                self.curried_pos_fun(&[param, param], "bool")
+            }
+            BuiltinOpSig::Mixed { params, ret } => self.curried_pos_fun(params, ret),
+            BuiltinOpSig::BytesToUtf8Raw => {
+                let ret = Pos::Tuple(vec![
+                    self.alloc_pos(self.builtin_op_pos_type("str")?),
+                    self.alloc_pos(self.builtin_op_pos_type("int")?),
+                ]);
+                self.curried_pos_fun_with_ret(&["bytes"], ret)
+            }
+        }
+    }
+
+    fn builtin_op_neg_sig(&mut self, sig: BuiltinOpSig) -> Result<Neg, LoweringError> {
+        match sig {
+            BuiltinOpSig::Nullary { ret } => self.builtin_op_neg_type(ret),
+            BuiltinOpSig::Unary { param, ret } => self.curried_neg_fun(&[param], ret),
+            BuiltinOpSig::Binary { param, ret } => self.curried_neg_fun(&[param, param], ret),
+            BuiltinOpSig::BinaryPredicate { param } => {
+                self.curried_neg_fun(&[param, param], "bool")
+            }
+            BuiltinOpSig::Mixed { params, ret } => self.curried_neg_fun(params, ret),
+            BuiltinOpSig::BytesToUtf8Raw => {
+                let ret = Neg::Tuple(vec![
+                    self.alloc_neg(self.builtin_op_neg_type("str")?),
+                    self.alloc_neg(self.builtin_op_neg_type("int")?),
+                ]);
+                self.curried_neg_fun_with_ret(&["bytes"], ret)
+            }
+        }
+    }
+
+    fn curried_pos_fun(
+        &mut self,
+        params: &[&'static str],
+        ret: &'static str,
+    ) -> Result<Pos, LoweringError> {
+        let ret = self.builtin_op_pos_type(ret)?;
+        self.curried_pos_fun_with_ret(params, ret)
+    }
+
+    fn curried_pos_fun_with_ret(
+        &mut self,
+        params: &[&'static str],
+        ret: Pos,
+    ) -> Result<Pos, LoweringError> {
+        let Some((param, rest)) = params.split_first() else {
+            return Ok(ret);
+        };
+        let arg = self.builtin_op_neg_type(param)?;
+        let arg = self.alloc_neg(arg);
+        let arg_eff = self.never_neg();
+        let ret_eff = self.alloc_pos(Pos::Bot);
+        let ret = self.curried_pos_fun_with_ret(rest, ret)?;
+        let ret = self.alloc_pos(ret);
+        Ok(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        })
+    }
+
+    fn curried_neg_fun(
+        &mut self,
+        params: &[&'static str],
+        ret: &'static str,
+    ) -> Result<Neg, LoweringError> {
+        let ret = self.builtin_op_neg_type(ret)?;
+        self.curried_neg_fun_with_ret(params, ret)
+    }
+
+    fn curried_neg_fun_with_ret(
+        &mut self,
+        params: &[&'static str],
+        ret: Neg,
+    ) -> Result<Neg, LoweringError> {
+        let Some((param, rest)) = params.split_first() else {
+            return Ok(ret);
+        };
+        let arg = self.builtin_op_pos_type(param)?;
+        let arg = self.alloc_pos(arg);
+        let arg_eff = self.alloc_pos(Pos::Bot);
+        let ret_eff = self.never_neg();
+        let ret = self.curried_neg_fun_with_ret(rest, ret)?;
+        let ret = self.alloc_neg(ret);
+        Ok(Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        })
+    }
+
+    fn builtin_op_pos_type(&self, name: &'static str) -> Result<Pos, LoweringError> {
+        let path = self.builtin_op_type_path(name)?;
+        Ok(match path {
+            BuiltinOpTypePath::Builtin(BuiltinType::Never) => Pos::Bot,
+            BuiltinOpTypePath::Builtin(builtin) => {
+                Pos::Con(vec![builtin.surface_name().to_string()], Vec::new())
+            }
+            BuiltinOpTypePath::Named(path) => Pos::Con(path, Vec::new()),
+        })
+    }
+
+    fn builtin_op_neg_type(&self, name: &'static str) -> Result<Neg, LoweringError> {
+        let path = self.builtin_op_type_path(name)?;
+        Ok(match path {
+            BuiltinOpTypePath::Builtin(BuiltinType::Never) => Neg::Bot,
+            BuiltinOpTypePath::Builtin(builtin) => {
+                Neg::Con(vec![builtin.surface_name().to_string()], Vec::new())
+            }
+            BuiltinOpTypePath::Named(path) => Neg::Con(path, Vec::new()),
+        })
+    }
+
+    fn builtin_op_type_path(&self, name: &'static str) -> Result<BuiltinOpTypePath, LoweringError> {
+        if let Some(builtin) = BuiltinType::from_surface_name(name) {
+            return Ok(BuiltinOpTypePath::Builtin(builtin));
+        }
+        let name = Name(name.to_string());
+        let Some(decl) = self.modules.lexical_type_at(self.module, &name, self.site) else {
+            return Err(LoweringError::AnnotationBuild {
+                error: AnnBuildError::UnresolvedTypeName { path: vec![name] },
+            });
+        };
+        Ok(BuiltinOpTypePath::Named(
+            self.modules
+                .type_decl_path(&decl)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect(),
+        ))
     }
 
     fn lower_name(&mut self, name: Name) -> Result<Computation, LoweringError> {
@@ -5012,6 +5194,13 @@ fn path_label(path: &[Name]) -> String {
         .join("::")
 }
 
+fn builtin_op_from_path(path: &[Name]) -> Option<BuiltinOp> {
+    match path {
+        [namespace, name] if namespace.0 == "builtin_op" => resolve_builtin_op(&name.0),
+        _ => None,
+    }
+}
+
 fn field_name(node: &Cst) -> Option<String> {
     let token = node
         .children_with_tokens()
@@ -5344,6 +5533,7 @@ pub enum SignatureType {
         eff: SignatureEffectRow,
         ret: Box<SignatureType>,
     },
+    Tuple(Vec<SignatureType>),
     Apply {
         callee: Box<SignatureType>,
         args: Vec<SignatureType>,
@@ -5379,6 +5569,7 @@ pub enum SignatureShape {
     Constructor,
     EffectRow,
     Function,
+    Tuple,
 }
 
 impl SignatureShape {
@@ -5389,6 +5580,7 @@ impl SignatureShape {
             }
             SignatureType::EffectRow(_) => Self::EffectRow,
             SignatureType::Effectful { ret, .. } => Self::of(ret),
+            SignatureType::Tuple(_) => Self::Tuple,
             SignatureType::Function { .. } => Self::Function,
             SignatureType::Var(_) => Self::Any,
         }
@@ -5418,6 +5610,7 @@ fn compact_type_matches_signature(
         SignatureType::Function { ret, .. } => {
             compact_type_matches_function_signature(actual, ret, modules)
         }
+        SignatureType::Tuple(items) => compact_type_matches_tuple_signature(actual, items, modules),
         SignatureType::EffectRow(_) => compact_type_matches_effect_row_signature(actual),
         SignatureType::Builtin(_) | SignatureType::Named(_) | SignatureType::Apply { .. } => {
             let Some(expected) = expected_constructor_signature(expected, modules) else {
@@ -5440,6 +5633,24 @@ fn compact_type_matches_function_signature(
         .funs
         .iter()
         .all(|fun| compact_fun_matches_signature(fun, expected_ret, modules))
+}
+
+fn compact_type_matches_tuple_signature(
+    actual: &CompactType,
+    expected_items: &[SignatureType],
+    modules: &ModuleTable,
+) -> bool {
+    if compact_type_has_concrete_non_tuple(actual) {
+        return false;
+    }
+    actual.tuples.iter().all(|tuple| {
+        tuple.items.len() == expected_items.len()
+            && tuple
+                .items
+                .iter()
+                .zip(expected_items)
+                .all(|(actual, expected)| compact_type_matches_signature(actual, expected, modules))
+    })
 }
 
 fn compact_fun_matches_signature(
@@ -5494,6 +5705,16 @@ fn compact_type_has_concrete_non_function(actual: &CompactType) -> bool {
         || !actual.record_spreads.is_empty()
         || !actual.poly_variants.is_empty()
         || !actual.tuples.is_empty()
+        || !actual.rows.is_empty()
+}
+
+fn compact_type_has_concrete_non_tuple(actual: &CompactType) -> bool {
+    !actual.builtins.is_empty()
+        || !actual.cons.is_empty()
+        || !actual.funs.is_empty()
+        || !actual.records.is_empty()
+        || !actual.record_spreads.is_empty()
+        || !actual.poly_variants.is_empty()
         || !actual.rows.is_empty()
 }
 
@@ -5581,7 +5802,9 @@ fn expected_constructor_signature(
         }
         SignatureType::Effectful { ret, .. } => expected_constructor_signature(ret, modules),
         SignatureType::Var(_) => None,
-        SignatureType::EffectRow(_) | SignatureType::Function { .. } => None,
+        SignatureType::EffectRow(_) | SignatureType::Function { .. } | SignatureType::Tuple(_) => {
+            None
+        }
     }
 }
 
@@ -5664,6 +5887,13 @@ impl<'a> SignatureLowerer<'a> {
             }
             SignatureType::EffectRow(row) => self.lower_effect_row_pos(row),
             SignatureType::Effectful { ret, .. } => self.lower_pos(ret),
+            SignatureType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_pos(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.alloc_pos(Pos::Tuple(items)))
+            }
             SignatureType::Apply { callee, args } => {
                 let (path, head_args) = self.constructor_path(callee)?;
                 let mut neu_args = head_args;
@@ -5705,6 +5935,13 @@ impl<'a> SignatureLowerer<'a> {
             }
             SignatureType::EffectRow(row) => self.lower_subtractable_effect_row_neg(row),
             SignatureType::Effectful { ret, .. } => self.lower_neg(ret),
+            SignatureType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_neg(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.alloc_neg(Neg::Tuple(items)))
+            }
             SignatureType::Apply { callee, args } => {
                 let (path, head_args) = self.constructor_path(callee)?;
                 let mut neu_args = head_args;
@@ -5749,6 +5986,13 @@ impl<'a> SignatureLowerer<'a> {
             }
             SignatureType::EffectRow(row) => self.lower_effect_row_neg(row),
             SignatureType::Effectful { ret, .. } => self.lower_data_neg(ret),
+            SignatureType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_data_neg(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.alloc_neg(Neg::Tuple(items)))
+            }
             SignatureType::Apply { callee, args } => {
                 let (path, head_args) = self.constructor_path(callee)?;
                 let mut neu_args = head_args;
@@ -6037,20 +6281,22 @@ impl<'a> SignatureLowerer<'a> {
     fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
         match builtin {
             BuiltinType::Never => self.alloc_pos(Pos::Bot),
-            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_pos(Pos::Con(
-                vec![builtin.surface_name().to_string()],
-                Vec::new(),
-            )),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Bool | BuiltinType::Unit => self
+                .alloc_pos(Pos::Con(
+                    vec![builtin.surface_name().to_string()],
+                    Vec::new(),
+                )),
         }
     }
 
     fn lower_builtin_neg(&mut self, builtin: BuiltinType) -> NegId {
         match builtin {
             BuiltinType::Never => self.alloc_neg(Neg::Bot),
-            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_neg(Neg::Con(
-                vec![builtin.surface_name().to_string()],
-                Vec::new(),
-            )),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Bool | BuiltinType::Unit => self
+                .alloc_neg(Neg::Con(
+                    vec![builtin.surface_name().to_string()],
+                    Vec::new(),
+                )),
         }
     }
 
@@ -6198,6 +6444,12 @@ fn substitute_signature_vars(
             eff: substitute_signature_effect_row(eff, substitutions),
             ret: Box::new(substitute_signature_vars(ret, substitutions)),
         },
+        SignatureType::Tuple(items) => SignatureType::Tuple(
+            items
+                .iter()
+                .map(|item| substitute_signature_vars(item, substitutions))
+                .collect(),
+        ),
         SignatureType::Apply { callee, args } => SignatureType::Apply {
             callee: Box::new(substitute_signature_vars(callee, substitutions)),
             args: args
@@ -6274,7 +6526,9 @@ mod tests {
     use super::*;
     use crate::lower_module_map;
     use crate::scc::SccEvent;
-    use poly::expr::{DefId, ExprId, Pat, RecordSpread, RefId, SelectId, SelectResolution, Vis};
+    use poly::expr::{
+        DefId, ExprId, Pat, PrimitiveOp, RecordSpread, RefId, SelectId, SelectResolution, Vis,
+    };
 
     fn parse(src: &str) -> Cst {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
@@ -7196,6 +7450,31 @@ mod tests {
         assert_eq!(session.poly.ref_target(reference), None);
         session.drain_work();
         assert_eq!(session.poly.ref_target(reference), Some(target));
+    }
+
+    #[test]
+    fn builtin_op_path_lowers_to_primitive_body() {
+        let root = parse("pub add: int -> int -> int = builtin_op::int_add\nmy site = add\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let add = lower.modules.value_decls(module, &Name("add".into()))[0].def;
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert!(matches!(
+            output.session.poly.expr(binding_body_id(&output, add)),
+            Expr::PrimitiveOp(PrimitiveOp::IntAdd)
+        ));
+        let site_body = binding_body_id(&output, site);
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, site_body)),
+            Some(add)
+        );
     }
 
     #[test]
@@ -8906,7 +9185,7 @@ mod tests {
                     children.push(*tail);
                 }
             }
-            Expr::Lit(_) | Expr::Var(_) => {}
+            Expr::Lit(_) | Expr::PrimitiveOp(_) | Expr::Var(_) => {}
         }
         children
             .into_iter()

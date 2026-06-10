@@ -34,6 +34,7 @@ pub enum AnnType {
         eff: AnnEffectRow,
         ret: Box<AnnType>,
     },
+    Tuple(Vec<AnnType>),
     Apply {
         callee: Box<AnnType>,
         args: Vec<AnnType>,
@@ -256,6 +257,22 @@ impl<'a> AnnConstraintLowerer<'a> {
                 output_subtracts: Vec::new(),
             }),
             AnnType::Effectful { ret, .. } => self.lower_value_bounds(ret),
+            AnnType::Tuple(items) => {
+                let mut pos_items = Vec::with_capacity(items.len());
+                let mut neg_items = Vec::with_capacity(items.len());
+                let mut output_subtracts = Vec::new();
+                for item in items {
+                    let bounds = self.lower_value_bounds(item)?;
+                    pos_items.push(bounds.pos);
+                    neg_items.push(bounds.neg);
+                    output_subtracts.extend(bounds.output_subtracts);
+                }
+                Ok(AnnValueBounds {
+                    pos: self.alloc_pos(Pos::Tuple(pos_items)),
+                    neg: self.alloc_neg(Neg::Tuple(neg_items)),
+                    output_subtracts,
+                })
+            }
             AnnType::Apply { callee, args } => {
                 let (path, head_args) = self.constructor_path(callee)?;
                 let mut neu_args = head_args;
@@ -519,20 +536,22 @@ impl<'a> AnnConstraintLowerer<'a> {
     fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
         match builtin {
             BuiltinType::Never => self.alloc_pos(Pos::Bot),
-            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_pos(Pos::Con(
-                vec![builtin.surface_name().to_string()],
-                Vec::new(),
-            )),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Bool | BuiltinType::Unit => self
+                .alloc_pos(Pos::Con(
+                    vec![builtin.surface_name().to_string()],
+                    Vec::new(),
+                )),
         }
     }
 
     fn lower_builtin_neg(&mut self, builtin: BuiltinType) -> NegId {
         match builtin {
             BuiltinType::Never => self.alloc_neg(Neg::Bot),
-            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_neg(Neg::Con(
-                vec![builtin.surface_name().to_string()],
-                Vec::new(),
-            )),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Bool | BuiltinType::Unit => self
+                .alloc_neg(Neg::Con(
+                    vec![builtin.surface_name().to_string()],
+                    Vec::new(),
+                )),
         }
     }
 
@@ -872,7 +891,11 @@ impl<'a> AnnTypeBuilder<'a> {
         match children.as_slice() {
             [] => Ok(AnnType::Builtin(BuiltinType::Unit)),
             [child] => self.build_type_expr(child),
-            _ => Err(AnnBuildError::UnsupportedSyntax { kind: group.kind() }),
+            _ => children
+                .iter()
+                .map(|child| self.build_type_expr(child))
+                .collect::<Result<Vec<_>, _>>()
+                .map(AnnType::Tuple),
         }
     }
 
@@ -1423,12 +1446,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_tuple_annotation_in_first_cut() {
+    fn builds_tuple_annotation() {
         assert_eq!(
-            build_annotation_error("my site: (int, float) = 1\n"),
-            AnnBuildError::UnsupportedSyntax {
-                kind: SyntaxKind::TypeParenGroup
-            }
+            build_annotation("my site: (int, float) = 1\n"),
+            AnnType::Tuple(vec![
+                AnnType::Builtin(BuiltinType::Int),
+                AnnType::Builtin(BuiltinType::Float),
+            ])
         );
     }
 

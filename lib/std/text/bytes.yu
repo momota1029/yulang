@@ -1,5 +1,13 @@
 use std::data::index::*
 use std::data::range::*
+use std::text::str::str
+
+pub len: bytes -> int = builtin_op::bytes_len
+pub eq: bytes -> bytes -> bool = builtin_op::bytes_eq
+pub concat: bytes -> bytes -> bytes = builtin_op::bytes_concat
+pub index_raw: bytes -> int -> int = builtin_op::bytes_index
+pub index_range: bytes -> range -> bytes = builtin_op::bytes_index_range
+pub to_utf8_raw: bytes -> (str, int) = builtin_op::bytes_to_utf8_raw
 
 pub type bytes with:
     pub b.len = std::text::bytes::len b

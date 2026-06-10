@@ -1,3 +1,8 @@
+use std::text::bytes::bytes
+
+pub of_bytes_raw: bytes -> path = builtin_op::bytes_to_path
+pub to_bytes: path -> bytes = builtin_op::path_to_bytes
+
 pub type path with:
     pub p.to_bytes = std::text::path::to_bytes p
 

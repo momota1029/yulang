@@ -1,3 +1,5 @@
-pub eq(x: bool, y: bool): bool
-pub not(x: bool): bool
-pub to_string(x: bool): str
+use std::text::str::str
+
+pub eq: bool -> bool -> bool = builtin_op::bool_eq
+pub not: bool -> bool = builtin_op::bool_not
+pub to_string: bool -> str = builtin_op::bool_to_string
