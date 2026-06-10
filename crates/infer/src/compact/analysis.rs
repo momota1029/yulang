@@ -1201,28 +1201,36 @@ fn visit_bounds_polarity(bounds: &CompactBounds, polarity: Polarity, out: &mut V
 
 #[derive(Default)]
 struct CoOccurrences {
-    positive: FxHashMap<TypeVar, FxHashSet<usize>>,
-    negative: FxHashMap<TypeVar, FxHashSet<usize>>,
-    next_group: usize,
+    positive: FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    negative: FxHashMap<TypeVar, FxHashSet<AlongItem>>,
 }
 
 impl CoOccurrences {
-    fn record_group(&mut self, vars: Vec<CompactVar>, polarity: Polarity) {
-        let mut vars = vars.into_iter().map(|var| var.var).collect::<Vec<_>>();
+    fn record_group(&mut self, group: FxHashSet<AlongItem>, polarity: Polarity) {
+        let mut vars = group
+            .iter()
+            .filter_map(|item| match item {
+                AlongItem::Var(var) => Some(*var),
+                AlongItem::Exact(_) => None,
+            })
+            .collect::<Vec<_>>();
         vars.sort_by_key(|var| var.0);
         vars.dedup();
-        if vars.len() < 2 {
+        if vars.is_empty() {
             return;
         }
 
-        let group = self.next_group;
-        self.next_group += 1;
         let table = match polarity {
             Polarity::Positive => &mut self.positive,
             Polarity::Negative => &mut self.negative,
         };
         for var in vars {
-            table.entry(var).or_default().insert(group);
+            match table.get_mut(&var) {
+                Some(existing) => existing.retain(|item| group.contains(item)),
+                None => {
+                    table.insert(var, group.clone());
+                }
+            }
         }
     }
 
@@ -1233,49 +1241,149 @@ impl CoOccurrences {
         non_generic: &FxHashSet<TypeVar>,
     ) -> VarSubstitution {
         let mut union = VarUnion::default();
-        register_co_occurrence_table(&self.positive, machine, boundary, non_generic, &mut union);
-        register_co_occurrence_table(&self.negative, machine, boundary, non_generic, &mut union);
+        register_co_occurrence_table(
+            &self.positive,
+            &self.negative,
+            machine,
+            boundary,
+            non_generic,
+            &mut union,
+        );
+        register_co_occurrence_table(
+            &self.negative,
+            &self.positive,
+            machine,
+            boundary,
+            non_generic,
+            &mut union,
+        );
         union.into_substitution()
     }
 }
 
 fn register_co_occurrence_table(
-    table: &FxHashMap<TypeVar, FxHashSet<usize>>,
+    table: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    opposite: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     non_generic: &FxHashSet<TypeVar>,
     union: &mut VarUnion,
 ) {
-    let mut buckets = FxHashMap::<Vec<usize>, Vec<TypeVar>>::default();
-    for (&var, groups) in table {
-        if groups.is_empty() {
+    let mut vars = table.keys().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    for alpha in vars {
+        let Some(items) = table.get(&alpha) else {
             continue;
+        };
+        let mut items = items.iter().cloned().collect::<Vec<_>>();
+        items.sort_by_key(along_item_sort_key);
+        for beta in items {
+            let AlongItem::Var(beta) = beta else {
+                continue;
+            };
+            if alpha == beta {
+                continue;
+            }
+            if !table
+                .get(&beta)
+                .is_some_and(|beta_items| beta_items.contains(&AlongItem::Var(alpha)))
+            {
+                continue;
+            }
+            if !opposite_co_occurrence_compatible(alpha, beta, opposite) {
+                continue;
+            }
+            register_co_occurrence_pair(alpha, beta, machine, boundary, non_generic, union);
         }
-        let mut key = groups.iter().cloned().collect::<Vec<_>>();
-        key.sort_unstable();
-        buckets.entry(key).or_default().push(var);
     }
-    for mut vars in buckets.into_values() {
-        if vars.len() < 2 {
-            continue;
-        }
-        vars.sort_by_key(|var| var.0);
-        let candidates = vars
-            .iter()
-            .copied()
-            .filter(|var| is_simplification_candidate(machine, boundary, *var, non_generic))
-            .collect::<Vec<_>>();
-        if candidates.is_empty() {
-            continue;
-        }
+}
 
-        let rep = vars
-            .iter()
-            .copied()
-            .min_by_key(|var| (machine.level_of(*var), var.0))
-            .expect("co-occurrence bucket should be non-empty");
-        for var in candidates {
-            union.union_to(rep, var);
+fn opposite_co_occurrence_compatible(
+    alpha: TypeVar,
+    beta: TypeVar,
+    opposite: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+) -> bool {
+    let alpha_items = opposite.get(&alpha);
+    let beta_items = opposite.get(&beta);
+    if alpha_items == beta_items {
+        return true;
+    }
+    let (Some(alpha_items), Some(beta_items)) = (alpha_items, beta_items) else {
+        return false;
+    };
+    without_var(alpha_items, alpha) == *beta_items || without_var(beta_items, beta) == *alpha_items
+}
+
+fn without_var(items: &FxHashSet<AlongItem>, var: TypeVar) -> FxHashSet<AlongItem> {
+    items
+        .iter()
+        .filter(|item| **item != AlongItem::Var(var))
+        .cloned()
+        .collect()
+}
+
+fn along_item_sort_key(item: &AlongItem) -> (u8, u32) {
+    match item {
+        AlongItem::Var(var) => (0, var.0),
+        AlongItem::Exact(exact) => (1, exact.sort_key()),
+    }
+}
+
+fn register_co_occurrence_pair(
+    alpha: TypeVar,
+    beta: TypeVar,
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    non_generic: &FxHashSet<TypeVar>,
+    union: &mut VarUnion,
+) {
+    let alpha_candidate = is_simplification_candidate(machine, boundary, alpha, non_generic);
+    let beta_candidate = is_simplification_candidate(machine, boundary, beta, non_generic);
+    if !alpha_candidate && !beta_candidate {
+        return;
+    }
+
+    let rep = [alpha, beta]
+        .into_iter()
+        .min_by_key(|var| (machine.level_of(*var), var.0))
+        .expect("pair should be non-empty");
+    if alpha_candidate {
+        union.union_to(rep, alpha);
+    }
+    if beta_candidate {
+        union.union_to(rep, beta);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum AlongItem {
+    Var(TypeVar),
+    Exact(ExactKey),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum ExactKey {
+    Builtin(BuiltinType),
+    Con(Vec<String>, usize),
+    Fun,
+    Record(Vec<(String, bool)>),
+    RecordSpread(Vec<(String, bool)>),
+    PolyVariant(Vec<(String, usize)>),
+    Tuple(usize),
+    Row(Vec<ExactKey>),
+}
+
+impl ExactKey {
+    fn sort_key(&self) -> u32 {
+        match self {
+            ExactKey::Builtin(_) => 0,
+            ExactKey::Con(_, _) => 1,
+            ExactKey::Fun => 2,
+            ExactKey::Record(_) => 3,
+            ExactKey::RecordSpread(_) => 4,
+            ExactKey::PolyVariant(_) => 5,
+            ExactKey::Tuple(_) => 6,
+            ExactKey::Row(_) => 7,
         }
     }
 }
@@ -1312,13 +1420,7 @@ fn visit_type_co_occurrence(
     extra_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
-    let vars = ty
-        .vars
-        .iter()
-        .cloned()
-        .chain(extra_vars.iter().copied().map(CompactVar::plain))
-        .collect::<Vec<_>>();
-    out.record_group(vars, polarity);
+    out.record_group(along_group(ty, extra_vars), polarity);
 
     for con in &ty.cons {
         for arg in &con.args {
@@ -1355,11 +1457,104 @@ fn visit_type_co_occurrence(
         }
     }
     for row in &ty.rows {
+        let group = row_along_group(row);
+        visit_row_tail_vars(&row.tail, polarity, Some(&group), out);
         for item in &row.items {
             visit_type_co_occurrence(item, polarity, &[], out);
         }
         visit_type_co_occurrence(&row.tail, polarity, &[], out);
     }
+}
+
+fn visit_row_tail_vars(
+    ty: &CompactType,
+    polarity: Polarity,
+    group: Option<&FxHashSet<AlongItem>>,
+    out: &mut CoOccurrences,
+) {
+    if let Some(group) = group {
+        out.record_group(group.clone(), polarity);
+    }
+    for row in &ty.rows {
+        visit_row_tail_vars(&row.tail, polarity, group, out);
+    }
+}
+
+fn along_group(ty: &CompactType, extra_vars: &[TypeVar]) -> FxHashSet<AlongItem> {
+    let mut group = FxHashSet::default();
+    group.extend(ty.vars.iter().map(|var| AlongItem::Var(var.var)));
+    group.extend(extra_vars.iter().copied().map(AlongItem::Var));
+    group.extend(exact_group(ty).into_iter().map(AlongItem::Exact));
+    group
+}
+
+fn row_along_group(row: &CompactRow) -> FxHashSet<AlongItem> {
+    let mut group = FxHashSet::default();
+    collect_row_tail_vars(&row.tail, &mut group);
+    let mut item_keys = row.items.iter().flat_map(exact_group).collect::<Vec<_>>();
+    item_keys.sort_by_key(ExactKey::sort_key);
+    item_keys.dedup();
+    group.extend(item_keys.into_iter().map(AlongItem::Exact));
+    group
+}
+
+fn collect_row_tail_vars(ty: &CompactType, out: &mut FxHashSet<AlongItem>) {
+    out.extend(ty.vars.iter().map(|var| AlongItem::Var(var.var)));
+    for row in &ty.rows {
+        collect_row_tail_vars(&row.tail, out);
+    }
+}
+
+fn exact_group(ty: &CompactType) -> Vec<ExactKey> {
+    let mut group = Vec::new();
+    group.extend(ty.builtins.iter().copied().map(ExactKey::Builtin));
+    group.extend(
+        ty.cons
+            .iter()
+            .map(|con| ExactKey::Con(con.path.clone(), con.args.len())),
+    );
+    if !ty.funs.is_empty() {
+        group.push(ExactKey::Fun);
+    }
+    group.extend(ty.records.iter().map(|record| {
+        ExactKey::Record(
+            record
+                .fields
+                .iter()
+                .map(|field| (field.name.clone(), field.optional))
+                .collect(),
+        )
+    }));
+    group.extend(ty.record_spreads.iter().map(|spread| {
+        ExactKey::RecordSpread(
+            spread
+                .fields
+                .iter()
+                .map(|field| (field.name.clone(), field.optional))
+                .collect(),
+        )
+    }));
+    group.extend(ty.poly_variants.iter().map(|variant| {
+        ExactKey::PolyVariant(
+            variant
+                .items
+                .iter()
+                .map(|(name, payloads)| (name.clone(), payloads.len()))
+                .collect(),
+        )
+    }));
+    group.extend(
+        ty.tuples
+            .iter()
+            .map(|tuple| ExactKey::Tuple(tuple.items.len())),
+    );
+    group.extend(ty.rows.iter().map(|row| {
+        let mut item_keys = row.items.iter().flat_map(exact_group).collect::<Vec<_>>();
+        item_keys.sort_by_key(ExactKey::sort_key);
+        item_keys.dedup();
+        ExactKey::Row(item_keys)
+    }));
+    group
 }
 
 fn visit_bounds_co_occurrence(bounds: &CompactBounds, polarity: Polarity, out: &mut CoOccurrences) {

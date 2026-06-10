@@ -59,6 +59,13 @@ impl Context {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum NeuPolarity {
+    Neutral,
+    Positive,
+    Negative,
+}
+
 #[derive(Debug, Clone)]
 struct Rendered {
     text: String,
@@ -278,7 +285,7 @@ impl<'a> TypeFormatter<'a> {
         match self.arena.pos(id) {
             Pos::Bot => Rendered::atom("never"),
             Pos::Var(var) => Rendered::atom(self.namer.name(*var)),
-            Pos::Con(path, args) => self.render_con(path, args),
+            Pos::Con(path, args) => self.render_con(path, args, NeuPolarity::Positive),
             Pos::Fun {
                 arg,
                 arg_eff,
@@ -322,7 +329,7 @@ impl<'a> TypeFormatter<'a> {
             Neg::Top => Rendered::atom("any"),
             Neg::Bot => Rendered::atom("never"),
             Neg::Var(var) => Rendered::atom(self.namer.name(*var)),
-            Neg::Con(path, args) => self.render_con(path, args),
+            Neg::Con(path, args) => self.render_con(path, args, NeuPolarity::Negative),
             Neg::Fun {
                 arg,
                 arg_eff,
@@ -351,13 +358,20 @@ impl<'a> TypeFormatter<'a> {
             Neu::Bounds(lower, var, upper) if self.is_plain_bounds(*lower, *var, *upper) => {
                 Rendered::atom(self.namer.name(*var))
             }
-            Neu::Bounds(lower, var, upper) => Rendered::atom(format!(
-                "bounds({}, {}, {})",
-                self.pos(*lower, Context::Free),
-                self.namer.name(*var),
-                self.neg(*upper, Context::Free)
-            )),
-            Neu::Con(path, args) => self.render_con(path, args),
+            Neu::Bounds(lower, var, upper) => {
+                if let Some(rendered) =
+                    self.render_directional_bounds(*lower, *var, *upper, NeuPolarity::Neutral)
+                {
+                    return rendered;
+                }
+                Rendered::atom(format!(
+                    "bounds({}, {}, {})",
+                    self.pos(*lower, Context::Free),
+                    self.namer.name(*var),
+                    self.neg(*upper, Context::Free)
+                ))
+            }
+            Neu::Con(path, args) => self.render_con(path, args, NeuPolarity::Neutral),
             Neu::Fun {
                 arg,
                 arg_eff,
@@ -376,7 +390,44 @@ impl<'a> TypeFormatter<'a> {
         }
     }
 
-    fn render_con(&mut self, path: &[String], args: &[NeuId]) -> Rendered {
+    fn render_neu_with_polarity(&mut self, id: NeuId, polarity: NeuPolarity) -> Rendered {
+        match self.arena.neu(id) {
+            Neu::Bounds(lower, var, upper) if self.is_plain_bounds(*lower, *var, *upper) => {
+                Rendered::atom(self.namer.name(*var))
+            }
+            Neu::Bounds(lower, var, upper) => {
+                if let Some(rendered) =
+                    self.render_directional_bounds(*lower, *var, *upper, polarity)
+                {
+                    return rendered;
+                }
+                Rendered::atom(format!(
+                    "bounds({}, {}, {})",
+                    self.pos(*lower, Context::Free),
+                    self.namer.name(*var),
+                    self.neg(*upper, Context::Free)
+                ))
+            }
+            Neu::Con(path, args) => self.render_con(path, args, polarity),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => self.render_neu_fun(*arg, *arg_eff, *ret_eff, *ret),
+            Neu::Record(fields) => {
+                Rendered::atom(self.record(fields, |this, id| this.neu(id, Context::Free)))
+            }
+            Neu::PolyVariant(items) => {
+                Rendered::atom(self.variant(items, |this, id| this.neu(id, Context::MlArg)))
+            }
+            Neu::Tuple(items) => {
+                Rendered::atom(self.tuple(items, |this, id| this.neu(id, Context::Free)))
+            }
+        }
+    }
+
+    fn render_con(&mut self, path: &[String], args: &[NeuId], polarity: NeuPolarity) -> Rendered {
         let name = path_name(path);
         if args.is_empty() {
             return Rendered::atom(name);
@@ -384,7 +435,7 @@ impl<'a> TypeFormatter<'a> {
 
         let args = args
             .iter()
-            .map(|arg| self.render_neu(*arg))
+            .map(|arg| self.render_neu_with_polarity(*arg, polarity))
             .collect::<Vec<_>>();
         if args.iter().any(|arg| arg.has_bare_space) {
             let args = args
@@ -669,8 +720,93 @@ impl<'a> TypeFormatter<'a> {
                 && matches!(self.arena.neg(upper), Neg::Var(upper_var) if *upper_var == var)
     }
 
+    fn render_directional_bounds(
+        &mut self,
+        lower: PosId,
+        var: TypeVar,
+        upper: NegId,
+        polarity: NeuPolarity,
+    ) -> Option<Rendered> {
+        match polarity {
+            NeuPolarity::Negative
+                if matches!(self.arena.pos(lower), Pos::Var(lower_var) if *lower_var == var)
+                    && neg_contains_var(self.arena, upper, var)
+                    && !matches!(self.arena.neg(upper), Neg::Var(upper_var) if *upper_var == var) =>
+            {
+                Some(self.render_neg(upper))
+            }
+            NeuPolarity::Positive
+                if matches!(self.arena.neg(upper), Neg::Var(upper_var) if *upper_var == var)
+                    && pos_contains_var(self.arena, lower, var)
+                    && !matches!(self.arena.pos(lower), Pos::Var(lower_var) if *lower_var == var) =>
+            {
+                Some(self.render_pos(lower))
+            }
+            NeuPolarity::Neutral | NeuPolarity::Positive | NeuPolarity::Negative => None,
+        }
+    }
+
     fn subtract_id(&self, subtract: SubtractId) -> String {
         format!("#{}", subtract.0)
+    }
+}
+
+fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
+    match arena.pos(id) {
+        Pos::Var(var) => *var == expected,
+        Pos::Fun { ret_eff, ret, .. } => {
+            pos_contains_var(arena, *ret_eff, expected) || pos_contains_var(arena, *ret, expected)
+        }
+        Pos::Record(fields) => fields
+            .iter()
+            .any(|field| pos_contains_var(arena, field.value, expected)),
+        Pos::RecordTailSpread { fields, tail } | Pos::RecordHeadSpread { tail, fields } => {
+            pos_contains_var(arena, *tail, expected)
+                || fields
+                    .iter()
+                    .any(|field| pos_contains_var(arena, field.value, expected))
+        }
+        Pos::PolyVariant(items) => items
+            .iter()
+            .flat_map(|(_, payloads)| payloads)
+            .any(|payload| pos_contains_var(arena, *payload, expected)),
+        Pos::Tuple(items) | Pos::Row(items) => items
+            .iter()
+            .any(|item| pos_contains_var(arena, *item, expected)),
+        Pos::NonSubtract(pos, _) => pos_contains_var(arena, *pos, expected),
+        Pos::Union(left, right) => {
+            pos_contains_var(arena, *left, expected) || pos_contains_var(arena, *right, expected)
+        }
+        Pos::Bot | Pos::Con(_, _) => false,
+    }
+}
+
+fn neg_contains_var(arena: &TypeArena, id: NegId, expected: TypeVar) -> bool {
+    match arena.neg(id) {
+        Neg::Var(var) => *var == expected,
+        Neg::Fun { arg, arg_eff, .. } => {
+            pos_contains_var(arena, *arg, expected) || pos_contains_var(arena, *arg_eff, expected)
+        }
+        Neg::Record(fields) => fields
+            .iter()
+            .any(|field| neg_contains_var(arena, field.value, expected)),
+        Neg::PolyVariant(items) => items
+            .iter()
+            .flat_map(|(_, payloads)| payloads)
+            .any(|payload| neg_contains_var(arena, *payload, expected)),
+        Neg::Tuple(items) => items
+            .iter()
+            .any(|item| neg_contains_var(arena, *item, expected)),
+        Neg::Row(items, tail) => {
+            items
+                .iter()
+                .any(|item| neg_contains_var(arena, *item, expected))
+                || neg_contains_var(arena, *tail, expected)
+        }
+        Neg::Intersection(left, right) => {
+            neg_contains_var(arena, *left, expected) || neg_contains_var(arena, *right, expected)
+        }
+        Neg::Top | Neg::Bot | Neg::Con(_, _) => false,
     }
 }
 

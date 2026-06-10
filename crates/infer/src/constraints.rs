@@ -602,14 +602,19 @@ impl ConstraintMachine {
         };
 
         let handled_families = self.neg_effect_families(&items);
-        let active_facts = self.active_subtract_facts(source, &weights.left);
+        let facts = self.subtracts.facts(source).to_vec();
+        let active_facts = facts
+            .iter()
+            .filter(|fact| !weights.left.contains(fact.id))
+            .cloned()
+            .collect::<Vec<_>>();
         let mut retained_items = items;
         for fact in &active_facts {
             retained_items = self
                 .intersect_row_items_with_subtractability(retained_items, &fact.subtractability);
         }
 
-        for fact in active_facts {
+        for fact in facts {
             self.record_subtract_fact(
                 tail_var,
                 SubtractFact {
@@ -629,19 +634,6 @@ impl ConstraintMachine {
             let row = self.alloc_neg(Neg::Row(retained_items, tail));
             self.add_upper_bound(source, row, weights);
         }
-    }
-
-    fn active_subtract_facts(
-        &self,
-        var: TypeVar,
-        cancelled: &ConstraintWeight,
-    ) -> Vec<SubtractFact> {
-        self.subtracts
-            .facts(var)
-            .iter()
-            .filter(|fact| !cancelled.contains(fact.id))
-            .cloned()
-            .collect()
     }
 
     fn intersect_row_items_with_subtractability(
@@ -1971,7 +1963,7 @@ mod tests {
     }
 
     #[test]
-    fn var_to_effect_row_upper_ignores_subtract_facts_cancelled_by_left_weight() {
+    fn var_to_effect_row_upper_keeps_cancelled_items_but_propagates_tail_fact() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let tail_var = TypeVar(1);
@@ -2002,7 +1994,13 @@ mod tests {
                 weights
             }]
         );
-        assert!(machine.subtracts().facts(tail_var).is_empty());
+        assert_eq!(
+            machine.subtracts().facts(tail_var),
+            &[SubtractFact {
+                id: subtract,
+                subtractability: Subtractability::Empty
+            }]
+        );
     }
 
     #[test]

@@ -62,21 +62,34 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    let simplification = simplify_compact_root_with_roles_and_non_generic(
-        machine,
-        boundary.child(),
-        &mut compact,
-        &mut role_predicates,
-        non_generic,
-    );
-    generalize_compact_root_with_simplification(
-        machine,
-        boundary,
-        compact,
-        role_predicates,
-        non_generic,
-        simplification,
-    )
+    let mut simplification = CompactSimplification::default();
+    let mut removed_subtracts = FxHashSet::default();
+    loop {
+        let next_simplification = simplify_compact_root_with_roles_and_non_generic(
+            machine,
+            boundary.child(),
+            &mut compact,
+            &mut role_predicates,
+            non_generic,
+        );
+        append_simplification(&mut simplification, next_simplification);
+
+        let generalized = generalize_compact_root_with_simplification(
+            machine,
+            boundary,
+            compact,
+            role_predicates,
+            non_generic,
+            simplification.clone(),
+            &mut removed_subtracts,
+        );
+        if !generalized.pruned_subtract_weights {
+            return generalized.root;
+        }
+
+        compact = generalized.root.compact;
+        role_predicates = generalized.root.role_predicates;
+    }
 }
 
 pub(crate) fn generalize_compact_root(
@@ -92,7 +105,9 @@ pub(crate) fn generalize_compact_root(
         Vec::new(),
         non_generic,
         CompactSimplification::default(),
+        &mut FxHashSet::default(),
     )
+    .root
 }
 
 fn generalize_compact_root_with_simplification(
@@ -102,24 +117,63 @@ fn generalize_compact_root_with_simplification(
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
     simplification: CompactSimplification,
-) -> GeneralizedCompactRoot {
+    removed_subtracts: &mut FxHashSet<SubtractId>,
+) -> GeneralizedCompactStep {
     let quantifiers =
         quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
     let subtracts = prepare_quantified_subtracts(
         machine,
         &quantifiers,
         &simplification.substitutions,
+        non_generic,
+        removed_subtracts,
         &mut root,
         &mut role_predicates,
     );
-    GeneralizedCompactRoot {
-        compact: root,
-        role_predicates,
-        quantifiers,
-        subtracts,
-        substitutions: simplification.substitutions,
-        sandwiches: simplification.sandwiches,
+    GeneralizedCompactStep {
+        root: GeneralizedCompactRoot {
+            compact: root,
+            role_predicates,
+            quantifiers,
+            subtracts: subtracts.subtracts,
+            substitutions: simplification.substitutions,
+            sandwiches: simplification.sandwiches,
+        },
+        pruned_subtract_weights: subtracts.pruned_weights,
     }
+}
+
+struct GeneralizedCompactStep {
+    root: GeneralizedCompactRoot,
+    pruned_subtract_weights: bool,
+}
+
+fn append_simplification(target: &mut CompactSimplification, source: CompactSimplification) {
+    target.substitutions.extend(source.substitutions);
+    normalize_substitutions_in_place(&mut target.substitutions);
+    target.sandwiches.extend(source.sandwiches);
+    target.sandwiches.sort_by_key(|sandwich| sandwich.var.0);
+    target.sandwiches.dedup();
+}
+
+fn normalize_substitutions_in_place(substitutions: &mut Vec<CompactVarSubstitution>) {
+    if substitutions.is_empty() {
+        return;
+    }
+    let map = substitutions
+        .iter()
+        .map(|substitution| (substitution.source, substitution.target))
+        .collect::<FxHashMap<_, _>>();
+    let mut normalized = map
+        .keys()
+        .copied()
+        .filter_map(|source| {
+            let target = resolve_rewrite_target(source, &map);
+            (target != Some(source)).then_some(CompactVarSubstitution { source, target })
+        })
+        .collect::<Vec<_>>();
+    normalized.sort_by_key(|substitution| substitution.source.0);
+    *substitutions = normalized;
 }
 
 pub(crate) fn finalize_generalized_compact_root(
@@ -587,6 +641,7 @@ fn quantified_subtracts(
     machine: &ConstraintMachine,
     quantifiers: &[TypeVar],
     substitutions: &[CompactVarSubstitution],
+    removed_subtracts: &FxHashSet<SubtractId>,
 ) -> Vec<(TypeVar, SubtractId)> {
     let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
     let mut subtracts = Vec::new();
@@ -596,6 +651,7 @@ fn quantified_subtracts(
                 .subtracts()
                 .facts(*var)
                 .iter()
+                .filter(|fact| !removed_subtracts.contains(&fact.id))
                 .map(|fact| (*var, fact.id)),
         );
     }
@@ -611,6 +667,7 @@ fn quantified_subtracts(
                 .subtracts()
                 .facts(substitution.source)
                 .iter()
+                .filter(|fact| !removed_subtracts.contains(&fact.id))
                 .map(|fact| (target, fact.id)),
         );
     }
@@ -623,12 +680,17 @@ fn prepare_quantified_subtracts(
     machine: &ConstraintMachine,
     quantifiers: &[TypeVar],
     substitutions: &[CompactVarSubstitution],
+    non_generic: &FxHashSet<TypeVar>,
+    removed_subtracts: &mut FxHashSet<SubtractId>,
     root: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
-) -> Vec<(TypeVar, SubtractId)> {
-    let candidates = quantified_subtracts(machine, quantifiers, substitutions);
+) -> PreparedQuantifiedSubtracts {
+    let candidates = quantified_subtracts(machine, quantifiers, substitutions, removed_subtracts);
     if candidates.is_empty() {
-        return Vec::new();
+        return PreparedQuantifiedSubtracts {
+            subtracts: Vec::new(),
+            pruned_weights: false,
+        };
     }
 
     let candidate_ids = candidates
@@ -642,17 +704,37 @@ fn prepare_quantified_subtracts(
         .iter()
         .map(|(_, subtract)| *subtract)
         .collect::<FxHashSet<_>>();
+    let non_generic_subtract_ids = non_generic_subtract_ids(machine, non_generic);
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
+        .filter(|id| !non_generic_subtract_ids.contains(id))
         .collect::<FxHashSet<_>>();
-    if !dead_ids.is_empty() {
-        prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids);
-    }
+    let pruned_weights = !dead_ids.is_empty()
+        && prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids);
+    removed_subtracts.extend(dead_ids);
 
-    candidates
-        .into_iter()
-        .filter(|candidate| live_subtracts.contains(candidate))
+    PreparedQuantifiedSubtracts {
+        subtracts: candidates
+            .into_iter()
+            .filter(|candidate| live_subtracts.contains(candidate))
+            .collect(),
+        pruned_weights,
+    }
+}
+
+struct PreparedQuantifiedSubtracts {
+    subtracts: Vec<(TypeVar, SubtractId)>,
+    pruned_weights: bool,
+}
+
+fn non_generic_subtract_ids(
+    machine: &ConstraintMachine,
+    non_generic: &FxHashSet<TypeVar>,
+) -> FxHashSet<SubtractId> {
+    non_generic
+        .iter()
+        .flat_map(|var| machine.subtracts().facts(*var).iter().map(|fact| fact.id))
         .collect()
 }
 
@@ -1456,7 +1538,7 @@ fn live_subtracts(
     let mut live = FxHashSet::default();
     collect_live_subtracts_in_type(&root.root, true, &candidate_map, &mut live);
     for rec in &root.rec_vars {
-        collect_live_subtracts_in_bounds(&rec.bounds, &candidate_map, &mut live);
+        collect_live_subtracts_in_bounds(&rec.bounds, true, &candidate_map, &mut live);
     }
     for role in role_predicates {
         collect_live_subtracts_in_role(role, &candidate_map, &mut live);
@@ -1507,7 +1589,7 @@ fn collect_live_subtracts_in_type(
 
     for con in &ty.cons {
         for arg in &con.args {
-            collect_live_subtracts_in_bounds(arg, candidate_map, live);
+            collect_live_subtracts_in_bounds(arg, covariant, candidate_map, live);
         }
     }
     for fun in &ty.funs {
@@ -1549,17 +1631,21 @@ fn collect_live_subtracts_in_type(
 
 fn collect_live_subtracts_in_bounds(
     bounds: &CompactBounds,
+    covariant: bool,
     candidate_map: &FxHashMap<TypeVar, Vec<SubtractId>>,
     live: &mut FxHashSet<(TypeVar, SubtractId)>,
 ) {
+    if !covariant {
+        return;
+    }
     match bounds {
         CompactBounds::Interval { lower, upper, .. } => {
             collect_live_subtracts_in_type(lower, true, candidate_map, live);
-            collect_live_subtracts_in_type(upper, false, candidate_map, live);
+            collect_live_subtracts_in_type(upper, true, candidate_map, live);
         }
         CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
             for arg in args {
-                collect_live_subtracts_in_bounds(arg, candidate_map, live);
+                collect_live_subtracts_in_bounds(arg, covariant, candidate_map, live);
             }
         }
         CompactBounds::Fun {
@@ -1568,27 +1654,27 @@ fn collect_live_subtracts_in_bounds(
             ret_eff,
             ret,
         } => {
-            collect_live_subtracts_in_bounds(arg, candidate_map, live);
-            collect_live_subtracts_in_bounds(arg_eff, candidate_map, live);
-            collect_live_subtracts_in_bounds(ret_eff, candidate_map, live);
-            collect_live_subtracts_in_bounds(ret, candidate_map, live);
+            collect_live_subtracts_in_bounds(arg, !covariant, candidate_map, live);
+            collect_live_subtracts_in_bounds(arg_eff, !covariant, candidate_map, live);
+            collect_live_subtracts_in_bounds(ret_eff, covariant, candidate_map, live);
+            collect_live_subtracts_in_bounds(ret, covariant, candidate_map, live);
         }
         CompactBounds::Record { fields } => {
             for field in fields {
-                collect_live_subtracts_in_bounds(&field.value, candidate_map, live);
+                collect_live_subtracts_in_bounds(&field.value, covariant, candidate_map, live);
             }
         }
         CompactBounds::PolyVariant { items } => {
             for (_, payloads) in items {
                 for payload in payloads {
-                    collect_live_subtracts_in_bounds(payload, candidate_map, live);
+                    collect_live_subtracts_in_bounds(payload, covariant, candidate_map, live);
                 }
             }
         }
     }
 }
 
-fn prune_dead_subtract_weights(root: &mut CompactRoot, dead_ids: &FxHashSet<SubtractId>) {
+fn prune_dead_subtract_weights(root: &mut CompactRoot, dead_ids: &FxHashSet<SubtractId>) -> bool {
     prune_dead_subtract_weights_in_root_and_roles(root, &mut [], dead_ids)
 }
 
@@ -1596,96 +1682,108 @@ fn prune_dead_subtract_weights_in_root_and_roles(
     root: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
     dead_ids: &FxHashSet<SubtractId>,
-) {
-    prune_dead_subtract_weights_in_type(&mut root.root, dead_ids);
+) -> bool {
+    let mut changed = prune_dead_subtract_weights_in_type(&mut root.root, dead_ids);
     for rec in &mut root.rec_vars {
-        prune_dead_subtract_weights_in_bounds(&mut rec.bounds, dead_ids);
+        changed |= prune_dead_subtract_weights_in_bounds(&mut rec.bounds, dead_ids);
     }
     for role in role_predicates {
-        prune_dead_subtract_weights_in_role(role, dead_ids);
+        changed |= prune_dead_subtract_weights_in_role(role, dead_ids);
     }
+    changed
 }
 
 fn prune_dead_subtract_weights_in_role(
     role: &mut CompactRoleConstraint,
     dead_ids: &FxHashSet<SubtractId>,
-) {
+) -> bool {
+    let mut changed = false;
     for input in &mut role.inputs {
-        prune_dead_subtract_weights_in_role_arg(input, dead_ids);
+        changed |= prune_dead_subtract_weights_in_role_arg(input, dead_ids);
     }
     for associated in &mut role.associated {
-        prune_dead_subtract_weights_in_role_arg(&mut associated.value, dead_ids);
+        changed |= prune_dead_subtract_weights_in_role_arg(&mut associated.value, dead_ids);
     }
+    changed
 }
 
 fn prune_dead_subtract_weights_in_role_arg(
     arg: &mut CompactRoleArg,
     dead_ids: &FxHashSet<SubtractId>,
-) {
-    prune_dead_subtract_weights_in_type(&mut arg.lower, dead_ids);
-    prune_dead_subtract_weights_in_type(&mut arg.upper, dead_ids);
+) -> bool {
+    prune_dead_subtract_weights_in_type(&mut arg.lower, dead_ids)
+        | prune_dead_subtract_weights_in_type(&mut arg.upper, dead_ids)
 }
 
-fn prune_dead_subtract_weights_in_type(ty: &mut CompactType, dead_ids: &FxHashSet<SubtractId>) {
+fn prune_dead_subtract_weights_in_type(
+    ty: &mut CompactType,
+    dead_ids: &FxHashSet<SubtractId>,
+) -> bool {
+    let mut changed = false;
     for var in &mut ty.vars {
+        let before = var.weight.clone();
         var.weight =
             ConstraintWeight::from_ids(var.weight.iter().filter(|id| !dead_ids.contains(id)));
+        changed |= var.weight != before;
     }
     for con in &mut ty.cons {
         for arg in &mut con.args {
-            prune_dead_subtract_weights_in_bounds(arg, dead_ids);
+            changed |= prune_dead_subtract_weights_in_bounds(arg, dead_ids);
         }
     }
     for fun in &mut ty.funs {
-        prune_dead_subtract_weights_in_type(&mut fun.arg, dead_ids);
-        prune_dead_subtract_weights_in_type(&mut fun.arg_eff, dead_ids);
-        prune_dead_subtract_weights_in_type(&mut fun.ret_eff, dead_ids);
-        prune_dead_subtract_weights_in_type(&mut fun.ret, dead_ids);
+        changed |= prune_dead_subtract_weights_in_type(&mut fun.arg, dead_ids);
+        changed |= prune_dead_subtract_weights_in_type(&mut fun.arg_eff, dead_ids);
+        changed |= prune_dead_subtract_weights_in_type(&mut fun.ret_eff, dead_ids);
+        changed |= prune_dead_subtract_weights_in_type(&mut fun.ret, dead_ids);
     }
     for record in &mut ty.records {
         for field in &mut record.fields {
-            prune_dead_subtract_weights_in_type(&mut field.value, dead_ids);
+            changed |= prune_dead_subtract_weights_in_type(&mut field.value, dead_ids);
         }
     }
     for spread in &mut ty.record_spreads {
         for field in &mut spread.fields {
-            prune_dead_subtract_weights_in_type(&mut field.value, dead_ids);
+            changed |= prune_dead_subtract_weights_in_type(&mut field.value, dead_ids);
         }
-        prune_dead_subtract_weights_in_type(&mut spread.tail, dead_ids);
+        changed |= prune_dead_subtract_weights_in_type(&mut spread.tail, dead_ids);
     }
     for variant in &mut ty.poly_variants {
         for (_, payloads) in &mut variant.items {
             for payload in payloads {
-                prune_dead_subtract_weights_in_type(payload, dead_ids);
+                changed |= prune_dead_subtract_weights_in_type(payload, dead_ids);
             }
         }
     }
     for tuple in &mut ty.tuples {
         for item in &mut tuple.items {
-            prune_dead_subtract_weights_in_type(item, dead_ids);
+            changed |= prune_dead_subtract_weights_in_type(item, dead_ids);
         }
     }
     for row in &mut ty.rows {
         for item in &mut row.items {
-            prune_dead_subtract_weights_in_type(item, dead_ids);
+            changed |= prune_dead_subtract_weights_in_type(item, dead_ids);
         }
-        prune_dead_subtract_weights_in_type(&mut row.tail, dead_ids);
+        changed |= prune_dead_subtract_weights_in_type(&mut row.tail, dead_ids);
     }
+    changed
 }
 
 fn prune_dead_subtract_weights_in_bounds(
     bounds: &mut CompactBounds,
     dead_ids: &FxHashSet<SubtractId>,
-) {
+) -> bool {
     match bounds {
         CompactBounds::Interval { lower, upper, .. } => {
-            prune_dead_subtract_weights_in_type(lower, dead_ids);
-            prune_dead_subtract_weights_in_type(upper, dead_ids);
+            prune_dead_subtract_weights_in_type(lower, dead_ids)
+                | prune_dead_subtract_weights_in_type(upper, dead_ids)
         }
         CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            let mut changed = false;
             for arg in args {
-                prune_dead_subtract_weights_in_bounds(arg, dead_ids);
+                changed |= prune_dead_subtract_weights_in_bounds(arg, dead_ids);
             }
+            changed
         }
         CompactBounds::Fun {
             arg,
@@ -1693,22 +1791,26 @@ fn prune_dead_subtract_weights_in_bounds(
             ret_eff,
             ret,
         } => {
-            prune_dead_subtract_weights_in_bounds(arg, dead_ids);
-            prune_dead_subtract_weights_in_bounds(arg_eff, dead_ids);
-            prune_dead_subtract_weights_in_bounds(ret_eff, dead_ids);
-            prune_dead_subtract_weights_in_bounds(ret, dead_ids);
+            prune_dead_subtract_weights_in_bounds(arg, dead_ids)
+                | prune_dead_subtract_weights_in_bounds(arg_eff, dead_ids)
+                | prune_dead_subtract_weights_in_bounds(ret_eff, dead_ids)
+                | prune_dead_subtract_weights_in_bounds(ret, dead_ids)
         }
         CompactBounds::Record { fields } => {
+            let mut changed = false;
             for field in fields {
-                prune_dead_subtract_weights_in_bounds(&mut field.value, dead_ids);
+                changed |= prune_dead_subtract_weights_in_bounds(&mut field.value, dead_ids);
             }
+            changed
         }
         CompactBounds::PolyVariant { items } => {
+            let mut changed = false;
             for (_, payloads) in items {
                 for payload in payloads {
-                    prune_dead_subtract_weights_in_bounds(payload, dead_ids);
+                    changed |= prune_dead_subtract_weights_in_bounds(payload, dead_ids);
                 }
             }
+            changed
         }
     }
 }
@@ -2054,7 +2156,9 @@ mod tests {
                 }],
                 sandwiches: Vec::new(),
             },
-        );
+            &mut FxHashSet::default(),
+        )
+        .root;
 
         assert_eq!(generalized.quantifiers, vec![replacement]);
         assert_eq!(generalized.subtracts, vec![(replacement, subtract)]);
@@ -2318,7 +2422,9 @@ mod tests {
                 substitutions: substitutions.clone(),
                 sandwiches: sandwiches.clone(),
             },
-        );
+            &mut FxHashSet::default(),
+        )
+        .root;
 
         assert_eq!(generalized.substitutions, substitutions);
         assert_eq!(generalized.sandwiches, sandwiches);

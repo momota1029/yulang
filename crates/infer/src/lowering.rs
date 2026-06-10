@@ -2399,12 +2399,9 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.never_neg();
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts =
             self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -2466,12 +2463,9 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.alloc_neg(Neg::Var(receiver_effect));
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts =
             self.lambda_predicate_subtracts(LambdaScope::Defined, vec![receiver_subtract], frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -2569,12 +2563,9 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.never_neg();
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts =
             self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -2658,12 +2649,9 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.never_neg();
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts =
             self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -3098,11 +3086,8 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.never_neg();
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -3201,12 +3186,9 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(param_value));
         let arg_eff = annotation.arg_eff;
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts =
             self.lambda_predicate_subtracts(lambda_scope, annotation.subtracts, frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -3356,12 +3338,9 @@ impl<'a> ExprLowerer<'a> {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(param.value));
-        let body_effect = self.alloc_pos(Pos::Var(body.effect));
-        let body_value = self.alloc_pos(Pos::Var(body.value));
         let predicate_subtracts =
             self.lambda_predicate_subtracts(lambda_scope, param.annotation.subtracts, frame);
-        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
-        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
             Pos::Fun {
@@ -4157,6 +4136,30 @@ impl<'a> ExprLowerer<'a> {
         annotation_subtracts
     }
 
+    fn lambda_output_predicate(
+        &mut self,
+        body: &Computation,
+        subtracts: &[SubtractId],
+    ) -> (PosId, PosId) {
+        if subtracts.is_empty() {
+            let ret_eff = self.alloc_pos(Pos::Var(body.effect));
+            let ret = self.alloc_pos(Pos::Var(body.value));
+            return (ret_eff, ret);
+        }
+
+        let effect = self.fresh_type_var();
+        let value = self.fresh_type_var();
+        self.subtype_var_to_var(body.effect, effect);
+        self.subtype_var_to_var(body.value, value);
+
+        let ret_eff = self.alloc_pos(Pos::Var(effect));
+        let ret = self.alloc_pos(Pos::Var(value));
+        (
+            self.wrap_pos_with_subtracts(ret_eff, subtracts),
+            self.wrap_pos_with_subtracts(ret, subtracts),
+        )
+    }
+
     fn fresh_exact_pure_effect(&mut self) -> TypeVar {
         let effect = self.fresh_type_var();
         let bot = self.alloc_pos(Pos::Bot);
@@ -4738,11 +4741,7 @@ fn binding_arg_patterns(binding: &Cst) -> Vec<Cst> {
 }
 
 fn local_binding_call_return_effect(binding: &Cst) -> LocalCallReturnEffect {
-    if binding_type_expr(binding).is_some()
-        || binding_arg_patterns(binding)
-            .iter()
-            .any(|pattern| pattern_type_expr(pattern).is_some())
-    {
+    if binding_type_expr(binding).is_some() {
         LocalCallReturnEffect::Annotated
     } else {
         LocalCallReturnEffect::Unannotated
@@ -7124,9 +7123,9 @@ mod tests {
         let body = binding_body_id(&output, method);
         let scheme = def_scheme(&output, method);
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
-        assert!(
-            !rendered.contains("ref_update"),
-            "handled ref_update leaked from ref::update: {rendered}"
+        assert_eq!(
+            rendered,
+            "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] unit"
         );
         let update_effect =
             find_select_by_name(&output.session, body, "update_effect").expect("update_effect");
@@ -7451,11 +7450,13 @@ mod tests {
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
         let (owner, site) = binding_def_and_order(&lower.modules, module, "h");
-        let expr = binding_expr(&root, "h");
+        let binding = binding_node(&root, "h").expect("h binding");
+        let arg_patterns = binding_arg_patterns(&binding);
+        let body = binding_body_expr(&binding).expect("h binding body");
         let mut session = AnalysisSession::new(lower.arena);
 
         let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
-            .lower_binding_body_expr(&expr)
+            .lower_binding_body_with_args(&arg_patterns, &body, None)
             .unwrap();
 
         let types = session.infer.constraints().types();
@@ -7507,6 +7508,17 @@ mod tests {
                 .facts(call_effect)
                 .len(),
             1
+        );
+    }
+
+    #[test]
+    fn annotated_local_arg_keeps_return_effect_unannotated_for_call_subtract() {
+        let root = parse("my h(x: [_] _) = x\n");
+        let binding = binding_node(&root, "h").expect("h binding");
+
+        assert_eq!(
+            local_binding_call_return_effect(&binding),
+            LocalCallReturnEffect::Unannotated
         );
     }
 
