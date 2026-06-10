@@ -8409,7 +8409,7 @@ mod tests {
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
         assert_eq!(
             rendered,
-            "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] unit"
+            "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
         );
         let update_effect =
             find_select_by_name(&output.session, body, "update_effect").expect("update_effect");

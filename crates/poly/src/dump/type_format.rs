@@ -364,12 +364,7 @@ impl<'a> TypeFormatter<'a> {
                 {
                     return rendered;
                 }
-                Rendered::atom(format!(
-                    "bounds({}, {}, {})",
-                    self.pos(*lower, Context::Free),
-                    self.namer.name(*var),
-                    self.neg(*upper, Context::Free)
-                ))
+                self.render_bounds(*lower, *var, *upper)
             }
             Neu::Con(path, args) => self.render_con(path, args, NeuPolarity::Neutral),
             Neu::Fun {
@@ -401,12 +396,7 @@ impl<'a> TypeFormatter<'a> {
                 {
                     return rendered;
                 }
-                Rendered::atom(format!(
-                    "bounds({}, {}, {})",
-                    self.pos(*lower, Context::Free),
-                    self.namer.name(*var),
-                    self.neg(*upper, Context::Free)
-                ))
+                self.render_bounds(*lower, *var, *upper)
             }
             Neu::Con(path, args) => self.render_con(path, args, polarity),
             Neu::Fun {
@@ -428,6 +418,9 @@ impl<'a> TypeFormatter<'a> {
     }
 
     fn render_con(&mut self, path: &[String], args: &[NeuId], polarity: NeuPolarity) -> Rendered {
+        if args.is_empty() && matches!(path, [name] if name == "unit") {
+            return Rendered::atom("()");
+        }
         let name = path_name(path);
         if args.is_empty() {
             return Rendered::atom(name);
@@ -710,6 +703,60 @@ impl<'a> TypeFormatter<'a> {
                 self.push_neg_intersection(*left, out);
                 self.push_neg_intersection(*right, out);
             }
+            _ => out.push(self.neg(id, Context::FunctionArg)),
+        }
+    }
+
+    /// 不変な変数の仕様記法。共変部と反変部の2つ組を、共有変数を1つ選んで
+    /// `lower|α&upper` と書く（spec/2026-06-02-role-system.md）。
+    /// var 自身が両端の top-level union / intersection に現れる場合は重複して書かない。
+    fn render_bounds(&mut self, lower: PosId, var: TypeVar, upper: NegId) -> Rendered {
+        let mut lower_parts = Vec::new();
+        self.bounds_lower_parts(lower, var, &mut lower_parts);
+        let mut upper_parts = Vec::new();
+        self.bounds_upper_parts(upper, var, &mut upper_parts);
+
+        let mut text = String::new();
+        for part in &lower_parts {
+            text.push_str(part);
+            text.push('|');
+        }
+        text.push_str(&self.namer.name(var));
+        for part in &upper_parts {
+            text.push('&');
+            text.push_str(part);
+        }
+        if !lower_parts.is_empty() {
+            Rendered::union(text)
+        } else if !upper_parts.is_empty() {
+            Rendered::intersection(text)
+        } else {
+            Rendered::atom(text)
+        }
+    }
+
+    fn bounds_lower_parts(&mut self, id: PosId, var: TypeVar, out: &mut Vec<String>) {
+        match self.arena.pos(id) {
+            Pos::Union(left, right) => {
+                let (left, right) = (*left, *right);
+                self.bounds_lower_parts(left, var, out);
+                self.bounds_lower_parts(right, var, out);
+            }
+            Pos::Bot => {}
+            Pos::Var(lower_var) if *lower_var == var => {}
+            _ => out.push(self.pos(id, Context::FunctionArg)),
+        }
+    }
+
+    fn bounds_upper_parts(&mut self, id: NegId, var: TypeVar, out: &mut Vec<String>) {
+        match self.arena.neg(id) {
+            Neg::Intersection(left, right) => {
+                let (left, right) = (*left, *right);
+                self.bounds_upper_parts(left, var, out);
+                self.bounds_upper_parts(right, var, out);
+            }
+            Neg::Top => {}
+            Neg::Var(upper_var) if *upper_var == var => {}
             _ => out.push(self.neg(id, Context::FunctionArg)),
         }
     }

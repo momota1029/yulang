@@ -142,7 +142,7 @@ mod tests {
         assert_eq!(output.lowering.errors, Vec::new());
         // def 側は thunk 化され、use site は unit 適用で評価される。
         assert!(
-            output.text.contains("\"#op:nullfix:zero\": unit -> int"),
+            output.text.contains("\"#op:nullfix:zero\": () -> int"),
             "{}",
             output.text
         );
