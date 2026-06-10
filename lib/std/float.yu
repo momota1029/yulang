@@ -1,0 +1,12 @@
+pub eq(x: float, y: float): bool
+pub lt(x: float, y: float): bool
+pub le(x: float, y: float): bool
+pub gt(x: float, y: float): bool
+pub ge(x: float, y: float): bool
+
+pub add(x: float, y: float): float
+pub sub(x: float, y: float): float
+pub mul(x: float, y: float): float
+pub div(x: float, y: float): float
+
+pub to_string(x: float): str

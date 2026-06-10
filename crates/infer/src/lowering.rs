@@ -17,7 +17,7 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
-use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Stmt, Vis};
+use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RecordSpread, RefId, Stmt, Vis};
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId,
     Subtractability, TypeArena, TypeVar,
@@ -2998,15 +2998,19 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         head_lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
-        let mut items = node
+        let items = node
             .children_with_tokens()
-            .filter(|item| !item_is_trivia(item));
-        let Some(head) = items.next() else {
+            .filter(|item| !item_is_trivia(item))
+            .collect::<Vec<_>>();
+        let Some(head) = items.first() else {
             return Ok(self.unit_expr());
         };
 
-        let mut acc = self.lower_head(head, head_lambda_scope)?;
-        for item in items {
+        let (mut acc, tail_start) = match expr_path_prefix(&items) {
+            Some((path, consumed)) if path.len() > 1 => (self.lower_path_name(&path)?, consumed),
+            _ => (self.lower_head(head.clone(), head_lambda_scope)?, 1),
+        };
+        for item in items.into_iter().skip(tail_start) {
             match item {
                 NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, &child)?,
                 NodeOrToken::Token(token) => {
@@ -3042,10 +3046,15 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
             SyntaxKind::LambdaExpr => self.lower_lambda(node, lambda_scope),
             SyntaxKind::MethodLambdaExpr => self.lower_method_lambda(node, lambda_scope),
+            SyntaxKind::IfExpr => self.lower_if(node),
             SyntaxKind::CaseExpr => self.lower_case(node),
             SyntaxKind::CatchExpr => self.lower_catch(node),
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
+            SyntaxKind::StringLit => self.lower_string_lit(node),
             SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
+            SyntaxKind::BraceGroup if brace_group_is_record_literal(node) => {
+                self.lower_record_literal(node)
+            }
             SyntaxKind::IndentBlock | SyntaxKind::BraceGroup => self.lower_expr_block(node),
             _ => Err(LoweringError::UnsupportedSyntax { kind: node.kind() }),
         }
@@ -3845,9 +3854,92 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
+    fn lower_bool(&mut self, value: bool) -> Computation {
+        let slot = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        self.constrain_lower(slot, primitive_type("bool"));
+        let expr = self.session.poly.add_expr(Expr::Lit(Lit::Bool(value)));
+        Computation::value(expr, slot, effect)
+    }
+
+    fn lower_string_lit(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let text = plain_string_lit_text(node)?;
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        self.constrain_lower(value, primitive_type("str"));
+        let expr = self.session.poly.add_expr(Expr::Lit(Lit::Str(text)));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_record_literal(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let fields = record_literal_fields(node);
+        let mut lowered = Vec::with_capacity(fields.len());
+        for field in fields {
+            let name = record_field_name(&field).ok_or(LoweringError::MissingRecordFieldName)?;
+            let value_node =
+                record_field_value(&field).ok_or(LoweringError::MissingRecordFieldValue)?;
+            let value = self.lower_expr(&value_node)?;
+            lowered.push((name, value));
+        }
+
+        let result_value = self.fresh_type_var();
+        let expansive = lowered.iter().any(|(_, value)| value.is_expansive());
+        let result_effect = if expansive {
+            self.fresh_type_var()
+        } else {
+            self.fresh_exact_pure_effect()
+        };
+        let record_fields = lowered
+            .iter()
+            .map(|(name, value)| RecordField {
+                name: name.0.clone(),
+                value: self.alloc_pos(Pos::Var(value.value)),
+                optional: false,
+            })
+            .collect::<Vec<_>>();
+        for (_, value) in &lowered {
+            self.subtype_var_to_var(value.effect, result_effect);
+        }
+        self.constrain_lower(result_value, Pos::Record(record_fields));
+
+        let expr_fields = lowered
+            .into_iter()
+            .map(|(name, value)| (name.0, value.expr))
+            .collect();
+        let expr = self.session.poly.add_expr(Expr::Record {
+            fields: expr_fields,
+            spread: RecordSpread::None,
+        });
+        Ok(Computation::new(
+            expr,
+            result_value,
+            result_effect,
+            if expansive {
+                Evaluation::Computation
+            } else {
+                Evaluation::Value
+            },
+        ))
+    }
+
+    fn lower_path_name(&mut self, path: &[Name]) -> Result<Computation, LoweringError> {
+        let Some(target) = self.modules.value_path_at(self.module, path, self.site) else {
+            return Err(LoweringError::UnresolvedName {
+                name: Name(path_label(path)),
+            });
+        };
+        Ok(self.lower_resolved_value_ref(path_label(path), target))
+    }
+
     fn lower_name(&mut self, name: Name) -> Result<Computation, LoweringError> {
         if let Some(local) = self.local_binding(&name) {
             return Ok(self.lower_local_name(name, local));
+        }
+
+        match name.0.as_str() {
+            "true" => return Ok(self.lower_bool(true)),
+            "false" => return Ok(self.lower_bool(false)),
+            _ => {}
         }
 
         let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
@@ -4673,6 +4765,8 @@ pub enum LoweringError {
     UnresolvedName { name: Name },
     InvalidNumber { text: String },
     MissingLambdaBody,
+    MissingIfCondition,
+    MissingIfBody,
     MissingCaseScrutinee,
     MissingCaseArmPattern,
     MissingCaseArmBody,
@@ -4680,6 +4774,8 @@ pub enum LoweringError {
     MissingCatchArmPattern,
     MissingCatchArmBody,
     MissingFieldName,
+    MissingRecordFieldName,
+    MissingRecordFieldValue,
     MissingIndexArgument,
     MissingLocalBindingName,
     MissingLocalBindingBody,
@@ -4697,12 +4793,88 @@ fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -
         .is_some_and(|token| matches!(token.kind(), SyntaxKind::Space | SyntaxKind::LineComment))
 }
 
+fn expr_path_prefix(items: &[CstItem]) -> Option<(Vec<Name>, usize)> {
+    let Some(NodeOrToken::Token(head)) = items.first() else {
+        return None;
+    };
+    if head.kind() != SyntaxKind::Ident {
+        return None;
+    }
+
+    let mut path = vec![Name(head.text().to_string())];
+    let mut consumed = 1;
+    for item in &items[1..] {
+        let NodeOrToken::Node(path_sep) = item else {
+            break;
+        };
+        if path_sep.kind() != SyntaxKind::PathSep {
+            break;
+        }
+        let Some(segment) = path_sep_name(path_sep) else {
+            break;
+        };
+        path.push(segment);
+        consumed += 1;
+    }
+    (path.len() > 1).then_some((path, consumed))
+}
+
+fn path_sep_name(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::Ident)
+        .map(|token| Name(token.text().to_string()))
+}
+
+fn path_label(path: &[Name]) -> String {
+    path.iter()
+        .map(|name| name.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
 fn field_name(node: &Cst) -> Option<String> {
     let token = node
         .children_with_tokens()
         .filter_map(|item| item.into_token())
         .find(|token| token.kind() == SyntaxKind::DotField)?;
     Some(token.text().trim_start_matches('.').to_string())
+}
+
+fn brace_group_is_record_literal(node: &Cst) -> bool {
+    let fields = record_literal_fields(node);
+    !fields.is_empty() && fields.iter().all(is_inline_record_field_expr)
+}
+
+fn record_literal_fields(node: &Cst) -> Vec<Cst> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::Expr)
+        .collect()
+}
+
+fn is_inline_record_field_expr(node: &Cst) -> bool {
+    node.children()
+        .any(|child| child.kind() == SyntaxKind::ApplyColon)
+}
+
+fn record_field_name(node: &Cst) -> Option<Name> {
+    if node
+        .children()
+        .any(|child| child.kind() == SyntaxKind::PathSep)
+    {
+        return None;
+    }
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent))
+        .map(|token| Name(token.text().to_string()))
+}
+
+fn record_field_value(node: &Cst) -> Option<Cst> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::ApplyColon)?
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
 }
 
 fn block_lowering_items(node: &Cst) -> Vec<Cst> {
@@ -4749,6 +4921,82 @@ fn var_init_name(source: &Name) -> Option<Name> {
 fn var_reference_name(source: &Name) -> Option<Name> {
     let raw = source.0.strip_prefix('$')?;
     (!raw.is_empty()).then(|| Name(format!("&{raw}")))
+}
+
+fn plain_string_lit_text(node: &Cst) -> Result<String, LoweringError> {
+    if node
+        .children()
+        .any(|child| child.kind() == SyntaxKind::StringInterp)
+    {
+        return Err(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::StringInterp,
+        });
+    }
+
+    let mut text = String::new();
+    let mut tokens = node.children_with_tokens().peekable();
+    while let Some(item) = tokens.next() {
+        let Some(token) = item.into_token() else {
+            continue;
+        };
+        match token.kind() {
+            SyntaxKind::StringText => text.push_str(token.text()),
+            SyntaxKind::StringEscapeLead => text.push_str(&collect_string_escape_text(&mut tokens)),
+            SyntaxKind::StringStart | SyntaxKind::StringEnd => {}
+            _ => {}
+        }
+    }
+    Ok(text)
+}
+
+fn collect_string_escape_text(
+    tokens: &mut std::iter::Peekable<rowan::SyntaxElementChildren<YulangLanguage>>,
+) -> String {
+    let Some(next) = tokens.next().and_then(|item| item.into_token()) else {
+        return String::new();
+    };
+    match next.kind() {
+        SyntaxKind::StringEscapeSimple => simple_escape_text(next.text()),
+        SyntaxKind::StringEscapeUnicodeStart => collect_unicode_escape_text(tokens),
+        _ => next.text().to_string(),
+    }
+}
+
+fn simple_escape_text(text: &str) -> String {
+    match text {
+        "n" => "\n".to_string(),
+        "r" => "\r".to_string(),
+        "t" => "\t".to_string(),
+        "\\" => "\\".to_string(),
+        "\"" => "\"".to_string(),
+        "0" => "\0".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn collect_unicode_escape_text(
+    tokens: &mut std::iter::Peekable<rowan::SyntaxElementChildren<YulangLanguage>>,
+) -> String {
+    let Some(hex) = tokens.next().and_then(|item| item.into_token()) else {
+        return String::new();
+    };
+    if hex.kind() != SyntaxKind::StringEscapeUnicodeHex {
+        return hex.text().to_string();
+    }
+    let value = u32::from_str_radix(hex.text(), 16)
+        .ok()
+        .and_then(char::from_u32)
+        .unwrap_or(char::REPLACEMENT_CHARACTER);
+    if matches!(
+        tokens
+            .peek()
+            .and_then(|item| item.as_token())
+            .map(|token| token.kind()),
+        Some(SyntaxKind::StringEscapeUnicodeEnd)
+    ) {
+        tokens.next();
+    }
+    value.to_string()
 }
 
 fn integer_number_token(text: &str) -> bool {
@@ -6734,6 +6982,33 @@ mod tests {
     }
 
     #[test]
+    fn qualified_path_lowers_to_resolved_value_reference() {
+        let root = parse("mod m:\n  pub x = 1\nmy y = m::x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let m = lower
+            .modules
+            .module_at(module, &Name("m".into()), ModuleOrder(0))
+            .unwrap();
+        let target = lower.modules.value_decls(m, &Name("x".into()))[0].def;
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "y");
+        let expr = binding_expr(&root, "y");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+        let reference = match session.poly.expr(computation.expr) {
+            Expr::Var(reference) => *reference,
+            _ => panic!("expected path expr to lower to var reference"),
+        };
+
+        assert_eq!(session.poly.ref_target(reference), None);
+        session.drain_work();
+        assert_eq!(session.poly.ref_target(reference), Some(target));
+    }
+
+    #[test]
     fn application_lowers_to_app_and_constrains_callee_as_function() {
         let root = parse("my f = 1\nmy x = 2\nmy y = f x\n");
         let lower = lower_module_map(&root);
@@ -6794,6 +7069,179 @@ mod tests {
         };
         assert_eq!(session.poly.select(select).name, "index");
         assert!(matches!(session.poly.expr(arg), Expr::Var(_)));
+    }
+
+    #[test]
+    fn bool_names_lower_to_bool_literals() {
+        let root = parse("my flag = true\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "flag");
+        let expr = binding_expr(&root, "flag");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        assert!(matches!(
+            session.poly.expr(computation.expr),
+            Expr::Lit(Lit::Bool(true))
+        ));
+    }
+
+    #[test]
+    fn plain_string_literal_lowers_to_str_literal() {
+        let root = parse("my text = \"a\\n\"\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "text");
+        let expr = binding_expr(&root, "text");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        assert!(matches!(
+            session.poly.expr(computation.expr),
+            Expr::Lit(Lit::Str(text)) if text == "a\n"
+        ));
+    }
+
+    #[test]
+    fn record_literal_lowers_to_record_expr() {
+        let root = parse("my r = {x: 1, y: true}\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "r");
+        let expr = binding_expr(&root, "r");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        match session.poly.expr(computation.expr) {
+            Expr::Record { fields, spread } => {
+                assert_eq!(fields.len(), 2);
+                assert_eq!(fields[0].0, "x");
+                assert_eq!(fields[1].0, "y");
+                assert!(matches!(spread, RecordSpread::None));
+            }
+            _ => panic!("expected record literal"),
+        }
+    }
+
+    #[test]
+    fn struct_constructor_accepts_record_literal_argument() {
+        let root = parse("struct Point {x: int, y: int}\nmy p = Point {x: 1, y: 2}\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "p");
+        let expr = binding_expr(&root, "p");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (_, arg) = match session.poly.expr(computation.expr) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected constructor application"),
+        };
+        assert!(matches!(
+            session.poly.expr(arg),
+            Expr::Record {
+                spread: RecordSpread::None,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn if_expr_lowers_to_bool_case() {
+        let root = parse("my f = if true: 1 else: 2\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let arms = match session.poly.expr(computation.expr) {
+            Expr::Case(scrutinee, arms) => {
+                assert!(matches!(
+                    session.poly.expr(*scrutinee),
+                    Expr::Lit(Lit::Bool(true))
+                ));
+                arms
+            }
+            _ => panic!("expected if expr to lower to case"),
+        };
+        assert_eq!(arms.len(), 2);
+        assert!(matches!(
+            session.poly.pat(arms[0].0),
+            Pat::Lit(Lit::Bool(true))
+        ));
+        assert!(matches!(
+            session.poly.pat(arms[1].0),
+            Pat::Lit(Lit::Bool(false))
+        ));
+    }
+
+    #[test]
+    fn elsif_lowers_to_nested_false_case() {
+        let root = parse("my f = if true: 1 elsif false: 2 else: 3\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let outer_arms = match session.poly.expr(computation.expr) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected outer case"),
+        };
+        let nested = outer_arms[1].1;
+        match session.poly.expr(nested) {
+            Expr::Case(scrutinee, arms) => {
+                assert!(matches!(
+                    session.poly.expr(*scrutinee),
+                    Expr::Lit(Lit::Bool(false))
+                ));
+                assert_eq!(arms.len(), 2);
+            }
+            _ => panic!("expected elsif to lower into false branch case"),
+        }
+    }
+
+    #[test]
+    fn if_without_else_discards_then_value_and_returns_unit() {
+        let root = parse("my f = if true: 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let arms = match session.poly.expr(computation.expr) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected if expr to lower to case"),
+        };
+        assert!(matches!(session.poly.expr(arms[0].1), Expr::Block(_, _)));
+        assert!(matches!(session.poly.expr(arms[1].1), Expr::Lit(Lit::Unit)));
     }
 
     #[test]

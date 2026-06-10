@@ -1,0 +1,14 @@
+pub eq(x: int, y: int): bool
+pub lt(x: int, y: int): bool
+pub le(x: int, y: int): bool
+pub gt(x: int, y: int): bool
+pub ge(x: int, y: int): bool
+
+pub add(x: int, y: int): int
+pub sub(x: int, y: int): int
+pub mul(x: int, y: int): int
+pub div(x: int, y: int): int
+
+pub to_string(x: int): str
+pub to_hex(x: int): str
+pub to_upper_hex(x: int): str

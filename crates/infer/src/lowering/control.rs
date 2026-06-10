@@ -4,6 +4,108 @@ use super::pattern::{PatternItem, pattern_path, pattern_payloads, single_pattern
 use super::*;
 
 impl<'a> ExprLowerer<'a> {
+    pub(super) fn lower_if(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let arm_nodes = if_arm_nodes(node);
+        let else_node = else_arm_node(node);
+        let has_else = else_node.is_some();
+
+        if arm_nodes.is_empty() {
+            return match else_node {
+                Some(else_node) => {
+                    let body = if_arm_body_expr(&else_node).ok_or(LoweringError::MissingIfBody)?;
+                    self.lower_if_arm_body(&body)
+                }
+                None => Ok(self.unit_expr()),
+            };
+        }
+
+        let result_value = self.fresh_type_var();
+        let result_effect = self.fresh_type_var();
+        let mut arms = Vec::with_capacity(arm_nodes.len());
+        for arm in arm_nodes {
+            let condition_node =
+                if_arm_condition_expr(&arm).ok_or(LoweringError::MissingIfCondition)?;
+            let body_node = if_arm_body_expr(&arm).ok_or(LoweringError::MissingIfBody)?;
+            let condition = self.lower_if_condition(&condition_node, result_effect)?;
+            let mut body = self.lower_if_arm_body(&body_node)?;
+            if !has_else {
+                body = self.discard_if_branch_value(body);
+            }
+            self.subtype_var_to_var(body.value, result_value);
+            self.subtype_var_to_var(body.effect, result_effect);
+            arms.push(LoweredIfArm { condition, body });
+        }
+
+        let tail = match else_node {
+            Some(else_node) => {
+                let body_node = if_arm_body_expr(&else_node).ok_or(LoweringError::MissingIfBody)?;
+                let body = self.lower_if_arm_body(&body_node)?;
+                self.subtype_var_to_var(body.value, result_value);
+                self.subtype_var_to_var(body.effect, result_effect);
+                body
+            }
+            None => {
+                let body = self.unit_expr();
+                self.subtype_var_to_var(body.value, result_value);
+                self.subtype_var_to_var(body.effect, result_effect);
+                body
+            }
+        };
+
+        Ok(self.build_nested_if_cases(arms, tail, result_value, result_effect))
+    }
+
+    fn lower_if_condition(
+        &mut self,
+        node: &Cst,
+        result_effect: TypeVar,
+    ) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let condition = self.lower_expr(node);
+        self.locals.truncate(before_locals);
+        let condition = condition?;
+        self.constrain_exact_primitive(condition.value, "bool");
+        self.subtype_var_to_var(condition.effect, result_effect);
+        Ok(condition)
+    }
+
+    fn lower_if_arm_body(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let body = self.lower_expr(node);
+        self.locals.truncate(before_locals);
+        body
+    }
+
+    fn discard_if_branch_value(&mut self, body: Computation) -> Computation {
+        let tail = self.unit_expr();
+        self.prepend_block(
+            LoweredLocalStmt {
+                stmt: Stmt::Expr(body.expr),
+                effect: body.effect,
+            },
+            tail,
+        )
+    }
+
+    fn build_nested_if_cases(
+        &mut self,
+        arms: Vec<LoweredIfArm>,
+        mut tail: Computation,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+    ) -> Computation {
+        for arm in arms.into_iter().rev() {
+            let true_pat = self.session.poly.add_pat(Pat::Lit(Lit::Bool(true)));
+            let false_pat = self.session.poly.add_pat(Pat::Lit(Lit::Bool(false)));
+            let expr = self.session.poly.add_expr(Expr::Case(
+                arm.condition.expr,
+                vec![(true_pat, arm.body.expr), (false_pat, tail.expr)],
+            ));
+            tail = Computation::new(expr, result_value, result_effect, Evaluation::Computation);
+        }
+        tail
+    }
+
     pub(super) fn lower_case(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
         let scrutinee_node =
             case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCaseScrutinee)?;
@@ -424,6 +526,11 @@ struct LoweredCatchArm {
     body: poly::expr::ExprId,
 }
 
+struct LoweredIfArm {
+    condition: Computation,
+    body: Computation,
+}
+
 struct LoweredCatchPayloadPattern {
     pat: PatId,
     value: TypeVar,
@@ -521,6 +628,33 @@ fn catch_arm_nodes(node: &Cst) -> Vec<Cst> {
         .filter(|child| child.kind() == SyntaxKind::CatchBlock)
         .flat_map(|block| arm_nodes(&block, SyntaxKind::CatchArm))
         .collect()
+}
+
+fn if_arm_nodes(node: &Cst) -> Vec<Cst> {
+    node.children()
+        .filter(|child| child.kind() == SyntaxKind::IfArm)
+        .collect()
+}
+
+fn else_arm_node(node: &Cst) -> Option<Cst> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::ElseArm)
+}
+
+fn if_arm_condition_expr(arm: &Cst) -> Option<Cst> {
+    arm.children()
+        .find(|child| child.kind() == SyntaxKind::Cond)?
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
+fn if_arm_body_expr(arm: &Cst) -> Option<Cst> {
+    arm.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    })
 }
 
 fn arm_nodes(block: &Cst, kind: SyntaxKind) -> Vec<Cst> {
