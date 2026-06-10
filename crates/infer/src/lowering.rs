@@ -40,8 +40,8 @@ use crate::uses::{RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder,
     ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl,
-    TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver, binding_type_expr,
-    lower_loaded_file_csts_module_map,
+    SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver,
+    binding_type_expr, lower_loaded_file_csts_module_map,
 };
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -67,6 +67,7 @@ pub struct BodyLowering {
 pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
     let mut lowerer = BodyLowerer::new(lower);
     lowerer.lower_block(root, lowerer.modules.root_id());
+    lowerer.lower_synthetic_act_copy_bodies();
     lowerer.session.drain_work();
     lowerer
         .session
@@ -93,6 +94,7 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
         lowerer.lower_block(&file.cst, module);
     }
 
+    lowerer.lower_synthetic_act_copy_bodies();
     lowerer.session.drain_work();
     lowerer
         .session
@@ -757,6 +759,31 @@ impl BodyLowerer {
             self.lower_act_body_contents(&body, companion, &decl, &mut method_cursor, &[]);
         }
         self.local_method_scope = previous_scope;
+    }
+
+    fn lower_synthetic_act_copy_bodies(&mut self) {
+        let ids = self.modules.synthetic_var_act_copy_ids();
+        for id in ids {
+            let Some(decl) = self.modules.type_decl_by_id(id) else {
+                continue;
+            };
+            let Some(companion) = self.modules.type_companion(id) else {
+                continue;
+            };
+            let Some(copy) = self.act_copy_lowering_context(decl.module, &decl) else {
+                continue;
+            };
+            let previous_scope = self.local_method_scope.replace(companion);
+            let mut method_cursor = 0usize;
+            self.lower_act_body_contents(
+                &copy.body,
+                companion,
+                &decl,
+                &mut method_cursor,
+                copy.type_var_aliases.as_slice(),
+            );
+            self.local_method_scope = previous_scope;
+        }
     }
 
     fn lower_act_body_contents(
@@ -2235,6 +2262,8 @@ pub struct ExprLowerer<'a> {
     self_alias: Option<AnnSelfAlias>,
     type_var_aliases: Vec<(String, String)>,
     local_method_scope: Option<ModuleId>,
+    synthetic_var_acts: Vec<SyntheticVarActUse>,
+    synthetic_var_act_cursor: usize,
     locals: Vec<LocalBinding>,
     function_frames: Vec<FunctionPredicateFrame>,
     local_generalize_boundary: TypeLevel,
@@ -2249,6 +2278,7 @@ impl<'a> ExprLowerer<'a> {
         parent: poly::expr::DefId,
     ) -> Self {
         let local_generalize_boundary = session.infer.current_level();
+        let synthetic_var_acts = modules.synthetic_var_act_uses(parent).to_vec();
         Self {
             session,
             modules,
@@ -2259,6 +2289,8 @@ impl<'a> ExprLowerer<'a> {
             self_alias: None,
             type_var_aliases: Vec::new(),
             local_method_scope: None,
+            synthetic_var_acts,
+            synthetic_var_act_cursor: 0,
             locals: Vec::new(),
             function_frames: Vec::new(),
             local_generalize_boundary,
@@ -2274,6 +2306,7 @@ impl<'a> ExprLowerer<'a> {
         labels: &'a mut DumpLabels,
     ) -> Self {
         let local_generalize_boundary = session.infer.current_level();
+        let synthetic_var_acts = modules.synthetic_var_act_uses(parent).to_vec();
         Self {
             session,
             modules,
@@ -2284,6 +2317,8 @@ impl<'a> ExprLowerer<'a> {
             self_alias: None,
             type_var_aliases: Vec::new(),
             local_method_scope: None,
+            synthetic_var_acts,
+            synthetic_var_act_cursor: 0,
             locals: Vec::new(),
             function_frames: Vec::new(),
             local_generalize_boundary,
@@ -3527,6 +3562,7 @@ impl<'a> ExprLowerer<'a> {
         let init_name = var_init_name(&source).ok_or(LoweringError::MissingLocalBindingName)?;
         let reference_name =
             var_reference_name(&source).ok_or(LoweringError::MissingLocalBindingName)?;
+        let local_act = self.next_synthetic_var_act(&reference_name)?;
         let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
         let init_value = self.fresh_type_var();
         let init = self.lower_local_binding_body(node, &body)?;
@@ -3543,12 +3579,12 @@ impl<'a> ExprLowerer<'a> {
             effect: init.effect,
         };
 
-        let reference = self.lower_var_ref_constructor(init_value)?;
+        let reference = self.lower_var_ref_constructor(&local_act, init_value)?;
         let reference_value = self.fresh_type_var();
         self.subtype_var_to_var(reference.value, reference_value);
         self.constrain_local_ref_value(reference_value, init_value);
         let reference_pat = self.bind_let_local(
-            reference_name,
+            reference_name.clone(),
             reference_value,
             LocalCallReturnEffect::Annotated,
             Some(reference.expr),
@@ -3559,9 +3595,31 @@ impl<'a> ExprLowerer<'a> {
         };
 
         let tail = self.lower_block_items(rest)?;
-        let wrapped = self.wrap_var_binding_run(init_name, init_value, tail)?;
+        let wrapped = self.wrap_var_binding_run(&local_act, init_name, init_value, tail)?;
         let with_reference = self.prepend_block(reference_stmt, wrapped);
         Ok(self.prepend_block(init_stmt, with_reference))
+    }
+
+    fn next_synthetic_var_act(
+        &mut self,
+        reference_name: &Name,
+    ) -> Result<SyntheticVarActUse, LoweringError> {
+        let Some(next) = self
+            .synthetic_var_acts
+            .get(self.synthetic_var_act_cursor)
+            .cloned()
+        else {
+            return Err(LoweringError::MissingLocalVarAct {
+                name: reference_name.clone(),
+            });
+        };
+        if next.source != *reference_name {
+            return Err(LoweringError::MissingLocalVarAct {
+                name: reference_name.clone(),
+            });
+        }
+        self.synthetic_var_act_cursor += 1;
+        Ok(next)
     }
 
     fn lower_local_binding_body(
@@ -3625,9 +3683,10 @@ impl<'a> ExprLowerer<'a> {
 
     fn lower_var_ref_constructor(
         &mut self,
+        act: &SyntheticVarActUse,
         payload: TypeVar,
     ) -> Result<Computation, LoweringError> {
-        let var_ref = self.lower_std_var_member("var_ref")?;
+        let var_ref = self.lower_var_act_member(act, "var_ref")?;
         let unit = self.unit_expr();
         let reference = self.make_app(var_ref, unit);
         self.constrain_local_ref_value(reference.value, payload);
@@ -3636,29 +3695,40 @@ impl<'a> ExprLowerer<'a> {
 
     fn wrap_var_binding_run(
         &mut self,
+        act: &SyntheticVarActUse,
         init_name: Name,
         init_value: TypeVar,
         body: Computation,
     ) -> Result<Computation, LoweringError> {
-        let run = self.lower_std_var_member("run")?;
+        let run = self.lower_var_act_member(act, "run")?;
         let init = self.lower_name(init_name)?;
         self.subtype_var_to_var(init.value, init_value);
         let run_with_init = self.make_app(run, init);
         Ok(self.make_app(run_with_init, body))
     }
 
-    fn lower_std_var_member(&mut self, member: &str) -> Result<Computation, LoweringError> {
-        self.lower_path_value(crate::std_paths::control_var_var_member(member))
+    fn lower_var_act_member(
+        &mut self,
+        act: &SyntheticVarActUse,
+        member: &str,
+    ) -> Result<Computation, LoweringError> {
+        let member_name = Name(member.to_string());
+        let target = self
+            .modules
+            .type_companion(act.act)
+            .and_then(|companion| {
+                self.modules
+                    .value_decls(companion, &member_name)
+                    .first()
+                    .map(|decl| decl.def)
+            })
+            .ok_or_else(|| LoweringError::UnresolvedName {
+                name: Name(format!("{}::{member}", act.source.0)),
+            })?;
+        Ok(self.lower_resolved_value_ref(format!("{}::{member}", act.source.0), target))
     }
 
-    fn lower_path_value(&mut self, path: Vec<String>) -> Result<Computation, LoweringError> {
-        let path = path.into_iter().map(Name).collect::<Vec<_>>();
-        let Some(target) = self.modules.value_path_at(self.module, &path, self.site) else {
-            return Err(LoweringError::UnresolvedName {
-                name: Name(path_label(&path)),
-            });
-        };
-        let label = path_label(&path);
+    fn lower_resolved_value_ref(&mut self, label: String, target: DefId) -> Computation {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let reference = self.session.poly.add_ref();
@@ -3678,7 +3748,7 @@ impl<'a> ExprLowerer<'a> {
         });
 
         let expr = self.session.poly.add_expr(Expr::Var(reference));
-        Ok(Computation::value(expr, value, effect))
+        Computation::value(expr, value, effect)
     }
 
     fn constrain_local_ref_value(&mut self, reference: TypeVar, payload: TypeVar) {
@@ -4613,6 +4683,7 @@ pub enum LoweringError {
     MissingIndexArgument,
     MissingLocalBindingName,
     MissingLocalBindingBody,
+    MissingLocalVarAct { name: Name },
     AnnotationBuild { error: AnnBuildError },
     AnnotationConstraint { error: AnnConstraintError },
     NegSignatureBuild { error: NegSignatureBuildError },
@@ -4678,13 +4749,6 @@ fn var_init_name(source: &Name) -> Option<Name> {
 fn var_reference_name(source: &Name) -> Option<Name> {
     let raw = source.0.strip_prefix('$')?;
     (!raw.is_empty()).then(|| Name(format!("&{raw}")))
-}
-
-fn path_label(path: &[Name]) -> String {
-    path.iter()
-        .map(|name| name.0.as_str())
-        .collect::<Vec<_>>()
-        .join("::")
 }
 
 fn integer_number_token(text: &str) -> bool {
@@ -6869,16 +6933,30 @@ mod tests {
         let std = lower.modules.module_decls(module, &Name("std".into()))[0].module;
         let control = lower.modules.module_decls(std, &Name("control".into()))[0].module;
         let var_module = lower.modules.module_decls(control, &Name("var".into()))[0].module;
-        let var_companion = lower.modules.module_decls(var_module, &Name("var".into()))[0].module;
+        let std_var_companion =
+            lower.modules.module_decls(var_module, &Name("var".into()))[0].module;
+        let std_var_ref = lower
+            .modules
+            .value_decls(std_var_companion, &Name("var_ref".into()))[0]
+            .def;
+        let std_run = lower
+            .modules
+            .value_decls(std_var_companion, &Name("run".into()))[0]
+            .def;
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+        let local_var_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+        assert_eq!(local_var_act.source, Name("&x".into()));
+        let local_var_companion = lower.modules.type_companion(local_var_act.act).unwrap();
         let var_ref = lower
             .modules
-            .value_decls(var_companion, &Name("var_ref".into()))[0]
+            .value_decls(local_var_companion, &Name("var_ref".into()))[0]
             .def;
         let run = lower
             .modules
-            .value_decls(var_companion, &Name("run".into()))[0]
+            .value_decls(local_var_companion, &Name("run".into()))[0]
             .def;
-        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+        assert_ne!(var_ref, std_var_ref);
+        assert_ne!(run, std_run);
 
         let output = lower_binding_bodies(&root, lower);
 
@@ -6891,7 +6969,10 @@ mod tests {
         let [Stmt::Let(_, init_pat, init_expr)] = first_stmts.as_slice() else {
             panic!("expected init let");
         };
-        assert!(matches!(output.session.poly.pat(*init_pat), Pat::Var(_)));
+        let init_def = match output.session.poly.pat(*init_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected init binding pattern"),
+        };
         assert!(matches!(
             output.session.poly.expr(*init_expr),
             Expr::Lit(Lit::Int(1))
@@ -6909,22 +6990,112 @@ mod tests {
             Pat::Var(_)
         ));
         let (var_ref_callee, _) = match output.session.poly.expr(*reference_expr) {
-            Expr::App(callee, unit) => (*callee, *unit),
+            Expr::App(callee, _unit) => (*callee, *_unit),
             _ => panic!("expected var_ref call"),
         };
         let var_ref_ref = expr_ref(&output.session, var_ref_callee);
         assert_eq!(output.session.poly.ref_target(var_ref_ref), Some(var_ref));
 
         let (run_with_init, _) = match output.session.poly.expr(wrapped) {
-            Expr::App(callee, body) => (*callee, *body),
+            Expr::App(callee, _body) => (*callee, *_body),
             _ => panic!("expected run application"),
         };
-        let (run_expr, _) = match output.session.poly.expr(run_with_init) {
+        let (run_expr, init_arg) = match output.session.poly.expr(run_with_init) {
             Expr::App(callee, init) => (*callee, *init),
             _ => panic!("expected run init application"),
         };
         let run_ref = expr_ref(&output.session, run_expr);
         assert_eq!(output.session.poly.ref_target(run_ref), Some(run));
+        let init_ref = expr_ref(&output.session, init_arg);
+        assert_eq!(output.session.poly.ref_target(init_ref), Some(init_def));
+    }
+
+    #[test]
+    fn dollar_binding_synthetic_act_is_scoped_by_owner_def() {
+        let root = parse(concat!(
+            "mod std:\n",
+            "  mod control:\n",
+            "    mod var:\n",
+            "      type ref 'e 'a with:\n",
+            "        our r.get = r\n",
+            "      act var 't:\n",
+            "        my var_ref() = 0\n",
+            "        my run v x = x\n",
+            "my f =\n",
+            "  my $x = 1\n",
+            "  $x\n",
+            "my g =\n",
+            "  my $x = 2\n",
+            "  $x\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+        let (g, _) = binding_def_and_order(&lower.modules, module, "g");
+        let f_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+        let g_act = lower.modules.synthetic_var_act_uses(g)[0].clone();
+        assert_eq!(f_act.source, Name("&x".into()));
+        assert_eq!(g_act.source, Name("&x".into()));
+        assert_ne!(f_act.act, g_act.act);
+        let f_var_ref = act_member_def(&lower.modules, f_act.act, "var_ref");
+        let f_run = act_member_def(&lower.modules, f_act.act, "run");
+        let g_var_ref = act_member_def(&lower.modules, g_act.act, "var_ref");
+        let g_run = act_member_def(&lower.modules, g_act.act, "run");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        assert_eq!(
+            dollar_binding_method_targets(&output, f),
+            (f_var_ref, f_run)
+        );
+        assert_eq!(
+            dollar_binding_method_targets(&output, g),
+            (g_var_ref, g_run)
+        );
+    }
+
+    fn act_member_def(modules: &ModuleTable, act: TypeDeclId, member: &str) -> DefId {
+        let companion = modules.type_companion(act).expect("synthetic companion");
+        modules.value_decls(companion, &Name(member.into()))[0].def
+    }
+
+    fn dollar_binding_method_targets(output: &BodyLowering, owner: DefId) -> (DefId, DefId) {
+        let body = binding_body_id(output, owner);
+        let (_, after_init) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected outer block"),
+        };
+        let (second_stmts, wrapped) = match output.session.poly.expr(after_init) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected reference block"),
+        };
+        let [Stmt::Let(_, _, reference_expr)] = second_stmts.as_slice() else {
+            panic!("expected reference let");
+        };
+        let var_ref_callee = match output.session.poly.expr(*reference_expr) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected var_ref call"),
+        };
+        let var_ref = output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, var_ref_callee))
+            .expect("var_ref target");
+        let run_with_init = match output.session.poly.expr(wrapped) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected run application"),
+        };
+        let run_expr = match output.session.poly.expr(run_with_init) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected run init application"),
+        };
+        let run = output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, run_expr))
+            .expect("run target");
+        (var_ref, run)
     }
 
     #[test]

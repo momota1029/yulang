@@ -34,7 +34,7 @@ use crate::act_resolve::{ActTypeExpr, ActTypeResolver};
 use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::{NodeOrToken, SyntaxNode};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use sources::{LoadedFile, Name, Path as ModulePath, UseImport};
 use std::fmt;
 use yulang_parser::lex::SyntaxKind;
@@ -296,6 +296,8 @@ pub struct ModuleTable {
     act_templates: FxHashMap<TypeDeclId, Cst>,
     act_copies: FxHashMap<TypeDeclId, ActCopyDecl>,
     resolved_act_copies: FxHashMap<TypeDeclId, ResolvedActCopyDecl>,
+    synthetic_var_act_copies: FxHashSet<TypeDeclId>,
+    synthetic_var_act_uses: FxHashMap<DefId, Vec<SyntheticVarActUse>>,
     act_ops: FxHashMap<TypeDeclId, Vec<ActOperationSig>>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
@@ -319,6 +321,12 @@ pub(crate) struct ResolvedActCopyDecl {
     pub type_var_aliases: Vec<(String, String)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SyntheticVarActUse {
+    pub source: Name,
+    pub act: TypeDeclId,
+}
+
 impl ModuleTable {
     fn new() -> Self {
         Self {
@@ -337,6 +345,8 @@ impl ModuleTable {
             act_templates: FxHashMap::default(),
             act_copies: FxHashMap::default(),
             resolved_act_copies: FxHashMap::default(),
+            synthetic_var_act_copies: FxHashSet::default(),
+            synthetic_var_act_uses: FxHashMap::default(),
             act_ops: FxHashMap::default(),
             act_methods: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
@@ -422,6 +432,24 @@ impl ModuleTable {
     }
     pub(crate) fn resolved_act_copy(&self, id: TypeDeclId) -> Option<&ResolvedActCopyDecl> {
         self.resolved_act_copies.get(&id)
+    }
+    fn set_synthetic_var_act_copy(&mut self, id: TypeDeclId) {
+        self.synthetic_var_act_copies.insert(id);
+    }
+    pub(crate) fn synthetic_var_act_copy_ids(&self) -> Vec<TypeDeclId> {
+        self.synthetic_var_act_copies.iter().copied().collect()
+    }
+    fn push_synthetic_var_act_use(&mut self, owner: DefId, usage: SyntheticVarActUse) {
+        self.synthetic_var_act_uses
+            .entry(owner)
+            .or_default()
+            .push(usage);
+    }
+    pub(crate) fn synthetic_var_act_uses(&self, owner: DefId) -> &[SyntheticVarActUse] {
+        self.synthetic_var_act_uses
+            .get(&owner)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
     fn insert_act_method(&mut self, method: ActMethodDecl) {
         self.act_methods
@@ -1190,6 +1218,7 @@ impl Lower {
                         );
                         self.modules.insert_value(module, name, def, vis);
                         children.push(def);
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
                 }
                 SyntaxKind::ModDecl => {
@@ -1295,6 +1324,7 @@ impl Lower {
                                 order,
                             });
                         }
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     } else if let Some(name) = binding_name(&child) {
                         let vis = binding_vis(&child);
                         let def = self.arena.defs.fresh();
@@ -1309,6 +1339,7 @@ impl Lower {
                         );
                         self.modules.insert_value(module, name, def, vis);
                         children.push(def);
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
                 }
                 SyntaxKind::ModDecl => {
@@ -1386,6 +1417,43 @@ impl Lower {
             self.register_type_constructors(node, module, kind, id, name.clone(), vis, children);
             self.register_type_companion(node, module, name, id, vis, children);
         }
+    }
+
+    fn register_local_var_act_copies_in_binding(
+        &mut self,
+        binding: &Cst,
+        module: ModuleId,
+        owner: DefId,
+    ) {
+        let Some(body) = binding_body_expr(binding) else {
+            return;
+        };
+        for (index, local) in body
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Binding)
+            .enumerate()
+        {
+            let Some(name) = local_var_act_name(&local) else {
+                continue;
+            };
+            self.register_synthetic_var_act_copy(module, owner, name, index);
+        }
+    }
+
+    fn register_synthetic_var_act_copy(
+        &mut self,
+        module: ModuleId,
+        owner: DefId,
+        source: Name,
+        index: usize,
+    ) {
+        let internal_name = synthetic_var_act_internal_name(&source, owner, index);
+        let id = self
+            .modules
+            .insert_type(module, internal_name, ModuleTypeKind::Act, Vis::My);
+        self.modules.set_synthetic_var_act_copy(id);
+        self.modules
+            .push_synthetic_var_act_use(owner, SyntheticVarActUse { source, act: id });
     }
 
     fn register_type_constructors(
@@ -1518,6 +1586,7 @@ impl Lower {
                             signature: binding_type_expr(&child),
                         });
                         children.push(def);
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     } else if let Some(name) = binding_name(&child) {
                         let vis = binding_vis(&child);
                         let def = self.arena.defs.fresh();
@@ -1532,6 +1601,7 @@ impl Lower {
                         );
                         self.modules.insert_value(module, name, def, vis);
                         children.push(def);
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
                 }
                 SyntaxKind::ModDecl => {
@@ -1621,6 +1691,7 @@ impl Lower {
                         order,
                     });
                     children.push(def);
+                    self.register_local_var_act_copies_in_binding(&child, module, def);
                 }
                 SyntaxKind::Binding => {
                     let Some(name) = binding_name(&child) else {
@@ -1639,6 +1710,7 @@ impl Lower {
                     );
                     self.modules.insert_value(module, name, def, vis);
                     children.push(def);
+                    self.register_local_var_act_copies_in_binding(&child, module, def);
                 }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
@@ -1732,6 +1804,7 @@ impl Lower {
                             order,
                         });
                         children.push(def);
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     } else if let Some(name) = binding_name(&child) {
                         let vis = binding_vis(&child);
                         let def = self.arena.defs.fresh();
@@ -1746,6 +1819,7 @@ impl Lower {
                         );
                         self.modules.insert_value(module, name, def, vis);
                         children.push(def);
+                        self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
                 }
                 SyntaxKind::ModDecl => {
@@ -1854,6 +1928,10 @@ impl Lower {
         for id in ids {
             self.finalize_act_copy(id);
         }
+        let synthetic_ids = self.modules.synthetic_var_act_copy_ids();
+        for id in synthetic_ids {
+            self.finalize_synthetic_var_act_copy(id);
+        }
     }
 
     fn finalize_act_copy(&mut self, id: TypeDeclId) {
@@ -1863,6 +1941,46 @@ impl Lower {
         let Some(resolved) = self.resolve_act_copy(&dest) else {
             return;
         };
+        let own_body = self.modules.act_template(id).and_then(act_decl_body);
+        self.materialize_act_copy(id, &dest, resolved, own_body, true);
+    }
+
+    fn finalize_synthetic_var_act_copy(&mut self, id: TypeDeclId) {
+        let Some(dest) = self.modules.type_decl_by_id(id) else {
+            return;
+        };
+        let Some(source) = self.std_var_act_decl() else {
+            return;
+        };
+        let source_type_vars = self
+            .modules
+            .act_template(source.id)
+            .map(act_type_var_names)
+            .unwrap_or_default();
+        let type_var_aliases = source_type_vars
+            .into_iter()
+            .map(|name| (name.clone(), name))
+            .collect();
+        self.materialize_act_copy(
+            id,
+            &dest,
+            ResolvedActCopyDecl {
+                source: source.id,
+                type_var_aliases,
+            },
+            None,
+            false,
+        );
+    }
+
+    fn materialize_act_copy(
+        &mut self,
+        id: TypeDeclId,
+        dest: &ModuleTypeDecl,
+        resolved: ResolvedActCopyDecl,
+        own_body: Option<Cst>,
+        attach_to_parent: bool,
+    ) {
         let Some(source_body) = self
             .modules
             .act_template(resolved.source)
@@ -1883,13 +2001,23 @@ impl Lower {
             self.ensure_child_module(dest.module, dest.name.clone(), dest.vis);
         self.modules.set_type_companion(id, companion);
         let mut companion_children = self.register_act_companion_block(&source_body, companion, id);
-        if let Some(own_body) = self.modules.act_template(id).and_then(act_decl_body) {
+        if let Some(own_body) = own_body {
             companion_children.extend(self.register_act_companion_block(&own_body, companion, id));
         }
         self.append_module_children(def, companion_children);
-        if created {
+        if created && attach_to_parent {
             self.append_created_module_to_parent(dest.module, def);
         }
+    }
+
+    fn std_var_act_decl(&self) -> Option<ModuleTypeDecl> {
+        let path = crate::std_paths::control_var_var_act()
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        self.modules
+            .type_path_at(self.modules.root_id(), &path, module_path_site())
+            .filter(|decl| decl.kind == ModuleTypeKind::Act)
     }
 
     fn resolve_act_copy(&self, dest: &ModuleTypeDecl) -> Option<ResolvedActCopyDecl> {
@@ -2194,6 +2322,26 @@ pub(crate) fn binding_type_expr(binding: &Cst) -> Option<Cst> {
     let header = child_node(binding, SyntaxKind::BindingHeader)?;
     let pattern = child_node(&header, SyntaxKind::Pattern)?;
     direct_pattern_type_expr(&pattern)
+}
+
+fn binding_body_expr(binding: &Cst) -> Option<Cst> {
+    let body = child_node(binding, SyntaxKind::BindingBody)?;
+    body.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    })
+}
+
+fn local_var_act_name(binding: &Cst) -> Option<Name> {
+    let source = binding_name(binding)?;
+    let base = source.0.strip_prefix('$')?;
+    (!base.is_empty()).then(|| Name(format!("&{base}")))
+}
+
+fn synthetic_var_act_internal_name(source: &Name, owner: DefId, index: usize) -> Name {
+    Name(format!("{}#{}:{index}", source.0, owner.0))
 }
 
 pub(crate) fn direct_pattern_type_expr(pattern: &Cst) -> Option<Cst> {

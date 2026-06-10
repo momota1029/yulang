@@ -8,8 +8,8 @@ pub(crate) fn control_var_ref_type() -> Vec<String> {
     path(&["std", "control", "var", "ref"])
 }
 
-pub(crate) fn control_var_var_member(member: &str) -> Vec<String> {
-    path(&["std", "control", "var", "var", member])
+pub(crate) fn control_var_var_act() -> Vec<String> {
+    path(&["std", "control", "var", "var"])
 }
 
 #[cfg(test)]
