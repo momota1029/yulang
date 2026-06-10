@@ -224,14 +224,11 @@ impl<'a> AnnConstraintLowerer<'a> {
 
     fn lower_value_bounds(&mut self, ann: &AnnType) -> Result<AnnValueBounds, AnnConstraintError> {
         match ann {
-            AnnType::Builtin(builtin) => {
-                let path = vec![builtin.surface_name().to_string()];
-                Ok(AnnValueBounds {
-                    pos: self.alloc_pos(Pos::Con(path.clone(), Vec::new())),
-                    neg: self.alloc_neg(Neg::Con(path, Vec::new())),
-                    output_subtracts: Vec::new(),
-                })
-            }
+            AnnType::Builtin(builtin) => Ok(AnnValueBounds {
+                pos: self.lower_builtin_pos(*builtin),
+                neg: self.lower_builtin_neg(*builtin),
+                output_subtracts: Vec::new(),
+            }),
             AnnType::Named(id) => {
                 let path = self.type_decl_path(*id)?;
                 Ok(AnnValueBounds {
@@ -517,6 +514,26 @@ impl<'a> AnnConstraintLowerer<'a> {
             _ => self.infer.fresh_type_var(),
         };
         Ok(self.alloc_neu(Neu::Bounds(bounds.pos, var, bounds.neg)))
+    }
+
+    fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
+        match builtin {
+            BuiltinType::Never => self.alloc_pos(Pos::Bot),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_pos(Pos::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            )),
+        }
+    }
+
+    fn lower_builtin_neg(&mut self, builtin: BuiltinType) -> NegId {
+        match builtin {
+            BuiltinType::Never => self.alloc_neg(Neg::Bot),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_neg(Neg::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            )),
+        }
     }
 
     fn constructor_path(

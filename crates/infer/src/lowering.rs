@@ -38,10 +38,10 @@ use crate::scc::SccInput;
 use crate::typing::Typing;
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
-    ActMethodDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder,
-    ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl,
-    SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver,
-    binding_type_expr, lower_loaded_file_csts_module_map,
+    ActMethodDecl, ActOperationDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl,
+    ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleImplDecl,
+    RoleImplMethodDecl, RoleMethodDecl, SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl,
+    TypeMethodDecl, TypeMethodReceiver, binding_type_expr, lower_loaded_file_csts_module_map,
 };
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -1530,9 +1530,14 @@ impl BodyLowerer {
     fn next_value_decl(&mut self, module: ModuleId, name: &Name) -> Option<crate::ModuleValueDecl> {
         let key = (module, name.clone());
         let cursor = self.value_cursors.entry(key).or_default();
-        let decl = self.modules.value_decls(module, name).get(*cursor).cloned();
-        *cursor += usize::from(decl.is_some());
-        decl
+        let decls = self.modules.value_decls(module, name);
+        while let Some(decl) = decls.get(*cursor).cloned() {
+            *cursor += 1;
+            if !self.modules.is_act_operation_def(decl.def) {
+                return Some(decl);
+            }
+        }
+        None
     }
 
     fn next_module_decl(&mut self, module: ModuleId, name: &Name) -> Option<ModuleChildDecl> {
@@ -5474,10 +5479,7 @@ impl<'a> SignatureLowerer<'a> {
 
     fn lower_pos(&mut self, signature: &SignatureType) -> Result<PosId, SignatureConstraintError> {
         match signature {
-            SignatureType::Builtin(builtin) => {
-                let path = vec![builtin.surface_name().to_string()];
-                Ok(self.alloc_pos(Pos::Con(path, Vec::new())))
-            }
+            SignatureType::Builtin(builtin) => Ok(self.lower_builtin_pos(*builtin)),
             SignatureType::Named(id) => {
                 let path = self.type_decl_path(*id)?;
                 Ok(self.alloc_pos(Pos::Con(path, Vec::new())))
@@ -5518,10 +5520,7 @@ impl<'a> SignatureLowerer<'a> {
 
     fn lower_neg(&mut self, signature: &SignatureType) -> Result<NegId, SignatureConstraintError> {
         match signature {
-            SignatureType::Builtin(builtin) => {
-                let path = vec![builtin.surface_name().to_string()];
-                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
-            }
+            SignatureType::Builtin(builtin) => Ok(self.lower_builtin_neg(*builtin)),
             SignatureType::Named(id) => {
                 let path = self.type_decl_path(*id)?;
                 Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
@@ -5565,10 +5564,7 @@ impl<'a> SignatureLowerer<'a> {
         signature: &SignatureType,
     ) -> Result<NegId, SignatureConstraintError> {
         match signature {
-            SignatureType::Builtin(builtin) => {
-                let path = vec![builtin.surface_name().to_string()];
-                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
-            }
+            SignatureType::Builtin(builtin) => Ok(self.lower_builtin_neg(*builtin)),
             SignatureType::Named(id) => {
                 let path = self.type_decl_path(*id)?;
                 Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
@@ -5862,6 +5858,26 @@ impl<'a> SignatureLowerer<'a> {
             _ => self.fresh_type_var(),
         };
         Ok(self.alloc_neu(Neu::Bounds(lower, var, upper)))
+    }
+
+    fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
+        match builtin {
+            BuiltinType::Never => self.alloc_pos(Pos::Bot),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_pos(Pos::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            )),
+        }
+    }
+
+    fn lower_builtin_neg(&mut self, builtin: BuiltinType) -> NegId {
+        match builtin {
+            BuiltinType::Never => self.alloc_neg(Neg::Bot),
+            BuiltinType::Int | BuiltinType::Float | BuiltinType::Unit => self.alloc_neg(Neg::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            )),
+        }
     }
 
     fn constructor_path(
@@ -7752,6 +7768,37 @@ mod tests {
             output.session.poly.select(update_effect).resolution,
             Some(SelectResolution::Method { def: field_method })
         );
+    }
+
+    #[test]
+    fn catch_bare_operation_uses_declared_act_family() {
+        let root = parse(concat!(
+            "act sub 'a:\n",
+            "  pub return: 'a -> never\n",
+            "  pub sub(x: [_] 'a): 'a = catch x:\n",
+            "    return a, _ -> a\n",
+            "    a -> a\n",
+            "my site = 1\n",
+        ));
+        let lower = lower_module_map(&root);
+        let root_module = lower.modules.root_id();
+        let sub_act = lower.modules.type_decls(root_module, &Name("sub".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(sub_act.id)
+            .expect("act companion");
+        let method = lower.modules.value_decls(companion, &Name("sub".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, method));
+        assert!(
+            rendered.contains("[sub(") || rendered.contains("[sub;"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("[return("), "{rendered}");
     }
 
     #[test]

@@ -69,6 +69,7 @@ pub enum BuiltinType {
     Int,
     Float,
     Unit,
+    Never,
 }
 
 impl BuiltinType {
@@ -77,6 +78,7 @@ impl BuiltinType {
             "int" => Some(Self::Int),
             "float" => Some(Self::Float),
             "unit" => Some(Self::Unit),
+            "never" => Some(Self::Never),
             _ => None,
         }
     }
@@ -86,6 +88,7 @@ impl BuiltinType {
             Self::Int => "int",
             Self::Float => "float",
             Self::Unit => "unit",
+            Self::Never => "never",
         }
     }
 }

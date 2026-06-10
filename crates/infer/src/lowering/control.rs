@@ -259,18 +259,24 @@ impl<'a> ExprLowerer<'a> {
                 let effect_op = catch_effect_op(
                     pattern_path(effect_pattern).ok_or(LoweringError::MissingCatchArmPattern)?,
                 );
+                let operation_decl = self.resolve_catch_operation_decl(&effect_op);
+                let handled_op = operation_decl
+                    .as_ref()
+                    .map(|decl| self.catch_effect_op_from_decl(decl))
+                    .unwrap_or_else(|| effect_op.clone());
                 let payload = self.lower_catch_effect_payload_pattern(effect_pattern)?;
-                let signature = self.lower_catch_operation_signature(&effect_op, payload.value)?;
+                let signature =
+                    self.lower_catch_operation_signature(operation_decl.as_ref(), payload.value)?;
                 let row_item = signature
                     .as_ref()
                     .map(|signature| signature.row_item)
-                    .unwrap_or_else(|| self.fallback_catch_effect_row_item(&effect_op, &payload));
+                    .unwrap_or_else(|| self.fallback_catch_effect_row_item(&handled_op, &payload));
                 let continuation_value = signature
                     .as_ref()
                     .map(|signature| signature.continuation_value)
                     .unwrap_or(payload.value);
                 handled.record(
-                    effect_op,
+                    handled_op,
                     pat_covers_all(&self.session.poly, payload.pat),
                     row_item,
                 );
@@ -297,18 +303,10 @@ impl<'a> ExprLowerer<'a> {
 
     fn lower_catch_operation_signature(
         &mut self,
-        effect_op: &CatchEffectOp,
+        operation_decl: Option<&ActOperationDecl>,
         payload_value: TypeVar,
     ) -> Result<Option<LoweredCatchOperationSignature>, LoweringError> {
-        let Some(operation) = &effect_op.operation else {
-            return Ok(None);
-        };
-        let Some(operation_decl) = self
-            .modules
-            .act_operation_decls_at(self.module, &effect_op.family_path, self.site)
-            .into_iter()
-            .find(|decl| &decl.name == operation)
-        else {
+        let Some(operation_decl) = operation_decl else {
             return Ok(None);
         };
         let Some(signature) = operation_decl.signature.as_ref() else {
@@ -381,6 +379,40 @@ impl<'a> ExprLowerer<'a> {
             row_item,
             continuation_value,
         }))
+    }
+
+    fn resolve_catch_operation_decl(&self, effect_op: &CatchEffectOp) -> Option<ActOperationDecl> {
+        if let Some(target) = self
+            .modules
+            .value_path_at(self.module, &effect_op.path, self.site)
+            && let Some(decl) = self.modules.act_operation_decl_by_def(target)
+        {
+            return Some(decl);
+        }
+        let operation = effect_op.operation.as_ref()?;
+        self.modules
+            .act_operation_decls_at(self.module, &effect_op.family_path, self.site)
+            .into_iter()
+            .find(|decl| &decl.name == operation)
+    }
+
+    fn catch_effect_op_from_decl(&self, decl: &ActOperationDecl) -> CatchEffectOp {
+        CatchEffectOp {
+            path: self
+                .modules
+                .type_decl_path(&decl.effect)
+                .segments
+                .into_iter()
+                .chain(std::iter::once(decl.name.clone()))
+                .collect(),
+            family_path: self
+                .modules
+                .type_decl_path(&decl.effect)
+                .segments
+                .into_iter()
+                .collect(),
+            operation: Some(decl.name.clone()),
+        }
     }
 
     fn fallback_catch_effect_row_item(
@@ -600,7 +632,9 @@ impl CatchHandledEffects {
     }
 }
 
+#[derive(Clone)]
 struct CatchEffectOp {
+    path: Vec<Name>,
     family_path: Vec<Name>,
     operation: Option<Name>,
 }
@@ -691,19 +725,24 @@ fn arm_body_expr(arm: &Cst) -> Option<Cst> {
 fn catch_effect_op(path: Vec<Name>) -> CatchEffectOp {
     let Some((operation, family_path)) = path.split_last() else {
         return CatchEffectOp {
+            path,
             family_path: Vec::new(),
             operation: None,
         };
     };
+    let operation = operation.clone();
+    let family_path = family_path.to_vec();
     if family_path.is_empty() {
         return CatchEffectOp {
-            family_path: vec![operation.clone()],
+            path,
+            family_path: vec![operation],
             operation: None,
         };
     }
     CatchEffectOp {
-        family_path: family_path.to_vec(),
-        operation: Some(operation.clone()),
+        path,
+        family_path,
+        operation: Some(operation),
     }
 }
 

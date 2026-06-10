@@ -135,6 +135,7 @@ pub struct ModuleTypeDecl {
 pub struct ActOperationDecl {
     pub effect: ModuleTypeDecl,
     pub name: Name,
+    pub def: Option<DefId>,
     pub signature: Option<SyntaxNode<YulangLanguage>>,
 }
 
@@ -142,6 +143,12 @@ pub struct ActOperationDecl {
 struct ActOperationSig {
     name: Name,
     signature: Option<SyntaxNode<YulangLanguage>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActOperationDef {
+    effect: TypeDeclId,
+    name: Name,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -299,6 +306,7 @@ pub struct ModuleTable {
     synthetic_var_act_copies: FxHashSet<TypeDeclId>,
     synthetic_var_act_uses: FxHashMap<DefId, Vec<SyntheticVarActUse>>,
     act_ops: FxHashMap<TypeDeclId, Vec<ActOperationSig>>,
+    act_op_defs: FxHashMap<DefId, ActOperationDef>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
@@ -348,6 +356,7 @@ impl ModuleTable {
             synthetic_var_act_copies: FxHashSet::default(),
             synthetic_var_act_uses: FxHashMap::default(),
             act_ops: FxHashMap::default(),
+            act_op_defs: FxHashMap::default(),
             act_methods: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
@@ -414,6 +423,18 @@ impl ModuleTable {
     }
     fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<ActOperationSig>) {
         self.act_ops.insert(id, ops);
+    }
+    fn insert_act_operation_def(&mut self, owner: TypeDeclId, name: Name, def: DefId) {
+        self.act_op_defs.insert(
+            def,
+            ActOperationDef {
+                effect: owner,
+                name,
+            },
+        );
+    }
+    pub(crate) fn is_act_operation_def(&self, def: DefId) -> bool {
+        self.act_op_defs.contains_key(&def)
     }
     fn set_act_template(&mut self, id: TypeDeclId, node: Cst) {
         self.act_templates.insert(id, node);
@@ -676,11 +697,34 @@ impl ModuleTable {
             .flat_map(|ops| ops.iter())
             .cloned()
             .map(|op| ActOperationDecl {
+                def: self
+                    .type_companion(effect.id)
+                    .and_then(|companion| self.value_at(companion, &op.name, module_path_site()))
+                    .filter(|def| {
+                        self.act_op_defs
+                            .get(def)
+                            .is_some_and(|found| found.effect == effect.id && found.name == op.name)
+                    }),
                 effect: effect.clone(),
                 name: op.name,
                 signature: op.signature,
             })
             .collect()
+    }
+    pub fn act_operation_decl_by_def(&self, def: DefId) -> Option<ActOperationDecl> {
+        let op = self.act_op_defs.get(&def)?;
+        let effect = self.type_decl_by_id(op.effect)?;
+        let signature = self
+            .act_ops
+            .get(&op.effect)
+            .and_then(|ops| ops.iter().find(|sig| sig.name == op.name))
+            .and_then(|sig| sig.signature.clone());
+        Some(ActOperationDecl {
+            effect,
+            name: op.name.clone(),
+            def: Some(def),
+            signature,
+        })
     }
     pub fn lexical_type_at(
         &self,
@@ -1664,7 +1708,24 @@ impl Lower {
         let mut children = Vec::new();
         for child in block.children() {
             match child.kind() {
-                SyntaxKind::Binding if act_operation_binding(&child) => {}
+                SyntaxKind::Binding if act_operation_binding(&child) => {
+                    let Some(name) = binding_name(&child) else {
+                        continue;
+                    };
+                    let vis = binding_vis(&child);
+                    let def = self.arena.defs.fresh();
+                    self.arena.defs.set(
+                        def,
+                        Def::Let {
+                            vis,
+                            scheme: None,
+                            body: None,
+                            children: Vec::new(),
+                        },
+                    );
+                    self.modules.insert_value(module, name.clone(), def, vis);
+                    self.modules.insert_act_operation_def(owner, name, def);
+                }
                 SyntaxKind::Binding if type_method_binding(&child).is_some() => {
                     let Some(method) = type_method_binding(&child) else {
                         continue;
@@ -3026,6 +3087,34 @@ mod tests {
     }
 
     #[test]
+    fn registers_act_operation_value_defs_in_companion_scope() {
+        let cst = parse("act out:\n  our say: int -> unit\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let out = lower.modules.type_decls(root, &Name("out".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(out.id)
+            .expect("act should create companion");
+        let op_def = lower.modules.value_decls(companion, &Name("say".into()))[0].def;
+        let op = lower
+            .modules
+            .act_operation_decl_by_def(op_def)
+            .expect("operation value def should resolve to act operation");
+
+        assert_eq!(op.effect.id, out.id);
+        assert_eq!(op.name, Name("say".into()));
+        assert_eq!(op.def, Some(op_def));
+        assert_eq!(
+            lower
+                .modules
+                .act_operation_decls_at(root, &[Name("out".into())], module_path_site())[0]
+                .def,
+            Some(op_def)
+        );
+    }
+
+    #[test]
     fn registers_act_copy_body_in_destination_companion() {
         let cst = parse(
             "act loop:\n  my act last:\n    our break: () -> never\n  my act next = last\nmy site = 1\n",
@@ -3138,7 +3227,7 @@ mod tests {
     }
 
     #[test]
-    fn registers_act_body_as_companion_module_effect_methods() {
+    fn registers_act_body_as_companion_module_operations_and_methods() {
         let cst = parse("act out:\n  our say: int -> unit\n  our x.clear = x\nmy site = 1\n");
         let lower = lower_module_map(&cst);
         let root = lower.modules.root_id();
@@ -3156,12 +3245,9 @@ mod tests {
         assert_eq!(methods.len(), 1);
         assert_eq!(methods[0].name, Name("clear".into()));
         assert_eq!(methods[0].receiver, Name("x".into()));
-        assert!(
-            lower
-                .modules
-                .value_decls(companion, &Name("say".into()))
-                .is_empty()
-        );
+        let operation = lower.modules.value_decls(companion, &Name("say".into()));
+        assert_eq!(operation.len(), 1);
+        assert!(lower.modules.is_act_operation_def(operation[0].def));
     }
 
     #[test]
