@@ -75,6 +75,10 @@ impl ConstraintMachine {
         self.levels.level_of(var)
     }
 
+    pub fn birth_level_of(&self, var: TypeVar) -> TypeLevel {
+        self.levels.birth_level_of(var)
+    }
+
     pub fn events(&self) -> &[ConstraintEvent] {
         &self.events
     }
@@ -158,6 +162,14 @@ impl ConstraintMachine {
                     constraint.upper,
                 );
             }
+            (Pos::Union(left, right), _) => {
+                self.enqueue_subtype(left, constraint.weights.clone(), constraint.upper);
+                self.enqueue_subtype(right, constraint.weights, constraint.upper);
+            }
+            (_, Neg::Intersection(left, right)) => {
+                self.enqueue_subtype(constraint.lower, constraint.weights.clone(), left);
+                self.enqueue_subtype(constraint.lower, constraint.weights, right);
+            }
             (Pos::Var(source), Neg::Var(target)) => {
                 self.add_lower_bound(target, constraint.lower, constraint.weights.clone());
                 self.add_upper_bound(source, constraint.upper, constraint.weights);
@@ -232,14 +244,6 @@ impl ConstraintMachine {
             }
             (Pos::Row(items), Neg::Row(upper_items, upper_tail)) => {
                 self.enqueue_row_items(items, upper_items, upper_tail, constraint.weights);
-            }
-            (Pos::Union(left, right), _) => {
-                self.enqueue_subtype(left, constraint.weights.clone(), constraint.upper);
-                self.enqueue_subtype(right, constraint.weights, constraint.upper);
-            }
-            (_, Neg::Intersection(left, right)) => {
-                self.enqueue_subtype(constraint.lower, constraint.weights.clone(), left);
-                self.enqueue_subtype(constraint.lower, constraint.weights, right);
             }
             _ => {}
         }
@@ -469,6 +473,7 @@ impl ConstraintMachine {
     ) {
         let mut remaining_upper_items = upper_items;
         let mut variable_items = Vec::new();
+        let mut lower_tail_items = Vec::new();
         for item in items {
             if matches!(self.types.pos(item), Pos::Var(_)) {
                 variable_items.push(item);
@@ -482,6 +487,7 @@ impl ConstraintMachine {
                 let upper = remaining_upper_items.remove(index);
                 self.enqueue_row_item_match(item, upper, weights.clone());
             } else {
+                lower_tail_items.push(item);
                 self.enqueue_subtype(item, weights.clone(), upper_tail);
             }
         }
@@ -496,6 +502,7 @@ impl ConstraintMachine {
                 continue;
             }
 
+            lower_tail_items.push(item);
             let upper = if remaining_upper_items.is_empty() {
                 upper_tail
             } else {
@@ -503,6 +510,8 @@ impl ConstraintMachine {
             };
             self.enqueue_subtype(item, weights.clone(), upper);
         }
+
+        self.enqueue_upper_tail_to_lower_row_tail(upper_tail, lower_tail_items, weights);
     }
 
     fn row_items_can_match(&self, lower: PosId, upper: NegId) -> bool {
@@ -536,6 +545,46 @@ impl ConstraintMachine {
             let (upper_pos, upper_neg) = self.neu_bounds(upper);
             self.enqueue_subtype(lower_pos, weights.clone(), upper_neg);
             self.enqueue_subtype(upper_pos, weights.swapped(), lower_neg);
+        }
+    }
+
+    fn enqueue_upper_tail_to_lower_row_tail(
+        &mut self,
+        upper_tail: NegId,
+        lower_tail_items: Vec<PosId>,
+        weights: ConstraintWeights,
+    ) {
+        let Neg::Var(tail_var) = self.types.neg(upper_tail).clone() else {
+            return;
+        };
+        let Some(lower_tail) = self.neg_row_from_pos_items(lower_tail_items) else {
+            return;
+        };
+        let tail = self.alloc_pos(Pos::Var(tail_var));
+        self.enqueue_subtype(tail, weights, lower_tail);
+    }
+
+    fn neg_row_from_pos_items(&mut self, items: Vec<PosId>) -> Option<NegId> {
+        match items.as_slice() {
+            [] => None,
+            [item] => self.neg_row_item_from_pos(*item),
+            _ => {
+                let neg_items = items
+                    .into_iter()
+                    .map(|item| self.neg_row_item_from_pos(item))
+                    .collect::<Option<Vec<_>>>()?;
+                let tail = self.alloc_neg(Neg::Bot);
+                Some(self.alloc_neg(Neg::Row(neg_items, tail)))
+            }
+        }
+    }
+
+    fn neg_row_item_from_pos(&mut self, item: PosId) -> Option<NegId> {
+        match self.types.pos(item).clone() {
+            Pos::Var(var) => Some(self.alloc_neg(Neg::Var(var))),
+            Pos::Con(path, args) => Some(self.alloc_neg(Neg::Con(path, args))),
+            Pos::Row(items) => self.neg_row_from_pos_items(items),
+            _ => None,
         }
     }
 
@@ -574,7 +623,8 @@ impl ConstraintMachine {
         }
 
         if retained_items.is_empty() {
-            self.add_upper_bound(source, tail, weights);
+            let source = self.alloc_pos(Pos::Var(source));
+            self.enqueue_subtype(source, weights, tail);
         } else {
             let row = self.alloc_neg(Neg::Row(retained_items, tail));
             self.add_upper_bound(source, row, weights);
@@ -884,6 +934,7 @@ impl TypeLevel {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct TypeLevels {
     vars: FxHashMap<TypeVar, TypeLevel>,
+    births: FxHashMap<TypeVar, TypeLevel>,
 }
 
 impl TypeLevels {
@@ -893,10 +944,18 @@ impl TypeLevels {
 
     fn register(&mut self, var: TypeVar, level: TypeLevel) {
         self.vars.entry(var).or_insert(level);
+        self.births.entry(var).or_insert(level);
     }
 
     fn level_of(&self, var: TypeVar) -> TypeLevel {
         self.vars.get(&var).copied().unwrap_or_else(TypeLevel::root)
+    }
+
+    fn birth_level_of(&self, var: TypeVar) -> TypeLevel {
+        self.births
+            .get(&var)
+            .copied()
+            .unwrap_or_else(TypeLevel::root)
     }
 
     fn lower_to(&mut self, var: TypeVar, target: TypeLevel) {

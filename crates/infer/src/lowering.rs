@@ -19,10 +19,10 @@ use yulang_parser::sink::YulangLanguage;
 use poly::dump::DumpLabels;
 use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RefId, Stmt, Vis};
 use poly::types::{
-    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SubtractId, Subtractability,
-    TypeVar,
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId,
+    Subtractability, TypeArena, TypeVar,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::analysis::{AnalysisSession, AnalysisWork};
 use crate::annotation::{
@@ -2237,6 +2237,7 @@ pub struct ExprLowerer<'a> {
     local_method_scope: Option<ModuleId>,
     locals: Vec<LocalBinding>,
     function_frames: Vec<FunctionPredicateFrame>,
+    local_generalize_boundary: TypeLevel,
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -2247,6 +2248,7 @@ impl<'a> ExprLowerer<'a> {
         site: ModuleOrder,
         parent: poly::expr::DefId,
     ) -> Self {
+        let local_generalize_boundary = session.infer.current_level();
         Self {
             session,
             modules,
@@ -2259,6 +2261,7 @@ impl<'a> ExprLowerer<'a> {
             local_method_scope: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
+            local_generalize_boundary,
         }
     }
 
@@ -2270,6 +2273,7 @@ impl<'a> ExprLowerer<'a> {
         parent: poly::expr::DefId,
         labels: &'a mut DumpLabels,
     ) -> Self {
+        let local_generalize_boundary = session.infer.current_level();
         Self {
             session,
             modules,
@@ -2282,6 +2286,7 @@ impl<'a> ExprLowerer<'a> {
             local_method_scope: None,
             locals: Vec::new(),
             function_frames: Vec::new(),
+            local_generalize_boundary,
         }
     }
 
@@ -2376,16 +2381,13 @@ impl<'a> ExprLowerer<'a> {
         );
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
-        let previous_level = self.session.infer.enter_child_level();
-        let body_result = self.lower_lambda_params(
+        let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
-            LambdaScope::Defined,
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
         );
-        self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
             .pop()
@@ -2446,16 +2448,13 @@ impl<'a> ExprLowerer<'a> {
         );
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
-        let previous_level = self.session.infer.enter_child_level();
-        let body_result = self.lower_lambda_params(
+        let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
-            LambdaScope::Defined,
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
         );
-        self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
             .pop()
@@ -2552,16 +2551,13 @@ impl<'a> ExprLowerer<'a> {
         );
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
-        let previous_level = self.session.infer.enter_child_level();
-        let body_result = self.lower_lambda_params(
+        let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
-            LambdaScope::Defined,
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
         );
-        self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
             .pop()
@@ -2644,16 +2640,13 @@ impl<'a> ExprLowerer<'a> {
         );
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
-        let previous_level = self.session.infer.enter_child_level();
-        let body_result = self.lower_lambda_params(
+        let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
-            LambdaScope::Defined,
             &mut ann_builder,
             ann_solver_vars,
             result_type_expr.as_ref(),
         );
-        self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
             .pop()
@@ -3145,6 +3138,16 @@ impl<'a> ExprLowerer<'a> {
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         body_type_expr: Option<&Cst>,
     ) -> Result<Computation, LoweringError> {
+        if lambda_scope == LambdaScope::Defined && !patterns.is_empty() {
+            return self.lower_defined_lambda_params(
+                patterns,
+                body,
+                ann_builder,
+                ann_solver_vars,
+                body_type_expr,
+            );
+        }
+
         let Some((pattern, rest)) = patterns.split_first() else {
             let body = self.lower_expr(body)?;
             if let Some(type_expr) = body_type_expr {
@@ -3175,6 +3178,8 @@ impl<'a> ExprLowerer<'a> {
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
         let previous_level = self.session.infer.enter_child_level();
+        let previous_local_generalize_boundary = self.local_generalize_boundary;
+        self.local_generalize_boundary = previous_level;
         let body_result = self.lower_lambda_params(
             rest,
             body,
@@ -3183,6 +3188,7 @@ impl<'a> ExprLowerer<'a> {
             ann_solver_vars,
             body_type_expr,
         );
+        self.local_generalize_boundary = previous_local_generalize_boundary;
         self.session.infer.restore_level(previous_level);
         let frame = self
             .function_frames
@@ -3213,6 +3219,164 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_defined_tail_after_receiver(
+        &mut self,
+        patterns: &[Cst],
+        body: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        body_type_expr: Option<&Cst>,
+    ) -> Result<Computation, LoweringError> {
+        if !patterns.is_empty() {
+            return self.lower_defined_lambda_params(
+                patterns,
+                body,
+                ann_builder,
+                ann_solver_vars,
+                body_type_expr,
+            );
+        }
+
+        let previous_level = self.session.infer.enter_child_level();
+        let previous_local_generalize_boundary = self.local_generalize_boundary;
+        self.local_generalize_boundary = previous_level;
+        let body_result = (|| {
+            let body = self.lower_expr(body)?;
+            if let Some(type_expr) = body_type_expr {
+                self.connect_type_method_result_annotation(
+                    body,
+                    type_expr,
+                    ann_builder,
+                    ann_solver_vars,
+                )?;
+            }
+            Ok(body)
+        })();
+        self.local_generalize_boundary = previous_local_generalize_boundary;
+        self.session.infer.restore_level(previous_level);
+        body_result
+    }
+
+    fn lower_defined_lambda_params(
+        &mut self,
+        patterns: &[Cst],
+        body: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        body_type_expr: Option<&Cst>,
+    ) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let before_frames = self.function_frames.len();
+        let mut params = Vec::with_capacity(patterns.len());
+
+        for pattern in patterns {
+            let param_value = self.fresh_type_var();
+            let annotation = match self.connect_lambda_pattern_annotation(
+                pattern,
+                param_value,
+                ann_builder,
+                ann_solver_vars,
+            ) {
+                Ok(annotation) => annotation,
+                Err(error) => {
+                    self.locals.truncate(before_locals);
+                    self.function_frames.truncate(before_frames);
+                    return Err(error);
+                }
+            };
+            let pat = match self.lower_lambda_pattern(
+                pattern,
+                param_value,
+                annotation.local_effect,
+                annotation.call_return_effect,
+            ) {
+                Ok(pat) => pat,
+                Err(error) => {
+                    self.locals.truncate(before_locals);
+                    self.function_frames.truncate(before_frames);
+                    return Err(error);
+                }
+            };
+            self.function_frames
+                .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+            params.push(LoweredLambdaParam {
+                pat,
+                value: param_value,
+                annotation,
+            });
+        }
+
+        let previous_level = self.session.infer.enter_child_level();
+        let previous_local_generalize_boundary = self.local_generalize_boundary;
+        self.local_generalize_boundary = previous_level;
+        let body_result = (|| {
+            let body = self.lower_expr(body)?;
+            if let Some(type_expr) = body_type_expr {
+                self.connect_type_method_result_annotation(
+                    body,
+                    type_expr,
+                    ann_builder,
+                    ann_solver_vars,
+                )?;
+            }
+            Ok(body)
+        })();
+        self.local_generalize_boundary = previous_local_generalize_boundary;
+        self.session.infer.restore_level(previous_level);
+
+        let mut body = match body_result {
+            Ok(body) => body,
+            Err(error) => {
+                self.locals.truncate(before_locals);
+                self.function_frames.truncate(before_frames);
+                return Err(error);
+            }
+        };
+
+        for param in params.into_iter().rev() {
+            let frame = self
+                .function_frames
+                .pop()
+                .expect("lambda predicate frame should be balanced");
+            body = self.wrap_lambda_param(LambdaScope::Defined, param, frame, body);
+        }
+        self.locals.truncate(before_locals);
+        Ok(body)
+    }
+
+    fn wrap_lambda_param(
+        &mut self,
+        lambda_scope: LambdaScope,
+        param: LoweredLambdaParam,
+        frame: FunctionPredicateFrame,
+        body: Computation,
+    ) -> Computation {
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param.value));
+        let body_effect = self.alloc_pos(Pos::Var(body.effect));
+        let body_value = self.alloc_pos(Pos::Var(body.value));
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(lambda_scope, param.annotation.subtracts, frame);
+        let ret_eff = self.wrap_pos_with_subtracts(body_effect, &predicate_subtracts);
+        let ret = self.wrap_pos_with_subtracts(body_value, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff: param.annotation.arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::Lambda(param.pat, body.expr));
+        Computation::value(expr, value, effect)
     }
 
     fn connect_lambda_pattern_annotation(
@@ -3353,18 +3517,25 @@ impl<'a> ExprLowerer<'a> {
     fn lower_local_binding_stmt(&mut self, node: &Cst) -> Result<LoweredLocalStmt, LoweringError> {
         let name = crate::binding_name(node).ok_or(LoweringError::MissingLocalBindingName)?;
         let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
-        let value = self.fresh_type_var();
-        let call_return_effect = local_binding_call_return_effect(node);
-        let (pat, def) = self.bind_let_local_with_def(name, value, call_return_effect, None);
-        let body = self.lower_local_binding_body(node, &body)?;
-        self.subtype_var_to_var(body.value, value);
-        self.connect_local_binding_annotation(node, value, body)?;
-        self.set_local_let_body(def, body.expr);
+        let boundary = self.local_generalize_boundary;
+        let previous_level = self.session.infer.enter_child_level();
+        let result = (|| {
+            let value = self.fresh_type_var();
+            let call_return_effect = local_binding_call_return_effect(node);
+            let (pat, def) = self.bind_let_local_with_def(name, value, call_return_effect, None);
+            let body = self.lower_local_binding_body(node, &body)?;
+            self.subtype_var_to_var(body.value, value);
+            self.connect_local_binding_annotation(node, value, body)?;
+            self.set_local_let_body(def, body.expr);
+            self.generalize_local_binding(def, value, boundary);
 
-        Ok(LoweredLocalStmt {
-            stmt: Stmt::Let(Vis::My, pat, body.expr),
-            effect: body.effect,
-        })
+            Ok(LoweredLocalStmt {
+                stmt: Stmt::Let(Vis::My, pat, body.expr),
+                effect: body.effect,
+            })
+        })();
+        self.session.infer.restore_level(previous_level);
+        result
     }
 
     fn lower_local_var_binding(
@@ -3583,6 +3754,7 @@ impl<'a> ExprLowerer<'a> {
             value,
             effect: None,
             call_return_effect,
+            scheme: None,
         });
         (self.session.poly.add_pat(Pat::Var(def)), def)
     }
@@ -3592,6 +3764,13 @@ impl<'a> ExprLowerer<'a> {
             unreachable!("local binding def should be a let");
         };
         *body = Some(body_expr);
+    }
+
+    fn set_local_let_scheme(&mut self, def: DefId, new_scheme: Scheme) {
+        let Some(Def::Let { scheme, .. }) = self.session.poly.defs.get_mut(def) else {
+            unreachable!("local binding def should be a let");
+        };
+        *scheme = Some(new_scheme);
     }
 
     fn prepend_block(&mut self, head: LoweredLocalStmt, tail: Computation) -> Computation {
@@ -3662,6 +3841,7 @@ impl<'a> ExprLowerer<'a> {
         let effect = local
             .effect
             .unwrap_or_else(|| self.fresh_exact_pure_effect());
+        let value = self.instantiate_local_value(&local);
         let reference = self.session.poly.add_ref();
         self.session.poly.resolve_ref(reference, local.def);
         if let Some(labels) = self.labels.as_mut() {
@@ -3671,12 +3851,12 @@ impl<'a> ExprLowerer<'a> {
             reference,
             RefUse {
                 parent: self.parent,
-                value: local.value,
+                value,
             },
         );
 
         let expr = self.session.poly.add_expr(Expr::Var(reference));
-        Computation::value(expr, local.value, effect)
+        Computation::value(expr, value, effect)
     }
 
     fn local_binding(&self, name: &Name) -> Option<LocalBinding> {
@@ -3902,6 +4082,66 @@ impl<'a> ExprLowerer<'a> {
         self.locals.iter().rev().find(|local| local.def == def)
     }
 
+    fn instantiate_local_value(&mut self, local: &LocalBinding) -> TypeVar {
+        let Some(scheme) = local.scheme.as_ref() else {
+            return local.value;
+        };
+        let value = self.fresh_type_var();
+        let level = self.session.infer.current_level();
+        let predicate = crate::instantiate::instantiate_scheme(
+            &self.session.poly.typ,
+            &mut self.session.infer,
+            level,
+            scheme,
+        );
+        let upper = self.alloc_neg(Neg::Var(value));
+        self.session.infer.subtype(predicate, upper);
+        value
+    }
+
+    fn generalize_local_binding(&mut self, def: DefId, value: TypeVar, boundary: TypeLevel) {
+        let non_generic = self.local_non_generic_vars(def);
+        let generalized = crate::generalize::generalize_type_var(
+            self.session.infer.constraints(),
+            value,
+            boundary,
+            &non_generic,
+        );
+        let finalized = crate::generalize::finalize_generalized_compact_root(
+            &mut self.session.poly.typ,
+            self.session.infer.constraints(),
+            &generalized,
+        );
+        self.set_local_let_scheme(def, finalized.scheme.clone());
+        if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
+            local.scheme = Some(finalized.scheme);
+        }
+    }
+
+    fn local_non_generic_vars(&self, exclude: DefId) -> FxHashSet<TypeVar> {
+        let mut vars = FxHashSet::default();
+        let machine = self.session.infer.constraints();
+        for local in &self.locals {
+            if local.def == exclude {
+                continue;
+            }
+            vars.insert(local.value);
+            if let Some(effect) = local.effect {
+                vars.insert(effect);
+            }
+            let Some(bounds) = machine.bounds().of(local.value) else {
+                continue;
+            };
+            for lower in bounds.lowers() {
+                collect_pos_id_vars(machine.types(), lower.pos, &mut vars);
+            }
+            for upper in bounds.uppers() {
+                collect_neg_id_vars(machine.types(), upper.neg, &mut vars);
+            }
+        }
+        vars
+    }
+
     fn lambda_predicate_subtracts(
         &mut self,
         lambda_scope: LambdaScope,
@@ -3986,11 +4226,156 @@ struct LocalBinding {
     value: TypeVar,
     effect: Option<TypeVar>,
     call_return_effect: LocalCallReturnEffect,
+    scheme: Option<Scheme>,
 }
 
 struct LoweredLocalStmt {
     stmt: Stmt,
     effect: TypeVar,
+}
+
+struct LoweredLambdaParam {
+    pat: PatId,
+    value: TypeVar,
+    annotation: LambdaPatternAnnotation,
+}
+
+fn collect_pos_id_vars(types: &TypeArena, id: PosId, out: &mut FxHashSet<TypeVar>) {
+    match types.pos(id) {
+        Pos::Bot => {}
+        Pos::Var(var) => {
+            out.insert(*var);
+        }
+        Pos::Con(_, args) => collect_neu_ids_vars(types, args, out),
+        Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_neg_id_vars(types, *arg, out);
+            collect_neg_id_vars(types, *arg_eff, out);
+            collect_pos_id_vars(types, *ret_eff, out);
+            collect_pos_id_vars(types, *ret, out);
+        }
+        Pos::Record(fields) => {
+            for field in fields {
+                collect_pos_id_vars(types, field.value, out);
+            }
+        }
+        Pos::RecordTailSpread { fields, tail } | Pos::RecordHeadSpread { tail, fields } => {
+            for field in fields {
+                collect_pos_id_vars(types, field.value, out);
+            }
+            collect_pos_id_vars(types, *tail, out);
+        }
+        Pos::PolyVariant(items) => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_pos_id_vars(types, *payload, out);
+                }
+            }
+        }
+        Pos::Tuple(items) | Pos::Row(items) => {
+            for item in items {
+                collect_pos_id_vars(types, *item, out);
+            }
+        }
+        Pos::NonSubtract(pos, _) => collect_pos_id_vars(types, *pos, out),
+        Pos::Union(lhs, rhs) => {
+            collect_pos_id_vars(types, *lhs, out);
+            collect_pos_id_vars(types, *rhs, out);
+        }
+    }
+}
+
+fn collect_neg_id_vars(types: &TypeArena, id: NegId, out: &mut FxHashSet<TypeVar>) {
+    match types.neg(id) {
+        Neg::Top | Neg::Bot => {}
+        Neg::Var(var) => {
+            out.insert(*var);
+        }
+        Neg::Con(_, args) => collect_neu_ids_vars(types, args, out),
+        Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_pos_id_vars(types, *arg, out);
+            collect_pos_id_vars(types, *arg_eff, out);
+            collect_neg_id_vars(types, *ret_eff, out);
+            collect_neg_id_vars(types, *ret, out);
+        }
+        Neg::Record(fields) => {
+            for field in fields {
+                collect_neg_id_vars(types, field.value, out);
+            }
+        }
+        Neg::PolyVariant(items) => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_neg_id_vars(types, *payload, out);
+                }
+            }
+        }
+        Neg::Tuple(items) => {
+            for item in items {
+                collect_neg_id_vars(types, *item, out);
+            }
+        }
+        Neg::Row(items, tail) => {
+            for item in items {
+                collect_neg_id_vars(types, *item, out);
+            }
+            collect_neg_id_vars(types, *tail, out);
+        }
+        Neg::Intersection(lhs, rhs) => {
+            collect_neg_id_vars(types, *lhs, out);
+            collect_neg_id_vars(types, *rhs, out);
+        }
+    }
+}
+
+fn collect_neu_ids_vars(types: &TypeArena, ids: &[NeuId], out: &mut FxHashSet<TypeVar>) {
+    for id in ids {
+        collect_neu_id_vars(types, *id, out);
+    }
+}
+
+fn collect_neu_id_vars(types: &TypeArena, id: NeuId, out: &mut FxHashSet<TypeVar>) {
+    match types.neu(id) {
+        Neu::Bounds(lower, var, upper) => {
+            collect_pos_id_vars(types, *lower, out);
+            out.insert(*var);
+            collect_neg_id_vars(types, *upper, out);
+        }
+        Neu::Con(_, args) => collect_neu_ids_vars(types, args, out),
+        Neu::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_neu_id_vars(types, *arg, out);
+            collect_neu_id_vars(types, *arg_eff, out);
+            collect_neu_id_vars(types, *ret_eff, out);
+            collect_neu_id_vars(types, *ret, out);
+        }
+        Neu::Record(fields) => {
+            for field in fields {
+                collect_neu_id_vars(types, field.value, out);
+            }
+        }
+        Neu::PolyVariant(items) => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_neu_id_vars(types, *payload, out);
+                }
+            }
+        }
+        Neu::Tuple(items) => collect_neu_ids_vars(types, items, out),
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4161,7 +4546,7 @@ fn connect_constructor_arg_signatures(
             } => {
                 let lower = lowerer.alloc_pos(Pos::Var(*value));
                 let upper = lowerer
-                    .lower_neg(signature.as_type())
+                    .lower_data_neg(signature.as_type())
                     .map_err(|error| LoweringError::SignatureConstraint { error })?;
                 lowerer.infer.subtype(lower, upper);
             }
@@ -4173,7 +4558,7 @@ fn connect_constructor_arg_signatures(
                     if let Some(signature) = &field.signature {
                         let lower = lowerer.alloc_pos(Pos::Var(field.value));
                         let upper = lowerer
-                            .lower_neg(signature.as_type())
+                            .lower_data_neg(signature.as_type())
                             .map_err(|error| LoweringError::SignatureConstraint { error })?;
                         lowerer.infer.subtype(lower, upper);
                     }
@@ -4864,6 +5249,53 @@ impl<'a> SignatureLowerer<'a> {
         }
     }
 
+    fn lower_data_neg(
+        &mut self,
+        signature: &SignatureType,
+    ) -> Result<NegId, SignatureConstraintError> {
+        match signature {
+            SignatureType::Builtin(builtin) => {
+                let path = vec![builtin.surface_name().to_string()];
+                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
+            }
+            SignatureType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
+            }
+            SignatureType::Var(var) => {
+                let var = self.signature_var(var);
+                Ok(self.alloc_neg(Neg::Var(var)))
+            }
+            SignatureType::EffectRow(row) => self.lower_effect_row_neg(row),
+            SignatureType::Effectful { ret, .. } => self.lower_data_neg(ret),
+            SignatureType::Apply { callee, args } => {
+                let (path, head_args) = self.constructor_path(callee)?;
+                let mut neu_args = head_args;
+                for arg in args {
+                    neu_args.push(self.lower_invariant_arg(arg)?);
+                }
+                Ok(self.alloc_neg(Neg::Con(path, neu_args)))
+            }
+            SignatureType::Function {
+                param,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let arg = self.lower_pos(param)?;
+                let arg_eff = self.lower_arg_effect_pos(arg_eff.as_ref())?;
+                let ret_eff = self.lower_data_ret_effect_neg(ret_eff.as_ref())?;
+                let ret = self.lower_data_neg(ret)?;
+                Ok(self.alloc_neg(Neg::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                }))
+            }
+        }
+    }
+
     fn lower_arg_effect_pos(
         &mut self,
         row: Option<&SignatureEffectRow>,
@@ -4896,6 +5328,17 @@ impl<'a> SignatureLowerer<'a> {
         row: Option<&SignatureEffectRow>,
     ) -> Result<NegId, SignatureConstraintError> {
         row.map(|row| self.lower_subtractable_effect_row_neg(row))
+            .unwrap_or_else(|| {
+                let top = self.alloc_neg(Neg::Top);
+                Ok(self.alloc_neg(Neg::Row(Vec::new(), top)))
+            })
+    }
+
+    fn lower_data_ret_effect_neg(
+        &mut self,
+        row: Option<&SignatureEffectRow>,
+    ) -> Result<NegId, SignatureConstraintError> {
+        row.map(|row| self.lower_data_effect_row_neg(row))
             .unwrap_or_else(|| {
                 let top = self.alloc_neg(Neg::Top);
                 Ok(self.alloc_neg(Neg::Row(Vec::new(), top)))
@@ -4942,6 +5385,100 @@ impl<'a> SignatureLowerer<'a> {
         self.connect_effect_tail_lower(effect, row);
         self.record_effect_row_subtractability(effect, row)?;
         Ok(self.alloc_neg(Neg::Var(effect)))
+    }
+
+    fn lower_data_effect_row_neg(
+        &mut self,
+        row: &SignatureEffectRow,
+    ) -> Result<NegId, SignatureConstraintError> {
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
+        }
+        let items = row
+            .items
+            .iter()
+            .map(|atom| self.lower_effect_atom_neg(atom))
+            .collect::<Result<Vec<_>, _>>()?;
+        let tail = if let Some(tail) = &row.tail {
+            let tail = self.signature_var(tail);
+            self.record_data_effect_tail_subtractability(tail, row)?;
+            self.alloc_neg(Neg::Var(tail))
+        } else {
+            self.alloc_neg(Neg::Top)
+        };
+        Ok(self.alloc_neg(Neg::Row(items, tail)))
+    }
+
+    fn lower_effect_row_neg(
+        &mut self,
+        row: &SignatureEffectRow,
+    ) -> Result<NegId, SignatureConstraintError> {
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
+        }
+        let items = row
+            .items
+            .iter()
+            .map(|atom| self.lower_effect_atom_neg(atom))
+            .collect::<Result<Vec<_>, _>>()?;
+        let tail = if let Some(tail) = &row.tail {
+            let tail = self.signature_var(tail);
+            self.alloc_neg(Neg::Var(tail))
+        } else {
+            self.alloc_neg(Neg::Top)
+        };
+        Ok(self.alloc_neg(Neg::Row(items, tail)))
+    }
+
+    fn lower_effect_atom_neg(
+        &mut self,
+        atom: &SignatureEffectAtom,
+    ) -> Result<NegId, SignatureConstraintError> {
+        match atom {
+            SignatureEffectAtom::Type(ty) => self.lower_data_neg(ty),
+            SignatureEffectAtom::Wildcard => {
+                Err(SignatureConstraintError::WildcardEffectRowInTypePosition)
+            }
+        }
+    }
+
+    fn record_data_effect_tail_subtractability(
+        &mut self,
+        tail: TypeVar,
+        row: &SignatureEffectRow,
+    ) -> Result<(), SignatureConstraintError> {
+        let atoms = row
+            .items
+            .iter()
+            .map(|atom| self.effect_atom_con(atom))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        if atoms.is_empty() {
+            return Ok(());
+        }
+
+        let id = self.infer.fresh_subtract_id();
+        let subtractability = match atoms.as_slice() {
+            [(path, _)] => Subtractability::AllExcept(path.clone(), Vec::new()),
+            _ => Subtractability::AllExceptMany(
+                atoms
+                    .into_iter()
+                    .map(|(path, _)| (path, Vec::new()))
+                    .collect(),
+            ),
+        };
+        self.infer.subtract_fact(tail, id, subtractability);
+        Ok(())
     }
 
     fn connect_effect_tail_lower(&mut self, effect: TypeVar, row: &SignatureEffectRow) {
@@ -5380,17 +5917,23 @@ mod tests {
 
         assert!(output.errors.is_empty(), "{:?}", output.errors);
         let update_effect = constructor_record_field_var(&output, constructor, "update_effect");
-        let effect = function_upper_bound_ret_effect_var(&output.session, update_effect);
-        let facts = output.session.infer.constraints().subtracts().facts(effect);
+        let (items, tail) = function_upper_bound_ret_effect_row(&output.session, update_effect);
+        assert!(items.iter().any(|item| {
+            matches!(
+                output.session.infer.constraints().types().neg(*item),
+                Neg::Con(path, args) if path == &vec!["ref_update".to_string()] && args.len() == 1
+            )
+        }));
+        let facts = output.session.infer.constraints().subtracts().facts(tail);
         assert!(
             facts.iter().any(|fact| {
                 matches!(
                     &fact.subtractability,
-                    Subtractability::Set(path, args)
-                        if path == &vec!["ref_update".to_string()] && args.len() == 1
+                    Subtractability::AllExcept(path, args)
+                        if path == &vec!["ref_update".to_string()] && args.is_empty()
                 )
             }),
-            "expected ref_update-subtract fact on constructor field return effect, got {facts:?}"
+            "expected ref_update-except-subtract fact on constructor field return effect tail, got {facts:?}"
         );
     }
 
@@ -5506,7 +6049,10 @@ mod tests {
         panic!("expected constructor record field {field_name}");
     }
 
-    fn function_upper_bound_ret_effect_var(session: &AnalysisSession, var: TypeVar) -> TypeVar {
+    fn function_upper_bound_ret_effect_row(
+        session: &AnalysisSession,
+        var: TypeVar,
+    ) -> (Vec<NegId>, TypeVar) {
         let Some(bounds) = session.infer.constraints().bounds().of(var) else {
             panic!("expected function upper bound");
         };
@@ -5515,10 +6061,13 @@ mod tests {
             else {
                 continue;
             };
-            let Neg::Var(effect) = session.infer.constraints().types().neg(*ret_eff) else {
-                panic!("expected function return effect var");
+            let Neg::Row(items, tail) = session.infer.constraints().types().neg(*ret_eff) else {
+                panic!("expected function return effect row");
             };
-            return *effect;
+            let Neg::Var(effect) = session.infer.constraints().types().neg(*tail) else {
+                panic!("expected function return effect row tail var");
+            };
+            return (items.clone(), *effect);
         }
         panic!("expected function upper bound");
     }
@@ -6573,7 +7122,12 @@ mod tests {
 
         assert!(output.errors.is_empty(), "{:?}", output.errors);
         let body = binding_body_id(&output, method);
-        let _ = def_scheme(&output, method);
+        let scheme = def_scheme(&output, method);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
+        assert!(
+            !rendered.contains("ref_update"),
+            "handled ref_update leaked from ref::update: {rendered}"
+        );
         let update_effect =
             find_select_by_name(&output.session, body, "update_effect").expect("update_effect");
         assert_eq!(
@@ -7352,7 +7906,7 @@ mod tests {
     #[test]
     fn catch_incomplete_effect_handler_flows_scrutinee_effect_to_result() {
         let root = parse(
-            "act choose:\n  our branch: unit -> bool\n  our reject: unit -> never\nmy run = 1\nmy f = catch run:\n  choose::branch(), k -> 0\n  value -> value\n",
+            "act choose:\n  our branch: unit -> int\n  our reject: unit -> never\nmy run = 1\nmy f = catch run:\n  choose::branch(), k -> 0\n  value -> value\n",
         );
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();

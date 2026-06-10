@@ -10,7 +10,13 @@ pub(crate) fn eliminate_polar_variables(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactVarSubstitution> {
-    eliminate_polar_variables_with_roles(machine, boundary, root, &mut [])
+    eliminate_polar_variables_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        &mut [],
+        &FxHashSet::default(),
+    )
 }
 
 pub(crate) fn eliminate_polar_variables_with_roles(
@@ -19,9 +25,27 @@ pub(crate) fn eliminate_polar_variables_with_roles(
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
 ) -> Vec<CompactVarSubstitution> {
+    eliminate_polar_variables_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        roles,
+        &FxHashSet::default(),
+    )
+}
+
+fn eliminate_polar_variables_with_roles_and_non_generic(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    non_generic: &FxHashSet<TypeVar>,
+) -> Vec<CompactVarSubstitution> {
     let polarity = collect_var_polarities(root, roles);
     rewrite_root_and_role_vars(root, roles, |var| {
-        if !is_simplification_candidate(machine, boundary, var) || polarity.is_bipolar(var) {
+        if !is_simplification_candidate(machine, boundary, var, non_generic)
+            || polarity.is_bipolar(var)
+        {
             Some(var)
         } else {
             None
@@ -34,7 +58,13 @@ pub(crate) fn coalesce_by_co_occurrence(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactVarSubstitution> {
-    coalesce_by_co_occurrence_with_roles(machine, boundary, root, &mut [])
+    coalesce_by_co_occurrence_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        &mut [],
+        &FxHashSet::default(),
+    )
 }
 
 pub(crate) fn coalesce_by_co_occurrence_with_roles(
@@ -43,8 +73,24 @@ pub(crate) fn coalesce_by_co_occurrence_with_roles(
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
 ) -> Vec<CompactVarSubstitution> {
+    coalesce_by_co_occurrence_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        roles,
+        &FxHashSet::default(),
+    )
+}
+
+fn coalesce_by_co_occurrence_with_roles_and_non_generic(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    non_generic: &FxHashSet<TypeVar>,
+) -> Vec<CompactVarSubstitution> {
     let co_occurrences = collect_co_occurrences(root, roles);
-    let subst = co_occurrences.substitution(machine, boundary);
+    let subst = co_occurrences.substitution(machine, boundary, non_generic);
     if subst.is_empty() {
         return Vec::new();
     }
@@ -56,7 +102,13 @@ pub(crate) fn simplify_compact_root(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> CompactSimplification {
-    simplify_compact_root_with_roles(machine, boundary, root, &mut [])
+    simplify_compact_root_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        &mut [],
+        &FxHashSet::default(),
+    )
 }
 
 pub(crate) fn simplify_compact_root_with_roles(
@@ -65,16 +117,37 @@ pub(crate) fn simplify_compact_root_with_roles(
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
 ) -> CompactSimplification {
+    simplify_compact_root_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        roles,
+        &FxHashSet::default(),
+    )
+}
+
+pub(crate) fn simplify_compact_root_with_roles_and_non_generic(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    non_generic: &FxHashSet<TypeVar>,
+) -> CompactSimplification {
     let mut substitutions = Vec::new();
-    substitutions.extend(eliminate_polar_variables_with_roles(
-        machine, boundary, root, roles,
+    substitutions.extend(simplify_polar_and_co_occurrence_to_fixed_point(
+        machine,
+        boundary,
+        root,
+        roles,
+        non_generic,
     ));
-    substitutions.extend(coalesce_by_co_occurrence_with_roles(
-        machine, boundary, root, roles,
-    ));
-    let sandwiches = sandwich_compact_root(machine, boundary, root);
-    substitutions.extend(eliminate_polar_variables_with_roles(
-        machine, boundary, root, roles,
+    let sandwiches = sandwich_compact_root_with_non_generic(machine, boundary, root, non_generic);
+    substitutions.extend(simplify_polar_and_co_occurrence_to_fixed_point(
+        machine,
+        boundary,
+        root,
+        roles,
+        non_generic,
     ));
     CompactSimplification {
         substitutions: normalize_var_substitutions(substitutions),
@@ -82,12 +155,46 @@ pub(crate) fn simplify_compact_root_with_roles(
     }
 }
 
+fn simplify_polar_and_co_occurrence_to_fixed_point(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    non_generic: &FxHashSet<TypeVar>,
+) -> Vec<CompactVarSubstitution> {
+    let mut substitutions = Vec::new();
+    loop {
+        let eliminated = eliminate_polar_variables_with_roles_and_non_generic(
+            machine,
+            boundary,
+            root,
+            roles,
+            non_generic,
+        );
+        let coalesced = coalesce_by_co_occurrence_with_roles_and_non_generic(
+            machine,
+            boundary,
+            root,
+            roles,
+            non_generic,
+        );
+        let changed = !eliminated.is_empty() || !coalesced.is_empty();
+        substitutions.extend(eliminated);
+        substitutions.extend(coalesced);
+        if !changed {
+            break;
+        }
+    }
+    substitutions
+}
+
 fn is_simplification_candidate(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     var: TypeVar,
+    non_generic: &FxHashSet<TypeVar>,
 ) -> bool {
-    machine.level_of(var) >= boundary
+    machine.birth_level_of(var) >= boundary && !non_generic.contains(&var)
 }
 
 pub(crate) fn sandwich_compact_root(
@@ -95,10 +202,19 @@ pub(crate) fn sandwich_compact_root(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactSandwich> {
+    sandwich_compact_root_with_non_generic(machine, boundary, root, &FxHashSet::default())
+}
+
+fn sandwich_compact_root_with_non_generic(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    non_generic: &FxHashSet<TypeVar>,
+) -> Vec<CompactSandwich> {
     let mut fresh = FreshCompactVars::new(root);
     let mut sandwiches = FxHashMap::default();
     loop {
-        let verdicts = compute_sandwich_verdicts(machine, boundary, root);
+        let verdicts = compute_sandwich_verdicts(machine, boundary, root, non_generic);
         if verdicts.lift.is_empty() {
             return sorted_sandwiches(sandwiches);
         }
@@ -161,6 +277,7 @@ fn compute_sandwich_verdicts(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &CompactRoot,
+    non_generic: &FxHashSet<TypeVar>,
 ) -> SandwichVerdicts {
     let mut verdicts = FxHashMap::default();
     visit_type_for_sandwich_verdict(&root.root, &mut verdicts);
@@ -175,7 +292,9 @@ fn compute_sandwich_verdicts(
         .collect::<FxHashSet<_>>();
     let mut lift = FxHashMap::default();
     for (var, verdict) in verdicts {
-        if rec_vars.contains(&var) || !is_simplification_candidate(machine, boundary, var) {
+        if rec_vars.contains(&var)
+            || !is_simplification_candidate(machine, boundary, var, non_generic)
+        {
             continue;
         }
         match verdict {
@@ -605,12 +724,12 @@ fn try_lift_interval(
     verdicts: &SandwichVerdicts,
     fresh: &mut FreshCompactVars,
 ) -> Option<(TypeVar, SandwichKind, CompactBounds)> {
-    if !is_simplification_candidate(machine, boundary, self_var) {
-        return None;
-    }
     let center = if verdicts.lift.contains_key(&self_var) {
         self_var
     } else {
+        if machine.birth_level_of(self_var) < boundary {
+            return None;
+        }
         common_var_in_types(lower, upper).filter(|var| verdicts.lift.contains_key(var))?
     };
     let kind = verdicts.lift.get(&center)?.clone();
@@ -1107,10 +1226,15 @@ impl CoOccurrences {
         }
     }
 
-    fn substitution(&self, machine: &ConstraintMachine, boundary: TypeLevel) -> VarSubstitution {
+    fn substitution(
+        &self,
+        machine: &ConstraintMachine,
+        boundary: TypeLevel,
+        non_generic: &FxHashSet<TypeVar>,
+    ) -> VarSubstitution {
         let mut union = VarUnion::default();
-        register_co_occurrence_table(&self.positive, machine, boundary, &mut union);
-        register_co_occurrence_table(&self.negative, machine, boundary, &mut union);
+        register_co_occurrence_table(&self.positive, machine, boundary, non_generic, &mut union);
+        register_co_occurrence_table(&self.negative, machine, boundary, non_generic, &mut union);
         union.into_substitution()
     }
 }
@@ -1119,6 +1243,7 @@ fn register_co_occurrence_table(
     table: &FxHashMap<TypeVar, FxHashSet<usize>>,
     machine: &ConstraintMachine,
     boundary: TypeLevel,
+    non_generic: &FxHashSet<TypeVar>,
     union: &mut VarUnion,
 ) {
     let mut buckets = FxHashMap::<Vec<usize>, Vec<TypeVar>>::default();
@@ -1138,7 +1263,7 @@ fn register_co_occurrence_table(
         let candidates = vars
             .iter()
             .copied()
-            .filter(|var| is_simplification_candidate(machine, boundary, *var))
+            .filter(|var| is_simplification_candidate(machine, boundary, *var, non_generic))
             .collect::<Vec<_>>();
         if candidates.is_empty() {
             continue;

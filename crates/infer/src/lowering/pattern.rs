@@ -34,12 +34,9 @@ impl<'a> ExprLowerer<'a> {
 
         match single_pattern_item(node)? {
             PatternItem::Ident(name) if name.0 == "_" => Ok(self.session.poly.add_pat(Pat::Wild)),
-            PatternItem::Ident(name) => Ok(self.bind_lambda_param(
-                name,
-                value,
-                local_effect,
-                call_return_effect,
-            )),
+            PatternItem::Ident(name) => {
+                Ok(self.bind_lambda_param(name, value, local_effect, call_return_effect))
+            }
             PatternItem::Number(text) => self.lower_number_pattern(&text, value),
             PatternItem::Paren(group) => {
                 self.lower_paren_pattern(&group, value, local_effect, call_return_effect)
@@ -76,6 +73,7 @@ impl<'a> ExprLowerer<'a> {
             value,
             effect,
             call_return_effect,
+            scheme: None,
         });
         self.session.poly.add_pat(Pat::Var(def))
     }
@@ -96,7 +94,12 @@ impl<'a> ExprLowerer<'a> {
         let mut applied_value = constructor_value;
         for payload in payloads {
             let payload_value = self.fresh_type_var();
-            payload_pats.push(self.lower_pattern(&payload, payload_value, None, call_return_effect)?);
+            payload_pats.push(self.lower_pattern(
+                &payload,
+                payload_value,
+                None,
+                call_return_effect,
+            )?);
             let next_value = self.fresh_type_var();
             self.constrain_pattern_constructor_step(applied_value, payload_value, next_value);
             applied_value = next_value;

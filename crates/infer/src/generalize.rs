@@ -17,7 +17,7 @@ use crate::compact::{
     CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
     CompactVar, CompactVarSubstitution, compact_type_var, finalize_compact_bounds,
     finalize_compact_root, finalize_compact_type, finalize_compact_type_to_neg,
-    merge_compact_types, simplify_compact_root_with_roles,
+    merge_compact_types, simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintMachine, ConstraintWeight, TypeLevel};
 
@@ -62,11 +62,12 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    let simplification = simplify_compact_root_with_roles(
+    let simplification = simplify_compact_root_with_roles_and_non_generic(
         machine,
         boundary.child(),
         &mut compact,
         &mut role_predicates,
+        non_generic,
     );
     generalize_compact_root_with_simplification(
         machine,
@@ -576,7 +577,7 @@ fn quantified_vars_in_root_and_roles(
     for role in role_predicates {
         collect_role_free_vars(role, &mut vars);
     }
-    vars.retain(|var| machine.level_of(*var) > boundary && !non_generic.contains(var));
+    vars.retain(|var| machine.birth_level_of(*var) > boundary && !non_generic.contains(var));
     vars.sort_by_key(|var| var.0);
     vars.dedup();
     vars
@@ -636,7 +637,11 @@ fn prepare_quantified_subtracts(
         .collect::<FxHashSet<_>>();
     // A subtract id stays useful if at least one covariant occurrence is not
     // protected by the corresponding non-subtract weight.
-    let live_ids = live_subtract_ids(root, role_predicates, &candidate_ids);
+    let live_subtracts = live_subtracts(root, role_predicates, &candidates);
+    let live_ids = live_subtracts
+        .iter()
+        .map(|(_, subtract)| *subtract)
+        .collect::<FxHashSet<_>>();
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
@@ -647,7 +652,7 @@ fn prepare_quantified_subtracts(
 
     candidates
         .into_iter()
-        .filter(|(_, subtract)| live_ids.contains(subtract))
+        .filter(|candidate| live_subtracts.contains(candidate))
         .collect()
 }
 
@@ -1174,7 +1179,11 @@ fn prune_existing_subtracts(root: &mut GeneralizedCompactRoot) {
         return;
     }
 
-    let live_ids = live_subtract_ids(&root.compact, &root.role_predicates, &candidate_ids);
+    let live_subtracts = live_subtracts(&root.compact, &root.role_predicates, &root.subtracts);
+    let live_ids = live_subtracts
+        .iter()
+        .map(|(_, subtract)| *subtract)
+        .collect::<FxHashSet<_>>();
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
@@ -1187,7 +1196,7 @@ fn prune_existing_subtracts(root: &mut GeneralizedCompactRoot) {
         );
     }
     root.subtracts
-        .retain(|(_, subtract)| live_ids.contains(subtract));
+        .retain(|subtract| live_subtracts.contains(subtract));
     sort_dedup_subtracts(&mut root.subtracts);
 }
 
@@ -1435,55 +1444,62 @@ fn update_max_type_var(var: TypeVar, max: &mut Option<TypeVar>) {
     }
 }
 
-fn live_subtract_ids(
+fn live_subtracts(
     root: &CompactRoot,
     role_predicates: &[CompactRoleConstraint],
-    candidate_ids: &FxHashSet<SubtractId>,
-) -> FxHashSet<SubtractId> {
+    candidates: &[(TypeVar, SubtractId)],
+) -> FxHashSet<(TypeVar, SubtractId)> {
+    let mut candidate_map = FxHashMap::<TypeVar, Vec<SubtractId>>::default();
+    for (var, id) in candidates {
+        candidate_map.entry(*var).or_default().push(*id);
+    }
     let mut live = FxHashSet::default();
-    collect_live_subtract_ids_in_type(&root.root, true, candidate_ids, &mut live);
+    collect_live_subtracts_in_type(&root.root, true, &candidate_map, &mut live);
     for rec in &root.rec_vars {
-        collect_live_subtract_ids_in_bounds(&rec.bounds, candidate_ids, &mut live);
+        collect_live_subtracts_in_bounds(&rec.bounds, &candidate_map, &mut live);
     }
     for role in role_predicates {
-        collect_live_subtract_ids_in_role(role, candidate_ids, &mut live);
+        collect_live_subtracts_in_role(role, &candidate_map, &mut live);
     }
     live
 }
 
-fn collect_live_subtract_ids_in_role(
+fn collect_live_subtracts_in_role(
     role: &CompactRoleConstraint,
-    candidate_ids: &FxHashSet<SubtractId>,
-    live: &mut FxHashSet<SubtractId>,
+    candidate_map: &FxHashMap<TypeVar, Vec<SubtractId>>,
+    live: &mut FxHashSet<(TypeVar, SubtractId)>,
 ) {
     for input in &role.inputs {
-        collect_live_subtract_ids_in_role_arg(input, candidate_ids, live);
+        collect_live_subtracts_in_role_arg(input, candidate_map, live);
     }
     for associated in &role.associated {
-        collect_live_subtract_ids_in_role_arg(&associated.value, candidate_ids, live);
+        collect_live_subtracts_in_role_arg(&associated.value, candidate_map, live);
     }
 }
 
-fn collect_live_subtract_ids_in_role_arg(
+fn collect_live_subtracts_in_role_arg(
     arg: &CompactRoleArg,
-    candidate_ids: &FxHashSet<SubtractId>,
-    live: &mut FxHashSet<SubtractId>,
+    candidate_map: &FxHashMap<TypeVar, Vec<SubtractId>>,
+    live: &mut FxHashSet<(TypeVar, SubtractId)>,
 ) {
-    collect_live_subtract_ids_in_type(&arg.lower, true, candidate_ids, live);
-    collect_live_subtract_ids_in_type(&arg.upper, false, candidate_ids, live);
+    collect_live_subtracts_in_type(&arg.lower, true, candidate_map, live);
+    collect_live_subtracts_in_type(&arg.upper, false, candidate_map, live);
 }
 
-fn collect_live_subtract_ids_in_type(
+fn collect_live_subtracts_in_type(
     ty: &CompactType,
     covariant: bool,
-    candidate_ids: &FxHashSet<SubtractId>,
-    live: &mut FxHashSet<SubtractId>,
+    candidate_map: &FxHashMap<TypeVar, Vec<SubtractId>>,
+    live: &mut FxHashSet<(TypeVar, SubtractId)>,
 ) {
     if covariant {
         for var in &ty.vars {
-            for id in candidate_ids {
+            let Some(ids) = candidate_map.get(&var.var) else {
+                continue;
+            };
+            for id in ids {
                 if !var.weight.contains(*id) {
-                    live.insert(*id);
+                    live.insert((var.var, *id));
                 }
             }
         }
@@ -1491,59 +1507,59 @@ fn collect_live_subtract_ids_in_type(
 
     for con in &ty.cons {
         for arg in &con.args {
-            collect_live_subtract_ids_in_bounds(arg, candidate_ids, live);
+            collect_live_subtracts_in_bounds(arg, candidate_map, live);
         }
     }
     for fun in &ty.funs {
-        collect_live_subtract_ids_in_type(&fun.arg, !covariant, candidate_ids, live);
-        collect_live_subtract_ids_in_type(&fun.arg_eff, !covariant, candidate_ids, live);
-        collect_live_subtract_ids_in_type(&fun.ret_eff, covariant, candidate_ids, live);
-        collect_live_subtract_ids_in_type(&fun.ret, covariant, candidate_ids, live);
+        collect_live_subtracts_in_type(&fun.arg, !covariant, candidate_map, live);
+        collect_live_subtracts_in_type(&fun.arg_eff, !covariant, candidate_map, live);
+        collect_live_subtracts_in_type(&fun.ret_eff, covariant, candidate_map, live);
+        collect_live_subtracts_in_type(&fun.ret, covariant, candidate_map, live);
     }
     for record in &ty.records {
         for field in &record.fields {
-            collect_live_subtract_ids_in_type(&field.value, covariant, candidate_ids, live);
+            collect_live_subtracts_in_type(&field.value, covariant, candidate_map, live);
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            collect_live_subtract_ids_in_type(&field.value, covariant, candidate_ids, live);
+            collect_live_subtracts_in_type(&field.value, covariant, candidate_map, live);
         }
-        collect_live_subtract_ids_in_type(&spread.tail, covariant, candidate_ids, live);
+        collect_live_subtracts_in_type(&spread.tail, covariant, candidate_map, live);
     }
     for variant in &ty.poly_variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                collect_live_subtract_ids_in_type(payload, covariant, candidate_ids, live);
+                collect_live_subtracts_in_type(payload, covariant, candidate_map, live);
             }
         }
     }
     for tuple in &ty.tuples {
         for item in &tuple.items {
-            collect_live_subtract_ids_in_type(item, covariant, candidate_ids, live);
+            collect_live_subtracts_in_type(item, covariant, candidate_map, live);
         }
     }
     for row in &ty.rows {
         for item in &row.items {
-            collect_live_subtract_ids_in_type(item, covariant, candidate_ids, live);
+            collect_live_subtracts_in_type(item, covariant, candidate_map, live);
         }
-        collect_live_subtract_ids_in_type(&row.tail, covariant, candidate_ids, live);
+        collect_live_subtracts_in_type(&row.tail, covariant, candidate_map, live);
     }
 }
 
-fn collect_live_subtract_ids_in_bounds(
+fn collect_live_subtracts_in_bounds(
     bounds: &CompactBounds,
-    candidate_ids: &FxHashSet<SubtractId>,
-    live: &mut FxHashSet<SubtractId>,
+    candidate_map: &FxHashMap<TypeVar, Vec<SubtractId>>,
+    live: &mut FxHashSet<(TypeVar, SubtractId)>,
 ) {
     match bounds {
         CompactBounds::Interval { lower, upper, .. } => {
-            collect_live_subtract_ids_in_type(lower, true, candidate_ids, live);
-            collect_live_subtract_ids_in_type(upper, false, candidate_ids, live);
+            collect_live_subtracts_in_type(lower, true, candidate_map, live);
+            collect_live_subtracts_in_type(upper, false, candidate_map, live);
         }
         CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
             for arg in args {
-                collect_live_subtract_ids_in_bounds(arg, candidate_ids, live);
+                collect_live_subtracts_in_bounds(arg, candidate_map, live);
             }
         }
         CompactBounds::Fun {
@@ -1552,20 +1568,20 @@ fn collect_live_subtract_ids_in_bounds(
             ret_eff,
             ret,
         } => {
-            collect_live_subtract_ids_in_bounds(arg, candidate_ids, live);
-            collect_live_subtract_ids_in_bounds(arg_eff, candidate_ids, live);
-            collect_live_subtract_ids_in_bounds(ret_eff, candidate_ids, live);
-            collect_live_subtract_ids_in_bounds(ret, candidate_ids, live);
+            collect_live_subtracts_in_bounds(arg, candidate_map, live);
+            collect_live_subtracts_in_bounds(arg_eff, candidate_map, live);
+            collect_live_subtracts_in_bounds(ret_eff, candidate_map, live);
+            collect_live_subtracts_in_bounds(ret, candidate_map, live);
         }
         CompactBounds::Record { fields } => {
             for field in fields {
-                collect_live_subtract_ids_in_bounds(&field.value, candidate_ids, live);
+                collect_live_subtracts_in_bounds(&field.value, candidate_map, live);
             }
         }
         CompactBounds::PolyVariant { items } => {
             for (_, payloads) in items {
                 for payload in payloads {
-                    collect_live_subtract_ids_in_bounds(payload, candidate_ids, live);
+                    collect_live_subtracts_in_bounds(payload, candidate_map, live);
                 }
             }
         }
@@ -1985,7 +2001,7 @@ mod tests {
     }
 
     #[test]
-    fn subtract_survives_when_one_covariant_position_is_not_non_subtract() {
+    fn coalesced_covariant_position_prunes_subtract_after_weight_merge() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
         let value = TypeVar(4);
@@ -2007,8 +2023,8 @@ mod tests {
         let generalized =
             generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
 
-        assert_eq!(generalized.subtracts, vec![(effect, subtract)]);
-        assert!(generalized.compact.root.vars[0].weight.contains(subtract));
+        assert!(generalized.subtracts.is_empty());
+        assert!(!generalized.compact.root.vars[0].weight.contains(subtract));
     }
 
     #[test]

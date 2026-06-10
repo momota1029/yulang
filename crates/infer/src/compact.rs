@@ -22,7 +22,7 @@ use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 mod analysis;
 #[cfg(test)]
 pub(crate) use analysis::simplify_compact_root;
-pub(crate) use analysis::simplify_compact_root_with_roles;
+pub(crate) use analysis::simplify_compact_root_with_roles_and_non_generic;
 mod casts;
 #[cfg(test)]
 use analysis::{coalesce_by_co_occurrence, eliminate_polar_variables, sandwich_compact_root};
@@ -1495,7 +1495,7 @@ impl<'a> CompactCollector<'a> {
         }
 
         self.in_progress.insert(key);
-        let bounds = self.compact_var_bounds(var, polarity);
+        let bounds = self.compact_var_bounds(var, polarity, &weight);
         let with_self = merge_compact_types(
             polarity.is_positive(),
             CompactType::from_var(self.compact_var_occurrence(var, polarity, weight)),
@@ -1528,17 +1528,26 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    fn compact_var_bounds(&mut self, var: TypeVar, polarity: Polarity) -> CompactType {
+    fn compact_var_bounds(
+        &mut self,
+        var: TypeVar,
+        polarity: Polarity,
+        weight: &ConstraintWeight,
+    ) -> CompactType {
         let Some(bounds) = self.machine.bounds().of(var).cloned() else {
             return CompactType::default();
         };
         match polarity {
-            Polarity::Positive => self.compact_lower_bounds(&bounds),
-            Polarity::Negative => self.compact_upper_bounds(&bounds),
+            Polarity::Positive => self.compact_lower_bounds(&bounds, weight),
+            Polarity::Negative => self.compact_upper_bounds(&bounds, weight),
         }
     }
 
-    fn compact_lower_bounds(&mut self, bounds: &VarBounds) -> CompactType {
+    fn compact_lower_bounds(
+        &mut self,
+        bounds: &VarBounds,
+        outer_weight: &ConstraintWeight,
+    ) -> CompactType {
         bounds
             .lowers()
             .iter()
@@ -1546,12 +1555,16 @@ impl<'a> CompactCollector<'a> {
                 merge_compact_types(
                     true,
                     acc,
-                    self.compact_pos_bound_id(bound.pos, bound.weights.left.clone()),
+                    self.compact_pos_bound_id(bound.pos, outer_weight.union(&bound.weights.left)),
                 )
             })
     }
 
-    fn compact_upper_bounds(&mut self, bounds: &VarBounds) -> CompactType {
+    fn compact_upper_bounds(
+        &mut self,
+        bounds: &VarBounds,
+        outer_weight: &ConstraintWeight,
+    ) -> CompactType {
         bounds
             .uppers()
             .iter()
@@ -1559,7 +1572,7 @@ impl<'a> CompactCollector<'a> {
                 merge_compact_types(
                     false,
                     acc,
-                    self.compact_neg_bound_id(bound.neg, bound.weights.right.clone()),
+                    self.compact_neg_bound_id(bound.neg, outer_weight.union(&bound.weights.right)),
                 )
             })
     }
@@ -1567,11 +1580,6 @@ impl<'a> CompactCollector<'a> {
     fn compact_pos_bound_id(&mut self, id: PosId, weight: ConstraintWeight) -> CompactType {
         match self.machine.types().pos(id).clone() {
             Pos::Var(var) => CompactType::from_var(CompactVar::covariant(var, weight)),
-            Pos::Union(lhs, rhs) => {
-                let lhs = self.compact_pos_bound_id(lhs, weight.clone());
-                let rhs = self.compact_pos_bound_id(rhs, weight);
-                merge_compact_types(true, lhs, rhs)
-            }
             _ => self.compact_pos_id(id, weight),
         }
     }
@@ -1579,11 +1587,6 @@ impl<'a> CompactCollector<'a> {
     fn compact_neg_bound_id(&mut self, id: NegId, weight: ConstraintWeight) -> CompactType {
         match self.machine.types().neg(id).clone() {
             Neg::Var(var) => CompactType::from_var(CompactVar::contravariant(var)),
-            Neg::Intersection(lhs, rhs) => {
-                let lhs = self.compact_neg_bound_id(lhs, weight.clone());
-                let rhs = self.compact_neg_bound_id(rhs, weight);
-                merge_compact_types(false, lhs, rhs)
-            }
             _ => self.compact_neg_id(id, weight),
         }
     }
