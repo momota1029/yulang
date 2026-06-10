@@ -39,7 +39,12 @@ fn main() {
                 print_usage_and_exit(&program);
             }
             match yulang2::dump_poly_from_entry_with_std(PathBuf::from(path)) {
-                Ok(output) => print!("{}", output.text),
+                Ok(output) => {
+                    print!("{}", output.text);
+                    for error in &output.errors {
+                        eprintln!("error: {error}");
+                    }
+                }
                 Err(error) => {
                     eprintln!("{error}");
                     process::exit(1);

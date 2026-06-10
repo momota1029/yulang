@@ -181,6 +181,7 @@ impl BodyLowerer {
         for child in block.children() {
             match child.kind() {
                 SyntaxKind::Binding => self.lower_binding(&child, module),
+                SyntaxKind::OpDef => self.lower_op_def_body(&child, module),
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, module),
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
@@ -455,6 +456,59 @@ impl BodyLowerer {
                 }),
             }
         }
+    }
+
+    fn lower_op_def_body(&mut self, node: &Cst, module: ModuleId) {
+        let Some(info) = crate::op_def_info(node) else {
+            return;
+        };
+        let name = info.name;
+        let Some(decl) = self.next_value_decl(module, &name) else {
+            self.errors
+                .push(BodyLoweringError::MissingBindingDecl { name });
+            return;
+        };
+        let Some(expr) = op_def_body_expr(node) else {
+            self.errors.push(BodyLoweringError::MissingBody {
+                def: decl.def,
+                name,
+            });
+            return;
+        };
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(decl.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: decl.def,
+                root,
+            }));
+        let mut lowerer = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            decl.order,
+            decl.def,
+            &mut self.labels,
+        );
+        let body_result = lowerer.lower_binding_body_expr(&expr);
+        // nullfix の本体は thunk に包み、評価を use site の unit 適用まで遅らせる。
+        let lowered = body_result.map(|body| {
+            if info.nullfix {
+                lowerer.thunk_computation(body)
+            } else {
+                body
+            }
+        });
+        match lowered {
+            Ok(computation) => self.finish_binding(decl.def, name, root, computation),
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: decl.def,
+                name,
+                error,
+            }),
+        }
+        self.session.infer.restore_level(previous_level);
     }
 
     fn lower_type_decl(&mut self, node: &Cst, module: ModuleId) {
@@ -3226,6 +3280,7 @@ impl<'a> ExprLowerer<'a> {
                 SyntaxKind::Ident => self.lower_name(Name(token.text().to_string())),
                 SyntaxKind::SigilIdent => self.lower_sigil_name(token.text()),
                 SyntaxKind::Number => self.lower_number(token.text()),
+                SyntaxKind::Nullfix => self.lower_nullfix_op_use(token.text()),
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
             },
             NodeOrToken::Node(node) => self.lower_atom_with_lambda_scope(&node, lambda_scope),
@@ -3247,6 +3302,7 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
             SyntaxKind::StringLit => self.lower_string_lit(node),
             SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
+            SyntaxKind::PrefixNode => self.lower_prefix_op_use(node),
             SyntaxKind::BraceGroup if brace_group_is_record_literal(node) => {
                 self.lower_record_literal(node)
             }
@@ -4381,6 +4437,8 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Field => self.lower_field_selection(acc, node),
             SyntaxKind::Index => self.lower_index_selection(acc, node),
             SyntaxKind::Assign => self.lower_ref_assignment(acc, node),
+            SyntaxKind::InfixNode => self.lower_infix_op_use(acc, node),
+            SyntaxKind::SuffixNode => self.lower_suffix_op_use(acc, node),
             kind => Err(LoweringError::UnsupportedSyntax { kind }),
         }
     }
@@ -4502,6 +4560,131 @@ impl<'a> ExprLowerer<'a> {
             .poly
             .add_expr(Expr::Select(receiver.expr, select));
         Computation::new(expr, result_value, result_effect, receiver.evaluation)
+    }
+
+    /// op 使用ノードから symbol を読んで mangled 名で解決する。戻りは (op 参照, lazy)。
+    fn resolve_op_use(
+        &mut self,
+        fixity: &'static str,
+        node: &Cst,
+    ) -> Result<(Computation, bool), LoweringError> {
+        let symbol = node
+            .children_with_tokens()
+            .filter(|item| !item_is_trivia(item))
+            .find_map(|item| item.into_token())
+            .map(|tok| tok.text().to_string())
+            .ok_or(LoweringError::MissingOpName)?;
+        self.resolve_op_symbol(fixity, &symbol)
+    }
+
+    fn resolve_op_symbol(
+        &mut self,
+        fixity: &'static str,
+        symbol: &str,
+    ) -> Result<(Computation, bool), LoweringError> {
+        let name = crate::op_value_name(fixity, symbol);
+        let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
+            return Err(LoweringError::UnresolvedName { name });
+        };
+        let lazy = self.modules.is_lazy_op(target);
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let reference = self.session.poly.add_ref();
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_ref_label(reference, name.0);
+        }
+        self.session.refs.insert(
+            reference,
+            RefUse {
+                parent: self.parent,
+                value,
+            },
+        );
+        self.session.enqueue(AnalysisWork::ApplyRefResolution {
+            ref_id: reference,
+            target,
+        });
+        let expr = self.session.poly.add_expr(Expr::Var(reference));
+        Ok((Computation::value(expr, value, effect), lazy))
+    }
+
+    fn lower_infix_op_use(
+        &mut self,
+        acc: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let (op, lazy) = self.resolve_op_use("infix", node)?;
+        let rhs_node = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::Expr)
+            .ok_or(LoweringError::MissingOpOperand)?;
+        let rhs = self.lower_expr(&rhs_node)?;
+        let (lhs, rhs) = if lazy {
+            (self.thunk_computation(acc), self.thunk_computation(rhs))
+        } else {
+            (acc, rhs)
+        };
+        let applied = self.make_app(op, lhs);
+        Ok(self.make_app(applied, rhs))
+    }
+
+    fn lower_suffix_op_use(
+        &mut self,
+        acc: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let (op, lazy) = self.resolve_op_use("suffix", node)?;
+        let arg = if lazy {
+            self.thunk_computation(acc)
+        } else {
+            acc
+        };
+        Ok(self.make_app(op, arg))
+    }
+
+    fn lower_prefix_op_use(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let (op, lazy) = self.resolve_op_use("prefix", node)?;
+        let operand_node = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::Expr)
+            .ok_or(LoweringError::MissingOpOperand)?;
+        let operand = self.lower_expr(&operand_node)?;
+        let arg = if lazy {
+            self.thunk_computation(operand)
+        } else {
+            operand
+        };
+        Ok(self.make_app(op, arg))
+    }
+
+    fn lower_nullfix_op_use(&mut self, symbol: &str) -> Result<Computation, LoweringError> {
+        let (op, _lazy) = self.resolve_op_symbol("nullfix", symbol)?;
+        let unit = self.unit_expr();
+        Ok(self.make_app(op, unit))
+    }
+
+    /// `\() -> body` の thunk。lazy op の被演算子と nullfix op の本体に使う。
+    fn thunk_computation(&mut self, body: Computation) -> Computation {
+        let pat = self.session.poly.add_pat(Pat::Lit(Lit::Unit));
+        let param = self.fresh_type_var();
+        self.constrain_exact_primitive(param, "unit");
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param));
+        let arg_eff = self.never_neg();
+        let ret_eff = self.alloc_pos(Pos::Var(body.effect));
+        let ret = self.alloc_pos(Pos::Var(body.value));
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Computation::value(expr, value, effect)
     }
 
     fn make_app(&mut self, callee: Computation, arg: Computation) -> Computation {
@@ -5135,6 +5318,8 @@ pub enum LoweringError {
     MissingCatchArmPattern,
     MissingCatchArmBody,
     MissingFieldName,
+    MissingOpName,
+    MissingOpOperand,
     MissingRecordFieldName,
     MissingRecordFieldValue,
     MissingIndexArgument,
@@ -5399,6 +5584,17 @@ fn primitive_neg_type(name: &str) -> Neg {
 
 fn binding_body_expr(binding: &Cst) -> Option<Cst> {
     crate::child_node(binding, SyntaxKind::BindingBody)?
+        .children()
+        .find(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+            )
+        })
+}
+
+fn op_def_body_expr(node: &Cst) -> Option<Cst> {
+    crate::child_node(node, SyntaxKind::OpDefBody)?
         .children()
         .find(|child| {
             matches!(

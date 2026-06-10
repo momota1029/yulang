@@ -107,6 +107,60 @@ mod tests {
     }
 
     #[test]
+    fn lowers_infix_op_def_and_use() {
+        let output = dump_source("pub infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x\nmy a = 1 + 2\n");
+
+        assert_eq!(output.lowering.errors, Vec::new());
+        assert!(output.text.contains("\"#op:infix:+\""), "{}", output.text);
+        assert!(output.text.contains("my d1:a: int"), "{}", output.text);
+    }
+
+    #[test]
+    fn lowers_lazy_infix_op_with_thunked_operands() {
+        let output =
+            dump_source("pub lazy infix(also) 2.0.0 2.0.1 = \\a -> \\b -> b()\nmy x = 1 also 2\n");
+
+        assert_eq!(output.lowering.errors, Vec::new());
+        // 被演算子が `\() -> ...` thunk に包まれ、結果は本体 `b()` の戻り＝ int になる。
+        assert!(output.text.contains("my d1:x: int"), "{}", output.text);
+        assert!(
+            output.text.contains("(fn p2:() -> e5:1)"),
+            "{}",
+            output.text
+        );
+        assert!(
+            output.text.contains("(fn p3:() -> e7:2)"),
+            "{}",
+            output.text
+        );
+    }
+
+    #[test]
+    fn lowers_nullfix_op_as_thunked_def_and_unit_application() {
+        let output = dump_source("pub nullfix(zero) = 1\nmy a = zero\n");
+
+        assert_eq!(output.lowering.errors, Vec::new());
+        // def 側は thunk 化され、use site は unit 適用で評価される。
+        assert!(
+            output.text.contains("\"#op:nullfix:zero\": unit -> int"),
+            "{}",
+            output.text
+        );
+        assert!(output.text.contains("my d1:a: int"), "{}", output.text);
+    }
+
+    #[test]
+    fn lowers_prefix_and_suffix_op_uses() {
+        let output = dump_source(
+            "pub prefix (-) 8.0.0 = \\x -> x\npub suffix (?!) 8.0.0 = \\x -> x\nmy a = -1\nmy b = 2?!\n",
+        );
+
+        assert_eq!(output.lowering.errors, Vec::new());
+        assert!(output.text.contains("my d2:a: int"), "{}", output.text);
+        assert!(output.text.contains("my d3:b: int"), "{}", output.text);
+    }
+
+    #[test]
     fn dumps_use_mod_loaded_file_as_module_tree() {
         let files = sources::load(vec![
             SourceFile {

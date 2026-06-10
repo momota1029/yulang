@@ -308,6 +308,7 @@ pub struct ModuleTable {
     synthetic_var_act_uses: FxHashMap<DefId, Vec<SyntheticVarActUse>>,
     act_ops: FxHashMap<TypeDeclId, Vec<ActOperationSig>>,
     act_op_defs: FxHashMap<DefId, ActOperationDef>,
+    lazy_ops: FxHashSet<DefId>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
@@ -358,6 +359,7 @@ impl ModuleTable {
             synthetic_var_act_uses: FxHashMap::default(),
             act_ops: FxHashMap::default(),
             act_op_defs: FxHashMap::default(),
+            lazy_ops: FxHashSet::default(),
             act_methods: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
@@ -436,6 +438,12 @@ impl ModuleTable {
     }
     pub(crate) fn is_act_operation_def(&self, def: DefId) -> bool {
         self.act_op_defs.contains_key(&def)
+    }
+    fn mark_lazy_op(&mut self, def: DefId) {
+        self.lazy_ops.insert(def);
+    }
+    pub(crate) fn is_lazy_op(&self, def: DefId) -> bool {
+        self.lazy_ops.contains(&def)
     }
     fn set_act_template(&mut self, id: TypeDeclId, node: Cst) {
         self.act_templates.insert(id, node);
@@ -831,6 +839,7 @@ impl ModuleTable {
     fn import_alias(&mut self, module: ModuleId, alias: &AliasDecl) {
         match &alias.import {
             UseImport::Alias { name, path } => {
+                self.import_op_aliases(module, name, path, alias.order);
                 let Some(target) = self.import_path_target(module, path, alias.order) else {
                     return;
                 };
@@ -901,6 +910,37 @@ impl ModuleTable {
                         });
                 }
             }
+        }
+    }
+    /// 名前指定 import の op symbol 展開。`use foo::(+)` は plain name `+` として届くので、
+    /// 各 fixity の mangled 名（`#op:infix:+` 等）でも値を引き、見つかったものを全部運ぶ。
+    fn import_op_aliases(
+        &mut self,
+        module: ModuleId,
+        name: &Name,
+        path: &ModulePath,
+        order: ModuleOrder,
+    ) {
+        let Some(last) = path.segments.last().cloned() else {
+            return;
+        };
+        for fixity in OP_FIXITY_TAGS {
+            let mut op_path = path.clone();
+            *op_path
+                .segments
+                .last_mut()
+                .expect("op import path should be non-empty") = op_value_name(fixity, &last.0);
+            let Some(target) = self.import_path_target(module, &op_path, order) else {
+                continue;
+            };
+            let Some(def) = target.value else {
+                continue;
+            };
+            self.nodes[module.0]
+                .import_values
+                .entry(op_value_name(fixity, &name.0))
+                .or_default()
+                .push(ImportedValueDecl { order, def });
         }
     }
     fn import_path_target(
@@ -1274,6 +1314,25 @@ impl Lower {
                         self.modules.add_alias(module, import, vis);
                     }
                 }
+                SyntaxKind::OpDef => {
+                    if let Some(info) = op_def_info(&child) {
+                        let def = self.arena.defs.fresh();
+                        self.arena.defs.set(
+                            def,
+                            Def::Let {
+                                vis: info.vis,
+                                scheme: None,
+                                body: None,
+                                children: Vec::new(),
+                            },
+                        );
+                        self.modules.insert_value(module, info.name, def, info.vis);
+                        if info.lazy {
+                            self.modules.mark_lazy_op(def);
+                        }
+                        children.push(def);
+                    }
+                }
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
@@ -1282,7 +1341,7 @@ impl Lower {
                 | SyntaxKind::ActDecl => {
                     self.register_type_namespace_decl(&child, module, &mut children);
                 }
-                // 型定義系の本体、Cast/OpDef は後で。
+                // 型定義系の本体、Cast は後で。
                 SyntaxKind::ImplDecl => {
                     if let Some(def) = self.register_role_impl_decl(&child, module) {
                         children.push(def);
@@ -2885,6 +2944,51 @@ fn use_mod_name(node: &Cst) -> Option<Name> {
 }
 
 /// 直下の My/Our/Pub トークンを読む。無ければ Our（省略時の既定）。
+pub(crate) const OP_FIXITY_TAGS: [&str; 4] = ["prefix", "infix", "suffix", "nullfix"];
+
+/// op を value namespace に置くときの mangled 名。fixity 違いは別の値として共存する。
+/// `#` 始まりは通常の識別子になり得ないため、ユーザ名と衝突しない。
+pub(crate) fn op_value_name(fixity: &str, symbol: &str) -> Name {
+    Name(format!("#op:{fixity}:{symbol}"))
+}
+
+pub(crate) struct OpDefInfo {
+    pub(crate) name: Name,
+    pub(crate) vis: Vis,
+    pub(crate) lazy: bool,
+    pub(crate) nullfix: bool,
+}
+
+/// OpDef ノードのヘッダから登録に要る情報を読む。bps は infer では使わない。
+pub(crate) fn op_def_info(node: &Cst) -> Option<OpDefInfo> {
+    let header = child_node(node, SyntaxKind::OpDefHeader)?;
+    let symbol = header
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|tok| tok.kind() == SyntaxKind::OpName)
+        .map(|tok| tok.text().to_string())?;
+    let fixity = header
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find_map(|tok| match tok.kind() {
+            SyntaxKind::Prefix => Some("prefix"),
+            SyntaxKind::Infix => Some("infix"),
+            SyntaxKind::Suffix => Some("suffix"),
+            SyntaxKind::Nullfix => Some("nullfix"),
+            _ => None,
+        })?;
+    let lazy = header
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .any(|tok| tok.kind() == SyntaxKind::Lazy);
+    Some(OpDefInfo {
+        name: op_value_name(fixity, &symbol),
+        vis: vis_of(&header),
+        lazy,
+        nullfix: fixity == "nullfix",
+    })
+}
+
 fn vis_of(node: &Cst) -> Vis {
     node.children_with_tokens()
         .filter_map(|it| it.into_token())

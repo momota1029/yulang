@@ -68,6 +68,8 @@ pub fn find_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
 pub struct DumpPolyOutput {
     pub text: String,
     pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。dump 本文とは別に stderr へ流す。
+    pub errors: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -287,9 +289,16 @@ fn dump_poly_from_sources(files: Vec<CollectedSource>) -> Result<DumpPolyOutput,
         .collect::<Vec<_>>();
     let loaded = sources::load(source_files);
     let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let errors = dump
+        .lowering
+        .errors
+        .iter()
+        .map(|error| format!("{error:?}"))
+        .collect();
     Ok(DumpPolyOutput {
         text: dump.text,
         file_count: loaded.len(),
+        errors,
     })
 }
 
