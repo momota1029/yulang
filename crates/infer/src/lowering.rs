@@ -227,9 +227,40 @@ impl BodyLowerer {
         self_alias: Option<AnnSelfAlias>,
         type_var_aliases: &[(String, String)],
     ) {
-        let Some(name) = crate::binding_name(node) else {
+        let names = crate::binding_value_names(node);
+        if names.is_empty() {
             return;
-        };
+        }
+        let arg_patterns = binding_arg_patterns(node);
+        if !arg_patterns.is_empty() || crate::binding_has_single_head_pattern(node) {
+            self.lower_single_binding_with_context(
+                node,
+                module,
+                self_alias,
+                type_var_aliases,
+                names[0].clone(),
+                arg_patterns,
+            );
+        } else {
+            self.lower_pattern_binding_with_context(
+                node,
+                module,
+                self_alias,
+                type_var_aliases,
+                names,
+            );
+        }
+    }
+
+    fn lower_single_binding_with_context(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        self_alias: Option<AnnSelfAlias>,
+        type_var_aliases: &[(String, String)],
+        name: Name,
+        arg_patterns: Vec<Cst>,
+    ) {
         let Some(decl) = self.next_value_decl(module, &name) else {
             self.errors
                 .push(BodyLoweringError::MissingBindingDecl { name });
@@ -250,7 +281,6 @@ impl BodyLowerer {
                 def: decl.def,
                 root,
             }));
-        let arg_patterns = binding_arg_patterns(node);
         let has_header_args = !arg_patterns.is_empty();
         let result_type_expr = has_header_args.then(|| binding_type_expr(node)).flatten();
 
@@ -301,6 +331,129 @@ impl BodyLowerer {
             }),
         }
         self.session.infer.restore_level(previous_level);
+    }
+
+    fn lower_pattern_binding_with_context(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        self_alias: Option<AnnSelfAlias>,
+        type_var_aliases: &[(String, String)],
+        names: Vec<Name>,
+    ) {
+        let Some(pattern) = crate::binding_pattern(node) else {
+            return;
+        };
+        let Some(expr) = binding_body_expr(node) else {
+            for name in names {
+                if let Some(decl) = self.next_value_decl(module, &name) {
+                    self.errors.push(BodyLoweringError::MissingBody {
+                        def: decl.def,
+                        name,
+                    });
+                }
+            }
+            return;
+        };
+
+        let hidden_def = self.session.poly.defs.fresh();
+        self.session.poly.defs.set(
+            hidden_def,
+            Def::Let {
+                vis: Vis::My,
+                scheme: None,
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        self.labels
+            .set_def_label(hidden_def, "#destructure".to_string());
+
+        let hidden_root = self.session.infer.fresh_type_var();
+        self.typing.set_def(hidden_def, hidden_root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: hidden_def,
+                root: hidden_root,
+            }));
+        let previous_level = self.session.infer.enter_child_level();
+        let hidden_lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            signature_module_path_site(),
+            hidden_def,
+            &mut self.labels,
+        )
+        .with_local_method_scope(self.local_method_scope)
+        .with_self_alias(self_alias.clone())
+        .with_type_var_aliases(type_var_aliases)
+        .lower_binding_body_expr(&expr);
+        match hidden_lowered {
+            Ok(computation) => {
+                let connected = self.connect_binding_annotation(
+                    node,
+                    module,
+                    signature_module_path_site(),
+                    self_alias.clone(),
+                    type_var_aliases,
+                    hidden_root,
+                    computation,
+                );
+                match connected {
+                    Ok(()) => self.finish_binding(
+                        hidden_def,
+                        Name("#destructure".into()),
+                        hidden_root,
+                        computation,
+                    ),
+                    Err(error) => self.errors.push(BodyLoweringError::Expr {
+                        def: hidden_def,
+                        name: Name("#destructure".into()),
+                        error,
+                    }),
+                }
+            }
+            Err(error) => self.errors.push(BodyLoweringError::Expr {
+                def: hidden_def,
+                name: Name("#destructure".into()),
+                error,
+            }),
+        }
+        self.session.infer.restore_level(previous_level);
+
+        for name in names {
+            let Some(decl) = self.next_value_decl(module, &name) else {
+                self.errors
+                    .push(BodyLoweringError::MissingBindingDecl { name });
+                continue;
+            };
+            let root = self.session.infer.fresh_type_var();
+            self.typing.set_def(decl.def, root);
+            self.session
+                .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                    def: decl.def,
+                    root,
+                }));
+            let lowered = ExprLowerer::with_labels(
+                &mut self.session,
+                &self.modules,
+                module,
+                decl.order,
+                decl.def,
+                &mut self.labels,
+            )
+            .with_local_method_scope(self.local_method_scope)
+            .lower_destructured_binding_component(&pattern, hidden_def, name.clone());
+            match lowered {
+                Ok(computation) => self.finish_binding(decl.def, name, root, computation),
+                Err(error) => self.errors.push(BodyLoweringError::Expr {
+                    def: decl.def,
+                    name,
+                    error,
+                }),
+            }
+        }
     }
 
     fn lower_type_decl(&mut self, node: &Cst, module: ModuleId) {
@@ -2382,6 +2535,27 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_solver_vars,
             result_type_expr,
         )
+    }
+
+    fn lower_destructured_binding_component(
+        &mut self,
+        pattern: &Cst,
+        hidden_def: DefId,
+        name: Name,
+    ) -> Result<Computation, LoweringError> {
+        let pattern_value = self.fresh_type_var();
+        let hidden = self.lower_resolved_value_ref("#destructure".to_string(), hidden_def);
+        let pat = self.lower_match_pattern(pattern, pattern_value)?;
+        self.subtype_var_to_var(hidden.value, pattern_value);
+        self.subtype_var_to_var(pattern_value, hidden.value);
+        let target = self.lower_name(name)?;
+        Ok(self.prepend_block(
+            LoweredLocalStmt {
+                stmt: Stmt::Let(Vis::My, pat, hidden.expr),
+                effect: hidden.effect,
+            },
+            target,
+        ))
     }
 
     fn lower_type_method_body_expr(
@@ -7799,6 +7973,50 @@ mod tests {
             "{rendered}"
         );
         assert!(!rendered.contains("[return("), "{rendered}");
+    }
+
+    #[test]
+    fn top_level_tuple_binding_registers_each_name() {
+        let root = parse("my (x, y) = (1, 2)\nmy site = y\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let x = lower.modules.value_decls(module, &Name("x".into()))[0].def;
+        let y = lower.modules.value_decls(module, &Name("y".into()))[0].def;
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let site_body = binding_body_id(&output, site);
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, site_body)),
+            Some(y)
+        );
+        assert!(output.session.poly.defs.get(x).is_some());
+    }
+
+    #[test]
+    fn parenthesized_keyword_binding_registers_as_value_name() {
+        let root = parse("my (mod) = 1\nmy site = mod\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let keyword = lower.modules.value_decls(module, &Name("mod".into()))[0].def;
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let site_body = binding_body_id(&output, site);
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, site_body)),
+            Some(keyword)
+        );
     }
 
     #[test]

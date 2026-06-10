@@ -1248,22 +1248,7 @@ impl Lower {
         for child in block.children() {
             match child.kind() {
                 SyntaxKind::Binding => {
-                    if let Some(name) = binding_name(&child) {
-                        let vis = binding_vis(&child);
-                        let def = self.arena.defs.fresh();
-                        self.arena.defs.set(
-                            def,
-                            Def::Let {
-                                vis,
-                                scheme: None,
-                                body: None,
-                                children: Vec::new(),
-                            },
-                        );
-                        self.modules.insert_value(module, name, def, vis);
-                        children.push(def);
-                        self.register_local_var_act_copies_in_binding(&child, module, def);
-                    }
+                    self.register_binding_values(&child, module, &mut children);
                 }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
@@ -1306,6 +1291,30 @@ impl Lower {
             }
         }
         children
+    }
+
+    fn register_binding_values(
+        &mut self,
+        binding: &Cst,
+        module: ModuleId,
+        children: &mut Vec<DefId>,
+    ) {
+        let vis = binding_vis(binding);
+        for name in binding_value_names(binding) {
+            let def = self.arena.defs.fresh();
+            self.arena.defs.set(
+                def,
+                Def::Let {
+                    vis,
+                    scheme: None,
+                    body: None,
+                    children: Vec::new(),
+                },
+            );
+            self.modules.insert_value(module, name, def, vis);
+            children.push(def);
+            self.register_local_var_act_copies_in_binding(binding, module, def);
+        }
     }
 
     fn register_role_impl_decl(&mut self, node: &Cst, module: ModuleId) -> Option<DefId> {
@@ -2301,12 +2310,111 @@ fn first_ident_or_sigil(node: &Cst) -> Option<Name> {
         .map(|t| Name(t.text().to_string()))
 }
 
-/// `Binding → BindingHeader → Pattern` の最初の Ident が束縛名。
-/// （`my (a, b) = …` のような分解束縛は後で対応。今は最初の Ident を返す）
+/// `Binding → BindingHeader → Pattern` から module value として登録する名前を読む。
 fn binding_name(node: &Cst) -> Option<Name> {
+    binding_value_names(node).into_iter().next()
+}
+
+fn binding_value_names(node: &Cst) -> Vec<Name> {
+    let Some(header) = child_node(node, SyntaxKind::BindingHeader) else {
+        return Vec::new();
+    };
+    let Some(pattern) = child_node(&header, SyntaxKind::Pattern) else {
+        return Vec::new();
+    };
+    if contains_node_kind(&pattern, SyntaxKind::ApplyML)
+        || contains_node_kind(&pattern, SyntaxKind::ApplyC)
+        || contains_node_kind(&pattern, SyntaxKind::TypeAnn)
+        || pattern_field_name(&pattern).is_some()
+    {
+        return pattern_head_binding_name(&pattern).into_iter().collect();
+    }
+    let mut out = Vec::new();
+    collect_pattern_binding_names(&pattern, &mut out);
+    out
+}
+
+fn binding_pattern(node: &Cst) -> Option<Cst> {
     let header = child_node(node, SyntaxKind::BindingHeader)?;
-    let pattern = child_node(&header, SyntaxKind::Pattern)?;
-    first_ident_or_sigil(&pattern)
+    child_node(&header, SyntaxKind::Pattern)
+}
+
+fn binding_has_single_head_pattern(node: &Cst) -> bool {
+    let Some(pattern) = binding_pattern(node) else {
+        return false;
+    };
+    pattern_head_binding_name(&pattern).is_some()
+}
+
+fn pattern_head_binding_name(pattern: &Cst) -> Option<Name> {
+    match first_pattern_token_or_group(pattern)? {
+        NodeOrToken::Token(token)
+            if matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) =>
+        {
+            let name = Name(token.text().to_string());
+            (name.0 != "_").then_some(name)
+        }
+        NodeOrToken::Node(group) if group.kind() == SyntaxKind::PatParenGroup => {
+            pattern_head_binding_name(&single_pattern_child(&group)?)
+        }
+        _ => None,
+    }
+}
+
+fn collect_pattern_binding_names(pattern: &Cst, out: &mut Vec<Name>) {
+    if pattern.kind() == SyntaxKind::PatParenGroup {
+        for child in pattern
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::Pattern)
+        {
+            collect_pattern_binding_names(&child, out);
+        }
+        return;
+    }
+
+    let Some(item) = single_pattern_token_or_group(pattern) else {
+        return;
+    };
+    match item {
+        NodeOrToken::Token(token)
+            if matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) =>
+        {
+            let name = Name(token.text().to_string());
+            if name.0 != "_" {
+                out.push(name);
+            }
+        }
+        NodeOrToken::Node(group) if group.kind() == SyntaxKind::PatParenGroup => {
+            collect_pattern_binding_names(&group, out);
+        }
+        _ => {}
+    }
+}
+
+fn single_pattern_token_or_group(
+    pattern: &Cst,
+) -> Option<NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>> {
+    let mut items = pattern
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item));
+    let first = items.next()?;
+    items.next().is_none().then_some(first)
+}
+
+fn first_pattern_token_or_group(
+    pattern: &Cst,
+) -> Option<NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>> {
+    pattern
+        .children_with_tokens()
+        .find(|item| !item_is_trivia(item))
+}
+
+fn single_pattern_child(group: &Cst) -> Option<Cst> {
+    let mut patterns = group
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::Pattern);
+    let first = patterns.next()?;
+    patterns.next().is_none().then_some(first)
 }
 
 fn binding_vis(node: &Cst) -> Vis {
@@ -2805,6 +2913,23 @@ mod tests {
         let g = lower.modules.value_decls(root, &Name("g".into()));
         assert_eq!(f.len(), 1);
         assert_eq!(g.len(), 1);
+        assert_eq!(lower.arena.roots.len(), 2);
+    }
+
+    #[test]
+    fn registers_parenthesized_keyword_call_binding() {
+        let cst = parse("pub (mod)(x: int, y: int): int\nmy site = mod\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+
+        assert_eq!(
+            lower.modules.value_decls(root, &Name("mod".into())).len(),
+            1
+        );
+        assert_eq!(
+            lower.modules.value_decls(root, &Name("site".into())).len(),
+            1
+        );
         assert_eq!(lower.arena.roots.len(), 2);
     }
 
