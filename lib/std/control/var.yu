@@ -10,7 +10,6 @@ pub type ref 'e 'a with:
             ref_update::update v, k -> loop:k:f v
         loop:r.update_effect()
 
-
 pub act var 't:
     pub get: () -> 't
     pub set: 't -> ()
