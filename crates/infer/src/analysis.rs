@@ -668,6 +668,9 @@ impl AnalysisSession {
         match self.infer.constraints().types().pos(pos).clone() {
             Pos::Var(var) => self.probe_select_var(select_id, var, name, visited),
             Pos::Con(path, args) if crate::std_paths::is_control_var_ref_type(&path) => {
+                if let Some(target) = self.value_method_for_receiver(select_id, &path, name) {
+                    return Some(target);
+                }
                 let payload = self.ref_payload_probe(&args)?;
                 self.selections.watch_ref_payload(payload.var, select_id);
                 self.probe_ref_select_pos(select_id, payload.lower, name, visited)

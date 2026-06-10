@@ -1045,11 +1045,10 @@ fn merge_unique_owned<T: PartialEq>(mut lhs: Vec<T>, rhs: Vec<T>) -> Vec<T> {
 fn merge_cons(positive: bool, lhs: Vec<CompactCon>, rhs: Vec<CompactCon>) -> Vec<CompactCon> {
     let mut out = lhs;
     for other in rhs {
-        if let Some(existing) = out.iter_mut().find(|con| {
-            con.path == other.path
-                && con.args.len() == other.args.len()
-                && compact_bounds_slices_mergeable(&con.args, &other.args)
-        }) {
+        if let Some(existing) = out
+            .iter_mut()
+            .find(|con| con.path == other.path && con.args.len() == other.args.len())
+        {
             existing.args = mem::take(&mut existing.args)
                 .into_iter()
                 .zip(other.args)
@@ -1082,11 +1081,7 @@ fn compact_bounds_mergeable(lhs: &CompactBounds, rhs: &CompactBounds) -> bool {
                 path: rhs_path,
                 args: rhs_args,
             },
-        ) => {
-            path == rhs_path
-                && args.len() == rhs_args.len()
-                && compact_bounds_slices_mergeable(args, rhs_args)
-        }
+        ) => path == rhs_path && args.len() == rhs_args.len(),
         (CompactBounds::Tuple { items }, CompactBounds::Tuple { items: rhs_items }) => {
             items.len() == rhs_items.len() && compact_bounds_slices_mergeable(items, rhs_items)
         }
@@ -1119,11 +1114,27 @@ fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) 
                 lower: rhs_lower,
                 upper: rhs_upper,
             },
-        ) if self_var == rhs_self => CompactBounds::Interval {
-            self_var,
-            lower: merge_compact_types(positive, lower, rhs_lower),
-            upper: merge_compact_types(!positive, upper, rhs_upper),
-        },
+        ) => {
+            let mut lower = merge_compact_types(positive, lower, rhs_lower);
+            let mut upper = merge_compact_types(!positive, upper, rhs_upper);
+            if self_var != rhs_self {
+                lower = merge_compact_types(
+                    positive,
+                    lower,
+                    CompactType::from_var(CompactVar::plain(rhs_self)),
+                );
+                upper = merge_compact_types(
+                    !positive,
+                    upper,
+                    CompactType::from_var(CompactVar::plain(rhs_self)),
+                );
+            }
+            CompactBounds::Interval {
+                self_var,
+                lower,
+                upper,
+            }
+        }
         (
             CompactBounds::Con { path, args },
             CompactBounds::Con {
@@ -1303,7 +1314,7 @@ fn merge_rows(positive: bool, lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec
     let mut out = lhs;
     for other in rhs {
         if let Some(existing) = out.iter_mut().find(|row| row.tail == other.tail) {
-            existing.items = merge_unique_owned(mem::take(&mut existing.items), other.items);
+            existing.items = merge_row_items(positive, mem::take(&mut existing.items), other.items);
         } else if let Some(existing) = out.iter_mut().find(|row| row.items == other.items) {
             existing.tail = Box::new(merge_compact_types(
                 positive,
@@ -1315,6 +1326,52 @@ fn merge_rows(positive: bool, lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec
         }
     }
     out
+}
+
+fn merge_row_items(
+    positive: bool,
+    lhs: Vec<CompactType>,
+    rhs: Vec<CompactType>,
+) -> Vec<CompactType> {
+    let mut out = lhs;
+    for other in rhs {
+        if let Some(existing) = out
+            .iter_mut()
+            .find(|item| compact_row_items_mergeable(item, &other))
+        {
+            *existing = merge_compact_types(positive, mem::take(existing), other);
+        } else if !out.contains(&other) {
+            out.push(other);
+        }
+    }
+    out
+}
+
+fn compact_row_items_mergeable(lhs: &CompactType, rhs: &CompactType) -> bool {
+    let Some(lhs) = single_compact_con(lhs) else {
+        return lhs == rhs;
+    };
+    let Some(rhs) = single_compact_con(rhs) else {
+        return false;
+    };
+    lhs.path == rhs.path && lhs.args.len() == rhs.args.len()
+}
+
+fn single_compact_con(ty: &CompactType) -> Option<&CompactCon> {
+    if ty.never
+        || !ty.vars.is_empty()
+        || !ty.builtins.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.poly_variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
+        || ty.cons.len() != 1
+    {
+        return None;
+    }
+    ty.cons.first()
 }
 
 struct CompactCollector<'a> {
@@ -1608,7 +1665,10 @@ impl<'a> CompactCollector<'a> {
                     .collect(),
             }),
             Pos::Row(items) => self.compact_pos_row(items, weight),
-            Pos::NonSubtract(pos, _) => self.compact_pos_id(pos, weight),
+            Pos::NonSubtract(pos, subtract) => {
+                let weight = weight.union(&ConstraintWeight::from_ids([subtract]));
+                self.compact_pos_id(pos, weight)
+            }
             Pos::Union(lhs, rhs) => {
                 let lhs = self.compact_pos_id(lhs, weight.clone());
                 let rhs = self.compact_pos_id(rhs, weight);
@@ -2653,6 +2713,52 @@ mod tests {
         assert!(pos_contains_path(&types, *lower, "list"));
     }
 
+    #[test]
+    fn merge_cons_by_path_and_exposes_discarded_center_on_both_bounds() {
+        let merged = merge_compact_types(
+            true,
+            list_with_empty_payload(TypeVar(1)),
+            list_with_empty_payload(TypeVar(2)),
+        );
+
+        assert_eq!(merged.cons.len(), 1);
+        let CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } = &merged.cons[0].args[0]
+        else {
+            panic!("expected merged payload interval");
+        };
+        assert_eq!(*self_var, TypeVar(1));
+        assert!(compact_type_contains_var(lower, TypeVar(2)));
+        assert!(compact_type_contains_var(upper, TypeVar(2)));
+    }
+
+    #[test]
+    fn merge_rows_coalesces_con_items_by_path() {
+        let merged = merge_compact_types(
+            true,
+            CompactType::from_row(CompactRow {
+                items: vec![effect_with_empty_payload(TypeVar(1))],
+                tail: Box::new(CompactType::default()),
+            }),
+            CompactType::from_row(CompactRow {
+                items: vec![effect_with_empty_payload(TypeVar(2))],
+                tail: Box::new(CompactType::default()),
+            }),
+        );
+
+        assert_eq!(merged.rows.len(), 1);
+        assert_eq!(merged.rows[0].items.len(), 1);
+        let item = single_compact_con(&merged.rows[0].items[0]).expect("effect item");
+        let CompactBounds::Interval { lower, upper, .. } = &item.args[0] else {
+            panic!("expected merged effect payload interval");
+        };
+        assert!(compact_type_contains_var(lower, TypeVar(2)));
+        assert!(compact_type_contains_var(upper, TypeVar(2)));
+    }
+
     fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
         compact.rows.iter().any(|row| {
             row.items
@@ -2681,6 +2787,32 @@ mod tests {
                 .builtins
                 .iter()
                 .any(|builtin| builtin.surface_name() == path)
+    }
+
+    fn compact_type_contains_var(compact: &CompactType, expected: TypeVar) -> bool {
+        compact.vars.iter().any(|var| var.var == expected)
+    }
+
+    fn list_with_empty_payload(center: TypeVar) -> CompactType {
+        CompactType::from_con(CompactCon {
+            path: vec!["list".into()],
+            args: vec![empty_interval(center)],
+        })
+    }
+
+    fn effect_with_empty_payload(center: TypeVar) -> CompactType {
+        CompactType::from_con(CompactCon {
+            path: vec!["effect".into()],
+            args: vec![empty_interval(center)],
+        })
+    }
+
+    fn empty_interval(center: TypeVar) -> CompactBounds {
+        CompactBounds::Interval {
+            self_var: center,
+            lower: CompactType::default(),
+            upper: CompactType::default(),
+        }
     }
 
     fn compact_path_is(actual: &[String], expected: &str) -> bool {

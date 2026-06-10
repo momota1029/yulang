@@ -28,6 +28,7 @@ pub enum AnnType {
     Builtin(BuiltinType),
     Named(TypeDeclId),
     Var(AnnTypeVar),
+    Wildcard(AnnTypeVar),
     EffectRow(AnnEffectRow),
     Effectful {
         eff: AnnEffectRow,
@@ -247,6 +248,11 @@ impl<'a> AnnConstraintLowerer<'a> {
                     output_subtracts: Vec::new(),
                 })
             }
+            AnnType::Wildcard(_) => Ok(AnnValueBounds {
+                pos: self.alloc_pos(Pos::Bot),
+                neg: self.alloc_neg(Neg::Top),
+                output_subtracts: Vec::new(),
+            }),
             AnnType::EffectRow(row) => Ok(AnnValueBounds {
                 pos: self.lower_effect_row_pos(row)?,
                 neg: self.lower_effect_row_neg(row)?,
@@ -762,6 +768,11 @@ impl<'a> AnnTypeBuilder<'a> {
         first: &CstItem,
     ) -> Result<(AnnType, usize), AnnBuildError> {
         match first {
+            NodeOrToken::Token(token)
+                if token.kind() == SyntaxKind::Ident && token.text() == "_" =>
+            {
+                Ok((AnnType::Wildcard(self.ann_wildcard_type()), 1))
+            }
             NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
                 let (path, next) = parse_ann_path_prefix(items)?;
                 Ok((self.resolve_ann_path(path)?, next))
@@ -967,6 +978,15 @@ impl<'a> AnnTypeBuilder<'a> {
             id
         };
         AnnTypeVar { id, name }
+    }
+
+    fn ann_wildcard_type(&mut self) -> AnnTypeVar {
+        let id = AnnTypeVarId(self.next_type_var);
+        self.next_type_var += 1;
+        AnnTypeVar {
+            id,
+            name: format!("_{}", id.0),
+        }
     }
 }
 

@@ -7,9 +7,10 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
+        local_effect: Option<TypeVar>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
-        self.lower_pattern(node, value, call_return_effect)
+        self.lower_pattern(node, value, local_effect, call_return_effect)
     }
 
     pub(super) fn lower_match_pattern(
@@ -17,13 +18,14 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         value: TypeVar,
     ) -> Result<PatId, LoweringError> {
-        self.lower_pattern(node, value, LocalCallReturnEffect::Annotated)
+        self.lower_pattern(node, value, None, LocalCallReturnEffect::Annotated)
     }
 
     fn lower_pattern(
         &mut self,
         node: &Cst,
         value: TypeVar,
+        local_effect: Option<TypeVar>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         if pattern_is_constructor_spine(node) {
@@ -32,10 +34,15 @@ impl<'a> ExprLowerer<'a> {
 
         match single_pattern_item(node)? {
             PatternItem::Ident(name) if name.0 == "_" => Ok(self.session.poly.add_pat(Pat::Wild)),
-            PatternItem::Ident(name) => Ok(self.bind_lambda_param(name, value, call_return_effect)),
+            PatternItem::Ident(name) => Ok(self.bind_lambda_param(
+                name,
+                value,
+                local_effect,
+                call_return_effect,
+            )),
             PatternItem::Number(text) => self.lower_number_pattern(&text, value),
             PatternItem::Paren(group) => {
-                self.lower_paren_pattern(&group, value, call_return_effect)
+                self.lower_paren_pattern(&group, value, local_effect, call_return_effect)
             }
             PatternItem::Unsupported(kind) => Err(LoweringError::UnsupportedPatternSyntax { kind }),
         }
@@ -45,15 +52,17 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         name: Name,
         value: TypeVar,
+        local_effect: Option<TypeVar>,
         call_return_effect: LocalCallReturnEffect,
     ) -> PatId {
-        self.bind_pattern_local(name, value, call_return_effect)
+        self.bind_pattern_local(name, value, local_effect, call_return_effect)
     }
 
     pub(super) fn bind_pattern_local(
         &mut self,
         name: Name,
         value: TypeVar,
+        effect: Option<TypeVar>,
         call_return_effect: LocalCallReturnEffect,
     ) -> PatId {
         let def = self.session.poly.defs.fresh();
@@ -65,6 +74,7 @@ impl<'a> ExprLowerer<'a> {
             name,
             def,
             value,
+            effect,
             call_return_effect,
         });
         self.session.poly.add_pat(Pat::Var(def))
@@ -86,7 +96,7 @@ impl<'a> ExprLowerer<'a> {
         let mut applied_value = constructor_value;
         for payload in payloads {
             let payload_value = self.fresh_type_var();
-            payload_pats.push(self.lower_pattern(&payload, payload_value, call_return_effect)?);
+            payload_pats.push(self.lower_pattern(&payload, payload_value, None, call_return_effect)?);
             let next_value = self.fresh_type_var();
             self.constrain_pattern_constructor_step(applied_value, payload_value, next_value);
             applied_value = next_value;
@@ -151,6 +161,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         group: &Cst,
         value: TypeVar,
+        local_effect: Option<TypeVar>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let children = group
@@ -162,7 +173,7 @@ impl<'a> ExprLowerer<'a> {
                 self.constrain_exact_primitive(value, "unit");
                 Ok(self.session.poly.add_pat(Pat::Lit(Lit::Unit)))
             }
-            [child] => self.lower_lambda_pattern(child, value, call_return_effect),
+            [child] => self.lower_lambda_pattern(child, value, local_effect, call_return_effect),
             _ => {
                 let mut pats = Vec::with_capacity(children.len());
                 let mut pos_items = Vec::with_capacity(children.len());
@@ -172,6 +183,7 @@ impl<'a> ExprLowerer<'a> {
                     pats.push(self.lower_lambda_pattern(
                         &child,
                         item_value,
+                        None,
                         LocalCallReturnEffect::Annotated,
                     )?);
                     pos_items.push(self.alloc_pos(Pos::Var(item_value)));

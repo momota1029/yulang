@@ -157,20 +157,24 @@ impl<'a> ExprLowerer<'a> {
                 let effect_op = catch_effect_op(
                     pattern_path(effect_pattern).ok_or(LoweringError::MissingCatchArmPattern)?,
                 );
-                let row_item = self.alloc_neg(Neg::Con(
-                    effect_op
-                        .family_path
-                        .iter()
-                        .map(|name| name.0.clone())
-                        .collect(),
-                    Vec::new(),
-                ));
-                let (pat, payload_value) =
-                    self.lower_catch_effect_payload_pattern(effect_pattern)?;
-                handled.record(effect_op, pat_covers_all(&self.session.poly, pat), row_item);
+                let payload = self.lower_catch_effect_payload_pattern(effect_pattern)?;
+                let signature = self.lower_catch_operation_signature(&effect_op, payload.value)?;
+                let row_item = signature
+                    .as_ref()
+                    .map(|signature| signature.row_item)
+                    .unwrap_or_else(|| self.fallback_catch_effect_row_item(&effect_op, &payload));
+                let continuation_value = signature
+                    .as_ref()
+                    .map(|signature| signature.continuation_value)
+                    .unwrap_or(payload.value);
+                handled.record(
+                    effect_op,
+                    pat_covers_all(&self.session.poly, payload.pat),
+                    row_item,
+                );
                 let continuation = self.lower_catch_continuation_pattern(
                     continuation_pattern,
-                    payload_value,
+                    continuation_value,
                     scrutinee_value,
                     scrutinee_effect,
                 )?;
@@ -179,7 +183,7 @@ impl<'a> ExprLowerer<'a> {
                 self.subtype_var_to_var(body.effect, result_effect);
                 Ok(LoweredCatchArm {
                     kind: LoweredCatchArmKind::Effect,
-                    pat,
+                    pat: payload.pat,
                     continuation: Some(continuation),
                     body: body.expr,
                 })
@@ -189,34 +193,157 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
+    fn lower_catch_operation_signature(
+        &mut self,
+        effect_op: &CatchEffectOp,
+        payload_value: TypeVar,
+    ) -> Result<Option<LoweredCatchOperationSignature>, LoweringError> {
+        let Some(operation) = &effect_op.operation else {
+            return Ok(None);
+        };
+        let Some(operation_decl) = self
+            .modules
+            .act_operation_decls_at(self.module, &effect_op.family_path, self.site)
+            .into_iter()
+            .find(|decl| &decl.name == operation)
+        else {
+            return Ok(None);
+        };
+        let Some(signature) = operation_decl.signature.as_ref() else {
+            return Ok(None);
+        };
+
+        let effect_type_vars = self
+            .modules
+            .act_template(operation_decl.effect.id)
+            .map(crate::act_type_var_names)
+            .unwrap_or_default();
+        let mut builder = ann_type_builder(
+            self.modules,
+            operation_decl.effect.module,
+            operation_decl.effect.order,
+            None,
+        );
+        for name in &effect_type_vars {
+            builder.add_bare_type_var(name.clone());
+        }
+        if let Some(copy) = self.modules.resolved_act_copy(operation_decl.effect.id) {
+            add_type_var_aliases(&mut builder, &copy.type_var_aliases);
+        }
+
+        let effect_ann = builder.type_decl_application(operation_decl.effect.id, &effect_type_vars);
+        let signature_ann = builder
+            .build_type_expr(signature)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let Some((param, ret)) = operation_signature_param_ret(&signature_ann) else {
+            return Ok(None);
+        };
+
+        let effect_value = self.fresh_type_var();
+        let continuation_value = self.fresh_type_var();
+        let mut lowerer = AnnConstraintLowerer::new(&mut self.session.infer, self.modules);
+        lowerer
+            .connect_value(effect_value, &effect_ann)
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        lowerer
+            .connect_value(payload_value, param)
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        lowerer
+            .connect_value(continuation_value, ret)
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        let vars = lowerer.into_vars();
+        let bindings = builder.type_var_bindings();
+        let mut row_args = Vec::with_capacity(effect_type_vars.len());
+        for name in effect_type_vars {
+            let Some((_, ann_var)) = bindings
+                .iter()
+                .find(|(binding_name, _)| binding_name == &name)
+            else {
+                continue;
+            };
+            let Some(var) = vars.get(ann_var).copied() else {
+                continue;
+            };
+            row_args.push(self.invariant_var_arg(var));
+        }
+        let row_item = self.alloc_neg(Neg::Con(
+            self.modules
+                .type_decl_path(&operation_decl.effect)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect(),
+            row_args,
+        ));
+        Ok(Some(LoweredCatchOperationSignature {
+            row_item,
+            continuation_value,
+        }))
+    }
+
+    fn fallback_catch_effect_row_item(
+        &mut self,
+        effect_op: &CatchEffectOp,
+        payload: &LoweredCatchPayloadPattern,
+    ) -> NegId {
+        let row_args = payload
+            .effect_args
+            .iter()
+            .copied()
+            .map(|arg| self.invariant_var_arg(arg))
+            .collect();
+        self.alloc_neg(Neg::Con(
+            effect_op
+                .family_path
+                .iter()
+                .map(|name| name.0.clone())
+                .collect(),
+            row_args,
+        ))
+    }
+
     fn lower_catch_effect_payload_pattern(
         &mut self,
         effect_pattern: &Cst,
-    ) -> Result<(PatId, TypeVar), LoweringError> {
+    ) -> Result<LoweredCatchPayloadPattern, LoweringError> {
         let payloads = pattern_payloads(effect_pattern);
         match payloads.as_slice() {
             [] => {
                 let value = self.fresh_type_var();
-                Ok((self.session.poly.add_pat(Pat::Wild), value))
+                Ok(LoweredCatchPayloadPattern {
+                    pat: self.session.poly.add_pat(Pat::Wild),
+                    value,
+                    effect_args: Vec::new(),
+                })
             }
             [payload] => {
                 let value = self.fresh_type_var();
-                Ok((self.lower_match_pattern(payload, value)?, value))
+                Ok(LoweredCatchPayloadPattern {
+                    pat: self.lower_match_pattern(payload, value)?,
+                    value,
+                    effect_args: vec![value],
+                })
             }
             _ => {
                 let value = self.fresh_type_var();
                 let mut pats = Vec::with_capacity(payloads.len());
                 let mut pos_items = Vec::with_capacity(payloads.len());
                 let mut neg_items = Vec::with_capacity(payloads.len());
+                let mut effect_args = Vec::with_capacity(payloads.len());
                 for payload in payloads {
                     let item_value = self.fresh_type_var();
                     pats.push(self.lower_match_pattern(&payload, item_value)?);
                     pos_items.push(self.alloc_pos(Pos::Var(item_value)));
                     neg_items.push(self.alloc_neg(Neg::Var(item_value)));
+                    effect_args.push(item_value);
                 }
                 self.constrain_lower(value, Pos::Tuple(pos_items));
                 self.constrain_upper(value, Neg::Tuple(neg_items));
-                Ok((self.session.poly.add_pat(Pat::Tuple(pats)), value))
+                Ok(LoweredCatchPayloadPattern {
+                    pat: self.session.poly.add_pat(Pat::Tuple(pats)),
+                    value,
+                    effect_args,
+                })
             }
         }
     }
@@ -235,6 +362,7 @@ impl<'a> ExprLowerer<'a> {
                 let pat = self.bind_pattern_local(
                     name,
                     continuation_value,
+                    None,
                     LocalCallReturnEffect::Annotated,
                 );
                 self.constrain_continuation_value(
@@ -259,9 +387,8 @@ impl<'a> ExprLowerer<'a> {
         scrutinee_value: TypeVar,
         scrutinee_effect: TypeVar,
     ) {
-        let arg_eff = self.fresh_type_var();
         let lower_arg = self.alloc_neg(Neg::Var(payload_value));
-        let lower_arg_eff = self.alloc_neg(Neg::Var(arg_eff));
+        let lower_arg_eff = self.never_neg();
         let lower_ret_eff = self.alloc_pos(Pos::Var(scrutinee_effect));
         let lower_ret = self.alloc_pos(Pos::Var(scrutinee_value));
         self.constrain_lower(
@@ -275,7 +402,7 @@ impl<'a> ExprLowerer<'a> {
         );
 
         let upper_arg = self.alloc_pos(Pos::Var(payload_value));
-        let upper_arg_eff = self.alloc_pos(Pos::Var(arg_eff));
+        let upper_arg_eff = self.alloc_pos(Pos::Bot);
         let upper_ret_eff = self.alloc_neg(Neg::Var(scrutinee_effect));
         let upper_ret = self.alloc_neg(Neg::Var(scrutinee_value));
         self.constrain_upper(
@@ -295,6 +422,17 @@ struct LoweredCatchArm {
     pat: PatId,
     continuation: Option<PatId>,
     body: poly::expr::ExprId,
+}
+
+struct LoweredCatchPayloadPattern {
+    pat: PatId,
+    value: TypeVar,
+    effect_args: Vec<TypeVar>,
+}
+
+struct LoweredCatchOperationSignature {
+    row_item: NegId,
+    continuation_value: TypeVar,
 }
 
 struct CatchHandledEffects {
@@ -438,6 +576,7 @@ fn catch_effect_op(path: Vec<Name>) -> CatchEffectOp {
 fn pat_covers_all(poly: &poly::expr::Arena, pat: PatId) -> bool {
     match poly.pat(pat) {
         Pat::Wild | Pat::Var(_) => true,
+        Pat::Lit(Lit::Unit) => true,
         Pat::Tuple(items) => items.iter().all(|item| pat_covers_all(poly, *item)),
         Pat::Or(lhs, rhs) => pat_covers_all(poly, *lhs) || pat_covers_all(poly, *rhs),
         Pat::As(inner, _) => pat_covers_all(poly, *inner),
@@ -447,5 +586,12 @@ fn pat_covers_all(poly: &poly::expr::Arena, pat: PatId) -> bool {
         | Pat::PolyVariant(_, _)
         | Pat::Con(_, _)
         | Pat::Ref(_) => false,
+    }
+}
+
+fn operation_signature_param_ret(ann: &AnnType) -> Option<(&AnnType, &AnnType)> {
+    match ann {
+        AnnType::Function { param, ret, .. } => Some((param, ret)),
+        _ => None,
     }
 }

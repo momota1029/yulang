@@ -135,6 +135,13 @@ pub struct ModuleTypeDecl {
 pub struct ActOperationDecl {
     pub effect: ModuleTypeDecl,
     pub name: Name,
+    pub signature: Option<SyntaxNode<YulangLanguage>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActOperationSig {
+    name: Name,
+    signature: Option<SyntaxNode<YulangLanguage>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,6 +153,15 @@ pub struct TypeMethodDecl {
     pub def: DefId,
     pub vis: Vis,
     pub order: ModuleOrder,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeFieldMethodDecl {
+    pub owner: TypeDeclId,
+    pub name: Name,
+    pub receiver_kind: TypeMethodReceiver,
+    pub def: DefId,
+    pub vis: Vis,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -280,7 +296,7 @@ pub struct ModuleTable {
     act_templates: FxHashMap<TypeDeclId, Cst>,
     act_copies: FxHashMap<TypeDeclId, ActCopyDecl>,
     resolved_act_copies: FxHashMap<TypeDeclId, ResolvedActCopyDecl>,
-    act_ops: FxHashMap<TypeDeclId, Vec<Name>>,
+    act_ops: FxHashMap<TypeDeclId, Vec<ActOperationSig>>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
@@ -288,6 +304,7 @@ pub struct ModuleTable {
     role_methods: FxHashMap<TypeDeclId, Vec<RoleMethodDecl>>,
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
+    type_field_methods: FxHashMap<TypeDeclId, Vec<TypeFieldMethodDecl>>,
     next_type_id: u32,
 }
 
@@ -328,6 +345,7 @@ impl ModuleTable {
             role_methods: FxHashMap::default(),
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
+            type_field_methods: FxHashMap::default(),
             next_type_id: 0,
         }
     }
@@ -384,7 +402,7 @@ impl ModuleTable {
             .push(decl);
         id
     }
-    fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<Name>) {
+    fn set_act_ops(&mut self, id: TypeDeclId, ops: Vec<ActOperationSig>) {
         self.act_ops.insert(id, ops);
     }
     fn set_act_template(&mut self, id: TypeDeclId, node: Cst) {
@@ -475,6 +493,23 @@ impl ModuleTable {
     }
     pub fn all_type_methods(&self) -> impl Iterator<Item = &TypeMethodDecl> {
         self.type_methods
+            .values()
+            .flat_map(|methods| methods.iter())
+    }
+    fn insert_type_field_method(&mut self, method: TypeFieldMethodDecl) {
+        self.type_field_methods
+            .entry(method.owner)
+            .or_default()
+            .push(method);
+    }
+    pub fn type_field_methods(&self, id: TypeDeclId) -> &[TypeFieldMethodDecl] {
+        self.type_field_methods
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+    pub fn all_type_field_methods(&self) -> impl Iterator<Item = &TypeFieldMethodDecl> {
+        self.type_field_methods
             .values()
             .flat_map(|methods| methods.iter())
     }
@@ -612,9 +647,10 @@ impl ModuleTable {
             .into_iter()
             .flat_map(|ops| ops.iter())
             .cloned()
-            .map(|name| ActOperationDecl {
+            .map(|op| ActOperationDecl {
                 effect: effect.clone(),
-                name,
+                name: op.name,
+                signature: op.signature,
             })
             .collect()
     }
@@ -1328,9 +1364,9 @@ impl Lower {
             let copy = act_copy_decl(node);
             if let Some(copy) = copy {
                 self.modules.set_act_copy(id, copy);
-                self.modules.set_act_ops(id, act_operation_names(node));
+                self.modules.set_act_ops(id, act_operation_signatures(node));
             } else {
-                self.modules.set_act_ops(id, act_operation_names(node));
+                self.modules.set_act_ops(id, act_operation_signatures(node));
                 self.register_act_companion(node, module, name.clone(), id, vis, children);
             }
         }
@@ -1347,7 +1383,7 @@ impl Lower {
                 | ModuleTypeKind::Enum
                 | ModuleTypeKind::Error
         ) {
-            self.register_type_constructors(node, module, kind, name.clone(), vis, children);
+            self.register_type_constructors(node, module, kind, id, name.clone(), vis, children);
             self.register_type_companion(node, module, name, id, vis, children);
         }
     }
@@ -1357,6 +1393,7 @@ impl Lower {
         node: &Cst,
         module: ModuleId,
         kind: ModuleTypeKind,
+        owner: TypeDeclId,
         name: Name,
         vis: Vis,
         children: &mut Vec<DefId>,
@@ -1365,10 +1402,14 @@ impl Lower {
             ModuleTypeKind::TypeAlias if type_self_struct_node(node).is_some() => {
                 let def = self.register_synthetic_value(module, name, vis);
                 children.push(def);
+                if let Some(self_struct) = type_self_struct_node(node) {
+                    self.register_struct_field_methods(&self_struct, owner, vis);
+                }
             }
             ModuleTypeKind::Struct => {
                 let def = self.register_synthetic_value(module, name, vis);
                 children.push(def);
+                self.register_struct_field_methods(node, owner, vis);
             }
             ModuleTypeKind::Enum | ModuleTypeKind::Error => {
                 for variant in enum_variant_nodes(node) {
@@ -1383,7 +1424,31 @@ impl Lower {
         }
     }
 
+    fn register_struct_field_methods(&mut self, node: &Cst, owner: TypeDeclId, vis: Vis) {
+        for field in struct_field_nodes(node) {
+            let Some(name) = struct_field_name(&field) else {
+                continue;
+            };
+            for receiver_kind in [TypeMethodReceiver::Value, TypeMethodReceiver::Ref] {
+                let def = self.register_synthetic_let(vis);
+                self.modules.insert_type_field_method(TypeFieldMethodDecl {
+                    owner,
+                    name: name.clone(),
+                    receiver_kind,
+                    def,
+                    vis,
+                });
+            }
+        }
+    }
+
     fn register_synthetic_value(&mut self, module: ModuleId, name: Name, vis: Vis) -> DefId {
+        let def = self.register_synthetic_let(vis);
+        self.modules.insert_value(module, name, def, vis);
+        def
+    }
+
+    fn register_synthetic_let(&mut self, vis: Vis) -> DefId {
         let def = self.arena.defs.fresh();
         self.arena.defs.set(
             def,
@@ -1394,7 +1459,6 @@ impl Lower {
                 children: Vec::new(),
             },
         );
-        self.modules.insert_value(module, name, def, vis);
         def
     }
 
@@ -1808,8 +1872,8 @@ impl Lower {
         };
         self.modules.set_resolved_act_copy(id, resolved);
 
-        let mut ops = act_operation_names_from_body(&source_body);
-        push_unique_names(
+        let mut ops = act_operation_signatures_from_body(&source_body);
+        push_unique_act_ops(
             &mut ops,
             self.modules.act_ops.get(&id).cloned().unwrap_or_default(),
         );
@@ -2396,17 +2460,22 @@ pub(crate) fn act_operation_binding(node: &Cst) -> bool {
         .is_some_and(|header| contains_node_kind(&header, SyntaxKind::TypeAnn))
 }
 
-fn act_operation_names(node: &Cst) -> Vec<Name> {
+fn act_operation_signatures(node: &Cst) -> Vec<ActOperationSig> {
     act_decl_body(node)
         .into_iter()
-        .flat_map(|body| act_operation_names_from_body(&body))
+        .flat_map(|body| act_operation_signatures_from_body(&body))
         .collect()
 }
 
-fn act_operation_names_from_body(body: &Cst) -> Vec<Name> {
+fn act_operation_signatures_from_body(body: &Cst) -> Vec<ActOperationSig> {
     body.children()
         .filter(|child| child.kind() == SyntaxKind::Binding && act_operation_binding(child))
-        .filter_map(|binding| binding_name(&binding))
+        .filter_map(|binding| {
+            Some(ActOperationSig {
+                name: binding_name(&binding)?,
+                signature: binding_type_expr(&binding),
+            })
+        })
         .collect()
 }
 
@@ -2453,10 +2522,10 @@ fn act_type_var_arg_name(arg: &ActTypeExpr) -> Option<String> {
     }
 }
 
-fn push_unique_names(out: &mut Vec<Name>, names: Vec<Name>) {
-    for name in names {
-        if !out.contains(&name) {
-            out.push(name);
+fn push_unique_act_ops(out: &mut Vec<ActOperationSig>, ops: Vec<ActOperationSig>) {
+    for op in ops {
+        if !out.iter().any(|existing| existing.name == op.name) {
+            out.push(op);
         }
     }
 }

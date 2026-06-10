@@ -467,40 +467,47 @@ impl ConstraintMachine {
         upper_tail: NegId,
         weights: ConstraintWeights,
     ) {
+        let mut remaining_upper_items = upper_items;
+        let mut variable_items = Vec::new();
         for item in items {
-            self.enqueue_row_item(item, &upper_items, upper_tail, weights.clone());
-        }
-    }
+            if matches!(self.types.pos(item), Pos::Var(_)) {
+                variable_items.push(item);
+                continue;
+            }
 
-    fn enqueue_row_item(
-        &mut self,
-        item: PosId,
-        upper_items: &[NegId],
-        upper_tail: NegId,
-        weights: ConstraintWeights,
-    ) {
-        if let Some(upper) = upper_items
-            .iter()
-            .copied()
-            .find(|upper| self.row_items_can_match(item, *upper))
-        {
-            self.enqueue_row_item_match(item, upper, weights);
-            return;
+            if let Some(index) = remaining_upper_items
+                .iter()
+                .position(|upper| self.row_items_can_match(item, *upper))
+            {
+                let upper = remaining_upper_items.remove(index);
+                self.enqueue_row_item_match(item, upper, weights.clone());
+            } else {
+                self.enqueue_subtype(item, weights.clone(), upper_tail);
+            }
         }
 
-        if matches!(self.types.pos(item), Pos::Var(_)) {
-            let upper = self.alloc_neg(Neg::Row(upper_items.to_vec(), upper_tail));
-            self.enqueue_subtype(item, weights, upper);
-        } else {
-            self.enqueue_subtype(item, weights, upper_tail);
+        for item in variable_items {
+            if let Some(index) = remaining_upper_items
+                .iter()
+                .position(|upper| self.row_items_can_match(item, *upper))
+            {
+                let upper = remaining_upper_items.remove(index);
+                self.enqueue_row_item_match(item, upper, weights.clone());
+                continue;
+            }
+
+            let upper = if remaining_upper_items.is_empty() {
+                upper_tail
+            } else {
+                self.alloc_neg(Neg::Row(remaining_upper_items.clone(), upper_tail))
+            };
+            self.enqueue_subtype(item, weights.clone(), upper);
         }
     }
 
     fn row_items_can_match(&self, lower: PosId, upper: NegId) -> bool {
         match (self.types.pos(lower), self.types.neg(upper)) {
-            (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args)) => {
-                lower_path == upper_path && lower_args.len() == upper_args.len()
-            }
+            (Pos::Con(lower_path, _), Neg::Con(upper_path, _)) => lower_path == upper_path,
             (Pos::Var(lower), Neg::Var(upper)) => lower == upper,
             _ => false,
         }
@@ -509,12 +516,26 @@ impl ConstraintMachine {
     fn enqueue_row_item_match(&mut self, lower: PosId, upper: NegId, weights: ConstraintWeights) {
         match (self.types.pos(lower).clone(), self.types.neg(upper).clone()) {
             (Pos::Con(lower_path, lower_args), Neg::Con(upper_path, upper_args))
-                if lower_path == upper_path && lower_args.len() == upper_args.len() =>
+                if lower_path == upper_path =>
             {
-                self.enqueue_invariant_neu_args(lower_args, upper_args, weights);
+                self.enqueue_row_item_neu_args(lower_args, upper_args, weights);
             }
             (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
             _ => self.enqueue_subtype(lower, weights, upper),
+        }
+    }
+
+    fn enqueue_row_item_neu_args(
+        &mut self,
+        lower_args: Vec<NeuId>,
+        upper_args: Vec<NeuId>,
+        weights: ConstraintWeights,
+    ) {
+        for (lower, upper) in lower_args.into_iter().zip(upper_args) {
+            let (lower_pos, lower_neg) = self.neu_bounds(lower);
+            let (upper_pos, upper_neg) = self.neu_bounds(upper);
+            self.enqueue_subtype(lower_pos, weights.clone(), upper_neg);
+            self.enqueue_subtype(upper_pos, weights.swapped(), lower_neg);
         }
     }
 
@@ -1687,7 +1708,7 @@ mod tests {
     }
 
     #[test]
-    fn row_items_use_regular_upper_rows_for_variables_and_tail_for_unmatched_atoms() {
+    fn row_items_use_remaining_upper_rows_for_variables_and_tail_for_unmatched_atoms() {
         let mut machine = ConstraintMachine::new();
         let io_pos = machine.alloc_pos(Pos::Con(vec!["io".into()], vec![]));
         let io_neg = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
@@ -1696,7 +1717,6 @@ mod tests {
         let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(1)));
         let lower = machine.alloc_pos(Pos::Row(vec![io_pos, fs_pos, row_var]));
         let upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
-        let expected_row_var_upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
 
         machine.subtype(lower, upper);
 
@@ -1707,7 +1727,13 @@ mod tests {
         }));
         assert!(machine.seen.contains(&SubtypeConstraint {
             lower: row_var,
-            upper: expected_row_var_upper,
+            upper: upper_tail,
+            weights: ConstraintWeights::empty(),
+        }));
+        let old_row_var_upper = machine.alloc_neg(Neg::Row(vec![io_neg], upper_tail));
+        assert!(!machine.seen.contains(&SubtypeConstraint {
+            lower: row_var,
+            upper: old_row_var_upper,
             weights: ConstraintWeights::empty(),
         }));
         assert!(!machine.seen.contains(&SubtypeConstraint {
@@ -1806,6 +1832,40 @@ mod tests {
             upper: upper_payload_intersection,
             weights: ConstraintWeights::empty(),
         }));
+        let upper_payload_var_pos = machine.alloc_pos(Pos::Var(upper_payload_var));
+        let upper_payload_union =
+            machine.alloc_pos(Pos::Union(upper_payload_lower, upper_payload_var_pos));
+        let lower_payload_var_neg = machine.alloc_neg(Neg::Var(lower_payload_var));
+        let lower_payload_intersection = machine.alloc_neg(Neg::Intersection(
+            lower_payload_var_neg,
+            lower_payload_upper,
+        ));
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: upper_payload_union,
+            upper: lower_payload_intersection,
+            weights: ConstraintWeights::empty(),
+        }));
+        assert!(!machine.seen.contains(&SubtypeConstraint {
+            lower: lower_item,
+            upper: upper_tail,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
+    fn pos_row_concrete_effect_items_match_by_path() {
+        let mut machine = ConstraintMachine::new();
+        let payload_lower = machine.alloc_pos(Pos::Bot);
+        let payload_upper = machine.alloc_neg(Neg::Top);
+        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, TypeVar(10), payload_upper));
+        let lower_item = machine.alloc_pos(Pos::Con(vec!["effect".into()], vec![payload]));
+        let upper_item = machine.alloc_neg(Neg::Con(vec!["effect".into()], Vec::new()));
+        let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(11)));
+        let lower = machine.alloc_pos(Pos::Row(vec![lower_item]));
+        let upper = machine.alloc_neg(Neg::Row(vec![upper_item], upper_tail));
+
+        machine.subtype(lower, upper);
+
         assert!(!machine.seen.contains(&SubtypeConstraint {
             lower: lower_item,
             upper: upper_tail,
