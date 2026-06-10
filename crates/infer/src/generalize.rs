@@ -62,34 +62,21 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    let mut simplification = CompactSimplification::default();
-    let mut removed_subtracts = FxHashSet::default();
-    loop {
-        let next_simplification = simplify_compact_root_with_roles_and_non_generic(
-            machine,
-            boundary.child(),
-            &mut compact,
-            &mut role_predicates,
-            non_generic,
-        );
-        append_simplification(&mut simplification, next_simplification);
-
-        let generalized = generalize_compact_root_with_simplification(
-            machine,
-            boundary,
-            compact,
-            role_predicates,
-            non_generic,
-            simplification.clone(),
-            &mut removed_subtracts,
-        );
-        if !generalized.pruned_subtract_weights {
-            return generalized.root;
-        }
-
-        compact = generalized.root.compact;
-        role_predicates = generalized.root.role_predicates;
-    }
+    let simplification = simplify_compact_root_with_roles_and_non_generic(
+        machine,
+        boundary.child(),
+        &mut compact,
+        &mut role_predicates,
+        non_generic,
+    );
+    generalize_compact_root_with_simplification(
+        machine,
+        boundary,
+        compact,
+        role_predicates,
+        non_generic,
+        simplification,
+    )
 }
 
 pub(crate) fn generalize_compact_root(
@@ -105,9 +92,7 @@ pub(crate) fn generalize_compact_root(
         Vec::new(),
         non_generic,
         CompactSimplification::default(),
-        &mut FxHashSet::default(),
     )
-    .root
 }
 
 fn generalize_compact_root_with_simplification(
@@ -117,8 +102,7 @@ fn generalize_compact_root_with_simplification(
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
     simplification: CompactSimplification,
-    removed_subtracts: &mut FxHashSet<SubtractId>,
-) -> GeneralizedCompactStep {
+) -> GeneralizedCompactRoot {
     let quantifiers =
         quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
     let subtracts = prepare_quantified_subtracts(
@@ -126,54 +110,17 @@ fn generalize_compact_root_with_simplification(
         &quantifiers,
         &simplification.substitutions,
         non_generic,
-        removed_subtracts,
         &mut root,
         &mut role_predicates,
     );
-    GeneralizedCompactStep {
-        root: GeneralizedCompactRoot {
-            compact: root,
-            role_predicates,
-            quantifiers,
-            subtracts: subtracts.subtracts,
-            substitutions: simplification.substitutions,
-            sandwiches: simplification.sandwiches,
-        },
-        pruned_subtract_weights: subtracts.pruned_weights,
+    GeneralizedCompactRoot {
+        compact: root,
+        role_predicates,
+        quantifiers,
+        subtracts,
+        substitutions: simplification.substitutions,
+        sandwiches: simplification.sandwiches,
     }
-}
-
-struct GeneralizedCompactStep {
-    root: GeneralizedCompactRoot,
-    pruned_subtract_weights: bool,
-}
-
-fn append_simplification(target: &mut CompactSimplification, source: CompactSimplification) {
-    target.substitutions.extend(source.substitutions);
-    normalize_substitutions_in_place(&mut target.substitutions);
-    target.sandwiches.extend(source.sandwiches);
-    target.sandwiches.sort_by_key(|sandwich| sandwich.var.0);
-    target.sandwiches.dedup();
-}
-
-fn normalize_substitutions_in_place(substitutions: &mut Vec<CompactVarSubstitution>) {
-    if substitutions.is_empty() {
-        return;
-    }
-    let map = substitutions
-        .iter()
-        .map(|substitution| (substitution.source, substitution.target))
-        .collect::<FxHashMap<_, _>>();
-    let mut normalized = map
-        .keys()
-        .copied()
-        .filter_map(|source| {
-            let target = resolve_rewrite_target(source, &map);
-            (target != Some(source)).then_some(CompactVarSubstitution { source, target })
-        })
-        .collect::<Vec<_>>();
-    normalized.sort_by_key(|substitution| substitution.source.0);
-    *substitutions = normalized;
 }
 
 pub(crate) fn finalize_generalized_compact_root(
@@ -641,7 +588,6 @@ fn quantified_subtracts(
     machine: &ConstraintMachine,
     quantifiers: &[TypeVar],
     substitutions: &[CompactVarSubstitution],
-    removed_subtracts: &FxHashSet<SubtractId>,
 ) -> Vec<(TypeVar, SubtractId)> {
     let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
     let mut subtracts = Vec::new();
@@ -651,7 +597,6 @@ fn quantified_subtracts(
                 .subtracts()
                 .facts(*var)
                 .iter()
-                .filter(|fact| !removed_subtracts.contains(&fact.id))
                 .map(|fact| (*var, fact.id)),
         );
     }
@@ -667,7 +612,6 @@ fn quantified_subtracts(
                 .subtracts()
                 .facts(substitution.source)
                 .iter()
-                .filter(|fact| !removed_subtracts.contains(&fact.id))
                 .map(|fact| (target, fact.id)),
         );
     }
@@ -681,16 +625,12 @@ fn prepare_quantified_subtracts(
     quantifiers: &[TypeVar],
     substitutions: &[CompactVarSubstitution],
     non_generic: &FxHashSet<TypeVar>,
-    removed_subtracts: &mut FxHashSet<SubtractId>,
     root: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
-) -> PreparedQuantifiedSubtracts {
-    let candidates = quantified_subtracts(machine, quantifiers, substitutions, removed_subtracts);
+) -> Vec<(TypeVar, SubtractId)> {
+    let candidates = quantified_subtracts(machine, quantifiers, substitutions);
     if candidates.is_empty() {
-        return PreparedQuantifiedSubtracts {
-            subtracts: Vec::new(),
-            pruned_weights: false,
-        };
+        return Vec::new();
     }
 
     let candidate_ids = candidates
@@ -710,22 +650,14 @@ fn prepare_quantified_subtracts(
         .copied()
         .filter(|id| !non_generic_subtract_ids.contains(id))
         .collect::<FxHashSet<_>>();
-    let pruned_weights = !dead_ids.is_empty()
-        && prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids);
-    removed_subtracts.extend(dead_ids);
-
-    PreparedQuantifiedSubtracts {
-        subtracts: candidates
-            .into_iter()
-            .filter(|candidate| live_subtracts.contains(candidate))
-            .collect(),
-        pruned_weights,
+    if !dead_ids.is_empty() {
+        prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids);
     }
-}
 
-struct PreparedQuantifiedSubtracts {
-    subtracts: Vec<(TypeVar, SubtractId)>,
-    pruned_weights: bool,
+    candidates
+        .into_iter()
+        .filter(|candidate| live_subtracts.contains(candidate))
+        .collect()
 }
 
 fn non_generic_subtract_ids(
@@ -2156,9 +2088,7 @@ mod tests {
                 }],
                 sandwiches: Vec::new(),
             },
-            &mut FxHashSet::default(),
-        )
-        .root;
+        );
 
         assert_eq!(generalized.quantifiers, vec![replacement]);
         assert_eq!(generalized.subtracts, vec![(replacement, subtract)]);
@@ -2422,9 +2352,7 @@ mod tests {
                 substitutions: substitutions.clone(),
                 sandwiches: sandwiches.clone(),
             },
-            &mut FxHashSet::default(),
-        )
-        .root;
+        );
 
         assert_eq!(generalized.substitutions, substitutions);
         assert_eq!(generalized.sandwiches, sandwiches);

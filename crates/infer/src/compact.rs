@@ -413,7 +413,6 @@ pub(crate) fn merge_compact_types(
     lhs.poly_variants = merge_variants(positive, lhs.poly_variants, poly_variants);
     lhs.tuples = merge_tuples(positive, lhs.tuples, tuples);
     lhs.rows = merge_rows(positive, lhs.rows, rows);
-    absorb_rows_with_var_tails(positive, &mut lhs.vars, &mut lhs.rows);
     lhs
 }
 
@@ -1061,29 +1060,6 @@ fn merge_compact_vars(mut lhs: Vec<CompactVar>, rhs: Vec<CompactVar>) -> Vec<Com
         }
     }
     lhs
-}
-
-fn absorb_rows_with_var_tails(
-    positive: bool,
-    vars: &mut Vec<CompactVar>,
-    rows: &mut Vec<CompactRow>,
-) {
-    if positive {
-        return;
-    }
-    rows.retain(|row| {
-        !vars
-            .iter()
-            .any(|var| compact_type_contains_var(&row.tail, var.var))
-    });
-}
-
-fn compact_type_contains_var(ty: &CompactType, target: TypeVar) -> bool {
-    ty.vars.iter().any(|var| var.var == target)
-        || ty
-            .rows
-            .iter()
-            .any(|row| compact_type_contains_var(&row.tail, target))
 }
 
 fn merge_cons(positive: bool, lhs: Vec<CompactCon>, rhs: Vec<CompactCon>) -> Vec<CompactCon> {
@@ -2096,6 +2072,29 @@ mod tests {
                 .vars
                 .iter()
                 .all(|var| var.var != payload || var.weight.is_empty())
+        );
+    }
+
+    #[test]
+    fn collect_pushes_weight_into_expanded_covariant_var_bounds() {
+        let mut machine = ConstraintMachine::new();
+        let root = TypeVar(0);
+        let payload = TypeVar(1);
+        let subtract = SubtractId(4);
+        let payload_pos = machine.alloc_pos(Pos::Var(payload));
+        let lower = machine.alloc_pos(Pos::NonSubtract(payload_pos, subtract));
+        let root_upper = machine.alloc_neg(Neg::Var(root));
+
+        machine.subtype(lower, root_upper);
+
+        let compact = compact_type_var(&machine, root);
+
+        assert!(
+            compact
+                .root
+                .vars
+                .iter()
+                .any(|var| var.var == payload && var.weight.contains(subtract))
         );
     }
 
