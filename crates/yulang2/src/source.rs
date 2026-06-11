@@ -431,6 +431,14 @@ mod tests {
         ))
     }
 
+    fn assert_dump_has_line_starting_with(output: &DumpPolyOutput, expected: &str) {
+        assert!(
+            output.text.lines().any(|line| line.starts_with(expected)),
+            "missing line starting with {expected:?} in:\n{}",
+            output.text
+        );
+    }
+
     #[test]
     fn dump_poly_reads_mod_files() {
         let root = temp_root("dump-poly-reads-mod");
@@ -446,6 +454,39 @@ mod tests {
             output.text,
             "roots d0:child d1:x\nd0:child mod {\n  my d2:\"child.y\": int = e1:2\n}\nmy d1:x: int = e0:1\n"
         );
+    }
+
+    #[test]
+    fn dump_poly_without_std_infers_identity_function() {
+        let root = temp_root("dump-poly-identity");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\n").unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_dump_has_line_starting_with(&output, "my d0:id: 'a -> 'a = ");
+        assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
+    fn dump_poly_without_std_infers_local_constructor_application() {
+        let root = temp_root("dump-poly-local-constructor");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "enum opt 'a:\n    none\n    some 'a\n\nmy wrap x = opt::some x\n",
+        )
+        .unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_dump_has_line_starting_with(&output, "  d2:\"opt.some\": 'a -> opt 'a = ");
+        assert_dump_has_line_starting_with(&output, "my d3:wrap: 'a -> opt 'a = ");
+        assert!(!output.text.contains("std::"));
     }
 
     #[test]
