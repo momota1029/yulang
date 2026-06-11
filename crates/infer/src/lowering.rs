@@ -576,12 +576,16 @@ impl BodyLowerer {
                 self.lower_type_field_methods(node, node, module, decl);
             }
             ModuleTypeKind::Enum | ModuleTypeKind::Error => {
+                // constructor の decl は型 companion module に登録されている。
+                let Some(companion) = self.modules.type_companion(decl.id) else {
+                    return;
+                };
                 for variant in crate::enum_variant_nodes(node) {
                     let Some(name) = crate::enum_variant_name(&variant) else {
                         continue;
                     };
                     let payload = ConstructorPayload::from_enum_variant(&variant);
-                    self.lower_constructor_def(node, module, decl, name, payload);
+                    self.lower_constructor_def(node, companion, decl, name, payload);
                 }
             }
             ModuleTypeKind::Role | ModuleTypeKind::Act => {}
@@ -7093,8 +7097,10 @@ mod tests {
         let root = parse("enum opt 'a = none | some 'a\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
-        let none = lower.modules.value_decls(module, &Name("none".into()))[0].def;
-        let some = lower.modules.value_decls(module, &Name("some".into()))[0].def;
+        let opt = lower.modules.type_decls(module, &Name("opt".into()))[0].id;
+        let companion = lower.modules.type_companion(opt).expect("opt companion");
+        let none = lower.modules.value_decls(companion, &Name("none".into()))[0].def;
+        let some = lower.modules.value_decls(companion, &Name("some".into()))[0].def;
 
         let output = lower_binding_bodies(&root, lower);
 
@@ -7119,10 +7125,12 @@ mod tests {
 
     #[test]
     fn enum_constructor_expression_resolves_reference() {
-        let root = parse("enum opt 'a = some 'a\nmy x = some 1\n");
+        let root = parse("enum opt 'a = some 'a\nmy x = opt::some 1\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
-        let constructor = lower.modules.value_decls(module, &Name("some".into()))[0].def;
+        let opt = lower.modules.type_decls(module, &Name("opt".into()))[0].id;
+        let companion = lower.modules.type_companion(opt).expect("opt companion");
+        let constructor = lower.modules.value_decls(companion, &Name("some".into()))[0].def;
         let (x, _) = binding_def_and_order(&lower.modules, module, "x");
 
         let output = lower_binding_bodies(&root, lower);

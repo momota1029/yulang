@@ -274,18 +274,23 @@ pub struct AliasDecl {
 struct ImportedValueDecl {
     order: ModuleOrder,
     def: DefId,
+    /// この import を作った alias（use 文）の visibility。`pub use` の entry だけが
+    /// 外の module から再エクスポートとして見える。
+    vis: Vis,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ImportedTypeDecl {
     order: ModuleOrder,
     decl: ModuleTypeDecl,
+    vis: Vis,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ImportedModuleDecl {
     order: ModuleOrder,
     module: ModuleId,
+    vis: Vis,
 }
 
 struct ImportPathTarget {
@@ -596,13 +601,31 @@ impl ModuleTable {
         &self.nodes[module.0].aliases
     }
     fn build_import_views(&mut self) {
-        for module_index in 0..self.nodes.len() {
-            let module = ModuleId(module_index);
-            let aliases = self.nodes[module_index].aliases.clone();
-            for alias in aliases {
-                self.import_alias(module, &alias);
+        // 再エクスポートの連鎖（prelude → ops → …）を運びきるまで繰り返す。
+        // entry は重複 push しない（push_import_* が冪等）ので単調増加・有限で収束する。
+        loop {
+            let before = self.import_entry_count();
+            for module_index in 0..self.nodes.len() {
+                let module = ModuleId(module_index);
+                let aliases = self.nodes[module_index].aliases.clone();
+                for alias in aliases {
+                    self.import_alias(module, &alias);
+                }
+            }
+            if self.import_entry_count() == before {
+                break;
             }
         }
+    }
+    fn import_entry_count(&self) -> usize {
+        self.nodes
+            .iter()
+            .map(|node| {
+                node.import_values.values().map(Vec::len).sum::<usize>()
+                    + node.import_types.values().map(Vec::len).sum::<usize>()
+                    + node.import_modules.values().map(Vec::len).sum::<usize>()
+            })
+            .sum()
     }
     pub fn value_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<DefId> {
         let decl = self.select_decl(module, self.nodes[module.0].values.get(name)?, site)?;
@@ -668,8 +691,9 @@ impl ModuleTable {
             return self.lexical_value_at(module, last, site);
         }
 
-        let target = self.raw_module_path_from(module, prefix, site)?;
+        let target = self.module_path_with_imports_from(module, prefix, site)?;
         self.value_at(target, last, module_path_site())
+            .or_else(|| self.exported_value_at(target, last))
     }
     pub fn type_path_at(
         &self,
@@ -684,8 +708,9 @@ impl ModuleTable {
             return self.lexical_type_at(module, last, site);
         }
 
-        let target = self.raw_module_path_from(module, prefix, site)?;
+        let target = self.module_path_with_imports_from(module, prefix, site)?;
         self.type_at(target, last, module_path_site())
+            .or_else(|| self.exported_type_at(target, last))
     }
     pub fn act_operation_decls_at(
         &self,
@@ -839,39 +864,42 @@ impl ModuleTable {
     fn import_alias(&mut self, module: ModuleId, alias: &AliasDecl) {
         match &alias.import {
             UseImport::Alias { name, path } => {
-                self.import_op_aliases(module, name, path, alias.order);
+                self.import_op_aliases(module, name, path, alias);
                 let Some(target) = self.import_path_target(module, path, alias.order) else {
                     return;
                 };
                 if let Some(def) = target.value {
-                    self.nodes[module.0]
-                        .import_values
-                        .entry(name.clone())
-                        .or_default()
-                        .push(ImportedValueDecl {
+                    self.push_import_value(
+                        module,
+                        name.clone(),
+                        ImportedValueDecl {
                             order: alias.order,
                             def,
-                        });
+                            vis: alias.vis,
+                        },
+                    );
                 }
                 if let Some(decl) = target.ty {
-                    self.nodes[module.0]
-                        .import_types
-                        .entry(name.clone())
-                        .or_default()
-                        .push(ImportedTypeDecl {
+                    self.push_import_type(
+                        module,
+                        name.clone(),
+                        ImportedTypeDecl {
                             order: alias.order,
                             decl,
-                        });
+                            vis: alias.vis,
+                        },
+                    );
                 }
                 if let Some(found) = target.module {
-                    self.nodes[module.0]
-                        .import_modules
-                        .entry(name.clone())
-                        .or_default()
-                        .push(ImportedModuleDecl {
+                    self.push_import_module(
+                        module,
+                        name.clone(),
+                        ImportedModuleDecl {
                             order: alias.order,
                             module: found,
-                        });
+                            vis: alias.vis,
+                        },
+                    );
                 }
             }
             UseImport::Glob { prefix } => {
@@ -880,36 +908,138 @@ impl ModuleTable {
                     return;
                 };
                 for decl in self.module_value_imports(target) {
-                    self.nodes[module.0]
-                        .import_values
-                        .entry(decl.name.clone())
-                        .or_default()
-                        .push(ImportedValueDecl {
+                    self.push_import_value(
+                        module,
+                        decl.name.clone(),
+                        ImportedValueDecl {
                             order: alias.order,
                             def: decl.def,
-                        });
+                            vis: alias.vis,
+                        },
+                    );
                 }
                 for decl in self.module_type_imports(target) {
-                    self.nodes[module.0]
-                        .import_types
-                        .entry(decl.name.clone())
-                        .or_default()
-                        .push(ImportedTypeDecl {
+                    self.push_import_type(
+                        module,
+                        decl.name.clone(),
+                        ImportedTypeDecl {
                             order: alias.order,
                             decl,
-                        });
+                            vis: alias.vis,
+                        },
+                    );
                 }
                 for decl in self.module_module_imports(target) {
-                    self.nodes[module.0]
-                        .import_modules
-                        .entry(decl.name.clone())
-                        .or_default()
-                        .push(ImportedModuleDecl {
+                    self.push_import_module(
+                        module,
+                        decl.name.clone(),
+                        ImportedModuleDecl {
                             order: alias.order,
                             module: decl.module,
-                        });
+                            vis: alias.vis,
+                        },
+                    );
+                }
+                // target が再エクスポートしている import も運ぶ（`my use` だけはファイル内
+                // private。our は band 内可視、pub は band 境界用）。prelude のような
+                // 「再エクスポートしか持たない module」の連鎖は `build_import_views` の
+                // 不動点で閉じる。
+                let reexported_values = self.nodes[target.0]
+                    .import_values
+                    .iter()
+                    .map(|(name, entries)| {
+                        let defs = entries
+                            .iter()
+                            .filter(|entry| entry.vis != Vis::My)
+                            .map(|entry| entry.def)
+                            .collect::<Vec<_>>();
+                        (name.clone(), defs)
+                    })
+                    .collect::<Vec<_>>();
+                for (name, defs) in reexported_values {
+                    for def in defs {
+                        self.push_import_value(
+                            module,
+                            name.clone(),
+                            ImportedValueDecl {
+                                order: alias.order,
+                                def,
+                                vis: alias.vis,
+                            },
+                        );
+                    }
+                }
+                let reexported_types = self.nodes[target.0]
+                    .import_types
+                    .iter()
+                    .map(|(name, entries)| {
+                        let decls = entries
+                            .iter()
+                            .filter(|entry| entry.vis != Vis::My)
+                            .map(|entry| entry.decl.clone())
+                            .collect::<Vec<_>>();
+                        (name.clone(), decls)
+                    })
+                    .collect::<Vec<_>>();
+                for (name, decls) in reexported_types {
+                    for decl in decls {
+                        self.push_import_type(
+                            module,
+                            name.clone(),
+                            ImportedTypeDecl {
+                                order: alias.order,
+                                decl,
+                                vis: alias.vis,
+                            },
+                        );
+                    }
+                }
+                let reexported_modules = self.nodes[target.0]
+                    .import_modules
+                    .iter()
+                    .map(|(name, entries)| {
+                        let modules = entries
+                            .iter()
+                            .filter(|entry| entry.vis != Vis::My)
+                            .map(|entry| entry.module)
+                            .collect::<Vec<_>>();
+                        (name.clone(), modules)
+                    })
+                    .collect::<Vec<_>>();
+                for (name, modules) in reexported_modules {
+                    for found in modules {
+                        self.push_import_module(
+                            module,
+                            name.clone(),
+                            ImportedModuleDecl {
+                                order: alias.order,
+                                module: found,
+                                vis: alias.vis,
+                            },
+                        );
+                    }
                 }
             }
+        }
+    }
+    /// import entry の追加。同一 entry の重複 push を弾くので、`build_import_views` の
+    /// 不動点繰り返しに対して冪等になる。
+    fn push_import_value(&mut self, module: ModuleId, name: Name, decl: ImportedValueDecl) {
+        let entries = self.nodes[module.0].import_values.entry(name).or_default();
+        if !entries.contains(&decl) {
+            entries.push(decl);
+        }
+    }
+    fn push_import_type(&mut self, module: ModuleId, name: Name, decl: ImportedTypeDecl) {
+        let entries = self.nodes[module.0].import_types.entry(name).or_default();
+        if !entries.contains(&decl) {
+            entries.push(decl);
+        }
+    }
+    fn push_import_module(&mut self, module: ModuleId, name: Name, decl: ImportedModuleDecl) {
+        let entries = self.nodes[module.0].import_modules.entry(name).or_default();
+        if !entries.contains(&decl) {
+            entries.push(decl);
         }
     }
     /// 名前指定 import の op symbol 展開。`use foo::(+)` は plain name `+` として届くので、
@@ -919,7 +1049,7 @@ impl ModuleTable {
         module: ModuleId,
         name: &Name,
         path: &ModulePath,
-        order: ModuleOrder,
+        alias: &AliasDecl,
     ) {
         let Some(last) = path.segments.last().cloned() else {
             return;
@@ -930,17 +1060,21 @@ impl ModuleTable {
                 .segments
                 .last_mut()
                 .expect("op import path should be non-empty") = op_value_name(fixity, &last.0);
-            let Some(target) = self.import_path_target(module, &op_path, order) else {
+            let Some(target) = self.import_path_target(module, &op_path, alias.order) else {
                 continue;
             };
             let Some(def) = target.value else {
                 continue;
             };
-            self.nodes[module.0]
-                .import_values
-                .entry(op_value_name(fixity, &name.0))
-                .or_default()
-                .push(ImportedValueDecl { order, def });
+            self.push_import_value(
+                module,
+                op_value_name(fixity, &name.0),
+                ImportedValueDecl {
+                    order: alias.order,
+                    def,
+                    vis: alias.vis,
+                },
+            );
         }
     }
     fn import_path_target(
@@ -981,6 +1115,44 @@ impl ModuleTable {
             current = self.module_at(current, segment, module_path_site())?;
         }
         Some(current)
+    }
+    /// `value_path_at` / `type_path_at` 用の prefix 降下。再エクスポート（import view）も辿る。
+    /// alias 展開で使う `raw_module_path_from` は import view 構築順に依存しないよう
+    /// 意図的に raw のままにしてあるので、こちらと混ぜない。
+    fn module_path_with_imports_from(
+        &self,
+        module: ModuleId,
+        path: &[Name],
+        site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        let Some((first, rest)) = path.split_first() else {
+            return Some(module);
+        };
+        let mut current = self.lexical_module_with_imports_at(module, first, site)?;
+        for segment in rest {
+            current = self
+                .module_at(current, segment, module_path_site())
+                .or_else(|| self.exported_module_at(current, segment))?;
+        }
+        Some(current)
+    }
+    fn lexical_module_with_imports_at(
+        &self,
+        mut module: ModuleId,
+        name: &Name,
+        mut site: ModuleOrder,
+    ) -> Option<ModuleId> {
+        loop {
+            if let Some(found) = self.module_at(module, name, site) {
+                return Some(found);
+            }
+            if let Some(found) = self.imported_module_at(module, name, site) {
+                return Some(found);
+            }
+            let parent = self.nodes[module.0].parent?;
+            module = parent.module;
+            site = parent.order;
+        }
     }
     fn raw_lexical_value_at(
         &self,
@@ -1048,6 +1220,32 @@ impl ModuleTable {
     ) -> Option<ModuleId> {
         self.select_import(self.nodes[module.0].import_modules.get(name)?, site)
             .map(|decl| decl.module)
+    }
+    /// 外の module から見える import entry（再エクスポート）。`my use` だけはファイル内
+    /// private なので外からは見えない。our は band 内可視、pub は band 境界用（band は未実装）。
+    fn exported_value_at(&self, module: ModuleId, name: &Name) -> Option<DefId> {
+        self.nodes[module.0]
+            .import_values
+            .get(name)?
+            .iter()
+            .find(|entry| entry.vis != Vis::My)
+            .map(|entry| entry.def)
+    }
+    fn exported_type_at(&self, module: ModuleId, name: &Name) -> Option<ModuleTypeDecl> {
+        self.nodes[module.0]
+            .import_types
+            .get(name)?
+            .iter()
+            .find(|entry| entry.vis != Vis::My)
+            .map(|entry| entry.decl.clone())
+    }
+    fn exported_module_at(&self, module: ModuleId, name: &Name) -> Option<ModuleId> {
+        self.nodes[module.0]
+            .import_modules
+            .get(name)?
+            .iter()
+            .find(|entry| entry.vis != Vis::My)
+            .map(|entry| entry.module)
     }
     fn module_value_imports(&self, module: ModuleId) -> Vec<ModuleValueDecl> {
         self.nodes[module.0]
@@ -1593,11 +1791,21 @@ impl Lower {
                 self.register_struct_field_methods(node, owner, vis);
             }
             ModuleTypeKind::Enum | ModuleTypeKind::Error => {
+                // constructor は型 companion module（型と同名の子 module）に住む。
+                // ファイルスコープへは `pub use foo::foo::*` の明示再エクスポートで
+                // 持ち込む（std の流儀）。
+                let (def, companion, created) = self.ensure_child_module(module, name, vis);
+                self.modules.set_type_companion(owner, companion);
+                let mut companion_children = Vec::new();
                 for variant in enum_variant_nodes(node) {
-                    let Some(name) = enum_variant_name(&variant) else {
+                    let Some(variant_name) = enum_variant_name(&variant) else {
                         continue;
                     };
-                    let def = self.register_synthetic_value(module, name, vis);
+                    let variant_def = self.register_synthetic_value(companion, variant_name, vis);
+                    companion_children.push(variant_def);
+                }
+                self.append_module_children(def, companion_children);
+                if created {
                     children.push(def);
                 }
             }
@@ -3048,13 +3256,28 @@ mod tests {
             lower.modules.value_decls(root, &Name("Box".into())).len(),
             1
         );
+        // enum constructor は型 companion module に住む。
+        let opt = lower.modules.type_decls(root, &Name("opt".into()))[0].id;
+        let companion = lower.modules.type_companion(opt).expect("opt companion");
         assert_eq!(
-            lower.modules.value_decls(root, &Name("none".into())).len(),
+            lower
+                .modules
+                .value_decls(companion, &Name("none".into()))
+                .len(),
             1
         );
         assert_eq!(
-            lower.modules.value_decls(root, &Name("some".into())).len(),
+            lower
+                .modules
+                .value_decls(companion, &Name("some".into()))
+                .len(),
             1
+        );
+        assert!(
+            lower
+                .modules
+                .value_decls(root, &Name("none".into()))
+                .is_empty()
         );
     }
 
@@ -3207,9 +3430,29 @@ mod tests {
                 .len(),
             1
         );
-        assert_eq!(lower.modules.value_decls(root, &Name("A".into())).len(), 1);
+        // enum / error の constructor は型 companion module に住む。
+        let choice = lower.modules.type_decls(root, &Name("Choice".into()))[0].id;
+        let choice_companion = lower
+            .modules
+            .type_companion(choice)
+            .expect("Choice companion");
         assert_eq!(
-            lower.modules.value_decls(root, &Name("bad".into())).len(),
+            lower
+                .modules
+                .value_decls(choice_companion, &Name("A".into()))
+                .len(),
+            1
+        );
+        let failure = lower.modules.type_decls(root, &Name("Failure".into()))[0].id;
+        let failure_companion = lower
+            .modules
+            .type_companion(failure)
+            .expect("Failure companion");
+        assert_eq!(
+            lower
+                .modules
+                .value_decls(failure_companion, &Name("bad".into()))
+                .len(),
             1
         );
         assert_eq!(
