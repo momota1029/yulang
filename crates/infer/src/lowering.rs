@@ -29,7 +29,7 @@ use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
     AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
-use crate::builtin_ops::{BuiltinOp, BuiltinOpSig, resolve_builtin_op};
+use crate::builtin_ops::{BuiltinOp, BuiltinOpSig, SigTy, resolve_builtin_op};
 use crate::compact::{CompactBounds, CompactFun, CompactType, compact_type_var};
 use crate::constraints::TypeLevel;
 use crate::roles::{
@@ -4204,11 +4204,144 @@ impl<'a> ExprLowerer<'a> {
         value: TypeVar,
         sig: BuiltinOpSig,
     ) -> Result<(), LoweringError> {
+        if let BuiltinOpSig::Poly { params, ret } = sig {
+            return self.constrain_poly_op_sig(value, params, ret);
+        }
         let lower = self.builtin_op_pos_sig(sig)?;
         let upper = self.builtin_op_neg_sig(sig)?;
         self.constrain_lower(value, lower);
         self.constrain_upper(value, upper);
         Ok(())
+    }
+
+    /// 多相 builtin の signature。量化変数（番号）ごとに型変数を1つ作り、上下界で共有する。
+    fn constrain_poly_op_sig(
+        &mut self,
+        value: TypeVar,
+        params: &[SigTy],
+        ret: SigTy,
+    ) -> Result<(), LoweringError> {
+        let mut vars = FxHashMap::default();
+        let lower = self.curried_poly_pos(&mut vars, params, ret)?;
+        let upper = self.curried_poly_neg(&mut vars, params, ret)?;
+        self.constrain_lower(value, lower);
+        self.constrain_upper(value, upper);
+        Ok(())
+    }
+
+    fn poly_sig_var(&mut self, vars: &mut FxHashMap<u8, TypeVar>, index: u8) -> TypeVar {
+        if let Some(var) = vars.get(&index) {
+            return *var;
+        }
+        let var = self.fresh_type_var();
+        vars.insert(index, var);
+        var
+    }
+
+    fn curried_poly_pos(
+        &mut self,
+        vars: &mut FxHashMap<u8, TypeVar>,
+        params: &[SigTy],
+        ret: SigTy,
+    ) -> Result<Pos, LoweringError> {
+        let Some((param, rest)) = params.split_first() else {
+            return self.poly_sig_pos(ret, vars);
+        };
+        let arg = self.poly_sig_neg(*param, vars)?;
+        let arg = self.alloc_neg(arg);
+        let arg_eff = self.never_neg();
+        let ret_eff = self.alloc_pos(Pos::Bot);
+        let ret = self.curried_poly_pos(vars, rest, ret)?;
+        let ret = self.alloc_pos(ret);
+        Ok(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        })
+    }
+
+    fn curried_poly_neg(
+        &mut self,
+        vars: &mut FxHashMap<u8, TypeVar>,
+        params: &[SigTy],
+        ret: SigTy,
+    ) -> Result<Neg, LoweringError> {
+        let Some((param, rest)) = params.split_first() else {
+            return self.poly_sig_neg(ret, vars);
+        };
+        let arg = self.poly_sig_pos(*param, vars)?;
+        let arg = self.alloc_pos(arg);
+        let arg_eff = self.alloc_pos(Pos::Bot);
+        let ret_eff = self.never_neg();
+        let ret = self.curried_poly_neg(vars, rest, ret)?;
+        let ret = self.alloc_neg(ret);
+        Ok(Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        })
+    }
+
+    fn poly_sig_pos(
+        &mut self,
+        ty: SigTy,
+        vars: &mut FxHashMap<u8, TypeVar>,
+    ) -> Result<Pos, LoweringError> {
+        match ty {
+            SigTy::Var(index) => Ok(Pos::Var(self.poly_sig_var(vars, index))),
+            // 引数なしの Con は builtin（never 等）の特殊形も含むので既存の解決に乗せる。
+            SigTy::Con(name, []) => self.builtin_op_pos_type(name),
+            SigTy::Con(name, args) => {
+                let path = self.builtin_op_con_path(name)?;
+                let args = args
+                    .iter()
+                    .map(|arg| self.poly_sig_neu(*arg, vars))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Pos::Con(path, args))
+            }
+        }
+    }
+
+    fn poly_sig_neg(
+        &mut self,
+        ty: SigTy,
+        vars: &mut FxHashMap<u8, TypeVar>,
+    ) -> Result<Neg, LoweringError> {
+        match ty {
+            SigTy::Var(index) => Ok(Neg::Var(self.poly_sig_var(vars, index))),
+            SigTy::Con(name, []) => self.builtin_op_neg_type(name),
+            SigTy::Con(name, args) => {
+                let path = self.builtin_op_con_path(name)?;
+                let args = args
+                    .iter()
+                    .map(|arg| self.poly_sig_neu(*arg, vars))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Neg::Con(path, args))
+            }
+        }
+    }
+
+    fn poly_sig_neu(
+        &mut self,
+        ty: SigTy,
+        vars: &mut FxHashMap<u8, TypeVar>,
+    ) -> Result<poly::types::NeuId, LoweringError> {
+        match ty {
+            SigTy::Var(index) => {
+                let var = self.poly_sig_var(vars, index);
+                Ok(self.invariant_var_arg(var))
+            }
+            SigTy::Con(name, args) => {
+                let path = self.builtin_op_con_path(name)?;
+                let args = args
+                    .iter()
+                    .map(|arg| self.poly_sig_neu(*arg, vars))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.session.infer.alloc_neu(Neu::Con(path, args)))
+            }
+        }
     }
 
     fn builtin_op_pos_sig(&mut self, sig: BuiltinOpSig) -> Result<Pos, LoweringError> {
@@ -4227,6 +4360,8 @@ impl<'a> ExprLowerer<'a> {
                 ]);
                 self.curried_pos_fun_with_ret(&["bytes"], ret)
             }
+            // Poly は constrain_builtin_op_sig が先に取る。
+            BuiltinOpSig::Poly { .. } => unreachable!("poly sigs are constrained directly"),
         }
     }
 
@@ -4246,6 +4381,8 @@ impl<'a> ExprLowerer<'a> {
                 ]);
                 self.curried_neg_fun_with_ret(&["bytes"], ret)
             }
+            // Poly は constrain_builtin_op_sig が先に取る。
+            BuiltinOpSig::Poly { .. } => unreachable!("poly sigs are constrained directly"),
         }
     }
 

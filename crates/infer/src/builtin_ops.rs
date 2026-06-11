@@ -33,7 +33,26 @@ pub(crate) enum BuiltinOpSig {
         ret: &'static str,
     },
     BytesToUtf8Raw,
+    /// 多相 builtin の signature。量化変数は番号で表し、同じ番号は同じ型変数を共有する。
+    Poly {
+        params: &'static [SigTy],
+        ret: SigTy,
+    },
 }
+
+/// signature 中の型式。`Var(n)` は量化変数（同番号は同一変数）、`Con(name, args)` は
+/// 型適用。名前は lexical type lookup で解決し、型引数は invariant に渡す。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SigTy {
+    Var(u8),
+    Con(&'static str, &'static [SigTy]),
+}
+
+const A: SigTy = SigTy::Var(0);
+const LIST_A: SigTy = SigTy::Con("list", &[A]);
+const VIEW_A: SigTy = SigTy::Con("list_view", &[A]);
+const INT: SigTy = SigTy::Con("int", &[]);
+const RANGE: SigTy = SigTy::Con("range", &[]);
 
 pub(crate) fn resolve_builtin_op(name: &str) -> Option<BuiltinOp> {
     use BuiltinOpSig::*;
@@ -43,6 +62,62 @@ pub(crate) fn resolve_builtin_op(name: &str) -> Option<BuiltinOp> {
         "yada_yada" => BuiltinOp {
             op: YadaYada,
             sig: Nullary { ret: "never" },
+        },
+        "list_view_raw" => BuiltinOp {
+            op: ListViewRaw,
+            sig: Poly {
+                params: &[LIST_A],
+                ret: VIEW_A,
+            },
+        },
+        "list_merge" => BuiltinOp {
+            op: ListMerge,
+            sig: Poly {
+                params: &[LIST_A, LIST_A],
+                ret: LIST_A,
+            },
+        },
+        "list_len" => BuiltinOp {
+            op: ListLen,
+            sig: Poly {
+                params: &[LIST_A],
+                ret: INT,
+            },
+        },
+        "list_index" => BuiltinOp {
+            op: ListIndex,
+            sig: Poly {
+                params: &[LIST_A, INT],
+                ret: A,
+            },
+        },
+        "list_index_range" => BuiltinOp {
+            op: ListIndexRange,
+            sig: Poly {
+                params: &[LIST_A, RANGE],
+                ret: LIST_A,
+            },
+        },
+        "list_index_range_raw" => BuiltinOp {
+            op: ListIndexRangeRaw,
+            sig: Poly {
+                params: &[LIST_A, INT, INT],
+                ret: LIST_A,
+            },
+        },
+        "list_splice" => BuiltinOp {
+            op: ListSplice,
+            sig: Poly {
+                params: &[LIST_A, RANGE, LIST_A],
+                ret: LIST_A,
+            },
+        },
+        "list_splice_raw" => BuiltinOp {
+            op: ListSpliceRaw,
+            sig: Poly {
+                params: &[LIST_A, INT, INT, LIST_A],
+                ret: LIST_A,
+            },
         },
         "bool_not" => BuiltinOp {
             op: BoolNot,

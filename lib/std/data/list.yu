@@ -39,6 +39,15 @@ impl Index (ref 'e (list 'a)) int:
             loop:r.update_effect()
     }
 
+pub view_raw: list 'a -> list_view 'a = builtin_op::list_view_raw
+pub merge: list 'a -> list 'a -> list 'a = builtin_op::list_merge
+pub len: list 'a -> int = builtin_op::list_len
+pub index_raw: list 'a -> int -> 'a = builtin_op::list_index
+pub index_range: list 'a -> range -> list 'a = builtin_op::list_index_range
+pub index_range_raw: list 'a -> int -> int -> list 'a = builtin_op::list_index_range_raw
+pub splice: list 'a -> range -> list 'a -> list 'a = builtin_op::list_splice
+pub splice_raw: list 'a -> int -> int -> list 'a -> list 'a = builtin_op::list_splice_raw
+
 my fold_impl xs z f = case std::data::list::view_raw xs:
     list_view::empty -> z
     list_view::leaf x -> f z x
