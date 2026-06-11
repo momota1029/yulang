@@ -17,7 +17,7 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
-use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, RecordSpread, RefId, Stmt, Vis};
+use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, PrimitiveOp, RecordSpread, RefId, Stmt, Vis};
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId,
     Subtractability, TypeArena, TypeVar,
@@ -3306,6 +3306,7 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
             SyntaxKind::StringLit => self.lower_string_lit(node),
             SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
+            SyntaxKind::Bracket => self.lower_list_literal(node),
             SyntaxKind::PrefixNode => self.lower_prefix_op_use(node),
             SyntaxKind::BraceGroup if brace_group_is_record_literal(node) => {
                 self.lower_record_literal(node)
@@ -4332,6 +4333,14 @@ impl<'a> ExprLowerer<'a> {
         })
     }
 
+    /// 型名を lexical 解決して Con path にする。type 引数付き Con を手で組むとき用。
+    fn builtin_op_con_path(&self, name: &'static str) -> Result<Vec<String>, LoweringError> {
+        Ok(match self.builtin_op_type_path(name)? {
+            BuiltinOpTypePath::Builtin(builtin) => vec![builtin.surface_name().to_string()],
+            BuiltinOpTypePath::Named(path) => path,
+        })
+    }
+
     fn builtin_op_type_path(&self, name: &'static str) -> Result<BuiltinOpTypePath, LoweringError> {
         if let Some(builtin) = BuiltinType::from_surface_name(name) {
             return Ok(BuiltinOpTypePath::Builtin(builtin));
@@ -4564,6 +4573,187 @@ impl<'a> ExprLowerer<'a> {
             .poly
             .add_expr(Expr::Select(receiver.expr, select));
         Computation::new(expr, result_value, result_effect, receiver.evaluation)
+    }
+
+    /// `[a, b, ...]` を empty / singleton / merge の list primitive で組む。
+    /// 要素型は literal 全体で1つの型変数を共有する。
+    fn lower_list_literal(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let mut items = Vec::new();
+        for child in node.children() {
+            match child.kind() {
+                SyntaxKind::Expr => items.push(child),
+                // spread（`[..xs, y]`）は後で対応する。
+                SyntaxKind::ExprSpread => {
+                    return Err(LoweringError::UnsupportedSyntax {
+                        kind: SyntaxKind::ExprSpread,
+                    });
+                }
+                _ => {}
+            }
+        }
+        let item = self.fresh_type_var();
+        let list_path = self.builtin_op_con_path("list")?;
+        self.build_list_literal(item, &list_path, &items)
+    }
+
+    fn build_list_literal(
+        &mut self,
+        item: TypeVar,
+        list_path: &[String],
+        items: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        if items.is_empty() {
+            let empty = self.list_empty_callee(item, list_path);
+            let unit = self.unit_expr();
+            return Ok(self.make_app(empty, unit));
+        }
+        if let [single] = items {
+            let value = self.lower_expr(single)?;
+            let singleton = self.list_singleton_callee(item, list_path);
+            return Ok(self.make_app(singleton, value));
+        }
+        let mid = items.len() / 2;
+        let left = self.build_list_literal(item, list_path, &items[..mid])?;
+        let right = self.build_list_literal(item, list_path, &items[mid..])?;
+        let merge = self.list_merge_callee(item, list_path);
+        let applied = self.make_app(merge, left);
+        Ok(self.make_app(applied, right))
+    }
+
+    fn list_empty_callee(&mut self, item: TypeVar, list_path: &[String]) -> Computation {
+        // () -> list 'i
+        let pos = {
+            let arg = self.alloc_neg(primitive_neg_type("unit"));
+            let arg_eff = self.never_neg();
+            let ret_eff = self.alloc_pos(Pos::Bot);
+            let ret = self.list_con_pos(item, list_path);
+            let ret = self.alloc_pos(ret);
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            }
+        };
+        let neg = {
+            let arg = self.alloc_pos(primitive_type("unit"));
+            let arg_eff = self.alloc_pos(Pos::Bot);
+            let ret_eff = self.never_neg();
+            let ret = self.list_con_neg(item, list_path);
+            let ret = self.alloc_neg(ret);
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            }
+        };
+        self.list_primitive_callee(PrimitiveOp::ListEmpty, pos, neg)
+    }
+
+    fn list_singleton_callee(&mut self, item: TypeVar, list_path: &[String]) -> Computation {
+        // 'i -> list 'i
+        let pos = {
+            let arg = self.alloc_neg(Neg::Var(item));
+            let arg_eff = self.never_neg();
+            let ret_eff = self.alloc_pos(Pos::Bot);
+            let ret = self.list_con_pos(item, list_path);
+            let ret = self.alloc_pos(ret);
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            }
+        };
+        let neg = {
+            let arg = self.alloc_pos(Pos::Var(item));
+            let arg_eff = self.alloc_pos(Pos::Bot);
+            let ret_eff = self.never_neg();
+            let ret = self.list_con_neg(item, list_path);
+            let ret = self.alloc_neg(ret);
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            }
+        };
+        self.list_primitive_callee(PrimitiveOp::ListSingleton, pos, neg)
+    }
+
+    fn list_merge_callee(&mut self, item: TypeVar, list_path: &[String]) -> Computation {
+        // list 'i -> list 'i -> list 'i
+        let pos = {
+            let ret = self.list_con_pos(item, list_path);
+            let ret = self.alloc_pos(ret);
+            let inner_arg = self.list_con_neg(item, list_path);
+            let inner_arg = self.alloc_neg(inner_arg);
+            let inner_arg_eff = self.never_neg();
+            let inner_ret_eff = self.alloc_pos(Pos::Bot);
+            let inner = Pos::Fun {
+                arg: inner_arg,
+                arg_eff: inner_arg_eff,
+                ret_eff: inner_ret_eff,
+                ret,
+            };
+            let inner = self.alloc_pos(inner);
+            let arg = self.list_con_neg(item, list_path);
+            let arg = self.alloc_neg(arg);
+            let arg_eff = self.never_neg();
+            let ret_eff = self.alloc_pos(Pos::Bot);
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret: inner,
+            }
+        };
+        let neg = {
+            let ret = self.list_con_neg(item, list_path);
+            let ret = self.alloc_neg(ret);
+            let inner_arg = self.list_con_pos(item, list_path);
+            let inner_arg = self.alloc_pos(inner_arg);
+            let inner_arg_eff = self.alloc_pos(Pos::Bot);
+            let inner_ret_eff = self.never_neg();
+            let inner = Neg::Fun {
+                arg: inner_arg,
+                arg_eff: inner_arg_eff,
+                ret_eff: inner_ret_eff,
+                ret,
+            };
+            let inner = self.alloc_neg(inner);
+            let arg = self.list_con_pos(item, list_path);
+            let arg = self.alloc_pos(arg);
+            let arg_eff = self.alloc_pos(Pos::Bot);
+            let ret_eff = self.never_neg();
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret: inner,
+            }
+        };
+        self.list_primitive_callee(PrimitiveOp::ListMerge, pos, neg)
+    }
+
+    fn list_con_pos(&mut self, item: TypeVar, list_path: &[String]) -> Pos {
+        let arg = self.invariant_var_arg(item);
+        Pos::Con(list_path.to_vec(), vec![arg])
+    }
+
+    fn list_con_neg(&mut self, item: TypeVar, list_path: &[String]) -> Neg {
+        let arg = self.invariant_var_arg(item);
+        Neg::Con(list_path.to_vec(), vec![arg])
+    }
+
+    fn list_primitive_callee(&mut self, op: PrimitiveOp, lower: Pos, upper: Neg) -> Computation {
+        let value = self.fresh_type_var();
+        self.constrain_lower(value, lower);
+        self.constrain_upper(value, upper);
+        let effect = self.fresh_exact_pure_effect();
+        let expr = self.session.poly.add_expr(Expr::PrimitiveOp(op));
+        Computation::value(expr, value, effect)
     }
 
     /// op 使用ノードから symbol を読んで mangled 名で解決する。戻りは (op 参照, lazy)。
