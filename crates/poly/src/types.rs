@@ -11,13 +11,14 @@ use rustc_hash::FxHashMap;
 /// `predicate` は scheme 本体の正側型、`quantifiers` はこの scheme が束縛する型変数。
 /// `role_predicates` は型クラス相当の未解決 role 制約を、通常の型本体から分けて残す。
 /// `recursive_bounds` は compact finalize で分離した再帰変数の side table。
-/// `subtracts` は effect row の引き算に使う `S-subtract(α, #a)` の事実を、scheme と一緒に
-/// 外へ持ち出すための table。
+/// `stack_quantifiers` は `StackWeight` 内に残る `#id` の量化集合。
+/// `subtracts` は subtract table 由来の side table で、`#id` の量化そのものとは分けて持つ。
 #[derive(Clone)]
 pub struct Scheme {
     pub quantifiers: Vec<TypeVar>,
     pub role_predicates: Vec<RolePredicate>,
     pub recursive_bounds: Vec<SchemeRecursiveBound>,
+    pub stack_quantifiers: Vec<SubtractId>,
     pub predicate: PosId,
     pub subtracts: Vec<SchemeSubtractFact>,
 }
@@ -33,7 +34,7 @@ pub struct SchemeRecursiveBound {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// scheme に残る `S-subtract(α, #a)` fact。
+/// scheme に残る旧 `S-subtract(α, #a)` fact。
 ///
 /// `subtractability` は scheme 側の `TypeArena` に載った `NeuId` を参照する。instantiate はこの fact を
 /// fresh 化して infer 側の subtract table へ戻す。
@@ -117,6 +118,10 @@ impl TypeIds {
         id
     }
 
+    pub fn reserve_type_vars_until(&mut self, next_type_var: u32) {
+        self.next_type_var = self.next_type_var.max(next_type_var);
+    }
+
     pub fn fresh_subtract_id(&mut self) -> SubtractId {
         let id = SubtractId(self.next_subtract_id);
         self.next_subtract_id += 1;
@@ -132,23 +137,194 @@ impl TypeIds {
 pub struct TypeVar(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// effect row の引き算を追跡するための ID。
-///
-/// weighted subtype edge の左右に集合として載せ、どの `S-subtract` を通ってきた制約かを表す。
-/// 「subtract してはいけない」事実を別 table で守るのではなく、この ID の集合を重みとして伝播する。
+/// effect row の stack 寿命を追跡するための ID。
 pub struct SubtractId(pub u32);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// `S-subtract(α, #a)` が、その effect row から何を引けるかを表す。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// stack entry の effect path 集合。
 ///
-/// subtype constraint そのものではなく、effect 変数に付随する事実として `infer` 側の
-/// `SubtractTable` に入る。型表現としては、scheme へ外出しできるようここに定義する。
+/// 旧 `S-subtract` の名前を残しているが、現行仕様では `stack(T, @S)` の `H` として使う。
+/// 引数付き effect は stack 集合演算では path family だけを見る。引数そのものは通常の型制約で見る。
 pub enum Subtractability {
     Empty,
     All,
     AllExcept(Vec<String>, Vec<NeuId>),
     AllExceptMany(Vec<(Vec<String>, Vec<NeuId>)>),
     Set(Vec<String>, Vec<NeuId>),
+    SetMany(Vec<(Vec<String>, Vec<NeuId>)>),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+/// `stack(T, @S)` の `@S`。
+///
+/// `@S` は `SubtractId` ごとに `pop(p)[H1, ..., Hn]` の正規形で持つ。
+/// 合成は可換ではなく、左の後ろに右を積む。
+pub struct StackWeight {
+    entries: Vec<StackWeightEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StackWeightEntry {
+    pub id: SubtractId,
+    pub pops: u32,
+    pub stack: Vec<Subtractability>,
+}
+
+impl StackWeight {
+    pub fn empty() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
+    pub fn pop(id: SubtractId) -> Self {
+        Self::pops(id, 1)
+    }
+
+    pub fn pops(id: SubtractId, count: u32) -> Self {
+        let mut out = Self::empty();
+        out.push_pops(id, count);
+        out
+    }
+
+    pub fn from_ids(ids: impl IntoIterator<Item = SubtractId>) -> Self {
+        let mut out = Self::empty();
+        for id in ids {
+            out.push_pops(id, 1);
+        }
+        out
+    }
+
+    pub fn push(id: SubtractId, subtractability: Subtractability) -> Self {
+        let mut out = Self::empty();
+        out.push_stack(id, subtractability);
+        out
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn entries(&self) -> &[StackWeightEntry] {
+        &self.entries
+    }
+
+    pub fn contains(&self, id: SubtractId) -> bool {
+        self.entries.iter().any(|entry| entry.id == id)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = SubtractId> + '_ {
+        self.entries.iter().map(|entry| entry.id)
+    }
+
+    pub fn stack_items(&self) -> impl Iterator<Item = &Subtractability> {
+        self.entries.iter().flat_map(|entry| entry.stack.iter())
+    }
+
+    pub fn has_stack_entry(&self) -> bool {
+        self.entries.iter().any(|entry| !entry.stack.is_empty())
+    }
+
+    pub fn compose(&self, other: &Self) -> Self {
+        let mut out = self.clone();
+        out.append(other);
+        out
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        self.compose(other)
+    }
+
+    pub fn without_ids(&self, dead: impl Fn(SubtractId) -> bool) -> Self {
+        let entries = self
+            .entries
+            .iter()
+            .filter(|entry| !dead(entry.id))
+            .cloned()
+            .collect();
+        Self { entries }
+    }
+
+    /// Bounds replay の循環で増え続ける未対応 pop だけを飽和させる。
+    /// stack 列は `common_stack` の入力なので、重複や順序をここでは変えない。
+    pub fn saturate_unmatched_pops(&self) -> Self {
+        let entries = self
+            .entries
+            .iter()
+            .cloned()
+            .map(|mut entry| {
+                if entry.pops > 0 {
+                    entry.pops = u32::MAX;
+                }
+                entry
+            })
+            .collect();
+        Self { entries }
+    }
+
+    fn append(&mut self, other: &Self) {
+        for entry in &other.entries {
+            self.push_pops(entry.id, entry.pops);
+            for subtractability in &entry.stack {
+                self.push_stack(entry.id, subtractability.clone());
+            }
+        }
+    }
+
+    fn push_stack(&mut self, id: SubtractId, subtractability: Subtractability) {
+        let entry = self.entry_mut(id);
+        entry.stack.push(subtractability);
+    }
+
+    fn push_pops(&mut self, id: SubtractId, count: u32) {
+        if count == 0 {
+            return;
+        }
+        let entry = self.entry_mut(id);
+        if count == u32::MAX {
+            entry.stack.clear();
+            entry.pops = u32::MAX;
+            return;
+        }
+        let removable = entry.stack.len().min(count as usize);
+        if removable > 0 {
+            entry.stack.truncate(entry.stack.len() - removable);
+        }
+        let remaining = count.saturating_sub(removable as u32);
+        if remaining > 0 {
+            entry.pops = entry.pops.saturating_add(remaining);
+            if entry.pops == u32::MAX {
+                entry.stack.clear();
+            }
+        }
+        self.remove_empty_entry(id);
+    }
+
+    fn entry_mut(&mut self, id: SubtractId) -> &mut StackWeightEntry {
+        match self.entries.binary_search_by_key(&id.0, |entry| entry.id.0) {
+            Ok(index) => &mut self.entries[index],
+            Err(index) => {
+                self.entries.insert(
+                    index,
+                    StackWeightEntry {
+                        id,
+                        pops: 0,
+                        stack: Vec::new(),
+                    },
+                );
+                &mut self.entries[index]
+            }
+        }
+    }
+
+    fn remove_empty_entry(&mut self, id: SubtractId) {
+        if let Ok(index) = self.entries.binary_search_by_key(&id.0, |entry| entry.id.0)
+            && self.entries[index].pops == 0
+            && self.entries[index].stack.is_empty()
+        {
+            self.entries.remove(index);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -251,6 +427,12 @@ pub enum Pos {
     Tuple(Vec<PosId>),
     /// エフェクト行の lower bound。positive 側は tail を分けず、row item を列として持つ。
     Row(Vec<PosId>),
+    /// `stack(T, @S)`。effect subtraction の寿命境界を型構造として持つ。
+    Stack {
+        inner: PosId,
+        weight: StackWeight,
+    },
+    /// 旧 `pop(T, #id)` 糖衣。新しい lowering では `Stack` を使う。
     NonSubtract(PosId, SubtractId),
     Union(PosId, PosId),
 }
@@ -276,6 +458,11 @@ pub enum Neg {
     Tuple(Vec<NegId>),
     /// エフェクト行。items は要求する具体部分、tail は残差を受ける負側 row。
     Row(Vec<NegId>, NegId),
+    /// `stack(T, @S)`。effect subtraction の寿命境界を型構造として持つ。
+    Stack {
+        inner: NegId,
+        weight: StackWeight,
+    },
     Intersection(NegId, NegId),
 }
 

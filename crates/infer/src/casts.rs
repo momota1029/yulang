@@ -79,6 +79,7 @@ mod tests {
                 quantifiers: Vec::new(),
                 role_predicates: Vec::new(),
                 recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
                 predicate: PosId(0),
                 subtracts: Vec::new(),
             },

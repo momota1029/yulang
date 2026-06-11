@@ -112,7 +112,7 @@ fn normalize_runtime_scheme_vars(text: &str) -> String {
 fn write_real_std_prelude(root: &std::path::Path) {
     fs::write(
         root.join("std").join("ops.yu"),
-        include_str!("../../../../lib/std/ops.yu"),
+        include_str!("../../../../lib/std/core/ops.yu"),
     )
     .unwrap();
     fs::write(

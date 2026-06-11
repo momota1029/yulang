@@ -72,10 +72,12 @@ impl Arena {
 
     pub fn subtype(&mut self, lower: PosId, upper: NegId) {
         self.constraints.subtype(lower, upper);
+        self.sync_type_ids_with_constraints();
     }
 
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
         self.constraints.weighted_subtype(lower, weights, upper);
+        self.sync_type_ids_with_constraints();
     }
 
     pub fn subtract_fact(
@@ -85,6 +87,23 @@ impl Arena {
         subtractability: Subtractability,
     ) {
         self.constraints.subtract_fact(effect, id, subtractability);
+        self.sync_type_ids_with_constraints();
+    }
+
+    pub fn declared_subtract_fact(
+        &mut self,
+        effect: TypeVar,
+        id: SubtractId,
+        subtractability: Subtractability,
+    ) {
+        self.constraints
+            .declared_subtract_fact(effect, id, subtractability);
+        self.sync_type_ids_with_constraints();
+    }
+
+    fn sync_type_ids_with_constraints(&mut self) {
+        self.type_ids
+            .reserve_type_vars_until(self.constraints.next_type_var());
     }
 
     pub fn constraints(&self) -> &ConstraintMachine {
@@ -99,5 +118,32 @@ impl Arena {
 impl Default for Arena {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use poly::types::StackWeight;
+
+    #[test]
+    fn internal_residual_vars_advance_public_type_allocator() {
+        let mut arena = Arena::new();
+        let source = arena.fresh_type_var();
+        let tail = arena.fresh_type_var();
+        let subtract = arena.fresh_subtract_id();
+
+        let source_pos = arena.alloc_pos(Pos::Var(source));
+        let lower = arena.alloc_pos(Pos::Stack {
+            inner: source_pos,
+            weight: StackWeight::push(subtract, Subtractability::All),
+        });
+        let item = arena.alloc_neg(Neg::Con(vec!["io".into()], Vec::new()));
+        let tail = arena.alloc_neg(Neg::Var(tail));
+        let upper = arena.alloc_neg(Neg::Row(vec![item], tail));
+
+        arena.subtype(lower, upper);
+
+        assert_eq!(arena.fresh_type_var(), TypeVar(3));
     }
 }

@@ -5,6 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::*;
 use crate::constraints::{ConstraintMachine, TypeLevel};
 
+#[cfg(test)]
 pub(crate) fn eliminate_polar_variables(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -15,21 +16,6 @@ pub(crate) fn eliminate_polar_variables(
         boundary,
         root,
         &mut [],
-        &FxHashSet::default(),
-    )
-}
-
-pub(crate) fn eliminate_polar_variables_with_roles(
-    machine: &ConstraintMachine,
-    boundary: TypeLevel,
-    root: &mut CompactRoot,
-    roles: &mut [CompactRoleConstraint],
-) -> Vec<CompactVarSubstitution> {
-    eliminate_polar_variables_with_roles_and_non_generic(
-        machine,
-        boundary,
-        root,
-        roles,
         &FxHashSet::default(),
     )
 }
@@ -53,6 +39,7 @@ fn eliminate_polar_variables_with_roles_and_non_generic(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn coalesce_by_co_occurrence(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -63,21 +50,6 @@ pub(crate) fn coalesce_by_co_occurrence(
         boundary,
         root,
         &mut [],
-        &FxHashSet::default(),
-    )
-}
-
-pub(crate) fn coalesce_by_co_occurrence_with_roles(
-    machine: &ConstraintMachine,
-    boundary: TypeLevel,
-    root: &mut CompactRoot,
-    roles: &mut [CompactRoleConstraint],
-) -> Vec<CompactVarSubstitution> {
-    coalesce_by_co_occurrence_with_roles_and_non_generic(
-        machine,
-        boundary,
-        root,
-        roles,
         &FxHashSet::default(),
     )
 }
@@ -97,6 +69,7 @@ fn coalesce_by_co_occurrence_with_roles_and_non_generic(
     rewrite_root_and_role_vars(root, roles, |var| Some(subst.representative(var)))
 }
 
+#[cfg(test)]
 pub(crate) fn simplify_compact_root(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -107,21 +80,6 @@ pub(crate) fn simplify_compact_root(
         boundary,
         root,
         &mut [],
-        &FxHashSet::default(),
-    )
-}
-
-pub(crate) fn simplify_compact_root_with_roles(
-    machine: &ConstraintMachine,
-    boundary: TypeLevel,
-    root: &mut CompactRoot,
-    roles: &mut [CompactRoleConstraint],
-) -> CompactSimplification {
-    simplify_compact_root_with_roles_and_non_generic(
-        machine,
-        boundary,
-        root,
-        roles,
         &FxHashSet::default(),
     )
 }
@@ -194,9 +152,10 @@ fn is_simplification_candidate(
     var: TypeVar,
     non_generic: &FxHashSet<TypeVar>,
 ) -> bool {
-    machine.birth_level_of(var) >= boundary && !non_generic.contains(&var)
+    machine.level_of(var) >= boundary && !non_generic.contains(&var)
 }
 
+#[cfg(test)]
 pub(crate) fn sandwich_compact_root(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -727,7 +686,7 @@ fn try_lift_interval(
     let center = if verdicts.lift.contains_key(&self_var) {
         self_var
     } else {
-        if machine.birth_level_of(self_var) < boundary {
+        if machine.level_of(self_var) < boundary {
             return None;
         }
         common_var_in_types(lower, upper).filter(|var| verdicts.lift.contains_key(var))?
@@ -1390,79 +1349,92 @@ impl ExactKey {
 
 fn collect_co_occurrences(root: &CompactRoot, roles: &[CompactRoleConstraint]) -> CoOccurrences {
     let mut out = CoOccurrences::default();
-    visit_type_co_occurrence(&root.root, Polarity::Positive, &[], &mut out);
+    let rec_vars = root.rec_vars.iter().map(|rec| rec.var).collect::<Vec<_>>();
+    // Recursive center vars are counted through their Interval bounds via `extra_vars`.
+    // Counting their root/role occurrences as ordinary singleton groups would prevent
+    // the center from coalescing with the bounds that always sandwich it.
+    visit_type_co_occurrence(&root.root, Polarity::Positive, &[], &rec_vars, &mut out);
     for rec in &root.rec_vars {
-        visit_bounds_co_occurrence(&rec.bounds, Polarity::Positive, &mut out);
+        visit_bounds_co_occurrence(&rec.bounds, Polarity::Positive, &[], &mut out);
     }
     for role in roles {
-        visit_role_co_occurrence(role, &mut out);
+        visit_role_co_occurrence(role, &rec_vars, &mut out);
     }
     out
 }
 
-fn visit_role_co_occurrence(role: &CompactRoleConstraint, out: &mut CoOccurrences) {
+fn visit_role_co_occurrence(
+    role: &CompactRoleConstraint,
+    ignored_vars: &[TypeVar],
+    out: &mut CoOccurrences,
+) {
     for input in &role.inputs {
-        visit_role_arg_co_occurrence(input, out);
+        visit_role_arg_co_occurrence(input, ignored_vars, out);
     }
     for associated in &role.associated {
-        visit_role_arg_co_occurrence(&associated.value, out);
+        visit_role_arg_co_occurrence(&associated.value, ignored_vars, out);
     }
 }
 
-fn visit_role_arg_co_occurrence(arg: &CompactRoleArg, out: &mut CoOccurrences) {
-    visit_type_co_occurrence(&arg.lower, Polarity::Positive, &[], out);
-    visit_type_co_occurrence(&arg.upper, Polarity::Negative, &[], out);
+fn visit_role_arg_co_occurrence(
+    arg: &CompactRoleArg,
+    ignored_vars: &[TypeVar],
+    out: &mut CoOccurrences,
+) {
+    visit_type_co_occurrence(&arg.lower, Polarity::Positive, &[], ignored_vars, out);
+    visit_type_co_occurrence(&arg.upper, Polarity::Negative, &[], ignored_vars, out);
 }
 
 fn visit_type_co_occurrence(
     ty: &CompactType,
     polarity: Polarity,
     extra_vars: &[TypeVar],
+    ignored_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
-    out.record_group(along_group(ty, extra_vars), polarity);
+    out.record_group(along_group(ty, extra_vars, ignored_vars), polarity);
 
     for con in &ty.cons {
         for arg in &con.args {
-            visit_bounds_co_occurrence(arg, polarity, out);
+            visit_bounds_co_occurrence(arg, polarity, ignored_vars, out);
         }
     }
     for fun in &ty.funs {
-        visit_type_co_occurrence(&fun.arg, polarity.flipped(), &[], out);
-        visit_type_co_occurrence(&fun.arg_eff, polarity.flipped(), &[], out);
-        visit_type_co_occurrence(&fun.ret_eff, polarity, &[], out);
-        visit_type_co_occurrence(&fun.ret, polarity, &[], out);
+        visit_type_co_occurrence(&fun.arg, polarity.flipped(), &[], ignored_vars, out);
+        visit_type_co_occurrence(&fun.arg_eff, polarity.flipped(), &[], ignored_vars, out);
+        visit_type_co_occurrence(&fun.ret_eff, polarity, &[], ignored_vars, out);
+        visit_type_co_occurrence(&fun.ret, polarity, &[], ignored_vars, out);
     }
     for record in &ty.records {
         for field in &record.fields {
-            visit_type_co_occurrence(&field.value, polarity, &[], out);
+            visit_type_co_occurrence(&field.value, polarity, &[], ignored_vars, out);
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            visit_type_co_occurrence(&field.value, polarity, &[], out);
+            visit_type_co_occurrence(&field.value, polarity, &[], ignored_vars, out);
         }
-        visit_type_co_occurrence(&spread.tail, polarity, &[], out);
+        visit_type_co_occurrence(&spread.tail, polarity, &[], ignored_vars, out);
     }
     for variant in &ty.poly_variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                visit_type_co_occurrence(payload, polarity, &[], out);
+                visit_type_co_occurrence(payload, polarity, &[], ignored_vars, out);
             }
         }
     }
     for tuple in &ty.tuples {
         for item in &tuple.items {
-            visit_type_co_occurrence(item, polarity, &[], out);
+            visit_type_co_occurrence(item, polarity, &[], ignored_vars, out);
         }
     }
     for row in &ty.rows {
-        let group = row_along_group(row);
-        visit_row_tail_vars(&row.tail, polarity, Some(&group), out);
+        let group = row_along_group(row, ignored_vars);
+        visit_row_tail_vars(&row.tail, polarity, Some(&group), ignored_vars, out);
         for item in &row.items {
-            visit_type_co_occurrence(item, polarity, &[], out);
+            visit_type_co_occurrence(item, polarity, &[], ignored_vars, out);
         }
-        visit_type_co_occurrence(&row.tail, polarity, &[], out);
+        visit_type_co_occurrence(&row.tail, polarity, &[], ignored_vars, out);
     }
 }
 
@@ -1470,27 +1442,37 @@ fn visit_row_tail_vars(
     ty: &CompactType,
     polarity: Polarity,
     group: Option<&FxHashSet<AlongItem>>,
+    ignored_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
     if let Some(group) = group {
         out.record_group(group.clone(), polarity);
     }
     for row in &ty.rows {
-        visit_row_tail_vars(&row.tail, polarity, group, out);
+        visit_row_tail_vars(&row.tail, polarity, group, ignored_vars, out);
     }
 }
 
-fn along_group(ty: &CompactType, extra_vars: &[TypeVar]) -> FxHashSet<AlongItem> {
+fn along_group(
+    ty: &CompactType,
+    extra_vars: &[TypeVar],
+    ignored_vars: &[TypeVar],
+) -> FxHashSet<AlongItem> {
     let mut group = FxHashSet::default();
-    group.extend(ty.vars.iter().map(|var| AlongItem::Var(var.var)));
+    group.extend(
+        ty.vars
+            .iter()
+            .filter(|var| !ignored_vars.contains(&var.var))
+            .map(|var| AlongItem::Var(var.var)),
+    );
     group.extend(extra_vars.iter().copied().map(AlongItem::Var));
     group.extend(exact_group(ty).into_iter().map(AlongItem::Exact));
     group
 }
 
-fn row_along_group(row: &CompactRow) -> FxHashSet<AlongItem> {
+fn row_along_group(row: &CompactRow, ignored_vars: &[TypeVar]) -> FxHashSet<AlongItem> {
     let mut group = FxHashSet::default();
-    collect_row_tail_vars(&row.tail, &mut group);
+    collect_row_tail_vars(&row.tail, ignored_vars, &mut group);
     let mut item_keys = row.items.iter().flat_map(exact_group).collect::<Vec<_>>();
     item_keys.sort_by_key(ExactKey::sort_key);
     item_keys.dedup();
@@ -1498,10 +1480,19 @@ fn row_along_group(row: &CompactRow) -> FxHashSet<AlongItem> {
     group
 }
 
-fn collect_row_tail_vars(ty: &CompactType, out: &mut FxHashSet<AlongItem>) {
-    out.extend(ty.vars.iter().map(|var| AlongItem::Var(var.var)));
+fn collect_row_tail_vars(
+    ty: &CompactType,
+    ignored_vars: &[TypeVar],
+    out: &mut FxHashSet<AlongItem>,
+) {
+    out.extend(
+        ty.vars
+            .iter()
+            .filter(|var| !ignored_vars.contains(&var.var))
+            .map(|var| AlongItem::Var(var.var)),
+    );
     for row in &ty.rows {
-        collect_row_tail_vars(&row.tail, out);
+        collect_row_tail_vars(&row.tail, ignored_vars, out);
     }
 }
 
@@ -1557,19 +1548,38 @@ fn exact_group(ty: &CompactType) -> Vec<ExactKey> {
     group
 }
 
-fn visit_bounds_co_occurrence(bounds: &CompactBounds, polarity: Polarity, out: &mut CoOccurrences) {
+fn visit_bounds_co_occurrence(
+    bounds: &CompactBounds,
+    polarity: Polarity,
+    ignored_vars: &[TypeVar],
+    out: &mut CoOccurrences,
+) {
     match bounds {
         CompactBounds::Interval {
             self_var,
             lower,
             upper,
         } => {
-            visit_type_co_occurrence(lower, polarity, &[*self_var], out);
-            visit_type_co_occurrence(upper, polarity.flipped(), &[*self_var], out);
+            let mut body_ignored = ignored_vars.to_vec();
+            if !body_ignored.contains(self_var) {
+                body_ignored.push(*self_var);
+            }
+            if !lower.is_empty() {
+                visit_type_co_occurrence(lower, polarity, &[*self_var], &body_ignored, out);
+            }
+            if !upper.is_empty() {
+                visit_type_co_occurrence(
+                    upper,
+                    polarity.flipped(),
+                    &[*self_var],
+                    &body_ignored,
+                    out,
+                );
+            }
         }
         CompactBounds::Con { args, .. } => {
             for arg in args {
-                visit_bounds_co_occurrence(arg, polarity, out);
+                visit_bounds_co_occurrence(arg, polarity, ignored_vars, out);
             }
         }
         CompactBounds::Fun {
@@ -1578,26 +1588,26 @@ fn visit_bounds_co_occurrence(bounds: &CompactBounds, polarity: Polarity, out: &
             ret_eff,
             ret,
         } => {
-            visit_bounds_co_occurrence(arg, polarity.flipped(), out);
-            visit_bounds_co_occurrence(arg_eff, polarity.flipped(), out);
-            visit_bounds_co_occurrence(ret_eff, polarity, out);
-            visit_bounds_co_occurrence(ret, polarity, out);
+            visit_bounds_co_occurrence(arg, polarity.flipped(), ignored_vars, out);
+            visit_bounds_co_occurrence(arg_eff, polarity.flipped(), ignored_vars, out);
+            visit_bounds_co_occurrence(ret_eff, polarity, ignored_vars, out);
+            visit_bounds_co_occurrence(ret, polarity, ignored_vars, out);
         }
         CompactBounds::Record { fields } => {
             for field in fields {
-                visit_bounds_co_occurrence(&field.value, polarity, out);
+                visit_bounds_co_occurrence(&field.value, polarity, ignored_vars, out);
             }
         }
         CompactBounds::PolyVariant { items } => {
             for (_, payloads) in items {
                 for payload in payloads {
-                    visit_bounds_co_occurrence(payload, polarity, out);
+                    visit_bounds_co_occurrence(payload, polarity, ignored_vars, out);
                 }
             }
         }
         CompactBounds::Tuple { items } => {
             for item in items {
-                visit_bounds_co_occurrence(item, polarity, out);
+                visit_bounds_co_occurrence(item, polarity, ignored_vars, out);
             }
         }
     }
@@ -1653,13 +1663,6 @@ impl VarSubstitution {
     fn representative(&self, var: TypeVar) -> TypeVar {
         self.map.get(&var).copied().unwrap_or(var)
     }
-}
-
-fn rewrite_root_vars(
-    root: &mut CompactRoot,
-    rewrite: impl FnMut(TypeVar) -> Option<TypeVar>,
-) -> Vec<CompactVarSubstitution> {
-    rewrite_root_and_role_vars(root, &mut [], rewrite)
 }
 
 fn rewrite_root_and_role_vars(

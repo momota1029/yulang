@@ -174,6 +174,7 @@ fn collect_pos_vars(types: &TypeArena, id: PosId, vars: &mut FxHashSet<TypeVar>)
                 collect_pos_vars(types, *item, vars);
             }
         }
+        Pos::Stack { inner, .. } => collect_pos_vars(types, *inner, vars),
         Pos::NonSubtract(pos, _) => collect_pos_vars(types, *pos, vars),
         Pos::Union(left, right) => {
             collect_pos_vars(types, *left, vars);
@@ -223,6 +224,7 @@ fn collect_neg_vars(types: &TypeArena, id: NegId, vars: &mut FxHashSet<TypeVar>)
             }
             collect_neg_vars(types, *tail, vars);
         }
+        Neg::Stack { inner, .. } => collect_neg_vars(types, *inner, vars),
         Neg::Intersection(left, right) => {
             collect_neg_vars(types, *left, vars);
             collect_neg_vars(types, *right, vars);

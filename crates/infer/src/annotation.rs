@@ -5,7 +5,8 @@
 //! 後続の制約生成は、この `AnnType` を必要な polarity に応じて `Pos` / `Neg` へ落とす。
 
 use poly::types::{
-    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeVar,
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, StackWeight, SubtractId, Subtractability,
+    TypeVar,
 };
 use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -201,14 +202,9 @@ impl<'a> AnnConstraintLowerer<'a> {
             AnnType::Effectful { eff, ret } => {
                 let mut subtracts = self.connect_value(target.value, ret)?;
                 subtracts.extend(self.connect_effectful_annotation_effect(target.effect, eff)?);
-                self.connect_non_subtract_computation(target, &subtracts);
                 Ok(subtracts)
             }
-            _ => {
-                let subtracts = self.connect_value(target.value, ann)?;
-                self.connect_non_subtract_computation(target, &subtracts);
-                Ok(subtracts)
-            }
+            _ => self.connect_value(target.value, ann),
         }
     }
 
@@ -317,24 +313,6 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
     }
 
-    fn connect_non_subtract_computation(
-        &mut self,
-        target: AnnComputationTarget,
-        subtracts: &[SubtractId],
-    ) {
-        for subtract in subtracts {
-            let value = self.alloc_pos(Pos::Var(target.value));
-            let value = self.alloc_pos(Pos::NonSubtract(value, *subtract));
-            let value_upper = self.alloc_neg(Neg::Var(target.value));
-            self.infer.subtype(value, value_upper);
-
-            let effect = self.alloc_pos(Pos::Var(target.effect));
-            let effect = self.alloc_pos(Pos::NonSubtract(effect, *subtract));
-            let effect_upper = self.alloc_neg(Neg::Var(target.effect));
-            self.infer.subtype(effect, effect_upper);
-        }
-    }
-
     fn lower_arg_effect_bounds(
         &mut self,
         row: Option<&AnnEffectRow>,
@@ -371,13 +349,14 @@ impl<'a> AnnConstraintLowerer<'a> {
 
         let effect = self.infer.fresh_type_var();
         self.connect_effect_tail_lower(effect, row)?;
-        let subtracts = self.record_effect_row_subtractability(effect, row)?;
+        let stack = self.effect_row_stack(row)?;
+        self.register_stack_facts(effect, &stack.weight);
         let effect_pos = self.alloc_pos(Pos::Var(effect));
-        let pos = self.wrap_non_subtracts(effect_pos, &subtracts);
+        let pos = self.wrap_pos_with_stack(effect_pos, &stack.weight);
         Ok(AnnEffectBounds {
             pos,
             neg: self.alloc_neg(Neg::Var(effect)),
-            subtracts,
+            subtracts: stack.ids,
         })
     }
 
@@ -395,8 +374,27 @@ impl<'a> AnnConstraintLowerer<'a> {
         effect: TypeVar,
         row: &AnnEffectRow,
     ) -> Result<Vec<SubtractId>, AnnConstraintError> {
-        self.connect_effect_tail_lower(effect, row)?;
-        self.record_effect_row_subtractability(effect, row)
+        // 注釈残差は fresh な内側変数に立て、stack で包んで下から effect を抑える。
+        // `stack(effect, push) <: effect` の自己辺は bounds replay で重みが際限なく
+        // 合成される（spec の「自分へ戻るだけの制約は無限ループの燃料」）ため作らない。
+        let inner = self.infer.fresh_type_var();
+        self.connect_effect_tail_lower(inner, row)?;
+        let stack = self.effect_row_stack(row)?;
+        self.register_stack_facts(inner, &stack.weight);
+        let inner_pos = self.alloc_pos(Pos::Var(inner));
+        let stacked = self.wrap_pos_with_stack(inner_pos, &stack.weight);
+        let upper = self.alloc_neg(Neg::Var(effect));
+        self.infer.subtype(stacked, upper);
+        Ok(stack.ids)
+    }
+
+    fn register_stack_facts(&mut self, var: TypeVar, weight: &StackWeight) {
+        for entry in weight.entries() {
+            for subtractability in &entry.stack {
+                self.infer
+                    .declared_subtract_fact(var, entry.id, subtractability.clone());
+            }
+        }
     }
 
     fn connect_effect_row_lower(
@@ -427,15 +425,13 @@ impl<'a> AnnConstraintLowerer<'a> {
         Ok(())
     }
 
-    fn record_effect_row_subtractability(
-        &mut self,
-        effect: TypeVar,
-        row: &AnnEffectRow,
-    ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+    fn effect_row_stack(&mut self, row: &AnnEffectRow) -> Result<EffectStack, AnnConstraintError> {
         if effect_row_has_wildcard(row) {
             let id = self.infer.fresh_subtract_id();
-            self.infer.subtract_fact(effect, id, Subtractability::All);
-            return Ok(vec![id]);
+            return Ok(EffectStack {
+                weight: StackWeight::push(id, Subtractability::All),
+                ids: vec![id],
+            });
         }
 
         let atoms = row
@@ -449,20 +445,20 @@ impl<'a> AnnConstraintLowerer<'a> {
         if atoms.is_empty() {
             if row.tail.is_none() {
                 let id = self.infer.fresh_subtract_id();
-                self.infer.subtract_fact(effect, id, Subtractability::Empty);
-                return Ok(vec![id]);
+                return Ok(EffectStack {
+                    weight: StackWeight::push(id, Subtractability::Empty),
+                    ids: vec![id],
+                });
             }
-            return Ok(Vec::new());
+            return Ok(EffectStack::empty());
         }
 
-        let mut ids = Vec::with_capacity(atoms.len());
-        for (path, args) in atoms {
-            let id = self.infer.fresh_subtract_id();
-            self.infer
-                .subtract_fact(effect, id, Subtractability::Set(path, args));
-            ids.push(id);
-        }
-        Ok(ids)
+        let id = self.infer.fresh_subtract_id();
+        let subtractability = subtractability_from_atoms(atoms);
+        Ok(EffectStack {
+            weight: StackWeight::push(id, subtractability),
+            ids: vec![id],
+        })
     }
 
     fn lower_effect_row_pos(&mut self, row: &AnnEffectRow) -> Result<PosId, AnnConstraintError> {
@@ -601,8 +597,21 @@ impl<'a> AnnConstraintLowerer<'a> {
     }
 
     fn wrap_non_subtracts(&mut self, pos: PosId, subtracts: &[SubtractId]) -> PosId {
-        subtracts.iter().fold(pos, |inner, subtract| {
-            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
+        let weight = subtracts
+            .iter()
+            .fold(StackWeight::empty(), |weight, subtract| {
+                weight.compose(&StackWeight::pop(*subtract))
+            });
+        self.wrap_pos_with_stack(pos, &weight)
+    }
+
+    fn wrap_pos_with_stack(&mut self, pos: PosId, weight: &StackWeight) -> PosId {
+        if weight.is_empty() {
+            return pos;
+        }
+        self.alloc_pos(Pos::Stack {
+            inner: pos,
+            weight: weight.clone(),
         })
     }
 
@@ -631,6 +640,29 @@ struct AnnEffectBounds {
     pos: PosId,
     neg: NegId,
     subtracts: Vec<SubtractId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EffectStack {
+    weight: StackWeight,
+    ids: Vec<SubtractId>,
+}
+
+impl EffectStack {
+    fn empty() -> Self {
+        Self {
+            weight: StackWeight::empty(),
+            ids: Vec::new(),
+        }
+    }
+}
+
+fn subtractability_from_atoms(atoms: Vec<(Vec<String>, Vec<NeuId>)>) -> Subtractability {
+    match atoms.as_slice() {
+        [] => Subtractability::Empty,
+        [(path, args)] => Subtractability::Set(path.clone(), args.clone()),
+        _ => Subtractability::SetMany(atoms),
+    }
 }
 
 /// `TypeExpr` CST を、pass2 の scope で解決済み `AnnType` へ読む。
@@ -1466,7 +1498,7 @@ mod tests {
     }
 
     #[test]
-    fn connects_effectful_annotation_with_subtract_fact() {
+    fn connects_effectful_annotation_with_stacked_inner_lower() {
         let root = parse("type handled\nmy site: [handled] 'a = 1\n");
         let lower = crate::lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -1483,30 +1515,34 @@ mod tests {
             .expect("annotation constraints should lower");
 
         assert_eq!(subtracts.len(), 1);
-        let facts = infer.constraints().subtracts().facts(effect);
-        assert_eq!(facts.len(), 1);
-        match &facts[0].subtractability {
-            Subtractability::Set(path, args) => {
-                let decl = lower
-                    .modules
-                    .type_decl_by_id(handled)
-                    .expect("handled decl");
-                let expected = lower
-                    .modules
-                    .type_decl_path(&decl)
-                    .segments
-                    .into_iter()
-                    .map(|name| name.0)
-                    .collect::<Vec<_>>();
-                assert_eq!(path, &expected);
-                assert!(args.is_empty());
-            }
-            other => panic!("expected concrete subtractability, got {other:?}"),
-        }
+        let expected = type_decl_path(&lower.modules, handled);
+        let bounds = infer
+            .constraints()
+            .bounds()
+            .of(effect)
+            .expect("effect should receive stacked inner lower bound");
+        // 注釈残差は fresh な内側変数として立ち、push 重み付きで effect の下界に入る。
+        // effect 自身への self edge は作らない（replay で重みが際限なく合成されるため）。
+        assert!(
+            bounds.lowers().iter().any(|bound| {
+                matches!(infer.constraints().types().pos(bound.pos), Pos::Var(var) if *var != effect)
+                    && weight_has_set_path(&bound.weights.left, subtracts[0], &expected)
+            }),
+            "effect bounds: {:?}",
+            bounds
+        );
+        assert!(
+            !bounds.lowers().iter().any(|bound| {
+                matches!(infer.constraints().types().pos(bound.pos), Pos::Var(var) if *var == effect)
+                    && !bound.weights.is_empty()
+            }),
+            "effect must not have weighted self edges: {:?}",
+            bounds
+        );
     }
 
     #[test]
-    fn function_return_effect_annotation_wraps_output_computation_with_non_subtract() {
+    fn function_return_effect_annotation_wraps_output_computation_with_stack() {
         let root = parse("type io\ntype handled\nmy site: 'a [io] -> [handled] 'a = 1\n");
         let lower = crate::lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -1535,8 +1571,23 @@ mod tests {
             })
             .expect("function annotation should lower to function bound");
 
-        assert!(matches!(types.pos(fun.0), Pos::NonSubtract(_, _)));
-        assert!(matches!(types.pos(fun.1), Pos::NonSubtract(_, _)));
+        let subtract = match types.pos(fun.0) {
+            Pos::Stack { inner, weight } => {
+                assert!(matches!(types.pos(*inner), Pos::Var(_)));
+                let entry = single_stack_entry(weight);
+                assert_eq!(entry.pops, 0);
+                assert_eq!(entry.stack.len(), 1);
+                entry.id
+            }
+            other => panic!("expected stacked return effect, got {other:?}"),
+        };
+        match types.pos(fun.1) {
+            Pos::Stack { inner, weight } => {
+                assert!(matches!(types.pos(*inner), Pos::Var(_)));
+                assert_pop_only(weight, subtract, 1);
+            }
+            other => panic!("expected stacked return value, got {other:?}"),
+        }
     }
 
     #[test]
@@ -1591,7 +1642,7 @@ mod tests {
     }
 
     #[test]
-    fn function_return_effect_with_tail_uses_fresh_proxy_for_subtractability() {
+    fn function_return_effect_with_tail_uses_fresh_stacked_proxy() {
         let root = parse("type handled\nmy site: 'a -> [handled; 'e] 'a = 1\n");
         let lower = crate::lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -1622,14 +1673,13 @@ mod tests {
             })
             .expect("function annotation should lower to function bound");
         let proxy = match types.pos(ret_eff) {
-            Pos::NonSubtract(inner, id) if id == subtract => match types.pos(*inner) {
+            Pos::Stack { inner, weight } if weight.contains(*subtract) => match types.pos(*inner) {
                 Pos::Var(proxy) => *proxy,
                 other => panic!("expected proxy variable, got {other:?}"),
             },
-            other => panic!("expected non-subtract return effect, got {other:?}"),
+            other => panic!("expected stacked return effect, got {other:?}"),
         };
 
-        assert_eq!(infer.constraints().subtracts().facts(proxy).len(), 1);
         let proxy_bounds = infer
             .constraints()
             .bounds()
@@ -1644,7 +1694,7 @@ mod tests {
     }
 
     #[test]
-    fn computation_connection_adds_non_subtract_self_edges_for_function_predicate() {
+    fn computation_connection_does_not_add_weighted_self_edges() {
         let root = parse("type handled\nmy site: 'a -> [handled] 'a = 1\n");
         let lower = crate::lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -1655,30 +1705,69 @@ mod tests {
         let value = infer.fresh_type_var();
         let effect = infer.fresh_type_var();
 
-        let subtracts = AnnConstraintLowerer::new(&mut infer, &lower.modules)
+        AnnConstraintLowerer::new(&mut infer, &lower.modules)
             .connect_computation(AnnComputationTarget { value, effect }, &ann)
             .expect("annotation constraints should lower");
 
-        let [subtract] = subtracts.as_slice() else {
-            panic!("expected one subtract id, got {subtracts:?}");
-        };
+        // 重み付き self edge は bounds replay の合成で重みが際限なく育つため作らない。
         for target in [value, effect] {
-            let bounds = infer
-                .constraints()
-                .bounds()
-                .of(target)
-                .expect("target should receive non-subtract self edge");
-            assert!(bounds.lowers().iter().any(|bound| {
-                matches!(
-                    infer.constraints().types().pos(bound.pos),
-                    Pos::Var(var) if *var == target && bound.weights.left.contains(*subtract)
-                )
-            }));
+            let Some(bounds) = infer.constraints().bounds().of(target) else {
+                continue;
+            };
+            assert!(
+                !bounds.lowers().iter().any(|bound| {
+                    matches!(
+                        infer.constraints().types().pos(bound.pos),
+                        Pos::Var(var) if *var == target && !bound.weights.is_empty()
+                    )
+                }),
+                "weighted self edge on {target:?}: {bounds:?}"
+            );
         }
     }
 
     fn parse(src: &str) -> Cst {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
+    }
+
+    fn type_decl_path(modules: &ModuleTable, id: TypeDeclId) -> Vec<String> {
+        let decl = modules.type_decl_by_id(id).expect("type decl");
+        modules
+            .type_decl_path(&decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect()
+    }
+
+    fn single_stack_entry(weight: &StackWeight) -> &poly::types::StackWeightEntry {
+        let [entry] = weight.entries() else {
+            panic!("expected one stack entry, got {:?}", weight.entries());
+        };
+        entry
+    }
+
+    fn weight_has_set_path(
+        weight: &StackWeight,
+        subtract: SubtractId,
+        expected: &[String],
+    ) -> bool {
+        weight.entries().iter().any(|entry| {
+            entry.id == subtract
+                && entry.stack.iter().any(|subtractability| {
+                    matches!(
+                        subtractability,
+                        Subtractability::Set(path, args) if path == expected && args.is_empty()
+                    )
+                })
+        })
+    }
+
+    fn assert_pop_only(weight: &StackWeight, subtract: SubtractId, pops: u32) {
+        let entry = single_stack_entry(weight);
+        assert_eq!(entry.id, subtract);
+        assert_eq!(entry.pops, pops);
+        assert!(entry.stack.is_empty());
     }
 
     fn first_type_expr(root: &Cst) -> Cst {

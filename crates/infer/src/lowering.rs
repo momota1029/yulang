@@ -22,7 +22,7 @@ use poly::expr::{
     Vis,
 };
 use poly::types::{
-    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId,
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, StackWeight, SubtractId,
     Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -721,7 +721,7 @@ impl BodyLowerer {
                     .lower_neg(&owner_signature)
                     .map_err(|error| LoweringError::SignatureConstraint { error })?;
                 let ret = lowerer
-                    .lower_pos(field_signature.as_type())
+                    .lower_data_pos(field_signature.as_type())
                     .map_err(|error| LoweringError::SignatureConstraint { error })?;
                 let arg_eff = lowerer.alloc_neg(Neg::Bot);
                 let ret_eff = lowerer.alloc_pos(Pos::Bot);
@@ -3086,6 +3086,7 @@ impl<'a> ExprLowerer<'a> {
             Pos::NonSubtract(inner, _) => {
                 self.pos_has_signature_shape(*inner, requirement, visited)
             }
+            Pos::Stack { inner, .. } => self.pos_has_signature_shape(*inner, requirement, visited),
             Pos::Union(left, right) => {
                 self.pos_has_signature_shape(*left, requirement, visited)
                     || self.pos_has_signature_shape(*right, requirement, visited)
@@ -3159,9 +3160,18 @@ impl<'a> ExprLowerer<'a> {
             .map(|name| name.0)
             .collect::<Vec<_>>();
         let subtract = self.session.infer.fresh_subtract_id();
+        let inner = self.fresh_type_var();
+        let subtractability = Subtractability::Set(path, Vec::new());
         self.session
             .infer
-            .subtract_fact(effect, subtract, Subtractability::Set(path, Vec::new()));
+            .declared_subtract_fact(inner, subtract, subtractability.clone());
+        let inner_pos = self.alloc_pos(Pos::Var(inner));
+        let stacked = self.alloc_pos(Pos::Stack {
+            inner: inner_pos,
+            weight: StackWeight::push(subtract, subtractability),
+        });
+        let effect_upper = self.alloc_neg(Neg::Var(effect));
+        self.session.infer.subtype(stacked, effect_upper);
         Ok(subtract)
     }
 
@@ -5291,18 +5301,17 @@ impl<'a> ExprLowerer<'a> {
 
         let arg_value = self.alloc_pos(Pos::Var(arg.value));
         let arg_effect = self.alloc_pos(Pos::Var(arg.effect));
-        let return_effect = self.alloc_neg(Neg::Var(call_effect));
+        let return_effect = self.unannotated_local_callee_return_effect(&callee, call_effect);
         let return_value = self.alloc_neg(Neg::Var(result_value));
         let callee_upper = self.alloc_neg(Neg::Fun {
             arg: arg_value,
             arg_eff: arg_effect,
-            ret_eff: return_effect,
+            ret_eff: return_effect.upper,
             ret: return_value,
         });
-        self.record_unannotated_local_callee_return_effect(&callee, call_effect);
         self.subtype(Pos::Var(callee.value), callee_upper);
         self.subtype_var_to_var(callee.effect, result_effect);
-        self.subtype_var_to_var(call_effect, result_effect);
+        self.subtype_pos_to_var(return_effect.lower, result_effect);
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
@@ -5320,37 +5329,50 @@ impl<'a> ExprLowerer<'a> {
         self.session.infer.fresh_type_var()
     }
 
-    fn record_unannotated_local_callee_return_effect(
+    fn unannotated_local_callee_return_effect(
         &mut self,
         callee: &Computation,
         call_effect: TypeVar,
-    ) {
+    ) -> ApplicationReturnEffect {
+        let bare = self.alloc_neg(Neg::Var(call_effect));
+        let lower = self.alloc_pos(Pos::Var(call_effect));
         if !self
             .function_frames
             .last()
             .is_some_and(|frame| frame.scope == LambdaScope::Defined)
         {
-            return;
+            return ApplicationReturnEffect { upper: bare, lower };
         }
         let Some(def) = self.local_callee_def(callee) else {
-            return;
+            return ApplicationReturnEffect { upper: bare, lower };
         };
         let Some(local) = self.local_binding_by_def(def) else {
-            return;
+            return ApplicationReturnEffect { upper: bare, lower };
         };
+        if !matches!(self.session.poly.defs.get(local.def), Some(Def::Arg)) {
+            return ApplicationReturnEffect { upper: bare, lower };
+        }
         if local.call_return_effect != LocalCallReturnEffect::Unannotated {
-            return;
+            return ApplicationReturnEffect { upper: bare, lower };
         }
 
         let subtract = self.session.infer.fresh_subtract_id();
-        self.session
-            .infer
-            .subtract_fact(call_effect, subtract, Subtractability::Empty);
         let frame = self
             .function_frames
             .last_mut()
             .expect("checked that function frame exists");
         frame.subtracts.push(subtract);
+        let weight = StackWeight::push(subtract, Subtractability::Empty);
+        let effect_pos = self.alloc_pos(Pos::Var(call_effect));
+        let lower = self.alloc_pos(Pos::Stack {
+            inner: effect_pos,
+            weight: weight.clone(),
+        });
+        let upper = self.alloc_neg(Neg::Stack {
+            inner: bare,
+            weight,
+        });
+        ApplicationReturnEffect { upper, lower }
     }
 
     fn local_callee_def(&self, callee: &Computation) -> Option<DefId> {
@@ -5505,6 +5527,11 @@ impl<'a> ExprLowerer<'a> {
         self.subtype(Pos::Var(lower), upper);
     }
 
+    fn subtype_pos_to_var(&mut self, lower: PosId, upper: TypeVar) {
+        let upper = self.alloc_neg(Neg::Var(upper));
+        self.session.infer.subtype(lower, upper);
+    }
+
     fn subtype(&mut self, lower: Pos, upper: NegId) {
         let lower = self.alloc_pos(lower);
         self.session.infer.subtype(lower, upper);
@@ -5512,7 +5539,10 @@ impl<'a> ExprLowerer<'a> {
 
     fn wrap_pos_with_subtracts(&mut self, pos: PosId, subtracts: &[SubtractId]) -> PosId {
         subtracts.iter().fold(pos, |inner, subtract| {
-            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
+            self.alloc_pos(Pos::Stack {
+                inner,
+                weight: StackWeight::pop(*subtract),
+            })
         })
     }
 
@@ -5538,6 +5568,11 @@ struct LocalBinding {
 struct LoweredLocalStmt {
     stmt: Stmt,
     effect: TypeVar,
+}
+
+struct ApplicationReturnEffect {
+    upper: NegId,
+    lower: PosId,
 }
 
 struct LoweredLambdaParam {
@@ -5593,6 +5628,7 @@ fn collect_pos_id_vars(types: &TypeArena, id: PosId, out: &mut FxHashSet<TypeVar
                 collect_pos_id_vars(types, *item, out);
             }
         }
+        Pos::Stack { inner, .. } => collect_pos_id_vars(types, *inner, out),
         Pos::NonSubtract(pos, _) => collect_pos_id_vars(types, *pos, out),
         Pos::Union(lhs, rhs) => {
             collect_pos_id_vars(types, *lhs, out);
@@ -5642,6 +5678,7 @@ fn collect_neg_id_vars(types: &TypeArena, id: NegId, out: &mut FxHashSet<TypeVar
             }
             collect_neg_id_vars(types, *tail, out);
         }
+        Neg::Stack { inner, .. } => collect_neg_id_vars(types, *inner, out),
         Neg::Intersection(lhs, rhs) => {
             collect_neg_id_vars(types, *lhs, out);
             collect_neg_id_vars(types, *rhs, out);
@@ -6388,6 +6425,29 @@ pub struct SignatureEffectRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct SignatureEffectStack {
+    weight: StackWeight,
+    ids: Vec<SubtractId>,
+}
+
+impl SignatureEffectStack {
+    fn empty() -> Self {
+        Self {
+            weight: StackWeight::empty(),
+            ids: Vec::new(),
+        }
+    }
+}
+
+fn signature_subtractability_from_atoms(atoms: Vec<(Vec<String>, Vec<NeuId>)>) -> Subtractability {
+    match atoms.as_slice() {
+        [] => Subtractability::Empty,
+        [(path, args)] => Subtractability::Set(path.clone(), args.clone()),
+        _ => Subtractability::SetMany(atoms),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SignatureEffectAtom {
     Type(SignatureType),
     Wildcard,
@@ -6856,6 +6916,57 @@ impl<'a> SignatureLowerer<'a> {
         }
     }
 
+    fn lower_data_pos(
+        &mut self,
+        signature: &SignatureType,
+    ) -> Result<PosId, SignatureConstraintError> {
+        match signature {
+            SignatureType::Builtin(builtin) => Ok(self.lower_builtin_pos(*builtin)),
+            SignatureType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.alloc_pos(Pos::Con(path, Vec::new())))
+            }
+            SignatureType::Var(var) => {
+                let var = self.signature_var(var);
+                Ok(self.alloc_pos(Pos::Var(var)))
+            }
+            SignatureType::EffectRow(row) => self.lower_data_effect_row_pos(row),
+            SignatureType::Effectful { ret, .. } => self.lower_data_pos(ret),
+            SignatureType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_data_pos(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.alloc_pos(Pos::Tuple(items)))
+            }
+            SignatureType::Apply { callee, args } => {
+                let (path, head_args) = self.constructor_path(callee)?;
+                let mut neu_args = head_args;
+                for arg in args {
+                    neu_args.push(self.lower_invariant_arg(arg)?);
+                }
+                Ok(self.alloc_pos(Pos::Con(path, neu_args)))
+            }
+            SignatureType::Function {
+                param,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let arg = self.lower_data_neg(param)?;
+                let arg_eff = self.lower_arg_effect_neg(arg_eff.as_ref())?;
+                let ret_eff = self.lower_data_ret_effect_pos(ret_eff.as_ref())?;
+                let ret = self.lower_data_pos(ret)?;
+                Ok(self.alloc_pos(Pos::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                }))
+            }
+        }
+    }
+
     fn lower_arg_effect_pos(
         &mut self,
         row: Option<&SignatureEffectRow>,
@@ -6880,6 +6991,14 @@ impl<'a> SignatureLowerer<'a> {
         row: Option<&SignatureEffectRow>,
     ) -> Result<PosId, SignatureConstraintError> {
         row.map(|row| self.lower_effect_row_pos(row))
+            .unwrap_or_else(|| Ok(self.alloc_pos(Pos::Bot)))
+    }
+
+    fn lower_data_ret_effect_pos(
+        &mut self,
+        row: Option<&SignatureEffectRow>,
+    ) -> Result<PosId, SignatureConstraintError> {
+        row.map(|row| self.lower_data_effect_row_pos(row))
             .unwrap_or_else(|| Ok(self.alloc_pos(Pos::Bot)))
     }
 
@@ -6914,13 +7033,12 @@ impl<'a> SignatureLowerer<'a> {
             .iter()
             .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
         {
-            // `[_]` は「与えられたエフェクトを handler が全部引いてよい」という許可。
-            // 反変エフェクト注釈は存在しないので、fresh effect 変数に All-subtract を
-            // 付けて立てる（spec/2026-05-31-effect-variable-subtractable.md 規則2,3）。
             let effect = self.fresh_type_var();
             self.connect_effect_tail_lower(effect, row);
-            self.record_effect_row_subtractability(effect, row)?;
-            return Ok(self.alloc_pos(Pos::Var(effect)));
+            let stack = self.effect_row_stack(row)?;
+            self.register_stack_facts(effect, &stack.weight);
+            let effect = self.alloc_pos(Pos::Var(effect));
+            return Ok(self.wrap_pos_with_stack(effect, &stack.weight));
         }
         let mut items = Vec::with_capacity(row.items.len() + usize::from(row.tail.is_some()));
         for atom in &row.items {
@@ -6932,6 +7050,33 @@ impl<'a> SignatureLowerer<'a> {
         if let Some(tail) = &row.tail {
             let tail = self.signature_var(tail);
             items.push(self.alloc_pos(Pos::Var(tail)));
+        }
+        Ok(self.alloc_pos(Pos::Row(items)))
+    }
+
+    fn lower_data_effect_row_pos(
+        &mut self,
+        row: &SignatureEffectRow,
+    ) -> Result<PosId, SignatureConstraintError> {
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
+        }
+        let mut items = Vec::with_capacity(row.items.len() + usize::from(row.tail.is_some()));
+        for atom in &row.items {
+            let SignatureEffectAtom::Type(ty) = atom else {
+                unreachable!("wildcard checked above");
+            };
+            items.push(self.lower_data_pos(ty)?);
+        }
+        if let Some(tail) = &row.tail {
+            let tail = self.signature_var(tail);
+            let weight = self.data_effect_tail_stack(tail, row)?;
+            let tail = self.alloc_pos(Pos::Var(tail));
+            items.push(self.wrap_pos_with_stack(tail, &weight));
         }
         Ok(self.alloc_pos(Pos::Row(items)))
     }
@@ -6949,8 +7094,10 @@ impl<'a> SignatureLowerer<'a> {
 
         let effect = self.fresh_type_var();
         self.connect_effect_tail_lower(effect, row);
-        self.record_effect_row_subtractability(effect, row)?;
-        Ok(self.alloc_neg(Neg::Var(effect)))
+        let stack = self.effect_row_stack(row)?;
+        self.register_stack_facts(effect, &stack.weight);
+        let effect = self.alloc_neg(Neg::Var(effect));
+        Ok(self.wrap_neg_with_stack(effect, &stack.weight))
     }
 
     fn lower_data_effect_row_neg(
@@ -6971,8 +7118,9 @@ impl<'a> SignatureLowerer<'a> {
             .collect::<Result<Vec<_>, _>>()?;
         let tail = if let Some(tail) = &row.tail {
             let tail = self.signature_var(tail);
-            self.record_data_effect_tail_subtractability(tail, row)?;
-            self.alloc_neg(Neg::Var(tail))
+            let weight = self.data_effect_tail_stack(tail, row)?;
+            let tail = self.alloc_neg(Neg::Var(tail));
+            self.wrap_neg_with_stack(tail, &weight)
         } else {
             self.alloc_neg(Neg::Top)
         };
@@ -7016,11 +7164,11 @@ impl<'a> SignatureLowerer<'a> {
         }
     }
 
-    fn record_data_effect_tail_subtractability(
+    fn data_effect_tail_stack(
         &mut self,
         tail: TypeVar,
         row: &SignatureEffectRow,
-    ) -> Result<(), SignatureConstraintError> {
+    ) -> Result<StackWeight, SignatureConstraintError> {
         let atoms = row
             .items
             .iter()
@@ -7030,7 +7178,7 @@ impl<'a> SignatureLowerer<'a> {
             .flatten()
             .collect::<Vec<_>>();
         if atoms.is_empty() {
-            return Ok(());
+            return Ok(StackWeight::empty());
         }
 
         let id = self.infer.fresh_subtract_id();
@@ -7043,8 +7191,11 @@ impl<'a> SignatureLowerer<'a> {
                     .collect(),
             ),
         };
-        self.infer.subtract_fact(tail, id, subtractability);
-        Ok(())
+        // scheme 量化は machine の subtract fact を起点に保存対象を決めるので、
+        // データ宣言由来の push は fact も登録しておく。
+        self.infer
+            .declared_subtract_fact(tail, id, subtractability.clone());
+        Ok(StackWeight::push(id, subtractability))
     }
 
     fn connect_effect_tail_lower(&mut self, effect: TypeVar, row: &SignatureEffectRow) {
@@ -7056,19 +7207,20 @@ impl<'a> SignatureLowerer<'a> {
         }
     }
 
-    fn record_effect_row_subtractability(
+    fn effect_row_stack(
         &mut self,
-        effect: TypeVar,
         row: &SignatureEffectRow,
-    ) -> Result<(), SignatureConstraintError> {
+    ) -> Result<SignatureEffectStack, SignatureConstraintError> {
         if row
             .items
             .iter()
             .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
         {
             let id = self.infer.fresh_subtract_id();
-            self.infer.subtract_fact(effect, id, Subtractability::All);
-            return Ok(());
+            return Ok(SignatureEffectStack {
+                weight: StackWeight::push(id, Subtractability::All),
+                ids: vec![id],
+            });
         }
 
         let atoms = row
@@ -7082,17 +7234,48 @@ impl<'a> SignatureLowerer<'a> {
         if atoms.is_empty() {
             if row.tail.is_none() {
                 let id = self.infer.fresh_subtract_id();
-                self.infer.subtract_fact(effect, id, Subtractability::Empty);
+                return Ok(SignatureEffectStack {
+                    weight: StackWeight::push(id, Subtractability::Empty),
+                    ids: vec![id],
+                });
             }
-            return Ok(());
+            return Ok(SignatureEffectStack::empty());
         }
 
-        for (path, args) in atoms {
-            let id = self.infer.fresh_subtract_id();
-            self.infer
-                .subtract_fact(effect, id, Subtractability::Set(path, args));
+        let id = self.infer.fresh_subtract_id();
+        Ok(SignatureEffectStack {
+            weight: StackWeight::push(id, signature_subtractability_from_atoms(atoms)),
+            ids: vec![id],
+        })
+    }
+
+    fn wrap_neg_with_stack(&mut self, neg: NegId, weight: &StackWeight) -> NegId {
+        if weight.is_empty() {
+            return neg;
         }
-        Ok(())
+        self.alloc_neg(Neg::Stack {
+            inner: neg,
+            weight: weight.clone(),
+        })
+    }
+
+    fn register_stack_facts(&mut self, var: TypeVar, weight: &StackWeight) {
+        for entry in weight.entries() {
+            for subtractability in &entry.stack {
+                self.infer
+                    .declared_subtract_fact(var, entry.id, subtractability.clone());
+            }
+        }
+    }
+
+    fn wrap_pos_with_stack(&mut self, pos: PosId, weight: &StackWeight) -> PosId {
+        if weight.is_empty() {
+            return pos;
+        }
+        self.alloc_pos(Pos::Stack {
+            inner: pos,
+            weight: weight.clone(),
+        })
     }
 
     fn effect_atom_con(
@@ -7528,7 +7711,7 @@ mod tests {
     }
 
     #[test]
-    fn struct_constructor_field_signature_records_subtractability() {
+    fn struct_constructor_field_signature_records_data_tail_stack() {
         let root = parse(
             "act ref_update 'a;\nstruct Box 'e 'a { update_effect: () -> [ref_update 'a; 'e] () }\n",
         );
@@ -7547,17 +7730,15 @@ mod tests {
                 Neg::Con(path, args) if path == &vec!["ref_update".to_string()] && args.len() == 1
             )
         }));
-        let facts = output.session.infer.constraints().subtracts().facts(tail);
-        assert!(
-            facts.iter().any(|fact| {
-                matches!(
-                    &fact.subtractability,
-                    Subtractability::AllExcept(path, args)
-                        if path == &vec!["ref_update".to_string()] && args.is_empty()
-                )
-            }),
-            "expected ref_update-except-subtract fact on constructor field return effect tail, got {facts:?}"
-        );
+        let types = output.session.infer.constraints().types();
+        let Neg::Stack { inner, weight } = types.neg(tail) else {
+            panic!(
+                "expected stacked return effect row tail, got {:?}",
+                types.neg(tail)
+            );
+        };
+        assert!(matches!(types.neg(*inner), Neg::Var(_)));
+        assert!(weight_has_all_except_path(weight, &["ref_update"]));
     }
 
     fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId) {
@@ -7589,24 +7770,29 @@ mod tests {
             Neg::Var(effect) => *effect,
             other => panic!("expected receiver arg effect var, got {other:?}"),
         };
-        let fact = output
+        // act receiver の保護は fresh な内側変数の push 付き下界として入る。self edge にはしない。
+        let bounds = output
             .session
             .infer
             .constraints()
-            .subtracts()
-            .facts(effect)
+            .bounds()
+            .of(effect)
+            .expect("receiver effect should receive stacked inner lower bound");
+        let subtract = bounds
+            .lowers()
             .iter()
-            .find(|fact| {
-                matches!(
-                    &fact.subtractability,
-                    Subtractability::Set(path, args)
-                        if path == &vec![effect_name.to_string()] && args.is_empty()
-                )
+            .find_map(|bound| {
+                if !matches!(
+                    output.session.infer.constraints().types().pos(bound.pos),
+                    Pos::Var(var) if *var != effect
+                ) {
+                    return None;
+                }
+                weight_set_path_id(&bound.weights.left, &[effect_name])
             })
-            .expect("receiver effect should record self-subtract");
-
-        assert_pos_non_subtract(&output.session, ret_eff, fact.id);
-        assert_pos_non_subtract(&output.session, ret, fact.id);
+            .expect("receiver effect should record stacked act family");
+        assert_pos_stack_pop_var(&output.session, ret_eff, subtract);
+        assert_pos_stack_pop_var(&output.session, ret, subtract);
     }
 
     fn function_lower_bound(
@@ -7675,7 +7861,7 @@ mod tests {
     fn function_upper_bound_ret_effect_row(
         session: &AnalysisSession,
         var: TypeVar,
-    ) -> (Vec<NegId>, TypeVar) {
+    ) -> (Vec<NegId>, NegId) {
         let Some(bounds) = session.infer.constraints().bounds().of(var) else {
             panic!("expected function upper bound");
         };
@@ -7687,10 +7873,7 @@ mod tests {
             let Neg::Row(items, tail) = session.infer.constraints().types().neg(*ret_eff) else {
                 panic!("expected function return effect row");
             };
-            let Neg::Var(effect) = session.infer.constraints().types().neg(*tail) else {
-                panic!("expected function return effect row tail var");
-            };
-            return (items.clone(), *effect);
+            return (items.clone(), *tail);
         }
         panic!("expected function upper bound");
     }
@@ -7709,11 +7892,67 @@ mod tests {
             .expect("type field method should be registered")
     }
 
-    fn assert_pos_non_subtract(session: &AnalysisSession, pos: PosId, subtract: SubtractId) {
-        match session.infer.constraints().types().pos(pos) {
-            Pos::NonSubtract(_, found) if *found == subtract => {}
-            other => panic!("expected non-subtract #{:?}, got {other:?}", subtract),
+    fn assert_pos_stack_pop_var(
+        session: &AnalysisSession,
+        pos: PosId,
+        subtract: SubtractId,
+    ) -> TypeVar {
+        let Pos::Stack { inner, weight } = session.infer.constraints().types().pos(pos) else {
+            panic!("expected stack pop #{:?}", subtract);
+        };
+        let [entry] = weight.entries() else {
+            panic!("expected one stack entry, got {:?}", weight.entries());
+        };
+        assert_eq!(entry.id, subtract);
+        assert_eq!(entry.pops, 1);
+        assert!(entry.stack.is_empty());
+        match session.infer.constraints().types().pos(*inner) {
+            Pos::Var(var) => *var,
+            other => panic!("expected stack pop inner var, got {other:?}"),
         }
+    }
+
+    fn weight_set_path_id(weight: &StackWeight, expected: &[&str]) -> Option<SubtractId> {
+        weight.entries().iter().find_map(|entry| {
+            if entry.stack.iter().any(|subtractability| {
+                matches!(
+                    subtractability,
+                    Subtractability::Set(path, args)
+                        if path_matches(path, expected) && args.is_empty()
+                )
+            }) {
+                Some(entry.id)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn weight_has_all_except_path(weight: &StackWeight, expected: &[&str]) -> bool {
+        weight.entries().iter().any(|entry| {
+            entry.stack.iter().any(|subtractability| {
+                matches!(
+                    subtractability,
+                    Subtractability::AllExcept(path, args)
+                        if path_matches(path, expected) && args.is_empty()
+                )
+            })
+        })
+    }
+
+    fn weight_has_empty_stack(weight: &StackWeight, subtract: SubtractId) -> bool {
+        weight.entries().iter().any(|entry| {
+            entry.id == subtract
+                && entry.pops == 0
+                && entry
+                    .stack
+                    .iter()
+                    .any(|subtractability| matches!(subtractability, Subtractability::Empty))
+        })
+    }
+
+    fn path_matches(path: &[String], expected: &[&str]) -> bool {
+        path.iter().map(String::as_str).eq(expected.iter().copied())
     }
 
     #[test]
@@ -8119,7 +8358,7 @@ mod tests {
     }
 
     #[test]
-    fn role_impl_method_requirement_ret_effect_records_subtractable_effect() {
+    fn role_impl_method_requirement_ret_effect_records_stack_weighted_upper() {
         let root = parse(
             "act nondet:\nstruct User;\nrole Box 'a:\n  our x.run: [nondet; 'e] unit\nimpl User: Box {\n  our x.run = ()\n}\n",
         );
@@ -8144,28 +8383,18 @@ mod tests {
             .of(body_effect)
             .expect("body effect should be constrained by requirement");
         let types = output.session.infer.constraints().types();
-        assert!(bounds.uppers().iter().any(|bound| {
-            let Neg::Var(requirement_effect) = types.neg(bound.neg) else {
-                return false;
-            };
-            output
-                .session
-                .infer
-                .constraints()
-                .subtracts()
-                .facts(*requirement_effect)
-                .iter()
-                .any(|fact| match &fact.subtractability {
-                    Subtractability::Set(path, args) => {
-                        path == &vec!["nondet".to_string()] && args.is_empty()
-                    }
-                    _ => false,
-                })
-        }));
+        assert!(
+            bounds.uppers().iter().any(|bound| {
+                matches!(types.neg(bound.neg), Neg::Var(_))
+                    && weight_set_path_id(&bound.weights.right, &["nondet"]).is_some()
+            }),
+            "body effect bounds: {:?}",
+            bounds
+        );
     }
 
     #[test]
-    fn role_method_signature_arg_effect_does_not_lower_to_plain_neg_row() {
+    fn role_method_signature_arg_effect_lowers_to_neg_stack() {
         let root = parse("act nondet:\nrole Box 'a:\n  our x.run: unit [nondet; 'e] -> unit\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -8181,24 +8410,18 @@ mod tests {
             Pos::Fun { arg_eff, .. } => *arg_eff,
             other => panic!("expected inner function lower bound, got {other:?}"),
         };
-        let arg_effect = match output.session.infer.constraints().types().neg(arg_eff) {
-            Neg::Var(var) => *var,
-            other => panic!("expected subtractable arg effect var, got {other:?}"),
+        let Neg::Stack { inner, weight } = output.session.infer.constraints().types().neg(arg_eff)
+        else {
+            panic!(
+                "expected stacked arg effect var, got {:?}",
+                output.session.infer.constraints().types().neg(arg_eff)
+            );
         };
-        assert!(
-            output
-                .session
-                .infer
-                .constraints()
-                .subtracts()
-                .facts(arg_effect)
-                .iter()
-                .any(|fact| matches!(
-                    &fact.subtractability,
-                    Subtractability::Set(path, args)
-                        if path == &vec!["nondet".to_string()] && args.is_empty()
-                ))
-        );
+        assert!(matches!(
+            output.session.infer.constraints().types().neg(*inner),
+            Neg::Var(_)
+        ));
+        assert!(weight_set_path_id(weight, &["nondet"]).is_some());
     }
 
     #[test]
@@ -9296,10 +9519,13 @@ mod tests {
         let rendered =
             poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, method));
         assert!(
-            rendered.contains("[sub(") || rendered.contains("[sub;"),
+            rendered.contains("[sub(") || rendered.contains("[sub;") || rendered.contains("[sub "),
             "{rendered}"
         );
-        assert!(!rendered.contains("[return("), "{rendered}");
+        assert!(
+            !rendered.contains("[return(") && !rendered.contains("[return "),
+            "{rendered}"
+        );
     }
 
     #[test]
@@ -9656,7 +9882,7 @@ mod tests {
     }
 
     #[test]
-    fn local_arg_application_records_empty_subtract_for_defined_lambda_predicate() {
+    fn local_arg_application_flows_empty_stack_to_callee_and_result() {
         let root = parse("my h = \\f -> f 1\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -9672,53 +9898,83 @@ mod tests {
 
         let types = session.infer.constraints().types();
         let (ret_eff, ret) = lambda_output(&session, computation.value);
-        let (result_effect, subtract) = match types.pos(ret_eff) {
-            Pos::NonSubtract(inner, subtract) => match types.pos(*inner) {
-                Pos::Var(effect) => (*effect, *subtract),
-                other => panic!("expected wrapped body effect var, got {other:?}"),
-            },
-            other => panic!("expected non-subtract return effect, got {other:?}"),
-        };
-        assert!(matches!(
-            types.pos(ret),
-            Pos::NonSubtract(_, ret_subtract) if *ret_subtract == subtract
-        ));
 
-        let result_bounds = session
+        let (arg, _, _, _) = function_lower_bound(&session, computation.value);
+        let subtract = {
+            let callee = match types.neg(arg) {
+                Neg::Var(var) => *var,
+                other => panic!("expected callee argument var, got {other:?}"),
+            };
+            session
+                .infer
+                .constraints()
+                .bounds()
+                .of(callee)
+                .expect("callee argument should receive function upper bound")
+                .uppers()
+                .iter()
+                .find_map(|bound| {
+                    let Neg::Fun { ret_eff, .. } = types.neg(bound.neg) else {
+                        return None;
+                    };
+                    let Neg::Stack { weight, .. } = types.neg(*ret_eff) else {
+                        return None;
+                    };
+                    let [entry] = weight.entries() else {
+                        return None;
+                    };
+                    (entry.pops == 0 && entry.stack == vec![Subtractability::Empty])
+                        .then_some(entry.id)
+                })
+                .expect("callee return effect upper should carry empty push")
+        };
+        let callee = match types.neg(arg) {
+            Neg::Var(var) => *var,
+            other => panic!("expected callee argument var, got {other:?}"),
+        };
+        let callee_bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(callee)
+            .expect("callee argument should receive function upper bound");
+        let call_effect = callee_bounds
+            .uppers()
+            .iter()
+            .find_map(|bound| {
+                let Neg::Fun { ret_eff, .. } = types.neg(bound.neg) else {
+                    return None;
+                };
+                let Neg::Stack { inner, weight } = types.neg(*ret_eff) else {
+                    return None;
+                };
+                if !weight_has_empty_stack(weight, subtract) {
+                    return None;
+                }
+                match types.neg(*inner) {
+                    Neg::Var(effect) => Some(*effect),
+                    _ => None,
+                }
+            })
+            .expect("callee return effect upper should carry empty stack");
+        let result_effect = function_result_effect(&session, computation.value);
+        assert_eq!(
+            assert_pos_stack_pop_var(&session, ret_eff, subtract),
+            result_effect
+        );
+        assert_pos_stack_pop_var(&session, ret, subtract);
+        let result_effect_bounds = session
             .infer
             .constraints()
             .bounds()
             .of(result_effect)
-            .expect("application result effect should receive flow lower bounds");
-        let call_effect = result_bounds
-            .lowers()
-            .iter()
-            .find_map(|bound| match types.pos(bound.pos) {
-                Pos::Var(effect)
-                    if session
-                        .infer
-                        .constraints()
-                        .subtracts()
-                        .facts(*effect)
-                        .iter()
-                        .any(|fact| {
-                            fact.id == subtract && fact.subtractability == Subtractability::Empty
-                        }) =>
-                {
-                    Some(*effect)
-                }
-                _ => None,
-            })
-            .expect("call effect should carry Empty-subtract fact");
-
-        assert_eq!(
-            session
-                .infer
-                .constraints()
-                .subtracts()
-                .facts(call_effect)
-                .len(),
-            1
+            .expect("result effect should receive stacked call effect lower bound");
+        assert!(
+            result_effect_bounds.lowers().iter().any(|bound| {
+                matches!(types.pos(bound.pos), Pos::Var(var) if *var == call_effect)
+                    && weight_has_empty_stack(&bound.weights.left, subtract)
+            }),
+            "application result effect should carry stacked call effect"
         );
     }
 
@@ -9853,7 +10109,7 @@ mod tests {
     }
 
     #[test]
-    fn lambda_param_effect_annotation_adds_subtract_fact_and_wraps_output() {
+    fn lambda_param_effect_annotation_adds_stacked_inner_lower() {
         let root = parse("type handled\nmy f = \\x: [handled] 'a -> x\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
@@ -9890,17 +10146,25 @@ mod tests {
             other => panic!("expected arg effect var, got {other:?}"),
         };
 
-        assert_eq!(
-            session
-                .infer
-                .constraints()
-                .subtracts()
-                .facts(param_effect)
-                .len(),
-            1
-        );
-        assert!(matches!(types.pos(ret_eff), Pos::NonSubtract(_, _)));
-        assert!(matches!(types.pos(ret), Pos::NonSubtract(_, _)));
+        // 注釈残差は fresh な内側変数として param effect の下界に入る。self edge にはしない。
+        let param_bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(param_effect)
+            .expect("param effect should receive stacked inner lower bound");
+        let subtract = param_bounds
+            .lowers()
+            .iter()
+            .find_map(|bound| {
+                if !matches!(types.pos(bound.pos), Pos::Var(var) if *var != param_effect) {
+                    return None;
+                }
+                weight_set_path_id(&bound.weights.left, &["handled"])
+            })
+            .expect("param effect should carry handled stack on a fresh inner var");
+        assert_pos_stack_pop_var(&session, ret_eff, subtract);
+        assert_pos_stack_pop_var(&session, ret, subtract);
     }
 
     #[test]
@@ -10261,6 +10525,18 @@ mod tests {
                 _ => None,
             })
             .expect("lambda lower bound should be a function")
+    }
+
+    fn function_result_effect(session: &AnalysisSession, value: TypeVar) -> TypeVar {
+        let (ret_eff, _) = lambda_output(session, value);
+        match session.infer.constraints().types().pos(ret_eff) {
+            Pos::Stack { inner, .. } => match session.infer.constraints().types().pos(*inner) {
+                Pos::Var(effect) => *effect,
+                other => panic!("expected stacked result effect var, got {other:?}"),
+            },
+            Pos::Var(effect) => *effect,
+            other => panic!("expected result effect var, got {other:?}"),
+        }
     }
 
     fn assert_neg_bottom(types: &poly::types::TypeArena, row: NegId) {

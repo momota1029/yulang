@@ -5,7 +5,7 @@
 
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate, Scheme,
-    SubtractId, Subtractability, TypeArena, TypeVar,
+    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::FxHashMap;
 
@@ -65,12 +65,16 @@ impl<'a> SchemeInstantiator<'a> {
         for var in &scheme.quantifiers {
             self.fresh_var(*var);
         }
+        for id in &scheme.stack_quantifiers {
+            self.fresh_subtract(*id);
+        }
         for fact in &scheme.subtracts {
             self.fresh_subtract(fact.id);
         }
         self.clone_scheme_subtract_facts(scheme);
         self.clone_recursive_bounds(scheme);
         let predicate = self.clone_pos(scheme.predicate);
+        let predicate = self.wrap_predicate_with_stack_pops(predicate, &scheme.stack_quantifiers);
         let role_predicates = scheme
             .role_predicates
             .iter()
@@ -127,6 +131,24 @@ impl<'a> SchemeInstantiator<'a> {
         self.subtracts.get(&source).copied().unwrap_or(source)
     }
 
+    fn wrap_predicate_with_stack_pops(
+        &mut self,
+        predicate: PosId,
+        stack_quantifiers: &[SubtractId],
+    ) -> PosId {
+        if stack_quantifiers.is_empty() {
+            return predicate;
+        }
+        let mut weight = StackWeight::empty();
+        for id in stack_quantifiers {
+            weight = weight.compose(&StackWeight::pops(self.clone_subtract(*id), u32::MAX));
+        }
+        self.target.alloc_pos(Pos::Stack {
+            inner: predicate,
+            weight,
+        })
+    }
+
     fn clone_pos(&mut self, id: PosId) -> PosId {
         let pos = match self.source.pos(id).clone() {
             Pos::Bot => Pos::Bot,
@@ -174,6 +196,10 @@ impl<'a> SchemeInstantiator<'a> {
             Pos::NonSubtract(pos, subtract) => {
                 Pos::NonSubtract(self.clone_pos(pos), self.clone_subtract(subtract))
             }
+            Pos::Stack { inner, weight } => Pos::Stack {
+                inner: self.clone_pos(inner),
+                weight: self.clone_stack_weight(weight),
+            },
             Pos::Union(left, right) => Pos::Union(self.clone_pos(left), self.clone_pos(right)),
         };
         self.target.alloc_pos(pos)
@@ -218,6 +244,10 @@ impl<'a> SchemeInstantiator<'a> {
                 items.into_iter().map(|item| self.clone_neg(item)).collect(),
                 self.clone_neg(tail),
             ),
+            Neg::Stack { inner, weight } => Neg::Stack {
+                inner: self.clone_neg(inner),
+                weight: self.clone_stack_weight(weight),
+            },
             Neg::Intersection(left, right) => {
                 Neg::Intersection(self.clone_neg(left), self.clone_neg(right))
             }
@@ -299,18 +329,51 @@ impl<'a> SchemeInstantiator<'a> {
                 names,
                 types.into_iter().map(|ty| self.clone_neu(ty)).collect(),
             ),
+            Subtractability::SetMany(families) => Subtractability::SetMany(
+                families
+                    .into_iter()
+                    .map(|(names, types)| {
+                        (
+                            names,
+                            types.into_iter().map(|ty| self.clone_neu(ty)).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
         }
+    }
+
+    fn clone_stack_weight(&mut self, weight: StackWeight) -> StackWeight {
+        let mut out = StackWeight::empty();
+        for entry in weight.entries() {
+            let id = self.clone_subtract(entry.id);
+            out = out.compose(&StackWeight::pops(id, entry.pops));
+            for subtractability in &entry.stack {
+                out = out.compose(&StackWeight::push(
+                    id,
+                    self.clone_subtractability(subtractability.clone()),
+                ));
+            }
+        }
+        out
     }
 
     fn clone_recursive_bounds(&mut self, scheme: &Scheme) {
         for bound in &scheme.recursive_bounds {
             let target_var = self.clone_var(bound.var);
             let target_bounds = self.clone_neu(bound.bounds);
-            let (lower, upper) = self.project_neu_bounds(target_bounds);
+            let (lower, upper) = self.project_recursive_neu_bounds(target_bounds);
             let target_neg = self.target.alloc_neg(Neg::Var(target_var));
             self.target.subtype(lower, target_neg);
             let target_pos = self.target.alloc_pos(Pos::Var(target_var));
             self.target.subtype(target_pos, upper);
+        }
+    }
+
+    fn project_recursive_neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {
+        match self.target.constraints().types().neu(id).clone() {
+            Neu::Bounds(lower, _, upper) => (lower, upper),
+            _ => self.project_neu_bounds(id),
         }
     }
 
@@ -425,5 +488,62 @@ impl<'a> SchemeInstantiator<'a> {
                 optional: field.optional,
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn instantiate_freshens_stack_quantifier_and_adds_root_pop() {
+        let mut source = TypeArena::new();
+        let source_var = TypeVar(42);
+        let source_stack = SubtractId(7);
+        let inner = source.alloc_pos(Pos::Var(source_var));
+        let predicate = source.alloc_pos(Pos::Stack {
+            inner,
+            weight: StackWeight::push(source_stack, Subtractability::Empty),
+        });
+        let scheme = Scheme {
+            quantifiers: vec![source_var],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: vec![source_stack],
+            predicate,
+            subtracts: Vec::new(),
+        };
+        let mut target = InferArena::new();
+
+        let instantiated = instantiate_scheme(&source, &mut target, TypeLevel::root(), &scheme);
+
+        let Pos::Stack {
+            inner: cloned_predicate,
+            weight: root_weight,
+        } = target.constraints().types().pos(instantiated)
+        else {
+            panic!("instantiated predicate should receive root stack pop");
+        };
+        let root_entry = root_weight.entries().first().expect("root pop entry");
+        assert_ne!(root_entry.id, source_stack);
+        assert_eq!(root_entry.pops, u32::MAX);
+        assert!(root_entry.stack.is_empty());
+
+        let Pos::Stack {
+            inner: cloned_inner,
+            weight: inner_weight,
+        } = target.constraints().types().pos(*cloned_predicate)
+        else {
+            panic!("scheme stack wrapper should be cloned");
+        };
+        let inner_entry = inner_weight.entries().first().expect("inner stack entry");
+        assert_eq!(inner_entry.id, root_entry.id);
+        assert_eq!(inner_entry.pops, 0);
+        assert_eq!(inner_entry.stack, vec![Subtractability::Empty]);
+
+        let Pos::Var(fresh_var) = target.constraints().types().pos(*cloned_inner) else {
+            panic!("scheme variable should be cloned");
+        };
+        assert_ne!(*fresh_var, source_var);
     }
 }

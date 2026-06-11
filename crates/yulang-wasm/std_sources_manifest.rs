@@ -2,88 +2,140 @@ macro_rules! yulang_std_sources {
     ($prefix:literal) => {
         &[
             StdSource {
-                name: "bytes",
-                text: include_str!(concat!($prefix, "bytes.yu")),
+                name: "bool",
+                text: include_str!(concat!($prefix, "bool.yu")),
             },
             StdSource {
-                name: "char",
-                text: include_str!(concat!($prefix, "char.yu")),
+                name: "control",
+                text: include_str!(concat!($prefix, "control.yu")),
             },
             StdSource {
-                name: "error",
-                text: include_str!(concat!($prefix, "error.yu")),
+                name: "control::flow",
+                text: include_str!(concat!($prefix, "control/flow.yu")),
             },
             StdSource {
-                name: "flow",
-                text: include_str!(concat!($prefix, "flow.yu")),
+                name: "control::junction",
+                text: include_str!(concat!($prefix, "control/junction.yu")),
             },
             StdSource {
-                name: "fold",
-                text: include_str!(concat!($prefix, "fold.yu")),
+                name: "control::nondet",
+                text: include_str!(concat!($prefix, "control/nondet.yu")),
             },
             StdSource {
-                name: "frac",
-                text: include_str!(concat!($prefix, "frac.yu")),
+                name: "control::throw",
+                text: include_str!(concat!($prefix, "control/throw.yu")),
             },
             StdSource {
-                name: "fs",
-                text: include_str!(concat!($prefix, "fs.yu")),
+                name: "control::var",
+                text: include_str!(concat!($prefix, "control/var.yu")),
             },
             StdSource {
-                name: "index",
-                text: include_str!(concat!($prefix, "index.yu")),
+                name: "core",
+                text: include_str!(concat!($prefix, "core.yu")),
             },
             StdSource {
-                name: "junction",
-                text: include_str!(concat!($prefix, "junction.yu")),
+                name: "core::cmp",
+                text: include_str!(concat!($prefix, "core/cmp.yu")),
             },
             StdSource {
-                name: "list",
-                text: include_str!(concat!($prefix, "list.yu")),
+                name: "core::convert",
+                text: include_str!(concat!($prefix, "core/convert.yu")),
             },
             StdSource {
-                name: "opt",
-                text: include_str!(concat!($prefix, "opt.yu")),
+                name: "core::fmt",
+                text: include_str!(concat!($prefix, "core/fmt.yu")),
             },
             StdSource {
-                name: "ops",
-                text: include_str!(concat!($prefix, "ops.yu")),
+                name: "core::ops",
+                text: include_str!(concat!($prefix, "core/ops.yu")),
             },
             StdSource {
-                name: "out",
-                text: include_str!(concat!($prefix, "out.yu")),
+                name: "core::seq",
+                text: include_str!(concat!($prefix, "core/seq.yu")),
             },
             StdSource {
-                name: "path",
-                text: include_str!(concat!($prefix, "path.yu")),
+                name: "data",
+                text: include_str!(concat!($prefix, "data.yu")),
             },
             StdSource {
-                name: "parse",
-                text: include_str!(concat!($prefix, "parse.yu")),
+                name: "data::fold",
+                text: include_str!(concat!($prefix, "data/fold.yu")),
+            },
+            StdSource {
+                name: "data::index",
+                text: include_str!(concat!($prefix, "data/index.yu")),
+            },
+            StdSource {
+                name: "data::list",
+                text: include_str!(concat!($prefix, "data/list.yu")),
+            },
+            StdSource {
+                name: "data::opt",
+                text: include_str!(concat!($prefix, "data/opt.yu")),
+            },
+            StdSource {
+                name: "data::range",
+                text: include_str!(concat!($prefix, "data/range.yu")),
+            },
+            StdSource {
+                name: "data::result",
+                text: include_str!(concat!($prefix, "data/result.yu")),
+            },
+            StdSource {
+                name: "float",
+                text: include_str!(concat!($prefix, "float.yu")),
+            },
+            StdSource {
+                name: "int",
+                text: include_str!(concat!($prefix, "int.yu")),
+            },
+            StdSource {
+                name: "io",
+                text: include_str!(concat!($prefix, "io.yu")),
+            },
+            StdSource {
+                name: "io::console",
+                text: include_str!(concat!($prefix, "io/console.yu")),
+            },
+            StdSource {
+                name: "io::file",
+                text: include_str!(concat!($prefix, "io/file.yu")),
+            },
+            StdSource {
+                name: "num",
+                text: include_str!(concat!($prefix, "num.yu")),
+            },
+            StdSource {
+                name: "num::frac",
+                text: include_str!(concat!($prefix, "num/frac.yu")),
             },
             StdSource {
                 name: "prelude",
                 text: include_str!(concat!($prefix, "prelude.yu")),
             },
             StdSource {
-                name: "range",
-                text: include_str!(concat!($prefix, "range.yu")),
+                name: "text",
+                text: include_str!(concat!($prefix, "text.yu")),
             },
             StdSource {
-                name: "result",
-                text: include_str!(concat!($prefix, "result.yu")),
+                name: "text::bytes",
+                text: include_str!(concat!($prefix, "text/bytes.yu")),
             },
             StdSource {
-                name: "str",
-                text: include_str!(concat!($prefix, "str.yu")),
+                name: "text::char",
+                text: include_str!(concat!($prefix, "text/char.yu")),
             },
             StdSource {
-                name: "undet",
-                text: include_str!(concat!($prefix, "undet.yu")),
+                name: "text::parse",
+                text: include_str!(concat!($prefix, "text/parse.yu")),
             },
             StdSource {
-                name: "var",
-                text: include_str!(concat!($prefix, "var.yu")),
+                name: "text::path",
+                text: include_str!(concat!($prefix, "text/path.yu")),
+            },
+            StdSource {
+                name: "text::str",
+                text: include_str!(concat!($prefix, "text/str.yu")),
             },
         ]
     };

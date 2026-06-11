@@ -607,6 +607,7 @@ mod tests {
                     quantifiers: vec![var],
                     role_predicates: Vec::new(),
                     recursive_bounds: Vec::new(),
+                    stack_quantifiers: Vec::new(),
                     predicate,
                     subtracts: Vec::new(),
                 }),

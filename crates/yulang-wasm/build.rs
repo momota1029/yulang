@@ -25,16 +25,13 @@ fn main() {
 }
 
 fn std_source_set() -> yulang_sources::SourceSet {
-    let source = STD_SOURCES
-        .iter()
-        .map(|source| format!("use std::{}::*\n", source.name))
-        .collect::<String>();
+    let source = String::new();
     collect_inline_source_files_with_options(
         &source,
         STD_SOURCES.iter().map(|source| {
             let source_text = source.text.to_string();
             InlineSource {
-                path: FsPath::new("<std>").join(format!("{}.yu", source.name)),
+                path: std_source_path(source.name),
                 module_path: module_path(source.name),
                 origin: SourceOrigin::Std,
                 meta: Some(parse_source_meta(&source_text)),
@@ -43,16 +40,20 @@ fn std_source_set() -> yulang_sources::SourceSet {
         }),
         SourceOptions {
             std_root: None,
-            implicit_prelude: true,
+            implicit_prelude: false,
             search_paths: Vec::new(),
         },
     )
 }
 
+fn std_source_path(name: &str) -> PathBuf {
+    FsPath::new("<std>").join(format!("{}.yu", name.replace("::", "/")))
+}
+
 fn module_path(name: &str) -> Path {
-    Path {
-        segments: vec![Name("std".to_string()), Name(name.to_string())],
-    }
+    let mut segments = vec![Name("std".to_string())];
+    segments.extend(name.split("::").map(|segment| Name(segment.to_string())));
+    Path { segments }
 }
 
 struct StdSource {

@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 
 use crate::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, SchemeSubtractFact,
-    SubtractId, Subtractability, TypeArena, TypeVar,
+    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
@@ -232,6 +232,14 @@ impl<'a> TypeFormatter<'a> {
             Subtractability::Set(path, args) => {
                 format!("{}-subtract", self.subtractability_head(path, args))
             }
+            Subtractability::SetMany(families) => {
+                let heads = families
+                    .iter()
+                    .map(|(path, args)| self.subtractability_head(path, args))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("[{}]-subtract", heads)
+            }
         }
     }
 
@@ -308,6 +316,10 @@ impl<'a> TypeFormatter<'a> {
                 Rendered::atom(self.tuple(items, |this, id| this.pos(id, Context::Free)))
             }
             Pos::Row(items) => Rendered::atom(format!("'{}", self.pos_row_items(items))),
+            Pos::Stack { inner, weight } => {
+                let inner = self.pos(*inner, Context::Free);
+                Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
+            }
             Pos::NonSubtract(pos, subtract) => {
                 let inner = self.render_pos(*pos);
                 let inner = if inner.prec == Prec::Atom && !inner.has_bare_space {
@@ -346,6 +358,10 @@ impl<'a> TypeFormatter<'a> {
                 Rendered::atom(self.tuple(items, |this, id| this.neg(id, Context::Free)))
             }
             Neg::Row(items, tail) => Rendered::atom(format!("'{}", self.neg_row(items, *tail))),
+            Neg::Stack { inner, weight } => {
+                let inner = self.neg(*inner, Context::Free);
+                Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
+            }
             Neg::Intersection(left, right) => {
                 let parts = self.flatten_neg_intersection(*left, *right);
                 Rendered::intersection(parts.join(" & "))
@@ -796,6 +812,51 @@ impl<'a> TypeFormatter<'a> {
     fn subtract_id(&self, subtract: SubtractId) -> String {
         format!("#{}", subtract.0)
     }
+
+    fn stack_weight(&mut self, weight: &StackWeight) -> String {
+        if weight.is_empty() {
+            return "@0".to_string();
+        }
+        let entries = weight
+            .entries()
+            .iter()
+            .map(|entry| {
+                let stack = entry
+                    .stack
+                    .iter()
+                    .map(|subtractability| self.stack_subtractability(subtractability))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("#{} -> pop({})[{}]", entry.id.0, entry.pops, stack)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{{ {entries} }}")
+    }
+
+    fn stack_subtractability(&mut self, subtractability: &Subtractability) -> String {
+        match subtractability {
+            Subtractability::Empty => "Empty".to_string(),
+            Subtractability::All => "All".to_string(),
+            Subtractability::Set(path, args) => self.subtractability_head(path, args),
+            Subtractability::SetMany(families) => families
+                .iter()
+                .map(|(path, args)| self.subtractability_head(path, args))
+                .collect::<Vec<_>>()
+                .join(", "),
+            Subtractability::AllExcept(path, args) => {
+                format!("AllExcept({})", self.subtractability_head(path, args))
+            }
+            Subtractability::AllExceptMany(families) => {
+                let heads = families
+                    .iter()
+                    .map(|(path, args)| self.subtractability_head(path, args))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("AllExcept({heads})")
+            }
+        }
+    }
 }
 
 fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
@@ -820,6 +881,7 @@ fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
         Pos::Tuple(items) | Pos::Row(items) => items
             .iter()
             .any(|item| pos_contains_var(arena, *item, expected)),
+        Pos::Stack { inner, .. } => pos_contains_var(arena, *inner, expected),
         Pos::NonSubtract(pos, _) => pos_contains_var(arena, *pos, expected),
         Pos::Union(left, right) => {
             pos_contains_var(arena, *left, expected) || pos_contains_var(arena, *right, expected)
@@ -850,6 +912,7 @@ fn neg_contains_var(arena: &TypeArena, id: NegId, expected: TypeVar) -> bool {
                 .any(|item| neg_contains_var(arena, *item, expected))
                 || neg_contains_var(arena, *tail, expected)
         }
+        Neg::Stack { inner, .. } => neg_contains_var(arena, *inner, expected),
         Neg::Intersection(left, right) => {
             neg_contains_var(arena, *left, expected) || neg_contains_var(arena, *right, expected)
         }
@@ -991,6 +1054,7 @@ mod tests {
             quantifiers: vec![a, b],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -1032,6 +1096,7 @@ mod tests {
             quantifiers: vec![a, b],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -1057,6 +1122,7 @@ mod tests {
             quantifiers: vec![a],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };
@@ -1121,6 +1187,7 @@ mod tests {
             quantifiers: vec![a],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: vec![crate::types::SchemeSubtractFact {
                 var: a,
@@ -1145,6 +1212,7 @@ mod tests {
             quantifiers: vec![a],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: vec![crate::types::SchemeSubtractFact {
                 var: a,
@@ -1183,6 +1251,7 @@ mod tests {
                 }],
             }],
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         };

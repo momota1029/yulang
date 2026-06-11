@@ -99,10 +99,10 @@ impl AnalysisSession {
 
     pub fn register_selection_use(&mut self, select_id: SelectId, use_site: SelectionUse) {
         self.selections.insert(select_id, use_site);
-        self.enqueue(AnalysisWork::ProbeSelect(select_id));
         self.enqueue(AnalysisWork::Scc(SccInput::MethodDependencyAdded {
             parent: use_site.parent,
         }));
+        self.enqueue(AnalysisWork::ProbeSelect(select_id));
     }
 
     pub fn register_value_type_method(
@@ -548,6 +548,7 @@ impl AnalysisSession {
             Neg::Intersection(left, right) => self
                 .probe_method_upper(select_id, left, name, visited)
                 .or_else(|| self.probe_method_upper(select_id, right, name, visited)),
+            Neg::Stack { inner, .. } => self.probe_method_upper(select_id, inner, name, visited),
             Neg::Top
             | Neg::Bot
             | Neg::Con(_, _)
@@ -593,6 +594,9 @@ impl AnalysisSession {
             }
             Pos::NonSubtract(pos, _) => {
                 self.collect_effect_paths_from_pos(select_id, pos, visited, out)
+            }
+            Pos::Stack { inner, .. } => {
+                self.collect_effect_paths_from_pos(select_id, inner, visited, out)
             }
             Pos::Bot
             | Pos::Fun { .. }
@@ -681,6 +685,7 @@ impl AnalysisSession {
                 .probe_select_pos(select_id, left, name, visited)
                 .or_else(|| self.probe_select_pos(select_id, right, name, visited)),
             Pos::NonSubtract(pos, _) => self.probe_select_pos(select_id, pos, name, visited),
+            Pos::Stack { inner, .. } => self.probe_select_pos(select_id, inner, name, visited),
             Pos::Bot
             | Pos::Fun { .. }
             | Pos::Record(_)
@@ -733,6 +738,7 @@ impl AnalysisSession {
                 .probe_ref_select_pos(select_id, left, name, visited)
                 .or_else(|| self.probe_ref_select_pos(select_id, right, name, visited)),
             Pos::NonSubtract(pos, _) => self.probe_ref_select_pos(select_id, pos, name, visited),
+            Pos::Stack { inner, .. } => self.probe_ref_select_pos(select_id, inner, name, visited),
             Pos::Bot
             | Pos::Fun { .. }
             | Pos::Record(_)
@@ -872,6 +878,9 @@ impl AnalysisSession {
             Neg::Intersection(left, right) => {
                 self.constrain_record_field_selection_from_method_upper(left, name);
                 self.constrain_record_field_selection_from_method_upper(right, name);
+            }
+            Neg::Stack { inner, .. } => {
+                self.constrain_record_field_selection_from_method_upper(inner, name);
             }
             Neg::Top
             | Neg::Bot
@@ -1432,6 +1441,11 @@ fn collect_subtractability_effect_paths(
 ) {
     match subtractability {
         Subtractability::Set(path, _) => push_unique_path(out, path.clone()),
+        Subtractability::SetMany(families) => {
+            for (path, _) in families {
+                push_unique_path(out, path.clone());
+            }
+        }
         Subtractability::Empty
         | Subtractability::All
         | Subtractability::AllExcept(_, _)
@@ -1597,6 +1611,7 @@ impl<'a, 'b> MethodTaintBuilder<'a, 'b> {
                 }
             }
             Pos::NonSubtract(pos, _) => self.visit_pos(pos, polarity),
+            Pos::Stack { inner, .. } => self.visit_pos(inner, polarity),
             Pos::Union(left, right) => {
                 self.visit_pos(left, polarity);
                 self.visit_pos(right, polarity);
@@ -1651,6 +1666,7 @@ impl<'a, 'b> MethodTaintBuilder<'a, 'b> {
                 self.visit_neg(left, polarity);
                 self.visit_neg(right, polarity);
             }
+            Neg::Stack { inner, .. } => self.visit_neg(inner, polarity),
             Neg::Top | Neg::Bot => {}
         }
     }
@@ -1917,6 +1933,7 @@ mod tests {
                 quantifiers: vec![result],
                 role_predicates: Vec::new(),
                 recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
                 predicate: cast_predicate,
                 subtracts: Vec::new(),
             },
@@ -2644,6 +2661,7 @@ mod tests {
                     quantifiers: vec![quantified],
                     role_predicates: Vec::new(),
                     recursive_bounds: Vec::new(),
+                    stack_quantifiers: Vec::new(),
                     predicate,
                     subtracts: Vec::new(),
                 }),
@@ -2698,6 +2716,7 @@ mod tests {
                     quantifiers: vec![quantified],
                     role_predicates: Vec::new(),
                     recursive_bounds: Vec::new(),
+                    stack_quantifiers: Vec::new(),
                     predicate,
                     subtracts: vec![SchemeSubtractFact {
                         var: quantified,
@@ -2770,6 +2789,7 @@ mod tests {
                         var: quantified,
                         bounds,
                     }],
+                    stack_quantifiers: Vec::new(),
                     predicate,
                     subtracts: Vec::new(),
                 }),
@@ -3298,6 +3318,7 @@ mod tests {
             quantifiers: Vec::new(),
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         }
@@ -3325,6 +3346,7 @@ mod tests {
             quantifiers: vec![quantified],
             role_predicates: Vec::new(),
             recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
             predicate,
             subtracts: Vec::new(),
         }

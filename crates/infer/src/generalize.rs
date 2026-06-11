@@ -3,11 +3,9 @@
 //! collect / simplify は `compact` が持ち、ここでは「どの変数を scheme の quantifier にするか」
 //! を compact 表現のまま決める。`poly::Scheme` への finalize は最後の出口として分ける。
 
-#![allow(dead_code)]
-
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate, Scheme,
-    SchemeRecursiveBound, SchemeSubtractFact, SubtractId, Subtractability, TypeArena, TypeVar,
+    SchemeSubtractFact, StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -19,13 +17,16 @@ use crate::compact::{
     finalize_compact_root, finalize_compact_type, finalize_compact_type_to_neg,
     merge_compact_types, simplify_compact_root_with_roles_and_non_generic,
 };
-use crate::constraints::{ConstraintMachine, ConstraintWeight, TypeLevel};
+#[cfg(test)]
+use crate::constraints::ConstraintWeight;
+use crate::constraints::{ConstraintMachine, TypeLevel};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneralizedCompactRoot {
     pub(crate) compact: CompactRoot,
     pub(crate) role_predicates: Vec<CompactRoleConstraint>,
     pub(crate) quantifiers: Vec<TypeVar>,
+    pub(crate) stack_quantifiers: Vec<SubtractId>,
     pub(crate) subtracts: Vec<(TypeVar, SubtractId)>,
     pub(crate) substitutions: Vec<CompactVarSubstitution>,
     pub(crate) sandwiches: Vec<CompactSandwich>,
@@ -33,7 +34,6 @@ pub(crate) struct GeneralizedCompactRoot {
 
 pub(crate) struct FinalizedGeneralizedCompactRoot {
     pub(crate) scheme: Scheme,
-    pub(crate) rec_vars: Vec<SchemeRecursiveBound>,
 }
 
 pub(crate) fn generalize_type_var(
@@ -62,9 +62,10 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
+    let simplification_boundary = boundary.child();
     let simplification = simplify_compact_root_with_roles_and_non_generic(
         machine,
-        boundary.child(),
+        simplification_boundary,
         &mut compact,
         &mut role_predicates,
         non_generic,
@@ -79,20 +80,14 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn generalize_compact_root(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: CompactRoot,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    generalize_compact_root_with_simplification(
-        machine,
-        boundary,
-        root,
-        Vec::new(),
-        non_generic,
-        CompactSimplification::default(),
-    )
+    generalize_prepared_compact_root_with_roles(machine, boundary, root, Vec::new(), non_generic)
 }
 
 fn generalize_compact_root_with_simplification(
@@ -103,23 +98,59 @@ fn generalize_compact_root_with_simplification(
     non_generic: &FxHashSet<TypeVar>,
     simplification: CompactSimplification,
 ) -> GeneralizedCompactRoot {
-    let quantifiers =
+    let substitutions = simplification.substitutions;
+    let sandwiches = simplification.sandwiches;
+    prune_unreachable_recursive_bounds(&mut root, &role_predicates);
+
+    let mut quantifiers =
         quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
-    let subtracts = prepare_quantified_subtracts(
+    let mut subtracts = prepare_quantified_subtracts(
         machine,
         &quantifiers,
-        &simplification.substitutions,
+        &substitutions,
         non_generic,
         &mut root,
         &mut role_predicates,
     );
+    prune_unreachable_recursive_bounds(&mut root, &role_predicates);
+    cleanup_stack_weights_in_root_and_roles(&mut root, &mut role_predicates);
+    quantifiers =
+        quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
+    let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
+    subtracts.retain(|(var, _)| quantifier_set.contains(var));
+    let mut stack_quantifiers = sorted_stack_quantifiers(&root, &role_predicates, &quantifier_set);
+    // scheme へ残す subtract に入らなかった id の weight は、scheme の compact からは剥がす。
+    // 重み付き境界は machine 側に残っており、scheme 表示では「使い切られた寿命境界は消える」。
+    let mut scheme_ids = subtracts
+        .iter()
+        .map(|(_, id)| *id)
+        .collect::<FxHashSet<_>>();
+    scheme_ids.extend(stack_quantifiers.iter().copied());
+    let stray_ids = all_stack_ids_in_root_and_roles(&root, &role_predicates)
+        .difference(&scheme_ids)
+        .copied()
+        .collect::<FxHashSet<_>>();
+    if !stray_ids.is_empty() {
+        prune_dead_subtract_weights_in_root_and_roles(&mut root, &mut role_predicates, &stray_ids);
+        quantifiers = quantified_vars_in_root_and_roles(
+            machine,
+            boundary,
+            &root,
+            &role_predicates,
+            non_generic,
+        );
+        let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
+        subtracts.retain(|(var, _)| quantifier_set.contains(var));
+        stack_quantifiers = sorted_stack_quantifiers(&root, &role_predicates, &quantifier_set);
+    }
     GeneralizedCompactRoot {
         compact: root,
         role_predicates,
         quantifiers,
+        stack_quantifiers,
         subtracts,
-        substitutions: simplification.substitutions,
-        sandwiches: simplification.sandwiches,
+        substitutions,
+        sandwiches,
     }
 }
 
@@ -136,10 +167,10 @@ pub(crate) fn finalize_generalized_compact_root(
             quantifiers: root.quantifiers.clone(),
             role_predicates,
             recursive_bounds: finalized.rec_vars.clone(),
+            stack_quantifiers: root.stack_quantifiers.clone(),
             predicate: finalized.root,
             subtracts,
         },
-        rec_vars: finalized.rec_vars,
     }
 }
 
@@ -242,7 +273,38 @@ fn clone_subtractability(
                 .map(|arg| clone_neu_between_arenas(source, target, *arg))
                 .collect(),
         ),
+        Subtractability::SetMany(families) => Subtractability::SetMany(
+            families
+                .iter()
+                .map(|(path, args)| {
+                    (
+                        path.clone(),
+                        args.iter()
+                            .map(|arg| clone_neu_between_arenas(source, target, *arg))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
     }
+}
+
+fn clone_stack_weight_between_arenas(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    weight: StackWeight,
+) -> StackWeight {
+    let mut out = StackWeight::empty();
+    for entry in weight.entries() {
+        out = out.compose(&StackWeight::pops(entry.id, entry.pops));
+        for subtractability in &entry.stack {
+            out = out.compose(&StackWeight::push(
+                entry.id,
+                clone_subtractability(source, target, subtractability),
+            ));
+        }
+    }
+    out
 }
 
 fn clone_pos_between_arenas(source: &TypeArena, target: &mut TypeArena, id: PosId) -> PosId {
@@ -309,6 +371,10 @@ fn clone_pos_between_arenas(source: &TypeArena, target: &mut TypeArena, id: PosI
         Pos::NonSubtract(pos, subtract) => {
             Pos::NonSubtract(clone_pos_between_arenas(source, target, pos), subtract)
         }
+        Pos::Stack { inner, weight } => Pos::Stack {
+            inner: clone_pos_between_arenas(source, target, inner),
+            weight: clone_stack_weight_between_arenas(source, target, weight),
+        },
         Pos::Union(left, right) => Pos::Union(
             clone_pos_between_arenas(source, target, left),
             clone_pos_between_arenas(source, target, right),
@@ -372,6 +438,10 @@ fn clone_neg_between_arenas(source: &TypeArena, target: &mut TypeArena, id: NegI
                 .collect(),
             clone_neg_between_arenas(source, target, tail),
         ),
+        Neg::Stack { inner, weight } => Neg::Stack {
+            inner: clone_neg_between_arenas(source, target, inner),
+            weight: clone_stack_weight_between_arenas(source, target, weight),
+        },
         Neg::Intersection(left, right) => Neg::Intersection(
             clone_neg_between_arenas(source, target, left),
             clone_neg_between_arenas(source, target, right),
@@ -552,11 +622,19 @@ pub(crate) fn finalize_generalized_compact_root_with_ancestors(
 ) -> FinalizedGeneralizedCompactRoot {
     let mut root = root.clone();
     apply_ancestor_simplifications(&mut root, ancestors);
+    prune_unreachable_recursive_bounds(&mut root.compact, &root.role_predicates);
     prune_dead_quantifiers(&mut root);
     prune_existing_subtracts(&mut root);
+    cleanup_stack_weights_in_root_and_roles(&mut root.compact, &mut root.role_predicates);
+    prune_unreachable_recursive_bounds(&mut root.compact, &root.role_predicates);
+    prune_dead_quantifiers(&mut root);
+    let quantifier_set = root.quantifiers.iter().copied().collect::<FxHashSet<_>>();
+    root.stack_quantifiers =
+        sorted_stack_quantifiers(&root.compact, &root.role_predicates, &quantifier_set);
     finalize_generalized_compact_root(types, machine, &root)
 }
 
+#[cfg(test)]
 pub(crate) fn quantified_vars(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -578,7 +656,7 @@ fn quantified_vars_in_root_and_roles(
     for role in role_predicates {
         collect_role_free_vars(role, &mut vars);
     }
-    vars.retain(|var| machine.birth_level_of(*var) > boundary && !non_generic.contains(var));
+    vars.retain(|var| machine.level_of(*var) > boundary && !non_generic.contains(var));
     vars.sort_by_key(|var| var.0);
     vars.dedup();
     vars
@@ -628,7 +706,10 @@ fn prepare_quantified_subtracts(
     root: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
 ) -> Vec<(TypeVar, SubtractId)> {
-    let candidates = quantified_subtracts(machine, quantifiers, substitutions);
+    let mut candidates = quantified_subtracts(machine, quantifiers, substitutions);
+    // scheme へ保持するのは注釈・データ宣言が直接導入した id だけ。
+    // instantiate の clone で再登録された fact（推論残差）はこの境界で消える。
+    candidates.retain(|(_, id)| machine.subtract_declared(*id));
     if candidates.is_empty() {
         return Vec::new();
     }
@@ -644,10 +725,12 @@ fn prepare_quantified_subtracts(
         .iter()
         .map(|(_, subtract)| *subtract)
         .collect::<FxHashSet<_>>();
+    let live_stack_ids = live_covariant_stack_ids_in_root_and_roles(root, role_predicates);
     let non_generic_subtract_ids = non_generic_subtract_ids(machine, non_generic);
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
+        .filter(|id| !live_stack_ids.contains(id))
         .filter(|id| !non_generic_subtract_ids.contains(id))
         .collect::<FxHashSet<_>>();
     if !dead_ids.is_empty() {
@@ -877,10 +960,6 @@ fn resolve_rewrite_target(
             Some(Some(next)) => current = next,
         }
     }
-}
-
-fn apply_sandwiches(root: &mut CompactRoot, sandwiches: &[CompactSandwich]) {
-    apply_sandwiches_to_root_and_roles(root, &mut [], sandwiches);
 }
 
 fn apply_sandwiches_to_root_and_roles(
@@ -1171,6 +1250,64 @@ fn try_apply_sandwich(
     }
 }
 
+fn prune_unreachable_recursive_bounds(
+    root: &mut CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
+) -> bool {
+    if root.rec_vars.is_empty() {
+        return false;
+    }
+
+    let mut reachable = FxHashSet::default();
+    collect_type_free_vars_into_set(&root.root, &mut reachable);
+    for role in role_predicates {
+        collect_role_free_vars_into_set(role, &mut reachable);
+    }
+
+    let mut keep = FxHashSet::default();
+    loop {
+        let mut changed = false;
+        for rec in &root.rec_vars {
+            if keep.contains(&rec.var) || !reachable.contains(&rec.var) {
+                continue;
+            }
+            keep.insert(rec.var);
+            collect_bounds_free_vars_into_set(&rec.bounds, &mut reachable);
+            changed = true;
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    let before = root.rec_vars.len();
+    root.rec_vars.retain(|rec| keep.contains(&rec.var));
+    before != root.rec_vars.len()
+}
+
+fn collect_role_free_vars_into_set(role: &CompactRoleConstraint, out: &mut FxHashSet<TypeVar>) {
+    for input in &role.inputs {
+        collect_type_free_vars_into_set(&input.lower, out);
+        collect_type_free_vars_into_set(&input.upper, out);
+    }
+    for associated in &role.associated {
+        collect_type_free_vars_into_set(&associated.value.lower, out);
+        collect_type_free_vars_into_set(&associated.value.upper, out);
+    }
+}
+
+fn collect_type_free_vars_into_set(ty: &CompactType, out: &mut FxHashSet<TypeVar>) {
+    let mut vars = Vec::new();
+    collect_type_free_vars(ty, &mut vars);
+    out.extend(vars);
+}
+
+fn collect_bounds_free_vars_into_set(bounds: &CompactBounds, out: &mut FxHashSet<TypeVar>) {
+    let mut vars = Vec::new();
+    collect_bounds_free_vars(bounds, &mut vars);
+    out.extend(vars);
+}
+
 fn prune_dead_quantifiers(root: &mut GeneralizedCompactRoot) {
     let mut free = Vec::new();
     collect_root_free_vars(&root.compact, &mut free);
@@ -1198,9 +1335,12 @@ fn prune_existing_subtracts(root: &mut GeneralizedCompactRoot) {
         .iter()
         .map(|(_, subtract)| *subtract)
         .collect::<FxHashSet<_>>();
+    let live_stack_ids =
+        live_covariant_stack_ids_in_root_and_roles(&root.compact, &root.role_predicates);
     let dead_ids = candidate_ids
         .difference(&live_ids)
         .copied()
+        .filter(|id| !live_stack_ids.contains(id))
         .collect::<FxHashSet<_>>();
     if !dead_ids.is_empty() {
         prune_dead_subtract_weights_in_root_and_roles(
@@ -1512,6 +1652,8 @@ fn collect_live_subtracts_in_type(
                 continue;
             };
             for id in ids {
+                // 保護されていない共変出現が一つでも残っているなら、その id の
+                // subtract fact は use-site でまだ意味を持つ（旧 non-subtract と同じ規則）。
                 if !var.weight.contains(*id) {
                     live.insert((var.var, *id));
                 }
@@ -1606,10 +1748,6 @@ fn collect_live_subtracts_in_bounds(
     }
 }
 
-fn prune_dead_subtract_weights(root: &mut CompactRoot, dead_ids: &FxHashSet<SubtractId>) -> bool {
-    prune_dead_subtract_weights_in_root_and_roles(root, &mut [], dead_ids)
-}
-
 fn prune_dead_subtract_weights_in_root_and_roles(
     root: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
@@ -1654,8 +1792,7 @@ fn prune_dead_subtract_weights_in_type(
     let mut changed = false;
     for var in &mut ty.vars {
         let before = var.weight.clone();
-        var.weight =
-            ConstraintWeight::from_ids(var.weight.iter().filter(|id| !dead_ids.contains(id)));
+        var.weight = var.weight.without_ids(|id| dead_ids.contains(&id));
         changed |= var.weight != before;
     }
     for con in &mut ty.cons {
@@ -1743,6 +1880,289 @@ fn prune_dead_subtract_weights_in_bounds(
                 }
             }
             changed
+        }
+    }
+}
+
+fn cleanup_stack_weights_in_root_and_roles(
+    root: &mut CompactRoot,
+    role_predicates: &mut [CompactRoleConstraint],
+) -> bool {
+    let live_ids = live_covariant_stack_ids_in_root_and_roles(root, role_predicates);
+    let all_ids = all_stack_ids_in_root_and_roles(root, role_predicates);
+    let dead_ids = all_ids
+        .difference(&live_ids)
+        .copied()
+        .collect::<FxHashSet<_>>();
+    if dead_ids.is_empty() {
+        return false;
+    }
+    prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids)
+}
+
+fn live_covariant_stack_ids_in_root_and_roles(
+    root: &CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
+) -> FxHashSet<SubtractId> {
+    let mut ids = FxHashSet::default();
+    collect_live_stack_ids_in_type(&root.root, true, None, &mut ids);
+    for rec in &root.rec_vars {
+        collect_live_stack_ids_in_bounds(&rec.bounds, true, None, &mut ids);
+    }
+    for role in role_predicates {
+        for input in &role.inputs {
+            collect_live_stack_ids_in_type(&input.lower, true, None, &mut ids);
+            collect_live_stack_ids_in_type(&input.upper, false, None, &mut ids);
+        }
+        for associated in &role.associated {
+            collect_live_stack_ids_in_type(&associated.value.lower, true, None, &mut ids);
+            collect_live_stack_ids_in_type(&associated.value.upper, false, None, &mut ids);
+        }
+    }
+    ids
+}
+
+fn sorted_stack_quantifiers(
+    root: &CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
+    quantifier_set: &FxHashSet<TypeVar>,
+) -> Vec<SubtractId> {
+    let mut ids = FxHashSet::default();
+    collect_live_stack_ids_in_type(&root.root, true, Some(quantifier_set), &mut ids);
+    for rec in &root.rec_vars {
+        collect_live_stack_ids_in_bounds(&rec.bounds, true, Some(quantifier_set), &mut ids);
+    }
+    for role in role_predicates {
+        for input in &role.inputs {
+            collect_live_stack_ids_in_type(&input.lower, true, Some(quantifier_set), &mut ids);
+            collect_live_stack_ids_in_type(&input.upper, false, Some(quantifier_set), &mut ids);
+        }
+        for associated in &role.associated {
+            collect_live_stack_ids_in_type(
+                &associated.value.lower,
+                true,
+                Some(quantifier_set),
+                &mut ids,
+            );
+            collect_live_stack_ids_in_type(
+                &associated.value.upper,
+                false,
+                Some(quantifier_set),
+                &mut ids,
+            );
+        }
+    }
+    let mut ids = ids.into_iter().collect::<Vec<_>>();
+    ids.sort_by_key(|id| id.0);
+    ids.dedup();
+    ids
+}
+
+fn all_stack_ids_in_root_and_roles(
+    root: &CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
+) -> FxHashSet<SubtractId> {
+    let mut ids = FxHashSet::default();
+    collect_all_stack_ids_in_type(&root.root, &mut ids);
+    for rec in &root.rec_vars {
+        collect_all_stack_ids_in_bounds(&rec.bounds, &mut ids);
+    }
+    for role in role_predicates {
+        for input in &role.inputs {
+            collect_all_stack_ids_in_type(&input.lower, &mut ids);
+            collect_all_stack_ids_in_type(&input.upper, &mut ids);
+        }
+        for associated in &role.associated {
+            collect_all_stack_ids_in_type(&associated.value.lower, &mut ids);
+            collect_all_stack_ids_in_type(&associated.value.upper, &mut ids);
+        }
+    }
+    ids
+}
+
+fn collect_live_stack_ids_in_type(
+    ty: &CompactType,
+    covariant: bool,
+    var_filter: Option<&FxHashSet<TypeVar>>,
+    out: &mut FxHashSet<SubtractId>,
+) {
+    if covariant {
+        for var in &ty.vars {
+            if var_filter.is_some_and(|filter| !filter.contains(&var.var)) {
+                continue;
+            }
+            for entry in var.weight.entries() {
+                if !entry.stack.is_empty() {
+                    out.insert(entry.id);
+                }
+            }
+        }
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_live_stack_ids_in_bounds(arg, covariant, var_filter, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_live_stack_ids_in_type(&fun.arg, !covariant, var_filter, out);
+        collect_live_stack_ids_in_type(&fun.arg_eff, !covariant, var_filter, out);
+        collect_live_stack_ids_in_type(&fun.ret_eff, covariant, var_filter, out);
+        collect_live_stack_ids_in_type(&fun.ret, covariant, var_filter, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_live_stack_ids_in_type(&field.value, covariant, var_filter, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_live_stack_ids_in_type(&field.value, covariant, var_filter, out);
+        }
+        collect_live_stack_ids_in_type(&spread.tail, covariant, var_filter, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_live_stack_ids_in_type(payload, covariant, var_filter, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_live_stack_ids_in_type(item, covariant, var_filter, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_live_stack_ids_in_type(item, covariant, var_filter, out);
+        }
+        collect_live_stack_ids_in_type(&row.tail, covariant, var_filter, out);
+    }
+}
+
+fn collect_live_stack_ids_in_bounds(
+    bounds: &CompactBounds,
+    covariant: bool,
+    var_filter: Option<&FxHashSet<TypeVar>>,
+    out: &mut FxHashSet<SubtractId>,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            collect_live_stack_ids_in_type(lower, covariant, var_filter, out);
+            collect_live_stack_ids_in_type(upper, covariant, var_filter, out);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                collect_live_stack_ids_in_bounds(arg, covariant, var_filter, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_live_stack_ids_in_bounds(arg, !covariant, var_filter, out);
+            collect_live_stack_ids_in_bounds(arg_eff, !covariant, var_filter, out);
+            collect_live_stack_ids_in_bounds(ret_eff, covariant, var_filter, out);
+            collect_live_stack_ids_in_bounds(ret, covariant, var_filter, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_live_stack_ids_in_bounds(&field.value, covariant, var_filter, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_live_stack_ids_in_bounds(payload, covariant, var_filter, out);
+                }
+            }
+        }
+    }
+}
+
+fn collect_all_stack_ids_in_type(ty: &CompactType, out: &mut FxHashSet<SubtractId>) {
+    for var in &ty.vars {
+        for id in var.weight.iter() {
+            out.insert(id);
+        }
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_all_stack_ids_in_bounds(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_all_stack_ids_in_type(&fun.arg, out);
+        collect_all_stack_ids_in_type(&fun.arg_eff, out);
+        collect_all_stack_ids_in_type(&fun.ret_eff, out);
+        collect_all_stack_ids_in_type(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_all_stack_ids_in_type(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_all_stack_ids_in_type(&field.value, out);
+        }
+        collect_all_stack_ids_in_type(&spread.tail, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_all_stack_ids_in_type(payload, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_all_stack_ids_in_type(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_all_stack_ids_in_type(item, out);
+        }
+        collect_all_stack_ids_in_type(&row.tail, out);
+    }
+}
+
+fn collect_all_stack_ids_in_bounds(bounds: &CompactBounds, out: &mut FxHashSet<SubtractId>) {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            collect_all_stack_ids_in_type(lower, out);
+            collect_all_stack_ids_in_type(upper, out);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                collect_all_stack_ids_in_bounds(arg, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_all_stack_ids_in_bounds(arg, out);
+            collect_all_stack_ids_in_bounds(arg_eff, out);
+            collect_all_stack_ids_in_bounds(ret_eff, out);
+            collect_all_stack_ids_in_bounds(ret, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_all_stack_ids_in_bounds(&field.value, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_all_stack_ids_in_bounds(payload, out);
+                }
+            }
         }
     }
 }
@@ -1901,6 +2321,24 @@ mod tests {
     use crate::compact::simplify_compact_root;
     use crate::compact::{CompactFun, CompactVar, merge_compact_types};
 
+    fn bipolar_effect_fun(effect: TypeVar, ret_eff: CompactType) -> CompactType {
+        CompactType::from_fun(CompactFun {
+            arg: CompactType::default(),
+            arg_eff: CompactType::from_var(CompactVar::plain(effect)),
+            ret_eff,
+            ret: CompactType::default(),
+        })
+    }
+
+    fn live_subtract_effect_fun(effect: TypeVar, ret_eff: CompactType) -> CompactType {
+        CompactType::from_fun(CompactFun {
+            arg: CompactType::default(),
+            arg_eff: CompactType::from_var(CompactVar::plain(effect)),
+            ret_eff,
+            ret: CompactType::from_var(CompactVar::plain(effect)),
+        })
+    }
+
     #[test]
     fn quantifies_only_vars_above_boundary() {
         let mut machine = ConstraintMachine::new();
@@ -1962,7 +2400,7 @@ mod tests {
     }
 
     #[test]
-    fn generalized_scheme_keeps_subtract_ids_for_quantified_vars() {
+    fn generalized_scheme_omits_subtract_fact_without_live_stack_entry() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
         machine.register_type_var(effect, TypeLevel::root().child());
@@ -1975,23 +2413,33 @@ mod tests {
         let generalized =
             generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
 
-        assert_eq!(generalized.quantifiers, vec![effect]);
-        assert_eq!(generalized.subtracts, vec![(effect, SubtractId(3))]);
+        assert!(generalized.quantifiers.is_empty());
+        assert!(generalized.subtracts.is_empty());
+        assert!(generalized.compact.root.is_empty());
     }
 
     #[test]
-    fn finalized_scheme_keeps_subtractability_in_poly_scheme() {
+    fn finalized_scheme_keeps_live_stack_subtractability_in_poly_scheme() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
         let subtract = SubtractId(3);
         machine.register_type_var(effect, TypeLevel::root().child());
-        machine.subtract_fact(
+        machine.declared_subtract_fact(
             effect,
             subtract,
             Subtractability::Set(vec!["io".into()], Vec::new()),
         );
         let root = CompactRoot {
-            root: CompactType::from_var(CompactVar::plain(effect)),
+            root: live_subtract_effect_fun(
+                effect,
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    StackWeight::push(
+                        subtract,
+                        Subtractability::Set(vec!["io".into()], Vec::new()),
+                    ),
+                )),
+            ),
             rec_vars: Vec::new(),
         };
         let generalized =
@@ -2019,10 +2467,13 @@ mod tests {
         machine.register_type_var(effect, TypeLevel::root().child());
         machine.subtract_fact(effect, subtract, Subtractability::Empty);
         let root = CompactRoot {
-            root: CompactType::from_var(CompactVar::covariant(
+            root: bipolar_effect_fun(
                 effect,
-                ConstraintWeight::from_ids([subtract]),
-            )),
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    ConstraintWeight::from_ids([subtract]),
+                )),
+            ),
             rec_vars: Vec::new(),
         };
 
@@ -2031,7 +2482,8 @@ mod tests {
 
         assert_eq!(generalized.quantifiers, vec![effect]);
         assert!(generalized.subtracts.is_empty());
-        assert!(!generalized.compact.root.vars[0].weight.contains(subtract));
+        let ret_eff = &generalized.compact.root.funs[0].ret_eff;
+        assert!(!ret_eff.vars[0].weight.contains(subtract));
     }
 
     #[test]
@@ -2058,20 +2510,40 @@ mod tests {
             generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
 
         assert!(generalized.subtracts.is_empty());
-        assert!(!generalized.compact.root.vars[0].weight.contains(subtract));
+        assert!(
+            generalized
+                .compact
+                .root
+                .vars
+                .iter()
+                .all(|var| !var.weight.contains(subtract))
+        );
     }
 
     #[test]
-    fn substitution_maps_subtract_variable_to_representative() {
+    fn substitution_maps_live_subtract_variable_to_representative() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
         let replacement = TypeVar(4);
         let subtract = SubtractId(3);
         machine.register_type_var(effect, TypeLevel::root().child());
         machine.register_type_var(replacement, TypeLevel::root().child());
-        machine.subtract_fact(effect, subtract, Subtractability::Empty);
+        machine.declared_subtract_fact(
+            effect,
+            subtract,
+            Subtractability::Set(vec!["io".into()], Vec::new()),
+        );
         let root = CompactRoot {
-            root: CompactType::from_var(CompactVar::plain(replacement)),
+            root: live_subtract_effect_fun(
+                replacement,
+                CompactType::from_var(CompactVar::covariant(
+                    replacement,
+                    StackWeight::push(
+                        subtract,
+                        Subtractability::Set(vec!["io".into()], Vec::new()),
+                    ),
+                )),
+            ),
             rec_vars: Vec::new(),
         };
 
@@ -2095,7 +2567,7 @@ mod tests {
     }
 
     #[test]
-    fn pruned_subtract_keeps_unrelated_weights() {
+    fn cleanup_removes_pop_only_weights_without_live_stack_entries() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
         let subtract = SubtractId(3);
@@ -2103,20 +2575,85 @@ mod tests {
         machine.register_type_var(effect, TypeLevel::root().child());
         machine.subtract_fact(effect, subtract, Subtractability::Empty);
         let root = CompactRoot {
-            root: CompactType::from_var(CompactVar::covariant(
+            root: bipolar_effect_fun(
                 effect,
-                ConstraintWeight::from_ids([subtract, unrelated]),
-            )),
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    ConstraintWeight::from_ids([subtract, unrelated]),
+                )),
+            ),
             rec_vars: Vec::new(),
         };
 
         let generalized =
             generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
 
-        let weight = &generalized.compact.root.vars[0].weight;
+        let weight = &generalized.compact.root.funs[0].ret_eff.vars[0].weight;
         assert!(generalized.subtracts.is_empty());
         assert!(!weight.contains(subtract));
-        assert!(weight.contains(unrelated));
+        assert!(!weight.contains(unrelated));
+    }
+
+    #[test]
+    fn empty_stack_entry_keeps_stack_quantifier_live() {
+        let mut machine = ConstraintMachine::new();
+        let effect = TypeVar(2);
+        let subtract = SubtractId(3);
+        machine.register_type_var(effect, TypeLevel::root().child());
+        let root = CompactRoot {
+            root: bipolar_effect_fun(
+                effect,
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    StackWeight::push(subtract, Subtractability::Empty),
+                )),
+            ),
+            rec_vars: Vec::new(),
+        };
+
+        let generalized =
+            generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        let mut types = TypeArena::new();
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+
+        assert_eq!(generalized.stack_quantifiers, vec![subtract]);
+        assert!(generalized.subtracts.is_empty());
+        assert!(
+            generalized.compact.root.funs[0].ret_eff.vars[0]
+                .weight
+                .contains(subtract)
+        );
+        assert_eq!(finalized.scheme.stack_quantifiers, vec![subtract]);
+        assert!(finalized.scheme.subtracts.is_empty());
+    }
+
+    #[test]
+    fn low_level_stack_entry_is_not_stack_quantified() {
+        let mut machine = ConstraintMachine::new();
+        let effect = TypeVar(2);
+        let subtract = SubtractId(3);
+        machine.register_type_var(effect, TypeLevel::root());
+        let root = CompactRoot {
+            root: bipolar_effect_fun(
+                effect,
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    StackWeight::push(subtract, Subtractability::Empty),
+                )),
+            ),
+            rec_vars: Vec::new(),
+        };
+
+        let generalized =
+            generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+
+        assert!(generalized.quantifiers.is_empty());
+        assert!(generalized.stack_quantifiers.is_empty());
+        assert!(
+            generalized.compact.root.funs[0].ret_eff.vars[0]
+                .weight
+                .is_empty()
+        );
     }
 
     #[test]
@@ -2146,9 +2683,11 @@ mod tests {
 
         assert!(generalized.subtracts.is_empty());
         assert!(
-            !generalized.compact.root.funs[0].ret_eff.vars[0]
-                .weight
-                .contains(subtract)
+            generalized.compact.root.funs[0]
+                .ret_eff
+                .vars
+                .iter()
+                .all(|var| !var.weight.contains(subtract))
         );
     }
 
@@ -2221,7 +2760,7 @@ mod tests {
     }
 
     #[test]
-    fn finalized_generalized_root_builds_poly_scheme_without_dropping_compact() {
+    fn finalized_generalized_naked_root_variable_becomes_never() {
         let mut machine = ConstraintMachine::new();
         let var = TypeVar(1);
         machine.register_type_var(var, TypeLevel::root().child());
@@ -2235,9 +2774,9 @@ mod tests {
 
         let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
-        assert_eq!(finalized.scheme.quantifiers, vec![var]);
-        assert!(pos_contains_var(&types, finalized.scheme.predicate, var));
-        assert!(compact_type_contains_var(&generalized.compact.root, var));
+        assert!(finalized.scheme.quantifiers.is_empty());
+        assert!(matches!(types.pos(finalized.scheme.predicate), Pos::Bot));
+        assert!(generalized.compact.root.is_empty());
     }
 
     #[test]
@@ -2262,7 +2801,6 @@ mod tests {
 
         let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
-        assert_eq!(finalized.scheme.recursive_bounds, finalized.rec_vars);
         assert_eq!(finalized.scheme.recursive_bounds.len(), 1);
         assert_eq!(finalized.scheme.recursive_bounds[0].var, var);
         assert!(matches!(
@@ -2338,7 +2876,7 @@ mod tests {
         }];
         machine.register_type_var(replacement, TypeLevel::root().child());
         let root = CompactRoot {
-            root: CompactType::from_var(CompactVar::plain(replacement)),
+            root: CompactType::default(),
             rec_vars: Vec::new(),
         };
 
@@ -2354,7 +2892,7 @@ mod tests {
             },
         );
 
-        assert_eq!(generalized.substitutions, substitutions);
+        assert_eq!(generalized.substitutions, vec![substitutions[0].clone()]);
         assert_eq!(generalized.sandwiches, sandwiches);
     }
 
@@ -2365,6 +2903,7 @@ mod tests {
             compact: CompactRoot::default(),
             role_predicates: Vec::new(),
             quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
             subtracts: Vec::new(),
             substitutions: vec![CompactVarSubstitution {
                 source: child_var,
@@ -2379,6 +2918,7 @@ mod tests {
             },
             role_predicates: Vec::new(),
             quantifiers: vec![child_var],
+            stack_quantifiers: Vec::new(),
             subtracts: Vec::new(),
             substitutions: Vec::new(),
             sandwiches: Vec::new(),
@@ -2479,38 +3019,6 @@ mod tests {
                 .iter()
                 .flat_map(|(_, payloads)| payloads)
                 .any(|payload| compact_bounds_contains_var(payload, expected)),
-        }
-    }
-
-    fn pos_contains_var(types: &TypeArena, pos: poly::types::PosId, expected: TypeVar) -> bool {
-        match types.pos(pos) {
-            Pos::Var(var) => *var == expected,
-            Pos::Row(items) | Pos::Tuple(items) => items
-                .iter()
-                .any(|item| pos_contains_var(types, *item, expected)),
-            Pos::Union(left, right) => {
-                pos_contains_var(types, *left, expected)
-                    || pos_contains_var(types, *right, expected)
-            }
-            Pos::Fun { ret_eff, ret, .. } => {
-                pos_contains_var(types, *ret_eff, expected)
-                    || pos_contains_var(types, *ret, expected)
-            }
-            Pos::Record(fields) => fields
-                .iter()
-                .any(|field| pos_contains_var(types, field.value, expected)),
-            Pos::RecordTailSpread { fields, tail } | Pos::RecordHeadSpread { tail, fields } => {
-                pos_contains_var(types, *tail, expected)
-                    || fields
-                        .iter()
-                        .any(|field| pos_contains_var(types, field.value, expected))
-            }
-            Pos::PolyVariant(items) => items
-                .iter()
-                .flat_map(|(_, payloads)| payloads)
-                .any(|payload| pos_contains_var(types, *payload, expected)),
-            Pos::NonSubtract(pos, _) => pos_contains_var(types, *pos, expected),
-            Pos::Bot | Pos::Con(_, _) => false,
         }
     }
 }
