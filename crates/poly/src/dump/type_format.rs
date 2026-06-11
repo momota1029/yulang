@@ -758,6 +758,9 @@ impl<'a> TypeFormatter<'a> {
     }
 
     fn bounds_lower_parts(&mut self, id: PosId, var: TypeVar, out: &mut Vec<String>) {
+        if self.pos_is_plain_bounds_var(id, var) {
+            return;
+        }
         match self.arena.pos(id) {
             Pos::Union(left, right) => {
                 let (left, right) = (*left, *right);
@@ -765,12 +768,14 @@ impl<'a> TypeFormatter<'a> {
                 self.bounds_lower_parts(right, var, out);
             }
             Pos::Bot => {}
-            Pos::Var(lower_var) if *lower_var == var => {}
             _ => out.push(self.pos(id, Context::FunctionArg)),
         }
     }
 
     fn bounds_upper_parts(&mut self, id: NegId, var: TypeVar, out: &mut Vec<String>) {
+        if self.neg_is_plain_bounds_var(id, var) {
+            return;
+        }
         match self.arena.neg(id) {
             Neg::Intersection(left, right) => {
                 let (left, right) = (*left, *right);
@@ -778,15 +783,33 @@ impl<'a> TypeFormatter<'a> {
                 self.bounds_upper_parts(right, var, out);
             }
             Neg::Top => {}
-            Neg::Var(upper_var) if *upper_var == var => {}
             _ => out.push(self.neg(id, Context::FunctionArg)),
         }
     }
 
     fn is_plain_bounds(&self, lower: PosId, var: TypeVar, upper: NegId) -> bool {
         matches!(self.arena.pos(lower), Pos::Bot) && matches!(self.arena.neg(upper), Neg::Top)
-            || matches!(self.arena.pos(lower), Pos::Var(lower_var) if *lower_var == var)
-                && matches!(self.arena.neg(upper), Neg::Var(upper_var) if *upper_var == var)
+            || self.pos_is_plain_bounds_var(lower, var) && self.neg_is_plain_bounds_var(upper, var)
+    }
+
+    fn pos_is_plain_bounds_var(&self, id: PosId, var: TypeVar) -> bool {
+        match self.arena.pos(id) {
+            Pos::Var(found) => *found == var,
+            Pos::Stack { inner, weight } if is_hidden_quantifier_stack(weight) => {
+                self.pos_is_plain_bounds_var(*inner, var)
+            }
+            _ => false,
+        }
+    }
+
+    fn neg_is_plain_bounds_var(&self, id: NegId, var: TypeVar) -> bool {
+        match self.arena.neg(id) {
+            Neg::Var(found) => *found == var,
+            Neg::Stack { inner, weight } if is_hidden_quantifier_stack(weight) => {
+                self.neg_is_plain_bounds_var(*inner, var)
+            }
+            _ => false,
+        }
     }
 
     fn render_directional_bounds(
@@ -1203,6 +1226,31 @@ mod tests {
         let outer = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![inner]));
 
         assert_eq!(format_pos(&arena, outer), "list(list 'a)");
+    }
+
+    #[test]
+    fn hidden_quantifier_stack_does_not_duplicate_bounds_var() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let subtract = SubtractId(1);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let stacked_a = arena.alloc_pos(Pos::Stack {
+            inner: pos_a,
+            weight: StackWeight::pops(subtract, u32::MAX),
+        });
+        let neg_a = arena.alloc_neg(Neg::Var(a));
+        let neu_a = arena.alloc_neu(Neu::Bounds(stacked_a, a, neg_a));
+        let list_a = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![neu_a]));
+        let scheme = Scheme {
+            quantifiers: vec![a],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: vec![subtract],
+            predicate: list_a,
+            subtracts: Vec::new(),
+        };
+
+        assert_eq!(format_scheme(&arena, &scheme), "list 'a");
     }
 
     #[test]

@@ -2574,6 +2574,88 @@ mod tests {
     }
 
     #[test]
+    fn co_occurrence_removes_variable_sandwiched_by_exact_type() {
+        let machine = ConstraintMachine::new();
+        let var = TypeVar(10);
+        let mut root = CompactRoot {
+            root: CompactType::from_fun(CompactFun {
+                arg: merge_compact_types(
+                    true,
+                    CompactType::from_var(CompactVar::plain(var)),
+                    CompactType::from_builtin(BuiltinType::Int),
+                ),
+                arg_eff: CompactType::default(),
+                ret_eff: CompactType::default(),
+                ret: merge_compact_types(
+                    true,
+                    CompactType::from_var(CompactVar::plain(var)),
+                    CompactType::from_builtin(BuiltinType::Int),
+                ),
+            }),
+            rec_vars: Vec::new(),
+        };
+
+        let substitutions = coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
+
+        let fun = &root.root.funs[0];
+        assert!(fun.arg.vars.is_empty());
+        assert!(fun.ret.vars.is_empty());
+        assert_eq!(fun.arg.builtins, vec![BuiltinType::Int]);
+        assert_eq!(fun.ret.builtins, vec![BuiltinType::Int]);
+        assert_eq!(
+            substitutions,
+            vec![CompactVarSubstitution {
+                source: var,
+                target: None
+            }]
+        );
+    }
+
+    #[test]
+    fn co_occurrence_unifies_variable_sandwiched_by_variable() {
+        let machine = ConstraintMachine::new();
+        let center = TypeVar(10);
+        let extra = TypeVar(11);
+        let payload = CompactBounds::Interval {
+            self_var: center,
+            lower: CompactType {
+                vars: vec![CompactVar::plain(center), CompactVar::plain(extra)],
+                ..CompactType::default()
+            },
+            upper: CompactType::from_var(CompactVar::plain(center)),
+        };
+        let list = CompactType::from_con(CompactCon {
+            path: vec!["list".into()],
+            args: vec![payload],
+        });
+        let mut root = CompactRoot {
+            root: CompactType::from_fun(CompactFun {
+                arg: list.clone(),
+                arg_eff: CompactType::default(),
+                ret_eff: CompactType::default(),
+                ret: list,
+            }),
+            rec_vars: Vec::new(),
+        };
+
+        let substitutions = coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
+
+        let CompactBounds::Interval { lower, upper, .. } = &root.root.funs[0].arg.cons[0].args[0]
+        else {
+            panic!("expected interval");
+        };
+        assert_eq!(lower.vars, vec![CompactVar::plain(center)]);
+        assert_eq!(upper.vars, vec![CompactVar::plain(center)]);
+        assert_eq!(
+            substitutions,
+            vec![CompactVarSubstitution {
+                source: extra,
+                target: Some(center)
+            }]
+        );
+    }
+
+    #[test]
     fn finalize_restores_stack_weights_on_covariant_vars() {
         let subtract = SubtractId(3);
         let mut types = TypeArena::new();

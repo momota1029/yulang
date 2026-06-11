@@ -226,9 +226,11 @@ fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> Neu
         return finalize_compact_bounds(types, &bounds);
     }
     let self_var = common_var_in_types(&arg.lower, &arg.upper)
-        .or_else(|| single_var_in_type(&arg.lower))
-        .or_else(|| single_var_in_type(&arg.upper))
-        .expect("compact role arg should be exact or retain a shared variable");
+        .or_else(|| unique_var_in_type(&arg.lower))
+        .or_else(|| unique_var_in_type(&arg.upper))
+        .unwrap_or_else(|| {
+            panic!("compact role arg should be exact or retain a shared variable: {arg:?}")
+        });
     let lower = finalize_compact_type(types, &arg.lower);
     let upper = finalize_compact_type_to_neg(types, &arg.upper);
     types.alloc_neu(Neu::Bounds(lower, self_var, upper))
@@ -628,18 +630,11 @@ fn exact_compact_type_bounds(ty: &CompactType) -> Option<CompactBounds> {
     None
 }
 
-fn single_var_in_type(ty: &CompactType) -> Option<TypeVar> {
-    (ty.vars.len() == 1
-        && !ty.never
-        && ty.builtins.is_empty()
-        && ty.cons.is_empty()
-        && ty.funs.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.poly_variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.rows.is_empty())
-    .then_some(ty.vars[0].var)
+fn unique_var_in_type(ty: &CompactType) -> Option<TypeVar> {
+    let mut vars = ty.vars.iter().map(|var| var.var).collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    vars.dedup();
+    (vars.len() == 1).then(|| vars[0])
 }
 
 pub(crate) fn finalize_generalized_compact_root_with_ancestors(
@@ -2397,6 +2392,16 @@ mod tests {
         })
     }
 
+    fn neg_contains_var(types: &TypeArena, id: NegId, var: TypeVar) -> bool {
+        match types.neg(id) {
+            poly::types::Neg::Var(found) => *found == var,
+            poly::types::Neg::Intersection(left, right) => {
+                neg_contains_var(types, *left, var) || neg_contains_var(types, *right, var)
+            }
+            _ => false,
+        }
+    }
+
     #[test]
     fn quantifies_only_vars_above_boundary() {
         let mut machine = ConstraintMachine::new();
@@ -2914,6 +2919,55 @@ mod tests {
                     && matches!(types.pos(*lower), poly::types::Pos::Var(v) if *v == role_var)
                     && matches!(types.neg(*upper), poly::types::Neg::Var(v) if *v == role_var)
         ));
+    }
+
+    #[test]
+    fn finalizing_role_arg_uses_unique_var_from_structured_bound() {
+        let mut machine = ConstraintMachine::new();
+        let role_var = TypeVar(2);
+        machine.register_type_var(role_var, TypeLevel::root().child());
+        let generalized = GeneralizedCompactRoot {
+            compact: CompactRoot {
+                root: CompactType::default(),
+                rec_vars: Vec::new(),
+            },
+            role_predicates: vec![CompactRoleConstraint {
+                role: vec!["Ready".into()],
+                inputs: vec![CompactRoleArg {
+                    lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
+                    upper: merge_compact_types(
+                        true,
+                        CompactType::from_var(CompactVar::plain(role_var)),
+                        CompactType::from_builtin(poly::types::BuiltinType::Int),
+                    ),
+                }],
+                associated: Vec::new(),
+            }],
+            quantifiers: vec![role_var],
+            stack_quantifiers: Vec::new(),
+            subtracts: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        };
+        let mut types = TypeArena::new();
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+
+        assert_eq!(finalized.scheme.role_predicates.len(), 1);
+        let actual = types.neu(finalized.scheme.role_predicates[0].inputs[0]);
+        assert!(
+            matches!(
+                actual,
+                poly::types::Neu::Bounds(lower, var, upper)
+                    if *var == role_var
+                        && matches!(
+                            types.pos(*lower),
+                            poly::types::Pos::Con(path, args)
+                                if path.len() == 1 && path[0] == "int" && args.is_empty()
+                        )
+                        && neg_contains_var(&types, *upper, role_var)
+            ),
+            "{actual:?}"
+        );
     }
 
     #[test]

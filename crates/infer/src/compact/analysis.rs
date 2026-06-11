@@ -66,7 +66,7 @@ fn coalesce_by_co_occurrence_with_roles_and_non_generic(
     if subst.is_empty() {
         return Vec::new();
     }
-    rewrite_root_and_role_vars(root, roles, |var| Some(subst.representative(var)))
+    rewrite_root_and_role_vars(root, roles, |var| subst.rewrite(var))
 }
 
 #[cfg(test)]
@@ -1593,6 +1593,7 @@ impl CoOccurrences {
         non_generic: &FxHashSet<TypeVar>,
     ) -> VarSubstitution {
         let mut union = VarUnion::default();
+        let mut removals = FxHashSet::default();
         register_co_occurrence_table(
             &self.positive,
             &self.negative,
@@ -1609,7 +1610,25 @@ impl CoOccurrences {
             non_generic,
             &mut union,
         );
-        union.into_substitution()
+        register_sandwich_flattening(
+            &self.positive,
+            &self.negative,
+            machine,
+            boundary,
+            non_generic,
+            &mut union,
+            &mut removals,
+        );
+        register_sandwich_flattening(
+            &self.negative,
+            &self.positive,
+            machine,
+            boundary,
+            non_generic,
+            &mut union,
+            &mut removals,
+        );
+        union.into_substitution(removals)
     }
 }
 
@@ -1646,6 +1665,47 @@ fn register_co_occurrence_table(
                 continue;
             }
             register_co_occurrence_pair(alpha, beta, machine, boundary, non_generic, union);
+        }
+    }
+}
+
+fn register_sandwich_flattening(
+    table: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    opposite: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    non_generic: &FxHashSet<TypeVar>,
+    union: &mut VarUnion,
+    removals: &mut FxHashSet<TypeVar>,
+) {
+    let mut vars = table.keys().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    for alpha in vars {
+        if !is_simplification_candidate(machine, boundary, alpha, non_generic) {
+            continue;
+        }
+        if union.find(alpha) != alpha {
+            continue;
+        }
+        let (Some(items), Some(opposite_items)) = (table.get(&alpha), opposite.get(&alpha)) else {
+            continue;
+        };
+        let mut sandwiches = items
+            .iter()
+            .filter(|item| **item != AlongItem::Var(alpha) && opposite_items.contains(item))
+            .cloned()
+            .collect::<Vec<_>>();
+        sandwiches.sort_by_key(along_item_sort_key);
+        let Some(sandwich) = sandwiches.into_iter().next() else {
+            continue;
+        };
+        match sandwich {
+            AlongItem::Var(beta) => {
+                register_co_occurrence_pair(alpha, beta, machine, boundary, non_generic, union);
+            }
+            AlongItem::Exact(_) => {
+                removals.insert(alpha);
+            }
         }
     }
 }
@@ -2031,13 +2091,18 @@ impl VarUnion {
         root
     }
 
-    fn into_substitution(mut self) -> VarSubstitution {
-        let vars = self.parent.keys().copied().collect::<Vec<_>>();
+    fn into_substitution(mut self, removals: FxHashSet<TypeVar>) -> VarSubstitution {
+        let mut vars = self.parent.keys().copied().collect::<Vec<_>>();
+        vars.extend(removals.iter().copied());
+        vars.sort_by_key(|var| var.0);
+        vars.dedup();
         let mut map = FxHashMap::default();
         for var in vars {
             let rep = self.find(var);
-            if rep != var {
-                map.insert(var, rep);
+            if removals.contains(&rep) {
+                map.insert(var, None);
+            } else if rep != var {
+                map.insert(var, Some(rep));
             }
         }
         VarSubstitution { map }
@@ -2045,7 +2110,7 @@ impl VarUnion {
 }
 
 struct VarSubstitution {
-    map: FxHashMap<TypeVar, TypeVar>,
+    map: FxHashMap<TypeVar, Option<TypeVar>>,
 }
 
 impl VarSubstitution {
@@ -2053,8 +2118,8 @@ impl VarSubstitution {
         self.map.is_empty()
     }
 
-    fn representative(&self, var: TypeVar) -> TypeVar {
-        self.map.get(&var).copied().unwrap_or(var)
+    fn rewrite(&self, var: TypeVar) -> Option<TypeVar> {
+        self.map.get(&var).copied().unwrap_or(Some(var))
     }
 }
 
