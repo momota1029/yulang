@@ -80,6 +80,28 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     )
 }
 
+pub(crate) fn generalize_prepared_compact_root_with_roles_and_simplifications(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    mut compact: CompactRoot,
+    mut role_predicates: Vec<CompactRoleConstraint>,
+    simplifications: &[CompactSimplification],
+    non_generic: &FxHashSet<TypeVar>,
+) -> GeneralizedCompactRoot {
+    apply_compact_simplifications_to_root_and_roles(
+        &mut compact,
+        &mut role_predicates,
+        simplifications,
+    );
+    generalize_prepared_compact_root_with_roles(
+        machine,
+        boundary,
+        compact,
+        role_predicates,
+        non_generic,
+    )
+}
+
 #[cfg(test)]
 pub(crate) fn generalize_compact_root(
     machine: &ConstraintMachine,
@@ -773,6 +795,17 @@ fn apply_ancestor_simplifications(
     }
 }
 
+fn apply_compact_simplifications_to_root_and_roles(
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    simplifications: &[CompactSimplification],
+) {
+    for simplification in simplifications {
+        apply_var_substitutions_to_root_and_roles(root, roles, &simplification.substitutions);
+        apply_sandwiches_to_root_and_roles(root, roles, &simplification.sandwiches);
+    }
+}
+
 fn apply_var_substitutions(
     root: &mut GeneralizedCompactRoot,
     substitutions: &[CompactVarSubstitution],
@@ -780,10 +813,7 @@ fn apply_var_substitutions(
     if substitutions.is_empty() {
         return;
     }
-    let map = substitutions
-        .iter()
-        .map(|substitution| (substitution.source, substitution.target))
-        .collect::<FxHashMap<_, _>>();
+    let map = var_substitution_map(substitutions);
     rewrite_root_vars(&mut root.compact, &map);
     rewrite_role_predicates_vars(&mut root.role_predicates, &map);
     let quantifier_set = root.quantifiers.iter().copied().collect::<FxHashSet<_>>();
@@ -800,6 +830,28 @@ fn apply_var_substitutions(
         })
         .collect();
     sort_dedup_subtracts(&mut root.subtracts);
+}
+
+fn apply_var_substitutions_to_root_and_roles(
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+    substitutions: &[CompactVarSubstitution],
+) {
+    if substitutions.is_empty() {
+        return;
+    }
+    let map = var_substitution_map(substitutions);
+    rewrite_root_vars(root, &map);
+    rewrite_role_predicates_vars(roles, &map);
+}
+
+fn var_substitution_map(
+    substitutions: &[CompactVarSubstitution],
+) -> FxHashMap<TypeVar, Option<TypeVar>> {
+    substitutions
+        .iter()
+        .map(|substitution| (substitution.source, substitution.target))
+        .collect()
 }
 
 fn rewrite_root_vars(root: &mut CompactRoot, substitutions: &FxHashMap<TypeVar, Option<TypeVar>>) {
@@ -2900,6 +2952,35 @@ mod tests {
 
         assert_eq!(generalized.substitutions, vec![substitutions[0].clone()]);
         assert_eq!(generalized.sandwiches, sandwiches);
+    }
+
+    #[test]
+    fn pre_simplifications_run_before_quantifier_selection() {
+        let mut machine = ConstraintMachine::new();
+        let removed = TypeVar(1);
+        machine.register_type_var(removed, TypeLevel::root().child());
+        let root = CompactRoot {
+            root: CompactType::from_var(CompactVar::plain(removed)),
+            rec_vars: Vec::new(),
+        };
+
+        let generalized = generalize_prepared_compact_root_with_roles_and_simplifications(
+            &machine,
+            TypeLevel::root(),
+            root,
+            Vec::new(),
+            &[CompactSimplification {
+                substitutions: vec![CompactVarSubstitution {
+                    source: removed,
+                    target: None,
+                }],
+                sandwiches: Vec::new(),
+            }],
+            &FxHashSet::default(),
+        );
+
+        assert!(generalized.quantifiers.is_empty());
+        assert!(generalized.compact.root.is_empty());
     }
 
     #[test]

@@ -106,7 +106,13 @@ pub(crate) fn simplify_compact_root_with_roles_and_non_generic(
         roles,
         non_generic,
     ));
-    let sandwiches = sandwich_compact_root_with_non_generic(machine, boundary, root, non_generic);
+    let sandwiches = sandwich_compact_root_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        roles,
+        non_generic,
+    );
     substitutions.extend(simplify_polar_and_co_occurrence_to_fixed_point(
         machine,
         boundary,
@@ -434,19 +440,42 @@ pub(crate) fn sandwich_compact_root(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactSandwich> {
-    sandwich_compact_root_with_non_generic(machine, boundary, root, &FxHashSet::default())
+    sandwich_compact_root_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        &mut [],
+        &FxHashSet::default(),
+    )
 }
 
-fn sandwich_compact_root_with_non_generic(
+#[cfg(test)]
+pub(crate) fn sandwich_compact_root_with_roles(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactSandwich> {
+    sandwich_compact_root_with_roles_and_non_generic(
+        machine,
+        boundary,
+        root,
+        roles,
+        &FxHashSet::default(),
+    )
+}
+
+fn sandwich_compact_root_with_roles_and_non_generic(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
     non_generic: &FxHashSet<TypeVar>,
 ) -> Vec<CompactSandwich> {
     let mut fresh = FreshCompactVars::new(root);
     let mut sandwiches = FxHashMap::default();
     loop {
-        let verdicts = compute_sandwich_verdicts(machine, boundary, root, non_generic);
+        let verdicts = compute_sandwich_verdicts(machine, boundary, root, roles, non_generic);
         if verdicts.lift.is_empty() {
             return sorted_sandwiches(sandwiches);
         }
@@ -466,6 +495,17 @@ fn sandwich_compact_root_with_non_generic(
                 machine,
                 boundary,
                 mem::replace(&mut rec.bounds, empty_interval(rec.var)),
+                &verdicts,
+                &mut fresh,
+                &mut changed,
+                &mut sandwiches,
+            );
+        }
+        for role in &mut *roles {
+            sandwich_role(
+                machine,
+                boundary,
+                role,
                 &verdicts,
                 &mut fresh,
                 &mut changed,
@@ -509,12 +549,16 @@ fn compute_sandwich_verdicts(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &CompactRoot,
+    roles: &[CompactRoleConstraint],
     non_generic: &FxHashSet<TypeVar>,
 ) -> SandwichVerdicts {
     let mut verdicts = FxHashMap::default();
     visit_type_for_sandwich_verdict(&root.root, &mut verdicts);
     for rec in &root.rec_vars {
         visit_bounds_for_sandwich_verdict(&rec.bounds, &mut verdicts);
+    }
+    for role in roles {
+        visit_role_for_sandwich_verdict(role, &mut verdicts);
     }
 
     let rec_vars = root
@@ -539,6 +583,26 @@ fn compute_sandwich_verdicts(
         }
     }
     SandwichVerdicts { lift }
+}
+
+fn visit_role_for_sandwich_verdict(
+    role: &CompactRoleConstraint,
+    verdicts: &mut FxHashMap<TypeVar, SandwichVerdict>,
+) {
+    for input in &role.inputs {
+        visit_role_arg_for_sandwich_verdict(input, verdicts);
+    }
+    for associated in &role.associated {
+        visit_role_arg_for_sandwich_verdict(&associated.value, verdicts);
+    }
+}
+
+fn visit_role_arg_for_sandwich_verdict(
+    arg: &CompactRoleArg,
+    verdicts: &mut FxHashMap<TypeVar, SandwichVerdict>,
+) {
+    visit_type_for_sandwich_verdict(&arg.lower, verdicts);
+    visit_type_for_sandwich_verdict(&arg.upper, verdicts);
 }
 
 fn visit_type_for_sandwich_verdict(
@@ -945,6 +1009,62 @@ fn sandwich_bounds(
                 .collect(),
         },
     }
+}
+
+fn sandwich_role(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    role: &mut CompactRoleConstraint,
+    verdicts: &SandwichVerdicts,
+    fresh: &mut FreshCompactVars,
+    changed: &mut bool,
+    sandwiches: &mut FxHashMap<TypeVar, CompactSandwichKind>,
+) {
+    for input in &mut role.inputs {
+        sandwich_role_arg(
+            machine, boundary, input, verdicts, fresh, changed, sandwiches,
+        );
+    }
+    for associated in &mut role.associated {
+        sandwich_role_arg(
+            machine,
+            boundary,
+            &mut associated.value,
+            verdicts,
+            fresh,
+            changed,
+            sandwiches,
+        );
+    }
+}
+
+fn sandwich_role_arg(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    arg: &mut CompactRoleArg,
+    verdicts: &SandwichVerdicts,
+    fresh: &mut FreshCompactVars,
+    changed: &mut bool,
+    sandwiches: &mut FxHashMap<TypeVar, CompactSandwichKind>,
+) {
+    arg.lower = sandwich_type(
+        machine,
+        boundary,
+        mem::take(&mut arg.lower),
+        verdicts,
+        fresh,
+        changed,
+        sandwiches,
+    );
+    arg.upper = sandwich_type(
+        machine,
+        boundary,
+        mem::take(&mut arg.upper),
+        verdicts,
+        fresh,
+        changed,
+        sandwiches,
+    );
 }
 
 fn try_lift_interval(

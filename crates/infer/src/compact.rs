@@ -23,7 +23,10 @@ pub(crate) use analysis::simplify_compact_root;
 pub(crate) use analysis::simplify_compact_root_with_roles_and_non_generic;
 mod casts;
 #[cfg(test)]
-use analysis::{coalesce_by_co_occurrence, eliminate_polar_variables, sandwich_compact_root};
+use analysis::{
+    coalesce_by_co_occurrence, eliminate_polar_variables, sandwich_compact_root,
+    sandwich_compact_root_with_roles,
+};
 pub(crate) use casts::{
     CompactCastApplication, CompactCastKey, find_next_compact_cast, normalize_compact_casts,
 };
@@ -2785,6 +2788,114 @@ mod tests {
 
         let CompactBounds::Con { path, args } = &root.root.cons[0].args[0] else {
             panic!("box payload should be lifted to list");
+        };
+        assert!(compact_path_is(path, "list"));
+        let CompactBounds::Interval { self_var, .. } = &args[0] else {
+            panic!("list payload should remain interval");
+        };
+        assert_eq!(*self_var, payload);
+        assert_eq!(
+            sandwiches,
+            vec![CompactSandwich {
+                var: center,
+                kind: CompactSandwichKind::Con {
+                    path: vec!["list".into()],
+                    arity: 1
+                }
+            }]
+        );
+    }
+
+    #[test]
+    fn sandwich_role_bare_occurrence_blocks_lift() {
+        let machine = ConstraintMachine::new();
+        let center = TypeVar(1);
+        let payload = TypeVar(2);
+        let mut root = CompactRoot {
+            root: CompactType::from_con(CompactCon {
+                path: vec!["box".into()],
+                args: vec![CompactBounds::Interval {
+                    self_var: center,
+                    lower: list_with_payload_bound(
+                        center,
+                        CompactBounds::Interval {
+                            self_var: TypeVar(20),
+                            lower: CompactType::from_var(CompactVar::plain(payload)),
+                            upper: CompactType::default(),
+                        },
+                    ),
+                    upper: list_with_payload_bound(
+                        center,
+                        CompactBounds::Interval {
+                            self_var: TypeVar(21),
+                            lower: CompactType::default(),
+                            upper: CompactType::from_var(CompactVar::plain(payload)),
+                        },
+                    ),
+                }],
+            }),
+            rec_vars: Vec::new(),
+        };
+        let mut roles = vec![CompactRoleConstraint {
+            role: vec!["Pinned".into()],
+            inputs: vec![CompactRoleArg {
+                lower: CompactType::from_var(CompactVar::plain(center)),
+                upper: CompactType::from_var(CompactVar::plain(center)),
+            }],
+            associated: Vec::new(),
+        }];
+
+        let sandwiches =
+            sandwich_compact_root_with_roles(&machine, TypeLevel::root(), &mut root, &mut roles);
+
+        assert!(sandwiches.is_empty());
+        assert!(matches!(
+            &root.root.cons[0].args[0],
+            CompactBounds::Interval { self_var, .. } if *self_var == center
+        ));
+    }
+
+    #[test]
+    fn sandwich_rewrites_nested_role_predicate_bounds() {
+        let machine = ConstraintMachine::new();
+        let center = TypeVar(1);
+        let payload = TypeVar(2);
+        let mut root = CompactRoot::default();
+        let mut roles = vec![CompactRoleConstraint {
+            role: vec!["Ready".into()],
+            inputs: vec![CompactRoleArg {
+                lower: CompactType::from_con(CompactCon {
+                    path: vec!["box".into()],
+                    args: vec![CompactBounds::Interval {
+                        self_var: center,
+                        lower: list_with_payload_bound(
+                            center,
+                            CompactBounds::Interval {
+                                self_var: TypeVar(20),
+                                lower: CompactType::from_var(CompactVar::plain(payload)),
+                                upper: CompactType::default(),
+                            },
+                        ),
+                        upper: list_with_payload_bound(
+                            center,
+                            CompactBounds::Interval {
+                                self_var: TypeVar(21),
+                                lower: CompactType::default(),
+                                upper: CompactType::from_var(CompactVar::plain(payload)),
+                            },
+                        ),
+                    }],
+                }),
+                upper: CompactType::default(),
+            }],
+            associated: Vec::new(),
+        }];
+
+        let sandwiches =
+            sandwich_compact_root_with_roles(&machine, TypeLevel::root(), &mut root, &mut roles);
+
+        let CompactBounds::Con { path, args } = &roles[0].inputs[0].lower.cons[0].args[0] else {
+            panic!("role predicate payload should be lifted to list");
         };
         assert!(compact_path_is(path, "list"));
         let CompactBounds::Interval { self_var, .. } = &args[0] else {

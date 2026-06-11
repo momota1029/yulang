@@ -33,8 +33,12 @@ use crate::annotation::{
     AnnType, AnnTypeBuilder, AnnTypeVarId,
 };
 use crate::builtin_ops::{BuiltinOp, BuiltinOpSig, SigTy, resolve_builtin_op};
-use crate::compact::{CompactBounds, CompactFun, CompactType, compact_type_var};
+use crate::compact::{
+    CompactBounds, CompactFun, CompactSimplification, CompactType, compact_role_constraint,
+    compact_type_var,
+};
 use crate::constraints::TypeLevel;
+use crate::generalize::generalize_prepared_compact_root_with_roles;
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
 };
@@ -1321,14 +1325,28 @@ impl BodyLowerer {
         &self,
         context: &RoleImplLoweringContext,
         name: Name,
-    ) -> Option<SignatureType> {
+    ) -> Option<ResolvedRoleMethodRequirement> {
         let method = self
             .modules
             .role_methods(context.role)
             .iter()
             .find(|method| method.name == name)?;
         let requirement = self.role_requirements.get(&method.def)?;
-        Some(substitute_role_requirement_signature(requirement, context))
+        let role = self.modules.type_decl_by_id(context.role).map(|role| {
+            self.modules
+                .type_decl_path(&role)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>()
+        })?;
+        Some(ResolvedRoleMethodRequirement {
+            role_method: method.def,
+            role,
+            inputs: context.input_signatures.clone(),
+            associated: context.associated_signatures.clone(),
+            signature: substitute_role_requirement_signature(requirement, context),
+        })
     }
 
     fn lower_role_impl_method_binding(
@@ -1340,7 +1358,7 @@ impl BodyLowerer {
         target_ann: &AnnType,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-        requirement: Option<SignatureType>,
+        requirement: Option<ResolvedRoleMethodRequirement>,
     ) {
         let Some(expr) = binding_body_expr(node) else {
             self.errors.push(BodyLoweringError::MissingBody {
@@ -1360,6 +1378,10 @@ impl BodyLowerer {
                 def: method.def,
                 root,
             }));
+        if let Some(requirement) = &requirement {
+            self.session
+                .register_role_impl_member_requirement(method.def, requirement.role_method);
+        }
 
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
@@ -2933,7 +2955,7 @@ impl<'a> ExprLowerer<'a> {
         result_type_expr: Option<Cst>,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-        requirement: Option<&SignatureType>,
+        requirement: Option<&ResolvedRoleMethodRequirement>,
     ) -> Result<Computation, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
@@ -2969,7 +2991,7 @@ impl<'a> ExprLowerer<'a> {
         self.connect_type_method_value_annotation(receiver_value, receiver_ann, ann_solver_vars)?;
         let param_uppers = match requirement {
             Some(requirement) => self.impl_method_param_uppers(
-                requirement,
+                &requirement.signature,
                 arg_patterns.len(),
                 type_var_bindings,
                 ann_solver_vars,
@@ -3070,28 +3092,57 @@ impl<'a> ExprLowerer<'a> {
     fn connect_impl_method_requirement(
         &mut self,
         value: TypeVar,
-        requirement: &SignatureType,
+        requirement: &ResolvedRoleMethodRequirement,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
     ) -> Result<(), LoweringError> {
-        self.check_impl_method_requirement_shape(value, requirement)?;
-        self.check_impl_method_requirement_concrete_type(value, requirement)?;
+        let signature = &requirement.signature;
+        self.check_impl_method_requirement_shape(value, signature)?;
+        self.check_impl_method_requirement_concrete_type(value, signature)?;
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
         let level = self.session.infer.current_level();
-        let upper = {
+        let (upper, summary_root, summary_role) = {
             let mut lowerer = SignatureLowerer::with_vars_at_level(
                 &mut self.session.infer,
                 self.modules,
                 seed,
                 level,
             );
-            lowerer
-                .lower_neg(requirement)
-                .map_err(|error| LoweringError::SignatureConstraint { error })?
+            let upper = lowerer
+                .lower_neg(signature)
+                .map_err(|error| LoweringError::SignatureConstraint { error })?;
+            let summary_root = lowerer.fresh_type_var();
+            let summary_lower = lowerer
+                .lower_pos(signature)
+                .map_err(|error| LoweringError::SignatureConstraint { error })?;
+            let summary_upper = lowerer.alloc_neg(Neg::Var(summary_root));
+            lowerer.infer.subtype(summary_lower, summary_upper);
+            let summary_role = lower_impl_requirement_role_constraint(&mut lowerer, requirement)?;
+            (upper, summary_root, summary_role)
         };
         let lower = self.session.infer.alloc_pos(Pos::Var(value));
         self.session.infer.subtype(lower, upper);
+        self.register_impl_requirement_simplification(summary_root, summary_role);
         Ok(())
+    }
+
+    fn register_impl_requirement_simplification(&mut self, root: TypeVar, role: RoleConstraint) {
+        let compact = compact_type_var(self.session.infer.constraints(), root);
+        let role_predicate = compact_role_constraint(self.session.infer.constraints(), &role);
+        let generalized = generalize_prepared_compact_root_with_roles(
+            self.session.infer.constraints(),
+            TypeLevel::root(),
+            compact,
+            vec![role_predicate],
+            &FxHashSet::default(),
+        );
+        self.session.register_role_impl_member_simplification(
+            self.parent,
+            CompactSimplification {
+                substitutions: generalized.substitutions,
+                sandwiches: generalized.sandwiches,
+            },
+        );
     }
 
     fn check_impl_method_requirement_concrete_type(
@@ -6609,6 +6660,14 @@ struct RoleMethodRequirement {
     signature: SignatureType,
 }
 
+struct ResolvedRoleMethodRequirement {
+    role_method: DefId,
+    role: Vec<String>,
+    inputs: Vec<SignatureType>,
+    associated: Vec<(String, SignatureType)>,
+    signature: SignatureType,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NegSignature {
     signature: SignatureType,
@@ -7708,6 +7767,39 @@ fn substitute_role_requirement_signature(
         .chain(context.associated_signatures.iter().cloned())
         .collect::<FxHashMap<_, _>>();
     substitute_signature_vars(&requirement.signature, &substitutions)
+}
+
+fn lower_impl_requirement_role_constraint(
+    lowerer: &mut SignatureLowerer<'_>,
+    requirement: &ResolvedRoleMethodRequirement,
+) -> Result<RoleConstraint, LoweringError> {
+    let inputs = requirement
+        .inputs
+        .iter()
+        .map(|signature| {
+            lowerer
+                .lower_role_arg(signature)
+                .map_err(|error| LoweringError::SignatureConstraint { error })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let associated = requirement
+        .associated
+        .iter()
+        .map(|(name, signature)| {
+            lowerer
+                .lower_role_arg(signature)
+                .map(|value| RoleAssociatedConstraint {
+                    name: name.clone(),
+                    value,
+                })
+                .map_err(|error| LoweringError::SignatureConstraint { error })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(RoleConstraint {
+        role: requirement.role.clone(),
+        inputs,
+        associated,
+    })
 }
 
 fn substitute_signature_vars(

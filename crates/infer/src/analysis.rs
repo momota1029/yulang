@@ -17,14 +17,14 @@ use crate::arena::Arena as InferArena;
 use crate::casts::CastTable;
 use crate::compact::{
     CompactBounds, CompactCastApplication, CompactCastKey, CompactRoleArg, CompactRoleConstraint,
-    CompactType, compact_reachable_role_constraints, compact_role_constraint, compact_type_var,
-    finalize_compact_type_to_neg_constraint, finalize_compact_type_to_pos_constraint,
-    find_next_compact_cast, normalize_compact_casts,
+    CompactSimplification, CompactType, compact_reachable_role_constraints,
+    compact_role_constraint, compact_type_var, finalize_compact_type_to_neg_constraint,
+    finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, finalize_generalized_compact_root_with_ancestors,
-    generalize_prepared_compact_root_with_roles,
+    generalize_prepared_compact_root_with_roles_and_simplifications,
 };
 use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
 use crate::methods::{
@@ -63,6 +63,7 @@ pub struct AnalysisSession {
     pub scc: SccMachine,
     role_impl_members: FxHashMap<DefId, DefId>,
     role_impl_member_sets: FxHashMap<DefId, Vec<DefId>>,
+    role_impl_member_simplifications: FxHashMap<DefId, Vec<CompactSimplification>>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
     scc_events: Vec<SccEvent>,
@@ -86,6 +87,7 @@ impl AnalysisSession {
             scc: SccMachine::new(),
             role_impl_members: FxHashMap::default(),
             role_impl_member_sets: FxHashMap::default(),
+            role_impl_member_simplifications: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
             scc_events: Vec::new(),
@@ -151,6 +153,31 @@ impl AnalysisSession {
             members.push(member);
             members.sort_by_key(|def| def.0);
         }
+    }
+
+    pub(crate) fn register_role_impl_member_requirement(
+        &mut self,
+        member: DefId,
+        role_method: DefId,
+    ) {
+        self.enqueue(AnalysisWork::Scc(SccInput::DependencyAdded {
+            parent: member,
+            target: role_method,
+        }));
+    }
+
+    pub(crate) fn register_role_impl_member_simplification(
+        &mut self,
+        member: DefId,
+        simplification: CompactSimplification,
+    ) {
+        if simplification.substitutions.is_empty() && simplification.sandwiches.is_empty() {
+            return;
+        }
+        self.role_impl_member_simplifications
+            .entry(member)
+            .or_default()
+            .push(simplification);
     }
 
     pub fn register_local_value_type_method(
@@ -1220,11 +1247,18 @@ impl AnalysisSession {
         .filter(|role| !applied_role_demands.contains(role))
         .collect();
 
-        generalize_prepared_compact_root_with_roles(
+        let simplifications = self
+            .role_impl_member_simplifications
+            .get(&def)
+            .cloned()
+            .unwrap_or_default();
+
+        generalize_prepared_compact_root_with_roles_and_simplifications(
             self.infer.constraints(),
             TypeLevel::root(),
             compact,
             role_predicates,
+            &simplifications,
             &FxHashSet::default(),
         )
     }
@@ -3303,6 +3337,34 @@ mod tests {
                 .iter()
                 .any(|predicate| predicate.role == ready_role)
         );
+    }
+
+    #[test]
+    fn role_impl_member_simplification_runs_before_generalization() {
+        let member = DefId(0);
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let previous = session.infer.enter_child_level();
+        let root = session.infer.fresh_type_var();
+        let removed = session.infer.fresh_type_var();
+        session.infer.restore_level(previous);
+        let lower = session.infer.alloc_pos(Pos::Var(removed));
+        let upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(lower, upper);
+        session.register_role_impl_member_simplification(
+            member,
+            CompactSimplification {
+                substitutions: vec![crate::compact::CompactVarSubstitution {
+                    source: removed,
+                    target: None,
+                }],
+                sandwiches: Vec::new(),
+            },
+        );
+
+        let generalized = session.generalize_root_with_prepasses(member, root);
+
+        assert!(generalized.quantifiers.is_empty());
+        assert!(generalized.compact.root.is_empty());
     }
 
     fn monomorphic_cast_scheme(
