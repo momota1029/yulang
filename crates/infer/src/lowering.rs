@@ -3327,7 +3327,12 @@ impl<'a> ExprLowerer<'a> {
             .collect::<Vec<_>>();
         let Some(body) = node
             .children()
-            .filter(|child| child.kind() == SyntaxKind::Expr)
+            .filter(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+                )
+            })
             .last()
         else {
             return Err(LoweringError::MissingLambdaBody);

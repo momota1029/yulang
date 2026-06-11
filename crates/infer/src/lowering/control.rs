@@ -718,7 +718,12 @@ fn arm_patterns(arm: &Cst) -> Vec<Cst> {
 
 fn arm_body_expr(arm: &Cst) -> Option<Cst> {
     arm.children()
-        .filter(|child| child.kind() == SyntaxKind::Expr)
+        .filter(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+            )
+        })
         .last()
 }
 
