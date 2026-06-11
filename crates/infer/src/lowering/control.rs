@@ -64,6 +64,7 @@ impl<'a> ExprLowerer<'a> {
         let condition = self.lower_expr(node);
         self.locals.truncate(before_locals);
         let condition = condition?;
+        let condition = self.apply_junction(condition)?;
         self.constrain_exact_primitive(condition.value, "bool");
         self.subtype_var_to_var(condition.effect, result_effect);
         Ok(condition)
@@ -99,7 +100,18 @@ impl<'a> ExprLowerer<'a> {
             let false_pat = self.session.poly.add_pat(Pat::Lit(Lit::Bool(false)));
             let expr = self.session.poly.add_expr(Expr::Case(
                 arm.condition.expr,
-                vec![(true_pat, arm.body.expr), (false_pat, tail.expr)],
+                vec![
+                    CaseArm {
+                        pat: true_pat,
+                        guard: None,
+                        body: arm.body.expr,
+                    },
+                    CaseArm {
+                        pat: false_pat,
+                        guard: None,
+                        body: tail.expr,
+                    },
+                ],
             ));
             tail = Computation::new(expr, result_value, result_effect, Evaluation::Computation);
         }
@@ -119,8 +131,7 @@ impl<'a> ExprLowerer<'a> {
             let before_locals = self.locals.len();
             let lowered = self.lower_case_arm(&arm, scrutinee.value, value, effect);
             self.locals.truncate(before_locals);
-            let (pat, body) = lowered?;
-            arms.push((pat, body));
+            arms.push(lowered?);
         }
 
         let expr = self.session.poly.add_expr(Expr::Case(scrutinee.expr, arms));
@@ -138,26 +149,25 @@ impl<'a> ExprLowerer<'a> {
         scrutinee_value: TypeVar,
         result_value: TypeVar,
         result_effect: TypeVar,
-    ) -> Result<(PatId, poly::expr::ExprId), LoweringError> {
-        if arm
-            .children()
-            .any(|child| child.kind() == SyntaxKind::CaseGuard)
-        {
-            return Err(LoweringError::UnsupportedSyntax {
-                kind: SyntaxKind::CaseGuard,
-            });
-        }
+    ) -> Result<CaseArm, LoweringError> {
         let pattern = arm_pattern(arm).ok_or(LoweringError::MissingCaseArmPattern)?;
         let pattern_value = self.fresh_type_var();
         let pat = self.lower_match_pattern(&pattern, pattern_value)?;
         self.subtype_var_to_var(scrutinee_value, pattern_value);
         self.subtype_var_to_var(pattern_value, scrutinee_value);
 
+        let guard = arm_guard_expr(arm)
+            .map(|guard| self.lower_arm_guard(&guard, result_effect))
+            .transpose()?;
         let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCaseArmBody)?;
         let body = self.lower_expr(&body_node)?;
         self.subtype_var_to_var(body.value, result_value);
         self.subtype_var_to_var(body.effect, result_effect);
-        Ok((pat, body.expr))
+        Ok(CaseArm {
+            pat,
+            guard,
+            body: body.expr,
+        })
     }
 
     pub(super) fn lower_catch(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
@@ -184,9 +194,14 @@ impl<'a> ExprLowerer<'a> {
             );
             self.locals.truncate(before_locals);
             let lowered = lowered?;
-            saw_value_arm |= matches!(lowered.kind, LoweredCatchArmKind::Value);
+            saw_value_arm |= lowered.value_covers_all;
             saw_effect_arm |= matches!(lowered.kind, LoweredCatchArmKind::Effect);
-            arms.push((lowered.pat, lowered.continuation, lowered.body));
+            arms.push(CatchArm {
+                pat: lowered.pat,
+                continuation: lowered.continuation,
+                guard: lowered.guard,
+                body: lowered.body,
+            });
         }
 
         if handled.is_empty() {
@@ -230,14 +245,6 @@ impl<'a> ExprLowerer<'a> {
         result_effect: TypeVar,
         handled: &mut CatchHandledEffects,
     ) -> Result<LoweredCatchArm, LoweringError> {
-        if arm
-            .children()
-            .any(|child| child.kind() == SyntaxKind::CatchGuard)
-        {
-            return Err(LoweringError::UnsupportedSyntax {
-                kind: SyntaxKind::CatchGuard,
-            });
-        }
         let patterns = arm_patterns(arm);
         let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCatchArmBody)?;
         match patterns.as_slice() {
@@ -245,6 +252,9 @@ impl<'a> ExprLowerer<'a> {
                 let pattern_value = self.fresh_type_var();
                 let pat = self.lower_match_pattern(value_pattern, pattern_value)?;
                 self.subtype_var_to_var(scrutinee_value, pattern_value);
+                let guard = arm_guard_expr(arm)
+                    .map(|guard| self.lower_arm_guard(&guard, result_effect))
+                    .transpose()?;
                 let body = self.lower_expr(&body_node)?;
                 self.subtype_var_to_var(body.value, result_value);
                 self.subtype_var_to_var(body.effect, result_effect);
@@ -252,7 +262,9 @@ impl<'a> ExprLowerer<'a> {
                     kind: LoweredCatchArmKind::Value,
                     pat,
                     continuation: None,
+                    guard,
                     body: body.expr,
+                    value_covers_all: pat_covers_all(&self.session.poly, pat) && guard.is_none(),
                 })
             }
             [effect_pattern, continuation_pattern] => {
@@ -275,30 +287,53 @@ impl<'a> ExprLowerer<'a> {
                     .as_ref()
                     .map(|signature| signature.continuation_value)
                     .unwrap_or(payload.value);
-                handled.record(
-                    handled_op,
-                    pat_covers_all(&self.session.poly, payload.pat),
-                    row_item,
-                );
                 let continuation = self.lower_catch_continuation_pattern(
                     continuation_pattern,
                     continuation_value,
                     scrutinee_value,
                     scrutinee_effect,
                 )?;
+                let guard = arm_guard_expr(arm)
+                    .map(|guard| self.lower_arm_guard(&guard, result_effect))
+                    .transpose()?;
                 let body = self.lower_expr(&body_node)?;
                 self.subtype_var_to_var(body.value, result_value);
                 self.subtype_var_to_var(body.effect, result_effect);
+                let operation_covers_all =
+                    pat_covers_all(&self.session.poly, payload.pat) && guard.is_none();
+                handled.record(handled_op, operation_covers_all, row_item);
                 Ok(LoweredCatchArm {
                     kind: LoweredCatchArmKind::Effect,
                     pat: payload.pat,
                     continuation: Some(continuation),
+                    guard,
                     body: body.expr,
+                    value_covers_all: false,
                 })
             }
             [] => Err(LoweringError::MissingCatchArmPattern),
             _ => Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() }),
         }
+    }
+
+    fn lower_arm_guard(
+        &mut self,
+        guard_node: &Cst,
+        result_effect: TypeVar,
+    ) -> Result<poly::expr::ExprId, LoweringError> {
+        let before_locals = self.locals.len();
+        let guard = self.lower_expr(guard_node);
+        self.locals.truncate(before_locals);
+        let guard = guard?;
+        let guard = self.apply_junction(guard)?;
+        self.constrain_exact_primitive(guard.value, "bool");
+        self.subtype_var_to_var(guard.effect, result_effect);
+        Ok(guard.expr)
+    }
+
+    fn apply_junction(&mut self, condition: Computation) -> Result<Computation, LoweringError> {
+        let junction = self.lower_std_value_ref(crate::std_paths::control_junction_value())?;
+        Ok(self.make_app(junction, condition))
     }
 
     fn lower_catch_operation_signature(
@@ -508,7 +543,7 @@ impl<'a> ExprLowerer<'a> {
                 Ok(pat)
             }
             PatternItem::Unsupported(kind) => Err(LoweringError::UnsupportedPatternSyntax { kind }),
-            PatternItem::Number(_) | PatternItem::Paren(_) => {
+            PatternItem::Number(_) | PatternItem::String(_) | PatternItem::Paren(_) => {
                 Err(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })
             }
         }
@@ -555,7 +590,9 @@ struct LoweredCatchArm {
     kind: LoweredCatchArmKind,
     pat: PatId,
     continuation: Option<PatId>,
+    guard: Option<poly::expr::ExprId>,
     body: poly::expr::ExprId,
+    value_covers_all: bool,
 }
 
 struct LoweredIfArm {
@@ -702,6 +739,13 @@ fn arm_pattern(arm: &Cst) -> Option<Cst> {
     arm_patterns(arm).into_iter().next()
 }
 
+fn arm_guard_expr(arm: &Cst) -> Option<Cst> {
+    arm.children()
+        .find(|child| matches!(child.kind(), SyntaxKind::CaseGuard | SyntaxKind::CatchGuard))?
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
 fn arm_patterns(arm: &Cst) -> Vec<Cst> {
     arm.children()
         .filter(|child| {
@@ -711,6 +755,7 @@ fn arm_patterns(arm: &Cst) -> Vec<Cst> {
                     | SyntaxKind::PatOr
                     | SyntaxKind::PatAs
                     | SyntaxKind::PatParenGroup
+                    | SyntaxKind::PatList
             )
         })
         .collect()

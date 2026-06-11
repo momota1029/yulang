@@ -17,7 +17,10 @@ use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
-use poly::expr::{Def, DefId, Expr, Lit, Pat, PatId, PrimitiveOp, RecordSpread, RefId, Stmt, Vis};
+use poly::expr::{
+    CaseArm, CatchArm, Def, DefId, Expr, Lit, Pat, PatId, PrimitiveOp, RecordSpread, RefId, Stmt,
+    Vis,
+};
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, SubtractId,
     Subtractability, TypeArena, TypeVar,
@@ -2308,9 +2311,12 @@ impl<'a> NegSignatureBuilder<'a> {
                         items.push(SignatureEffectAtom::Type(ty));
                     }
                 }
-                NodeOrToken::Node(node) if node.kind() == SyntaxKind::Separator => {
+                NodeOrToken::Node(node)
+                    if node.kind() == SyntaxKind::Separator && separator_has_semicolon(&node) =>
+                {
                     seen_tail_separator = true;
                 }
+                NodeOrToken::Node(node) if node.kind() == SyntaxKind::Separator => {}
                 NodeOrToken::Node(node) => {
                     return Err(NegSignatureBuildError::UnsupportedSyntax { kind: node.kind() });
                 }
@@ -2466,7 +2472,17 @@ fn is_wildcard_type_expr(node: &Cst) -> bool {
     token.kind() == SyntaxKind::Ident && token.text() == "_"
 }
 
+fn separator_has_semicolon(node: &Cst) -> bool {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .any(|token| token.kind() == SyntaxKind::Semicolon)
+}
+
 fn signature_module_path_site() -> ModuleOrder {
+    module_path_lookup_site()
+}
+
+fn module_path_lookup_site() -> ModuleOrder {
     ModuleOrder::from_index(u32::MAX)
 }
 
@@ -3251,6 +3267,21 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         head_lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
+        if let Some(with_block) = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::WithBlock)
+        {
+            return self.lower_with_expr_chain(node, &with_block, head_lambda_scope);
+        }
+        self.lower_expr_chain_prefix(node, head_lambda_scope, false)
+    }
+
+    fn lower_expr_chain_prefix(
+        &mut self,
+        node: &Cst,
+        head_lambda_scope: LambdaScope,
+        stop_at_with: bool,
+    ) -> Result<Computation, LoweringError> {
         let items = node
             .children_with_tokens()
             .filter(|item| !item_is_trivia(item))
@@ -3259,12 +3290,21 @@ impl<'a> ExprLowerer<'a> {
             return Ok(self.unit_expr());
         };
 
+        if let Some(name) = expr_symbol_head_name(head) {
+            return self.lower_poly_variant_expr_chain(name, &items, 1, stop_at_with);
+        }
+
         let (mut acc, tail_start) = match expr_path_prefix(&items) {
             Some((path, consumed)) if path.len() > 1 => (self.lower_path_name(&path)?, consumed),
             _ => (self.lower_head(head.clone(), head_lambda_scope)?, 1),
         };
         for item in items.into_iter().skip(tail_start) {
             match item {
+                NodeOrToken::Node(child)
+                    if stop_at_with && child.kind() == SyntaxKind::WithBlock =>
+                {
+                    break;
+                }
                 NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, &child)?,
                 NodeOrToken::Token(token) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
@@ -3272,6 +3312,116 @@ impl<'a> ExprLowerer<'a> {
             }
         }
         Ok(acc)
+    }
+
+    fn lower_poly_variant_expr_chain(
+        &mut self,
+        name: String,
+        items: &[NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>],
+        mut tail_start: usize,
+        stop_at_with: bool,
+    ) -> Result<Computation, LoweringError> {
+        let mut payloads = Vec::new();
+        while let Some(NodeOrToken::Node(node)) = items.get(tail_start) {
+            if !matches!(node.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC) {
+                break;
+            }
+            let args = node
+                .children()
+                .filter(|child| child.kind() == SyntaxKind::Expr)
+                .collect::<Vec<_>>();
+            if args.is_empty() {
+                payloads.push(self.unit_expr());
+            } else {
+                for arg in args {
+                    payloads.push(self.lower_expr(&arg)?);
+                }
+            }
+            tail_start += 1;
+        }
+
+        let result_value = self.fresh_type_var();
+        let expansive = payloads.iter().any(|payload| payload.is_expansive());
+        let result_effect = if expansive {
+            self.fresh_type_var()
+        } else {
+            self.fresh_exact_pure_effect()
+        };
+        let mut pos_payloads = Vec::with_capacity(payloads.len());
+        let mut neg_payloads = Vec::with_capacity(payloads.len());
+        let mut expr_payloads = Vec::with_capacity(payloads.len());
+        for payload in payloads {
+            self.subtype_var_to_var(payload.effect, result_effect);
+            pos_payloads.push(self.alloc_pos(Pos::Var(payload.value)));
+            neg_payloads.push(self.alloc_neg(Neg::Var(payload.value)));
+            expr_payloads.push(payload.expr);
+        }
+        self.constrain_lower(
+            result_value,
+            Pos::PolyVariant(vec![(name.clone(), pos_payloads)]),
+        );
+        self.constrain_upper(
+            result_value,
+            Neg::PolyVariant(vec![(name.clone(), neg_payloads)]),
+        );
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::PolyVariant(name, expr_payloads));
+        let mut acc = Computation::new(
+            expr,
+            result_value,
+            result_effect,
+            if expansive {
+                Evaluation::Computation
+            } else {
+                Evaluation::Value
+            },
+        );
+
+        for item in items.iter().skip(tail_start) {
+            match item {
+                NodeOrToken::Node(child)
+                    if stop_at_with && child.kind() == SyntaxKind::WithBlock =>
+                {
+                    break;
+                }
+                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, child)?,
+                NodeOrToken::Token(token) => {
+                    return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
+                }
+            }
+        }
+        Ok(acc)
+    }
+
+    fn lower_with_expr_chain(
+        &mut self,
+        node: &Cst,
+        with_block: &Cst,
+        head_lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let items = with_block_lowering_items(with_block);
+        let public_names = with_public_binding_names(&items);
+        let before_locals = self.locals.len();
+        let prefix = self.lower_block_items(items.as_slice())?;
+        let public_locals = self.locals[before_locals..]
+            .iter()
+            .filter(|local| public_names.iter().any(|name| name == &local.name))
+            .cloned()
+            .collect::<Vec<_>>();
+        self.locals.truncate(before_locals);
+        self.locals.extend(public_locals);
+        let tail = self.lower_expr_chain_prefix(node, head_lambda_scope, true);
+        self.locals.truncate(before_locals);
+        let tail = tail?;
+        Ok(self.prepend_block(
+            LoweredLocalStmt {
+                stmt: Stmt::Expr(prefix.expr),
+                effect: prefix.effect,
+            },
+            tail,
+        ))
     }
 
     fn lower_head(
@@ -3799,6 +3949,11 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_local_binding_stmt(&mut self, node: &Cst) -> Result<LoweredLocalStmt, LoweringError> {
+        let arg_patterns = binding_arg_patterns(node);
+        if arg_patterns.is_empty() && !crate::binding_has_single_head_pattern(node) {
+            return self.lower_local_pattern_binding_stmt(node);
+        }
+
         let name = crate::binding_name(node).ok_or(LoweringError::MissingLocalBindingName)?;
         let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
         let boundary = self.local_generalize_boundary;
@@ -3813,6 +3968,34 @@ impl<'a> ExprLowerer<'a> {
             self.set_local_let_body(def, body.expr);
             self.generalize_local_binding(def, value, boundary);
 
+            Ok(LoweredLocalStmt {
+                stmt: Stmt::Let(Vis::My, pat, body.expr),
+                effect: body.effect,
+            })
+        })();
+        self.session.infer.restore_level(previous_level);
+        result
+    }
+
+    fn lower_local_pattern_binding_stmt(
+        &mut self,
+        node: &Cst,
+    ) -> Result<LoweredLocalStmt, LoweringError> {
+        let pattern = crate::binding_pattern(node).ok_or(LoweringError::MissingLocalBindingName)?;
+        let body_node = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
+        let previous_level = self.session.infer.enter_child_level();
+        let result = (|| {
+            let body = self.lower_expr(&body_node)?;
+            let value = self.fresh_type_var();
+            let pat = self.lower_lambda_pattern(
+                &pattern,
+                value,
+                None,
+                local_binding_call_return_effect(node),
+            )?;
+            self.subtype_var_to_var(body.value, value);
+            self.subtype_var_to_var(value, body.value);
+            self.connect_local_binding_annotation(node, value, body)?;
             Ok(LoweredLocalStmt {
                 stmt: Stmt::Let(Vis::My, pat, body.expr),
                 effect: body.effect,
@@ -4127,7 +4310,10 @@ impl<'a> ExprLowerer<'a> {
         let text = plain_string_lit_text(node)?;
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
-        self.constrain_lower(value, primitive_type("str"));
+        self.constrain_lower(
+            value,
+            Pos::Con(crate::std_paths::text_str_type(), Vec::new()),
+        );
         let expr = self.session.poly.add_expr(Expr::Lit(Lit::Str(text)));
         Ok(Computation::value(expr, value, effect))
     }
@@ -4194,6 +4380,19 @@ impl<'a> ExprLowerer<'a> {
             });
         };
         Ok(self.lower_resolved_value_ref(path_label(path), target))
+    }
+
+    fn lower_std_value_ref(&mut self, path: Vec<String>) -> Result<Computation, LoweringError> {
+        let path = path.into_iter().map(Name).collect::<Vec<_>>();
+        let Some(target) =
+            self.modules
+                .value_path_at(self.modules.root_id(), &path, module_path_lookup_site())
+        else {
+            return Err(LoweringError::UnresolvedName {
+                name: Name(path_label(&path)),
+            });
+        };
+        Ok(self.lower_resolved_value_ref(path_label(&path), target))
     }
 
     fn lower_builtin_op(&mut self, builtin: BuiltinOp) -> Result<Computation, LoweringError> {
@@ -4594,8 +4793,42 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Assign => self.lower_ref_assignment(acc, node),
             SyntaxKind::InfixNode => self.lower_infix_op_use(acc, node),
             SyntaxKind::SuffixNode => self.lower_suffix_op_use(acc, node),
+            SyntaxKind::TypeAnn => self.lower_type_annotation_tail(acc, node),
             kind => Err(LoweringError::UnsupportedSyntax { kind }),
         }
+    }
+
+    fn lower_type_annotation_tail(
+        &mut self,
+        acc: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let type_expr = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::TypeExpr)
+            .ok_or(LoweringError::AnnotationBuild {
+                error: AnnBuildError::ExpectedTypeExpr { kind: node.kind() },
+            })?;
+        let mut builder = ann_type_builder_with_aliases(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+            &self.type_var_aliases,
+        );
+        let ann = builder
+            .build_type_expr(&type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
+            .connect_computation(
+                AnnComputationTarget {
+                    value: acc.value,
+                    effect: acc.effect,
+                },
+                &ann,
+            )
+            .map(|_| acc)
+            .map_err(|error| LoweringError::AnnotationConstraint { error })
     }
 
     fn apply_arguments(
@@ -4723,12 +4956,15 @@ impl<'a> ExprLowerer<'a> {
         let mut items = Vec::new();
         for child in node.children() {
             match child.kind() {
-                SyntaxKind::Expr => items.push(child),
-                // spread（`[..xs, y]`）は後で対応する。
+                SyntaxKind::Expr => items.push(ListLiteralItem::Single(child)),
                 SyntaxKind::ExprSpread => {
-                    return Err(LoweringError::UnsupportedSyntax {
-                        kind: SyntaxKind::ExprSpread,
-                    });
+                    let expr = child
+                        .children()
+                        .find(|child| child.kind() == SyntaxKind::Expr)
+                        .ok_or(LoweringError::UnsupportedSyntax {
+                            kind: SyntaxKind::ExprSpread,
+                        })?;
+                    items.push(ListLiteralItem::Spread(expr));
                 }
                 _ => {}
             }
@@ -4742,7 +4978,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         item: TypeVar,
         list_path: &[String],
-        items: &[Cst],
+        items: &[ListLiteralItem],
     ) -> Result<Computation, LoweringError> {
         if items.is_empty() {
             let empty = self.list_empty_callee(item, list_path);
@@ -4750,9 +4986,7 @@ impl<'a> ExprLowerer<'a> {
             return Ok(self.make_app(empty, unit));
         }
         if let [single] = items {
-            let value = self.lower_expr(single)?;
-            let singleton = self.list_singleton_callee(item, list_path);
-            return Ok(self.make_app(singleton, value));
+            return self.lower_list_literal_part(item, list_path, single);
         }
         let mid = items.len() / 2;
         let left = self.build_list_literal(item, list_path, &items[..mid])?;
@@ -4760,6 +4994,26 @@ impl<'a> ExprLowerer<'a> {
         let merge = self.list_merge_callee(item, list_path);
         let applied = self.make_app(merge, left);
         Ok(self.make_app(applied, right))
+    }
+
+    fn lower_list_literal_part(
+        &mut self,
+        item: TypeVar,
+        list_path: &[String],
+        part: &ListLiteralItem,
+    ) -> Result<Computation, LoweringError> {
+        match part {
+            ListLiteralItem::Single(node) => {
+                let value = self.lower_expr(node)?;
+                let singleton = self.list_singleton_callee(item, list_path);
+                Ok(self.make_app(singleton, value))
+            }
+            ListLiteralItem::Spread(node) => {
+                let value = self.lower_expr(node)?;
+                self.constrain_list_value(value.value, item, list_path);
+                Ok(value)
+            }
+        }
     }
 
     fn list_empty_callee(&mut self, item: TypeVar, list_path: &[String]) -> Computation {
@@ -4887,6 +5141,13 @@ impl<'a> ExprLowerer<'a> {
     fn list_con_neg(&mut self, item: TypeVar, list_path: &[String]) -> Neg {
         let arg = self.invariant_var_arg(item);
         Neg::Con(list_path.to_vec(), vec![arg])
+    }
+
+    fn constrain_list_value(&mut self, value: TypeVar, item: TypeVar, list_path: &[String]) {
+        let lower = self.list_con_pos(item, list_path);
+        self.constrain_lower(value, lower);
+        let upper = self.list_con_neg(item, list_path);
+        self.constrain_upper(value, upper);
     }
 
     fn list_primitive_callee(&mut self, op: PrimitiveOp, lower: Pos, upper: Neg) -> Computation {
@@ -5283,6 +5544,12 @@ struct LoweredLambdaParam {
     pat: PatId,
     value: TypeVar,
     annotation: LambdaPatternAnnotation,
+}
+
+#[derive(Clone)]
+enum ListLiteralItem {
+    Single(Cst),
+    Spread(Cst),
 }
 
 fn collect_pos_id_vars(types: &TypeArena, id: PosId, out: &mut FxHashSet<TypeVar>) {
@@ -5772,6 +6039,35 @@ fn block_lowering_items(node: &Cst) -> Vec<Cst> {
         .collect()
 }
 
+fn with_block_lowering_items(node: &Cst) -> Vec<Cst> {
+    let mut out = Vec::new();
+    collect_with_block_lowering_items(node, &mut out);
+    out
+}
+
+fn collect_with_block_lowering_items(node: &Cst, out: &mut Vec<Cst>) {
+    for child in node.children() {
+        match child.kind() {
+            SyntaxKind::IndentBlock | SyntaxKind::BraceGroup | SyntaxKind::WithBlock => {
+                collect_with_block_lowering_items(&child, out);
+            }
+            SyntaxKind::Binding | SyntaxKind::Expr => out.push(child),
+            _ => {}
+        }
+    }
+}
+
+fn with_public_binding_names(items: &[Cst]) -> Vec<Name> {
+    let mut out = Vec::new();
+    for item in items {
+        if item.kind() != SyntaxKind::Binding || crate::binding_vis(item) == Vis::My {
+            continue;
+        }
+        out.extend(crate::binding_value_names(item));
+    }
+    out
+}
+
 fn index_expr(node: &Cst) -> Option<Cst> {
     node.children()
         .find(|child| child.kind() == SyntaxKind::Expr)
@@ -5916,6 +6212,13 @@ fn primitive_type(name: &str) -> Pos {
 
 fn primitive_neg_type(name: &str) -> Neg {
     Neg::Con(vec![name.into()], Vec::new())
+}
+
+fn expr_symbol_head_name(
+    head: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>,
+) -> Option<String> {
+    let token = head.as_token()?;
+    (token.kind() == SyntaxKind::Symbol).then(|| token.text().trim_start_matches(':').to_string())
 }
 
 fn binding_body_expr(binding: &Cst) -> Option<Cst> {
@@ -7072,6 +7375,12 @@ mod tests {
         SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
     }
 
+    fn parse_with_junction_std(src: &str) -> Cst {
+        parse(&format!(
+            "mod std:\n  pub mod control:\n    pub mod junction:\n      pub mod junction:\n        pub junction x = x\n{src}"
+        ))
+    }
+
     fn binding_expr(root: &Cst, name: &str) -> Cst {
         binding_node(root, name)
             .and_then(|binding| binding_body_expr(&binding))
@@ -7103,6 +7412,27 @@ mod tests {
     ) -> (DefId, ModuleOrder) {
         let decl = modules.value_decls(module, &Name(name.into()))[0].clone();
         (decl.def, decl.order)
+    }
+
+    fn std_junction_def(modules: &ModuleTable) -> DefId {
+        let path = crate::std_paths::control_junction_value()
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .expect("std junction value")
+    }
+
+    fn assert_junction_app(session: &AnalysisSession, expr: ExprId, junction: DefId) -> ExprId {
+        match session.poly.expr(expr) {
+            Expr::App(callee, arg) => {
+                let reference = expr_ref(session, *callee);
+                assert_eq!(session.poly.ref_target(reference), Some(junction));
+                *arg
+            }
+            _ => panic!("expected junction application"),
+        }
     }
 
     fn binding_body_id(output: &BodyLowering, def: DefId) -> ExprId {
@@ -8118,6 +8448,157 @@ mod tests {
             session.poly.expr(computation.expr),
             Expr::Lit(Lit::Str(text)) if text == "a\n"
         ));
+        assert_var_has_lower_con_path(&session, computation.value, &["std", "text", "str", "str"]);
+    }
+
+    #[test]
+    fn case_guard_lowers_as_guard_expr_with_pattern_scope() {
+        let root = parse_with_junction_std("my f = case true:\n  n if n -> 1\n  _ -> 0\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let junction = std_junction_def(&lower.modules);
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+        session.drain_work();
+
+        let arms = match session.poly.expr(computation.expr) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected case expr"),
+        };
+        let first = &arms[0];
+        let local = match session.poly.pat(first.pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected guarded pattern local"),
+        };
+        let guard = first.guard.expect("expected case guard");
+        let guard_arg = assert_junction_app(&session, guard, junction);
+        let guard_ref = expr_ref(&session, guard_arg);
+
+        assert_eq!(session.poly.ref_target(guard_ref), Some(local));
+    }
+
+    #[test]
+    fn catch_guard_lowers_as_guard_expr() {
+        let root = parse_with_junction_std(
+            "my run = 1\nmy f = catch run:\n  eff x, k if true -> k x\n  value -> value\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let junction = std_junction_def(&lower.modules);
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let catch = binding_body_id(&output, f);
+        let arms = match output.session.poly.expr(catch) {
+            Expr::Catch(_, arms) => arms,
+            _ => panic!("expected catch expr"),
+        };
+        let first = &arms[0];
+        let guard = first.guard.expect("expected catch guard");
+        let guard_arg = assert_junction_app(&output.session, guard, junction);
+
+        assert!(first.continuation.is_some());
+        assert!(matches!(
+            output.session.poly.expr(guard_arg),
+            Expr::Lit(Lit::Bool(true))
+        ));
+    }
+
+    #[test]
+    fn string_or_pattern_lowers_to_or_literal_pattern() {
+        let root = parse("my f = case \"a\":\n  \"a\" | \"b\" -> 1\n  _ -> 0\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let arms = match session.poly.expr(computation.expr) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected case expr"),
+        };
+        let (lhs, rhs) = match session.poly.pat(arms[0].pat) {
+            Pat::Or(lhs, rhs) => (*lhs, *rhs),
+            _ => panic!("expected or pattern"),
+        };
+
+        assert!(matches!(
+            session.poly.pat(lhs),
+            Pat::Lit(Lit::Str(text)) if text == "a"
+        ));
+        assert!(matches!(
+            session.poly.pat(rhs),
+            Pat::Lit(Lit::Str(text)) if text == "b"
+        ));
+    }
+
+    #[test]
+    fn record_pattern_with_default_binds_field_local() {
+        let root = parse("my f({width = 1}) = width\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let lambda = binding_body_id(&output, f);
+        let (pat, body) = match output.session.poly.expr(lambda) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected function binding to lower to lambda"),
+        };
+        let field_pat = match output.session.poly.pat(pat) {
+            Pat::Record { fields, .. } => fields[0].1,
+            _ => panic!("expected record pattern"),
+        };
+        let field = match output.session.poly.pat(field_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected field local"),
+        };
+        let body_ref = expr_ref(&output.session, body);
+
+        assert_eq!(output.session.poly.ref_target(body_ref), Some(field));
+    }
+
+    #[test]
+    fn poly_variant_expr_and_pattern_lower_to_poly_variant_ir() {
+        let root =
+            parse("my f option = case option:\n  :ok msg -> :rendered msg\n  :pending -> :empty\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let lambda = binding_body_id(&output, f);
+        let case = match output.session.poly.expr(lambda) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected function binding to lower to lambda"),
+        };
+        let arms = match output.session.poly.expr(case) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected case expr"),
+        };
+        assert!(matches!(
+            output.session.poly.pat(arms[0].pat),
+            Pat::PolyVariant(name, payloads) if name == "ok" && payloads.len() == 1
+        ));
+        assert!(matches!(
+            output.session.poly.expr(arms[0].body),
+            Expr::PolyVariant(name, payloads) if name == "rendered" && payloads.len() == 1
+        ));
     }
 
     #[test]
@@ -8171,10 +8652,11 @@ mod tests {
     }
 
     #[test]
-    fn if_expr_lowers_to_bool_case() {
-        let root = parse("my f = if true: 1 else: 2\n");
+    fn if_condition_is_wrapped_with_junction_before_bool_case() {
+        let root = parse_with_junction_std("my f = if true: 1 else: 2\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
+        let junction = std_junction_def(&lower.modules);
         let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
         let expr = binding_expr(&root, "f");
         let mut session = AnalysisSession::new(lower.arena);
@@ -8182,11 +8664,13 @@ mod tests {
         let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
             .lower_expr(&expr)
             .unwrap();
+        session.drain_work();
 
         let arms = match session.poly.expr(computation.expr) {
             Expr::Case(scrutinee, arms) => {
+                let condition = assert_junction_app(&session, *scrutinee, junction);
                 assert!(matches!(
-                    session.poly.expr(*scrutinee),
+                    session.poly.expr(condition),
                     Expr::Lit(Lit::Bool(true))
                 ));
                 arms
@@ -8195,20 +8679,21 @@ mod tests {
         };
         assert_eq!(arms.len(), 2);
         assert!(matches!(
-            session.poly.pat(arms[0].0),
+            session.poly.pat(arms[0].pat),
             Pat::Lit(Lit::Bool(true))
         ));
         assert!(matches!(
-            session.poly.pat(arms[1].0),
+            session.poly.pat(arms[1].pat),
             Pat::Lit(Lit::Bool(false))
         ));
     }
 
     #[test]
     fn elsif_lowers_to_nested_false_case() {
-        let root = parse("my f = if true: 1 elsif false: 2 else: 3\n");
+        let root = parse_with_junction_std("my f = if true: 1 elsif false: 2 else: 3\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
+        let junction = std_junction_def(&lower.modules);
         let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
         let expr = binding_expr(&root, "f");
         let mut session = AnalysisSession::new(lower.arena);
@@ -8216,16 +8701,25 @@ mod tests {
         let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
             .lower_expr(&expr)
             .unwrap();
+        session.drain_work();
 
         let outer_arms = match session.poly.expr(computation.expr) {
-            Expr::Case(_, arms) => arms,
+            Expr::Case(scrutinee, arms) => {
+                let condition = assert_junction_app(&session, *scrutinee, junction);
+                assert!(matches!(
+                    session.poly.expr(condition),
+                    Expr::Lit(Lit::Bool(true))
+                ));
+                arms
+            }
             _ => panic!("expected outer case"),
         };
-        let nested = outer_arms[1].1;
+        let nested = outer_arms[1].body;
         match session.poly.expr(nested) {
             Expr::Case(scrutinee, arms) => {
+                let condition = assert_junction_app(&session, *scrutinee, junction);
                 assert!(matches!(
-                    session.poly.expr(*scrutinee),
+                    session.poly.expr(condition),
                     Expr::Lit(Lit::Bool(false))
                 ));
                 assert_eq!(arms.len(), 2);
@@ -8236,9 +8730,10 @@ mod tests {
 
     #[test]
     fn if_without_else_discards_then_value_and_returns_unit() {
-        let root = parse("my f = if true: 1\n");
+        let root = parse_with_junction_std("my f = if true: 1\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
+        let junction = std_junction_def(&lower.modules);
         let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
         let expr = binding_expr(&root, "f");
         let mut session = AnalysisSession::new(lower.arena);
@@ -8246,13 +8741,24 @@ mod tests {
         let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
             .lower_expr(&expr)
             .unwrap();
+        session.drain_work();
 
         let arms = match session.poly.expr(computation.expr) {
-            Expr::Case(_, arms) => arms,
+            Expr::Case(scrutinee, arms) => {
+                let condition = assert_junction_app(&session, *scrutinee, junction);
+                assert!(matches!(
+                    session.poly.expr(condition),
+                    Expr::Lit(Lit::Bool(true))
+                ));
+                arms
+            }
             _ => panic!("expected if expr to lower to case"),
         };
-        assert!(matches!(session.poly.expr(arms[0].1), Expr::Block(_, _)));
-        assert!(matches!(session.poly.expr(arms[1].1), Expr::Lit(Lit::Unit)));
+        assert!(matches!(session.poly.expr(arms[0].body), Expr::Block(_, _)));
+        assert!(matches!(
+            session.poly.expr(arms[1].body),
+            Expr::Lit(Lit::Unit)
+        ));
     }
 
     #[test]
@@ -9453,14 +9959,14 @@ mod tests {
             Expr::Case(scrutinee, arms) => (*scrutinee, arms),
             _ => panic!("expected case expr"),
         };
-        let [(pat, body)] = arms.as_slice() else {
+        let [arm] = arms.as_slice() else {
             panic!("expected one case arm");
         };
-        let param = match session.poly.pat(*pat) {
+        let param = match session.poly.pat(arm.pat) {
             Pat::Var(def) => *def,
             _ => panic!("expected arm pattern local"),
         };
-        let body_ref = expr_ref(&session, *body);
+        let body_ref = expr_ref(&session, arm.body);
 
         assert_eq!(session.poly.ref_target(body_ref), Some(param));
         assert!(computation.is_expansive());
@@ -9483,10 +9989,10 @@ mod tests {
             Expr::Case(scrutinee, arms) => (*scrutinee, arms),
             _ => panic!("expected case expr"),
         };
-        let [(pat, body)] = arms.as_slice() else {
+        let [arm] = arms.as_slice() else {
             panic!("expected one case arm");
         };
-        let (reference, payloads) = match output.session.poly.pat(*pat) {
+        let (reference, payloads) = match output.session.poly.pat(arm.pat) {
             Pat::Con(reference, payloads) => (*reference, payloads),
             _ => panic!("expected constructor pattern"),
         };
@@ -9497,7 +10003,7 @@ mod tests {
             Pat::Var(def) => *def,
             _ => panic!("expected constructor payload local"),
         };
-        let body_ref = expr_ref(&output.session, *body);
+        let body_ref = expr_ref(&output.session, arm.body);
 
         assert_eq!(output.session.poly.ref_target(reference), Some(constructor));
         assert_eq!(output.session.poly.ref_target(body_ref), Some(payload));
@@ -9520,15 +10026,15 @@ mod tests {
             Expr::Catch(body, arms) => (*body, arms),
             _ => panic!("expected catch expr"),
         };
-        let [(pat, continuation, body)] = arms.as_slice() else {
+        let [arm] = arms.as_slice() else {
             panic!("expected one catch arm");
         };
-        assert!(continuation.is_none());
-        let value = match session.poly.pat(*pat) {
+        assert!(arm.continuation.is_none());
+        let value = match session.poly.pat(arm.pat) {
             Pat::Var(def) => *def,
             _ => panic!("expected value arm pattern local"),
         };
-        let body_ref = expr_ref(&session, *body);
+        let body_ref = expr_ref(&session, arm.body);
 
         assert_eq!(session.poly.ref_target(body_ref), Some(value));
         assert!(computation.is_expansive());
@@ -9549,20 +10055,23 @@ mod tests {
             Expr::Catch(body, arms) => (*body, arms),
             _ => panic!("expected catch expr"),
         };
-        let [(payload, Some(continuation), effect_body), value_arm] = arms.as_slice() else {
+        let [effect_arm, value_arm] = arms.as_slice() else {
             panic!("expected effect arm followed by value arm");
         };
-        assert!(value_arm.1.is_none());
+        let continuation = effect_arm
+            .continuation
+            .expect("expected effect arm continuation");
+        assert!(value_arm.continuation.is_none());
 
-        let payload = match output.session.poly.pat(*payload) {
+        let payload = match output.session.poly.pat(effect_arm.pat) {
             Pat::Var(def) => *def,
             _ => panic!("expected effect payload local"),
         };
-        let continuation = match output.session.poly.pat(*continuation) {
+        let continuation = match output.session.poly.pat(continuation) {
             Pat::Var(def) => *def,
             _ => panic!("expected continuation local"),
         };
-        let (callee, arg) = match output.session.poly.expr(*effect_body) {
+        let (callee, arg) = match output.session.poly.expr(effect_arm.body) {
             Expr::App(callee, arg) => (*callee, *arg),
             _ => panic!("expected continuation application"),
         };
@@ -9701,11 +10210,13 @@ mod tests {
             }
             Expr::Case(scrutinee, arms) => {
                 children.push(*scrutinee);
-                children.extend(arms.iter().map(|(_, body)| *body));
+                children.extend(arms.iter().filter_map(|arm| arm.guard));
+                children.extend(arms.iter().map(|arm| arm.body));
             }
             Expr::Catch(scrutinee, arms) => {
                 children.push(*scrutinee);
-                children.extend(arms.iter().map(|(_, _, body)| *body));
+                children.extend(arms.iter().filter_map(|arm| arm.guard));
+                children.extend(arms.iter().map(|arm| arm.body));
             }
             Expr::Block(statements, tail) => {
                 for statement in statements {
@@ -9809,6 +10320,26 @@ mod tests {
             matches!(
                 types.pos(bound.pos),
                 Pos::Con(path, args) if path == &vec![name.to_string()] && args.is_empty()
+            )
+        }));
+    }
+
+    fn assert_var_has_lower_con_path(session: &AnalysisSession, var: TypeVar, path: &[&str]) {
+        let expected = path
+            .iter()
+            .map(|segment| (*segment).to_string())
+            .collect::<Vec<_>>();
+        let types = session.infer.constraints().types();
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(var)
+            .expect("variable should receive bounds");
+        assert!(bounds.lowers().iter().any(|bound| {
+            matches!(
+                types.pos(bound.pos),
+                Pos::Con(path, args) if path == &expected && args.is_empty()
             )
         }));
     }

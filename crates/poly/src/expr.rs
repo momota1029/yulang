@@ -238,9 +238,29 @@ pub enum Expr {
     },
     PolyVariant(String, Vec<ExprId>),
     Select(ExprId, SelectId),
-    Case(ExprId, Vec<(PatId, ExprId)>),
-    Catch(ExprId, Vec<(PatId, Option<PatId>, ExprId)>),
+    Case(ExprId, Vec<CaseArm>),
+    Catch(ExprId, Vec<CatchArm>),
     Block(Vec<Stmt>, Option<ExprId>),
+}
+
+/// `case` の arm。
+///
+/// guard は pattern が match した後に、その pattern が束縛した local を見ながら評価される。
+/// body へ潰すと「guard が false なら次の arm を試す」という意味を失うため、IR に分けて残す。
+pub struct CaseArm {
+    pub pat: PatId,
+    pub guard: Option<ExprId>,
+    pub body: ExprId,
+}
+
+/// `catch` の arm。
+///
+/// effect arm は `continuation` を持ち、value arm は持たない。guard はどちらにも付けられる。
+pub struct CatchArm {
+    pub pat: PatId,
+    pub continuation: Option<PatId>,
+    pub guard: Option<ExprId>,
+    pub body: ExprId,
 }
 
 /// compiler builtin operation の値。

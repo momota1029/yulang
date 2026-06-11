@@ -932,9 +932,12 @@ impl<'a> AnnTypeBuilder<'a> {
                         items.push(AnnEffectAtom::Type(ty));
                     }
                 }
-                NodeOrToken::Node(node) if node.kind() == SyntaxKind::Separator => {
+                NodeOrToken::Node(node)
+                    if node.kind() == SyntaxKind::Separator && separator_has_semicolon(&node) =>
+                {
                     seen_tail_separator = true;
                 }
+                NodeOrToken::Node(node) if node.kind() == SyntaxKind::Separator => {}
                 NodeOrToken::Node(node) => {
                     return Err(AnnBuildError::UnsupportedSyntax { kind: node.kind() });
                 }
@@ -1089,6 +1092,12 @@ fn is_wildcard_type_expr(node: &Cst) -> bool {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
         .any(|token| token.kind() == SyntaxKind::Ident && token.text() == "_")
+}
+
+fn separator_has_semicolon(node: &Cst) -> bool {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .any(|token| token.kind() == SyntaxKind::Semicolon)
 }
 
 fn module_path_site() -> ModuleOrder {

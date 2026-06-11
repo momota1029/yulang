@@ -8,8 +8,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::fmt::Write as _;
 
 use crate::expr::{
-    Arena, Def, DefId, Expr, ExprId, Lit, Pat, PatId, RecordSpread, RefId, SelectId,
-    SelectResolution, Stmt, Vis,
+    Arena, CaseArm, CatchArm, Def, DefId, Expr, ExprId, Lit, Pat, PatId, RecordSpread, RefId,
+    SelectId, SelectResolution, Stmt, Vis,
 };
 
 mod type_format;
@@ -311,10 +311,16 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn case_expr(&self, scrutinee: ExprId, arms: &[(PatId, ExprId)]) -> String {
+    fn case_expr(&self, scrutinee: ExprId, arms: &[CaseArm]) -> String {
         let arms = arms
             .iter()
-            .map(|(pat, body)| format!("{} -> {}", self.pat(*pat), self.expr(*body)))
+            .map(|arm| {
+                let guard = arm
+                    .guard
+                    .map(|guard| format!(" if {}", self.expr(guard)))
+                    .unwrap_or_default();
+                format!("{}{} -> {}", self.pat(arm.pat), guard, self.expr(arm.body))
+            })
             .collect::<Vec<_>>()
             .join("; ");
         if arms.is_empty() {
@@ -324,14 +330,25 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn catch_expr(&self, body: ExprId, arms: &[(PatId, Option<PatId>, ExprId)]) -> String {
+    fn catch_expr(&self, body: ExprId, arms: &[CatchArm]) -> String {
         let arms = arms
             .iter()
-            .map(|(pat, guard, handler)| {
-                let guard = guard
-                    .map(|guard| format!(" if {}", self.pat(guard)))
+            .map(|arm| {
+                let continuation = arm
+                    .continuation
+                    .map(|continuation| format!(", {}", self.pat(continuation)))
                     .unwrap_or_default();
-                format!("{}{} -> {}", self.pat(*pat), guard, self.expr(*handler))
+                let guard = arm
+                    .guard
+                    .map(|guard| format!(" if {}", self.expr(guard)))
+                    .unwrap_or_default();
+                format!(
+                    "{}{}{} -> {}",
+                    self.pat(arm.pat),
+                    continuation,
+                    guard,
+                    self.expr(arm.body)
+                )
             })
             .collect::<Vec<_>>()
             .join("; ");

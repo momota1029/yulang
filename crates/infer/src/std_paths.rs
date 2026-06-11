@@ -8,6 +8,14 @@ pub(crate) fn control_var_ref_type() -> Vec<String> {
     path(&["std", "control", "var", "ref"])
 }
 
+pub(crate) fn text_str_type() -> Vec<String> {
+    path(&["std", "text", "str", "str"])
+}
+
+pub(crate) fn control_junction_value() -> Vec<String> {
+    path(&["std", "control", "junction", "junction", "junction"])
+}
+
 pub(crate) fn control_var_var_act() -> Vec<String> {
     path(&["std", "control", "var", "var"])
 }
