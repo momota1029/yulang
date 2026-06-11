@@ -439,6 +439,14 @@ mod tests {
         );
     }
 
+    fn assert_dump_contains(output: &DumpPolyOutput, expected: &str) {
+        assert!(
+            output.text.contains(expected),
+            "missing {expected:?} in:\n{}",
+            output.text
+        );
+    }
+
     #[test]
     fn dump_poly_reads_mod_files() {
         let root = temp_root("dump-poly-reads-mod");
@@ -486,6 +494,41 @@ mod tests {
         assert_eq!(output.file_count, 1);
         assert_dump_has_line_starting_with(&output, "  d2:\"opt.some\": 'a -> opt 'a = ");
         assert_dump_has_line_starting_with(&output, "my d3:wrap: 'a -> opt 'a = ");
+        assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
+    fn dump_poly_without_std_lowers_value_catch() {
+        let root = temp_root("dump-poly-value-catch");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my handle x = catch x:\n    v -> v\n").unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_dump_has_line_starting_with(&output, "my d0:handle: 'a -> 'a = ");
+        assert_dump_contains(&output, "catch ");
+        assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
+    fn dump_poly_without_std_lowers_local_effect_handler() {
+        let root = temp_root("dump-poly-local-effect-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act signal:\n    pub ping: () -> int\n\nmy handle x = catch x:\n    signal::ping(), k -> k 1\n    v -> v\n",
+        )
+        .unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_dump_has_line_starting_with(&output, "my d2:handle: 'a -> 'a = ");
+        assert_dump_contains(&output, "catch ");
+        assert_dump_contains(&output, "\"signal.ping\"");
         assert!(!output.text.contains("std::"));
     }
 
