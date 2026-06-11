@@ -39,7 +39,7 @@ use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
 };
 use crate::scc::SccInput;
-use crate::typing::Typing;
+use crate::typing::{EffectViewId, Typing};
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, ActOperationDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl,
@@ -300,10 +300,11 @@ impl BodyLowerer {
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
-        .lower_binding_body_with_args(
+        .lower_binding_body_with_args_to_self(
             arg_patterns.as_slice(),
             &expr,
             result_type_expr.as_ref(),
+            root,
         );
         match lowered {
             Ok(computation) => {
@@ -321,7 +322,9 @@ impl BodyLowerer {
                     )
                 };
                 match connected {
-                    Ok(()) => self.finish_binding(decl.def, name, root, computation),
+                    Ok(()) => {
+                        self.finish_binding(decl.def, name, root, computation, !has_header_args)
+                    }
                     Err(error) => self.errors.push(BodyLoweringError::Expr {
                         def: decl.def,
                         name,
@@ -411,6 +414,7 @@ impl BodyLowerer {
                         Name("#destructure".into()),
                         hidden_root,
                         computation,
+                        true,
                     ),
                     Err(error) => self.errors.push(BodyLoweringError::Expr {
                         def: hidden_def,
@@ -451,7 +455,7 @@ impl BodyLowerer {
             .with_local_method_scope(self.local_method_scope)
             .lower_destructured_binding_component(&pattern, hidden_def, name.clone());
             match lowered {
-                Ok(computation) => self.finish_binding(decl.def, name, root, computation),
+                Ok(computation) => self.finish_binding(decl.def, name, root, computation, true),
                 Err(error) => self.errors.push(BodyLoweringError::Expr {
                     def: decl.def,
                     name,
@@ -504,7 +508,7 @@ impl BodyLowerer {
             }
         });
         match lowered {
-            Ok(computation) => self.finish_binding(decl.def, name, root, computation),
+            Ok(computation) => self.finish_binding(decl.def, name, root, computation, true),
             Err(error) => self.errors.push(BodyLoweringError::Expr {
                 def: decl.def,
                 name,
@@ -1378,7 +1382,7 @@ impl BodyLowerer {
         );
         match lowered {
             Ok(computation) => {
-                self.finish_binding(method.def, method.name.clone(), root, computation)
+                self.finish_binding(method.def, method.name.clone(), root, computation, true)
             }
             Err(error) => self.errors.push(BodyLoweringError::Expr {
                 def: method.def,
@@ -1560,7 +1564,7 @@ impl BodyLowerer {
         );
         match lowered {
             Ok(computation) => {
-                self.finish_binding(method.def, method.name.clone(), root, computation);
+                self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
             Err(error) => self.errors.push(BodyLoweringError::Expr {
                 def: method.def,
@@ -1613,7 +1617,7 @@ impl BodyLowerer {
         );
         match lowered {
             Ok(computation) => {
-                self.finish_binding(method.def, method.name.clone(), root, computation);
+                self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
             Err(error) => self.errors.push(BodyLoweringError::Expr {
                 def: method.def,
@@ -1673,7 +1677,7 @@ impl BodyLowerer {
         );
         match lowered {
             Ok(computation) => {
-                self.finish_binding(method.def, method.name.clone(), root, computation);
+                self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
             Err(error) => self.errors.push(BodyLoweringError::Expr {
                 def: method.def,
@@ -1720,6 +1724,7 @@ impl BodyLowerer {
         name: Name,
         root: TypeVar,
         computation: Computation,
+        connect_body: bool,
     ) {
         let Some(current) = self.session.poly.defs.get_mut(def) else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
@@ -1731,7 +1736,9 @@ impl BodyLowerer {
         };
 
         *body = Some(computation.expr);
-        self.constrain_def_body(root, computation.value);
+        if connect_body {
+            self.constrain_def_body(root, computation.value);
+        }
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
     }
@@ -2508,6 +2515,7 @@ pub struct ExprLowerer<'a> {
     synthetic_var_acts: Vec<SyntheticVarActUse>,
     synthetic_var_act_cursor: usize,
     locals: Vec<LocalBinding>,
+    effect_views: Vec<LocalEffect>,
     function_frames: Vec<FunctionPredicateFrame>,
     local_generalize_boundary: TypeLevel,
 }
@@ -2540,6 +2548,7 @@ impl<'a> ExprLowerer<'a> {
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
             locals: Vec::new(),
+            effect_views: Vec::new(),
             function_frames: Vec::new(),
             local_generalize_boundary,
         }
@@ -2568,6 +2577,7 @@ impl<'a> ExprLowerer<'a> {
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
             locals: Vec::new(),
+            effect_views: Vec::new(),
             function_frames: Vec::new(),
             local_generalize_boundary,
         }
@@ -2606,6 +2616,31 @@ impl<'a> ExprLowerer<'a> {
         body: &Cst,
         result_type_expr: Option<&Cst>,
     ) -> Result<Computation, LoweringError> {
+        self.lower_binding_body_with_args_with_self(arg_patterns, body, result_type_expr, None)
+    }
+
+    pub fn lower_binding_body_with_args_to_self(
+        &mut self,
+        arg_patterns: &[Cst],
+        body: &Cst,
+        result_type_expr: Option<&Cst>,
+        self_value: TypeVar,
+    ) -> Result<Computation, LoweringError> {
+        self.lower_binding_body_with_args_with_self(
+            arg_patterns,
+            body,
+            result_type_expr,
+            Some(self_value),
+        )
+    }
+
+    fn lower_binding_body_with_args_with_self(
+        &mut self,
+        arg_patterns: &[Cst],
+        body: &Cst,
+        result_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
+    ) -> Result<Computation, LoweringError> {
         if arg_patterns.is_empty() {
             return self.lower_binding_body_expr(body);
         }
@@ -2624,6 +2659,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr,
+            self_value,
         )
     }
 
@@ -2837,6 +2873,7 @@ impl<'a> ExprLowerer<'a> {
                 &mut ann_builder,
                 &mut ann_solver_vars,
                 result_type_expr.as_ref(),
+                None,
             );
         };
 
@@ -2912,6 +2949,7 @@ impl<'a> ExprLowerer<'a> {
                 &mut ann_builder,
                 ann_solver_vars,
                 result_type_expr.as_ref(),
+                None,
             )?;
             if let Some(requirement) = requirement {
                 self.connect_impl_method_requirement(
@@ -3512,6 +3550,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             &mut ann_solver_vars,
             None,
+            None,
         )
     }
 
@@ -3587,6 +3626,7 @@ impl<'a> ExprLowerer<'a> {
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         body_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
     ) -> Result<Computation, LoweringError> {
         if lambda_scope == LambdaScope::Defined && !patterns.is_empty() {
             return self.lower_defined_lambda_params(
@@ -3595,6 +3635,7 @@ impl<'a> ExprLowerer<'a> {
                 ann_builder,
                 ann_solver_vars,
                 body_type_expr,
+                self_value,
             );
         }
 
@@ -3622,7 +3663,7 @@ impl<'a> ExprLowerer<'a> {
         let pat = self.lower_lambda_pattern(
             pattern,
             param_value,
-            annotation.local_effect,
+            annotation.local_effect.clone(),
             annotation.call_return_effect,
         )?;
         self.function_frames
@@ -3637,6 +3678,7 @@ impl<'a> ExprLowerer<'a> {
             ann_builder,
             ann_solver_vars,
             body_type_expr,
+            None,
         );
         self.local_generalize_boundary = previous_local_generalize_boundary;
         self.session.infer.restore_level(previous_level);
@@ -3683,6 +3725,7 @@ impl<'a> ExprLowerer<'a> {
                 ann_builder,
                 ann_solver_vars,
                 body_type_expr,
+                None,
             );
         }
 
@@ -3713,6 +3756,7 @@ impl<'a> ExprLowerer<'a> {
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         body_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
     ) -> Result<Computation, LoweringError> {
         let before_locals = self.locals.len();
         let before_frames = self.function_frames.len();
@@ -3736,7 +3780,7 @@ impl<'a> ExprLowerer<'a> {
             let pat = match self.lower_lambda_pattern(
                 pattern,
                 param_value,
-                annotation.local_effect,
+                annotation.local_effect.clone(),
                 annotation.call_return_effect,
             ) {
                 Ok(pat) => pat,
@@ -3755,11 +3799,24 @@ impl<'a> ExprLowerer<'a> {
             });
         }
 
+        let skeleton =
+            self_value.map(|target| self.constrain_defined_lambda_skeleton(&params, target));
+
         let previous_level = self.session.infer.enter_child_level();
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
         let body_result = (|| {
-            let body = self.lower_expr(body)?;
+            let mut body = self.lower_expr(body)?;
+            if let Some(skeleton) = &skeleton {
+                self.subtype_var_to_var(body.effect, skeleton.body_effect);
+                self.subtype_var_to_var(body.value, skeleton.body_value);
+                body = Computation::new(
+                    body.expr,
+                    skeleton.body_value,
+                    skeleton.body_effect,
+                    body.evaluation,
+                );
+            }
             if let Some(type_expr) = body_type_expr {
                 self.connect_type_method_result_annotation(
                     body,
@@ -3823,6 +3880,50 @@ impl<'a> ExprLowerer<'a> {
         Computation::value(expr, value, effect)
     }
 
+    fn constrain_defined_lambda_skeleton(
+        &mut self,
+        params: &[LoweredLambdaParam],
+        target: TypeVar,
+    ) -> DefinedLambdaSkeleton {
+        let body_effect = self.fresh_type_var();
+        let body_value = self.fresh_type_var();
+        let mut current_effect = body_effect;
+        let mut current_value = body_value;
+
+        for param in params.iter().rev() {
+            let value = self.fresh_type_var();
+            let effect = self.fresh_exact_pure_effect();
+            let arg = self.alloc_neg(Neg::Var(param.value));
+            let predicate_subtracts = self.lambda_predicate_subtracts(
+                LambdaScope::Defined,
+                param.annotation.subtracts.clone(),
+                FunctionPredicateFrame::new(LambdaScope::Defined),
+            );
+            let (ret_eff, ret) = self.lambda_output_predicate_vars(
+                current_effect,
+                current_value,
+                &predicate_subtracts,
+            );
+            self.constrain_lower(
+                value,
+                Pos::Fun {
+                    arg,
+                    arg_eff: param.annotation.skeleton_arg_eff,
+                    ret_eff,
+                    ret,
+                },
+            );
+            current_effect = effect;
+            current_value = value;
+        }
+
+        self.subtype_var_to_var(current_value, target);
+        DefinedLambdaSkeleton {
+            body_effect,
+            body_value,
+        }
+    }
+
     fn connect_lambda_pattern_annotation(
         &mut self,
         pattern: &Cst,
@@ -3833,6 +3934,7 @@ impl<'a> ExprLowerer<'a> {
         let Some(type_expr) = pattern_type_expr(pattern) else {
             return Ok(LambdaPatternAnnotation {
                 arg_eff: self.never_neg(),
+                skeleton_arg_eff: self.never_neg(),
                 local_effect: None,
                 subtracts: Vec::new(),
                 call_return_effect: LocalCallReturnEffect::Unannotated,
@@ -3842,21 +3944,35 @@ impl<'a> ExprLowerer<'a> {
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         let (effect, arg_eff) = self.lambda_param_effect_slot(&ann);
-        let local_effect = matches!(ann, AnnType::Effectful { .. }).then_some(effect);
         let vars = std::mem::take(ann_solver_vars);
         let mut lowerer =
             AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
-        let result = lowerer
-            .connect_computation(AnnComputationTarget { value, effect }, &ann)
-            .map(|subtracts| LambdaPatternAnnotation {
-                arg_eff,
-                local_effect,
-                subtracts,
-                call_return_effect: LocalCallReturnEffect::Annotated,
-            })
+        let connection = lowerer
+            .connect_computation_detailed(AnnComputationTarget { value, effect }, &ann)
             .map_err(|error| LoweringError::AnnotationConstraint { error });
         *ann_solver_vars = lowerer.into_vars();
-        result
+        let connection = connection?;
+        let skeleton_arg_eff = match connection.effect_stack {
+            Some(ref effect_stack) => self.alloc_neg(Neg::Var(effect_stack.inner)),
+            None => arg_eff,
+        };
+        let local_effect = connection
+            .effect_stack
+            .clone()
+            .map(|effect_stack| LocalEffect::Stack {
+                inner: effect_stack.inner,
+                weight: effect_stack.weight,
+            })
+            .or_else(|| {
+                matches!(ann, AnnType::Effectful { .. }).then_some(LocalEffect::Var(effect))
+            });
+        Ok(LambdaPatternAnnotation {
+            arg_eff,
+            skeleton_arg_eff,
+            local_effect,
+            subtracts: connection.subtracts,
+            call_return_effect: LocalCallReturnEffect::Annotated,
+        })
     }
 
     fn lambda_param_effect_slot(&mut self, ann: &AnnType) -> (TypeVar, NegId) {
@@ -3972,7 +4088,7 @@ impl<'a> ExprLowerer<'a> {
             let value = self.fresh_type_var();
             let call_return_effect = local_binding_call_return_effect(node);
             let (pat, def) = self.bind_let_local_with_def(name, value, call_return_effect, None);
-            let body = self.lower_local_binding_body(node, &body)?;
+            let body = self.lower_local_binding_body(node, &body, Some(value))?;
             self.subtype_var_to_var(body.value, value);
             self.connect_local_binding_annotation(node, value, body)?;
             self.set_local_let_body(def, body.expr);
@@ -4028,7 +4144,7 @@ impl<'a> ExprLowerer<'a> {
         let local_act = self.next_synthetic_var_act(&reference_name)?;
         let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
         let init_value = self.fresh_type_var();
-        let init = self.lower_local_binding_body(node, &body)?;
+        let init = self.lower_local_binding_body(node, &body, None)?;
         self.subtype_var_to_var(init.value, init_value);
 
         let init_pat = self.bind_let_local(
@@ -4089,6 +4205,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         binding: &Cst,
         body: &Cst,
+        self_value: Option<TypeVar>,
     ) -> Result<Computation, LoweringError> {
         let arg_patterns = binding_arg_patterns(binding);
         if arg_patterns.is_empty() {
@@ -4110,6 +4227,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            self_value,
         )
     }
 
@@ -4760,9 +4878,7 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_local_name(&mut self, name: Name, local: LocalBinding) -> Computation {
-        let effect = local
-            .effect
-            .unwrap_or_else(|| self.fresh_exact_pure_effect());
+        let (effect, effect_view) = self.local_effect_slot(local.effect.clone());
         let value = self.instantiate_local_value(&local);
         let reference = self.session.poly.add_ref();
         self.session.poly.resolve_ref(reference, local.def);
@@ -4778,7 +4894,50 @@ impl<'a> ExprLowerer<'a> {
         );
 
         let expr = self.session.poly.add_expr(Expr::Var(reference));
-        Computation::value(expr, value, effect)
+        let computation = Computation::value(expr, value, effect);
+        match effect_view {
+            Some(view) => computation.with_effect_view(view),
+            None => computation,
+        }
+    }
+
+    fn local_effect_slot(
+        &mut self,
+        effect: Option<LocalEffect>,
+    ) -> (TypeVar, Option<EffectViewId>) {
+        match effect {
+            Some(LocalEffect::Var(effect)) => (effect, None),
+            Some(effect @ LocalEffect::Stack { inner, .. }) => {
+                let view = self.add_effect_view(effect);
+                (inner, Some(view))
+            }
+            None => (self.fresh_exact_pure_effect(), None),
+        }
+    }
+
+    fn add_effect_view(&mut self, effect: LocalEffect) -> EffectViewId {
+        let id = EffectViewId(self.effect_views.len() as u32);
+        self.effect_views.push(effect);
+        id
+    }
+
+    fn effect_view(&self, id: EffectViewId) -> &LocalEffect {
+        &self.effect_views[id.0 as usize]
+    }
+
+    fn subtype_var_to_local_effect(&mut self, source: TypeVar, target: &LocalEffect) {
+        match target {
+            LocalEffect::Var(target) => self.subtype_var_to_var(source, *target),
+            LocalEffect::Stack { inner, weight } => {
+                let lower = self.alloc_pos(Pos::Var(source));
+                let inner = self.alloc_neg(Neg::Var(*inner));
+                let upper = self.alloc_neg(Neg::Stack {
+                    inner,
+                    weight: weight.clone(),
+                });
+                self.session.infer.subtype(lower, upper);
+            }
+        }
     }
 
     fn local_binding(&self, name: &Name) -> Option<LocalBinding> {
@@ -5430,8 +5589,8 @@ impl<'a> ExprLowerer<'a> {
                 continue;
             }
             vars.insert(local.value);
-            if let Some(effect) = local.effect {
-                vars.insert(effect);
+            if let Some(effect) = local.effect.as_ref() {
+                effect.collect_vars(&mut vars);
             }
             let Some(bounds) = machine.bounds().of(local.value) else {
                 continue;
@@ -5466,16 +5625,25 @@ impl<'a> ExprLowerer<'a> {
         body: &Computation,
         subtracts: &[SubtractId],
     ) -> (PosId, PosId) {
+        self.lambda_output_predicate_vars(body.effect, body.value, subtracts)
+    }
+
+    fn lambda_output_predicate_vars(
+        &mut self,
+        body_effect: TypeVar,
+        body_value: TypeVar,
+        subtracts: &[SubtractId],
+    ) -> (PosId, PosId) {
         if subtracts.is_empty() {
-            let ret_eff = self.alloc_pos(Pos::Var(body.effect));
-            let ret = self.alloc_pos(Pos::Var(body.value));
+            let ret_eff = self.alloc_pos(Pos::Var(body_effect));
+            let ret = self.alloc_pos(Pos::Var(body_value));
             return (ret_eff, ret);
         }
 
         let effect = self.fresh_type_var();
         let value = self.fresh_type_var();
-        self.subtype_var_to_var(body.effect, effect);
-        self.subtype_var_to_var(body.value, value);
+        self.subtype_var_to_var(body_effect, effect);
+        self.subtype_var_to_var(body_value, value);
 
         let ret_eff = self.alloc_pos(Pos::Var(effect));
         let ret = self.alloc_pos(Pos::Var(value));
@@ -5560,9 +5728,25 @@ struct LocalBinding {
     name: Name,
     def: DefId,
     value: TypeVar,
-    effect: Option<TypeVar>,
+    effect: Option<LocalEffect>,
     call_return_effect: LocalCallReturnEffect,
     scheme: Option<Scheme>,
+}
+
+#[derive(Clone)]
+enum LocalEffect {
+    Var(TypeVar),
+    Stack { inner: TypeVar, weight: StackWeight },
+}
+
+impl LocalEffect {
+    fn collect_vars(&self, vars: &mut FxHashSet<TypeVar>) {
+        match self {
+            LocalEffect::Var(effect) | LocalEffect::Stack { inner: effect, .. } => {
+                vars.insert(*effect);
+            }
+        }
+    }
 }
 
 struct LoweredLocalStmt {
@@ -5579,6 +5763,11 @@ struct LoweredLambdaParam {
     pat: PatId,
     value: TypeVar,
     annotation: LambdaPatternAnnotation,
+}
+
+struct DefinedLambdaSkeleton {
+    body_effect: TypeVar,
+    body_value: TypeVar,
 }
 
 #[derive(Clone)]
@@ -5934,7 +6123,8 @@ impl FunctionPredicateFrame {
 
 struct LambdaPatternAnnotation {
     arg_eff: NegId,
-    local_effect: Option<TypeVar>,
+    skeleton_arg_eff: NegId,
+    local_effect: Option<LocalEffect>,
     subtracts: Vec<SubtractId>,
     call_return_effect: LocalCallReturnEffect,
 }
@@ -9491,6 +9681,61 @@ mod tests {
         assert_eq!(
             output.session.poly.select(update_effect).resolution,
             Some(SelectResolution::Method { def: field_method })
+        );
+    }
+
+    #[test]
+    fn annotated_recursive_handler_does_not_subtract_outer_effect() {
+        let root = parse(concat!(
+            "act tick:\n",
+            "  pub out: () -> ()\n",
+            "act flip:\n",
+            "  pub coin: () -> bool\n",
+            "pub pick(action: [flip] _) = catch action:\n",
+            "  flip::coin(), k -> pick(k true)\n",
+            "  v -> v\n",
+            "pub loop(x: [tick] _) = catch x:\n",
+            "  tick::out(), k -> pick(loop(k ()))\n",
+            "  v -> v\n",
+            "my site = 1\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let loop_def = lower.modules.value_decls(module, &Name("loop".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, loop_def));
+        assert!(
+            !rendered.contains("flip"),
+            "loop annotation allowed flip to be subtracted: {rendered}"
+        );
+    }
+
+    #[test]
+    fn annotated_recursive_handler_pick_only_terminates() {
+        let root = parse(concat!(
+            "act flip:\n",
+            "  pub coin: () -> bool\n",
+            "pub pick(action: [flip] _) = catch action:\n",
+            "  flip::coin(), k -> pick(k true)\n",
+            "  v -> v\n",
+            "my site = 1\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let pick_def = lower.modules.value_decls(module, &Name("pick".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, pick_def));
+        assert!(
+            rendered.contains("flip"),
+            "pick annotation should mention flip: {rendered}"
         );
     }
 

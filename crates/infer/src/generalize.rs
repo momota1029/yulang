@@ -296,6 +296,12 @@ fn clone_stack_weight_between_arenas(
 ) -> StackWeight {
     let mut out = StackWeight::empty();
     for entry in weight.entries() {
+        for subtractability in &entry.floor {
+            out = out.compose(&StackWeight::floor(
+                entry.id,
+                clone_subtractability(source, target, subtractability),
+            ));
+        }
         out = out.compose(&StackWeight::pops(entry.id, entry.pops));
         for subtractability in &entry.stack {
             out = out.compose(&StackWeight::push(
@@ -1992,7 +1998,7 @@ fn collect_live_stack_ids_in_type(
                 continue;
             }
             for entry in var.weight.entries() {
-                if !entry.stack.is_empty() {
+                if !entry.floor.is_empty() || !entry.stack.is_empty() {
                     out.insert(entry.id);
                 }
             }

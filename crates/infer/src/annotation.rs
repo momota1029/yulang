@@ -110,6 +110,19 @@ pub struct AnnComputationTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnnComputationConnection {
+    pub subtracts: Vec<SubtractId>,
+    pub effect_stack: Option<AnnEffectStackConnection>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnnEffectStackConnection {
+    pub inner: TypeVar,
+    pub weight: StackWeight,
+    pub subtracts: Vec<SubtractId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// annotation constraint lowering の失敗。
 pub enum AnnConstraintError {
     MissingTypeDecl { id: TypeDeclId },
@@ -198,13 +211,31 @@ impl<'a> AnnConstraintLowerer<'a> {
         target: AnnComputationTarget,
         ann: &AnnType,
     ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+        self.connect_computation_detailed(target, ann)
+            .map(|connection| connection.subtracts)
+    }
+
+    pub fn connect_computation_detailed(
+        &mut self,
+        target: AnnComputationTarget,
+        ann: &AnnType,
+    ) -> Result<AnnComputationConnection, AnnConstraintError> {
         match ann {
             AnnType::Effectful { eff, ret } => {
                 let mut subtracts = self.connect_value(target.value, ret)?;
-                subtracts.extend(self.connect_effectful_annotation_effect(target.effect, eff)?);
-                Ok(subtracts)
+                let effect_stack = self.connect_effectful_annotation_effect(target.effect, eff)?;
+                subtracts.extend(effect_stack.subtracts.iter().copied());
+                Ok(AnnComputationConnection {
+                    subtracts,
+                    effect_stack: Some(effect_stack),
+                })
             }
-            _ => self.connect_value(target.value, ann),
+            _ => self
+                .connect_value(target.value, ann)
+                .map(|subtracts| AnnComputationConnection {
+                    subtracts,
+                    effect_stack: None,
+                }),
         }
     }
 
@@ -373,7 +404,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         &mut self,
         effect: TypeVar,
         row: &AnnEffectRow,
-    ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+    ) -> Result<AnnEffectStackConnection, AnnConstraintError> {
         // 注釈残差は fresh な内側変数に立て、stack で包んで下から effect を抑える。
         // `stack(effect, push) <: effect` の自己辺は bounds replay で重みが際限なく
         // 合成される（spec の「自分へ戻るだけの制約は無限ループの燃料」）ため作らない。
@@ -385,7 +416,11 @@ impl<'a> AnnConstraintLowerer<'a> {
         let stacked = self.wrap_pos_with_stack(inner_pos, &stack.weight);
         let upper = self.alloc_neg(Neg::Var(effect));
         self.infer.subtype(stacked, upper);
-        Ok(stack.ids)
+        Ok(AnnEffectStackConnection {
+            inner,
+            weight: stack.weight,
+            subtracts: stack.ids,
+        })
     }
 
     fn register_stack_facts(&mut self, var: TypeVar, weight: &StackWeight) {

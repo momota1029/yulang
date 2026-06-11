@@ -7,7 +7,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         self.lower_pattern(node, value, local_effect, call_return_effect)
@@ -25,7 +25,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         self.lower_pattern_with_ignored_tails(
@@ -41,7 +41,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
         ignored_tails: IgnoredPatternTails,
     ) -> Result<PatId, LoweringError> {
@@ -133,7 +133,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         name: Name,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> PatId {
         self.bind_pattern_local(name, value, local_effect, call_return_effect)
@@ -143,7 +143,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         name: Name,
         value: TypeVar,
-        effect: Option<TypeVar>,
+        effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> PatId {
         let def = self.bind_pattern_local_def(name, value, effect, call_return_effect);
@@ -154,7 +154,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         name: Name,
         value: TypeVar,
-        effect: Option<TypeVar>,
+        effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> DefId {
         let def = self.session.poly.defs.fresh();
@@ -177,14 +177,14 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let children = pattern_children(node);
         let [lhs, rhs] = children.as_slice() else {
             return Err(LoweringError::UnsupportedPatternSyntax { kind: node.kind() });
         };
-        let lhs = self.lower_pattern(lhs, value, local_effect, call_return_effect)?;
+        let lhs = self.lower_pattern(lhs, value, local_effect.clone(), call_return_effect)?;
         let rhs = self.lower_pattern(rhs, value, local_effect, call_return_effect)?;
         Ok(self.session.poly.add_pat(Pat::Or(lhs, rhs)))
     }
@@ -194,7 +194,7 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         tail: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
         ignored_tails: IgnoredPatternTails,
     ) -> Result<PatId, LoweringError> {
@@ -205,7 +205,7 @@ impl<'a> ExprLowerer<'a> {
         let lhs = self.lower_pattern_with_ignored_tails(
             node,
             value,
-            local_effect,
+            local_effect.clone(),
             call_return_effect,
             ignored_tails.with_or(),
         )?;
@@ -217,7 +217,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let inner_node = pattern_children(node)
@@ -226,7 +226,8 @@ impl<'a> ExprLowerer<'a> {
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
         let alias = pat_as_alias_name(node)
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
-        let inner = self.lower_pattern(&inner_node, value, local_effect, call_return_effect)?;
+        let inner =
+            self.lower_pattern(&inner_node, value, local_effect.clone(), call_return_effect)?;
         let def = self.bind_pattern_local_def(alias, value, local_effect, call_return_effect);
         Ok(self.session.poly.add_pat(Pat::As(inner, def)))
     }
@@ -236,7 +237,7 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         tail: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
         ignored_tails: IgnoredPatternTails,
     ) -> Result<PatId, LoweringError> {
@@ -245,7 +246,7 @@ impl<'a> ExprLowerer<'a> {
         let inner = self.lower_pattern_with_ignored_tails(
             node,
             value,
-            local_effect,
+            local_effect.clone(),
             call_return_effect,
             ignored_tails.with_as(),
         )?;
@@ -257,7 +258,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        _local_effect: Option<TypeVar>,
+        _local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let item = self.fresh_type_var();
@@ -307,7 +308,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let mut fields = Vec::new();
@@ -321,8 +322,11 @@ impl<'a> ExprLowerer<'a> {
             match child.kind() {
                 SyntaxKind::PatField => {
                     saw_field = true;
-                    let field =
-                        self.lower_record_pattern_field(&child, local_effect, call_return_effect)?;
+                    let field = self.lower_record_pattern_field(
+                        &child,
+                        local_effect.clone(),
+                        call_return_effect,
+                    )?;
                     pos_fields.push(RecordField {
                         name: field.name.clone(),
                         value: self.alloc_pos(Pos::Var(field.value)),
@@ -336,8 +340,11 @@ impl<'a> ExprLowerer<'a> {
                     fields.push((field.name, field.pat));
                 }
                 SyntaxKind::PatSpread => {
-                    let (def, tail) =
-                        self.lower_record_pattern_spread(&child, local_effect, call_return_effect)?;
+                    let (def, tail) = self.lower_record_pattern_spread(
+                        &child,
+                        local_effect.clone(),
+                        call_return_effect,
+                    )?;
                     spread = if saw_field {
                         RecordSpread::Tail(def)
                     } else {
@@ -375,7 +382,7 @@ impl<'a> ExprLowerer<'a> {
         name: String,
         node: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let payloads = pattern_payloads(node);
@@ -387,7 +394,7 @@ impl<'a> ExprLowerer<'a> {
             pats.push(self.lower_pattern(
                 &payload,
                 payload_value,
-                local_effect,
+                local_effect.clone(),
                 call_return_effect,
             )?);
             pos_payloads.push(self.alloc_pos(Pos::Var(payload_value)));
@@ -401,7 +408,7 @@ impl<'a> ExprLowerer<'a> {
     fn lower_record_pattern_field(
         &mut self,
         node: &Cst,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<LoweredRecordPatternField, LoweringError> {
         let name = pat_field_name(node).ok_or(LoweringError::MissingRecordFieldName)?;
@@ -411,15 +418,20 @@ impl<'a> ExprLowerer<'a> {
             .transpose()?;
         let optional = default.is_some();
         let pat = if let Some(pattern) = pat_field_pattern(node) {
-            self.lower_pattern(&pattern, value, local_effect, call_return_effect)?
+            self.lower_pattern(&pattern, value, local_effect.clone(), call_return_effect)?
         } else {
-            self.bind_pattern_local(name.clone(), value, local_effect, call_return_effect)
+            self.bind_pattern_local(
+                name.clone(),
+                value,
+                local_effect.clone(),
+                call_return_effect,
+            )
         };
         if let Some(default) = default {
             self.subtype_var_to_var(default.value, value);
             self.subtype_var_to_var(value, default.value);
             if let Some(local_effect) = local_effect {
-                self.subtype_var_to_var(default.effect, local_effect);
+                self.subtype_var_to_local_effect(default.effect, &local_effect);
             }
         }
         Ok(LoweredRecordPatternField {
@@ -433,7 +445,7 @@ impl<'a> ExprLowerer<'a> {
     fn lower_record_pattern_spread(
         &mut self,
         node: &Cst,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<(DefId, TypeVar), LoweringError> {
         let pattern = node
@@ -540,7 +552,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         group: &Cst,
         value: TypeVar,
-        local_effect: Option<TypeVar>,
+        local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<PatId, LoweringError> {
         let children = group

@@ -209,7 +209,7 @@ impl<'a> ExprLowerer<'a> {
         } else {
             let tail = self.alloc_neg(Neg::Var(rest_effect));
             let row = self.alloc_neg(Neg::Row(handled.row_items(), tail));
-            self.subtype(Pos::Var(scrutinee.effect), row);
+            self.subtype_scrutinee_effect_to_row(scrutinee.effect, scrutinee.effect_view, row);
             if handled.is_complete(self.modules, self.module, self.site) {
                 self.subtype_var_to_var(rest_effect, effect);
             } else {
@@ -234,6 +234,23 @@ impl<'a> ExprLowerer<'a> {
             effect,
             Evaluation::Computation,
         ))
+    }
+
+    fn subtype_scrutinee_effect_to_row(
+        &mut self,
+        effect: TypeVar,
+        effect_view: Option<EffectViewId>,
+        row: NegId,
+    ) {
+        let lower = match effect_view.map(|view| self.effect_view(view).clone()) {
+            Some(LocalEffect::Stack { inner, weight }) => {
+                let inner = self.alloc_pos(Pos::Var(inner));
+                self.alloc_pos(Pos::Stack { inner, weight })
+            }
+            Some(LocalEffect::Var(effect)) => self.alloc_pos(Pos::Var(effect)),
+            None => self.alloc_pos(Pos::Var(effect)),
+        };
+        self.session.infer.subtype(lower, row);
     }
 
     fn lower_catch_arm(

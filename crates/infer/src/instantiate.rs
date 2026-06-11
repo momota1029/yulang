@@ -347,6 +347,10 @@ impl<'a> SchemeInstantiator<'a> {
         let mut out = StackWeight::empty();
         for entry in weight.entries() {
             let id = self.clone_subtract(entry.id);
+            for subtractability in &entry.floor {
+                let cloned = self.clone_subtractability(subtractability.clone());
+                out = out.compose(&StackWeight::floor(id, cloned));
+            }
             out = out.compose(&StackWeight::pops(id, entry.pops));
             for subtractability in &entry.stack {
                 out = out.compose(&StackWeight::push(

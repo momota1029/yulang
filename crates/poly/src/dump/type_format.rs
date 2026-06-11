@@ -317,6 +317,9 @@ impl<'a> TypeFormatter<'a> {
             }
             Pos::Row(items) => Rendered::atom(format!("'{}", self.pos_row_items(items))),
             Pos::Stack { inner, weight } => {
+                if is_hidden_quantifier_stack(weight) {
+                    return self.render_pos(*inner);
+                }
                 let inner = self.pos(*inner, Context::Free);
                 Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
             }
@@ -359,6 +362,9 @@ impl<'a> TypeFormatter<'a> {
             }
             Neg::Row(items, tail) => Rendered::atom(format!("'{}", self.neg_row(items, *tail))),
             Neg::Stack { inner, weight } => {
+                if is_hidden_quantifier_stack(weight) {
+                    return self.render_neg(*inner);
+                }
                 let inner = self.neg(*inner, Context::Free);
                 Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
             }
@@ -821,13 +827,26 @@ impl<'a> TypeFormatter<'a> {
             .entries()
             .iter()
             .map(|entry| {
+                let floor = entry
+                    .floor
+                    .iter()
+                    .map(|subtractability| self.stack_subtractability(subtractability))
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 let stack = entry
                     .stack
                     .iter()
                     .map(|subtractability| self.stack_subtractability(subtractability))
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("#{} -> pop({})[{}]", entry.id.0, entry.pops, stack)
+                if entry.floor.is_empty() {
+                    format!("#{} -> pop({})[{}]", entry.id.0, entry.pops, stack)
+                } else {
+                    format!(
+                        "#{} -> floor[{}] pop({})[{}]",
+                        entry.id.0, floor, entry.pops, stack
+                    )
+                }
             })
             .collect::<Vec<_>>()
             .join(", ");
@@ -963,6 +982,14 @@ fn fun_text(arg: String, arg_eff: Option<String>, ret_eff: Option<String>, ret: 
         (None, Some(ret_eff)) => format!("{arg} -> [{ret_eff}] {ret}"),
         (Some(arg_eff), Some(ret_eff)) => format!("{arg} [{arg_eff}] -> [{ret_eff}] {ret}"),
     }
+}
+
+fn is_hidden_quantifier_stack(weight: &StackWeight) -> bool {
+    !weight.entries().is_empty()
+        && weight
+            .entries()
+            .iter()
+            .all(|entry| entry.stack.is_empty() && entry.pops == u32::MAX)
 }
 
 fn path_name(path: &[String]) -> String {

@@ -154,6 +154,85 @@ pub enum Subtractability {
     SetMany(Vec<(Vec<String>, Vec<NeuId>)>),
 }
 
+impl Subtractability {
+    /// stack 集合の共通部分。effect family は path だけで比較し、
+    /// 2つ以上の family を畳んだ結果は path のみを持つ。
+    pub fn intersect(self, other: Self) -> Self {
+        use Subtractability::*;
+        match (self, other) {
+            (Empty, _) | (_, Empty) => Empty,
+            (All, other) | (other, All) => other,
+            (lhs, rhs) => match (FamilyBound::from(lhs), FamilyBound::from(rhs)) {
+                (FamilyBound::Include(lhs), FamilyBound::Include(rhs)) => FamilyBound::Include(
+                    lhs.into_iter().filter(|path| rhs.contains(path)).collect(),
+                )
+                .into(),
+                (FamilyBound::Include(lhs), FamilyBound::Exclude(rhs))
+                | (FamilyBound::Exclude(rhs), FamilyBound::Include(lhs)) => FamilyBound::Include(
+                    lhs.into_iter().filter(|path| !rhs.contains(path)).collect(),
+                )
+                .into(),
+                (FamilyBound::Exclude(mut lhs), FamilyBound::Exclude(rhs)) => {
+                    for path in rhs {
+                        if !lhs.contains(&path) {
+                            lhs.push(path);
+                        }
+                    }
+                    FamilyBound::Exclude(lhs).into()
+                }
+            },
+        }
+    }
+}
+
+/// path family 集合を「含む側」「除く側」の正規形で見るための補助。
+enum FamilyBound {
+    Include(Vec<Vec<String>>),
+    Exclude(Vec<Vec<String>>),
+}
+
+impl From<Subtractability> for FamilyBound {
+    fn from(value: Subtractability) -> Self {
+        use Subtractability::*;
+        match value {
+            Empty => FamilyBound::Include(Vec::new()),
+            All => FamilyBound::Exclude(Vec::new()),
+            Set(path, _) => FamilyBound::Include(vec![path]),
+            SetMany(families) => FamilyBound::Include(dedup_family_paths(families)),
+            AllExcept(path, _) => FamilyBound::Exclude(vec![path]),
+            AllExceptMany(families) => FamilyBound::Exclude(dedup_family_paths(families)),
+        }
+    }
+}
+
+impl From<FamilyBound> for Subtractability {
+    fn from(value: FamilyBound) -> Self {
+        use Subtractability::*;
+        match value {
+            FamilyBound::Include(paths) => match paths.as_slice() {
+                [] => Empty,
+                [path] => Set(path.clone(), Vec::new()),
+                _ => SetMany(paths.into_iter().map(|path| (path, Vec::new())).collect()),
+            },
+            FamilyBound::Exclude(paths) => match paths.as_slice() {
+                [] => All,
+                [path] => AllExcept(path.clone(), Vec::new()),
+                _ => AllExceptMany(paths.into_iter().map(|path| (path, Vec::new())).collect()),
+            },
+        }
+    }
+}
+
+fn dedup_family_paths(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<Vec<String>> {
+    let mut out = Vec::new();
+    for (path, _) in families {
+        if !out.contains(&path) {
+            out.push(path);
+        }
+    }
+    out
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 /// `stack(T, @S)` の `@S`。
 ///
@@ -167,6 +246,7 @@ pub struct StackWeight {
 pub struct StackWeightEntry {
     pub id: SubtractId,
     pub pops: u32,
+    pub floor: Vec<Subtractability>,
     pub stack: Vec<Subtractability>,
 }
 
@@ -201,6 +281,12 @@ impl StackWeight {
         out
     }
 
+    pub fn floor(id: SubtractId, subtractability: Subtractability) -> Self {
+        let mut out = Self::empty();
+        out.push_floor(id, subtractability);
+        out
+    }
+
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -218,11 +304,15 @@ impl StackWeight {
     }
 
     pub fn stack_items(&self) -> impl Iterator<Item = &Subtractability> {
-        self.entries.iter().flat_map(|entry| entry.stack.iter())
+        self.entries
+            .iter()
+            .flat_map(|entry| entry.floor.iter().chain(entry.stack.iter()))
     }
 
     pub fn has_stack_entry(&self) -> bool {
-        self.entries.iter().any(|entry| !entry.stack.is_empty())
+        self.entries
+            .iter()
+            .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
     }
 
     pub fn compose(&self, other: &Self) -> Self {
@@ -264,11 +354,29 @@ impl StackWeight {
 
     fn append(&mut self, other: &Self) {
         for entry in &other.entries {
+            for subtractability in &entry.floor {
+                self.push_floor(entry.id, subtractability.clone());
+            }
             self.push_pops(entry.id, entry.pops);
             for subtractability in &entry.stack {
                 self.push_stack(entry.id, subtractability.clone());
             }
         }
+    }
+
+    /// floor は「pop の下に生き残る集合」の交わりなので、常に1要素以下の
+    /// 正規形で持つ。`pops` の飽和と同じく、replay 循環で重みが太り続けて
+    /// `seen` の重複検出が外れるのを防ぐための正規化でもある。
+    fn push_floor(&mut self, id: SubtractId, subtractability: Subtractability) {
+        let entry = self.entry_mut(id);
+        let combined = entry
+            .floor
+            .drain(..)
+            .fold(subtractability, Subtractability::intersect);
+        if combined != Subtractability::All {
+            entry.floor.push(combined);
+        }
+        self.remove_empty_entry(id);
     }
 
     fn push_stack(&mut self, id: SubtractId, subtractability: Subtractability) {
@@ -309,6 +417,7 @@ impl StackWeight {
                     StackWeightEntry {
                         id,
                         pops: 0,
+                        floor: Vec::new(),
                         stack: Vec::new(),
                     },
                 );
@@ -320,6 +429,7 @@ impl StackWeight {
     fn remove_empty_entry(&mut self, id: SubtractId) {
         if let Ok(index) = self.entries.binary_search_by_key(&id.0, |entry| entry.id.0)
             && self.entries[index].pops == 0
+            && self.entries[index].floor.is_empty()
             && self.entries[index].stack.is_empty()
         {
             self.entries.remove(index);

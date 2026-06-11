@@ -865,35 +865,50 @@ impl ConstraintMachine {
 
         let combined = weights.left.compose(&weights.right);
         let retained_items = self.intersect_row_items_with_stack(items, &combined);
+        if retained_items.is_empty() {
+            let source_pos = self.alloc_pos(Pos::Var(source));
+            self.enqueue_subtype(
+                source_pos,
+                ConstraintWeights {
+                    left: combined,
+                    right: StackWeight::empty(),
+                },
+                tail,
+            );
+            return;
+        }
+
+        let residual_weight = subtract_row_items_from_stack_weight(
+            &combined,
+            retained_items
+                .iter()
+                .filter_map(|item| self.neg_effect_family(*item)),
+        );
         let key = RowResidualKey {
             source,
-            tail,
-            retained_items: retained_items.clone(),
-            weight: combined.clone(),
+            retained_families: self.neg_effect_family_paths(&retained_items),
+            weight: residual_weight.clone(),
         };
         let gamma = if let Some(gamma) = self.row_residuals.get(&key) {
             *gamma
         } else {
             let gamma = self.fresh_internal_type_var_at(self.level_of(source));
             self.row_residuals.insert(key, gamma);
-            let gamma_neg = self.alloc_neg(Neg::Var(gamma));
-            let upper = if retained_items.is_empty() {
-                gamma_neg
-            } else {
-                self.alloc_neg(Neg::Row(retained_items, gamma_neg))
-            };
-            // 通常の subtype 経路で `source <: [U; γ]` を登録し、γ が後で得る
-            // 上界も既存の bounds replay で source へ届くようにする。
-            let source_pos = self.alloc_pos(Pos::Var(source));
-            self.enqueue_subtype(source_pos, ConstraintWeights::empty(), upper);
             gamma
         };
+
+        let gamma_neg = self.alloc_neg(Neg::Var(gamma));
+        let upper = self.alloc_neg(Neg::Row(retained_items, gamma_neg));
+        // 通常の subtype 経路で `source <: [U; γ]` を登録し、γ が後で得る
+        // 上界も既存の bounds replay で source へ届くようにする。
+        let source_pos = self.alloc_pos(Pos::Var(source));
+        self.enqueue_subtype(source_pos, ConstraintWeights::empty(), upper);
 
         let gamma_pos = self.alloc_pos(Pos::Var(gamma));
         self.enqueue_subtype(
             gamma_pos,
             ConstraintWeights {
-                left: combined,
+                left: residual_weight,
                 right: StackWeight::empty(),
             },
             tail,
@@ -946,6 +961,29 @@ impl ConstraintMachine {
 
     fn neg_effect_family_matches(&self, item: NegId, path: &[String]) -> bool {
         matches!(self.types.neg(item), Neg::Con(item_path, _) if item_path == path)
+    }
+
+    fn neg_effect_family(&self, item: NegId) -> Option<EffectFamily> {
+        match self.types.neg(item) {
+            Neg::Con(path, args) => Some(EffectFamily {
+                path: path.clone(),
+                args: args.clone(),
+            }),
+            _ => None,
+        }
+    }
+
+    fn neg_effect_family_paths(&self, items: &[NegId]) -> Vec<Vec<String>> {
+        let mut paths = items
+            .iter()
+            .filter_map(|item| match self.types.neg(*item) {
+                Neg::Con(path, _) => Some(path.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        paths.sort();
+        paths.dedup();
+        paths
     }
 
     fn add_lower_bound(&mut self, target: TypeVar, pos: PosId, weights: ConstraintWeights) {
@@ -1285,8 +1323,7 @@ struct QueuedSubtractFact {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct RowResidualKey {
     source: TypeVar,
-    tail: NegId,
-    retained_items: Vec<NegId>,
+    retained_families: Vec<Vec<String>>,
     weight: StackWeight,
 }
 
@@ -1502,78 +1539,86 @@ fn common_stack_subtractability<'a>(
         .unwrap_or(Subtractability::All)
 }
 
-fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {
+fn subtract_row_items_from_stack_weight(
+    weight: &StackWeight,
+    removed: impl IntoIterator<Item = EffectFamily>,
+) -> StackWeight {
+    let removed = removed
+        .into_iter()
+        .map(path_only_family)
+        .collect::<Vec<_>>();
+    if removed.is_empty() {
+        return weight.clone();
+    }
+
+    let mut out = StackWeight::empty();
+    for entry in weight.entries() {
+        let mut residual_parts = Vec::new();
+        if entry.floor.is_empty() && entry.stack.is_empty() {
+            residual_parts.push(subtract_effect_families(Subtractability::All, &removed));
+        } else {
+            for subtractability in &entry.floor {
+                residual_parts.push(subtract_effect_families(subtractability.clone(), &removed));
+            }
+            residual_parts.extend(
+                entry
+                    .stack
+                    .iter()
+                    .cloned()
+                    .map(|subtractability| subtract_effect_families(subtractability, &removed)),
+            );
+        }
+        if let Some(floor) = residual_parts.into_iter().reduce(intersect_subtractability) {
+            out = out.compose(&StackWeight::floor(entry.id, floor));
+        }
+        out = out.compose(&StackWeight::pops(entry.id, entry.pops));
+        for subtractability in &entry.stack {
+            out = out.compose(&StackWeight::push(
+                entry.id,
+                subtract_effect_families(subtractability.clone(), &removed),
+            ));
+        }
+    }
+    out
+}
+
+fn subtract_effect_families(
+    subtractability: Subtractability,
+    removed: &[EffectFamily],
+) -> Subtractability {
     use Subtractability::*;
-    match (lhs, rhs) {
-        (Empty, _) | (_, Empty) => Empty,
-        (All, other) | (other, All) => other,
-        (Set(path, args), Set(other_path, other_args)) => intersect_set_families(
-            vec![EffectFamily { path, args }],
-            vec![EffectFamily {
-                path: other_path,
-                args: other_args,
-            }],
-        ),
-        (Set(path, args), SetMany(other)) | (SetMany(other), Set(path, args)) => {
-            intersect_set_families(
-                vec![EffectFamily { path, args }],
-                families_from_pairs(other),
-            )
-        }
-        (SetMany(lhs), SetMany(rhs)) => {
-            intersect_set_families(families_from_pairs(lhs), families_from_pairs(rhs))
-        }
-        (Set(path, args), AllExcept(except_path, _))
-        | (AllExcept(except_path, _), Set(path, args)) => set_families(
+    match subtractability {
+        Empty => Empty,
+        All => all_except_families(removed.iter().cloned()),
+        Set(path, args) => set_families(
             [EffectFamily { path, args }]
                 .into_iter()
-                .filter(|family| family.path != except_path),
+                .filter(|family| !family_is_removed(family, removed)),
         ),
-        (Set(path, args), AllExceptMany(excepts)) | (AllExceptMany(excepts), Set(path, args)) => {
-            set_families(
-                [EffectFamily { path, args }]
-                    .into_iter()
-                    .filter(|family| !excepts.iter().any(|(except, _)| except == &family.path)),
-            )
-        }
-        (SetMany(families), AllExcept(except_path, _))
-        | (AllExcept(except_path, _), SetMany(families)) => set_families(
+        SetMany(families) => set_families(
             families_from_pairs(families)
                 .into_iter()
-                .filter(|family| family.path != except_path),
+                .filter(|family| !family_is_removed(family, removed)),
         ),
-        (SetMany(families), AllExceptMany(excepts))
-        | (AllExceptMany(excepts), SetMany(families)) => set_families(
-            families_from_pairs(families)
-                .into_iter()
-                .filter(|family| !excepts.iter().any(|(except, _)| except == &family.path)),
-        ),
-        (AllExcept(path, args), AllExcept(other_path, other_args)) => all_except_families([
-            EffectFamily { path, args },
-            EffectFamily {
-                path: other_path,
-                args: other_args,
-            },
-        ]),
-        (AllExcept(path, args), AllExceptMany(families))
-        | (AllExceptMany(families), AllExcept(path, args)) => all_except_families(
+        AllExcept(path, args) => all_except_families(
             [EffectFamily { path, args }]
                 .into_iter()
-                .chain(families_from_pairs(families)),
+                .chain(removed.iter().cloned()),
         ),
-        (AllExceptMany(lhs), AllExceptMany(rhs)) => all_except_families(
-            families_from_pairs(lhs)
+        AllExceptMany(families) => all_except_families(
+            families_from_pairs(families)
                 .into_iter()
-                .chain(families_from_pairs(rhs)),
+                .chain(removed.iter().cloned()),
         ),
     }
 }
 
-fn intersect_set_families(lhs: Vec<EffectFamily>, rhs: Vec<EffectFamily>) -> Subtractability {
-    set_families(
-        lhs.into_iter()
-            .filter(|family| rhs.iter().any(|other| other.path == family.path)),
-    )
+fn family_is_removed(family: &EffectFamily, removed: &[EffectFamily]) -> bool {
+    removed.iter().any(|removed| removed.path == family.path)
+}
+
+fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {
+    lhs.intersect(rhs)
 }
 
 fn families_from_pairs(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<EffectFamily> {
@@ -1616,8 +1661,16 @@ fn all_except_families(families: impl IntoIterator<Item = EffectFamily>) -> Subt
 }
 
 fn push_unique_effect_family(families: &mut Vec<EffectFamily>, family: EffectFamily) {
+    let family = path_only_family(family);
     if !families.iter().any(|existing| existing.path == family.path) {
         families.push(family);
+    }
+}
+
+fn path_only_family(family: EffectFamily) -> EffectFamily {
+    EffectFamily {
+        path: family.path,
+        args: Vec::new(),
     }
 }
 
@@ -1683,6 +1736,22 @@ mod tests {
         assert_eq!(weights.left.entries().len(), 1);
         assert_eq!(weights.left.entries()[0].pops, u32::MAX);
         assert_eq!(weights.left.entries()[0].stack, vec![io.clone(), io]);
+    }
+
+    #[test]
+    fn stack_weight_floor_survives_later_unmatched_pops() {
+        let id = SubtractId(0);
+        let io = Subtractability::AllExcept(vec!["io".into()], Vec::new());
+        let weight = StackWeight::floor(id, io.clone())
+            .compose(&StackWeight::pops(id, u32::MAX))
+            .compose(&StackWeight::pop(id));
+
+        let [entry] = weight.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.pops, u32::MAX);
+        assert_eq!(entry.floor, vec![io]);
+        assert!(entry.stack.is_empty());
     }
 
     #[test]
@@ -2196,18 +2265,11 @@ mod tests {
         machine.subtype(lower, upper);
 
         let gamma = single_upper_row_tail(&machine, row_var, &["io"]);
-        assert_single_weighted_upper_var(
-            &machine,
-            gamma,
-            tail_var,
-            ConstraintWeights {
-                left: StackWeight::push(
-                    subtract,
-                    Subtractability::Set(vec!["io".into()], Vec::new()),
-                ),
-                right: StackWeight::empty(),
-            },
-        );
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(subtract, Subtractability::Empty),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
     }
 
     #[test]
@@ -2390,11 +2452,15 @@ mod tests {
         machine.weighted_subtype(lower, weights.clone(), upper);
 
         let gamma = single_upper_row_tail(&machine, source, &["io"]);
-        assert_single_weighted_upper_var(&machine, gamma, tail_var, weights);
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(subtract, Subtractability::Empty),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
     }
 
     #[test]
-    fn var_to_effect_row_upper_keeps_weighted_residuals_distinct_per_tail() {
+    fn var_to_effect_row_upper_reuses_weighted_residual_for_same_source_across_tails() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let first_tail_var = TypeVar(1);
@@ -2419,13 +2485,52 @@ mod tests {
 
         let first_gamma = find_empty_weight_row_tail(&machine, source, &["io"], first_tail_var);
         let second_gamma = find_empty_weight_row_tail(&machine, source, &["io"], second_tail_var);
-        assert_ne!(first_gamma, second_gamma);
-        assert_single_weighted_upper_var(&machine, first_gamma, first_tail_var, weights.clone());
-        assert_single_weighted_upper_var(&machine, second_gamma, second_tail_var, weights);
+        assert_eq!(first_gamma, second_gamma);
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(subtract, Subtractability::Empty),
+            right: StackWeight::empty(),
+        };
+        assert_weighted_upper_var(
+            &machine,
+            first_gamma,
+            first_tail_var,
+            residual_weights.clone(),
+        );
+        assert_weighted_upper_var(&machine, second_gamma, second_tail_var, residual_weights);
     }
 
     #[test]
-    fn var_to_effect_row_upper_stores_gamma_when_stack_intersection_is_empty() {
+    fn var_to_effect_row_upper_keeps_weighted_residuals_distinct_per_source() {
+        let mut machine = ConstraintMachine::new();
+        let first_source = TypeVar(0);
+        let second_source = TypeVar(1);
+        let tail_var = TypeVar(2);
+        let subtract = SubtractId(0);
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let first_lower = machine.alloc_pos(Pos::Var(first_source));
+        let second_lower = machine.alloc_pos(Pos::Var(second_source));
+        let first_upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+        let second_upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+        let weights = ConstraintWeights {
+            left: StackWeight::push(
+                subtract,
+                Subtractability::Set(vec!["io".into()], Vec::new()),
+            ),
+            right: ConstraintWeight::empty(),
+        };
+
+        machine.weighted_subtype(first_lower, weights.clone(), first_upper);
+        machine.weighted_subtype(second_lower, weights.clone(), second_upper);
+
+        let first_gamma = single_upper_row_tail(&machine, first_source, &["io"]);
+        let second_gamma = single_upper_row_tail(&machine, second_source, &["io"]);
+        assert_ne!(first_gamma, second_gamma);
+        assert_eq!(machine.row_residuals.len(), 2);
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_with_empty_stack_intersection_skips_gamma() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let tail_var = TypeVar(1);
@@ -2442,27 +2547,11 @@ mod tests {
         machine.weighted_subtype(lower, weights.clone(), upper);
 
         let bounds = machine.bounds().of(source).expect("source bounds");
-        assert_eq!(bounds.uppers().len(), 2);
-        let gamma = bounds
-            .uppers()
-            .iter()
-            .find_map(|upper| {
-                if upper.weights != ConstraintWeights::empty() {
-                    return None;
-                }
-                match machine.types().neg(upper.neg) {
-                    Neg::Var(found) => Some(*found),
-                    _ => None,
-                }
-            })
-            .expect("gamma upper var");
-        assert_ne!(gamma, tail_var);
-        // γ 経由の推移 replay で、source には tail への重み付き上界も残る。
-        assert!(bounds.uppers().iter().any(|upper| {
-            upper.weights == weights
-                && matches!(machine.types().neg(upper.neg), Neg::Var(found) if *found == tail_var)
-        }));
-        assert_single_weighted_upper_var(&machine, gamma, tail_var, weights);
+        assert_eq!(
+            bounds.uppers(),
+            &[WeightedUpperBound { neg: tail, weights }]
+        );
+        assert!(machine.row_residuals.is_empty());
     }
 
     #[test]
@@ -2487,7 +2576,17 @@ mod tests {
         machine.weighted_subtype(lower, weights.clone(), upper);
 
         let gamma = single_upper_row_tail(&machine, source, &["nondet"]);
-        assert_single_weighted_upper_var(&machine, gamma, tail_var, weights);
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(
+                subtract,
+                Subtractability::AllExceptMany(vec![
+                    (vec!["io".into()], Vec::new()),
+                    (vec!["nondet".into()], Vec::new()),
+                ]),
+            ),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
     }
 
     #[test]
@@ -2509,7 +2608,229 @@ mod tests {
         machine.weighted_subtype(lower, weights.clone(), upper);
 
         let gamma = single_upper_row_tail(&machine, source, &["io", "nondet"]);
-        assert_single_weighted_upper_var(&machine, gamma, tail_var, weights);
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(
+                subtract,
+                Subtractability::AllExceptMany(vec![
+                    (vec!["io".into()], Vec::new()),
+                    (vec!["nondet".into()], Vec::new()),
+                ]),
+            ),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_removes_retained_item_from_pop_only_stack() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let next_tail_var = TypeVar(2);
+        let subtract = SubtractId(0);
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let next_tail = machine.alloc_neg(Neg::Var(next_tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+        let weights = ConstraintWeights {
+            left: StackWeight::pops(subtract, u32::MAX),
+            right: StackWeight::empty(),
+        };
+
+        machine.weighted_subtype(lower, weights, upper);
+
+        let gamma = single_upper_row_tail(&machine, source, &["io"]);
+        let residual_weight = StackWeight::floor(
+            subtract,
+            Subtractability::AllExcept(vec!["io".into()], Vec::new()),
+        )
+        .compose(&StackWeight::pops(subtract, u32::MAX));
+        let residual_weights = ConstraintWeights {
+            left: residual_weight,
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights.clone());
+
+        let tail_pos = machine.alloc_pos(Pos::Var(tail_var));
+        let tail_upper = machine.alloc_neg(Neg::Row(vec![io], next_tail));
+        machine.subtype(tail_pos, tail_upper);
+
+        assert_eq!(machine.row_residuals.len(), 1);
+        assert!(
+            machine
+                .bounds()
+                .of(gamma)
+                .expect("gamma bounds")
+                .uppers()
+                .iter()
+                .any(|upper| {
+                    upper.weights == residual_weights
+                        && matches!(
+                            machine.types().neg(upper.neg),
+                            Neg::Var(found) if *found == next_tail_var
+                        )
+                })
+        );
+    }
+
+    #[test]
+    fn residual_floor_keeps_later_distinct_handler_subtractable() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let next_tail_var = TypeVar(2);
+        let subtract = SubtractId(0);
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let next_tail = machine.alloc_neg(Neg::Var(next_tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+        let weights = ConstraintWeights {
+            left: StackWeight::pops(subtract, u32::MAX),
+            right: StackWeight::empty(),
+        };
+
+        machine.weighted_subtype(lower, weights, upper);
+
+        let gamma = single_upper_row_tail(&machine, source, &["io"]);
+
+        // 1つ目のハンドラで io を引いた残差が、別のハンドラ [nondet; ...] に掛かる。
+        let tail_pos = machine.alloc_pos(Pos::Var(tail_var));
+        let tail_upper = machine.alloc_neg(Neg::Row(vec![nondet], next_tail));
+        machine.subtype(tail_pos, tail_upper);
+
+        // floor は AllExcept(io) なので nondet はまだ引ける。γ の上界に [nondet; γ2] が立ち、
+        // γ2 の floor には両方の除外が蓄積される。
+        let gamma2 = machine
+            .bounds()
+            .of(gamma)
+            .expect("gamma bounds")
+            .uppers()
+            .iter()
+            .find_map(|upper| {
+                if upper.weights != ConstraintWeights::empty() {
+                    return None;
+                }
+                let Neg::Row(items, row_tail) = machine.types().neg(upper.neg) else {
+                    return None;
+                };
+                let [item] = items.as_slice() else {
+                    return None;
+                };
+                let Neg::Con(path, _) = machine.types().neg(*item) else {
+                    return None;
+                };
+                if path != &vec!["nondet".to_string()] {
+                    return None;
+                }
+                match machine.types().neg(*row_tail) {
+                    Neg::Var(found) => Some(*found),
+                    _ => None,
+                }
+            })
+            .expect("gamma row upper [nondet; gamma2]");
+        assert_ne!(gamma, gamma2);
+        assert_eq!(machine.row_residuals.len(), 2);
+        let residual_weights = ConstraintWeights {
+            left: StackWeight::floor(
+                subtract,
+                Subtractability::AllExceptMany(vec![
+                    (vec!["io".into()], Vec::new()),
+                    (vec!["nondet".into()], Vec::new()),
+                ]),
+            )
+            .compose(&StackWeight::pops(subtract, u32::MAX)),
+            right: StackWeight::empty(),
+        };
+        assert_weighted_upper_var(&machine, gamma2, next_tail_var, residual_weights);
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_reuses_residual_by_effect_path_not_payload() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        let ref_update = crate::std_paths::control_var_ref_update_effect();
+        let first_payload_lower = machine.alloc_pos(Pos::Bot);
+        let first_payload_upper = machine.alloc_neg(Neg::Top);
+        let first_payload = machine.alloc_neu(Neu::Bounds(
+            first_payload_lower,
+            TypeVar(10),
+            first_payload_upper,
+        ));
+        let second_payload_lower = machine.alloc_pos(Pos::Bot);
+        let second_payload_upper = machine.alloc_neg(Neg::Top);
+        let second_payload = machine.alloc_neu(Neu::Bounds(
+            second_payload_lower,
+            TypeVar(11),
+            second_payload_upper,
+        ));
+        let first_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![first_payload]));
+        let second_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![second_payload]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let first_lower = machine.alloc_pos(Pos::Var(source));
+        let second_lower = machine.alloc_pos(Pos::Var(source));
+        let first_upper = machine.alloc_neg(Neg::Row(vec![first_item], tail));
+        let second_upper = machine.alloc_neg(Neg::Row(vec![second_item], tail));
+        let weights = ConstraintWeights {
+            left: StackWeight::push(subtract, Subtractability::All),
+            right: StackWeight::empty(),
+        };
+
+        machine.weighted_subtype(first_lower, weights.clone(), first_upper);
+        machine.weighted_subtype(second_lower, weights, second_upper);
+
+        assert_eq!(machine.row_residuals.len(), 1);
+        let gamma = *machine.row_residuals.values().next().expect("row residual");
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(
+                subtract,
+                Subtractability::AllExcept(ref_update, Vec::new()),
+            ),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_drops_effect_payloads_from_residual_stack_weight() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        let ref_update = crate::std_paths::control_var_ref_update_effect();
+        let payload_lower = machine.alloc_pos(Pos::Bot);
+        let payload_upper = machine.alloc_neg(Neg::Top);
+        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, TypeVar(10), payload_upper));
+        let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
+        let weights = ConstraintWeights {
+            left: StackWeight::push(
+                subtract,
+                Subtractability::AllExcept(ref_update.clone(), vec![payload]),
+            ),
+            right: StackWeight::empty(),
+        };
+
+        machine.weighted_subtype(lower, weights, upper);
+
+        let gamma = single_upper_row_tail(&machine, source, &["io"]);
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(
+                subtract,
+                Subtractability::AllExceptMany(vec![
+                    (ref_update, Vec::new()),
+                    (vec!["io".into()], Vec::new()),
+                ]),
+            ),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
     }
 
     fn single_upper_row_tail(
@@ -2548,6 +2869,27 @@ mod tests {
             Neg::Var(found) if *found == expected => {}
             other => panic!("expected weighted upper var {expected:?}, got {other:?}"),
         }
+    }
+
+    fn residual_stack_weight(id: SubtractId, subtractability: Subtractability) -> StackWeight {
+        StackWeight::floor(id, subtractability.clone())
+            .compose(&StackWeight::push(id, subtractability))
+    }
+
+    fn assert_weighted_upper_var(
+        machine: &ConstraintMachine,
+        var: TypeVar,
+        expected: TypeVar,
+        expected_weights: ConstraintWeights,
+    ) {
+        let bounds = machine.bounds().of(var).expect("gamma bounds");
+        assert!(
+            bounds.uppers().iter().any(|upper| {
+                upper.weights == expected_weights
+                    && matches!(machine.types().neg(upper.neg), Neg::Var(found) if *found == expected)
+            }),
+            "expected weighted upper var {expected:?}"
+        );
     }
 
     fn find_empty_weight_row_tail(

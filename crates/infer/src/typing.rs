@@ -19,6 +19,7 @@ pub struct Computation {
     pub expr: ExprId,
     pub value: TypeVar,
     pub effect: TypeVar,
+    pub effect_view: Option<EffectViewId>,
     pub evaluation: Evaluation,
 }
 
@@ -28,8 +29,14 @@ impl Computation {
             expr,
             value,
             effect,
+            effect_view: None,
             evaluation,
         }
+    }
+
+    pub fn with_effect_view(mut self, view: EffectViewId) -> Self {
+        self.effect_view = Some(view);
+        self
     }
 
     pub fn value(expr: ExprId, value: TypeVar, effect: TypeVar) -> Self {
@@ -44,6 +51,9 @@ impl Computation {
         self.evaluation.is_expansive()
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EffectViewId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// 値制限に使う評価性。
