@@ -129,6 +129,32 @@ pub(crate) fn resolve_role_constraints_with_method_taint(
     out
 }
 
+/// 入力がすべて concrete 成分を持つ時だけ true。
+///
+/// `resolve_role_constraints` は入力が concrete に一意決定しないと発火しないので、
+/// 入力が純粋な変数のままの constraint は impl 側の準備（impl member の世代化順序）を
+/// 必要としない。role method 宣言の `'a: Role` がここで弾かれないと、
+/// method → 全 impl member の依存辺が impl body の method 使用と偽サイクルを閉じ、
+/// SCC 融合で各 use site の receiver が signature へ union されてしまう。
+pub(crate) fn role_constraint_could_resolve(constraint: &CompactRoleConstraint) -> bool {
+    constraint
+        .inputs
+        .iter()
+        .all(|arg| has_concrete_component(&arg.lower) || has_concrete_component(&arg.upper))
+}
+
+fn has_concrete_component(ty: &CompactType) -> bool {
+    ty.never
+        || !ty.builtins.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.poly_variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
+}
+
 #[derive(Debug, Clone)]
 struct ResolvedCandidate {
     candidate: CompactRoleConstraint,
@@ -1055,8 +1081,8 @@ fn role_arg_concrete_type(
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> Option<CompactType> {
     let lower = single_concrete_type(&arg.lower);
-    if lower.is_some()
-        && role_arg_allowed_by_main_polarity(arg, true, main_polarity)
+    if let Some(lower_ty) = &lower
+        && role_arg_lower_allowed(arg, lower_ty, main_polarity)
         && !compact_type_has_method_taint(&arg.lower, method_taint)
     {
         return lower;
@@ -1203,10 +1229,46 @@ fn role_arg_allowed_by_main_polarity(
     })
 }
 
+/// 下界での解決可否。main-negative な変数も、その負出現がすべて `target` と
+/// 同じ交差に同伴しているなら許す。呼び出し側から入る値は交差の concrete 成分で
+/// `target` 以下に絞られるので、subject が `target` 以外へ instantiate されることはない。
+/// （例: `impl Debug int: our x.dsize = x.size` — x は `'x & int` で釘付け）
+/// 同伴なしの負出現が一つでもあれば従来どおり拒否する（`'a + 1` の `'a` を守る）。
+///
+/// 見るのは subject の**トップレベル変数だけ**。con 引数の中の不変 interval 変数は
+/// 構造ごと candidate との `match_bounds_pattern` が照合する領分で、ここで両極性
+/// （Interval の self_var は常に bipolar）を理由に拒否すると `list int` のような
+/// 入れ子 concrete subject が永遠に解決できない。
+fn role_arg_lower_allowed(
+    arg: &CompactRoleArg,
+    target: &CompactType,
+    main_polarity: &MainPolarity,
+) -> bool {
+    let top_level_vars = arg
+        .lower
+        .vars
+        .iter()
+        .chain(arg.upper.vars.iter())
+        .map(|var| var.var)
+        .collect::<FxHashSet<_>>();
+    top_level_vars.into_iter().all(|var| {
+        match (
+            main_polarity.positive.contains(&var),
+            main_polarity.negative.contains(&var),
+        ) {
+            (false, false) => true,
+            (true, false) => true,
+            (false, true) => main_polarity.negative_occurrences_pinned_to(var, target),
+            (true, true) => false,
+        }
+    })
+}
+
 #[derive(Default)]
 struct MainPolarity {
     positive: FxHashSet<TypeVar>,
     negative: FxHashSet<TypeVar>,
+    negative_cooccur: FxHashMap<TypeVar, Vec<CompactType>>,
 }
 
 impl MainPolarity {
@@ -1227,9 +1289,23 @@ impl MainPolarity {
         }
     }
 
+    fn negative_occurrences_pinned_to(&self, var: TypeVar, target: &CompactType) -> bool {
+        self.negative_cooccur.get(&var).is_some_and(|occurrences| {
+            occurrences
+                .iter()
+                .all(|occurrence| single_concrete_type(occurrence).as_ref() == Some(target))
+        })
+    }
+
     fn collect_type(&mut self, ty: &CompactType, positive: bool) {
         for var in &ty.vars {
             self.insert(var.var, positive);
+            if !positive {
+                self.negative_cooccur
+                    .entry(var.var)
+                    .or_default()
+                    .push(ty.clone());
+            }
         }
         for con in &ty.cons {
             for arg in &con.args {

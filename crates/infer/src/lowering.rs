@@ -2727,6 +2727,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            &[],
         );
         let frame = self
             .function_frames
@@ -2791,6 +2792,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            &[],
         );
         let frame = self
             .function_frames
@@ -2892,6 +2894,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            &[],
         );
         let frame = self
             .function_frames
@@ -2964,6 +2967,15 @@ impl<'a> ExprLowerer<'a> {
 
         let receiver_value = self.fresh_type_var();
         self.connect_type_method_value_annotation(receiver_value, receiver_ann, ann_solver_vars)?;
+        let param_uppers = match requirement {
+            Some(requirement) => self.impl_method_param_uppers(
+                requirement,
+                arg_patterns.len(),
+                type_var_bindings,
+                ann_solver_vars,
+            )?,
+            None => Vec::new(),
+        };
         let before_locals = self.locals.len();
         let pat = self.bind_pattern_local(
             receiver,
@@ -2979,6 +2991,7 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_builder,
             ann_solver_vars,
             result_type_expr.as_ref(),
+            &param_uppers,
         );
         let frame = self
             .function_frames
@@ -3016,6 +3029,44 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
+    /// requirement（impl 入力を代入済みの role method シグネチャ）の引数列を、
+    /// member の各 param の上界として引き上げる。`value <: requirement` だけだと
+    /// 引数側には下界しか流れず、subject の釘付け（discharge / 共起併合の前提）が
+    /// 引数経由の demand に届かない。先頭の Function は receiver なので飛ばす。
+    fn impl_method_param_uppers(
+        &mut self,
+        requirement: &SignatureType,
+        param_count: usize,
+        type_var_bindings: &[(String, AnnTypeVarId)],
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<Vec<Option<NegId>>, LoweringError> {
+        let mut spine = signature_function_step(requirement).map(|(_, ret)| ret);
+        let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
+        // 足場の interval 変数（`Bounds(int, v, int)` の v）が root level で生まれると
+        // simplify の level 保護で永久に残るので、def の現在 level で lower する。
+        let level = self.session.infer.current_level();
+        let mut lowerer = SignatureLowerer::with_vars_at_level(
+            &mut self.session.infer,
+            self.modules,
+            seed,
+            level,
+        );
+        let mut uppers = Vec::with_capacity(param_count);
+        for _ in 0..param_count {
+            let Some((param, ret)) = spine.and_then(signature_function_step) else {
+                uppers.push(None);
+                continue;
+            };
+            uppers.push(Some(
+                lowerer
+                    .lower_neg(param)
+                    .map_err(|error| LoweringError::SignatureConstraint { error })?,
+            ));
+            spine = Some(ret);
+        }
+        Ok(uppers)
+    }
+
     fn connect_impl_method_requirement(
         &mut self,
         value: TypeVar,
@@ -3026,12 +3077,13 @@ impl<'a> ExprLowerer<'a> {
         self.check_impl_method_requirement_shape(value, requirement)?;
         self.check_impl_method_requirement_concrete_type(value, requirement)?;
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
+        let level = self.session.infer.current_level();
         let upper = {
             let mut lowerer = SignatureLowerer::with_vars_at_level(
                 &mut self.session.infer,
                 self.modules,
                 seed,
-                TypeLevel::root(),
+                level,
             );
             lowerer
                 .lower_neg(requirement)
@@ -3636,6 +3688,7 @@ impl<'a> ExprLowerer<'a> {
                 ann_solver_vars,
                 body_type_expr,
                 self_value,
+                &[],
             );
         }
 
@@ -3717,6 +3770,7 @@ impl<'a> ExprLowerer<'a> {
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         body_type_expr: Option<&Cst>,
+        param_uppers: &[Option<NegId>],
     ) -> Result<Computation, LoweringError> {
         if !patterns.is_empty() {
             return self.lower_defined_lambda_params(
@@ -3726,6 +3780,7 @@ impl<'a> ExprLowerer<'a> {
                 ann_solver_vars,
                 body_type_expr,
                 None,
+                param_uppers,
             );
         }
 
@@ -3757,13 +3812,18 @@ impl<'a> ExprLowerer<'a> {
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
+        param_uppers: &[Option<NegId>],
     ) -> Result<Computation, LoweringError> {
         let before_locals = self.locals.len();
         let before_frames = self.function_frames.len();
         let mut params = Vec::with_capacity(patterns.len());
 
-        for pattern in patterns {
+        for (param_index, pattern) in patterns.iter().enumerate() {
             let param_value = self.fresh_type_var();
+            if let Some(Some(upper)) = param_uppers.get(param_index) {
+                let lower = self.alloc_pos(Pos::Var(param_value));
+                self.session.infer.subtype(lower, *upper);
+            }
             let annotation = match self.connect_lambda_pattern_annotation(
                 pattern,
                 param_value,
@@ -6606,6 +6666,15 @@ pub enum SignatureType {
         ret_eff: Option<SignatureEffectRow>,
         ret: Box<SignatureType>,
     },
+}
+
+/// Effectful ラッパを剥がして Function の (param, ret) を返す。
+fn signature_function_step(sig: &SignatureType) -> Option<(&SignatureType, &SignatureType)> {
+    match sig {
+        SignatureType::Effectful { ret, .. } => signature_function_step(ret),
+        SignatureType::Function { param, ret, .. } => Some((param.as_ref(), ret.as_ref())),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -33,7 +33,7 @@ use crate::methods::{
 };
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
-    resolve_role_constraints_with_method_taint,
+    resolve_role_constraints_with_method_taint, role_constraint_could_resolve,
 };
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleImplTable,
@@ -360,6 +360,12 @@ impl AnalysisSession {
             .roles
             .for_owner(parent)
             .iter()
+            .filter(|role| {
+                role_constraint_could_resolve(&compact_role_constraint(
+                    self.infer.constraints(),
+                    role,
+                ))
+            })
             .map(|role| role.role.clone())
             .collect::<FxHashSet<_>>();
         for role in roles {
