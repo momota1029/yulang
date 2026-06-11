@@ -6611,7 +6611,13 @@ impl<'a> SignatureLowerer<'a> {
             .iter()
             .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
         {
-            return Err(SignatureConstraintError::WildcardEffectRowInTypePosition);
+            // `[_]` は「与えられたエフェクトを handler が全部引いてよい」という許可。
+            // 反変エフェクト注釈は存在しないので、fresh effect 変数に All-subtract を
+            // 付けて立てる（spec/2026-05-31-effect-variable-subtractable.md 規則2,3）。
+            let effect = self.fresh_type_var();
+            self.connect_effect_tail_lower(effect, row);
+            self.record_effect_row_subtractability(effect, row)?;
+            return Ok(self.alloc_pos(Pos::Var(effect)));
         }
         let mut items = Vec::with_capacity(row.items.len() + usize::from(row.tail.is_some()));
         for atom in &row.items {
