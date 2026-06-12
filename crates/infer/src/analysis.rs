@@ -19,9 +19,9 @@ use crate::compact::{
     CompactBounds, CompactCastApplication, CompactCastKey, CompactRoleArg, CompactRoleConstraint,
     CompactSimplification, CompactType, coalesce_floor_interval_equalities,
     compact_reachable_role_constraints, compact_role_constraint, compact_type_var,
-    finalize_compact_type_to_neg_constraint, finalize_compact_type_to_pos_constraint,
-    find_next_compact_cast, normalize_compact_casts, normalize_var_substitutions,
-    simplify_compact_root_with_roles_and_non_generic,
+    eliminate_floor_redundant_variables, finalize_compact_type_to_neg_constraint,
+    finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
+    normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
@@ -1322,6 +1322,12 @@ impl AnalysisSession {
             &mut compact,
             &mut role_predicates,
         );
+        let floor_redundant_substitutions = eliminate_floor_redundant_variables(
+            self.infer.constraints(),
+            TypeLevel::root(),
+            &mut compact,
+            &mut role_predicates,
+        );
 
         let mut generalized = generalize_prepared_compact_root_with_roles(
             self.infer.constraints(),
@@ -1330,8 +1336,9 @@ impl AnalysisSession {
             role_predicates,
             &FxHashSet::default(),
         );
-        if !floor_substitutions.is_empty() {
+        if !floor_substitutions.is_empty() || !floor_redundant_substitutions.is_empty() {
             let mut combined = floor_substitutions;
+            combined.extend(floor_redundant_substitutions);
             combined.extend(generalized.substitutions);
             generalized.substitutions = normalize_var_substitutions(combined);
         }

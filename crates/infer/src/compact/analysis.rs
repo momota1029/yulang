@@ -163,6 +163,92 @@ pub(crate) fn coalesce_floor_interval_equalities(
     rewrite_root_and_role_vars(root, roles, |var| subst.rewrite(var))
 }
 
+/// scheme に量化できない床変数のうち、surface に残す根拠を持たないものを落とす。
+///
+/// 片側極性だけなら通常の極性消去、両極性に出ても同じ concrete に挟まっているなら
+/// sandwich flattening と同じ根拠で消せる。裸の床変数まで消すと未確定の root を
+/// `never` 相当に潰すので、polar-only は deeper birth か concrete 同伴がある場合に限る。
+pub(crate) fn eliminate_floor_redundant_variables(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactVarSubstitution> {
+    let polarity = collect_var_polarities(root, roles);
+    let co_occurrences = collect_co_occurrences(root, roles);
+    let removals = floor_redundant_vars(machine, boundary, &polarity, &co_occurrences);
+    if removals.is_empty() {
+        return Vec::new();
+    }
+    rewrite_root_and_role_vars(root, roles, |var| {
+        if removals.contains(&var) {
+            None
+        } else {
+            Some(var)
+        }
+    })
+}
+
+fn floor_redundant_vars(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    polarity: &VarPolarities,
+    co_occurrences: &CoOccurrences,
+) -> FxHashSet<TypeVar> {
+    let mut vars = polarity
+        .positive
+        .iter()
+        .chain(&polarity.negative)
+        .copied()
+        .collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    vars.dedup();
+
+    let mut removals = FxHashSet::default();
+    for var in vars {
+        if machine.level_of(var) > boundary {
+            continue;
+        }
+        if !polarity.is_bipolar(var) {
+            if machine.birth_level_of(var) > boundary || has_exact_companion(var, co_occurrences) {
+                removals.insert(var);
+            }
+            continue;
+        }
+        if has_exact_sandwich(var, co_occurrences) {
+            removals.insert(var);
+        }
+    }
+    removals
+}
+
+fn has_exact_companion(var: TypeVar, co_occurrences: &CoOccurrences) -> bool {
+    co_occurrences
+        .positive
+        .get(&var)
+        .is_some_and(has_exact_item)
+        || co_occurrences
+            .negative
+            .get(&var)
+            .is_some_and(has_exact_item)
+}
+
+fn has_exact_sandwich(var: TypeVar, co_occurrences: &CoOccurrences) -> bool {
+    let (Some(positive), Some(negative)) = (
+        co_occurrences.positive.get(&var),
+        co_occurrences.negative.get(&var),
+    ) else {
+        return false;
+    };
+    positive
+        .iter()
+        .any(|item| matches!(item, AlongItem::Exact(_)) && negative.contains(item))
+}
+
+fn has_exact_item(items: &FxHashSet<AlongItem>) -> bool {
+    items.iter().any(|item| matches!(item, AlongItem::Exact(_)))
+}
+
 fn simplify_polar_and_co_occurrence_to_fixed_point(
     machine: &ConstraintMachine,
     boundary: TypeLevel,

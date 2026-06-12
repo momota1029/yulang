@@ -10521,11 +10521,7 @@ mod tests {
             poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, pick));
         // receiver demand は 1 引数 role 限定なので、複数引数 role の selection でも
         // method instantiation 由来の demand だけが残り、concrete なら discharge される。
-        // 戻り値に残る床下 var の union（'a|…|int）は selection 連鎖の extrude 起因で別件。
-        assert!(
-            !rendered.contains("where") && rendered.starts_with("int -> int ->"),
-            "{rendered}"
-        );
+        assert_eq!(rendered, "int -> int -> int");
     }
 
     #[test]

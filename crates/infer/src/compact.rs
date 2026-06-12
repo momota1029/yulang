@@ -21,8 +21,8 @@ mod analysis;
 #[cfg(test)]
 pub(crate) use analysis::simplify_compact_root;
 pub(crate) use analysis::{
-    coalesce_floor_interval_equalities, normalize_var_substitutions,
-    simplify_compact_root_with_roles_and_non_generic,
+    coalesce_floor_interval_equalities, eliminate_floor_redundant_variables,
+    normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
 };
 mod casts;
 #[cfg(test)]
@@ -2661,6 +2661,61 @@ mod tests {
                 target: None
             }]
         );
+    }
+
+    #[test]
+    fn floor_redundant_elimination_removes_exact_sandwiched_floor_var() {
+        let machine = ConstraintMachine::new();
+        let var = TypeVar(10);
+        let mut root = CompactRoot {
+            root: CompactType::from_fun(CompactFun {
+                arg: merge_compact_types(
+                    true,
+                    CompactType::from_var(CompactVar::plain(var)),
+                    CompactType::from_builtin(BuiltinType::Int),
+                ),
+                arg_eff: CompactType::default(),
+                ret_eff: CompactType::default(),
+                ret: merge_compact_types(
+                    true,
+                    CompactType::from_var(CompactVar::plain(var)),
+                    CompactType::from_builtin(BuiltinType::Int),
+                ),
+            }),
+            rec_vars: Vec::new(),
+        };
+
+        let substitutions =
+            eliminate_floor_redundant_variables(&machine, TypeLevel::root(), &mut root, &mut []);
+
+        let fun = &root.root.funs[0];
+        assert!(fun.arg.vars.is_empty());
+        assert!(fun.ret.vars.is_empty());
+        assert_eq!(fun.arg.builtins, vec![BuiltinType::Int]);
+        assert_eq!(fun.ret.builtins, vec![BuiltinType::Int]);
+        assert_eq!(
+            substitutions,
+            vec![CompactVarSubstitution {
+                source: var,
+                target: None
+            }]
+        );
+    }
+
+    #[test]
+    fn floor_redundant_elimination_keeps_bare_floor_var() {
+        let machine = ConstraintMachine::new();
+        let var = TypeVar(10);
+        let mut root = CompactRoot {
+            root: CompactType::from_var(CompactVar::plain(var)),
+            rec_vars: Vec::new(),
+        };
+
+        let substitutions =
+            eliminate_floor_redundant_variables(&machine, TypeLevel::root(), &mut root, &mut []);
+
+        assert_eq!(root.root.vars, vec![CompactVar::plain(var)]);
+        assert!(substitutions.is_empty());
     }
 
     #[test]
