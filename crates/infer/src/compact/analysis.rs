@@ -311,12 +311,10 @@ fn collapse_pinned_intervals_with_roles_and_non_generic(
     }
     for role in roles {
         for input in &mut role.inputs {
-            collapse_intervals_in_type(&mut input.lower, &mut ctx);
-            collapse_intervals_in_type(&mut input.upper, &mut ctx);
+            collapse_intervals_in_bounds(&mut input.bounds, &mut ctx, false);
         }
         for associated in &mut role.associated {
-            collapse_intervals_in_type(&mut associated.value.lower, &mut ctx);
-            collapse_intervals_in_type(&mut associated.value.upper, &mut ctx);
+            collapse_intervals_in_bounds(&mut associated.value.bounds, &mut ctx, false);
         }
     }
 }
@@ -731,8 +729,7 @@ fn visit_role_arg_for_sandwich_verdict(
     arg: &CompactRoleArg,
     verdicts: &mut FxHashMap<TypeVar, SandwichVerdict>,
 ) {
-    visit_type_for_sandwich_verdict(&arg.lower, verdicts);
-    visit_type_for_sandwich_verdict(&arg.upper, verdicts);
+    visit_bounds_for_sandwich_verdict(&arg.bounds, verdicts);
 }
 
 fn visit_type_for_sandwich_verdict(
@@ -1183,23 +1180,9 @@ fn sandwich_role_arg(
     changed: &mut bool,
     sandwiches: &mut FxHashMap<TypeVar, CompactSandwichKind>,
 ) {
-    arg.lower = sandwich_type(
-        machine,
-        boundary,
-        mem::take(&mut arg.lower),
-        verdicts,
-        fresh,
-        changed,
-        sandwiches,
-    );
-    arg.upper = sandwich_type(
-        machine,
-        boundary,
-        mem::take(&mut arg.upper),
-        verdicts,
-        fresh,
-        changed,
-        sandwiches,
+    let bounds = arg.bounds.clone();
+    arg.bounds = sandwich_bounds(
+        machine, boundary, bounds, verdicts, fresh, changed, sandwiches,
     );
 }
 
@@ -1591,8 +1574,7 @@ fn visit_role_polarity(role: &CompactRoleConstraint, out: &mut VarPolarities) {
 }
 
 fn visit_role_arg_polarity(arg: &CompactRoleArg, out: &mut VarPolarities) {
-    visit_type_polarity(&arg.lower, Polarity::Positive, out);
-    visit_type_polarity(&arg.upper, Polarity::Negative, out);
+    visit_bounds_polarity(&arg.bounds, Polarity::Positive, out);
 }
 
 fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mut VarPolarities) {
@@ -2017,9 +1999,7 @@ fn visit_role_arg_co_occurrence(
     ignored_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
-    out.record_interval_equalities(&arg.lower, &arg.upper, None);
-    visit_type_co_occurrence(&arg.lower, Polarity::Positive, &[], ignored_vars, out);
-    visit_type_co_occurrence(&arg.upper, Polarity::Negative, &[], ignored_vars, out);
+    visit_bounds_co_occurrence(&arg.bounds, Polarity::Positive, ignored_vars, out);
 }
 
 fn visit_type_co_occurrence(
@@ -2355,8 +2335,7 @@ fn rewrite_role_arg_vars(
     rewrite: &mut impl FnMut(TypeVar) -> Option<TypeVar>,
     substitutions: &mut FxHashMap<TypeVar, Option<TypeVar>>,
 ) {
-    rewrite_type_vars(&mut arg.lower, rewrite, substitutions);
-    rewrite_type_vars(&mut arg.upper, rewrite, substitutions);
+    rewrite_bounds_vars(&mut arg.bounds, rewrite, substitutions);
 }
 
 fn rewrite_type_vars(

@@ -21,11 +21,13 @@ use crate::compact::{
     CompactBounds, CompactCastApplication, CompactCastKey, CompactMergeConstraintKey,
     CompactRoleArg, CompactRoleConstraint, CompactSimplification, CompactType,
     apply_compact_merge_constraints, coalesce_floor_interval_equalities,
-    compact_reachable_role_constraints, compact_role_constraint,
+    compact_reachable_role_constraints,
+    compact_reachable_role_constraints_recording_merge_constraints, compact_role_constraint,
+    compact_role_constraint_recording_merge_constraints,
     compact_type_var_recording_merge_constraints, eliminate_floor_redundant_variables,
-    finalize_compact_type_to_neg_constraint, finalize_compact_type_to_pos_constraint,
-    find_next_compact_cast, normalize_compact_casts, normalize_var_substitutions,
-    simplify_compact_root_with_roles_and_non_generic,
+    finalize_compact_bounds_to_constraint, finalize_compact_type_to_neg_constraint,
+    finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
+    normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
@@ -38,7 +40,8 @@ use crate::methods::{
     RoleMethodTable, TypeMethodTable,
 };
 use crate::role_solve::{
-    RoleResolution, RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
+    RoleResolution, RoleResolutionKey, coalesce_role_constraints,
+    coalesce_role_constraints_recording_merge_constraints, resolve_role_constraints,
     resolve_role_constraints_with_method_taint, role_constraint_could_resolve,
 };
 use crate::roles::{
@@ -530,7 +533,17 @@ impl AnalysisSession {
                 continue;
             }
             normalize_compact_casts(&mut compact, &FxHashSet::default());
-            let roles = self.method_tainted_role_constraints(def, method_taint);
+            let (roles, role_merge_constraints) =
+                self.method_tainted_role_constraints_recording_merge_constraints(def, method_taint);
+            if apply_compact_merge_constraints(
+                self.infer.constraints_mut(),
+                role_merge_constraints,
+                &mut applied_merge_constraints,
+            ) {
+                self.route_constraint_events();
+                progressed = true;
+                continue;
+            }
             let resolutions = resolve_role_constraints_with_method_taint(
                 self.infer.constraints(),
                 &compact,
@@ -554,21 +567,36 @@ impl AnalysisSession {
         progressed
     }
 
-    fn method_tainted_role_constraints(
+    fn method_tainted_role_constraints_recording_merge_constraints(
         &self,
         def: DefId,
         method_taint: &MethodTaintIndex,
-    ) -> Vec<CompactRoleConstraint> {
-        coalesce_role_constraints(
-            self.roles
-                .for_owner(def)
-                .iter()
-                .map(|constraint| compact_role_constraint(self.infer.constraints(), constraint))
-                .filter(|constraint| {
-                    compact_role_constraint_has_method_taint(constraint, method_taint)
-                })
-                .collect(),
-        )
+    ) -> (
+        Vec<CompactRoleConstraint>,
+        Vec<crate::compact::CompactMergeConstraint>,
+    ) {
+        let mut merge_constraints = Vec::new();
+        let compact = self
+            .roles
+            .for_owner(def)
+            .iter()
+            .filter_map(|constraint| {
+                let (constraint, constraints) = compact_role_constraint_recording_merge_constraints(
+                    self.infer.constraints(),
+                    constraint,
+                );
+                if compact_role_constraint_has_method_taint(&constraint, method_taint) {
+                    merge_constraints.extend(constraints);
+                    Some(constraint)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let (roles, coalesce_constraints) =
+            coalesce_role_constraints_recording_merge_constraints(compact);
+        merge_constraints.extend(coalesce_constraints);
+        (roles, merge_constraints)
     }
 
     fn probe_method_value(
@@ -1257,8 +1285,18 @@ impl AnalysisSession {
         let mut applied_merge_constraints = FxHashSet::<CompactMergeConstraintKey>::default();
         let mut compact;
         loop {
-            let (next_compact, merge_constraints) =
+            let (next_compact, mut merge_constraints) =
                 compact_type_var_recording_merge_constraints(self.infer.constraints(), root);
+            let (role_constraints, role_collect_constraints) =
+                compact_reachable_role_constraints_recording_merge_constraints(
+                    self.infer.constraints(),
+                    &next_compact,
+                    self.roles.for_owner(def),
+                );
+            let (_, role_coalesce_constraints) =
+                coalesce_role_constraints_recording_merge_constraints(role_constraints);
+            merge_constraints.extend(role_collect_constraints);
+            merge_constraints.extend(role_coalesce_constraints);
             compact = next_compact;
             if apply_compact_merge_constraints(
                 self.infer.constraints_mut(),
@@ -1551,30 +1589,20 @@ impl AnalysisSession {
     }
 
     fn finalize_compact_role_arg(&mut self, arg: &CompactRoleArg) -> RoleConstraintArg {
-        RoleConstraintArg {
-            lower: finalize_compact_type_to_pos_constraint(
-                self.infer.constraints_mut(),
-                &arg.lower,
-            ),
-            upper: finalize_compact_type_to_neg_constraint(
-                self.infer.constraints_mut(),
-                &arg.upper,
-            ),
-        }
+        let neu = finalize_compact_bounds_to_constraint(self.infer.constraints_mut(), &arg.bounds);
+        self.role_arg_from_neu(neu)
     }
 
     fn constrain_role_arg_equal(&mut self, demand: &CompactRoleArg, candidate: &CompactRoleArg) {
-        let candidate_lower =
-            finalize_compact_type_to_pos_constraint(self.infer.constraints_mut(), &candidate.lower);
-        let demand_upper =
-            finalize_compact_type_to_neg_constraint(self.infer.constraints_mut(), &demand.upper);
-        self.infer.subtype(candidate_lower, demand_upper);
-
-        let demand_lower =
-            finalize_compact_type_to_pos_constraint(self.infer.constraints_mut(), &demand.lower);
-        let candidate_upper =
-            finalize_compact_type_to_neg_constraint(self.infer.constraints_mut(), &candidate.upper);
-        self.infer.subtype(demand_lower, candidate_upper);
+        let (candidate, demand) = {
+            let constraints = self.infer.constraints_mut();
+            let candidate = finalize_compact_bounds_to_constraint(constraints, &candidate.bounds);
+            let demand = finalize_compact_bounds_to_constraint(constraints, &demand.bounds);
+            (candidate, demand)
+        };
+        self.infer
+            .constraints_mut()
+            .constrain_invariant_neu(candidate, demand);
     }
 
     fn constrain_compact_cast(&mut self, application: &CompactCastApplication) {
@@ -2002,8 +2030,48 @@ fn compact_role_arg_has_method_taint(
     arg: &CompactRoleArg,
     method_taint: &MethodTaintIndex,
 ) -> bool {
-    compact_type_has_method_taint(&arg.lower, method_taint)
-        || compact_type_has_method_taint(&arg.upper, method_taint)
+    compact_bounds_has_method_taint(&arg.bounds, method_taint)
+}
+
+fn compact_bounds_has_method_taint(
+    bounds: &CompactBounds,
+    method_taint: &MethodTaintIndex,
+) -> bool {
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            method_taint
+                .get(self_var)
+                .is_some_and(|selects| !selects.is_empty())
+                || compact_type_has_method_taint(lower, method_taint)
+                || compact_type_has_method_taint(upper, method_taint)
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args
+            .iter()
+            .any(|arg| compact_bounds_has_method_taint(arg, method_taint)),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            compact_bounds_has_method_taint(arg, method_taint)
+                || compact_bounds_has_method_taint(arg_eff, method_taint)
+                || compact_bounds_has_method_taint(ret_eff, method_taint)
+                || compact_bounds_has_method_taint(ret, method_taint)
+        }
+        CompactBounds::Record { fields } => fields
+            .iter()
+            .any(|field| compact_bounds_has_method_taint(&field.value, method_taint)),
+        CompactBounds::PolyVariant { items } => items.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(|payload| compact_bounds_has_method_taint(payload, method_taint))
+        }),
+    }
 }
 
 fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintIndex) -> bool {
@@ -2047,47 +2115,6 @@ fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintInd
                 .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
         }) || compact_type_has_method_taint(&row.tail, method_taint)
     })
-}
-
-fn compact_bounds_has_method_taint(
-    bounds: &CompactBounds,
-    method_taint: &MethodTaintIndex,
-) -> bool {
-    match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            method_taint
-                .get(self_var)
-                .is_some_and(|selects| !selects.is_empty())
-                || compact_type_has_method_taint(lower, method_taint)
-                || compact_type_has_method_taint(upper, method_taint)
-        }
-        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args
-            .iter()
-            .any(|arg| compact_bounds_has_method_taint(arg, method_taint)),
-        CompactBounds::Fun {
-            arg,
-            arg_eff,
-            ret_eff,
-            ret,
-        } => {
-            compact_bounds_has_method_taint(arg, method_taint)
-                || compact_bounds_has_method_taint(arg_eff, method_taint)
-                || compact_bounds_has_method_taint(ret_eff, method_taint)
-                || compact_bounds_has_method_taint(ret, method_taint)
-        }
-        CompactBounds::Record { fields } => fields
-            .iter()
-            .any(|field| compact_bounds_has_method_taint(&field.value, method_taint)),
-        CompactBounds::PolyVariant { items } => items.iter().any(|(_, payloads)| {
-            payloads
-                .iter()
-                .any(|payload| compact_bounds_has_method_taint(payload, method_taint))
-        }),
-    }
 }
 
 #[cfg(test)]

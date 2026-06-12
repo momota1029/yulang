@@ -42,6 +42,15 @@ pub role Mul 'a 'b:
 3. 極性解析と共起分析ではroleの引数も対象になる。roleの引数は不変であるため、中心の型(共有された変数)が消えることはない。
 4. 簡約後、roleが決定する場合がある。後述。
 
+lowering直後の生のrole制約は、構文由来の下界・上界を保持するために`RoleConstraintArg { lower, upper }`の形でよい。
+しかしcompact表現に入った後のrole引数は、通常引数も関連型引数も`CompactBounds`そのものである。
+つまりrole引数専用の「lower/upperを持つ別区間」は作らず、constructor引数・effect family引数・tuple payloadと同じ不変区間表現へ畳む。
+両側が同一の具体構造へ畳める場合はlift済みの`CompactBounds::{Con,Tuple,Fun,...}`として持ち、そうでなければ中心変数つきの`CompactBounds::Interval`として持つ。
+
+同じrole制約が共通変数を通じて同一componentへ併合されるときも、同じ場所に来たrole引数同士は`CompactBounds`のmerge規則で併合する。
+したがって、同じ通常引数位置や同じ関連型名の値に複数のboundsが来た場合は、constructor引数やeffect family引数と同じく`loA <: upB`と`loB <: upA`の交差条件を生成し、制約が増えた場合は再collectを要求する。
+これはrole解決の見かけの正規化ではなく、同じ実引数を要求するrole demand同士が同時に成立するための制約である。
+
 impl候補も、照合時には宣言headから作られたrole制約として同じcompact簡約を受ける。
 これは候補を新しく推論し直す規則ではなく、demand側とcandidate側を同じ等価変形済みの表現で比較するための正規化である。
 candidate簡約で許されるのは、Simple-subの極性消去・共起分析・sandwich、注意節の区間規則(両側出現変数の併合と釘付け区間の畳み込み)、およびこの節のrole引数の併合だけである。

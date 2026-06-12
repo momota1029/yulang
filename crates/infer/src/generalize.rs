@@ -14,8 +14,7 @@ use crate::compact::{
     CompactRecursiveVar, CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactRow,
     CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
     CompactVar, CompactVarSubstitution, compact_con_entries, compact_row_item_entries,
-    compact_type_var, finalize_compact_bounds, finalize_compact_root, finalize_compact_type,
-    finalize_compact_type_to_neg, merge_compact_types,
+    compact_type_var, finalize_compact_bounds, finalize_compact_root, merge_compact_types,
     simplify_compact_root_with_roles_and_non_generic,
 };
 #[cfg(test)]
@@ -233,18 +232,7 @@ fn finalize_compact_role_predicates(
 }
 
 fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> NeuId {
-    if let Some(bounds) = exact_compact_role_arg_bounds(arg) {
-        return finalize_compact_bounds(types, &bounds);
-    }
-    let self_var = common_var_in_types(&arg.lower, &arg.upper)
-        .or_else(|| unique_var_in_type(&arg.lower))
-        .or_else(|| unique_var_in_type(&arg.upper))
-        .unwrap_or_else(|| {
-            panic!("compact role arg should be exact or retain a shared variable: {arg:?}")
-        });
-    let lower = finalize_compact_type(types, &arg.lower);
-    let upper = finalize_compact_type_to_neg(types, &arg.upper);
-    types.alloc_neu(Neu::Bounds(lower, self_var, upper))
+    finalize_compact_bounds(types, &arg.bounds)
 }
 
 fn clone_compact_stack_weights_for_scheme(
@@ -272,8 +260,7 @@ fn clone_compact_stack_weights_in_role_arg(
     target: &mut TypeArena,
     arg: &mut CompactRoleArg,
 ) {
-    clone_compact_stack_weights_in_type(source, target, &mut arg.lower);
-    clone_compact_stack_weights_in_type(source, target, &mut arg.upper);
+    clone_compact_stack_weights_in_bounds(source, target, &mut arg.bounds);
 }
 
 fn clone_compact_stack_weights_in_type(
@@ -690,93 +677,6 @@ fn clone_fields_between_arenas<Id: Copy>(
         .collect()
 }
 
-fn exact_compact_role_arg_bounds(arg: &CompactRoleArg) -> Option<CompactBounds> {
-    let lower = exact_compact_type_bounds(&arg.lower)?;
-    let upper = exact_compact_type_bounds(&arg.upper)?;
-    (lower == upper).then_some(lower)
-}
-
-fn exact_compact_type_bounds(ty: &CompactType) -> Option<CompactBounds> {
-    if ty.builtins.len() == 1
-        && ty.vars.is_empty()
-        && !ty.never
-        && ty.cons.is_empty()
-        && ty.funs.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.poly_variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.rows.is_empty()
-    {
-        return Some(CompactBounds::Con {
-            path: vec![ty.builtins[0].surface_name().into()],
-            args: Vec::new(),
-        });
-    }
-    if ty.cons.len() == 1
-        && ty.vars.is_empty()
-        && !ty.never
-        && ty.builtins.is_empty()
-        && ty.funs.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.poly_variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.rows.is_empty()
-    {
-        let con = compact_con_entries(&ty.cons).into_iter().next()?;
-        return Some(CompactBounds::Con {
-            path: con.path,
-            args: con.args,
-        });
-    }
-    if ty.funs.len() == 1
-        && ty.vars.is_empty()
-        && !ty.never
-        && ty.builtins.is_empty()
-        && ty.cons.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.poly_variants.is_empty()
-        && ty.tuples.is_empty()
-        && ty.rows.is_empty()
-    {
-        let fun = &ty.funs[0];
-        return Some(CompactBounds::Fun {
-            arg: Box::new(exact_compact_type_bounds(&fun.arg)?),
-            arg_eff: Box::new(exact_compact_type_bounds(&fun.arg_eff)?),
-            ret_eff: Box::new(exact_compact_type_bounds(&fun.ret_eff)?),
-            ret: Box::new(exact_compact_type_bounds(&fun.ret)?),
-        });
-    }
-    if ty.tuples.len() == 1
-        && ty.vars.is_empty()
-        && !ty.never
-        && ty.builtins.is_empty()
-        && ty.cons.is_empty()
-        && ty.funs.is_empty()
-        && ty.records.is_empty()
-        && ty.record_spreads.is_empty()
-        && ty.poly_variants.is_empty()
-        && ty.rows.is_empty()
-    {
-        return ty.tuples[0]
-            .items
-            .iter()
-            .map(exact_compact_type_bounds)
-            .collect::<Option<Vec<_>>>()
-            .map(|items| CompactBounds::Tuple { items });
-    }
-    None
-}
-
-fn unique_var_in_type(ty: &CompactType) -> Option<TypeVar> {
-    let mut vars = ty.vars.iter().map(|var| var.var).collect::<Vec<_>>();
-    vars.sort_by_key(|var| var.0);
-    vars.dedup();
-    (vars.len() == 1).then(|| vars[0])
-}
-
 pub(crate) fn finalize_generalized_compact_root_with_ancestors(
     types: &mut TypeArena,
     machine: &ConstraintMachine,
@@ -1028,8 +928,7 @@ fn rewrite_role_arg_vars(
     arg: &mut CompactRoleArg,
     substitutions: &FxHashMap<TypeVar, Option<TypeVar>>,
 ) {
-    rewrite_type_vars(&mut arg.lower, substitutions);
-    rewrite_type_vars(&mut arg.upper, substitutions);
+    rewrite_bounds_vars(&mut arg.bounds, substitutions);
 }
 
 fn rewrite_type_vars(ty: &mut CompactType, substitutions: &FxHashMap<TypeVar, Option<TypeVar>>) {
@@ -1219,10 +1118,7 @@ fn apply_sandwiches_to_role_arg(
     fresh: &mut FreshCompactVars,
     changed: &mut bool,
 ) {
-    arg.lower =
-        apply_sandwiches_to_type(std::mem::take(&mut arg.lower), sandwiches, fresh, changed);
-    arg.upper =
-        apply_sandwiches_to_type(std::mem::take(&mut arg.upper), sandwiches, fresh, changed);
+    arg.bounds = apply_sandwiches_to_bounds(arg.bounds.clone(), sandwiches, fresh, changed);
 }
 
 fn apply_sandwiches_to_type(
@@ -1493,12 +1389,10 @@ fn prune_unreachable_recursive_bounds(
 
 fn collect_role_free_vars_into_set(role: &CompactRoleConstraint, out: &mut FxHashSet<TypeVar>) {
     for input in &role.inputs {
-        collect_type_free_vars_into_set(&input.lower, out);
-        collect_type_free_vars_into_set(&input.upper, out);
+        collect_bounds_free_vars_into_set(&input.bounds, out);
     }
     for associated in &role.associated {
-        collect_type_free_vars_into_set(&associated.value.lower, out);
-        collect_type_free_vars_into_set(&associated.value.upper, out);
+        collect_bounds_free_vars_into_set(&associated.value.bounds, out);
     }
 }
 
@@ -1844,8 +1738,7 @@ fn collect_live_subtracts_in_role_arg(
     candidate_map: &FxHashMap<TypeVar, Vec<SubtractId>>,
     live: &mut FxHashSet<(TypeVar, SubtractId)>,
 ) {
-    collect_live_subtracts_in_type(&arg.lower, true, candidate_map, live);
-    collect_live_subtracts_in_type(&arg.upper, false, candidate_map, live);
+    collect_live_subtracts_in_bounds(&arg.bounds, true, candidate_map, live);
 }
 
 fn collect_live_subtracts_in_type(
@@ -1991,8 +1884,7 @@ fn prune_dead_subtract_weights_in_role_arg(
     arg: &mut CompactRoleArg,
     dead_ids: &FxHashSet<SubtractId>,
 ) -> bool {
-    prune_dead_subtract_weights_in_type(&mut arg.lower, dead_ids)
-        | prune_dead_subtract_weights_in_type(&mut arg.upper, dead_ids)
+    prune_dead_subtract_weights_in_bounds(&mut arg.bounds, dead_ids)
 }
 
 fn prune_dead_subtract_weights_in_type(
@@ -2200,8 +2092,7 @@ fn collect_empty_stack_occurrences_in_role_arg(
     arg: &CompactRoleArg,
     out: &mut EmptyStackOccurrences,
 ) {
-    collect_empty_stack_occurrences_in_type(&arg.lower, true, out);
-    collect_empty_stack_occurrences_in_type(&arg.upper, false, out);
+    collect_empty_stack_occurrences_in_bounds(&arg.bounds, true, out);
 }
 
 fn collect_empty_stack_occurrences_in_type(
@@ -2321,8 +2212,7 @@ fn prune_redundant_empty_stack_entries_in_role_arg(
     arg: &mut CompactRoleArg,
     redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
 ) -> bool {
-    prune_redundant_empty_stack_entries_in_type(&mut arg.lower, true, redundant)
-        | prune_redundant_empty_stack_entries_in_type(&mut arg.upper, false, redundant)
+    prune_redundant_empty_stack_entries_in_bounds(&mut arg.bounds, true, redundant)
 }
 
 fn prune_redundant_empty_stack_entries_in_type(
@@ -2456,12 +2346,10 @@ fn live_covariant_stack_ids_in_root_and_roles(
     }
     for role in role_predicates {
         for input in &role.inputs {
-            collect_live_stack_ids_in_type(&input.lower, true, None, &mut ids);
-            collect_live_stack_ids_in_type(&input.upper, false, None, &mut ids);
+            collect_live_stack_ids_in_bounds(&input.bounds, true, None, &mut ids);
         }
         for associated in &role.associated {
-            collect_live_stack_ids_in_type(&associated.value.lower, true, None, &mut ids);
-            collect_live_stack_ids_in_type(&associated.value.upper, false, None, &mut ids);
+            collect_live_stack_ids_in_bounds(&associated.value.bounds, true, None, &mut ids);
         }
     }
     ids
@@ -2479,19 +2367,12 @@ fn sorted_stack_quantifiers(
     }
     for role in role_predicates {
         for input in &role.inputs {
-            collect_live_stack_ids_in_type(&input.lower, true, Some(quantifier_set), &mut ids);
-            collect_live_stack_ids_in_type(&input.upper, false, Some(quantifier_set), &mut ids);
+            collect_live_stack_ids_in_bounds(&input.bounds, true, Some(quantifier_set), &mut ids);
         }
         for associated in &role.associated {
-            collect_live_stack_ids_in_type(
-                &associated.value.lower,
+            collect_live_stack_ids_in_bounds(
+                &associated.value.bounds,
                 true,
-                Some(quantifier_set),
-                &mut ids,
-            );
-            collect_live_stack_ids_in_type(
-                &associated.value.upper,
-                false,
                 Some(quantifier_set),
                 &mut ids,
             );
@@ -2514,12 +2395,10 @@ fn all_stack_ids_in_root_and_roles(
     }
     for role in role_predicates {
         for input in &role.inputs {
-            collect_all_stack_ids_in_type(&input.lower, &mut ids);
-            collect_all_stack_ids_in_type(&input.upper, &mut ids);
+            collect_all_stack_ids_in_bounds(&input.bounds, &mut ids);
         }
         for associated in &role.associated {
-            collect_all_stack_ids_in_type(&associated.value.lower, &mut ids);
-            collect_all_stack_ids_in_type(&associated.value.upper, &mut ids);
+            collect_all_stack_ids_in_bounds(&associated.value.bounds, &mut ids);
         }
     }
     ids
@@ -2741,8 +2620,7 @@ fn collect_role_free_vars(role: &CompactRoleConstraint, out: &mut Vec<TypeVar>) 
 }
 
 fn collect_role_arg_free_vars(arg: &CompactRoleArg, out: &mut Vec<TypeVar>) {
-    collect_type_free_vars(&arg.lower, out);
-    collect_type_free_vars(&arg.upper, out);
+    collect_bounds_free_vars(&arg.bounds, out);
 }
 
 fn collect_recursive_var_free_vars(rec: &CompactRecursiveVar, out: &mut Vec<TypeVar>) {
@@ -3461,8 +3339,11 @@ mod tests {
         let roles = vec![CompactRoleConstraint {
             role: vec!["Ready".into()],
             inputs: vec![CompactRoleArg {
-                lower: CompactType::from_var(CompactVar::plain(role_var)),
-                upper: CompactType::from_var(CompactVar::plain(role_var)),
+                bounds: CompactBounds::Interval {
+                    self_var: role_var,
+                    lower: CompactType::from_var(CompactVar::plain(role_var)),
+                    upper: CompactType::from_var(CompactVar::plain(role_var)),
+                },
             }],
             associated: Vec::new(),
         }];
@@ -3505,12 +3386,15 @@ mod tests {
             role_predicates: vec![CompactRoleConstraint {
                 role: vec!["Ready".into()],
                 inputs: vec![CompactRoleArg {
-                    lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
-                    upper: merge_compact_types(
-                        true,
-                        CompactType::from_var(CompactVar::plain(role_var)),
-                        CompactType::from_builtin(poly::types::BuiltinType::Int),
-                    ),
+                    bounds: CompactBounds::Interval {
+                        self_var: role_var,
+                        lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
+                        upper: merge_compact_types(
+                            true,
+                            CompactType::from_var(CompactVar::plain(role_var)),
+                            CompactType::from_builtin(poly::types::BuiltinType::Int),
+                        ),
+                    },
                 }],
                 associated: Vec::new(),
             }],

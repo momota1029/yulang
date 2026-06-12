@@ -6,11 +6,12 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compact::{
-    CompactBounds, CompactCon, CompactConMap, CompactFun, CompactPolyVariant, CompactRecord,
-    CompactRecordSpread, CompactRoleArg, CompactRoleAssociatedType, CompactRoleConstraint,
-    CompactRoot, CompactRow, CompactRowItemMap, CompactTuple, CompactType, compact_con_entries,
-    compact_role_constraint, compact_row_item_entries, merge_compact_types, merge_cons,
-    simplify_compact_root_with_roles_and_non_generic,
+    CompactBounds, CompactCon, CompactConMap, CompactFun, CompactMergeConstraint,
+    CompactPolyVariant, CompactRecord, CompactRecordSpread, CompactRoleArg,
+    CompactRoleAssociatedType, CompactRoleConstraint, CompactRoot, CompactRow, CompactRowItemMap,
+    CompactTuple, CompactType, compact_con_entries, compact_role_constraint,
+    compact_row_item_entries, merge_compact_bounds_recording_merge_constraints,
+    merge_compact_types, merge_cons, simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintMachine, TypeLevel};
 use crate::roles::{RoleConstraint, RoleImplCandidate, RoleImplTable};
@@ -35,7 +36,14 @@ pub(crate) struct RoleResolution {
 pub(crate) fn coalesce_role_constraints(
     constraints: Vec<CompactRoleConstraint>,
 ) -> Vec<CompactRoleConstraint> {
+    coalesce_role_constraints_recording_merge_constraints(constraints).0
+}
+
+pub(crate) fn coalesce_role_constraints_recording_merge_constraints(
+    constraints: Vec<CompactRoleConstraint>,
+) -> (Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>) {
     let mut out = Vec::new();
+    let mut merge_constraints = Vec::new();
     let mut visited = vec![false; constraints.len()];
     for index in 0..constraints.len() {
         if visited[index] {
@@ -61,9 +69,10 @@ pub(crate) fn coalesce_role_constraints(
             component
                 .into_iter()
                 .map(|index| constraints[index].clone()),
+            &mut merge_constraints,
         ));
     }
-    out
+    (out, merge_constraints)
 }
 
 pub(crate) fn resolve_role_constraints(
@@ -142,7 +151,20 @@ pub(crate) fn role_constraint_could_resolve(constraint: &CompactRoleConstraint) 
     constraint
         .inputs
         .iter()
-        .all(|arg| has_concrete_component(&arg.lower) || has_concrete_component(&arg.upper))
+        .all(role_arg_has_concrete_component)
+}
+
+fn role_arg_has_concrete_component(arg: &CompactRoleArg) -> bool {
+    compact_bounds_has_concrete_component(&arg.bounds)
+}
+
+fn compact_bounds_has_concrete_component(bounds: &CompactBounds) -> bool {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            has_concrete_component(lower) || has_concrete_component(upper)
+        }
+        _ => compact_type_from_bounds(bounds).is_some_and(|ty| has_concrete_component(&ty)),
+    }
 }
 
 fn has_concrete_component(ty: &CompactType) -> bool {
@@ -310,20 +332,10 @@ fn match_role_arg_candidate(
     demand: &CompactType,
     subst: &mut TypeSubst,
 ) -> bool {
-    let mut matched = false;
-    if !compact_type_is_empty(&candidate.lower) {
-        if !match_type_pattern(&candidate.lower, demand, true, subst) {
-            return false;
-        }
-        matched = true;
-    }
-    if !compact_type_is_empty(&candidate.upper) {
-        if !match_type_pattern(&candidate.upper, demand, false, subst) {
-            return false;
-        }
-        matched = true;
-    }
-    matched
+    let Some(demand) = compact_bounds_from_type(demand) else {
+        return false;
+    };
+    match_bounds_pattern(&candidate.bounds, &demand, subst)
 }
 
 fn match_type_pattern(
@@ -808,8 +820,7 @@ fn rewrite_role_constraint(
 
 fn rewrite_role_arg(arg: &CompactRoleArg, subst: &TypeSubst) -> CompactRoleArg {
     CompactRoleArg {
-        lower: rewrite_type(&arg.lower, subst, true),
-        upper: rewrite_type(&arg.upper, subst, false),
+        bounds: rewrite_bounds(&arg.bounds, subst),
     }
 }
 
@@ -1053,6 +1064,91 @@ fn compact_bounds_from_type(ty: &CompactType) -> Option<CompactBounds> {
             args: con.args,
         });
     }
+    if ty.funs.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        let fun = &ty.funs[0];
+        return Some(CompactBounds::Fun {
+            arg: Box::new(compact_bounds_from_type(&fun.arg)?),
+            arg_eff: Box::new(compact_bounds_from_type(&fun.arg_eff)?),
+            ret_eff: Box::new(compact_bounds_from_type(&fun.ret_eff)?),
+            ret: Box::new(compact_bounds_from_type(&fun.ret)?),
+        });
+    }
+    if ty.records.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        return ty.records[0]
+            .fields
+            .iter()
+            .map(|field| {
+                compact_bounds_from_type(&field.value).map(|value| RecordField {
+                    name: field.name.clone(),
+                    value,
+                    optional: field.optional,
+                })
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(|fields| CompactBounds::Record { fields });
+    }
+    if ty.poly_variants.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        return ty.poly_variants[0]
+            .items
+            .iter()
+            .map(|(name, payloads)| {
+                payloads
+                    .iter()
+                    .map(compact_bounds_from_type)
+                    .collect::<Option<Vec<_>>>()
+                    .map(|payloads| (name.clone(), payloads))
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(|items| CompactBounds::PolyVariant { items });
+    }
+    if ty.tuples.len() == 1
+        && ty.vars.is_empty()
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.rows.is_empty()
+    {
+        return ty.tuples[0]
+            .items
+            .iter()
+            .map(compact_bounds_from_type)
+            .collect::<Option<Vec<_>>>()
+            .map(|items| CompactBounds::Tuple { items });
+    }
     None
 }
 
@@ -1128,6 +1224,7 @@ fn role_constraints_share_input_vars(
 
 fn merge_role_constraint_component(
     constraints: impl Iterator<Item = CompactRoleConstraint>,
+    merge_constraints: &mut Vec<CompactMergeConstraint>,
 ) -> CompactRoleConstraint {
     let mut constraints = constraints.peekable();
     let mut merged = constraints
@@ -1138,7 +1235,7 @@ fn merge_role_constraint_component(
             .inputs
             .into_iter()
             .zip(constraint.inputs)
-            .map(|(lhs, rhs)| merge_role_arg(lhs, rhs))
+            .map(|(lhs, rhs)| merge_role_arg(lhs, rhs, merge_constraints))
             .collect();
         for associated in constraint.associated {
             if let Some(existing) = merged
@@ -1146,7 +1243,8 @@ fn merge_role_constraint_component(
                 .iter_mut()
                 .find(|existing| existing.name == associated.name)
             {
-                existing.value = merge_role_arg(existing.value.clone(), associated.value);
+                existing.value =
+                    merge_role_arg(existing.value.clone(), associated.value, merge_constraints);
             } else {
                 merged.associated.push(associated);
             }
@@ -1158,11 +1256,15 @@ fn merge_role_constraint_component(
     merged
 }
 
-fn merge_role_arg(lhs: CompactRoleArg, rhs: CompactRoleArg) -> CompactRoleArg {
-    CompactRoleArg {
-        lower: merge_compact_types(true, lhs.lower, rhs.lower),
-        upper: merge_compact_types(false, lhs.upper, rhs.upper),
-    }
+fn merge_role_arg(
+    lhs: CompactRoleArg,
+    rhs: CompactRoleArg,
+    merge_constraints: &mut Vec<CompactMergeConstraint>,
+) -> CompactRoleArg {
+    let (bounds, recorded) =
+        merge_compact_bounds_recording_merge_constraints(true, lhs.bounds, rhs.bounds);
+    merge_constraints.extend(recorded);
+    CompactRoleArg { bounds }
 }
 
 fn role_arg_concrete_type(
@@ -1170,21 +1272,45 @@ fn role_arg_concrete_type(
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> Option<CompactType> {
-    let lower = single_concrete_type(&arg.lower);
+    let lower_boundary = role_arg_boundary_type(arg, true);
+    let lower = lower_boundary.as_ref().and_then(single_concrete_type);
     if let Some(lower_ty) = &lower
         && role_arg_lower_allowed(arg, lower_ty, main_polarity)
-        && !compact_type_has_method_taint(&arg.lower, method_taint)
+        && !role_arg_boundary_has_method_taint(arg, true, method_taint)
     {
         return lower;
     }
-    let upper = single_concrete_type(&arg.upper);
+    let upper_boundary = role_arg_boundary_type(arg, false);
+    let upper = upper_boundary.as_ref().and_then(single_concrete_type);
     if upper.is_some()
         && role_arg_allowed_by_main_polarity(arg, false, main_polarity)
-        && !compact_type_has_method_taint(&arg.upper, method_taint)
+        && !role_arg_boundary_has_method_taint(arg, false, method_taint)
     {
         return upper;
     }
     None
+}
+
+fn role_arg_boundary_type(arg: &CompactRoleArg, positive: bool) -> Option<CompactType> {
+    match &arg.bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            Some(if positive { lower } else { upper }.clone())
+        }
+        bounds => compact_type_from_bounds(bounds),
+    }
+}
+
+fn role_arg_boundary_has_method_taint(
+    arg: &CompactRoleArg,
+    positive: bool,
+    method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+) -> bool {
+    match &arg.bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            compact_type_has_method_taint(if positive { lower } else { upper }, method_taint)
+        }
+        bounds => compact_bounds_has_method_taint(bounds, method_taint),
+    }
 }
 
 fn single_concrete_type(ty: &CompactType) -> Option<CompactType> {
@@ -1337,13 +1463,7 @@ fn role_arg_lower_allowed(
     target: &CompactType,
     main_polarity: &MainPolarity,
 ) -> bool {
-    let top_level_vars = arg
-        .lower
-        .vars
-        .iter()
-        .chain(arg.upper.vars.iter())
-        .map(|var| var.var)
-        .collect::<FxHashSet<_>>();
+    let top_level_vars = role_arg_top_level_vars(arg);
     top_level_vars.into_iter().all(|var| {
         match (
             main_polarity.positive.contains(&var),
@@ -1355,6 +1475,21 @@ fn role_arg_lower_allowed(
             (true, true) => false,
         }
     })
+}
+
+fn role_arg_top_level_vars(arg: &CompactRoleArg) -> FxHashSet<TypeVar> {
+    let mut vars = FxHashSet::default();
+    if let CompactBounds::Interval {
+        self_var,
+        lower,
+        upper,
+    } = &arg.bounds
+    {
+        vars.insert(*self_var);
+        vars.extend(lower.vars.iter().map(|var| var.var));
+        vars.extend(upper.vars.iter().map(|var| var.var));
+    }
+    vars
 }
 
 #[derive(Default)]
@@ -1490,8 +1625,7 @@ impl MainPolarity {
 
 fn role_arg_vars(arg: &CompactRoleArg) -> FxHashSet<TypeVar> {
     let mut vars = FxHashSet::default();
-    collect_type_vars(&arg.lower, &mut vars);
-    collect_type_vars(&arg.upper, &mut vars);
+    collect_bounds_vars(&arg.bounds, &mut vars);
     vars
 }
 

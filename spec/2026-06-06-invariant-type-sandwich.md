@@ -93,6 +93,17 @@ effect row item として扱う。したがって effect slot に `K(args)` と 
 最終 `Pos::Row` では同じ item に dedup される。裸の effect 変数だけがある場合は従来どおり
 裸変数として残し、不要に `Row([α])` へ包まない。
 
+### Role 引数
+
+compact 後の role 引数は専用の lower/upper ペアではなく、`CompactBounds` そのもので持つ。
+生の `RoleConstraintArg { lower, upper }` は lowering / annotation から来る制約入力の形であり、
+compact collect の入口で、同一具体構造なら lift 済み bounds、それ以外は中心変数つき interval へ変換する。
+
+role coalesce で同じ通常引数位置、または同じ関連型名の値が合流した場合は、constructor 引数や
+effect family 引数と同じ `CompactBounds` merge を使う。merge は見た目の正規化ではなく、
+同じ実引数が両方の demand を満たすための交差条件 `loA <: upB` / `loB <: upA` を生成する。
+この制約候補も merge constraint key に入れ、未適用の制約が出たときだけ再 collect する。
+
 ### 二次変数
 
 compact collect で型変数の bounds を展開したとき、その bound 自体が裸の別型変数だった場合、
