@@ -76,6 +76,27 @@ fn main() {
                 }
             }
         }
+        Some("check-poly-std-in") => {
+            let Some(path) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            let Some(module) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            if args.next().is_some() {
+                print_usage_and_exit(&program);
+            }
+            let Some(module) = module.to_str() else {
+                print_usage_and_exit(&program);
+            };
+            match yulang2::check_poly_from_entry_with_std_in_module(PathBuf::from(path), module) {
+                Ok(output) => print_check_poly_output(&output),
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
         Some("dump-poly-std-in") => {
             let Some(path) = args.next() else {
                 print_usage_and_exit(&program);
@@ -154,6 +175,7 @@ fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} dump-poly-raw <path>");
     eprintln!("       {program} dump-poly-std <path>");
     eprintln!("       {program} check-poly-std <path>");
+    eprintln!("       {program} check-poly-std-in <path> <module>");
     eprintln!("       {program} dump-poly-std-in <path> <module>");
     eprintln!("       {program} dump-poly-std-raw <path>");
     eprintln!("       {program} dump-poly-std-in-raw <path> <module>");

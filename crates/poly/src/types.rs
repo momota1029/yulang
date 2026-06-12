@@ -70,6 +70,7 @@ pub enum BuiltinType {
     Int,
     Float,
     Bool,
+    FileHandle,
     Unit,
     Never,
 }
@@ -80,6 +81,7 @@ impl BuiltinType {
             "int" => Some(Self::Int),
             "float" => Some(Self::Float),
             "bool" => Some(Self::Bool),
+            "file_handle" => Some(Self::FileHandle),
             "unit" => Some(Self::Unit),
             "never" => Some(Self::Never),
             _ => None,
@@ -91,6 +93,7 @@ impl BuiltinType {
             Self::Int => "int",
             Self::Float => "float",
             Self::Bool => "bool",
+            Self::FileHandle => "file_handle",
             Self::Unit => "unit",
             Self::Never => "never",
         }

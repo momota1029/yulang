@@ -164,7 +164,7 @@ fn module_summary(
     let def_set = defs.iter().copied().collect::<rustc_hash::FxHashSet<_>>();
     let mut typed_lets = 0;
     let mut missing_schemes = 0;
-    let mut missing_bodies = 0;
+    let mut bodyless_decls = 0;
     let mut dirty_stack_schemes = 0;
     for def in defs {
         match lowering.session.poly.defs.get(*def) {
@@ -180,12 +180,12 @@ fn module_summary(
                     missing_schemes += 1;
                 }
                 if body.is_none() {
-                    missing_bodies += 1;
+                    bodyless_decls += 1;
                 }
             }
             Some(Def::Mod { .. }) | Some(Def::Arg) | None => {
                 missing_schemes += 1;
-                missing_bodies += 1;
+                bodyless_decls += 1;
             }
         }
     }
@@ -202,7 +202,7 @@ fn module_summary(
     let _ = writeln!(out, "child modules: {child_module_count}");
     let _ = writeln!(out, "typed lets: {typed_lets}");
     let _ = writeln!(out, "missing schemes: {missing_schemes}");
-    let _ = writeln!(out, "missing bodies: {missing_bodies}");
+    let _ = writeln!(out, "bodyless declarations: {bodyless_decls}");
     let _ = writeln!(out, "dirty stack schemes: {dirty_stack_schemes}");
     let _ = writeln!(
         out,

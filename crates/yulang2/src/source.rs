@@ -56,7 +56,24 @@ pub fn check_poly_from_entry_with_std(
     let collect_start = Instant::now();
     let files = collect_local_sources_with_std(entry)?;
     let collect = collect_start.elapsed();
-    check_poly_from_sources(files, collect, total_start)
+    check_poly_from_sources(files, collect, total_start, None)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
+pub fn check_poly_from_entry_with_std_in_module(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_local_sources_with_std(entry)?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        Some(parse_dump_module_path(module)?),
+    )
 }
 
 /// entry file と近場の `lib/std.yu` を読み、指定 module 直下の値だけを poly dump する。
@@ -178,6 +195,9 @@ pub enum RouteError {
     DumpModuleNotFound {
         module: Path,
     },
+    CheckModuleNotFound {
+        module: Path,
+    },
     Lower(infer::LoadedFilesError),
 }
 
@@ -237,6 +257,11 @@ impl fmt::Display for RouteError {
             RouteError::DumpModuleNotFound { module } => write!(
                 f,
                 "dump module {} was not found",
+                format_module_path(module)
+            ),
+            RouteError::CheckModuleNotFound { module } => write!(
+                f,
+                "check module {} was not found",
                 format_module_path(module)
             ),
             RouteError::Lower(error) => write!(f, "{error}"),
@@ -374,6 +399,7 @@ fn check_poly_from_sources(
     files: Vec<CollectedSource>,
     collect: Duration,
     total_start: Instant,
+    module: Option<Path>,
 ) -> Result<CheckPolyOutput, RouteError> {
     let source_files = files
         .iter()
@@ -393,7 +419,21 @@ fn check_poly_from_sources(
         summarize: check.timing.summarize,
         total: total_start.elapsed(),
     };
-    let text = format_check_poly_output(loaded.len(), &check, &timing);
+    let text = if let Some(module_path) = module {
+        let Some(module_check) = check
+            .report
+            .modules
+            .iter()
+            .find(|item| item.path == module_path)
+        else {
+            return Err(RouteError::CheckModuleNotFound {
+                module: module_path,
+            });
+        };
+        format_check_poly_module_output(loaded.len(), &check, module_check, &timing)
+    } else {
+        format_check_poly_output(loaded.len(), &check, &timing)
+    };
     Ok(CheckPolyOutput {
         text,
         file_count: loaded.len(),
@@ -476,12 +516,7 @@ fn format_check_poly_output(
     let mut out = String::new();
     let _ = writeln!(out, "check-poly-std");
     let _ = writeln!(out, "files: {file_count}");
-    let _ = writeln!(out, "timing:");
-    let _ = writeln!(out, "  collect: {}", format_duration(timing.collect));
-    let _ = writeln!(out, "  load: {}", format_duration(timing.load));
-    let _ = writeln!(out, "  infer: {}", format_duration(timing.infer));
-    let _ = writeln!(out, "  summarize: {}", format_duration(timing.summarize));
-    let _ = writeln!(out, "  total: {}", format_duration(timing.total));
+    write_check_timing(&mut out, timing);
     let _ = writeln!(out, "summary:");
     let _ = writeln!(out, "  modules: {}", totals.modules);
     let _ = writeln!(out, "  module values: {}", totals.module_values);
@@ -490,7 +525,7 @@ fn format_check_poly_output(
     let _ = writeln!(out, "  let defs: {}", totals.let_defs);
     let _ = writeln!(out, "  typed lets: {}", totals.typed_lets);
     let _ = writeln!(out, "  missing schemes: {}", totals.missing_schemes);
-    let _ = writeln!(out, "  missing bodies: {}", totals.missing_bodies);
+    let _ = writeln!(out, "  bodyless declarations: {}", totals.bodyless_decls);
     let _ = writeln!(out, "  stack schemes: {}", totals.stack_schemes);
     let _ = writeln!(out, "  lowering errors: {}", totals.lowering_errors);
     if totals.unowned_errors > 0 {
@@ -501,12 +536,12 @@ fn format_check_poly_output(
     for module in &report.modules {
         let _ = writeln!(
             out,
-            "  {}: values {} typed {} missing_schemes {} missing_bodies {} stack_schemes {} errors {} types {} child_modules {}",
+            "  {}: values {} typed {} missing_schemes {} bodyless {} stack_schemes {} errors {} types {} child_modules {}",
             infer::check::format_path(&module.path),
             module.value_count,
             module.typed_lets,
             module.missing_schemes,
-            module.missing_bodies,
+            module.bodyless_decls,
             module.stack_schemes,
             module.local_errors,
             module.type_count,
@@ -521,23 +556,88 @@ fn format_check_poly_output(
         }
     }
 
-    if !report.missing_bodies.is_empty() {
-        let _ = writeln!(out, "missing bodies:");
-        for item in &report.missing_bodies {
+    if !report.bodyless_decls.is_empty() {
+        let _ = writeln!(out, "bodyless declarations:");
+        for item in &report.bodyless_decls {
             let _ = writeln!(out, "  d{}: {}", item.def.0, item.label);
         }
     }
 
-    if !report.diagnostics.is_empty() {
-        let _ = writeln!(out, "lowering errors:");
-        for diagnostic in &report.diagnostics {
-            let label = diagnostic.label.as_deref().unwrap_or("<unowned>");
-            let error = &check.lowering.errors[diagnostic.error_index];
-            let _ = writeln!(out, "  {label}: {}", format_body_lowering_error(error));
+    write_check_diagnostics(&mut out, check, &report.diagnostics);
+
+    out
+}
+
+fn format_check_poly_module_output(
+    file_count: usize,
+    check: &infer::check::PolyCheckOutput,
+    module: &infer::check::ModuleCheck,
+    timing: &CheckPolyTimings,
+) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "check-poly-std-in {}",
+        infer::check::format_path(&module.path)
+    );
+    let _ = writeln!(out, "files: {file_count}");
+    write_check_timing(&mut out, timing);
+    let _ = writeln!(out, "summary:");
+    let _ = writeln!(out, "  values: {}", module.value_count);
+    let _ = writeln!(out, "  typed lets: {}", module.typed_lets);
+    let _ = writeln!(out, "  missing schemes: {}", module.missing_schemes);
+    let _ = writeln!(out, "  bodyless declarations: {}", module.bodyless_decls);
+    let _ = writeln!(out, "  stack schemes: {}", module.stack_schemes);
+    let _ = writeln!(
+        out,
+        "  lowering errors: {} local / {} total",
+        module.local_errors, check.report.totals.lowering_errors
+    );
+    let _ = writeln!(out, "  types: {}", module.type_count);
+    let _ = writeln!(out, "  child modules: {}", module.child_module_count);
+
+    if !module.missing_scheme_defs.is_empty() {
+        let _ = writeln!(out, "missing schemes:");
+        for item in &module.missing_scheme_defs {
+            let _ = writeln!(out, "  d{}: {}", item.def.0, item.label);
         }
     }
 
+    if !module.bodyless_defs.is_empty() {
+        let _ = writeln!(out, "bodyless declarations:");
+        for item in &module.bodyless_defs {
+            let _ = writeln!(out, "  d{}: {}", item.def.0, item.label);
+        }
+    }
+
+    write_check_diagnostics(&mut out, check, &module.diagnostics);
+
     out
+}
+
+fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
+    let _ = writeln!(out, "timing:");
+    let _ = writeln!(out, "  collect: {}", format_duration(timing.collect));
+    let _ = writeln!(out, "  load: {}", format_duration(timing.load));
+    let _ = writeln!(out, "  infer: {}", format_duration(timing.infer));
+    let _ = writeln!(out, "  summarize: {}", format_duration(timing.summarize));
+    let _ = writeln!(out, "  total: {}", format_duration(timing.total));
+}
+
+fn write_check_diagnostics(
+    out: &mut String,
+    check: &infer::check::PolyCheckOutput,
+    diagnostics: &[infer::check::CheckDiagnostic],
+) {
+    if diagnostics.is_empty() {
+        return;
+    }
+    let _ = writeln!(out, "lowering errors:");
+    for diagnostic in diagnostics {
+        let label = diagnostic.label.as_deref().unwrap_or("<unowned>");
+        let error = &check.lowering.errors[diagnostic.error_index];
+        let _ = writeln!(out, "  {label}: {}", format_body_lowering_error(error));
+    }
 }
 
 fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> String {
@@ -842,6 +942,24 @@ mod tests {
     }
 
     #[test]
+    fn dump_poly_without_std_lowers_file_handle_builtin_type() {
+        let root = temp_root("dump-poly-file-handle");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act file:\n    my get: file_handle -> file_handle\n",
+        )
+        .unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_dump_contains(&output, "file_handle -> [file] file_handle");
+        assert_eq!(output.errors, Vec::<String>::new());
+    }
+
+    #[test]
     fn dump_poly_without_std_keeps_annotated_shallow_handler_type_clean() {
         let root = temp_root("dump-poly-clean-shallow-handler");
         let _ = fs::remove_dir_all(&root);
@@ -999,13 +1117,49 @@ mod tests {
         assert_check_contains(&output, "  lowering errors: 1\n");
         assert_check_contains(
             &output,
-            "std::foo: values 2 typed 1 missing_schemes 1 missing_bodies 1",
+            "std::foo: values 2 typed 1 missing_schemes 1 bodyless 1",
         );
         assert_check_contains(&output, "missing schemes:\n");
         assert_check_contains(&output, "std.foo.bad\n");
         assert_check_contains(&output, "lowering errors:\n");
         assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
         assert!(!output.text.contains(" = Let {"));
+    }
+
+    #[test]
+    fn check_poly_std_in_filters_to_requested_module() {
+        let root = temp_root("check-poly-std-in");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+        fs::write(
+            root.join("lib").join("std.yu"),
+            "mod prelude;\nmod foo;\nmod bar;\n",
+        )
+        .unwrap();
+        fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        fs::write(
+            root.join("lib").join("std").join("foo.yu"),
+            "my good x = x\nmy bad: bool = 1\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("lib").join("std").join("bar.yu"),
+            "my bad2: bool = 1\n",
+        )
+        .unwrap();
+
+        let output =
+            check_poly_from_entry_with_std_in_module(root.join("main.yu"), "std::foo").unwrap();
+
+        assert_eq!(output.file_count, 5);
+        assert_check_contains(&output, "check-poly-std-in std::foo\n");
+        assert_check_contains(&output, "  values: 2\n");
+        assert_check_contains(&output, "  missing schemes: 1\n");
+        assert_check_contains(&output, "  bodyless declarations: 1\n");
+        assert_check_contains(&output, "  lowering errors: 1 local / 2 total\n");
+        assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
+        assert!(!output.text.contains("std.bar.bad2"));
     }
 
     #[test]

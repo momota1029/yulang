@@ -31,7 +31,7 @@ pub struct PolyCheckReport {
     pub totals: CheckTotals,
     pub modules: Vec<ModuleCheck>,
     pub missing_schemes: Vec<CheckedDef>,
-    pub missing_bodies: Vec<CheckedDef>,
+    pub bodyless_decls: Vec<CheckedDef>,
     pub diagnostics: Vec<CheckDiagnostic>,
 }
 
@@ -44,7 +44,7 @@ pub struct CheckTotals {
     pub let_defs: usize,
     pub typed_lets: usize,
     pub missing_schemes: usize,
-    pub missing_bodies: usize,
+    pub bodyless_decls: usize,
     pub stack_schemes: usize,
     pub lowering_errors: usize,
     pub unowned_errors: usize,
@@ -58,9 +58,12 @@ pub struct ModuleCheck {
     pub child_module_count: usize,
     pub typed_lets: usize,
     pub missing_schemes: usize,
-    pub missing_bodies: usize,
+    pub bodyless_decls: usize,
     pub stack_schemes: usize,
     pub local_errors: usize,
+    pub missing_scheme_defs: Vec<CheckedDef>,
+    pub bodyless_defs: Vec<CheckedDef>,
+    pub diagnostics: Vec<CheckDiagnostic>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,7 +100,7 @@ pub fn summarize_lowering(lowering: &BodyLowering) -> PolyCheckReport {
         totals: CheckTotals::default(),
         modules: Vec::new(),
         missing_schemes: Vec::new(),
-        missing_bodies: Vec::new(),
+        bodyless_decls: Vec::new(),
         diagnostics: diagnostics(lowering),
     };
     report.totals.lowering_errors = lowering.errors.len();
@@ -109,11 +112,11 @@ pub fn summarize_lowering(lowering: &BodyLowering) -> PolyCheckReport {
 
     collect_let_def_totals(lowering, &mut report);
 
-    let error_counts = error_counts_by_def(&report.diagnostics);
+    let diagnostics_by_def = diagnostics_by_def(&report.diagnostics);
     collect_module_checks(
         lowering,
         lowering.modules.root_id(),
-        &error_counts,
+        &diagnostics_by_def,
         &mut report,
     );
     report.totals.modules = report.modules.len();
@@ -160,18 +163,18 @@ fn collect_let_def_totals(lowering: &BodyLowering, report: &mut PolyCheckReport)
         }
 
         if body.is_none() {
-            report.totals.missing_bodies += 1;
-            report.missing_bodies.push(checked_def(lowering, def));
+            report.totals.bodyless_decls += 1;
+            report.bodyless_decls.push(checked_def(lowering, def));
         }
     }
     sort_checked_defs(&mut report.missing_schemes);
-    sort_checked_defs(&mut report.missing_bodies);
+    sort_checked_defs(&mut report.bodyless_decls);
 }
 
 fn collect_module_checks(
     lowering: &BodyLowering,
     module: ModuleId,
-    error_counts: &FxHashMap<DefId, usize>,
+    diagnostics_by_def: &FxHashMap<DefId, Vec<CheckDiagnostic>>,
     report: &mut PolyCheckReport,
 ) {
     let values = lowering.modules.module_value_decls(module);
@@ -185,14 +188,19 @@ fn collect_module_checks(
         child_module_count: children.len(),
         typed_lets: 0,
         missing_schemes: 0,
-        missing_bodies: 0,
+        bodyless_decls: 0,
         stack_schemes: 0,
         local_errors: 0,
+        missing_scheme_defs: Vec::new(),
+        bodyless_defs: Vec::new(),
+        diagnostics: Vec::new(),
     };
 
     for value in values {
-        inspect_module_value(lowering, value.def, error_counts, &mut check);
+        inspect_module_value(lowering, value.def, diagnostics_by_def, &mut check);
     }
+    sort_checked_defs(&mut check.missing_scheme_defs);
+    sort_checked_defs(&mut check.bodyless_defs);
 
     report.totals.module_values += check.value_count;
     report.totals.type_decls += check.type_count;
@@ -200,17 +208,20 @@ fn collect_module_checks(
     report.modules.push(check);
 
     for child in children {
-        collect_module_checks(lowering, child.module, error_counts, report);
+        collect_module_checks(lowering, child.module, diagnostics_by_def, report);
     }
 }
 
 fn inspect_module_value(
     lowering: &BodyLowering,
     def: DefId,
-    error_counts: &FxHashMap<DefId, usize>,
+    diagnostics_by_def: &FxHashMap<DefId, Vec<CheckDiagnostic>>,
     check: &mut ModuleCheck,
 ) {
-    check.local_errors += error_counts.get(&def).copied().unwrap_or(0);
+    if let Some(diagnostics) = diagnostics_by_def.get(&def) {
+        check.local_errors += diagnostics.len();
+        check.diagnostics.extend(diagnostics.iter().cloned());
+    }
     match lowering.session.poly.defs.get(def) {
         Some(Def::Let { scheme, body, .. }) => {
             if let Some(scheme) = scheme {
@@ -220,14 +231,18 @@ fn inspect_module_value(
                 }
             } else {
                 check.missing_schemes += 1;
+                check.missing_scheme_defs.push(checked_def(lowering, def));
             }
             if body.is_none() {
-                check.missing_bodies += 1;
+                check.bodyless_decls += 1;
+                check.bodyless_defs.push(checked_def(lowering, def));
             }
         }
         Some(Def::Mod { .. }) | Some(Def::Arg) | None => {
             check.missing_schemes += 1;
-            check.missing_bodies += 1;
+            check.bodyless_decls += 1;
+            check.missing_scheme_defs.push(checked_def(lowering, def));
+            check.bodyless_defs.push(checked_def(lowering, def));
         }
     }
 }
@@ -248,14 +263,17 @@ fn diagnostics(lowering: &BodyLowering) -> Vec<CheckDiagnostic> {
         .collect()
 }
 
-fn error_counts_by_def(diagnostics: &[CheckDiagnostic]) -> FxHashMap<DefId, usize> {
-    let mut counts = FxHashMap::default();
+fn diagnostics_by_def(diagnostics: &[CheckDiagnostic]) -> FxHashMap<DefId, Vec<CheckDiagnostic>> {
+    let mut by_def = FxHashMap::default();
     for diagnostic in diagnostics {
         if let Some(def) = diagnostic.def {
-            *counts.entry(def).or_insert(0) += 1;
+            by_def
+                .entry(def)
+                .or_insert_with(Vec::new)
+                .push(diagnostic.clone());
         }
     }
-    counts
+    by_def
 }
 
 fn checked_def(lowering: &BodyLowering, def: DefId) -> CheckedDef {

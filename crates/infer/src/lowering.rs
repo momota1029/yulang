@@ -7827,22 +7827,28 @@ impl<'a> SignatureLowerer<'a> {
     fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
         match builtin {
             BuiltinType::Never => self.alloc_pos(Pos::Bot),
-            BuiltinType::Int | BuiltinType::Float | BuiltinType::Bool | BuiltinType::Unit => self
-                .alloc_pos(Pos::Con(
-                    vec![builtin.surface_name().to_string()],
-                    Vec::new(),
-                )),
+            BuiltinType::Int
+            | BuiltinType::Float
+            | BuiltinType::Bool
+            | BuiltinType::FileHandle
+            | BuiltinType::Unit => self.alloc_pos(Pos::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            )),
         }
     }
 
     fn lower_builtin_neg(&mut self, builtin: BuiltinType) -> NegId {
         match builtin {
             BuiltinType::Never => self.alloc_neg(Neg::Bot),
-            BuiltinType::Int | BuiltinType::Float | BuiltinType::Bool | BuiltinType::Unit => self
-                .alloc_neg(Neg::Con(
-                    vec![builtin.surface_name().to_string()],
-                    Vec::new(),
-                )),
+            BuiltinType::Int
+            | BuiltinType::Float
+            | BuiltinType::Bool
+            | BuiltinType::FileHandle
+            | BuiltinType::Unit => self.alloc_neg(Neg::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            )),
         }
     }
 
