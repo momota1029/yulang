@@ -31,12 +31,22 @@ pub fn dump_arena_with_labels(arena: &Arena, labels: &DumpLabels) -> String {
     Dumper::new(arena, labels).dump()
 }
 
+/// 指定した root def だけを compact dump として返す。
+pub fn dump_defs_with_labels(arena: &Arena, labels: &DumpLabels, roots: &[DefId]) -> String {
+    Dumper::new_with_roots(arena, labels, roots.to_vec(), false).dump()
+}
+
 /// 呼び出し側が知っている source 名を併記しながら raw debug dump を返す。
 ///
 /// compact dump は surface に近い読みやすさを優先する。こちらは scheme の型 graph と
 /// 式 graph を ID のまま出し、stack weight や極性付き node がどこに残ったかを見るための入口。
 pub fn dump_arena_raw_with_labels(arena: &Arena, labels: &DumpLabels) -> String {
     RawDumper::new(arena, labels).dump()
+}
+
+/// 指定した root def だけを raw debug dump として返す。
+pub fn dump_defs_raw_with_labels(arena: &Arena, labels: &DumpLabels, roots: &[DefId]) -> String {
+    RawDumper::new_with_roots(arena, labels, roots.to_vec(), false).dump()
 }
 
 /// compact dump にだけ使う表示名 table。
@@ -69,6 +79,8 @@ struct Dumper<'a> {
     arena: &'a Arena,
     labels: &'a DumpLabels,
     out: String,
+    roots: Vec<DefId>,
+    include_detached: bool,
     visited_defs: FxHashSet<DefId>,
 }
 
@@ -76,16 +88,31 @@ struct RawDumper<'a> {
     arena: &'a Arena,
     labels: &'a DumpLabels,
     out: String,
+    roots: Vec<DefId>,
+    include_all_defs: bool,
+    extra_defs: std::collections::BTreeSet<u32>,
     exprs: std::collections::BTreeSet<u32>,
     pats: std::collections::BTreeSet<u32>,
 }
 
 impl<'a> RawDumper<'a> {
     fn new(arena: &'a Arena, labels: &'a DumpLabels) -> Self {
+        Self::new_with_roots(arena, labels, arena.roots.clone(), true)
+    }
+
+    fn new_with_roots(
+        arena: &'a Arena,
+        labels: &'a DumpLabels,
+        roots: Vec<DefId>,
+        include_all_defs: bool,
+    ) -> Self {
         Self {
             arena,
             labels,
             out: String::new(),
+            roots,
+            include_all_defs,
+            extra_defs: std::collections::BTreeSet::new(),
             exprs: std::collections::BTreeSet::new(),
             pats: std::collections::BTreeSet::new(),
         }
@@ -93,7 +120,6 @@ impl<'a> RawDumper<'a> {
 
     fn dump(mut self) -> String {
         let roots = self
-            .arena
             .roots
             .iter()
             .map(|id| self.def_id(*id))
@@ -101,10 +127,23 @@ impl<'a> RawDumper<'a> {
             .join(", ");
         let _ = writeln!(self.out, "raw roots [{roots}]");
         let _ = writeln!(self.out, "defs {{");
-        let mut defs = self.arena.defs.iter().map(|(id, _)| id).collect::<Vec<_>>();
+        let mut defs = if self.include_all_defs {
+            self.arena.defs.iter().map(|(id, _)| id).collect::<Vec<_>>()
+        } else {
+            self.roots.clone()
+        };
         defs.sort_by_key(|id| id.0);
         for id in defs {
             self.write_raw_def(id);
+        }
+        if !self.include_all_defs {
+            let root_set = self.roots.iter().map(|id| id.0).collect::<FxHashSet<_>>();
+            let extra_defs = self.extra_defs.iter().copied().collect::<Vec<_>>();
+            for id in extra_defs {
+                if !root_set.contains(&id) {
+                    self.write_raw_def(DefId(id));
+                }
+            }
         }
         let _ = writeln!(self.out, "}}");
         self.write_raw_exprs();
@@ -280,7 +319,7 @@ impl<'a> RawDumper<'a> {
             return;
         }
         match self.arena.pat(id) {
-            Pat::Wild | Pat::Lit(_) | Pat::Ref(_) | Pat::Var(_) => {}
+            Pat::Wild | Pat::Lit(_) | Pat::Ref(_) => {}
             Pat::Tuple(items) => {
                 for item in items {
                     self.mark_pat(*item);
@@ -315,7 +354,13 @@ impl<'a> RawDumper<'a> {
                 self.mark_pat(*lhs);
                 self.mark_pat(*rhs);
             }
-            Pat::As(pat, _) => self.mark_pat(*pat),
+            Pat::Var(def) => {
+                self.extra_defs.insert(def.0);
+            }
+            Pat::As(pat, def) => {
+                self.extra_defs.insert(def.0);
+                self.mark_pat(*pat);
+            }
         }
     }
 
@@ -541,17 +586,27 @@ impl<'a> RawDumper<'a> {
 
 impl<'a> Dumper<'a> {
     fn new(arena: &'a Arena, labels: &'a DumpLabels) -> Self {
+        Self::new_with_roots(arena, labels, arena.roots.clone(), true)
+    }
+
+    fn new_with_roots(
+        arena: &'a Arena,
+        labels: &'a DumpLabels,
+        roots: Vec<DefId>,
+        include_detached: bool,
+    ) -> Self {
         Self {
             arena,
             labels,
             out: String::new(),
+            roots,
+            include_detached,
             visited_defs: FxHashSet::default(),
         }
     }
 
     fn dump(mut self) -> String {
         let roots = self
-            .arena
             .roots
             .iter()
             .map(|id| self.def_id(*id))
@@ -563,19 +618,22 @@ impl<'a> Dumper<'a> {
             let _ = writeln!(self.out, "roots {roots}");
         }
 
-        for root in &self.arena.roots {
-            self.write_def(*root, 0);
+        let roots_to_write = self.roots.clone();
+        for root in roots_to_write {
+            self.write_def(root, 0);
         }
 
-        let detached = self.detached_defs();
-        if !detached.is_empty() {
-            let _ = writeln!(self.out, "detached {{");
-            for id in detached {
-                if !self.visited_defs.contains(&id) {
-                    self.write_def(id, 1);
+        if self.include_detached {
+            let detached = self.detached_defs();
+            if !detached.is_empty() {
+                let _ = writeln!(self.out, "detached {{");
+                for id in detached {
+                    if !self.visited_defs.contains(&id) {
+                        self.write_def(id, 1);
+                    }
                 }
+                let _ = writeln!(self.out, "}}");
             }
-            let _ = writeln!(self.out, "}}");
         }
 
         self.out

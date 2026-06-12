@@ -7,5 +7,7 @@ pub mod source;
 pub use source::{
     CollectedSource, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT, RouteError, collect_local_sources,
     collect_local_sources_with_std, dump_poly_from_entry, dump_poly_from_entry_with_std,
-    dump_poly_raw_from_entry, dump_poly_raw_from_entry_with_std, find_nearby_std_root,
+    dump_poly_from_entry_with_std_in_module, dump_poly_raw_from_entry,
+    dump_poly_raw_from_entry_with_std, dump_poly_raw_from_entry_with_std_in_module,
+    find_nearby_std_root,
 };

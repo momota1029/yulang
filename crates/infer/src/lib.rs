@@ -1254,6 +1254,21 @@ impl ModuleTable {
             .flat_map(|name| self.value_decls(module, name))
             .collect()
     }
+    pub fn module_value_decls(&self, module: ModuleId) -> Vec<ModuleValueDecl> {
+        self.nodes[module.0]
+            .decls
+            .iter()
+            .filter_map(|decl| match decl.kind {
+                ModuleDeclKind::Value { def } => Some(ModuleValueDecl {
+                    name: decl.name.clone(),
+                    vis: decl.vis,
+                    order: decl.order,
+                    def,
+                }),
+                ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
+            })
+            .collect()
+    }
     fn module_type_imports(&self, module: ModuleId) -> Vec<ModuleTypeDecl> {
         self.nodes[module.0]
             .types
@@ -1261,11 +1276,44 @@ impl ModuleTable {
             .flat_map(|name| self.type_decls(module, name))
             .collect()
     }
+    pub fn module_type_decls(&self, module: ModuleId) -> Vec<ModuleTypeDecl> {
+        self.nodes[module.0]
+            .decls
+            .iter()
+            .filter_map(|decl| match decl.kind {
+                ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
+                    name: decl.name.clone(),
+                    vis: decl.vis,
+                    order: decl.order,
+                    module,
+                    id,
+                    kind,
+                }),
+                ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
+            })
+            .collect()
+    }
     fn module_module_imports(&self, module: ModuleId) -> Vec<ModuleChildDecl> {
         self.nodes[module.0]
             .modules
             .keys()
             .flat_map(|name| self.module_decls(module, name))
+            .collect()
+    }
+    pub fn module_child_decls(&self, module: ModuleId) -> Vec<ModuleChildDecl> {
+        self.nodes[module.0]
+            .decls
+            .iter()
+            .filter_map(|decl| match decl.kind {
+                ModuleDeclKind::Module { module, def } => Some(ModuleChildDecl {
+                    name: decl.name.clone(),
+                    vis: decl.vis,
+                    order: decl.order,
+                    module,
+                    def,
+                }),
+                ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
+            })
             .collect()
     }
     pub fn value_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleValueDecl> {

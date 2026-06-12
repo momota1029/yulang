@@ -46,6 +46,34 @@ pub fn dump_poly_raw_from_entry_with_std(
     dump_poly_from_sources(collect_local_sources_with_std(entry)?, DumpPolyKind::Raw)
 }
 
+/// entry file と近場の `lib/std.yu` を読み、指定 module 直下の値だけを poly dump する。
+pub fn dump_poly_from_entry_with_std_in_module(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std(entry)?,
+        DumpPolyKind::Module {
+            module: parse_dump_module_path(module)?,
+            raw: false,
+        },
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、指定 module 直下の値だけを raw poly dump する。
+pub fn dump_poly_raw_from_entry_with_std_in_module(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std(entry)?,
+        DumpPolyKind::Module {
+            module: parse_dump_module_path(module)?,
+            raw: true,
+        },
+    )
+}
+
 /// `mod foo;` / `use mod foo::*` だけを辿って raw source file を集める。
 pub fn collect_local_sources(
     entry: impl AsRef<FsPath>,
@@ -94,10 +122,11 @@ pub struct CollectedSource {
     pub source: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DumpPolyKind {
     Compact,
     Raw,
+    Module { module: Path, raw: bool },
 }
 
 #[derive(Debug)]
@@ -123,6 +152,12 @@ pub enum RouteError {
         module: Path,
         first: PathBuf,
         second: PathBuf,
+    },
+    InvalidDumpModulePath {
+        module: String,
+    },
+    DumpModuleNotFound {
+        module: Path,
     },
     Lower(infer::LoadedFilesError),
 }
@@ -176,6 +211,14 @@ impl fmt::Display for RouteError {
                 format_module_path(module),
                 first.display(),
                 second.display()
+            ),
+            RouteError::InvalidDumpModulePath { module } => {
+                write!(f, "dump module path `{module}` is invalid")
+            }
+            RouteError::DumpModuleNotFound { module } => write!(
+                f,
+                "dump module {} was not found",
+                format_module_path(module)
             ),
             RouteError::Lower(error) => write!(f, "{error}"),
         }
@@ -312,22 +355,58 @@ fn dump_poly_from_sources(
         })
         .collect::<Vec<_>>();
     let loaded = sources::load(source_files);
-    let dump = match kind {
-        DumpPolyKind::Compact => infer::dump::dump_loaded_files(&loaded),
-        DumpPolyKind::Raw => infer::dump::dump_loaded_files_raw(&loaded),
+    match kind {
+        DumpPolyKind::Compact => {
+            let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
+            let errors = dump
+                .lowering
+                .errors
+                .iter()
+                .map(format_body_lowering_error)
+                .collect();
+            Ok(DumpPolyOutput {
+                text: dump.text,
+                file_count: loaded.len(),
+                errors,
+            })
+        }
+        DumpPolyKind::Raw => {
+            let dump = infer::dump::dump_loaded_files_raw(&loaded).map_err(RouteError::Lower)?;
+            let errors = dump
+                .lowering
+                .errors
+                .iter()
+                .map(format_body_lowering_error)
+                .collect();
+            Ok(DumpPolyOutput {
+                text: dump.text,
+                file_count: loaded.len(),
+                errors,
+            })
+        }
+        DumpPolyKind::Module { module, raw } => {
+            let Some(dump) = infer::dump::dump_loaded_files_in_module(&loaded, &module, raw)
+                .map_err(RouteError::Lower)?
+            else {
+                return Err(RouteError::DumpModuleNotFound { module });
+            };
+            let local_defs = dump.defs.iter().copied().collect::<HashSet<_>>();
+            let errors = dump
+                .lowering
+                .errors
+                .iter()
+                .filter(|error| {
+                    infer::dump::body_error_def(error).is_some_and(|def| local_defs.contains(&def))
+                })
+                .map(format_body_lowering_error)
+                .collect();
+            Ok(DumpPolyOutput {
+                text: dump.text,
+                file_count: loaded.len(),
+                errors,
+            })
+        }
     }
-    .map_err(RouteError::Lower)?;
-    let errors = dump
-        .lowering
-        .errors
-        .iter()
-        .map(format_body_lowering_error)
-        .collect();
-    Ok(DumpPolyOutput {
-        text: dump.text,
-        file_count: loaded.len(),
-        errors,
-    })
 }
 
 fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> String {
@@ -342,6 +421,21 @@ fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> Str
 
 fn resolve_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
     find_nearby_std_root(base).or_else(|| env_std_root().filter(|root| is_std_root(root)))
+}
+
+fn parse_dump_module_path(module: &str) -> Result<Path, RouteError> {
+    let separator = if module.contains("::") { "::" } else { "." };
+    let raw_segments = module.split(separator).map(str::trim).collect::<Vec<_>>();
+    if raw_segments.is_empty() || raw_segments.iter().any(|segment| segment.is_empty()) {
+        return Err(RouteError::InvalidDumpModulePath {
+            module: module.to_string(),
+        });
+    }
+    let segments = raw_segments
+        .into_iter()
+        .map(|segment| Name(segment.to_string()))
+        .collect::<Vec<_>>();
+    Ok(Path { segments })
 }
 
 fn env_std_root() -> Option<PathBuf> {
@@ -702,6 +796,68 @@ mod tests {
         assert_eq!(output.file_count, 3);
         assert!(output.text.contains("my d"));
         assert!(output.text.contains(": int = "));
+    }
+
+    #[test]
+    fn dump_poly_std_in_filters_to_requested_module_and_local_errors() {
+        let root = temp_root("dump-poly-std-in");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+        fs::write(
+            root.join("lib").join("std.yu"),
+            "mod prelude;\nmod foo;\nmod bar;\n",
+        )
+        .unwrap();
+        fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        fs::write(
+            root.join("lib").join("std").join("foo.yu"),
+            "my good x = x\nmy bad: bool = 1\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("lib").join("std").join("bar.yu"),
+            "my bad2: bool = 1\n",
+        )
+        .unwrap();
+
+        let output =
+            dump_poly_from_entry_with_std_in_module(root.join("main.yu"), "std::foo").unwrap();
+
+        assert_eq!(output.file_count, 5);
+        assert_dump_contains(&output, "module std::foo\n");
+        assert_dump_contains(&output, "values: 2\n");
+        assert_dump_contains(&output, "lowering errors: 1 local / 2 total\n");
+        assert_dump_contains(&output, "\"std.foo.good\"");
+        assert_dump_contains(&output, "\"std.foo.bad\"");
+        assert!(!output.text.contains("\"std.bar.bad2\""));
+        assert_eq!(
+            output.errors,
+            vec!["type mismatch: int is not bool".to_string()]
+        );
+    }
+
+    #[test]
+    fn dump_poly_std_in_raw_filters_to_requested_module() {
+        let root = temp_root("dump-poly-std-in-raw");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+        fs::write(root.join("lib").join("std.yu"), "mod prelude;\nmod foo;\n").unwrap();
+        fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+        fs::write(root.join("lib").join("std").join("foo.yu"), "my id x = x\n").unwrap();
+
+        let output =
+            dump_poly_raw_from_entry_with_std_in_module(root.join("main.yu"), "std.foo").unwrap();
+
+        assert_eq!(output.file_count, 4);
+        assert_eq!(output.errors, Vec::<String>::new());
+        assert_dump_contains(&output, "module std::foo\n");
+        assert_dump_contains(&output, "raw roots [");
+        assert_dump_contains(&output, "\"std.foo.id\"");
+        assert_dump_contains(&output, "scheme {");
+        assert_dump_contains(&output, "exprs {");
+        assert!(!output.text.contains("main"));
     }
 
     #[test]
