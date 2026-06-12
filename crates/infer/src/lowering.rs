@@ -1283,7 +1283,14 @@ impl BodyLowerer {
         let mut context =
             match self.register_role_impl_candidate(node, impl_decl.def, module, impl_decl.order) {
                 Ok(context) => context,
-                Err(_) => return,
+                Err(error) => {
+                    self.errors.push(BodyLoweringError::Expr {
+                        def: impl_decl.def,
+                        name: Name("impl".into()),
+                        error,
+                    });
+                    return;
+                }
             };
 
         let Some(body) = crate::role_impl_body(node) else {
@@ -4410,16 +4417,18 @@ impl<'a> ExprLowerer<'a> {
             var_reference_name(&source).ok_or(LoweringError::MissingLocalBindingName)?;
         let local_act = self.next_synthetic_var_act(&reference_name)?;
         let body = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
+        let boundary = self.local_generalize_boundary;
         let init_value = self.fresh_type_var();
         let init = self.lower_local_binding_body(node, &body, None)?;
         self.subtype_var_to_var(init.value, init_value);
 
-        let init_pat = self.bind_let_local(
+        let (init_pat, init_def) = self.bind_let_local_with_def(
             init_name.clone(),
             init_value,
             LocalCallReturnEffect::Annotated,
             Some(init.expr),
         );
+        self.generalize_local_binding(init_def, init_value, boundary);
         let init_stmt = LoweredLocalStmt {
             stmt: Stmt::Let(Vis::My, init_pat, init.expr),
             effect: init.effect,
@@ -4429,12 +4438,13 @@ impl<'a> ExprLowerer<'a> {
         let reference_value = self.fresh_type_var();
         self.subtype_var_to_var(reference.value, reference_value);
         self.constrain_local_ref_value(reference_value, init_value);
-        let reference_pat = self.bind_let_local(
+        let (reference_pat, reference_def) = self.bind_let_local_with_def(
             reference_name.clone(),
             reference_value,
             LocalCallReturnEffect::Annotated,
             Some(reference.expr),
         );
+        self.generalize_local_binding(reference_def, reference_value, boundary);
         let reference_stmt = LoweredLocalStmt {
             stmt: Stmt::Let(Vis::My, reference_pat, reference.expr),
             effect: reference.effect,
@@ -4612,17 +4622,6 @@ impl<'a> ExprLowerer<'a> {
             reference,
             Neg::Con(crate::std_paths::control_var_ref_type(), args),
         );
-    }
-
-    fn bind_let_local(
-        &mut self,
-        name: Name,
-        value: TypeVar,
-        call_return_effect: LocalCallReturnEffect,
-        body: Option<poly::expr::ExprId>,
-    ) -> PatId {
-        self.bind_let_local_with_def(name, value, call_return_effect, body)
-            .0
     }
 
     fn bind_let_local_with_def(
@@ -9034,6 +9033,28 @@ mod tests {
     }
 
     #[test]
+    fn unresolved_role_impl_head_reports_lowering_error() {
+        let root =
+            parse("role Box 'a:\n  our x.get: 'a\nimpl Missing: Box {\n  our x.get = x\n}\n");
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    error:
+                        LoweringError::AnnotationBuild {
+                            error: AnnBuildError::UnresolvedTypeName { path },
+                        },
+                    ..
+                } if path == &vec![Name("Missing".into())]
+            )
+        }));
+    }
+
+    #[test]
     fn role_impl_member_residual_role_is_collected_as_impl_prerequisite() {
         let root = parse(
             "role Eq 'a:\n  our x.eq: unit\nrole Box 'a:\n  our x.get: unit\nimpl 'a: Box {\n  our x.get = x.eq\n}\n",
@@ -9726,6 +9747,7 @@ mod tests {
             output.session.poly.expr(*init_expr),
             Expr::Lit(Lit::Int(1))
         ));
+        let _ = def_scheme(&output, init_def);
 
         let (second_stmts, wrapped) = match output.session.poly.expr(after_init) {
             Expr::Block(stmts, Some(tail)) => (stmts, *tail),
@@ -9738,6 +9760,11 @@ mod tests {
             output.session.poly.pat(*reference_pat),
             Pat::Var(_)
         ));
+        let reference_def = match output.session.poly.pat(*reference_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected reference binding pattern"),
+        };
+        let _ = def_scheme(&output, reference_def);
         let (var_ref_callee, _) = match output.session.poly.expr(*reference_expr) {
             Expr::App(callee, _unit) => (*callee, *_unit),
             _ => panic!("expected var_ref call"),

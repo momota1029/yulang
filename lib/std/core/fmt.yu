@@ -1,4 +1,5 @@
 use std::core::ops::*
+use std::num::frac::frac
 
 pub role Display 'a:
     pub a.show: str

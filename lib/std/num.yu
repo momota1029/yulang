@@ -1,5 +1,7 @@
 pub mod frac;
 
+use std::num::frac::frac
+
 pub role Add 'a:
     pub a.add: 'a -> 'a
 

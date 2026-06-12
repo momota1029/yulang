@@ -1,3 +1,5 @@
+use std::num::frac::frac
+
 pub role Eq 'a:
     pub a.eq: 'a -> bool
 
