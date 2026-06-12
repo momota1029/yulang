@@ -14,6 +14,7 @@ pub mod annotation;
 pub mod arena;
 mod builtin_ops;
 pub mod casts;
+pub mod check;
 pub mod compact;
 pub mod constraints;
 pub mod dump;
