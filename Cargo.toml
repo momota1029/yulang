@@ -26,6 +26,11 @@ members = [
   "crates/sources",
 ]
 
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
+
 [profile.test.package.yulang-infer]
 opt-level = 1
 
